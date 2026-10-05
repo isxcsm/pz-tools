@@ -187,32 +187,50 @@ public sealed class AppSettingsService
         {
             var path = Path.Combine(directory, "default.toml");
             if (!File.Exists(path)) continue;
-            try
+            Check(path, () =>
             {
                 _ = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(path))
                     ?? throw new InvalidDataException("The file is empty.");
                 _ = ComponentConfiguration.Load(RuntimeRoot, Path.GetFileName(directory),
                     appSettingsPath: SettingsPath, configurationRoot: ConfigurationRoot);
-            }
-            catch (Exception exception) when (exception is TomlException or InvalidDataException)
-            {
-                throw new InvalidDataException($"settings-invalid: {path}", exception);
-            }
+            });
         }
+        // The app's own file: its [logs] as Load reads them, then the rest, before Load mixes it with settings.toml.
+        Check(LoggingConfigurationPath, () =>
+        {
+            if (File.Exists(LoggingConfigurationPath))
+            {
+                var logging = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(LoggingConfigurationPath))
+                    ?? throw new InvalidDataException("The log settings file is empty.");
+                ValidateLoggingDocument(logging);
+                _ = GetRecordMinimumLevel(logging, default);
+                _ = GetLogMaxEntries(logging, default);
+            }
+            _ = AppRuntimeOptions.Read(ComponentConfiguration.Load(RuntimeRoot, "app", configurationRoot: ConfigurationRoot));
+        });
         var settings = Load();
-        _ = AppRuntimeOptions.Read(ComponentConfiguration.Load(RuntimeRoot, "app", configurationRoot: ConfigurationRoot));
         var backupPath = ComponentRuntimePaths.GetIdentityDefaultPath(
             settings.BackupRoot, "backup-worker", ConfigurationRoot);
         if (File.Exists(backupPath))
         {
-            _ = BackupConfiguration.Parse(
+            Check(backupPath, () => _ = BackupConfiguration.Parse(
                 File.ReadAllText(backupPath), settings.BackupRoot, backupPath,
                 new BackupOptionOverrides
                 {
                     Sources = [new BackupSourceOptions("validation",
                         Path.Combine(Path.GetDirectoryName(settings.BackupRoot)!,
                             "pztools-validation-source"))],
-                });
+                }));
+        }
+
+        // A value found wrong in one file names that file, so the player is told which one to fix.
+        static void Check(string path, Action read)
+        {
+            try { read(); }
+            catch (Exception exception) when (exception is TomlException or InvalidDataException or BackupConfigurationException)
+            {
+                throw new InvalidDataException($"settings-invalid: {path}", exception);
+            }
         }
     }
 

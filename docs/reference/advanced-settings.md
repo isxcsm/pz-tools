@@ -36,9 +36,10 @@ Game-extension choices are not in this folder; see [files and folders](files-and
 
 PZ Tools first saves any edit still pending on the Settings page. It refuses with "Try
 again when the current work is done." while a backup, restore or other operation runs.
-It then checks every file: section names, key names, value types and ranges. If any file
-fails, it shows "Could not apply the settings. Check what you entered." and keeps running
-with the old values. The message does not name the file, so check the last one you edited.
+It then checks every file: section names, key names, value types and ranges. If a file in
+this folder fails, it names it, for example "Could not apply the settings. Check
+backup-worker\default.toml.", and keeps running with the old values. A mistake it cannot
+pin on one file shows "Could not apply the settings. Check what you entered."
 If everything passes, the app restarts and every part reads its file again.
 
 The app takes the values in its own file only when it starts. It does read the `app` and

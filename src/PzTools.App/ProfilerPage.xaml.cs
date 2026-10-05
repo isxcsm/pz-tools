@@ -289,11 +289,13 @@ public sealed partial class ProfilerPage : UserControl
     private static bool CanSaveLastMinute(ProfileRolling rolling) => rolling.On && !rolling.Busy;
 
     // What the game is doing with the last minutes: the mode it keeps them in, or why there is nothing to save yet.
+    // How many minutes, as set (1 to 10): the ones asked for until the game keeps them, then the ones it keeps.
     private string RollingState(ProfileRolling rolling) =>
         !rolling.Wanted ? Localizer.Get("ProfilerSettings.Description")
         : rolling.Error is { } error && !rolling.On ? Localizer.Get(ProfileRecordingService.ErrorKey(error))
-        : !rolling.On ? Localizer.Get(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting")
-        : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
+        : !rolling.On ? Localizer.Format(games == 0 ? "ProfileRollingWaiting" : "ProfileRollingStarting", rolling.Minutes)
+        : Localizer.Format("ProfileRollingTip", Localizer.Get(rolling.OnDetailed ? "ProfileModeDetailed" : "ProfileModeGeneral"),
+            Math.Max(1, rolling.OnMinutes));
 
     // A recording started from a hotkey takes the mode set here.
     private bool RecordDetailed => service?.PreferDetailed ?? false;

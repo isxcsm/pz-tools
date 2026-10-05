@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>当前存档</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>存档文件夹</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>正在复制当前存档</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>游玩时无法导出。请退出游戏。</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>游玩时无法导出。请返回主菜单。</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>游玩期间无法恢复备份。请退出该存档后重试。</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>请在列表中选择要恢复的备份</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>游玩期间无法删除存档。请退出该存档后重试。</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>游玩时无法恢复。请退出游戏。</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>游玩时无法恢复。请返回主菜单。</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>暂无备份</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>立即备份</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>恢复</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>备份间隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自动备份的间隔（1–60 分钟）。更改后重新开始计时。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自动备份保留数量</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>自动备份只保留最近的这么多个，更早的会被删除（1–100 个）。手动备份不计入，也不会被删除。</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>自动备份只保留最近的这么多个，更早的会被删除（1–100 个）。手动备份不计入，只会随存档一起删除。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡时备份</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>开启后，在角色死亡后立即备份一次。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>存档一直在变化，未能备份。请稍后重试。</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>已删除存档及其备份。</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>存档已删除，但备份仍在。</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>已删除。</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>存档已变化。请退出游戏后重试。</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>存档已变化。请返回主菜单后重试。</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>已完成，但列表可能稍后才更新。请勿重复操作。</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>备份</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>恢复</value></data>
@@ -429,7 +429,7 @@
   <data name="ProfileCompare" xml:space="preserve"><value>对比对象</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>没有可对比的其他录制</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>线程</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 1 分钟，会保存为一段录制。模式：{0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>刚刚卡顿？点这里：游戏保留了最近约 {1} 分钟，会保存为一段录制。模式：{0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>从 {0} 的第 {1} 行调用</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身执行的行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（调用）</value></data>
@@ -490,8 +490,8 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>详细模式记录得更多，但开启期间游戏会变慢（约 20%）。请在排查卡顿时使用。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>时长（分钟）</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分钟。时长更长对游戏的开销不变，只会占用更多磁盘空间。</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 1 分钟。</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 1 分钟…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>游戏运行后开始保留最近 {0} 分钟。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>正在开始保留最近 {0} 分钟…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>没有可保存的最近记录。将从现在起重新录制。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>取出最近记录</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>停止对比</value></data>
@@ -572,6 +572,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RecoveryError.Busy" xml:space="preserve"><value>游戏或其他操作正在使用此存档。存档未被修改。</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>此存档上次未正常退出。请在游戏中载入后正常退出。存档未被修改。</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>只能恢复单人存档。存档未被修改。</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>此存档中有多名角色。请选择一名后重试。存档未被修改。</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>此存档中有多名角色。请选择要恢复的角色；未选择的角色不会被更改。</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>正在寻找该角色的僵尸或尸体…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>请选择从哪里取回物品。</value></data>
@@ -590,13 +591,14 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>无法恢复此存档。请尝试更新 PZ Tools。存档未被修改。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>无法读取生存时间 · 将再次检查</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>游戏或其他操作正在使用文件。请稍后重试。</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>导出时存档发生了变化。请退出游戏后重试。</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>导出时存档发生了变化。请返回主菜单后重试。</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>此备份已损坏。请选择其他备份。存档未被修改。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>可用空间不足。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools 文件不完整。请重新解压下载的压缩包。</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>此版本无法打开该备份文件夹。请在设置中选择新文件夹。请勿删除旧文件夹。</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>请在当前操作结束后重试。</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>无法应用设置。请检查输入的值。</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>无法应用设置。请检查文件 {0}。</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>无法重启。请手动关闭并重新打开应用。</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>无法使用此文件夹，已恢复之前的设置。</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>无法更改文件夹。请在设置中检查文件夹位置。</value></data>
@@ -666,8 +668,8 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>无法连接到游戏，将不保存游戏直接备份。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>当前无法读取睡眠状态，仅暂停时生效。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>无法连接到游戏，当前不生效。</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次备份（不保存游戏）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>将在不保存游戏的情况下备份。</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次备份（未连接到游戏）</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>备份仍按时进行。若游戏无法先保存，则按文件当前状态备份。</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>未连接到游戏</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>请重新启动游戏。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>兼容性与生效状态</value></data>

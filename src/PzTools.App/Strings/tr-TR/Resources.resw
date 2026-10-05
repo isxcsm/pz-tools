@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Mevcut kayıt</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Kayıt klasörü</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Mevcut kayıt kopyalanıyor</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken dışa aktarılamaz. Oyundan çıkın.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Oynarken dışa aktarılamaz. Ana menüye dönün.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Oynarken yedek geri yüklenemez. Oynamayı bırakıp tekrar deneyin.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Geri yüklemek için listeden bir yedek seçin</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Oynarken kayıt silinemez. Oynamayı bırakıp tekrar deneyin.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken iyileştirilemez. Oyundan çıkın.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Oynarken iyileştirilemez. Ana menüye dönün.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Henüz yedek yok</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Şimdi yedekle</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Geri yükle</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Yedekleme aralığı</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Otomatik yedekler arasındaki süre (1–60 dakika). Değiştirildiğinde sayım yeniden başlar.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Otomatik yedek sayısı</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>En yeni otomatik yedeklerden bu kadarını saklar, daha eskilerini siler (1–100). Elle alınan yedekler sayılmaz ve silinmez.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>En yeni otomatik yedeklerden bu kadarını saklar, daha eskilerini siler (1–100). Elle alınan yedekler sayılmaz; yalnızca kayıtlarıyla birlikte silinir.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Açıkken karakterin öldükten hemen sonra bir yedek alır.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Kayıt sürekli değiştiği için yedeklenemedi. Biraz sonra tekrar deneyin.</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Kayıt ve yedekleri silindi.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Kayıt silindi ama yedekleri duruyor.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Silindi.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Kayıt değişti. Oyundan çıkıp tekrar deneyin.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Kayıt değişti. Ana menüye dönüp tekrar deneyin.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Tamamlandı ama liste geç güncellenebilir. Tekrar çalıştırmayın.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Yedekleme</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Geri yükleme</value></data>
@@ -429,7 +429,7 @@ Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamala
   <data name="ProfileCompare" xml:space="preserve"><value>Şununla karşılaştır</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Karşılaştırılacak başka kayıt yok</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>İş parçacıkları</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Az önce takıldı mı? Buna basın: oyun yaklaşık son {1} dakikayı tuttu, bir kayıt olarak kaydedilir. Mod: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>{0} içindeki {1}. satırdan çağrıldı</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Kendi çalıştırdığı satırlar · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (çağrı)</value></data>
@@ -490,10 +490,10 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>Ayrıntılı daha fazlasını gösterir ama açık kaldığı sürece oyunu yavaşlatır (yaklaşık %20). Bir takılmanın peşindeyken kullanın.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Süre (dakika)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ile 10 dakika arası. Daha uzun süre oyuna aynı yükü getirir, yalnızca daha fazla disk kullanır.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son dakikayı tutmaya başlar.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Son dakikayı tutmaya başlanıyor…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Oyun çalışınca son {0} dakikayı tutmaya başlar.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Son {0} dakikayı tutmaya başlanıyor…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Kaydedilecek son dakika yok. Şu andan itibaren yeniden kaydediliyor.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Son dakika alınıyor</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Son dakikalar alınıyor</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Karşılaştırmayı durdur</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>{0} kaydının tamamıyla karşılaştırılıyor</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Karşılaştırma: {0}</value></data>
@@ -572,6 +572,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Oyun veya başka bir işlem bu kaydı kullanıyor. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Oyun bu kaydı düzgün kapatmadı. Kaydı oyunda yükleyip normal şekilde çıkın. Kayıt değiştirilmedi.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Yalnızca tek oyunculu kayıtlarda iyileştirme yapılabilir. Kayıt değiştirilmedi.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Birini seçip tekrar deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Bu kayıtta birden fazla karakter var. Kurtarılacak karakteri seçin; diğerleri değiştirilmez.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Karakterin zombisi veya cesedi aranıyor…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Eşyaların nereden geri alınacağını seçin.</value></data>
@@ -590,13 +591,14 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Bu kayıtta iyileştirme yapılamaz. PZ Tools&apos;u güncellemeyi deneyin. Kayıt değiştirilmedi.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Hayatta kalma süresi alınamıyor · yeniden denetleniyor</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Oyun veya başka bir işlem dosyayı kullanıyor. Biraz sonra tekrar deneyin.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Dışa aktarılırken kayıt değişti. Oyundan çıkıp tekrar deneyin.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Dışa aktarılırken kayıt değişti. Ana menüye dönüp tekrar deneyin.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Bu yedek bozuk. Başka bir yedek seçin. Kayıt değiştirilmedi.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Yeterli disk alanı yok.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools dosyaları eksik. İndirilen paketi yeniden çıkarın.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Bu sürüm bu yedek klasörünü açamıyor. Ayarlar&apos;dan yeni bir klasör seçin. Eskisini silmeyin.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Mevcut işlem bitince tekrar deneyin.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Ayarlar uygulanamadı. Girdiğiniz değerleri kontrol edin.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Ayarlar uygulanamadı. {0} dosyasını kontrol edin.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Yeniden başlatılamadı. Uygulamayı kapatıp yeniden açın.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Bu klasör kullanılamadığı için önceki ayarlara dönüldü.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Klasör değiştirilemedi. Ayarlar&apos;da klasörleri kontrol edin.</value></data>
@@ -666,8 +668,8 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Oyuna bağlanılamadı; oyun kaydedilmeden yedek alınıyor.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Uyku durumu şu anda okunamıyor; yalnızca duraklatma uygulanıyor.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Oyuna ulaşılamadığı için şu anda uygulanmıyor.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyun kaydedilmeden)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Yedekler oyun kaydedilmeden alınıyor.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyuna bağlı değil)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Yedekler zamanında alınmaya devam eder. Oyun önce kaydedemezse dosyalar olduğu gibi yedeklenir.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Oyuna bağlı değil</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Oyunu yeniden başlatın.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Uyumluluk ve durum</value></data>

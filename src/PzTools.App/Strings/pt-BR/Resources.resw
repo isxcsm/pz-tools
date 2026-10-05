@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Partida atual</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Pasta da partida</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Copiando a partida atual</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Não é possível exportar enquanto você joga. Saia do jogo.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Não é possível exportar enquanto você joga. Volte ao menu principal.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Não é possível restaurar backups enquanto você joga. Saia da partida e tente novamente.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Selecione na lista o backup que deseja restaurar</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Não é possível excluir a partida enquanto você joga. Saia da partida e tente novamente.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Não é possível curar enquanto você joga. Saia do jogo.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Não é possível curar enquanto você joga. Volte ao menu principal.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Ainda não há backups</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Fazer backup agora</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Restaurar</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Intervalo de backup</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Tempo entre backups automáticos (1–60 minutos). Ao alterar, a contagem recomeça.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Quantidade de backups automáticos</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Mantém esta quantidade dos backups automáticos mais recentes e exclui os mais antigos (1–100). Backups manuais não são contados e nunca são excluídos.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Mantém esta quantidade dos backups automáticos mais recentes e exclui os mais antigos (1–100). Backups manuais não são contados; só são excluídos junto com a partida.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Fazer backup quando o personagem morrer</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Ligado, faz um backup logo depois que o personagem morre.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>A partida continuou mudando, então o backup não foi feito. Tente novamente em instantes.</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>A partida e seus backups foram excluídos.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>A partida foi excluída, mas os backups continuam.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Excluído.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>A partida mudou. Saia do jogo e tente novamente.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>A partida mudou. Volte ao menu principal e tente novamente.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Concluído, mas a lista pode demorar a atualizar. Não repita.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Backup</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Restauração</value></data>
@@ -429,7 +429,7 @@ Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausa
   <data name="ProfileCompare" xml:space="preserve"><value>Comparar com</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Nenhuma outra gravação para comparar</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca do último minuto, que é salvo como gravação. Modo: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Acabou de travar? Clique aqui: o jogo manteve cerca dos últimos {1} min, que são salvos como gravação. Modo: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Chamada da linha {1} de {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Linhas executadas por ela mesma · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chamada)</value></data>
@@ -490,10 +490,10 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>Detalhado mostra mais, mas deixa o jogo mais lento enquanto estiver ligado (cerca de 20%). Use-o enquanto procura um travamento.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Duração (minutos)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>De 1 a 10 minutos. Uma duração maior pesa o mesmo no jogo, só usa mais disco.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter o último minuto quando o jogo estiver em execução.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Começando a manter o último minuto…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Começa a manter os últimos {0} min quando o jogo estiver em execução.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Começando a manter os últimos {0} min…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Não há últimos minutos para salvar. Gravando de novo a partir de agora.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Pegando o último minuto</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Pegando os últimos minutos</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Parar de comparar</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Comparado com toda {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Comparado com {0}</value></data>
@@ -572,6 +572,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RecoveryError.Busy" xml:space="preserve"><value>O jogo ou outra operação está usando esta partida. A partida não foi alterada.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>O jogo não fechou esta partida corretamente. Carregue-a no jogo e saia normalmente. A partida não foi alterada.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Só é possível curar em partidas de um jogador. A partida não foi alterada.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Esta partida tem vários personagens. Escolha um e tente novamente. A partida não foi alterada.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Esta partida tem vários personagens. Escolha o que deseja recuperar; os outros não serão alterados.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Procurando o zumbi ou o cadáver do personagem…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Escolha de onde recuperar os pertences.</value></data>
@@ -590,13 +591,14 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Não é possível curar nesta partida. Tente atualizar o PZ Tools. A partida não foi alterada.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Tempo de sobrevivência indisponível · verificando novamente</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>O jogo ou outra operação está usando o arquivo. Tente novamente em instantes.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>A partida mudou durante a exportação. Saia do jogo e tente novamente.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>A partida mudou durante a exportação. Volte ao menu principal e tente novamente.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Este backup está danificado. Escolha outro backup. A partida não foi alterada.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Espaço em disco insuficiente.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Faltam arquivos do PZ Tools. Extraia de novo o pacote baixado.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Esta versão não abre esta pasta de backups. Escolha uma nova pasta nas configurações. Não apague a antiga.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Tente novamente quando a operação atual terminar.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Não foi possível aplicar as configurações. Confira o que você digitou.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Não foi possível aplicar as configurações. Confira o arquivo {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Não foi possível reiniciar. Feche e abra o aplicativo de novo.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Esta pasta não pode ser usada, então as configurações anteriores voltaram.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Não foi possível mudar a pasta. Confira as pastas nas configurações.</value></data>
@@ -666,8 +668,8 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Não foi possível conectar ao jogo; fazendo backup sem salvar o jogo antes.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>No momento não é possível ler o sono, então só a pausa se aplica.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Não se aplica no momento porque não há conexão com o jogo.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próximo backup (sem salvar o jogo)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Os backups são feitos sem salvar o jogo.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próximo backup (sem conexão com o jogo)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Os backups continuam no horário. Se o jogo não conseguir salvar antes, os arquivos são copiados como estão.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Sem conexão com o jogo</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Reinicie o jogo.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibilidade e status</value></data>

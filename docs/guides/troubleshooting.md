@@ -19,7 +19,7 @@ didn't come out. Extract the whole ZIP again into an empty folder.
 | --- | --- | --- |
 | **PZ Tools files are not intact** | A file in the PZ Tools folder is missing or from another version, usually because a new version was extracted over an old one | Press **Open download page**, then extract the ZIP into a new, empty folder |
 | **Blocked by Windows Security** | Windows Smart App Control stopped part of PZ Tools from running | Press **Open settings** to go to Smart App Control |
-| **Not connected to the game** with **Backups run without saving the game.** | PZ Tools couldn't read the game for a while. Backups hold what the game last saved itself. | Restart the game. If that doesn't help, the game may have updated past what this version of PZ Tools knows, so update PZ Tools |
+| **Not connected to the game** with **Backups continue on a timer. If the game cannot save first, the files are backed up as they are.** | PZ Tools couldn't read the game for a while. Each backup still asks the game to save first; if it can't, the backup holds what the game last saved itself. | Restart the game. If that doesn't help, the game may have updated past what this version of PZ Tools knows, so update PZ Tools |
 | **Not connected to the game** with **A game launch option is blocking the connection.** | The game was started with `-XX:+DisableAttachMechanism` | Remove it from the game's Steam launch options or from `ProjectZomboid64.json`, then restart the game |
 | **PZ Tools was updated** with **Restart the game.** | The game still runs the link from the previous PZ Tools version. Automatic backups wait. | Restart the game once. Updating PZ Tools while the game is closed avoids this |
 | **Game memory back to 3 GB** | A game update reset the memory setting | See [Give the game more memory](more-game-memory.md#after-a-game-update) |
@@ -44,7 +44,7 @@ Look at the line under the next backup in the sidebar.
 | Message | What to do |
 | --- | --- |
 | **Backups cannot be restored while playing. Stop playing and try again.** | Quit to the main menu or close the game |
-| **Cannot export while playing. Quit the game.** | Quit to the main menu or close the game |
+| **Cannot export while playing. Quit to the main menu.** | Quit to the main menu or close the game |
 | **The save kept changing, so it was not backed up. Try again in a moment.** | Try again in a moment |
 | **The game or other work is using the file. Try again in a moment.** | Wait for the running backup or other work to finish |
 | **Not enough disk space.** | Free up space, or move backups to another drive in **Settings → Folders** |

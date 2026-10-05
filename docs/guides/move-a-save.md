@@ -32,7 +32,7 @@ gets a number added, like `Survival(1)`.
 
 | Message | What to do |
 | --- | --- |
-| **Cannot export while playing. Quit the game.** | Quit to the main menu or close the game |
-| **The save changed while exporting. Quit the game and try again.** | Quit to the main menu or close the game |
+| **Cannot export while playing. Quit to the main menu.** | Quit to the main menu or close the game |
+| **The save changed while exporting. Quit to the main menu and try again.** | Quit to the main menu or close the game |
 | **This file cannot be imported. Check that PZ Tools exported it.** | Only ZIPs exported by PZ Tools can be imported. A save zipped by hand can't |
 | **Not enough disk space.** | Free up space on the drive with your save folder |

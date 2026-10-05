@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Aktueller Spielstand</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Spielstandordner</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Aktueller Spielstand wird kopiert</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Export während des Spielens nicht möglich. Beenden Sie das Spiel.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Export während des Spielens nicht möglich. Kehren Sie ins Hauptmenü zurück.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Während des Spielens können keine Sicherungen wiederhergestellt werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Wähle in der Liste eine Sicherung zum Wiederherstellen aus</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Während des Spielens kann der Spielstand nicht gelöscht werden. Beenden Sie die Spielsitzung und versuchen Sie es erneut.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Heilen während des Spielens nicht möglich. Beenden Sie das Spiel.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Heilen während des Spielens nicht möglich. Kehren Sie ins Hauptmenü zurück.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Noch keine Sicherungen</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Jetzt sichern</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Wiederherstellen</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Sicherungsintervall</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Zeit zwischen automatischen Sicherungen (1–60 Minuten). Nach einer Änderung beginnt die Zählung neu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Anzahl automatischer Sicherungen</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Behält so viele der neuesten automatischen Sicherungen und löscht ältere (1–100). Manuelle Sicherungen zählen nicht mit und werden nie gelöscht.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Behält so viele der neuesten automatischen Sicherungen und löscht ältere (1–100). Manuelle Sicherungen zählen nicht mit; sie werden nur mit ihrem Spielstand gelöscht.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Wenn an, wird direkt nach dem Tod deiner Figur eine Sicherung erstellt.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Der Spielstand änderte sich ständig und wurde nicht gesichert. Versuchen Sie es gleich erneut.</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Spielstand und Sicherungen gelöscht.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Der Spielstand wurde gelöscht, seine Sicherungen sind aber noch da.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Gelöscht.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Der Spielstand hat sich geändert. Beenden Sie das Spiel und versuchen Sie es erneut.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Der Spielstand hat sich geändert. Kehren Sie ins Hauptmenü zurück und versuchen Sie es erneut.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Erledigt, aber die Liste wird evtl. verspätet aktualisiert. Nicht erneut ausführen.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Sicherung</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Wiederherstellung</value></data>
@@ -429,7 +429,7 @@ Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pa
   <data name="ProfileCompare" xml:space="preserve"><value>Vergleichen mit</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Keine andere Aufzeichnung zum Vergleichen</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzte Minute behalten, sie wird als Aufnahme gespeichert. Modus: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Gerade geruckelt? Hier drücken: Das Spiel hat etwa die letzten {1} Min. behalten, sie werden als Aufnahme gespeichert. Modus: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Aufgerufen aus Zeile {1} von {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Selbst ausgeführte Zeilen · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (Aufruf)</value></data>
@@ -490,10 +490,10 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>„Detailliert“ zeigt mehr, verlangsamt das Spiel aber, solange er aktiv ist (etwa 20 %). Nutzen Sie ihn bei der Suche nach einem Ruckler.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Länge (Minuten)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 bis 10 Minuten. Eine längere Dauer belastet das Spiel genauso, braucht nur mehr Speicherplatz.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten, sobald das Spiel läuft.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzte Minute zu behalten…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Beginnt, die letzten {0} Min. zu behalten, sobald das Spiel läuft.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Beginnt, die letzten {0} Min. zu behalten…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Keine letzten Minuten zum Speichern. Die Aufzeichnung läuft ab jetzt neu.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Letzte Minute übernehmen</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Letzte Minuten übernehmen</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Vergleich beenden</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Verglichen mit ganz {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Vergleich: {0}</value></data>
@@ -572,6 +572,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RecoveryError.Busy" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang nutzt diesen Spielstand. Der Spielstand ist unverändert.</value></data>
   <data name="RecoveryError.Journal" xml:space="preserve"><value>Das Spiel hat diesen Spielstand nicht richtig geschlossen. Laden Sie ihn im Spiel und beenden Sie normal. Der Spielstand ist unverändert.</value></data>
   <data name="RecoveryError.Ambiguous" xml:space="preserve"><value>Nur Einzelspieler-Spielstände können geheilt werden. Der Spielstand ist unverändert.</value></data>
+  <data name="RecoveryError.CharacterNotChosen" xml:space="preserve"><value>Dieser Spielstand enthält mehrere Charaktere. Wählen Sie einen und versuchen Sie es erneut. Der Spielstand ist unverändert.</value></data>
   <data name="HealCharacterChoose" xml:space="preserve"><value>Dieser Spielstand enthält mehrere Charaktere. Wählen Sie den Charakter, der wiederhergestellt werden soll; die anderen bleiben unverändert.</value></data>
   <data name="HealRemainsSearching" xml:space="preserve"><value>Zombie oder Leiche des Charakters wird gesucht…</value></data>
   <data name="HealRemainsChoose" xml:space="preserve"><value>Wählen Sie, woher die Habseligkeiten zurückgeholt werden.</value></data>
@@ -590,13 +591,14 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Dieser Spielstand kann nicht geheilt werden. Aktualisieren Sie PZ Tools. Der Spielstand ist unverändert.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Überlebenszeit nicht verfügbar · wird erneut geprüft</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Das Spiel oder ein anderer Vorgang nutzt die Datei. Versuchen Sie es gleich erneut.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Der Spielstand hat sich beim Export geändert. Beenden Sie das Spiel und versuchen Sie es erneut.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Der Spielstand hat sich beim Export geändert. Kehren Sie ins Hauptmenü zurück und versuchen Sie es erneut.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Diese Sicherung ist beschädigt. Wählen Sie eine andere. Der Spielstand ist unverändert.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Nicht genug Speicherplatz.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Dateien von PZ Tools fehlen. Entpacken Sie den Download erneut.</value></data>
   <data name="OperationError.RepositoryIncompatible" xml:space="preserve"><value>Diese Version kann den Sicherungsordner nicht öffnen. Wählen Sie in den Einstellungen einen neuen Ordner. Löschen Sie den alten nicht.</value></data>
   <data name="OperationError.SettingsBusy" xml:space="preserve"><value>Versuchen Sie es nach dem laufenden Vorgang erneut.</value></data>
   <data name="OperationError.Configuration" xml:space="preserve"><value>Einstellungen nicht übernommen. Prüfen Sie Ihre Eingaben.</value></data>
+  <data name="OperationError.ConfigurationFileFormat" xml:space="preserve"><value>Einstellungen nicht übernommen. Prüfen Sie die Datei {0}.</value></data>
   <data name="OperationError.RestartFailed" xml:space="preserve"><value>Neustart fehlgeschlagen. Schließen und öffnen Sie die App erneut.</value></data>
   <data name="OperationError.SettingsReverted" xml:space="preserve"><value>Dieser Ordner ist nicht nutzbar, daher gelten die vorherigen Einstellungen wieder.</value></data>
   <data name="OperationError.SettingsRecoveryFailed" xml:space="preserve"><value>Ordner nicht geändert. Prüfen Sie die Ordner in den Einstellungen.</value></data>
@@ -666,8 +668,8 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Keine Verbindung zum Spiel; es wird ohne vorheriges Speichern gesichert.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Der Schlafzustand ist derzeit nicht lesbar; es gilt nur die Pause.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Derzeit nicht aktiv, weil das Spiel nicht erreichbar ist.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Nächste Sicherung (ohne Spielspeicherung)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Es wird gesichert, ohne das Spiel zu speichern.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Nächste Sicherung (Spiel nicht verbunden)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Sicherungen laufen nach der Uhr weiter. Kann das Spiel vorher nicht speichern, werden die Dateien so gesichert, wie sie sind.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Nicht mit dem Spiel verbunden</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Starten Sie das Spiel neu.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilität und Status</value></data>

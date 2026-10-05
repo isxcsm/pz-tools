@@ -157,7 +157,9 @@ public static class ProfileReport
     {
         var kind = recording.Information.GetValueOrDefault("endedBy") == "rolling" ? ", the game's last minutes saved after the fact" : "";
         line(recording.Detailed
-            ? $"- Mode: detailed (Lua lines and allocations measured; the measuring itself slows the game by about 20%){kind}"
+            // Both modes sample Java and Lua (lines and allocations included); Detailed samples more often and records
+            // where threads waited (locks, parking, file reads and writes, JVM stops).
+            ? $"- Mode: detailed (more frequent samples, and waits recorded; the measuring itself slows the game by about 20%){kind}"
             : $"- Mode: standard (low overhead){kind}");
         var started = recording.StartedUtc is { } utc ? ", started " + utc.ToString("yyyy-MM-dd HH:mm 'UTC'", Invariant) : "";
         line($"- Length: {Seconds(recording.Duration)}{started}");
@@ -479,7 +481,8 @@ public static class ProfileReport
         var before = other?.MethodGroups.FirstOrDefault(group => group.Key == key);
         line($"## The Java area: {AreaName(key)}");
         if (area is not { Rows.Count: > 0 }) { line("- It did not run in this range."); line(""); return; }
-        line($"- {Pct(area.Self)} of the range in its own methods"
+        // As the area table: a share of the thread's running time, waits left out, not of the range's length.
+        line($"- {Pct(area.Self)} of the thread's running time in its own methods"
             + (other is null ? "" : before is null ? "; it did not run in the baseline" : $"; baseline {Pct(before.Self)}, a change of {Pp(area.Self - before.Self)}"));
         line("");
         line("### Methods");

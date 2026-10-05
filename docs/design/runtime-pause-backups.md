@@ -151,8 +151,9 @@ inside a world may be a hung game and counts as unusable.
 | Sleep | The clock keeps running; pause still holds it |
 | A bridge from before an app update | Periodic backups wait for a game restart, without a grace period ([restart required](game-bridge.md#restart-required-after-an-app-update)) |
 
-During the fallback the schedule line shows **Next backup (without game save)** and the link card
-**Not connected to the game** with **Backups run without saving the game.** The settings that need the game
+During the fallback the schedule line shows **Next backup (game not connected)** and the link card
+**Not connected to the game** with **Backups continue on a timer. If the game cannot save first, the files are
+backed up as they are.** Neither says the game is not saved: each backup still tries `SAVE_AT`. The settings that need the game
 (game-aware timing, death backups, save before backup, countdown) are locked meanwhile and keep their saved
 values (`SettingsPage.UpdateAvailability`).
 

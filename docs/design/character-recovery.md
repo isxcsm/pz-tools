@@ -236,7 +236,7 @@ The worker's failure message is the code; `UserFacingErrorCatalog.FromProcessErr
 | `recovery-save-busy` | Another process (usually the game) holds `players.db` (sharing or lock violation), or a restore journal exists | `RecoveryError.Busy` |
 | `recovery-pending-journal` | A non-empty SQLite journal beside `players.db` | `RecoveryError.Journal` |
 | `recovery-singleplayer-only` | A `Multiplayer` save, network players, a networked corpse, a malformed save id | `RecoveryError.Ambiguous` |
-| `recovery-ambiguous-character` | Several characters and none chosen | `RecoveryError.Ambiguous` |
+| `recovery-ambiguous-character` | Several characters and none chosen | `RecoveryError.CharacterNotChosen` |
 | `recovery-character-missing` | The chosen character is gone | `RecoveryError.CharacterChanged` |
 | `recovery-remains-changed` | The chosen remains changed since the list | `RecoveryError.RemainsChanged` |
 | `recovery-inventory-unavailable`, `recovery-inventory-ambiguous` | No remains, several without a choice, or duplicate item ids | `RecoveryError.Inventory` |
