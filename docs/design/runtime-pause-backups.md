@@ -166,10 +166,14 @@ inside a world may be a hung game and counts as unusable.
 
 | What is missing | What happens |
 | --- | --- |
-| The observation, for longer than the grace period (90 s, `RuntimeScheduleController.DefaultLinkGrace`) | `ApplyLinkFallback` sets `FallbackDueUtc` to now plus the remaining time. Periodic backups then follow the wall clock with the save the state check last confirmed active (`ReadFileDerivedTargetAsync`: the newest target command, if it is `ActivateTarget`). Each runs only while that save's `players.db` is locked (`isTargetActive`). The worker still passes `--save-game` with a due time, so it tries `SAVE_AT` first; if the game is unreachable it backs up the files on disk with a warning. When the game can be read again, the time left to the fallback due time becomes the remaining active time. |
+| The observation, for longer than the grace period (90 s, `RuntimeScheduleController.DefaultLinkGrace`) | Periodic backups follow the wall clock for the save the state check last confirmed active from its locked `players.db` (`ReadFileDerivedTargetAsync`: the newest target command, if it is `ActivateTarget`). `ApplyLinkFallback` sets `FallbackDueUtc` only while there is such a save, and records it (`FallbackSaveId`). The save played when the game stopped answering keeps its remaining time; a save locked later, or a different one, starts a full interval, as entering a world does. With no save locked the clock does not run, and the interval starts afresh. Each backup runs only while that save's `players.db` is locked (`isTargetActive`). The worker still passes `--save-game` with a due time, so it tries `SAVE_AT` first; if the game is unreachable it backs up the files on disk with a warning. When the game can be read again, the time left to the fallback due time becomes the remaining active time. |
 | The save request channel | Nothing was asked of the game, so the backup goes ahead with the files on disk ([outcomes](game-bridge.md#admission-and-failures)). This applies to every kind of backup. |
 | Sleep | The clock keeps running; pause still holds it |
 | A bridge from before an app update | Periodic backups wait for a game restart, without a grace period ([restart required](game-bridge.md#restart-required-after-an-app-update)) |
+
+While the game cannot be read, the save list shows the locked save as played, and the home page with it: the
+state projector keeps the state the file locks give (`StateProjector`) rather than the unreadable game's. With no
+save locked, the schedule line shows **Next backup: waiting**.
 
 During the fallback the schedule line shows **Next backup (game not connected)** and the link card
 **Not connected to the game** with **Backups continue on a timer. If the game cannot save first, the files are

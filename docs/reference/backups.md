@@ -130,8 +130,12 @@ If PZ Tools cannot read a running game for about 90 seconds, a **Not connected t
 game** card appears with "Backups continue on a timer. If the game cannot save first, the
 files are backed up as they are." Meanwhile:
 
-- automatic backups follow the clock at the set interval, for the save the game has open,
-  and the line says **Next backup (game not connected)**
+- PZ Tools tells which save the game has open from its locked files, and shows it as played
+  in **Save manager**
+- automatic backups follow the clock at the set interval, only for that save and only while
+  it is open, and the line says **Next backup (game not connected)**. Opening a save starts a
+  full interval, as when the game can be read. At the main menu the line says **Next backup:
+  waiting**
 - each backup still tries to save the game first; if the game cannot be reached, the files
   on disk are copied
 - **Delay scheduled backups while paused or asleep**, **Back up when the character dies**,

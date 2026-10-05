@@ -95,15 +95,19 @@ public sealed class GameLinkFallbackTests
         var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
         Directory.CreateDirectory(target.SourcePath);
         // The scheduler re-checks a reservation against the real clock, so the interval ends just before now.
-        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        var now = DateTimeOffset.UtcNow.AddMinutes(-10).AddSeconds(-1);
         await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
         var feed = new RuntimeSnapshotStore();
         feed.Publish(RuntimeObservation.Unknown("runtime-unavailable"));
         var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.Zero);
 
-        // The game's file locks are the only remaining evidence of which save is played.
+        // The game's file locks are the only remaining evidence of which save is played. None is locked: no save is
+        // open, the clock does not run, and the line says backups wait.
         Assert.Null((await controller.PrepareAsync(now, TimeSpan.Zero, default)).Admission);
         Assert.Null((await controller.PrepareAsync(now.AddMinutes(5), TimeSpan.Zero, default)).Admission);
+        Assert.Null((await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.Equal("NextBackupWaitingDynamic", ScheduleCountdownPresentation.Resolve(RuntimeScheduleProjection.Build(
+            await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(), feed.Read()), now.AddMinutes(5)).MessageKey);
         await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
 
         bool active = false; int backups = 0; long run = 0; DateTimeOffset? scheduled = null;
@@ -111,28 +115,32 @@ public sealed class GameLinkFallbackTests
             (_, _, _, due, _) => { backups++; scheduled = due; return Task.FromResult(new WorkerInvocation(true, ProcessOutcome.Skipped, null)); },
             (_, _, _, _, _) => Task.FromResult(new WorkerInvocation(false, ProcessOutcome.Skipped, null)),
             isTargetActive: _ => active, runtimeSchedule: controller);
-        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due); // The save is not being played.
+        // A save newly locked starts a full interval, as entering a world does.
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(5))).Due);
+        Assert.Equal(now.AddMinutes(10), (await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(10))).Due); // Its files are no longer locked.
         active = true;
-        var tick = await scheduler.TickAsync(now.AddMinutes(5));
+        var tick = await scheduler.TickAsync(now.AddMinutes(10));
         Assert.True(tick.Due);
         Assert.Equal(target, tick.Target);
         Assert.Equal(1, backups);
-        Assert.Equal(now.AddMinutes(5), scheduled); // Dispatched as an ordinary, unguarded periodic backup.
-        Assert.False((await scheduler.TickAsync(now.AddMinutes(5).AddSeconds(1))).Due);
+        Assert.Equal(now.AddMinutes(10), scheduled); // Dispatched as an ordinary, unguarded periodic backup.
+        Assert.False((await scheduler.TickAsync(now.AddMinutes(10).AddSeconds(1))).Due);
         var checkpoint = (await db.ReadRuntimeScheduleAsync()).Checkpoint!;
-        Assert.Equal(now.AddMinutes(10), checkpoint.FallbackDueUtc);
+        Assert.Equal(now.AddMinutes(15), checkpoint.FallbackDueUtc);
         var view = RuntimeScheduleProjection.Build(await db.ReadBackupStateIfChangedAsync(-1),
-            await db.ReadRuntimeScheduleAsync(), feed.Read());
+            await db.ReadRuntimeScheduleAsync(), feed.Read(), target);
         Assert.True(view.Fallback);
+        Assert.Equal(target, view.CurrentTarget);
         Assert.Equal(new CountdownPresentation("RuntimeBackupFallback", 240),
-            ScheduleCountdownPresentation.Resolve(view, now.AddMinutes(6)));
+            ScheduleCountdownPresentation.Resolve(view, now.AddMinutes(11)));
 
         // The game answers again: back to game time. Its world is newly observed, so a full interval starts.
         var authority = Id();
         var fresh = new RuntimeObservation(Id(), RuntimeQuality.Fresh, World(target.SourcePath), 1, AuthorityEpoch: authority);
         await db.ApplyRuntimeTransitionAsync(fresh, target);
         feed.Publish(fresh);
-        Assert.Null((await controller.PrepareAsync(now.AddMinutes(6), TimeSpan.Zero, default)).Admission);
+        Assert.Null((await controller.PrepareAsync(now.AddMinutes(11), TimeSpan.Zero, default)).Admission);
         checkpoint = (await db.ReadRuntimeScheduleAsync()).Checkpoint!;
         Assert.Null(checkpoint.FallbackDueUtc);
         Assert.Equal(300_000, checkpoint.RemainingMilliseconds);
@@ -147,7 +155,8 @@ public sealed class GameLinkFallbackTests
         var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
         var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
         Directory.CreateDirectory(target.SourcePath);
-        var now = DateTimeOffset.UtcNow.AddMinutes(-5).AddSeconds(-1);
+        // The save is locked from the fifth minute, so the backup it waits for is due at the tenth, just before now.
+        var now = DateTimeOffset.UtcNow.AddMinutes(-10).AddSeconds(-1);
         await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
         var feed = new RuntimeSnapshotStore();
         // The game refused the link for running the bridge from before an update: a restart would mend it, so the

@@ -6,8 +6,9 @@ public sealed record ActiveTimeScheduleState(long Generation, long IntervalMilli
     string? WorldSession = null, string? ClockIdentity = null, long LastActiveMilliseconds = 0,
     bool Anchored = false, long EligibilityEpoch = -1, long Slot = 0, string? AttemptId = null,
     ScheduleHold Hold = ScheduleHold.Unknown, bool CompletionUncertain = false,
-    // Set while the game cannot be observed: backups then follow the wall clock, without a game save.
-    DateTimeOffset? FallbackDueUtc = null);
+    // Set while the game cannot be observed and a save's files are locked: backups of that save then follow the wall
+    // clock, without a game save.
+    DateTimeOffset? FallbackDueUtc = null, string? FallbackSaveId = null);
 
 /// <summary>Pure time/policy reducer. No UTC arithmetic, database, JVM calls or UI dependencies.</summary>
 public static class ActiveTimeSchedulePolicy

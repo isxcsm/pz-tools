@@ -43,7 +43,7 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
         {
             recovering = storage.Checkpoint?.AttemptId is not null;
             // A fallback deadline belongs to the scheduler run that observed the outage.
-            state = storage.Checkpoint is { } saved ? saved with { Anchored = false, FallbackDueUtc = null }
+            state = storage.Checkpoint is { } saved ? saved with { Anchored = false, FallbackDueUtc = null, FallbackSaveId = null }
                 : new(control.Generation, (long)control.Interval.TotalMilliseconds, (long)control.Interval.TotalMilliseconds);
         }
         if (recovering && observation.IsFresh && observation.Snapshot is { } recovered)
@@ -57,7 +57,8 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
         }
         state = ActiveTimeSchedulePolicy.Advance(state, observation, control.AutomaticEnabled,
             control.Generation, (long)control.Interval.TotalMilliseconds);
-        state = ApplyLinkFallback(state, observation, control, now);
+        var fallbackTarget = observation.IsLinkUnusable ? await database.ReadFileDerivedTargetAsync(token) : null;
+        state = ApplyLinkFallback(state, observation, control, now, fallbackTarget);
         if (oneShot is not null)
         {
             bool valid = observation.IsFresh && observation.Snapshot?.IsWorldReady == true
@@ -77,11 +78,10 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
                 control.CurrentTarget, control.RepositoryPath, now.AddMilliseconds(Math.Max(0, state.RemainingMilliseconds)),
                 control.Generation, null, ticket);
         }
-        if (state.FallbackDueUtc is { } fallbackDue && fallbackDue <= now + lead
-            && await database.ReadFileDerivedTargetAsync(token) is { } fallbackTarget)
+        if (state.FallbackDueUtc is { } fallbackDue && fallbackDue <= now + lead && fallbackTarget is not null)
             admission = new($"{FallbackPrefix}{control.Generation}:{state.Slot}", BackupAdmissionKind.Periodic,
                 fallbackTarget, control.RepositoryPath, fallbackDue, control.Generation, null);
-        string boundary = $"{state.Generation}/{state.WorldSession}/{state.ClockIdentity}/{state.EligibilityEpoch}/{state.Hold}/{state.AttemptId}/{state.FallbackDueUtc:O}";
+        string boundary = $"{state.Generation}/{state.WorldSession}/{state.ClockIdentity}/{state.EligibilityEpoch}/{state.Hold}/{state.AttemptId}/{state.FallbackDueUtc:O}/{state.FallbackSaveId}";
         // Progress is saved every 10 s while it moves; a state that has not moved is not written again.
         if (boundary != lastBoundary || time.GetElapsedTime(lastPersist).TotalSeconds >= 10 && state != lastPersisted)
         {
@@ -92,21 +92,31 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
     }
 
     // Waiting for a game that cannot be observed would stop backups for good (a game update, a
-    // blocked helper). After a grace period they follow the wall clock instead, and return to
-    // game time as soon as the game can be read again.
+    // blocked helper). After a grace period they follow the wall clock instead, for the save whose
+    // files the game has locked (target), and return to game time as soon as the game can be read again.
+    // The clock runs only while a save is locked; a save newly locked starts a full interval, as
+    // entering a world does.
     private ActiveTimeScheduleState ApplyLinkFallback(ActiveTimeScheduleState current, RuntimeObservation observation,
-        BackupSchedulerState control, DateTimeOffset now)
+        BackupSchedulerState control, DateTimeOffset now, BackupTarget? target)
     {
         long interval = (long)control.Interval.TotalMilliseconds;
         if (!observation.IsLinkUnusable || !control.AutomaticEnabled)
         {
             if (!observation.IsLinkUnusable) unusableSince = null;
-            return current.FallbackDueUtc is not { } due ? current : current with { FallbackDueUtc = null, Anchored = false,
-                RemainingMilliseconds = Math.Clamp((long)(due - now).TotalMilliseconds, 0, interval) };
+            return current.FallbackDueUtc is not { } due ? current with { FallbackSaveId = null }
+                : current with { FallbackDueUtc = null, FallbackSaveId = null, Anchored = false,
+                    RemainingMilliseconds = Math.Clamp((long)(due - now).TotalMilliseconds, 0, interval) };
         }
         unusableSince ??= time.GetTimestamp();
-        if (current.FallbackDueUtc is not null || time.GetElapsedTime(unusableSince.Value) < grace) return current;
-        return current with { FallbackDueUtc = now.AddMilliseconds(Math.Clamp(current.RemainingMilliseconds, 0, interval)) };
+        if (time.GetElapsedTime(unusableSince.Value) < grace) return current;
+        if (target is null)
+            return current with { FallbackDueUtc = null, FallbackSaveId = null,
+                RemainingMilliseconds = current.FallbackSaveId is null ? current.RemainingMilliseconds : interval };
+        if (current.FallbackDueUtc is not null && current.FallbackSaveId == target.SaveId) return current;
+        // The save played when the game stopped answering keeps its time left; any other starts afresh.
+        long remaining = current.FallbackDueUtc is null && current.FallbackSaveId is null
+            ? Math.Clamp(current.RemainingMilliseconds, 0, interval) : interval;
+        return current with { FallbackDueUtc = now.AddMilliseconds(remaining), FallbackSaveId = target.SaveId };
     }
 
     /// <summary>Moves a wall-clock fallback backup to its next slot; a busy repository keeps it due.</summary>
