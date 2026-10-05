@@ -25,7 +25,7 @@ public sealed partial class GameExtensionsPage : UserControl
             subscription?.Dispose();
             subscription = App.Host?.Views.Subscribe((key, _) =>
             {
-                if (key == GameExtensionController.ViewKey) DispatcherQueue.TryEnqueue(ApplyLatestView);
+                if (key == GameExtensionController.ViewKey) DispatcherQueue.Enqueue(ApplyLatestView);
             });
             await RefreshForNavigationAsync();
         };

@@ -72,7 +72,7 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
                 {
                     await RunAsync(host);
                     File.WriteAllText(Path.Combine(outputDirectory, "result.txt"),
-                        "PASS: 4 viewport/theme renders, 5 isolated toggle callbacks, initial expansion settled, user animation preserved, collapse persistence, stable controls, runtime/compatibility/guard hints; no AppHost, game or user data access.");
+                        "PASS: 4 viewport/theme renders, 6 isolated toggle callbacks, initial expansion settled, user animation preserved, collapse persistence, stable controls, runtime/compatibility/guard hints; no AppHost, game or user data access.");
                 }
                 catch (Exception error) { Fail(error); }
                 finally { window.Close(); Exit(); }
@@ -115,12 +115,12 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
             Check(section.Control.IsExpanded, "Single extension was not initially expanded.");
             Check(section.Control.Description is TextBlock description && description.Text == Localizer.Get(definition.DescriptionKey),
                 "Header description must contain only the extension summary.");
-            Check(section.Control.Items.Count == 5, "Three options, status row and version guard are required.");
-            var statusCard = (SettingsCard)section.Control.Items[3];
+            Check(section.Control.Items.Count == 6, "Four options, status row and version guard are required.");
+            var statusCard = (SettingsCard)section.Control.Items[4];
             var details = (StackPanel)statusCard.Description;
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.VersionUnknown")),
                 "Version admission reason was lost.");
-            Check(((TextBlock)((SettingsCard)section.Control.Items[4]).Description).Text == Localizer.Get("GameExtensions.ForceWarning"),
+            Check(((TextBlock)((SettingsCard)section.Control.Items[5]).Description).Text == Localizer.Get("GameExtensions.ForceWarning"),
                 "Version guard warning was lost.");
             var texts = Descendants(page).OfType<TextBlock>().Where(text => text.Visibility == Visibility.Visible).ToArray();
             Check(!texts.Any(text => text.IsTextTrimmed), "Extension text was clipped.");
@@ -137,8 +137,8 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
             var master = (ToggleSwitch)section.Control.Content;
             var optionSwitches = section.Control.Items.OfType<SettingsCard>()
                 .Where(card => card.Content is ToggleSwitch).Select(card => (ToggleSwitch)card.Content).ToArray();
-            Check(optionSwitches.Length == 4, "Expected four option switches.");
-            Check(!master.IsOn && optionSwitches.Take(3).All(toggle => toggle.IsOn) && !optionSwitches[3].IsOn,
+            Check(optionSwitches.Length == 5, "Expected four option switches and the version guard.");
+            Check(!master.IsOn && optionSwitches.Take(4).All(toggle => toggle.IsOn) && !optionSwitches[4].IsOn,
                 "Initial preference values changed.");
             if (width == 1040 && theme == ElementTheme.Light)
             {
@@ -147,7 +147,7 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
                     Check(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(toggle)), "A switch has no accessible name.");
                     toggle.IsOn = !toggle.IsOn;
                 }
-                Check(writes.Select(write => write.Setting).Distinct().Count() == 5 && writes.Count == 5,
+                Check(writes.Select(write => write.Setting).Distinct().Count() == 6 && writes.Count == 6,
                     "Programmatic reflection or toggles issued extra writes.");
             }
             section.Control.IsExpanded = false;
@@ -157,10 +157,10 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
                 "Preference update reopened or replaced the section.");
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.WorldRequired")),
                 "World-required hint was lost.");
-            section.Update(new([next], true, VehicleStatus: new(RuntimeExtensionState.Pending, "safe-boundary"), RuntimeWorldReady: true), next);
+            section.Update(new([next], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.Pending, "safe-boundary") }, RuntimeWorldReady: true), next);
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.ApplyWhenSafe")),
                 "Safe-boundary hint was lost.");
-            section.Update(new([next], true, VehicleStatus: new(RuntimeExtensionState.FaultedPassThrough, "test-failure"), RuntimeWorldReady: true), next);
+            section.Update(new([next], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.FaultedPassThrough, "test-failure") }, RuntimeWorldReady: true), next);
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.InitializationFailed")),
                 "Failure hint was lost.");
             section.Control.IsExpanded = true;

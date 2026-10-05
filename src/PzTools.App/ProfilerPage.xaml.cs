@@ -216,7 +216,7 @@ public sealed partial class ProfilerPage : UserControl
         RefreshList(loadedPath);
     }
 
-    private void Session_Changed() => DispatcherQueue.TryEnqueue(UpdateSession);
+    private void Session_Changed() => DispatcherQueue.Enqueue(UpdateSession);
 
     // ---- Recording ----
 
@@ -330,7 +330,7 @@ public sealed partial class ProfilerPage : UserControl
 
     // A recording saved while the page is out of sight (another page, the tray, a hotkey in the game) is listed and
     // opened when it comes back: reading and analysing it meanwhile would only cost the game.
-    private void Profiles_Saved(string path) => DispatcherQueue.TryEnqueue(() =>
+    private void Profiles_Saved(string path) => DispatcherQueue.Enqueue(() =>
     {
         if (Visibility == Visibility.Visible && App.MainWindow.AppWindow.IsVisible) RefreshList(path);
         else savedWhileAway = path;
@@ -338,7 +338,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private string? savedWhileAway;
 
-    private void HotKeys_Changed() => DispatcherQueue.TryEnqueue(UpdateSession);
+    private void HotKeys_Changed() => DispatcherQueue.Enqueue(UpdateSession);
     private async Task CheckGamesAsync()
     {
         if (service is not { } profiles || checkingGames) return;
@@ -1349,7 +1349,7 @@ public sealed partial class ProfilerPage : UserControl
     private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();
 
     // The game given more memory meanwhile changes what the line says about the recording open.
-    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(() => { if (MemoryHeader.Visibility == Visibility.Visible) ApplyMemoryShort(); });
+    private void GameMemory_Changed() => DispatcherQueue.Enqueue(() => { if (MemoryHeader.Visibility == Visibility.Visible) ApplyMemoryShort(); });
 
     private void MemoryToggle_Click(object sender, RoutedEventArgs e)
     {
@@ -1690,7 +1690,7 @@ public sealed partial class ProfilerPage : UserControl
     private void QueueRender()
     {
         if (renderQueued) return;
-        renderQueued = DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        renderQueued = DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             renderQueued = false;
             RenderChart();
@@ -1765,7 +1765,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             // Once per frame at most, for where the drag is then: a long range's statistics take milliseconds.
             if (!dragReadoutQueued)
-                dragReadoutQueued = DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowDragReadout);
+                dragReadoutQueued = DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowDragReadout);
             return;
         }
         var frame = ProfileAnalysis.FrameAt(recording, time);
@@ -2165,7 +2165,7 @@ public sealed partial class ProfilerPage : UserControl
         var entries = hoverEntries;
         // After this input: straight onto the part beside it (or back onto this one), the graph goes on without being
         // drawn bare between them.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (hoverEntries != entries) return;
             var was = hoveredPart;
@@ -2325,7 +2325,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             SetHighlight(group.Key);
             highlightMovedTo = group.Key;
-            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => highlightMovedTo = null);
+            DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => highlightMovedTo = null);
         }
     }
 
@@ -2824,10 +2824,9 @@ public sealed partial class ProfilerPage : UserControl
 
     private Microsoft.UI.Dispatching.DispatcherQueueTimer CreateSearchTimer()
     {
-        var timer = DispatcherQueue.CreateTimer();
+        var timer = DispatcherQueue.Timer(ApplySearchText);
         timer.Interval = TimeSpan.FromMilliseconds(200);
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => ApplySearchText();
         return timer;
     }
 

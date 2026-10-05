@@ -46,6 +46,9 @@ public sealed partial class HomePage : UserControl
 
     public event EventHandler<HomeDestination>? NavigationRequested;
 
+    /// <summary>A link Explorer could not open; the shell says so.</summary>
+    public event EventHandler<Exception>? LinkFailed;
+
     // From <Version> in Directory.Build.props; the SDK may append "+<commit>", which is not shown.
     internal static string AppVersionText()
     {
@@ -197,7 +200,7 @@ public sealed partial class HomePage : UserControl
     }
 
     private void TextScaleFactor_Changed(UISettings sender, object args) =>
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (IsLoaded) UpdateLayoutForWidth();
         });
@@ -242,7 +245,7 @@ public sealed partial class HomePage : UserControl
         try { ShellLaunch.Open(link); }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            ((App)Application.Current).ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception));
+            LinkFailed?.Invoke(this, exception);
         }
     }
 

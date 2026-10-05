@@ -112,10 +112,9 @@ public static class AppToolTip
 
         private Microsoft.UI.Dispatching.DispatcherQueueTimer Timer(TimeSpan interval, Action tick)
         {
-            var timer = owner.DispatcherQueue.CreateTimer();
+            var timer = owner.DispatcherQueue.Timer(tick);
             timer.Interval = interval;
             timer.IsRepeating = false;
-            timer.Tick += (_, _) => tick();
             return timer;
         }
 

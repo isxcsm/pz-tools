@@ -112,6 +112,8 @@ public sealed partial class MainWindowShell : UserControl
         AddHandler(PointerPressedEvent, new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         HomeRoot.NavigationRequested += HomeRoot_NavigationRequested;
+        HomeRoot.LinkFailed += (_, exception) =>
+            ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception));
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         thumbnailLoadGate = new(runtime.ThumbnailReadConcurrency, runtime.ThumbnailReadConcurrency);
         saveSelectionBar = new AnimatedListSelectionBar(
@@ -125,13 +127,9 @@ public sealed partial class MainWindowShell : UserControl
         Navigation.RegisterPropertyChangedCallback(NavigationView.IsPaneOpenProperty,
             (_, _) => ApplyNavigationSpacing());
         ApplyLocalizedText();
-        countdownTimer = DispatcherQueue.CreateTimer();
+        countdownTimer = DispatcherQueue.Timer(() => UpdateCountdown(tick: true));
         countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        countdownTimer.Tick += (_, _) => UpdateCountdown(tick: true);
-        detailProgressDelayTimer = DispatcherQueue.CreateTimer();
-        detailProgressDelayTimer.Interval = TimeSpan.FromMilliseconds(runtime.DetailProgressDelayMs);
-        detailProgressDelayTimer.IsRepeating = false;
-        detailProgressDelayTimer.Tick += (_, _) =>
+        detailProgressDelayTimer = DispatcherQueue.Timer(() =>
         {
             if (detailLoading && hasPresentedDetail)
             {
@@ -139,39 +137,37 @@ public sealed partial class MainWindowShell : UserControl
                 DetailTransitionProgress.IsIndeterminate = true;
                 UpdateOperationActions();
             }
-        };
-        revisionEntranceTimer = DispatcherQueue.CreateTimer();
-        revisionEntranceTimer.Interval = TimeSpan.FromMilliseconds(
-            RevisionEntranceDurationMs + RevisionEntranceStaggerMs * RevisionEntranceStaggerRows + 25);
-        revisionEntranceTimer.IsRepeating = false;
-        revisionEntranceTimer.Tick += (_, _) =>
+        });
+        detailProgressDelayTimer.Interval = TimeSpan.FromMilliseconds(runtime.DetailProgressDelayMs);
+        detailProgressDelayTimer.IsRepeating = false;
+        revisionEntranceTimer = DispatcherQueue.Timer(() =>
         {
             revisionEntranceInProgress = false;
             RevealRevisionSelectionIfReady();
-        };
-        localOperationCardTimer = DispatcherQueue.CreateTimer();
-        localOperationCardTimer.Interval = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
-        localOperationCardTimer.IsRepeating = false;
-        localOperationCardTimer.Tick += (_, _) =>
+        });
+        revisionEntranceTimer.Interval = TimeSpan.FromMilliseconds(
+            RevisionEntranceDurationMs + RevisionEntranceStaggerMs * RevisionEntranceStaggerRows + 25);
+        revisionEntranceTimer.IsRepeating = false;
+        localOperationCardTimer = DispatcherQueue.Timer(() =>
         {
             // The worker's own record of the same work must not appear as a second card now.
             if (localOperation is not null)
                 retiredLocalWork.Add(new(localOperation.OperationId, localOperation.RunIndex, DateTimeOffset.UtcNow));
             localOperation = null;
             RefreshOperationCards();
-        };
-        operationCardExpiryTimer = DispatcherQueue.CreateTimer();
+        });
+        localOperationCardTimer.Interval = TimeSpan.FromSeconds(runtime.SuccessCardSeconds);
+        localOperationCardTimer.IsRepeating = false;
+        operationCardExpiryTimer = DispatcherQueue.Timer(RefreshOperationCards);
         operationCardExpiryTimer.IsRepeating = false;
-        operationCardExpiryTimer.Tick += (_, _) => RefreshOperationCards();
-        operationCardsHoverTimer = DispatcherQueue.CreateTimer();
-        operationCardsHoverTimer.IsRepeating = false;
-        // A pointer merely crossing the cards should not make them vanish the instant it leaves.
-        operationCardsHoverTimer.Interval = TimeSpan.FromSeconds(1);
-        operationCardsHoverTimer.Tick += (_, _) =>
+        operationCardsHoverTimer = DispatcherQueue.Timer(() =>
         {
             operationCardsHovered = false;
             RefreshOperationCards();
-        };
+        });
+        operationCardsHoverTimer.IsRepeating = false;
+        // A pointer merely crossing the cards should not make them vanish the instant it leaves.
+        operationCardsHoverTimer.Interval = TimeSpan.FromSeconds(1);
         OperationCards.PointerEntered += (_, _) =>
         {
             operationCardsHoverTimer.Stop();
@@ -318,7 +314,7 @@ public sealed partial class MainWindowShell : UserControl
         var host = App.Host;
         if (host is null) return;
         viewSubscription ??= host.Views.Subscribe((_, _) =>
-            DispatcherQueue.TryEnqueue(RefreshChangedViews));
+            DispatcherQueue.Enqueue(RefreshChangedViews));
         countdownTimer.Start();
         RefreshChangedViews();
         UpdateCountdown();
@@ -567,9 +563,8 @@ public sealed partial class MainWindowShell : UserControl
 
     private DispatcherQueueTimer CreateLoadFailureTimer()
     {
-        var timer = DispatcherQueue.CreateTimer();
+        var timer = DispatcherQueue.Timer(UpdateLoadFailure);
         timer.IsRepeating = false;
-        timer.Tick += (_, _) => UpdateLoadFailure();
         return timer;
     }
 
@@ -707,7 +702,7 @@ public sealed partial class MainWindowShell : UserControl
             revisionEntranceTimer.Start();
         }
         // ListView can realize its containers on the next layout pass.
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (generation != detailApplyGeneration
                 || !StringComparer.OrdinalIgnoreCase.Equals(displayedDetailSaveId, saveId)
@@ -1041,7 +1036,7 @@ public sealed partial class MainWindowShell : UserControl
         if (operationCardFitQueued) return;
         operationCardFitQueued = true;
         // After layout, so the menu and the cards report the sizes they actually have.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             operationCardFitQueued = false;
             FitOperationCards();
@@ -1504,7 +1499,7 @@ public sealed partial class MainWindowShell : UserControl
     // The chosen heap and the file's when the card was closed: it comes back only when either changes.
     private (int?, int?)? gameMemoryDismissed;
 
-    private void GameMemory_Changed() => DispatcherQueue.TryEnqueue(ApplyGameMemory);
+    private void GameMemory_Changed() => DispatcherQueue.Enqueue(ApplyGameMemory);
 
     // The player chose a heap and the game's file no longer has it (a game update or Steam's file check put the game's
     // own back): a card says so, and its button applies the choice again, for the game's next start.
@@ -1555,7 +1550,7 @@ public sealed partial class MainWindowShell : UserControl
 
     // ---- Updates ----
 
-    private void Updates_Changed() => DispatcherQueue.TryEnqueue(ApplyUpdate);
+    private void Updates_Changed() => DispatcherQueue.Enqueue(ApplyUpdate);
 
     // A newer release, while the notice is on: one line in the pane until the app is updated. With the pane folded to
     // its icons the cards cannot be read, so the settings icon carries a dot instead. The settings page says the rest.
@@ -1929,8 +1924,6 @@ public sealed partial class MainWindowShell : UserControl
                 throw new InvalidOperationException(Localizer.Get("DeleteSaveUnavailable"));
             progressId = StartLocalOperationProgress("delete-save");
             var progress = new LatestProgress<SaveDeletionProgress>();
-            var progressTimer = DispatcherQueue.CreateTimer();
-            progressTimer.Interval = TimeSpan.FromMilliseconds(host.RuntimeOptions.ExportProgressIntervalMs);
             void ApplyLatestDeletionProgress()
             {
                 var value = progress.TakeLatest();
@@ -1947,7 +1940,8 @@ public sealed partial class MainWindowShell : UserControl
                     TelemetryHealth = TelemetryHealth.Healthy };
                 RefreshOperationCards();
             }
-            progressTimer.Tick += (_, _) => ApplyLatestDeletionProgress();
+            var progressTimer = DispatcherQueue.Timer(ApplyLatestDeletionProgress);
+            progressTimer.Interval = TimeSpan.FromMilliseconds(host.RuntimeOptions.ExportProgressIntervalMs);
             progressTimer.Start();
             try
             {
@@ -2053,7 +2047,7 @@ public sealed partial class MainWindowShell : UserControl
         if (editor is null) return;
         revision.IsEditing = true;
         editor.Text = revision.RevisionText;
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (!revision.IsEditing) return;
             editor.Focus(FocusState.Programmatic);
@@ -2069,13 +2063,13 @@ public sealed partial class MainWindowShell : UserControl
         {
             e.Handled = true;
             _ = CommitRevisionNameAsync(editor);
-            DispatcherQueue.TryEnqueue(() => RevisionList.Focus(FocusState.Pointer));
+            DispatcherQueue.Enqueue(() => RevisionList.Focus(FocusState.Pointer));
         }
         else if (e.Key == Windows.System.VirtualKey.Escape)
         {
             e.Handled = true;
             if (editor.DataContext is SaveVersionUiItem revision) revision.IsEditing = false;
-            DispatcherQueue.TryEnqueue(() => RevisionList.Focus(FocusState.Pointer));
+            DispatcherQueue.Enqueue(() => RevisionList.Focus(FocusState.Pointer));
         }
     }
 

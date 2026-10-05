@@ -192,6 +192,18 @@ finally {
 The example clears its test-only environment overrides afterwards. If you already rely
 on different values for them, use a separate PowerShell session.
 
+## UI smoke tests
+
+```powershell
+pwsh scripts/test-ui-smoke.ps1
+```
+
+Five small WinUI programs open real pages and controls in a hidden window: tooltips, the
+logs, Home, the game extension settings and every language's strings. They need no app
+host, game or user data. `dotnet test` does not run them, so run this script after a UI
+change. A building solution only shows that they compile. The renders are saved in
+`artifacts/ui-smoke`.
+
 ## Synthetic game integration and opt-in tests
 
 ```powershell

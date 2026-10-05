@@ -36,7 +36,7 @@ internal sealed class AnimatedListSelectionBar
         list.SelectionChanged += (_, _) =>
         {
             Update();
-            list.DispatcherQueue.TryEnqueue(() => { if (!unloaded) Update(); });
+            list.DispatcherQueue.Enqueue(() => { if (!unloaded) Update(); });
         };
         list.Loaded += (_, _) =>
         {
@@ -53,7 +53,7 @@ internal sealed class AnimatedListSelectionBar
         list.LayoutUpdated += (_, _) =>
         {
             if (layoutQueued || unloaded) return;
-            layoutQueued = list.DispatcherQueue.TryEnqueue(
+            layoutQueued = list.DispatcherQueue.Enqueue(
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; if (!unloaded) Update(); });
         };
         surface.SizeChanged += (_, _) => Update();

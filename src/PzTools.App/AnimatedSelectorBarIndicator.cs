@@ -29,7 +29,7 @@ internal sealed class AnimatedSelectorBarIndicator
         tabs.LayoutUpdated += (_, _) =>
         {
             if (layoutQueued || unloaded) return;
-            layoutQueued = tabs.DispatcherQueue.TryEnqueue(
+            layoutQueued = tabs.DispatcherQueue.Enqueue(
                 Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { layoutQueued = false; if (!unloaded) Update(); });
         };
         // Closing the window unloads the tabs and then runs what is still queued: by then the tabs are torn down,

@@ -180,8 +180,8 @@ public sealed class CoffeeSupportUiSourceTests
         Assert.Contains("settlePending |= !animate;", request);
         Assert.Contains("if (updatePending) return;", request);
         Assert.True(request.IndexOf("updatePending = true;", StringComparison.Ordinal)
-            < request.IndexOf("DispatcherQueue.TryEnqueue(", StringComparison.Ordinal));
-        Assert.Equal(1, request.Split("DispatcherQueue.TryEnqueue(", StringSplitOptions.None).Length - 1);
+            < request.IndexOf("DispatcherQueue.Enqueue(", StringComparison.Ordinal));
+        Assert.Equal(1, request.Split("DispatcherQueue.Enqueue(", StringSplitOptions.None).Length - 1);
         Assert.Contains("if (disposed) return;", request);
         Assert.Contains("try { Update(useAnimation); }", request);
         Assert.Equal(2, request.Split("catch (Exception exception) when (IsFeedbackFailure(exception))",

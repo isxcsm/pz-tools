@@ -15,6 +15,10 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" />
     <ProjectReference Include="../../src/PzTools.App.Core/PzTools.App.Core.csproj" />
     <Page Include="../../src/PzTools.App/LogsPage.xaml" Link="LogsPage.xaml" />
+    <Compile Include="../../src/PzTools.App/UiQueue.cs" Link="UiQueue.cs" />
+    <!-- App.xaml, read below as SmokeAppResources.xml, merges this one by its ms-appx address. -->
+    <Page Include="../../src/PzTools.App/CardStyles.xaml" Link="CardStyles.xaml" />
+    <Compile Include="../../src/PzTools.App/LogColumns.cs" Link="LogColumns.cs" />
     <Compile Include="../../src/PzTools.App/LogsPage*.cs" Link="%(Filename)%(Extension)" />
     <Compile Include="../../src/PzTools.App/AnimatedListSelectionBar.cs" Link="AnimatedListSelectionBar.cs" />
     <Compile Include="../../src/PzTools.App/AppToolTip.cs" Link="AppToolTip.cs" />

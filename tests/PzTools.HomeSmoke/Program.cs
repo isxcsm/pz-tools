@@ -173,7 +173,8 @@ internal sealed class SmokeApp(string outputDirectory, bool visible) : Applicati
                 Check(Math.Abs(introductionOrigin.Y) < 1, "Wide Home title must align with other page headers.");
             }
             var version = page.FindName("HomeVersion") as TextBlock;
-            Check(version is { Text: "v0.2.1", IsTextSelectionEnabled: true }
+            Check(version is { IsTextSelectionEnabled: true } && version.Text == HomePage.AppVersionText()
+                && version.Text.StartsWith('v')
                 && version.ActualWidth > 0 && version.ActualHeight > 0 && !version.IsTextTrimmed,
                 "Home footer must display the selectable app version.");
 

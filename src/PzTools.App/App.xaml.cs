@@ -133,7 +133,7 @@ public partial class App : Application
         Localizer.Warm();
         window.AppWindow.Closing += MainWindow_Closing;
         var dispatcher = window.DispatcherQueue;
-        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.TryEnqueue(RestoreWindow));
+        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.Enqueue(RestoreWindow));
         window.Closed += async (_, _) =>
         {
             activationListener?.Dispose();
@@ -178,7 +178,7 @@ public partial class App : Application
             InstallProblem = problem;
             Host?.RecordActionIssue(Localizer.Get("InstallBrokenTitle"), Localizer.Get("InstallBrokenMessage"), failed: true,
                 diagnostics: problem.Describe());
-            window?.DispatcherQueue.TryEnqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
+            window?.DispatcherQueue.Enqueue(() => (window?.Content as MainWindowShell)?.ApplyInstallProblem());
         }
         catch (OperationCanceledException) { }
         catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }

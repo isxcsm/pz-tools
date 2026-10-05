@@ -28,17 +28,16 @@ public sealed partial class SettingsPage : UserControl
     {
         InitializeComponent();
         // After the theme has reached the probes below: queued, so the colours taken are the new theme's.
-        ActualThemeChanged += (_, _) => DispatcherQueue.TryEnqueue(() =>
+        ActualThemeChanged += (_, _) => DispatcherQueue.Enqueue(() =>
         {
             if (warningShown is { } unsaved) ShowGameSaveWarning(unsaved, force: true);
         });
         // Alphabetical by native name, independent of the current UI language, so every user finds theirs in the same place.
         foreach (var language in LanguageCatalog.All.OrderBy(language => language.NativeName, StringComparer.InvariantCulture))
             LanguageCombo.Items.Add(new ComboBoxItem { Content = language.NativeName, Tag = language.Tag });
-        applyTimer = DispatcherQueue.CreateTimer();
+        applyTimer = DispatcherQueue.Timer(ApplyTimer_Tick);
         applyTimer.Interval = TimeSpan.FromMilliseconds((App.Host?.RuntimeOptions ?? new AppRuntimeOptions()).SettingsDebounceMs);
         applyTimer.IsRepeating = false;
-        applyTimer.Tick += ApplyTimer_Tick;
         BuildHotKeyCards();
 #if PZTOOLS_DEV_TOOLS
         BuildCardPreview();
@@ -259,7 +258,7 @@ public sealed partial class SettingsPage : UserControl
         };
         section.IsExpanded = true;
         // After this layout pass, which places the page just shown.
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        DispatcherQueue.Enqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             card.StartBringIntoView(new BringIntoViewOptions { VerticalAlignmentRatio = 0.3, AnimationDesired = true });
             control.Focus(FocusState.Keyboard);
@@ -335,7 +334,7 @@ public sealed partial class SettingsPage : UserControl
     // switch it did not take would undo the hotkey's change with the next edit here.
     private void HotKeys_Changed()
     {
-        DispatcherQueue.TryEnqueue(() =>
+        DispatcherQueue.Enqueue(() =>
         {
             if (App.Host?.Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot is not { } value) return;
             if (applying || completedApply < requestedApply || capturing is not null)
@@ -581,11 +580,8 @@ public sealed partial class SettingsPage : UserControl
         applyTimer.Start();
     }
 
-    private async void ApplyTimer_Tick(DispatcherQueueTimer sender, object args)
-    {
-        sender.Stop();
-        await ApplyPendingSettingsAsync();
-    }
+    // Not repeating: it has stopped by the time it ticks.
+    private async void ApplyTimer_Tick() => await ApplyPendingSettingsAsync();
 
     private async Task ApplyPendingSettingsAsync()
     {
