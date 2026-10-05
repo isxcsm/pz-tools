@@ -720,6 +720,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>Bu yöntemin kendi süresinin {0} kadarı · aralığın {1} kadarı</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Seçilen modun betiklerinin çalışma süresi (çağırdıkları Java işlevleri dahil)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Seçilen mod hariç diğer betiklerin çalışma süresi</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC çalışıyor</value></data>

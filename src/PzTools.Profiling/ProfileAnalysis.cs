@@ -142,6 +142,26 @@ public sealed record ProfileFrameStatistics(int Count, double AverageMillisecond
 
 /// <summary>A thread's time in a range by what it was doing, as shares of the range adding up to one.</summary>
 public sealed record ProfileTimeBreakdown(double Scripts, double GameCode, double Collections, double Waiting);
+/// <summary>
+/// Who called a method, bottom up: one row per caller, the heaviest first, each opening onto its own callers. A chain of
+/// callers that never branches is one row (<see cref="Methods"/>, nearest first), up to the first of the game's own code:
+/// a JDK or library method's time read in the game's terms. <see cref="Share"/> is of the range, as the method's.
+/// </summary>
+public sealed class ProfileCallerNode
+{
+    internal readonly Dictionary<int, ProfileCallerNode> ByMethod = [];
+    internal ProfileCallerNode(int method) { MethodIndexes = [method]; }
+    internal List<int> MethodIndexes { get; }
+    /// <summary>The methods of this row, nearest caller first; the method itself for the root.</summary>
+    public IReadOnlyList<string> Methods { get; internal set; } = [];
+    public double Share { get; internal set; }
+    public int Samples { get; internal set; }
+    /// <summary>Heaviest first.</summary>
+    public IReadOnlyList<ProfileCallerNode> Callers { get; internal set; } = [];
+    /// <summary>Whether the row ends at the game's own code: where reading up from a library method stops by itself.</summary>
+    public bool ReachesGame { get; internal set; }
+}
+
 /// <summary>Frames' average length, in milliseconds, while the collector was at work and while it was not, with how many of each.</summary>
 public sealed record ProfileCollectorFrames(double During, int DuringCount, double Outside, int OutsideCount)
 {
@@ -737,6 +757,75 @@ public static class ProfileAnalysis
         }
         return Math.Clamp(busy / (double)(end - start), 0, 1);
     }
+
+    /// <summary>
+    /// The callers of a method's own time in the range, bottom up (see <see cref="ProfileCallerNode"/>): where the samples
+    /// that ended in it came from. Counted as the range's figures are (the thread's samples, waits left out), so the
+    /// root's share is the method's own share. Worked out for one method at a time, when its row is opened.
+    /// </summary>
+    /// <param name="thread">The thread whose samples count; -1 all.</param>
+    public static ProfileCallerNode CallersOf(ProfileRecording recording, long start, long end, int thread, string method)
+    {
+        // A name can stand at more than one place in the method table; its rows in the lists are by name.
+        var targets = new HashSet<int>();
+        for (var index = 0; index < recording.Methods.Count; index++)
+            if (recording.Methods[index] == method) targets.Add(index);
+        var root = new ProfileCallerNode(targets.Count > 0 ? targets.First() : -1) { Methods = [method] };
+        if (targets.Count == 0 || end <= start) return root;
+        var span = (double)(end - start);
+        var waits = new bool?[recording.Stacks.Count];
+        var samples = recording.Samples;
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            if (thread >= 0 && sample.Thread != thread) continue;
+            var stack = recording.Stacks[sample.Stack];
+            if (stack.Length == 0 || !targets.Contains(stack[0])) continue;
+            if (sample.Native && (waits[sample.Stack] ??= Waits(recording, stack))) continue;
+            var weight = (sample.Native ? recording.NativePeriod : recording.JavaPeriod) / span;
+            var node = root;
+            node.Share += weight; node.Samples++;
+            // Up the stack, nearest caller first; a recursive call counts each frame it passes.
+            for (var depth = 1; depth < stack.Length; depth++)
+            {
+                if (!node.ByMethod.TryGetValue(stack[depth], out var caller)) node.ByMethod[stack[depth]] = caller = new ProfileCallerNode(stack[depth]);
+                node = caller;
+                node.Share += weight; node.Samples++;
+            }
+        }
+        Finish(root, recording, isRoot: true);
+        return root;
+    }
+
+    // Callers heaviest first; a caller with one caller of its own taking all its samples joins it in one row, up to the
+    // game's own code (or a few methods, so a row stays readable).
+    private static void Finish(ProfileCallerNode node, ProfileRecording recording, bool isRoot)
+    {
+        const int longestChain = 6;
+        if (!isRoot)
+            // A library chain ends at the first game method it reaches; a chain of the game's own methods folds on.
+            while (node.ByMethod.Count == 1 && node.MethodIndexes.Count < longestChain
+                && !(IsGameMethod(recording.Methods[node.MethodIndexes[^1]])
+                    && node.MethodIndexes.Any(index => !IsGameMethod(recording.Methods[index]))))
+            {
+                var only = node.ByMethod.Values.First();
+                if (only.Samples != node.Samples) break;
+                node.MethodIndexes.Add(only.MethodIndexes[0]);
+                node.ByMethod.Clear();
+                foreach (var pair in only.ByMethod) node.ByMethod[pair.Key] = pair.Value;
+            }
+        if (!isRoot)
+        {
+            node.Methods = node.MethodIndexes.Select(index => recording.Methods[index]).ToArray();
+            node.ReachesGame = node.Methods.Any(IsGameMethod);
+        }
+        var callers = node.ByMethod.Values.OrderByDescending(caller => caller.Samples).ToArray();
+        foreach (var caller in callers) Finish(caller, recording, isRoot: false);
+        node.Callers = callers;
+    }
+
+    // The game's own code, where reading up from a library method has found what in the game asked for it.
+    private static bool IsGameMethod(string method) => method.StartsWith("zombie.", StringComparison.Ordinal);
 
     /// <summary>
     /// How long frames took while the collector was at work against while it was not, in milliseconds on average: what

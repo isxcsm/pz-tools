@@ -3195,7 +3195,55 @@ public sealed partial class ProfilerPage : UserControl
                     .GroupBy(row => row.Name).ToDictionary(same => same.Key, same => same.First().Total)
                 : null;
             double? Delta(ProfileShare row) => comparing ? row.Total - (before?.GetValueOrDefault(row.Name) ?? 0) : null;
-            foreach (var row in methods.Take(RowsPerGroup)) rows.Add(MethodLine(group, row, "", Delta(row)));
+            if (!openPaths.TryGetValue($"{group.Kind}|{group.Key}", out var opened)) openPaths[$"{group.Kind}|{group.Key}"] = opened = [];
+            // A method with time of its own opens onto who called it, bottom up: a library method's time read in the
+            // game's terms. Up to the game's own code the significant callers open by themselves; a row opened or shut
+            // by hand stays as it was left.
+            void AddMethod(ProfileShare row, int depth)
+            {
+                var path = "m/" + row.Name;
+                var line = MethodLine(group, row, "", Delta(row));
+                if (row.Self <= 0) { rows.Add(line with { Tree = new TreeItem(null, depth, path, false, false) }); return; }
+                var isOpen = opened.Contains(path);
+                rows.Add(line with { Tree = new TreeItem(null, depth, path, true, isOpen) });
+                if (isOpen) AddCallers(CallersOfMethod(row.Name), path, depth + 1, row.Self);
+            }
+            void AddCallers(ProfileCallerNode node, string path, int depth, double own)
+            {
+                var whole = group.Share ?? 0;
+                var listed = node.Callers.Where(caller => caller.Share >= CallerShown).Take(MaximumSiblings).ToArray();
+                foreach (var caller in listed)
+                {
+                    if (rows.Count >= MaximumTreeRows) return;
+                    var callerPath = path + "<" + caller.Methods[0];
+                    // Opens by itself while it is a library's and a tenth or more of the method's time.
+                    var automatic = !caller.ReachesGame && caller.Share >= own * 0.1;
+                    var isOpen = caller.Callers.Count > 0 && automatic != opened.Contains(callerPath);
+                    rows.Add(new TableLine(
+                    [
+                        (string.Join(" ← ", caller.Methods.Select(ShortMethod)), string.Join("\n", caller.Methods), false),
+                        (PackageOf(caller.Methods[0]), PackageOf(caller.Methods[0]), false), ("", null, true),
+                        (FinePercent(whole > 0 ? caller.Share / whole : 0),
+                            Localizer.Format("ProfileCallerShareFormat", FinePercent(own > 0 ? caller.Share / own : 0), FinePercent(caller.Share)), true),
+                        (caller.Samples.ToString("N0", Localizer.Culture), null, true),
+                    ], whole > 0 ? Math.Clamp(caller.Share / whole, 0, 1) : 0,
+                        new TreeItem(null, depth, callerPath, caller.Callers.Count > 0, isOpen)));
+                    if (isOpen) AddCallers(caller, callerPath, depth + 1, own);
+                }
+                // The callers too light to list, as one line: what is on screen still adds up to the method.
+                var rest = node.Callers.Except(listed).ToArray();
+                if (rest.Length > 0 && rows.Count < MaximumTreeRows)
+                {
+                    var share = rest.Sum(caller => caller.Share);
+                    rows.Add(new TableLine(
+                    [
+                        (Localizer.Format("ProfileRestFormat", rest.Length.ToString("N0", Localizer.Culture)), null, false), ("", null, false),
+                        ("", null, true), (FinePercent(whole > 0 ? share / whole : 0), null, true),
+                        (rest.Sum(caller => caller.Samples).ToString("N0", Localizer.Culture), null, true),
+                    ], null, new TreeItem(null, depth, path + "/*", false, false)));
+                }
+            }
+            foreach (var row in methods.Take(RowsPerGroup)) AddMethod(row, 0);
             if (methods.Length > RowsPerGroup)
             {
                 var rest = methods.Skip(RowsPerGroup).ToArray();
@@ -3210,7 +3258,7 @@ public sealed partial class ProfilerPage : UserControl
                     (FinePercent(whole > 0 ? self / whole : 0), Localizer.Format("ProfileShareOfRunFormat", FinePercent(self)), true), ("", null, true),
                     (rest.Sum(row => row.Samples).ToString("N0", Localizer.Culture), null, true),
                 ], Tree: new TreeItem(null, 0, path, true, restOpen)));
-                if (restOpen) foreach (var row in rest) rows.Add(MethodLine(group, row, "  ", Delta(row)));
+                if (restOpen) foreach (var row in rest) AddMethod(row, 1);
             }
             ScaleBars(rows);
             if (comparing) AddDeltas(rows);
@@ -3220,6 +3268,22 @@ public sealed partial class ProfilerPage : UserControl
             rows.Add(new([(row.Name, row.Name, false), (FinePercent(row.Self), null, true), (FinePercent(row.Total), null, true),
                 (row.Samples.ToString("N0", Localizer.Culture), null, true)]));
         return (columns, header, rows);
+    }
+
+    // A caller lighter than this share of the range is gathered with the others like it.
+    private const double CallerShown = 0.005;
+
+    // Who called each method, worked out when its row is first opened, for the range and thread shown.
+    private readonly Dictionary<string, ProfileCallerNode> callersOf = [];
+    private ProfileRange? callersFor;
+
+    private ProfileCallerNode CallersOfMethod(string method)
+    {
+        if (!ReferenceEquals(callersFor, shown)) { callersOf.Clear(); callersFor = shown; }
+        if (!callersOf.TryGetValue(method, out var node))
+            callersOf[method] = node = ProfileAnalysis.CallersOf(recording!, shown!.Start, shown.End,
+                ThreadBox.SelectedIndex == 1 || recording!.GameThread < 0 ? -1 : recording.GameThread, method);
+        return node;
     }
 
     // The change as the last cell; empty for a line that is no function (a gathered rest, a function's line).

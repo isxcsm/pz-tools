@@ -720,6 +720,7 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} vlastního času této metody · {1} úseku</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Čas běhu skriptů vybraného módu (včetně volaných funkcí Javy)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Čas běhu ostatních skriptů bez vybraného módu</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC běží</value></data>

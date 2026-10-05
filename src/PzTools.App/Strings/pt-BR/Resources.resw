@@ -720,6 +720,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} do tempo próprio deste método · {1} do trecho</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Tempo dos scripts do mod escolhido (com as funções Java que chamaram)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Tempo dos outros scripts, sem o mod escolhido</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC rodando</value></data>

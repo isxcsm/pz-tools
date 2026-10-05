@@ -825,6 +825,40 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Callers_ReadALibraryMethodUpToTheGameCodeThatAskedForIt()
+    {
+        // HashMap.getNode's own time: three samples through a library wrapper from the game's update, one from elsewhere.
+        var recording = Load("""
+            PZPROF|1
+            I|mode|general
+            T|7|main
+            I|gameThread|7
+            M|0|java.util.HashMap.getNode
+            M|1|lib.Cache.wrap
+            M|2|zombie.Game.update
+            M|3|zombie.Main.run
+            M|4|lib.Other.caller
+            K|0|0 1 2 3
+            K|1|0 4 3
+            S|1000000|7|0|J
+            S|1010000|7|0|J
+            S|1020000|7|0|J
+            S|1030000|7|1|J
+            """);
+        var root = ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "java.util.HashMap.getNode");
+
+        Assert.Equal(4, root.Samples);
+        // A chain that never branches is one row, ending at the first game method; the heaviest first.
+        Assert.Equal([["lib.Cache.wrap", "zombie.Game.update"], ["lib.Other.caller", "zombie.Main.run"]],
+            root.Callers.Select(caller => caller.Methods.ToArray()));
+        Assert.Equal([3, 1], root.Callers.Select(caller => caller.Samples));
+        Assert.All(root.Callers, caller => Assert.True(caller.ReachesGame));
+        // Above the game code, its callers stay one row away.
+        Assert.Equal("zombie.Main.run", Assert.Single(root.Callers[0].Callers).Methods.Single());
+        Assert.Empty(ProfileAnalysis.CallersOf(recording, 0, recording.Duration + 1, recording.GameThread, "not.There").Callers);
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);

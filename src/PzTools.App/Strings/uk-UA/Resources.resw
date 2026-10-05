@@ -720,6 +720,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Очікування</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} власного часу цього методу · {1} відрізка</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Час скриптів вибраного мода (з викликаними функціями Java)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Час решти скриптів, без вибраного мода</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>Триває GC</value></data>

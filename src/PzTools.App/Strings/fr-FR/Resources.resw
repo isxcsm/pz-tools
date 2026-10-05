@@ -720,6 +720,7 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Code du jeu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attente</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} du temps propre de cette méthode · {1} de la plage</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Temps des scripts du mod choisi (fonctions Java appelées comprises)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Temps des autres scripts, sans le mod choisi</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC en cours</value></data>

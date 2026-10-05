@@ -720,6 +720,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} dari waktu sendiri metode ini · {1} dari rentang</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Waktu skrip mod terpilih berjalan (termasuk fungsi Java yang dipanggil)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Waktu skrip lain berjalan, tanpa mod terpilih</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC berjalan</value></data>

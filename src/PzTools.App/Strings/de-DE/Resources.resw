@@ -720,6 +720,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripte</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
+  <data name="ProfileCallerShareFormat" xml:space="preserve"><value>{0} der eigenen Zeit dieser Methode · {1} des Abschnitts</value></data>
   <data name="ProfileBreakdownSelectedTip" xml:space="preserve"><value>Laufzeit der Skripte der gewählten Mod (samt aufgerufener Java-Funktionen)</value></data>
   <data name="ProfileBreakdownOtherScriptsTip" xml:space="preserve"><value>Laufzeit der übrigen Skripte ohne die gewählte Mod</value></data>
   <data name="ProfileChartCollectorLegend" xml:space="preserve"><value>GC läuft</value></data>

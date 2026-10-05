@@ -448,6 +448,17 @@ heading says what its column means when the pointer rests on it.
   Lua engine (`se.krka.kahlua.`), Java built-ins, PZ Tools, and bundled libraries for
   everything else. A Java mod is not guessed from its package name; it appears under
   bundled libraries.
+- **Who called a Java method.** A Java method with time of its own opens onto its callers,
+  bottom up, the heaviest first: a JDK method such as `HashMap.getNode` read in the game's
+  terms. Its stacks run some 27 frames deep, the outer ones always the same, so a call tree
+  from the top would have to be opened a long way before anything differed. A chain of
+  callers that never branches is one row (`Cache.wrap ← Game.update`), ending at the first
+  of the game's own methods (`zombie.`); up to there, callers with a tenth or more of the
+  method's time open by themselves, and the game method's own callers are a click away.
+  Callers under 0.5% of the range are gathered in one line. Each caller's figure is a share
+  of the group, as the method's is; its tip says what it is of the method's own time. A
+  method called from Lua shows the Lua engine (`KahluaThread`) as its caller: which Lua
+  function asked is not in the Java stack.
 - **Threads.** The default view is the game thread. *All threads* includes rendering,
   loading and background threads, each sample weighted by its own sampling period.
   A thread inside a native call is sampled whether it works there or only waits, so
