@@ -194,7 +194,7 @@ run index and reserves its own workflow.
 | Lane | Started by | Locks | Work |
 | --- | --- | --- | --- |
 | `RevisionReclamation` | Dispatch, only when enough deleted revisions are waiting or the oldest is old enough | Lane mutex, writer lock | Compacts deleted revisions, then garbage-collects objects and packs |
-| `ArtifactCleanup` | Dispatch, after every backup | Lane mutex, writer lock | Deletes leftover temporary files and runs database housekeeping |
+| `ArtifactCleanup` | Dispatch, after an automatic backup that succeeded or had nothing to store | Lane mutex, writer lock | Deletes leftover temporary files and runs database housekeeping |
 | `OrphanBackups` | State scheduler; the app once more as it closes | Lane mutex, `RepositoryAccess`, writer lock | Start-up-style recovery, removal of backups whose save folder is gone, database housekeeping, pack space reclamation |
 
 The rules shared by all lanes:
@@ -203,7 +203,10 @@ The rules shared by all lanes:
   cancelled within a second when one appears
   ([`GameplayWorkGate`](../../src/PzTools.Process.Hosting/GameplayWorkGate.cs)). An error while listing processes
   counts as "a game may be running". Dispatch follows only a scheduled backup, which mostly runs while the game
-  is open, so `RevisionReclamation` and `ArtifactCleanup` rarely get to run.
+  is open, so `RevisionReclamation` and `ArtifactCleanup` are usually skipped there. Their work is not lost:
+  `OrphanBackups` runs the same housekeeping for every save once the game is gone (right after it exits, then
+  about once a minute), compacting deleted revisions that are due and reclaiming pack space. Pausing the game
+  does not count as gone: its process is still running.
 - A lane already running makes dispatch report it `Busy` and go on with the others.
 - A lane cancels itself when a backup scheduler sets its yield event.
 - `RevisionReclamation` and `OrphanBackups` report a start and a heartbeat every 3 seconds only once they know
