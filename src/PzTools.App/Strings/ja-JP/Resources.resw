@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>現在のセーブ</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>セーブフォルダー</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>現在のセーブをコピー中</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>プレイ中はエクスポートできません。ゲームを終了してください。</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>プレイ中はエクスポートできません。メインメニューに戻ってください。</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>プレイ中はバックアップを復元できません。プレイを終了して再試行してください。</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>復元するバックアップを一覧から選択してください</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>プレイ中はセーブを削除できません。プレイを終了して再試行してください。</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>プレイ中は回復できません。ゲームを終了してください。</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>プレイ中は回復できません。メインメニューに戻ってください。</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>バックアップはまだありません</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>今すぐバックアップ</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>復元</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>バックアップ間隔</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>自動バックアップを実行する間隔です（1～60 分）。変更するとそこから数え直します。</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>自動バックアップの保持数</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>自動バックアップは新しいものからこの数だけ残し、古いものから削除します（1～100 個）。手動バックアップは数に含まれず、削除されません。</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>自動バックアップは新しいものからこの数だけ残し、古いものから削除します（1～100 個）。手動バックアップは数に含まれず、セーブがなくなったときだけ一緒に削除されます。</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>キャラクター死亡時にバックアップ</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>オンにすると、キャラクターが死んだ直後にバックアップを 1 回作ります。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>セーブが変わり続けたため、バックアップできませんでした。少し待って再試行してください。</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>セーブとバックアップを削除しました。</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>セーブは削除しましたが、バックアップが残っています。</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>削除しました。</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>セーブが変わりました。ゲームを終了して再試行してください。</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>セーブが変わりました。メインメニューに戻って再試行してください。</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>完了しましたが、一覧の更新が遅れることがあります。再実行しないでください。</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>バックアップ</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>復元</value></data>
@@ -429,7 +429,7 @@
   <data name="ProfileCompare" xml:space="preserve"><value>比較対象</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>比較できるほかの記録がありません</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>スレッド</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 1 分を記録として保存します。モード: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>今カクついたなら押してください。ゲームが保持している直前の約 {1} 分を記録として保存します。モード: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>{0} の {1} 行目から呼び出し</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身で実行した行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
@@ -490,8 +490,8 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>詳細はより多くを記録しますが、オンの間はゲームが遅くなります（約 20%）。カクつきの原因を調べるときに使ってください。</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>長さ (分)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1～10 分。長くしてもゲームへの負荷は同じで、ディスクの使用量だけが増えます。</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の 1 分の記録を始めます。</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の 1 分の記録を開始しています…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>ゲームが起動すると直前の {0} 分の記録を始めます。</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>直前の {0} 分の記録を開始しています…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>保存できる直前の記録がありません。今から記録し直します。</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>直前の記録を取り出し</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>比較をやめる</value></data>
@@ -590,7 +590,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>このセーブは回復できません。PZ Tools を更新してみてください。セーブはそのままです。</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>生存時間を読み取れませんでした · 再確認予定</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>ゲームか別の処理がファイルを使用中です。少し待って再試行してください。</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>エクスポート中にセーブが変わりました。ゲームを終了して再試行してください。</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>エクスポート中にセーブが変わりました。メインメニューに戻って再試行してください。</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>破損したバックアップです。別のバックアップを選んでください。セーブはそのままです。</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>空き容量が足りません。</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>PZ Tools のファイルが欠けています。ダウンロードした圧縮ファイルを展開し直してください。</value></data>
@@ -666,8 +666,8 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>ゲームに接続できないため、ゲームを保存せずにバックアップします。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>睡眠状態を読み取れないため、現在は一時停止のみ適用されます。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ゲームに接続できないため、現在は適用されません。</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>次のバックアップ（ゲーム保存なし）</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>ゲームを保存せずにバックアップします。</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>次のバックアップ（ゲームに未接続）</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>バックアップは時間どおりに続きます。先にゲームを保存できないときは、そのままのファイルをバックアップします。</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>ゲームに接続していません</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>ゲームを再起動してください。</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>互換性と適用状況</value></data>

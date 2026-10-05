@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Current save</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Save folder</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Copying current save</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Cannot export while playing. Quit the game.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Cannot export while playing. Quit to the main menu.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Backups cannot be restored while playing. Stop playing and try again.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Select a backup in the list to restore it</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>The save cannot be deleted while playing. Stop playing and try again.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Cannot heal while playing. Quit the game.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Cannot heal while playing. Quit to the main menu.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>No backups yet</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Back up now</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Restore</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Backup interval</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Time between automatic backups (1–60 minutes). Changing it restarts the count.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Automatic backups to keep</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted and are never deleted.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted; they are deleted only with their save.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>When on, makes one backup right after your character dies.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing, so it was not backed up. Try again in a moment.</value></data>
@@ -286,7 +286,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Deleted the save and its backups.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>The save was deleted, but its backups remain.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Deleted.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>The save changed. Quit the game and try again.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>The save changed. Quit to the main menu and try again.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Done, but the list may update late. Do not run it again.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Backup</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Restore</value></data>
@@ -457,7 +457,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileCompare" xml:space="preserve"><value>Compare with</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>No other recording to compare with</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Threads</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last minute, and it is saved as a recording. Mode: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Just stuttered? Press this: the game has kept about the last {1} min, and it is saved as a recording. Mode: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Called from line {1} of {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Lines it ran itself · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (call)</value></data>
@@ -518,10 +518,10 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="HotKey.SaveLast.Header" xml:space="preserve"><value>Save last minutes</value></data>
   <data name="HotKeySettings.Description" xml:space="preserve"><value>They work in the game too. While PZ Tools runs, the keys set here are taken from all other programs. Each answers with a sound and a note over your character's head.</value></data>
   <data name="HotKeysTitle" xml:space="preserve"><value>Hotkeys</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last minute once the game is running.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last minute…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Starts keeping the last {0} min once the game is running.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Starting to keep the last {0} min…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>No last minutes to save. Recording again from now.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minute</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Taking the last minutes</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Stop comparing</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Compared with all of {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Compared with {0}</value></data>
@@ -589,7 +589,7 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>This save cannot be healed. Try updating PZ Tools. The save is unchanged.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Survival time unavailable · checking again</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>The game or other work is using the file. Try again in a moment.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>The save changed while exporting. Quit the game and try again.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>The save changed while exporting. Quit to the main menu and try again.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>This backup is damaged. Choose another backup. The save is unchanged.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Not enough disk space.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Some PZ Tools files are missing. Extract the downloaded package again.</value></data>
@@ -665,8 +665,8 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Could not connect to the game; backing up without saving it first.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Sleep cannot be read right now, so only pausing applies.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Not applied right now because the game cannot be reached.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (without game save)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Backups run without saving the game.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (game not connected)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Backups continue on a timer. If the game cannot save first, the files are backed up as they are.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Not connected to the game</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Restart the game.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Compatibility and status</value></data>

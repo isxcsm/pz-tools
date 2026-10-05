@@ -76,7 +76,7 @@ recording started with **Start recording** runs beside it.
 | --- | --- |
 | **Keep the last minutes** off | **Turn on last minutes** with an arrow; it opens Settings at that switch |
 | On, game keeping them | **Save last 2 min** (**Save last 2 min · Detailed** while Detailed is kept) |
-| On, nothing kept yet | Disabled; the tip says **Starts keeping the last minute once the game is running.**, **Starting to keep the last minute…**, or why the game refused |
+| On, nothing kept yet | Disabled; the tip says **Starts keeping the last 2 min once the game is running.**, **Starting to keep the last 2 min…**, or why the game refused |
 | Saving | **Saving last 2 min…** |
 
 The button's tip names the mode being kept and the hotkey, if one is set. If the game turns out not to be keeping

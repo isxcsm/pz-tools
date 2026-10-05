@@ -75,7 +75,7 @@ The sidebar shows when the next automatic backup is due. Where a time is shown, 
 | **Checking game status** | No | The game's state has been unknown for more than about 3 seconds. Shorter gaps keep the previous text. |
 | **Character dead – backups waiting** | No | Automatic backups wait for a new character or a revival. |
 | **Skipping this backup** | Yes | The last game save may not have finished. This interval is skipped; backups resume when the time runs out. |
-| **Next backup (without game save)** | Yes | The game cannot be read. Backups follow the clock. |
+| **Next backup (game not connected)** | Yes | The game cannot be read. Backups follow the clock and still try to save the game first. |
 | **Automatic backups after a game restart** | No | PZ Tools was updated while the game ran. Automatic backups wait until the game is restarted. |
 | **Game is not running** | No | No game process is running. Shown even when automatic backups are off. |
 | **Automatic backups off** | No | **Automatic backups** is off. |
@@ -126,10 +126,11 @@ that the backup is due.
 ### When the game cannot be reached
 
 If PZ Tools cannot read a running game for about 90 seconds, a **Not connected to the
-game** card appears with "Backups run without saving the game." Meanwhile:
+game** card appears with "Backups continue on a timer. If the game cannot save first, the
+files are backed up as they are." Meanwhile:
 
 - automatic backups follow the clock at the set interval, for the save the game has open,
-  and the line says **Next backup (without game save)**
+  and the line says **Next backup (game not connected)**
 - each backup still tries to save the game first; if the game cannot be reached, the files
   on disk are copied
 - **Delay scheduled backups while paused or asleep**, **Back up when the character dies**,

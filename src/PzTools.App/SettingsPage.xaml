@@ -162,7 +162,7 @@
             <ToggleSwitch x:Name="PausePeriodicToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="RetentionSettingCard"
-                                Header="Automatic backups to keep" Description="Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted and are never deleted.">
+                                Header="Automatic backups to keep" Description="Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted; they are deleted only with their save.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Library" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="RetentionEditor" Width="340" ColumnSpacing="16">
               <Grid.ColumnDefinitions>

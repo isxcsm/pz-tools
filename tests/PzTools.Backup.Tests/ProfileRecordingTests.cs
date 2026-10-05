@@ -150,6 +150,22 @@ public sealed class ProfileRecordingTests
         Assert.Contains("| Pause Mark Start |", report);
     }
 
+    // Both modes sample Lua lines and allocations: the mode line says what Detailed adds, not what both have.
+    [Fact]
+    public void Report_SaysWhatDetailedModeAdds()
+    {
+        var standard = Load(Sample);
+        var detailed = Load(Sample.Replace("I|mode|general", "I|mode|detailed", StringComparison.Ordinal));
+        Assert.True(detailed.Detailed);
+        string Report(ProfileRecording recording) => ProfileReport.Build(recording,
+            ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread), recording.GameThread);
+
+        Assert.Contains("- Mode: standard (low overhead)", Report(standard));
+        var report = Report(detailed);
+        Assert.Contains("- Mode: detailed (more frequent samples, and waits recorded;", report);
+        Assert.DoesNotContain("allocations measured", report);
+    }
+
     [Fact]
     public void Report_Compared_PutsTheBaselinesFigureAndTheChangeBesideEach()
     {
@@ -185,7 +201,8 @@ public sealed class ProfileRecordingTests
         Assert.DoesNotContain("Heaviest Java methods", report);
 
         var java = ProfileReport.Build(recording, slow, recording.GameThread, focus: new ProfileReportFocus(true, ProfileAnalysis.JavaRuntime));
-        Assert.Contains("## The Java area: Java built-ins (java.*, jdk.*)\n- 25.00% of the range in its own methods", java);
+        // A share of the thread's running time, as the area table says, not of the range's length.
+        Assert.Contains("## The Java area: Java built-ins (java.*, jdk.*)\n- 25.00% of the thread's running time in its own methods", java);
         Assert.Contains("| java.util.HashMap.get | 25.00% | 25.00% |", java);
         Assert.DoesNotContain("SlowMod", java);
     }

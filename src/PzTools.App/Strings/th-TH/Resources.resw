@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>เซฟปัจจุบัน</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>โฟลเดอร์เซฟ</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>กำลังคัดลอกเซฟปัจจุบัน</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>ส่งออกขณะเล่นไม่ได้ กรุณาออกไปที่เมนูหลัก</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>กู้คืนข้อมูลสำรองขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>เลือกแบ็กอัปที่ต้องการกู้คืนจากรายการ</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>ลบเซฟขณะเล่นไม่ได้ กรุณาออกจากเซฟแล้วลองอีกครั้ง</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาขณะเล่นไม่ได้ กรุณาออกจากเกม</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>รักษาขณะเล่นไม่ได้ กรุณาออกไปที่เมนูหลัก</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>ยังไม่มีข้อมูลสำรอง</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>สำรองตอนนี้</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>กู้คืน</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>ช่วงเวลาสำรองข้อมูล</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>ระยะเวลาระหว่างการสำรองอัตโนมัติ (1–60 นาที) เมื่อเปลี่ยนค่าจะเริ่มนับใหม่</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>จำนวนข้อมูลสำรองอัตโนมัติที่เก็บไว้</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับและไม่ถูกลบ</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>เก็บข้อมูลสำรองอัตโนมัติล่าสุดไว้ตามจำนวนนี้และลบรายการที่เก่ากว่า (1–100) ข้อมูลสำรองด้วยตนเองจะไม่ถูกนับ และจะถูกลบพร้อมกับเซฟเท่านั้น</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อเปิด จะสร้างข้อมูลสำรองหนึ่งครั้งทันทีหลังตัวละครตาย</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนแปลงไม่หยุด จึงสำรองข้อมูลไม่ได้ ลองอีกครั้งในอีกสักครู่</value></data>
@@ -286,7 +286,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>ลบเซฟและข้อมูลสำรองแล้ว</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>ลบเซฟแล้ว แต่ข้อมูลสำรองยังเหลืออยู่</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>ลบแล้ว</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>เซฟเปลี่ยนไปแล้ว ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>เซฟเปลี่ยนไปแล้ว ออกไปที่เมนูหลักแล้วลองอีกครั้ง</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>เสร็จแล้ว แต่รายการอาจอัปเดตช้า อย่าทำซ้ำ</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>การสำรองข้อมูล</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>การกู้คืน</value></data>
@@ -436,7 +436,7 @@
   <data name="ProfileCompare" xml:space="preserve"><value>เปรียบเทียบกับ</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>ไม่มีการบันทึกอื่นให้เปรียบเทียบ</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>เธรด</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณหนึ่งนาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>เพิ่งกระตุกใช่ไหม กดที่นี่: เกมเก็บประมาณ {1} นาทีล่าสุดไว้ และจะบันทึกเป็นการบันทึกหนึ่งรายการ โหมด: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>เรียกจากบรรทัด {1} ของ {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>บรรทัดที่ทำงานเอง · {0} บรรทัด</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (เรียก)</value></data>
@@ -497,8 +497,8 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>โหมดละเอียดแสดงข้อมูลมากกว่า แต่ทำให้เกมช้าลงตลอดที่เปิดอยู่ (ราว 20%) ใช้ขณะหาสาเหตุอาการกระตุก</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>ความยาว (นาที)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>1 ถึง 10 นาที ยิ่งยาวก็ไม่ทำให้เกมหนักขึ้น แค่ใช้พื้นที่ดิสก์มากขึ้น</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บนาทีล่าสุดเมื่อเกมทำงาน</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บนาทีล่าสุด…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>จะเริ่มเก็บ {0} นาทีล่าสุดเมื่อเกมทำงาน</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>กำลังเริ่มเก็บ {0} นาทีล่าสุด…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>ไม่มีนาทีล่าสุดให้บันทึก จะเริ่มเก็บใหม่ตั้งแต่ตอนนี้</value></data>
   <data name="ProfilePhase.Save" xml:space="preserve"><value>ดึงนาทีล่าสุด</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>หยุดเปรียบเทียบ</value></data>
@@ -597,7 +597,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>รักษาเซฟนี้ไม่ได้ ลองอัปเดต PZ Tools เซฟยังเหมือนเดิม</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>อ่านเวลาที่รอดชีวิตไม่ได้ · จะตรวจสอบอีกครั้ง</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>เกมหรืองานอื่นกำลังใช้ไฟล์ ลองอีกครั้งในอีกสักครู่</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนระหว่างส่งออก ออกจากเกมแล้วลองอีกครั้ง</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนระหว่างส่งออก ออกไปที่เมนูหลักแล้วลองอีกครั้ง</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>ข้อมูลสำรองนี้เสียหาย เลือกข้อมูลสำรองอื่น เซฟยังเหมือนเดิม</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>พื้นที่ว่างไม่เพียงพอ</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>ไฟล์ของ PZ Tools ขาดหายไป แตกไฟล์บีบอัดที่ดาวน์โหลดมาอีกครั้ง</value></data>
@@ -673,8 +673,8 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ จึงสำรองโดยไม่บันทึกเกมก่อน</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>ขณะนี้อ่านสถานะการหลับไม่ได้ จึงมีผลเฉพาะการหยุดชั่วคราว</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่บันทึกเกม)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>สำรองข้อมูลโดยไม่บันทึกเกมก่อน</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่ได้เชื่อมต่อกับเกม)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>การสำรองยังทำตามเวลา หากเกมบันทึกก่อนไม่ได้ จะสำรองไฟล์ตามสภาพปัจจุบัน</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>ไม่ได้เชื่อมต่อกับเกม</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>กรุณาเปิดเกมใหม่</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>ความเข้ากันได้และสถานะ</value></data>

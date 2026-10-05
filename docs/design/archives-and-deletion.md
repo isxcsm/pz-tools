@@ -110,7 +110,7 @@ Exporting a backup is allowed while the game runs: it does not read the save.
 
 Live export copies the save folder as it is, without making a backup. The app refuses it while the save is being
 played: **Export ZIP** is disabled for the current save while the save list shows it active or the state projection
-has failed, its tooltip says **Cannot export while playing. Quit the game.**, and the click handler checks both again
+has failed, its tooltip says **Cannot export while playing. Quit to the main menu.**, and the click handler checks both again
 after the file picker closes. The worker itself does not know whether the game is running. When it runs anyway (from
 the command line, or because the game started after the check), the listing comparison below is its only protection.
 
@@ -125,8 +125,8 @@ the command line, or because the game started after the check), the listing comp
    the export.
 6. The temporary file replaces the output.
 
-Steps 4 and 5 fail with `export-save-changed`, shown as **The save changed while exporting. Quit the game and try
-again.**
+Steps 4 and 5 fail with `export-save-changed`, shown as **The save changed while exporting. Quit to the main menu
+and try again.**
 
 There is no private copy of the save first. It would write each of the save's many small files a second time and make
 export several times slower, without adding a check: the comparison in step 5 is the check either way. The
@@ -235,7 +235,7 @@ Deleting a save removes its folder permanently, without the Recycle Bin, and mar
 2. The confirmation names the save and its folder; **Cancel** is the default.
 3. After it closes, the handler checks again that the save is still listed, fresh, not played, the state projection
    has not failed, and its folder is exactly `<saves root>\<Mode>\<Save>`. Otherwise it fails with **The save changed.
-   Quit the game and try again.**
+   Quit to the main menu and try again.**
 
 ### Order of steps
 

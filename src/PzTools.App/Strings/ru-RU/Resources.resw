@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Текущее сохранение</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Папка сохранения</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Копирование текущего сохранения</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Нельзя экспортировать во время игры. Выйдите из игры.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Нельзя экспортировать во время игры. Выйдите в главное меню.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Нельзя восстанавливать копии во время игры. Выйдите из мира и повторите попытку.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Выберите в списке резервную копию для восстановления</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Нельзя удалять сохранение во время игры. Выйдите из мира и повторите попытку.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Нельзя исцелять во время игры. Выйдите из игры.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Нельзя исцелять во время игры. Выйдите в главное меню.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Копий пока нет</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Создать копию</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Восстановить</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Интервал копирования</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Время между автоматическими копиями (1–60 минут). После изменения отсчёт начинается заново.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Количество автоматических копий</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Хранит столько последних автоматических копий, а более старые удаляет (1–100). Ручные копии не учитываются и не удаляются.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Хранит столько последних автоматических копий, а более старые удаляет (1–100). Ручные копии не учитываются; они удаляются только вместе с сохранением.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Создавать копию при смерти персонажа</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Если включено, создаёт одну копию сразу после смерти персонажа.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Сохранение постоянно менялось, копия не создана. Повторите чуть позже.</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Сохранение и его копии удалены.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Сохранение удалено, но его копии остались.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Удалено.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Сохранение изменилось. Выйдите из игры и повторите попытку.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Сохранение изменилось. Выйдите в главное меню и повторите попытку.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Готово, но список может обновиться с задержкой. Не запускайте повторно.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Резервное копирование</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Восстановление</value></data>
@@ -429,7 +429,7 @@
   <data name="ProfileCompare" xml:space="preserve"><value>Сравнить с</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Нет другой записи для сравнения</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Потоки</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последнюю минуту, она сохранится как запись. Режим: {0}</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Только что подвисло? Нажмите: игра хранила примерно последние {1} мин, они сохранятся как запись. Режим: {0}</value></data>
   <data name="ProfileCalledFromFormat" xml:space="preserve"><value>Вызвана из строки {1} функции {0}</value></data>
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Строки, выполненные ею самой · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (вызов)</value></data>
@@ -490,10 +490,10 @@ GC работает: доля отрезка, когда работал сбор
   <data name="RollingModeSetting.Description" xml:space="preserve"><value>Подробный показывает больше, но, пока включён, замедляет игру (примерно на 20 %). Включайте его, когда ищете подвисание.</value></data>
   <data name="RollingMinutesSetting.Header" xml:space="preserve"><value>Длина (минуты)</value></data>
   <data name="RollingMinutesSetting.Description" xml:space="preserve"><value>От 1 до 10 минут. Большая длина нагружает игру так же, только занимает больше места на диске.</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последнюю минуту, когда игра будет запущена.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последней минуты…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Начнёт хранить последние {0} мин, когда игра будет запущена.</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Запуск хранения последних {0} мин…</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Нет последних минут для сохранения. Запись начата заново.</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Получение последней минуты</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Получение последних минут</value></data>
   <data name="ProfileCompareOff" xml:space="preserve"><value>Прекратить сравнение</value></data>
   <data name="ProfileCompareTitle" xml:space="preserve"><value>Сравнение со всей записью {0}</value></data>
   <data name="ProfileCompareWithFormat" xml:space="preserve"><value>Сравнение: {0}</value></data>
@@ -590,7 +590,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>В этом сохранении исцеление недоступно. Попробуйте обновить PZ Tools. Сохранение не изменено.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Время выживания недоступно · проверка будет повторена</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Файл использует игра или другая операция. Повторите чуть позже.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Сохранение изменилось во время экспорта. Выйдите из игры и повторите попытку.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Сохранение изменилось во время экспорта. Выйдите в главное меню и повторите попытку.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Эта копия повреждена. Выберите другую копию. Сохранение не изменено.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Недостаточно места на диске.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Не хватает файлов PZ Tools. Распакуйте скачанный архив заново.</value></data>
@@ -666,8 +666,8 @@ GC работает: доля отрезка, когда работал сбор
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не удалось подключиться к игре; копия создаётся без сохранения игры.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Состояние сна сейчас недоступно, поэтому учитывается только пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Сейчас не применяется: нет связи с игрой.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Следующая копия (без сохранения игры)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копии создаются без сохранения игры.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Следующая копия (нет связи с игрой)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Копии создаются по таймеру. Если игра не может сохраниться заранее, файлы копируются как есть.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Нет связи с игрой</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Перезапустите игру.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Совместимость и состояние</value></data>

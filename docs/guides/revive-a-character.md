@@ -56,7 +56,7 @@ skills.
 
 | Message | What to do |
 | --- | --- |
-| **Cannot heal while playing. Quit the game.** | Quit to the main menu or close the game |
+| **Cannot heal while playing. Quit to the main menu.** | Quit to the main menu or close the game |
 | **The game did not close this save properly. Load it in the game and quit normally.** | Load the save, then quit to the main menu |
 | **The game or other work is using this save.** | Wait for the running backup or other work to finish |
 | **Only single-player saves can be healed.** | Multiplayer saves can't be changed |

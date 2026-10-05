@@ -18,11 +18,11 @@
   <data name="CurrentSave" xml:space="preserve"><value>Aktuální uložená hra</value></data>
   <data name="CurrentSaveLocation" xml:space="preserve"><value>Složka uložené hry</value></data>
   <data name="ArchiveSnapshotPhase" xml:space="preserve"><value>Kopírování aktuální uložené hry</value></data>
-  <data name="StopPlayingToExport" xml:space="preserve"><value>Během hraní nelze exportovat. Ukončete hru.</value></data>
+  <data name="StopPlayingToExport" xml:space="preserve"><value>Během hraní nelze exportovat. Odejděte do hlavní nabídky.</value></data>
   <data name="StopPlayingToRestore" xml:space="preserve"><value>Zálohy nelze obnovovat během hraní. Ukončete hraní a zkuste to znovu.</value></data>
   <data name="SelectBackupToRestore" xml:space="preserve"><value>Vyberte v seznamu zálohu, kterou chcete obnovit</value></data>
   <data name="StopPlayingToDeleteSave" xml:space="preserve"><value>Uloženou hru nelze smazat během hraní. Ukončete hraní a zkuste to znovu.</value></data>
-  <data name="StopPlayingToHeal" xml:space="preserve"><value>Během hraní nelze léčit. Ukončete hru.</value></data>
+  <data name="StopPlayingToHeal" xml:space="preserve"><value>Během hraní nelze léčit. Odejděte do hlavní nabídky.</value></data>
   <data name="NoBackups.Text" xml:space="preserve"><value>Zatím žádné zálohy</value></data>
   <data name="ManualBackup.Content" xml:space="preserve"><value>Zálohovat nyní</value></data>
   <data name="Restore.Content" xml:space="preserve"><value>Obnovit</value></data>
@@ -51,7 +51,7 @@
   <data name="IntervalSetting.Header" xml:space="preserve"><value>Interval zálohování</value></data>
   <data name="IntervalSetting.Description" xml:space="preserve"><value>Doba mezi automatickými zálohami (1–60 minut). Po změně se odpočet spustí znovu.</value></data>
   <data name="RetentionSetting.Header" xml:space="preserve"><value>Počet automatických záloh</value></data>
-  <data name="RetentionSetting.Description" xml:space="preserve"><value>Uchová tento počet nejnovějších automatických záloh a starší smaže (1–100). Ruční zálohy se nepočítají a nikdy se nemažou.</value></data>
+  <data name="RetentionSetting.Description" xml:space="preserve"><value>Uchová tento počet nejnovějších automatických záloh a starší smaže (1–100). Ruční zálohy se nepočítají; smažou se jen spolu s uloženou hrou.</value></data>
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Když je zapnuto, vytvoří jednu zálohu hned po smrti postavy.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Uložená hra se stále měnila, proto nebyla zálohována. Zkuste to za chvíli znovu.</value></data>
@@ -279,7 +279,7 @@
   <data name="SaveDeletedPermanently" xml:space="preserve"><value>Uložená hra i její zálohy byly odstraněny.</value></data>
   <data name="SaveBackupDeletionFailed" xml:space="preserve"><value>Uložená hra byla odstraněna, ale její zálohy zůstaly.</value></data>
   <data name="RevisionDeleted" xml:space="preserve"><value>Odstraněno.</value></data>
-  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Uložená hra se změnila. Ukončete hru a zkuste to znovu.</value></data>
+  <data name="DeleteSaveUnavailable" xml:space="preserve"><value>Uložená hra se změnila. Odejděte do hlavní nabídky a zkuste to znovu.</value></data>
   <data name="MutationRefreshFailed" xml:space="preserve"><value>Hotovo, ale seznam se může aktualizovat později. Operaci neopakujte.</value></data>
   <data name="LogComponent.Backup" xml:space="preserve"><value>Zálohování</value></data>
   <data name="LogComponent.Restore" xml:space="preserve"><value>Obnovení</value></data>
@@ -475,11 +475,11 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileCompare" xml:space="preserve"><value>Porovnat s</value></data>
   <data name="ProfileCompareNone" xml:space="preserve"><value>Žádný jiný záznam k porovnání</value></data>
   <data name="ProfileThreadName" xml:space="preserve"><value>Vlákna</value></data>
-  <data name="ProfilePhase.Save" xml:space="preserve"><value>Převzetí poslední minuty</value></data>
+  <data name="ProfilePhase.Save" xml:space="preserve"><value>Převzetí posledních minut</value></data>
   <data name="ProfileError.NotRolling" xml:space="preserve"><value>Žádné poslední minuty k uložení. Od teď se znovu zaznamenává.</value></data>
-  <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání poslední minuty…</value></data>
-  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
-  <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
+  <data name="ProfileRollingStarting" xml:space="preserve"><value>Spouští se uchovávání posledních {0} min…</value></data>
+  <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat posledních {0} min.</value></data>
+  <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba posledních {1} min, které se uloží jako záznam. Režim: {0}</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P2}</value></data>
   <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P2}</value></data>
@@ -590,7 +590,7 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="RecoveryError.Unsupported" xml:space="preserve"><value>Tuto uloženou hru nelze léčit. Zkuste aktualizovat PZ Tools. Uložená hra se nezměnila.</value></data>
   <data name="SurvivalReadFailed" xml:space="preserve"><value>Doba přežití není dostupná · kontrola se zopakuje</value></data>
   <data name="OperationError.FileInUse" xml:space="preserve"><value>Soubor používá hra nebo jiná operace. Zkuste to za chvíli znovu.</value></data>
-  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Uložená hra se během exportu změnila. Ukončete hru a zkuste to znovu.</value></data>
+  <data name="OperationError.ExportSaveChanged" xml:space="preserve"><value>Uložená hra se během exportu změnila. Odejděte do hlavní nabídky a zkuste to znovu.</value></data>
   <data name="OperationError.BackupDamaged" xml:space="preserve"><value>Tato záloha je poškozená. Vyberte jinou zálohu. Uložená hra se nezměnila.</value></data>
   <data name="OperationError.DiskFull" xml:space="preserve"><value>Nedostatek místa na disku.</value></data>
   <data name="OperationError.WorkersMissing" xml:space="preserve"><value>Chybí soubory PZ Tools. Stažený balíček rozbalte znovu.</value></data>
@@ -666,8 +666,8 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nepodařilo se připojit ke hře; zálohuje se bez předchozího uložení hry.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Nyní se nepoužívá, protože se nelze připojit ke hře.</value></data>
-  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Další záloha (bez uložení hry)</value></data>
-  <data name="GameLinkCardMessage" xml:space="preserve"><value>Zálohuje se bez uložení hry.</value></data>
+  <data name="RuntimeBackupFallback" xml:space="preserve"><value>Další záloha (hra nepřipojena)</value></data>
+  <data name="GameLinkCardMessage" xml:space="preserve"><value>Zálohy pokračují podle času. Pokud hra nemůže nejdřív uložit, zálohují se soubory tak, jak jsou.</value></data>
   <data name="GameLinkCardTitle" xml:space="preserve"><value>Nepřipojeno ke hře</value></data>
   <data name="GameLinkCardRestartMessage" xml:space="preserve"><value>Restartujte hru.</value></data>
   <data name="GameExtensions.CompatibilityStatus" xml:space="preserve"><value>Kompatibilita a stav</value></data>
