@@ -747,4 +747,5 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Oyun başlatılıyor</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · kullanımda</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Oyunun bir sonraki açılışında geçerli olur.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Oyun, belleği kendisi belirleyen bir başlatma betiğinden (.bat) çalışıyor. Bu ayar yalnızca oyun normal başlatıldığında geçerli olur.</value></data>
 </root>

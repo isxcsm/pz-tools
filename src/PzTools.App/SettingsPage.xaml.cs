@@ -683,8 +683,12 @@ public sealed partial class SettingsPage : UserControl
             _ => null,
         };
         // The running game started with other memory than the file now gives: the choice waits for its next start.
-        var waiting = note is null && gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next
-            && Math.Abs(heap - next) >= 128 ? Localizer.Get("GameMemoryNextStart") : null;
+        // Started by a launch script, it read nothing of the file: the choice applies when started from Steam's
+        // own launcher, never through that script.
+        var waiting = note is not null ? null
+            : gameLink.StartedWithoutLauncher ? Localizer.Get("GameMemoryWithoutLauncher")
+            : gameLink.GameHeapMegabytes is { } heap && state.MaximumMegabytes is { } next
+                && Math.Abs(heap - next) >= 128 ? Localizer.Get("GameMemoryNextStart") : null;
         GameMemorySettingCard.Description = Localizer.Get("GameMemorySetting.Description") + (note is null ? "" : " " + note)
             + (waiting is null ? "" : " " + waiting);
         MarkRunningGameMemory(GameMemoryCombo.IsDropDownOpen);

@@ -747,4 +747,5 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Spiel startet</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · läuft</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Gilt ab dem nächsten Spielstart.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Das Spiel läuft über ein Startskript (.bat), das den Speicher selbst festlegt. Diese Einstellung gilt nur beim normalen Start des Spiels.</value></data>
 </root>

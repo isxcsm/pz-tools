@@ -747,4 +747,5 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Spouštění hry</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · používá se</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Platí od příštího spuštění hry.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Hra běží ze spouštěcího skriptu (.bat), který si paměť nastavuje sám. Toto nastavení platí jen při běžném spuštění hry.</value></data>
 </root>

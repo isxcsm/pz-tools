@@ -747,4 +747,5 @@ Aplica-se à partida de um jogador selecionada depois de parar de jogar.</value>
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando o jogo</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · em uso</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Vale a partir do próximo início do jogo.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>O jogo está rodando a partir de um script de inicialização (.bat), que define a própria memória. Este ajuste só vale quando o jogo é iniciado normalmente.</value></data>
 </root>

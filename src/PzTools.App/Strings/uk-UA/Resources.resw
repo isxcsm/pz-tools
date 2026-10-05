@@ -747,4 +747,5 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Гра запускається</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · зараз</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Застосується під час наступного запуску гри.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Гру запущено через скрипт запуску (.bat), який сам задає пам&apos;ять. Це налаштування діє лише під час звичайного запуску гри.</value></data>
 </root>

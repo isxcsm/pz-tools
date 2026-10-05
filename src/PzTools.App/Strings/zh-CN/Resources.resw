@@ -747,4 +747,5 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>游戏启动中</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>从下次启动游戏起生效。</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>游戏是通过启动脚本（.bat）运行的，内存由脚本自行设定。此设置仅在正常启动游戏时生效。</value></data>
 </root>

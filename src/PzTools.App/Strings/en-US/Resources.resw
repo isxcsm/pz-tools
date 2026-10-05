@@ -746,4 +746,5 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Game starting</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · running</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Applies from the game&apos;s next start.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>The game is running from a launch script (.bat), which sets its own memory. This setting applies only when the game is started normally.</value></data>
 </root>

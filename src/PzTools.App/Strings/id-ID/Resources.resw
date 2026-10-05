@@ -747,4 +747,5 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Gim sedang dimulai</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · dipakai</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Berlaku mulai gim dijalankan berikutnya.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Gim berjalan dari skrip peluncur (.bat) yang menetapkan memorinya sendiri. Pengaturan ini hanya berlaku saat gim dijalankan secara biasa.</value></data>
 </root>

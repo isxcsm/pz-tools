@@ -747,4 +747,5 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>ゲーム起動中</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>次回のゲーム起動から反映されます。</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>ゲームは起動スクリプト（.bat）から実行されており、メモリはスクリプトが決めています。この設定はゲームを通常起動したときだけ反映されます。</value></data>
 </root>

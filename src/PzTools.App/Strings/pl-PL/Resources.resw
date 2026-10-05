@@ -747,4 +747,5 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Uruchamianie gry</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · używane</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Obowiązuje od następnego uruchomienia gry.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Gra działa ze skryptu uruchomieniowego (.bat), który sam ustala pamięć. To ustawienie działa tylko przy zwykłym uruchomieniu gry.</value></data>
 </root>

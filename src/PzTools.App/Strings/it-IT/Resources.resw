@@ -747,4 +747,5 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Avvio del gioco</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · in uso</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Si applica dal prossimo avvio del gioco.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Il gioco è avviato da uno script di avvio (.bat), che imposta la propria memoria. Questa impostazione vale solo quando il gioco viene avviato normalmente.</value></data>
 </root>

@@ -747,4 +747,5 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Démarrage du jeu</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · en cours</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>S&apos;applique au prochain lancement du jeu.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Le jeu tourne depuis un script de lancement (.bat), qui fixe sa propre mémoire. Ce réglage ne s&apos;applique qu&apos;au lancement normal du jeu.</value></data>
 </root>

@@ -283,6 +283,27 @@ public sealed class GameLinkFallbackTests
     }
 
     [Fact]
+    public void Monitor_AsksHowEachGameWasStarted_Once()
+    {
+        var path = @"C:\fixture\Saves\Sandbox\World";
+        int asked = 0;
+        bool script = true;
+        var monitor = new GameLinkMonitor(gameRunning: () => true, startedWithoutLauncher: () => { asked++; return script; });
+        var read = new RuntimeObservation(Id(), RuntimeQuality.Fresh, World(path) with { HeapMaximumMegabytes = 3072 });
+        // Not asked before the game is read.
+        Assert.False(monitor.Update(RuntimeObservation.Unknown("connecting")).StartedWithoutLauncher);
+        Assert.Equal(0, asked);
+        Assert.True(monitor.Update(read).StartedWithoutLauncher);
+        Assert.True(monitor.Update(read).StartedWithoutLauncher);
+        Assert.Equal(1, asked);
+        // The next game is asked again.
+        monitor.Update(new("", RuntimeQuality.Offline, null));
+        script = false;
+        Assert.False(monitor.Update(read).StartedWithoutLauncher);
+        Assert.Equal(2, asked);
+    }
+
+    [Fact]
     public void Monitor_NamesACauseThePlayerCanChange_ForTheWholeOutage()
     {
         var monitor = new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true);

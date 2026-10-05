@@ -754,4 +754,5 @@
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>กำลังเปิดเกม</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · ใช้อยู่</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>มีผลตั้งแต่การเปิดเกมครั้งถัดไป</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>เกมกำลังรันจากสคริปต์เปิดเกม (.bat) ซึ่งกำหนดหน่วยความจำเอง การตั้งค่านี้มีผลเฉพาะเมื่อเปิดเกมตามปกติ</value></data>
 </root>

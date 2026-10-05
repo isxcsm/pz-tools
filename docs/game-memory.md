@@ -60,6 +60,16 @@ library that holds Project Zomboid (app 108600), read from Steam's own list of l
 game folder that cannot be written to is reported under the setting; nothing asks for
 administrator rights.
 
+## Started from a launch script
+
+The game can also be started by its Java runtime directly, without the launcher: the
+game's own `ProjectZomboid64.bat` does, and so do scripts players set in Steam's launch
+options. The app finds and connects to such a game as to any other, but the launcher's
+file plays no part in it: the script gives the memory on its own command line
+(`-Xmx3072m` in the game's bat). While such a game runs, the setting says so, and the
+choice applies to the next start through the launcher. A Java heap's maximum is fixed when
+the game starts, so nothing the app does to a running game changes it.
+
 ## After a game update
 
 A game update or Steam's file check writes the launcher file back with the game's own
@@ -77,6 +87,8 @@ Two other ways were tried and not used:
 | --- | --- |
 | `ProjectZomboid64.site.json` beside it | The launcher reads it *instead of* the shipped file, not on top of it: it would have to copy every option, and after an update that changes other options the game would start with the old ones |
 | Steam launch options (`-Xmx8192m --`) | The launcher does take Java options before a `--` on its command line, after the file's, so they win. But they live in Steam's settings, which the app does not edit; and a second `--` there stops the game from starting |
+| A Java options variable, for scripts | `JAVA_TOOL_OPTIONS` comes before a script's own `-Xmx`, which then wins; `_JAVA_OPTIONS` would come after, but the game's bat clears it; and either would reach every Java program on the PC |
+| Rewriting the script | A script is the player's own, or a mod's, in any form; the game's bat is put back by every update, as the launcher file is |
 
 ## On the Performance page
 

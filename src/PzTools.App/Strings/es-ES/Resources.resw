@@ -747,4 +747,5 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="RuntimeBackupStarting" xml:space="preserve"><value>Iniciando el juego</value></data>
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · en uso</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Se aplica desde el próximo inicio del juego.</value></data>
+  <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>El juego se está ejecutando desde un script de inicio (.bat), que fija su propia memoria. Este ajuste solo se aplica al iniciar el juego de forma normal.</value></data>
 </root>

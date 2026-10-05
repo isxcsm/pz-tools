@@ -379,9 +379,11 @@ public sealed partial class GameMemory
             {
                 try
                 {
-                    if (game.MainModule?.FileName is { } executable
-                        && Path.Combine(Path.GetDirectoryName(executable)!, ConfigFileName) is var file && File.Exists(file))
-                        return file;
+                    // The launcher sits in the game folder; a game started by its Java runtime directly (the game's
+                    // own ProjectZomboid64.bat) runs jre64\bin\java.exe, two folders down.
+                    var folder = game.MainModule?.FileName is { } executable ? Path.GetDirectoryName(executable) : null;
+                    for (int up = 0; folder is not null && up <= 2; up++, folder = Path.GetDirectoryName(folder))
+                        if (Path.Combine(folder, ConfigFileName) is var file && File.Exists(file)) return file;
                 }
                 // A game run with other rights does not say where it is.
                 catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException
