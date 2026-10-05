@@ -56,6 +56,10 @@ public sealed partial class GameSaveClientTests
         // The heap is read four times a second while the recording runs.
         Assert.True(recording.Heap.Count >= 4, $"heap readings: {recording.Heap.Count}");
         Assert.All(recording.Heap, item => Assert.True(item.Used > 0 && item.Used <= item.Committed));
+        // CPU used, once a second: the game thread's own, the game's and the machine's, and the machine's processors.
+        Assert.True(recording.Processors > 0, $"processors: {recording.Processors}");
+        Assert.Contains(recording.ThreadCpu, item => item.Thread == recording.GameThread && item.User + item.System > 0);
+        Assert.Contains(recording.MachineCpu, item => item.MachineTotal > 0);
         // The game thread's garbage, read from its JVM counter: given to the mod function each Lua sample found running,
         // and counted for the whole thread once a second.
         Assert.True(recording.HasLuaAllocations);

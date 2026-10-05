@@ -217,6 +217,13 @@ final class ProfileRecorder {
             next.enable("jdk.ZAllocationStall");
             // How full the Java heap is, four times a second: it fills between collections and drops at each.
             next.enable("jdk.GCHeapMemoryUsage").withPeriod(Duration.ofMillis(250));
+            // CPU actually used, each second: per thread, and the game's and the whole machine's. A thread the sampler
+            // finds running may still be waiting for a CPU (the collector working beside it, another program); what it
+            // used tells the two apart. The machine's processors turn a thread's share of all of them into cores.
+            next.enable("jdk.ThreadCPULoad").withPeriod(Duration.ofSeconds(1));
+            next.enable("jdk.CPULoad").withPeriod(Duration.ofSeconds(1));
+            // Once per chunk: a periodic event enabled without a period is never written.
+            next.enable("jdk.CPUInformation").with("period", "everyChunk");
             if (detailedMode) {
                 // Where a thread was not running at all: waiting for a lock, parked, blocked on a file, stopped by the JVM.
                 next.enable("jdk.JavaMonitorEnter").withThreshold(Duration.ofMillis(1));

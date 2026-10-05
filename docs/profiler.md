@@ -33,7 +33,7 @@ no restart at all (see [compatibility](game-bridge.md#compatibility-and-lifecycl
 
 | Mode | Java samples | Lua samples | Extra |
 | --- | --- | --- | --- |
-| Standard | every 10 ms | every 10 ms | garbage-collection pauses, Java heap use, video memory, memory allocated by scripts |
+| Standard | every 10 ms | every 10 ms | garbage-collection pauses and runs, Java heap use, video memory, memory allocated by scripts, CPU used each second (per thread, the game's and the machine's; recorded, not shown yet) |
 | Detailed | 1 ms requested, about 1.5–2 ms in practice | every 1 ms | the above, and lock waits, parked threads, slow file reads/writes, JVM stop-the-world operations |
 
 Memory is recorded in both modes. The **Java heap** (used, committed and maximum) is read

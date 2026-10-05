@@ -192,6 +192,18 @@ public final class ProfileExport {
                     }
                     case "jdk.GCHeapMemoryUsage" -> body.append("H\t").append(time).append('\t').append(event.getLong("used"))
                         .append('\t').append(event.getLong("committed")).append('\t').append(event.getLong("max")).append('\n');
+                    // CPU used: a thread's share of all the machine's processors over the last second (TC), the game's and
+                    // the machine's (CL), and how many processors there are (HW).
+                    case "jdk.ThreadCPULoad" -> {
+                        RecordedThread thread = event.getThread();
+                        if (thread == null) break;
+                        threads.putIfAbsent(thread.getJavaThreadId(), name(thread));
+                        body.append("TC\t").append(time).append('\t').append(thread.getJavaThreadId()).append('\t')
+                            .append(event.getFloat("user")).append('\t').append(event.getFloat("system")).append('\n');
+                    }
+                    case "jdk.CPULoad" -> body.append("CL\t").append(time).append('\t').append(event.getFloat("jvmUser")).append('\t')
+                        .append(event.getFloat("jvmSystem")).append('\t').append(event.getFloat("machineTotal")).append('\n');
+                    case "jdk.CPUInformation" -> body.append("HW\t").append(event.getInt("hwThreads")).append('\n');
                     case "jdk.GarbageCollection" -> {
                         body.append("G\t").append(time).append('\t')
                             .append(event.getDuration("sumOfPauses").toNanos() / 1000).append('\t')

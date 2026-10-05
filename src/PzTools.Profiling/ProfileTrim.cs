@@ -181,7 +181,7 @@ public static class ProfileTrim
     {
         "I" => Field(line, 1) is { } key && !Replaced.Contains(key),
         // Points in time: those in the range, as the analysis counts them.
-        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
+        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" or "TC" or "CL" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
         // Spans: those that reach into it, as the analysis counts collections and pauses.
         "G" or "GR" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
             && time < to && time + Math.Max(0, duration) >= from,
@@ -238,7 +238,7 @@ public static class ProfileTrim
         var tab = line.IndexOf('\t');
         return (tab < 0 ? line.AsSpan() : line.AsSpan(0, tab)) switch
         {
-            "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V",
+            "S" => "S", "F" => "F", "L" => "L", "LA" => "LA", "LH" => "LH", "GA" => "GA", "H" => "H", "V" => "V", "TC" => "TC", "CL" => "CL",
             "G" => "G", "GR" => "GR", "P" => "P", "I" => "I", "T" => "T", "M" => "M", "K" => "K", "LM" => "LM", "LK" => "LK",
             _ => "",
         };

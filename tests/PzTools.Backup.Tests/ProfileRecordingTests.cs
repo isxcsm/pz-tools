@@ -776,6 +776,29 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void CpuUse_IsReadPerThreadAndForTheMachine_AndKeptInASavedRange()
+    {
+        using var temp = new TempDirectory();
+        // As Java writes floats: the game thread used a sixteenth of a 16-thread machine (one core), the machine half.
+        var source = temp.GetPath("whole.pzprof");
+        File.WriteAllBytes(source, Compress(Sample + "\nHW|16\nTC|1010000|7|0.0625|1.0E-4\nTC|1040000|7|0.03|0.0\n"
+            + "CL|1010000|0.2|0.01|0.5\nTC|1020000|999|0.5|0.5"));
+        var recording = ProfileRecording.Load(source);
+
+        Assert.Equal(16, recording.Processors);
+        // A thread the recording names nowhere else is left out.
+        Assert.Equal([(10_000L, 0, 0.0625, 0.0001), (40_000L, 0, 0.03, 0.0)],
+            recording.ThreadCpu.Select(item => (item.Time, item.Thread, item.User, item.System)));
+        Assert.Equal(new ProfileMachineCpu(10_000, 0.2, 0.01, 0.5), Assert.Single(recording.MachineCpu));
+
+        ProfileTrim.Save(recording, source, temp.GetPath("part.pzprof"), 30_000, 50_000);
+        var part = ProfileRecording.Load(temp.GetPath("part.pzprof"));
+        Assert.Equal(16, part.Processors);
+        Assert.Equal(0.03, Assert.Single(part.ThreadCpu).User);
+        Assert.Empty(part.MachineCpu);
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);
