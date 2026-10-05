@@ -43,7 +43,7 @@ are not reported: nothing the app runs loads a file only because it is in its fo
 development build has no list and is not checked. A file another program holds for a moment
 (a scanner) is not blamed, and the folder is then checked whole again at the next start.
 
-If the app folder's path has letters outside ASCII (a Korean folder name, say), two small
+If the app folder's path has letters outside ASCII (a folder named in another alphabet, say), two small
 files of the bridge are also copied to `%TEMP%\PzTools\attach\` (or, if that path is not
 ASCII either, to a folder only you can write under `%ProgramData%\PzTools\attach\`), as
 the game cannot load them from such a path. See [getting into the game](game-bridge.md#getting-into-the-game).

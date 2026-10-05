@@ -24,7 +24,7 @@ hard-coded count of keys in this document.
 
 ## Choosing a language
 
-- A fresh installation starts in Korean.
+- A fresh installation starts in the Windows display language where the app has it (the nearest variant of Spanish, Chinese or Portuguese), and in English otherwise.
 - Settings store the locale tag. Older identifiers that are still supported, such as
   `Korean`, `English`, `ko` and `en`, can still be read. Unsupported tags are rejected.
 - Changing the language does not rewrite the names of existing backups.

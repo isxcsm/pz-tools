@@ -35,6 +35,26 @@ public static class LanguageCatalog
         ? language : throw new ArgumentException($"Unsupported language '{value}'.", nameof(value));
 
     /// <summary>
+    /// The language to start in for a Windows display language: the same one where the app has it, the nearest variant
+    /// where it has another (Spanish of Spain or of Latin America, Simplified or Traditional Chinese, Portuguese as
+    /// spoken in Brazil), English otherwise.
+    /// </summary>
+    public static SupportedLanguage ForCulture(System.Globalization.CultureInfo culture)
+    {
+        if (TryParse(culture.Name, out var exact)) return exact;
+        var name = culture.Name;
+        return culture.TwoLetterISOLanguageName switch
+        {
+            "es" => name is "es" or "es-ES" ? SupportedLanguage.Spanish : SupportedLanguage.SpanishLatinAmerica,
+            "zh" => name.Contains("Hant", StringComparison.Ordinal) || name is "zh-HK" or "zh-MO"
+                ? SupportedLanguage.ChineseTraditional : SupportedLanguage.ChineseSimplified,
+            "pt" => SupportedLanguage.PortugueseBrazil,
+            var language => All.FirstOrDefault(item => item.Tag.StartsWith(language + "-", StringComparison.OrdinalIgnoreCase))?.Id
+                ?? SupportedLanguage.English,
+        };
+    }
+
+    /// <summary>
     /// Backups store the name they were given in the language of that day. A name nobody edited
     /// is recognised in every language, so the list can show it in the language of today.
     /// </summary>

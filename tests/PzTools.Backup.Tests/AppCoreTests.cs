@@ -32,6 +32,20 @@ public sealed class AppCoreTests
     }
 
     [Theory]
+    [InlineData("ko-KR", PzTools.Process.Contracts.SupportedLanguage.Korean)]
+    [InlineData("en-GB", PzTools.Process.Contracts.SupportedLanguage.English)]
+    [InlineData("de-AT", PzTools.Process.Contracts.SupportedLanguage.German)]
+    [InlineData("es-ES", PzTools.Process.Contracts.SupportedLanguage.Spanish)]
+    [InlineData("es-AR", PzTools.Process.Contracts.SupportedLanguage.SpanishLatinAmerica)]
+    [InlineData("zh-HK", PzTools.Process.Contracts.SupportedLanguage.ChineseTraditional)]
+    [InlineData("zh-Hans-SG", PzTools.Process.Contracts.SupportedLanguage.ChineseSimplified)]
+    [InlineData("pt-PT", PzTools.Process.Contracts.SupportedLanguage.PortugueseBrazil)]
+    // A language the app does not have starts in English, not in any other.
+    [InlineData("nl-NL", PzTools.Process.Contracts.SupportedLanguage.English)]
+    public void FirstStart_IsInWindowsDisplayLanguage_OrEnglish(string windows, PzTools.Process.Contracts.SupportedLanguage expected) =>
+        Assert.Equal(expected, PzTools.Process.Contracts.LanguageCatalog.ForCulture(System.Globalization.CultureInfo.GetCultureInfo(windows)));
+
+    [Theory]
     [InlineData(1, 100)]
     [InlineData(17, 23)]
     public void BackupDefaults_PreserveExplicitUserSettings(int interval, int retained)

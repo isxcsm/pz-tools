@@ -12,7 +12,7 @@ internal static class Localizer
     private static ResourceContext context = Manager.CreateResourceContext();
 
     public static CultureInfo Culture { get; private set; } =
-        CultureInfo.GetCultureInfo("ko-KR");
+        CultureInfo.GetCultureInfo("en-US");
 
     public static string Get(string key) =>
         Resources.GetValue(key.Replace('.', '/'), context).ValueAsString;

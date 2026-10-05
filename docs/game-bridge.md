@@ -112,7 +112,7 @@ injection, and no fallback that edits game files.
 
 The game's Java misreads a path with letters outside ASCII for the two files handed to it
 by path at attach, the native helper and the bootstrap. With the app in such a folder
-(a Korean folder name was reported), those two are copied once, by their content, and
+(a folder named in another alphabet was reported), those two are copied once, by their content, and
 handed over from there; everything else is read from the app folder as it is. The game
 runs them as code, so the copy goes where only you can change it: your temporary folder
 (`%TEMP%\PzTools\attach\`) if its path is ASCII, else a folder of your own under
@@ -139,7 +139,7 @@ machine, as the failure's `diagnostics`:
   be read if they could not;
 - the game's Java executable, by file name;
 - for each file handed to the game, whether it came from its own path or from a copy in a
-  folder of plain letters (`handed=`), as a Korean folder name needs;
+  folder of plain letters (`handed=`), as a folder named in another alphabet needs;
 - whether the app folder, the temporary folder and the user folder hold letters outside
   ASCII (yes or no, never the path);
 - the Windows version and the end of the helper's output, with paths cut to what does not

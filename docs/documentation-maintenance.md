@@ -71,6 +71,27 @@ A new part of the system gets a line in the [overview](overview.md).
   or is limited, how it works inside, how it is verified. Leave out sections that would
   be empty.
 
+## Writing a guide
+
+Guides in `docs/guides/` walk a player through one task. Write them the way you would
+explain the task to a friend sitting next to you, and test every sentence:
+
+1. **Would the reader wonder about this here?** If not, cut it. Answering a question
+   nobody asked raises a new worry ("Java is included" makes people wonder whether they
+   need Java).
+2. **Does it change what the reader does or expects?** If not, cut it.
+3. **Is it something the reader can't see?** Internals (the change journal, the garbage
+   collector) go in only when the screen shows them or the reader must decide something,
+   and then in plain words.
+4. **One fact per sentence.** Don't join unrelated facts with "and".
+5. **Would you say it out loud like that?** No summary openers that repeat the headings,
+   no colon-chopped lines ("Mode: on."), no reason tacked onto every sentence.
+
+Give the reasons a reader would ask for (why administrator rights, why backups stopped),
+and leave out the ones nobody would. Name UI elements exactly as the English interface
+shows them, in bold. Mark a needed picture as `[Screenshot: what it must show]` until one
+is taken.
+
 ## Links and recorded facts
 
 Use relative links to files inside this repository so forks, branches and local clones

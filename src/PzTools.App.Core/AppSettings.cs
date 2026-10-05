@@ -45,7 +45,8 @@ public sealed record AppSettings(
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return new AppSettings(
-            SupportedLanguage.Korean,
+            // Windows' display language where the app has it, English otherwise: no language is anyone's default.
+            LanguageCatalog.ForCulture(System.Globalization.CultureInfo.CurrentUICulture),
             AppTheme.System,
             Path.Combine(profile, "Zomboid", "Saves"),
             Path.Combine(profile, "Zomboid", "Backups"),

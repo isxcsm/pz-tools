@@ -298,7 +298,7 @@ Otherwise it says what backups do meanwhile. See
 ### Writing a card
 
 Cards are read by players, in a pane about 200 pixels wide. Every card, notice and error
-message follows these rules, in Korean first and in every translation:
+message follows these rules, in English and in every translation:
 
 - **A card only when there is something to know or do.** A passing state the user can do
   nothing about gets no card; one that lasts says precisely what is wrong (see
