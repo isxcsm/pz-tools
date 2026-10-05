@@ -1,7 +1,8 @@
 # Go back to an earlier backup
 
-A bad fight, a burnt-down base or a broken mod? Put your save back the way it was in an earlier
-backup.
+Project Zomboid can be unfair. A crash or a power cut breaks a save you've played for weeks,
+a bug kills your character, or a mod update wrecks the world. When that happens, put the save
+back the way it was in an earlier backup.
 
 ## 1. Leave the save
 

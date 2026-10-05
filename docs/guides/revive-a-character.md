@@ -1,8 +1,8 @@
 # Bring back a dead character
 
-Died to something stupid? PZ Tools can heal your character, or bring them back from the dead,
-with their traits, skills and everything they learned. If you choose, they also get back what
-their zombie or corpse is carrying.
+Killed by a bug, a glitch or a zombie through a wall? PZ Tools can heal your character, or bring
+them back from the dead, with their traits, skills and everything they learned. If you choose,
+they also get back what their zombie or corpse is carrying.
 
 ![Reviving a character: the zombie with the belongings is offered, and the card reports what came back](../media/revive-app.webp)
 
