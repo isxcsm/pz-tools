@@ -19,10 +19,12 @@ public sealed class GameSaveException(string code, string message, string? diagn
     /// The game could not be reached at all and nothing was asked of it (a blocked helper, a game
     /// update, a missing bridge). The files on disk can still be backed up as they are. The unsupported
     /// codes come from the bridge setting itself up in a game it does not fit, before any request is queued.
+    /// With several games running none is picked, so none is asked either: the save in use is backed up as an
+    /// unreachable game's is, rather than not at all.
     /// </summary>
     public bool LinkUnavailable => Code is "attach-failed" or AttachDiagnostics.DisabledCode
         or "connection-timeout" or "bridge-not-built" or "unsupported-protocol"
-        or "unsupported-game" or "unsupported-runtime" or "unsupported-loader";
+        or "unsupported-game" or "unsupported-runtime" or "unsupported-loader" or "multiple-games";
     public string? Diagnostics { get; } = diagnostics;
 
     /// <summary>

@@ -95,7 +95,6 @@ public sealed class BackupGameSaveTests
     // A game that could not be reached at all, or that the bridge does not fit, is the one exception;
     // see GameLinkFallbackTests.
     [InlineData("bridge-failed")]
-    [InlineData("multiple-games")]
     [InlineData("saving-disabled")]
     [InlineData("multiplayer")]
     [InlineData("busy")]

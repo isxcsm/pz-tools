@@ -257,6 +257,8 @@ public sealed class GameLinkFallbackTests
     [InlineData("unsupported-game", BackupGameSave.SaveUnavailable)]
     [InlineData("unsupported-runtime", BackupGameSave.SaveUnavailable)]
     [InlineData("unsupported-loader", BackupGameSave.SaveUnavailable)]
+    // Several games: none is picked, so nothing is asked of any, as for a game that cannot be reached.
+    [InlineData("multiple-games", BackupGameSave.SaveUnavailable)]
     [InlineData("not-in-world", "not-in-world")]
     public async Task UnreachableGame_IsBackedUpFromDisk_ButARefusedOrUncertainSaveStillFails(string code, string outcome)
     {
