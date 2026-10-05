@@ -425,7 +425,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memory the game holds on the graphics card. The scale runs from the lowest to the highest reading in view.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} allocated</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>The memory the highlighted mod's scripts allocated, one bar per moment, against the most in one of them. Garbage that piles up just before the collections above points at this mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times, paused {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} times</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Function</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Method</value></data>
@@ -454,6 +454,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (call)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC pause</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC working {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>working {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Waited for memory {0:N0} times, longest {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC pause: time the whole game stopped for garbage collection. ZGC, the game&apos;s default, hardly ever stops it.
 GC working: the share of the range the collector was running. It runs beside the game and shares its CPU, so with memory short it nears 100% and the game slows down.

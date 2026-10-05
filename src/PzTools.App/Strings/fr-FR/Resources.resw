@@ -397,7 +397,7 @@ Détaillé : mesure environ toutes les 0,002 seconde et enregistre aussi attente
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Mémoire que le jeu occupe sur la carte graphique. L’échelle va de la valeur la plus basse à la plus haute de la plage affichée.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} : alloué</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>La mémoire allouée par les scripts du mod mis en évidence, une barre par moment, rapportée au maximum de l’un d’eux. Des déchets qui s’accumulent juste avant les nettoyages au-dessus désignent ce mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} fois, pause de {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} fois</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fonction</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Fichier</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Méthode</value></data>
@@ -426,6 +426,7 @@ Détaillé : mesure environ toutes les 0,002 seconde et enregistre aussi attente
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (appel)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pause GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC actif {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>actif {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Attentes de mémoire : {0:N0}, la plus longue {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pause GC : temps pendant lequel tout le jeu s&apos;est arrêté pour le ramasse-miettes. ZGC, le réglage par défaut du jeu, ne l&apos;arrête presque jamais.
 GC actif : part de la plage pendant laquelle le ramasse-miettes travaillait. Il tourne à côté du jeu et partage son processeur : quand la mémoire manque, il approche 100 % et le jeu ralentit.

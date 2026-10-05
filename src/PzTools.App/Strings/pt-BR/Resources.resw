@@ -397,7 +397,7 @@ Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausa
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memória que o jogo ocupa na placa de vídeo. A escala vai do menor ao maior valor no intervalo visível.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: alocado</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>A memória que os scripts do mod destacado alocaram, uma barra por momento, em relação ao máximo em um deles. Lixo que se acumula logo antes das limpezas acima aponta para este mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} vezes, pausa de {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} vezes</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Função</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Arquivo</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Método</value></data>
@@ -426,6 +426,7 @@ Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausa
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chamada)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa de GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ativo {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>ativo {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Esperas por memória: {0:N0}, a mais longa {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pausa de GC: tempo em que o jogo inteiro parou para a coleta de lixo. O ZGC, padrão do jogo, quase nunca o para.
 GC ativo: parte do trecho em que o coletor estava trabalhando. Ele roda junto com o jogo e divide a CPU, então com pouca memória se aproxima de 100% e o jogo fica lento.

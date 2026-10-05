@@ -1570,8 +1570,10 @@ public sealed partial class ProfilerPage : UserControl
     // Kilobytes at the least: a heap or an allocation is never a handful of bytes.
     private static string Bytes(long bytes) => Units.Bytes(bytes, "N2", smallest: 1);
 
-    private string CollectionText(int count, double pausedMilliseconds) =>
-        $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count, Milliseconds(pausedMilliseconds))}";
+    // How many: ZGC's pauses, a fraction of a millisecond, say nothing beside it. A pause long enough to be felt is
+    // named on its own where it happened.
+    private static string CollectionText(int count) =>
+        $"{Localizer.Get("ProfileStatCollections")} {Localizer.Format("ProfileCollectionsValueFormat", count)}";
 
     private Brush HeapBrush => SuccessProbe.Background;
     private Brush VideoBrush => PrimaryTextProbe.Background;
@@ -1773,7 +1775,7 @@ public sealed partial class ProfilerPage : UserControl
                     owner.Java, owner.Key, recording.GameThread))));
             // Whether this frame was slow because the game stopped to collect garbage.
             var (collections, paused) = ProfileAnalysis.CollectionsIn(recording, found.Start, found.Start + found.Duration);
-            if (collections > 0) collection = CollectionText(collections, paused);
+            if (collections > 0) collection = CollectionText(collections);
             // A pause long enough to be marked on the graph is named beside the frame it stopped.
             if (paused * 1000 >= SignificantPauseMicros) items.Add((Localizer.Get("ProfileStatGcPause"), Milliseconds(paused)));
         }
@@ -1856,9 +1858,13 @@ public sealed partial class ProfilerPage : UserControl
         // The pauses alone say little with ZGC, which hardly stops the game: how much of the range the collector was at
         // work beside it, and the threads that stopped waiting for memory, say what running short of memory cost.
         var gc = new List<string>();
-        if (collections > 0) gc.Add(CollectionText(collections, paused));
+        // "GC 3 times · working 4%": the collector named once, at the front.
+        if (collections > 0) gc.Add(CollectionText(collections));
         if (ProfileAnalysis.CollectorBusyIn(recording!, start, end) is { } busy && busy >= 0.01)
-            gc.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
+            gc.Add(Localizer.Format(collections > 0 ? "ProfileCollectorBusyShortFormat" : "ProfileCollectorBusyFormat", busy));
+        // The game stopped long enough to feel it, as the graph marks: said, as an older collector's pauses can be.
+        if (paused * 1000 >= SignificantPauseMicros)
+            gc.Add($"{Localizer.Get("ProfileStatGcPause")} {Milliseconds(paused)}");
         if (ProfileAnalysis.StallsIn(recording!, start, end) is { Count: > 0 } stalls)
             gc.Add(Localizer.Format("ProfileRangeStallsFormat", stalls.Count, Milliseconds(stalls.Longest / 1000.0)));
         return SetLaneInfo(gc.Count > 0 ? string.Join(" · ", gc) : null,

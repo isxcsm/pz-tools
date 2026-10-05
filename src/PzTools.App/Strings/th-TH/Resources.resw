@@ -404,7 +404,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>หน่วยความจำที่เกมใช้บนการ์ดจอ สเกลเริ่มจากค่าต่ำสุดถึงสูงสุดในช่วงที่มองเห็น</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} จัดสรร</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>หน่วยความจำที่สคริปต์ของม็อดที่ไฮไลต์จัดสรร แท่งละช่วงเวลา เทียบกับช่วงที่มากที่สุด ถ้าแท่งเหล่านี้กองอยู่ก่อนแท่ง GC ด้านบน แสดงว่าม็อดนี้ทำให้เกิด GC</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง หยุดชะงัก {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} ครั้ง</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>ฟังก์ชัน</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ไฟล์</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>เมธอด</value></data>
@@ -433,6 +433,7 @@
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (เรียก)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC หยุดชั่วคราว</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ทำงาน {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>ทำงาน {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>รอหน่วยความจำ {0:N0} ครั้ง นานสุด {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC หยุด: เวลาที่ทั้งเกมหยุดเพื่อเก็บกวาดหน่วยความจำ ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกมเลย
 GC ทำงาน: สัดส่วนของช่วงที่ตัวเก็บกวาดหน่วยความจำกำลังทำงาน มันทำงานคู่กับเกมและแบ่ง CPU กัน เมื่อหน่วยความจำไม่พอจึงเข้าใกล้ 100% และเกมช้าลง

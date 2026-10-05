@@ -429,7 +429,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileStatHeap" xml:space="preserve"><value>Halda</value></data>
   <data name="ProfileStatHeapPeak" xml:space="preserve"><value>Halda max.</value></data>
   <data name="ProfileStatVideoPeak" xml:space="preserve"><value>VRAM max.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}×, pozastavení {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}×</value></data>
   <data name="ProfileStatSlowest" xml:space="preserve"><value>Nejpomalejší</value></data>
   <data name="ProfileStatAverage" xml:space="preserve"><value>Průměr</value></data>
   <data name="ProfileStatFps" xml:space="preserve"><value>FPS</value></data>
@@ -473,6 +473,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Čekání na paměť {0:N0}×, nejdéle {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: doba, kdy se kvůli úklidu paměti zastavila celá hra. ZGC, výchozí v této hře, ji téměř nezastavuje.
 GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a dělí se s ní o procesor, takže při nedostatku paměti se blíží 100 % a hra se zpomalí.

@@ -397,7 +397,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Пам'ять, яку гра займає на відеокарті. Шкала йде від найменшого до найбільшого значення у видимому діапазоні.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: виділено</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Пам'ять, виділена скриптами виділеного мода, по стовпцю на момент, відносно найбільшого з них. Сміття, що накопичується просто перед очищеннями вище, вказує на цей мод.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів, пауза {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} разів</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Функція</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Файл</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Метод</value></data>
@@ -426,6 +426,7 @@
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (виклик)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC працює {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>працює {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Очікування пам&apos;яті: {0:N0} раз, найдовше {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Пауза GC: час, коли вся гра стояла через збирання сміття. ZGC, типовий для гри, майже ніколи її не зупиняє.
 GC працює: частка відрізка, коли працював збирач сміття. Він працює поруч із грою й ділить із нею процесор, тож за браку пам&apos;яті частка наближається до 100 % і гра сповільнюється.

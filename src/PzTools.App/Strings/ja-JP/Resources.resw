@@ -397,7 +397,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>ゲームがグラフィックカード上に確保しているメモリです。目盛りは表示範囲の最小から最大までです。</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} の割り当て</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>強調した MOD のスクリプトが割り当てたメモリを時点ごとに棒で表示します。最も多い時点がいっぱいの棒です。上の GC の棒の直前にこの棒が集まるなら、この MOD が GC を引き起こしています。</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回、停止 {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 回</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>関数</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>ファイル</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>メソッド</value></data>
@@ -426,6 +426,7 @@
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 停止</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 稼働 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>稼働 {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>メモリ待ち {0:N0} 回、最長 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 停止: メモリ整理のためにゲーム全体が止まった時間です。ゲームの既定である ZGC はほとんど止めません。
 GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です。ゲームと並行して動き CPU を分け合うため、メモリが足りないと 100% に近づき、ゲームが遅くなります。

@@ -214,12 +214,12 @@ time and frame under it instead, and while dragging a selection, the range being
 size of the drag reads as it grows. The **?** beside it lists the graph's mouse controls.
 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
-colours: heap peak, video memory peak, and garbage collections (*GC 3 times, paused
-120 ms*). A collection stops the game without leaving samples, so the tables cannot show
+colours: heap peak, video memory peak, and garbage collections (*GC 3 times · working 4%*; a pause long enough to feel, 2 ms or more,
+adds *GC pause 120 ms*). A collection stops the game without leaving samples, so the tables cannot show
 it; this is where it shows. With ZGC, the game's default, those pauses are well under a
 millisecond however short memory is: the collector works beside the game instead, on the
 CPU the game would use. So the line also gives how much of the range the collector was at
-work (*GC working 85%*, from each collection's whole run, overlaps counted once; absent in
+work (*working 85%*, from each collection's whole run, overlaps counted once; absent in
 recordings made before 0.2.4) and how many times any thread stopped until memory was freed
 for it (*Waited for memory 12 times, longest 0.42 s*). A collector at work nearly all the
 time, or threads waiting for memory, say the game is short of memory, which its pauses
@@ -435,7 +435,7 @@ heading says what its column means when the pointer rests on it.
   can be dragged on either. Until the player opens or shuts it, it opens by itself for a
   recording that ran short of memory (the line says so) and stays shut for the others;
   after that it stays as chosen while the app runs. Closed, it takes no room. The button
-  is in the accent colour, as the memory setting's link on the same line, so it reads as one.
+  is in the text's own colour: the page has colours enough; its hover and chevron show it is one.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed, in the background; choosing another range stops the
   analysis of the previous one.

@@ -270,12 +270,12 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-<!-- In the accent colour, as the memory setting's link on the same line: a bare chevron and word read as a label,
-               and a filled block stood out more than the figures it opens onto. -->
+          <!-- In the text's own colour: the page has colours enough in its graphs and figures. The pointer's hover and the
+               chevron show it is a button; a filled block stood out more than the figures it opens onto. -->
           <HyperlinkButton x:Name="MemoryToggle" Click="MemoryToggle_Click" Padding="6,2" MinHeight="0">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" />
-              <TextBlock x:Name="MemoryToggleText" />
+              <FontIcon x:Name="MemoryChevron" Glyph="&#xE76C;" FontSize="10" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+              <TextBlock x:Name="MemoryToggleText" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             </StackPanel>
           </HyperlinkButton>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">

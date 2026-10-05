@@ -396,7 +396,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>게임이 그래픽카드에 올려 둔 메모리입니다. 눈금은 보이는 구간의 최저에서 최고까지입니다.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} 할당</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>강조한 모드의 스크립트가 할당한 메모리를 시점마다 막대로 보여줍니다. 가장 많이 할당한 시점이 꽉 찬 막대입니다. 위 GC 막대 바로 앞에 이 막대가 몰리면 이 모드가 GC를 부르는 것입니다.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}회, 멈춤 {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0}회</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>함수</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>파일</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>메서드</value></data>
@@ -425,6 +425,7 @@
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (호출)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 멈춤</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 작동 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>작동 {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>메모리 대기 {0:N0}번, 최장 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 멈춤: 메모리 정리 때문에 게임 전체가 멈춘 시간입니다. 게임 기본값인 ZGC는 거의 멈추지 않습니다.
 GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니다. 게임과 동시에 돌며 CPU를 나눠 쓰므로, 메모리가 부족하면 100%에 가까워지고 게임이 느려집니다.

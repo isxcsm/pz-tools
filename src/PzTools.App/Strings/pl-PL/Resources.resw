@@ -397,7 +397,7 @@ Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Pamięć zajmowana przez grę na karcie graficznej. Skala obejmuje od najniższej do najwyższej wartości w widocznym zakresie.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} – przydział</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Pamięć przydzielona przez skrypty wyróżnionego moda, jeden słupek na chwilę, względem największej z nich. Śmieci gromadzące się tuż przed czyszczeniami powyżej wskazują na ten mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} razy, wstrzymanie {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} razy</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Funkcja</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Plik</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Metoda</value></data>
@@ -426,6 +426,7 @@ Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (wywołanie)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Czekanie na pamięć: {0:N0} razy, najdłużej {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: czas, w którym cała gra stanęła z powodu odśmiecania. ZGC, domyślny w grze, prawie nigdy jej nie zatrzymuje.
 GC pracuje: część zakresu, w której działało odśmiecanie. Działa obok gry i dzieli z nią procesor, więc przy braku pamięci zbliża się do 100% i gra zwalnia.

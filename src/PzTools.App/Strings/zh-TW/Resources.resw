@@ -397,7 +397,7 @@
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>遊戲在顯示卡上占用的記憶體。刻度為可見範圍內的最低值到最高值。</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} 配置</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>依時刻以長條顯示醒目模組腳本配置的記憶體，配置最多的時刻為滿長條。若這些長條集中在上方 GC 長條之前，就是此模組引發了 GC。</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次，停頓 {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} 次</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>函式</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>檔案</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>方法</value></data>
@@ -426,6 +426,7 @@
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（呼叫）</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 暫停</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 運作 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>運作 {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>等待記憶體 {0:N0} 次，最長 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 暫停：因垃圾回收整個遊戲停下的時間。遊戲預設的 ZGC 幾乎不會讓它停下。
 GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同時執行並分享 CPU，記憶體不足時會接近 100%，遊戲隨之變慢。

@@ -397,7 +397,7 @@ Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan je
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memori yang dipegang game di kartu grafis. Skala berjalan dari nilai terendah ke tertinggi dalam rentang yang terlihat.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0} dialokasikan</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>Memori yang dialokasikan skrip mod yang disorot, satu batang per saat, dibandingkan dengan yang terbanyak. Sampah yang menumpuk tepat sebelum pembersihan di atas menunjuk ke mod ini.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kali, terjeda {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} kali</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Fungsi</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>File</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Metode</value></data>
@@ -426,6 +426,7 @@ Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan je
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (panggilan)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Jeda GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC bekerja {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>bekerja {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Menunggu memori {0:N0} kali, terlama {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Jeda GC: waktu seluruh gim berhenti untuk pembersihan memori. ZGC, bawaan gim ini, hampir tidak pernah menghentikannya.
 GC bekerja: bagian rentang saat pembersih memori berjalan. Ia berjalan di samping gim dan berbagi CPU, jadi saat memori kurang angkanya mendekati 100% dan gim melambat.

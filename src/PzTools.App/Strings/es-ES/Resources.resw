@@ -397,7 +397,7 @@ Detallado: registra cada 0,002 segundos aprox. y guarda también esperas y pausa
   <data name="ProfileMemoryVideoRowTip" xml:space="preserve"><value>Memoria que el juego ocupa en la tarjeta gráfica. La escala va del valor más bajo al más alto del intervalo visible.</value></data>
   <data name="ProfileMemoryOwnerRowFormat" xml:space="preserve"><value>{0}: asignado</value></data>
   <data name="ProfileMemoryOwnerRowTip" xml:space="preserve"><value>La memoria que asignaron los scripts del mod resaltado, una barra por momento, frente al máximo en uno de ellos. Basura que se acumula justo antes de las limpiezas de arriba apunta a este mod.</value></data>
-  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} veces, en pausa {1}</value></data>
+  <data name="ProfileCollectionsValueFormat" xml:space="preserve"><value>{0:N0} veces</value></data>
   <data name="ProfileColumnFunction" xml:space="preserve"><value>Función</value></data>
   <data name="ProfileColumnFile" xml:space="preserve"><value>Archivo</value></data>
   <data name="ProfileColumnMethod" xml:space="preserve"><value>Método</value></data>
@@ -426,6 +426,7 @@ Detallado: registra cada 0,002 segundos aprox. y guarda también esperas y pausa
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (llamada)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa de GC</value></data>
   <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC activo {0:P0}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>activo {0:P0}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Esperas de memoria: {0:N0}, la más larga {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pausa de GC: tiempo en que todo el juego se detuvo por la recolección de basura. ZGC, la opción por defecto del juego, casi nunca lo detiene.
 GC activo: parte del tramo en que el recolector estuvo trabajando. Funciona junto al juego y comparte su CPU, así que con poca memoria se acerca al 100 % y el juego va más lento.
