@@ -76,7 +76,7 @@ during the break is never counted. Game speed does not matter: the clock counts 
 | No game process | `GameOffline`, `NoWorld` | Reset, as the target is cleared (below) |
 | A different world than before | None | Reset to a full interval |
 
-When the observed world changes, including to the main menu or to no game, `ApplyRuntimeTransitionAsync`
+When the observed world changes to another save, to the main menu or to no game, `ApplyRuntimeTransitionAsync`
 switches the scheduler's target, increments the generation, deletes the checkpoint and any pending runs. A
 new generation always starts a full interval. A reconnect to the same game keeps the remaining time: the new
 stream only re-anchors.
@@ -90,7 +90,7 @@ Other things that start a full interval:
 | The app starts | `AppHost` calls `RestartPeriodicScheduleAsync`, which increments the generation when automatic backups are on with a target |
 
 A restart of only the scheduler process, inside a running app, reloads the checkpoint and keeps the remaining
-time.
+time. A fallback due time is not kept: the restarted scheduler waits out the grace period again.
 
 When a backup completes, the next slot keeps the cadence: an overdue slot does not cause catch-up backups
 (`Complete` with `Consume`).
@@ -146,7 +146,7 @@ inside a world may be a hung game and counts as unusable.
 
 | What is missing | What happens |
 | --- | --- |
-| The observation, for longer than the grace period (90 s, `RuntimeScheduleController.DefaultLinkGrace`) | `ApplyLinkFallback` sets `FallbackDueUtc` to now plus the remaining time. Periodic backups then follow the wall clock with the save the game's file locks last pointed at (`ReadFileDerivedTargetAsync`). Each runs only while that save's `players.db` is locked (`isTargetActive`). The worker still passes `--save-game` with a due time, so it tries `SAVE_AT` first; if the game is unreachable it backs up the files on disk with a warning. When the game can be read again, the time left to the fallback due time becomes the remaining active time. |
+| The observation, for longer than the grace period (90 s, `RuntimeScheduleController.DefaultLinkGrace`) | `ApplyLinkFallback` sets `FallbackDueUtc` to now plus the remaining time. Periodic backups then follow the wall clock with the save the state check last confirmed active (`ReadFileDerivedTargetAsync`: the newest target command, if it is `ActivateTarget`). Each runs only while that save's `players.db` is locked (`isTargetActive`). The worker still passes `--save-game` with a due time, so it tries `SAVE_AT` first; if the game is unreachable it backs up the files on disk with a warning. When the game can be read again, the time left to the fallback due time becomes the remaining active time. |
 | The save request channel | Nothing was asked of the game, so the backup goes ahead with the files on disk ([outcomes](game-bridge.md#admission-and-failures)). This applies to every kind of backup. |
 | Sleep | The clock keeps running; pause still holds it |
 | A bridge from before an app update | Periodic backups wait for a game restart, without a grace period ([restart required](game-bridge.md#restart-required-after-an-app-update)) |
@@ -154,8 +154,15 @@ inside a world may be a hung game and counts as unusable.
 During the fallback the schedule line shows **Next backup (without game save)** and the link card
 **Not connected to the game** with **Backups run without saving the game.** The settings that need the game
 (game-aware timing, death backups, save before backup, countdown) are locked meanwhile and keep their saved
-values (`SettingsPage.UpdateAvailability`). A game version this PZ Tools cannot read stays unreadable after a
-restart, so backups keep running in fallback.
+values (`SettingsPage.UpdateAvailability`).
+
+With game-aware timing on, the state check also takes activity from the stream, not from file locks
+([choosing the backup target](process-architecture.md#game-state-decisions)). While the stream is unusable,
+every save reads `Unknown` and no new target command is written. The fallback therefore has a target only if
+the stream confirmed the save active before it was lost. A game that could not be read from its start (a game
+update this PZ Tools cannot read) leaves the last command from the previous session, normally the
+`ClearTarget` written when that game exited, and gets no fallback backups. `GameLinkFallbackTests` inserts the
+`ActivateTarget` by hand and does not cover this.
 
 <a id="when-a-backup-attempt-fails"></a>
 ## When a backup attempt fails

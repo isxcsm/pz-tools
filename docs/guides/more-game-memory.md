@@ -7,7 +7,7 @@ ran short, give it more.
 ## 1. Pick a size
 
 Open **Settings → Game → Game memory** and pick a size. The one marked **(recommended)** is
-plenty for a heavy mod list. The list only goes up to half of your PC's memory, so Windows and
+plenty for a heavy mod list. A PC with less than 16 GB gets no recommendation. The list only goes up to half of your PC's memory, so Windows and
 your other programs keep enough.
 
 [Screenshot: Settings, the Game memory list open, a size marked (recommended)]

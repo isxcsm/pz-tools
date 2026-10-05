@@ -44,7 +44,7 @@ UTC offset.
 | A grouped row | Takes the highest level of its entries, the time of the latest, and the message of the entry that says most about the failure. **Number** shows that entry's number. |
 | Information and Trace | One row per entry |
 | Order | Highest log number first |
-| Page size | 100 rows. The pager under the list has arrows, page numbers and **…**, which opens **Page number** and **Go**. The line below reads, for example, **1–100 of 1,234**. |
+| Page size | 100 rows. With more than one page, the pager under the list has arrows and page numbers; with more than 8 pages it also has **…**, which opens **Page number** and **Go**. The line below always reads, for example, **1–100 of 1,234**. |
 | New entries | Appear at the top while page 1 is shown. Other pages keep the entries they had when you opened them, so nothing shifts while you read. |
 | Narrow window | Below 902 pixels wide, the details move under the list. |
 
@@ -54,7 +54,7 @@ UTC offset.
 | **Logs could not be loaded.** | Reading the log failed |
 | **No logs match the selected filters.** | A number, time, activity or operation filter matches nothing. **View all logs** clears every filter. |
 | **No Warning or higher logs.** (with the level shown) | Nothing at the chosen level or above. **View all logs** appears while the level is above the lowest stored level, which it is when the page opens. |
-| **There are no logs to display.** | Nothing is stored |
+| **There are no logs to display.** | Nothing is stored. When the lowest stored level is **Warning** or above, the page says **No Warning or higher logs.** instead. |
 
 ## Filters
 
@@ -75,14 +75,15 @@ returns to page 1.
   highest.**, and the previous filter stays.
 - Each active filter shows as a chip under the headers, such as **Number: 40–50 ×**. Clicking a chip removes that
   filter. **Clear all** removes every filter and sets the level to the lowest stored level.
-- The page opens at **Warning** or higher, so the chip **Level: Warning or higher** is there from the start. Clear it
-  to see Information entries too.
-- Filters are not saved. They change only what the page shows, never what is recorded or kept.
+- The first time you open the page after starting PZ Tools, it shows **Warning** or higher. With the default stored
+  level, the chip **Level: Warning or higher** is there from the start. Clear it to see Information entries too.
+- Filters stay as you left them while the app runs, and are not saved when it closes. They change only what the page
+  shows, never what is recorded or kept.
 
 <a id="time-filter"></a>
 ### Time filter
 
-The box says **Choose times by this PC's clock.** It has a **Last 24 hours** button, and a calendar button (**Choose
+The box says **Choose times by this PC’s clock.** It has a **Last 24 hours** button, and a calendar button (**Choose
 date and time**) beside **From** and **Through** that picks a date and a 24-hour time.
 
 When no time filter is set, the boxes open filled with the last 24 hours, but nothing applies until you change a box,
@@ -129,10 +130,10 @@ Shown when the entry carries information about a failure. Only fields with a val
 | **Reason** | Why it failed, in the app's language |
 | **Failed step** | The step that failed, such as **Copying save files** or **Starting the worker** |
 | **Files not cleaned up** | How many files cleanup could not remove |
-| **Affected files** | Which files those are |
+| **Affected files** | Which files those are, up to 8 |
 | **Error message** | The error explained in the app's language. For a warning or error from a card, the card's text. |
 
-When the reason cannot be explained in the app's language, **Reason** says **This error could not be explained here.
+When the entry has no save or file to show and its reason cannot be explained in the app's language, **Reason** says **This error could not be explained here.
 See the original message in the technical details.** An old entry without a recorded reason says **This older record
 does not contain the detailed failure reason.**
 
@@ -158,9 +159,9 @@ Collapsed until you open it.
 | **Original message** | Only when the failure's own words could not be explained: the text as the failing component or Windows wrote it, possibly in Windows' language |
 | **Raw record** | The entry's data. For a grouped row, every related entry with its log number, local time, event code and data. **No additional details.** when there is none. |
 
-**Copy details** copies, in this order: the log number, **Event**, **Level**, **Time**, **Activity**, **Operation
-number** (when there is one), **Failure details**, **Related records**, the technical fields, **Original message** and
-**Raw record**, each only when the page shows it.
+**Copy details** copies, in this order: the log number, the event, the level, the time, the activity, the operation
+number (when there is one), **Failure details**, **Related records**, the remaining technical fields, **Original
+message** and **Raw record**, each only when it has a value. **Error code** is left out when the page shows `—`.
 
 ## Reviewing warnings and errors
 
@@ -204,4 +205,4 @@ The entries are kept in `logs.db` in the [data folder](files-and-folders.md#the-
 | `[logs] record_minimum_level` | [Advanced app settings](advanced-settings.md#app) | `Information` | The lowest level stored. Lower entries never reach this page, so the **Level** filter cannot bring them back. |
 | `[logs] max_entries` | Advanced app settings | 100000 (10000–500000) | Entries kept. When full, the oldest are deleted first, unread ones included. |
 | `[logs] display_limit` | `settings.toml` | 1000 (100–10000) | How many of the newest entries the app watches for changes. The list itself pages through every stored entry. The Settings page has no control for it. |
-| `[logs] minimum_level` | `settings.toml` | `Warning` | Not read by this page, which always opens at **Warning** or higher |
+| `[logs] minimum_level` | `settings.toml` | `Warning` | Not read by this page, which first opens at **Warning** or higher |

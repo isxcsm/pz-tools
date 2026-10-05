@@ -56,8 +56,8 @@ About 8 seconds after it starts, the app compares its folder with `pztools-files
 
 | Situation | What the app does |
 | --- | --- |
-| First start of a release in this folder | Reads and hashes every listed file once, in the background. |
-| Later starts | Checks only that each listed file exists and has the right size. |
+| First start of a release in this folder | Reads and hashes every listed file, in the background. This repeats at each start until the folder is found whole. |
+| Later starts | Checks only that each listed file exists and has the right size. The app remembers one folder, so switching between two release folders hashes again each time. |
 | A file is missing or different | Shows the card **PZ Tools files are not intact** with the button **Open download page**. The log entry's details name the files (the first 10 of each kind). Extract the ZIP again into an empty folder. |
 | A file is held open by another program, such as a virus scanner | Not counted as broken. The whole folder is hashed again at the next start. |
 | A file the list doesn't name, such as one left from an older release | Ignored. Nothing the app runs loads a file just because it is in the folder. |
@@ -75,7 +75,7 @@ If a background program is missing when the app starts, it shows **Some PZ Tools
 | --- | --- |
 | `settings.toml` | The choices you make in **Settings**. |
 | `config\<component>\default.toml` | Editable settings for each part of the app. See [advanced settings](advanced-settings.md). |
-| `config-backups\` | Copies of `config\` made by **Restore default settings**, one folder each. |
+| `config-backups\` | Earlier `config\` folders, moved here by **Restore default settings**, one folder each. |
 | `extensions\settings.json` | Which game extensions are on, and their options. `settings.json.lock` beside it is used while it is written. |
 | `extensions\vehicle-drivetrain.toml` | Optional. Your own values for the vehicle extension's tuning, over the packaged ones in the app folder. You create it; the app never does. |
 | `logs.db` | What the **Logs** page shows. Its size is capped by the log settings. |
@@ -112,7 +112,7 @@ If the data folder can't be found when the app crashes, the error report goes to
 | Action | What changes |
 | --- | --- |
 | Backup | Nothing in the save. With **Save game before backup** on, PZ Tools asks the game to save, and the game writes the save as it always does. |
-| Any time the game runs with PZ Tools connected | The character carries three entries in its mod data (`pztools.recovery.id`, `.primary`, `.secondary`), which the game stores in `players.db`. They let a later revive find the character's body and the items in its hands. The game ignores them otherwise. |
+| Any time the game runs with PZ Tools connected | The character carries an entry in its mod data, `pztools.recovery.id`. When PZ Tools has the game save, two more are added, `pztools.recovery.primary` and `.secondary`. The game stores them in `players.db`. They let a later revive find the character's body and the items in its hands. The game ignores them otherwise. |
 | Restore | The save folder is replaced with the backup. |
 | Revive a character | `players.db`, and the world file that holds the body, if you bring its belongings back (a map chunk under `map\` or `reanimated.bin`). |
 | Import a ZIP | A new save folder appears under `<saves folder>\<mode>\`. If the name is taken, `(1)`, `(2)` and so on is appended, as in `MySave(1)`. |
@@ -125,7 +125,7 @@ While these run, hidden folders appear beside the save, in the mode folder (such
 | `.<save>.pztools-staging-<id>` | Restore and revive: the new copy being built. |
 | `.<save>.pztools-rollback-<id>` | Restore: the old save, kept until the new one is in place. |
 | `.<save>.pztools-restore.json` | Restore: the record that lets an interrupted restore be finished or undone. |
-| `.<save>.pztools-file-edit` | Revive: the changed files, while they are put in place. |
+| `.<save>.pztools-file-edit` | Revive with belongings: the changed files, while they are put in place. |
 | `.pztools-import-<id>` (in the saves folder itself) | Import: the save being unpacked. |
 
 A restore or revive refuses a save the game has open.
@@ -143,7 +143,7 @@ The game can't load files from a path with letters outside ASCII, such as a fold
 | Folder | When | What |
 | --- | --- | --- |
 | `%TEMP%\PzTools\attach\` | The app folder's path is not ASCII | Copies of two bridge files the game loads. |
-| `%ProgramData%\PzTools\attach\` | The app folder's path and `%TEMP%` are both not ASCII | The same copies, in a folder only your account can change. |
+| `%ProgramData%\PzTools\attach\` | The app folder's path and `%TEMP%` are both not ASCII | The same copies, in a folder only administrators and the game's account can change. |
 | `%ProgramData%\PzTools\jfr\` | `%TEMP%` is not ASCII | The game's working files while it records performance. |
 
 ## Importing ZIP archives

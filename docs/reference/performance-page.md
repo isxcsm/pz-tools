@@ -12,8 +12,9 @@ estimates from samples taken at regular intervals, so two figures close to each 
 
 ## Making a recording
 
-The buttons right of the title make recordings. In a window narrower than about 760 pixels they move under the
-title, and below about 900 pixels **Save last 2 min** shows its icon alone, with its name as a tip.
+The buttons right of the title make recordings. When the page itself (not counting the navigation pane) is narrower
+than 760 pixels they move under the title. Below 900 pixels **Save last 2 min** and **Compare with** show their icons
+alone, with their names as tips.
 
 ### Start recording and Stop recording
 
@@ -24,9 +25,9 @@ game to record.** or **More than one game is running. Leave only one.**).
 | State | Button | Line under the toolbar |
 | --- | --- | --- |
 | Idle | **Start recording** (**Start recording · Detailed** when Detailed is chosen) | Nothing |
-| Starting | Disabled | **Connecting to the game…** |
-| Recording | **Stop recording** | **Recording 01:23 · stops automatically after 30 minutes** |
-| Processing | Disabled | **Processing the recording…** |
+| Starting | **Stop recording**, disabled | **Connecting to the game…** |
+| Recording | **Stop recording** (**Stop recording · Detailed** for a Detailed recording) | **Recording 01:23 · stops automatically after 30 minutes** |
+| Processing | **Stop recording**, disabled | **Processing the recording…** |
 
 While it records, a second line may say that the game gives no mod information (**Mod (Lua) information cannot be
 read in this game version, so only Java code is recorded.**) or no frame boundaries (**Frame boundaries cannot be
@@ -46,7 +47,7 @@ If it fails, the reason appears on the operation card or as a notification:
 | **Restart the game once to record.** | The game still runs a bridge from an older app version. |
 | **Could not connect because a game launch option blocks it. Check the game's launch options.** | The game was started with attaching turned off. |
 | **Could not make the recording file. Check the logs.** | The recording ran but could not be converted. |
-| **Could not record. Check the logs.** | Any other failure. |
+| **Could not record. Check the logs.** | Any other failure. A cancelled recording and one blocked by Windows Security have their own messages. |
 
 ### Standard and Detailed
 
@@ -65,7 +66,9 @@ Standard has only one or two readings per frame. The time limits can be changed 
 ### Save last 2 min
 
 With **Settings → Performance → Keep the last minutes** on, the game always holds its last few minutes (1 to 10,
-2 at first, in Standard or Detailed, both set there). **Save last 2 min** turns them into a recording right after a
+2 at first, in Standard or Detailed, both set there). They take at most 256 MB on disk
+(`[profiler] rolling_max_megabytes` in the [advanced settings](advanced-settings.md#app)), so a long Detailed window
+can hold less than its length. **Save last 2 min** turns them into a recording right after a
 stutter. The number on the button is the length set in Settings. The game goes on keeping the next minutes, and a
 recording started with **Start recording** runs beside it.
 
@@ -197,7 +200,7 @@ in that frame and memory at that moment.
 
 | Figure | Example | Meaning |
 | --- | --- | --- |
-| Orange square and **GC** | **GC 3 times · working 4.12% · GC pause 120 ms · Waited for memory 12 times, longest 0.42 s** | Garbage collections in the range. **working** is how much of the range the collector was running (shown from 1%). **GC pause** appears when the pauses add up to 2 ms or more. **Waited for memory** counts the times a thread stopped until memory was freed. |
+| Orange square and **GC** | **GC 3 times · working 4.12% · GC pause 120.0 ms · Waited for memory 12 times, longest 420.0 ms** | Garbage collections in the range. **working** is how much of the range the collector was running (shown from 1%). **GC pause** appears when the pauses add up to 2 ms or more. **Waited for memory** counts the times a thread stopped until memory was freed. |
 | **Heap peak** (green) | **Heap peak 2.41 GB** | The highest Java heap use in the range. |
 | **VRAM peak** | **VRAM peak 1.20 GB** | The highest video memory the game held. Absent where Windows does not report it. |
 
@@ -209,7 +212,7 @@ as the app runs. The figure is faint while they are hidden.
 | Text | When |
 | --- | --- |
 | **Stopped N times for lack of memory** | Threads had to wait for memory at least once in the recording. |
-| **Memory nearly full** | The heap stood at 90% or more of its maximum in a quarter or more of the readings. |
+| **Memory nearly full** | The heap stood at 90% or more of its maximum in a quarter or more of the readings, with at least 8 readings. |
 | **· frames 17% slower while GC ran** | Added to either of the above when frames with the collector running were at least 5% longer than frames without it (at least 20 frames of each). |
 | **Memory setting** | Link next to the warning. It opens **Settings → Game → Game memory**. See [Give the game more memory](../guides/more-game-memory.md). |
 | **… when recorded · now set to 6 GB** | The game has since been given more memory than it had in this recording. The warning is muted and the link is gone. |
@@ -230,7 +233,8 @@ it stays as you left it while the app runs.
 | **<mod> allocated** | A mod or the game's scripts is highlighted and the recording has allocations | The memory that owner's scripts allocated, one bar per moment. Garbage that piles up just before collections points at that mod. |
 | **VRAM** | The recording has video memory readings | Memory the game held on the graphics card. |
 
-Each line's scale runs from its lowest to its highest reading in view, written at the left. Resting the pointer on
+The heap and VRAM scales run from their lowest to their highest reading in view, the allocation row from 0 to its
+largest bar, and the GC pauses to the longest pause. The scale is written at the left. Resting the pointer on
 a row's name says how to read it.
 
 ## This range's time
@@ -342,7 +346,8 @@ top, and each function's calls are indented under it, the heaviest first. Click 
 close it. The tree starts closed, and what you open stays open for other ranges of the same recording. Under an
 opened function, after what it called, a closed row **Lines it ran itself · 25** opens into the lines where it did its
 own work. Resting the pointer on a function's file says which line of its caller called it. In **Memory allocation**
-paths that allocated nothing are left out. A call path deeper than 24 functions starts at the 24th.
+paths that allocated nothing are left out. Only the 24 innermost functions of a call path are recorded, so a deeper path starts at the 24th function counted
+from the inside.
 
 **In the list** each function counts the samples that ended in it, so a helper called from many places adds up into
 one row. A function's row opens into its lines, most first. A line marked **(call)** is one it only called from; its
@@ -399,7 +404,8 @@ While comparing, the button reads **Compared with <name>** in the accent colour,
 | --- | --- |
 | **Average** and **Worst 1%** above the graph | **▲** more frames per second (green) or **▼** fewer (red); before → after in the tip. |
 | Scripts total beside **Range time** | Points of the range gained or lost. |
-| Each owner in **Scripts (Lua)** and **Game code (Java)** | Points of the range gained (red) or lost (green). |
+| Each owner in **Scripts (Lua)** | Points of the range gained (red) or lost (green). |
+| Each owner in **Game code (Java)** | Points of **Run share** gained (red) or lost (green). |
 | **Change** column in the tables | The row's total against the same function or method there, in points (**pp**). |
 
 Shares are compared, not times, so recordings of different lengths compare. A function is matched by its name and
@@ -429,15 +435,16 @@ Both reports start with a few lines on how to read the figures, then:
 - the recording: its name, mode, length and start time, the range and thread analysed, sample counts and the
   number of processors
 - frames: count, average, median, worst 1% and slowest
-- where the analysed thread's time went, in the four parts of **This range's time**
+- where the analysed thread's time went, in the four parts of **This range's time** (left out for fewer than 20
+  samples)
 - memory and CPU: heap peak against its maximum, video memory peak, collections and the collector's name, how long
   the collector worked, memory waits, how much slower frames were while it worked, whether the game ran short of
   memory, and other programs' CPU use
 
 The **Whole report** goes on with the twelve heaviest mods; up to eight functions each, with file and heaviest line,
-of the five heaviest; the Java areas; the fifteen heaviest Java methods and who called the heaviest, up to the
-game's code; memory allocated by each mod; the threads (with **All threads** only); and the five longest waits and
-pauses.
+of the five heaviest that take at least 0.5%; the Java areas; the fifteen heaviest Java methods and who called the
+heaviest, up to the game's code; the eight mods that allocated the most memory; up to eight threads (with **All
+threads** only); and the five longest waits and pauses.
 
 A **Detailed report** on a mod goes on with its share and rank, 25 of its functions, the heaviest lines of its ten
 heaviest functions, the call tree that reached them (outermost first, each with the line it was called from, branches

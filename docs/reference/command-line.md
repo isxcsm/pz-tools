@@ -9,8 +9,8 @@ The app does its work through 12 programs in the app folder. You can run some of
 - Run the programs where they are, in the app folder. Each one finds `game-bridge\` and the other programs beside itself, not in the current folder.
 - Use an administrator terminal. The app runs them as administrator.
 - A save is named `<mode>/<save name>`, as in `Sandbox/2026-10-02_02-31-22`. That is its folder under the saves folder.
-- Every run gets a run number from `control.db` in `%LOCALAPPDATA%\PzTools`. `--control-db <path>` uses another file. `--run-index <n>` gives the number yourself. You don't need either.
-- `Ctrl+C` stops `PzTools.Backup.Cli.exe`, the ZIP program, the profiler and the schedulers at the next safe point, with exit code 2. The revive program has no safe point to stop at; let it finish.
+- Every run gets a run number from `control.db` in `%LOCALAPPDATA%\PzTools`. `--control-db <path>` uses another file. `--run-index <n>` gives the number yourself. You need neither, except where a program below says `--run-index` is required.
+- `Ctrl+C` stops `PzTools.Backup.Cli.exe`, the ZIP program, the profiler and the schedulers at the next safe point, with exit code 2. The other programs, the revive program among them, have no safe point and are ended at once; let them finish.
 
 ## The programs
 
@@ -20,9 +20,9 @@ The app does its work through 12 programs in the app folder. You can run some of
 | `PzTools.Zomboid.Archive.Cli.exe` | Yes | Export a save or backup to a ZIP, inspect a ZIP, import a ZIP. See [below](#pztoolszomboidarchivecliexe). |
 | `PzTools.Zomboid.Recovery.Cli.exe` | Yes, with care | Revive a character in a save that is not being played. See [below](#pztoolszomboidrecoverycliexe). |
 | `PzTools.Profiler.Cli.exe` | Yes, `record` only | Record the running game's performance to a `.pzprof` file. See [below](#pztoolsprofilercliexe). |
-| `PzTools.Backup.Runner.exe` | Rarely | Runs `PzTools.Backup.Cli.exe backup` with the same options, holding the backup folder's lock while it runs. The scheduler uses it. |
+| `PzTools.Backup.Runner.exe` | Rarely | Runs `PzTools.Backup.Cli.exe backup` with the same options, holding the backup folder's lock while it runs. Its own `--config` is the runner's settings file; give the backup settings file as `--worker-config`. The app and the scheduler use it. |
 | `PzTools.Maintenance.Runner.exe` | No | Cleans up one save's backups after a backup. |
-| `PzTools.Maintenance.Cli.exe` | No | The cleanup worker the maintenance runner and the state scheduler start. |
+| `PzTools.Maintenance.Cli.exe` | No | The cleanup worker the maintenance runner, the state scheduler and the app start. |
 | `PzTools.Backup.Scheduler.exe` | No | Runs automatic backups. The app keeps one running. |
 | `PzTools.State.Scheduler.exe` | No | Watches saves and the game. The app keeps one running. |
 | `PzTools.State.Runner.exe` | No | One check of the saves folder. |
@@ -34,7 +34,7 @@ Each program also accepts `--probe` alone, which exits with 0 and does nothing. 
 
 | What you run | Is it safe? |
 | --- | --- |
-| `backup`, `restore`, `maintenance prune`, `maintenance gc`, the ZIP commands, revive | Yes. They take the same locks as the app. If the app is using that save or backup folder, they exit with 75 and change nothing. |
+| `backup`, `restore`, `maintenance prune`, `maintenance gc`, the ZIP commands, revive | Yes. They lock the backup folder as the app does. If the app is using it, they exit with 75 and change nothing. A save the game has open makes `restore` and revive fail with 1, also without changing it. `inspect` only reads the ZIP and takes no lock. |
 | `verify` | Close the app first. `verify` takes no lock, so cleanup the app runs at the same time can make it report damage that isn't there. |
 | `PzTools.Profiler.Cli.exe record` | Not while the app is recording. The game holds one recording, and starting one ends the one running. |
 | `PzTools.Profiler.Cli.exe roll-start`, `roll-save`, `roll-stop` | No. They control the recording behind **Keep the last minutes**, which the app manages. |
@@ -86,7 +86,7 @@ PzTools.Backup.Cli.exe help
 | `--source <mode/name>=<folder>` | The save's folder. Repeat it for more saves. The app's settings file names no saves, so you need this. |
 | `--save-game` | Asks the game to save first, if it is running with this save loaded and **Save game before backup** is on. |
 | `--require-active-game` | Skips the backup (exit 0) if the game stops playing this save before the files are read. |
-| `--scheduled-utc <time>` | Prepares early, but saves and reads no files before this time. ISO 8601 with offset, such as `2026-10-05T12:00:00.0000000+00:00`. |
+| `--scheduled-utc <time>` | Prepares early, but saves and reads no files before this time. Written exactly like `2026-10-05T12:00:00.0000000+00:00`: seven decimal places and an offset. |
 | `--game-version <text>` | Records this game version with the backup, up to 80 characters. |
 | `--revision <n>` | For testing: the number to give the new backup. |
 
@@ -158,7 +158,7 @@ Revives the character in a save, as [revive a character](../guides/revive-a-char
 | `--repository` | The backup folder. It is locked while the revive runs. |
 | `--run-index`, `--telemetry-identity` | Required here: a number of your choice and a folder for the diagnostic records. |
 | `--player-id <n>` | Which character, when the save has more than one (split screen). |
-| `--remains none` | Revive without the dead character's belongings. Without it, the belongings come back if exactly one body or zombie matches; several matches are refused. |
+| `--remains none` | Revive without the dead character's belongings. Without it, a dead character with an empty inventory gets the belongings back if exactly one body or zombie matches. No match, or several, is refused; then use `--remains none`. |
 
 ## PzTools.Profiler.Cli.exe
 
@@ -174,19 +174,19 @@ Records until the stop file appears, `--max-seconds` (default 600) runs out, or 
 
 ## Results and exit codes
 
-Each run prints one JSON line to standard output: `version`, `component`, `runIndex`, `outcome`, `startedUtc`, `completedUtc`, and `result` or `error` (`code` and `message`). `verify`, `maintenance prune`, `maintenance gc`, `config`, `scan` and `diff` print their own output instead, and `PzTools.Backup.Cli.exe` writes errors from those to standard error as JSON with `success`, `code` and `message`. The schedulers print one JSON line per job they start.
+Each run prints one JSON line to standard output (the profiler prints progress lines before it): `version`, `component`, `runIndex`, `outcome`, `startedUtc`, `completedUtc`, and `result` or `error` (`code` and `message`). `verify`, `maintenance prune`, `maintenance gc`, `config`, `scan` and `diff` print their own output instead, and `PzTools.Backup.Cli.exe` writes errors from those to standard error as JSON with `success`, `code` and `message`. The schedulers print one JSON line per job they start.
 
 | Code | Meaning |
 | ---: | --- |
 | 0 | Done. For `backup`, also when nothing had changed or the game stopped with `--require-active-game`. |
 | 1 | Failed. |
 | 2 | Stopped with `Ctrl+C`, at a safe point. |
-| 3 | `verify` found missing or damaged data, or a runner finished with part of the cleanup failed. |
+| 3 | `verify` found missing or damaged data, or cleanup finished but could not delete some files. |
 | 4 | `maintenance gc` finished, but some files could not be deleted. |
-| 64 | Unknown command or option, or a bad value. |
+| 64 | Unknown command or option, or a bad value. See the exceptions below. |
 | 75 | Busy: another program is using that save or backup folder. Nothing was changed. Try again later. |
 
-Some programs return 1 for a bad option instead of 64: `restore`, `PzTools.Zomboid.Recovery.Cli.exe` and `PzTools.Maintenance.Cli.exe`.
+Some return 1 instead of 64 for a bad option or value: `restore`, `maintenance prune --keep 0`, the revive program, the runners, `PzTools.Maintenance.Cli.exe` and the state programs. The ZIP and revive programs ignore an option they don't know.
 
 A backup's `result` can carry `warnings`, such as diagnostic records that could not be written or leftover files found in the backup folder. They don't change the exit code.
 

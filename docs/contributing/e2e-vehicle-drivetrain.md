@@ -27,7 +27,7 @@ player sees is in [better vehicle controls](../guides/vehicle-controls.md).
 | Acceleration, shifting, reverse | Four-wheel vehicles with a running engine, engine type `generic`, `van`, `jeep` or `firebird`, 3–5 gears | Other engine types or gear counts, stopped engines, towed or burnt vehicles, towing a burnt vehicle |
 | Keyboard steering | Keyboard-controlled vehicles, also with the engine off or an unsupported engine type | Gamepad steering, towed and burnt vehicles |
 
-The catalogue declares game version 42. The code checks were reviewed against 42.20; a
+The catalogue declares game version 42. The code checks were reviewed against 42.20.4; a
 later 42.x patch can still fail them, and then the extension does not start.
 
 ## Turning it on
@@ -40,9 +40,10 @@ header; expand the card for the four options:
 - **Precise keyboard steering**
 - **Light around the vehicle**
 
-The extension starts off and all four options start on. A change applies at a safe
-moment: the game running (not paused), every vehicle stopped, the accelerator released and
-cruise control off. Until then the card says **To apply, resume the game, stop the vehicle,
+The extension starts off and all four options start on. A change applies at a
+[safe moment](../design/vehicle-drivetrain.md#safe-point-for-applying-changes): the game
+running (not paused), and every vehicle you sit in stopped, with the accelerator released
+and cruise control off. Until then the card says **To apply, resume the game, stop the vehicle,
 release the accelerator, and turn off cruise control.**
 
 ## Comparing with the game
@@ -100,8 +101,9 @@ trait.
 - **Turning off.** Turn the extension off, and exit the app, with the game paused. Stop the
   vehicle before turning it off during a test: control returns to the game at once, and
   the game's own force can differ.
-- **Disconnects.** When the app closes normally, the extension stops at once. When the app
-  is killed, the game notices within the five-second control lease.
+- **Disconnects.** When the control connection ends (the app closes or is killed), the
+  extension stops at once. A connection that stays open but goes silent ends with the
+  five-second control lease.
 
 If something behaves badly, turn the extension off. If the card or logs show
 `RestartRequired` or the state is unclear, end the test and close the game. Restore the
@@ -156,8 +158,10 @@ In `%LOCALAPPDATA%\PzTools\config\state-scheduler\default.toml`, under `[extensi
 | `reconcile_interval_ms` | 250–1000 | 1000 | How often preferences are checked and the connection renewed |
 | `connect_timeout_seconds` | 5–60 | 20 | Time allowed to open the connection |
 
-Restart the app after changing them. Neither changes the five-second lease or the
-three-second command limit.
+Apply them with **Apply settings and restart** (see
+[advanced settings](../reference/advanced-settings.md#applying-changes)). Neither changes the
+five-second lease or the command time limits (15 seconds for `APPLY` and `OFF`, 3 seconds
+for the others).
 
 ## Automated checks before a test session
 
@@ -174,6 +178,8 @@ $env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/vehicle-validation/app).
 dotnet test tests/PzTools.Backup.Tests -c Release --no-build --filter FullyQualifiedName~PublishedDistributionTests
 ```
 
+`test-game-bridge.ps1 -PrepareOnly` runs the Java bridge and extension tests and leaves the
+test variables set in the session, so the next `dotnet test` includes the bridge tests.
 `-InstalledGameJar` checks the bytecode of your installed game in a separate Java process;
 it does not start or attach to the game. Its log goes to
 `artifacts/game-extension-tests/installed-vehicle-verification.log`

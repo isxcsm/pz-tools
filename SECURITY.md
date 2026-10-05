@@ -15,19 +15,25 @@ else goes in [issues](https://github.com/isxcsm/pz-tools/issues).
 ## What PZ Tools does to the game
 
 - **It attaches to the game that is already running**, through Java's own attach
-  mechanism (the one debuggers and profilers use). It does not inject threads, patch the
-  game's files, or change how the game is started. See [the game bridge](docs/design/game-bridge.md).
+  mechanism (the one debuggers and profilers use). It does not patch the game's files or
+  change how the game is started. Inside the running game it starts its own threads and,
+  in memory only, adds one call to the game's main loop, so its requests run on the game's
+  own thread. See
+  [the game bridge](docs/design/game-bridge.md).
 - **It loads only its own code into the game:** the jars shipped in its own folder
-  (`game-bridge\`): the bridge, its bootstrap, and the vehicle extension. It never loads
-  code from mods, the Workshop, saves, or anything downloaded. A small native file in the
-  same folder only loads the game's own Java launcher library.
+  (`game-bridge\`): the bridge, its bootstrap, the extension runtime and the vehicle
+  extension. When the app folder's path has letters outside ASCII, two of these files are
+  loaded from a copy under `%TEMP%\PzTools\attach`. It never loads code from mods, the
+  Workshop, saves, or anything downloaded. A small native file in the same folder only
+  loads the game's own Java launcher library.
 - **The game listens only on the local machine** (`127.0.0.1`), for PZ Tools, with a
   random secret per game run. It accepts a fixed set of commands: save, report its
-  state, record performance, switch its own extensions. It does not run Lua or Java code
-  sent to it.
+  state, show notes over your character, record performance, switch its own extensions.
+  It does not run Lua or Java code sent to it.
 - **It changes a game file only when you ask:** *Settings → Game → Game memory* edits
-  the memory options in `ProjectZomboid64.json` and keeps a copy of the file as the game
-  shipped it. See [game memory](docs/design/game-memory.md).
+  the memory options in `ProjectZomboid64.json`. Before its first change it keeps a copy
+  of the file as it was, in `%LOCALAPPDATA%\PzTools\game-memory-original.json`. See
+  [game memory](docs/design/game-memory.md).
 
 ## Network
 
@@ -53,12 +59,13 @@ downloaded to:
 Get-FileHash .\PzTools-v0.2.4-win-x64.zip -Algorithm SHA256
 ```
 
-The hash must equal the one in the `.sha256` file. This shows the file arrived whole;
+The hash must equal the one in the `.sha256` file. PowerShell prints it in capitals and
+the file has it in lower case; that is the same hash. This shows the file arrived whole;
 since both come from the same release page, it cannot show who built it. Download only
 from [the releases page](https://github.com/isxcsm/pz-tools/releases).
 
-From 0.2.4, releases are built by GitHub Actions from the tagged commit, not on the
-author's PC, and carry a build provenance attestation. With the
+Releases built by GitHub Actions from a tagged commit, not on the author's PC, carry a
+build provenance attestation. With the
 [GitHub CLI](https://cli.github.com/):
 
 ```powershell

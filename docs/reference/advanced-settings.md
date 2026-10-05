@@ -2,7 +2,8 @@
 
 [Documentation index](../README.md)
 
-The TOML files that **Settings → Advanced → Open configuration files** opens. They hold
+The TOML files in the folder that **Open folder** under **Settings → Advanced → Open configuration
+files** opens. They hold
 values the Settings page does not show: log storage, recording limits, how backups are
 checked and stored, timeouts for talking to the game, and diagnostic records. The defaults
 suit normal play. Everything on the Settings page itself is in [settings](settings.md).
@@ -12,8 +13,8 @@ suit normal play. Everything on the Settings page itself is in [settings](settin
 The folder is `%LOCALAPPDATA%\PzTools\config`. It has one subfolder per background part of
 PZ Tools, each with a `default.toml`. A missing file is created from the app's built-in
 template when the app starts; an existing file is never rewritten, not even by an update.
-Every key in a template has a comment with its unit, its allowed range and what changing
-it does.
+Most keys in a template have a comment with their unit, allowed range and what changing them
+does.
 
 | File | What it controls | Worth changing? |
 | --- | --- | --- |
@@ -40,8 +41,10 @@ fails, it shows "Could not apply the settings. Check what you entered." and keep
 with the old values. The message does not name the file, so check the last one you edited.
 If everything passes, the app restarts and every part reads its file again.
 
-The app reads its own file only when it starts. Each background part reads its file when
-it starts, and a backup worker starts for every backup, so a `backup-worker` edit can reach
+The app takes the values in its own file only when it starts. It does read the `app` and
+`backup-worker` files again whenever you change something on the Settings page, so a mistake
+in either one makes those changes fail to save until it is fixed. Each background part reads
+its file when it starts, and a backup worker starts for every backup, so a `backup-worker` edit can reach
 the next backup before you apply it, without being checked. Apply after every edit so a
 mistake is caught before anything uses it. An operation that is already running keeps the
 values it started with.
@@ -55,7 +58,7 @@ custom timeouts reach it.
 **Reset advanced settings → Restore default settings** asks for confirmation, then:
 
 1. moves the whole `config` folder to
-   `%LOCALAPPDATA%\PzTools\config-backups\config-<date>-<time>-<id>`,
+   `%LOCALAPPDATA%\PzTools\config-backups\config-<date>-<time>-<id>` (date and time in UTC),
 2. creates new files from the current templates,
 3. restarts the app.
 
@@ -97,7 +100,7 @@ They are documented in the template comments; changing them rarely helps.
 | `[hotkeys] sounds` | `true` | | A hotkey answers with Windows sounds. |
 | `[hotkeys] game_notices` | `true` | | A hotkey answers with a note over your character's head. |
 | `[runtime] success_card_seconds` | 5 | 1–60 | How long a finished operation's card stays. |
-| `[runtime] failure_card_seconds` | 10 | 1–120 | How long a failed operation's card stays. Its log stays on the Logs page. |
+| `[runtime] failure_card_seconds` | 10 | 1–120 | How long the card of an operation that failed, finished only in part, was cancelled or was skipped stays. Its log stays on the Logs page. |
 
 The `[logs]` section must be present. The file may contain only `[logs]`, `[runtime]`,
 `[profiler]` and `[hotkeys]`.
@@ -127,6 +130,7 @@ The `[logs]` section must be present. The file may contain only `[logs]`, `[runt
 | --- | --- | --- | --- |
 | `[scheduler] interval_seconds` | 3 | 1 or more | Time between checks of the game's state. |
 | `[scheduler] cleanup_interval_seconds` | 60 | 10–86400 | How often interrupted work and backups of saves that no longer exist are looked for. Heavy cleanup waits while the game may be running. |
+| `[extensions] reconcile_interval_ms` | 1000 | 250–1000 | How often the game extensions' settings are compared with the game. Lower reacts sooner and costs more disk and control work. |
 | `[extensions] connect_timeout_seconds` | 20 | 5–60 | Time allowed to connect a game extension. Raise it on a slow PC. |
 
 ### maintenance-worker
@@ -152,7 +156,7 @@ Raise these only for a ZIP you trust.
 
 ### Diagnostic records in every file
 
-Every file has a `[telemetry]` section for its diagnostic records. These are not your
+Every file except `app` has a `[telemetry]` section for its diagnostic records. These are not your
 backups and not the Logs page.
 
 | Key | Default | What it does |

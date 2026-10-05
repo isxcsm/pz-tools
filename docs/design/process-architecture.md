@@ -63,7 +63,8 @@ The backup scheduler starts the runner with `--repository`, `--source-id`, `--sa
 `--scheduled-utc` or, for a game-aware backup, `--runtime-authority`, `--runtime-generation` and
 `--runtime-ticket` ([`RunnerProcessAdapter`](../../src/PzTools.Scheduling/RunnerProcessAdapter.cs)). A manual
 backup from the app passes the same repository and source arguments with `--save-game` but without
-`--require-active-game`. Both add `--game-version` when the game reports one for that save.
+`--require-active-game`. Both add `--game-version` when the game reports one for that save; the manual
+backup otherwise passes the version last seen with the save, or the one its newest backup recorded.
 
 ### Results and exit codes
 
@@ -105,14 +106,15 @@ The run index is allocated in one immediate transaction as
 and does not go backwards when `control.db` is deleted and created again. A missing `control.db` is created; one
 that cannot be opened or has another schema fails the run. There is no fallback to a counter in `state.db` or the
 repository. A child process is given its run index on the command line and does not allocate another. A runner
-started without `--run-index` allocates one before it tries its mutex, so an attempt that ends `Busy` still uses up
-a number.
+started without `--run-index` allocates one before it tries `RepositoryAccess`, so an attempt that ends `Busy`
+still uses up a number.
 
 `control.db` refuses any schema version other than 1. `state.db` (schema 4) and `scheduler.db` (schema 5) refuse a
 newer schema without changing it and migrate older ones forward.
 
-The two schedulers and the app keep one read connection to `scheduler.db` and `state.db` open
-(`HoldReadConnection`), because they read them every second.
+The state scheduler and the app keep one read connection to `scheduler.db` and `state.db` open
+(`HoldReadConnection`), because they read them every second; the app also keeps one to `repository.db`. The
+backup scheduler opens a connection per access.
 
 ## Locks
 
@@ -120,6 +122,7 @@ All mutex names come from
 [`NamedMutexRunner.CreateName`](../../src/PzTools.Process.Hosting/NamedMutexRunner.cs):
 `Local\PzTools.<scope>.<SHA-256 of the upper-cased full path>`. Every acquisition is a single `WaitOne(0)`: nobody
 waits for a mutex. A mutex abandoned by a dead process counts as acquired and is reported as `WasAbandoned`.
+`AppInstance` is the exception: the app holds a handle to it, and a second launch finds it already created.
 
 | Scope | Identity | Held by | Effect |
 | --- | --- | --- | --- |
@@ -196,13 +199,16 @@ run index and reserves its own workflow.
 
 The rules shared by all lanes:
 
-- A lane does not start while any game process exists, and it is cancelled within a second when one appears
+- Dispatch does not start a lane while any game process exists, a lane checks again itself, and it is
+  cancelled within a second when one appears
   ([`GameplayWorkGate`](../../src/PzTools.Process.Hosting/GameplayWorkGate.cs)). An error while listing processes
-  counts as "a game may be running".
+  counts as "a game may be running". Dispatch follows only a scheduled backup, which mostly runs while the game
+  is open, so `RevisionReclamation` and `ArtifactCleanup` rarely get to run.
 - A lane already running makes dispatch report it `Busy` and go on with the others.
 - A lane cancels itself when a backup scheduler sets its yield event.
-- Lanes report a start and a heartbeat every 3 seconds only once they know they have work, so an idle check leaves
-  no card.
+- `RevisionReclamation` and `OrphanBackups` report a start and a heartbeat every 3 seconds only once they know
+  they have work, so an idle check leaves no card. `ArtifactCleanup` reports an unplanned start and heartbeats
+  from the beginning.
 
 The state scheduler's [`OrphanCleanupDispatcher`](../../src/PzTools.Scheduling/OrphanCleanupDispatcher.cs) runs
 whenever it has a repository, with or without automatic backups. It checks every `cleanup_interval_seconds`
@@ -253,7 +259,7 @@ growing delay of up to 60 seconds and does not stop observation
 
 On close ([`AppHost.DisposeCoreAsync`](../../src/PzTools.App.Core/AppHost.cs)) the app stops a running recording
 (waiting up to 10 seconds), cancels the schedulers through their stop events, drains the projections, and starts one
-detached `OrphanBackups` pass. A restart to apply new configuration (`App.RestartForConfigurationAsync`) first
+detached `OrphanBackups` pass unless a game process exists. A restart to apply new configuration (`App.RestartForConfigurationAsync`) first
 takes `RepositoryAccess` while it shuts the host down, so it is refused while a job holds the repository. The
 running schedulers keep the backup folder they started with; `AppSettingsService.SaveAndApplyAsync` writes a new
 one to `settings.toml` and it takes effect at the next start.
@@ -277,7 +283,7 @@ Each save's activity comes from one of two sources:
 
 | Game-aware timing | Activity read from | Result |
 | --- | --- | --- |
-| On | The game's state stream | `Active` for the save the game has loaded; `Inactive` at the menu, when offline, or for other saves; `Unknown` when the stream is not fresh |
+| On | The game's state stream | `Active` for the save the game has loaded; `Inactive` at the menu, while unloading, when no game runs, or for other saves; `Unknown` while a world loads or when the stream is not fresh |
 | Off | Opening `players.db` with no sharing | Sharing violation → `Active`; opened → `Inactive`; missing, access denied or other I/O error → `Unknown` |
 
 The reactor ([`StateReactor`](../../src/PzTools.Zomboid.State/StateReactor.cs)) confirms a change after two
@@ -292,7 +298,13 @@ matching readings in a row and writes a command to the outbox in the same transa
 The relay ([`StateOutboxRelay`](../../src/PzTools.Scheduling/StateOutboxRelay.cs)) copies each command into
 `scheduler.db` with its idempotency key and marks it delivered only after that commit, so a command relayed twice
 is applied once. A check whose readings match the last check that changed nothing, with nothing changed in
-`state.db` since, writes nothing and takes no run index. Pause, sleep and death decisions are in
+`state.db` since, writes nothing and takes no run index.
+
+With game-aware timing on, these commands do not move the backup target: `ApplyPendingCommandsAsync` ignores
+them, and the relay sets the target from each committed game observation instead
+(`SchedulerDatabase.ApplyRuntimeTransitionAsync`). They are kept only as the target of the wall-clock link
+fallback ([when the game cannot be read](runtime-pause-backups.md#when-the-game-cannot-be-read)). Pause, sleep
+and death decisions are in
 [game-aware timing](runtime-pause-backups.md) and [live character death](runtime-character-death.md).
 
 ## Recovering interrupted operations

@@ -2,11 +2,11 @@
 
 [Documentation index](../README.md)
 
-An incremental backup has to find what changed in the save since the previous one. On NTFS it reads the volume's change journal, the [USN journal](glossary.md#usn-journal), from a checkpoint saved with the previous backup. When the journal cannot be used it scans the whole save and compares it with the catalog. Both paths produce the same list of changes; the journal only makes it faster. The code is in [`src/PzTools.Backup.ChangeTracking.Windows/`](../../src/PzTools.Backup.ChangeTracking.Windows/) and [`IncrementalBackupRunner`](../../src/PzTools.Backup.Engine/IncrementalBackupRunner.cs).
+An incremental backup has to find what changed in the save since the previous one. On NTFS it reads the volume's change journal, the [USN journal](glossary.md#usn-journal), from a checkpoint saved with the previous backup. When the journal cannot be used it scans the whole save and compares it with the catalog. Both paths are meant to produce the same list of changes, with the journal only making it faster; links inside the save are the exception ([limits](#limits)). The code is in [`src/PzTools.Backup.ChangeTracking.Windows/`](../../src/PzTools.Backup.ChangeTracking.Windows/) and [`IncrementalBackupRunner`](../../src/PzTools.Backup.Engine/IncrementalBackupRunner.cs).
 
 ## Checkpoint
 
-The checkpoint is `(volume serial, journal ID, next USN)`, stored in `source_state` as two 16-digit hex strings and an integer. It is written in the same transaction as the revision, or by a run that found no changes ([repository format](repository-format.md#what-counts-as-committed)).
+The checkpoint is `(volume serial, journal ID, next USN)`, stored in `source_state` as `volume_identity` and `journal_id` (16-digit upper-case hex) and `next_usn` (integer). It is written in the same transaction as the revision, or by a run that found no changes ([repository format](repository-format.md#what-counts-as-committed)).
 
 The boundary is taken when planning starts, before any record is read or file is copied. The run reads records from the old checkpoint up to that boundary and saves the boundary as the new checkpoint. Anything written while the backup copies files therefore lies after the new checkpoint and is read by the next backup. When the journal cannot be queried at all, the run keeps the old checkpoint. A first backup takes the boundary before its scan; if the journal is unavailable it stores none, and the next backup scans in full.
 
@@ -17,7 +17,7 @@ The boundary is taken when planning starts, before any record is read or file is
 | Condition | Result |
 | --- | --- |
 | No checkpoint stored | Full scan |
-| The query fails with any Windows error, or returns a short structure | Full scan |
+| The query fails with any Windows error, or returns a short structure | Full scan; the old checkpoint is kept |
 | Volume serial differs | Full scan ("The source volume identity changed.") |
 | Journal ID differs (journal deleted and recreated) | Full scan |
 | Checkpoint below the first readable USN | Full scan. The journal has a fixed size, and a busy drive can overwrite the records after the checkpoint between two backups; on one development machine this was about one backup in ten. |
@@ -26,7 +26,7 @@ The boundary is taken when planning starts, before any record is read or file is
 | Reading the records fails part way (Windows error, bad record, journal changed) | Full scan, and the journal handle is released before the scan starts |
 | Otherwise | Journal |
 
-Any failure of the journal is a reason to scan, never a reason to fail the backup. RAM disks are one case: some have no volume name, and Windows answers the query with error 4390. The reason is reported in the run's `changes.planned` telemetry event.
+Any failure of the journal is a reason to scan, never a reason to fail the backup. RAM disks are one case: some have no volume name, and Windows answers the query with error 4390. An incremental run reports the reason as `fallback` in its `changes.planned` telemetry event; a first backup whose query fails reports it in `journal.unavailable`.
 
 ## Reading records
 
@@ -50,7 +50,7 @@ Each candidate path is then read from disk:
 | --- | --- |
 | Confirmed missing ([how](stable-capture.md#missing-files-and-links)) and in the catalog | A tombstone |
 | Confirmed missing and not in the catalog | Nothing |
-| A reparse point | The backup fails: links inside a save are not captured |
+| A reparse point | The backup fails: links inside a save are not captured. A link met only while listing an affected folder is skipped instead. |
 | Content-change reason recorded, new path, or any difference in spelling, kind, size, modified or change time, attributes, file identity or parent identity | A change to capture |
 | Otherwise | Unchanged |
 
@@ -69,6 +69,8 @@ With `capture.full_scan_hash_comparison` on (the default), files that look uncha
 3. Size, times and identity are read from the open handle before and after hashing and from the path afterwards; any difference counts as changed.
 4. Files are compared in batches of `full_scan_hash_batch_size` (16) by up to `full_scan_hash_read_concurrency` (4) readers, never more than the batch, each with a `copy_buffer_kib` buffer. No file content is kept.
 
+A file that cannot be opened or read during the comparison, because it was deleted after the listing or access is denied, fails the backup; it is not retried like a capture.
+
 With it off, only names and metadata are compared. A same-size rewrite that leaves the timestamps as they were, which FAT allows, is then missed.
 
 ## Files the journal does not see changing
@@ -83,6 +85,8 @@ FAT32 and exFAT drives, such as most USB sticks, have no journal, so every backu
 
 - **Administrator rights.** Opening the volume to query the journal needs an elevated process. The app and its workers run elevated; a worker started from a normal shell gets access denied and falls back to a full scan.
 - **Record versions 2 and 3 only.**
+- **Links inside the save differ by path.** A full scan skips a junction or symbolic link inside the save. The journal path fails the backup when a record names one. Neither captures it.
+- **A save folder that is itself a junction** is followed by the full scan. On the journal path, confirming a deletion refuses a save folder that is a reparse point ([missing files](stable-capture.md#missing-files-and-links)), so a backup that sees a deleted file there fails.
 - **A full scan reads every file's metadata** and, with content comparison, every recently written file's content.
 
 ## Tests

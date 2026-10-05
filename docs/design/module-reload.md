@@ -36,12 +36,13 @@ The bootstrap owns everything that has to outlive a replacement
 
 | Check | Where | Failure |
 | --- | --- | --- |
-| The game's `pztools.bridge.bootstrap.api` property is `11` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge". The app reports `restart-required` and sends nothing. |
+| The game's `pztools.bridge.bootstrap.api` property is `11` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge", and nothing is sent. The state stream reports `restart-required`; a save request reports `attach-failed`, extension control `runtime-unavailable`. |
 | The payload jar's manifest has `PzTools-Bootstrap-Api: 11` | `AgentEntry.preparePayload` | `PAYLOAD_UNAVAILABLE`; the old payload stays |
-| The runtime and module jars have `PzTools-Extension-Api: 3` (`ExtensionApi.HOST_ABI`) | `AgentEntry.extensions`, `ContinuousRuntime.apply` | The runtime or module is not loaded |
+| The runtime and module jars have `PzTools-Extension-Api: 3` (`ExtensionApi.HOST_ABI`) | `AgentEntry.extensions`, `ModuleHost.resolve`, `ContinuousRuntime.apply` | The runtime or module is not loaded |
 
-`HOST_ABI` is compiled into the resident API classes. A new extension ABI is therefore refused as
-`host-update-unavailable`, not reported as needing a restart, even though only a restart fixes it. The current
+`HOST_ABI` is compiled into the resident API classes, so a jar with a new extension ABI is refused and not
+reported as needing a restart, even though only a restart fixes it. A runtime jar is refused as
+`host-update-unavailable`, a module jar as `update-rejected:IOException`. The current
 version numbers are in the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
 
 A periodic backup is held while the game reports `restart-required`, because the game cannot be asked to save. A
@@ -112,8 +113,9 @@ as a fact, not as a new death, and the app also de-duplicates deaths by process,
 
 `AgentEntry.extensions` reads the new runtime jar and constructs the new `ModuleHost` (which reads the catalogue)
 before closing the old one. Closing the old host retires every module and waits up to 5 seconds for its executor.
-If the old host cannot be closed, the new one is discarded, the old one stays, and the command answers
-`host-update-unavailable`. The new host starts no module by itself; modules return with the next `APPLY`.
+If the old host cannot be closed, the new one is discarded and the old one stays. An `APPLY` then answers
+`host-update-unavailable`; on the first `STATUS`, `PING` or `OFF` of a session the failure ends the control
+session instead. The new host starts no module by itself; modules return with the next `APPLY`.
 Replacing the runtime leaves WATCH running.
 
 ### Continuous modules
@@ -128,8 +130,9 @@ handles one module's slot:
 4. Otherwise load the new archive, construct the provider, check its id, validate the settings, run `preflight`.
    A failure in any of these leaves the running generation untouched.
 5. [Retire](glossary.md#retire-revoke) the running generation.
-6. `initialize` the new provider. If it fails or reports unsupported, the slot is left empty (`Unsupported`) and
-   the game's own behaviour applies: the old generation is already gone.
+6. `initialize` the new provider. If it reports unsupported, the slot is left empty (`Unsupported`); if it
+   throws, the slot is `Disabled` and the reply is `update-rejected:<exception>`. Either way the game's own
+   behaviour applies: the old generation is already gone.
 7. Publish the new [generation](glossary.md#generation-module) as pending; it activates at the next safe boundary.
 
 **Revoke** is immediate: the generation stops accepting calls, drops pending settings and deactivates its provider.
@@ -143,7 +146,7 @@ for its game hooks to be released and removes its class transformer.
 | Cause | Effect |
 | --- | --- |
 | Incompatible bootstrap | Nothing is sent to the game; all game features stop until it restarts |
-| A module's retirement fails or times out | That slot is poisoned: `RestartRequired`, `retirement-failed`. Other slots keep working, but the host as a whole reports `RestartRequired` and the runtime can no longer be replaced. |
+| A module's retirement fails or times out | That slot is poisoned: `RestartRequired`, `retirement-failed`. Other slots keep working, but the host as a whole reports `RestartRequired` (`host-retirement-failed`) and the runtime can no longer be replaced. |
 | A rejected candidate cannot be disposed | Slot poisoned, `candidate-retirement-failed` |
 | Revoking a generation throws | Slot reports `RestartRequired`, `revoke-failed`, without being poisoned |
 
@@ -170,8 +173,9 @@ bridge or the clients sends an accepted request again. A client that loses the c
 `completion-unknown`, and `BUSY` is retried only when nothing was sent. Queueing and deadlines are in
 [game bridge](game-bridge.md#admission-and-failures).
 
-Only a save request blocks a payload switch. The extension runtime is blocked only by an extension's own save, which
-no shipped module performs. Continuous module replacement does not wait for saves.
+A payload switch is refused with `BUSY` while any request session runs (a save, a profiler or notice command), and
+when WATCH or extension control does not end within 3 seconds. The extension runtime is blocked only by an
+extension's own save, which no shipped module performs. Continuous module replacement does not wait for saves.
 
 ## Tests
 
@@ -182,8 +186,9 @@ no shipped module performs. Continuous module replacement does not wait for save
 | Older bootstrap | `GameProfileBridgeTests.AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing` |
 | Continuous modules | `ContinuousExtensionTests`, and the Java tests `ContinuousRuntimeTest`, `ModuleSlotsTest`, `ModuleReloadTest`, `VehicleHooksTest`, `ExtensionControlTest` |
 
-The C# tests run through `scripts/test-game-bridge.ps1`, the Java tests through
-`scripts/test-game-extensions.ps1`. The fixtures under `tests/game-extensions-fixture/` and
+The C# tests and `ExtensionControlTest` run through `scripts/test-game-bridge.ps1`. The other Java tests run
+through `scripts/test-game-extensions.ps1`; `ContinuousRuntimeTest`, `ModuleReloadTest` and `VehicleHooksTest` run
+inside `CheckpointRuntimeTest`. The fixtures under `tests/game-extensions-fixture/` and
 `tests/game-extensions-continuous-fixture/` are synthetic modules. No test covers the 5-second drain timeout
 itself (failures are simulated with a throwing `close()`), a payload swap while extension control is active, or a
 payload swap refused because a save is running. Behaviour in the real game is part of the

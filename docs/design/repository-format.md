@@ -59,7 +59,7 @@ Constraints that hold at all times:
 
 ## Opening a repository
 
-`RepositoryDatabase.CreateOrOpenAsync` creates `packs/` and `staging/`, switches the database to WAL, applies the schema 6 baseline in one transaction and writes a new identity (random UUID, `next_run_index = 1`). It does this only when `repository.db` is missing or empty.
+`RepositoryDatabase.CreateOrOpenAsync` creates `packs/` and `staging/`, switches the database to WAL, applies the schema 6 baseline in one transaction, then writes a new identity (random UUID, `next_run_index = 1`). It does this only when `repository.db` is missing or empty.
 
 A non-empty `repository.db` goes through `OpenExistingAsync`. The identity is read before any statement that could write:
 
@@ -73,7 +73,7 @@ A non-empty `repository.db` goes through `OpenExistingAsync`. The identity is re
 
 The app shows `repository-reset-required` as "This version cannot open this backup folder. Choose a new folder in the settings. Do not delete the old one." There is no converter and no reset command; the folder is left as it was.
 
-Every connection runs `PRAGMA foreign_keys = ON` and `busy_timeout = 5000`, with a shared cache and no pooling. Opening is retried up to five times (50, 100, 200, 400 ms apart) for exactly one failure: SQLite's `SQLITE_IOERR_TRUNCATE` with Windows error 1224, which happens while Windows still maps the WAL index of a killed process. The retry opens a fresh handle and never deletes `-wal` or `-shm`. Only connection setup and read-only probes are replayed, never a caller's transaction ([`RepositoryConnectionInitialization`](../../src/PzTools.Backup.Storage/Repository/RepositoryConnectionInitialization.cs)).
+Every connection runs `PRAGMA foreign_keys = ON` and `busy_timeout = 5000`, with a shared cache and no pooling. Opening is tried up to five times, 50, 100, 200 and 400 ms apart, for exactly one failure: SQLite's `SQLITE_IOERR_TRUNCATE` with Windows error 1224, which happens while Windows still maps the WAL index of a killed process. The retry opens a fresh handle and never deletes `-wal` or `-shm`. Only connection setup and read-only probes are replayed, never a caller's transaction ([`RepositoryConnectionInitialization`](../../src/PzTools.Backup.Storage/Repository/RepositoryConnectionInitialization.cs)).
 
 The app checks `repository_change_revision` once a second to decide whether to reload the backup list. That reader keeps one connection open (`HoldReadConnection`). Opening a connection per check made SQLite create and delete `-wal` and `-shm` every second, each time scanned by file-system filters. The check runs in a short read transaction, so writers, checkpoints and `VACUUM` are not held up.
 
@@ -83,7 +83,7 @@ Schema 5 kept every worker run twice, in `runs` and in `workflow_runs`/`workflow
 
 `RepositorySchemaUpgrade.UpgradeFrom5Async` does it in one immediate transaction on a private connection:
 
-1. Runs that only `runs` recorded get a workflow and a backup-worker stage.
+1. A run in `runs` without a workflow gets one, and a run without a backup-worker or maintenance-worker stage gets a backup-worker stage.
 2. `revisions` and `packs` are rebuilt with the new references, and `runs` is dropped.
 3. `PRAGMA foreign_key_check` must return nothing, or the transaction rolls back and the repository stays schema 5.
 
@@ -100,7 +100,7 @@ Whole operations (backup, restore, export, orphan cleanup) also take the `Reposi
 
 ### Run index
 
-The run index comes from the installation's `control.db` ([`RunIndexAllocator`](../../src/PzTools.Control/RunIndexAllocator.cs)): each allocation returns `MAX(last + 1, now in Unix ms × 65536, requested minimum)`. The time floor keeps numbers rising even if `control.db` is recreated. Reserving a workflow with that index also raises `repository_info.next_run_index` to at least index + 1. A caller that supplies no index (tests, direct engine use) gets the next value of `next_run_index`. Numbers are never reused, including after history cleanup.
+The run index comes from the installation's `control.db` ([`RunIndexAllocator`](../../src/PzTools.Control/RunIndexAllocator.cs)): each allocation returns `MAX(last + 1, now in Unix ms × 65536, caller's minimum + 1)`. The time floor keeps numbers rising even if `control.db` is recreated. Reserving a workflow with that index also raises `repository_info.next_run_index` to at least index + 1. A caller that supplies no index (tests, direct engine use) gets the next value of `next_run_index`. Numbers are never reused, including after history cleanup.
 
 Each run has a `workflow_runs` row (pipeline, owner component, optional unique `admission_id` that makes the scheduler's reservation idempotent) and one `workflow_stages` row per producer. Both are stamped with the owner's process ID and start time, which recovery uses to tell a dead owner from a live one.
 
@@ -147,7 +147,7 @@ Before a backup builds on the catalog it checks that every `Committed` pack exis
 | Column | Rule |
 | --- | --- |
 | `display_name` | Default "`<prefix> <revision>`", the prefix depending on kind, in the language set at the time. Renames are 1 to 100 printable characters and only for `Active` revisions. |
-| `game_version` | The version the running game reported, trimmed, at most 80 printable characters; null when the game was not reporting one. Saves carry no version string. |
+| `game_version` | The version the running game reported, trimmed; null when the game was not reporting one. Saves carry no version string. A value over 80 characters or with a control character fails the commit; the backup CLI refuses such a `--game-version` before it starts. |
 | Character columns | Filled after the commit by the character summary reader; a failure there leaves the backup intact and adds a warning. |
 
 ## Deletion in storage terms

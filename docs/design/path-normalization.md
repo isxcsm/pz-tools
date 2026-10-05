@@ -34,7 +34,7 @@ Rules the database enforces:
 
 Paths are interned inside the commit transaction that uses them:
 
-- Incremental commits use `RepositoryPathWriter`: insert the key if new, read its ID, then insert the spelling if new with the next free `spelling_id` for that path, and read it back.
+- Incremental commits use `RepositoryPathWriter`: insert the key if new, read its ID, then insert the spelling if new with a `spelling_id` one above the path's highest, and read it back.
 - The first backup keeps path strings only in its connection-local `TEMP` scan table and fills the dictionaries with set-based statements in the commit.
 - No dictionary ID is cached across transactions. A rollback or a garbage-collection pass could otherwise leave a cached number pointing at a row that no longer exists, or at a different one later.
 
@@ -42,7 +42,7 @@ A commit with two entries whose normalized paths are equal ignoring case is refu
 
 ## Case-only renames
 
-The key does not change, so the file keeps its `path_id`, its current-version slot and its history. The new spelling gets a new `spelling_id`; changing back reuses the old one. Both the full scan and the USN planner compare the exact spelling, so the rename produces a new version, which usually reuses the existing object (see [reusing stored objects](pack-format.md#reusing-stored-objects)).
+The key does not change, so the file keeps its `path_id`, its current-version slot and its history. The new spelling gets a new `spelling_id`; changing back reuses the old one while a version still refers to it. Both the full scan and the USN planner compare the exact spelling, so the rename produces a new version, which usually reuses the existing object (see [reusing stored objects](pack-format.md#reusing-stored-objects)).
 
 Different sources share dictionary rows but never histories: the open version is unique per `(source_id, path_id)`, and a version's key is `(source_id, path_id, valid_from_revision)`.
 
@@ -55,7 +55,7 @@ Restore, export, metadata reads, USN path lookups, full-scan comparisons and rev
 A spelling is unused when no version of any source refers to it; hidden baselines and tombstones count as references. A key is unused once all its spellings are gone. [`SweepUnreferencedPathsAsync`](../../src/PzTools.Backup.Storage/Repository/RepositoryDatabase.PathCollection.cs) removes them in bounded passes:
 
 - One budget of inspected rows (not deleted rows) covers both tables: `database_cleanup_batch_size`, default 1,000, per housekeeping pass; 1,000 when run inside a garbage-collection pass.
-- With a budget above one row, spellings are swept first so a small set of orphans can go in one pass; with a budget of one, the order alternates so neither table starves.
+- With a budget above one row, spellings are swept first with half the budget and keys get the rest, so a small set of orphans goes in one pass. With a budget of one, the order alternates so neither table starves.
 - The positions reached are saved in `path_gc_cursor` in the same transaction as the deletions, so the next maintenance process continues where this one stopped. A window that comes back short wraps to the start on the next pass.
 - No `VACUUM` runs per insertion or deletion; see [database file-space recovery](repository-housekeeping.md#database-file-space-recovery).
 

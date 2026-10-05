@@ -34,13 +34,7 @@ The database stores the same algorithms with different numbers (`stored_objects`
 
 ## Algorithms
 
-| Setting (`[storage]`, backup worker) | Default | Resolves to |
-| --- | --- | --- |
-| `checksum` | `auto` | xxHash64. `none` and `sha256` are the alternatives. |
-| `compression` | `auto` | Brotli. `none` is the alternative. |
-| `compression_level` | 3 | Brotli quality 1 to 11 for new objects. Not recorded; reading does not need it. |
-
-`auto` is resolved before a writer opens and is never stored. Each object records the algorithms it was written with, so packs written under different settings sit side by side, and a settings change affects only new objects.
+The backup worker's `[storage]` settings choose them; defaults and accepted values are in [advanced settings](../reference/advanced-settings.md#backup-worker). `checksum = "auto"` means xxHash64 and `compression = "auto"` means Brotli. `auto` is resolved before a writer opens and is never stored. `compression_level` is the Brotli quality for new objects; it is not recorded, because reading does not need it. Each object records the algorithms it was written with, so packs written under different settings sit side by side, and a settings change affects only new objects.
 
 ## Writing
 
@@ -55,13 +49,13 @@ The database stores the same algorithms with different numbers (`stored_objects`
 
 If sealing fails, the temporary file is deleted; if even that fails, both errors are thrown together. Disposing a writer that was not promoted deletes its temporary file. A file under `packs/` is therefore always complete and verified. It is not part of any backup until the [commit transaction](repository-format.md#what-counts-as-committed) registers it. A pack that reached `packs/` without being registered is deleted by garbage collection.
 
-A backup run writes at most one pack. It is created when the first file needs storing, so a run that reuses every object writes none.
+A backup run writes at most one pack. It is opened when the first file needs copying and sealed only if at least one object was written, so a run that reuses every object leaves no pack.
 
 ## Reading
 
 | Entry point | Used by | Checks on open |
 | --- | --- | --- |
-| `OpenForLocatedReadsAsync` | Restore, export, single-file reads, compaction | Header, version, trailer, index checksum, index entries in order and inside the data area, pack UUID equal to the repository's. Records are not walked. |
+| `OpenForLocatedReadsAsync` | Restore, export, single-file reads, compaction | Header, version, trailer, index checksum, index entries in order and inside the data area, pack UUID equal to the one `packs` records. Records are not walked. |
 | `OpenPinnedForLocatedReadsAsync` | Byte comparisons during a backup, through `ValidatedPackReaderCache` | The same, opened with `FileShare.Read`, so Windows denies writers and replacement while the handle lives |
 | `ValidateAsync(verifyPayloads)` | Sealing, `RepositoryVerifier` | Every record header, contiguity, and optionally every payload |
 | `OpenAsync` | Tests and tools | Loads every object descriptor |
@@ -74,7 +68,7 @@ Reads go to the record offset stored in `stored_objects.pack_offset`; the reposi
 
 A staged file copy can end up referring to an object that already exists instead of adding one. Two mechanisms do this ([`DeduplicatingFileCapturer`](../../src/PzTools.Backup.Engine/DeduplicatingFileCapturer.cs)). Both reuse the existing object UUID, pack and algorithms; nothing is compressed again.
 
-**The path's current object.** The game rewrites every map chunk it has loaded on each save, mostly with the bytes they already had, and the new timestamps make each one look changed. An incremental backup therefore reads, for every file it is about to store, the object that path currently holds. When the lengths and the 16-byte change fingerprints match, it compares the decoded object with the staged copy byte by byte, and reuses the object only if every byte is equal. The fingerprint only picks the candidate. If the old pack cannot be read, the file is stored again rather than failing the backup. This needs the fingerprint, which is recorded only while `capture.full_scan_hash_comparison` is on (the default). With the game saving and the player standing still, 389 of 391 captured files were reused and the backup added 150 KB instead of 1.27 MB ([storage performance](../history/storage-performance.md)).
+**The path's current object.** The game rewrites every map chunk it has loaded on each save, mostly with the bytes they already had, and the new timestamps make each one look changed. An incremental backup therefore reads, for every file it is about to store, the object that path currently holds. When the lengths and the 16-byte change fingerprints match, it compares the decoded object with the staged copy byte by byte, and reuses the object only if every byte is equal. The fingerprint only picks the candidate. If the old pack cannot be read, the file is stored again rather than failing the backup. This needs the fingerprint on both sides, the staged copy's and the stored object's, and it is recorded only while `capture.full_scan_hash_comparison` is on (the default). When the game saves while the player stands still, nearly every file it rewrote is reused this way.
 
 **Content deduplication** (`storage.content_deduplication`, default off, requires `checksum = "sha256"`). The staged copy's full SHA-256 and length are looked up first among objects already written in this run, then among committed SHA-256 objects (partial index `ix_stored_objects_dedup`). Each candidate is byte-compared before its object is reused. A failed or cancelled comparison invalidates the pack.
 

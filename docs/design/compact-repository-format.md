@@ -31,7 +31,7 @@ Not compact, because there are few of them: workflow, stage, revision and pack t
 | Content deduplication key | No, full SHA-256 plus a byte comparison |
 | Pack integrity | No, the object's own checksum |
 
-When an object has no fingerprint but its checksum is SHA-256, the first 16 bytes of that checksum serve as one. The fingerprint is recorded only while `capture.full_scan_hash_comparison` is on; an object written while it was off has none, and its file is copied once more the next time a full scan compares it.
+In the full-scan comparison, an object with no fingerprint but a SHA-256 checksum uses the first 16 bytes of that checksum instead. Current-object reuse has no such fallback; it needs a stored fingerprint. The fingerprint is recorded only while `capture.full_scan_hash_comparison` is on; an object written while it was off has none, and its file is copied once more the next time a full scan compares it.
 
 128 bits are enough for detecting accidental change. They are not a defence against crafted collisions, which is why nothing that decides identity of content relies on them alone.
 

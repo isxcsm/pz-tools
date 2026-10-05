@@ -29,12 +29,15 @@ Every page is created once and stays in the tree. Navigation only changes which 
   `Frame.Navigate` or by collapsing it ([MainWindowShell.Navigation.cs](../../src/PzTools.App/MainWindowShell.Navigation.cs)).
 - Opening a page does not start, stop or restart background work. Settings, Game extensions, Logs and Performance
   refresh their own data when shown.
-- The page change fades out in 83 ms and in over 167 ms with a 20-pixel rise, on the content area only. With Windows
-  animations turned off it is immediate. Several quick selections collapse into one change.
+- The page change fades out in 83 ms, then fades in over 167 ms while the content rises 20 pixels over 250 ms, on
+  the content area only. With Windows animations turned off it is immediate. Several quick selections collapse into
+  one change.
 
 Pages show prepared views from `RevisionedViewStore`, read with `ReadIfChanged` and a revision cursor per view. They
-do not read databases, telemetry or worker output themselves. Home reads no view at all: the shell builds its status
-rows with [HomeStatusSource](../../src/PzTools.App/HomeStatusSource.cs) and hands them over.
+do not read telemetry or worker output themselves. Two pages read stored data of their own, off the UI thread: Logs
+pages through `logs.db` with `AppHost.LogInbox.ReadPageAsync`, and Performance opens recording files with
+`ProfileRecording.Load`. Home reads no view at all: the shell builds its status rows with
+[HomeStatusSource](../../src/PzTools.App/HomeStatusSource.cs) and hands them over.
 
 ## The sidebar
 
@@ -47,25 +50,18 @@ The pane's footer is one column, top to bottom:
 | 3 | The next-backup line | `UpdateCountdown` |
 | 4 | **Get new version {0}**, when a newer release exists | `ApplyUpdate` |
 
-Above the menu, in the pane header, are the logo with the app name and the **Buy me a coffee** button.
+Above the menu are the logo with the app name (drawn over the pane header) and the **Buy me a coffee** button.
 
 ### Next-backup line
 
 Always shown while the pane is open. Its text comes from
 [ScheduleCountdownPresentation](../../src/PzTools.App.Core/ScheduleCountdownPresentation.cs), which only chooses words
-and never changes the schedule. A remaining time shows on a second line as **{0} remaining** (mm:ss) only while it
-means something: counting down, or held while the game is paused, the character is asleep or the state is ambiguous.
-
-| Situation | Line |
-| --- | --- |
-| Scheduler view failed to load | **Next backup time unknown** |
-| Game not running | **Game is not running** |
-| Automatic backup off | **Automatic backups off** |
-| App updated while the game ran | **Automatic backups after a game restart** |
-| Game state unknown | **Checking game status**, or **Game starting** when the game was seen starting |
-| World loading | **Game is loading** |
-| Paused, sleeping | **Game paused**, **Character sleeping**, with the held time |
-| Due now | **Next backup: starting soon**, or **Next backup: after the current work** |
+and never changes the schedule. Every message and when it shows is listed in
+[backups](../reference/backups.md#the-next-backup-line). The first matching condition wins, in this order: scheduler
+view not loaded, game not running, automatic backups off, restart required, clock fallback, skipped interval, main
+menu, loading, character dead, then the holds of the pause-aware schedule (two games, state unknown, no world,
+sleeping, paused) and finally the countdown. A remaining time shows on a second line as **{0} remaining** (mm:ss) only
+with a countdown or a held time.
 
 A held time is dimmed and blinks once a second (opacity 1 and 0.35, stepped by the countdown timer, not by a
 composition animation, which cost about 3% of a core). It does not blink with Windows animations off.
@@ -97,11 +93,13 @@ the height they need; finished cards that do not fit in the room left are hidden
 
 | Outcome | Lifetime |
 | --- | --- |
-| Success, no change, postponed cleanup | `success_card_seconds` (default 5) |
-| Anything else | `failure_card_seconds` (default 10) |
+| Success, no change, postponed cleanup | `success_card_seconds` |
+| Anything else (failure, partial result, cancelled, skipped) | `failure_card_seconds` |
 
-Both are set in the runtime configuration ([advanced settings](../reference/advanced-settings.md)). While the pointer
-rests on the cards, finished cards stay in place; they leave one second after it moves away.
+Both are `[runtime]` keys of the app; their defaults and ranges are in
+[advanced settings](../reference/advanced-settings.md#app). The rule is `OperationCardLifetime.Of`, shared by the
+projection and the app. While the pointer rests on the cards, finished cards stay in place; they leave one second
+after it moves away.
 
 **Content.**
 
@@ -150,7 +148,7 @@ next-backup line, and never expire. Each leaves when its condition clears, or th
   one (**A game launch option is blocking the connection.**); otherwise it says what backups do meanwhile. See
   [saving the game before a backup](game-bridge.md).
 - **Could not load.** A projection failure that clears within ten seconds (a file briefly locked) shows nothing. Only
-  one load card shows, for the first of state, backup and details that keeps failing.
+  one load card shows: the save list if it has failed that long, else the backup list, else the details.
 - **Game memory.** See [game memory](game-memory.md).
 
 How an attention card behaves:
@@ -163,7 +161,8 @@ How an attention card behaves:
 To add one: put an `AttentionCard` in `InteractiveCards` at its priority, write an `Apply*` method that sets
 `Title`, `Message` and `ActionLabel` from the resources and its `Visibility`, then calls `UpdateInteractiveCards`.
 Call that method again from `ApplyLocalizedText` and call the card's `Localize()` there, so a language change
-redraws it. Add a preview key to [MainWindowShell.CardPreview.cs](../../src/PzTools.App/MainWindowShell.CardPreview.cs):
+redraws it. `InstallCard` and `GameMemoryCard` are not handled there yet: after a language change they keep the old
+language until their state changes. Add a preview key to [MainWindowShell.CardPreview.cs](../../src/PzTools.App/MainWindowShell.CardPreview.cs):
 developer builds list it under Settings > Advanced, and `PZTOOLS_PREVIEW_CARDS=blocked,update` (or `all`) shows cards
 from startup. Published builds compile none of the preview code.
 
@@ -188,17 +187,20 @@ rules, in English and in every translation:
 - **"Check the logs"** ends a failure whose reason the card cannot give.
 
 The look is shared in [CardStyles.xaml](../../src/PzTools.App/CardStyles.xaml), for cards in XAML and in code alike:
-13-point title, 12 for everything else (as the next-backup line), 12 × 10 pixels of padding, 6 between cards. Titles
-use the normal weight and are set apart by colour, because the default Korean font has no semibold and would draw it
-fully bold. The action strip's margin is the card's padding turned outward; change one, change the other.
+font size 13 for the title, 12 for everything else (as the next-backup line), 12 × 10 pixels of padding, 6 between
+cards. Titles use the normal weight and are set apart by size and colour, because the default Korean font has no
+semibold and would draw it fully bold. The action strip's margin is the card's padding turned outward; change one, change the other.
 
 ### Update line
 
-A newer release, while **Check for updates** is on in Settings, shows as one grey line under the next-backup line, next
+A newer release, while **New version notice** is on in Settings, shows as one grey line under the next-backup line, next
 to **Settings**. Pressing it opens the release page; its tooltip is the page's address. It stays until the app is
 updated or the notice is turned off.
 
 ## Save manager
+
+The page is part of the shell ([MainWindowShell.xaml](../../src/PzTools.App/MainWindowShell.xaml)), not a page of
+its own. How export, import and the deletions work underneath is in [archives and deletion](archives-and-deletion.md).
 
 ### Layout
 
@@ -278,9 +280,9 @@ These locks are a convenience. Named mutexes in the workers and the CLI stop con
 ### Import and export
 
 - **Import archive** opens a file picker (.zip, .pzsave), then a dialog that inspects the archive with a progress bar.
-  **Import** stays disabled until the inspection is done, and closing the dialog cancels it. The preview puts the
-  thumbnail beside the details when the dialog is at least 480 pixels wide, above them otherwise, and reserves no
-  space for a missing image.
+  **Import** stays disabled until the inspection is done, and closing the dialog cancels it. The preview is the
+  window's width less 96 pixels, at most 640. It puts the thumbnail beside the details when that is at least 480
+  pixels, above them otherwise, and reserves no space for a missing image.
 - After a successful import the app collects the save state again before it shows completion. If that refresh fails,
   the card says **Done, but the list may update late. Do not run it again.**, so the user does not import twice.
 - **Export ZIP** suggests `<mode>-<save>-current.zip` or `<mode>-<save>-r<revision>.zip`. Exporting the current save
@@ -295,19 +297,22 @@ These locks are a convenience. Named mutexes in the workers and the CLI stop con
   last backup, the vehicle extension), four feature cards (backup and restore, character recovery, performance, game
   extensions) and a footer with links, the selectable version and the unofficial-tool notice. Korean text gets a word
   joiner between the syllables of each word (`HomePage.KeepWords`), so a narrow window breaks only at spaces.
-- **Settings.** Expanders: Version, Display, Paths, Backup, Game, Performance, Hotkeys, Advanced. Version and Advanced
-  start collapsed. What each setting does is in the [settings reference](../reference/settings.md).
-- **Performance.** **Start recording** is enabled while idle when exactly one game is running or the count is not known yet,
-  and while recording once the game confirmed the recording. See the [Performance page reference](../reference/performance-page.md)
-  and [performance recording](profiler.md).
+- **Settings.** `SettingsExpander`s, in order: **Version**, **Appearance and behavior**, **Folders**, **Backup**,
+  **Game**, **Performance**, **Hotkeys**, **Advanced**. **Version** and **Advanced** start collapsed. What each
+  setting does is in the [settings reference](../reference/settings.md).
+- **Performance.** The record button reads **Start recording** while idle and is enabled when exactly one game is
+  running or the count is not known yet; otherwise its tooltip says why. While recording it reads **Stop recording**
+  and is enabled once the game has confirmed the recording. See the
+  [Performance page reference](../reference/performance-page.md) and [performance recording](profiler.md).
 - **Game extensions.** One expander per extension, expanded at first when it is the only one. Refreshes update the
   existing controls in place, so expansion, scroll and focus stay. A settings file that cannot be read or written is
   reported in an `InfoBar` on this page, an exception to the card rule. (The Performance page's few-samples
   `InfoBar` is not one: it describes the recording on screen.) See [game extensions](game-extensions.md).
 - **Logs.** Filters combine and apply after a short pause in typing (`LogFilterDebounceMs`), or at once on Enter or a
   calendar choice; opening the date picker applies nothing. Active filters show as chips with **Clear all**. Column
-  widths are measured from the current language's level names and time formats (`LogColumns.Fit`). How entries are
-  recorded is in [telemetry](telemetry.md).
+  widths are measured from the current language's level names and time formats (`LogColumns.Fit`). What the page
+  shows is in the [Logs page reference](../reference/logs-page.md); how entries are recorded is in
+  [telemetry](telemetry.md).
 
 ## Dialogs
 
@@ -347,21 +352,24 @@ colour on a dark page. Instead:
   [SettingsPage.xaml](../../src/PzTools.App/SettingsPage.xaml) and [ProfilerPage.xaml](../../src/PzTools.App/ProfilerPage.xaml)
   do. After `ActualThemeChanged`, read them in a queued callback, when the probes have the new theme, and redraw
   whatever code drew with the old brushes.
+- Do not read a brush from `Application.Current.Resources` in code. Two places still do, for the secondary text
+  colour of the heal dialog's survival line (`CreateCharacterChoice`) and of [RemainsQuestion](../../src/PzTools.App/RemainsQuestion.cs),
+  and show Windows' colour when the app's theme differs.
 - The title bar's caption buttons get their foreground on `ActualThemeChanged`.
 
 ## Text and languages
 
 - Every visible string and every accessible name comes from `Strings/<language>/Resources.resw` through `Localizer`.
   Text or content written in XAML is a placeholder that `ApplyLocalizedText` (or `x:Uid`) replaces.
-- There are 18 languages: cs-CZ, de-DE, en-US, es-ES, es-MX, fr-FR, id-ID, it-IT, ja-JP, ko-KR, pl-PL, pt-BR, ru-RU,
-  th-TH, tr-TR, uk-UA, zh-CN, zh-TW. A new key goes into all of them with the same format placeholders;
-  `LocalizationTests` and [check-localization.py](../../scripts/check-localization.py) fail otherwise. The process is
-  in [localization](../contributing/localization.md).
+- A new key goes into every language's file with the same format placeholders; `LocalizationTests` and
+  [check-localization.py](../../scripts/check-localization.py) fail otherwise. The languages and the process are in
+  [localization](../contributing/localization.md).
 - The language changes without a restart. `RefreshLocalization` calls each page's `ApplyLocalizedText` and resets the
   view cursors so every row is formatted again. Text set in code must be set again there, and a property formatted when
   read must raise its change notification on a language change (see `SaveVersionUiItem.SetGameVersion`).
 - Format with `Localizer.Culture` and `Localizer.Format`: dates with `"G"` or `"g"`, numbers with `N0`/`N1`, sizes
-  with `Units`. The thread's culture can still be the one the app started with.
+  with `Units`. The thread's culture can still be the one the app started with. The operation card's amount
+  (`ApplyProgress`) still writes `MB` itself instead of the language's unit.
 - Assume nothing about length or script. Text wraps or trims instead of relying on a width; widths that must fit are
   measured in the current language. Whole sentences come from one resource with placeholders, never from joined
   fragments, because word order differs. Stored text that was written in another language (default backup names, log
@@ -398,5 +406,7 @@ colour on a dark page. Instead:
   named *name, Dead, survival time*.
 - Everything works from the keyboard: the cards' ✕ through Tab, tooltips on keyboard focus, Enter and Escape in the
   rename box.
-- Motion follows the Windows animation setting for page changes, the countdown blink and the support button. The Save
-  manager's selection bars, row insertion and row entrance animations do not check it yet.
+- Motion follows the Windows animation setting for page changes, the countdown blink, the support button and some
+  Performance page motion. The animated selection bars (`AnimatedListSelectionBar`, on the Save manager, Logs and
+  Performance lists and the Performance tabs) and the Save manager's row insertion and entrance animations do not
+  check it yet.

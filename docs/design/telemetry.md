@@ -31,17 +31,20 @@ A process telemetry database lives beside the identity it belongs to
 | A folder | `<folder>\.pztools\<component>\telemetry.db` |
 | A file, or any path ending in `.db` | `<parent>\.pztools\<file name>\<component>\telemetry.db` |
 
-A `telemetry.active` file next to it is held open while the producer runs; the app uses it to tell a running
-worker from a dead one.
+An operation worker (restore, archive, character recovery, profiler) holds a `telemetry.active` file open next to
+its database while it runs; the app uses it to tell a running operation from a dead one. Schedulers, runners,
+state checks and maintenance lanes have none.
 
 | Producers | Identity |
 | --- | --- |
 | `backup-scheduler`, `state-scheduler` | `scheduler.db` |
 | `state-runner`, `state-collector`, `state-reactor` | `state.db` |
-| `backup-runner`, `maintenance-runner`, `maintenance-worker`, `maintenance-lane-<lane>` | The backup folder |
+| `backup-runner`, `maintenance-runner`, `maintenance-worker`, `maintenance-lane-<lane>`, `backup-worker` | The backup folder |
 | `restore-worker`, `archive-worker`, `character-recovery`, `profiler` | `%LOCALAPPDATA%\PzTools\operations\<component>\<operation key>`, passed as `--telemetry-identity` |
 
-The runners' events go to the log only; they never make a card. An operation's database is deleted once its events
+The backup worker's process database holds only its `backup.completed` event, written whenever `enabled` is
+true, also in `off` mode. The app never registers it as a source, so nothing reads it. The `backup-runner` and
+`maintenance-runner` events go to the log only; they never make a card. `state-runner` events can. An operation's database is deleted once its events
 are in `logs.db` and its card has gone. Any left over at start-up are imported into `logs.db` and then deleted
 ([`AppHost.RegisterHistoricalOperationTelemetrySourcesAsync`](../../src/PzTools.App.Core/AppHost.cs)).
 
@@ -52,7 +55,7 @@ The `[telemetry]` section of the `backup-worker` component chooses how much
 
 | `mode` | Recorded scopes |
 | --- | --- |
-| `off` | Nothing; the store is not opened |
+| `off` | Nothing in the engine store; it is not opened |
 | `run` | `Run` events |
 | `phase` | `Run` and `Phase` events |
 | `raw` | Everything |
@@ -102,8 +105,9 @@ reads telemetry does this.
 
 **Process telemetry** ([`ProcessTelemetrySession`](../../src/PzTools.Process.Telemetry/ProcessTelemetrySession.cs)).
 Events are queued and written by a timer every `progress_flush_interval_ms` (100 ms), one transaction per tick. A
-failed write is retried on the next tick; at shutdown the session gives up after three failures. Short-lived
-producers (schedulers, runners, state checks) use
+failed write is retried on the next tick. Once stopping, the session gives up when three writes in a row have
+failed, counting failures from before the stop. Producers that record single events (schedulers, runners,
+state checks, maintenance dispatch and lanes) use
 [`BestEffortProcessTelemetry.TryRecordAsync`](../../src/PzTools.Process.Telemetry/ProcessTelemetryStore.cs), which
 writes one event and swallows any failure. Process databases use `synchronous=NORMAL`, so a power loss can lose the
 last events.
@@ -114,7 +118,7 @@ last events.
 | --- | --- | --- |
 | `operation.heartbeat` (scope `Run`) | Backup worker | `heartbeat_interval_ms` in `[runtime]`, 2000 ms |
 | `operation.heartbeat` | Restore, archive, character recovery, profiler | `heartbeat_interval_ms` in `[telemetry]`, 5000 ms |
-| `operation.heartbeat` | Maintenance lanes, once they know they have work | 3 s |
+| `operation.heartbeat` | Maintenance lanes: `ArtifactCleanup` from its start, the others once they know they have work | 3 s |
 | `progress.snapshot` | Process workers | At most every `progress_flush_interval_ms` (100 ms), only after new progress |
 | Scan, hash and capture progress (scope `Phase`) | Backup worker | `progress_interval_ms` in `[runtime]`, 250 ms |
 
@@ -130,7 +134,8 @@ JSON `null` means unknown, and scan progress has none.
 
 Deleting a save runs inside the app and has no telemetry database. It reports into a latest-value slot
 ([`LatestProgress`](../../src/PzTools.App.Core/LatestProgress.cs)) that a UI timer reads every
-`export_progress_interval_ms` (350 ms); the result comes from the awaited task. While files are listed it shows a
+`export_progress_interval_ms` (350 ms); the result comes from the awaited task. `SaveDeletionService` throttles
+its own reports with the built-in 350 ms, not the configured value. While files are listed it shows a
 count; a percentage appears once the total is known.
 
 ### Matching events to cards
@@ -152,10 +157,10 @@ and skips a source whose `PRAGMA data_version` has not changed.
 - `telemetry_read_timeout_seconds` (1, range 1–5) sets the SQLite provider's `DefaultTimeout`. The provider retries
   `BUSY` by itself for 30 seconds by default, and one locked database would otherwise stall every card.
 - Before a source's first successful read, missing metadata and SQLite errors 1, 5 and 6 are treated as a database
-  still being created, for `telemetry_read_grace_ms` (2000 ms). The source shows as waiting. A missing file also
-  waits.
-- After that, a wrong schema marks the source `UnsupportedSchema`; SQLite, I/O, access or bad-data errors
-  (including invalid JSON) mark it `Unreadable`. Only that source is affected. The change is logged as
+  still being created, for `telemetry_read_grace_ms` (2000 ms). The source shows as waiting. A missing file
+  waits until `telemetry_stale_seconds` have passed since its workflow started, then shows as stale.
+- A schema other than 2 (engine) or 3 (process) marks the source `UnsupportedSchema` at once, grace or not.
+  After the grace, SQLite, I/O, access or bad-data errors (including invalid JSON) mark it `Unreadable`. Only that source is affected. The change is logged as
   `telemetry.source.unreadable`, `.unsupportedschema`, `.stale` or `.recovered`.
 - A changed instance id, or event ids outside the cursor's range, reset that source's cursor.
 
@@ -178,7 +183,7 @@ Information, Warning, Error, Critical. Rules, in order
 | Name ends `.busy` or `.unavailable` | Information: the work did not start |
 | Name contains `warning`, or ends `.degraded` or `.cancelled` | Warning |
 | Other `*.started` except `run.started` | Trace |
-| Outcome completions (`tick`, `collector`, `reactor`, `state-runner`, `runner`, `backup`, `maintenance.*`) | `Failed`, `Abandoned` → Error; `Busy`, `Degraded`, `Cancelled`, unknown → Warning; a state-scheduler `tick.completed` that was `Busy` and not started → Trace; maintenance with work done → Information; else Trace |
+| Outcome completions (`tick`, `collector`, `reactor`, `state-runner`, `runner`, `backup`, `maintenance.*`) | `Failed`, `Abandoned` → Error; `Busy`, `Degraded`, `Cancelled`, unknown → Warning; a state-scheduler `tick.completed` that was `Busy` and not started → Trace; maintenance with work done (`planned`, or `affectedItems` above 0) → Information; no readable outcome → Information for `tick.completed`, Trace for the rest; else Trace |
 | Anything else | Information |
 
 What these rules give in practice:
@@ -189,7 +194,7 @@ What these rules give in practice:
 | Background cleanup that found nothing to do | Trace |
 | Background cleanup with work: an announced start (`planned`), its completion, a completion that affected items, a postponement (`.cancelled`) | Information |
 | Backup and operation results: `run.started`, `run.committed` | Information |
-| Work that did not start: `run.busy`, `run.unavailable` (only the profiler sends it, when there is no single game) | Information |
+| Work that did not start: `run.busy`, `run.unavailable` (only the profiler sends it, when there is no single game or the game needs a restart) | Information |
 | An automatic backup put off during preparation: `run.cancelled` with `source-deferred` or `source-skipped` | Information |
 | Busy, degraded, cancelled and unknown outcomes | Warning |
 | Failures (`*.failed`, `Failed` or `Abandoned` outcomes) | Error |
@@ -212,18 +217,21 @@ The app writes three kinds of entries itself, with no worker telemetry behind th
 
 - `run.failed` from source `app-dispatch` when a worker could not be started (`phase` `process-launch`, with the
   executable path and `nativeErrorCode`) or returned an invalid result envelope (`phase` `process-result`).
-- `app.action.failed` for a failed action that ran no worker, such as a rename or a refused setting
+- `app.action.failed` for an action that ran no worker, such as a rename or a refused setting
   ([`AppHost.RecordActionIssue`](../../src/PzTools.App.Core/AppHost.cs)). It keeps the title and message the card
-  showed.
-- `component.launch.blocked` when Windows refuses to start a component.
+  showed. An issue that was not a failure is written under the same name at Warning with outcome `Degraded`.
+- `component.launch.blocked` from source `app-dispatch` and component `app`, written by the periodic launch
+  check ([process architecture](process-architecture.md#the-processes)) when the set of blocked components
+  changes.
 
 Maintenance lanes that fail to delete files record `failureCode` `file-delete-failed`, the count and up to eight
 file names.
 
 ## Failure payloads
 
-[`FailureTelemetry.FromException`](../../src/PzTools.Process.Contracts/FailureTelemetry.cs) builds every failure
-event's payload:
+[`FailureTelemetry.FromException`](../../src/PzTools.Process.Contracts/FailureTelemetry.cs) builds the payload of
+failure events that come from an exception. A few are written inline instead: the app's `process-launch`
+entries, `runner.completed` and the lanes' `file-delete-failed` completions.
 
 - Always: `failureCode`, `exceptionType`, `message`, `hResult` (`0x` + 8 hex digits).
 - `nativeErrorCode` for a `Win32Exception`. Its `hResult` is always `0x80004005`; the native number (5 for access
@@ -233,8 +241,8 @@ event's payload:
   [`IFailureDiagnostics`](../../src/PzTools.Process.Contracts/IFailureDiagnostics.cs) (game-save and backup
   preparation failures).
 
-Every text field except the code and type is flattened to one line and capped at 512 characters, with `…` marking a
-cut. A caller may pass a path prefix to replace with `<save>`; only the backup worker does, with the save's root.
+Every other text field except the code and type is flattened to one line and cut to its first 512 characters
+plus `…`. A caller may pass a path prefix to replace with `<save>`; only the backup worker does, with the save's root.
 Other producers, and the app's `process-launch` entries, keep full paths.
 
 For a failed game save or a deferred preparation, the backup worker's own event has the detail. Schedulers and

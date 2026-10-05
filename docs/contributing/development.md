@@ -29,7 +29,7 @@ for where the bridge output goes.
 | Folder | Contents |
 | --- | --- |
 | `src/` | The app (`PzTools.App`, `PzTools.App.Core`), the schedulers, runners and workers (`*.Scheduler`, `*.Runner`, `*.Cli`), the Java bridge (`PzTools.GameBridge.Agent`, `PzTools.GameBridge.Native`) and the extensions (`PzTools.GameExtensions*`) |
-| `tests/` | `PzTools.Backup.Tests` (the xUnit suite), the five WinUI smoke programs, and Java fixtures for the bridge and extension tests |
+| `tests/` | `PzTools.Backup.Tests` (the xUnit suite), `PzTools.CrashFixture` (a helper program the suite starts), the five WinUI smoke programs, and Java fixtures for the bridge and extension tests |
 | `config/defaults/` | Each component's `default.toml`, copied into the app folder |
 | `config/game-extensions/` | The extension catalogue and the vehicle extension's tuning defaults |
 | `build/` | MSBuild files that build the Java payload and stage the workers next to the app |
@@ -69,9 +69,10 @@ The app lands in `src/PzTools.App/bin/x64/<Configuration>/net10.0-windows10.0.19
 
 ### Previewing the sidebar's cards
 
-Some cards need a state that is hard to bring about: a component blocked by Windows
-Security, a lost or outdated game connection, a saves list that keeps failing to load, a
-new release, the result cards. In a development build, **Settings → Advanced → Card preview
+Some cards need a state that is hard to bring about: app files that are not intact, a
+component blocked by Windows Security, a lost game connection (also after an update or with a
+launch option blocking it), a saves list that fails to load, game memory set back, a new
+release, the result cards. In a development build, **Settings → Advanced → Card preview
 (developer build)** shows any of them; **Clear all** puts back the real state. For a
 scripted run, set `PZTOOLS_PREVIEW_CARDS` to a comma-separated list of keys (or `all`)
 before starting the app. The keys are in
@@ -99,7 +100,7 @@ is set. A skipped test is not a passed test.
 | `PZTOOLS_TOOLS_DIR` | Tests that start the published workers as separate processes |
 | `PZTOOLS_GAME_BRIDGE_DIR`, `PZTOOLS_BRIDGE_TEST_JAVA`, `PZTOOLS_BRIDGE_TEST_CLASSES`, `PZTOOLS_EXTENSION_FIXTURE_JAR`, `PZTOOLS_CONTINUOUS_FIXTURE_JAR` | Bridge and extension tests against the synthetic JVM. [`test-game-bridge.ps1`](#game-bridge-tests) sets them. |
 | `PZTOOLS_REAL_SAVES_ROOT` | Read-only tests on a real `Zomboid\Saves` folder; with `PZTOOLS_TOOLS_DIR`, the process end-to-end tests |
-| `PZTOOLS_RECOVERY_SAMPLES` | Character recovery on real saves (`;`-separated), edited only in temporary copies |
+| `PZTOOLS_RECOVERY_SAMPLES` | Character recovery on real `players.db` files (`;`-separated paths), edited only in temporary copies |
 | `PZTOOLS_TEST_USN=1` | USN journal tests; needs an elevated shell |
 | `PZTOOLS_TEST_FAT_DIR` | A full-scan backup from a FAT32 or exFAT folder |
 | `PZTOOLS_LIVE_PROBE_PID`, `PZTOOLS_LIVE_PROBE_SAVE` | Connects to a running game and checks the save path without saving (with `PZTOOLS_GAME_BRIDGE_DIR`) |
@@ -142,11 +143,11 @@ pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
 [`test-game-bridge.ps1`](../../scripts/test-game-bridge.ps1) builds the bridge (Debug by
-default), compiles the Java fixtures, runs the Java tests of the extension runtime,
-control protocol and profiler, runs
-[`test-game-extensions.ps1`](../../scripts/test-game-extensions.ps1), and finally runs
-`GameSaveClientTests` against a synthetic JVM that imitates the game. None of it touches a
-real game.
+default) and compiles the Java fixtures. It then runs
+[`test-game-extensions.ps1`](../../scripts/test-game-extensions.ps1), which builds the vehicle
+extension and runs the extension runtime and vehicle model tests, and then the Java tests of
+the control protocol and the profiler. Last it runs `GameSaveClientTests` against a synthetic
+JVM that imitates the game. None of it touches a real game.
 
 | Option | Effect |
 | --- | --- |
@@ -186,7 +187,7 @@ checks its folder against that list when it starts (see
 | --- | --- |
 | `-Output` | `artifacts/app`. Must be new or empty; the scripts never clear a folder. |
 | `-Configuration` | `Release` |
-| `-JdkPath` | `JAVA_HOME`, then `artifacts/toolchains` |
+| `-JdkPath` | `JAVA_HOME`, then a single `artifacts/toolchains/jdk-25*` folder |
 | `-GameBridgeOutput` | `artifacts/game-bridge/<Configuration>`. Use a fresh folder for a release, so the payload reuses nothing from development builds. |
 | `-DotNetPath` | `C:\Program Files\dotnet\dotnet.exe`, else `dotnet` on `PATH` |
 
@@ -195,9 +196,10 @@ and the reduced Java runtime; `PzTools.App.exe` alone does not run. End users ne
 [.NET 10 runtime for x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0).
 Game JARs are never part of it.
 
-Read the [repository format](../design/repository-format.md) before opening existing
-backups with a development build. Repository schemas are not migrated automatically. If a
-schema is incompatible, keep the data you need and choose a new, empty backup folder.
+Read [opening a repository](../design/repository-format.md#opening-a-repository) before you
+point a development build at existing backups. A schema 5 repository is upgraded in place when
+opened, and older builds then refuse it. Any other schema is refused; choose a new, empty
+backup folder.
 
 ### Test a published folder
 
@@ -323,7 +325,7 @@ base.
 | --- | --- |
 | Only `docs/`, `*.md`, `.gitignore`, `.gitattributes` | Nothing; the `windows` job is skipped |
 | Anything else | The `windows` job, with `GameSaveClientTests` filtered out |
-| `.github/`, `build/`, project and solution files, `global.json`, `config/defaults/`, `config/game-extensions/`, `scripts/publish-*`, `*.Cli`, `*.Runner`, `*.Scheduler` projects, tests named `*IntegrationTests*`, `*Distribution*`, `*StateStartup*` | Publication to `artifacts/ci-app`, with `PZTOOLS_DISTRIBUTION_DIR` and `PZTOOLS_TOOLS_DIR` set for the tests, plus everything in the next row |
+| `.github/`, `build/`, project, solution, `.props` and `.targets` files, `global.json`, `NuGet.config`, `config/defaults/`, `config/game-extensions/`, `scripts/publish-*`, `*.Cli`, `*.Runner`, `*.Scheduler` projects, tests named `*IntegrationTests*`, `*Distribution*`, `*StateStartup*` | Publication to `artifacts/ci-app`, with `PZTOOLS_DISTRIBUTION_DIR` and `PZTOOLS_TOOLS_DIR` set for the tests, plus everything in the next row |
 | The bridge and extension projects, their tests and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, and a list of bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
 
 Unknown paths count as code. NuGet packages are cached; build output is not. A newer push
@@ -353,8 +355,7 @@ python scripts/check-localization.py
 python scripts/test-ci-plan.py
 ```
 
-`check-documentation.py` checks the Markdown under `docs/`, `README.md` and
-`THIRD_PARTY_NOTICES.md` offline; it does not fetch external links.
-`pwsh scripts/test-readme-links.ps1` runs the same checker. What it enforces is in
-[documentation maintenance](documentation-maintenance.md). The localization check is
-described in [localization](localization.md#checks).
+What the documentation checker enforces is in
+[documentation maintenance](documentation-maintenance.md#automated-checks), and the
+localization check in [localization](localization.md#checks). `test-ci-plan.py` tests the
+pull request plan of [`ci-plan.py`](../../scripts/ci-plan.py).

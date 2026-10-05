@@ -15,32 +15,15 @@ didn't come out. Extract the whole ZIP again into an empty folder.
 
 ## Cards in the sidebar
 
-**PZ Tools files are not intact.** A file in the PZ Tools folder is missing or from another
-version. This usually happens when a new version was extracted over an old one. Press **Open
-download page**, then extract the ZIP into a new, empty folder.
-
-**Blocked by Windows Security.** Windows Smart App Control stopped part of PZ Tools from
-running, and PZ Tools can't work properly until it's allowed. **Open settings** goes to Smart
-App Control.
-
-**Not connected to the game.** PZ Tools couldn't read the game for a while. Backups go on, but
-the game doesn't save first, so they hold what the game last saved itself. Restarting the
-game usually brings the link back. If it doesn't, the game may have updated past what this
-version of PZ Tools knows, so update PZ Tools.
-
-**Not connected to the game, A game launch option is blocking the connection.** The game was
-started with `-XX:+DisableAttachMechanism`. Remove it from the game's Steam launch options or
-from `ProjectZomboid64.json`, then restart the game.
-
-**PZ Tools was updated, Restart the game.** The game is still running with the previous
-version's link. Automatic backups wait until you restart the game once. Updating PZ Tools
-while the game is closed avoids this.
-
-**Game memory back to 3 GB.** A game update reset the memory setting. See
-[Give the game more memory](more-game-memory.md#after-a-game-update).
-
-**Could not load the save list, Trying again.** PZ Tools keeps retrying by itself. If it stays,
-check the **Save folder** in **Settings → Folders**.
+| Card | What it means | What to do |
+| --- | --- | --- |
+| **PZ Tools files are not intact** | A file in the PZ Tools folder is missing or from another version, usually because a new version was extracted over an old one | Press **Open download page**, then extract the ZIP into a new, empty folder |
+| **Blocked by Windows Security** | Windows Smart App Control stopped part of PZ Tools from running | Press **Open settings** to go to Smart App Control |
+| **Not connected to the game** with **Backups run without saving the game.** | PZ Tools couldn't read the game for a while. Backups hold what the game last saved itself. | Restart the game. If that doesn't help, the game may have updated past what this version of PZ Tools knows, so update PZ Tools |
+| **Not connected to the game** with **A game launch option is blocking the connection.** | The game was started with `-XX:+DisableAttachMechanism` | Remove it from the game's Steam launch options or from `ProjectZomboid64.json`, then restart the game |
+| **PZ Tools was updated** with **Restart the game.** | The game still runs the link from the previous PZ Tools version. Automatic backups wait. | Restart the game once. Updating PZ Tools while the game is closed avoids this |
+| **Game memory back to 3 GB** | A game update reset the memory setting | See [Give the game more memory](more-game-memory.md#after-a-game-update) |
+| **Could not load the save list** | PZ Tools keeps trying again by itself | If it stays, check the **Save folder** in **Settings → Folders** |
 
 ## Backups aren't happening
 

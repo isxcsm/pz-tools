@@ -22,35 +22,40 @@ The 18 tags: `cs-CZ`, `de-DE`, `en-US`, `es-ES`, `es-MX`, `fr-FR`, `id-ID`, `it-
 ## How the app picks a language
 
 - `settings.toml` (in `%LOCALAPPDATA%\PzTools`) stores the choice as a tag under
-  `[ui] language`. **Settings → Language** writes it.
-- While the file has no language, the app uses the Windows display language: the same
-  language if the app has it, otherwise the nearest variant (Spanish of Spain or of Latin
-  America, Simplified or Traditional Chinese, Brazilian Portuguese), otherwise English.
-- Stored values also accept the enum names (`French`) and `ko` and `en`. Anything else is
-  rejected as invalid settings.
+  `[ui] language`. The **Language** setting under **Appearance and behavior** writes it
+  ([settings](../reference/settings.md)).
+- While the file has no language, the app uses the Windows display language
+  (`LanguageCatalog.ForCulture`): the same language if the app has it, otherwise the app's
+  variant of that language (Spanish of Spain or of Latin America, Simplified or Traditional
+  Chinese, Brazilian Portuguese, or the one region the app has, such as `fr-FR` for `fr-CA`),
+  otherwise English.
+- Stored values also accept the enum names (`French`) and `ko` and `en`, in any case.
+  Anything else is rejected as invalid settings.
 - `Localizer.SetLanguage` asks Windows' resource system for the language with English as
   the fallback, so a missing string shows in English. It also sets the .NET culture, so
   dates and numbers follow the language. Text built into WinUI controls follows Windows, not
   the app, because the app does not set `PrimaryLanguageOverride`.
-- Log entries keep the text they were written with. When a stored entry is a whole string
-  of any language, the **Logs** page shows it in today's language
-  (`Localizer.Translate`).
+- Log entries keep the text they were written with. An entry the app wrote for a card it
+  showed (`RecordActionIssue`) is shown on the **Logs** page in today's language when its
+  title or message is a whole string of any language (`Localizer.Translate`).
 
 ## Text the workers and the game produce
 
 | Text | Comes from | Language |
 | --- | --- | --- |
-| Default backup names (`Manual backup 12`) | `languages.tsv`, written by the backup worker into the repository | `ui.language` from `settings.toml`; without it `[naming] language` in the backup worker's configuration; without that the Windows display language. The CLI takes `--name-language`. |
+| Default backup names (`Manual backup 12`) | `languages.tsv`, written by the backup worker into the repository | The CLI's `--name-language` if given; else `[ui] language` from `settings.toml`; else `[naming] language` in the backup worker's configuration; else the Windows display language (`BackupConfiguration`) |
 | Game-save countdown and result notes | `languages.tsv`, compiled into the bridge at build time | The backup worker's, as for the backup names |
-| Hotkey, recording and next-backup notes | `notices.tsv`, compiled into the bridge at build time | The app's language, sent with each request |
+| Notes for what the player asked for: hotkeys, recordings, backup status | `notices.tsv`, compiled into the bridge at build time | The app's language, sent with each request |
 
-A stored backup name is never rewritten. The backup list shows a name nobody edited (a default
-name in any language, with its number) in today's language.
+A language change does not rewrite stored backup names. The backup list shows a name nobody
+edited (a default name in any language, with its number, `LanguageCatalog.IsDefaultBackupName`)
+in today's language.
 
-Both TSV files are UTF-8 and compiled into the Java payload by
-[`generate-bridge-languages.ps1`](../../scripts/generate-bridge-languages.ps1), so the game
-and the .NET side read the same text. The game refuses a note in a language that has no
-column in `notices.tsv`.
+Both TSV files are UTF-8. [`generate-bridge-languages.ps1`](../../scripts/generate-bridge-languages.ps1)
+compiles both into the Java payload. `languages.tsv` is also embedded in
+`PzTools.Process.Contracts`, so the game and the .NET side read the same rows. `notices.tsv`
+is read only by the game: the app sends a key and at most one number, never text. The game
+refuses a note in a language that has no column in `notices.tsv`, or a key it does not have.
 
 ## Adding or changing a string
 
@@ -66,12 +71,15 @@ When you change the meaning of an English string, update every translation in th
 change. The checks cannot tell a stale translation from a current one.
 
 A note shown in the game is a row in `notices.tsv` with a value in every language column.
-The key must match what the app sends (`GameNoticeCatalogTests` checks the keys the hotkeys
-use). A number goes in as `{0}`, or `{0:time}` for seconds shown as minutes and seconds.
+The key must match what the app sends (`GameNoticeCatalogTests` checks the keys
+`HotKeyController.cs` sends). A note takes at most one number, as `{0}`, or `{0:time}` for
+seconds shown as mm:ss.
 
 The default backup names are in two places: the columns of `languages.tsv`, and
-`ManualBackupNameFormat`, `AutomaticBackupNameFormat` and `AutomaticSaveLabel` in each
-`Resources.resw`. `check-localization.py` fails when they disagree.
+`BackupNameFormat`, `ManualBackupNameFormat`, `AutomaticBackupNameFormat` and
+`AutomaticSaveLabel` in each `Resources.resw`. `check-localization.py` fails when the manual
+and automatic names or `AutomaticSaveLabel` disagree with the catalogue. Nothing compares
+`BackupNameFormat` with the generic name, so change both together.
 
 ### Rules for every language
 
@@ -92,23 +100,24 @@ The default backup names are in two places: the columns of `languages.tsv`, and
 
 1. Add a member at the end of `SupportedLanguage` in `LanguageCatalog.cs`.
 2. Add a row to `languages.tsv`: ten tab-separated fields, the enum name first, then the tag.
-3. Add a column for the tag to `notices.tsv`, with every row filled in. No automated check
-   covers this file's columns; without the column the game refuses the app's notes in
-   that language.
+3. Add a column for the tag to `notices.tsv`, with every row filled in. The build fails
+   when a row has a different number of columns than the header, but no check compares the columns with
+   `languages.tsv` or finds an empty cell. Without the column the game refuses the app's
+   notes in that language.
 4. Add `Strings/<tag>/Resources.resw` with every key.
 5. If Windows has regional variants the app should map to it, extend
    `LanguageCatalog.ForCulture`.
 6. Run the checks.
 
-The language appears in **Settings → Language** by its native name; the list comes from the
-catalogue. The documentation stays in English only.
+The language appears in the **Language** list by its native name, sorted by that name; the
+list comes from the catalogue. The documentation stays in English only.
 
 ## Checks
 
 | Command | Checks |
 | --- | --- |
-| `python scripts/check-localization.py` | Every catalogue tag has a `Resources.resw` and every folder a tag; identical key sets; no duplicate keys or empty values; the same placeholders as English; every literal `Localizer.Get`/`Format` key and every error message key exists; backup names and game-save notes agree with `languages.tsv` |
-| `dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests\|FullyQualifiedName~UserFacingMessageTests\|FullyQualifiedName~GameNoticeCatalogTests"` | The enum matches the catalogue, .NET can parse every format string, a language round-trips through the app settings and the backup worker, old stored names still read, every error message exists and formats in every language, every note the hotkeys send is in `notices.tsv` |
+| `python scripts/check-localization.py` | Every catalogue tag has a `Resources.resw` and every folder a tag; identical key sets; no duplicate keys or empty values; the same placeholders as English; every literal `Localizer.Get`/`Format` key in `src/PzTools.App/*.cs` and every error message key exists; the manual and automatic backup names agree with `languages.tsv`; the game-save notes have the right placeholders. CI runs it on Linux. |
+| `dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests\|FullyQualifiedName~UserFacingMessageTests\|FullyQualifiedName~GameNoticeCatalogTests"` | The enum matches the catalogue, .NET can parse every format string, a language round-trips through the app settings and the backup worker, the old `Korean` and `English` values in `settings.toml` still read, every error message exists and formats in every language, every note the hotkeys send is in `notices.tsv` |
 | `pwsh scripts/test-ui-smoke.ps1` | Includes the localization smoke ([`PzTools.LocalizationSmoke`](../../tests/PzTools.LocalizationSmoke)): loads every string of every language through the real WinUI resource system, switching languages forward and back, and compares it with the `.resw` file |
 
 The localization smoke runs on its own with the `Strings` folder and a result file as its
@@ -116,6 +125,7 @@ arguments. It writes `PASS` or `FAIL` with the reason into that file:
 
 ```powershell
 dotnet build tests/PzTools.LocalizationSmoke -c Debug
+New-Item -ItemType Directory -Force artifacts | Out-Null
 & tests/PzTools.LocalizationSmoke/bin/Debug/net10.0-windows10.0.19041.0/win-x64/PzTools.LocalizationSmoke.exe `
     (Resolve-Path src/PzTools.App/Strings).Path "$PWD/artifacts/localization-smoke.txt"
 ```

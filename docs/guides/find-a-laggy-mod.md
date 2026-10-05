@@ -31,7 +31,7 @@ while it records.
 
 ## 2. Select the stutter
 
-Every bar in the graph is one frame, so the tall ones are the stutter. Drag across them, and
+Each bar in the graph is as tall as the slowest frame in it, so the tall ones are the stutter. Drag across them, and
 everything below describes just that stretch. Press **✕** on the **Selection** chip, or Esc,
 to go back to the whole recording.
 
@@ -58,15 +58,15 @@ freeing memory.
 The **Scripts (Lua)** tab lists **Base game scripts (vanilla)** and every mod, with how much
 of the stretch each one took. Start with the ones at the top.
 
-Select a mod to see which of its functions took the time. Turn on **Call tree** to see what
-called them. Select a function's file to open it.
+Select a mod to see which of its functions took the time. With **Call tree** on, as it is at
+first, you also see what called them. Select a function's file to open it.
 
 [Screenshot: Scripts (Lua) tab, a mod selected, its functions in the table with Call tree on]
 
 Vanilla at the top is common, because mods call the game's own scripts all the time. Select
-**Base game scripts (vanilla)** and turn on **Call tree**. The top rows show what started the
+**Base game scripts (vanilla)** with **Call tree** on. The top rows show what started the
 work. If one of them is in a mod's file (point at the file to see its path), that mod is your
-culprit, and its **Total** is how much it cost.
+culprit. Point at its **Total** to see how much of the stretch it cost.
 
 The **Memory allocation** tab ranks mods by how much memory they create. A mod near the top
 there makes the game run out of memory sooner.
@@ -75,7 +75,7 @@ there makes the game run out of memory sooner.
 
 If the line under the graph says **Stopped N times for lack of memory** or **Memory nearly
 full**, the problem is memory, not a mod. Press **Memory setting** next to it, or go to
-**Settings → Game → Game memory**, and pick the recommended size. It takes effect the next
+**Settings → Game → Game memory**, and pick a bigger size. It takes effect the next
 time you start the game. See [Give the game more memory](more-game-memory.md).
 
 [Screenshot: The memory line under the graph saying the game ran short, with Memory setting]

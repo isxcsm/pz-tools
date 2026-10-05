@@ -35,7 +35,8 @@ real-time speed; a faster game speed does not make it run faster.
 | A debug tool open over the game (the chunk viewer, for example) | Holds, as when paused |
 | Character dead | Reset to a full interval and held until a new character or a revival (see [When the character dies](#when-the-character-dies)) |
 | Main menu | Nothing runs. Loading a world starts a full interval |
-| Loading or leaving a world | Holds |
+| Loading a world | Holds |
+| Leaving a world | Reset to a full interval |
 | Two copies of the game running | Holds until one is closed |
 | Game not running | Nothing runs |
 | Game running, but PZ Tools cannot read it for about 90 seconds | Follows the clock instead (see [When the game cannot be reached](#when-the-game-cannot-be-reached)) |
@@ -217,9 +218,9 @@ backup; a save you no longer play keeps the ones it has. Raising it does not bri
 backups already removed.
 
 A save folder deleted or moved outside PZ Tools, for example from the game's menu or in
-File Explorer, looks the same to PZ Tools. Cleanup checks about once a minute and waits
-while you play. Unreadable folders, links and pending restores are not treated as
-missing. Export a save's backups first if you want to keep them
+File Explorer, looks the same to PZ Tools. So does a save folder you rename. Cleanup checks
+about once a minute, but only while PZ Tools runs and the game is closed, and right after
+the game exits. Unreadable folders, links and pending restores are not treated as missing. Export a save's backups first if you want to keep them
 ([Move a save to another PC](../guides/move-a-save.md)).
 
 ## Deleting backups
@@ -241,8 +242,8 @@ background cleanup does it later, per save:
 - as soon as 20 deleted backups of a save are waiting, or
 - once the oldest has waited an hour
 
-and only when cleanup is allowed to run: it gives way while you play and to other work, and
-is started only while PZ Tools runs. While it works, an operation card shows **Cleaning
+and only when cleanup is allowed to run: while PZ Tools runs and the game is closed (a game
+at its main menu counts as running). It also gives way to other work. While it works, an operation card shows **Cleaning
 up backups**, with steps such as **Removing old backups**, **Removing backups of deleted
 saves** and **Reclaiming unused space**.
 

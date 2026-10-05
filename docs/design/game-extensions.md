@@ -35,11 +35,11 @@ module archives and the tuning file to `game-bridge/extensions/` in the app fold
 | --- | --- | --- |
 | id | `pztools.vehicle-drivetrain` | `^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$`, at most 80 characters, unique |
 | module version | `0.2.0` | A parsable version |
-| namespace | `pztools.extensions.vehicle` | Must start with `pztools.extensions.` |
-| entry class | `pztools.extensions.vehicle.VehicleDrivetrainProvider` | Inside the namespace |
-| jar | `pztools-vehicle-drivetrain.jar` | `[a-z0-9-]+.jar` in the same folder |
+| namespace | `pztools.extensions.vehicle` | Must start with `pztools.extensions.` (checked in the game) |
+| entry class | `pztools.extensions.vehicle.VehicleDrivetrainProvider` | Inside the namespace (checked in the game) |
+| jar | `pztools-vehicle-drivetrain.jar` | `[a-z0-9-]+.jar` in the same folder (checked in the game) |
 | support scope | `Major` | `All`, `Major` or `Minor` |
-| minimum, maximum inclusive | `42`, `42` | `-` for none; see below |
+| minimum, maximum inclusive | `42`, `42` | Both `-` for `All`. `Major` and `Minor` need a minimum; a maximum of `-` means no upper bound. |
 | title, description resource | `Extension.VehicleDrivetrain.Title` | Keys in `Resources.resw`, must start with `Extension.` |
 | capability | `vehicle.drivetrain.v1` | Optional; a 10-column row means `save.prepare.v1` |
 
@@ -56,13 +56,15 @@ must carry the vehicle capability.
 
 Three readers use the deployed file: the UI controller on every card refresh, the scheduler
 when it starts (falling back to the embedded copy if the file cannot be read), and the host in
-the game on every `APPLY`. The Java side repeats the namespace, entry-class and jar-name checks
-and only accepts continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.
+the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name
+(`ModuleHost` when the host loads, `ContinuousRuntime` on every `APPLY`). It accepts only the
+continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.
 
 ### Version admission
 
 `GameVersionSupport` (C#) and `VersionSupport` (Java) compare numbers, never strings. A game
-version must look like `major.minor[.patch][-suffix]`.
+version must look like `major.minor[.patch][-suffix]` (or `+suffix`), at most four digits per
+number.
 
 | Scope | Bounds | Matches |
 | --- | --- | --- |
@@ -102,7 +104,9 @@ Preferences live in `%LOCALAPPDATA%/PzTools/extensions/settings.json`:
 - Every write holds `settings.json.lock`, compares the revision it read
   (`ExtensionSettingsConflictException` on a mismatch), writes a temporary file and moves it
   into place. A file that cannot be read is reported, never overwritten with defaults.
-- Properties of removed extensions are ignored on read and dropped on the next write.
+- Option properties inside a preference that belong to an extension that no longer exists are
+  ignored on read and dropped on the next write. Entries for ids the catalogue no longer lists
+  are kept.
 - A missing vehicle option reads as on. An old file with `probeOnly: true` and no option
   values reads as every option off (`VehicleDrivetrainPreferenceConverter`).
 
@@ -115,13 +119,14 @@ modules off), so the refresh must not trust its cache beyond those inputs.
 ### Delivery
 
 `RuntimeExtensionCoordinator` runs in the StateScheduler process for the game selected by the
-[WATCH](glossary.md#watch) stream. Every second (`ExtensionControlOptions.ReconcileIntervalMs`)
+[WATCH](glossary.md#watch) stream. Every `reconcile_interval_ms` (1 second by default, 250–1000 ms,
+in `[extensions]` of the state-scheduler [advanced settings](../reference/advanced-settings.md))
 it reads `settings.json` and the latest runtime snapshot.
 
 - **No local world ready.** It closes the lease and publishes `Pending` (module wanted) or
   `Disabled`, both with reason `waiting-for-local-world`.
 - **World ready.** It opens one [control lease](glossary.md#control-lease) for all continuous
-  modules (20-second connect timeout), then handles each module in turn:
+  modules (`connect_timeout_seconds`, 20 by default), then handles each module in turn:
   - Wanted on: `GameExtensionReconciler` sends `APPLY` with the module id, the revision it
     believes is applied, the new revision, `forceVersion` and the module's flat configuration
     (`Configure`). A revision it already sent gets a `PING` instead.
@@ -263,9 +268,13 @@ checked on next save · Experimental**, **Version override · Essential checks s
    A new continuous module needs its own, or the card never treats it as applied.
 
 Nothing in another module changes. `ModuleSlotsTest` runs two synthetic modules side by side,
-and `ContinuousExtensionTests` shows how to add a test row and archive.
+and `ContinuousExtensionTests.cs` shows how to add a test row and archive.
 
 ## Tests
+
+C# tests are in `tests/PzTools.Backup.Tests`, Java tests under `tests/game-extensions` and
+`tests/extension-control`. The names are file names; several C# files hold parts of the
+`GameSaveClientTests` class.
 
 | Area | Tests |
 | --- | --- |
@@ -274,5 +283,7 @@ and `ContinuousExtensionTests` shows how to add a test row and archive.
 | Scheduler | `GameExtensionReconciliationTests`, `GameExtensionActivationStateTests`, `ExtensionCoordinatorTests`, `RuntimeExtensionIntegrationTests` |
 | Host and control channel | `ModuleSlotsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
 
-`scripts/test-game-extensions.ps1` runs the Java tests. Checks in a real game are in the
-[vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).
+`scripts/test-game-extensions.ps1` runs the Java tests under `tests/game-extensions`.
+`scripts/test-game-bridge.ps1` runs that script too, then the control-channel tests, and
+(without `-PrepareOnly`) the `GameSaveClientTests` that need the built fixture archives. Checks
+in a real game are in the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).

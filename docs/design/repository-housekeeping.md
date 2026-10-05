@@ -10,7 +10,7 @@ Deleting never removes rows at once. It sets `state = 'Deleted'`, `deleted_utc` 
 
 | `delete_reason` | Set by | Applies to |
 | --- | --- | --- |
-| `retention` | `MarkRevisionsForRetentionAsync` after each backup | `Active` `Automatic` revisions beyond the newest `retain_latest_revisions`. `Manual` and `Unknown` ones are not counted. |
+| `retention` | `MarkRevisionsForRetentionAsync`, after each automatic backup that succeeds or finds nothing to store | `Active` `Automatic` revisions beyond the newest `retain_latest_revisions`. `Manual` and `Unknown` ones are not counted. A changed count therefore applies at the save's next automatic backup. |
 | `user` | Deleting one backup, or all backups of a save | Those revisions |
 | `save-deleted` | Deleting a save in the app | Every `Active` revision of that source. The transaction stays open while the save folder is deleted and commits only after that succeeds; otherwise it rolls back (`PendingSaveRevisionDeletion`). |
 | `orphan-save` | [Orphan cleanup](#orphan-cleanup) | The source's hidden baseline |
@@ -21,8 +21,8 @@ Deleting never removes rows at once. It sets `state = 'Deleted'`, `deleted_utc` 
 
 | Trigger | Process | Work |
 | --- | --- | --- |
-| The maintenance runner that follows a backup (`--dispatch-lanes`) | `PzTools.Maintenance.Cli` | Retention marking for that source, then starts the lanes below as detached processes: `RevisionReclamation` if due, `ArtifactCleanup` always |
-| `RevisionReclamation` lane | Per source | One batch of [revision reclamation](#revision-reclamation), then garbage collection with a 1,000-row path sweep |
+| The maintenance runner that the backup scheduler starts after an automatic backup that succeeded or found nothing to store (`--dispatch-lanes`) | `PzTools.Maintenance.Cli` | Retention marking for that source, then starts the lanes below as detached processes: `RevisionReclamation` if due, `ArtifactCleanup` always. If the writer lock is taken, retention is skipped until the next automatic backup; the lanes still start. |
+| `RevisionReclamation` lane | Per source | One batch of [revision reclamation](#revision-reclamation); if it removed anything, garbage collection with a 1,000-row path sweep |
 | `ArtifactCleanup` lane | Per source | Delete leftover `staging/*.tmp` and `staging/quarantine/*.tmp`, then the [housekeeping pass](#the-housekeeping-pass) for that source |
 | `OrphanBackups` lane, started by the state scheduler every `cleanup_interval_seconds` (60) | Whole repository | Interrupted-operation recovery, [orphan cleanup](#orphan-cleanup), the housekeeping pass for all sources, then [pack space reclamation](#pack-space-reclamation) |
 | Direct CLI run without `--lane` | `MaintenanceService`, in process | Retention, reclamation, garbage collection, artifact cleanup and housekeeping for one source |
@@ -38,7 +38,7 @@ The state scheduler skips an `OrphanBackups` pass when neither the list of save 
 <a id="when-disk-space-comes-back"></a>
 ## Revision reclamation
 
-A source is due when its `Deleted` revisions below `current_revision` number at least `revision_batch_size` (20), or the oldest was deleted more than `revision_compaction_max_delay_minutes` (60) ago. After a backup, the dispatcher checks the source it backed up. The `OrphanBackups` pass also takes up to four due sources, oldest deletion first, which is how saves that are no longer played get reclaimed.
+A source is due when its `Deleted` revisions below `current_revision` number at least `revision_batch_size` (20), or the oldest was deleted more than `revision_compaction_max_delay_minutes` (60) ago. After an automatic backup, the dispatcher checks the source it backed up. The `OrphanBackups` pass also takes up to four due sources, oldest deletion first, which is how saves that are no longer played get reclaimed.
 
 `CompactDeletedRevisionsAsync` takes the oldest due revisions, up to the batch size, in one transaction. For each deleted revision R:
 
@@ -54,7 +54,7 @@ Every `Active` revision and the baseline see the same files before and after. Ga
 `RepositoryHousekeepingService.RunAsync`, for one source or for all:
 
 1. For all sources only: revision reclamation of the due sources, as above.
-2. Entry-version sweep (`SweepUnreachableEntryVersionsAsync`): inspects up to `database_cleanup_batch_size` rows of `entry_versions` in rowid order from a saved cursor (one per source, one for all) and deletes closed versions whose interval contains no `Active` revision and not `current_revision`. Open versions and current tombstones are never deleted. The limit counts inspected rows, so a repository with nothing to delete does not walk its whole history under the writer lock. Cursor and deletions commit together; a short window wraps to the start next time.
+2. Entry-version sweep (`SweepUnreachableEntryVersionsAsync`): inspects up to `database_cleanup_batch_size` rows of `entry_versions` in rowid order from a saved cursor (one per source, one for all) and deletes closed versions whose interval contains no `Active` revision and not `current_revision`. Open versions, tombstones included, are never deleted. A per-source sweep walks the rows of every source and deletes only its own, so other sources' rows use up its budget too. The limit counts inspected rows, so a repository with nothing to delete does not walk its whole history under the writer lock. Cursor and deletions commit together; a short window wraps to the start next time.
 3. Garbage collection, if steps 1 or 2 removed anything.
 4. Dictionary sweep with the same row budget ([path handling](path-normalization.md#removing-unused-paths)).
 5. [History trimming](#completed-execution-history).
@@ -135,11 +135,11 @@ It uses SQLite's transactional `VACUUM`, never `VACUUM INTO` followed by swappin
 
 ## Settings
 
-`[maintenance]` in the maintenance worker's file, `%LOCALAPPDATA%\PzTools\config\maintenance-worker\default.toml`; packaged defaults in [`config/defaults/maintenance-worker/default.toml`](../../config/defaults/maintenance-worker/default.toml). See [advanced settings](../reference/advanced-settings.md#which-setting-wins) for how files are layered.
+`[maintenance]` in the maintenance worker's file, `%LOCALAPPDATA%\PzTools\config\maintenance-worker\default.toml`; packaged defaults in [`config/defaults/maintenance-worker/default.toml`](../../config/defaults/maintenance-worker/default.toml). See [advanced settings](../reference/advanced-settings.md#which-setting-wins) for how files are layered. `MaintenanceWorkerOptions` reads them; a value outside its range is rejected, not clamped, and the worker fails to start.
 
 | Key | Default | Range | Controls |
 | --- | --- | --- | --- |
-| `retain_latest_revisions` | 100 | 1 or more | Automatic backups kept per save. The app's backup count replaces it. |
+| `retain_latest_revisions` | 100 | 1 or more | Automatic backups kept per save. Not in the template: the app writes **Automatic backups to keep** ([settings](../reference/settings.md)) into its own settings file, and that value replaces this one. |
 | `writer_retry_delay_ms` | 200 | 50–5000 | Wait between attempts at the writer lock |
 | `revision_batch_size` | 20 | 1–1000 | Deleted revisions reclaimed per source per pass; a full batch is due at once |
 | `revision_compaction_max_delay_minutes` | 60 | 0–10080 | When a smaller batch becomes due |

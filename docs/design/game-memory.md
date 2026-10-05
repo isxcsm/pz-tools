@@ -15,7 +15,7 @@ Choosing a size changes two entries there and no other character of the file:
 
 - `-Xmx` becomes the chosen size, written as `-Xmx<n>m`.
 - `-Xms` is set to the same size. When the file has no `-Xms`, one is inserted right after `-Xmx`, on its own line with
-  the same indentation.
+  the same indentation (on the same line when `-Xmx` shares its line with other text).
 
 Setting `-Xms` equal to `-Xmx` makes the game hold its heap from the start instead of growing and shrinking it with
 Windows. That is safe only because the offered sizes stop at half of the PC's memory.
@@ -31,11 +31,11 @@ game's own and nothing is written; the choice is only dropped.
 
 ### Writing
 
-1. The choice and the game's original heap go to `game-memory.json` in the app data folder (`chosen_mb`,
+1. The first time a choice replaces the game's own heap, the file's text is copied once to
+   `game-memory-original.json` in the app data folder, as a manual way back. The app never reads it.
+2. The choice and the game's original heap go to `game-memory.json` beside it (`chosen_mb`,
    `default_max_mb`, `default_initial_mb`, `config_path`). If that cannot be written, the game's file is not touched
    and the change fails as `unwritable`: an original heap kept nowhere could not be given back.
-2. The first time a choice replaces the game's own heap, the file's text is copied once to
-   `game-memory-original.json` beside it, as a manual way back. The app never reads it.
 3. The new text goes to a temporary file beside `ProjectZomboid64.json` and is moved over it, so a game starting at
    that moment never reads half a file.
 4. A running game holds the file open with read and write sharing but not delete, so the move fails. The app then

@@ -50,7 +50,8 @@ then `UIManager.defaultthread`, without stopping the game. A read can be one cal
 game. Access goes through method handles checked once at start; a missing or retyped field leaves the recording
 without Lua (`lua` = `unavailable`).
 
-Each `pztools.LuaSample` event holds up to 24 innermost frames as `name|file|line`. Labels are cached per prototype
+Each `pztools.LuaSample` event holds up to 24 innermost frames (and at most 4096 characters) as
+`name|file|line`. Labels are cached per prototype
 and an unchanged stack reuses the previous string, so the sampler makes little garbage in the game's heap. Once a
 second a `pztools.LuaSampler` event gives the ticks taken and how many found Lua.
 
@@ -60,8 +61,9 @@ sampler keeps its period; it is undone when the last recording ends.
 
 ### Frames and allocations
 
-Frames come from the game-loop hook in `GameWindow.logic` (see [the game bridge](game-bridge.md)). The loop calls
-`ProfileFrames.tick` every frame; while no recording runs that is a null check, and the recorder and JFR classes are not
+Frames come from the game-loop hook in `GameWindow.logic` (see [the game bridge](game-bridge.md)). The per-frame
+callback (the state observer's, or the profiler's own relay when nothing observes) calls `ProfileFrames.tick` every
+frame. While no recording runs and no note waits, that costs two field reads, and the recorder and JFR classes are not
 even loaded. During a recording, each tick commits a `pztools.Frame` event for the previous frame.
 
 Allocations come from the JVM's per-thread counter (`ThreadMXBean.getThreadAllocatedBytes`) for the game thread, read
@@ -99,10 +101,11 @@ without `jdk.management` gives a recording without allocations.
 2. Prints `PROFILE recording <lua> <frames>` for the app, then waits for the stop file, the time limit or the game's
    exit. `endedBy` records which: `stop`, `limit` or `game-exit`.
 3. Sends `PROFILE_STOP` (unless the game exited), then converts the `.jfr` file and deletes it unless `--keep-raw` is
-   given. The raw file holds full paths and is never kept.
+   given. That switch is for diagnosis only; the app never passes it, because the raw file holds full paths.
 
-The app passes the limits from `config\app\default.toml` `[profiler]`: `general_limit_minutes` (30) and
-`detailed_limit_minutes` (10). The game caps any recording at 1800 seconds.
+The app passes `--max-seconds` from `general_limit_minutes` or `detailed_limit_minutes` in the `[profiler]` section
+of its [advanced settings](../reference/advanced-settings.md#app). Without it the worker uses 600 seconds. The game
+accepts 5 to 1800 seconds.
 
 Recording control shares the bridge's short request channel with saving. A `busy` answer is retried every 500 ms: for
 20 seconds when starting, 180 seconds when stopping, because a stop that gives up would leave the game recording until
@@ -131,7 +134,7 @@ holds less than asked.
 `ProfileRecordingService` keeps it armed: every 5 seconds it checks for exactly one game and starts the rolling
 recording if the game is not keeping it in the wanted mode and length, so a game started or restarted later gets it
 whether or not the page is open. A start the bridge cannot do (old bridge, refused attach) is not retried for the same
-game and settings; other failures back off from 5 seconds up to 5 minutes. A lease gap longer than 120 seconds means
+game and settings; other failures are retried after 10 seconds, doubling up to 5 minutes. A lease gap longer than 120 seconds means
 the game has dropped it, and it is started again.
 
 ### Two recordings at once
@@ -159,7 +162,8 @@ Without the counters (before Windows 10 1709, or a driver without them) the file
 
 Hotkeys work while the game has the keyboard because [`GlobalHotKeys`](../../src/PzTools.App/GlobalHotKeys.cs)
 registers them with `RegisterHotKey`; Windows then gives each combination to the app alone, and refuses one another
-program holds. The keys and `[hotkeys]` options are in [settings](../reference/settings.md).
+program holds. The keys are in [settings](../reference/settings.md#hotkeys); the sound and note switches are in
+[advanced settings](../reference/advanced-settings.md#app).
 
 A key answers with `MessageBeep` sounds and, optionally, a note over the player's head: the bridge command
 `NOTICE <language> <item>...`, up to four items of `key` or `key:number`.
@@ -191,7 +195,7 @@ event the converter read.
 | `GA` | time bytes | Game thread's allocation since the previous `GA` |
 | `G` | time pause name cause | Garbage collection, its pauses summed |
 | `GR` | time duration | The same collection's whole run |
-| `P` | time duration kind thread detail | Pause or wait: `GCPhasePause`, `ZAllocationStall`, and in Detailed the wait events; detail is a monitor or park class, a file *name*, or a VM operation |
+| `P` | time duration kind thread detail | Pause or wait: `GCPhasePause`, `ZAllocationStall`, and in Detailed the wait events; detail is the GC phase, a monitor or park class, a file *name*, or a VM operation |
 | `H` | time used committed max | Java heap |
 | `CL` | time jvmUser jvmSystem machineTotal | CPU shares of all processors over the last second |
 | `HW` | threads | Hardware threads |
@@ -293,8 +297,8 @@ lookups are built once and held in `ConditionalWeakTable`s keyed by the recordin
 [`ProfileReport.Build`](../../src/PzTools.Profiling/ProfileReport.cs) writes a range as Markdown for **Copy for AI**,
 always in English with invariant-culture numbers: it is a format, models read it equally well in any language, and two
 reports read alike. After a how-to-read header come the recording, frames, time breakdown and memory. Then either the
-whole range (12 mods, functions of the top 5 at 0.5% or more, Java areas, 15 methods with callers, allocations,
-threads, pauses) or, with a `ProfileReportFocus`, one mod or Java area in full (25 rows, heaviest lines, call tree down
+whole range (12 mods, functions of the top 5 at 0.5% or more, Java areas, 15 methods with callers of the top 5,
+allocations, threads, pauses) or, with a `ProfileReportFocus`, one mod or Java area in full (25 rows, heaviest lines, call tree down
 to 1% of the owner). With a baseline each comparable figure carries the baseline's value and the change in percentage
 points.
 

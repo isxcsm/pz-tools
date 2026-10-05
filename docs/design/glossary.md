@@ -2,8 +2,8 @@
 
 [Documentation index](../README.md)
 
-Terms the code and the design pages use without explaining. A few words, such as *revision*, *generation* and
-*lease*, have more than one meaning; each meaning has its own entry. The [overview](overview.md) shows how the
+Terms the code and the design pages use without explaining. A few words, such as *revision*, *generation*,
+*slot* and *lease*, have more than one meaning; each meaning has its own entry. The [overview](overview.md) shows how the
 parts connect.
 
 ## Backups and storage
@@ -182,11 +182,42 @@ A reading of the game's state (`RuntimeObservation`). *Fresh* means the game ans
 at most 2 seconds old. A stale or unknown reading never counts as active play. Code:
 [`RuntimeSnapshotStore`](../../src/PzTools.Process.Hosting/RuntimeStateFeed.cs).
 
-### Grace period
+### Grace period, link fallback
 
-How long the game may stay unreadable (90 seconds) before periodic backups stop waiting for it and follow the
-wall clock. Code: `RuntimeScheduleController.DefaultLinkGrace`. See
-[game-aware timing](runtime-pause-backups.md).
+The grace period is how long the game may stay unreadable (90 seconds) before periodic backups stop waiting for
+it. After it, the *link fallback* runs them on the wall clock, backing up the files on disk if the game cannot
+be asked to save. Code: `RuntimeScheduleController.DefaultLinkGrace`, `ApplyLinkFallback`. See
+[game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read).
+
+<a id="generation-schedule"></a>
+### Generation (schedule)
+
+A counter in `scheduler.db`'s control row. It goes up when the backup target, the interval, the main switch,
+the backup folder or game-aware timing changes, and at app start while automatic backups have a target. A new generation starts a full
+interval, and admissions and checkpoints of an older one are dropped. The worker gets it as
+`--runtime-generation`. Not a module's [generation](#generation-module).
+
+### Schedule checkpoint
+
+The backup scheduler's saved countdown (`runtime_schedule` in `scheduler.db`): remaining active time, hold,
+slot, attempt id and the completion-unknown flag. A scheduler restart reloads it; a new generation, a target
+switch or switching game-aware timing deletes it. See [game-aware timing](runtime-pause-backups.md#the-countdown).
+
+### Hold
+
+A reason the game-aware countdown does not run (`ScheduleHold`): automatic backups off, paused, asleep,
+character dead, no world, game offline, several games, unsupported mode, unknown. The schedule line shows the hold.
+
+### Slot (schedule)
+
+One due periodic backup. An attempt either *uses* the slot (the next one is an interval later) or *keeps* it
+(the same backup is tried again). Not the extension host's [slot](#slot).
+
+### Guarded backup
+
+A backup whose save request carries a [ticket](#ticket) (`SAVE_ACTIVE` or `PROBE_ACTIVE`): game-aware periodic
+backups and death backups. The game checks the ticket every frame until it saves. See
+[game bridge](game-bridge.md#the-save-request).
 
 ## Inside the game
 
@@ -283,8 +314,7 @@ in one slot leaves the others working.
 ### Generation (module)
 
 One loaded instance of a module, with a random id. A changed jar or catalogue entry, a world change or a lost lease
-ends it; the next `APPLY` makes a new one. Not the scheduler's *runtime generation* (`--runtime-generation`), which
-identifies one game-aware timing policy.
+ends it; the next `APPLY` makes a new one. Not the scheduler's [generation](#generation-schedule).
 
 ### Control lease
 

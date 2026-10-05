@@ -43,13 +43,14 @@ Every connection, whether a save request, the state stream (`WATCH`) or extensio
 starts the same way:
 
 1. The client finds exactly one game process (`GameProcessFinder`): `ProjectZomboid64`, `ProjectZomboid32`
-   or `ProjectZomboid`, or a `java`/`javaw` process whose command line starts
+   or `ProjectZomboid`, or a `java`/`javaw` process whose command line names the class
    `zombie.gameStates.MainScreenState`. None gives `game-not-running`, several give `multiple-games`.
 2. It opens a TCP listener on 127.0.0.1 with a random port, makes a 64-hex-digit token and starts
    `runtime\bin\java.exe --add-modules jdk.attach -jar pztools-game-bridge.jar <pid> <jar> <port> <token> [WATCH|EXTENSIONS]`.
    The environment variable `PZTOOLS_GAME_ACCOUNT` names the account the game runs as (see below).
-3. The helper takes `%USERPROFILE%\.pztools-bridge\bootstrap.lock`, which serialises first-time attaches
-   across worker processes, and attaches with the standard Java Attach API.
+3. The helper takes `%USERPROFILE%\.pztools-bridge\bootstrap.lock` and holds it through the attach, the
+   version check and the handshake, so helpers from different processes never attach at the same time. It
+   attaches with the standard Java Attach API.
 4. If the game has no system property `pztools.bridge.control.v1`, this is the first attach since the game
    started. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap jar
    (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
@@ -63,8 +64,8 @@ starts the same way:
    `RESTART_REQUIRED`. Anything but `ACCEPTED` makes the helper exit with an error; no command was sent.
 7. On `ACCEPTED` the bootstrap runs the payload's entry point on a new daemon thread. It connects back to the
    app's listener and identifies itself with the process id and token: `HELLO\t6\t<pid>\t<token>` for a
-   request, `RUNTIME\t1\t<pid>\t<token>` for the state stream. The client rejects any other greeting
-   (`authentication-failed`).
+   request, `RUNTIME\t1\t<pid>\t<token>` for the state stream, `EXTENSIONS\t1\t<pid>\t<token>` for extension
+   control. The client rejects any other greeting (`authentication-failed`).
 
 The native bootstrap exists because the `instrument` agent library needs `jli.dll`, and some embedded Java
 launchers neither load it nor put the runtime's `bin` folder on the DLL search path. The DLL finds the
@@ -125,8 +126,9 @@ lifecycle, and the pending request. An observer or lifecycle callback that throw
 
 The payload jar must declare `PzTools-Bootstrap-Api: 11` in its manifest, or the bootstrap answers
 `PAYLOAD_UNAVAILABLE`. A jar with the same digest as the loaded one is reused, also from a new folder after the
-app has moved. A new digest is linked first; then the bootstrap asks the state stream to end, pauses
-dispatch and waits up to 3 seconds for every session and callback to finish before switching. If they do not,
+app has moved. For a new digest the bootstrap answers `BUSY` at once if a request session (save, profiler or
+notice) is running. Otherwise it links the new jar, asks WATCH and extension control to end, pauses dispatch
+and waits up to 3 seconds for every session and callback to finish before switching. If they do not,
 it answers `BUSY` and keeps the old payload. See [component updates](module-reload.md).
 
 On its first save request the payload also disarms any `pztools.bridge.SaveBridge` classes left in the game by
@@ -158,8 +160,8 @@ what PZ Tools asked for ends with its [lease](#leases).
 | Command | Used for |
 | --- | --- |
 | `SAVE`, `PROBE` | A manual backup. `PROBE` runs the same checks without saving (tests use it). |
-| `SAVE_COUNTDOWN` | An automatic backup with notices and no due time: a 5-second countdown |
-| `SAVE_AT` | A wall-clock automatic backup with its due time, at most one minute ahead |
+| `SAVE_COUNTDOWN` | An unguarded automatic backup with notices and no due time: a 5-second countdown. Only a queued one-off run without a ticket takes this path (`SAVE` with the countdown off); the scheduler queues none today, since death backups are guarded and older one-off commands are dropped. |
+| `SAVE_AT` | A wall-clock periodic backup with its due time, at most one minute ahead |
 | `SAVE_ACTIVE`, `PROBE_ACTIVE` | A guarded backup carrying a [ticket](glossary.md#ticket): game-aware periodic and death backups. `PROBE_ACTIVE` when **Save game before backup** is off. |
 | `PREPARE_SAVE`, `PREPARE_SAVE_ACTIVE` | A save provider from an extension. No shipped extension provides one; only test fixtures use this path. |
 
@@ -207,9 +209,10 @@ is still running, the answer is `completion-unknown`.
 ### Cancellation
 
 For a guarded request the client checks `RuntimePreparationPermit` before sending and then every 100 ms
-until it sees `SAVING`. The permit is withdrawn when automatic backups are switched off, the generation or
-target changes, game-aware timing is switched off, or (for a death backup) the death option is off or the
-death is no longer the current one. The client then sends `CANCEL\t<request id>`. The game's compare-and-set
+until it sees `SAVING`. For a periodic ticket the permit is withdrawn when automatic backups are switched
+off, the generation or target changes, or game-aware timing is switched off. For a death ticket it is
+withdrawn when automatic backups are switched off, the generation changes, the death option is off, or the
+facts no longer show this death on this save. The client then sends `CANCEL\t<request id>`. The game's compare-and-set
 decides the race: a cancel before *saving* defers the request as `runtime-reservation-cancelled`; after it,
 the cancel loses and the save completes.
 
@@ -245,12 +248,17 @@ How a result is handled depends on whether the backup is manual, wall-clock auto
 
 | Result | Manual | Wall-clock automatic | Guarded (game-aware periodic, death) |
 | --- | --- | --- | --- |
-| The save is inactive by its file lock (`players.db` opens exclusively) | No contact; files on disk are backed up | Skipped before contacting the game | Not checked; the game's guard decides |
+| The save's `players.db` opens exclusively (inactive by its file lock) | No contact; files on disk are backed up | Skipped before contacting the game | Not checked; the game's guard decides |
+| The file lock gives no answer (`Unknown`: missing file, access denied, I/O error) | The game is asked as usual | Skipped: only a save confirmed `Active` is backed up | Not checked |
 | `game-not-running`, `not-in-world`, `save-mismatch` | Files on disk are backed up | Skipped | Failed, slot used |
 | Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
 | `runtime-deferred` (any reason), `queue-timeout` | Failed | Failed | Skipped; the slot is kept |
-| `busy`, `multiple-games`, `multiplayer`, `saving-disabled`, `unsupported-runtime`, `unsupported-loader`, `unsupported-game`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
-| `completion-unknown`, `invalid-response` | Failed | Failed | Failed; the scheduler waits one interval ([why](runtime-pause-backups.md#when-a-backup-attempt-fails)) |
+| `busy`, `missing-save`, `multiple-games`, `multiplayer`, `saving-disabled`, `unsupported-runtime`, `unsupported-loader`, `unsupported-game`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
+| `completion-unknown`, `invalid-response` | Failed | Failed | Failed; the periodic schedule waits one interval ([why](runtime-pause-backups.md#when-a-backup-attempt-fails)) |
+
+"Slot" applies to the game-aware periodic schedule. A death backup has no slot: its queued run is kept only
+when the worker reports `Skipped` and is deleted after any other outcome of a started worker, including
+`completion-unknown` ([one death, at most one backup](runtime-character-death.md#one-death-at-most-one-backup)).
 
 A failed save fails the backup with `game-save-<code>`. Wall-clock automatic backups also check that the save
 is still in use (its file lock, `AutomaticBackupActivity`) after the save returns, and are skipped if it is
@@ -356,7 +364,7 @@ These numbers decide what happens. This table is the one place they are recorded
 | Save protocol | `HELLO` 6 | `GameSaveClient` and the payload | Payloads speaking 1–4 still serve plain saves with fewer features. A guarded request, non-default timeouts or a due time on an older payload give `unsupported-protocol`. |
 | State stream | `STATE5` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE5` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap. |
 | Extension host ABI | 3 | The extension runtime and each module | The module is not loaded |
-| Extension control wire | 1 | Not checked; it labels the command format | Both sides come from the same build |
+| Extension control wire | 1 | `GameExtensionClient` and the payload, in the `EXTENSIONS` greeting | `authentication-failed` |
 
 The bridge never checks the game's version number. It reads `Core.getVersionNumber()` and reports it on the
 state stream; the app records it with each backup and remembers it per save (`SaveGameVersionMemory`).

@@ -92,9 +92,9 @@ The full list is in [files and folders](../reference/files-and-folders.md).
 
 With **Delay scheduled backups while paused or asleep** on (game-aware timing):
 
-1. The state scheduler holds a WATCH stream to the game. When the game reports a loaded world whose save is under
-   the configured `Saves` folder, two matching checks confirm it active and the reactor sends `ActivateTarget` to
-   `scheduler.db`.
+1. The state scheduler holds a WATCH stream to the game and commits each changed observation to `state.db`.
+   When the game reports a loaded world whose save is under the configured `Saves` folder, the relay makes that
+   save the backup target in `scheduler.db` (`ApplyRuntimeTransitionAsync`).
 2. The backup scheduler counts only active play time. When an interval of it has passed, it admits a backup with a
    ticket for that process, observer epoch and world ([game-aware timing](runtime-pause-backups.md)).
 3. It reserves a workflow under a new run index, asks running maintenance lanes to yield, checks the admission
@@ -107,13 +107,14 @@ With **Delay scheduled backups while paused or asleep** on (game-aware timing):
    ([USN tracking](usn-journal.md)), copies each until the copy is consistent
    ([stable capture](stable-capture.md)), stores new contents in packs, and commits one revision to
    `repository.db` ([repository format](repository-format.md)). Until that commit the backup does not exist.
-6. The scheduler starts `PzTools.Maintenance.Runner`, which marks automatic backups beyond retention as deleted and
-   starts the heavy lanes detached; they wait until the game is closed ([housekeeping](repository-housekeeping.md)).
+6. The scheduler starts `PzTools.Maintenance.Runner`. Its maintenance dispatch marks automatic backups beyond
+   retention as deleted and starts the heavy lanes detached, but only while no game process exists
+   ([housekeeping](repository-housekeeping.md)).
 7. The app's projections pick up the new revision and the worker's telemetry and update the cards and the save list
    ([telemetry](telemetry.md)).
 
-With game-aware timing off, step 1 uses whether the game has the save's `players.db` locked, and step 2 counts wall
-clock time. A death backup takes the same path, admitted by a death reported on WATCH
+With game-aware timing off, step 1 uses whether the game has the save's `players.db` locked: two matching state
+checks confirm the save active and the reactor sends `ActivateTarget`. Step 2 then counts wall-clock time. A death backup takes the same path, admitted by a death reported on WATCH
 ([live character death](runtime-character-death.md)).
 
 ## How the app follows the game

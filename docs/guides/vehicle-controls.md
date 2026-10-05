@@ -24,7 +24,7 @@ normally does.
 | Option | What you notice |
 | --- | --- |
 | **Natural acceleration and shifting** | Pulling away and shifting follow the engine speed and the gear |
-| **Smooth reversing** | Reverse comes in gently and doesn't get too fast |
+| **Smooth reversing** | Reverse comes in gently and stays within the vehicle's own reverse speed |
 | **Precise keyboard steering** | The wheel turns as long as you hold the key, even when the frame rate drops |
 | **Light around the vehicle** | The ground around your car is lit while its headlights are on |
 

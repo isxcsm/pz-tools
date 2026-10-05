@@ -37,7 +37,8 @@ as busy. The mutex names and the writer lock are described in [process architect
   does not exclude a restore or deletion of another save's folder. Inside the app this does not matter, because the
   page runs one action at a time (below).
 - Above the gates, the Save manager page refuses every action while any operation other than a performance recording
-  is running, or while one of its own dialogs is open (`HasConflictingOperation`). The gates and mutexes are what stop
+  is running, or while one of its own actions is in progress, from its dialog to its refresh
+  (`HasConflictingOperation`). While the telemetry projection is faulted, work running elsewhere is not seen. The gates and mutexes are what stop
   work started from the command line or a second process.
 - Busy outcomes: the worker returns `Busy` and records `run.busy` when a mutex or the writer lock is taken. The
   in-process deletions throw `operation-busy`, shown as **The game or other work is using the file. Try again in a
@@ -77,8 +78,8 @@ file's modification time converted to the exporting PC's local time; a time outs
 writing instead. Import reads each entry time as clock time in `entryTimeZone` (in this PC's zone when the field is
 missing or the zone is unknown here), each date with its own daylight saving rule
 (`ZomboidArchiveService.EntryTimeUtc`). A time in a skipped hour is read one hour later; a time in a repeated hour is
-read as standard time. `players.db` then gets the exact `lastPlayedUtc`, so the Save manager's **Last played** is
-exact and not rounded to two seconds. `ExportAndImport_KeepTheSavesFileTimes` and
+read as standard time. `players.db` then gets the exact `lastPlayedUtc`, so the Save manager's last-played time
+is exact and not rounded to two seconds. `ExportAndImport_KeepTheSavesFileTimes` and
 `EntryTimes_AreReadInTheExportingPcsZone_EachDateWithItsOwnDaylightSaving` cover this.
 
 ## Export
@@ -146,13 +147,14 @@ accepts `.zip` and `.pzsave`.
 | --- | --- |
 | Entry count | More than `maximum_entries` (1,000,000) files and folders |
 | One file's size | Larger than `maximum_single_file_bytes` (64 GiB) unpacked |
-| Path | Empty, starts with `/`, contains `:`, has a `.` or `..` segment |
+| Path | Empty or white space, starts with `/`, contains `:`, has a `.` or `..` segment |
 | Duplicates | Two entries with the same path, ignoring case |
 | Links | An entry marked as a Unix symbolic link |
-| Manifest | Missing; ambiguous (no root manifest and more than one `*/pztools-manifest.json`); over 1 MiB; failing CRC-32; wrong `format`; a `version` other than 1 or 2; a mode or save name that is empty, `.`, `..` or contains a character invalid in a file name |
+| Manifest | Missing; ambiguous (no root manifest and more than one `*/pztools-manifest.json`); empty or over 1 MiB; failing CRC-32; wrong `format`; a `version` other than 1 or 2; a mode or save name that is empty, `.`, `..` or contains a character invalid in a file name |
 | Layout | The manifest is not at `<Mode>/<Save>/pztools-manifest.json` (version 2) or the root (version 1); no `players.db` beside it; a version 2 entry outside `<Mode>/` and `<Mode>/<Save>/` |
 
-The limits come from `[archive]` in the archive worker's configuration ([files and
+The limits come from `[archive]` in the archive worker's configuration, the preview limits below from its
+`[preview]` section ([files and
 folders](../reference/files-and-folders.md#importing-zip-archives)). `ArchiveSafetyOptions` also has a compression-ratio
 check (`archive-unsafe-ratio`), but its defaults turn it off and the worker never sets it.
 
@@ -191,9 +193,10 @@ save it came from (`Restore_UsesImportedSaveKeyWithIndependentRevisionNumbers`).
 
 After a successful import the app runs the state runner at once (`RefreshStateAsync`: up to
 `state_refresh_attempts`, 20, tries `state_refresh_retry_ms`, 250 ms, apart while it is busy; the runner takes the
-`StateCollection` mutex), then projects the state, backup, details and health views, before it reports completion. If
-that refresh fails, the card says **Done, but the list may update late. Do not run it again.**, which is reported apart
-from an import failure so the player does not import the same archive twice.
+`StateCollection` mutex), then projects the state, backup, details and health views. The import's card is already
+marked done when this refresh starts. If the refresh fails, that card stays done and a separate warning card adds
+**Done, but the list may update late. Do not run it again.** under the success message, so the player does not
+import the same archive twice.
 
 ## Deleting backups
 
@@ -216,7 +219,7 @@ The backup leaves the restore and export choices at once. Nothing on disk is rem
 ### All backups of a save
 
 **Delete all backups** follows the same steps with `MarkAllRevisionsDeletedAsync`. The transaction reads the source
-by key and fails with "The selected backup source has changed." if its ID is not the one shown, marks every `Active`
+by key and fails if its ID is not the one shown (an internal error, shown as the generic error text), marks every `Active`
 revision `Deleted` (`user`), and fails if there was none. The save folder is not touched: the card says **All deleted.
 The save is unchanged.**
 
@@ -241,8 +244,8 @@ Deleting a save removes its folder permanently, without the Recycle Bin, and mar
 1. Take the `repository:` and `save:` gates, then `RepositoryAccess` and `SaveWrite`, then the writer lock.
 2. `PrepareSaveRevisionDeletionAsync` opens a `BEGIN IMMEDIATE` transaction. If the repository has a source for the
    save, its recorded folder must equal the folder being deleted, or the deletion is refused. It marks every `Active`
-   revision `Deleted` with `delete_reason = 'save-deleted'` and increments `repository_change_revision`, without
-   committing.
+   revision `Deleted` with `delete_reason = 'save-deleted'` and, if it marked any, increments
+   `repository_change_revision`, without committing.
 3. `SaveDeletionService.DeletePermanently` deletes the folder:
    1. Check the save ID: exactly `Mode/Save`, neither part empty, `.`, `..`, ending in a space or dot, or containing a
       character invalid in a file name. The saves root must not be a drive root. The folder must be inside the saves
@@ -261,7 +264,7 @@ Deleting a save removes its folder permanently, without the Recycle Bin, and mar
    leave its backups active.
 5. The app collects the save state and refreshes the views, as after an import.
 
-The card shows the four `SaveDeletionPhase` values with counts: **Finding files to delete…**, **Checking save
+The card shows the four `SaveDeletionPhase` values, the first three with counts: **Finding files to delete…**, **Checking save
 files…**, **Deleting save files…** and **Removing associated backups…**.
 
 ### Failures and interruptions
@@ -269,7 +272,7 @@ files…**, **Deleting save files…** and **Removing associated backups…**.
 | When | Save folder | Backups |
 | --- | --- | --- |
 | Refused in steps 3.1–3.4 | Unchanged | The transaction rolls back; unchanged |
-| An error in steps 3.5–3.7 | Partly deleted. `players.db` goes last, so the folder still holds it and is still listed as a save. | Rolled back; still `Active` and restorable |
+| An error in steps 3.5–3.7 | Partly deleted. `players.db` goes last, so the folder usually still holds it and is still listed as a save. A file created in the save's root after step 3.4 makes the final folder delete fail after `players.db` is gone; the folder then remains without it. | Rolled back; still `Active` and restorable |
 | The process ends during steps 3.5–3.7 | The same | SQLite rolls back the open transaction; still `Active` |
 | The commit in step 4 fails | Deleted | Still `Active`. The card says **The save was deleted, but its backups remain.** (`SaveBackupDeletionFailedException`) |
 | The process ends between step 3 and the commit | Deleted | Still `Active` |

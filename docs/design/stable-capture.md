@@ -21,13 +21,13 @@ The SHA-256 of the copy is also the source of the 16-byte [change fingerprint](c
 
 ## What metadata is recorded
 
-The catalog stores the metadata read *before* the read that matched: from step 1 when `H_copy = H_before`, from just before `H_after` otherwise. A game write that lands after that point then moves the file's times past what the catalog holds, and the next scan revisits the file instead of treating it as captured. The recorded length is always the length of the verified copy, because matching hashes can survive a size change after the metadata was read.
+The catalog stores the metadata read *before* the read that matched: from step 1 when `H_copy = H_before`, from just before `H_after` otherwise. A game write that lands after that point then moves the file's times past what the catalog holds, and the next scan revisits the file instead of treating it as captured. The recorded length is always the length of the verified copy, because matching hashes can survive a size change after the metadata was read. Without verification, the metadata read through the path after the copy is recorded.
 
 ## Retries and failures
 
 | Event | Result |
 | --- | --- |
-| The copy matches neither read, the identity changed, or opening or reading the source fails (`IOException`, access denied, Windows error) | The attempt is discarded. Up to `capture_attempts` (5) attempts, waiting `capture_retry_delay_ms` (200) × attempt number between them. |
+| The copy matches neither read, the identity changed, or opening or reading the source fails (`IOException`, access denied, Windows error) | The attempt is discarded. Up to `capture_attempts` (5) attempts, waiting `capture_retry_delay_ms` (200) × attempt number between them: 2 seconds of waiting in all by default. |
 | All attempts fail | `UnstableFileException`; the backup fails |
 | The staged copy cannot be created or written (backup drive full, for example) | The backup fails at once, without retries |
 | Cancellation | The backup ends `Cancelled` |
@@ -38,9 +38,9 @@ When a backup fails or is cancelled, its pack is invalidated and deleted, no rev
 
 A file is not treated as deleted because `File.Exists` or `Directory.Exists` returns false; those hide access and I/O errors. When reading a path's metadata reports "file not found" or "path not found", the planner confirms it before writing a tombstone (`ConfirmMissingEntry`):
 
-- No ancestor of the save folder may be a reparse point.
+- Neither the save folder nor any of its ancestors may be a reparse point.
 - Starting at the save folder, each segment of the path is looked up by an exact-name listing of its parent that must finish without error. The first segment that is absent confirms the deletion. A segment that is now an ordinary file where a folder was also confirms it.
-- A reparse point on the way, a listing error or an inaccessible folder aborts the backup instead.
+- A reparse point on the way, a listing error or an inaccessible folder aborts the backup instead. So does finding every segment present after all.
 
 An always-included file that was never in the catalog and is confirmed missing is skipped quietly. A link inside the save, a disconnected drive, denied access or an I/O error stops the backup before it commits its revision or checkpoint. This applies to journal planning and to `capture.always_include`. A full scan instead lists the whole tree; a listing error fails it, and a path missing from a complete listing is a deletion.
 

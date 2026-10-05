@@ -77,7 +77,7 @@ The gate applies whether or not the death option is on.
    ticket (`RuntimeSaveTicket.MatchesDeath`) and the save path. The pause hold and the periodic countdown do
    not apply.
 6. The worker runs as a guarded backup. The game checks the ticket every frame until the save starts:
-   same process and world, world ready, the character still `Dead` with the same character and death id
+   same process, observer and world, world ready in local single player, the character still `Dead` with the same character and death id
    (`runtime-character-changed` otherwise). Pause, sleep and the active clock are not checked. The countdown
    notice is skipped because the ticket is due at once.
 

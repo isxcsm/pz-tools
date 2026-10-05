@@ -102,17 +102,19 @@ runs the checks against a local game JAR in a separate JVM.
 
 ## When each part applies
 
-Propulsion (`VehicleAccess.read`, `VehicleProfile.resolve`) needs all of these; otherwise the
-game's code runs and the diagnostics reason names the first failed check:
+Propulsion (`VehicleControl.tryControl`, `VehicleAccess.read`, `VehicleProfile.resolve`) needs
+all of these; otherwise the game's code runs and the diagnostics reason names the first failed
+check, in this order:
 
 | Rule | Reason |
 | --- | --- |
+| The option for this mode is on | `forward-disabled`, `reverse-disabled` |
 | Single-player, the activation's world | `multiplayer-unsupported`, `world-or-controller-changed` |
 | The driver is the local player | `not-local-driver` |
 | Not towed, not burnt, not towing a burnt vehicle | `towed-or-burnt`, `burnt-tow-unsupported` |
 | Engine running | `engine-not-running` |
 | Four wheels, each radius 0.05–5 | `unsupported-wheels`, `invalid-wheel-radius` |
-| Mode Forward or Reverse, and that option on | `original-coast-or-brake`, `forward-disabled`, `reverse-disabled` |
+| Mode Forward or Reverse | `original-coast-or-brake` |
 | Valid time step, first call this frame | `invalid-or-long-dt`, `duplicate-frame` |
 | Engine family `generic`, `van`, `jeep` or `firebird`, 3–5 gears, script top speed 20–300 km/h | `unsupported-profile` |
 
@@ -130,8 +132,9 @@ Turning the extension on, and every later configuration change, waits until
 thread. That requires:
 
 - single-player and the activation's world;
-- for every local player who is in a vehicle (driver or passenger): speed at most 0.5 km/h,
-  throttle at most 0.01 and cruise control (`isRegulator`) off.
+- for every player in `IsoPlayer.players` (the local players) who is in a vehicle, driver or
+  passenger: speed at most 0.5 km/h, throttle at most 0.01 and cruise control (`isRegulator`)
+  off.
 
 Players on foot do not block it, and vehicles nobody local is in are not checked. The host only
 ticks while the game is unpaused, which is why the card asks the player to resume the game.
@@ -320,8 +323,8 @@ update in progress stay, and movement, collisions and fuel already used are not 
 
 Turning a single option off is a configuration change and waits for the safe point.
 
-The same release happens when the lease lapses (5 seconds without a command, for example when
-PZ Tools closes), when the world changes and after a fault. After a fault the scheduler also
+The same release happens when the control connection ends (PZ Tools closes), when the lease
+lapses (5 seconds without a command), when the world changes and after a fault. After a fault the scheduler also
 saves the extension as off, so the game's own control stays until the player turns it on again.
 
 ## What is never written

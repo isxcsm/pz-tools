@@ -52,8 +52,8 @@ After a death, automatic backups wait until you play on, so the backups from you
 stay in the list.
 
 When a save is gone, its backups go too, manual ones included. That happens when you delete
-the save in PZ Tools, and also when its folder is deleted or moved outside PZ Tools, for
-example from the game's menu. Export anything you want to keep first. See
+the save in PZ Tools, and also when its folder is deleted, renamed or moved outside PZ Tools,
+for example from the game's menu. Export anything you want to keep first. See
 [Backups](docs/reference/backups.md) for the details.
 
 <a id="game-saving"></a>
@@ -144,7 +144,7 @@ versions, what you did, and the log details or crash report.
 <a id="building"></a>
 ## Build from source
 
-You need Windows, the .NET SDK named in `global.json`, PowerShell 7, a Java 25 JDK and the
+You need Windows, the .NET SDK named in `global.json`, PowerShell 7.2 or later, a Java 25 JDK and the
 Visual Studio C++ and WinUI build tools.
 
 ```powershell
