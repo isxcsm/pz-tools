@@ -2125,8 +2125,12 @@ public sealed partial class ProfilerPage : UserControl
     private string? hoveredPart;
     private Brush? hoveredBrush;
 
+    // Counts the parts entered, so a clear queued on leaving one is dropped once any part, the same one too, is entered.
+    private int hoverEntries;
+
     private void BreakdownPart_PointerEntered(object sender, PointerRoutedEventArgs e)
     {
+        hoverEntries++;
         if (sender is not FrameworkElement { Tag: string part } element || hoveredPart == part) return;
         hoveredPart = part;
         // The part's colour, as its dot and bar show it; waiting's own grey would vanish on the graph's faded bars.
@@ -2138,9 +2142,17 @@ public sealed partial class ProfilerPage : UserControl
 
     private void BreakdownPart_PointerExited(object sender, PointerRoutedEventArgs e)
     {
-        if (hoveredPart is null) return;
-        hoveredPart = null;
-        RenderChart();
+        // Onto one of its own children (the dot, the name, the figure): still over it.
+        if (hoveredPart is null || sender is FrameworkElement element && AppToolTip.StillOver(element, e)) return;
+        var entries = hoverEntries;
+        // After this input: straight onto the part beside it (or back onto this one), the graph goes on without being
+        // drawn bare between them.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            if (hoverEntries != entries) return;
+            hoveredPart = null;
+            RenderChart();
+        });
     }
 
     // What a part of the time bar counts, with its share and time in the range, and the collector at work beside the

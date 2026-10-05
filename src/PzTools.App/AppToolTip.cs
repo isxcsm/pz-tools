@@ -31,12 +31,32 @@ public static class AppToolTip
 
     public static void CloseCurrent() => current?.Dismiss();
 
+    /// <summary>
+    /// Whether the pointer is still over the element. Pointer enter and exit bubble from its children, so moving between
+    /// a legend's dot, name and figure reports leaving the legend itself; only a pointer outside its bounds has left.
+    /// </summary>
+    public static bool StillOver(FrameworkElement element, PointerRoutedEventArgs args)
+    {
+        var point = args.GetCurrentPoint(element).Position;
+        return point.X >= 0 && point.Y >= 0 && point.X < element.ActualWidth && point.Y < element.ActualHeight;
+    }
+
+    // As Windows' own tips: a moment's rest before the first, then the next at once while one was just showing, so a
+    // pointer passing over a row of them does not flash each one.
+    private static readonly TimeSpan InitialDelay = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan BetweenDelay = TimeSpan.FromMilliseconds(500);
+    private static long lastClosed;
+
     private sealed class Presenter
     {
+        // A pointer that leaves and comes back within this keeps the tip open: an element a line of text high is left
+        // and entered again by the smallest move up or down, and each close and open replayed the tip's appearance.
+        private static readonly TimeSpan CloseGrace = TimeSpan.FromMilliseconds(200);
         private readonly FrameworkElement owner;
         private readonly ToolTip tooltip = new() { IsHitTestVisible = false };
         private bool hovered;
         private string? text;
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer? opening, closing;
 
         public Presenter(FrameworkElement owner)
         {
@@ -63,7 +83,8 @@ public static class AppToolTip
             }
             else
             {
-                tooltip.Content = text;
+                // The same words again change nothing on screen; new ones replace them in place.
+                if (!Equals(tooltip.Content, text)) tooltip.Content = text;
                 // WinUI also requires the service's owner/container registration
                 // when IsOpen is set manually; PlacementTarget alone is insufficient.
                 if (!ReferenceEquals(ToolTipService.GetToolTip(owner), tooltip))
@@ -72,17 +93,42 @@ public static class AppToolTip
             }
         }
 
+        private Microsoft.UI.Dispatching.DispatcherQueueTimer Timer(TimeSpan interval, Action tick)
+        {
+            var timer = owner.DispatcherQueue.CreateTimer();
+            timer.Interval = interval;
+            timer.IsRepeating = false;
+            timer.Tick += (_, _) => tick();
+            return timer;
+        }
+
         private void OnEntered(object sender, PointerRoutedEventArgs args)
         {
             if (args.Pointer.PointerDeviceType == PointerDeviceType.Touch) return;
+            closing?.Stop();
+            // Already over it, coming from one of its children: the tip showing stays as it is.
+            if (hovered) return;
             hovered = true;
-            Show();
+            // Back within the grace: still open, nothing to show again.
+            if (tooltip.IsOpen) { current = this; return; }
+            if (System.Diagnostics.Stopwatch.GetElapsedTime(lastClosed) < BetweenDelay || current is not null) { Show(); return; }
+            (opening ??= Timer(InitialDelay, () => { if (hovered) Show(); })).Start();
         }
 
         private void OnExited(object sender, PointerRoutedEventArgs args)
         {
+            // Onto one of its own children: still over it.
+            if (StillOver(owner, args)) return;
             hovered = false;
+            opening?.Stop();
             if (current != this) return;
+            (closing ??= Timer(CloseGrace, Closed)).Start();
+        }
+
+        // Left for good: closed, and an element it sits in that is still pointed at shows its own again.
+        private void Closed()
+        {
+            if (hovered) return;
             Hide();
             for (var parent = VisualTreeHelper.GetParent(owner); parent is not null; parent = VisualTreeHelper.GetParent(parent))
                 if (parent is FrameworkElement element && Presenters.TryGetValue(element, out var presenter)
@@ -110,6 +156,8 @@ public static class AppToolTip
 
         private void Hide()
         {
+            closing?.Stop();
+            if (tooltip.IsOpen) lastClosed = System.Diagnostics.Stopwatch.GetTimestamp();
             tooltip.IsOpen = false;
             if (current == this) current = null;
         }
@@ -117,6 +165,7 @@ public static class AppToolTip
         public void Dismiss()
         {
             hovered = false;
+            opening?.Stop();
             Hide();
         }
     }
