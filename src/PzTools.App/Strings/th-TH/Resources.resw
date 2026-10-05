@@ -726,6 +726,11 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>เวลาที่สคริปต์ Lua ของม็อดและของเกมทำงาน รวมถึงฟังก์ชัน Java ที่สคริปต์เรียก</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>เวลาที่โค้ดของเกมเอง (Java) ทำงานบนเธรดเกม</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>เวลาที่เธรดเกมหยุดเพื่อเก็บกวาดหน่วยความจำ (GC) หรือรอหน่วยความจำ ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกม ค่านี้จึงมักใกล้ศูนย์ ดูการขาดหน่วยความจำได้จาก GC ทำงาน และ รอหน่วยความจำ ในแถวหน่วยความจำใต้กราฟ</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>เวลาที่เธรดเกมรอแทนที่จะทำงาน ส่วนใหญ่คือเวลาว่างก่อนเฟรมถัดไป ในช่วงที่กระตุกคือการรอไฟล์หรือเธรดอื่น</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>วางเมาส์ไว้เพื่อแสดงส่วนนี้ของแต่ละเฟรมบนกราฟ</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>สคริปต์อื่น</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ตัวเลือกการเปิดเกมกำลังบล็อกการเชื่อมต่อ</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>เชื่อมต่อไม่ได้เพราะตัวเลือกการเปิดเกมบล็อกไว้ กรุณาตรวจสอบตัวเลือกการเปิดเกม</value></data>

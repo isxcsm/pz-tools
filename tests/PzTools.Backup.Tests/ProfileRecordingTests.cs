@@ -756,6 +756,26 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Breakdown_OfAFrame_FollowsTheRangesRules_AndFillsTheBar()
+    {
+        var recording = Load(LongRecording());
+        // Over the whole recording, the frame graph's split is the time bar's own.
+        var whole = ProfileAnalysis.TimeBreakdown(ProfileAnalysis.Analyze(recording, 0, recording.Duration, recording.GameThread))!;
+        var raw = ProfileAnalysis.BreakdownIn(recording, 0, recording.Duration)!;
+        Assert.Equal((whole.Scripts, whole.GameCode, whole.Collections, whole.Waiting),
+            (raw.Scripts, raw.GameCode, raw.Collections, raw.Waiting));
+        // Each bar's parts add up to its frame.
+        var bars = ProfileAnalysis.SlowestFramePerBucket(recording, 0, recording.Duration, 40);
+        var parts = ProfileAnalysis.BreakdownPerBucket(recording, 0, recording.Duration, 40);
+        for (var index = 0; index < bars.Length; index++)
+        {
+            if (parts[index] is not { } part) { Assert.Equal(0, bars[index]); continue; }
+            Assert.Equal(bars[index], part.Scripts + part.GameCode + part.Collections + part.Waiting, 6);
+        }
+        Assert.Contains(parts, part => part is { Scripts: > 0 });
+    }
+
+    [Fact]
     public void Memory_IsAbsentFromRecordingsMadeBeforeIt()
     {
         var recording = Load(Sample);

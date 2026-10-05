@@ -159,7 +159,6 @@ public sealed partial class ProfilerPage : UserControl
         ScriptsLabel.Text = Localizer.Get("ProfileBreakdownScripts");
         GameLabel.Text = Localizer.Get("ProfileBreakdownGame");
         CollectionsLabel.Text = Localizer.Get("ProfileStatGcPause");
-        AppToolTip.SetTip(CollectionValue, Localizer.Get("ProfileCollectorBusyTip"));
         SpareLabel.Text = Localizer.Get("ProfileBreakdownWaiting");
         var thread = ThreadBox.SelectedIndex;
         // The same choice in new words: not a change of thread to analyse again for.
@@ -793,6 +792,22 @@ public sealed partial class ProfilerPage : UserControl
             // Sampled in steps of a period, a part can come out a little over its frame: never above its bar.
             for (var index = 0; index < buckets; index++) parts[index] = Math.Min(parts[index], values[index]);
         }
+        // A part of the time bar pointed at stands in for the highlighted owner while it is: that part of each bar, on
+        // the same terms, so a stutter's frames show which part they were.
+        var pointed = hoveredPart is not null && recording.GameThread >= 0 ? hoveredPart : null;
+        if (pointed is not null)
+        {
+            var split = ProfileAnalysis.BreakdownPerBucket(recording, viewStart, viewEnd, buckets);
+            parts = new double[buckets];
+            for (var index = 0; index < buckets; index++)
+                parts[index] = split[index] is { } frame ? Math.Min(values[index], pointed switch
+                {
+                    "Scripts" => frame.Scripts,
+                    "GameCode" => frame.GameCode,
+                    "Collections" => frame.Collections,
+                    _ => frame.Waiting,
+                }) : 0;
+        }
         var scaled = parts ?? values;
         var top = parts is null ? NiceCeiling(Math.Max(20, Math.Min(values.Max(), SpikeCeiling(values, SlowFrameMilliseconds))))
             : NiceCeiling(Math.Max(2, Math.Min(parts.Max(), SpikeCeiling(parts, 0))));
@@ -838,7 +853,9 @@ public sealed partial class ProfilerPage : UserControl
         SlowBarsPath.Data = slow;
         // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
         BarsPath.Opacity = SlowBarsPath.Opacity = parts is null ? 1 : 0.15;
-        HighlightPath.Data = parts is null ? null : part;
+        HighlightPath.Data = parts is null || pointed is not null ? null : part;
+        PartPath.Data = pointed is null ? null : part;
+        PartPath.Fill = hoveredBrush;
         if (chartEntrance)
         {
             chartEntrance = false;
@@ -1106,8 +1123,10 @@ public sealed partial class ProfilerPage : UserControl
         HeapValue.Opacity = heapRow ? 1 : 0.45;
         VideoValue.Opacity = videoRow ? 1 : 0.45;
         CollectionValue.Opacity = collectionMarks ? 1 : 0.45;
-        foreach (var figure in new[] { HeapValue, VideoValue, CollectionValue })
+        foreach (var figure in new[] { HeapValue, VideoValue })
             AppToolTip.SetTip(figure, Localizer.Get("ProfileMemoryRowToggleTip"));
+        // The collections' figure also says what its parts mean: ZGC's pauses read near nothing however short memory is.
+        AppToolTip.SetTip(CollectionValue, Localizer.Get("ProfileCollectorBusyTip") + "\n\n" + Localizer.Get("ProfileMemoryRowToggleTip"));
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         MemoryChevron.Glyph = memoryOpen ? "" : "";
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
@@ -1938,10 +1957,58 @@ public sealed partial class ProfilerPage : UserControl
         GameValue.Text = BreakdownPercent(breakdown.GameCode);
         CollectionsValue.Text = BreakdownPercent(breakdown.Collections);
         SpareValue.Text = BreakdownPercent(breakdown.Waiting);
+        SetBreakdownTips(range, breakdown);
         AutomationProperties.SetName(TimeBreakdownPanel, TimeBreakdownText());
     }
 
     private (ProfileRange, ResultTab, HighlightedGroup?)? shownBreakdown;
+
+    // The part of the time bar pointed at (its tag: Scripts, GameCode, Collections, Waiting), drawn over the frame graph
+    // in its own colour while the pointer stays.
+    private string? hoveredPart;
+    private Brush? hoveredBrush;
+
+    private void BreakdownPart_PointerEntered(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: string part } element || hoveredPart == part) return;
+        hoveredPart = part;
+        // The part's colour, as its dot and bar show it; waiting's own grey would vanish on the graph's faded bars.
+        hoveredBrush = part == "Waiting" ? Muted
+            : element is Microsoft.UI.Xaml.Shapes.Shape shape ? shape.Fill
+            : (element as Panel)?.Children.OfType<Microsoft.UI.Xaml.Shapes.Ellipse>().FirstOrDefault()?.Fill;
+        RenderChart();
+    }
+
+    private void BreakdownPart_PointerExited(object sender, PointerRoutedEventArgs e)
+    {
+        if (hoveredPart is null) return;
+        hoveredPart = null;
+        RenderChart();
+    }
+
+    // What a part of the time bar counts, with its share and time in the range, and the collector at work beside the
+    // game for the memory part, whose pauses ZGC keeps near nothing.
+    private void SetBreakdownTips(ProfileRange range, ProfileTimeBreakdown breakdown)
+    {
+        var length = Math.Max(1, range.End - range.Start);
+        string Tip(string part)
+        {
+            var share = part switch
+            {
+                "Scripts" => breakdown.Scripts, "GameCode" => breakdown.GameCode,
+                "Collections" => breakdown.Collections, _ => breakdown.Waiting,
+            };
+            var lines = new List<string> { $"{BreakdownPercent(share)} · {Milliseconds(share * length / 1000.0)}",
+                Localizer.Get($"ProfileBreakdown{part}Tip") };
+            if (part == "Collections" && recording is { } loaded && ProfileAnalysis.CollectorBusyIn(loaded, range.Start, range.End) is { } busy)
+                lines.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
+            lines.Add(Localizer.Get("ProfileBreakdownHoverHint"));
+            return string.Join("\n", lines);
+        }
+        foreach (var element in new FrameworkElement[] { ScriptsLegend, GameCodeLegend, CollectionsLegend, WaitingLegend }
+                     .Concat(TimeBreakdownBar.Children.OfType<FrameworkElement>()))
+            if (element.Tag is string part) AppToolTip.SetTip(element, Tip(part));
+    }
 
     // Two decimals, as the owner lists; a share that is there but rounds to nothing (a collection's fraction of a
     // millisecond in a long range) says so rather than reading as none.

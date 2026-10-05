@@ -719,6 +719,11 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripte</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Spielcode</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Warten</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Zeit, in der Lua-Skripte von Mods und Spiel liefen, samt der Java-Funktionen, die sie aufriefen.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Zeit, in der der eigene Code des Spiels (Java) im Spiel-Thread lief.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread für die Speicherbereinigung (GC) oder das Warten auf Speicher anhielt. ZGC, die Voreinstellung des Spiels, hält ihn kaum je an, daher meist nahe null. Ob der Speicher knapp war, zeigen „GC aktiv“ und „Auf Speicher gewartet“ in der Speicherzeile unter dem Diagramm.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Zeit, in der der Spiel-Thread wartete statt zu arbeiten: meist die Zeit bis zum nächsten Frame; bei einem Ruckler das Warten auf eine Datei oder einen anderen Thread.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Zeigen Sie darauf, um diesen Teil jedes Frames im Diagramm zu sehen.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Andere Skripte</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Eine Startoption des Spiels blockiert die Verbindung.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Keine Verbindung möglich, da eine Startoption des Spiels sie blockiert. Prüfen Sie die Startoptionen des Spiels.</value></data>

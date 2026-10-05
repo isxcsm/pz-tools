@@ -719,6 +719,11 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Waktu skrip Lua mod dan gim berjalan, termasuk fungsi Java yang mereka panggil.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Waktu kode gim sendiri (Java) berjalan di thread gim.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Waktu thread gim berhenti untuk pembersihan memori (GC) atau menunggu memori. ZGC, bawaan gim ini, hampir tidak pernah menghentikannya, jadi biasanya mendekati nol. Untuk melihat kekurangan memori, lihat GC bekerja dan Menunggu memori di baris memori di bawah grafik.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Waktu thread gim menunggu alih-alih bekerja: sebagian besar sisa waktu sebelum bingkai berikutnya; saat tersendat, menunggu berkas atau thread lain.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Arahkan penunjuk ke sini untuk menampilkan bagian ini di setiap bingkai pada grafik.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Skrip lain</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opsi peluncuran gim memblokir koneksi.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Tidak dapat terhubung karena opsi peluncuran gim memblokirnya. Periksa opsi peluncuran gim.</value></data>

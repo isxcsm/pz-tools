@@ -719,6 +719,11 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Code du jeu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attente</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Temps d&apos;exécution des scripts Lua des mods et du jeu, y compris les fonctions Java qu&apos;ils ont appelées.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Temps d&apos;exécution du code propre au jeu (Java) sur le fil du jeu.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Temps pendant lequel le fil du jeu s&apos;est arrêté pour le ramasse-miettes (GC) ou en attendant de la mémoire. ZGC, le réglage par défaut du jeu, ne l&apos;arrête presque jamais : c&apos;est donc souvent proche de zéro. Pour savoir si la mémoire manquait, voyez GC actif et Attentes de mémoire sur la ligne mémoire sous le graphique.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Temps pendant lequel le fil du jeu a attendu au lieu de travailler : surtout la marge avant l&apos;image suivante ; lors d&apos;un à-coup, l&apos;attente d&apos;un fichier ou d&apos;un autre fil.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Survolez-le pour voir cette part de chaque image sur le graphique.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Autres scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Une option de lancement du jeu bloque la connexion.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Connexion impossible : une option de lancement du jeu la bloque. Vérifiez les options de lancement du jeu.</value></data>

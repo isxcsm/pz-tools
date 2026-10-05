@@ -718,6 +718,11 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Time mods&apos; and the game&apos;s Lua scripts ran, including the Java functions they called.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Time the game&apos;s own code (Java) ran on the game thread.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Time the game thread stopped for garbage collection or waiting for memory. ZGC, the game&apos;s default, hardly ever stops it, so this is usually near zero. For running short of memory, see GC working and Waited for memory on the memory line under the graph.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Time the game thread waited instead of working: mostly the time left before the next frame; in a stutter, waiting for a file or another thread.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Point at it to show this part of each frame on the graph.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Other scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>A game launch option is blocking the connection.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Could not connect because a game launch option blocks it. Check the game&apos;s launch options.</value></data>

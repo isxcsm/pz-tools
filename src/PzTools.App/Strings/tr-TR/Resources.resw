@@ -719,6 +719,11 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Modların ve oyunun Lua betiklerinin, çağırdıkları Java işlevleri dahil çalıştığı süre.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Oyunun kendi kodunun (Java) oyun iş parçacığında çalıştığı süre.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Oyun iş parçacığının çöp toplama (GC) ya da bellek beklemesi yüzünden durduğu süre. Oyunun varsayılanı olan ZGC onu neredeyse hiç durdurmaz, bu yüzden genelde sıfıra yakındır. Bellek yetersizliği için grafiğin altındaki bellek satırında GC çalışıyor ve Bellek bekleme değerlerine bakın.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Oyun iş parçacığının çalışmak yerine beklediği süre: çoğunlukla sonraki kareye kalan pay; takılmada bir dosyayı ya da başka bir iş parçacığını bekleme.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Grafikte her karenin bu payını görmek için üzerine gelin.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Diğer betikler</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Bir oyun başlatma seçeneği bağlantıyı engelliyor.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Bir oyun başlatma seçeneği engellediği için bağlanılamadı. Oyunun başlatma seçeneklerini kontrol edin.</value></data>

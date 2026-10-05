@@ -719,6 +719,11 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>脚本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>游戏代码</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>模组和游戏的 Lua 脚本运行的时间，包括脚本调用的 Java 函数。</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>游戏自身代码（Java）在游戏线程上运行的时间。</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>游戏线程因垃圾回收（GC）或等待内存而停下的时间。游戏默认的 ZGC 几乎不会让它停下，所以通常接近 0。内存是否不足，请看图表下方内存行的“GC 运行”和“等待内存”。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>游戏线程没有工作而在等待的时间：大多是到下一帧前的余量；卡顿时则是在等待文件或其他线程。</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>将指针停在上面，即可在图表的每一帧上显示这部分。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>其他脚本</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>游戏的启动选项阻止了连接。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>游戏的启动选项阻止了连接，因此无法连接。请检查游戏的启动选项。</value></data>

@@ -719,6 +719,11 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código del juego</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tiempo en que se ejecutaron los scripts Lua de los mods y del juego, incluidas las funciones Java que llamaron.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tiempo en que el código propio del juego (Java) se ejecutó en el hilo del juego.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tiempo en que el hilo del juego se detuvo por la recolección de basura (GC) o esperando memoria. ZGC, la opción por defecto del juego, casi nunca lo detiene, así que suele estar cerca de cero. Para ver si faltó memoria, mira GC activo y Esperas de memoria en la línea de memoria bajo el gráfico.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tiempo en que el hilo del juego esperó en lugar de trabajar: sobre todo el margen hasta el siguiente fotograma; en un tirón, la espera por un archivo u otro hilo.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Pasa el puntero por encima para ver esta parte de cada fotograma en el gráfico.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Otros scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Una opción de inicio del juego bloquea la conexión.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>No se ha podido conectar porque una opción de inicio del juego lo impide. Revisa las opciones de inicio del juego.</value></data>

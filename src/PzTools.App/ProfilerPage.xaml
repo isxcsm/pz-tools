@@ -245,6 +245,8 @@
             <!-- The highlighted owner's part of each bar, over the bars faded behind it. -->
             <Path x:Name="HighlightPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top"
                   Fill="{ThemeResource ProfileHighlightBrush}" />
+            <!-- While a part of the time bar is pointed at: that part of each bar, in the part's colour. -->
+            <Path x:Name="PartPath" IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top" />
             <!-- The 60 and 30 FPS lines, over the bars: a slow recording's bars would otherwise hide them. -->
             <Canvas x:Name="ReferenceCanvas" IsHitTestVisible="False" />
             <Canvas IsHitTestVisible="False">
@@ -350,11 +352,11 @@
               <ColumnDefinition x:Name="SpareColumn" Width="*" />
             </Grid.ColumnDefinitions>
             <!-- The chosen mod's part of the scripts, solid; the other scripts beside it, lighter. -->
-            <Rectangle Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-            <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="2" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
-            <Rectangle Grid.Column="3" Fill="{ThemeResource SystemFillColorCautionBrush}" />
-            <Rectangle Grid.Column="4" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
+            <Rectangle Tag="Scripts" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle x:Name="OtherScriptsBar" Grid.Column="1" Tag="Scripts" Fill="{ThemeResource AccentFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="2" Tag="GameCode" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="3" Tag="Collections" Fill="{ThemeResource SystemFillColorCautionBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
+            <Rectangle Grid.Column="4" Tag="Waiting" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited" />
           </Grid>
           <!-- Up to six items, a mod's name among them: in a narrow window they go on to a second line. -->
           <local:WrapPanel Grid.Row="1" HorizontalSpacing="16" VerticalSpacing="4">
@@ -365,22 +367,26 @@
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="SelectedValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="ScriptsLegend" Tag="Scripts" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse x:Name="ScriptsDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource AccentFillColorDefaultBrush}" />
               <TextBlock x:Name="ScriptsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="ScriptsValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="GameCodeLegend" Tag="GameCode" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrongFillColorDefaultBrush}" />
               <TextBlock x:Name="GameLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="GameValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="CollectionsLegend" Tag="Collections" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource SystemFillColorCautionBrush}" />
               <TextBlock x:Name="CollectionsLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="CollectionsValue" FontSize="12" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="6">
+            <StackPanel x:Name="WaitingLegend" Tag="Waiting" Orientation="Horizontal" Spacing="6" Background="Transparent"
+                        PointerEntered="BreakdownPart_PointerEntered" PointerExited="BreakdownPart_PointerExited">
               <Ellipse Width="8" Height="8" VerticalAlignment="Center" Fill="{ThemeResource ControlStrokeColorDefaultBrush}" />
               <TextBlock x:Name="SpareLabel" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
               <TextBlock x:Name="SpareValue" FontSize="12" />

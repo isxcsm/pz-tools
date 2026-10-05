@@ -718,6 +718,11 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>모드와 게임의 Lua 스크립트가 실행된 시간입니다. 스크립트가 호출한 Java 함수의 시간도 포함됩니다.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>게임 자체 코드(Java)가 게임 스레드에서 실행된 시간입니다.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>메모리 정리(GC)나 메모리 대기 때문에 게임 스레드가 멈춘 시간입니다. 게임 기본값인 ZGC는 거의 멈추지 않아 보통 0에 가깝습니다. 메모리 부족은 그래프 아래 메모리 줄의 GC 작동 비율과 메모리 대기로 확인하세요.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>게임 스레드가 일하지 않고 기다린 시간입니다. 대부분 다음 프레임까지 남은 여유이고, 끊긴 구간에서는 파일이나 다른 스레드를 기다린 시간입니다.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>마우스를 올려 두면 그래프의 프레임마다 이 몫을 표시합니다.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>다른 스크립트</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있습니다.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>게임 실행 옵션이 연결을 막고 있어 연결하지 못했습니다. 실행 옵션을 확인해 주세요.</value></data>

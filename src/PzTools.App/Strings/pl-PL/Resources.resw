@@ -719,6 +719,11 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrypty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Oczekiwanie</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Czas działania skryptów Lua modów i gry, łącznie z wywołanymi przez nie funkcjami Javy.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Czas działania własnego kodu gry (Java) w wątku gry.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Czas, w którym wątek gry stał z powodu odśmiecania (GC) lub czekania na pamięć. ZGC, domyślny w grze, prawie nigdy go nie zatrzymuje, więc zwykle jest bliski zera. Brak pamięci pokażą „GC pracuje” i „Czekanie na pamięć” w wierszu pamięci pod wykresem.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Czas, w którym wątek gry czekał zamiast pracować: głównie zapas do następnej klatki; przy przycięciu czekanie na plik lub inny wątek.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Najedź na to kursorem, aby zobaczyć tę część każdej klatki na wykresie.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Inne skrypty</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Opcja uruchamiania gry blokuje połączenie.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nie udało się połączyć, ponieważ blokuje to opcja uruchamiania gry. Sprawdź opcje uruchamiania gry.</value></data>

@@ -719,6 +719,11 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Script</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Codice del gioco</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Attesa</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo in cui sono stati eseguiti gli script Lua delle mod e del gioco, comprese le funzioni Java che hanno chiamato.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo in cui il codice proprio del gioco (Java) è stato eseguito nel thread del gioco.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo in cui il thread del gioco si è fermato per la raccolta dei rifiuti (GC) o in attesa di memoria. ZGC, l&apos;impostazione predefinita del gioco, non lo ferma quasi mai, quindi di solito è vicino a zero. Per capire se mancava memoria, guarda GC attivo e Attese di memoria nella riga della memoria sotto il grafico.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo in cui il thread del gioco ha atteso invece di lavorare: per lo più il margine prima del fotogramma successivo; in uno scatto, l&apos;attesa di un file o di un altro thread.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Passaci sopra con il puntatore per vedere questa parte di ogni fotogramma nel grafico.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Altri script</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Un’opzione di avvio del gioco blocca la connessione.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Impossibile connettersi perché un’opzione di avvio del gioco lo impedisce. Controlla le opzioni di avvio del gioco.</value></data>

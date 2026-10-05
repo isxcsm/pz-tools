@@ -573,11 +573,77 @@ public static class ProfileAnalysis
         var length = Math.Max(1, range.End - range.Start);
         // Stopped for memory: the collector's pauses where they fell and the thread's waits for memory; a recording
         // without the pauses has only the collections' totals.
-        var collections = Math.Clamp((range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length, 0, 1);
+        return Split(running, range.LuaShare, (range.MemoryStopMilliseconds ?? range.CollectionPauseMilliseconds) * 1000 / length);
+    }
+
+    // The four parts from what was measured, each a share of the span.
+    private static ProfileTimeBreakdown Split(double running, double lua, double memory)
+    {
+        var collections = Math.Clamp(memory, 0, 1);
         // Two samplers measure the scripts and the running code; where they disagree a little, the scripts win.
-        var scripts = Math.Clamp(range.LuaShare, 0, 1 - collections);
+        var scripts = Math.Clamp(lua, 0, 1 - collections);
         var game = Math.Clamp(Math.Max(running, scripts) - scripts, 0, 1 - collections - scripts);
         return new ProfileTimeBreakdown(scripts, game, collections, Math.Max(0, 1 - scripts - game - collections));
+    }
+
+    /// <summary>
+    /// <see cref="TimeBreakdown"/> for the game thread over a span as short as a frame, from the records alone: what the
+    /// frame graph draws for one part of it. Null without a known game thread.
+    /// </summary>
+    public static ProfileTimeBreakdown? BreakdownIn(ProfileRecording recording, long start, long end)
+    {
+        var thread = recording.GameThread;
+        if (thread < 0 || end <= start) return null;
+        double length = end - start, running = 0;
+        var samples = recording.Samples;
+        for (var index = LowerBound(samples, start, sample => sample.Time); index < samples.Length && samples[index].Time < end; index++)
+        {
+            var sample = samples[index];
+            // As in the range's figures: a thread only waiting in a native call was not running.
+            if (sample.Thread != thread || sample.Native && Waits(recording, recording.Stacks[sample.Stack])) continue;
+            running += sample.Native ? recording.NativePeriod : recording.JavaPeriod;
+        }
+        var lua = recording.LuaSamples;
+        var luaSamples = 0;
+        for (var index = LowerBound(lua, start, sample => sample.Time); index < lua.Length && lua[index].Time < end; index++) luaSamples++;
+        var memory = MemoryStopIn(recording, start, end, thread) ?? CollectionsIn(recording, start, end).PauseMilliseconds;
+        return Split(Math.Min(1, running / length), Math.Min(1, luaSamples * (double)recording.LuaPeriod / length), memory * 1000 / length);
+    }
+
+    /// <summary>
+    /// For each slice the frame graph draws, the milliseconds of its bar (the slice's slowest frame) that went to each
+    /// part of <see cref="BreakdownIn"/>; null where no frame began. Counted from samples, so in steps of a period.
+    /// </summary>
+    public static ProfileTimeBreakdown?[] BreakdownPerBucket(ProfileRecording recording, long start, long end, int buckets)
+    {
+        var slowest = SlowestFrames(recording, start, end, buckets);
+        var result = new ProfileTimeBreakdown?[slowest.Length];
+        for (var bucket = 0; bucket < slowest.Length; bucket++)
+        {
+            if (slowest[bucket] < 0) continue;
+            var frame = recording.Frames[slowest[bucket]];
+            if (BreakdownIn(recording, frame.Start, frame.Start + frame.Duration) is not { } shares) continue;
+            var milliseconds = frame.Duration / 1000.0;
+            result[bucket] = new(shares.Scripts * milliseconds, shares.GameCode * milliseconds,
+                shares.Collections * milliseconds, shares.Waiting * milliseconds);
+        }
+        return result;
+    }
+
+    // The index of each slice's slowest frame, as the frame graph draws it; -1 where no frame began.
+    private static int[] SlowestFrames(ProfileRecording recording, long start, long end, int buckets)
+    {
+        var slowest = new int[Math.Max(1, buckets)];
+        Array.Fill(slowest, -1);
+        if (end <= start) return slowest;
+        var frames = recording.Frames;
+        var span = (double)(end - start);
+        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
+        {
+            var bucket = Math.Min(slowest.Length - 1, (int)((frames[index].Start - start) / span * slowest.Length));
+            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
+        }
+        return slowest;
     }
 
     /// <summary>
@@ -766,14 +832,7 @@ public static class ProfileAnalysis
         var result = new double[Math.Max(1, buckets)];
         if (end <= start) return result;
         var frames = recording.Frames;
-        var slowest = new int[result.Length];
-        Array.Fill(slowest, -1);
-        var span = (double)(end - start);
-        for (var index = LowerBound(frames, start, frame => frame.Start); index < frames.Length && frames[index].Start < end; index++)
-        {
-            var bucket = Math.Min(result.Length - 1, (int)((frames[index].Start - start) / span * result.Length));
-            if (slowest[bucket] < 0 || frames[index].Duration > frames[slowest[bucket]].Duration) slowest[bucket] = index;
-        }
+        var slowest = SlowestFrames(recording, start, end, buckets);
         for (var bucket = 0; bucket < result.Length; bucket++)
         {
             if (slowest[bucket] < 0) continue;

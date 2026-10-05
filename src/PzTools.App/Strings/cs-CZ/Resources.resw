@@ -719,6 +719,11 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Čas, kdy běžely skripty Lua módů a hry, včetně funkcí Javy, které volaly.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Čas, kdy na herním vlákně běžel vlastní kód hry (Java).</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Čas, kdy herní vlákno stálo kvůli úklidu paměti (GC) nebo čekání na paměť. ZGC, výchozí v této hře, ho téměř nezastavuje, takže je to obvykle blízko nuly. Nedostatek paměti ukáže řádek paměti pod grafem: GC pracuje a čekání na paměť.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Čas, kdy herní vlákno čekalo místo práce: většinou zbytek času do dalšího snímku; při zaseknutí čekání na soubor nebo jiné vlákno.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Najeďte na něj myší a graf u každého snímku ukáže tuto část.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Ostatní skripty</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Možnost spuštění hry blokuje připojení.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Nepodařilo se připojit, protože to blokuje možnost spuštění hry. Zkontrolujte možnosti spuštění hry.</value></data>

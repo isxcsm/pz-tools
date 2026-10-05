@@ -719,6 +719,11 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>MOD とゲームの Lua スクリプトが実行された時間です。スクリプトが呼んだ Java 関数の時間も含みます。</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>ゲーム自体のコード（Java）がゲームスレッドで実行された時間です。</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>メモリ整理（GC）やメモリ待ちのためにゲームスレッドが止まった時間です。ゲームの既定である ZGC はほとんど止めないため、通常は 0 に近くなります。メモリ不足はグラフ下のメモリ行の「GC 稼働」と「メモリ待ち」で確認してください。</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>ゲームスレッドが仕事をせずに待っていた時間です。ほとんどは次のフレームまでの余裕で、カクついた区間ではファイルや別のスレッドを待った時間です。</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>マウスを乗せると、グラフの各フレームにこの分を表示します。</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>その他のスクリプト</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>ゲームの起動オプションが接続をブロックしています。</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>ゲームの起動オプションがブロックしているため接続できませんでした。起動オプションを確認してください。</value></data>

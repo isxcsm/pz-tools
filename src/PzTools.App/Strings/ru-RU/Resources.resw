@@ -719,6 +719,11 @@ GC работает: доля отрезка, когда работал сбор
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипты</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код игры</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Ожидание</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Время работы Lua-скриптов модов и игры, включая вызванные ими функции Java.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Время работы собственного кода игры (Java) в игровом потоке.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Время, когда игровой поток стоял из-за сборки мусора (GC) или ожидания памяти. ZGC, стандартный для игры, почти никогда его не останавливает, поэтому обычно здесь около нуля. Нехватку памяти покажут «GC работает» и «Ожидание памяти» в строке памяти под графиком.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Время, когда игровой поток ждал вместо работы: в основном запас до следующего кадра; при подтормаживании — ожидание файла или другого потока.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Наведите указатель, чтобы увидеть эту часть каждого кадра на графике.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Другие скрипты</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Параметр запуска игры блокирует подключение.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Не удалось подключиться: его блокирует параметр запуска игры. Проверьте параметры запуска игры.</value></data>

@@ -719,6 +719,11 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileBreakdownScriptsTip" xml:space="preserve"><value>Tempo em que os scripts Lua dos mods e do jogo rodaram, incluindo as funções Java que chamaram.</value></data>
+  <data name="ProfileBreakdownGameCodeTip" xml:space="preserve"><value>Tempo em que o código do próprio jogo (Java) rodou na thread do jogo.</value></data>
+  <data name="ProfileBreakdownCollectionsTip" xml:space="preserve"><value>Tempo em que a thread do jogo parou para a coleta de lixo (GC) ou esperando memória. O ZGC, padrão do jogo, quase nunca a para, então costuma ficar perto de zero. Para ver se faltou memória, confira GC ativo e Esperas por memória na linha de memória abaixo do gráfico.</value></data>
+  <data name="ProfileBreakdownWaitingTip" xml:space="preserve"><value>Tempo em que a thread do jogo esperou em vez de trabalhar: em geral a folga até o próximo quadro; num travamento, a espera por um arquivo ou outra thread.</value></data>
+  <data name="ProfileBreakdownHoverHint" xml:space="preserve"><value>Passe o ponteiro por cima para ver esta parte de cada quadro no gráfico.</value></data>
   <data name="ProfileBreakdownOtherScripts" xml:space="preserve"><value>Outros scripts</value></data>
   <data name="GameLinkCardDisabledMessage" xml:space="preserve"><value>Uma opção de inicialização do jogo está bloqueando a conexão.</value></data>
   <data name="ProfileError.AttachDisabled" xml:space="preserve"><value>Não foi possível conectar porque uma opção de inicialização do jogo está bloqueando. Verifique as opções de inicialização do jogo.</value></data>
