@@ -46,6 +46,24 @@ public sealed class GameplayBackgroundTests
         Assert.Single(launches);
     }
 
+    // Many close the app right after the game, while the game is still exiting: the pass left at close then waits for it.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OrphanDispatchOnExit_WaitsForAGameStillExiting(bool playing)
+    {
+        using var temp = new TempDirectory();
+        var launches = new List<IReadOnlyList<string>>();
+        var dispatcher = new OrphanCleanupDispatcher(temp.GetPath("repo"), temp.GetPath("saves"),
+            temp.GetPath("workers"), shouldDefer: () => playing,
+            startDetached: (_, arguments, _) => launches.Add(arguments));
+        await dispatcher.DispatchOnExitAsync(TimeSpan.FromSeconds(30));
+        var launch = Assert.Single(launches);
+        Assert.Contains("OrphanBackups", launch);
+        if (playing) Assert.Equal(["--wait-for-game-exit-seconds", "30"], launch.Skip(launch.Count - 2));
+        else Assert.DoesNotContain("--wait-for-game-exit-seconds", launch);
+    }
+
     [Fact]
     public async Task OrphanDispatch_SkipsAPassWhenNeitherSavesNorCatalogChanged()
     {

@@ -25,7 +25,7 @@ Dictionary<string, string?> values;
 string repository;
 int? retainLatest, revisionBatch;
 string? lane;
-long sourceId, givenRunIndex = 0;
+long sourceId, givenRunIndex = 0, waitForGameSeconds;
 try
 {
     values = Parse(args);
@@ -39,6 +39,10 @@ try
     // The orphan lane covers every save; the others work on one.
     if (lane == "OrphanBackups") { _ = Required(values, "--saves-root"); sourceId = 0; }
     else sourceId = RequiredLong(values, "--source-id", 1);
+    // The pass the app leaves when it closes may wait a little for a game that is still exiting.
+    waitForGameSeconds = OptionalLong(values, "--wait-for-game-exit-seconds", 0, 300) ?? 0;
+    if (waitForGameSeconds > 0 && lane != "OrphanBackups")
+        throw new ArgumentException("--wait-for-game-exit-seconds is for the OrphanBackups lane.");
     if (values.ContainsKey("--dispatch-lanes") && givenRunIndex == 0)
         throw new ArgumentException("--dispatch-lanes requires --run-index.");
 }
@@ -77,7 +81,7 @@ try
     {
         var orphanRun = await OrphanBackupLane.RunAsync(repository,
             values["--saves-root"]!, values.GetValueOrDefault("--control-db"), configurationPath, options,
-            cancellation.Token);
+            cancellation.Token, TimeSpan.FromSeconds(waitForGameSeconds));
         Console.WriteLine(LaneResultJson(orphanRun.RunIndex, orphanRun.Outcome, started, orphanRun.Result));
         return ProcessExitCodes.FromOutcome(orphanRun.Outcome);
     }
@@ -210,7 +214,8 @@ static async Task RecordTelemetryAsync(
 // --dispatch-lanes takes a value ("true") for compatibility with the runners that pass it.
 static Dictionary<string, string?> Parse(string[] arguments) => CommandLine.Parse(arguments,
     ["--repository", "--source-id", "--run-index", "--retain-latest",
-        "--revision-batch", "--config", "--control-db", "--dispatch-lanes", "--lane", "--saves-root"]);
+        "--revision-batch", "--config", "--control-db", "--dispatch-lanes", "--lane", "--saves-root",
+        "--wait-for-game-exit-seconds"]);
 static string Required(Dictionary<string, string?> values, string name) => CommandLine.Required(values, name);
 static long RequiredLong(Dictionary<string, string?> values, string name, long minimum) =>
     CommandLine.Int64(Required(values, name), name, minimum);

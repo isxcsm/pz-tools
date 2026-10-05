@@ -29,6 +29,8 @@ public sealed class AppHost : IAsyncDisposable
     // Retry cadence after repeated failures, and the run time after which earlier failures stop counting.
     private readonly TimeSpan schedulerRecovery;
     private readonly bool dispatchCleanupOnExit;
+    // How long the pass left at close waits for a game still exiting: it saves and closes its files first.
+    private static readonly TimeSpan ExitCleanupGameWait = TimeSpan.FromSeconds(30);
     private readonly bool checkComponentLaunch;
     public static ViewKey BlockedComponentsViewKey { get; } = new("blocked-components");
     public static ViewKey GameLinkViewKey { get; } = new("game-link");
@@ -419,14 +421,15 @@ public sealed class AppHost : IAsyncDisposable
         }
 
         // Cleanup only runs while the game is closed, and the app is often closed right after the
-        // game. Leave one detached pass behind; it defers by itself if the game is still running.
+        // game, while it is still exiting. Leave one detached pass behind; it waits a little for such a
+        // game, and leaves the work to the next run if the game stays.
         async Task DispatchExitCleanupAsync()
         {
             if (!dispatchCleanupOnExit || Repository is not { } repository || ActiveSavesRoot is not { } savesRoot) return;
             try
             {
                 await new OrphanCleanupDispatcher(repository.RepositoryPath, savesRoot,
-                    paths.WorkerDirectory, paths.ControlDatabasePath).TickAsync(DateTimeOffset.UtcNow).ConfigureAwait(false);
+                    paths.WorkerDirectory, paths.ControlDatabasePath).DispatchOnExitAsync(ExitCleanupGameWait).ConfigureAwait(false);
             }
             catch (Exception)
             {

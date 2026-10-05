@@ -11,18 +11,28 @@ internal static class OrphanBackupLane
 {
     public static async Task<(ProcessOutcome Outcome, MaintenanceLaneResult? Result, long RunIndex)> RunAsync(
         string repositoryPath, string savesRoot, string? controlDatabasePath, string? configurationPath,
-        MaintenanceOptions? options = null, CancellationToken stopRequested = default)
+        MaintenanceOptions? options = null, CancellationToken stopRequested = default, TimeSpan waitForGame = default,
+        Func<bool>? gameRunning = null)
     {
         options ??= new MaintenanceOptions();
         options.Validate();
         const string lane = "OrphanBackups";
         const string owner = "maintenance-lane-OrphanBackups";
-        if (GameplayWorkGate.ShouldDeferMaintenance())
+        gameRunning ??= GameplayWorkGate.ShouldDeferMaintenance;
+        // A game still exiting when the app closed: wait for it, holding no lock, so the app started again meanwhile
+        // runs as if this pass were not there. Lanes exclude each other below, whichever takes the lane first.
+        var waited = Stopwatch.StartNew();
+        while (waited.Elapsed < waitForGame && gameRunning())
+        {
+            try { await Task.Delay(TimeSpan.FromSeconds(1), stopRequested); }
+            catch (OperationCanceledException) { return (ProcessOutcome.Cancelled, null, 0); }
+        }
+        if (gameRunning())
             return (ProcessOutcome.Skipped, new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0);
         var acquired = await NamedMutexRunner.TryRunAsync(
             MaintenanceLaneSignal.MutexName(repositoryPath, lane), async _ =>
             {
-                if (GameplayWorkGate.ShouldDeferMaintenance())
+                if (gameRunning())
                     return (ProcessOutcome.Skipped, (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
                 // A stop request ends the lane as a yield to a backup or to the game does: cancelled, at a safe point.
                 using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stopRequested);

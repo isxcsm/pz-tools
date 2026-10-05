@@ -43,23 +43,54 @@ public sealed class OrphanCleanupDispatcher(
             requested = false;
             lastStamp = stamp;
             lastDispatch = now;
-            var arguments = new List<string>
-            {
-                "--repository", repositoryPath, "--saves-root", savesRoot, "--lane", "OrphanBackups",
-            };
-            if (controlDatabasePath is not null) arguments.AddRange(["--control-db", controlDatabasePath]);
-            // Detached: the pass finishes on its own even if the app closes right after dispatching it.
-            (startDetached ?? ((executable, launchArguments, directory) =>
-                DetachedProcessLauncher.Start(executable, launchArguments, directory)))(
-                Path.Combine(workerDirectory, "PzTools.Maintenance.Cli.exe"), arguments, workerDirectory);
+            Launch(null);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: cancellationToken);
-            await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, "maintenance-worker", run,
-                "maintenance.orphanbackups.failed", FailureTelemetry.FromException(
-                    "orphan-cleanup-launch-failed", exception, operation: "maintenance"));
+            await RecordLaunchFailureAsync(exception, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// The pass left behind when the app closes. Many users close the app right after the game, while the game is
+    /// still exiting: then the pass waits for it, up to <paramref name="waitForGame"/>, before it takes any lock, and
+    /// gives up if the game is still there. A game that keeps running leaves the work to the app's next run.
+    /// </summary>
+    public async Task DispatchOnExitAsync(TimeSpan waitForGame, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (await MaintenanceLaneSignal.IsRunningAsync(repositoryPath, "OrphanBackups", cancellationToken)) return;
+            Launch((shouldDefer ?? GameplayWorkGate.ShouldDeferMaintenance)() ? waitForGame : null);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            await RecordLaunchFailureAsync(exception, cancellationToken);
+        }
+    }
+
+    private void Launch(TimeSpan? waitForGame)
+    {
+        var arguments = new List<string>
+        {
+            "--repository", repositoryPath, "--saves-root", savesRoot, "--lane", "OrphanBackups",
+        };
+        if (controlDatabasePath is not null) arguments.AddRange(["--control-db", controlDatabasePath]);
+        if (waitForGame is { } wait)
+            arguments.AddRange(["--wait-for-game-exit-seconds",
+                ((long)wait.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+        // Detached: the pass finishes on its own even if the app closes right after dispatching it.
+        (startDetached ?? ((executable, launchArguments, directory) =>
+            DetachedProcessLauncher.Start(executable, launchArguments, directory)))(
+            Path.Combine(workerDirectory, "PzTools.Maintenance.Cli.exe"), arguments, workerDirectory);
+    }
+
+    private async Task RecordLaunchFailureAsync(Exception exception, CancellationToken cancellationToken)
+    {
+        var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: cancellationToken);
+        await BestEffortProcessTelemetry.TryRecordAsync(repositoryPath, "maintenance-worker", run,
+            "maintenance.orphanbackups.failed", FailureTelemetry.FromException(
+                "orphan-cleanup-launch-failed", exception, operation: "maintenance"));
     }
 
     /// <summary>

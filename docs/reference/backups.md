@@ -251,7 +251,9 @@ background cleanup does it later, per save:
 - once the oldest has waited an hour
 
 and only when cleanup is allowed to run: while PZ Tools runs and the game is closed (a game
-at its main menu counts as running). It also gives way to other work. While it works, an operation card shows **Cleaning
+at its main menu counts as running). When you close PZ Tools, one more cleanup runs after it.
+If the game is still closing then, that cleanup waits up to 30 seconds for it; a game still
+running after that leaves the work for the next time PZ Tools runs. It also gives way to other work. While it works, an operation card shows **Cleaning
 up backups**, with steps such as **Removing old backups**, **Removing backups of deleted
 saves** and **Reclaiming unused space**.
 

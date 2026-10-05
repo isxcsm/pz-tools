@@ -267,7 +267,11 @@ growing delay of up to 60 seconds and does not stop observation
 
 On close ([`AppHost.DisposeCoreAsync`](../../src/PzTools.App.Core/AppHost.cs)) the app stops a running recording
 (waiting up to 10 seconds), cancels the schedulers through their stop events, drains the projections, and starts one
-detached `OrphanBackups` pass unless a game process exists. A restart to apply new configuration (`App.RestartForConfigurationAsync`) first
+detached `OrphanBackups` pass (`OrphanCleanupDispatcher.DispatchOnExitAsync`). Many close the app right after the
+game, while it is still saving and exiting: with a game process present, the pass gets
+`--wait-for-game-exit-seconds 30`. It waits for the game before taking any lock, so an app started again meanwhile
+runs as if it were not there, and lanes exclude each other once it starts. A game still there after 30 seconds
+leaves the work to the app's next run. A restart to apply new configuration (`App.RestartForConfigurationAsync`) first
 takes `RepositoryAccess` while it shuts the host down, so it is refused while a job holds the repository. The
 running schedulers keep the backup folder they started with; `AppSettingsService.SaveAndApplyAsync` writes a new
 one to `settings.toml` and it takes effect at the next start.
