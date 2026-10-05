@@ -143,11 +143,19 @@ public sealed class PackReader : IAsyncDisposable
         }
 
         var expectedRecordOffset = (long)PackFormat.HeaderSize;
+        // Full validation (sealing, verify) holds a pack to the same rule as OpenAsync's index read:
+        // an object id appears once, so a pack with two records under one id is never promoted.
+        var objectIds = walkObjects ? new HashSet<Guid>(count) : null;
         for (var index = 0; index < count; index++)
         {
             var entry = entries.AsSpan(index * PackFormat.IndexEntrySize, PackFormat.IndexEntrySize);
             var objectId = new Guid(entry[..16]);
             var recordOffset = PackFormat.ReadInt64(entry.Slice(16, 8));
+            if (objectIds is not null && !objectIds.Add(objectId))
+            {
+                throw new PackFormatException($"Duplicate object id {objectId} in pack index.");
+            }
+
             if (!walkObjects)
             {
                 // Located reads check each record's header, lengths and checksum when they read
@@ -335,41 +343,23 @@ public sealed class PackReader : IAsyncDisposable
                 cancellationToken);
             stream.Position = sourceDescriptor.PayloadOffset;
             using var bounded = new BoundedReadStream(stream, sourceDescriptor.StoredLength);
-            Stream content = bounded;
-            BrotliStream? decompressor = null;
-            if (sourceDescriptor.CompressionAlgorithm == CompressionAlgorithm.Brotli)
+            var repacked = await destination.CopyStoredObjectAsync(
+                bounded,
+                objectId,
+                sourceDescriptor.ChecksumAlgorithm,
+                sourceDescriptor.CompressionAlgorithm,
+                cancellationToken);
+            if (repacked.OriginalLength != sourceDescriptor.OriginalLength
+                || !CryptographicOperations.FixedTimeEquals(
+                    repacked.Checksum,
+                    sourceDescriptor.Checksum))
             {
-                decompressor = new BrotliStream(bounded, CompressionMode.Decompress, leaveOpen: true);
-                content = decompressor;
+                destination.DiscardLastObject(repacked);
+                throw new PackFormatException(
+                    $"Object {objectId} changed while it was repacked.");
             }
 
-            try
-            {
-                var repacked = await destination.AddObjectAsync(
-                    content,
-                    objectId,
-                    sourceDescriptor.ChecksumAlgorithm,
-                    sourceDescriptor.CompressionAlgorithm,
-                    cancellationToken);
-                if (repacked.OriginalLength != sourceDescriptor.OriginalLength
-                    || !CryptographicOperations.FixedTimeEquals(
-                        repacked.Checksum,
-                        sourceDescriptor.Checksum))
-                {
-                    destination.DiscardLastObject(repacked);
-                    throw new PackFormatException(
-                        $"Object {objectId} changed while it was repacked.");
-                }
-
-                return repacked;
-            }
-            finally
-            {
-                if (decompressor is not null)
-                {
-                    await decompressor.DisposeAsync();
-                }
-            }
+            return repacked;
         }
         finally
         {

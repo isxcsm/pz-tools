@@ -12,12 +12,14 @@ public static class BackupConfiguration
         CompressionAlgorithm.Auto,
         ContentDeduplication: false);
 
+    // The values config/defaults/backup-worker/default.toml writes, so a key deleted from that file
+    // behaves as the template says rather than as a different, larger setting.
     private static readonly TelemetryOptions DefaultTelemetry = new(
-        TelemetryMode.Raw,
+        TelemetryMode.Phase,
         BatchSize: 256,
         FlushIntervalMilliseconds: 250,
-        RetainRuns: 1_000,
-        MaxDatabaseMib: 256);
+        RetainRuns: 100,
+        MaxDatabaseMib: 64);
 
     public static BackupOptions Load(
         string repositoryPath,

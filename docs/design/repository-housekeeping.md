@@ -92,7 +92,7 @@ A rewritten pack is fully live, so it is not chosen again until it has itself be
 
 **Rewrite** ([`PackCompactor`](../../src/PzTools.Backup.Engine/PackCompactor.cs)):
 
-1. Each object is read at its recorded offset, decompressed and written into one new pack under the same object UUID, checksum algorithm and compression algorithm (Brotli at the default quality 3). Its length and checksum must equal the original's, or the object is discarded and the pass fails.
+1. Each object's stored bytes are read at its recorded offset and copied unchanged into one new pack under the same object UUID, checksum algorithm and compression algorithm, so an object keeps the Brotli quality it was written with. The copy is read back and decoded; its length and checksum must equal the original's, or the object is discarded and the pass fails.
 2. The new pack is sealed, fully validated and moved into `packs/` like any other ([writing](pack-format.md#writing)).
 3. One transaction registers the new pack (with the newest `created_run_index` of the packs it replaces), moves every object's location to it, and marks the old packs `Superseded`; a pack that still owns an object fails the transaction.
 4. Garbage collection deletes the superseded packs.

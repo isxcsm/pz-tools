@@ -75,6 +75,32 @@ public sealed class UsnRecordParserTests
         Assert.Throws<InvalidDataException>(() => UsnRecordParser.ParseJournalBuffer(buffer));
     }
 
+    [Theory]
+    [InlineData(-1L)]
+    [InlineData(long.MaxValue)]
+    public void ParseJournalBuffer_ReportsATimestampOutsideTheDateRangeAsBadData(long timestamp)
+    {
+        // The planner falls back to a full scan on InvalidDataException; anything else fails the backup.
+        var record = CreateV3Record(1, 2, 3, UsnReason.FileCreate, "a");
+        BinaryPrimitives.WriteInt64LittleEndian(record.AsSpan(48, 8), timestamp);
+        var buffer = new byte[8 + record.Length];
+        BinaryPrimitives.WriteInt64LittleEndian(buffer, 4);
+        record.CopyTo(buffer, 8);
+
+        Assert.Throws<InvalidDataException>(() => UsnRecordParser.ParseJournalBuffer(buffer));
+    }
+
+    [Fact]
+    public void ParseJournalBuffer_ReportsARecordLengthAboveInt32AsBadData()
+    {
+        var buffer = new byte[16];
+        BinaryPrimitives.WriteInt64LittleEndian(buffer, 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(8, 4), uint.MaxValue);
+
+        Assert.Throws<InvalidDataException>(() => UsnRecordParser.ParseJournalBuffer(buffer));
+        Assert.Throws<InvalidDataException>(() => UsnRecordParser.ParseRecord(buffer.AsSpan(8)));
+    }
+
     [UsnIntegrationFact]
     public void QueryRealNtfsVolume_WhenExplicitlyEnabled()
     {

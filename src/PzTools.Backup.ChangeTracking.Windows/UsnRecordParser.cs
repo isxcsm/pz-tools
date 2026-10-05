@@ -5,6 +5,8 @@ namespace PzTools.Backup.ChangeTracking.Windows;
 
 public static class UsnRecordParser
 {
+    private static readonly long MaximumFileTime = DateTime.MaxValue.ToFileTimeUtc();
+
     public static UsnReadBuffer ParseJournalBuffer(ReadOnlySpan<byte> buffer)
     {
         if (buffer.Length < sizeof(long))
@@ -22,15 +24,16 @@ public static class UsnRecordParser
                 throw new InvalidDataException("USN record common header is truncated.");
             }
 
-            var recordLength = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(
-                buffer.Slice(offset, 4)));
-            if (recordLength < 8 || recordLength > buffer.Length - offset)
+            // Compared before narrowing: a damaged length above int.MaxValue is bad data like any
+            // other, so it must not escape as an OverflowException that nothing falls back from.
+            var recordLength = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(offset, 4));
+            if (recordLength < 8 || recordLength > (uint)(buffer.Length - offset))
             {
                 throw new InvalidDataException("USN record length is outside the returned buffer.");
             }
 
-            records.Add(ParseRecord(buffer.Slice(offset, recordLength)));
-            offset += recordLength;
+            records.Add(ParseRecord(buffer.Slice(offset, (int)recordLength)));
+            offset += (int)recordLength;
         }
 
         return new UsnReadBuffer(nextUsn, records);
@@ -43,8 +46,8 @@ public static class UsnRecordParser
             throw new InvalidDataException("USN record is shorter than its common header.");
         }
 
-        var declaredLength = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(record));
-        if (declaredLength != record.Length)
+        var declaredLength = BinaryPrimitives.ReadUInt32LittleEndian(record);
+        if (declaredLength != (uint)record.Length)
         {
             throw new InvalidDataException("USN record length does not match its buffer.");
         }
@@ -128,8 +131,16 @@ public static class UsnRecordParser
             throw new InvalidDataException("USN record contains a negative USN.");
         }
 
+        // DateTime.FromFileTimeUtc throws ArgumentOutOfRangeException outside its range. A damaged
+        // record is reported as InvalidDataException, the reader's one verdict on bad journal data,
+        // so the backup falls back to a full scan instead of failing.
         var timestamp = BinaryPrimitives.ReadInt64LittleEndian(
             record.Slice(timestampOffset, 8));
+        if (timestamp < 0 || timestamp > MaximumFileTime)
+        {
+            throw new InvalidDataException("USN record timestamp is outside the representable range.");
+        }
+
         return new UsnRecord(
             major,
             minor,

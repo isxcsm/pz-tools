@@ -124,8 +124,9 @@ public sealed class StreamingFullScanner(IFileMetadataReader metadataReader, int
                 var path = current.Enumerator.Current;
                 // ReadPath opens what a link points to, so its attributes are the target's and never
                 // say "reparse point". The entry's own attributes do: a junction or symbolic link inside
-                // the save is neither captured nor entered, as the incremental path already ensures.
-                // The save folder itself may be a junction (moved to another drive) and is followed.
+                // the save is neither captured nor entered. The journal path applies the same rule
+                // (IncrementalBackupRunner.IsLinkedWithinSource). The save folder itself, and the
+                // folders above it, may be links (moved to another drive) and are followed by both.
                 if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) continue;
                 var metadata = metadataReader.ReadPath(path);
                 yield return new EnumeratedPath(path, metadata, current.DirectoryFileId);

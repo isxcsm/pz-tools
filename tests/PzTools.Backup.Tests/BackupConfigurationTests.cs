@@ -126,7 +126,28 @@ public sealed class BackupConfigurationTests
         Assert.True(options.Storage.VerifyStagedCopies);
         Assert.True(options.FullScanHashComparison);
         Assert.True(options.Telemetry.Enabled);
-        Assert.Equal(TelemetryMode.Raw, options.Telemetry.Mode);
+        Assert.Equal(TelemetryMode.Phase, options.Telemetry.Mode);
+    }
+
+    [Fact]
+    public void Parse_AKeyLeftOutBehavesAsTheTemplateWritesIt()
+    {
+        using var temp = new TempDirectory();
+        var repository = temp.GetPath("repository");
+        var config = temp.GetPath("configuration", "default.toml");
+        const string sources = "\n[[sources]]\nid = \"main\"\npath = \"../source\"\n";
+
+        var template = BackupConfiguration.Parse(
+            PzTools.App.Core.EditableConfigurationTemplates.Read("backup-worker") + sources, repository, config);
+        var bare = BackupConfiguration.Parse("format_version = 1\n" + sources, repository, config);
+
+        Assert.Equal(template.Telemetry, bare.Telemetry);
+        Assert.Equal(template.Storage, bare.Storage);
+        Assert.Equal(template.EffectiveTuning, bare.EffectiveTuning);
+        Assert.Equal(template.AlwaysIncludePaths, bare.AlwaysIncludePaths);
+        Assert.Equal(template.FullScanHashComparison, bare.FullScanHashComparison);
+        Assert.Equal(template.SaveGameBeforeBackup, bare.SaveGameBeforeBackup);
+        Assert.Equal(template.GameSaveCountdown, bare.GameSaveCountdown);
     }
 
     [Fact]

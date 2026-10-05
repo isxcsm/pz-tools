@@ -106,6 +106,21 @@ public sealed class SaveDeletionTests
     }
 
     [Fact]
+    public void Deletion_WithoutAnInterval_ReportsEveryStep_ForTheCallerToSample()
+    {
+        // The window samples at the configured ExportProgressIntervalMs; the service has no setting of its own.
+        using var temp = new TempDirectory();
+        var source = temp.GetPath("Saves", "Sandbox", "Selected");
+        Directory.CreateDirectory(source);
+        File.WriteAllText(Path.Combine(source, "players.db"), "player");
+        for (var i = 0; i < 100; i++) File.WriteAllText(Path.Combine(source, $"{i}.bin"), "map");
+        var values = new List<SaveDeletionProgress>();
+        SaveDeletionService.DeletePermanently(temp.GetPath("Saves"), "Sandbox/Selected", progress: new Recorder(values.Add));
+        Assert.Equal(Enumerable.Range(0, 103).Select(i => (long)i),
+            values.Where(value => value.Phase == SaveDeletionPhase.DeletingFiles).Select(value => value.CompletedItems));
+    }
+
+    [Fact]
     public void Deletion_ThrottlesCallbacksButAlwaysReportsPhaseBoundaries()
     {
         using var temp = new TempDirectory();

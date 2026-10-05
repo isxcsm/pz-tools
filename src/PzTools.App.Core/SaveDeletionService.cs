@@ -12,11 +12,13 @@ public sealed class SaveBackupDeletionFailedException(string sourcePath, Excepti
 public static class SaveDeletionService
 {
     // Permanently deletes one checked save folder and nothing else. The coordinator marks its backups deleted.
+    // Without an interval every step is reported: the window samples them at the configured
+    // ExportProgressIntervalMs, which a default AppRuntimeOptions here could not know.
     public static SaveDeletionResult DeletePermanently(
         string savesRoot, string saveId, CancellationToken cancellationToken = default,
         IProgress<SaveDeletionProgress>? progress = null, TimeSpan? progressInterval = null)
     {
-        var interval = progressInterval ?? TimeSpan.FromMilliseconds(new AppRuntimeOptions().ExportProgressIntervalMs);
+        var interval = progressInterval ?? TimeSpan.Zero;
         var lastReport = Stopwatch.GetTimestamp();
         void Report(SaveDeletionPhase phase, long completed = 0, long? total = null, bool force = false)
         {

@@ -193,17 +193,113 @@ public sealed class PackWriter : IAsyncDisposable
         }
 
         var endOffset = stream.Position;
+        return await FinishObjectAsync(
+            new PackObjectDescriptor(
+                objectId,
+                recordOffset,
+                payloadOffset,
+                originalLength,
+                endOffset - payloadOffset,
+                checksumAlgorithm,
+                checksum,
+                compressionAlgorithm,
+                Flags: 0),
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Compaction moves an object without encoding it again: the stored bytes are copied as they
+    /// are, so the object keeps the compression it was written with and a later change of
+    /// <c>compression_level</c> still affects only new objects. The copy is then read back and
+    /// decoded to recompute its length and checksum, which the caller compares with the original.
+    /// </summary>
+    internal async Task<PackObjectDescriptor> CopyStoredObjectAsync(
+        Stream storedPayload,
+        Guid objectId,
+        ChecksumAlgorithm checksumAlgorithm,
+        CompressionAlgorithm compressionAlgorithm,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(storedPayload);
+        ObjectDisposedException.ThrowIf(sealedOrDisposed, this);
+        if (objectId == Guid.Empty)
+        {
+            throw new ArgumentException("Object id must be non-empty.", nameof(objectId));
+        }
+
+        _ = PackFormat.Encode(checksumAlgorithm);
+        _ = PackFormat.Encode(compressionAlgorithm);
+
+        var recordOffset = stream.Position;
+        await stream.WriteAsync(new byte[PackFormat.ObjectHeaderSize], cancellationToken);
+        var payloadOffset = stream.Position;
+        await storedPayload.CopyToAsync(stream, 128 * 1024, cancellationToken);
+        var endOffset = stream.Position;
         var storedLength = endOffset - payloadOffset;
-        var descriptor = new PackObjectDescriptor(
-            objectId,
-            recordOffset,
-            payloadOffset,
-            originalLength,
-            storedLength,
-            checksumAlgorithm,
-            checksum,
-            compressionAlgorithm,
-            Flags: 0);
+
+        long originalLength = 0;
+        byte[] checksum;
+        await stream.FlushAsync(cancellationToken);
+        stream.Position = payloadOffset;
+        using (var hasher = ContentHasher.Create(checksumAlgorithm))
+        using (var bounded = new BoundedReadStream(stream, storedLength))
+        {
+            Stream content = bounded;
+            BrotliStream? decompressor = null;
+            if (compressionAlgorithm == CompressionAlgorithm.Brotli)
+            {
+                decompressor = new BrotliStream(bounded, CompressionMode.Decompress, leaveOpen: true);
+                content = decompressor;
+            }
+
+            try
+            {
+                var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+                try
+                {
+                    int read;
+                    while ((read = await content.ReadAsync(buffer, cancellationToken)) != 0)
+                    {
+                        hasher.Append(buffer.AsSpan(0, read));
+                        originalLength = checked(originalLength + read);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+            }
+            finally
+            {
+                if (decompressor is not null)
+                {
+                    await decompressor.DisposeAsync();
+                }
+            }
+
+            checksum = hasher.Finish();
+        }
+
+        stream.Position = endOffset;
+        return await FinishObjectAsync(
+            new PackObjectDescriptor(
+                objectId,
+                recordOffset,
+                payloadOffset,
+                originalLength,
+                storedLength,
+                checksumAlgorithm,
+                checksum,
+                compressionAlgorithm,
+                Flags: 0),
+            cancellationToken);
+    }
+
+    private async Task<PackObjectDescriptor> FinishObjectAsync(
+        PackObjectDescriptor descriptor,
+        CancellationToken cancellationToken)
+    {
+        var endOffset = stream.Position;
         await WriteObjectHeaderAsync(descriptor, cancellationToken);
         stream.Position = endOffset;
         var indexEntry = new byte[PackFormat.IndexEntrySize];

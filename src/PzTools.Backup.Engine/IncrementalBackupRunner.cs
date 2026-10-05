@@ -507,8 +507,19 @@ public sealed class IncrementalBackupRunner(
                 "The current catalog lacks file identity required for USN planning.");
         }
 
-        var rootReference = FileReferenceCodec.Decode(
-            FileIdentityCodec.Encode(metadataReader.ReadPath(source.RootPath).Identity));
+        var rootIdentity = FileIdentityCodec.Encode(metadataReader.ReadPath(source.RootPath).Identity);
+        // The journal reports changes beneath the folder it is read for. When the save folder is now
+        // another folder (a copy moved into its place, a junction pointed elsewhere), nothing beneath it
+        // need have changed since the checkpoint, so only a full scan can tell what it holds.
+        var recordedRoot = await repository.ReadCurrentRootIdentityAsync(source.SourceId, cancellationToken);
+        if (recordedRoot is not null && !recordedRoot.AsSpan().SequenceEqual(rootIdentity))
+        {
+            return new JournalChangePlan(
+                await PlanFullScanChangesAsync(repository, source, cancellationToken, progress),
+                "The save folder is not the folder the previous backup read.");
+        }
+
+        var rootReference = FileReferenceCodec.Decode(rootIdentity);
         var journalBatchSize = tuning.JournalBatchSize;
         var accumulator = planner.CreateAccumulator(rootReference);
         var hydratedReferences = new HashSet<UInt128>();
@@ -643,8 +654,10 @@ public sealed class IncrementalBackupRunner(
         {
             // Exists() suppresses access and I/O failures. Only a confirmed missing
             // directory entry may become a tombstone (including always-include paths).
-            if ((File.GetAttributes(absolutePath) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException($"Cannot capture linked source entry '{relativePath}'.");
+            // A full scan neither captures nor enters a junction or symbolic link inside the save,
+            // so an entry that is one, or lies beneath one, is not part of the save here either:
+            // it is left out, and a version recorded before it became a link is closed.
+            if (IsLinkedWithinSource(sourceRoot, relativePath)) return null;
             metadata = metadataReader.ReadPath(absolutePath);
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException
@@ -653,10 +666,9 @@ public sealed class IncrementalBackupRunner(
             if (ConfirmMissingEntry(sourceRoot, relativePath)) return null;
             throw new IOException($"Cannot determine source entry state for '{relativePath}'.", exception);
         }
-        if ((metadata.Attributes & FileAttributes.ReparsePoint) != 0)
-        {
-            throw new IOException($"Cannot capture linked source entry '{relativePath}'.");
-        }
+        // ReadPath follows links, so this is some other kind of reparse point (a cloud placeholder,
+        // a deduplicated file). The full scan leaves those out as well.
+        if ((metadata.Attributes & FileAttributes.ReparsePoint) != 0) return null;
 
         var parent = Path.GetDirectoryName(absolutePath)
             ?? throw new InvalidDataException($"Path '{relativePath}' has no parent.");
@@ -675,14 +687,27 @@ public sealed class IncrementalBackupRunner(
             FileIdentityCodec.Encode(parentMetadata.Identity));
     }
 
+    // True when the entry, or a folder between it and the save folder, is a junction or symbolic
+    // link. The save folder itself, and the folders above it, may be links (the Zomboid folder moved
+    // to another drive): those are followed, as the full scan follows them.
+    private static bool IsLinkedWithinSource(string sourceRoot, string relativePath)
+    {
+        var path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRoot));
+        foreach (var part in BackupPath.NormalizeRelative(relativePath).Split('/'))
+        {
+            path = Path.Combine(path, part);
+            // GetAttributes reports the entry's own attributes, not those of what a link points to.
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return true;
+        }
+
+        return false;
+    }
+
     private static bool ConfirmMissingEntry(string sourceRoot, string relativePath)
     {
-        // A missing drive/root or an inaccessible ancestor is not evidence of deletion.
+        // A missing drive/root or an inaccessible ancestor is not evidence of deletion: enumerating
+        // the save folder then fails, also when it is a link whose target has gone.
         var directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(sourceRoot));
-        for (var ancestor = new DirectoryInfo(directory); ancestor is not null; ancestor = ancestor.Parent)
-            if ((File.GetAttributes(ancestor.FullName) & FileAttributes.ReparsePoint) != 0)
-                throw new IOException($"Cannot verify a missing entry beneath a linked source: '{sourceRoot}'.");
-
         var parts = BackupPath.NormalizeRelative(relativePath).Split('/');
         for (var index = 0; index < parts.Length; index++)
         {
@@ -701,8 +726,8 @@ public sealed class IncrementalBackupRunner(
             });
             if (!entries.Contains(child, StringComparer.OrdinalIgnoreCase)) return true;
             var attributes = File.GetAttributes(child);
-            if ((attributes & FileAttributes.ReparsePoint) != 0)
-                throw new IOException($"Cannot verify a missing entry beneath a link: '{child}'.");
+            // A link inside the save is not part of it, so neither is anything beneath it.
+            if ((attributes & FileAttributes.ReparsePoint) != 0) return true;
             // A confirmed ordinary file cannot contain the remaining path. This
             // occurs when a formerly tracked directory is replaced by a file.
             if (index < parts.Length - 1 && (attributes & FileAttributes.Directory) == 0)

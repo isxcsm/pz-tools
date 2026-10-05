@@ -150,24 +150,11 @@ public sealed class UsnJournalReader : IUsnJournalSource
     private static ResolvedVolume ResolveVolume(string sourcePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
-        var absolutePath = Path.GetFullPath(sourcePath);
-        var volumeRoot = new StringBuilder(261);
-        if (!NativeMethods.GetVolumePathName(absolutePath, volumeRoot, volumeRoot.Capacity))
-        {
-            throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
-
-        var volumeName = new StringBuilder(51);
-        if (!NativeMethods.GetVolumeNameForVolumeMountPoint(
-            volumeRoot.ToString(),
-            volumeName,
-            volumeName.Capacity))
-        {
-            throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
-
+        // The journal of the volume the save's files are on, also when its folder is reached
+        // through a junction or symbolic link from another drive.
+        var volumeRoot = FinalVolumePath.ResolveVolumeRoot(sourcePath);
         if (!NativeMethods.GetVolumeInformation(
-            volumeRoot.ToString(),
+            volumeRoot,
             null,
             0,
             out var serialNumber,
@@ -180,7 +167,7 @@ public sealed class UsnJournalReader : IUsnJournalSource
         }
 
         return new ResolvedVolume(
-            volumeName.ToString().TrimEnd(Path.DirectorySeparatorChar),
+            volumeRoot.TrimEnd(Path.DirectorySeparatorChar),
             serialNumber);
     }
 
@@ -255,22 +242,6 @@ public sealed class UsnJournalReader : IUsnJournalSource
             int outputSize,
             out int bytesReturned,
             IntPtr overlapped);
-
-        [DllImport("kernel32.dll", EntryPoint = "GetVolumePathNameW", CharSet = CharSet.Unicode,
-            SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetVolumePathName(
-            string fileName,
-            StringBuilder volumePathName,
-            int bufferLength);
-
-        [DllImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW",
-            CharSet = CharSet.Unicode, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetVolumeNameForVolumeMountPoint(
-            string volumeMountPoint,
-            StringBuilder volumeName,
-            int bufferLength);
 
         [DllImport("kernel32.dll", EntryPoint = "GetVolumeInformationW",
             CharSet = CharSet.Unicode, SetLastError = true)]
