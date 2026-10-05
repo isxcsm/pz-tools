@@ -6,7 +6,7 @@ namespace PzTools.Backup.Engine;
 public sealed record BackupExecutionOptions(
     long? RunIndex = null,
     long? Revision = null,
-    SupportedLanguage NameLanguage = SupportedLanguage.Korean,
+    SupportedLanguage NameLanguage = SupportedLanguage.English,
     string? GameVersion = null)
 {
     public void Validate()

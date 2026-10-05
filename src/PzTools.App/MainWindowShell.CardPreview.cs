@@ -16,18 +16,18 @@ public sealed partial class MainWindowShell
     /// <summary>Each card that can be previewed, by key, with the name the settings list it under.</summary>
     internal static IReadOnlyList<(string Key, string Name)> CardPreviews { get; } =
     [
-        ("install", "앱 파일이 온전하지 않음"),
-        ("blocked", "Windows 보안 차단"),
-        ("game-link", "게임 연결 끊김"),
-        ("game-restart", "게임 다시 시작 필요"),
-        ("game-disabled", "게임 연결: 실행 옵션"),
-        ("projectors", "불러오기 실패"),
-        ("game-memory", "게임 메모리 되돌아감"),
-        ("update", "새 버전"),
-        ("notice-success", "결과: 성공"),
-        ("notice-info", "결과: 안내"),
-        ("notice-warning", "결과: 경고"),
-        ("notice-error", "결과: 오류"),
+        ("install", "App files not intact"),
+        ("blocked", "Blocked by Windows Security"),
+        ("game-link", "Game link lost"),
+        ("game-restart", "Game restart needed"),
+        ("game-disabled", "Game link: launch option"),
+        ("projectors", "Loading failed"),
+        ("game-memory", "Game memory reset"),
+        ("update", "New version"),
+        ("notice-success", "Result: success"),
+        ("notice-info", "Result: information"),
+        ("notice-warning", "Result: warning"),
+        ("notice-error", "Result: error"),
     ];
 
     /// <summary>Shows one card as if its state had arisen; it stays until <see cref="ClearCardPreviews"/>.</summary>

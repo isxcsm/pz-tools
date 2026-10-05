@@ -444,11 +444,11 @@ public static class BackupConfiguration
 
     private static SupportedLanguage ParseNameLanguage(TomlTable root)
     {
-        if (!root.TryGetValue("naming", out var value)) return SupportedLanguage.Korean;
+        if (!root.TryGetValue("naming", out var value)) return SupportedLanguage.English;
         if (value is not TomlTable table)
             throw new BackupConfigurationException("naming must be a TOML table.");
         EnsureOnlyKeys(table, ["language"], "naming");
-        return GetEnum(table, "language", SupportedLanguage.Korean,
+        return GetEnum(table, "language", SupportedLanguage.English,
             text => LanguageCatalog.TryParse(text, out var parsed)
                 ? parsed
                 : throw new BackupConfigurationException($"Unknown naming language '{text}'."));

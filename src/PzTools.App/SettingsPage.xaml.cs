@@ -407,14 +407,14 @@ public sealed partial class SettingsPage : UserControl
     }
 
 #if PZTOOLS_DEV_TOOLS
-    // Developer builds only, and in Korean only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    // Developer builds only, in English only: the sidebar's cards on demand (MainWindowShell.CardPreview).
     private void BuildCardPreview()
     {
         var choice = new ComboBox { MinWidth = 180 };
         foreach (var (key, name) in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Content = name, Tag = key });
         choice.SelectedIndex = 0;
-        var show = new Button { Content = "띄우기" };
-        var clear = new Button { Content = "모두 지우기" };
+        var show = new Button { Content = "Show" };
+        var clear = new Button { Content = "Clear all" };
         show.Click += (_, _) =>
         {
             if (App.MainWindow.Content is MainWindowShell shell && choice.SelectedItem is ComboBoxItem { Tag: string key }) shell.PreviewCard(key);
@@ -424,14 +424,14 @@ public sealed partial class SettingsPage : UserControl
         holder.Children.Add(choice);
         holder.Children.Add(show);
         holder.Children.Add(clear);
-        SetInputName(choice, "카드 미리보기");
+        SetInputName(choice, "Card preview");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(choice, "CardPreviewChoice");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(show, "CardPreviewShow");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(clear, "CardPreviewClear");
         AdvancedSection.Items.Add(new SettingsCard
         {
-            Header = "카드 미리보기 (개발용)",
-            Description = "사이드바 카드를 실제 상황 없이 띄워 모양과 버튼을 확인합니다. 배포판에는 없습니다.",
+            Header = "Card preview (developer build)",
+            Description = "Shows a sidebar card without its situation, to check its look and buttons. Not in published builds.",
             HeaderIcon = new SymbolIcon(Symbol.Preview),
             Content = holder,
         });

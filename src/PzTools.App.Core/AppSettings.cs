@@ -352,7 +352,7 @@ public sealed class AppSettingsService
             if (rollbackFailures.Count > 0)
             {
                 throw new AggregateException(
-                    "설정 적용과 변경 전 파일 복구가 모두 실패했습니다.",
+                    "Applying the settings failed, and so did restoring the files from before the change.",
                     new[] { applyFailure }.Concat(rollbackFailures));
             }
             throw;
@@ -440,7 +440,7 @@ public sealed class AppSettingsService
     private static LogLevel ParseLogLevel(string value) =>
         Enum.TryParse<LogLevel>(value, true, out var parsed) && Enum.IsDefined(parsed)
             ? parsed : throw new InvalidDataException(
-                "logs.record_minimum_level은 Trace, Information, Warning, Error, Critical 중 하나여야 합니다.");
+                "logs.record_minimum_level must be one of Trace, Information, Warning, Error or Critical.");
 
     private static LogLevel GetRecordMinimumLevel(TomlTable root, LogLevel fallback)
     {
@@ -466,7 +466,7 @@ public sealed class AppSettingsService
             throw new InvalidDataException("The app's advanced settings need a [logs] section.");
         if (logs.Keys.Any(key => key is not ("record_minimum_level" or "max_entries")))
             throw new InvalidDataException(
-                "[logs]에 알 수 없는 항목이 있습니다. record_minimum_level과 max_entries만 사용할 수 있습니다.");
+                "[logs] has an unknown entry. Only record_minimum_level and max_entries are allowed.");
     }
 
     private static (bool Enabled, int Minutes) ReadBackupSchedule(TomlTable root, AppSettings defaults)
