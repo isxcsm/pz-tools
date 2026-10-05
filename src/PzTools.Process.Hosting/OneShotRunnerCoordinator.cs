@@ -21,9 +21,23 @@ public sealed class OneShotRunnerCoordinator(ChildProcessHost processHost)
         var started = DateTimeOffset.UtcNow;
         await BestEffortProcessTelemetry.TryRecordAsync(identity, component, runIndex, "runner.started",
             configurationPath: telemetryConfigurationPath);
-        var mutex = await NamedMutexRunner.TryRunAsync(
-            NamedMutexRunner.CreateName(mutexScope, Path.GetFullPath(identity)),
-            token => processHost.RunAsync(workerExecutable, workerArguments, token), cancellationToken);
+        MutexRunResult<ChildProcessResult> mutex;
+        try
+        {
+            mutex = await NamedMutexRunner.TryRunAsync(
+                NamedMutexRunner.CreateName(mutexScope, Path.GetFullPath(identity)),
+                token => processHost.RunAsync(workerExecutable, workerArguments, token,
+                    shutdownGraceMs: ChildProcessHost.NestedShutdownGraceMs), cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The runner was asked to stop and passed the request on to its worker, which had its moment to finish.
+            // Said as an outcome, so the runner's caller can close its records instead of finding them abandoned.
+            await BestEffortProcessTelemetry.TryRecordAsync(identity, component, runIndex, "runner.cancelled",
+                configurationPath: telemetryConfigurationPath);
+            return ProcessResultEnvelope<RunnerExecutionResult>.Failure(component, runIndex, ProcessOutcome.Cancelled,
+                started, "cancelled", "The runner was asked to stop.");
+        }
         if (!mutex.Acquired)
         {
             await BestEffortProcessTelemetry.TryRecordAsync(identity, component, runIndex, "runner.busy",
