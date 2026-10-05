@@ -539,7 +539,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("SettingsTitle.Text"), UserFacingError.FromException(exception));
+                Localizer.Get("SettingsTitle.Text"), UserFacingError.FromException(exception), exception);
         }
         finally
         {
@@ -565,7 +565,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("PathSettings.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -598,7 +598,7 @@ public sealed partial class SettingsPage : UserControl
                 {
                     completedApply = version;
                     App.ShowSidebarNotification(InfoBarSeverity.Error,
-                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromConfigurationException(exception));
+                        Localizer.Get("SettingsTitle.Text"), UserFacingError.FromConfigurationException(exception), exception);
                     break;
                 }
             }
@@ -861,7 +861,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -890,7 +890,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
         finally { RestartForConfigurationButton.IsEnabled = true; }
     }
@@ -920,7 +920,7 @@ public sealed partial class SettingsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception));
+                Localizer.Get("AdvancedFiles.Header"), UserFacingError.FromException(exception), exception);
         }
         finally { ResetConfigurationButton.IsEnabled = true; }
     }

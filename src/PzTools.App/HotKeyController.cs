@@ -94,7 +94,7 @@ internal sealed class HotKeyController : IDisposable
         catch (Exception exception)
         {
             Sound(SystemSound.Failed);
-            app.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("HotKeysTitle"), UserFacingError.FromException(exception));
+            app.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("HotKeysTitle"), UserFacingError.FromException(exception), exception);
         }
         finally { if (guarded) running.Remove(action); }
     }

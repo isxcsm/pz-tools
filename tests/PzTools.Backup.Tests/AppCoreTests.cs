@@ -795,6 +795,39 @@ public sealed class AppCoreTests
         Assert.Single(launcher.Executables);
     }
 
+    // Seen in the app: a settings file refused on apply left only "check backup-worker\default.toml" in the log, not
+    // what in it was wrong.
+    [Fact]
+    public async Task AFailedAction_KeepsItsCauseAndTheSettingsFileInTheLog()
+    {
+        using var temp = new TempDirectory();
+        var paths = await PrepareHostPathsAsync(temp);
+        await using var host = new AppHost(paths, new WaitingLauncher());
+        await host.StartAsync();
+        var file = Path.Combine(host.Settings.ConfigurationRoot, "backup-worker", "default.toml");
+        var cause = new InvalidOperationException("Settings could not be applied.",
+            new InvalidDataException($"settings-invalid: {file}",
+                new InvalidDataException("capture.verify_staged_copies must be a boolean.")));
+        host.RecordActionIssue("Settings files", "Check backup-worker\\default.toml.", failed: true, cause: cause);
+
+        string? payload = null;
+        for (var attempt = 0; attempt < 100 && payload is null; attempt++)
+        {
+            await Task.Delay(50);
+            await using var connection = new Microsoft.Data.Sqlite.SqliteConnection(
+                $"Data Source={Path.Combine(paths.RuntimeRoot, "logs.db")};Mode=ReadOnly;Pooling=False");
+            await connection.OpenAsync();
+            var query = connection.CreateCommand();
+            query.CommandText = "SELECT payload_json FROM log_entries WHERE event_name='app.action.failed';";
+            payload = await query.ExecuteScalarAsync() as string;
+        }
+        var diagnostics = LogDiagnostics.Parse(payload)!;
+        // The card's words stay the message; what went wrong, word for word, and the file are the details.
+        Assert.Equal("Check backup-worker\\default.toml.", diagnostics.Message);
+        Assert.Equal("capture.verify_staged_copies must be a boolean.", diagnostics.Reason);
+        Assert.Equal(Path.Combine("backup-worker", "default.toml"), diagnostics.Path);
+    }
+
     [Fact]
     public async Task LiveExport_UsesSourceCommandWithoutBackupRevision()
     {

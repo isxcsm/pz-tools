@@ -569,10 +569,15 @@ public sealed class AppHost : IAsyncDisposable
     /// Never throws: a failed log write must not turn one failure into two.
     /// </summary>
     /// <param name="diagnostics">Technical detail for the log's copied details (file names, codes); not shown as the message.</param>
-    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null)
+    /// <param name="cause">The failure behind the message. The card says what to do; the log keeps what went wrong, word for
+    /// word (its innermost error, such as which value of a settings file is wrong and where), and the settings file it
+    /// names.</param>
+    public void RecordActionIssue(string title, string message, bool failed, string? diagnostics = null, Exception? cause = null)
     {
         if (LogInbox is not { } inbox) return;
         var id = Guid.NewGuid();
+        var innermost = cause;
+        while (innermost?.InnerException is { } inner) innermost = inner;
         var entry = new LogEntryView($"app-action:{id:N}", $"app-action:{id:N}", id, 1, DateTimeOffset.UtcNow,
             failed ? LogLevel.Error : LogLevel.Warning, "app", 0, "app.action.failed",
             System.Text.Json.JsonSerializer.Serialize(new
@@ -582,6 +587,9 @@ public sealed class AppHost : IAsyncDisposable
                 title,
                 message,
                 diagnostics,
+                reason = innermost?.Message,
+                exceptionType = innermost?.GetType().Name,
+                path = cause is null ? null : UserFacingErrorCatalog.InvalidSettingsFile(cause, Settings.ConfigurationRoot),
             }));
         _ = Task.Run(async () =>
         {

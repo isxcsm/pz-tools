@@ -131,7 +131,7 @@ Shown when the entry carries information about a failure. Only fields with a val
 | **Failed step** | The step that failed, such as **Copying save files** or **Starting the worker** |
 | **Files not cleaned up** | How many files cleanup could not remove |
 | **Affected files** | Which files those are, up to 8 |
-| **Error message** | The error explained in the app's language. For a warning or error from a card, the card's text. |
+| **Error message** | The error explained in the app's language. For a warning or error from a card, the card's text; the failure behind the card is the **Original message**, and a settings file it names is the **File**. |
 
 When the entry has no save or file to show and its reason cannot be explained in the app's language, **Reason** says **This error could not be explained here.
 See the original message in the technical details.** An old entry without a recorded reason says **This older record
@@ -157,7 +157,7 @@ Collapsed until you open it.
 | **Recording session ID** | The ID of that record |
 | **Error code** | The failure's code, or `—` |
 | **Original message** | Only when the failure's own words could not be explained: the text as the failing component or Windows wrote it, possibly in Windows' language |
-| **Raw record** | The entry's data. For a grouped row, every related entry with its log number, local time, event code and data. **No additional details.** when there is none. |
+| **Raw record** | The entry's data, with text in every language as written. For a grouped row, every related entry with its log number, local time, event code and data. **No additional details.** when there is none. |
 
 **Copy details** copies, in this order: the log number, the event, the level, the time, the activity, the operation
 number (when there is one), **Failure details**, **Related records**, the remaining technical fields, **Original

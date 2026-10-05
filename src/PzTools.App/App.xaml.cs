@@ -76,10 +76,10 @@ public partial class App : Application
     /// <summary>The key combinations the app holds for its actions; null before the window exists.</summary>
     internal HotKeyController? HotKeys => hotKeys;
 
-    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
+    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message, Exception? cause = null)
     {
         if (window?.Content is MainWindowShell shell)
-            shell.ShowSidebarNotification(severity, title, message);
+            shell.ShowSidebarNotification(severity, title, message, cause);
     }
 
     /// <summary>Opens Settings at the switch that has the game keep its last minutes.</summary>
@@ -150,7 +150,7 @@ public partial class App : Application
         if (configurationError is not null)
             ShowSidebarNotification(InfoBarSeverity.Error,
                 Localizer.Get("SettingsTitle.Text"),
-                UserFacingError.FromConfigurationException(configurationError));
+                UserFacingError.FromConfigurationException(configurationError), configurationError);
         ConfigureTray(settings.UseSystemTray);
         hotKeys = new HotKeyController(this, window);
         hotKeys.Apply(settings);
@@ -250,7 +250,7 @@ public partial class App : Application
         }
         catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("UpdateSection.Header"), UserFacingError.FromException(exception));
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("UpdateSection.Header"), UserFacingError.FromException(exception), exception);
             return false;
         }
     }

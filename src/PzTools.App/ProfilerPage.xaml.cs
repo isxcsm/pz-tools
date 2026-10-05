@@ -326,7 +326,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -390,7 +390,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -547,7 +547,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -655,7 +655,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -672,7 +672,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -719,7 +719,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
         finally
         {
@@ -789,7 +789,7 @@ public sealed partial class ProfilerPage : UserControl
             }
             catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
             {
-                App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+                App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
             }
         };
         Grid.SetColumn(copy, 1);
@@ -826,7 +826,7 @@ public sealed partial class ProfilerPage : UserControl
                 try { run(); }
                 catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
                 {
-                    App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+                    App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
                 }
             };
             panel.Children.Add(item);
@@ -857,7 +857,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -881,7 +881,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -3601,7 +3601,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         catch (Exception exception)
         {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception), exception);
         }
         finally { SetCopying(false); }
     }

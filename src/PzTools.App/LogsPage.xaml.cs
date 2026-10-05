@@ -184,7 +184,7 @@ public sealed partial class LogsPage : UserControl
             if (version != queryVersion) return;
             loadFailed = true;
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally
         {
@@ -570,7 +570,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
     }
 
@@ -587,7 +587,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally { AcknowledgeSelectedButton.IsEnabled = true; }
     }
@@ -604,7 +604,7 @@ public sealed partial class LogsPage : UserControl
         catch (Exception exception)
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error,
-                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception));
+                Localizer.Get("LogsNavigation.Content"), UserFacingError.FromException(exception), exception);
         }
         finally { AcknowledgeAllButton.IsEnabled = true; }
     }
@@ -762,13 +762,17 @@ public sealed partial class LogsPage : UserControl
         try
         {
             using var document = JsonDocument.Parse(json);
-            return JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            });
+            return JsonSerializer.Serialize(document.RootElement, ReadablePayload);
         }
         catch (JsonException) { return json; }
     }
+
+    // Shown and copied as text, never embedded in a page: Korean and every other script stay as they are, not 설.
+    private static readonly JsonSerializerOptions ReadablePayload = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     private static string FormatRelatedPayloads(IReadOnlyList<LogEntryView> entries) =>
         JsonSerializer.Serialize(entries.OrderBy(item => item.OccurredUtc).Select(item => new
@@ -777,7 +781,7 @@ public sealed partial class LogsPage : UserControl
             timeLocal = item.OccurredUtc.ToLocalTime().ToString("O"),
             eventCode = item.EventName,
             payload = ParsePayload(item.PayloadJson),
-        }), new JsonSerializerOptions { WriteIndented = true });
+        }), ReadablePayload);
 
     private static object? ParsePayload(string? json)
     {

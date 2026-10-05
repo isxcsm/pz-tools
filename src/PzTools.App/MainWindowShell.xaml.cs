@@ -113,7 +113,7 @@ public sealed partial class MainWindowShell : UserControl
         AddHandler(KeyDownEvent, new Microsoft.UI.Xaml.Input.KeyEventHandler((_, _) => AppToolTip.CloseCurrent()), true);
         HomeRoot.NavigationRequested += HomeRoot_NavigationRequested;
         HomeRoot.LinkFailed += (_, exception) =>
-            ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception));
+            ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception), exception);
         var runtime = App.Host?.RuntimeOptions ?? new AppRuntimeOptions();
         thumbnailLoadGate = new(runtime.ThumbnailReadConcurrency, runtime.ThumbnailReadConcurrency);
         saveSelectionBar = new AnimatedListSelectionBar(
@@ -247,11 +247,12 @@ public sealed partial class MainWindowShell : UserControl
         LogsRoot.ShowLoadFailure();
         EndDetailLoading();
         ShowSidebarNotification(InfoBarSeverity.Error,
-            Localizer.Get("BackgroundServiceStartFailed"), UserFacingError.FromException(exception));
+            Localizer.Get("BackgroundServiceStartFailed"), UserFacingError.FromException(exception), exception);
     }
 
     /// <summary>Shows the result of an action as a card with the user's other work; it expires like one.</summary>
-    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message)
+    /// <param name="cause">The failure behind the message, kept in the log's technical details; the card shows only the message.</param>
+    internal void ShowSidebarNotification(InfoBarSeverity severity, string title, string message, Exception? cause = null)
     {
         notices.Add(new(Guid.NewGuid().ToString("N"), title, message, severity switch
         {
@@ -262,7 +263,7 @@ public sealed partial class MainWindowShell : UserControl
             _ => OperationStatus.Succeeded,
         }, DateTimeOffset.UtcNow));
         if (severity is InfoBarSeverity.Error or InfoBarSeverity.Warning)
-            App.Host?.RecordActionIssue(title, message, severity == InfoBarSeverity.Error);
+            App.Host?.RecordActionIssue(title, message, severity == InfoBarSeverity.Error, cause: cause);
         RefreshOperationCards();
     }
 
@@ -1552,7 +1553,7 @@ public sealed partial class MainWindowShell : UserControl
         // A handler of a click: whatever else went wrong is said, not left to end the app.
         catch (Exception exception)
         {
-            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception));
+            ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("GameMemorySetting.Header"), UserFacingError.FromException(exception), exception);
         }
     }
 

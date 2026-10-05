@@ -113,6 +113,19 @@ public sealed class AppUiBehaviourSourceTests
             Source("GameExtensionsPage.xaml.cs"));
     }
 
+    // Seen in the app: a log entry's raw details showed Korean as 설정.
+    [Fact]
+    public void ALogEntrysRawDetailsKeepEveryScriptReadable()
+    {
+        var page = Source("LogsPage.xaml.cs");
+        Assert.Contains("Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping", page);
+        Assert.Contains("JsonSerializer.Serialize(document.RootElement, ReadablePayload)", Method(page, "private static string FormatPayload("));
+        Assert.Contains("}), ReadablePayload);", Method(page, "private static string FormatRelatedPayloads("));
+        // Every card made from a failure keeps that failure in the log's details.
+        foreach (var file in AppSources())
+            Assert.DoesNotMatch(@"ShowSidebarNotification\((?:(?!;)[\s\S])*?UserFacingError\.\w+\(\w+\)\);", File.ReadAllText(file));
+    }
+
     [Fact]
     public void CopiedLogDetailsNameTheLevelLineByTheColumnNotItsFilter()
     {
