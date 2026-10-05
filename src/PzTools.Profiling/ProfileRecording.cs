@@ -23,11 +23,6 @@ public sealed record ProfileCollection(long Time, long Duration, string Name, st
 public sealed record ProfilePause(long Time, long Duration, string Kind, int Thread, string Detail);
 /// <summary>A collection from its start to its end, most of it beside the game: how long the collector was at work.</summary>
 public readonly record struct ProfileCollectorRun(long Time, long Duration);
-/// <summary>
-/// The CPU one thread used over the second before <see cref="Time"/>, as a share of all the machine's processors
-/// (user and kernel time apart).
-/// </summary>
-public readonly record struct ProfileThreadCpu(long Time, int Thread, double User, double System);
 /// <summary>The CPU the game and the whole machine used over the second before <see cref="Time"/>, as shares of all processors.</summary>
 public readonly record struct ProfileMachineCpu(long Time, double GameUser, double GameSystem, double MachineTotal);
 /// <summary>The Java heap at one moment, in bytes.</summary>
@@ -62,8 +57,6 @@ public sealed class ProfileRecording
     public required IReadOnlyList<ProfilePause> Pauses { get; init; }
     /// <summary>Each collection's whole run; empty in recordings made before it was kept.</summary>
     public IReadOnlyList<ProfileCollectorRun> CollectorRuns { get; init; } = [];
-    /// <summary>Each thread's CPU use, once a second; empty in recordings made before it was kept.</summary>
-    public IReadOnlyList<ProfileThreadCpu> ThreadCpu { get; init; } = [];
     /// <summary>The game's and the machine's CPU use, once a second; empty in recordings made before it was kept.</summary>
     public IReadOnlyList<ProfileMachineCpu> MachineCpu { get; init; } = [];
     /// <summary>The machine's hardware threads, which the CPU shares are of; 0 when not known.</summary>
@@ -143,7 +136,6 @@ public sealed class ProfileRecording
         var luaSamples = new List<ProfileLuaSample>();
         var collections = new List<ProfileCollection>();
         var collectorRuns = new List<ProfileCollectorRun>();
-        var threadCpu = new List<(long Time, long Thread, double User, double System)>();
         var machineCpu = new List<ProfileMachineCpu>();
         var processors = 0;
         var pauses = new List<(long Time, long Duration, string Kind, long Thread, string Detail)>();
@@ -192,7 +184,6 @@ public sealed class ProfileRecording
                     collections.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])), fields[3], fields[4]));
                     break;
                 case "GR" when fields.Length == 3: collectorRuns.Add(new(Number(fields[1]), Math.Max(0, Number(fields[2])))); break;
-                case "TC" when fields.Length == 5: threadCpu.Add((Number(fields[1]), Number(fields[2]), Share(fields[3]), Share(fields[4]))); break;
                 case "CL" when fields.Length == 5:
                     machineCpu.Add(new(Number(fields[1]), Share(fields[2]), Share(fields[3]), Share(fields[4])));
                     break;
@@ -287,9 +278,6 @@ public sealed class ProfileRecording
             LuaSamples = orderedLua,
             Collections = collections.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             CollectorRuns = collectorRuns.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
-            ThreadCpu = threadCpu.Where(item => threadIndex.ContainsKey(item.Thread))
-                .Select(item => new ProfileThreadCpu(item.Time - origin, threadIndex[item.Thread], item.User, item.System))
-                .OrderBy(item => item.Time).ToArray(),
             MachineCpu = machineCpu.Select(item => item with { Time = item.Time - origin }).OrderBy(item => item.Time).ToArray(),
             Processors = processors,
             Pauses = pauses.Select(item => new ProfilePause(item.Time - origin, item.Duration, item.Kind,

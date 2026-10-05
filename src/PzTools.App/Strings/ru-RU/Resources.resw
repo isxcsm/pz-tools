@@ -369,7 +369,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не удаётся открыть запись. Она повреждена или из более новой версии.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Колесо: масштаб · Перетаскивание: выбор диапазона · Щелчок: выбор одного кадра · Перетаскивание правой кнопкой: сдвиг · Двойной щелчок: показать всё · Серые столбцы в панели «Память»: очистка памяти (GC), высота — длина паузы · ▲: кадр выше шкалы (время при наведении) · Щелчок по пункту списка: его доля в каждом столбце (ещё раз — убрать; пока показано, наведение на другой пункт — предпросмотр) · Светло-оранжевый фон: пока работал GC</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Копировать для ИИ</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Копирует отчёт для вставки в чат с ИИ: полный отчёт или подробный только о моде из таблицы ниже (на английском).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Копирует отчёт для вставки в чат с ИИ или сохраняет его в файл: полный отчёт или подробный только о моде из таблицы ниже. Отчёты пишутся на английском.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Отчёт скопирован. Вставьте его в чат с ИИ.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Сохранить в файл</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

@@ -397,7 +397,7 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileZoomAll" xml:space="preserve"><value>Show all</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Wheel: zoom · Drag: select a range · Click: select one frame · Right-button drag: move · Double-click: show all · Grey bars under Memory: memory cleanup (GC), as tall as its pause · ▲: a frame beyond the scale (its time on hover) · Click an owner in the list: its part of each bar (again to stop; while one is drawn, point at another to preview it) · Light orange background: while GC ran</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copy for AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies a report to paste into an AI chat: the whole report, or a detailed one on the mod in the table below only (in English).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies a report to paste into an AI chat, or saves it as a file: the whole report, or a detailed one on the mod in the table below only. Reports are written in English.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Report copied. Paste it into an AI chat.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Save as a file</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

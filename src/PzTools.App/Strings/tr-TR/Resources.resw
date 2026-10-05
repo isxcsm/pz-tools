@@ -369,7 +369,7 @@ Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamala
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Kayıt açılamıyor. Bozuk ya da daha yeni bir sürümden.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin) · Açık turuncu arka plan: GC çalışırken</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Yapay zekâ için kopyala</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Bir yapay zekâ sohbetine yapıştırmak için rapor kopyalar: tüm rapor ya da yalnızca aşağıdaki tablodaki mod için ayrıntılı rapor (İngilizce).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Bir yapay zekâ sohbetine yapıştırmak için rapor kopyalar ya da dosya olarak kaydeder: tüm rapor ya da yalnızca aşağıdaki tablodaki mod için ayrıntılı rapor. Raporlar İngilizce yazılır.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapor kopyalandı. Bir yapay zekâ sohbetine yapıştırın.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Dosya olarak kaydet</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

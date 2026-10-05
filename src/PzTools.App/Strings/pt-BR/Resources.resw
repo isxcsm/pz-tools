@@ -369,7 +369,7 @@ Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausa
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não é possível abrir a gravação. Ela está danificada ou é de uma versão mais nova.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Barras cinza em Memória: limpeza de memória (GC), da altura da pausa · ▲: quadro acima da escala (seu tempo ao passar o ponteiro) · Clique em um item da lista: a parte dele em cada barra (de novo para parar; enquanto isso, aponte para outro para pré-visualizar) · Fundo laranja-claro: enquanto o GC rodava</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar para IA</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia um relatório para colar em um chat com IA: o relatório completo, ou um detalhado só do mod da tabela abaixo (em inglês).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia um relatório para colar em um chat com IA, ou o salva como arquivo: o relatório completo, ou um detalhado só do mod da tabela abaixo. Os relatórios são escritos em inglês.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Relatório copiado. Cole-o em um chat com IA.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Salvar como arquivo</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

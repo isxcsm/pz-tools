@@ -844,26 +844,27 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
-    public void CpuUse_IsReadPerThreadAndForTheMachine_AndKeptInASavedRange()
+    public void CpuUse_IsReadForTheMachine_AndKeptInASavedRange()
     {
         using var temp = new TempDirectory();
-        // As Java writes floats: the game thread used a sixteenth of a 16-thread machine (one core), the machine half.
+        // As Java writes floats ("1.0E-4"), the game's and the machine's share of a 16-thread machine. Per-thread lines
+        // (TC), written while 0.2.4 was in development, are read past and not carried into a part.
         var source = temp.GetPath("whole.pzprof");
-        File.WriteAllBytes(source, Compress(Sample + "\nHW|16\nTC|1010000|7|0.0625|1.0E-4\nTC|1040000|7|0.03|0.0\n"
-            + "CL|1010000|0.2|0.01|0.5\nTC|1020000|999|0.5|0.5"));
+        File.WriteAllBytes(source, Compress(Sample + "\nHW|16\nTC|1010000|7|0.0625|1.0E-4\n"
+            + "CL|1010000|0.2|0.01|0.5\nCL|1040000|0.0625|1.0E-4|0.25"));
         var recording = ProfileRecording.Load(source);
 
         Assert.Equal(16, recording.Processors);
-        // A thread the recording names nowhere else is left out.
-        Assert.Equal([(10_000L, 0, 0.0625, 0.0001), (40_000L, 0, 0.03, 0.0)],
-            recording.ThreadCpu.Select(item => (item.Time, item.Thread, item.User, item.System)));
-        Assert.Equal(new ProfileMachineCpu(10_000, 0.2, 0.01, 0.5), Assert.Single(recording.MachineCpu));
+        Assert.Equal([new ProfileMachineCpu(10_000, 0.2, 0.01, 0.5), new ProfileMachineCpu(40_000, 0.0625, 0.0001, 0.25)],
+            recording.MachineCpu);
 
-        ProfileTrim.Save(recording, source, temp.GetPath("part.pzprof"), 30_000, 50_000);
-        var part = ProfileRecording.Load(temp.GetPath("part.pzprof"));
+        var partPath = temp.GetPath("part.pzprof");
+        ProfileTrim.Save(recording, source, partPath, 30_000, 50_000);
+        var part = ProfileRecording.Load(partPath);
         Assert.Equal(16, part.Processors);
-        Assert.Equal(0.03, Assert.Single(part.ThreadCpu).User);
-        Assert.Empty(part.MachineCpu);
+        Assert.Equal(0.25, Assert.Single(part.MachineCpu).MachineTotal);
+        using var text = new StreamReader(new System.IO.Compression.GZipStream(File.OpenRead(partPath), System.IO.Compression.CompressionMode.Decompress));
+        Assert.DoesNotContain("\nTC\t", text.ReadToEnd());
     }
 
     [Fact]

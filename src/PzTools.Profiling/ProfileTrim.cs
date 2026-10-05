@@ -184,7 +184,9 @@ public static class ProfileTrim
     {
         "I" => Field(line, 1) is { } key && !Replaced.Contains(key),
         // Points in time: those in the range, as the analysis counts them.
-        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" or "TC" or "CL" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
+        "S" or "F" or "L" or "LA" or "LH" or "H" or "V" or "CL" => Number(FieldSpan(line, 1)) is { } time && time >= from && time < to,
+        // Each thread's CPU, which recordings of 0.2.4's development wrote and nothing reads: not carried into a part.
+        "TC" => false,
         // Spans: those that reach into it, as the analysis counts collections and pauses.
         "G" or "GR" or "P" => Number(FieldSpan(line, 1)) is { } time && Number(FieldSpan(line, 2)) is { } duration
             && time < to && time + Math.Max(0, duration) >= from,

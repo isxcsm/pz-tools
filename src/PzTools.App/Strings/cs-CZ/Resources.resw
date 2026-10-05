@@ -398,7 +398,7 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileZoomAll" xml:space="preserve"><value>Zobrazit vše</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Kolečko: přiblížení · Tažení: výběr úseku · Kliknutí: výběr jednoho snímku · Tažení pravým tlačítkem: posun · Dvojklik: zobrazit vše · Šedé sloupce v panelu Paměť: úklid paměti (GC), výška podle pauzy · ▲: snímek nad rozsahem stupnice (čas po najetí myší) · Kliknutí na položku seznamu: její část v každém sloupci (znovu zruší; během zobrazení najetím na jinou položku náhled) · Světle oranžové pozadí: kdy běželo GC</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat pro AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Zkopíruje zprávu k vložení do chatu s AI: celou zprávu, nebo podrobnou zprávu jen o modu z tabulky níže (v angličtině).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Zkopíruje zprávu k vložení do chatu s AI, nebo ji uloží jako soubor: celou zprávu, nebo podrobnou zprávu jen o modu z tabulky níže. Zprávy se píší v angličtině.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Zpráva zkopírována. Vložte ji do chatu s AI.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Uložit jako soubor</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

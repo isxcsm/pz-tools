@@ -376,7 +376,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกไม่ได้ ไฟล์เสียหายหรือมาจากเวอร์ชันที่ใหม่กว่า</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง) · พื้นหลังสีส้มอ่อน: ขณะ GC ทำงาน</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกสำหรับ AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>คัดลอกรายงานสำหรับวางในแชทกับ AI: รายงานทั้งหมด หรือรายงานละเอียดเฉพาะม็อดในตารางด้านล่าง (เป็นภาษาอังกฤษ)</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>คัดลอกรายงานสำหรับวางในแชทกับ AI หรือบันทึกเป็นไฟล์: รายงานทั้งหมด หรือรายงานละเอียดเฉพาะม็อดในตารางด้านล่าง รายงานเขียนเป็นภาษาอังกฤษ</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>คัดลอกรายงานแล้ว วางลงในแชทกับ AI ได้เลย</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>บันทึกเป็นไฟล์</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

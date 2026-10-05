@@ -369,7 +369,7 @@ Détaillé : mesure environ toutes les 0,002 seconde et enregistre aussi attente
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossible d’ouvrir l’enregistrement. Il est endommagé ou vient d’une version plus récente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Molette : zoom · Glisser : sélectionner une plage · Clic : sélectionner une image · Glisser avec le bouton droit : déplacer · Double-clic : tout afficher · Barres grises dans Mémoire : nettoyage de la mémoire (GC), aussi hautes que leur pause · ▲ : image au-delà de l’échelle (sa durée au survol) · Clic sur un élément de la liste : sa part de chaque barre (à nouveau pour arrêter ; pendant ce temps, survoler un autre pour l’aperçu) · Fond orange clair : pendant le GC</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copier pour une IA</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copie un rapport à coller dans une discussion avec une IA : le rapport complet, ou un rapport détaillé sur le seul mod du tableau ci-dessous (en anglais).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copie un rapport à coller dans une discussion avec une IA, ou l&apos;enregistre dans un fichier : le rapport complet, ou un rapport détaillé sur le seul mod du tableau ci-dessous. Les rapports sont rédigés en anglais.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapport copié. Collez-le dans une discussion avec une IA.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Enregistrer dans un fichier</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

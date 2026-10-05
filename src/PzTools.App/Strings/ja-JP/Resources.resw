@@ -369,7 +369,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>記録を開けません。破損しているか、新しいバージョンで作成されたファイルです。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ホイール: 拡大・縮小 · ドラッグ: 範囲を選択 · クリック: フレームを 1 つ選択 · 右ボタンドラッグ: 移動 · ダブルクリック: 全体を表示 · メモリ欄の灰色の棒: メモリの整理 (GC)、高さは停止時間 · ▲: 目盛りを超えるフレーム (ポインターで時間を表示) · 一覧の項目をクリック: 各バーにその項目の分を濃く表示 (もう一度クリックで解除、表示中はほかの項目にポインターを置くとプレビュー) · 薄いオレンジの背景: GC 稼働中</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>AI 用にコピー</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>AI とのチャットに貼り付けるレポートをコピーします: 全体レポート、または下の表の MOD だけの詳細レポート (英語)。</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>AI とのチャットに貼り付けるレポートをコピーするか、ファイルとして保存します: 全体レポート、または下の表の MOD だけの詳細レポート。レポートは英語で書かれます。</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>レポートをコピーしました。AI とのチャットに貼り付けてください。</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>ファイルとして保存</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

@@ -369,7 +369,7 @@ Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Impossibile aprire la registrazione. È danneggiata o creata con una versione più recente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rotellina: zoom · Trascina: seleziona un intervallo · Clic: seleziona un frame · Trascina con il tasto destro: sposta · Doppio clic: mostra tutto · Barre grigie in Memoria: pulizia della memoria (GC), alte quanto la pausa · ▲: frame oltre la scala (il suo tempo al passaggio del puntatore) · Clic su una voce dell'elenco: la sua parte di ogni barra (di nuovo per smettere; intanto, punta un'altra voce per l'anteprima) · Sfondo arancione chiaro: mentre girava il GC</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copia per IA</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia un rapporto da incollare in una chat con un&apos;IA: il rapporto completo, o uno dettagliato solo sulla mod nella tabella sotto (in inglese).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia un rapporto da incollare in una chat con un&apos;IA, o lo salva come file: il rapporto completo, o uno dettagliato solo sulla mod nella tabella sotto. I rapporti sono scritti in inglese.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapporto copiato. Incollalo in una chat con un&apos;IA.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Salva come file</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

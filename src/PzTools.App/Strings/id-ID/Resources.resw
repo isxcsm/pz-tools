@@ -369,7 +369,7 @@ Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan je
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Rekaman tidak dapat dibuka. Berkas rusak atau dari versi yang lebih baru.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda mouse: zoom · Seret: pilih rentang · Klik: pilih satu frame · Seret tombol kanan: geser · Klik dua kali: tampilkan semua · Batang abu-abu di panel Memori: pembersihan memori (GC), tingginya sesuai lama jeda · ▲: frame melebihi skala (waktunya saat kursor di atasnya) · Klik item di daftar: bagiannya di setiap batang (klik lagi untuk berhenti; selama ditampilkan, arahkan ke item lain untuk pratinjau) · Latar oranye muda: saat GC berjalan</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Salin untuk AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Menyalin laporan untuk ditempel ke obrolan AI: laporan lengkap, atau laporan rinci tentang mod di tabel bawah saja (dalam bahasa Inggris).</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>Menyalin laporan untuk ditempel ke obrolan AI, atau menyimpannya sebagai file: laporan lengkap, atau laporan rinci tentang mod di tabel bawah saja. Laporan ditulis dalam bahasa Inggris.</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Laporan disalin. Tempel ke obrolan AI.</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Simpan sebagai file</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>

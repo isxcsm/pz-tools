@@ -369,7 +369,7 @@
   <data name="ProfileLoadFailed" xml:space="preserve"><value>无法打开录制。文件已损坏，或由更新的版本创建。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>滚轮：缩放 · 拖动：选择范围 · 单击：选择一帧 · 右键拖动：平移 · 双击：显示全部 · 内存面板中的灰色柱：内存清理（GC），高度为暂停时长 · ▲：超出刻度的帧（悬停显示时间） · 单击列表中的项：在每根柱中加深显示其部分（再次单击取消；显示期间指向其他项可预览） · 浅橙色背景：GC 运行期间</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>复制给 AI</value></data>
-  <data name="ProfileCopyReportTip" xml:space="preserve"><value>复制可粘贴到 AI 对话中的报告：完整报告，或只针对下方表格中模组的详细报告（英文）。</value></data>
+  <data name="ProfileCopyReportTip" xml:space="preserve"><value>复制可粘贴到 AI 对话中的报告，或保存为文件：完整报告，或只针对下方表格中模组的详细报告。报告以英文撰写。</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>报告已复制。请粘贴到 AI 对话中。</value></data>
   <data name="ProfileReportSaveMenu" xml:space="preserve"><value>保存为文件</value></data>
   <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
