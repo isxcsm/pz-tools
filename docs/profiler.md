@@ -414,8 +414,10 @@ heading says what its column means when the pointer rests on it.
   pointer on the name says how to read the row; the ends of its scale stand at the left
   of the graph. The panel shares the frame graph's margins and
   time axis: zoom, scrolling, the selection and the pointer line move both, and a range
-  can be dragged on either. It stays open or shut while the app runs. Closed, it takes no
-  room.
+  can be dragged on either. Until the player opens or shuts it, it opens by itself for a
+  recording that ran short of memory (the line says so) and stays shut for the others;
+  after that it stays as chosen while the app runs. Closed, it takes no room. The button
+  has a filled background, like the manual backup button, so it reads as one.
 - **Range.** Drag to select a range, or click to select one frame. With nothing selected
   the whole recording is analysed, in the background; choosing another range stops the
   analysis of the previous one.

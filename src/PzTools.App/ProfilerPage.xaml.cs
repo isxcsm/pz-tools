@@ -1063,8 +1063,10 @@ public sealed partial class ProfilerPage : UserControl
 
     // ---- Memory ----
 
-    // Open or shut for as long as the app runs, whichever recording is shown.
-    private static bool memoryOpen;
+    // Open or shut for as long as the app runs, whichever recording is shown, once the player has opened or shut it.
+    // Until then it opens by itself for a recording that ran short of memory, where it is what to look at, and stays
+    // shut for the others, which it would only push the tables down for.
+    private static bool memoryOpen, memoryChosen;
 
     // Each row can be put away by its figure on the panel's line, for as long as the app runs. The collections ride on
     // the heap's row, whose drops they are, or have a row of their own without heap readings; the ones that paused the
@@ -1097,6 +1099,7 @@ public sealed partial class ProfilerPage : UserControl
     // The line under the frames and its button: shown when the recording has collections or memory.
     private void ApplyMemoryPanel()
     {
+        CurrentPressure();
         var rows = MemoryRows;
         MemoryHeader.Visibility = MemoryAvailable ? Visibility.Visible : Visibility.Collapsed;
         // A figure whose row is put away stands faint.
@@ -1118,9 +1121,7 @@ public sealed partial class ProfilerPage : UserControl
     // out once per recording, as it reads every pause; the line is shown again on each tab, click and toggle.
     private void ApplyMemoryShort()
     {
-        if (recording is { } current && !ReferenceEquals(pressureOf, current))
-            (pressureOf, pressureOfRecording) = (current, ProfileAnalysis.MemoryPressure(current));
-        var pressure = recording is null ? null : pressureOfRecording;
+        var pressure = CurrentPressure();
         MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
         if (pressure is not { Short: true }) return;
         var stalls = pressure.Stalls.ToString("N0", Localizer.Culture);
@@ -1153,6 +1154,19 @@ public sealed partial class ProfilerPage : UserControl
     private ProfileRecording? pressureOf;
     private ProfileMemoryPressure? pressureOfRecording;
 
+    // The shown recording's memory pressure, worked out once per recording; a recording newly shown also sets whether
+    // the panel opens, until the player has chosen.
+    private ProfileMemoryPressure? CurrentPressure()
+    {
+        if (recording is not { } current) return null;
+        if (!ReferenceEquals(pressureOf, current))
+        {
+            (pressureOf, pressureOfRecording) = (current, ProfileAnalysis.MemoryPressure(current));
+            if (!memoryChosen) memoryOpen = pressureOfRecording.Short;
+        }
+        return pressureOfRecording;
+    }
+
     private void MemoryShortButton_Click(object sender, RoutedEventArgs e) => App.ShowGameMemorySetting();
 
     // The game given more memory meanwhile changes what the line says about the recording open.
@@ -1161,6 +1175,7 @@ public sealed partial class ProfilerPage : UserControl
     private void MemoryToggle_Click(object sender, RoutedEventArgs e)
     {
         memoryOpen = !memoryOpen;
+        memoryChosen = true;
         ApplyMemoryPanel();
         // The frame graph does not change with it: only the panel is drawn.
         RenderMemoryPanel();
@@ -1173,7 +1188,7 @@ public sealed partial class ProfilerPage : UserControl
         else collectionMarks = !collectionMarks;
         // Putting a row back is what a closed panel's figure is pressed for: the panel opens to show it.
         if (!memoryOpen && (ReferenceEquals(sender, HeapValue) ? heapRow : ReferenceEquals(sender, VideoValue) ? videoRow : false))
-            memoryOpen = true;
+            memoryOpen = memoryChosen = true;
         ApplyMemoryPanel();
         // The pause marks on the frame graph go with the collections' figure; the rows are the panel's alone.
         if (ReferenceEquals(sender, HeapValue) || ReferenceEquals(sender, VideoValue)) RenderMemoryPanel();
