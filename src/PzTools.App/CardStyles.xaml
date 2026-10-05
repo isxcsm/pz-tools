@@ -3,7 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!-- The cards in the navigation pane, work and attention alike, in one place: 13 for the title, 12 for the rest
        (as the next-backup line), tight padding. The title is set apart by size and colour, not weight: the Korean
-       system font has no semibold. See docs/ui-ux-contract.md, "Writing a card". -->
+       system font has no semibold. See docs/design/ui-ux-contract.md, "Writing a card". -->
 
   <!-- The card's padding and corner, and the action strip that fills a card's bottom edge. The strip's margin is
        the padding turned outward (plus 6 above it): change one, change the other. -->

@@ -15,7 +15,7 @@ This records the September 2026 plan for adding the desktop app to the headless 
 - Restore and import prepare verified staging output before replacing a save. Recovery journals make interrupted publication inspectable on restart.
 - Configuration and diagnostics remain separate from game saves. Archive operations are one-shot workers, not extra schedulers.
 
-The current contracts are described in [process architecture](../process-architecture.md), [telemetry](../telemetry.md) and the [UI contract](../ui-ux-contract.md).
+The current contracts are described in [process architecture](../design/process-architecture.md), [telemetry](../design/telemetry.md) and the [UI contract](../design/ui-ux-contract.md).
 
 ## Original work packages
 
@@ -37,4 +37,4 @@ The original checklist proposed two UI languages, a 100-revision default and no 
 
 Scheduling now includes pause/sleep-aware active time and live character-death observations. Capture uses bounded staging and windowed progress; the earlier unsampled-event proposal is not the current performance contract. App startup rearms periodic timing instead of replaying an old due time.
 
-Use [configuration](../configuration.md), [runtime timing](../runtime-pause-backups.md) and [stable capture](../stable-capture.md) for current behavior. The detailed original checklist remains in Git history rather than being maintained as a second specification.
+Use [configuration](../reference/settings.md), [runtime timing](../design/runtime-pause-backups.md) and [stable capture](../design/stable-capture.md) for current behavior. The detailed original checklist remains in Git history rather than being maintained as a second specification.

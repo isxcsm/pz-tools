@@ -1,6 +1,6 @@
 # Character recovery
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Character recovery heals the character in a single-player save while the game is
 closed. If the character has died, it also brings them back to life and, when their
@@ -257,4 +257,4 @@ this loaded an edited save in the actual game. Visual equipment behaviour, futur
 formats and unsupported mod serialization still need separate acceptance.
 
 Reference schemas: [pzdataspec world 249](https://github.com/cff29546/pzdataspec/tree/main/data_spec/spec/249).
-See [third-party notices](../THIRD_PARTY_NOTICES.md) for attribution.
+See [third-party notices](../../THIRD_PARTY_NOTICES.md) for attribution.

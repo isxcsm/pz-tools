@@ -1,23 +1,23 @@
 # Configuration
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
 This page lists PZ Tools' settings: where they are stored, their defaults and allowed
 values, and which one wins when the same choice is made in more than one place. For
 everyday use the app's Settings screen is enough. The files described here are for
-fine-tuning, and for running the [command-line tools](cli.md) without the app.
+fine-tuning, and for running the [command-line tools](command-line.md) without the app.
 
 Tuning values for each background program (timeouts, buffers, polling) are on a
-separate page: [advanced component settings](runtime-configuration.md).
+separate page: [advanced component settings](advanced-settings.md).
 
 ## Where settings live
 
 | File | What it holds |
 | --- | --- |
 | `%LOCALAPPDATA%/PzTools/settings.toml` | The choices you make in the app (UI preferences) |
-| `%LOCALAPPDATA%/PzTools/config/<component>/default.toml` | Advanced settings, one file per [component](glossary.md#component) |
+| `%LOCALAPPDATA%/PzTools/config/<component>/default.toml` | Advanced settings, one file per [component](../design/glossary.md#component) |
 | `defaults/<component>/default.toml` in the app folder | Packaged defaults, read-only |
-| `%LOCALAPPDATA%/PzTools/extensions/` | Game-extension choices (`settings.json`) and an optional tuning override per extension; packaged defaults are in `game-bridge/extensions/` in the app folder. See [game extensions](game-extensions.md) |
+| `%LOCALAPPDATA%/PzTools/extensions/` | Game-extension choices (`settings.json`) and an optional tuning override per extension; packaged defaults are in `game-bridge/extensions/` in the app folder. See [game extensions](../design/game-extensions.md) |
 
 Workflows, schedules and recorded logs are stored in databases, not in these files.
 
@@ -52,7 +52,7 @@ installation.
 
 A parent process does not pass its settings on to the processes it starts. BackupRunner
 and MaintenanceRunner take `--worker-config` to override their child worker's settings
-explicitly; see [the command line](cli.md#runners-schedulers-and-archives).
+explicitly; see [the command line](command-line.md#runners-schedulers-and-archives).
 
 ## App settings
 
@@ -64,14 +64,14 @@ These live in `settings.toml` and are normally changed from the Settings screen.
 | `[ui].check_updates` | `true` | About once an hour while the app runs, asks GitHub for the latest release; a newer one shows as one line in the sidebar (a dot on the settings icon while the menu is folded) until the app is updated. What the last check found is kept in `update.json` beside `settings.toml`; deleting that file only makes the next check ask again. |
 | `[backup].automatic_enabled` | `true` | Turns automatic backups on or off, independently of the interval, death-backup and save-before-backup preferences. |
 | `[backup].interval_minutes` | `5` | Integer from 1 through 60. Editing it does not turn automatic backups on. |
-| `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](runtime-pause-backups.md). |
-| `[profiler].rolling_enabled` | `false` | *Keep the last minutes*: the game holds its last few minutes, for *Save last minutes* to turn into a recording. See [the last minutes](profiler.md#the-last-minutes). |
+| `[backup].pause_periodic_during_game` | `true` | Keeps the remaining interval while the game is paused, the player is asleep, or the game's state is unknown, and resumes counting afterwards. See [game-aware timing](../design/runtime-pause-backups.md). |
+| `[profiler].rolling_enabled` | `false` | *Keep the last minutes*: the game holds its last few minutes, for *Save last minutes* to turn into a recording. See [the last minutes](../design/profiler.md#the-last-minutes). |
 | `[profiler].rolling_detailed` | `false` | Keeps them in Detailed mode instead of Standard. |
 | `[profiler].rolling_minutes` | `2` | How many minutes are kept, 1 through 10. |
-| `[hotkeys].save_last` | `"Ctrl+Shift+F9"` | Key combinations that work inside the game, empty for none: `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle` (automatic backups on or off) and `status`. Only `save_last` has one at first; one combination for two actions is dropped. See [hotkeys](profiler.md#hotkeys). |
+| `[hotkeys].save_last` | `"Ctrl+Shift+F9"` | Key combinations that work inside the game, empty for none: `save_last`, `record`, `record_mode`, `rolling_toggle`, `manual_backup`, `backup_toggle` (automatic backups on or off) and `status`. Only `save_last` has one at first; one combination for two actions is dropped. See [hotkeys](../design/profiler.md#hotkeys). |
 
 The game's memory is not kept here: it is in the game's own launcher file, and the choice
-in `game-memory.json` beside `settings.toml`. See [game memory](game-memory.md).
+in `game-memory.json` beside `settings.toml`. See [game memory](../design/game-memory.md).
 
 Turning automatic backups off keeps the chosen interval. It does not stop manual
 backups or backups that have already started. Turning them back on checks the current
@@ -140,12 +140,12 @@ started it is looking at the app, not the game. Turned off, the game is still as
 to save.
 
 Changes apply from the next backup. The app's own switches for both settings take
-priority; see [game bridge](game-bridge.md#settings).
+priority; see [game bridge](../design/game-bridge.md#settings).
 
 ### Which files are captured
 
 `always_include` recaptures the listed paths (relative to the save folder) in every
-backup, even when the [USN journal](glossary.md#usn-journal) or a full comparison
+backup, even when the [USN journal](../design/glossary.md#usn-journal) or a full comparison
 reports no change. A file on the list that was stored before and is now missing is
 recorded as deleted (a tombstone) once its absence is confirmed. Leaving the key out
 uses the same default list; an explicit `[]` turns the extra capture off.
@@ -154,7 +154,7 @@ uses the same default list; an explicit `[]` turns the extra capture off.
 contents and compares their SHA-256 with the previous backup, including files whose
 size and times match. A file with no comparison fingerprint yet is captured once to
 establish a baseline. The repository stores these fingerprints as the first 16 bytes of
-SHA-256 ([repository format](repository-format.md)); a full SHA-256 integrity checksum
+SHA-256 ([repository format](../design/repository-format.md)); a full SHA-256 integrity checksum
 can also serve as the baseline.
 
 On a local NTFS drive, a file whose size, times, attributes and identity match the
@@ -164,7 +164,7 @@ times move with every write, also while the game keeps the file open. A write in
 same instant as the previous backup's look at the file can keep the old time, so files
 written around or after that run are still compared. On other drives (FAT, exFAT,
 network shares) every such file is compared. See
-[USN journal](usn-journal.md#when-it-is-used) for when this fallback happens.
+[USN journal](../design/usn-journal.md#when-it-is-used) for when this fallback happens.
 
 Turning `full_scan_hash_comparison` off does not affect `always_include`, existing
 fingerprints or integrity checksums.
@@ -172,7 +172,7 @@ fingerprints or integrity checksums.
 ### Checking copies
 
 `verify_staged_copies` checks each private copy with SHA-256 and retries reads of files
-that keep changing ([stable capture](glossary.md#stable-capture)). With it off, staging
+that keep changing ([stable capture](../design/glossary.md#stable-capture)). With it off, staging
 and metadata checks remain but content consistency checks are reduced. Keep it on for
 saves that are being played.
 
@@ -186,8 +186,8 @@ Capture defaults, set in the `[runtime]` section:
 | Staging slot size | 256 KiB (so 8 files × 256 KiB = 2 MiB of staging is actually used) |
 | Full-scan hash batch | 16 files, at most 4 readers |
 
-See [stable capture](stable-capture.md) and
-[advanced component settings](runtime-configuration.md) for the allowed ranges.
+See [stable capture](../design/stable-capture.md) and
+[advanced component settings](advanced-settings.md) for the allowed ranges.
 
 ### Checksums and compression
 
@@ -204,7 +204,7 @@ compaction recompresses the objects it moves at the default level.
 
 `content_deduplication = true` requires `checksum = "sha256"`. Without it, a changed file
 whose bytes equal what its path already stores still reuses that copy; see
-[repository format](repository-format.md#paths-and-objects).
+[repository format](../design/repository-format.md#paths-and-objects).
 
 ### Backup names
 
@@ -212,31 +212,31 @@ New backups are named in the selected app language; in English, `Manual backup N
 `Automatic backup N`. Existing names do not change when the language changes.
 
 App `[ui].language`, worker `[naming].language` and CLI `--name-language` accept the
-[supported locale codes](localization.md), including `en-US`, `ko-KR` and `ja-JP`. The
+[supported locale codes](../contributing/localization.md), including `en-US`, `ko-KR` and `ja-JP`. The
 values `Korean` and `English` from older files are still read.
 
 ## Retention and cleanup
 
-The app decides how many automatic backups to keep ([retention](glossary.md#retention)).
+The app decides how many automatic backups to keep ([retention](../design/glossary.md#retention)).
 Manual backups and backups of unknown origin do not count towards it. They can still
 be deleted explicitly, and they are covered by the separate cleanup for save folders
-confirmed missing ([orphan backups](glossary.md#orphan-backups)).
+confirmed missing ([orphan backups](../design/glossary.md#orphan-backups)).
 
 Maintenance rewrites mostly unused pack files while the game is closed. The maintenance
 TOML holds diagnostics and bounded maintenance controls; see
-[repository housekeeping](repository-housekeeping.md).
+[repository housekeeping](../design/repository-housekeeping.md).
 
-[Telemetry](glossary.md#telemetry) retention is separate from backup retention:
+[Telemetry](../design/glossary.md#telemetry) retention is separate from backup retention:
 
 - `enabled = false` turns recording off.
 - A `retain_runs` or `max_database_mib` of zero turns that limit off.
 - The size limit measures used database pages, not the size of the file on disk.
 
-See [telemetry](telemetry.md) for the modes and what happens on failure.
+See [telemetry](../design/telemetry.md) for the modes and what happens on failure.
 
 The app owns the backup schedule. The state scheduler's `[scheduler].interval_seconds`
 is used only when `--interval-seconds` is not given. Archive resource limits are listed
-under [deployment layout](deployment-layout.md).
+under [deployment layout](files-and-folders.md).
 
 ## Checking and overriding from the command line
 
@@ -259,7 +259,7 @@ Other overrides:
 - `--telemetry-{enabled,mode,batch-size,flush-ms,retain-runs,max-database-mib}`
 
 Boolean options take `true` or `false`. Telemetry modes are `off`, `run`, `phase` and
-`raw`. See the [command line](cli.md) page for all commands.
+`raw`. See the [command line](command-line.md) page for all commands.
 
 ## Limits and errors
 

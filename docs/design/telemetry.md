@@ -1,6 +1,6 @@
 # Telemetry
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 [Telemetry](glossary.md#telemetry) is the diagnostic record each PZ Tools process keeps
 while it works: when a job started and finished, how far it has got, and what went
@@ -57,7 +57,7 @@ Retention settings and their usual values:
 
 A limit of zero turns that limit off. These settings are separate from how many
 backups are kept, and they do not cap the physical size of the SQLite file. The
-settings keys are in [configuration](configuration.md).
+settings keys are in [configuration](../reference/settings.md).
 
 ## Progress and liveness
 

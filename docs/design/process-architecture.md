@@ -1,6 +1,6 @@
 # Process architecture
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 PZ Tools does its work in small background programs rather than inside the app window.
 This page is for people reading or changing that code. It explains which programs
@@ -243,8 +243,8 @@ stop within about 2 seconds, or does not listen, is ended.
 | `logs.db` | Logs projected for the app |
 
 Child processes reuse the run index they are given.
-[Deployment layout](deployment-layout.md) lists where each file lives,
-[configuration](configuration.md) which settings each process owns, and
+[Deployment layout](../reference/files-and-folders.md) lists where each file lives,
+[configuration](../reference/settings.md) which settings each process owns, and
 [telemetry](telemetry.md) what the telemetry databases hold.
 
 ### The state pipeline
@@ -276,4 +276,4 @@ What recovery does:
 
 What it leaves untouched: lone rollback folders, damaged journals and reparse points.
 Uncertain artifacts are preserved and reported. A recovery failure for one save does
-not block the others or app startup. See [restore safety](cli.md#restore-safety).
+not block the others or app startup. See [restore safety](../reference/command-line.md#restore-safety).

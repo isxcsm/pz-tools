@@ -1,15 +1,15 @@
 # Testing the vehicle extension
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
-This is a hands-on procedure for trying the [game extensions](game-extensions.md) in a
+This is a hands-on procedure for trying the [game extensions](../design/game-extensions.md) in a
 real game: **Vehicle driving improvements** 0.2.0. It is for testers who want to
 compare it with the original game, check that settings apply as
 expected, and back out safely. Vehicle driving improvements is experimental and off by
 default.
 
 This page is a test procedure, not a finished driving report. The
-[design document](vehicle-drivetrain-design.md) describes the supported build, the
+[design document](../design/vehicle-drivetrain.md) describes the supported build, the
 driving model and the calibration work still open.
 
 ## Before you start
@@ -24,15 +24,15 @@ driving model and the calibration work still open.
 5. Close any earlier app, including its tray instance, and make sure a developer
    `PZTOOLS_TOOLS_DIR` override does not point somewhere else.
 6. If the game has already loaded an older, incompatible
-   [bootstrap](glossary.md#bootstrap), restart the game fully once. The
-   [compatibility table](game-bridge.md#compatibility-and-lifecycle) lists which
+   [bootstrap](../design/glossary.md#bootstrap), restart the game fully once. The
+   [compatibility table](../design/game-bridge.md#compatibility-and-lifecycle) lists which
    bootstrap versions need this. Starting the game before the app is fine when no older
    agent is resident, and while the bootstrap stays compatible, restarting the app does
    not require restarting the game each time.
 
 ## Which vehicles and builds are covered
 
-The [catalogue](../config/game-extensions/catalog.tsv) declares major version 42. The
+The [catalogue](../../config/game-extensions/catalog.tsv) declares major version 42. The
 mandatory bytecode and structural checks still target the inspected 42.20 build;
 declaring the range does not guarantee every 42.x patch.
 
@@ -57,7 +57,7 @@ by older observation-only versions are read as everything off.
 
 1. Turn on only **Precise keyboard steering**.
 2. Resume the game, stop on level ground, and release acceleration and cruise control
-   so the saved settings can apply (the [safe boundary](glossary.md#safe-boundary)).
+   so the saved settings can apply (the [safe boundary](../design/glossary.md#safe-boundary)).
 3. Compare **off → on → off** with the same vehicle, load, tyres, engine condition,
    road and character traits.
 4. Repeat for the other options.
@@ -108,7 +108,7 @@ itself. Low mode, observation and diagnostics are developer-only TOML options.
 
 **Failures.** A confirmed failure may turn off the matching request. It must not
 overwrite a newer saved choice, and a failed request must not be retried again and
-again without a new change. [`RestartRequired`](glossary.md#restart-required) stays
+again without a new change. [`RestartRequired`](../design/glossary.md#restart-required) stays
 locked until the game restarts. Application revisions, module versions and hashes, and
 the reasons for each transition are in the logs; choose log level Information or above
 to see normal transitions.
@@ -138,10 +138,10 @@ original game with the same trait.
 ## Lifecycle checks
 
 1. While the extension is confirmed active, run manual and automatic backups together
-   with the [WATCH](glossary.md#watch) stream, and check that no backup is duplicated.
+   with the [WATCH](../design/glossary.md#watch) stream, and check that no backup is duplicated.
 2. Exit and restart the app three times within one game session (one game JVM), then
    leave and open worlds. Old model state and
-   [generations](glossary.md#generation-module) must not leak into later sessions.
+   [generations](../design/glossary.md#generation-module) must not leak into later sessions.
 3. Turn the extension off, and exit the app, while the game is paused.
 4. Stop the vehicle before turning the extension off during a test. Turning it off
    explicitly can release control while moving, but going back to the original game
@@ -151,7 +151,7 @@ What to expect:
 
 - A disconnect stops new callbacks at once, without waiting for a game tick. If the
   app is terminated abruptly, it can take up to the five-second
-  [control lease](glossary.md#control-lease) to notice.
+  [control lease](../design/glossary.md#control-lease) to notice.
 - If an archive or configuration is rejected before installing, that alone does not
   replace a healthy module generation already running in the game. The app can turn
   off the matching rejected request.
@@ -172,7 +172,7 @@ What to expect:
 ### Settings file
 
 Defaults and ranges are in
-[vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml). Overrides
+[vehicle-drivetrain.toml](../../config/game-extensions/vehicle-drivetrain.toml). Overrides
 go in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`, with only the flat
 keys you need. Both .NET and Java validate keys, ranges, duplicates and cross-field
 constraints.

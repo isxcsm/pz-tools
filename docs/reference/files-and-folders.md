@@ -1,12 +1,12 @@
 # Files and folders
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
 PZ Tools keeps its files in three separate places: the app folder with the program
 itself, your own data under `%LOCALAPPDATA%\PzTools`, and the backup folders you
 choose. Outside them it changes one file of the game's, and only when you set the game's
 memory: the memory options in `ProjectZomboid64.json` in the game folder (see
-[game memory](game-memory.md)). This page lists what is in each, so you know which files are yours to edit,
+[game memory](../design/game-memory.md)). This page lists what is in each, so you know which files are yours to edit,
 which belong to the app, and what a backup folder contains. It also covers the limits
 for importing ZIP archives and how jobs are numbered.
 
@@ -16,7 +16,7 @@ for importing ZIP archives and how jobs are numbered.
 | --- | --- | --- |
 | The app folder, wherever you extracted the package | The app | Program files and read-only default settings |
 | `%LOCALAPPDATA%\PzTools` | You | Your preferences, editable settings, and the small databases for scheduling, game state and logs |
-| The backup folder you choose | Your backups | A backup [repository](glossary.md#repository) |
+| The backup folder you choose | Your backups | A backup [repository](../design/glossary.md#repository) |
 
 PZ Tools does not create its databases or `.pztools` folders next to your save folders
 or next to archives you import. Development runs use the same layout for app data.
@@ -46,11 +46,11 @@ development build has no list and is not checked. A file another program holds f
 If the app folder's path has letters outside ASCII (a folder named in another alphabet, say), two small
 files of the bridge are also copied to `%TEMP%\PzTools\attach\` (or, if that path is not
 ASCII either, to a folder only you can write under `%ProgramData%\PzTools\attach\`), as
-the game cannot load them from such a path. See [getting into the game](game-bridge.md#getting-into-the-game).
+the game cannot load them from such a path. See [getting into the game](../design/game-bridge.md#getting-into-the-game).
 
 The packaged defaults are the starting point for each
-[component's](glossary.md#component) settings. To update the app, see the
-[user guide](../README.md).
+[component's](../design/glossary.md#component) settings. To update the app, see the
+[user guide](../../README.md).
 
 ### Your data
 
@@ -78,10 +78,10 @@ The packaged defaults are the starting point for each
   temp\
 ```
 
-`config` holds one editable settings file per component; [configuration](configuration.md)
+`config` holds one editable settings file per component; [configuration](settings.md)
 lists them and explains how they combine with the packaged defaults. Existing settings
 files are not moved or rewritten automatically. What each database holds is described
-in [process architecture](process-architecture.md#which-database-holds-what).
+in [process architecture](../design/process-architecture.md#which-database-holds-what).
 
 ### A backup folder
 
@@ -91,8 +91,8 @@ in [process architecture](process-architecture.md#which-database-holds-what).
   .pztools\<component>\...            # component diagnostics
 ```
 
-See [repository format](repository-format.md) for what these files are, and
-[telemetry](telemetry.md) for the diagnostic databases.
+See [repository format](../design/repository-format.md) for what these files are, and
+[telemetry](../design/telemetry.md) for the diagnostic databases.
 
 ## Importing ZIP archives
 
@@ -120,7 +120,7 @@ initial values.
 
 ## Run numbers
 
-Every job attempt gets a [run index](glossary.md#run-index), a number that ties
+Every job attempt gets a [run index](../design/glossary.md#run-index), a number that ties
 together its revision, log entries and diagnostics. Gaps in these numbers are
 normal: a run that was busy or failed still used its number, and numbers are never
 reused.

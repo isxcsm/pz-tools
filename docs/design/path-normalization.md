@@ -1,6 +1,6 @@
 # Normalized path identities
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Every file in a backup is recorded with its path inside the save. The backup
 [repository](glossary.md#repository) stores each path once, in two dictionaries, and
@@ -96,4 +96,4 @@ literally.
 ## Measurements
 
 The size experiment and the verification runs from when normalized paths were introduced
-are kept in [path normalization measurements](history/path-normalization-measurements.md).
+are kept in [path normalization measurements](../history/path-normalization-measurements.md).

@@ -1,13 +1,13 @@
 # Advanced component settings
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
-Each background program in PZ Tools (each [component](glossary.md#component)) has its
+Each background program in PZ Tools (each [component](../design/glossary.md#component)) has its
 own settings file with tuning values: timeouts, buffer sizes, batch sizes and how often
 things are checked or refreshed. The defaults suit normal use. This page is for someone
 who wants to adjust a component, for example for a slow disk, or who is investigating
 a problem. Everyday preferences, where the files live and which setting wins are on the
-[configuration](configuration.md) page.
+[configuration](settings.md) page.
 
 ## What each file controls
 
@@ -17,15 +17,15 @@ and what changing it does.
 
 | Editable file | What it tunes |
 | --- | --- |
-| [`app/default.toml`](../config/defaults/app/default.toml) | Stored logs, plus: how often lists and progress are refreshed; telemetry catch-up, read grace and stale threshold; how long operation cards stay; thumbnail memory budget and parallel reads; retries and timeouts of an explicit refresh; scheduler restart and back-off; shutdown grace; settings and log-filter debounce; progress frequency of running operations (key `export_progress_interval_ms`, which keeps an older name but applies to every operation); `[profiler]` recording limits (`general_limit_minutes`, `detailed_limit_minutes`) and the most the last minutes may hold on disk (`rolling_max_megabytes`); `[hotkeys]` sounds and in-game notes (`sounds`, `game_notices`; see [hotkeys](profiler.md#hotkeys)) |
-| [`backup-worker/default.toml`](../config/defaults/backup-worker/default.toml) | Attempts and back-off for files that keep changing, copy and hash buffer, the small-file staging pool, capture reader and queue limits, full-scan hash batch and reader limits, progress frequency, scan and USN batches, backup heartbeat, and the timeouts for connecting to the game, queueing a save and waiting for it to finish |
-| [`backup-scheduler/default.toml`](../config/defaults/backup-scheduler/default.toml) | How often it checks whether a backup is due (not your backup interval), and how early it starts preparing a due backup |
-| [`state-scheduler/default.toml`](../config/defaults/state-scheduler/default.toml) | State checks, wake-up polling, the delay between the two independent confirmation checks, how often interrupted work and orphan backups are cleaned up, and the extension-control connection |
-| [`maintenance-worker/default.toml`](../config/defaults/maintenance-worker/default.toml) | Batch size for reclaiming deleted revisions, retry delay when another job holds the writer lock, run-history trimming, VACUUM and pack rewriting thresholds. It does not set how many backups are kept. |
-| [`archive-worker/default.toml`](../config/defaults/archive-worker/default.toml) | ZIP safeguards, memory budgets for character and thumbnail previews, progress and heartbeat frequency |
-| [`restore-worker/default.toml`](../config/defaults/restore-worker/default.toml), [`character-recovery/default.toml`](../config/defaults/character-recovery/default.toml), [`profiler/default.toml`](../config/defaults/profiler/default.toml) | Diagnostic retention, progress and heartbeat frequency |
+| [`app/default.toml`](../../config/defaults/app/default.toml) | Stored logs, plus: how often lists and progress are refreshed; telemetry catch-up, read grace and stale threshold; how long operation cards stay; thumbnail memory budget and parallel reads; retries and timeouts of an explicit refresh; scheduler restart and back-off; shutdown grace; settings and log-filter debounce; progress frequency of running operations (key `export_progress_interval_ms`, which keeps an older name but applies to every operation); `[profiler]` recording limits (`general_limit_minutes`, `detailed_limit_minutes`) and the most the last minutes may hold on disk (`rolling_max_megabytes`); `[hotkeys]` sounds and in-game notes (`sounds`, `game_notices`; see [hotkeys](../design/profiler.md#hotkeys)) |
+| [`backup-worker/default.toml`](../../config/defaults/backup-worker/default.toml) | Attempts and back-off for files that keep changing, copy and hash buffer, the small-file staging pool, capture reader and queue limits, full-scan hash batch and reader limits, progress frequency, scan and USN batches, backup heartbeat, and the timeouts for connecting to the game, queueing a save and waiting for it to finish |
+| [`backup-scheduler/default.toml`](../../config/defaults/backup-scheduler/default.toml) | How often it checks whether a backup is due (not your backup interval), and how early it starts preparing a due backup |
+| [`state-scheduler/default.toml`](../../config/defaults/state-scheduler/default.toml) | State checks, wake-up polling, the delay between the two independent confirmation checks, how often interrupted work and orphan backups are cleaned up, and the extension-control connection |
+| [`maintenance-worker/default.toml`](../../config/defaults/maintenance-worker/default.toml) | Batch size for reclaiming deleted revisions, retry delay when another job holds the writer lock, run-history trimming, VACUUM and pack rewriting thresholds. It does not set how many backups are kept. |
+| [`archive-worker/default.toml`](../../config/defaults/archive-worker/default.toml) | ZIP safeguards, memory budgets for character and thumbnail previews, progress and heartbeat frequency |
+| [`restore-worker/default.toml`](../../config/defaults/restore-worker/default.toml), [`character-recovery/default.toml`](../../config/defaults/character-recovery/default.toml), [`profiler/default.toml`](../../config/defaults/profiler/default.toml) | Diagnostic retention, progress and heartbeat frequency |
 
-Every file also has a `[telemetry]` section; see [telemetry](telemetry.md). A limit of
+Every file also has a `[telemetry]` section; see [telemetry](../design/telemetry.md). A limit of
 zero there keeps its documented meaning: unlimited.
 
 ## Changing a setting
@@ -58,12 +58,12 @@ have separate timeouts for waiting in the game's queue and for waiting for the s
 finish. Only a save that is still queued can be cancelled safely. A save the game has
 already started is not interrupted. When it is unknown whether a save finished, the
 backup does not capture files and does not retry automatically. See
-[when the game is not saved](game-bridge.md#admission-and-failures).
+[when the game is not saved](../design/game-bridge.md#admission-and-failures).
 
 **New timeouts may need a game restart.** The configured deadlines are sent to the
-[game bridge](glossary.md#game-bridge) in the game. A compatible [payload](glossary.md#payload)
-update is picked up at an idle moment; an incompatible [bootstrap](glossary.md#bootstrap)
-still loaded in the game needs a game restart. See [component updates](module-reload.md).
+[game bridge](../design/glossary.md#game-bridge) in the game. A compatible [payload](../design/glossary.md#payload)
+update is picked up at an idle moment; an incompatible [bootstrap](../design/glossary.md#bootstrap)
+still loaded in the game needs a game restart. See [component updates](../design/module-reload.md).
 
 ### Deliberately not editable
 
@@ -112,7 +112,7 @@ includes survival time and an explicit "complete" flag, so a missing survival ti
 not mistaken for work still pending. The collector also picks up collection that was
 interrupted.
 
-The collector reads packs without holding the [writer lock](glossary.md#writer-lock),
+The collector reads packs without holding the [writer lock](../design/glossary.md#writer-lock),
 keeps reads it has finished even when a writer gets in the way, and moves on past
 failures. It stores the last read error. A failed read is shown as unavailable with a
 retry notice, not as a progress indicator that never ends; a successful retry clears
@@ -128,16 +128,16 @@ background.
 ### Results from other processes
 
 Every process boundary uses `ProcessResultValidator`: the required envelope fields,
-the component identity, the [run index](glossary.md#run-index) and the exit status
+the component identity, the [run index](../design/glossary.md#run-index) and the exit status
 must agree. Missing output never counts as success. When the app sees a protocol
 failure, it keeps the process's stderr in the durable log inbox, separately from the
 machine-readable error code. Child processes all use one Job Object implementation and
 one teardown path. The result format is described under
-[results and exit codes](cli.md#results-and-exit-codes).
+[results and exit codes](command-line.md#results-and-exit-codes).
 
 ### Cleaning up operation telemetry
 
-The [telemetry](glossary.md#telemetry) of archive, restore and character-recovery runs
+The [telemetry](../design/glossary.md#telemetry) of archive, restore and character-recovery runs
 is temporary. It is removed once the worker has stopped and every available event has
 been imported into `logs.db`. A session activity lock prevents removal too early,
 including while old events are being replayed.

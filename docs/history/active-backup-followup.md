@@ -6,8 +6,8 @@
 
 Historical record of the schema-5 follow-up to the schema-4 hotpath branch, including
 documentation changes from dev `2c1133d`. Format remained 2. For current behavior,
-see [configuration](../configuration.md), [repository format](../repository-format.md) and
-[cleanup policy](../repository-housekeeping.md).
+see [configuration](../reference/settings.md), [repository format](../design/repository-format.md) and
+[cleanup policy](../design/repository-housekeeping.md).
 
 ## Automatic backup policy and execution boundaries
 

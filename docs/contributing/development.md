@@ -1,10 +1,10 @@
 # Development and validation
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
 This page is for contributors who build PZ Tools from source: how to set up a machine,
 build and test, publish a runnable folder, package a release, and what the CI checks.
-It is not about installing a release. The [user guide](../README.md) has the quick-start
+It is not about installing a release. The [user guide](../../README.md) has the quick-start
 commands; this page covers the full development workflow. All of it assumes a Windows
 x64 development machine.
 
@@ -12,7 +12,7 @@ x64 development machine.
 
 To build, install:
 
-- the .NET SDK selected by [`global.json`](../global.json)
+- the .NET SDK selected by [`global.json`](../../global.json)
 - PowerShell 7
 - a Windows x64 Java 25 JDK
 - the Visual Studio C++ and Windows/WinUI build tools
@@ -20,12 +20,12 @@ To build, install:
 The projects restore the Windows App SDK and the managed dependencies themselves. The
 game's trimmed Java runtime cannot be used as a build JDK. For the native build
 requirements, and how `JdkPath`, `JAVA_HOME` and bundled toolchains are chosen, see
-[bridge build prerequisites](game-bridge.md#building-and-publishing).
+[bridge build prerequisites](../design/game-bridge.md#building-and-publishing).
 
 To run the published app, end users need the
 [.NET 10 runtime for Windows x64](https://dotnet.microsoft.com/en-us/download/dotnet/10.0),
-because the app is framework-dependent. The [app manifest](../src/PzTools.App/app.manifest)
-requires administrator permission, for [USN tracking](glossary.md#usn-journal).
+because the app is framework-dependent. The [app manifest](../../src/PzTools.App/app.manifest)
+requires administrator permission, for [USN tracking](../design/glossary.md#usn-journal).
 
 ## Build and test
 
@@ -41,7 +41,7 @@ The Java and native payload is part of the normal worker build. Do not copy old 
 or worker binaries into a new app build.
 
 **From Visual Studio**, F5 and Ctrl+F5 also build and stage the worker dependencies,
-through [AppWorkers.targets](../build/AppWorkers.targets).
+through [AppWorkers.targets](../../build/AppWorkers.targets).
 
 - `PZTOOLS_TOOLS_DIR` is an explicit development override, read by Debug builds of the app only
   (a release build always starts the workers in its own folder: the app runs as
@@ -56,11 +56,11 @@ saves page that keeps failing to load, a new release, the results of an action) 
 shown without them: *Settings → Advanced → Card preview* picks one and shows it, and
 *Clear all* puts the real state back. For a scripted run, `PZTOOLS_PREVIEW_CARDS=blocked,update` (or
 `all`) shows those cards from the start; the keys are listed in
-[`MainWindowShell.CardPreview.cs`](../src/PzTools.App/MainWindowShell.CardPreview.cs).
+[`MainWindowShell.CardPreview.cs`](../../src/PzTools.App/MainWindowShell.CardPreview.cs).
 The cards go through the same code as the real state, so the preview shows what users
 see, but not whether the state is detected. Previewed warnings and errors write nothing
 to the log. This exists in every build except a published app:
-[`publish-app.ps1`](../scripts/publish-app.ps1) passes `PzToolsDistribution=true`,
+[`publish-app.ps1`](../../scripts/publish-app.ps1) passes `PzToolsDistribution=true`,
 which compiles none of it, and the published-folder tests check that.
 
 ## Publish a runnable folder
@@ -69,10 +69,10 @@ which compiles none of it, and the published-folder tests check that.
 pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
-[`publish-app.ps1`](../scripts/publish-app.ps1) calls
-[`publish-tools.ps1`](../scripts/publish-tools.ps1) itself. It ends by writing
+[`publish-app.ps1`](../../scripts/publish-app.ps1) calls
+[`publish-tools.ps1`](../../scripts/publish-tools.ps1) itself. It ends by writing
 `pztools-files.txt`, the list of the published files with their sizes and SHA-256, which
-the app checks its folder against (see [checking the folder](deployment-layout.md#the-app-folder));
+the app checks its folder against (see [checking the folder](../reference/files-and-folders.md#the-app-folder));
 anything added to the folder after it is not listed. Do not publish the tools to
 that folder first and then run `publish-app.ps1` on the same, now nonempty, folder.
 
@@ -84,7 +84,7 @@ that folder first and then run `publish-app.ps1` on the same, now nonempty, fold
 ## Build a release
 
 Releases are built by GitHub Actions, not on a developer's PC. Raise `<Version>` in
-[`Directory.Build.props`](../Directory.Build.props) (every assembly and executable carries
+[`Directory.Build.props`](../../Directory.Build.props) (every assembly and executable carries
 it, and the Home page shows it), commit, run the tests that need the game locally (the
 CI's JVM is synthetic), then push a tag named for the version:
 
@@ -93,7 +93,7 @@ git tag v0.2.4
 git push origin v0.2.4
 ```
 
-The [workflow](../.github/workflows/windows.yml)'s `release` job runs once the checks and
+The [workflow](../../.github/workflows/windows.yml)'s `release` job runs once the checks and
 the Windows build and tests have passed for that commit. It:
 
 1. fails unless the tag is `v` followed by `<Version>`
@@ -113,7 +113,7 @@ and keeps it as an artifact for a week, with no attestation and no release. To b
 pwsh scripts/build-release.ps1 -JdkPath $jdk
 ```
 
-[`build-release.ps1`](../scripts/build-release.ps1) does the steps below in one go and
+[`build-release.ps1`](../../scripts/build-release.ps1) does the steps below in one go and
 writes to `artifacts/release/v<version>/`, which must not exist yet:
 
 1. refuses uncommitted changes, so the package matches a commit
@@ -137,7 +137,7 @@ pwsh scripts/package-release.ps1 -PublishDirectory artifacts/app-local -OutputAr
 The archive's parent folder must already exist. The packager:
 
 1. refuses output files that already exist
-2. adds the short [release guide](../build/START-HERE.txt)
+2. adds the short [release guide](../../build/START-HERE.txt)
 3. puts everything under one top-level folder, with a fixed entry order and fixed
    timestamps. `-RootFolder` names it (`PzTools` by default); a release built by
    `build-release.ps1` names it `PzTools-v<version>`, so a new release extracts beside
@@ -153,17 +153,17 @@ not cover.
 ## What to distribute
 
 Distribute the **whole output folder**: workers, defaults, WinUI components and the
-reduced Java [Attach](glossary.md#attach) runtime. Users run `PzTools.App.exe`
+reduced Java [Attach](../design/glossary.md#attach) runtime. Users run `PzTools.App.exe`
 from it, not a source-code archive or an EXE copied on its own. Game JAR files are not
 redistributed.
 
-Keep saves and backup [repositories](glossary.md#repository) outside the application
+Keep saves and backup [repositories](../design/glossary.md#repository) outside the application
 output. Do not use an installed app folder as a native build-output directory.
 
-The [deployment layout](deployment-layout.md) describes app files, user settings and
+The [deployment layout](../reference/files-and-folders.md) describes app files, user settings and
 backup data separately.
 
-**Existing data and development builds.** Read the [repository format](repository-format.md)
+**Existing data and development builds.** Read the [repository format](../design/repository-format.md)
 before opening existing data with a development build. If the schema is incompatible:
 
 - keep the old data you need
@@ -213,7 +213,7 @@ pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 This script runs against an isolated synthetic JVM, not a real running game.
 
 Real-game tests, tests on external save samples and elevated USN tests need explicit
-setup. Before opting in, read the [verification report](history/verification-report.md)
+setup. Before opting in, read the [verification report](../history/verification-report.md)
 and the script concerned. Do not run a command against your live save just to reproduce
 a benchmark.
 
@@ -236,21 +236,21 @@ explains what these tests do and do not establish.
 
 ## CLI and advanced settings
 
-- [CLI commands](cli.md) lists the backup, restore, ZIP, verification and maintenance
-  operations, and [configuration](configuration.md) their parameters. CLI examples with
+- [CLI commands](../reference/command-line.md) lists the backup, restore, ZIP, verification and maintenance
+  operations, and [configuration](../reference/settings.md) their parameters. CLI examples with
   placeholder paths are not commands to run against a live save.
 - The backup worker's defaults are in
-  [`config/defaults/backup-worker/default.toml`](../config/defaults/backup-worker/default.toml).
+  [`config/defaults/backup-worker/default.toml`](../../config/defaults/backup-worker/default.toml).
   The default uses Brotli compression and xxHash64 pack checksums. Content deduplication
   uses full SHA-256 and is optional.
 - Change-detection fingerprints, copy verification and pack checksums have different
   purposes; they are not interchangeable safety switches. See
-  [stable capture](stable-capture.md) and the [repository format](repository-format.md).
+  [stable capture](../design/stable-capture.md) and the [repository format](../design/repository-format.md).
 - For tuning individual components, see
-  [advanced runtime configuration](runtime-configuration.md).
+  [advanced runtime configuration](../reference/advanced-settings.md).
 
 Old performance and verification results stay tied to the data, machines and commits
-they state. The [documentation index](README.md#measurements-and-history) keeps those
+they state. The [documentation index](../README.md#measurements-and-history) keeps those
 records apart from the current user instructions.
 
 ## Limits
@@ -272,7 +272,7 @@ records apart from the current user instructions.
 
 ## CI
 
-The [CI workflow](../.github/workflows/windows.yml) builds once, optionally publishes,
+The [CI workflow](../../.github/workflows/windows.yml) builds once, optionally publishes,
 and then runs the applicable tests once with that fresh distribution. Check its result
 for the exact commit.
 

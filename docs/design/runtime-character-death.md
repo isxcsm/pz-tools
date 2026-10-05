@@ -1,6 +1,6 @@
 # Death backups
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 When your character dies, PZ Tools stops making automatic backups, so the backups made
 while the character was alive are not pushed out of the kept number

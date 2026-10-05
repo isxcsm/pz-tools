@@ -2,7 +2,7 @@
 """Offline checks for English documentation and the single root user guide.
 
 Standard library only. Supported Markdown syntax and limitations are documented in
-`docs/documentation-maintenance.md`. This checks structure, not prose quality.
+`docs/contributing/documentation-maintenance.md`. This checks structure, not prose quality.
 """
 from __future__ import annotations
 

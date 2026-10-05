@@ -1,6 +1,6 @@
 # Vehicle driving extension: design
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 **Vehicle driving improvements** (`pztools.vehicle-drivetrain`, version 0.2.0) is an
 experimental [game extension](game-extensions.md), off by default. It has four options,
@@ -14,7 +14,7 @@ each with its own switch:
   headlights are on
 
 This page explains how each works and how the extension attaches to the game. To try
-it in a real game, use the [vehicle test guide](e2e-vehicle-drivetrain.md).
+it in a real game, use the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).
 
 **Status.** The driving model, the adapter against a synthetic game and checks in a
 separate Java process are tested automatically. Real driving has not been accepted
@@ -124,7 +124,7 @@ still has to be measured in the game.
 
 ### Compatibility checks against the game build
 
-The [catalogue](../config/game-extensions/catalog.tsv) declares game version 42. Before
+The [catalogue](../../config/game-extensions/catalog.tsv) declares game version 42. Before
 the extension starts, it checks the exact field types, method signatures and
 static/instance access it uses. Then it checks the actual bytes the Java runtime hands
 to its transformer. Whole-class hashes of `WorldSimulation`, `GameTime`, `BaseVehicle`
@@ -414,7 +414,7 @@ Observation-only mode (`probe_only`) places no light.
 
 ## Settings
 
-Defaults and allowed ranges are in [vehicle-drivetrain.toml](../config/game-extensions/vehicle-drivetrain.toml).
+Defaults and allowed ranges are in [vehicle-drivetrain.toml](../../config/game-extensions/vehicle-drivetrain.toml).
 Your overrides go in `%LOCALAPPDATA%/PzTools/extensions/vehicle-drivetrain.toml`. Both
 the app and the extension check a fixed copy of the settings before applying it; the
 code running in the game never reads the file.
@@ -435,7 +435,7 @@ overwritten.
 
 ## Connection and lifecycle
 
-[RuntimeExtensionCoordinator](../src/PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs)
+[RuntimeExtensionCoordinator](../../src/PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs)
 in the state scheduler owns the connection to the game: authentication, heartbeat,
 delivering settings and reconnecting. It uses the same choice of game process as the
 rest of the state scheduler; with no suitable game, or more than one, nothing is

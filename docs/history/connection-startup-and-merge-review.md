@@ -6,8 +6,8 @@
 
 Historical review of PR #1's format 2 / schema 2 implementation, which superseded
 PR #2's schema-12 migration. Versions and results below belong to the named commits.
-See [repository format](../repository-format.md) for current compatibility and
-[development](../development.md) for validation requirements.
+See [repository format](../design/repository-format.md) for current compatibility and
+[development](../contributing/development.md) for validation requirements.
 
 ## Connection ownership
 

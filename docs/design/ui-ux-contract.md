@@ -1,6 +1,6 @@
 # UI and projection contract
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 This page is for anyone changing the PZ Tools desktop app's interface: the WinUI 3
 window where saves, backups, performance recordings, settings, logs and game extensions
@@ -64,7 +64,7 @@ narrow window never splits one.
 Settings are grouped Fluent cards on a scrollable page: Version, Display, Paths, Backup,
 Game (game memory), Performance, Hotkeys and Advanced. Version and Advanced start
 collapsed, the rest expanded. Inputs shrink to fit narrow windows.
-Defaults and accepted values are listed in [configuration](configuration.md), not here.
+Defaults and accepted values are listed in [configuration](../reference/settings.md), not here.
 
 **Automatic backup** is the switch for both periodic and death-triggered backups.
 
@@ -227,7 +227,7 @@ and the next-backup line always stay.
 - A finished card expires on its own. Success and *no change* use the success lifetime
   (five seconds by default); every other outcome uses the failure lifetime (ten seconds
   by default). Both are set in the app's TOML (`success_card_seconds`,
-  `failure_card_seconds`; see [advanced runtime configuration](runtime-configuration.md)).
+  `failure_card_seconds`; see [advanced runtime configuration](../reference/advanced-settings.md)).
   The same rule applies to the app's own placeholder cards and action results.
 - A card leaves when its time is up, even if no newer progress has been read since.
 - While the pointer rests on the cards, finished cards stay, so a message can be read to
@@ -273,7 +273,7 @@ is on the card or the keyboard is in it (still reachable with Tab when unseen).
 
 | Card | Leaves |
 | --- | --- |
-| The app folder is not as published ([checking the folder](deployment-layout.md#the-app-folder)), first of all; its button opens the download page | Through ✕, for this run |
+| The app folder is not as published ([checking the folder](../reference/files-and-folders.md#the-app-folder)), first of all; its button opens the download page | Through ✕, for this run |
 | Part of the saves page keeps failing to load ([projector failures](#projector-failures)) | When it loads again, or through ✕ |
 | App components blocked by Windows | When nothing is blocked any more, or through ✕ |
 | The game cannot be read ([game-aware timing](runtime-pause-backups.md#when-the-game-cannot-be-read)), or PZ Tools was updated and the game needs a restart | When the game can be read again, or through ✕; the restart card has no ✕, as automatic backups wait for the restart |
@@ -478,7 +478,7 @@ while the extension itself starts off. Developer tuning stays in TOML. See
   ([restart required](glossary.md#restart-required)).
 - Detailed revisions, hashes and transition reasons belong in the logs, not on this page.
 
-For checks in a real game, see the [vehicle test guide](e2e-vehicle-drivetrain.md).
+For checks in a real game, see the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).
 
 ## Limits
 

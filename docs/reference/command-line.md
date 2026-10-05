@@ -1,6 +1,6 @@
 # Command line
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](../design/glossary.md)
 
 Every background program in PZ Tools is also a command-line program. This page lists
 their commands and options, the exit codes they return, and how a restore protects the
@@ -8,15 +8,15 @@ save it replaces. It is for scripting, testing and troubleshooting without the a
 everyday backups and restores go through the app.
 
 Programs come in two roles
-([scheduler, runner, worker](glossary.md#scheduler-runner-worker)):
+([scheduler, runner, worker](../design/glossary.md#scheduler-runner-worker)):
 
 - **Workers and runners** carry out one operation and exit.
 - **Schedulers** keep the state of recurring work.
 
-Each operation gets a [run index](glossary.md#run-index). A direct call allocates a new
+Each operation gets a [run index](../design/glossary.md#run-index). A direct call allocates a new
 global `run_index`; a `--run-index` you supply is reused throughout the pipeline.
 
-Settings, defaults and which setting wins are on the [configuration](configuration.md)
+Settings, defaults and which setting wins are on the [configuration](settings.md)
 page.
 
 ## Backup diagnostics
@@ -41,7 +41,7 @@ diff <source> <catalog.json>
 
 | Option of `backup` | Effect |
 | --- | --- |
-| `--save-game` | Asks the matching running single-player world to save first ([game bridge](game-bridge.md)) |
+| `--save-game` | Asks the matching running single-player world to save first ([game bridge](../design/game-bridge.md)) |
 | `--require-active-game` | Skips automatic work if that world stops before files are captured |
 | `--scheduled-utc` | Allows preparation in advance, but no saving or capture before the scheduled time |
 | `--game-version` | Records the running game's version with the new backup. The app and the scheduler pass it while the game has that save loaded. |
@@ -51,7 +51,7 @@ diff <source> <catalog.json>
 mistyped path does not create a new one.
 
 The configuration options and overrides accepted by `backup` and `config` are listed
-under [configuration](configuration.md#checking-and-overriding-from-the-command-line).
+under [configuration](settings.md#checking-and-overriding-from-the-command-line).
 
 ## Runners, schedulers, and archives
 
@@ -97,14 +97,14 @@ PzTools.Profiler.Cli roll-stop
     (each: --run-index <n> --telemetry-identity <path> [--process-id <pid>] [--bridge <game-bridge-dir>])
 ```
 
-- `PzTools.Zomboid.Recovery.Cli` performs [character recovery](character-recovery.md)
+- `PzTools.Zomboid.Recovery.Cli` performs [character recovery](../design/character-recovery.md)
   on a save that is not being played.
-- `PzTools.Profiler.Cli` makes one [performance recording](profiler.md): it records until
+- `PzTools.Profiler.Cli` makes one [performance recording](../design/profiler.md): it records until
   the stop file appears or `--max-seconds` (default 600) runs out, then converts the
   result. Without `--process-id` it looks for the single running game. With `--owner`, an
   app run's identifier, the game ends the recording once that run's lease lapses (see
-  [leases](game-bridge.md#leases)). `roll-start`, `roll-save` and `roll-stop` start, save
-  and stop [the last minutes](profiler.md#the-last-minutes); they are internal, started by
+  [leases](../design/game-bridge.md#leases)). `roll-start`, `roll-save` and `roll-stop` start, save
+  and stop [the last minutes](../design/profiler.md#the-last-minutes); they are internal, started by
   the app.
 - `PzTools.Maintenance.Cli` is the maintenance worker. It is internal: MaintenanceRunner
   and StateScheduler start it with the options they need (`--lane`,
@@ -117,7 +117,7 @@ PzTools.Profiler.Cli roll-stop
   start workers with fixed names from that same directory.
 - Each `--config` selects the settings of its own process only. BackupRunner and
   MaintenanceRunner use `--worker-config` to override their child worker's settings.
-  See [configuration](configuration.md#which-setting-wins) for defaults and precedence.
+  See [configuration](settings.md#which-setting-wins) for defaults and precedence.
 
 ## Results and exit codes
 
@@ -132,7 +132,7 @@ PzTools.Profiler.Cli roll-stop
 | 75 | Runner mutex or repository writer lease is busy |
 
 **Busy (75).** A runner that cannot take its mutex records a `Busy`
-[workflow](glossary.md#workflow) and does not start a worker. The run index it was given
+[workflow](../design/glossary.md#workflow) and does not start a worker. The run index it was given
 stays used. The scheduler tries again later; missed ticks do not pile up, and a pending
 attempt that never started is not used up.
 
@@ -144,7 +144,7 @@ errors may instead be written to stderr as JSON with `success`, `code` and `mess
 
 **Warnings.** A telemetry failure does not change the exit code of a successful backup.
 The result's `warnings` can report telemetry errors, quarantined staging files and
-orphan packs. See [telemetry](telemetry.md) for details.
+orphan packs. See [telemetry](../design/telemetry.md) for details.
 
 ## Restore safety
 
@@ -162,7 +162,7 @@ An existing target is accepted. A save that is running is refused: if `players.d
 cannot be opened exclusively, the restore does not start.
 
 The save is not touched until the rename step. A restore that fails before then
-discards its own staging folder and [journal](glossary.md#restore-journal), even if
+discards its own staging folder and [journal](../design/glossary.md#restore-journal), even if
 the save has been opened in the meantime, and reports the original error. After the
 new save is installed, a rollback folder that cannot be removed yet stays in the
 journal for later cleanup; the restore still counts as successful.

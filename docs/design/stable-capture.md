@@ -1,6 +1,6 @@
 # Stable file capture
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 While the game runs it may write a save file at any moment, including while PZ Tools
 is copying it. [Stable capture](glossary.md#stable-capture) is how the backup worker
@@ -64,8 +64,8 @@ These are under `[runtime]` in the backup worker's TOML file:
 | `full_scan_hash_batch_size` | 16 | Files per full-scan hash batch |
 | `full_scan_hash_read_concurrency` | 4 | Full-scan hash readers at the same time |
 
-See [runtime configuration](runtime-configuration.md) for the allowed ranges and
-[backup tuning](history/backup-tuning.md) for the measurements behind the defaults.
+See [runtime configuration](../reference/advanced-settings.md) for the allowed ranges and
+[backup tuning](../history/backup-tuning.md) for the measurements behind the defaults.
 
 ## Limits
 

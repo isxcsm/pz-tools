@@ -7,7 +7,7 @@
 The original review below covers `i18n/user-friendly-messages`, based on dev
 `6ab613238081946b9d9fccd67d01c0719b11340f`. It changed UI wording and presentation,
 without changing storage, deletion policy, persisted language IDs or worker protocols.
-See [localization](../localization.md) for the maintained UI language contract.
+See [localization](../contributing/localization.md) for the maintained UI language contract.
 
 ## Scope and terminology
 

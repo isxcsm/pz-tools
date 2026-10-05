@@ -27,13 +27,13 @@ The Home page shows whether the game is running, the latest save's last backup a
 Requires **Windows x64** and the **[.NET 10 runtime](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)**. The app requests administrator permission for NTFS change tracking.
 WinUI components and the Java Attach runtime are included; no separate Java installation is needed.
 
-1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app. Any folder works, including one with non-English letters in its path; up to 0.2.1 the app could not connect to the game from such a folder, which is fixed (two small files are then copied to a folder of yours, see [files and folders](docs/deployment-layout.md)).
+1. Get a runnable package from [Releases](https://github.com/isxcsm/pz-tools/releases), or build from source below. Extract the whole package and run `PzTools.App.exe`; GitHub's source ZIP is not a runnable app. Any folder works, including one with non-English letters in its path; up to 0.2.1 the app could not connect to the game from such a folder, which is fixed (two small files are then copied to a folder of yours, see [files and folders](docs/reference/files-and-folders.md)).
 2. Open Settings in the sidebar and check the save and backup folders. The app starts in your Windows display language, or in English if it does not have that one. Keep those folders separate.
 3. Create a manual backup and confirm it completes. Automatic backups default to **every 5 minutes**, keeping **20 automatic backups**.
 
 About once an hour while it runs, the app asks GitHub whether a newer release is out (one request to `api.github.com`; nothing else is sent and nothing is downloaded by itself). A new version shows as one line in the sidebar until you update; clicking it opens the release page. *Settings → Version* shows your version, checks on demand, and turns the notice (and the check) off.
 
-To update, close the app and extract the new package: from 0.2.2 its folder is named for its version (`PzTools-v0.2.2`), so it goes beside the old one, which you can then delete. Do not mix builds; if a package was extracted over another, the app finds the files that differ and asks for a clean copy. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders, and a newer version keeps using them: a backup folder is brought up to date in place the first time the new version opens it. See [settings and paths](docs/configuration.md).
+To update, close the app and extract the new package: from 0.2.2 its folder is named for its version (`PzTools-v0.2.2`), so it goes beside the old one, which you can then delete. Do not mix builds; if a package was extracted over another, the app finds the files that differ and asks for a clean copy. Your settings live under `%LOCALAPPDATA%\PzTools`; saves and backups stay in their configured folders, and a newer version keeps using them: a backup folder is brought up to date in place the first time the new version opens it. See [settings and paths](docs/reference/settings.md).
 
 Updating from 0.1.0: the first time 0.2.0 opens a backup folder, it upgrades the folder's catalog in place (all or nothing; nothing is lost). **After that, 0.1.0 can no longer open that folder**, so do not go back to 0.1.0 with it. The vehicle extension's new *Light around the vehicle* option starts on, so if the extension was on, the light comes on with headlights. Switch it off on the Game extensions page if you do not want it.
 
@@ -42,7 +42,7 @@ Updating from 0.2.0 or 0.2.1: backup folders are unchanged. If the game is runni
 <a id="backups-and-retention"></a>
 ## Backup history
 
-The automatic backup limit does not remove manual backups. Manual backups can still be deleted directly or by cleanup after the original save folder disappears. **Deleting a save through the app also deletes its backups.** Export anything you want to keep before removing or moving a save. See [cleanup policy](docs/repository-housekeeping.md).
+The automatic backup limit does not remove manual backups. Manual backups can still be deleted directly or by cleanup after the original save folder disappears. **Deleting a save through the app also deletes its backups.** Export anything you want to keep before removing or moving a save. See [cleanup policy](docs/design/repository-housekeeping.md).
 
 Automatic timing follows the active save. Pause-aware timing is on by default, preserving the remaining interval while paused or asleep. Restarting the app starts a fresh interval; it does not immediately run an overdue periodic backup.
 
@@ -59,7 +59,7 @@ The optional game bridge asks the game to save before reading its files. No Work
 
 If PZ Tools cannot connect to the running game (for example after a game update), backups continue at the set interval with the files already on disk, and the app says so; features that need the game are locked until the connection returns.
 
-Game saving and in-game notices have separate switches. **Game-save completion is not backup completion**: file copying and compression happen afterward. Turning saving off backs up only data already written to disk. Game-state monitoring and vehicle controls can remain active. See [game integration and compatibility](docs/game-bridge.md).
+Game saving and in-game notices have separate switches. **Game-save completion is not backup completion**: file copying and compression happen afterward. Turning saving off backs up only data already written to disk. Game-state monitoring and vehicle controls can remain active. See [game integration and compatibility](docs/design/game-bridge.md).
 
 <a id="restore-and-archives"></a>
 ## Restore and ZIP files
@@ -79,7 +79,7 @@ Recovery works on the current save while it is not being played. It can heal or 
 
 *The confirmation shows which zombie or corpse the belongings come from, and what happens to it. Reviving without them is always an option.*
 
-**Create a backup first.** Recovery does not make an extra copy automatically. See [supported formats and recovery limits](docs/character-recovery.md).
+**Create a backup first.** Recovery does not make an extra copy automatically. See [supported formats and recovery limits](docs/design/character-recovery.md).
 
 <a id="performance-recording"></a>
 ## Performance recording
@@ -88,22 +88,22 @@ The Performance page records the running game while you reproduce a lag, then sh
 
 ![A performance recording: a stretch of frames is selected, and the mods' shares of its time open into each mod's call tree](docs/media/profiler.webp)
 
-Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The *Copy text* button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/profiler.md).
+Each recording is a single file that can be sent to someone else; it holds mod and script names, not your user folder paths. The *Copy text* button beside a result puts what the page shows on the clipboard as text, to paste into a message to a mod's author. See [performance recording](docs/design/profiler.md).
 
 <a id="hotkeys"></a>
 ## Hotkeys
 
-Under *Settings → Hotkeys*, keys can be set that work while the game has the keyboard: save the last minutes, start or stop a recording, switch the recording mode, turn keeping the last minutes on or off, back up the save being played, turn automatic backups on or off (as the settings' switch does: nothing turns them back on by itself) and show the status. Each answers with a sound and a short note over your character's head. Only *Save last minutes* has a key at first, Ctrl+Shift+F9. See [hotkeys](docs/profiler.md#hotkeys).
+Under *Settings → Hotkeys*, keys can be set that work while the game has the keyboard: save the last minutes, start or stop a recording, switch the recording mode, turn keeping the last minutes on or off, back up the save being played, turn automatic backups on or off (as the settings' switch does: nothing turns them back on by itself) and show the status. Each answers with a sound and a short note over your character's head. Only *Save last minutes* has a key at first, Ctrl+Shift+F9. See [hotkeys](docs/design/profiler.md#hotkeys).
 
 <a id="game-memory"></a>
 ## Game memory
 
-Project Zomboid gets 3 GB of memory by default, which a game with many mods fills, and then stutters while memory is freed. *Settings → Game → Game memory* sets more, up to half of your PC's memory, with a size suggested for it. The app changes only the memory options in the game's own launcher file (`ProjectZomboid64.json` in the game folder), keeps a copy of the file as the game shipped it, and the change applies from the game's next start. A game update or Steam's file check puts the game's own size back; the app notices and offers to apply yours again. See [game memory](docs/game-memory.md).
+Project Zomboid gets 3 GB of memory by default, which a game with many mods fills, and then stutters while memory is freed. *Settings → Game → Game memory* sets more, up to half of your PC's memory, with a size suggested for it. The app changes only the memory options in the game's own launcher file (`ProjectZomboid64.json` in the game folder), keeps a copy of the file as the game shipped it, and the change applies from the game's next start. A game update or Steam's file check puts the game's own size back; the app notices and offers to apply yours again. See [game memory](docs/design/game-memory.md).
 
 <a id="vehicle-controls"></a>
 ## Vehicle controls
 
-The optional vehicle extension changes how vehicles drive while the game runs, without a Workshop mod: acceleration, shifting, reversing, keyboard steering and a light around the vehicle while its headlights are on. It starts off, and each option can be switched separately on the Game extensions page. See [game extensions](docs/game-extensions.md).
+The optional vehicle extension changes how vehicles drive while the game runs, without a Workshop mod: acceleration, shifting, reversing, keyboard steering and a light around the vehicle while its headlights are on. It starts off, and each option can be switched separately on the Game extensions page. See [game extensions](docs/design/game-extensions.md).
 
 ![The same road driven with the vehicle extension off and on](docs/media/steering.webp)
 
@@ -120,7 +120,7 @@ The optional vehicle extension changes how vehicles drive while the game runs, w
 
 Keep an independent copy of important saves. File verification helps detect changes during capture, but it is not an atomic snapshot of the entire world.
 
-If a backup folder uses an unsupported storage format, PZ Tools leaves it unchanged and refuses to open it. Choose a new empty backup folder and retain the old one if needed; do not delete the game save or just `repository.db`. See [storage compatibility](docs/repository-format.md) and [game-extension compatibility](docs/game-extensions.md).
+If a backup folder uses an unsupported storage format, PZ Tools leaves it unchanged and refuses to open it. Choose a new empty backup folder and retain the old one if needed; do not delete the game save or just `repository.db`. See [storage compatibility](docs/design/repository-format.md) and [game-extension compatibility](docs/design/game-extensions.md).
 
 <a id="troubleshooting"></a>
 ## Troubleshooting
@@ -145,12 +145,12 @@ dotnet test tests/PzTools.Backup.Tests -c Release -p:JdkPath="$jdk"
 pwsh scripts/publish-app.ps1 -JdkPath $jdk -Output artifacts/app-local
 ```
 
-Publish to a new or empty folder and distribute the whole output. See [development and validation](docs/development.md) for prerequisites and integration tests.
+Publish to a new or empty folder and distribute the whole output. See [development and validation](docs/contributing/development.md) for prerequisites and integration tests.
 
 <a id="technical-documentation"></a>
 ## Documentation
 
-The [documentation index](docs/README.md) covers configuration, storage, game integration and development. To understand how the parts fit together, start with the [overview](docs/overview.md); unfamiliar terms are explained in the [glossary](docs/glossary.md). Dated test results and implementation notes are kept apart in `docs/history`.
+The [documentation index](docs/README.md) covers configuration, storage, game integration and development. To understand how the parts fit together, start with the [overview](docs/design/overview.md); unfamiliar terms are explained in the [glossary](docs/design/glossary.md). Dated test results and implementation notes are kept apart in `docs/history`.
 
 <a id="license"></a>
 ## License

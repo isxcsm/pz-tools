@@ -5,7 +5,7 @@
 > **Historical record.** This page describes the code and measurements at the time it was written. It is kept for reference and is not updated; for current behaviour start at the [documentation index](../README.md).
 
 Size measurements and verification runs recorded when the compact representation was introduced.
-The current format is described in [compact storage](../compact-repository-format.md).
+The current format is described in [compact storage](../design/compact-repository-format.md).
 
 ## Reproducible layout experiment
 
@@ -45,6 +45,6 @@ this optimization; the [merge review](connection-startup-and-merge-review.md)
 records the later fixes. Check CI for the exact commit before merging or publishing.
 
 The path dictionary that followed, its safeguards for historical spelling, its layout
-trade-offs and its newer verification are on [path handling](../path-normalization.md). For
+trade-offs and its newer verification are on [path handling](../design/path-normalization.md). For
 active-only automatic backups and the bounded version inspection of schema 5, see
 [the follow-up](active-backup-followup.md).

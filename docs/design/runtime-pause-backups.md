@@ -1,6 +1,6 @@
 # Game-aware backup timing
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Automatic (periodic) backups run at a fixed interval. With game-aware timing, that
 interval counts only time you actually play: while the game is paused or your character

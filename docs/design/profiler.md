@@ -1,6 +1,6 @@
 # Performance recording
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 The **Performance** page records what the running game is doing and shows where the time
 went: which part of the game, which mod, which function. Nothing is measured unless a

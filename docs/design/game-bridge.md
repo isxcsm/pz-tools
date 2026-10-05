@@ -1,6 +1,6 @@
 # Saving the game before a backup
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Project Zomboid keeps recent changes in memory and writes them to disk only when it
 saves. A backup made from the files alone can therefore miss the last few minutes of
@@ -26,7 +26,7 @@ The [overview](overview.md) shows where it sits.
 Both apply from the next backup; one already running keeps the settings it started
 with. Neither affects game-state monitoring or the game extensions. The same choices
 exist as `save_game_before_backup` and `game_save_countdown` in the
-[backup worker settings](configuration.md); where both are set, the app's choice wins,
+[backup worker settings](../reference/settings.md); where both are set, the app's choice wins,
 and a command-line option wins over both. On the command line, game backups use
 `--save-game`.
 

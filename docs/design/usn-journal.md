@@ -1,6 +1,6 @@
 # Windows USN journal
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 NTFS keeps a change journal on each volume, the [USN journal](glossary.md#usn-journal),
 that records which files were created, changed, renamed or deleted. The backup worker
@@ -11,7 +11,7 @@ every file. This page is for people working on the Windows change-tracking code.
 
 The backup worker keeps a checkpoint from the last backup and reads the journal from
 there. When the journal cannot be used, the backup falls back to a full scan with the
-configured [content comparison](configuration.md#which-files-are-captured).
+configured [content comparison](../reference/settings.md#which-files-are-captured).
 
 The most common reason is that the journal has moved on: it has a fixed size, and when
 a busy drive fills it between two backups, the records after the checkpoint are gone.

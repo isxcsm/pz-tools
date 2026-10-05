@@ -1,6 +1,6 @@
 # Documentation maintenance
 
-[Documentation index](README.md) · [User guide](../README.md)
+[Documentation index](../README.md) · [User guide](../../README.md)
 
 ## Writing and scope
 
@@ -36,7 +36,7 @@ Decide first who the page is for. There are three kinds, and one page should be 
 
 | Kind | Reader and question | Where |
 | --- | --- | --- |
-| Use | Someone running the app: what does this do, how do I use it, what should I watch out for? | `docs/`, listed under *Using PZ Tools* in the [index](README.md) |
+| Use | Someone running the app: what does this do, how do I use it, what should I watch out for? | `docs/`, listed under *Using PZ Tools* in the [index](../README.md) |
 | Design | Someone reading or changing the code: how does this part work and why is it built this way? | `docs/`, listed under *How it works* |
 | History | Someone looking back: what was measured, reviewed or planned at the time? | `docs/history/`, listed under *History and measurements* |
 
@@ -46,8 +46,8 @@ or one measurement run is history, even when it is recent. History pages are not
 updated when the code changes; they carry the banner that says so. The folder has no
 `README.md` of its own: the checker below rejects `docs/*/README.md` as a parallel guide.
 
-New terms go into the [glossary](glossary.md) when they are first used on a second page.
-A new part of the system gets a line in the [overview](overview.md).
+New terms go into the [glossary](../design/glossary.md) when they are first used on a second page.
+A new part of the system gets a line in the [overview](../design/overview.md).
 
 ## Writing for the reader
 
@@ -57,7 +57,7 @@ A new part of the system gets a line in the [overview](overview.md).
 - **Say what happens before what does not.** Collect limits, non-goals and "does not"
   statements in one section per page instead of spreading them through every paragraph.
 - **Define or link every project term** on its first use on a page: link the
-  [glossary](glossary.md) entry or explain it in a clause. Do not coin a new name for
+  [glossary](../design/glossary.md) entry or explain it in a clause. Do not coin a new name for
   something that already has one.
 - **Keep paragraphs short.** One idea per paragraph, a few sentences each. Use a table
   or a numbered list for steps, states and options. Wrap source lines at about 90
@@ -95,7 +95,7 @@ is taken.
 ## Links and recorded facts
 
 Use relative links to files inside this repository so forks, branches and local clones
-keep working. The [index](README.md) lists the root guide, every technical document and
+keep working. The [index](../README.md) lists the root guide, every technical document and
 third-party notices; technical pages link back to it. Keep explicit section IDs stable
 and update heading links when renaming sections. Pages under `docs/history/` are also
 listed in the index and link back to it. Historical plans, verification reports
@@ -107,14 +107,14 @@ Current facts should be checked against their source, not copied from an old REA
 
 | Claim | Source |
 | --- | --- |
-| UI languages and default name prefixes | [Language catalog](../src/PzTools.Process.Contracts/Localization/languages.tsv) |
-| Runtime requirement and publishing behavior | [Publish script](../scripts/publish-app.ps1) |
-| Administrator request | [App manifest](../src/PzTools.App/app.manifest) |
-| Backup interval and retention defaults | [App settings](../src/PzTools.App.Core/AppSettings.cs) |
-| Backup worker defaults | [Backup worker template](../config/defaults/backup-worker/default.toml) |
-| Version shown in the app | [Home page](../src/PzTools.App/HomePage.xaml) footer |
-| Game and recovery limits | [Game bridge](game-bridge.md), [character recovery](character-recovery.md) |
-| Storage compatibility | [Repository format](repository-format.md) and [schema](../src/PzTools.Backup.Storage/Repository/RepositorySchema.cs) |
+| UI languages and default name prefixes | [Language catalog](../../src/PzTools.Process.Contracts/Localization/languages.tsv) |
+| Runtime requirement and publishing behavior | [Publish script](../../scripts/publish-app.ps1) |
+| Administrator request | [App manifest](../../src/PzTools.App/app.manifest) |
+| Backup interval and retention defaults | [App settings](../../src/PzTools.App.Core/AppSettings.cs) |
+| Backup worker defaults | [Backup worker template](../../config/defaults/backup-worker/default.toml) |
+| Version shown in the app | [Home page](../../src/PzTools.App/HomePage.xaml) footer |
+| Game and recovery limits | [Game bridge](../design/game-bridge.md), [character recovery](../design/character-recovery.md) |
+| Storage compatibility | [Repository format](../design/repository-format.md) and [schema](../../src/PzTools.Backup.Storage/Repository/RepositorySchema.cs) |
 
 ## Automated checks
 
@@ -125,7 +125,7 @@ python scripts/test-documentation-checker.py
 python scripts/check-documentation.py
 ```
 
-The [CI workflow](../.github/workflows/windows.yml) runs these checks once on Linux.
+The [CI workflow](../../.github/workflows/windows.yml) runs these checks once on Linux.
 `pwsh scripts/test-readme-links.ps1` calls the same checker. It validates that the single
 root guide keeps its required topic sections (more may be added; every section must explain
 something), its essential references and its runtime requirements and download links;

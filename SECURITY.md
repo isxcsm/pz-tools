@@ -16,7 +16,7 @@ else goes in [issues](https://github.com/isxcsm/pz-tools/issues).
 
 - **It attaches to the game that is already running**, through Java's own attach
   mechanism (the one debuggers and profilers use). It does not inject threads, patch the
-  game's files, or change how the game is started. See [the game bridge](docs/game-bridge.md).
+  game's files, or change how the game is started. See [the game bridge](docs/design/game-bridge.md).
 - **It loads only its own code into the game:** the jars shipped in its own folder
   (`game-bridge\`): the bridge, its bootstrap, and the vehicle extension. It never loads
   code from mods, the Workshop, saves, or anything downloaded. A small native file in the
@@ -27,7 +27,7 @@ else goes in [issues](https://github.com/isxcsm/pz-tools/issues).
   sent to it.
 - **It changes a game file only when you ask:** *Settings → Game → Game memory* edits
   the memory options in `ProjectZomboid64.json` and keeps a copy of the file as the game
-  shipped it. See [game memory](docs/game-memory.md).
+  shipped it. See [game memory](docs/design/game-memory.md).
 
 ## Network
 

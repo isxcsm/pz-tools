@@ -5,7 +5,7 @@
 > **Historical record.** This page describes the code and measurements at the time it was written. It is kept for reference and is not updated; for current behaviour start at the [documentation index](../README.md).
 
 Historical schema-4 implementation based on dev `52e8822a3192acaf7cb95d68e6a0657ecab0bbc3`,
-including localization PR #5. See [repository format](../repository-format.md) for the
+including localization PR #5. See [repository format](../design/repository-format.md) for the
 current contract and [the schema-5 follow-up](active-backup-followup.md) for later work.
 
 ## Request-driven reads and lock scope

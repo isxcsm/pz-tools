@@ -1,6 +1,6 @@
 # Pack format
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 A [pack](glossary.md#pack) is a file in the backup repository's `packs/` folder that
 holds the stored contents of many files, each one an [object](glossary.md#object),

@@ -1,6 +1,6 @@
 # App icons and branding
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 This page is for anyone changing the pictures in the PZ Tools app: the logo, the Windows
 icon, the Home page illustration and the navigation icons. It says where each file is,
@@ -11,13 +11,13 @@ notices.
 
 | Image | File | Used for |
 | --- | --- | --- |
-| Brand logo | `pztools.png` and its display-scale variants (`pztools.scale-*.png`) in [Assets/Brand](../src/PzTools.App/Assets/Brand) | The navigation rail, beside the app name and the localized subtitle |
-| Brand master | `pztools-master.png` in [Assets/Brand](../src/PzTools.App/Assets/Brand) | Editable source of the brand logo; not shipped |
-| Home illustration | [pztools-home.png](../src/PzTools.App/Assets/Brand/pztools-home.png) | The Home page |
-| Windows icon | `pztools.ico` in [Assets/Navigation](../src/PzTools.App/Assets/Navigation) | The executable and `AppWindow.SetIcon`, which covers the taskbar and Alt+Tab |
-| Windows icon source | [pztools.svg](../src/PzTools.App/Assets/Navigation/pztools.svg) | Vector source the ICO is generated from; not shipped |
-| Navigation icons and dead-character badge | Other files in [Assets/Navigation](../src/PzTools.App/Assets/Navigation) | The navigation pane and the save list |
-| Support button cup | Inline in [MainWindowShell.xaml](../src/PzTools.App/MainWindowShell.xaml) | The support button; its destination is in [MainWindowShell.Support.cs](../src/PzTools.App/MainWindowShell.Support.cs) |
+| Brand logo | `pztools.png` and its display-scale variants (`pztools.scale-*.png`) in [Assets/Brand](../../src/PzTools.App/Assets/Brand) | The navigation rail, beside the app name and the localized subtitle |
+| Brand master | `pztools-master.png` in [Assets/Brand](../../src/PzTools.App/Assets/Brand) | Editable source of the brand logo; not shipped |
+| Home illustration | [pztools-home.png](../../src/PzTools.App/Assets/Brand/pztools-home.png) | The Home page |
+| Windows icon | `pztools.ico` in [Assets/Navigation](../../src/PzTools.App/Assets/Navigation) | The executable and `AppWindow.SetIcon`, which covers the taskbar and Alt+Tab |
+| Windows icon source | [pztools.svg](../../src/PzTools.App/Assets/Navigation/pztools.svg) | Vector source the ICO is generated from; not shipped |
+| Navigation icons and dead-character badge | Other files in [Assets/Navigation](../../src/PzTools.App/Assets/Navigation) | The navigation pane and the save list |
+| Support button cup | Inline in [MainWindowShell.xaml](../../src/PzTools.App/MainWindowShell.xaml) | The support button; its destination is in [MainWindowShell.Support.cs](../../src/PzTools.App/MainWindowShell.Support.cs) |
 
 Build and publish copy the runtime icon and brand assets to the output. The editable
 sources, `pztools-master.png` and `pztools.svg`, are left out.
@@ -68,4 +68,4 @@ The Home and game-extension navigation icons come from Microsoft's
 | Home | `Home/SVG/ic_fluent_home_24_color.svg`, keeping its orange roof with gray walls and door |
 | Game extensions | `Apps/SVG/ic_fluent_apps_24_color.svg`, unchanged |
 
-Their MIT license is included in the [third-party notices](../THIRD_PARTY_NOTICES.md).
+Their MIT license is included in the [third-party notices](../../THIRD_PARTY_NOTICES.md).

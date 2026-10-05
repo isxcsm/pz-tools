@@ -1,6 +1,6 @@
 # Updating code inside a running game
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 PZ Tools puts some of its code into the running game: the [game bridge](game-bridge.md)
 and the [game extensions](game-extensions.md). When PZ Tools is updated while the game
@@ -58,7 +58,7 @@ finish, and everything it held is released. Only then can the next
 [generation](glossary.md#generation-module) use those resources. Modules have to
 support retirement explicitly. For the vehicle module this also covers an expired
 control lease, a change of game process or world, and being cut off while the game is
-paused; see the [vehicle design](vehicle-drivetrain-design.md#replacement-and-failure-handling).
+paused; see the [vehicle design](vehicle-drivetrain.md#replacement-and-failure-handling).
 
 ## Details
 
@@ -89,4 +89,4 @@ An automated harness uses synthetic modules to test:
 
 The vehicle tests add control ownership, settings revisions and cleanup. For a given
 build, check its test results and package checks. How the switch behaves in a real
-game is part of the [vehicle test guide](e2e-vehicle-drivetrain.md).
+game is part of the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).

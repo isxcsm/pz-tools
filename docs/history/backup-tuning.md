@@ -6,7 +6,7 @@
 
 This records 78 synthetic-workload runs on 2026-09-27, starting from the bounded
 capture implementation at `6ae3519`. The selected settings became the defaults;
-see [stable capture](../stable-capture.md) for current values. Results describe this
+see [stable capture](../design/stable-capture.md) for current values. Results describe this
 machine and workload and do not identify optimal settings for every disk.
 
 ## Conditions and measurement scope

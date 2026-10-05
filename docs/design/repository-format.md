@@ -1,6 +1,6 @@
 # Repository format
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 The backup [repository](glossary.md#repository) is the backup folder you choose, with
 everything PZ Tools stores in it. This page describes what that folder contains, when a
@@ -40,7 +40,7 @@ repository/
 
 Editable settings are not kept in the repository. They live centrally in
 `%LOCALAPPDATA%/PzTools/config/<component>/default.toml`; see
-[configuration](configuration.md).
+[configuration](../reference/settings.md).
 
 ## Upgrading from schema 5
 
@@ -121,7 +121,7 @@ the byte comparison decides. An earlier pack that cannot be read is not an error
 the file is stored again. With the game saving each time and the player standing still,
 389 of the 391 files a backup took were reused, and the backup added 150 KB instead of
 1.27 MB.
-[Storage performance](history/storage-performance.md) records the implementation work.
+[Storage performance](../history/storage-performance.md) records the implementation work.
 
 ### Commit boundaries
 
@@ -198,5 +198,5 @@ Eligibility, limits and history retention are on
 Schema 4 added cleanup indexes, current-entry views and `path_gc_cursor`. Schema 5 adds
 `entry_gc_cursors` for inspecting file versions. Path cleanup and version cleanup both
 limit how much they inspect at a time, and commit the cursor movement together with the
-deletions. Design details are in [storage hot paths](history/storage-hotpaths.md) and
-[follow-up optimizations](history/active-backup-followup.md).
+deletions. Design details are in [storage hot paths](../history/storage-hotpaths.md) and
+[follow-up optimizations](../history/active-backup-followup.md).

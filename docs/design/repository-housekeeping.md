@@ -1,6 +1,6 @@
 # Repository housekeeping
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Housekeeping is the cleanup PZ Tools does in the background of your backup folder (the
 [repository](glossary.md#repository)): it trims old automatic backups, removes backups of
@@ -62,7 +62,7 @@ Freeing space inside partly used data files is a further step; see
 
 Edit `config/maintenance-worker/default.toml` under `%LOCALAPPDATA%\PzTools`; the
 packaged defaults come from `config/defaults/maintenance-worker/default.toml` in the
-source tree. See [configuration](configuration.md) for how component settings are layered. Build and
+source tree. See [configuration](../reference/settings.md) for how component settings are layered. Build and
 publish the app and workers together, and do not use new configuration keys with an
 older worker.
 

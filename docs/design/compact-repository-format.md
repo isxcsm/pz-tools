@@ -1,6 +1,6 @@
 # Compact storage representation
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 `repository.db`, the database in the backup [repository](glossary.md#repository), stores
 some fields in a compact binary form instead of as text: file identities, times, IDs and
@@ -70,4 +70,4 @@ Notes on each change:
 ## Measurements
 
 The size experiment and the verification runs from when this representation was introduced
-are kept in [compact storage measurements](history/compact-repository-measurements.md).
+are kept in [compact storage measurements](../history/compact-repository-measurements.md).

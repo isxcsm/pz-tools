@@ -1,6 +1,6 @@
 # How PZ Tools fits together
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 This page is the map. Read it before any design page: those pages each describe one
 part in detail and assume you already know where that part sits. Words in **bold**
@@ -53,10 +53,10 @@ PzTools.App (window, settings, cards)
 | State scheduler | Finds the active save, reads the game's live state, runs the extension controller. | [Game-aware timing](runtime-pause-backups.md) |
 | Game bridge | Java code loaded into the running game. Saves on request, streams state, hosts extensions. | [Game bridge](game-bridge.md) |
 | Extension modules | Optional features that run inside the game. Each one is separate and off by default. | [Game extensions](game-extensions.md) |
-| One-off workers | Restore, ZIP import/export, character recovery, performance recording. | [CLI](cli.md), [character recovery](character-recovery.md), [profiler](profiler.md) |
+| One-off workers | Restore, ZIP import/export, character recovery, performance recording. | [CLI](../reference/command-line.md), [character recovery](character-recovery.md), [profiler](profiler.md) |
 
 Every background program is also a command-line tool, so it can be run and tested
-without the app; see [CLI commands](cli.md).
+without the app; see [CLI commands](../reference/command-line.md).
 
 ### The interface is a replaceable head
 
@@ -89,8 +89,8 @@ release is Windows x64.
 | The game's `Saves` folder | Your saves. PZ Tools reads them. It writes to them only when you restore a backup, import a ZIP, recover a character or delete a save from the app. |
 | The game folder | The game itself. PZ Tools changes only the memory options in `ProjectZomboid64.json`, and only when you set the game's memory. |
 
-See [deployment layout](deployment-layout.md) for the full list and
-[configuration](configuration.md) for the settings files.
+See [deployment layout](../reference/files-and-folders.md) for the full list and
+[configuration](../reference/settings.md) for the settings files.
 
 ## What happens during one backup
 
@@ -144,9 +144,9 @@ arbitrary scripts. See [game bridge](game-bridge.md) and
 
 | If you want to know… | Read |
 | --- | --- |
-| What a setting does | [Configuration](configuration.md), [advanced runtime settings](runtime-configuration.md) |
+| What a setting does | [Configuration](../reference/settings.md), [advanced runtime settings](../reference/advanced-settings.md) |
 | Why a backup did or did not run | [Game-aware timing](runtime-pause-backups.md), [death backups](runtime-character-death.md) |
 | How backups are stored | [Repository format](repository-format.md), then [packs](pack-format.md) |
 | How the game is saved and what can go wrong | [Game bridge](game-bridge.md) |
 | How extensions work, or how to add one | [Game extensions](game-extensions.md) |
-| How to build and test | [Development and validation](development.md) |
+| How to build and test | [Development and validation](../contributing/development.md) |

@@ -5,7 +5,7 @@
 > **Historical record.** This page describes the code and measurements at the time it was written. It is kept for reference and is not updated; for current behaviour start at the [documentation index](../README.md).
 
 Historical performance record spanning the named schema-2 commits, subsequent schema-3
-path work and the dated full-scan follow-up below. See [repository format](../repository-format.md)
+path work and the dated full-scan follow-up below. See [repository format](../design/repository-format.md)
 for the current layout and compatibility contract; [storage hotpaths](storage-hotpaths.md)
 records the later schema-4 work.
 
@@ -87,7 +87,7 @@ The targeted performance results did not cover the full application/published-pa
 ## Subsequent path normalization
 
 Schema 3 separated canonical path keys from immutable historical spellings, referenced
-by file-version IDs. [Path normalization](../path-normalization.md) records its tests and
+by file-version IDs. [Path normalization](../design/path-normalization.md) records its tests and
 layout costs; the schema-2 measurements above do not measure that change. The
 [schema-5 follow-up](active-backup-followup.md) covers bounded version inspection.
 

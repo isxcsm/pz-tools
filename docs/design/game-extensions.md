@@ -1,6 +1,6 @@
 # Game extensions
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 Game extensions are optional features that run inside Project Zomboid while you play.
 PZ Tools loads them through the same [game bridge](glossary.md#game-bridge) it uses for
@@ -39,8 +39,8 @@ you are in are lit, it brightens the ground around that vehicle, the way a light
 glow does. It is never written to the save.
 
 Observation (probe), diagnostics and low-gear tuning are developer-only options in the
-TOML settings file. See the [vehicle test guide](e2e-vehicle-drivetrain.md) for
-comparisons and status checks, or the [design](vehicle-drivetrain-design.md) for the
+TOML settings file. See the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md) for
+comparisons and status checks, or the [design](vehicle-drivetrain.md) for the
 driving model and how it attaches to the game.
 
 ## When a change takes effect
@@ -78,7 +78,7 @@ The vehicle card shows what the game is actually doing:
 
 ## Compatibility
 
-The [catalogue](../config/game-extensions/catalog.tsv) declares major version 42.
+The [catalogue](../../config/game-extensions/catalog.tsv) declares major version 42.
 Activation still requires the bytecode and structural checks against the inspected
 42.20 build; declaring the range does not guarantee every 42.x patch.
 
@@ -148,5 +148,5 @@ scheduler's coordinator is tested driving the vehicle module from saved preferen
 
 Vehicle tests cover the model, configuration, control-session lifecycle and inspected
 bytecode boundaries. Installed-class checks read a local game JAR in an isolated JVM.
-Use the [vehicle test guide](e2e-vehicle-drivetrain.md) for automated reproduction and
+Use the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md) for automated reproduction and
 for the separate driving, performance and lifecycle acceptance steps.

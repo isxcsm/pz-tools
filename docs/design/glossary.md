@@ -1,6 +1,6 @@
 # Glossary
 
-[Documentation index](README.md) · [User guide](../README.md) · [Overview](overview.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Overview](overview.md)
 
 The words the other pages use without explaining. Some ordinary words have a narrow
 meaning here; a few, such as *revision* and *generation*, have more than one, so check
@@ -86,14 +86,14 @@ only after the folder is confirmed missing. See [housekeeping](repository-housek
 A small file written before a restore replaces a save. The old save is moved aside and
 the restored copy is put in its place in one step. If the restore is interrupted, the
 journal lets the next start tell which of the two is in place and clean up the other.
-See [restore safety](cli.md#restore-safety).
+See [restore safety](../reference/command-line.md#restore-safety).
 
 ## Processes and jobs
 
 ### Component
 
 One named background program with its own settings folder, for example
-`backup-worker` or `state-scheduler`. See [configuration](configuration.md).
+`backup-worker` or `state-scheduler`. See [configuration](../reference/settings.md).
 
 ### Scheduler, runner, worker
 

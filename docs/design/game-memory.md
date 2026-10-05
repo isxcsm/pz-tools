@@ -1,6 +1,6 @@
 # Game memory
 
-[Documentation index](README.md) · [User guide](../README.md) · [Glossary](glossary.md)
+[Documentation index](../README.md) · [User guide](../../README.md) · [Glossary](glossary.md)
 
 *Settings > Game > Game memory* sets how much memory the game's Java may use. The game
 ships with 3 GB. A game with many mods fills that, and then spends its time freeing memory:
@@ -43,7 +43,7 @@ half of it. A running game holds the file open and lets others read and write it
 replace it; then it is written in place, which that game no longer reads: the new text over
 the old and the end cut only after, so the file is never left empty, and put back to the
 old text if writing fails partway. The file as the game shipped it is kept once, as `game-memory-original.json` in
-the app's data folder (see [files and folders](deployment-layout.md)). The choice and the
+the app's data folder (see [files and folders](../reference/files-and-folders.md)). The choice and the
 game's own heap are kept in `game-memory.json` before the game's file is changed; when that
 cannot be written, the game's file is left alone and the setting says it cannot be changed,
 as a heap kept nowhere could not be given back.
