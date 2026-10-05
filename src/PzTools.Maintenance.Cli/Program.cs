@@ -9,6 +9,15 @@ using PzTools.Process.Telemetry;
 if (args is ["--probe"]) return 0;
 
 var started = DateTimeOffset.UtcNow;
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// The maintenance runner passes its stop request on: the worker stops at its next safe point and closes its records
+// as cancelled, instead of being ended outright with its workflow and stage left running.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
 long runIndex = 0;
 RepositoryDatabase? ownedWorkflowRepository = null;
 // Every option is read before any work, so a bad one is reported as such (exit 64), never as a failed cleanup.
@@ -67,11 +76,9 @@ try
     if (lane == "OrphanBackups")
     {
         var orphanRun = await OrphanBackupLane.RunAsync(repository,
-            values["--saves-root"]!, values.GetValueOrDefault("--control-db"), configurationPath, options);
-        Console.WriteLine(ProcessResultJson.Serialize(
-            ProcessResultEnvelope<MaintenanceLaneResult>.Success(
-                "maintenance-lane-worker", Math.Max(1, orphanRun.RunIndex), orphanRun.Outcome,
-                started, orphanRun.Result)));
+            values["--saves-root"]!, values.GetValueOrDefault("--control-db"), configurationPath, options,
+            cancellation.Token);
+        Console.WriteLine(LaneResultJson(orphanRun.RunIndex, orphanRun.Outcome, started, orphanRun.Result));
         return ProcessExitCodes.FromOutcome(orphanRun.Outcome);
     }
     runIndex = givenRunIndex;
@@ -79,19 +86,15 @@ try
     {
         var laneRun = await MaintenanceLanePipeline.RunLaneAsync(
             repository, sourceId, lane, options,
-            values.GetValueOrDefault("--control-db"), configurationPath);
-        var laneIndex = Math.Max(1, laneRun.RunIndex);
-        Console.WriteLine(ProcessResultJson.Serialize(
-            ProcessResultEnvelope<MaintenanceLaneResult>.Success(
-                "maintenance-lane-worker", laneIndex, laneRun.Outcome,
-                started, laneRun.Result)));
+            values.GetValueOrDefault("--control-db"), configurationPath, cancellation.Token);
+        Console.WriteLine(LaneResultJson(laneRun.RunIndex, laneRun.Outcome, started, laneRun.Result));
         return ProcessExitCodes.FromOutcome(laneRun.Outcome);
     }
     if (values.ContainsKey("--dispatch-lanes"))
     {
         var dispatched = await MaintenanceLanePipeline.DispatchAsync(
             repository, sourceId, runIndex, options,
-            values.GetValueOrDefault("--control-db"), configurationPath);
+            values.GetValueOrDefault("--control-db"), configurationPath, cancellation.Token);
         var dispatchOutcome = dispatched.Lanes.Any(item => item.Status == "Failed")
             ? ProcessOutcome.Degraded : ProcessOutcome.Succeeded;
         Console.WriteLine(ProcessResultJson.Serialize(
@@ -102,10 +105,11 @@ try
     if (runIndex == 0)
     {
         runIndex = await new RunIndexAllocator(values.GetValueOrDefault("--control-db"))
-            .AllocateAsync();
-        ownedWorkflowRepository = await RepositoryDatabase.OpenExistingAsync(repository);
-        await ownedWorkflowRepository.ReserveWorkflowAsync(
-            "maintenance", sourceId, "maintenance-worker", null, runIndex);
+            .AllocateAsync(cancellationToken: cancellation.Token);
+        var reserving = await RepositoryDatabase.OpenExistingAsync(repository, cancellation.Token);
+        await reserving.ReserveWorkflowAsync(
+            "maintenance", sourceId, "maintenance-worker", null, runIndex, cancellation.Token);
+        ownedWorkflowRepository = reserving;
     }
     async Task ObserveLaneAsync(MaintenanceLaneEvent lane, CancellationToken _)
     {
@@ -123,7 +127,7 @@ try
     }
     var result = await new MaintenanceService().RunAsync(
         repository, sourceId, options, runIndex == 0 ? null : runIndex,
-        ObserveLaneAsync);
+        ObserveLaneAsync, cancellation.Token);
     runIndex = result.RunIndex;
     var outcome = result.FilesThatCouldNotBeDeleted.Count == 0
         ? ProcessOutcome.Succeeded : ProcessOutcome.Degraded;
@@ -135,9 +139,20 @@ try
             "maintenance-worker", runIndex, outcome, started, result)));
     return ProcessExitCodes.FromOutcome(outcome);
 }
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    // The stage that was running has been closed as cancelled where it ran; a workflow this worker reserved itself
+    // is closed here. One reserved by a runner is the runner's to close.
+    await TryCloseOwnedWorkflowAsync(ownedWorkflowRepository, runIndex, WorkflowStatus.Cancelled, "cancelled");
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "maintenance-worker", Math.Max(1, runIndex), ProcessOutcome.Cancelled,
+            started, "cancelled", "The maintenance worker was asked to stop.")));
+    return ProcessExitCodes.Cancelled;
+}
 catch (Exception exception)
 {
-    await TryFailOwnedWorkflowAsync(ownedWorkflowRepository, runIndex);
+    await TryCloseOwnedWorkflowAsync(ownedWorkflowRepository, runIndex, WorkflowStatus.Failed, "maintenance-failed");
     Console.WriteLine(ProcessResultJson.Serialize(
         ProcessResultEnvelope<object>.Failure(
             "maintenance-worker", Math.Max(1, runIndex), ProcessOutcome.Failed,
@@ -145,22 +160,38 @@ catch (Exception exception)
     return ProcessExitCodes.Failure;
 }
 
-static async Task TryFailOwnedWorkflowAsync(
+// A lane that failed or was cancelled says so with an error, as the result contract requires of those outcomes; a
+// success envelope carrying them is refused by every reader.
+static string LaneResultJson(long run, ProcessOutcome outcome, DateTimeOffset started, MaintenanceLaneResult? result)
+{
+    const string component = "maintenance-lane-worker";
+    var index = Math.Max(1, run);
+    if (outcome is not (ProcessOutcome.Failed or ProcessOutcome.Cancelled))
+        return ProcessResultJson.Serialize(
+            ProcessResultEnvelope<MaintenanceLaneResult>.Success(component, index, outcome, started, result));
+    var cancelled = outcome == ProcessOutcome.Cancelled;
+    return ProcessResultJson.Serialize(ProcessResultEnvelope<MaintenanceLaneResult>.Failure(
+        component, index, outcome, started, cancelled ? "cancelled" : "maintenance-lane-failed",
+        result?.Detail is { Length: > 0 } detail ? detail
+            : cancelled ? "The maintenance lane was cancelled." : "The maintenance lane failed."));
+}
+
+static async Task TryCloseOwnedWorkflowAsync(
     RepositoryDatabase? repository,
-    long runIndex)
+    long runIndex,
+    WorkflowStatus status,
+    string code)
 {
     if (repository is null || runIndex <= 0) return;
     try
     {
         var workflow = await repository.ReadWorkflowAsync(runIndex);
         if (workflow.Status == WorkflowStatus.Running)
-            await repository.CompleteWorkflowAsync(
-                runIndex, "maintenance-worker", WorkflowStatus.Failed,
-                "maintenance-failed");
+            await repository.CompleteWorkflowAsync(runIndex, "maintenance-worker", status, code);
     }
     catch
     {
-        // Keeps the original failure. The next recovery cleans up the orphaned workflow.
+        // Keeps the original outcome. The next recovery cleans up the orphaned workflow.
     }
 }
 

@@ -11,6 +11,15 @@ if (args is ["--probe"]) return 0;
 const string RunnerHoldsLock = "--runner-holds-lock";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// The state runner passes its stop request on. A collection asked to stop writes no batch and says it was
+// cancelled, instead of being ended outright with nothing said.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
 Dictionary<string, string?> values;
 string statePath, savesRoot;
 long? givenRunIndex;
@@ -35,9 +44,9 @@ var configurationPath = values.GetValueOrDefault("--config");
 var hasRunIndex = false;
 try
 {
-    var database = await StateDatabase.CreateOrOpenAsync(statePath);
+    var database = await StateDatabase.CreateOrOpenAsync(statePath, cancellation.Token);
     runIndex = givenRunIndex
-        ?? await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync();
+        ?? await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync(cancellationToken: cancellation.Token);
     if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
     hasRunIndex = true;
     Task<StateCollectionResult> CollectAsync(CancellationToken token) =>
@@ -45,9 +54,9 @@ try
     // Run on its own, it takes the lock every other state writer takes, so it never writes a batch
     // while the app's own check is between reading the saves and applying what it saw.
     var collected = values.ContainsKey(RunnerHoldsLock)
-        ? new MutexRunResult<StateCollectionResult>(true, false, await CollectAsync(CancellationToken.None))
+        ? new MutexRunResult<StateCollectionResult>(true, false, await CollectAsync(cancellation.Token))
         : await NamedMutexRunner.TryRunAsync(
-            NamedMutexRunner.CreateName("StateCollection", Path.GetFullPath(statePath)), CollectAsync);
+            NamedMutexRunner.CreateName("StateCollection", Path.GetFullPath(statePath)), CollectAsync, cancellation.Token);
     if (!collected.Acquired)
     {
         Console.WriteLine(ProcessResultJson.Serialize(
@@ -60,6 +69,16 @@ try
         ProcessResultEnvelope<StateCollectionResult>.Success(
             "state-collector", runIndex, ProcessOutcome.Succeeded, started, collected.Value)));
     return 0;
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    if (hasRunIndex)
+        await TryTelemetryAsync(statePath, runIndex, "collector.cancelled", configurationPath);
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "state-collector", runIndex, ProcessOutcome.Cancelled, started,
+            "cancelled", "The state collector was asked to stop.")));
+    return ProcessExitCodes.Cancelled;
 }
 catch (Exception exception)
 {

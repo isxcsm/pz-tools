@@ -11,6 +11,15 @@ if (args is ["--probe"]) return 0;
 const string RunnerHoldsLock = "--runner-holds-lock";
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// The state runner passes its stop request on. The batches being applied share one transaction, so a stop rolls
+// them back whole and is reported as cancelled, instead of the reactor being ended outright with nothing said.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
 Dictionary<string, string?> values;
 string statePath;
 long? givenRunIndex;
@@ -33,18 +42,18 @@ var configurationPath = values.GetValueOrDefault("--config");
 var hasRunIndex = false;
 try
 {
-    var database = await StateDatabase.CreateOrOpenAsync(statePath);
+    var database = await StateDatabase.CreateOrOpenAsync(statePath, cancellation.Token);
     runIndex = givenRunIndex
-        ?? await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync();
+        ?? await new RunIndexAllocator(values.GetValueOrDefault("--control-db")).AllocateAsync(cancellationToken: cancellation.Token);
     if (runIndex <= 0) throw new ArgumentOutOfRangeException("--run-index");
     hasRunIndex = true;
     // Run on its own, it takes the lock every other state writer takes, so it never applies batches
     // while the app's own check is between reading the saves and applying what it saw.
     var reacted = values.ContainsKey(RunnerHoldsLock)
-        ? new MutexRunResult<ReactorResult>(true, false, await new StateReactor().RunAsync(database))
+        ? new MutexRunResult<ReactorResult>(true, false, await new StateReactor().RunAsync(database, cancellation.Token))
         : await NamedMutexRunner.TryRunAsync(
             NamedMutexRunner.CreateName("StateCollection", Path.GetFullPath(statePath)),
-            token => new StateReactor().RunAsync(database, token));
+            token => new StateReactor().RunAsync(database, token), cancellation.Token);
     if (!reacted.Acquired)
     {
         Console.WriteLine(ProcessResultJson.Serialize(
@@ -57,6 +66,16 @@ try
         ProcessResultEnvelope<ReactorResult>.Success(
             "state-reactor", runIndex, ProcessOutcome.Succeeded, started, reacted.Value)));
     return 0;
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    if (hasRunIndex)
+        await TryTelemetryAsync(statePath, runIndex, "reactor.cancelled", configurationPath);
+    Console.WriteLine(ProcessResultJson.Serialize(
+        ProcessResultEnvelope<object>.Failure(
+            "state-reactor", runIndex, ProcessOutcome.Cancelled, started,
+            "cancelled", "The state reactor was asked to stop.")));
+    return ProcessExitCodes.Cancelled;
 }
 catch (Exception exception)
 {

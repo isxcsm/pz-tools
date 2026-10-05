@@ -11,7 +11,7 @@ internal static class OrphanBackupLane
 {
     public static async Task<(ProcessOutcome Outcome, MaintenanceLaneResult? Result, long RunIndex)> RunAsync(
         string repositoryPath, string savesRoot, string? controlDatabasePath, string? configurationPath,
-        MaintenanceOptions? options = null)
+        MaintenanceOptions? options = null, CancellationToken stopRequested = default)
     {
         options ??= new MaintenanceOptions();
         options.Validate();
@@ -24,7 +24,8 @@ internal static class OrphanBackupLane
             {
                 if (GameplayWorkGate.ShouldDeferMaintenance())
                     return (ProcessOutcome.Skipped, (MaintenanceLaneResult?)new MaintenanceLaneResult(lane, "Skipped", 0, 0, "deferred-during-gameplay"), 0L);
-                using var cancellation = new CancellationTokenSource();
+                // A stop request ends the lane as a yield to a backup or to the game does: cancelled, at a safe point.
+                using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(stopRequested);
                 using var watch = MaintenanceLaneSignal.WatchForYield(repositoryPath, lane, cancellation);
                 var access = await OperationMutexSet.TryRunAsync(
                     [new OperationMutexRequest(OperationMutexScope.RepositoryAccess, repositoryPath)], async token =>
@@ -33,7 +34,8 @@ internal static class OrphanBackupLane
                         await repository.RecoverAbandonedWorkflowsAsync(owner, cancellationToken: token);
                         var run = await new RunIndexAllocator(controlDatabasePath).AllocateAsync(cancellationToken: token);
                         await repository.ReserveWorkflowAsync("maintenance-lane", null, owner, null, run, token);
-                        await repository.AttachWorkflowStageAsync(run, owner, token);
+                        // Once reserved, the workflow reaches the handler below that closes it, whatever stops the lane.
+                        await repository.AttachWorkflowStageAsync(run, owner, CancellationToken.None);
                         var timer = Stopwatch.StartNew();
                         ProcessTelemetryHeartbeat? heartbeat = null;
                         var announced = false;
@@ -173,7 +175,7 @@ internal static class OrphanBackupLane
                         }
                     }, cancellation.Token);
                 return access.Acquired ? access.Value : (ProcessOutcome.Busy, (MaintenanceLaneResult?)null, 0L);
-            });
+            }, stopRequested);
         return acquired.Acquired ? acquired.Value : (ProcessOutcome.Busy, null, 0L);
     }
 }

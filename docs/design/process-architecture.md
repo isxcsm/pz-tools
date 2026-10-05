@@ -232,11 +232,13 @@ counts as an orphan are in [repository housekeeping](repository-housekeeping.md)
   (2 seconds; `shutdown_grace_ms` for the app's children), then terminates the job. A child that does not listen is
   terminated at once.
 
-The schedulers, the three runners, `PzTools.Backup.Cli`, `PzTools.Zomboid.Archive.Cli`,
-`PzTools.Zomboid.Recovery.Cli` and `PzTools.Profiler.Cli` listen for the stop event. A runner passes the request on
-to its worker with a shorter grace (1.5 seconds, `ChildProcessHost.NestedShutdownGraceMs`), so that it can still report
-`Cancelled` and close its reserved workflow before its own grace ends. A worker that does not listen (the
-maintenance worker, the state collector and reactor) is still terminated at once.
+The schedulers, the three runners, `PzTools.Backup.Cli`, `PzTools.Maintenance.Cli`, `PzTools.State.Collector.Cli`,
+`PzTools.State.Reactor.Cli`, `PzTools.Zomboid.Archive.Cli`, `PzTools.Zomboid.Recovery.Cli` and
+`PzTools.Profiler.Cli` listen for the stop event. A runner passes the request on to its worker with a shorter grace
+(1.5 seconds, `ChildProcessHost.NestedShutdownGraceMs`), so that it can still report `Cancelled` and close its
+reserved workflow before its own grace ends. A worker asked to stop reports `Cancelled` (exit code 2) and closes what
+it opened as cancelled: the maintenance worker its stage, a lane its own workflow, the collector writes no batch and
+the reactor rolls its transaction back.
 
 [`DetachedProcessLauncher`](../../src/PzTools.Process.Hosting/DetachedProcessLauncher.cs) starts the maintenance
 lanes with `CREATE_BREAKAWAY_FROM_JOB`, so they finish even when the app closes right after starting them. If the
