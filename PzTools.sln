@@ -112,7 +112,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameExtensions.Vehi
 		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainModel.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\DrivetrainModel.java
 		src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\VehicleProfile.java = src\PzTools.GameExtensions.VehicleDrivetrain\java\pztools\extensions\vehicle\model\VehicleProfile.java
 		config\game-extensions\vehicle-drivetrain.toml = config\game-extensions\vehicle-drivetrain.toml
-		docs\vehicle-drivetrain-design.md = docs\vehicle-drivetrain-design.md
+		docs\design\vehicle-drivetrain.md = docs\design\vehicle-drivetrain.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PzTools.Profiling", "src\PzTools.Profiling\PzTools.Profiling.csproj", "{CF432C30-ED6A-419E-A316-39745ABB7796}"

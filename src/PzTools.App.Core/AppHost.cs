@@ -153,6 +153,9 @@ public sealed class AppHost : IAsyncDisposable
         stateDatabase = state;
         Scheduler = scheduler;
         var settings = Settings.Load();
+        // A vehicle tuning file where versions before 0.2.4 read it moves into its config folder before that folder's
+        // file is copied below. Both before the schedulers start: the state scheduler reads it.
+        PzTools.GameExtensions.VehicleDrivetrainConfiguration.MoveLegacyOverride(paths.RuntimeRoot);
         foreach (var (identity, component) in new[]
         {
             (paths.SchedulerDatabasePath, "backup-scheduler"),
@@ -168,6 +171,7 @@ public sealed class AppHost : IAsyncDisposable
             (settings.BackupRoot, "restore-worker"),
             (settings.BackupRoot, "character-recovery"),
             (settings.BackupRoot, "profiler"),
+            (paths.RuntimeRoot, PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder),
         })
         {
             if (component != "backup-worker")
@@ -244,8 +248,6 @@ public sealed class AppHost : IAsyncDisposable
         var composer = new SaveDetailComposer(Views);
         RegisterTelemetrySources(settings, state, scheduler, repository);
         RemoveRetiredBackupWorkerTelemetry(settings.BackupRoot);
-        // Before the schedulers start: the state scheduler reads it for the vehicle extension.
-        PzTools.GameExtensions.VehicleDrivetrainConfiguration.MoveLegacyOverride(paths.RuntimeRoot);
         var projectionInterval = TimeSpan.FromMilliseconds(runtime.ProjectionIntervalMs);
         Projections.AddLoop("state", stateProjector.ProjectOnceAsync, projectionInterval);
         Projections.AddLoop("backup", backupProjector.ProjectOnceAsync, projectionInterval);

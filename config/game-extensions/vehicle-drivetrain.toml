@@ -1,5 +1,4 @@
 # Experimental normalized game-force profile. Native force/time calibration and driving E2E remain pending.
-# Optional overrides: <runtimeRoot>/extensions/vehicle-drivetrain.toml (same flat keys).
 schema_version = 1
 # The app's feature preferences (including unwritten UI defaults) override these transport defaults.
 torque_enabled = true            # Forward acceleration and transmission; independent of reverse/steering

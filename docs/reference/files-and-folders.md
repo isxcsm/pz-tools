@@ -77,7 +77,7 @@ If a background program is missing when the app starts, it shows **Some PZ Tools
 | `config\<component>\default.toml` | Editable settings for each part of the app. See [advanced settings](advanced-settings.md). |
 | `config-backups\` | Earlier `config\` folders, moved here by **Restore default settings**, one folder each. |
 | `extensions\settings.json` | Which game extensions are on, and their options. `settings.json.lock` beside it is used while it is written. |
-| `config\vehicle-drivetrain\default.toml` | Optional. Your own values for the vehicle extension's tuning, over the packaged ones in the app folder. You create it; the app never does. **Apply settings and restart** checks it, and **Restore default settings** sets it aside with the other files. Versions before 0.2.4 read it from `extensions\vehicle-drivetrain.toml`; the app moves it from there once. |
+| `config\vehicle-drivetrain\default.toml` | The vehicle extension's tuning, copied from the app folder when missing as the other `config` files are. Versions before 0.2.4 read a file of your own values from `extensions\vehicle-drivetrain.toml`; the app moves it here once, and then copies nothing. |
 | `logs.db` | What the **Logs** page shows. Its size is capped by the log settings. |
 | `control.db` | Hands out the run number every job gets. |
 | `state.db` | What the app knows about your saves and the running game. |

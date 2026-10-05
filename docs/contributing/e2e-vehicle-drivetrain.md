@@ -113,11 +113,11 @@ backup to get back to the earlier state.
 
 ### Tuning file
 
-Defaults and allowed ranges are in
-[`vehicle-drivetrain.toml`](../../config/game-extensions/vehicle-drivetrain.toml). To
-override them, create `%LOCALAPPDATA%\PzTools\config\vehicle-drivetrain\default.toml` with only
-the keys you change. A value out of range, an unknown key or a duplicate key rejects the
-whole file, and the request is turned off.
+The tuning is `%LOCALAPPDATA%\PzTools\config\vehicle-drivetrain\default.toml`, copied from
+[`vehicle-drivetrain.toml`](../../config/game-extensions/vehicle-drivetrain.toml) when missing,
+as the other files in that folder are. Each key's allowed range is in its comment. Edit it and
+choose **Settings → Advanced → Apply settings and restart**: a value out of range, an unknown
+key or a duplicate key is refused there, naming the file.
 
 | Key | Use |
 | --- | --- |

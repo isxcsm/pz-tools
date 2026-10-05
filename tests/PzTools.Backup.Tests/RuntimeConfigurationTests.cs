@@ -208,7 +208,11 @@ public sealed class RuntimeConfigurationTests
         using var temp = new TempDirectory();
         var service = new AppSettingsService(temp.GetPath("runtime"));
         var tuning = PzTools.GameExtensions.VehicleDrivetrainConfiguration.OverridePath(service.RuntimeRoot);
-        Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
+        // Copied from the packaged file as the others are, and valid as copied.
+        await service.EnsureComponentConfigurationAsync(service.RuntimeRoot,
+            PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder);
+        Assert.Equal(await File.ReadAllTextAsync(PackagedVehicleTuning()), await File.ReadAllTextAsync(tuning));
+        service.ValidateEditableConfiguration();
         await File.WriteAllTextAsync(tuning, "diagnostics_enabled = true\n");
         service.ValidateEditableConfiguration();
 
@@ -216,6 +220,14 @@ public sealed class RuntimeConfigurationTests
         var failure = Assert.Throws<InvalidDataException>(service.ValidateEditableConfiguration);
         Assert.Equal(Path.Combine("vehicle-drivetrain", "default.toml"),
             UserFacingErrorCatalog.InvalidSettingsFile(failure, service.ConfigurationRoot));
+    }
+
+    private static string PackagedVehicleTuning()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "PzTools.sln")))
+                return Path.Combine(directory.FullName, "config", "game-extensions", "vehicle-drivetrain.toml");
+        throw new DirectoryNotFoundException("The repository root was not found above the test binaries.");
     }
 
     [Fact]
@@ -240,7 +252,8 @@ public sealed class RuntimeConfigurationTests
         using var temp = new TempDirectory();
         var settings = new AppSettingsService(temp.GetPath("runtime"));
         foreach (var component in new[] { "app", "backup-worker", "backup-scheduler", "state-scheduler",
-                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery", "profiler" })
+                     "maintenance-worker", "archive-worker", "restore-worker", "character-recovery", "profiler",
+                     PzTools.GameExtensions.VehicleDrivetrainConfiguration.ConfigurationFolder })
         {
             await settings.EnsureComponentConfigurationAsync(temp.Path, component);
             var path = ComponentRuntimePaths.GetIdentityDefaultPath(temp.Path, component, settings.ConfigurationRoot);

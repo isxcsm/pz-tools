@@ -345,7 +345,7 @@ saves the extension as off, so the game's own control stays until the player tur
 | File | Role |
 | --- | --- |
 | [config/game-extensions/vehicle-drivetrain.toml](../../config/game-extensions/vehicle-drivetrain.toml), deployed to `game-bridge/extensions/` | Defaults and the allowed range of every key, in comments |
-| `%LOCALAPPDATA%/PzTools/config/vehicle-drivetrain/default.toml` (`VehicleDrivetrainConfiguration.OverridePath`) | Optional overrides, same flat keys. Beside the other editable files, so Apply settings checks it (`AppSettingsService.ValidateEditableConfiguration`) and Restore default settings sets it aside. Moved once from `extensions/vehicle-drivetrain.toml`, where versions before 0.2.4 read it |
+| `%LOCALAPPDATA%/PzTools/config/vehicle-drivetrain/default.toml` (`VehicleDrivetrainConfiguration.OverridePath`) | The editable copy, read over the packaged file. Copied from it when missing at app start, as every component's file is (the app embeds it as that component's template). Apply settings checks it by these keys and ranges (`AppSettingsService.ValidateEditableConfiguration`); Restore default settings sets it aside. A file of overrides at `extensions/vehicle-drivetrain.toml`, where versions before 0.2.4 read it, is moved here once before the copy |
 | `settings.json` | The four switches; they override both TOML files, including before the first save |
 
 `VehicleDrivetrainConfiguration.Load` (C#) layers the files, rejects unknown keys, wrong types,

@@ -1167,8 +1167,10 @@ public sealed class AppCoreTests
 
         await host.StartAsync();
 
-        Assert.Equal(14, Directory.GetFiles(host.Settings.ConfigurationRoot,
+        // Thirteen components, the app's own file, and the vehicle extension's tuning.
+        Assert.Equal(15, Directory.GetFiles(host.Settings.ConfigurationRoot,
             "default.toml", SearchOption.AllDirectories).Length);
+        Assert.True(File.Exists(PzTools.GameExtensions.VehicleDrivetrainConfiguration.OverridePath(paths.RuntimeRoot)));
         var backupConfig = await File.ReadAllTextAsync(
             ComponentRuntimePaths.GetIdentityDefaultPath(
                 temp.GetPath("backups"), "backup-worker", host.Settings.ConfigurationRoot));
