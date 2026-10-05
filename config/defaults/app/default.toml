@@ -14,7 +14,7 @@ max_entries = 100000
 
 
 [runtime]
-# Maximum seconds a locked diagnostic database can delay a progress refresh.
+# Maximum seconds (1-5) a locked diagnostic database can delay a progress refresh.
 # A later refresh retries automatically. Higher values can make progress feel frozen.
 telemetry_read_timeout_seconds = 1
 

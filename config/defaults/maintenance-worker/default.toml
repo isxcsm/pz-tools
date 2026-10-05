@@ -33,7 +33,7 @@ writer_retry_delay_ms = 200
 # Trim completed, unreferenced repository execution history older than this many
 # days (0-3650). 0 disables history trimming. Active/incomplete work is preserved.
 history_retention_days = 90
-# Also preserve the newest IDs of BOTH run histories, regardless of age.
+# Also keep the newest this many runs of the run history (1 or more), regardless of age.
 history_minimum_runs = 1000
 # Bound closed-version cleanup and each run-history batch (1-10000).
 database_cleanup_batch_size = 1000
