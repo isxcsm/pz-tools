@@ -108,7 +108,9 @@ public sealed class RuntimeScheduleController(SchedulerDatabase database, Runtim
                     RemainingMilliseconds = Math.Clamp((long)(due - now).TotalMilliseconds, 0, interval) };
         }
         unusableSince ??= time.GetTimestamp();
-        if (time.GetElapsedTime(unusableSince.Value) < grace) return current;
+        // A game started with connecting turned off refuses until it restarts: there is nothing to wait for.
+        if (observation.Reason != RuntimeObservation.AttachDisabledReason
+            && time.GetElapsedTime(unusableSince.Value) < grace) return current;
         if (target is null)
             return current with { FallbackDueUtc = null, FallbackSaveId = null,
                 RemainingMilliseconds = current.FallbackSaveId is null ? current.RemainingMilliseconds : interval };

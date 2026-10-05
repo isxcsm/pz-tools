@@ -145,7 +145,8 @@ next-backup line, and never expire. Each leaves when its condition clears, or th
   in the logs, not on the card. **Open settings** opens the Smart App Control page of Windows Security
   (`windowsdefender://smartapp/`). The app changes no security setting itself.
 - **Not connected to the game.** The line names a launch option that turns the connection off when the attach found
-  one (**A game launch option is blocking the connection.**); otherwise it says what backups do meanwhile. See
+  one (**A game launch option is blocking the connection.**), shown at once rather than after the 90-second grace,
+  as the game refuses until it restarts; otherwise it says what backups do meanwhile. See
   [saving the game before a backup](game-bridge.md).
 - **Could not load.** A projection failure that clears within ten seconds (a file briefly locked) shows nothing. Only
   one load card shows: the save list if it has failed that long, else the backup list, else the details.

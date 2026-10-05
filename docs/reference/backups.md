@@ -146,7 +146,8 @@ When the game can be read again, the card goes and the countdown returns to play
 can close the card with its ✕; it comes back at the next outage.
 
 A game started with `-XX:+DisableAttachMechanism` shows "A game launch option is blocking
-the connection." See [Troubleshooting](../guides/troubleshooting.md#cards-in-the-sidebar).
+the connection." at once, without the 90 seconds, and backups follow the clock straight
+away: that game refuses until it is restarted without the option. See [Troubleshooting](../guides/troubleshooting.md#cards-in-the-sidebar).
 
 ### PZ Tools was updated, Restart the game
 

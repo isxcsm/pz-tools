@@ -148,6 +148,34 @@ public sealed class GameLinkFallbackTests
             await db.ReadRuntimeScheduleAsync(), feed.Read()).Fallback);
     }
 
+    // Seen in the app: a game started with connecting turned off said why on its card, and the line went on
+    // "Checking game status" for the whole grace. That game refuses until it restarts: there is nothing to wait for.
+    [Fact]
+    public async Task AGameStartedWithConnectingOff_FallsBackAtOnce()
+    {
+        using var temp = new TempDirectory();
+        var db = await SchedulerDatabase.CreateOrOpenAsync(temp.GetPath("scheduler.db"));
+        var target = new BackupTarget("Sandbox/world", "Sandbox/world", temp.GetPath("world"));
+        Directory.CreateDirectory(target.SourcePath);
+        var now = DateTimeOffset.UtcNow;
+        await db.ConfigureBackupAsync(temp.GetPath("repo"), true, TimeSpan.FromMinutes(5), now, pauseDuringGame: true);
+        var feed = new RuntimeSnapshotStore();
+        // Committed, as the state scheduler does before publishing it.
+        var disabled = RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason) with { StateRevision = 1, AuthorityEpoch = Id() };
+        await db.ApplyRuntimeTransitionAsync(disabled, null);
+        feed.Publish(disabled);
+        await db.EnqueueTargetCommandAsync(new("activate", BackupTargetCommandKind.ActivateTarget, target));
+        var controller = new RuntimeScheduleController(db, feed, linkGrace: TimeSpan.FromHours(1));
+
+        await controller.PrepareAsync(now, TimeSpan.Zero, default);
+        Assert.Equal(now.AddMinutes(5), (await db.ReadRuntimeScheduleAsync()).Checkpoint!.FallbackDueUtc);
+        Assert.Equal(new CountdownPresentation("RuntimeBackupFallback", 300), ScheduleCountdownPresentation.Resolve(
+            RuntimeScheduleProjection.Build(await db.ReadBackupStateIfChangedAsync(-1), await db.ReadRuntimeScheduleAsync(),
+                feed.Read(), target), now));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, Cause: RuntimeObservation.AttachDisabledReason),
+            new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true).Update(disabled));
+    }
+
     [Fact]
     public async Task AGameThatNeedsARestartAfterAnUpdate_GetsNoAutomaticBackupUntilItRestarts()
     {
@@ -377,8 +405,10 @@ public sealed class GameLinkFallbackTests
         // Connected again, or the game gone: the cause goes with the outage.
         Assert.Equal(GameLinkView.Available, monitor.Update(new("", RuntimeQuality.Offline, null)));
         Assert.Null(monitor.Update(RuntimeObservation.Unknown("runtime-unavailable")).Cause);
-        // Still within the grace, nothing is shown, the cause included.
+        // Within the grace, an unknown cause is not shown yet; a refusal is, at once, as it will not pass by itself.
         var patient = new GameLinkMonitor(linkGrace: TimeSpan.FromHours(1), gameRunning: () => true);
-        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)));
+        Assert.Equal(GameLinkView.Available, patient.Update(RuntimeObservation.Unknown("runtime-unavailable")));
+        Assert.Equal(new GameLinkView(LinkUnavailable: true, Cause: RuntimeObservation.AttachDisabledReason),
+            patient.Update(RuntimeObservation.Unknown(RuntimeObservation.AttachDisabledReason)));
     }
 }

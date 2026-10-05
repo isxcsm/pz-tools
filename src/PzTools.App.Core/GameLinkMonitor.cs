@@ -53,9 +53,9 @@ public sealed class GameLinkMonitor(TimeProvider? timeProvider = null, TimeSpan?
         cause = !unusable ? null : observation.Reason is RuntimeObservation.AttachDisabledReason ? observation.Reason : cause;
         bool sleepUnknown = observation is { IsFresh: true, Snapshot: { IsWorldReady: true, Sleep: RuntimeSleep.Unknown } };
         sleepSince = sleepUnknown ? sleepSince ?? time.GetTimestamp() : null;
-        // The grace is for a link that may come back by itself (a game still loading). One the game has refused for
-        // running an older bridge cannot: that is said at once.
-        bool linkUnavailable = linkSince is { } link && (restartRequired || time.GetElapsedTime(link) >= linkGrace);
+        // The grace is for a link that may come back by itself (a game still loading). One the game has refused, for
+        // running an older bridge or for having been started with connecting turned off, cannot: that is said at once.
+        bool linkUnavailable = linkSince is { } link && (restartRequired || cause is not null || time.GetElapsedTime(link) >= linkGrace);
         if (observation.Quality == RuntimeQuality.Offline) { launching = true; heap = null; withoutLauncher = null; }
         else
         {
