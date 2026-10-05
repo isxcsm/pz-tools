@@ -20,7 +20,7 @@ On the other PC, open **Save manager** and press **Import archive**. Choose the 
 shows what's in it: the save, the character, their survival time and when it was last played.
 Press **Import**.
 
-[Screenshot: The Import this save? dialog with the save's picture and details]
+![The Import this save? dialog with the save's picture, character and survival time](../media/import-dialog.png)
 
 The save goes into your save folder and shows up in the list. It has no backups yet, and the
 next automatic backup starts its history.

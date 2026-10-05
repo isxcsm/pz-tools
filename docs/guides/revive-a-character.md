@@ -23,7 +23,7 @@ directly and has no undo. With a backup you can go back to the moment of death.
 The **Current save** row at the top of the list has a heart button, **Heal character**. Press
 it.
 
-[Screenshot: Save manager, the Current save row with the Heal character button]
+![The Current save row with its Heal character button](../media/heal-button.png)
 
 If the character is dead, PZ Tools looks for their zombie or corpse. Choose where to take the
 belongings back from:

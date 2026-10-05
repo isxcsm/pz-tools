@@ -10,7 +10,7 @@ Open **Settings → Game → Game memory** and pick a size. The one marked **(re
 plenty for a heavy mod list. A PC with less than 16 GB gets no recommendation. The list only goes up to half of your PC's memory, so Windows and
 your other programs keep enough.
 
-[Screenshot: Settings, the Game memory list open, a size marked (recommended)]
+![The Game memory list open, with 8 GB marked recommended](../media/game-memory-list.png)
 
 PZ Tools writes the size into the game's `ProjectZomboid64.json`. It keeps a copy of the
 original the first time.
@@ -26,7 +26,7 @@ A game update, or Steam's file check, puts the game back to 3 GB. PZ Tools notic
 **Game memory back to 3 GB** in the sidebar. Press **Apply 8 GB again** (with your size), then
 restart the game.
 
-[Screenshot: The sidebar card saying the game memory went back, with its Apply again button]
+![The sidebar card after a game update: Game memory back to 3 GB, with Apply 8 GB again](../media/game-memory-card.png)
 
 ## Going back
 

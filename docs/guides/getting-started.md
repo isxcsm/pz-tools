@@ -23,7 +23,7 @@ Open **Settings** in the sidebar and check **Folders**. The **Save folder** is y
 `Zomboid\Backups` unless you pick another **Backup folder**. If you have a second drive, putting
 backups there keeps them safe when the first one fails.
 
-[Screenshot: Settings, the Folders section with the save and backup folders filled in]
+![Settings, Folders: the save folder and the backup folder](../media/settings-folders.png)
 
 ## 3. Automatic backups
 

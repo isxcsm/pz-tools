@@ -14,7 +14,7 @@ the game running.
 The game takes the change at a safe moment. If the card says **To apply, resume the game, stop
 the vehicle, release the accelerator, and turn off cruise control**, do just that.
 
-[Screenshot: Game extensions, the Vehicle driving improvements card open with its four options]
+![Game extensions: Vehicle driving improvements open, with its four options](../media/vehicle-card.png)
 
 ## 2. Choose what you want
 

@@ -20,7 +20,7 @@ Open **Save manager** and select your save. The list on the right starts with **
 then the backups, newest first. Each one shows when it was made, the character and their
 survival time. A skull means the character was dead in that backup.
 
-[Screenshot: Save manager, a save selected, its backups listed under Current save]
+![Save manager with a backup selected and the Restore button below the list](../media/restore-list.png)
 
 Select the backup and press **Restore**. The dialog names the save and the backup. Press
 **Restore** again to go ahead.

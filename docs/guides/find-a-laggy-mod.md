@@ -16,7 +16,7 @@ also press **Save last 2 min** on the **Performance** page.
 A notice above your character says it's saving, and a few seconds later the recording is on
 the **Performance** page.
 
-[Screenshot: In game, the saving notice above the character]
+![The note over the character once the last minutes are saved](../media/saving-notice.png)
 
 ### If you can make it happen
 
@@ -33,7 +33,7 @@ Each bar in the graph is as tall as the slowest frame in it, so the tall ones ar
 everything below describes just that stretch. Press **✕** on the **Selection** chip, or Esc,
 to go back to the whole recording.
 
-[Screenshot: Performance page, a stretch of tall bars selected, the Selection chip above the graph]
+![Dragging across the tall bars: the Selection chip appears and the results below follow the stretch](../media/profiler-selection.webp)
 
 ## 3. What kind of time was it?
 
@@ -49,7 +49,7 @@ The **This range's time** bar splits the stretch into parts.
 Point at a part and the graph shows where it was. Orange behind the bars means the game was
 freeing memory.
 
-[Screenshot: The This range's time bar with its legend, one part pointed at and shown on the graph]
+![The This range's time bar under the graph, with Scripts pointed at](../media/profiler-time-bar.png)
 
 ## 4. Find the mod
 
@@ -59,7 +59,7 @@ of the stretch each one took. Start with the ones at the top.
 Select a mod to see which of its functions took the time. With **Call tree** on, as it is at
 first, you also see what called them. Select a function's file to open it.
 
-[Screenshot: Scripts (Lua) tab, a mod selected, its functions in the table with Call tree on]
+![The Scripts (Lua) tab: a mod selected and its functions as a call tree](../media/profiler-lua-tab.png)
 
 Vanilla at the top is common, because mods call the game's own scripts all the time. Select
 **Base game scripts (vanilla)** with **Call tree** on. The top rows show what started the
