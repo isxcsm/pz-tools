@@ -27,6 +27,11 @@ public sealed partial class SettingsPage : UserControl
     public SettingsPage()
     {
         InitializeComponent();
+        // After the theme has reached the probes below: queued, so the colours taken are the new theme's.
+        ActualThemeChanged += (_, _) => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (warningShown is { } unsaved) ShowGameSaveWarning(unsaved, force: true);
+        });
         // Alphabetical by native name, independent of the current UI language, so every user finds theirs in the same place.
         foreach (var language in LanguageCatalog.All.OrderBy(language => language.NativeName, StringComparer.InvariantCulture))
             LanguageCombo.Items.Add(new ComboBoxItem { Content = language.NativeName, Tag = language.Tag });
@@ -200,13 +205,24 @@ public sealed partial class SettingsPage : UserControl
         // Off, the card says what is lost where it is read: the caution colour behind it, a warning in place of its icon,
         // and what goes missing from backups in place of its description.
         var unsaved = !GameSaveToggle.IsOn;
-        if (unsaved) GameSaveSettingCard.Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBackgroundBrush"];
-        else GameSaveSettingCard.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
-        GameSaveSettingCard.HeaderIcon = unsaved
-            ? new FontIcon { Glyph = "", Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["SystemFillColorCautionBrush"] }
-            : new SymbolIcon(Symbol.Save);
+        ShowGameSaveWarning(unsaved);
         GameSaveSettingCard.Description = Describe(unsaved ? "GameSaveSettingOffWarning" : "GameSaveSetting.Description");
         GameSaveCountdownSettingCard.Description = Describe("GameSaveCountdownSetting.Description");
+    }
+
+    // Shown once per change (this runs on every change of the game link), and again when the theme changes, in the
+    // page's own theme's colours.
+    private bool? warningShown;
+
+    private void ShowGameSaveWarning(bool unsaved, bool force = false)
+    {
+        if (!force && warningShown == unsaved) return;
+        warningShown = unsaved;
+        if (unsaved) GameSaveSettingCard.Background = CautionBackgroundProbe.Background;
+        else GameSaveSettingCard.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
+        GameSaveSettingCard.HeaderIcon = unsaved
+            ? new FontIcon { Glyph = "", Foreground = CautionProbe.Background }
+            : new SymbolIcon(Symbol.Save);
     }
 
     private static void SetInputName(DependencyObject control, object header) =>

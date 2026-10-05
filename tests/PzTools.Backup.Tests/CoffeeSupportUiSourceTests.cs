@@ -96,7 +96,9 @@ public sealed class CoffeeSupportUiSourceTests
     {
         var source = Source("MainWindowShell.Support.cs");
         Assert.Contains("https://buymeacoffee.com/iou3019", source);
-        Assert.Contains("CoffeeSupportButton.NavigateUri = SupportPage;", source);
+        // Opened through Explorer as the player's, not by the link's own navigation from the elevated app.
+        Assert.Contains("ShellLaunch.Open(SupportPage.AbsoluteUri);", source);
+        Assert.DoesNotContain("NavigateUri", source);
         Assert.Contains("CoffeeSupportMessage.Text = Localizer.Get(\"CoffeeSupport.Message\");", source);
         Assert.Contains("var label = $\"{CoffeeSupportMessage.Text} {CoffeeSupportTitle.Text}\";", source);
         Assert.Contains("AutomationProperties.SetName(CoffeeSupportButton, label);", source);

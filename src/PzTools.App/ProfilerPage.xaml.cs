@@ -734,7 +734,9 @@ public sealed partial class ProfilerPage : UserControl
         string? full = null;
         try
         {
-            scriptRoots ??= App.Host is { } host ? ScriptFileLocator.Current(host.Settings.Load().SavesRoot) : null;
+            // Looked for again while the game's folder is not found (the game not started yet, nor installed by Steam).
+            if (scriptRoots is not { GameFolder: not null })
+                scriptRoots = App.Host is { } host ? ScriptFileLocator.Current(host.Settings.Load().SavesRoot) : null;
             full = scriptRoots is null ? null : ScriptFileLocator.Locate(script.File, scriptRoots);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException) { }
@@ -760,10 +762,18 @@ public sealed partial class ProfilerPage : UserControl
         AutomationProperties.SetName(copy, Localizer.Get("ProfileScriptCopyPath"));
         copy.Click += (_, _) =>
         {
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(full ?? script.File);
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
             flyout.Hide();
+            // Another program can hold the clipboard for a moment; that is said, not a reason for the app to stop.
+            try
+            {
+                var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                package.SetText(full ?? script.File);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            }
+            catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or UnauthorizedAccessException)
+            {
+                App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+            }
         };
         Grid.SetColumn(copy, 1);
         where.Children.Add(copy);
@@ -772,12 +782,12 @@ public sealed partial class ProfilerPage : UserControl
             panel.Children.Add(new TextBlock
             {
                 Text = Localizer.Get("ProfileScriptChanged"), TextWrapping = TextWrapping.Wrap, FontSize = 12,
-                Foreground = (Brush)Application.Current.Resources["SystemFillColorCautionBrush"], Margin = new Thickness(0, 0, 0, 4),
+                Foreground = CautionProbe.Background, Margin = new Thickness(0, 0, 0, 4),
             });
         panel.Children.Add(new Microsoft.UI.Xaml.Shapes.Rectangle
         {
             Height = 1, Margin = new Thickness(-4, 2, -4, 4),
-            Fill = (Brush)Application.Current.Resources["DividerStrokeColorDefaultBrush"],
+            Fill = DividerProbe.Background,
         });
         var code = full is null ? null : ScriptFileLocator.VisualStudioCode();
         void Add(string text, string glyph, bool enabled, Action run)
@@ -880,17 +890,19 @@ public sealed partial class ProfilerPage : UserControl
         // few milliseconds of a frame; on the frames' scale its part lay along the floor. The frames, faded behind,
         // reach the top where they are longer.
         var highlighted = HighlightedOwner();
+        // A part of the time bar pointed at stands in for the highlighted owner while it is: that part of each bar, on
+        // the same terms, so a stutter's frames show which part they were.
+        // The chosen mod's own part is the highlighted owner, drawn already: pointing at it changes nothing.
+        var pointed = hoveredPart is not (null or "Selected") && recording.GameThread >= 0 ? hoveredPart : null;
         double[]? parts = null;
-        if (highlighted is { } owner)
+        // The owner's own part is needed unless another part of the bar is pointed at; "the other scripts" still take
+        // it out of each frame's scripts.
+        if (highlighted is { } owner && (pointed is null || pointed == "Scripts" && SelectedLegend.Visibility == Visibility.Visible))
         {
             parts = ProfileAnalysis.OwnerTimePerBucket(recording, viewStart, viewEnd, buckets, owner.Java, owner.Key, recording.GameThread);
             // Sampled in steps of a period, a part can come out a little over its frame: never above its bar.
             for (var index = 0; index < buckets; index++) parts[index] = Math.Min(parts[index], values[index]);
         }
-        // A part of the time bar pointed at stands in for the highlighted owner while it is: that part of each bar, on
-        // the same terms, so a stutter's frames show which part they were.
-        // The chosen mod's own part is the highlighted owner, drawn already: pointing at it changes nothing.
-        var pointed = hoveredPart is not (null or "Selected") && recording.GameThread >= 0 ? hoveredPart : null;
         if (pointed is not null)
         {
             var split = ProfileAnalysis.BreakdownPerBucket(recording, viewStart, viewEnd, buckets);
@@ -951,15 +963,30 @@ public sealed partial class ProfilerPage : UserControl
         SlowBarsPath.Data = slow;
         // The collector at work, behind the bars where its runs reach into the view: it slows the game without stopping
         // it, so its frames are the longer ones beside it. Put away with the collections' marks, by their figure.
+        // Drawn on every pan and zoom: from the first run in view, overlapping runs merged once, and runs that meet within
+        // a pixel one rectangle, so a long recording zoomed out is a few shapes, not one per collection.
         var collector = new GeometryGroup { FillRule = FillRule.Nonzero };
         if (collectionMarks)
-            foreach (var run in recording.CollectorRuns)
+        {
+            var spans = ProfileAnalysis.CollectorSpansOf(recording);
+            int low = 0, high = spans.Count;
+            while (low < high)
             {
-                if (run.Time >= viewEnd) break;
-                if (run.Time + run.Duration <= viewStart) continue;
-                double left = XAt(Math.Max(run.Time, viewStart)), right = XAt(Math.Min(run.Time + run.Duration, viewEnd));
-                collector.Children.Add(new RectangleGeometry { Rect = new Rect(left, 0, Math.Max(1, right - left), height) });
+                var middle = (low + high) >>> 1;
+                if (spans[middle].End <= viewStart) low = middle + 1; else high = middle;
             }
+            double? openLeft = null, openRight = null;
+            for (var index = low; index < spans.Count && spans[index].Start < viewEnd; index++)
+            {
+                double left = XAt(Math.Max(spans[index].Start, viewStart)), right = XAt(Math.Min(spans[index].End, viewEnd));
+                if (openRight is { } last && left <= last + 1) { openRight = Math.Max(last, right); continue; }
+                if (openLeft is { } shownLeft)
+                    collector.Children.Add(new RectangleGeometry { Rect = new Rect(shownLeft, 0, Math.Max(1, openRight!.Value - shownLeft), height) });
+                (openLeft, openRight) = (left, right);
+            }
+            if (openLeft is { } finalLeft)
+                collector.Children.Add(new RectangleGeometry { Rect = new Rect(finalLeft, 0, Math.Max(1, openRight!.Value - finalLeft), height) });
+        }
         CollectorPath.Data = collector;
 
         // Faint: on the owner's scale most frames reach the top, and a wall of them would compete with its part.
@@ -1222,7 +1249,7 @@ public sealed partial class ProfilerPage : UserControl
     // The line under the frames and its button: shown when the recording has collections or memory.
     private void ApplyMemoryPanel()
     {
-        CurrentPressure();
+        RecordingFacts();
         var rows = MemoryRows;
         MemoryHeader.Visibility = MemoryAvailable ? Visibility.Visible : Visibility.Collapsed;
         // A figure whose row is put away stands faint.
@@ -1251,7 +1278,7 @@ public sealed partial class ProfilerPage : UserControl
     // out once per recording, as it reads every pause; the line is shown again on each tab, click and toggle.
     private void ApplyMemoryShort()
     {
-        var pressure = CurrentPressure();
+        var pressure = RecordingFacts();
         MemoryShortPanel.Visibility = pressure is { Short: true } ? Visibility.Visible : Visibility.Collapsed;
         if (pressure is not { Short: true }) return;
         var stalls = pressure.Stalls.ToString("N0", Localizer.Culture);
@@ -1292,22 +1319,25 @@ public sealed partial class ProfilerPage : UserControl
     // The share of the machine other programs used above which the line says so: a backfill on the same machine took
     // half of it and more than doubled the frames; the game's own share alone stayed near a quarter.
     private const double OtherCpuShown = 0.35;
+    // The collector's share of a range from which it is named: below a hundredth it is nothing to read.
+    private const double CollectorBusyShown = 0.01;
 
     // Other programs kept the machine busy while it recorded: said beside the memory, as the other cause of a slow game
     // that is not the mods.
+    // Called by ApplyMemoryPanel, after the recording's facts are read.
     private void ApplyOtherCpu()
     {
-        CurrentPressure();
-        var shown = otherCpuOfRecording is >= OtherCpuShown;
-        OtherCpuPanel.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
-        if (!shown) return;
+        var busy = otherCpuOfRecording is >= OtherCpuShown;
+        OtherCpuPanel.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        if (!busy) return;
         OtherCpuText.Text = Localizer.Format("ProfileOtherCpuFormat", otherCpuOfRecording!.Value);
         AppToolTip.SetTip(OtherCpuPanel, Localizer.Get("ProfileOtherCpuTip"));
     }
 
-    // The shown recording's memory pressure, worked out once per recording; a recording newly shown also sets whether
-    // the panel opens, until the player has chosen.
-    private ProfileMemoryPressure? CurrentPressure()
+    // What the shown recording says about memory and the machine (its pressure, its frames with the collector, other
+    // programs' CPU), worked out once per recording; a recording newly shown also sets whether the panel opens, until
+    // the player has chosen. Returns the pressure.
+    private ProfileMemoryPressure? RecordingFacts()
     {
         if (recording is not { } current) return null;
         if (!ReferenceEquals(pressureOf, current))
@@ -1755,7 +1785,9 @@ public sealed partial class ProfilerPage : UserControl
         }
         var frame = ProfileAnalysis.FrameAt(recording, time);
         List<(string?, string)> items = [(null, Seconds(time))];
-        string? collection = null;
+        // A recording with collections keeps its figure on the line, "GC 0" over a frame without one: dropping it moved
+        // the heap and video figures beside it sideways frame by frame, and took the graph's colour key with it.
+        string? collection = recording.Collections.Count > 0 ? CollectionText(0) : null;
         if (frame is { } found && time >= found.Start)
         {
             items.Add((Localizer.Get("ProfileStatFrame"), Milliseconds(found.Duration / 1000.0)));
@@ -1850,7 +1882,7 @@ public sealed partial class ProfilerPage : UserControl
         var gc = new List<string>();
         // "GC 3 times · working 4%": the collector named once, at the front.
         if (collections > 0) gc.Add(CollectionText(collections));
-        if (ProfileAnalysis.CollectorBusyIn(recording!, start, end) is { } busy && busy >= 0.01)
+        if (ProfileAnalysis.CollectorBusyIn(recording!, start, end) is { } busy && busy >= CollectorBusyShown)
             gc.Add(Localizer.Format(collections > 0 ? "ProfileCollectorBusyShortFormat" : "ProfileCollectorBusyFormat", busy));
         // The game stopped long enough to feel it, as the graph marks: said, as an older collector's pauses can be.
         if (paused * 1000 >= SignificantPauseMicros)
@@ -2025,7 +2057,7 @@ public sealed partial class ProfilerPage : UserControl
         var version = ++analysisVersion;
         var start = selectionStart ?? 0;
         var end = selectionEnd ?? current.Duration;
-        var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
+        var thread = AnalysedThread(current);
         // A newer range makes the previous analysis pointless: stop it rather than let it finish on a worker.
         analysisCancel?.Cancel();
         analysisCancel = null;
@@ -2130,11 +2162,14 @@ public sealed partial class ProfilerPage : UserControl
     {
         hoverEntries++;
         if (sender is not FrameworkElement { Tag: string part } element || hoveredPart == part) return;
+        var before = hoveredPart;
         hoveredPart = part;
         // The part's colour, as its dot and bar show it; waiting's own grey would vanish on the graph's faded bars.
         hoveredBrush = part == "Waiting" ? Muted
             : element is Microsoft.UI.Xaml.Shapes.Shape shape ? shape.Fill
             : (element as Panel)?.Children.OfType<Microsoft.UI.Xaml.Shapes.Ellipse>().FirstOrDefault()?.Fill;
+        // The chosen mod's own part is drawn already: from nothing pointed at, pointing at it draws the same graph.
+        if (part == "Selected" && before is null) return;
         RenderChart();
     }
 
@@ -2148,8 +2183,9 @@ public sealed partial class ProfilerPage : UserControl
         DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
             if (hoverEntries != entries) return;
+            var was = hoveredPart;
             hoveredPart = null;
-            RenderChart();
+            if (was != "Selected") RenderChart();
         });
     }
 
@@ -2174,7 +2210,7 @@ public sealed partial class ProfilerPage : UserControl
                 _ => $"ProfileBreakdown{part}Tip",
             };
             var lines = new List<string> { $"{BreakdownPercent(share)} · {Milliseconds(share * length / 1000.0)}", Localizer.Get(meaning) };
-            if (part == "Collections" && recording is { } loaded && ProfileAnalysis.CollectorBusyIn(loaded, range.Start, range.End) is { } busy)
+            if (part == "Collections" && recording is { } loaded && ProfileAnalysis.CollectorBusyIn(loaded, range.Start, range.End) is { } busy && busy >= CollectorBusyShown)
                 lines.Add(Localizer.Format("ProfileCollectorBusyFormat", busy));
             return string.Join("\n", lines);
         }
@@ -2213,6 +2249,7 @@ public sealed partial class ProfilerPage : UserControl
         if (listedGroups.Count == 0)
         {
             SetSplitVisible(false);
+            shownGroup = null;
             ResultMessage.Text = Localizer.Get(java ? "ProfileFewSamples" : recording?.LuaPeriod is not > 0 ? "ProfileNoLua"
                 : tab == ResultTab.Allocation ? "ProfileAllocationNone" : "ProfileLuaNone");
             // The tab before may have drawn an owner over the graph and a mod's row in the memory panel.
@@ -2374,7 +2411,7 @@ public sealed partial class ProfilerPage : UserControl
         }
         // Analysed before it takes the place of the one compared with until now, which stays shown meanwhile: the
         // figures never stand under the wrong name, and taking the choice back leaves the comparison as it was.
-        var thread = BaselineThread(loaded);
+        var thread = AnalysedThread(loaded);
         ProfileRange range;
         try { range = await Task.Run(() => ProfileAnalysis.Analyze(loaded, 0, loaded.Duration, thread, MaximumGroupRows)); }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -2392,10 +2429,11 @@ public sealed partial class ProfilerPage : UserControl
         ShowComparison();
         if (shown is not null) ShowTab();
         // The thread chosen meanwhile: analysed again for it.
-        if (BaselineThread(loaded) != thread) await AnalyzeBaselineAsync();
+        if (AnalysedThread(loaded) != thread) await AnalyzeBaselineAsync();
     }
 
-    private int BaselineThread(ProfileRecording other) => ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
+    // The thread a recording is analysed for: the game's, or all (chosen, or a recording without a game thread).
+    private int AnalysedThread(ProfileRecording other) => ThreadBox.SelectedIndex == 1 || other.GameThread < 0 ? -1 : other.GameThread;
 
     // The ✕, or the choice unticked: a choice still loading is taken back, leaving any comparison from before; else the
     // comparison ends.
@@ -2430,7 +2468,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         if (baseline is not { } other) return;
         var version = ++baselineVersion;
-        var thread = BaselineThread(other);
+        var thread = AnalysedThread(other);
         // An analysis a newer one replaces is stopped, not left to finish a whole recording on a worker.
         baselineCancel?.Cancel();
         var cancel = baselineCancel = new CancellationTokenSource();
@@ -2969,7 +3007,7 @@ public sealed partial class ProfilerPage : UserControl
     /// is one hover away, so a large part of a light owner is not mistaken for a heavy one.
     /// </summary>
     private TableLine FunctionLine(ProfileCallNode owner, bool allocation, string name, string file, int selfSamples, int samples,
-        int shownSamples, long allocatedSelf, long allocatedTotal, string indent = "", TreeItem? tree = null, double? delta = null,
+        int shownSamples, long allocatedSelf, long allocatedTotal, TreeItem? tree = null, double? delta = null,
         int line = 0, string? fileNote = null)
     {
         // The file with a line: the function's heaviest, or the line a line row stands for.
@@ -2995,7 +3033,7 @@ public sealed partial class ProfilerPage : UserControl
         // Its share of the owner for now; the table scales the bars to its largest line once all are known.
         return new TableLine(
         [
-            (indent + name, name, false),
+            (name, name, false),
             (LuaFileName(file) is { Length: > 0 } fileName ? fileName + at : "", file + at + (fileNote is null ? "" : "\n" + fileNote), false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
@@ -3008,10 +3046,10 @@ public sealed partial class ProfilerPage : UserControl
     /// overlap (a list's functions call one another, so their totals do not add up); a tree's siblings never do.
     /// </summary>
     private TableLine RestLine(ProfileCallNode owner, bool allocation, int count, int selfSamples, int samples, int shownSamples,
-        long allocatedSelf, long allocatedTotal, bool totals, string indent, TreeItem? tree)
+        long allocatedSelf, long allocatedTotal, bool totals, TreeItem? tree)
     {
         var line = FunctionLine(owner, allocation, Localizer.Format("ProfileRestFormat", count.ToString("N0", Localizer.Culture)), "",
-            selfSamples, samples, shownSamples, allocatedSelf, allocatedTotal, indent, tree);
+            selfSamples, samples, shownSamples, allocatedSelf, allocatedTotal, tree);
         if (!totals) line.Cells[TotalColumn] = ("", null, true);
         // No bars: a sum of many is no line of its own to compare.
         return line with { Bar = null, SelfBar = null };
@@ -3033,7 +3071,7 @@ public sealed partial class ProfilerPage : UserControl
                 Style = (Style)Application.Current.Resources["SubtleButtonStyle"],
                 Content = new FontIcon { Glyph = item.Open ? "" : "", FontSize = 10 },
             };
-            AutomationProperties.SetName(arrow, Localizer.Format(item.Open ? "ProfileTreeCollapseFormat" : "ProfileTreeExpandFormat", line.Cells[0].Text.Trim()));
+            AutomationProperties.SetName(arrow, Localizer.Format(item.Open ? "ProfileTreeCollapseFormat" : "ProfileTreeExpandFormat", line.Cells[0].Text));
             arrow.Click += (_, _) => ToggleNode(group, item.Path);
             name.Children.Add(arrow);
             // The whole row opens and closes too, not only the small arrow; a tap on the arrow is its click's.
@@ -3046,7 +3084,7 @@ public sealed partial class ProfilerPage : UserControl
             };
         }
         // A node by its name; the rest of a level muted, as it is no function.
-        var label = line.Cells[0].Text.Trim();
+        var label = line.Cells[0].Text;
         var text = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis, TextWrapping = TextWrapping.NoWrap };
         // The rest of a level and a function's lines are no functions of their own: muted.
         if (item.Path.EndsWith("/*", StringComparison.Ordinal) || item.Path.StartsWith("line/", StringComparison.Ordinal)
@@ -3162,15 +3200,13 @@ public sealed partial class ProfilerPage : UserControl
             if (callTree)
                 foreach (var item in TreeRows(group, tree))
                 {
-                    // As text each name is indented by its depth, the open paths only, as on screen.
-                    var indent = new string(' ', item.Depth * 2);
                     if (item.Rest is { } rest)
                         rows.Add(RestLine(tree, allocation, rest.Count, rest.Sum(node => node.SelfSamples), rest.Sum(node => node.Samples),
                             rest.Sum(node => node.Samples), rest.Sum(node => node.AllocatedSelf), rest.Sum(node => node.AllocatedTotal),
-                            totals: true, indent, item));
+                            totals: true, item));
                     else if (item.Node is { } node)
                         rows.Add(FunctionLine(tree, allocation, node.Name, node.File, node.SelfSamples, node.Samples, node.Samples,
-                            node.AllocatedSelf, node.AllocatedTotal, indent, item, NodeDelta(node), MainLine(OwnLines(node, allocation), allocation),
+                            node.AllocatedSelf, node.AllocatedTotal, item, NodeDelta(node), MainLine(OwnLines(node, allocation), allocation),
                             // Where it was called from: what the lines a caller called at were, on the caller's own rows before.
                             item.Parent is { Function: >= 0 } parent && node.CalledFromLine > 0
                                 ? Localizer.Format("ProfileCalledFromFormat", parent.Name, node.CalledFromLine.ToString(Localizer.Culture)) : null));
@@ -3178,13 +3214,13 @@ public sealed partial class ProfilerPage : UserControl
                     {
                         // Its own work, in sum: the total would only repeat it.
                         var ownLine = FunctionLine(tree, allocation, Localizer.Format("ProfileOwnLinesFormat", item.OwnLineCount),
-                            "", runner.SelfSamples, runner.SelfSamples, runner.SelfSamples, runner.AllocatedSelf, runner.AllocatedSelf, indent, item);
+                            "", runner.SelfSamples, runner.SelfSamples, runner.SelfSamples, runner.AllocatedSelf, runner.AllocatedSelf, item);
                         ownLine.Cells[TotalColumn] = ("", null, true);
                         rows.Add(ownLine with { Bar = null, SelfBar = null });
                     }
                     else if (item is { Line: { } line, LineOf: { } of })
                         rows.Add(FunctionLine(tree, allocation, LineName(line), of.File, line.SelfSamples, line.Samples, line.SelfSamples,
-                            line.AllocatedSelf, line.AllocatedTotal, indent, item, line: line.Line));
+                            line.AllocatedSelf, line.AllocatedTotal, item, line: line.Line));
                 }
             else
             {
@@ -3196,7 +3232,7 @@ public sealed partial class ProfilerPage : UserControl
                 // The list counts the samples that ended in each function, as it always has. Each function opens into
                 // its lines: where in it the time went, what to change.
                 var ownerLines = shown?.LuaLines.GetValueOrDefault(group.Key);
-                void Add(ProfileFunctionTotal row, string indent)
+                void Add(ProfileFunctionTotal row, int depth)
                 {
                     var path = $"lines/{row.Function}";
                     var isOpen = open.Contains(path);
@@ -3204,7 +3240,7 @@ public sealed partial class ProfilerPage : UserControl
                     // The file column names the line it ran itself the most, as in the tree.
                     var main = MainLine(lines.Where(line => allocation ? line.AllocatedSelf > 0 : line.SelfSamples > 0).ToArray(), allocation);
                     rows.Add(FunctionLine(tree, allocation, row.Name, row.File, row.SelfSamples, row.Samples, row.SelfSamples,
-                        row.AllocatedSelf, row.AllocatedTotal, indent, new TreeItem(null, indent.Length / 2, path, true, isOpen), FunctionDelta(row),
+                        row.AllocatedSelf, row.AllocatedTotal, new TreeItem(null, depth, path, true, isOpen), FunctionDelta(row),
                         main));
                     if (!isOpen) return;
                     foreach (var line in lines)
@@ -3213,10 +3249,10 @@ public sealed partial class ProfilerPage : UserControl
                         rows.Add(FunctionLine(tree, allocation,
                             (allocation ? line.AllocatedSelf : line.SelfSamples) == 0 ? Localizer.Format("ProfileLineCallFormat", LineName(line)) : LineName(line),
                             row.File, line.SelfSamples, line.Samples, line.SelfSamples,
-                            line.AllocatedSelf, line.AllocatedTotal, indent + "  ",
-                            new TreeItem(null, indent.Length / 2 + 1, $"line/{row.Function}/{line.Line}", false, false), line: line.Line));
+                            line.AllocatedSelf, line.AllocatedTotal,
+                            new TreeItem(null, depth + 1, $"line/{row.Function}/{line.Line}", false, false), line: line.Line));
                 }
-                foreach (var row in functions.Take(RowsPerGroup)) Add(row, "");
+                foreach (var row in functions.Take(RowsPerGroup)) Add(row, 0);
                 if (functions.Count > RowsPerGroup)
                 {
                     var rest = functions.Skip(RowsPerGroup).ToArray();
@@ -3224,8 +3260,8 @@ public sealed partial class ProfilerPage : UserControl
                     var restOpen = open.Contains(path);
                     rows.Add(RestLine(tree, allocation, rest.Length, rest.Sum(row => row.SelfSamples), rest.Sum(row => row.Samples),
                         rest.Sum(row => row.SelfSamples), rest.Sum(row => row.AllocatedSelf), rest.Sum(row => row.AllocatedTotal),
-                        totals: false, "", new TreeItem(null, 0, path, true, restOpen)));
-                    if (restOpen) foreach (var row in rest) Add(row, "  ");
+                        totals: false, new TreeItem(null, 0, path, true, restOpen)));
+                    if (restOpen) foreach (var row in rest) Add(row, 1);
                 }
             }
             ScaleBars(rows);
@@ -3249,7 +3285,7 @@ public sealed partial class ProfilerPage : UserControl
             void AddMethod(ProfileShare row, int depth)
             {
                 var path = "m/" + row.Name;
-                var line = MethodLine(group, row, "", Delta(row));
+                var line = MethodLine(group, row, Delta(row));
                 if (row.Self <= 0) { rows.Add(line with { Tree = new TreeItem(null, depth, path, false, false) }); return; }
                 var isOpen = opened.Contains(path);
                 rows.Add(line with { Tree = new TreeItem(null, depth, path, true, isOpen) });
@@ -3264,7 +3300,7 @@ public sealed partial class ProfilerPage : UserControl
                     if (rows.Count >= MaximumTreeRows) return;
                     var callerPath = path + "<" + caller.Methods[0];
                     // Opens by itself while it is a library's and a tenth or more of the method's time.
-                    var automatic = !caller.ReachesGame && caller.Share >= own * 0.1;
+                    var automatic = !caller.ReachesGame && caller.Share >= own * CallerOpenedShare;
                     var isOpen = caller.Callers.Count > 0 && automatic != opened.Contains(callerPath);
                     rows.Add(new TableLine(
                     [
@@ -3324,6 +3360,8 @@ public sealed partial class ProfilerPage : UserControl
 
     // A caller lighter than this share of the range is gathered with the others like it.
     private const double CallerShown = 0.005;
+    // A caller that is this much of its method opens by itself on the way up to the game's code.
+    private const double CallerOpenedShare = 0.1;
 
     // Who called each method, worked out when its row is first opened, for the range and thread shown.
     private readonly Dictionary<string, ProfileCallerNode> callersOf = [];
@@ -3334,7 +3372,7 @@ public sealed partial class ProfilerPage : UserControl
         if (!ReferenceEquals(callersFor, shown)) { callersOf.Clear(); callersFor = shown; }
         if (!callersOf.TryGetValue(method, out var node))
             callersOf[method] = node = ProfileAnalysis.CallersOf(recording!, shown!.Start, shown.End,
-                ThreadBox.SelectedIndex == 1 || recording!.GameThread < 0 ? -1 : recording.GameThread, method);
+                AnalysedThread(recording!), method);
         return node;
     }
 
@@ -3361,7 +3399,7 @@ public sealed partial class ProfilerPage : UserControl
     /// A method's line in a part of the game code: its parts of the group, the group being 100%, with what they are of all
     /// the running time one hover away; the self gauge is its own part of its total, as in the script tables.
     /// </summary>
-    private static TableLine MethodLine(ResultGroup group, ProfileShare row, string indent = "", double? delta = null)
+    private static TableLine MethodLine(ResultGroup group, ProfileShare row, double? delta = null)
     {
         var whole = group.Share ?? 0;
         (string, string?, bool) Part(double share) =>
@@ -3369,7 +3407,7 @@ public sealed partial class ProfilerPage : UserControl
         var package = PackageOf(row.Name);
         return new TableLine(
         [
-            (indent + ShortMethod(row.Name), row.Name, false), (package, package, false),
+            (ShortMethod(row.Name), row.Name, false), (package, package, false),
             Part(row.Self), Part(row.Total), (row.Samples.ToString("N0", Localizer.Culture), null, true),
         ], whole > 0 ? Math.Clamp(row.Total / whole, 0, 1) : 0, null, row.Total > 0 ? Math.Clamp(row.Self / row.Total, 0, 1) : 0, delta);
     }
@@ -3457,7 +3495,7 @@ public sealed partial class ProfilerPage : UserControl
                 };
                 // In the table's own colour: the pointer's hover shows it is a button, and a column of links read loud.
                 foreach (var key in new[] { "HyperlinkButtonForeground", "HyperlinkButtonForegroundPointerOver", "HyperlinkButtonForegroundPressed" })
-                    link.Resources[key] = Application.Current.Resources["TextFillColorPrimaryBrush"];
+                    link.Resources[key] = PrimaryTextProbe.Background;
                 link.Click += (_, _) => ShowScriptMenu(link, script);
                 if (tip is { Length: > 0 }) AppToolTip.SetTip(link, tip);
                 Grid.SetColumn(link, index);
@@ -3500,11 +3538,11 @@ public sealed partial class ProfilerPage : UserControl
         CopyMenu.Items.Add(owner);
     }
 
-    // Worked out on a worker, as the page does when a row opens: a report's callers walk the range's samples.
+    // Worked out on a worker: a report's callers walk the range's samples, a few methods' worth.
     private async void CopyReport(ProfileReportFocus? focus)
     {
         if (recording is not { } current || shown is not { } range) return;
-        var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
+        var thread = AnalysedThread(current);
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
         // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
         var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;

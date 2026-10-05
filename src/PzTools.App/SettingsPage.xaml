@@ -14,6 +14,12 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
+    <!-- Colours for what code sets, resolved in the page's own theme (the app's resources follow Windows', not the
+         theme chosen in PZ Tools). Never shown. -->
+    <StackPanel x:Name="ThemeProbes" Visibility="Collapsed">
+      <Border x:Name="CautionBackgroundProbe" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" />
+      <Border x:Name="CautionProbe" Background="{ThemeResource SystemFillColorCautionBrush}" />
+    </StackPanel>
 
     <Grid Margin="{StaticResource CardPageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
       <TextBlock x:Name="SettingsTitleText" Text="설정"

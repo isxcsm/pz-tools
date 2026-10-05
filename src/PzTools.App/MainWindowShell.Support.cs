@@ -19,7 +19,14 @@ public sealed partial class MainWindowShell
     }
 
     // Opened as the player's, not by the link's own navigation, which would start the browser with this app's rights.
-    private void CoffeeSupportButton_Click(object sender, RoutedEventArgs e) => ShellLaunch.Open(SupportPage.AbsoluteUri);
+    private void CoffeeSupportButton_Click(object sender, RoutedEventArgs e)
+    {
+        try { ShellLaunch.Open(SupportPage.AbsoluteUri); }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ShowActionError(Localizer.Get("CoffeeSupport.Title"), exception);
+        }
+    }
 
     private void LocalizeSupportButton()
     {

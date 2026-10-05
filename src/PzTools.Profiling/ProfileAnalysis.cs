@@ -763,7 +763,9 @@ public static class ProfileAnalysis
         return Math.Clamp(busy / (double)(end - start), 0, 1);
     }
 
-    // Young and old collections can overlap: the time any of them ran, as spans apart from one another, in order.
+    /// <summary>The time the collector was at work, as spans apart from one another, in order: young and old collections overlap.</summary>
+    public static IReadOnlyList<(long Start, long End)> CollectorSpansOf(ProfileRecording recording) => CollectorSpans(recording);
+
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ProfileRecording, (long Start, long End)[]>
         collectorSpans = new();
 

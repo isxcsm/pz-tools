@@ -78,7 +78,7 @@ public static class AppToolTip
             owner.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler((_, _) =>
             {
                 pressed = true;
-                opening?.Stop();
+                StopOpening();
                 Hide();
             }), true);
             owner.Unloaded += (_, _) => Dismiss();
@@ -130,10 +130,14 @@ public static class AppToolTip
             // Back within the grace: still open, nothing to show again.
             if (tooltip.IsOpen) { current = this; return; }
             if (System.Diagnostics.Stopwatch.GetElapsedTime(lastClosed) < BetweenDelay || current is not null) { Show(); return; }
+            // One tip waits at a time: a child entered within the rest takes over from the element it is in, which would
+            // otherwise open its own tip and have it replaced a moment later.
+            if (pending is { } waiting && waiting != this) waiting.opening?.Stop();
             pending = this;
             (opening ??= Timer(InitialDelay, () =>
             {
-                if (pending == this) pending = null;
+                if (pending != this) return;
+                pending = null;
                 if (hovered) Show();
             })).Start();
         }

@@ -238,7 +238,12 @@ public sealed partial class HomePage : UserControl
 
     private void ExternalLink_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { Tag: string link }) ShellLaunch.Open(link);
+        if (sender is not FrameworkElement { Tag: string link }) return;
+        try { ShellLaunch.Open(link); }
+        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            ((App)Application.Current).ShowSidebarNotification(InfoBarSeverity.Error, "GitHub", UserFacingError.FromException(exception));
+        }
     }
 
     private void OpenSaves_Click(object sender, RoutedEventArgs e) =>

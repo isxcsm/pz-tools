@@ -43,6 +43,8 @@
       <Border x:Name="SuccessProbe" Background="{ThemeResource SystemFillColorSuccessBrush}" />
       <Border x:Name="CriticalProbe" Background="{ThemeResource SystemFillColorCriticalBrush}" />
       <Border x:Name="AccentTextProbe" Background="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+      <Border x:Name="CautionProbe" Background="{ThemeResource SystemFillColorCautionBrush}" />
+      <Border x:Name="DividerProbe" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
     </StackPanel>
 
     <!-- Two lines. The title's: making a recording, at its right. The next: the recording shown, and what is done to
@@ -269,7 +271,6 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <!-- In the text's own colour: the page has colours enough in its graphs and figures. The pointer's hover and the
                chevron show it is a button; a filled block stood out more than the figures it opens onto. -->
@@ -490,7 +491,8 @@
              the two cards start level: the owner's name, its samples, then search, the call tree and the copy. Search
              narrows the rows to names and files holding the text (a tree keeps the paths to them); its box opens where
              its button is (or by Ctrl+F) and the name gives way to it. The call tree shows the paths that led to each
-             function; the copy puts what the page shows on the clipboard. Stacked, the line comes just above its card. -->
+             function; the copy's menu puts a report on the clipboard, of the whole range or of this owner. Stacked, the line comes
+             just above its card. -->
         <Grid x:Name="DetailTitle" Grid.Column="1" Padding="12,0,0,0" ColumnSpacing="8" VerticalAlignment="Center"
               KeyboardAcceleratorPlacementMode="Hidden" SizeChanged="DetailTitle_SizeChanged">
           <Grid.KeyboardAccelerators>
