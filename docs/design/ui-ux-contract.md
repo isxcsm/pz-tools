@@ -302,7 +302,11 @@ These locks are a convenience. Named mutexes in the workers and the CLI stop con
   joiner between the syllables of each word (`HomePage.KeepWords`), so a narrow window breaks only at spaces.
 - **Settings.** `SettingsExpander`s, in order: **Version**, **Appearance and behavior**, **Folders**, **Backup**,
   **Game**, **Performance**, **Hotkeys**, **Advanced**. **Version** and **Advanced** start collapsed. What each
-  setting does is in the [settings reference](../reference/settings.md).
+  setting does is in the [settings reference](../reference/settings.md). A setting left in a risky state (**Save game
+  before backup** off) is warned of as Windows' own settings do: a warning `InfoBar`, titled with the setting, in its
+  section's `ItemsFooter`; the card keeps its look. It cannot sit among the section's items, which `SettingsExpander`
+  all gives the card style. A card coloured as a warning instead mixes the `InfoBar`'s opaque caution background with
+  the card's nearly transparent fill, and its background transition flashed light grey between them.
 - **Performance.** The record button reads **Start recording** while idle and is enabled when exactly one game is
   running or the count is not known yet; otherwise its tooltip says why. While recording it reads **Stop recording**
   and is enabled once the game has confirmed the recording. See the
@@ -351,9 +355,8 @@ colour on a dark page. Instead:
 
 - Set colours through a style whose setters use `{ThemeResource …}` (as [CardStyles.xaml](../../src/PzTools.App/CardStyles.xaml)
   does); the element resolves them in its own theme.
-- For brushes that code needs, read them from collapsed probe elements in the page, as the `ThemeProbes` panels in
-  [SettingsPage.xaml](../../src/PzTools.App/SettingsPage.xaml) and [ProfilerPage.xaml](../../src/PzTools.App/ProfilerPage.xaml)
-  do. After `ActualThemeChanged`, read them in a queued callback, when the probes have the new theme, and redraw
+- For brushes that code needs, read them from collapsed probe elements in the page, as the `ThemeProbes` panel in
+  [ProfilerPage.xaml](../../src/PzTools.App/ProfilerPage.xaml) does. After `ActualThemeChanged`, read them in a queued callback, when the probes have the new theme, and redraw
   whatever code drew with the old brushes.
 - Do not read a brush from `Application.Current.Resources` in code. A style from there is fine: the heal dialog's
   secondary lines (`CreateCharacterChoice`, [RemainsQuestion](../../src/PzTools.App/RemainsQuestion.cs)) take

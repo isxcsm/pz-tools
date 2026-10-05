@@ -27,15 +27,22 @@ public sealed class AppUiBehaviourSourceTests
         Assert.Contains("LocalizeCardPreview();", build);
     }
 
-    // Seen in the app: switching Save game before backup flashed the card light grey between its two colours, as the
-    // card's template eased from the opaque caution colour to its nearly transparent default.
+    // Seen in the app: switching Save game before backup flashed the card light grey, as the card's background eased
+    // between the opaque caution colour it was given and its own nearly transparent fill. Windows warns with a bar.
     [Fact]
-    public void TheGameSaveWarningChangesTheCardsColourAtOnce()
+    public void TheGameSaveWarningIsABarInItsSectionsFooter_AndTheCardKeepsItsLook()
     {
-        var warning = Method(Source("SettingsPage.xaml.cs"), "private void ShowGameSaveWarning(");
-        var cleared = warning.IndexOf("templateRoot.BackgroundTransition = null;", StringComparison.Ordinal);
-        Assert.True(cleared >= 0);
-        Assert.True(cleared < warning.IndexOf("GameSaveSettingCard.Background =", StringComparison.Ordinal));
+        var page = XDocument.Parse(Source("SettingsPage.xaml"));
+        var footer = page.Descendants().Single(element => element.Name.LocalName == "SettingsExpander.ItemsFooter");
+        var bar = Assert.Single(footer.Elements(), element => element.Name.LocalName == "InfoBar");
+        Assert.Equal("GameSaveOffWarning", (string?)bar.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml")));
+        Assert.Equal("Warning", (string?)bar.Attribute("Severity"));
+        // The section's items are all given the card style; a bar among them would fail to load.
+        Assert.DoesNotContain(page.Descendants().Where(element => element.Name.LocalName == "SettingsExpander.Items")
+            .SelectMany(items => items.Elements()), element => element.Name.LocalName == "InfoBar");
+        var code = Source("SettingsPage.xaml.cs");
+        Assert.Contains("GameSaveOffWarning.IsOpen = !GameSaveToggle.IsOn;", code);
+        Assert.DoesNotContain("GameSaveSettingCard.Background", code);
     }
 
     [Fact]

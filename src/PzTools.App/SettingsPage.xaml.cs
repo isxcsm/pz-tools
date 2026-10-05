@@ -27,11 +27,6 @@ public sealed partial class SettingsPage : UserControl
     public SettingsPage()
     {
         InitializeComponent();
-        // After the theme has reached the probes below: queued, so the colours taken are the new theme's.
-        ActualThemeChanged += (_, _) => DispatcherQueue.Enqueue(() =>
-        {
-            if (warningShown is { } unsaved) ShowGameSaveWarning(unsaved, force: true);
-        });
         // Alphabetical by native name, independent of the current UI language, so every user finds theirs in the same place.
         foreach (var language in LanguageCatalog.All.OrderBy(language => language.NativeName, StringComparer.InvariantCulture))
             LanguageCombo.Items.Add(new ComboBoxItem { Content = language.NativeName, Tag = language.Tag });
@@ -193,7 +188,7 @@ public sealed partial class SettingsPage : UserControl
         // Toggles raise their events while the page is still being built.
         if (AutomaticBackupToggle is null || PausePeriodicToggle is null || DeathBackupToggle is null || GameSaveToggle is null
             || GameSaveCountdownToggle is null || PausePeriodicSettingCard is null || DeathBackupSettingCard is null
-            || GameSaveSettingCard is null || GameSaveCountdownSettingCard is null) return;
+            || GameSaveSettingCard is null || GameSaveCountdownSettingCard is null || GameSaveOffWarning is null) return;
         bool linked = !gameLink.LinkUnavailable;
         PausePeriodicToggle.IsEnabled = linked;
         DeathBackupToggle.IsEnabled = linked && AutomaticBackupToggle.IsOn;
@@ -204,33 +199,13 @@ public sealed partial class SettingsPage : UserControl
         PausePeriodicSettingCard.Description = Describe("PausePeriodicSetting.Description",
             gameLink.SleepUnavailable ? Localizer.Get("SettingSleepUnavailable") : null);
         DeathBackupSettingCard.Description = Describe("DeathBackupSetting.Description");
-        // Off, the card says what is lost where it is read: the caution colour behind it, a warning in place of its icon,
-        // and what goes missing from backups in place of its description.
-        var unsaved = !GameSaveToggle.IsOn;
-        ShowGameSaveWarning(unsaved);
-        GameSaveSettingCard.Description = Describe(unsaved ? "GameSaveSettingOffWarning" : "GameSaveSetting.Description");
+        // Off, what goes missing from backups is said in a warning bar at the end of the section, named after the
+        // setting, as Windows' own settings warn. The card itself keeps its look.
+        GameSaveSettingCard.Description = Describe("GameSaveSetting.Description");
+        GameSaveOffWarning.Title = Localizer.Get("GameSaveSetting.Header");
+        GameSaveOffWarning.Message = Localizer.Get("GameSaveSettingOffWarning");
+        GameSaveOffWarning.IsOpen = !GameSaveToggle.IsOn;
         GameSaveCountdownSettingCard.Description = Describe("GameSaveCountdownSetting.Description");
-    }
-
-    // Shown once per change (this runs on every change of the game link), and again when the theme changes, in the
-    // page's own theme's colours.
-    private bool? warningShown;
-
-    private void ShowGameSaveWarning(bool unsaved, bool force = false)
-    {
-        if (!force && warningShown == unsaved) return;
-        warningShown = unsaved;
-        // The card's template eases its background from one brush to the next (PART_RootGrid's BackgroundTransition),
-        // mixing the colours as they are: between the opaque caution colour and the card's nearly transparent default it
-        // showed a light grey for a moment. This card's background changes only for the warning, and at once.
-        if (Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(GameSaveSettingCard) > 0
-            && Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(GameSaveSettingCard, 0) is Grid { Name: "PART_RootGrid" } templateRoot)
-            templateRoot.BackgroundTransition = null;
-        if (unsaved) GameSaveSettingCard.Background = CautionBackgroundProbe.Background;
-        else GameSaveSettingCard.ClearValue(Microsoft.UI.Xaml.Controls.Control.BackgroundProperty);
-        GameSaveSettingCard.HeaderIcon = unsaved
-            ? new FontIcon { Glyph = "", Foreground = CautionProbe.Background }
-            : new SymbolIcon(Symbol.Save);
     }
 
     private static void SetInputName(DependencyObject control, object header) =>

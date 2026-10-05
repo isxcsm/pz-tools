@@ -14,12 +14,6 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
-    <!-- Colours for what code sets, resolved in the page's own theme (the app's resources follow Windows', not the
-         theme chosen in PZ Tools). Never shown. -->
-    <StackPanel x:Name="ThemeProbes" Visibility="Collapsed">
-      <Border x:Name="CautionBackgroundProbe" Background="{ThemeResource SystemFillColorCautionBackgroundBrush}" />
-      <Border x:Name="CautionProbe" Background="{ThemeResource SystemFillColorCautionBrush}" />
-    </StackPanel>
 
     <Grid Margin="{StaticResource CardPageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
       <TextBlock x:Name="SettingsTitleText" Text="Settings"
@@ -188,6 +182,11 @@
             <ToggleSwitch x:Name="GameSaveCountdownToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
+            <!-- Off, what backups lose is said in a warning bar where a settings group shows one: its footer, right
+                 below the save cards. Every item of the group is given the card style, so a bar cannot sit among them. -->
+            <toolkit:SettingsExpander.ItemsFooter>
+              <InfoBar x:Name="GameSaveOffWarning" IsOpen="False" IsClosable="False" Severity="Warning" />
+            </toolkit:SettingsExpander.ItemsFooter>
           </toolkit:SettingsExpander>
           <!-- The game's own launch settings, kept in the game folder; they take effect at the game's next start. -->
           <toolkit:SettingsExpander x:Name="GameSection" IsExpanded="True" Header="Game">
