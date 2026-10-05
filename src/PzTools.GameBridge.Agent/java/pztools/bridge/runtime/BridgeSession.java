@@ -67,13 +67,13 @@ public final class BridgeSession {
                 RuntimeObserver.Ticket ticket = active ? RuntimeObserver.Ticket.parse(command[5]) : null;
                 if ((active || extension) && !command[4].equals("off") && !NoticeLanguages.supports(command[4]))
                     throw new BridgeFailure("protocol", "Invalid notice language");
-                boolean notice = command[0].equals("SAVE_COUNTDOWN");
+                // Only this app's client speaks to this payload: the bootstrap loads the payload each client names.
+                // A countdown always has a due time (SAVE_AT); the client gives notices without one five seconds.
                 boolean validPlain = (command.length == 2 || command.length == 4)
                     && (command[0].equals("SAVE") || command[0].equals("PROBE"));
-                boolean validNotice = notice && command.length == 5 && NoticeLanguages.supports(command[4]);
                 boolean timed = command[0].equals("SAVE_AT") && command.length == 6
                     && (NoticeLanguages.supports(command[4]) || command[4].equals("off"));
-                if (!validPlain && !validNotice && !timed && !extension && !active)
+                if (!validPlain && !timed && !extension && !active)
                     throw new BridgeFailure("protocol", "Invalid save/probe request");
                 long scheduledMillis = timed || extension && !active ? Long.parseLong(command[5]) : 0;
                 if (timed && scheduledMillis <= 0 || extension && scheduledMillis < 0
@@ -107,7 +107,7 @@ public final class BridgeSession {
                     }
                 }
                 request = new Request(!command[0].startsWith("PROBE"), expected, queueSeconds,
-                    notice || (timed || extension || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
+                    (timed || extension || active) && !command[4].equals("off") ? command[4] : null, scheduledMillis, ticket);
                 request.modules = resolvedModules; request.provider = resolution.provider();
                 // Resolve the optional host capability before any capture is admitted.
                 // Runtime and payload use sibling class loaders; resident SaveTask stays unchanged.

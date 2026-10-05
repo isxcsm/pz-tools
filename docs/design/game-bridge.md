@@ -160,8 +160,7 @@ what PZ Tools asked for ends with its [lease](#leases).
 | Command | Used for |
 | --- | --- |
 | `SAVE`, `PROBE` | A manual backup. `PROBE` runs the same checks without saving (tests use it). |
-| `SAVE_COUNTDOWN` | An unguarded automatic backup with notices and no due time: a 5-second countdown. Only a queued one-off run without a ticket takes this path (`SAVE` with the countdown off); the scheduler queues none today, since death backups are guarded and older one-off commands are dropped. |
-| `SAVE_AT` | A wall-clock periodic backup with its due time, at most one minute ahead |
+| `SAVE_AT` | A wall-clock periodic backup with its due time, at most one minute ahead. An unguarded automatic backup with notices but no due time (a queued one-off run without a ticket, which the scheduler no longer queues) is sent the same way, due 5 seconds later, so it still gets its countdown. |
 | `SAVE_ACTIVE`, `PROBE_ACTIVE` | A guarded backup carrying a [ticket](glossary.md#ticket): game-aware periodic and death backups. `PROBE_ACTIVE` when **Save game before backup** is off. |
 | `PREPARE_SAVE`, `PREPARE_SAVE_ACTIVE` | A save provider from an extension. No shipped extension provides one; only test fixtures use this path. |
 
