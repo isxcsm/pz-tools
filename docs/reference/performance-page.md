@@ -56,8 +56,8 @@ choice lasts while the app runs.
 
 | Mode | Readings | Cost to the game | Time limit |
 | --- | --- | --- | --- |
-| **Standard** | Every 0.01 seconds | Almost none | 30 minutes |
-| **Detailed** | About every 0.002 seconds, and also waits and pauses (lock waits, parked threads, slow file reads and writes) | The game runs about 20% slower; the file is about ten times larger | 10 minutes |
+| **Standard** | About every 0.01 seconds | Almost none | 30 minutes |
+| **Detailed** | Every 0.001 seconds for scripts (Lua) and about every 0.0015 seconds for Java, and also waits and pauses (lock waits, parked threads, slow file reads and writes) | The game runs about 20% slower; the file is about five times larger | 10 minutes |
 
 Standard is enough for most questions, loading included. Detailed is worth it for a single short stutter, where
 Standard has only one or two readings per frame. The time limits can be changed in the

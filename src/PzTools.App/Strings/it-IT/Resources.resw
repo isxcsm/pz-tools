@@ -351,8 +351,8 @@ Si applica al salvataggio per giocatore singolo selezionato dopo aver smesso di 
   <data name="ProfileRecordStop" xml:space="preserve"><value>Interrompi registrazione</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Dettagliata</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misura ogni 0,01 secondi quasi senza pesare sul gioco.
-Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il gioco ne risulta più lento (circa il 20%).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misura circa ogni 0,01 secondi quasi senza pesare sul gioco.
+Dettagliata: misura ogni 0,001–0,0015 secondi e registra anche attese e pause. Il gioco ne risulta più lento (circa il 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Avvia il gioco, poi avvia la registrazione. Riproduci il lag e interrompi la registrazione per vedere il risultato.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connessione al gioco…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Registrazione {0} · si interrompe automaticamente dopo {1} minuti</value></data>

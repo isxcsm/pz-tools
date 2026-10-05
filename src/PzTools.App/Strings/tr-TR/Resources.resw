@@ -351,8 +351,8 @@ Oynamayı bıraktıktan sonra seçilen tek oyunculu kayda uygulanır.</value></d
   <data name="ProfileRecordStop" xml:space="preserve"><value>Kaydı durdur</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standart</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Ayrıntılı</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: her 0,01 saniyede kayıt alır, oyuna neredeyse hiç yük bindirmez.
-Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamaları da kaydeder. Oyun bu yüzden yavaşlar (yaklaşık %20).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standart: yaklaşık her 0,01 saniyede kayıt alır, oyuna neredeyse hiç yük bindirmez.
+Ayrıntılı: her 0,001–0,0015 saniyede kayıt alır, bekleme ve duraklamaları da kaydeder. Oyun bu yüzden yavaşlar (yaklaşık %20).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Oyunu açın, ardından kaydı başlatın. Takılmayı yeniden oluşturun ve sonucu görmek için kaydı durdurun.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Oyuna bağlanılıyor…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Kaydediliyor {0} · {1} dakika sonra otomatik olarak durur</value></data>

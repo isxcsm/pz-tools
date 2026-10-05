@@ -28,7 +28,7 @@ update cannot break it. `ProfileRecorder.configured` enables these events:
 
 | Event | Standard | Detailed |
 | --- | --- | --- |
-| `jdk.ExecutionSample` (running Java) | 10 ms | 1 ms requested; about 1.5–2 ms in practice |
+| `jdk.ExecutionSample` (running Java) | 10 ms requested; about 10.5 ms in practice | 1 ms requested; about 1.5 ms in practice |
 | `jdk.NativeMethodSample` (inside a native call) | 20 ms | 10 ms |
 | `jdk.GarbageCollection`, `jdk.GCPhasePause`, `jdk.ZAllocationStall` | Yes | Yes |
 | `jdk.GCHeapMemoryUsage` | Every 250 ms | Every 250 ms |
@@ -36,9 +36,15 @@ update cannot break it. `ProfileRecorder.configured` enables these events:
 | `jdk.ActiveSetting` (the periods in force) | Yes | Yes |
 | `jdk.JavaMonitorEnter` ≥ 1 ms, `jdk.ThreadPark` ≥ 2 ms, `jdk.FileRead`/`FileWrite` ≥ 1 ms, `jdk.ExecuteVMOperation` ≥ 1 ms | No | Yes |
 
-Detailed costs the game about 20% frame time: ten times as many stack samples, the Lua sampler waking every
-millisecond, and the wait events, each of which records a stack. It also writes about ten times as much, which is why
-its default limit is shorter (below).
+"In practice" is the median gap between one thread's consecutive samples in recordings of the game (Build 42 on its
+Java 25, Windows, `timeBeginPeriod(1)` in force): 1.50–1.56 ms for a 1 ms request (one gap in ten over 1.8–2.6 ms),
+10.5–11 ms for 10 ms. JFR does not keep a short period exactly, so `EffectivePeriod` (below) weighs each sample by the
+gap actually measured in the file.
+
+Detailed costs the game about 20% frame time: about seven times as many Java samples and ten times as many Lua samples
+(the Lua sampler wakes every millisecond), and the wait events, each of which records a stack. Its finished file is
+about five times as large (4.6–4.8 times for two-minute recordings of the same play), which is why its default limit is
+shorter (below).
 
 JFR's native code cannot write to a temporary folder whose path has non-ASCII characters (a Korean user name gave
 empty recordings). `plainRepository` then moves the repository to `%ProgramData%\PzTools\jfr\u-<user hash>`.
@@ -56,8 +62,10 @@ and an unchanged stack reuses the previous string, so the sampler makes little g
 second a `pztools.LuaSampler` event gives the ticks taken and how many found Lua.
 
 The sampler waits on a repeating high-resolution waitable timer (`PreciseWait`), not `Thread.sleep`, which Windows
-rounds up to the 15.6 ms tick. While any recording runs, `TimerResolution` also calls `timeBeginPeriod(1)` so JFR's own
-sampler keeps its period; it is undone when the last recording ends.
+rounds up to the 15.6 ms tick. It keeps its period closely: in recordings of the game the ticks taken over time (the
+`LH` reports) come to 1.04–1.12 ms for Detailed's 1 ms and 10.1–10.3 ms for Standard's 10 ms. While any recording
+runs, `TimerResolution` also calls `timeBeginPeriod(1)` so JFR's own sampler stays near its period (above) instead of
+the 15.6 ms tick; it is undone when the last recording ends.
 
 ### Frames and allocations
 

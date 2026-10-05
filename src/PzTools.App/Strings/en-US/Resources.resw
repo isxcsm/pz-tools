@@ -560,8 +560,8 @@ Waited for memory: how many times a thread stopped until memory was freed, becau
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Recording {0} · stops automatically after {1} minutes</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connecting to the game…</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Start the game, then start recording. Reproduce the lag and stop recording to see the result.</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading every 0.01 seconds with almost no effect on the game.
-Detailed: takes a reading about every 0.002 seconds and also records waits and pauses. The game runs slower for it (about 20%).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: takes a reading about every 0.01 seconds with almost no effect on the game.
+Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits and pauses. The game runs slower for it (about 20%).</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailed</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Stop recording</value></data>

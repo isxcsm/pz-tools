@@ -358,8 +358,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>หยุดบันทึก</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>มาตรฐาน</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>ละเอียด</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: บันทึกทุก 0.01 วินาที แทบไม่เป็นภาระต่อเกม
-ละเอียด: บันทึกประมาณทุก 0.002 วินาที และเก็บสาเหตุการรอและการหยุดด้วย ทำให้เกมช้าลง (ราว 20%)</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>มาตรฐาน: บันทึกประมาณทุก 0.01 วินาที แทบไม่เป็นภาระต่อเกม
+ละเอียด: บันทึกทุก 0.001–0.0015 วินาที และเก็บสาเหตุการรอและการหยุดด้วย ทำให้เกมช้าลง (ราว 20%)</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>เปิดเกมก่อน แล้วค่อยเริ่มบันทึก ทำให้เกิดอาการแลคอีกครั้ง แล้วหยุดบันทึกเพื่อดูผลลัพธ์</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>กำลังเชื่อมต่อกับเกม…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>กำลังบันทึก {0} · หยุดอัตโนมัติหลังจาก {1} นาที</value></data>

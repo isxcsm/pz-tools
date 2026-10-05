@@ -96,7 +96,7 @@ They are documented in the template comments; changing them rarely helps.
 | `[logs] record_minimum_level` | `"Information"` | `Trace`, `Information`, `Warning`, `Error`, `Critical` | Lowest level stored for the Logs page. Entries below it are never stored, so a Logs page filter cannot bring them back. |
 | `[logs] max_entries` | 100000 | 10000–500000 | Entries kept. Once full, the oldest are deleted, unread warnings and errors included. |
 | `[profiler] general_limit_minutes` | 30 | 1–30 | A Standard recording nobody stops ends after this many minutes. |
-| `[profiler] detailed_limit_minutes` | 10 | 1–30 | The same for a Detailed recording, which writes about ten times as much. |
+| `[profiler] detailed_limit_minutes` | 10 | 1–30 | The same for a Detailed recording, whose file is about five times as large. |
 | `[profiler] rolling_max_megabytes` | 256 | 64–2048 | Most disk the kept last minutes may use. A long Detailed window can reach it and then holds less. |
 | `[hotkeys] sounds` | `true` | | A hotkey answers with Windows sounds. |
 | `[hotkeys] game_notices` | `true` | | A hotkey answers with a note over your character's head. |

@@ -351,8 +351,8 @@ Wird auf den ausgewählten Einzelspieler-Spielstand angewendet, nachdem Sie das 
   <data name="ProfileRecordStop" xml:space="preserve"><value>Aufzeichnung beenden</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detailliert</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misst alle 0,01 Sekunden und belastet das Spiel kaum.
-Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pausen auf. Das Spiel läuft dadurch langsamer (etwa 20 %).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard: misst etwa alle 0,01 Sekunden und belastet das Spiel kaum.
+Detailliert: misst alle 0,001 bis 0,0015 Sekunden und zeichnet auch Wartezeiten und Pausen auf. Das Spiel läuft dadurch langsamer (etwa 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Starte das Spiel und dann die Aufzeichnung. Stelle den Lag nach und beende die Aufzeichnung, um das Ergebnis zu sehen.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Verbindung zum Spiel wird hergestellt…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Aufzeichnung läuft {0} · endet automatisch nach {1} Minuten</value></data>

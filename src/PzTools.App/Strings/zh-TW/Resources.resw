@@ -351,8 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>停止錄製</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>標準：每 0.01 秒記錄一次，幾乎不影響遊戲。
-詳細：約每 0.002 秒記錄一次，並記錄等待和停頓原因。遊戲會因此變慢（約 20%）。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準：約每 0.01 秒記錄一次，幾乎不影響遊戲。
+詳細：每 0.001～0.0015 秒記錄一次，並記錄等待和停頓原因。遊戲會因此變慢（約 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>先啟動遊戲，再開始錄製。重現卡頓後停止錄製，就能查看結果。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>正在連線到遊戲…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>錄製中 {0} · {1} 分鐘後自動停止</value></data>

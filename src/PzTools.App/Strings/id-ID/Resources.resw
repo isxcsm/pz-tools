@@ -351,8 +351,8 @@ Diterapkan pada simpanan pemain tunggal yang dipilih setelah berhenti bermain.</
   <data name="ProfileRecordStop" xml:space="preserve"><value>Hentikan rekaman</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standar</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detail</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standar: merekam setiap 0,01 detik hampir tanpa membebani gim.
-Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan jeda. Gim jadi lebih lambat (sekitar 20%).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standar: merekam sekitar setiap 0,01 detik hampir tanpa membebani gim.
+Detail: merekam setiap 0,001 hingga 0,0015 detik dan juga mencatat waktu tunggu dan jeda. Gim jadi lebih lambat (sekitar 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Jalankan game, lalu mulai merekam. Munculkan kembali lag-nya dan hentikan rekaman untuk melihat hasilnya.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Menghubungkan ke game…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Merekam {0} · berhenti otomatis setelah {1} menit</value></data>

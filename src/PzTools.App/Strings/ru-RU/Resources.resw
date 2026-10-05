@@ -351,8 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>Остановить запись</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Обычный</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Подробный</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Обычный: запись каждые 0,01 секунды почти без нагрузки на игру.
-Подробный: запись примерно каждые 0,002 секунды, плюс ожидания и остановки. Игра от этого замедляется (примерно на 20 %).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Обычный: запись примерно каждые 0,01 секунды почти без нагрузки на игру.
+Подробный: запись каждые 0,001–0,0015 секунды, плюс ожидания и остановки. Игра от этого замедляется (примерно на 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Запустите игру, затем начните запись. Воспроизведите лаги и остановите запись, чтобы увидеть результат.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Подключение к игре…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Идёт запись {0} · остановится автоматически через {1} мин</value></data>

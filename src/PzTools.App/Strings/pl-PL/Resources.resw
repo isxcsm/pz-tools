@@ -351,8 +351,8 @@ Przed kontynuowaniem utwórz kopię zapasową. Ta operacja nie tworzy jej automa
   <data name="ProfileRecordStop" xml:space="preserve"><value>Zatrzymaj nagrywanie</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standardowy</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Szczegółowy</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standardowy: zapisuje co 0,01 s, prawie nie obciążając gry.
-Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i zatrzymania. Gra przez to zwalnia (o ok. 20%).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standardowy: zapisuje mniej więcej co 0,01 s, prawie nie obciążając gry.
+Szczegółowy: zapisuje co 0,001–0,0015 s i rejestruje też oczekiwania i zatrzymania. Gra przez to zwalnia (o ok. 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Uruchom grę, a potem rozpocznij nagrywanie. Odtwórz sytuację z lagiem i zatrzymaj nagrywanie, aby zobaczyć wynik.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Łączenie z grą…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Nagrywanie {0} · zatrzyma się automatycznie po {1} min</value></data>

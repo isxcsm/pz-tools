@@ -304,8 +304,8 @@ public sealed class ProfileRecording
     }
 
     /// <summary>
-    /// The recorder cannot always keep the period it was asked for (a 1 ms request typically yields
-    /// one sample every 1.5-2 ms). The usual gap between a thread's consecutive samples is what one
+    /// The recorder cannot always keep the period it was asked for (in the game a 1 ms request yields
+    /// one sample about every 1.5 ms, a 10 ms one about every 10.5 ms). The usual gap between a thread's consecutive samples is what one
     /// sample really stands for; with too few samples to tell, the requested period is used.
     /// </summary>
     private static long EffectivePeriod(ProfileSample[] samples, int threads, bool native, long requested)

@@ -351,8 +351,8 @@ Se aplica a la partida individual seleccionada después de dejar de jugar.</valu
   <data name="ProfileRecordStop" xml:space="preserve"><value>Detener grabación</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Estándar</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Detallado</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Estándar: registra cada 0,01 segundos casi sin afectar al juego.
-Detallado: registra cada 0,002 segundos aprox. y guarda también esperas y pausas. El juego va más lento por ello (un 20 % aprox.).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Estándar: registra cada 0,01 segundos aprox. casi sin afectar al juego.
+Detallado: registra cada 0,001 a 0,0015 segundos y guarda también esperas y pausas. El juego va más lento por ello (un 20 % aprox.).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Inicia el juego y luego empieza a grabar. Reproduce el lag y detén la grabación para ver el resultado.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Conectando con el juego…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Grabando {0} · se detiene automáticamente a los {1} minutos</value></data>

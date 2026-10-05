@@ -350,8 +350,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>녹화 중지</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>일반</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>상세</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>일반: 0.01초마다 기록하며 게임에 거의 부담을 주지 않습니다.
-상세: 약 0.002초마다 기록하고 대기·멈춤 원인도 함께 남깁니다. 그만큼 게임이 느려집니다(약 20%).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>일반: 약 0.01초마다 기록하며 게임에 거의 부담을 주지 않습니다.
+상세: 0.001~0.0015초마다 기록하고 대기·멈춤 원인도 함께 남깁니다. 그만큼 게임이 느려집니다(약 20%).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>게임을 실행한 뒤 녹화를 시작하세요. 렉이 생기는 상황을 재현하고 녹화를 중지하면 결과가 표시됩니다.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>게임에 연결하는 중…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>녹화 중 {0} · {1}분 뒤 자동 종료</value></data>

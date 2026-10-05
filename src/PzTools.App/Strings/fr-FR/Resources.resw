@@ -351,8 +351,8 @@ S’applique à la partie solo sélectionnée après avoir quitté la partie.</v
   <data name="ProfileRecordStop" xml:space="preserve"><value>Arrêter l'enregistrement</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Standard</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Détaillé</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standard : mesure toutes les 0,01 seconde sans presque toucher au jeu.
-Détaillé : mesure environ toutes les 0,002 seconde et enregistre aussi attentes et pauses. Le jeu en est ralenti (environ 20 %).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standard : mesure environ toutes les 0,01 seconde sans presque toucher au jeu.
+Détaillé : mesure toutes les 0,001 à 0,0015 seconde et enregistre aussi attentes et pauses. Le jeu en est ralenti (environ 20 %).</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Lancez le jeu, puis démarrez l'enregistrement. Reproduisez le lag et arrêtez l'enregistrement pour voir le résultat.</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Connexion au jeu…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Enregistrement {0} · arrêt automatique au bout de {1} minutes</value></data>

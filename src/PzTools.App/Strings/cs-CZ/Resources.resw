@@ -561,8 +561,8 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>Nahrávání {0} · automaticky skončí po {1} min</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>Připojování ke hře…</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>Spusťte hru a pak začněte nahrávat. Vyvolejte sekání a zastavte záznam, zobrazí se výsledek.</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>Standardní: zaznamenává každých 0,01 s a hru téměř nezatěžuje.
-Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastavení. Hra je kvůli tomu pomalejší (asi o 20 %).</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>Standardní: zaznamenává přibližně každých 0,01 s a hru téměř nezatěžuje.
+Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a zastavení. Hra je kvůli tomu pomalejší (asi o 20 %).</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>Podrobný</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>Běžný</value></data>
   <data name="ProfileRecordStop" xml:space="preserve"><value>Zastavit záznam</value></data>

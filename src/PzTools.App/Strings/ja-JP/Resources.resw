@@ -351,8 +351,8 @@
   <data name="ProfileRecordStop" xml:space="preserve"><value>記録を停止</value></data>
   <data name="ProfileModeGeneral" xml:space="preserve"><value>標準</value></data>
   <data name="ProfileModeDetailed" xml:space="preserve"><value>詳細</value></data>
-  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 0.01 秒ごとに記録し、ゲームへの負荷はほとんどありません。
-詳細: 約 0.002 秒ごとに記録し、待ちや停止の原因も残します。そのぶんゲームが遅くなります（約 20%）。</value></data>
+  <data name="ProfileModeTip" xml:space="preserve"><value>標準: 約 0.01 秒ごとに記録し、ゲームへの負荷はほとんどありません。
+詳細: 0.001～0.0015 秒ごとに記録し、待ちや停止の原因も残します。そのぶんゲームが遅くなります（約 20%）。</value></data>
   <data name="ProfileIdleHint" xml:space="preserve"><value>ゲームを起動してから記録を開始してください。ラグを再現して記録を停止すると、結果が表示されます。</value></data>
   <data name="ProfileStarting" xml:space="preserve"><value>ゲームに接続しています…</value></data>
   <data name="ProfileRecordingFormat" xml:space="preserve"><value>記録中 {0} · {1} 分後に自動で停止</value></data>
