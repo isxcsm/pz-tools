@@ -190,6 +190,10 @@ A failure is definitive when the game reports `Unsupported`, `FaultedPassThrough
    choice the player made in the meantime is never overwritten;
 3. blocks that revision and publishes the failure.
 
+`RestartRequired` with the reason `bootstrap-update` (an app update the running game's resident classes do
+not fit) skips step 2: nothing failed, so the switch keeps its setting and the extension returns with the next
+game.
+
 The lease and the other modules carry on. `RestartRequired` stays latched for the whole game
 process, across world changes, until the game restarts. If the lease breaks while a module is
 wanted off, that module is reported `Disabled` / `control-offline` and not attached again in
@@ -211,7 +215,7 @@ writes each state change to the **Logs** page as `extension.runtime.changed`.
 | `Active` | The reported revision is applied |
 | `Unsupported` | The game or the request failed a check; the game's own code runs |
 | `FaultedPassThrough` | The module faulted while running; the game's own code runs again ([pass-through](glossary.md#pass-through)) |
-| `RestartRequired` | A generation could not be retired cleanly; nothing new loads until the game restarts ([restart required](glossary.md#restart-required)) |
+| `RestartRequired` | A generation could not be retired cleanly, or (`bootstrap-update`) the app was updated in a way only a restart of the game takes up; nothing new loads until the game restarts ([restart required](glossary.md#restart-required)) |
 
 `GameExtensionActivationState` keeps the options requested at each revision. When the game
 reports `Active` at that revision, they become the applied options (`AppliedVehicleOptions`).

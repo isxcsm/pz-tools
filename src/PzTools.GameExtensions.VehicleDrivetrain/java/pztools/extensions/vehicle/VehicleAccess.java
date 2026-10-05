@@ -260,6 +260,9 @@ final class VehicleAccess {
         f.offroad=(boolean)offroad.invokeExact(v); f.efficiency=(float)offroadEfficiency.invokeExact(s); f.towing=towing!=null;
         f.slow=(boolean)hasTrait.invokeExact(p,(Object)slowTrait.get()); f.fast=(boolean)hasTrait.invokeExact(p,(Object)fastTrait.get());
         f.gas=(boolean)gas.invokeExact(c); f.reverseGas=(boolean)gasReverse.invokeExact(c);
+        // The game sets its pedal for this update before choosing the control branch: up while the accelerator is
+        // held (from the value applied last), 0.5 while cruise control alone keeps the speed.
+        f.pedal=(float)throttle.get(v);
         return null;
     }
     Object gearObject(int gear) { return gear==-1 ? reverse.get() : gear>=1 && gear<=8 ? gears[gear].get() : null; }
@@ -311,11 +314,11 @@ final class VehicleAccess {
     }
     static final class Frame {
         Object vehicle,engine,driver,controls,script; String engineType;
-        int gears,frame,power,gear; double rpm,reverseMaxSpeed; float dt,speed,maxSpeed,mass,efficiency,radiusMin,radiusMax;
+        int gears,frame,power,gear; double rpm,reverseMaxSpeed; float dt,speed,maxSpeed,mass,efficiency,radiusMin,radiusMax,pedal;
         boolean offroad,towing,slow,fast,gas,reverseGas;
         void clear() {
             vehicle=null; engine=null; driver=null; controls=null; script=null; engineType=null;
-            gears=frame=power=gear=0; rpm=reverseMaxSpeed=0; dt=speed=maxSpeed=mass=efficiency=radiusMin=radiusMax=0;
+            gears=frame=power=gear=0; rpm=reverseMaxSpeed=0; dt=speed=maxSpeed=mass=efficiency=radiusMin=radiusMax=pedal=0;
             offroad=towing=slow=fast=gas=reverseGas=false;
         }
     }

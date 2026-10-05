@@ -11,6 +11,15 @@ return await RunAsync(args);
 
 static async Task<int> RunAsync(string[] arguments)
 {
+    using var cancellation = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, eventArgs) =>
+    {
+        eventArgs.Cancel = true;
+        cancellation.Cancel();
+    };
+    // Cancelling a backup asks this runner to stop, and the runner asks its worker in turn: the worker records the
+    // cancellation and the reserved workflow is closed as cancelled, instead of both being ended outright.
+    using var stopRequest = ProcessStopSignal.Listen(cancellation);
     var started = DateTimeOffset.UtcNow;
     long? runIndex = null;
     RepositoryDatabase? repositoryDatabase = null;
@@ -54,7 +63,8 @@ static async Task<int> RunAsync(string[] arguments)
             worker,
             forwarded,
             "backup-worker",
-            runnerConfiguration);
+            runnerConfiguration,
+            cancellation.Token);
         if (ownsWorkflow)
         {
             await CompleteReservedWorkflowAsync(

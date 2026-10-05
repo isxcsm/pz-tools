@@ -160,8 +160,7 @@ what PZ Tools asked for ends with its [lease](#leases).
 | Command | Used for |
 | --- | --- |
 | `SAVE`, `PROBE` | A manual backup. `PROBE` runs the same checks without saving (tests use it). |
-| `SAVE_COUNTDOWN` | An unguarded automatic backup with notices and no due time: a 5-second countdown. Only a queued one-off run without a ticket takes this path (`SAVE` with the countdown off); the scheduler queues none today, since death backups are guarded and older one-off commands are dropped. |
-| `SAVE_AT` | A wall-clock periodic backup with its due time, at most one minute ahead |
+| `SAVE_AT` | A wall-clock periodic backup with its due time, at most one minute ahead. An unguarded automatic backup with notices but no due time (a queued one-off run without a ticket, which the scheduler no longer queues) is sent the same way, due 5 seconds later, so it still gets its countdown. |
 | `SAVE_ACTIVE`, `PROBE_ACTIVE` | A guarded backup carrying a [ticket](glossary.md#ticket): game-aware periodic and death backups. `PROBE_ACTIVE` when **Save game before backup** is off. |
 | `PREPARE_SAVE`, `PREPARE_SAVE_ACTIVE` | A save provider from an extension. No shipped extension provides one; only test fixtures use this path. |
 
@@ -251,9 +250,9 @@ How a result is handled depends on whether the backup is manual, wall-clock auto
 | The save's `players.db` opens exclusively (inactive by its file lock) | No contact; files on disk are backed up | Skipped before contacting the game | Not checked; the game's guard decides |
 | The file lock gives no answer (`Unknown`: missing file, access denied, I/O error) | The game is asked as usual | Skipped: only a save confirmed `Active` is backed up | Not checked |
 | `game-not-running`, `not-in-world`, `save-mismatch` | Files on disk are backed up | Skipped | Failed, slot used |
-| Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol`; or the bridge does not fit the game: `unsupported-runtime`, `unsupported-loader`, `unsupported-game` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
+| Game unreachable: `attach-failed`, `attach-disabled`, `connection-timeout`, `bridge-not-built`, `unsupported-protocol`; or the bridge does not fit the game: `unsupported-runtime`, `unsupported-loader`, `unsupported-game`; or several games run and none is picked: `multiple-games` | Files on disk are backed up, with a `save-unavailable` warning | The same | The same |
 | `runtime-deferred` (any reason), `queue-timeout` | Failed | Failed | Skipped; the slot is kept |
-| `busy`, `missing-save`, `multiple-games`, `multiplayer`, `saving-disabled`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
+| `busy`, `missing-save`, `multiplayer`, `saving-disabled`, `wrong-thread`, `save-failed`, `bridge-failed`, `protocol`, `authentication-failed` | Failed | Failed | Failed, slot used |
 | `completion-unknown`, `invalid-response` | Failed | Failed | Failed; the periodic schedule waits one interval ([why](runtime-pause-backups.md#when-a-backup-attempt-fails)) |
 
 "Slot" applies to the game-aware periodic schedule. A death backup has no slot: its queued run is kept only
@@ -267,6 +266,9 @@ not.
 The split between "unreachable" and the rest is deliberate. When the helper could not reach the game, nothing
 was asked of it, so the files on disk are all there is and a backup of them beats none. Once the game has been
 asked, an error or an unclear answer is not taken as permission to copy files it may still be writing.
+
+So does `multiple-games`: with more than one game process running, the client picks none and attaches to none,
+so no game was asked. Asking each in turn would put the bridge into a game the player did not mean.
 
 The unsupported codes belong with "unreachable" for the same reason. They come from `BridgeSession.install`,
 which sets the payload up in the game before any request is queued. A game update that renamed or removed what
@@ -289,6 +291,10 @@ use the updated bridge".
 | App (`GameLinkMonitor`) | Shows the link card at once, without the grace period, since the link cannot come back without a restart: **PZ Tools was updated**, **Restart the game.** |
 | Periodic backups (`BackupScheduler.WaitsForGameRestart`) | Held until the game is gone or answers again. The schedule line says **Automatic backups after a game restart**. A save the game was not asked to write is not copied, as such backups would push good ones out of the kept number. |
 | Save request | The helper's failure is classified as `attach-failed`, so manual backups go ahead with the files on disk |
+| Extension control (`GameExtensionClient`) | Mapped to `restart-required`, as for the state stream |
+
+An app update that changes only the extension ABI (`ExtensionApi.HOST_ABI`) leaves the bootstrap API as it was;
+extension control then reports `RestartRequired` itself ([component updates](module-reload.md#compatibility-checks)).
 
 A game that refuses because it was started with `-XX:+DisableAttachMechanism` is treated the same way by the
 coordinator (not asked again until it restarts) but periodic backups are not held.

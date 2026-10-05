@@ -75,7 +75,7 @@ public final class AgentEntry {
         }
     }
 
-    /** Reload optional runtime/modules only at a save-session boundary; WATCH stays connected. */
+    /** The extension runtime, replaced when its jar changed (extension control, a provider save); WATCH stays connected. */
     public static SaveModules extensions() throws Exception {
         synchronized (runtimeGate) {
             Path directory = payload.getParent().resolve("extensions");

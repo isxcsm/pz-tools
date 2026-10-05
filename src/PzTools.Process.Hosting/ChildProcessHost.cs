@@ -13,13 +13,22 @@ public sealed record ChildProcessResult(
 
 public sealed class ChildProcessHost
 {
+    /// <summary>How long a child asked to stop is given before it is ended.</summary>
+    public const int DefaultShutdownGraceMs = 2000;
+
+    /// <summary>
+    /// The grace a runner gives its own worker: shorter than the one the runner gets from its parent, so that after
+    /// the worker stops the runner still has a moment to record the cancellation before it is ended in turn.
+    /// </summary>
+    public const int NestedShutdownGraceMs = 1500;
+
     public async Task<ChildProcessResult> RunAsync(
         string executable,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken = default,
         Action<string>? standardOutput = null,
         Action<string>? standardError = null,
-        bool captureOutput = true, int shutdownGraceMs = 2000)
+        bool captureOutput = true, int shutdownGraceMs = DefaultShutdownGraceMs)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentException.ThrowIfNullOrWhiteSpace(executable);

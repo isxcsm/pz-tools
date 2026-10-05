@@ -18,7 +18,7 @@ public final class VehicleAdapterBehaviorTest {
         if(args.length!=1) throw new IllegalArgumentException("fixture classes directory required");
         fixture=Path.of(args[0]);
         inert(); appliedBoundary(); holdBoundary(); adapterAndReset(); directionChange(); rejects(); probeAndReadiness(); invalidation();
-        originalIntervalsResetHighGear(); enginePowerAndMass(); noDriverAndPausedRetirement(); repeatedCallbackGenerations();
+        originalIntervalsResetHighGear(); kickDownFollowsTheGamePedal(); enginePowerAndMass(); noDriverAndPausedRetirement(); repeatedCallbackGenerations();
         scriptReverseLimitAndOverrides(); invalidReverseLimitIsolation(); reverseNativeEnvelope(); forwardTraitNativeLimits();
         resolvedInputSentinels(); cellReplacement(); nativeObservationIsolation();
         independentToggleMatrix(); steeringBehavior(); steeringCurrentKeyboardRelease(); steeringInputDeadZone(); steeringDuplicateFrames(); steeringDuplicateInvalidation();
@@ -87,6 +87,24 @@ public final class VehicleAdapterBehaviorTest {
             e.set(e.controller,"request",1); e.tick(); near(e.nativeForce(),first,"braking invalidates model ramp");
             e.unregister(); e.set(e.vehicle,"offroad",false); e.set(e.controller,"tireFactor",1f); e.tick();
             near(e.nativeForce(),11,"parking boost cannot reappear after retiring applied control");
+        }
+        groups++;
+    }
+    /**
+     * The game's pedal at the hook says how hard the driver asks: the accelerator ramps it up from the applied
+     * value, cruise control alone holds it at 0.5. At 40% of redline in second only the first is a kick-down.
+     */
+    private static void kickDownFollowsTheGamePedal() throws Throwable {
+        for(boolean cruise:new boolean[]{false,true}) try(var e=new Env()) {
+            VehicleControl control=e.adapter(Map.of("diagnostics_enabled","true")); e.set(e.controller,"request",1);
+            e.set(e.vehicle,"speed",30f);
+            for(int i=0;i<30;i++) { if(cruise) e.set(e.vehicle,"throttle",.5f); e.tick(); }
+            near((Number)e.invoke(e.vehicle,"getTransmissionNumber"),2,"fixture drives in second");
+            e.set(e.vehicle,"speed",17f);
+            for(int i=0;i<60;i++) { if(cruise) e.set(e.vehicle,"throttle",.5f); e.tick(); }
+            near((Number)e.invoke(e.vehicle,"getTransmissionNumber"),cruise?2:1,cruise?"cruise keeps second above the ordinary threshold":"held accelerator kicks down");
+            near(diagnostic(control,"demand"),cruise?.5:1,"the game's pedal is the sampled demand");
+            check(e.nativeForce()>0,"cruise still propels");
         }
         groups++;
     }

@@ -313,6 +313,11 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Throws<InvalidDataException>(() => VehicleDrivetrainConfiguration.Parse(toml));
 
     [Fact]
+    public void AFractionalLightRadiusIsPassedOnForTheGameToRound() =>
+        // The game's module rounds it to whole tiles (DrivetrainConfig), as the defaults file says.
+        Assert.Equal("7.6", VehicleDrivetrainConfiguration.Parse("area_light_radius = 7.6")["area_light_radius"]);
+
+    [Fact]
     public void AreaLightSwitchRoundTripsAndTuningComesFromToml()
     {
         using var temp = new TempDirectory();

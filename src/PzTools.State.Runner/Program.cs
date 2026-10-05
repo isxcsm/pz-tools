@@ -10,6 +10,15 @@ if (args is ["--probe"]) return 0;
 
 var started = DateTimeOffset.UtcNow;
 var runIndex = 1L;
+using var cancellation = new CancellationTokenSource();
+Console.CancelKeyPress += (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+// A stop request is passed on to the collector or reactor running at the time, and this runner reports the
+// cancellation, instead of all of them being ended outright.
+using var stopRequest = ProcessStopSignal.Listen(cancellation);
 string? stateDb = null;
 string? configurationPath = null;
 var hasRunIndex = false;
@@ -50,7 +59,7 @@ try
         var applied = await RunChildAsync(
             host, reactorPath, "state-reactor", runIndex, reactorArguments, token);
         return JsonSerializer.Serialize(new { recovery, collection, applied });
-    });
+    }, cancellation.Token);
     if (!mutexResult.Acquired)
     {
         var busy = ProcessResultEnvelope<RunnerExecutionResult>.Success(
@@ -67,7 +76,7 @@ try
     Console.WriteLine(ProcessResultJson.Serialize(envelope));
     return 0;
 }
-catch (OperationCanceledException)
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
 {
     Console.WriteLine(ProcessResultJson.Serialize(ProcessResultEnvelope<object>.Failure(
         "state-runner", runIndex, ProcessOutcome.Cancelled, started,
@@ -97,7 +106,8 @@ static async Task<string> RunChildAsync(
     IReadOnlyList<string> arguments,
     CancellationToken token)
 {
-    var child = await host.RunAsync(executable, arguments, token);
+    var child = await host.RunAsync(executable, arguments, token,
+        shutdownGraceMs: ChildProcessHost.NestedShutdownGraceMs);
     if (!child.Started)
     {
         throw new InvalidOperationException(

@@ -36,14 +36,17 @@ The bootstrap owns everything that has to outlive a replacement
 
 | Check | Where | Failure |
 | --- | --- | --- |
-| The game's `pztools.bridge.bootstrap.api` property is `11` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge", and nothing is sent. The state stream reports `restart-required`; a save request reports `attach-failed`, extension control `runtime-unavailable`. |
+| The game's `pztools.bridge.bootstrap.api` property is `11` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge", and nothing is sent. The state stream and extension control report `restart-required`; a save request reports `attach-failed`. |
 | The payload jar's manifest has `PzTools-Bootstrap-Api: 11` | `AgentEntry.preparePayload` | `PAYLOAD_UNAVAILABLE`; the old payload stays |
 | The runtime and module jars have `PzTools-Extension-Api: 3` (`ExtensionApi.HOST_ABI`) | `AgentEntry.extensions`, `ModuleHost.resolve`, `ContinuousRuntime.apply` | The runtime or module is not loaded |
 
-`HOST_ABI` is compiled into the resident API classes, so a jar with a new extension ABI is refused and not
-reported as needing a restart, even though only a restart fixes it. A runtime jar is refused as
-`host-update-unavailable`, a module jar as `update-rejected:IOException`. The current
-version numbers are in the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
+`HOST_ABI` is compiled into the resident API classes, so a runtime jar with a new extension ABI is refused and
+only a restart of the game fixes it. Extension control compares the ABI this payload was built for with the
+resident class's and then answers `RestartRequired` with the reason `bootstrap-update`, the state an older
+bootstrap also gives: the extension stays off in this game, its switch keeps its setting, and it returns with the
+next game ([`GameExtensionActivationState`](../../src/PzTools.GameBridge/GameExtensionActivationState.cs)). A runtime
+jar refused for any other reason is `host-update-unavailable`, a module jar `update-rejected:IOException`. The
+current version numbers are in the [compatibility table](game-bridge.md#compatibility-and-lifecycle).
 
 A periodic backup is held while the game reports `restart-required`, because the game cannot be asked to save. A
 manual backup still runs from the files on disk ([`BackupScheduler.WaitsForGameRestart`](../../src/PzTools.Scheduling/BackupScheduler.cs)).
@@ -115,7 +118,8 @@ as a fact, not as a new death, and the app also de-duplicates deaths by process,
 before closing the old one. Closing the old host retires every module and waits up to 5 seconds for its executor.
 If the old host cannot be closed, the new one is discarded and the old one stays. An `APPLY` then answers
 `host-update-unavailable`; on the first `STATUS`, `PING` or `OFF` of a session the failure ends the control
-session instead. The new host starts no module by itself; modules return with the next `APPLY`.
+session instead. A runtime jar refused for its extension ABI is answered `RestartRequired` (`bootstrap-update`)
+to all four. The new host starts no module by itself; modules return with the next `APPLY`.
 Replacing the runtime leaves WATCH running.
 
 ### Continuous modules
@@ -146,6 +150,7 @@ for its game hooks to be released and removes its class transformer.
 | Cause | Effect |
 | --- | --- |
 | Incompatible bootstrap | Nothing is sent to the game; all game features stop until it restarts |
+| A runtime jar for another extension ABI | Extensions report `RestartRequired`, `bootstrap-update` until the game restarts; saves and the state stream go on |
 | A module's retirement fails or times out | That slot is poisoned: `RestartRequired`, `retirement-failed`. Other slots keep working, but the host as a whole reports `RestartRequired` (`host-retirement-failed`) and the runtime can no longer be replaced. |
 | A rejected candidate cannot be disposed | Slot poisoned, `candidate-retirement-failed` |
 | Revoking a generation throws | Slot reports `RestartRequired`, `revoke-failed`, without being poisoned |

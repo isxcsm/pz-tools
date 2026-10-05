@@ -232,8 +232,11 @@ counts as an orphan are in [repository housekeeping](repository-housekeeping.md)
   (2 seconds; `shutdown_grace_ms` for the app's children), then terminates the job. A child that does not listen is
   terminated at once.
 
-The schedulers, `PzTools.Backup.Cli`, `PzTools.Zomboid.Archive.Cli` and `PzTools.Profiler.Cli` listen for the stop
-event. The runners do not, so cancelling a backup terminates its runner and, through the nested job, its worker.
+The schedulers, the three runners, `PzTools.Backup.Cli`, `PzTools.Zomboid.Archive.Cli`,
+`PzTools.Zomboid.Recovery.Cli` and `PzTools.Profiler.Cli` listen for the stop event. A runner passes the request on
+to its worker with a shorter grace (1.5 seconds, `ChildProcessHost.NestedShutdownGraceMs`), so that it can still report
+`Cancelled` and close its reserved workflow before its own grace ends. A worker that does not listen (the
+maintenance worker, the state collector and reactor) is still terminated at once.
 
 [`DetachedProcessLauncher`](../../src/PzTools.Process.Hosting/DetachedProcessLauncher.cs) starts the maintenance
 lanes with `CREATE_BREAKAWAY_FROM_JOB`, so they finish even when the app closes right after starting them. If the

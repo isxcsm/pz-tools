@@ -89,8 +89,15 @@ public sealed class GameExtensionClient : IGameExtensionSession
             {
                 await exit;
                 if (helper.ExitCode != 0)
-                    throw new GameSaveException("runtime-unavailable", "Continuous extension attach failed; the existing bootstrap may require a game restart.",
-                        AttachDiagnostics.Describe(processId, (await error + "\n" + await output).Trim(), helper.ExitCode, bridgeDirectory));
+                {
+                    var detail = (await error + "\n" + await output).Trim();
+                    // A bootstrap from before this app's update: one restart of the game is the answer, as the state
+                    // stream already reports it (GameRuntimeClient), not a failure of the extension.
+                    if (GameSaveException.NamesRestart(detail))
+                        throw new GameSaveException("restart-required", "The loaded bootstrap requires one game restart after this bridge update.");
+                    throw new GameSaveException("runtime-unavailable", "Continuous extension attach failed.",
+                        AttachDiagnostics.Describe(processId, detail, helper.ExitCode, bridgeDirectory));
+                }
             }
             session = new(await accept);
             if (await ReadLineAsync(session.reader, deadline.Token) != $"EXTENSIONS\t1\t{processId}\t{secret}")

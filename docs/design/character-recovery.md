@@ -228,8 +228,10 @@ own checks on the journal folder, payloads, manifest and `install.tmp` fail with
 ## Error codes
 
 The worker's failure message is the code; `UserFacingErrorCatalog.FromProcessError` picks the message. An
-`InvalidDataException` whose message is not a `recovery-` code becomes `recovery-unsupported-format`, and an
-`IOException` for a sharing or lock violation (Windows errors 32 and 33) becomes `recovery-save-busy`.
+`InvalidDataException` whose message is neither a `recovery-` nor a `save-edit-` code becomes
+`recovery-unsupported-format`, and an `IOException` for a sharing or lock violation (Windows errors 32 and 33)
+becomes `recovery-save-busy`. A bad option ends the worker with `invalid-arguments` and exit code 64, and a stop
+request from the app (or Ctrl+C) with `Cancelled`; the edit honours it only before its commit point.
 
 | Code | Cause | Message key |
 | --- | --- | --- |
@@ -241,13 +243,11 @@ The worker's failure message is the code; `UserFacingErrorCatalog.FromProcessErr
 | `recovery-remains-changed` | The chosen remains changed since the list | `RecoveryError.RemainsChanged` |
 | `recovery-inventory-unavailable`, `recovery-inventory-ambiguous` | No remains, several without a choice, or duplicate item ids | `RecoveryError.Inventory` |
 | `recovery-unsupported-format`, `recovery-invalid-chunk`, `recovery-unsupported-dictionary`, `recovery-invalid-database`, `recovery-no-character`, `recovery-validation-failed`, `recovery-linked-path` | The save is not in the supported format, is damaged, or is linked | `RecoveryError.Unsupported` |
-| `save-edit-pending`, `save-edit-pending-database-journal` | An earlier edit is unfinished | `RecoveryError.PendingEdit` |
+| `save-edit-pending`, `save-edit-pending-database-journal`, `save-edit-conflict`, `save-edit-invalid-journal` | An earlier edit is unfinished | `RecoveryError.PendingEdit` |
 
-`save-edit-conflict` and `save-edit-invalid-journal` are `InvalidDataException`s, so the worker currently
-reports them as `recovery-unsupported-format`, and the player sees `RecoveryError.Unsupported` rather than
-`RecoveryError.PendingEdit`. Errors with no code (a SQLite error such as a file that is not a database, or
-`linked-save-edit-path`) show the generic error message. Another PZ Tools operation on the save never reaches
-the worker: the app reports `operation-busy`, and a worker that finds a mutex taken ends `Busy`.
+Errors with no code (a SQLite error such as a file that is not a database, or `linked-save-edit-path`) show the
+generic error message. Another PZ Tools operation on the save never reaches the worker: the app reports
+`operation-busy`, and a worker that finds a mutex taken ends `Busy`.
 
 Every refusal before publishing leaves this edit unwritten. An earlier pending edit that the worker rolled
 forward first stays installed.

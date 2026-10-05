@@ -1,6 +1,9 @@
 using System.Buffers.Binary;
 using System.Text;
 using Microsoft.Data.Sqlite;
+using PzTools.App.Core;
+using PzTools.Process.Contracts;
+using PzTools.Process.Hosting;
 using PzTools.Zomboid.Recovery;
 
 namespace PzTools.Backup.Tests;
@@ -336,6 +339,52 @@ public sealed class CharacterRecoveryTests
         Assert.Contains("character-recovery", output);
         Assert.Single(Directory.GetFiles(workspace.Root, "players.db", SearchOption.AllDirectories));
         Assert.DoesNotContain("BackupDirectory", output, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
+    public async Task PublishedWorker_ReportsAnUnfinishedEarlierEdit_NotAnUnhealableSave()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var save = Path.GetDirectoryName(workspace.Database)!;
+        // A journal this worker cannot finish: the earlier edit is pending, which the app explains as such.
+        var journal = SaveFileEditTransaction.DirectoryPath(save);
+        Directory.CreateDirectory(journal);
+        await File.WriteAllTextAsync(Path.Combine(journal, "manifest.json"), """{"Version":9,"Files":[]}""");
+        var (exit, output) = await RunPublishedWorkerAsync(workspace, []);
+        Assert.Equal(ProcessExitCodes.Failure, exit);
+        var envelope = ProcessResultValidator.Read<object>(output, "character-recovery", 1, exit);
+        Assert.Equal("save-edit-invalid-journal", envelope.Error?.Message);
+        Assert.Equal("RecoveryError.PendingEdit", UserFacingErrorCatalog.FromProcessError(envelope.Error?.Message));
+    }
+
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
+    public async Task PublishedWorker_RefusesABadOptionWithTheUsageCode()
+    {
+        using var workspace = new RecoveryWorkspace();
+        await workspace.CreateDatabase(Sample.Create().Bytes);
+        var (exit, output) = await RunPublishedWorkerAsync(workspace, ["--player-id", "not-a-number"]);
+        Assert.Equal(ProcessExitCodes.InvalidArguments, exit);
+        var envelope = ProcessResultValidator.Read<object>(output, "character-recovery", 1, exit);
+        Assert.Equal("invalid-arguments", envelope.Error?.Code);
+        Assert.Contains("--player-id", envelope.Error?.Message);
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunPublishedWorkerAsync(RecoveryWorkspace workspace, string[] extra)
+    {
+        var executable = Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!, "PzTools.Zomboid.Recovery.Cli.exe");
+        var start = new System.Diagnostics.ProcessStartInfo(executable)
+        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        foreach (var arg in new[] { "--saves-root", workspace.Root, "--save-id", "Sandbox/Test",
+            "--repository", Path.Combine(workspace.Root, "repository"),
+            "--run-index", "1", "--telemetry-identity", Path.Combine(workspace.Root, "telemetry") }.Concat(extra))
+            start.ArgumentList.Add(arg);
+        using var process = System.Diagnostics.Process.Start(start)!;
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+        await errorTask;
+        return (process.ExitCode, await outputTask);
     }
 
     [RequiresEnvironmentFact("PZTOOLS_RECOVERY_SAMPLES")]

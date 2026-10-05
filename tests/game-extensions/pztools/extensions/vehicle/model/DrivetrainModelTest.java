@@ -17,6 +17,7 @@ public final class DrivetrainModelTest {
         reverseLimitValidationIsDirectional();
         directionTransitionAndReset();
         automaticGearsAndLowMode();
+        kickDownFollowsDemand();
         allGearSpacingsAvoidHunting();
         equalCouplingForceAndOffroadRecovery();
         forwardBaseEnvelopeAtProxyRpm();
@@ -54,6 +55,8 @@ public final class DrivetrainModelTest {
         reject(Map.of("steering_enabled", "TRUE"));
         reject(Map.of("steering_precise_input", "1"));
         check(!DrivetrainConfig.parse(Map.of("steering_precise_input", "false")).steeringPreciseInput, "precise key timing can be switched off");
+        // The app passes a fraction on as written; the light's reach is whole tiles, so it is rounded here.
+        check(DrivetrainConfig.parse(Map.of("area_light_radius", "7.6")).areaLightRadius == 8, "a fractional light radius rounds to the nearest tile");
         // The old rate settings are gone: steering follows the game, so there is nothing left to tune.
         for (String removed : new String[]{"steering_initial_rate", "steering_full_rate", "steering_ramp_seconds", "steering_return_rate", "steering_countersteer_rate", "steering_high_speed_rate_factor"})
             reject(Map.of(removed, "1"));
@@ -439,6 +442,31 @@ public final class DrivetrainModelTest {
         check(tow.decision == DrivetrainModel.Decision.VANILLA && !tow.ownOffroad, "invalid surface returns original penalty");
     }
 
+    /**
+     * Between downshift_rpm_fraction (0.32) and demand_downshift_fraction (0.48) of redline only a driver asking for
+     * nearly full power shifts down: holding the accelerator does, cruise control's half pedal does not.
+     */
+    private static void kickDownFollowsDemand() {
+        double between = 0.40 * CAR.maxSpeedKph / CAR.ratio(2) / 3.6;
+        for (double demand : new double[]{1.0, 0.5}) {
+            DrivetrainModel.Input in = input(); in.demand = demand;
+            DrivetrainModel.Output out = new DrivetrainModel.Output();
+            DrivetrainModel m = model();
+            in.speedMps = 30.0 / 3.6;
+            step(m, in, out, 0.5);
+            check(out.gear == 2, "fixture begins in second gear");
+            in.speedMps = between;
+            step(m, in, out, 1.0);
+            check(out.gear == (demand > 0.8 ? 1 : 2), demand > 0.8 ? "full demand kicks down above the ordinary threshold"
+                : "part demand keeps the gear until the ordinary downshift threshold");
+            near(out.throttle, 1, 1e-9, "demand changes no pedal or force: " + demand);
+        }
+        DrivetrainModel.Input in = input(); in.demand = 1.5;
+        DrivetrainModel.Output out = new DrivetrainModel.Output();
+        model().step(in, out);
+        check(out.decision == DrivetrainModel.Decision.VANILLA, "demand outside 0..1 is refused");
+    }
+
     private static void allGearSpacingsAvoidHunting() {
         for (String family : new String[]{"generic", "van", "jeep", "firebird"}) {
             for (int count = 3; count <= 5; count++) {
@@ -466,7 +494,7 @@ public final class DrivetrainModelTest {
     private static void equalCouplingForceAndOffroadRecovery() {
         DrivetrainModel.Output first = new DrivetrainModel.Output(), third = new DrivetrainModel.Output();
         DrivetrainModel.Input in = input();
-        in.throttle = 0.7;
+        in.throttle = 0.7; in.demand = 0.7;
         in.engineRpm = CAR.redlineRpm * 0.55;
         in.speedMps = 0.55 * CAR.maxSpeedKph / CAR.ratio(1) / 3.6;
         step(model(), in, first, 3);

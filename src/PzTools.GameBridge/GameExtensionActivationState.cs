@@ -9,6 +9,9 @@ namespace PzTools.GameBridge;
 /// </summary>
 public sealed class GameExtensionActivationState
 {
+    /// <summary>The reason given while an update of the app waits for the game's restart.</summary>
+    public const string BootstrapUpdateReason = "bootstrap-update";
+
     private string? process, world;
     private readonly Dictionary<long, RuntimeVehicleOptions> requests = [];
     private RuntimeExtensionStatus? lastGood;
@@ -86,6 +89,10 @@ public sealed class GameExtensionActivationState
             ControlReady = false, AppliedVehicleOptions = null,
         };
         blockedRevision = requestedRevision;
+        // An update of the app that waits for the game's restart is not a failure of the extension: the latch keeps it
+        // off in this game, and it comes back with the next one. The player's preference is left as it is. A restart
+        // forced by a failure turns the extension off, as every other failure does.
+        if (failure is { State: RuntimeExtensionState.RestartRequired, Reason: BootstrapUpdateReason }) return true;
         var disabledRevision = disableAtRevision(requestedRevision);
         if (disabledRevision is { } revision) blockedRevision = revision;
         return true;
