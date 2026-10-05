@@ -1,6 +1,6 @@
 namespace PzTools.Process.Hosting;
 
-/// <summary>각 점검 레인은 별도 프로세스와 뮤텍스를 사용합니다.</summary>
+/// <summary>Each maintenance lane has its own process and mutex.</summary>
 public static class MaintenanceLaneSignal
 {
     public static readonly string[] HeavyLanes =

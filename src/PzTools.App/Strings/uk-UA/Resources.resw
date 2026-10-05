@@ -786,4 +786,8 @@ GC працює: частка відрізка, коли працював зби
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · зараз</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Застосується під час наступного запуску гри.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Гру запущено через скрипт запуску (.bat), який сам задає пам&apos;ять. Це налаштування діє лише під час звичайного запуску гри.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Попередній перегляд карток (збірка розробника)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Показує картку бічної панелі без її ситуації, щоб перевірити вигляд і кнопки. В опублікованих збірках немає.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Показати</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Прибрати всі</value></data>
 </root>

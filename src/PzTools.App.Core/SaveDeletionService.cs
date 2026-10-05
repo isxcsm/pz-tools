@@ -11,7 +11,7 @@ public sealed class SaveBackupDeletionFailedException(string sourcePath, Excepti
 
 public static class SaveDeletionService
 {
-    // 검증한 단일 세이브 폴더만 영구 삭제합니다. 백업 삭제 마킹은 coordinator가 처리합니다.
+    // Permanently deletes one checked save folder and nothing else. The coordinator marks its backups deleted.
     public static SaveDeletionResult DeletePermanently(
         string savesRoot, string saveId, CancellationToken cancellationToken = default,
         IProgress<SaveDeletionProgress>? progress = null, TimeSpan? progressInterval = null)
@@ -59,7 +59,7 @@ public static class SaveDeletionService
 
         cancellationToken.ThrowIfCancellationRequested();
         RejectLinkedAncestors(source);
-        // 휴지통이나 별도 보관 폴더를 거치지 않습니다. OS 오류로 중단되면 일부 파일은 이미 삭제됐을 수 있습니다.
+        // No recycle bin or holding folder. If Windows stops it with an error, some files may already be gone.
         var total = files.Count + directories.Count;
         long deleted = 0;
         Report(SaveDeletionPhase.DeletingFiles, 0, total, force: true);

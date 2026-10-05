@@ -786,4 +786,8 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · kullanımda</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Oyunun bir sonraki açılışında geçerli olur.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Oyun, belleği kendisi belirleyen bir başlatma betiğinden (.bat) çalışıyor. Bu ayar yalnızca oyun normal başlatıldığında geçerli olur.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Kart önizlemesi (geliştirici sürümü)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Görünümünü ve düğmelerini denetlemek için bir kenar çubuğu kartını durumu olmadan gösterir. Yayımlanan sürümlerde yoktur.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Göster</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Tümünü temizle</value></data>
 </root>

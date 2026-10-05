@@ -264,7 +264,7 @@ public sealed class AppSettingsService
             Math.Clamp(checked((int)GetInt64(model, "profiler", "rolling_minutes", AppSettings.DefaultRollingMinutes)), 1, 10),
             ReadHotKeys(model),
             GetBoolean(model, "ui", "check_updates", true));
-        // 기존 설정의 추적 표시값은 새 기록 하한보다 낮을 수 있습니다.
+        // An older file can show a level below what is now recorded.
         return (loaded with { LogMinimumLevel =
             (LogLevel)Math.Max((int)loaded.LogMinimumLevel, (int)loaded.LogRecordMinimumLevel) }).Validate();
     }
@@ -274,7 +274,7 @@ public sealed class AppSettingsService
     {
         if (!Enum.IsDefined(minimumLevel)) throw new ArgumentOutOfRangeException(nameof(minimumLevel));
         var settings = (Load() with { LogMinimumLevel = minimumLevel, LogDisplayLimit = displayLimit }).Validate();
-        // 표시 전용 변경에서는 백업 설정과 스케줄러를 건드리지 않습니다.
+        // A change to what is shown leaves the backup settings and the scheduler alone.
         await AtomicTextFile.WriteAsync(SettingsPath, Serialize(settings), cancellationToken);
         return settings;
     }

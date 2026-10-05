@@ -786,4 +786,8 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 使用中</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>從下次啟動遊戲起生效。</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>遊戲是透過啟動腳本（.bat）執行的，記憶體由腳本自行設定。此設定僅在正常啟動遊戲時生效。</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>卡片預覽（開發版本）</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>不觸發相應情況即顯示側邊欄卡片，用於檢查外觀和按鈕。發佈版本中沒有。</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>顯示</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>全部清除</value></data>
 </root>

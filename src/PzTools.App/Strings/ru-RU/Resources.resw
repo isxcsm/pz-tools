@@ -786,4 +786,8 @@ GC работает: доля отрезка, когда работал сбор
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · сейчас</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Применится при следующем запуске игры.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Игра запущена через скрипт запуска (.bat), который сам задаёт память. Эта настройка действует только при обычном запуске игры.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Предпросмотр карточек (сборка разработчика)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Показывает карточку боковой панели без её ситуации, чтобы проверить вид и кнопки. В опубликованных сборках нет.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Показать</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Убрать все</value></data>
 </root>

@@ -9,7 +9,7 @@ public sealed class ImportPreviewDialog : ContentDialog
     {
         base.OnApplyTemplate();
 
-        // 기본 버튼과 키보드/기본 동작은 유지하고 명령 영역의 배치만 조정합니다.
+        // The default button and keyboard behaviour stay; only the command area's layout changes.
         if (GetTemplateChild("CommandSpace") is Grid commands)
         {
             commands.HorizontalAlignment = HorizontalAlignment.Right;

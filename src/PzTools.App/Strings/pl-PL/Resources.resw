@@ -786,4 +786,8 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · używane</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Obowiązuje od następnego uruchomienia gry.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Gra działa ze skryptu uruchomieniowego (.bat), który sam ustala pamięć. To ustawienie działa tylko przy zwykłym uruchomieniu gry.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Podgląd kart (wersja deweloperska)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Pokazuje kartę paska bocznego bez jej sytuacji, aby sprawdzić wygląd i przyciski. Nie ma jej w wydanych wersjach.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Pokaż</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Wyczyść wszystko</value></data>
 </root>

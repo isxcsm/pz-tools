@@ -4,7 +4,7 @@ using Microsoft.UI.Xaml;
 
 namespace PzTools.App;
 
-/// <summary>WinUI 창 HWND에 연결되는 Windows 알림 영역 아이콘입니다.</summary>
+/// <summary>A Windows notification area icon attached to the WinUI window's HWND.</summary>
 internal sealed class SystemTrayIcon : IDisposable
 {
     private const uint CallbackMessage = 0x8000 + 42; // WM_APP + 42

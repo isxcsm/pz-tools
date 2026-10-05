@@ -786,4 +786,8 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · in uso</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Si applica dal prossimo avvio del gioco.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Il gioco è avviato da uno script di avvio (.bat), che imposta la propria memoria. Questa impostazione vale solo quando il gioco viene avviato normalmente.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Anteprima schede (build di sviluppo)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Mostra una scheda della barra laterale senza la sua situazione, per controllarne aspetto e pulsanti. Non presente nelle build pubblicate.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Mostra</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Cancella tutto</value></data>
 </root>

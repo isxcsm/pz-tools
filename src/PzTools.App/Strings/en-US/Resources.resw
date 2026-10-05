@@ -785,4 +785,8 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · running</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Applies from the game&apos;s next start.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>The game is running from a launch script (.bat), which sets its own memory. This setting applies only when the game is started normally.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Card preview (developer build)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Shows a sidebar card without its situation, to check its look and buttons. Not in published builds.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Show</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Clear all</value></data>
 </root>

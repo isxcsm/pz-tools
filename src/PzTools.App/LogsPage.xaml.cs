@@ -399,8 +399,8 @@ public sealed partial class LogsPage : UserControl
             return [];
 
         ResetLogArrivalAnimations();
-        // 새 로그는 최신순 목록 앞에 붙습니다. 기존 행을 유지하면 ListView가
-        // ItemsSource 전체를 다시 구성하지 않아 선택 상태와 화면이 깜빡이지 않습니다.
+        // New logs go to the front of the newest-first list. Keeping the existing rows means the ListView
+        // does not rebuild its whole ItemsSource, so the selection and the view do not flicker.
         if (!forceReplace && displayedItems.Count > 0)
         {
             var shift = Array.FindIndex(desired,

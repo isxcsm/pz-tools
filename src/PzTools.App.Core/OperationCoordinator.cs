@@ -43,7 +43,7 @@ public sealed class OperationCoordinator(
 
     public async Task RefreshStateAsync(string stateDatabasePath, string savesRoot, CancellationToken cancellationToken = default)
     {
-        // 정기 runner와 같은 StateCollection mutex를 사용합니다. UI에서 주기 설정이나 DB를 직접 바꾸지 않습니다.
+        // Uses the same StateCollection mutex as the periodic runner. The UI never changes the schedule or the database itself.
         for (var attempt = 0; attempt < runtime.StateRefreshAttempts; attempt++)
         {
             var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
@@ -328,7 +328,7 @@ public sealed class OperationCoordinator(
         var finalStatus = OperationStatus.Running;
         try
         {
-            // 복구 CLI의 --source-id는 숫자형 DB ID가 아니라 논리 세이브 키입니다.
+            // The restore CLI's --source-id is the logical save key, not the numeric database ID.
             var source = await repository.GetSourceByIdAsync(sourceId, cancellationToken);
             var execution = await RunAndValidateAsync(
                 Path.Combine(workerDirectory, "PzTools.Backup.Cli.exe"),

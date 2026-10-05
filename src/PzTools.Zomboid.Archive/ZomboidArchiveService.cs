@@ -489,7 +489,7 @@ public sealed class ZomboidArchiveService(long maximumPreviewPlayersDatabaseByte
                 remaining -= read;
                 if (progress is not null) await progress(expectedBytes - remaining, cancellationToken);
             }
-            // 헤더의 용량을 위조한 압축 데이터가 사전 검사한 한도를 넘어 기록되지 않게 합니다.
+            // Compressed data that lies about its size in the header cannot write past the limit checked up front.
             if (await input.ReadAsync(buffer.AsMemory(0, 1), cancellationToken) != 0)
                 throw new InvalidDataException("Archive entry exceeds its declared length.");
             if (checksum is not null && checksum.GetCurrentHashAsUInt32() != expectedCrc32!.Value)

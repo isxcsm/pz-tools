@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace PzTools.Process.Telemetry;
 
-/// <summary>작업 이벤트는 순서대로, 진행 상태는 가장 최근 값만 백그라운드에서 기록합니다.</summary>
+/// <summary>Records operation events in order, and progress as its latest value only, in the background.</summary>
 public sealed class ProcessTelemetrySession : IAsyncDisposable
 {
     private readonly object gate = new();
@@ -49,7 +49,7 @@ public sealed class ProcessTelemetrySession : IAsyncDisposable
         {
             activity?.Dispose();
             activity = null;
-            // 진단 저장 실패는 원래 작업의 성공/실패 결과를 바꾸지 않습니다.
+            // Failing to store diagnostics does not change whether the operation itself succeeded.
         }
         return new ProcessTelemetrySession(store, settings, component, runIndex,
             interval ?? TimeSpan.FromMilliseconds(settings.ProgressFlushIntervalMs), activity);
@@ -61,7 +61,7 @@ public sealed class ProcessTelemetrySession : IAsyncDisposable
         lock (gate)
         {
             if (stopping) return;
-            // 종료 이벤트 앞에 최종 진행 상태를 놓아 종료 후 100%가 사라지지 않게 합니다.
+            // The final progress goes before the end event, so 100% does not disappear after the end.
             if (name is "run.committed" or "run.failed" or "run.busy" or "run.cancelled" or "run.unavailable")
                 MoveLatestToQueue();
             events.Enqueue(new PendingEvent(name, payloadJson, null,
@@ -153,7 +153,7 @@ public sealed class ProcessTelemetrySession : IAsyncDisposable
                 }
                 catch (Exception)
                 {
-                    // 일시적인 DB 잠금은 다음 틱에 재시도합니다. 종료 중에는 횟수를 제한합니다.
+                    // A brief database lock is retried on the next tick. While shutting down, the retries are limited.
                     failures++;
                 }
             }

@@ -861,7 +861,7 @@ public sealed partial class MainWindowShell : UserControl
         fade.InsertKeyFrame(1f, 0f, easing);
         fade.Duration = TimeSpan.FromMilliseconds(RevisionExitDurationMs);
         revisionExitFade = fade;
-        // 완료 후 교체 시점까지 기존 행이 다시 번쩍 나타나지 않게 최종 값을 유지합니다.
+        // The final value stays until the row is replaced, so the old row does not flash back after completion.
         RevisionList.Opacity = 0;
         RevisionList.StartAnimation(fade);
         await Task.Delay(RevisionExitDurationMs);
@@ -1213,8 +1213,8 @@ public sealed partial class MainWindowShell : UserControl
         UpdateRevisionActions();
     }
 
-    // 전환이 끝날 때까지 하단 버튼의 이전 표시 상태를 유지합니다.
-    // 진행 막대가 나타나도 버튼이 잠깐 비활성화됐다가 다시 켜지지 않게 합니다.
+    // The bottom buttons keep their previous state until the transition ends,
+    // so they do not briefly turn off and on again when the progress bar appears.
     private bool IsPreservingDetailActions => detailLoading && hasPresentedDetail;
 
     private void ApplyProgress(OperationCardElements elements, OperationCard card)
@@ -1719,11 +1719,11 @@ public sealed partial class MainWindowShell : UserControl
     private void ApplyNavigationSpacing()
     {
         if (Navigation is null) return;
-        // 선택 표시줄을 창 가장자리에서 띄웁니다. 축소 모드에서는 아이콘 공간을 보존합니다.
+        // Keeps the selection indicator off the window edge. In compact mode the icon space is kept.
         var expanded = Navigation.IsPaneOpen;
-        // 기본 템플릿이 세로 2px 여백을 이미 제공하므로 중복해서 더하지 않습니다.
+        // The default template already has 2 px vertical margins; they are not added again.
         var margin = expanded ? new Thickness(12, 0, 12, 0) : new Thickness(0);
-        // 메뉴에 있는 항목 전부에 같은 여백을 줍니다. 항목을 추가해도 여기를 고칠 필요가 없습니다.
+        // Every item in the menu gets the same margin, so a new item needs no change here.
         foreach (var item in Navigation.MenuItems.OfType<NavigationViewItem>())
             item.Margin = margin;
         if (AppBrand is not null && BrandImage is not null && BrandCopy is not null && BrandHeaderSpace is not null)
@@ -1856,7 +1856,7 @@ public sealed partial class MainWindowShell : UserControl
             item.DeleteTooltip = item.IsFresh && item.Activity == ActivityState.Active
                 ? Localizer.Get("StopPlayingToDeleteSave") : item.DeleteLabel;
         }
-        // 이전 버튼 모양을 유지하되, 실행 핸들러는 detailLoading으로 차단합니다.
+        // The buttons keep their previous look; detailLoading blocks their handlers.
         if (IsPreservingDetailActions) return;
         idle &= !detailLoading;
         foreach (var item in RevisionItems)
@@ -2143,7 +2143,7 @@ public sealed partial class MainWindowShell : UserControl
         UpdateOperationActions();
         try
         {
-            // Windows App SDK 선택기는 관리자 권한 실행도 지원합니다.
+            // The Windows App SDK picker also works when running as administrator.
             var picker = new FileOpenPicker(App.MainWindow.AppWindow.Id);
             picker.FileTypeFilter.Add(".zip");
             picker.FileTypeFilter.Add(".pzsave");
@@ -2272,7 +2272,7 @@ public sealed partial class MainWindowShell : UserControl
                     horizontal ? GridUnitType.Pixel : GridUnitType.Star);
                 content.ColumnDefinitions[1].Width = new GridLength(horizontal ? 1 : 0, GridUnitType.Star);
                 content.ColumnSpacing = horizontal ? 24 : 0;
-                // 가로 배치에서는 비어 있는 두 번째 행에 간격을 남기지 않습니다.
+                // Side by side, the empty second row leaves no gap.
                 content.RowSpacing = image is not null && !horizontal ? 16 : 0;
                 Grid.SetColumn(metadata, horizontal ? 1 : 0);
                 Grid.SetRow(metadata, image is not null && !horizontal ? 1 : 0);

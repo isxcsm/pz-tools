@@ -12,13 +12,13 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $outputPath = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Output))
 if (-not (Test-Path -LiteralPath $DotNetPath -PathType Leaf)) {
     $command = Get-Command dotnet -ErrorAction SilentlyContinue
-    if ($null -eq $command) { throw 'dotnet 실행 파일을 찾을 수 없습니다.' }
+    if ($null -eq $command) { throw 'Cannot find the dotnet executable.' }
     $DotNetPath = $command.Source
 }
 
 & (Join-Path $PSScriptRoot 'publish-tools.ps1') `
     -Configuration $Configuration -Output $Output -DotNetPath $DotNetPath -JdkPath $JdkPath -GameBridgeOutput $GameBridgeOutput
-if ($LASTEXITCODE -ne 0) { throw 'worker 게시에 실패했습니다.' }
+if ($LASTEXITCODE -ne 0) { throw 'Publishing the workers failed.' }
 
 # Forward the same toolchain/output selection used by workers into the App dependency graph.
 $publishProperties = @()
@@ -31,7 +31,7 @@ if (-not [string]::IsNullOrWhiteSpace($GameBridgeOutput)) {
     (Join-Path $repositoryRoot 'src/PzTools.App/PzTools.App.csproj') `
     -c $Configuration -p:Platform=x64 -r win-x64 --self-contained false --force `
     -p:CopyOutputSymbolsToPublishDirectory=false -p:PzToolsDistribution=true -o $outputPath @publishProperties
-if ($LASTEXITCODE -ne 0) { throw 'WinUI 앱 게시에 실패했습니다.' }
+if ($LASTEXITCODE -ne 0) { throw 'Publishing the WinUI app failed.' }
 
 # The list of the published files, with their sizes and SHA-256: the app checks its folder against it at start
 # (InstallIntegrity), which tells a release extracted over another one while it ran. Written last, of the folder as
@@ -49,4 +49,4 @@ foreach ($item in $published) {
 }
 [IO.File]::WriteAllText((Join-Path $outputPath $manifestName), ($lines -join "`n") + "`n", [Text.UTF8Encoding]::new($false))
 
-Write-Host "PzTools 앱 게시 완료: $outputPath ($($published.Count) files listed)"
+Write-Host "PZ Tools app published: $outputPath ($($published.Count) files listed)"

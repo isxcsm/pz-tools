@@ -191,7 +191,7 @@ public sealed class AppHost : IAsyncDisposable
         telemetry.ConfigureLogs(new LogProjectionOptions(
             settings.LogRecordMinimumLevel, settings.LogDisplayLimit));
         Telemetry = telemetry;
-        // 저장소와 예전 이벤트 재생이 끝나기 전에도 보관된 로그를 표시합니다.
+        // Archived logs show before the store opens and past events are replayed.
         await telemetry.RefreshLogViewAsync(cancellationToken);
         await Settings.SaveAndApplyAsync(
             settings, scheduler, cancellationToken);
@@ -313,7 +313,7 @@ public sealed class AppHost : IAsyncDisposable
             stateArguments,
             lifetime.Token));
         if (checkComponentLaunch) supervisors.Add(MonitorComponentLaunchAsync(lifetime.Token));
-        // 과거 작업 로그의 발견은 첫 세이브 목록/상세 투영을 막지 않습니다.
+        // Finding past operation logs does not hold up the first save list and details.
         await RegisterHistoricalOperationTelemetrySourcesAsync(cancellationToken);
     }
 
@@ -511,7 +511,7 @@ public sealed class AppHost : IAsyncDisposable
             if (collectState)
                 await (Operations ?? throw new InvalidOperationException("The app host is not ready."))
                     .RefreshStateAsync(paths.StateDatabasePath, ActiveSavesRoot!, linked.Token);
-            // 정기 루프와 직렬화하고, 상세 합성 전에 원본 뷰를 갱신합니다.
+            // Runs in turn with the periodic loop, and refreshes the source views before the details are composed.
             foreach (var name in new[] { "state", "backup", "details", "health" })
                 await Projections.ProjectNowAsync(name, linked.Token);
         }

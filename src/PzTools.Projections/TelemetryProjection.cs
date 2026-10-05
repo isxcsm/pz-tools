@@ -581,7 +581,7 @@ public sealed class TelemetryProjectionHost(
         if (name.EndsWith(".started", StringComparison.Ordinal)
             && name != "run.started")
             return LogLevel.Trace;
-        // 주기적인 상태 확인은 추적용입니다. 완료 이벤트라도 실패 결과는 숨기지 않습니다.
+        // Periodic state checks are for tracing. A failure is not hidden, even in a completion event.
         if (IsOutcomeCompletion(name))
         {
             if (payload is { ValueKind: JsonValueKind.Object } value)
@@ -605,7 +605,7 @@ public sealed class TelemetryProjectionHost(
                     };
                 }
             }
-            // tick은 outcome 계약이 있으므로 불완전한 레코드를 정상 점검으로 간주하지 않습니다.
+            // A tick has an outcome contract, so an incomplete record does not count as a normal check.
             return name == "tick.completed" ? LogLevel.Information : LogLevel.Trace;
         }
         return LogLevel.Information;
@@ -660,7 +660,7 @@ public sealed class TelemetryProjectionHost(
                           StringComparer.OrdinalIgnoreCase.Equals(item.Key.Source, source.SourceId)
                           && item.Key.Run != source.CurrentWorkflow?.RunIndex))
             {
-                // 재생 중인 과거 기록은 완료 이벤트를 아직 읽지 못해 진행 중처럼 보일 수 있습니다.
+                // A past record being replayed can look in progress because its completion event is not read yet.
                 if (sourcesCatchingUp.Contains(source.SourceId)) continue;
                 if (item.Value.IsUnfinished
                     && now - item.Value.LastEventUtc > staleAfter) continue;
@@ -923,8 +923,8 @@ public sealed class TelemetryProjectionHost(
                 phase = item.Name[..^".started".Length];
             if (item.Name == "workload.discovered" && item.Payload is JsonElement workload)
             {
-                // 명시적인 단계별 작업량은 해당 단계의 카운터로 시작합니다.
-                // 단계가 없는 기존 백업 telemetry의 누적 의미는 유지합니다.
+                // An explicit per-stage amount of work starts from that stage's counter.
+                // Older backup telemetry without stages keeps its cumulative meaning.
                 if (workload.TryGetProperty("phase", out var phaseValue)
                     && phaseValue.ValueKind == JsonValueKind.String)
                 {

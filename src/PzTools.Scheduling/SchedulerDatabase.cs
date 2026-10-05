@@ -409,7 +409,7 @@ public sealed partial class SchedulerDatabase
             return null;
 
         return new BackupTickAdmission(
-            // Busy 재시도는 새 workflow를 쓰되, 완료 후 상태 확정 전 재시작은 같은 admission을 복구합니다.
+            // A Busy retry uses a new workflow; a restart after completion but before the state is settled recovers the same admission.
             control.PeriodicAdmissionId,
             BackupAdmissionKind.Periodic,
             control.CurrentTarget,
@@ -479,7 +479,7 @@ public sealed partial class SchedulerDatabase
             {
                 // A completed old admission must not overwrite a newer interval,
                 // disabled schedule, or target selected while its worker was running.
-                // 점검기가 저장소를 사용해 백업 worker를 시작하지 못했다면 예정 틱을 유지해 재시도합니다.
+                // If the backup worker could not start because maintenance was using the store, the due tick stays for a retry.
                 if (workerStarted || outcome != ProcessOutcome.Busy)
                 {
                     var due = BackupScheduleTiming.NextDue(admission.ScheduledUtc, control.Interval, now);

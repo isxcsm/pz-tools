@@ -13,22 +13,46 @@ namespace PzTools.App;
 /// </summary>
 public sealed partial class MainWindowShell
 {
-    /// <summary>Each card that can be previewed, by key, with the name the settings list it under.</summary>
-    internal static IReadOnlyList<(string Key, string Name)> CardPreviews { get; } =
+    /// <summary>Each card that can be previewed, by key.</summary>
+    internal static IReadOnlyList<string> CardPreviews { get; } =
     [
-        ("install", "App files not intact"),
-        ("blocked", "Blocked by Windows Security"),
-        ("game-link", "Game link lost"),
-        ("game-restart", "Game restart needed"),
-        ("game-disabled", "Game link: launch option"),
-        ("projectors", "Loading failed"),
-        ("game-memory", "Game memory reset"),
-        ("update", "New version"),
-        ("notice-success", "Result: success"),
-        ("notice-info", "Result: information"),
-        ("notice-warning", "Result: warning"),
-        ("notice-error", "Result: error"),
+        "install", "blocked", "game-link", "game-restart", "game-disabled", "projectors", "game-memory", "update",
+        "notice-success", "notice-info", "notice-warning", "notice-error",
     ];
+
+    /// <summary>The name the settings list a card under: its own title (or message) in the app's language.</summary>
+    internal static string CardPreviewName(string key) => key switch
+    {
+        "install" => Localizer.Get("InstallBrokenTitle"),
+        "blocked" => Localizer.Get("ComponentBlockedTitle"),
+        "game-link" => Localizer.Get("GameLinkCardTitle"),
+        "game-restart" => Localizer.Get("GameLinkRestartTitle"),
+        "game-disabled" => Localizer.Get("GameLinkCardDisabledMessage"),
+        "projectors" => Localizer.Get("SavesUnavailable"),
+        "game-memory" => Localizer.Format("GameMemoryRevertedTitleFormat", SettingsPage.Size(PreviewMemory.MaximumMegabytes!.Value)),
+        "update" => Localizer.Format("UpdateCardFormat", "v" + PreviewRelease.ToString(3)),
+        _ => NoticeContents.TryGetValue(key, out var notice) ? Localizer.Get(notice.Message) : key,
+    };
+
+    private static readonly GameMemoryState PreviewMemory = new(GameMemoryStatus.Reverted, null, 3072, 3072, 8192);
+
+    private static Version PreviewRelease
+    {
+        get
+        {
+            var current = ((App)Microsoft.UI.Xaml.Application.Current).Updates?.Current ?? new Version(0, 0, 0);
+            return new Version(current.Major, current.Minor + 1, 0);
+        }
+    }
+
+    // The result cards borrow real titles and messages, one of each kind.
+    private static readonly Dictionary<string, (OperationStatus Status, string Title, string Message)> NoticeContents = new()
+    {
+        ["notice-success"] = (OperationStatus.Succeeded, "ProfilerNavigation", "ProfileReportCopied"),
+        ["notice-info"] = (OperationStatus.Busy, "HotKeysTitle", "HotKeyNoSave"),
+        ["notice-warning"] = (OperationStatus.Degraded, "PathSettings.Header", "OperationError.FileMissing"),
+        ["notice-error"] = (OperationStatus.Failed, "ProfilerNavigation", "ProfileLoadFailed"),
+    };
 
     /// <summary>Shows one card as if its state had arisen; it stays until <see cref="ClearCardPreviews"/>.</summary>
     internal void PreviewCard(string key)
@@ -61,36 +85,22 @@ public sealed partial class MainWindowShell
                 ApplyInstallProblem();
                 break;
             case "game-memory":
-                previewGameMemory = new GameMemoryState(GameMemoryStatus.Reverted, null, 3072, 3072, 8192);
+                previewGameMemory = PreviewMemory;
                 gameMemoryDismissed = null;
                 ApplyGameMemory();
                 break;
             case "update":
-                var current = App.Updates?.Current ?? new Version(0, 0, 0);
-                var next = new Version(current.Major, current.Minor + 1, 0);
+                var next = PreviewRelease;
                 previewUpdate = new UpdateRelease(next, "v" + next.ToString(3), UpdateChecker.ReleasesPage);
                 ApplyUpdate();
                 break;
             // The result cards expire like real ones. Unlike a real warning or error, they leave nothing in the log.
-            case "notice-success":
-                PreviewNotice(OperationStatus.Succeeded, "ProfilerNavigation", "ProfileReportCopied");
-                break;
-            case "notice-info":
-                PreviewNotice(OperationStatus.Busy, "HotKeysTitle", "HotKeyNoSave");
-                break;
-            case "notice-warning":
-                PreviewNotice(OperationStatus.Degraded, "PathSettings.Header", "OperationError.FileMissing");
-                break;
-            case "notice-error":
-                PreviewNotice(OperationStatus.Failed, "ProfilerNavigation", "ProfileLoadFailed");
+            case var notice when NoticeContents.TryGetValue(notice, out var content):
+                notices.Add(new(Guid.NewGuid().ToString("N"), Localizer.Get(content.Title), Localizer.Get(content.Message),
+                    content.Status, DateTimeOffset.UtcNow));
+                RefreshOperationCards();
                 break;
         }
-    }
-
-    private void PreviewNotice(OperationStatus status, string title, string message)
-    {
-        notices.Add(new(Guid.NewGuid().ToString("N"), Localizer.Get(title), Localizer.Get(message), status, DateTimeOffset.UtcNow));
-        RefreshOperationCards();
     }
 
     /// <summary>Puts every previewed card back to what the real state shows.</summary>
@@ -111,7 +121,7 @@ public sealed partial class MainWindowShell
     private void PreviewCardsFromEnvironment()
     {
         if (Environment.GetEnvironmentVariable("PZTOOLS_PREVIEW_CARDS") is not { Length: > 0 } text) return;
-        var keys = text.Trim() == "all" ? CardPreviews.Select(card => card.Key)
+        var keys = text.Trim() == "all" ? CardPreviews
             : text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var key in keys) PreviewCard(key);
     }

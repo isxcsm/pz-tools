@@ -136,7 +136,7 @@ static async Task TryFailOwnedWorkflowAsync(
     }
     catch
     {
-        // 원래 실패 결과를 보존합니다. 다음 복구가 고아 workflow를 정리합니다.
+        // Keeps the original failure. The next recovery cleans up the orphaned workflow.
     }
 }
 

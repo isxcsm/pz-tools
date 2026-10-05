@@ -98,7 +98,7 @@ catch (OperationCanceledException) when (cancellationToken.IsCancellationRequest
                 started, "backup-priority", "Maintenance yielded to a due backup.");
             await CompleteReservedWorkflowAsync(repositoryDatabase, runIndex.Value, cancelled);
         }
-        catch { /* 원래 취소 결과를 보존합니다. 다음 실행에서 고아 workflow를 복구합니다. */ }
+        catch { /* Keeps the original cancellation. The next run recovers the orphaned workflow. */ }
     }
     return ProcessExitCodes.FromOutcome(ProcessOutcome.Cancelled);
 }

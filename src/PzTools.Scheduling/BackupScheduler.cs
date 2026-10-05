@@ -98,7 +98,7 @@ public sealed class BackupScheduler(
         var dispatched = false;
         try
         {
-            // 독립 점검기가 저장소 잠금을 쥐고 있으면 먼저 양보를 요청합니다.
+            // If the separate maintenance process holds the store lock, ask it to give way first.
             try
             {
                 await MaintenanceLaneSignal.RequestYieldForRunningLanesAsync(
@@ -106,7 +106,7 @@ public sealed class BackupScheduler(
             }
             catch (Exception) when (!cancellationToken.IsCancellationRequested)
             {
-                // 신호 전달 실패만으로 예정된 백업 자체를 중단하지 않습니다.
+                // A failed signal alone does not stop the scheduled backup.
             }
             // A stop/interval change can arrive while repository admission or yield is awaited.
             var currentSelection = runtimeSchedule is null ? new RuntimeAdmissionSelection(false, null)
@@ -178,7 +178,7 @@ public sealed class BackupScheduler(
                                 saveId: admission.Target.SaveId),
                         telemetryConfigurationPath);
                 }
-                // 레인의 자식 작업은 별도 프로세스입니다. 시작 실패도 이미 완료된 백업의 결과를 바꾸지 않습니다.
+                // A lane's child work is a separate process. Failing to start it does not change the result of the backup already done.
                 outcome = backup.Outcome;
             }
             else

@@ -1,6 +1,6 @@
 namespace PzTools.Process.Contracts;
 
-/// <summary>설치 파일, 앱 제어 데이터, 사용자 백업 저장소의 경계를 정의합니다.</summary>
+/// <summary>Where the installed files, the app's control data and the user's backup store each live.</summary>
 public sealed record PzToolsPathLayout(
     string InstallRoot,
     string DataRoot,

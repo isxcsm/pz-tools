@@ -59,7 +59,7 @@ public sealed partial class SettingsPage : UserControl
 
     private void SettingsPage_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        // 작은 창에서는 SettingsCard의 기본 세로 배치를 사용하되 입력 영역도 넘치지 않게 합니다.
+        // In a small window SettingsCard stacks as it does by default, and its input is kept from overflowing.
         var available = Math.Max(160, e.NewSize.Width - 72);
         SavesPathEditor.Width = BackupPathEditor.Width = Math.Min(500, available);
         IntervalEditor.Width = RetentionEditor.Width = RollingMinutesEditor.Width = Math.Min(340, available);
@@ -407,14 +407,15 @@ public sealed partial class SettingsPage : UserControl
     }
 
 #if PZTOOLS_DEV_TOOLS
-    // Developer builds only, in English only: the sidebar's cards on demand (MainWindowShell.CardPreview).
+    // Developer builds only: the sidebar's cards on demand (MainWindowShell.CardPreview).
     private void BuildCardPreview()
     {
-        var choice = new ComboBox { MinWidth = 180 };
-        foreach (var (key, name) in MainWindowShell.CardPreviews) choice.Items.Add(new ComboBoxItem { Content = name, Tag = key });
+        var choice = new ComboBox { MinWidth = 180, MaxWidth = 320 };
+        foreach (var key in MainWindowShell.CardPreviews)
+            choice.Items.Add(new ComboBoxItem { Content = MainWindowShell.CardPreviewName(key), Tag = key });
         choice.SelectedIndex = 0;
-        var show = new Button { Content = "Show" };
-        var clear = new Button { Content = "Clear all" };
+        var show = new Button { Content = Localizer.Get("CardPreview.Show") };
+        var clear = new Button { Content = Localizer.Get("CardPreview.Clear") };
         show.Click += (_, _) =>
         {
             if (App.MainWindow.Content is MainWindowShell shell && choice.SelectedItem is ComboBoxItem { Tag: string key }) shell.PreviewCard(key);
@@ -424,14 +425,14 @@ public sealed partial class SettingsPage : UserControl
         holder.Children.Add(choice);
         holder.Children.Add(show);
         holder.Children.Add(clear);
-        SetInputName(choice, "Card preview");
+        SetInputName(choice, Localizer.Get("CardPreview.Header"));
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(choice, "CardPreviewChoice");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(show, "CardPreviewShow");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(clear, "CardPreviewClear");
         AdvancedSection.Items.Add(new SettingsCard
         {
-            Header = "Card preview (developer build)",
-            Description = "Shows a sidebar card without its situation, to check its look and buttons. Not in published builds.",
+            Header = Localizer.Get("CardPreview.Header"),
+            Description = Localizer.Get("CardPreview.Description"),
             HeaderIcon = new SymbolIcon(Symbol.Preview),
             Content = holder,
         });

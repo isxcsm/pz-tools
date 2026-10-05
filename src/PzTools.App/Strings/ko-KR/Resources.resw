@@ -785,4 +785,8 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · 실행 중</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>다음 게임 실행부터 적용됩니다.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>지금 게임은 실행 스크립트(.bat)로 켜져서 메모리를 스크립트가 정합니다. 이 설정은 게임을 일반 실행할 때만 적용됩니다.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>카드 미리보기 (개발 빌드)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>상황 없이 사이드바 카드를 띄워 모양과 버튼을 확인합니다. 배포 빌드에는 없습니다.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>표시</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>모두 지우기</value></data>
 </root>

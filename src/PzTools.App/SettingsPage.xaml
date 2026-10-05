@@ -5,7 +5,7 @@
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     SizeChanged="SettingsPage_SizeChanged">
   <UserControl.Resources>
-    <!-- WinUI Gallery SettingsPage와 동일한 카드/섹션 간격 계약입니다. -->
+    <!-- The same card and section spacing as the WinUI Gallery settings page. -->
     <x:Double x:Key="SettingsCardSpacing">4</x:Double>
   </UserControl.Resources>
 
@@ -22,7 +22,7 @@
     </StackPanel>
 
     <Grid Margin="{StaticResource CardPageHeaderMargin}" MinHeight="{StaticResource PageHeaderHeight}">
-      <TextBlock x:Name="SettingsTitleText" Text="설정"
+      <TextBlock x:Name="SettingsTitleText" Text="Settings"
                  AutomationProperties.HeadingLevel="Level1"
                  Style="{StaticResource PageTitleTextStyle}" />
     </Grid>
@@ -38,11 +38,11 @@
           <!-- The app's version and its updates, folded: whether it is the newest is the line's description and the
                version its value, as every other setting; checking now and the notice's switch are inside. A newer release is offered there, and in the
                pane, until the app is updated. -->
-          <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="False" Header="버전 정보"
+          <toolkit:SettingsExpander x:Name="UpdateSection" IsExpanded="False" Header="Version"
                                     AutomationProperties.AutomationId="UpdateSection">
             <TextBlock x:Name="UpdateVersionText" VerticalAlignment="Center" />
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="UpdateCheckCard" Header="업데이트 확인">
+              <toolkit:SettingsCard x:Name="UpdateCheckCard" Header="Check for updates">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <ProgressRing x:Name="UpdateCheckProgress" Width="16" Height="16" MinWidth="16" MinHeight="16"
@@ -53,7 +53,7 @@
                 </StackPanel>
               </toolkit:SettingsCard>
               <!-- Where the newest version is downloaded, in the browser, whatever the last check found. -->
-              <toolkit:SettingsCard x:Name="UpdateReleasePageCard" Header="다운로드 페이지">
+              <toolkit:SettingsCard x:Name="UpdateReleasePageCard" Header="Download page">
                 <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE896;" /></toolkit:SettingsCard.HeaderIcon>
                 <!-- A button like its neighbours', with the mark of a page that opens outside the app. -->
                 <Button x:Name="UpdateReleasePageButton" Click="UpdateReleasePage_Click"
@@ -64,32 +64,32 @@
                   </StackPanel>
                 </Button>
               </toolkit:SettingsCard>
-              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="새 버전 알림">
+              <toolkit:SettingsCard x:Name="UpdateAutoSettingCard" Header="New version notice">
                 <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEA8F;" /></toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="UpdateAutoToggle" Toggled="SettingChanged" AutomationProperties.AutomationId="UpdateAutoToggle" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="DisplaySection" IsExpanded="True"
-                                    Header="화면" Description="언어, 테마와 창 닫기 동작을 설정합니다.">
+                                    Header="Appearance and behavior" Description="Choose the language, theme, and what happens when you close the window.">
             <toolkit:SettingsExpander.Items>
           <toolkit:SettingsCard x:Name="LanguageSettingCard"
-                                Header="언어" Description="앱 언어를 선택합니다. 번역이 없는 항목은 영어로 표시합니다.">
+                                Header="Language" Description="Choose the app language. Untranslated items appear in English.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Globe" /></toolkit:SettingsCard.HeaderIcon>
             <ComboBox x:Name="LanguageCombo" MinWidth="200" MaxWidth="320"
                       SelectionChanged="SettingChanged" />
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="ThemeSettingCard"
-                                Header="테마" Description="시스템 설정을 따르거나 직접 선택합니다.">
+                                Header="Theme" Description="Use your Windows theme or choose a light or dark theme.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="View" /></toolkit:SettingsCard.HeaderIcon>
             <ComboBox x:Name="ThemeCombo" MinWidth="200" SelectionChanged="SettingChanged">
-              <ComboBoxItem x:Name="ThemeSystemItem" Content="시스템" Tag="System" />
-              <ComboBoxItem x:Name="ThemeLightItem" Content="밝음" Tag="Light" />
-              <ComboBoxItem x:Name="ThemeDarkItem" Content="어두움" Tag="Dark" />
+              <ComboBoxItem x:Name="ThemeSystemItem" Content="System" Tag="System" />
+              <ComboBoxItem x:Name="ThemeLightItem" Content="Light" Tag="Light" />
+              <ComboBoxItem x:Name="ThemeDarkItem" Content="Dark" Tag="Dark" />
             </ComboBox>
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="SystemTraySettingCard"
-                                Header="시스템 트레이" Description="창을 닫을 때 트레이로 보냅니다.">
+                                Header="System tray" Description="Keep PZ Tools running when you close the window. To quit, right-click its icon next to the taskbar clock and choose Exit.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Setting" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="SystemTrayToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
@@ -97,9 +97,9 @@
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="PathSection" IsExpanded="True"
-                                    Header="경로" Description="세이브와 백업 파일의 위치를 설정합니다.">
+                                    Header="Folders" Description="Choose where save and backup files are stored.">
             <toolkit:SettingsExpander.Items>
-          <toolkit:SettingsCard x:Name="SavesPathSettingCard" Header="세이브 폴더">
+          <toolkit:SettingsCard x:Name="SavesPathSettingCard" Header="Save folder">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Folder" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="SavesPathEditor" Width="500" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
@@ -110,13 +110,13 @@
               <TextBox x:Name="SavesPath" LostFocus="PathSettingChanged" />
               <Button x:Name="SavesBrowseButton" Grid.Column="1"
                       Style="{StaticResource SubtleButtonStyle}"
-                      Content="찾아보기" Tag="saves" Click="BrowseFolder_Click" />
+                      Content="Browse" Tag="saves" Click="BrowseFolder_Click" />
               <Button x:Name="SavesOpenButton" Grid.Column="2"
                       Style="{StaticResource SubtleButtonStyle}"
-                      Content="폴더 열기" Tag="saves" Click="OpenPathFolder_Click" />
+                      Content="Open folder" Tag="saves" Click="OpenPathFolder_Click" />
             </Grid>
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="BackupPathSettingCard" Header="백업 폴더">
+          <toolkit:SettingsCard x:Name="BackupPathSettingCard" Header="Backup folder">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="SyncFolder" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="BackupPathEditor" Width="500" ColumnSpacing="8">
               <Grid.ColumnDefinitions>
@@ -127,24 +127,24 @@
               <TextBox x:Name="BackupPath" LostFocus="PathSettingChanged" />
               <Button x:Name="BackupBrowseButton" Grid.Column="1"
                       Style="{StaticResource SubtleButtonStyle}"
-                      Content="찾아보기" Tag="backup" Click="BrowseFolder_Click" />
+                      Content="Browse" Tag="backup" Click="BrowseFolder_Click" />
               <Button x:Name="BackupOpenButton" Grid.Column="2"
                       Style="{StaticResource SubtleButtonStyle}"
-                      Content="폴더 열기" Tag="backup" Click="OpenPathFolder_Click" />
+                      Content="Open folder" Tag="backup" Click="OpenPathFolder_Click" />
             </Grid>
           </toolkit:SettingsCard>
 
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <toolkit:SettingsExpander x:Name="BackupSection" IsExpanded="True"
-                                    Header="백업" Description="게임 저장, 백업 주기와 보존 개수, 사망 시 동작을 설정합니다.">
+                                    Header="Backup" Description="Set the automatic backup interval, how many backups to keep, and saving the game before a backup.">
             <toolkit:SettingsExpander.Items>
-          <toolkit:SettingsCard x:Name="AutomaticBackupSettingCard" Header="자동 백업">
+          <toolkit:SettingsCard x:Name="AutomaticBackupSettingCard" Header="Automatic backups">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Sync" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="AutomaticBackupToggle" Toggled="AutomaticBackupToggle_Toggled" />
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="IntervalSettingCard"
-                                Header="백업 간격" Description="1~60분. 자동 백업을 꺼도 간격은 유지됩니다.">
+                                Header="Backup interval" Description="Time between automatic backups (1–60 minutes). Changing it restarts the count.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="IntervalEditor" Width="340" ColumnSpacing="16">
               <Grid.ColumnDefinitions>
@@ -157,12 +157,12 @@
                          SpinButtonPlacementMode="Inline" ValueChanged="IntervalNumber_ValueChanged" />
             </Grid>
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="PausePeriodicSettingCard" Header="게임 일시정지 중 정기백업 대기">
+          <toolkit:SettingsCard x:Name="PausePeriodicSettingCard" Header="Delay scheduled backups while paused or asleep">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Pause" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="PausePeriodicToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
           <toolkit:SettingsCard x:Name="RetentionSettingCard"
-                                Header="자동 백업 보관 개수" Description="최근 자동 백업 1~100개를 보관합니다. 이 개수 제한으로 수동 백업을 삭제하지 않습니다.">
+                                Header="Automatic backups to keep" Description="Keeps this many of the most recent automatic backups and deletes older ones (1–100). Manual backups are not counted and are never deleted.">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Library" /></toolkit:SettingsCard.HeaderIcon>
             <Grid x:Name="RetentionEditor" Width="340" ColumnSpacing="16">
               <Grid.ColumnDefinitions>
@@ -175,43 +175,43 @@
                          SpinButtonPlacementMode="Inline" ValueChanged="RetentionNumber_ValueChanged" />
             </Grid>
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="DeathBackupSettingCard" Header="캐릭터 사망 시 백업">
+          <toolkit:SettingsCard x:Name="DeathBackupSettingCard" Header="Back up when the character dies">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="ProtectedDocument" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="DeathBackupToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="GameSaveSettingCard" Header="백업 전 게임 저장">
+          <toolkit:SettingsCard x:Name="GameSaveSettingCard" Header="Save game before backup">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Save" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="GameSaveToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
-          <toolkit:SettingsCard x:Name="GameSaveCountdownSettingCard" Header="게임 내 저장 카운트다운">
+          <toolkit:SettingsCard x:Name="GameSaveCountdownSettingCard" Header="In-game save countdown">
             <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
             <ToggleSwitch x:Name="GameSaveCountdownToggle" Toggled="SettingChanged" />
           </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <!-- The game's own launch settings, kept in the game folder; they take effect at the game's next start. -->
-          <toolkit:SettingsExpander x:Name="GameSection" IsExpanded="True" Header="게임">
+          <toolkit:SettingsExpander x:Name="GameSection" IsExpanded="True" Header="Game">
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="GameMemorySettingCard" Header="게임 메모리">
+              <toolkit:SettingsCard x:Name="GameMemorySettingCard" Header="Game memory">
                 <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xEEA0;" /></toolkit:SettingsCard.HeaderIcon>
                 <ComboBox x:Name="GameMemoryCombo" MinWidth="180" SelectionChanged="GameMemoryCombo_SelectionChanged"
                           DropDownOpened="GameMemoryCombo_DropDownOpened" DropDownClosed="GameMemoryCombo_DropDownClosed" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
-          <toolkit:SettingsExpander x:Name="ProfilerSection" IsExpanded="True" Header="성능 분석"
-                                    Description="렉 직후 저장할 수 있게 게임이 직전 몇 분을 계속 기록해 둡니다.">
+          <toolkit:SettingsExpander x:Name="ProfilerSection" IsExpanded="True" Header="Performance"
+                                    Description="The game keeps its last few minutes, so a stutter can be saved after it happened.">
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="RollingSettingCard" Header="직전 기록 계속하기">
+              <toolkit:SettingsCard x:Name="RollingSettingCard" Header="Keep the last minutes">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
                 <ToggleSwitch x:Name="RollingToggle" Toggled="RollingSettingChanged" />
               </toolkit:SettingsCard>
-              <toolkit:SettingsCard x:Name="RollingModeSettingCard" Header="기록 방식">
+              <toolkit:SettingsCard x:Name="RollingModeSettingCard" Header="Mode">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Setting" /></toolkit:SettingsCard.HeaderIcon>
                 <!-- Off is Standard, on is Detailed, as the Performance page's own switch. -->
                 <ToggleSwitch x:Name="RollingModeToggle" Toggled="RollingSettingChanged" />
               </toolkit:SettingsCard>
-              <toolkit:SettingsCard x:Name="RollingMinutesSettingCard" Header="기록 길이">
+              <toolkit:SettingsCard x:Name="RollingMinutesSettingCard" Header="Length (minutes)">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Clock" /></toolkit:SettingsCard.HeaderIcon>
                 <Grid x:Name="RollingMinutesEditor" Width="340" ColumnSpacing="16">
                   <Grid.ColumnDefinitions>
@@ -227,27 +227,27 @@
             </toolkit:SettingsExpander.Items>
           </toolkit:SettingsExpander>
           <!-- One card per action, built in code: each holds its key combination, set by pressing it. -->
-          <toolkit:SettingsExpander x:Name="HotKeySection" IsExpanded="True" Header="단축키"
-                                    Description="게임 중에도 동작합니다." />
-          <toolkit:SettingsExpander x:Name="AdvancedSection" Header="고급"
-                                    Description="설정 파일을 열거나 변경 사항을 적용합니다.">
+          <toolkit:SettingsExpander x:Name="HotKeySection" IsExpanded="True" Header="Hotkeys"
+                                    Description="They work in the game too." />
+          <toolkit:SettingsExpander x:Name="AdvancedSection" Header="Advanced"
+                                    Description="Open advanced configuration files and apply changes.">
             <toolkit:SettingsExpander.Items>
-              <toolkit:SettingsCard x:Name="OpenConfigurationCard" Header="설정 파일 열기"
-                                    Description="고급 설정 TOML 파일이 있는 폴더를 엽니다.">
+              <toolkit:SettingsCard x:Name="OpenConfigurationCard" Header="Open configuration files"
+                                    Description="Open the folder containing advanced settings files. Change general settings on this screen.">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Library" /></toolkit:SettingsCard.HeaderIcon>
-                <Button x:Name="OpenConfigurationFolderButton" Content="폴더 열기"
+                <Button x:Name="OpenConfigurationFolderButton" Content="Open folder"
                         Click="OpenConfigurationFolder_Click" />
               </toolkit:SettingsCard>
-              <toolkit:SettingsCard x:Name="ApplyConfigurationCard" Header="변경 사항 적용"
-                                    Description="편집한 TOML을 확인하고 앱을 다시 시작합니다.">
+              <toolkit:SettingsCard x:Name="ApplyConfigurationCard" Header="Apply changes"
+                                    Description="Check the edited settings files and restart the app. Any running operation must finish first.">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Refresh" /></toolkit:SettingsCard.HeaderIcon>
-                <Button x:Name="RestartForConfigurationButton" Content="설정 적용·앱 다시 시작"
+                <Button x:Name="RestartForConfigurationButton" Content="Apply settings and restart"
                         Click="RestartForConfiguration_Click" />
               </toolkit:SettingsCard>
-              <toolkit:SettingsCard x:Name="ResetConfigurationCard" Header="고급 설정 초기화"
-                                    Description="현재 설정 파일을 폴더째 보관하고 기본값을 다시 만듭니다.">
+              <toolkit:SettingsCard x:Name="ResetConfigurationCard" Header="Reset advanced settings"
+                                    Description="Keep a copy of the current files and restore the advanced defaults. Your saves and backups are not deleted.">
                 <toolkit:SettingsCard.HeaderIcon><SymbolIcon Symbol="Undo" /></toolkit:SettingsCard.HeaderIcon>
-                <Button x:Name="ResetConfigurationButton" Content="기본 설정으로 복원"
+                <Button x:Name="ResetConfigurationButton" Content="Restore default settings"
                         Click="ResetConfiguration_Click" />
               </toolkit:SettingsCard>
             </toolkit:SettingsExpander.Items>

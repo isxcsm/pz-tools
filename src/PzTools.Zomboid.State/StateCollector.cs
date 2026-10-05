@@ -285,7 +285,7 @@ public sealed class StateCollector(
             var activityResult = save.Invalidated
                 ? (ActivityState.Unknown, LaneStatus.Unavailable, "invalidated")
                 : activity.Probe(save.PlayersDatabasePath);
-            // 배타 probe의 핸들은 Probe 반환 전에 닫히므로 SQLite 읽기와 겹치지 않습니다.
+            // The exclusive probe's handle is closed before Probe returns, so it never overlaps the SQLite read.
             var characterResult = save.Invalidated
                 ? (CharacterState.Unknown, LaneStatus.Unavailable, "invalidated")
                 : await character.CollectAsync(save.PlayersDatabasePath, cancellationToken);

@@ -225,8 +225,8 @@ public sealed partial class RepositoryDatabase
             foreach (var revision in deleted)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                // 삭제된 최신 리비전도 내부 증분 기준으로 유지합니다.
-                // 이전 삭제 항목은 다음 사용자 리비전 또는 이 내부 기준으로 재기준화합니다.
+                // A deleted latest revision is kept as the internal base for increments.
+                // Earlier deleted ones are rebased onto the next user revision or onto that internal base.
                 long nextRetained;
                 await using (var next = connection.CreateCommand())
                 {

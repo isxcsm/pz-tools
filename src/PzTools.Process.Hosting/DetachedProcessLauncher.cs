@@ -4,7 +4,7 @@ using System.Text;
 
 namespace PzTools.Process.Hosting;
 
-/// <summary>감독 대상 프로세스 트리는 유지하면서 지정한 장기 실행 작업만 분리합니다.</summary>
+/// <summary>Detaches the given long-running work while keeping the supervised process tree.</summary>
 public static class DetachedProcessLauncher
 {
     private const uint CreateNoWindow = 0x08000000;

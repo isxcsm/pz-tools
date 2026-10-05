@@ -273,7 +273,7 @@ public partial class App : Application
         await settingsGate.WaitAsync();
         try
         {
-            // 다른 화면에서 갱신한 로그 옵션을 오래된 설정 화면 값으로 덮어쓰지 않습니다.
+            // Log options changed on another page are not overwritten with the settings page's stale values.
             var current = Host?.Settings.Load()
                 ?? throw new InvalidOperationException(Localizer.Get("HostNotReady"));
             await ApplySettingsCoreAsync(settings with
@@ -337,7 +337,7 @@ public partial class App : Application
                     await host.Settings.ResetEditableConfigurationAsync();
                     host.Settings.ValidateEditableConfiguration();
                 }
-                // 성공하면 현재 프로세스가 종료됩니다. 실패한 경우에만 호출이 돌아옵니다.
+                // On success this process ends; the call returns only on failure.
                 var failure = Microsoft.Windows.AppLifecycle.AppInstance.Restart("");
                 throw new InvalidOperationException(Localizer.Get("OperationError.RestartFailed"),
                     new InvalidOperationException($"App restart failed: {failure}"));
@@ -484,7 +484,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            // 트레이를 사용할 수 없어도 창을 숨기지 않고 일반 종료 확인으로 전환합니다.
+            // Without a tray the window is not hidden; the usual exit confirmation is asked instead.
             System.Diagnostics.Debug.WriteLine(exception);
             useSystemTray = false;
         }
@@ -534,7 +534,7 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
-            // 다른 대화 상자가 열려 있으면 현재 종료 요청만 취소합니다.
+            // With another dialog open, only this exit request is cancelled.
             System.Diagnostics.Debug.WriteLine(exception);
         }
         finally { exitDialogOpen = false; }

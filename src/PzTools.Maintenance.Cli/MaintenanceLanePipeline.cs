@@ -10,7 +10,7 @@ internal static class MaintenanceLanePipeline
 {
     private const string Stage = "maintenance-worker";
 
-    // 점검 레인은 점검기 안에 남습니다. 각 레인이 자신의 무거운 작업 프로세스만 시작합니다.
+    // The maintenance lanes stay inside the maintenance process. Each lane starts only its own heavy worker process.
     public static async Task<MaintenanceResult> DispatchAsync(
         string repositoryPath, long sourceId, long runIndex, MaintenanceOptions options,
         string? controlDatabasePath, string? configurationPath)
@@ -36,7 +36,7 @@ internal static class MaintenanceLanePipeline
             }
             catch (RepositoryBusyException)
             {
-                // 다른 레인이 쓰는 중이어도 나머지 레인의 프로세스 기동은 계속합니다.
+                // One lane being busy does not stop the other lanes from starting their processes.
                 lanes.Add(new MaintenanceLaneResult(
                     "Retention", "Busy", timer.ElapsedMilliseconds, 0, "repository-writer-busy"));
             }

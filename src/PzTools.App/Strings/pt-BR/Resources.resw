@@ -786,4 +786,8 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · em uso</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Vale a partir do próximo início do jogo.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>O jogo está rodando a partir de um script de inicialização (.bat), que define a própria memória. Este ajuste só vale quando o jogo é iniciado normalmente.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Prévia de cartões (versão de desenvolvimento)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Mostra um cartão da barra lateral sem a sua situação, para conferir a aparência e os botões. Não existe nas versões publicadas.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Mostrar</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Limpar tudo</value></data>
 </root>

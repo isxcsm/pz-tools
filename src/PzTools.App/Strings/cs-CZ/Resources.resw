@@ -786,4 +786,8 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="GameMemoryRunningMarkFormat" xml:space="preserve"><value>{0} · používá se</value></data>
   <data name="GameMemoryNextStart" xml:space="preserve"><value>Platí od příštího spuštění hry.</value></data>
   <data name="GameMemoryWithoutLauncher" xml:space="preserve"><value>Hra běží ze spouštěcího skriptu (.bat), který si paměť nastavuje sám. Toto nastavení platí jen při běžném spuštění hry.</value></data>
+  <data name="CardPreview.Header" xml:space="preserve"><value>Náhled karet (vývojové sestavení)</value></data>
+  <data name="CardPreview.Description" xml:space="preserve"><value>Zobrazí kartu postranního panelu bez její situace, abyste mohli zkontrolovat vzhled a tlačítka. Ve vydaných sestaveních není.</value></data>
+  <data name="CardPreview.Show" xml:space="preserve"><value>Zobrazit</value></data>
+  <data name="CardPreview.Clear" xml:space="preserve"><value>Vymazat vše</value></data>
 </root>
