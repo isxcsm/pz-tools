@@ -101,9 +101,9 @@ and automatic names or `AutomaticSaveLabel` disagree with the catalogue. Nothing
 1. Add a member at the end of `SupportedLanguage` in `LanguageCatalog.cs`.
 2. Add a row to `languages.tsv`: ten tab-separated fields, the enum name first, then the tag.
 3. Add a column for the tag to `notices.tsv`, with every row filled in. The build fails
-   when a row has a different number of columns than the header, but no check compares the columns with
-   `languages.tsv` or finds an empty cell. Without the column the game refuses the app's
-   notes in that language.
+   when a row has a different number of columns than the header, and `check-localization.py`
+   fails when the columns differ from `languages.tsv` or a cell is empty. Without the column
+   the game refuses the app's notes in that language.
 4. Add `Strings/<tag>/Resources.resw` with every key.
 5. If Windows has regional variants the app should map to it, extend
    `LanguageCatalog.ForCulture`.
@@ -116,7 +116,7 @@ list comes from the catalogue. The documentation stays in English only.
 
 | Command | Checks |
 | --- | --- |
-| `python scripts/check-localization.py` | Every catalogue tag has a `Resources.resw` and every folder a tag; identical key sets; no duplicate keys or empty values; the same placeholders as English; every literal `Localizer.Get`/`Format` key in `src/PzTools.App/*.cs` and every error message key exists; the manual and automatic backup names agree with `languages.tsv`; the game-save notes have the right placeholders. CI runs it on Linux. |
+| `python scripts/check-localization.py` | Every catalogue tag has a `Resources.resw` and every folder a tag; identical key sets; no duplicate keys or empty values; the same placeholders as English; every literal `Localizer.Get`/`Format` key in `src/PzTools.App/*.cs` and every error message key exists; the manual and automatic backup names agree with `languages.tsv`; the game-save notes have the right placeholders; `notices.tsv` has one column per catalogue tag, unique keys, no empty cells and the same placeholders as English. CI runs it on Linux. |
 | `dotnet test tests/PzTools.Backup.Tests -c Release --filter "FullyQualifiedName~LocalizationTests\|FullyQualifiedName~UserFacingMessageTests\|FullyQualifiedName~GameNoticeCatalogTests"` | The enum matches the catalogue, .NET can parse every format string, a language round-trips through the app settings and the backup worker, the old `Korean` and `English` values in `settings.toml` still read, every error message exists and formats in every language, every note the hotkeys send is in `notices.tsv` |
 | `pwsh scripts/test-ui-smoke.ps1` | Includes the localization smoke ([`PzTools.LocalizationSmoke`](../../tests/PzTools.LocalizationSmoke)): loads every string of every language through the real WinUI resource system, switching languages forward and back, and compares it with the `.resw` file |
 
