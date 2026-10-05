@@ -56,10 +56,11 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                 bool changed = !observed || last!.Identity != identity;
                 // With diagnostics on, every status carries the game's latest driving sample, but steady driving
                 // changes no state. A sample entry now and then shows it on the Logs page without flooding it.
-                bool sample = !changed && status?.Diagnostics is { Length: > 0 } diagnostics
-                    && diagnostics != last!.Diagnostics && occurred - last.At >= SampleInterval;
+                var reading = SampleKey(status?.Diagnostics);
+                bool sample = !changed && reading is { Length: > 0 }
+                    && reading != last!.Diagnostics && occurred - last.At >= SampleInterval;
                 if (!changed && !sample) return;
-                previous[extensionId] = new(identity, status?.Diagnostics, occurred);
+                previous[extensionId] = new(identity, reading, occurred);
                 var eventId = ++sequence;
                 var before = pending;
                 pending = Task.Run(async () =>
@@ -82,6 +83,11 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             // Diagnostics cannot invalidate a committed preference or prevent publishing its status.
         }
     }
+
+    // The sample without its age, which grows while the sample stays the same: a vehicle standing still, or left, keeps
+    // its last sample, and only a sample that changed is news.
+    private static string? SampleKey(string? diagnostics) => diagnostics is null ? null
+        : System.Text.RegularExpressions.Regex.Replace(diagnostics, @"(^|;)sample_age_ms=[^;]*", "");
 
     /// <summary>Waits for transitions already observed; failures never propagate to UI or shutdown.</summary>
     public Task FlushAsync()

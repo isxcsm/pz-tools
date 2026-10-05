@@ -37,6 +37,35 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         Assert.True(options.GetProperty("steeringEnabled").GetBoolean());
     }
 
+    // Seen in a test drive: after the vehicle stopped, its last sample was written again every ten seconds, only older.
+    [Fact]
+    public async Task ASampleThatOnlyGrewOlderIsNotWrittenAgain()
+    {
+        using var temp = new TempDirectory();
+        var sink = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
+        var clock = new ManualTime(new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero));
+        var logger = new ExtensionRuntimeDiagnostics(temp.Path, () => sink, clock);
+        var status = Active();
+        void At(double seconds, string diagnostics)
+        {
+            clock.Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero).AddSeconds(seconds);
+            logger.Observe(status with { Diagnostics = diagnostics });
+        }
+        At(0, "samples=5;rpm=1000;sample_age_ms=3");
+        At(10, "samples=9;rpm=1200;sample_age_ms=1");    // Driving: a newer sample.
+        At(20, "samples=9;rpm=1200;sample_age_ms=10012"); // Stopped: the same sample, older.
+        At(30, "samples=9;rpm=1200;sample_age_ms=20015");
+        At(40, "samples=12;rpm=900;sample_age_ms=2");     // Driving again.
+        await logger.FlushAsync();
+
+        var entries = (await ReadAsync(sink)).Entries.OrderBy(entry => entry.EventId).ToArray();
+        Assert.Equal([ExtensionRuntimeDiagnostics.ChangedEvent, ExtensionRuntimeDiagnostics.SampleEvent,
+            ExtensionRuntimeDiagnostics.SampleEvent], entries.Select(entry => entry.EventName));
+        using var last = JsonDocument.Parse(entries[^1].PayloadJson!);
+        // What is written is the sample as it came, age included.
+        Assert.Equal("samples=12;rpm=900;sample_age_ms=2", last.RootElement.GetProperty("diagnostics").GetString());
+    }
+
     [Fact]
     public async Task SteadyDrivingWithDiagnosticsWritesASampleAtMostEveryTenSeconds()
     {
