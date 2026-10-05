@@ -7,6 +7,12 @@ namespace PzTools.Profiling;
 public sealed record ProfileReportBaseline(ProfileRecording Recording, ProfileRange Range, string? Name);
 
 /// <summary>
+/// The owner the player chose, given in full whether heavy or not: a mod (<see cref="ProfileRange.LuaGroups"/>' key) or a
+/// Java area (<see cref="ProfileRange.MethodGroups"/>' key). A report meant for that mod's author has all it needs.
+/// </summary>
+public sealed record ProfileReportFocus(bool Java, string Key);
+
+/// <summary>
 /// A range's analysis as one Markdown report, to be pasted into a chat with an AI model: the same sections and limits
 /// whatever the page has open, every figure said with what it is of, and a few lines on how to read them first. In
 /// English with invariant numbers, as a format rather than a page: models read it as well whatever language the
@@ -19,14 +25,18 @@ public static class ProfileReport
     // Enough to see where the time went, short enough to paste: the heaviest of each, the rest summed.
     private const int Mods = 12, ModsOpened = 5, FunctionsPerMod = 8, JavaMethods = 15, CallerMethods = 5, CallersPerMethod = 3,
         Allocators = 8, Pauses = 5, Threads = 8, Changes = 8;
+    // One owner in full: more of its functions, the lines of the heaviest, and its call tree down to a hundredth of it.
+    private const int FocusRows = 25, LineFunctions = 10, LinesPerFunction = 4, TreeDepth = 12, TreeSiblings = 6, TreeNodes = 120;
+    private const double TreeFloor = 0.01;
     // Below this a share is noise in a sampled profile; such rows are left out of the per-mod and caller sections.
     private const double Noticeable = 0.005;
 
     /// <param name="thread">The thread the range was analysed for, as <see cref="ProfileAnalysis.Analyze"/>'s; -1 all.</param>
     /// <param name="name">The recording's name as the list shows it.</param>
     /// <param name="baseline">The recording compared with, if any.</param>
+    /// <param name="focus">The owner chosen on the page, if any.</param>
     public static string Build(ProfileRecording recording, ProfileRange range, int thread, string? name = null,
-        ProfileReportBaseline? baseline = null)
+        ProfileReportBaseline? baseline = null, ProfileReportFocus? focus = null)
     {
         var text = new StringBuilder();
         void Line(string line = "") => text.Append(line).Append('\n');
@@ -38,6 +48,9 @@ public static class ProfileReport
             + "base game's own). Percentages are shares of the analysed range's wall-clock time on the analysed thread. "
             + "Self = time in the function itself; Total = including what it called. Figures are statistical: shares "
             + "under about 0.5% or from fewer than about 20 samples are noise.");
+        if (focus is not null)
+            Line($"This report is about one {(focus.Java ? "area of the game's Java code" : "mod")}, chosen in PZ Tools: "
+                + "the recording, frames and memory below are the whole game's, for context; then that one in full.");
         if (baseline is not null)
             Line("This recording is compared with a baseline recording (below). Shares are parts of each recording's own range, "
                 + "so recordings of different lengths compare; Change is this minus the baseline, in percentage points (pp) "
@@ -74,6 +87,14 @@ public static class ProfileReport
         Frames(range.Frames, other?.Frames, Line);
         Breakdown(range, other, Line);
         Memory(recording, range, baseline, Line);
+
+        // One owner chosen: it alone in full, the rest of the game only as the lines above.
+        if (focus is not null)
+        {
+            if (focus.Java) JavaFocus(recording, range, other, thread, focus.Key, Line);
+            else LuaFocus(recording, range, other, focus.Key, Line);
+            return text.ToString().TrimEnd() + "\n";
+        }
 
         if (range.LuaGroups.Count > 0) Lua(recording, range, other, Line);
         else if (recording.LuaPeriod > 0) { Line("## Lua scripts"); Line("- No Lua ran in this range."); Line(); }
@@ -285,33 +306,143 @@ public static class ProfileReport
             }
         }
 
-        // The function's heaviest line of its own: where to look in the file.
-        var functions = new Dictionary<(string, string), int>();
-        for (var index = 0; index < recording.LuaFunctions.Count; index++)
-            functions.TryAdd((recording.LuaFunctions[index].Name, recording.LuaFunctions[index].File), index);
         foreach (var group in range.LuaGroups.Take(ModsOpened).Where(group => group.Self >= Noticeable))
         {
             line($"### {OwnerName(group.Key)}: {Pct(group.Self)} of the range");
-            // The same function in the baseline by its name and its file from media/lua on, as a mod moved stays itself.
-            var before = Before(group.Key)?.Rows.GroupBy(row => ProfileAnalysis.ScriptKey(row.Name, row.Detail))
-                .ToDictionary(rows => rows.Key, rows => rows.Sum(row => row.Self));
-            line(other is null ? "| Function | File:line | Self | Total |" : "| Function | File:line | Self | Total | Self change |");
-            line(other is null ? "|---|---|---:|---:|" : "|---|---|---:|---:|---:|");
-            var lines = range.LuaLines.GetValueOrDefault(group.Key);
-            foreach (var row in group.Rows.Take(FunctionsPerMod))
-            {
-                var at = functions.TryGetValue((row.Name, row.Detail), out var function)
-                    && lines?.GetValueOrDefault(function) is { Count: > 0 } own
-                    && own.MaxBy(item => item.SelfSamples) is { Line: > 0, SelfSamples: > 0 } heaviest
-                        ? ":" + heaviest.Line.ToString(Invariant) : "";
-                var change = other is null ? ""
-                    : before?.TryGetValue(ProfileAnalysis.ScriptKey(row.Name, row.Detail), out var was) == true ? $" {Pp(row.Self - was)} |" : " new |";
-                line($"| {Cell(row.Name is "" or "?" ? "(anonymous)" : row.Name)} | {Cell(row.Detail + at)} | {Pct(row.Self)} | {Pct(row.Total)} |{change}");
-            }
-            if (group.Rows.Count > FunctionsPerMod)
-                line($"| {group.Rows.Count - FunctionsPerMod} more | | {Pct(group.Rows.Skip(FunctionsPerMod).Sum(row => row.Self))} | |{(other is null ? "" : " |")}");
+            FunctionTable(recording, range, group, Before(group.Key), other is not null, FunctionsPerMod, line);
+        }
+    }
+
+    /// <summary>
+    /// One mod in full, for its author or a model asked about it: its functions, their heaviest lines, the call tree
+    /// that reached them, and what they allocated. The rest of the game is the report's few lines above.
+    /// </summary>
+    private static void LuaFocus(ProfileRecording recording, ProfileRange range, ProfileRange? other, string key, Action<string> line)
+    {
+        var group = range.LuaGroups.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        var before = other?.LuaGroups.FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+        line($"## The mod: {OwnerName(key)}");
+        if (group is null)
+        {
+            line("- None of its scripts ran in this range." + (before is null ? "" : $" In the baseline: {Pct(before.Self)} of the range."));
+            line("");
+            return;
+        }
+        var rank = range.LuaGroups.ToList().IndexOf(group) + 1;
+        line($"- {Pct(group.Self)} of the range in its own functions ({Count(group.Samples)} samples), #{rank} of "
+            + $"{range.LuaGroups.Count} script owners; all Lua together {Pct(range.LuaShare)}");
+        if (other is not null)
+            line(before is null ? "- Baseline: it did not run there." : $"- Baseline: {Pct(before.Self)} of the range, a change of {Pp(group.Self - before.Self)}");
+        line("");
+
+        line("### Functions");
+        FunctionTable(recording, range, group, before, other is not null, FocusRows, line);
+
+        // Where inside the heaviest functions: the lines they ran themselves, each sample of the owner an equal slice.
+        var functions = FunctionIndexes(recording);
+        var owned = range.LuaLines.GetValueOrDefault(group.Key);
+        var perSample = group.Samples > 0 ? group.Self / group.Samples : 0;
+        var lineRows = new List<string>();
+        foreach (var row in group.Rows.Take(LineFunctions))
+        {
+            if (!functions.TryGetValue((row.Name, row.Detail), out var function) || owned?.GetValueOrDefault(function) is not { } lines) continue;
+            // A line under a hundredth of a percent would read 0.00%: nothing to look at.
+            var heaviest = lines.Where(item => item.Line > 0 && item.SelfSamples * perSample >= 0.00005)
+                .OrderByDescending(item => item.SelfSamples).Take(LinesPerFunction).ToArray();
+            if (heaviest.Length == 0) continue;
+            lineRows.Add($"- {FunctionName(row.Name)} ({FileName(row.Detail)}): "
+                + string.Join(", ", heaviest.Select(item => $"line {item.Line.ToString(Invariant)} {Pct(item.SelfSamples * perSample)}")));
+        }
+        if (lineRows.Count > 0)
+        {
+            line("### Heaviest lines of the heaviest functions");
+            line("A line's own time: the function running that line itself, not what it called from there.");
+            foreach (var item in lineRows) line(item);
             line("");
         }
+
+        if (range.LuaCallTrees.GetValueOrDefault(group.Key) is { Samples: > 0 } tree)
+        {
+            line("### Call tree");
+            line("How the mod's functions were reached: outermost first, each function under the one that called it, with its total "
+                + "(including what it called) and its own time, and the caller's line it was called from. Only samples that "
+                + "ended in this mod's functions are counted; small branches are summed up.");
+            line("");
+            var floor = Math.Max(tree.Total * TreeFloor, 0.0001);
+            var written = 0;
+            void Walk(ProfileCallNode node, int depth)
+            {
+                var indent = new string(' ', depth * 2);
+                var shown = node.Children.Where(child => child.Total >= floor).Take(TreeSiblings).ToArray();
+                foreach (var child in shown)
+                {
+                    if (written >= TreeNodes) return;
+                    written++;
+                    var at = child.Lines.Where(item => item.Line > 0 && item.SelfSamples > 0).MaxBy(item => item.SelfSamples) is { } main
+                        ? ":" + main.Line.ToString(Invariant) : "";
+                    var from = child.CalledFromLine > 0 ? $", called at line {child.CalledFromLine.ToString(Invariant)}" : "";
+                    line($"{indent}- {FunctionName(child.Name)} ({FileName(child.File)}{at}) total {Pct(child.Total)}, self {Pct(child.Self)}{from}");
+                    if (depth + 1 < TreeDepth) Walk(child, depth + 1);
+                }
+                var rest = node.Children.Except(shown).ToArray();
+                if (rest.Length > 0 && rest.Sum(child => child.Total) >= floor && written < TreeNodes)
+                    line($"{indent}- {rest.Length} more, total {Pct(rest.Sum(child => child.Total))}");
+            }
+            Walk(tree, 0);
+            line("");
+
+            if (tree.AllocatedTotal > 0)
+            {
+                var minutes = Math.Max(1, range.End - range.Start) / 60_000_000.0;
+                line("### Memory it allocated");
+                line($"- {Bytes(tree.AllocatedTotal)} in the range ({Bytes((long)(tree.AllocatedTotal / minutes))} a minute)"
+                    + (range.LuaAllocated > 0 ? $", {Pct((double)tree.AllocatedTotal / range.LuaAllocated)} of all Lua's" : ""));
+                var allocators = ProfileAnalysis.FunctionsIn(tree).Where(row => row.AllocatedSelf > 0)
+                    .OrderByDescending(row => row.AllocatedSelf).Take(Allocators).ToArray();
+                if (allocators.Length > 0)
+                {
+                    line("");
+                    line("| Function | File | Allocated itself |");
+                    line("|---|---|---:|");
+                    foreach (var row in allocators) line($"| {Cell(FunctionName(row.Name))} | {Cell(row.File)} | {Bytes(row.AllocatedSelf)} |");
+                }
+                line("");
+            }
+        }
+    }
+
+    // A mod's functions as a table: the file with the line each ran itself the most, and compared, the change.
+    private static void FunctionTable(ProfileRecording recording, ProfileRange range, ProfileGroup group, ProfileGroup? baseline,
+        bool comparing, int rows, Action<string> line)
+    {
+        var functions = FunctionIndexes(recording);
+        // The same function in the baseline by its name and its file from media/lua on, as a mod moved stays itself.
+        var before = baseline?.Rows.GroupBy(row => ProfileAnalysis.ScriptKey(row.Name, row.Detail))
+            .ToDictionary(same => same.Key, same => same.Sum(row => row.Self));
+        line(comparing ? "| Function | File:line | Self | Total | Self change |" : "| Function | File:line | Self | Total |");
+        line(comparing ? "|---|---|---:|---:|---:|" : "|---|---|---:|---:|");
+        var lines = range.LuaLines.GetValueOrDefault(group.Key);
+        foreach (var row in group.Rows.Take(rows))
+        {
+            var at = functions.TryGetValue((row.Name, row.Detail), out var function)
+                && lines?.GetValueOrDefault(function) is { Count: > 0 } own
+                && own.MaxBy(item => item.SelfSamples) is { Line: > 0, SelfSamples: > 0 } heaviest
+                    ? ":" + heaviest.Line.ToString(Invariant) : "";
+            var change = !comparing ? ""
+                : before?.TryGetValue(ProfileAnalysis.ScriptKey(row.Name, row.Detail), out var was) == true ? $" {Pp(row.Self - was)} |" : " new |";
+            line($"| {Cell(FunctionName(row.Name))} | {Cell(row.Detail + at)} | {Pct(row.Self)} | {Pct(row.Total)} |{change}");
+        }
+        if (group.Rows.Count > rows)
+            line($"| {group.Rows.Count - rows} more | | {Pct(group.Rows.Skip(rows).Sum(row => row.Self))} | |{(comparing ? " |" : "")}");
+        line("");
+    }
+
+    private static Dictionary<(string, string), int> FunctionIndexes(ProfileRecording recording)
+    {
+        var functions = new Dictionary<(string, string), int>();
+        for (var index = 0; index < recording.LuaFunctions.Count; index++)
+            functions.TryAdd((recording.LuaFunctions[index].Name, recording.LuaFunctions[index].File), index);
+        return functions;
     }
 
     private static void Java(ProfileRecording recording, ProfileRange range, ProfileRange? other, int thread, Action<string> line)
@@ -326,24 +457,49 @@ public static class ProfileReport
         }
         line("");
         line("## Heaviest Java methods");
-        line(other is null ? "| Method | Self | Total |" : "| Method | Self | Total | Self change |");
-        line(other is null ? "|---|---:|---:|" : "|---|---:|---:|---:|");
-        var methods = other?.Methods.GroupBy(method => method.Name, StringComparer.Ordinal).ToDictionary(rows => rows.Key, rows => rows.First().Self, StringComparer.Ordinal);
-        foreach (var method in range.Methods.Take(JavaMethods))
+        MethodTable(range.Methods, other, JavaMethods, "Total", line);
+        Callers(recording, range, thread, range.Methods.Take(CallerMethods), line);
+    }
+
+    /// <summary>One Java area in full: its methods, Total counting only what ran inside it, and who called the heaviest.</summary>
+    private static void JavaFocus(ProfileRecording recording, ProfileRange range, ProfileRange? other, int thread, string key, Action<string> line)
+    {
+        var area = range.MethodGroups.FirstOrDefault(group => group.Key == key);
+        var before = other?.MethodGroups.FirstOrDefault(group => group.Key == key);
+        line($"## The Java area: {AreaName(key)}");
+        if (area is not { Rows.Count: > 0 }) { line("- It did not run in this range."); line(""); return; }
+        line($"- {Pct(area.Self)} of the range in its own methods"
+            + (other is null ? "" : before is null ? "; it did not run in the baseline" : $"; baseline {Pct(before.Self)}, a change of {Pp(area.Self - before.Self)}"));
+        line("");
+        line("### Methods");
+        MethodTable(area.Rows, other, FocusRows, "Total in the area", line);
+        Callers(recording, range, thread, area.Rows.Take(CallerMethods), line);
+    }
+
+    private static void MethodTable(IReadOnlyList<ProfileShare> methods, ProfileRange? other, int rows, string total, Action<string> line)
+    {
+        var before = other?.Methods.GroupBy(method => method.Name, StringComparer.Ordinal).ToDictionary(same => same.Key, same => same.First().Self, StringComparer.Ordinal);
+        line(before is null ? $"| Method | Self | {total} |" : $"| Method | Self | {total} | Self change |");
+        line(before is null ? "|---|---:|---:|" : "|---|---:|---:|---:|");
+        foreach (var method in methods.Take(rows))
         {
-            var change = methods is null ? "" : methods.TryGetValue(method.Name, out var was) ? $" {Pp(method.Self - was)} |" : " new |";
+            var change = before is null ? "" : before.TryGetValue(method.Name, out var was) ? $" {Pp(method.Self - was)} |" : " new |";
             line($"| {Cell(method.Name)} | {Pct(method.Self)} | {Pct(method.Total)} |{change}");
         }
+        if (methods.Count > rows) line($"| {methods.Count - rows} more | {Pct(methods.Skip(rows).Sum(method => method.Self))} | |{(before is null ? "" : " |")}");
         line("");
+    }
 
-        // A JDK or library method's time read in the game's terms: who called it, up to the game's own code.
-        var callers = range.Methods.Take(CallerMethods).Where(method => method.Self >= Noticeable).ToArray();
-        if (callers.Length == 0) return;
+    // A JDK or library method's time read in the game's terms: who called it, up to the game's own code.
+    private static void Callers(ProfileRecording recording, ProfileRange range, int thread, IEnumerable<ProfileShare> methods, Action<string> line)
+    {
+        var heavy = methods.Where(method => method.Self >= Noticeable).ToArray();
+        if (heavy.Length == 0) return;
         line("## Who called the heaviest methods");
         line("Each line: the method, then its callers nearest first (A <- B: B called A), with the share of the range through that path. "
-            + "(Lua code running) means a script called it; which scripts ran is in the Lua sections above.");
+            + "(Lua code running) means a script called it; which scripts ran is in the Lua sections.");
         line("");
-        foreach (var method in callers)
+        foreach (var method in heavy)
         {
             var root = ProfileAnalysis.CallersOf(recording, range.Start, range.End, thread, method.Name);
             line($"- `{method.Name}` ({Pct(method.Self)})");
@@ -360,6 +516,14 @@ public static class ProfileReport
             }
         }
         line("");
+    }
+
+    private static string FunctionName(string name) => name is "" or "?" ? "(anonymous)" : name;
+
+    private static string FileName(string file)
+    {
+        var slash = file.Replace('\\', '/').LastIndexOf('/');
+        return slash < 0 ? file : file[(slash + 1)..];
     }
 
     private static string Readable(string method) => method == ProfileAnalysis.LuaRun ? "(Lua code running)" : method;

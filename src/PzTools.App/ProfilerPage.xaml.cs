@@ -53,8 +53,6 @@ public sealed partial class ProfilerPage : UserControl
     private double gripStartY, gripStartHeight;
     private bool resizingChart, updatingGroups;
     private ProfileRange? shown;
-    // The summary above the graph as plain text, for a copy of the page; the line itself changes while hovering.
-    private string rangeSummary = "";
     // A newly opened recording's bars rise from the baseline once, the first time the graph is drawn.
     private bool chartEntrance;
     private List<ResultGroup> luaGroups = [], javaGroups = [], allocationGroups = [], listedGroups = [];
@@ -130,16 +128,18 @@ public sealed partial class ProfilerPage : UserControl
         AppToolTip.SetTip(ChartHelp, string.Join("\n", hints));
         AppToolTip.SetTip(SelectionChip, Localizer.Get("ProfileClearSelection"));
         AutomationProperties.SetName(ChartHelp, Localizer.Get("ProfileChartHelp"));
-        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyReportTip"));
-        CopyResultsText.Text = Localizer.Get("ProfileCopyText");
-        CopyShownItem.Text = Localizer.Get("ProfileCopyResults");
+        AppToolTip.SetTip(ReportButton, Localizer.Get("ProfileCopyReportTip"));
+        ReportText.Text = Localizer.Get("ProfileCopyText");
+        AutomationProperties.SetName(ReportButton, Localizer.Get("ProfileCopyText"));
+        AppToolTip.SetTip(CopyResultsButton, Localizer.Get("ProfileCopyOwnerTip"));
+        CopyResultsText.Text = Localizer.Get("ProfileCopyOwnerText");
         LuaTab.Text = Localizer.Get("ProfileTabLua");
         JavaTab.Text = Localizer.Get("ProfileTabJava");
         AllocationTab.Text = Localizer.Get("ProfileTabAllocation");
         // One name, on or off, like the recording mode's switch.
         CallTreeToggle.OnContent = CallTreeToggle.OffContent = Localizer.Get("ProfileCallTree");
         AutomationProperties.SetName(CallTreeToggle, Localizer.Get("ProfileCallTree"));
-        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyText"));
+        AutomationProperties.SetName(CopyResultsButton, Localizer.Get("ProfileCopyOwnerText"));
         // Set here too, not only when a recording opens: a language changed with a recording open kept the old word.
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
         AutomationProperties.SetName(MemoryToggle, Localizer.Get("ProfileMemory"));
@@ -575,7 +575,7 @@ public sealed partial class ProfilerPage : UserControl
         if (loaded is null || loaded.Duration <= 0) { loadedPath = null; failedPath = path; Clear(Localizer.Get("ProfileLoadFailed")); return; }
         failedPath = null;
         recording = loaded;
-        CompareButton.IsEnabled = true;
+        CompareButton.IsEnabled = ReportButton.IsEnabled = true;
         // Paths name functions by their number in one recording; a new recording starts with nothing highlighted.
         openPaths.Clear();
         luaHighlight = javaHighlight = allocationHighlight = null;
@@ -605,7 +605,7 @@ public sealed partial class ProfilerPage : UserControl
     {
         loadVersion++;
         recording = null;
-        CompareButton.IsEnabled = false;
+        CompareButton.IsEnabled = ReportButton.IsEnabled = false;
         loadedPath = null;
         shown = null;
         HideResults();
@@ -1109,9 +1109,8 @@ public sealed partial class ProfilerPage : UserControl
             : (0L, recording.Duration, ProfileAnalysis.FrameStatistics(recording, 0, recording.Duration));
         var lines = ShowRangeLine(start, end, frames, out var compared);
         // Collections stop the game without leaving samples, so the tables cannot show them. They and the
-        // memory peaks stand on the memory panel's line under the bars, and in the copied text, which starts with this line.
+        // memory peaks stand on the memory panel's line under the bars.
         lines.AddRange(ShowRangeLanes(start, end));
-        rangeSummary = string.Join(" · ", lines);
         if (shown is { } current)
         {
             lines.Add(Localizer.Format("ProfileSummarySamplesFormat", current.Samples, current.Collections, current.CollectionPauseMilliseconds));
@@ -1121,13 +1120,9 @@ public sealed partial class ProfilerPage : UserControl
         }
         lines.Add(Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"));
         // Compared, what with and the figures before → after, under the rest.
-        comparisonSummary = compared ?? "";
         if (compared is not null) lines.Add(compared);
         AppToolTip.SetTip(ChartInfo, string.Join("\n", lines));
     }
-
-    // The comparison as one line of text, for the copy: what with, and the frames before → after.
-    private string comparisonSummary = "";
 
     /// <summary>
     /// The range line above the graph: the range, the average, the worst 1%, each number with its name. The whole
@@ -1977,7 +1972,7 @@ public sealed partial class ProfilerPage : UserControl
         CaptureBar.Margin = new Thickness(0, narrowHeader ? 4 : 9, 0, 0);
         // Labels give way to their icons as the window narrows; each keeps its name as a tip.
         var compact = width < 900;
-        SaveLastText.Visibility = CompareText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        SaveLastText.Visibility = CompareText.Visibility = ReportText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         var stacked = width < 720;
         // The owner list is as wide as the tabs over it need, at least 300: a third tab, or a language with long
         // names, would otherwise be cut off.
@@ -2201,7 +2196,7 @@ public sealed partial class ProfilerPage : UserControl
         ? "<" + 0.01.ToString("0.00", Localizer.Culture) + "%"
         : (share * 100).ToString("0.00", Localizer.Culture) + "%";
 
-    // The figures as shown, as one line of text, for the screen reader and the copied results.
+    // The figures as shown, as one line of text, for the screen reader.
     private string TimeBreakdownText() => string.Join("  ", new[]
     {
         TimeBreakdownTitle.Text,
@@ -2701,6 +2696,9 @@ public sealed partial class ProfilerPage : UserControl
         SetStats(DetailSamples, samples is not null ? [(Localizer.Get("ProfileColumnSamples"), samples)] : []);
         hasSamples = samples is not null;
         shownGroup = group;
+        // A mod or a Java area is a report of its own; the threads and the pauses are already the whole report's.
+        CopyResultsButton.Visibility = group.Kind is DetailKind.Lua or DetailKind.Allocation or DetailKind.Java
+            ? Visibility.Visible : Visibility.Collapsed;
         var tree = TreeOf(group);
         CallTreeToggle.Visibility = tree is null ? Visibility.Collapsed : Visibility.Visible;
         CallTreeToggle.IsOn = callTree;
@@ -2728,7 +2726,7 @@ public sealed partial class ProfilerPage : UserControl
     private const int GrownRows = 30;
 
     /// <summary>
-    /// One line of a table: its cells as text (what a copy carries), how full the bar behind its total is (0..1, or none),
+    /// One line of a table: its cells as text, how full the bar behind its total is (0..1, or none),
     /// and for a call tree the node it shows. Compared with another recording, <see cref="Delta"/> is how many points of
     /// the range its total gained or lost, which the table adds as a last column.
     /// </summary>
@@ -3091,7 +3089,7 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>
     /// One owner's table: its columns, their headings and its rows. A cell's tip is its full text where the
-    /// screen shows less (a method's package, a script's path), which is also what a copy carries.
+    /// screen shows less (a method's package, a script's path).
     /// </summary>
     private (GridLength[] Columns, (string Text, string? Tip, bool Right)[] Header, List<TableLine> Rows) Table(ResultGroup group)
     {
@@ -3487,19 +3485,36 @@ public sealed partial class ProfilerPage : UserControl
 
     /// <summary>
     /// The range as a report for an AI model (<see cref="ProfileReport"/>): every tab's heaviest, whatever is open here.
-    /// Its callers are worked out on a worker, as the page does when a row opens.
     /// </summary>
-    private async void CopyResultsButton_Click(SplitButton sender, SplitButtonClickEventArgs args)
+    private void ReportButton_Click(object sender, RoutedEventArgs e) => CopyReport(ReportButton, null);
+
+    /// <summary>
+    /// The owner shown in the table alone in full, for its author or a model asked about it: its functions, their lines,
+    /// the call tree that reached them, its allocations; or a Java area's methods and their callers.
+    /// </summary>
+    private void CopyResultsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var focus = shownGroup?.Kind switch
+        {
+            DetailKind.Lua or DetailKind.Allocation => new ProfileReportFocus(false, shownGroup.Key),
+            DetailKind.Java => new ProfileReportFocus(true, shownGroup.Key),
+            _ => null,
+        };
+        if (focus is not null) CopyReport(CopyResultsButton, focus);
+    }
+
+    // Worked out on a worker, as the page does when a row opens: a report's callers walk the range's samples.
+    private async void CopyReport(Button button, ProfileReportFocus? focus)
     {
         if (recording is not { } current || shown is not { } range) return;
         var thread = ThreadBox.SelectedIndex == 1 || current.GameThread < 0 ? -1 : current.GameThread;
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
         // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
         var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;
-        CopyResultsButton.IsEnabled = false;
+        button.IsEnabled = false;
         try
         {
-            var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared));
+            var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared, focus));
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
             package.SetText(report);
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
@@ -3509,71 +3524,7 @@ public sealed partial class ProfilerPage : UserControl
         {
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
-        finally { CopyResultsButton.IsEnabled = true; }
-    }
-
-    /// <summary>
-    /// The page as text, as it reads on screen: the recording, the range, the tab's owners and the chosen
-    /// owner's table. Meant to be pasted into a message, so the table's columns are padded to line up.
-    /// </summary>
-    private void CopyShownItem_Click(object sender, RoutedEventArgs e)
-    {
-        if (recording is null || shown is null) return;
-        var text = new System.Text.StringBuilder();
-        text.AppendLine(string.Join(" · ", new[]
-        {
-            (RecordingList.SelectedItem as RecordingItem)?.Text,
-            Localizer.Get(recording.Detailed ? "ProfileModeDetailed" : "ProfileModeGeneral"),
-            ThreadBox.SelectedItem as string,
-        }.Where(part => !string.IsNullOrEmpty(part))));
-        text.AppendLine(rangeSummary);
-        if (comparisonSummary.Length > 0) text.AppendLine(comparisonSummary);
-        if (TimeBreakdownPanel.Visibility == Visibility.Visible) text.AppendLine(TimeBreakdownText());
-        text.AppendLine();
-        text.AppendLine(TabItem.Text);
-        if (listedGroups.Count == 0) text.AppendLine(ResultMessage.Text);
-        else
-        {
-            // The list as it reads: its headings (with the scripts' total), then each owner, and compared, the change.
-            var share = GroupShareTotal.Text.Length > 0 ? $"{GroupShareText.Text} {GroupShareTotal.Text}" : GroupShareText.Text;
-            if (GroupShareDelta.Visibility == Visibility.Visible) share += " " + GroupShareDelta.Text;
-            var compared = listedGroups.Any(group => OwnerDelta(group) is not null);
-            (string Text, string? Tip, bool Right)[] Line(string name, string value, string change) =>
-                compared ? [(name, null, false), (value, null, true), (change, null, true)] : [(name, null, false), (value, null, true)];
-            var list = new List<(string Text, string? Tip, bool Right)[]> { Line(GroupNameHeading.Text, share, Localizer.Get("ProfileColumnDelta")) };
-            list.AddRange(listedGroups.Select(group => Line(group.Name, ValueOf(group), OwnerDelta(group) is { } delta ? DeltaText(delta) : "")));
-            AppendTable(text, list, "  ");
-        }
-        if (GroupList.SelectedIndex >= 0 && GroupList.SelectedIndex < listedGroups.Count)
-        {
-            var group = listedGroups[GroupList.SelectedIndex];
-            var (_, header, rows) = Table(group);
-            text.AppendLine();
-            text.AppendLine(SamplesOf(group) is { } samples ? $"{group.Name}  {Localizer.Get("ProfileColumnSamples")} {samples}" : group.Name);
-            var all = new List<(string Text, string? Tip, bool Right)[]> { header };
-            all.AddRange(rows.Select(line => line.Cells));
-            AppendTable(text, all, "");
-        }
-        try
-        {
-            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-            package.SetText(text.ToString().TrimEnd());
-            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-            App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"), Localizer.Get("ProfileResultsCopied"));
-        }
-        catch (Exception exception)
-        {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
-        }
-    }
-
-    /// <summary>Rows of cells as lines of text, each column padded to its widest cell so the columns line up.</summary>
-    private static void AppendTable(System.Text.StringBuilder text, IReadOnlyList<(string Text, string? Tip, bool Right)[]> rows, string indent)
-    {
-        var widths = Enumerable.Range(0, rows[0].Length).Select(column => rows.Max(row => row[column].Text.Length)).ToArray();
-        foreach (var row in rows)
-            text.AppendLine(indent + string.Join("  ", row.Select((cell, column) =>
-                cell.Right ? cell.Text.PadLeft(widths[column]) : cell.Text.PadRight(widths[column]))).TrimEnd());
+        finally { button.IsEnabled = true; }
     }
 
     /// <summary>Grows an element to its full size from <paramref name="from"/> (scale about its CenterPoint).</summary>

@@ -367,11 +367,11 @@ Detalhado: registra a cada 0,002 segundo aprox. e também guarda esperas e pausa
   <data name="ProfileEmpty" xml:space="preserve"><value>Ainda não há gravações.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Não é possível abrir a gravação. Ela está danificada ou é de uma versão mais nova.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Roda do mouse: zoom · Arrastar: selecionar um intervalo · Clique: selecionar um quadro · Arrastar com o botão direito: mover · Clique duplo: mostrar tudo · Barras cinza em Memória: limpeza de memória (GC), da altura da pausa · ▲: quadro acima da escala (seu tempo ao passar o ponteiro) · Clique em um item da lista: a parte dele em cada barra (de novo para parar; enquanto isso, aponte para outro para pré-visualizar) · Fundo laranja-claro: enquanto o GC rodava</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar o conteúdo exibido como texto</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar para IA</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiado.</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia este trecho como um relatório para colar em um chat com IA: os principais números de todas as abas no mesmo formato, não importa o que esteja aberto aqui (em inglês).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Relatório copiado. Cole-o em um chat com IA.</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Copiar só este</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Copia só o mod escolhido (ou a área de Java) em detalhe: funções, linhas mais pesadas, árvore de chamadas e alocações. Para o autor do mod ou uma IA perguntada sobre ele (em inglês).</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Abra o jogo para gravar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} não foi iniciado porque o jogo não está em execução.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} não foi iniciado porque há mais de um jogo em execução.</value></data>

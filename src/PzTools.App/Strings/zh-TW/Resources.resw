@@ -367,11 +367,11 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>還沒有錄製紀錄。</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>無法開啟錄製。檔案已損毀，或由較新的版本建立。</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>滾輪：縮放 · 拖曳：選取範圍 · 點一下：選取一個影格 · 右鍵拖曳：移動 · 按兩下：顯示全部 · 記憶體面板中的灰色長條：記憶體清理（GC），高度為暫停時間 · ▲：超出刻度的影格（游標停留時顯示時間） · 按一下清單中的項目：在每根長條中加深顯示其部分（再按一下取消；顯示期間指向其他項目可預覽） · 淺橘色背景：GC 執行期間</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>將顯示的內容複製為文字</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>複製給 AI</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>已複製。</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>將此區間複製為可貼到 AI 對話中的報告：無論這裡展開了什麼，所有分頁的主要數據都以相同格式包含在內（英文）。</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>報告已複製。請貼到 AI 對話中。</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>僅複製此項</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>只詳細複製所選模組（或 Java 區域）：函式、最重的行、呼叫樹和記憶體配置。用於傳給模組作者，或只向 AI 詢問這個模組（英文）。</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>啟動遊戲後即可錄製。</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>遊戲沒有在執行，未開始{0}。</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>有多個遊戲在執行，未開始{0}。</value></data>

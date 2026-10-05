@@ -367,11 +367,11 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>Записів поки немає.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Не вдається відкрити запис. Його пошкоджено або створено в новішій версії.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Коліщатко: масштаб · Перетягування: вибір діапазону · Клацання: вибір одного кадру · Перетягування правою кнопкою: зсув · Подвійне клацання: показати все · Сірі стовпці в панелі «Пам’ять»: очищення пам'яті (GC), висота — тривалість паузи · ▲: кадр понад шкалою (час під час наведення) · Клацання пункту списку: його частка в кожному стовпці (ще раз — прибрати; поки показано, наведення на інший — попередній перегляд) · Світло-помаранчеве тло: поки працював GC</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Скопіювати показане як текст</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати для ШІ</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Скопійовано.</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Копіює цей проміжок як звіт для вставлення в чат зі ШІ: головні цифри всіх вкладок в одному форматі, хоч би що тут було розгорнуто (англійською).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Звіт скопійовано. Вставте його в чат зі ШІ.</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Копіювати лише це</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Копіює докладно лише вибраний мод (або область Java): функції, найважчі рядки, дерево викликів і виділення пам&apos;яті. Для автора мода або ШІ, якого питають про цей мод (англійською).</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Запустіть гру, щоб записувати.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0}: не розпочато, бо гру не запущено.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0}: не розпочато, бо запущено більше однієї гри.</value></data>

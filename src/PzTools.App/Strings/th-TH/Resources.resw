@@ -374,11 +374,11 @@
   <data name="ProfileEmpty" xml:space="preserve"><value>ยังไม่มีการบันทึก</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>เปิดการบันทึกไม่ได้ ไฟล์เสียหายหรือมาจากเวอร์ชันที่ใหม่กว่า</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>ล้อเมาส์: ซูม · ลาก: เลือกช่วง · คลิก: เลือกหนึ่งเฟรม · ลากด้วยปุ่มขวา: เลื่อน · ดับเบิลคลิก: แสดงทั้งหมด · แท่งสีเทาในแผงหน่วยความจำ: ล้างหน่วยความจำ (GC) ความสูงคือเวลาที่หยุด · ▲: เฟรมที่เกินสเกล (ดูเวลาเมื่อชี้เมาส์) · คลิกรายการในลิสต์: แสดงส่วนของรายการนั้นในแต่ละแท่ง (คลิกอีกครั้งเพื่อยกเลิก ระหว่างแสดง ชี้รายการอื่นเพื่อดูตัวอย่าง) · พื้นหลังสีส้มอ่อน: ขณะ GC ทำงาน</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>คัดลอกเนื้อหาที่แสดงเป็นข้อความ</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกสำหรับ AI</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>คัดลอกแล้ว</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>คัดลอกช่วงนี้เป็นรายงานสำหรับวางในแชทกับ AI: ตัวเลขหลักของทุกแท็บในรูปแบบเดียวกัน ไม่ว่าตรงนี้จะเปิดอะไรไว้ (เป็นภาษาอังกฤษ)</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>คัดลอกรายงานแล้ว วางลงในแชทกับ AI ได้เลย</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>คัดลอกเฉพาะรายการนี้</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>คัดลอกเฉพาะม็อดที่เลือก (หรือส่วน Java) แบบละเอียด: ฟังก์ชัน บรรทัดที่หนักที่สุด ต้นไม้การเรียก และการจองหน่วยความจำ สำหรับผู้สร้างม็อด หรือถาม AI เกี่ยวกับม็อดนี้ (เป็นภาษาอังกฤษ)</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>เปิดเกมเพื่อเริ่มบันทึก</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะเกมไม่ได้เปิดอยู่</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>ไม่ได้เริ่ม{0} เพราะมีเกมเปิดอยู่มากกว่าหนึ่งเกม</value></data>

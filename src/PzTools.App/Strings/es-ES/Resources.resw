@@ -367,11 +367,11 @@ Detallado: registra cada 0,002 segundos aprox. y guarda también esperas y pausa
   <data name="ProfileEmpty" xml:space="preserve"><value>Aún no hay grabaciones.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>No se puede abrir la grabación. Está dañada o es de una versión más reciente.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Rueda: zoom · Arrastrar: seleccionar un intervalo · Clic: seleccionar un fotograma · Arrastrar con el botón derecho: mover · Doble clic: ver todo · Barras grises en Memoria: limpieza de memoria (GC), tan altas como su pausa · ▲: fotograma por encima de la escala (su tiempo al pasar el puntero) · Clic en un elemento de la lista: su parte de cada barra (otra vez para quitarlo; mientras se dibuja, apunta a otro para previsualizarlo) · Fondo naranja claro: mientras corría el GC</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Copiar lo que se muestra como texto</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Copiar para IA</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Copiado.</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia este tramo como un informe para pegar en un chat con IA: las cifras principales de todas las pestañas con el mismo formato, sin importar lo que esté desplegado aquí (en inglés).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Informe copiado. Pégalo en un chat con IA.</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Copiar solo esto</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Copia solo el mod elegido (o el área de Java) en detalle: sus funciones, las líneas más pesadas, el árbol de llamadas y las asignaciones. Para el autor del mod o una IA a la que preguntes por él (en inglés).</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Inicia el juego para grabar.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>{0} no se inició porque el juego no está en ejecución.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>{0} no se inició porque hay más de un juego en ejecución.</value></data>

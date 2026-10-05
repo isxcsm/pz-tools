@@ -73,7 +73,7 @@ public sealed partial class MainWindowShell
                 break;
             // The result cards expire like real ones. Unlike a real warning or error, they leave nothing in the log.
             case "notice-success":
-                PreviewNotice(OperationStatus.Succeeded, "ProfilerNavigation", "ProfileResultsCopied");
+                PreviewNotice(OperationStatus.Succeeded, "ProfilerNavigation", "ProfileReportCopied");
                 break;
             case "notice-info":
                 PreviewNotice(OperationStatus.Busy, "HotKeysTitle", "HotKeyNoSave");

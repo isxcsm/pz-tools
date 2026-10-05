@@ -367,11 +367,11 @@ Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamala
   <data name="ProfileEmpty" xml:space="preserve"><value>Henüz kayıt yok.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Kayıt açılamıyor. Bozuk ya da daha yeni bir sürümden.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Tekerlek: yakınlaştır · Sürükle: aralık seç · Tıkla: tek kare seç · Sağ tuşla sürükle: kaydır · Çift tıkla: tümünü göster · Bellek panelindeki gri çubuklar: bellek temizliği (GC), yüksekliği duraklama süresi · ▲: ölçeği aşan kare (süresi üzerine gelince) · Listedeki bir öğeye tıklayın: her çubuktaki payı (durdurmak için yeniden; bu sırada önizleme için başka birinin üzerine gelin) · Açık turuncu arka plan: GC çalışırken</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Gösterilen içeriği metin olarak kopyala</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Yapay zekâ için kopyala</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Kopyalandı.</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Bu aralığı bir yapay zekâ sohbetine yapıştırmak üzere rapor olarak kopyalar: burada ne açık olursa olsun tüm sekmelerin başlıca değerleri aynı biçimde (İngilizce).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapor kopyalandı. Bir yapay zekâ sohbetine yapıştırın.</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Yalnızca bunu kopyala</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Yalnızca seçilen modu (veya Java alanını) ayrıntılı kopyalar: işlevleri, en ağır satırları, çağrı ağacı ve ayırmaları. Mod yazarına ya da bu modu sorduğun bir yapay zekâya (İngilizce).</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Kayıt için oyunu başlatın.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Oyun çalışmadığı için {0} başlatılmadı.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Birden fazla oyun çalıştığı için {0} başlatılmadı.</value></data>

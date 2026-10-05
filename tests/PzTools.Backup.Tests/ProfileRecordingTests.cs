@@ -169,6 +169,27 @@ public sealed class ProfileRecordingTests
     }
 
     [Fact]
+    public void Report_ForAChosenOwner_GivesItAloneInFull_WithItsCallTree()
+    {
+        var recording = Load(Sample);
+        var slow = ProfileAnalysis.Analyze(recording, 10_000, 50_000, recording.GameThread);
+        var report = ProfileReport.Build(recording, slow, recording.GameThread, focus: new ProfileReportFocus(false, "SlowMod"));
+        Assert.Contains("## The mod: SlowMod\n- 50.00% of the range in its own functions (2 samples), #1 of 3 script owners", report);
+        Assert.Contains("| slow | workshop/123/mods/SlowMod/42/media/lua/client/Slow.lua:12 | 50.00% | 75.00% |", report);
+        Assert.Contains("- slow (Slow.lua): line 12 50.00%", report);
+        // Reached from the game's OnTick both times: its line called it.
+        Assert.Contains("- OnTick (ISGame.lua) total 50.00%, self 0.00%\n  - slow (Slow.lua:12) total 50.00%, self 50.00%, called at line 80", report);
+        // The other owners and the Java tables are not this mod's: left out.
+        Assert.DoesNotContain("## Lua scripts by mod", report);
+        Assert.DoesNotContain("Heaviest Java methods", report);
+
+        var java = ProfileReport.Build(recording, slow, recording.GameThread, focus: new ProfileReportFocus(true, ProfileAnalysis.JavaRuntime));
+        Assert.Contains("## The Java area: Java built-ins (java.*, jdk.*)\n- 25.00% of the range in its own methods", java);
+        Assert.Contains("| java.util.HashMap.get | 25.00% | 25.00% |", java);
+        Assert.DoesNotContain("SlowMod", java);
+    }
+
+    [Fact]
     public void TimeBreakdown_SplitsTheGameThreadsRangeIntoScriptsGameCodeCollectionsAndWaiting()
     {
         var recording = Load(Sample);

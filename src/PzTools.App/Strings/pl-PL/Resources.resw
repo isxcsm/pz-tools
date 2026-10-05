@@ -367,11 +367,11 @@ Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i
   <data name="ProfileEmpty" xml:space="preserve"><value>Brak nagrań.</value></data>
   <data name="ProfileLoadFailed" xml:space="preserve"><value>Nie można otworzyć nagrania. Jest uszkodzone lub pochodzi z nowszej wersji.</value></data>
   <data name="ProfileChartHint" xml:space="preserve"><value>Kółko: powiększenie · Przeciąganie: zaznaczenie zakresu · Kliknięcie: wybór jednej klatki · Przeciąganie prawym przyciskiem: przesuwanie · Dwukrotne kliknięcie: pokaż wszystko · Szare słupki w panelu Pamięć: czyszczenie pamięci (GC), wysokość według przerwy · ▲: klatka ponad skalą (jej czas po najechaniu) · Kliknięcie pozycji na liście: jej część każdego słupka (ponownie, aby wyłączyć; w tym czasie najechanie na inną pokazuje podgląd) · Jasnopomarańczowe tło: gdy działało GC</value></data>
-  <data name="ProfileCopyResults" xml:space="preserve"><value>Skopiuj wyświetlaną zawartość jako tekst</value></data>
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopiuj dla AI</value></data>
-  <data name="ProfileResultsCopied" xml:space="preserve"><value>Skopiowano.</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Kopiuje ten zakres jako raport do wklejenia w czacie z AI: najważniejsze wartości ze wszystkich kart w tym samym formacie, niezależnie od tego, co jest tu rozwinięte (po angielsku).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Raport skopiowany. Wklej go w czacie z AI.</value></data>
+  <data name="ProfileCopyOwnerText" xml:space="preserve"><value>Kopiuj tylko to</value></data>
+  <data name="ProfileCopyOwnerTip" xml:space="preserve"><value>Kopiuje szczegółowo tylko wybrany mod (lub obszar Javy): funkcje, najcięższe wiersze, drzewo wywołań i alokacje. Dla autora moda albo AI pytanej o ten mod (po angielsku).</value></data>
   <data name="ProfileNeedsGame" xml:space="preserve"><value>Uruchom grę, aby nagrywać.</value></data>
   <data name="LogEvent.RunGameNotRunning" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ gra nie jest uruchomiona.</value></data>
   <data name="LogEvent.RunMultipleGames" xml:space="preserve"><value>Nie rozpoczęto: {0}, ponieważ uruchomiono więcej niż jedną grę.</value></data>
