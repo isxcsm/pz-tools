@@ -720,6 +720,14 @@ Podrobný: zaznamenává asi každých 0,002 s a ukládá i čekání a zastaven
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skripty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kód hry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Čekání</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Tento soubor v tomto počítači není. Záznam mohl vzniknout na jiném počítači, nebo byl mód odebrán či přesunut.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Od záznamu změněn: čísla řádků se mohou lišit</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Otevřít</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Otevřít řádek {0} ve VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Otevřít ve VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Otevřít ve VS Code (VS Code nenalezen)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Zobrazit ve složce</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Kopírovat cestu</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Zastavení kvůli paměti</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>snímky o {0:P0} pomalejší, když běželo GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Jiné programy využívaly v průměru {0:P0} procesoru</value></data>

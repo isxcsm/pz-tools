@@ -720,6 +720,14 @@ GC працює: частка відрізка, коли працював зби
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Скрипти</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Код гри</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Очікування</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Цього файлу немає на цьому ПК. Запис могли зробити на іншому ПК, або мод видалено чи переміщено.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Змінено після запису: номери рядків можуть відрізнятися</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Відкрити</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Відкрити рядок {0} у VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Відкрити у VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Відкрити у VS Code (VS Code не знайдено)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Показати в папці</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Копіювати шлях</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Зупинка через пам’ять</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>кадри на {0:P0} повільніші, поки працював GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Інші програми використовували в середньому {0:P0} процесора</value></data>

@@ -720,6 +720,14 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Código do jogo</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Espera</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Este arquivo não está neste PC. A gravação pode ter vindo de outro PC, ou o mod foi removido ou movido.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Alterado desde a gravação: os números de linha podem ser diferentes</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Abrir</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Abrir a linha {0} no VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Abrir no VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Abrir no VS Code (VS Code não encontrado)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Mostrar na pasta</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Copiar caminho</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Parada por memória</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>quadros {0:P0} mais lentos enquanto o GC rodava</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Outros programas usaram em média {0:P0} da CPU</value></data>

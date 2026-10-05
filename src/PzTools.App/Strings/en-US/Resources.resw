@@ -719,6 +719,14 @@ Detailed: takes a reading about every 0.002 seconds and also records waits and p
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Scripts</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Game code</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Waiting</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>This file is not on this PC. The recording may come from another PC, or the mod was removed or moved.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Changed since the recording: its line numbers may differ</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Open</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Open line {0} in VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Open in VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Open in VS Code (VS Code not found)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Show in folder</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Copy path</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Memory stop</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>frames {0:P0} slower while GC ran</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Other programs used {0:P0} of the CPU on average</value></data>

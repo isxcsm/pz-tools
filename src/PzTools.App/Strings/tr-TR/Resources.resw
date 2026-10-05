@@ -720,6 +720,14 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Betikler</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Oyun kodu</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Bekleme</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Bu dosya bu bilgisayarda yok. Kayıt başka bir bilgisayarda yapılmış olabilir ya da mod kaldırılmış veya taşınmış olabilir.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Kayıttan sonra değişmiş: satır numaraları farklı olabilir</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Aç</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>VS Code&apos;da {0}. satırı aç</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>VS Code&apos;da aç</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>VS Code&apos;da aç (VS Code bulunamadı)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Klasörde göster</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Yolu kopyala</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Bellek duruşu</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC çalışırken kareler {0:P0} daha yavaş</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Diğer programlar ortalama işlemcinin {0:P0} kadarını kullanıyordu</value></data>

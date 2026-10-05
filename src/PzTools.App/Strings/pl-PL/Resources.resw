@@ -720,6 +720,14 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrypty</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kod gry</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Oczekiwanie</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Tego pliku nie ma na tym komputerze. Nagranie mogło powstać na innym komputerze albo mod usunięto lub przeniesiono.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Zmieniony od nagrania: numery wierszy mogą się różnić</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Otwórz</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Otwórz wiersz {0} w VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Otwórz w VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Otwórz w VS Code (nie znaleziono VS Code)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Pokaż w folderze</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Kopiuj ścieżkę</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Postój przez pamięć</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>klatki o {0:P0} wolniejsze, gdy działało GC</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Inne programy używały średnio {0:P0} procesora</value></data>

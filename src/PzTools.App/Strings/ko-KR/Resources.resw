@@ -719,6 +719,14 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>스크립트</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>게임 코드</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>대기</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>이 PC에 이 파일이 없습니다. 다른 PC에서 녹화했거나 모드가 삭제·이동됐을 수 있습니다.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>녹화 이후 바뀐 파일이라 줄 번호가 다를 수 있습니다</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>열기</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>VS Code에서 {0}번 줄 열기</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>VS Code에서 열기</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>VS Code에서 열기 (VS Code를 찾지 못함)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>폴더에서 보기</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>경로 복사</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>메모리 멈춤</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC가 도는 동안 프레임 평균 {0:P0} 느림</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>다른 프로그램이 CPU를 평균 {0:P0} 사용 중이었음</value></data>

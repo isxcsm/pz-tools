@@ -720,6 +720,14 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>スクリプト</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>ゲーム コード</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>待機</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>このファイルはこの PC にありません。別の PC で記録したか、MOD が削除・移動された可能性があります。</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>記録後に変更されたファイルのため、行番号が異なる場合があります</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>開く</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>VS Code で {0} 行目を開く</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>VS Code で開く</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>VS Code で開く (VS Code が見つかりません)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>フォルダーで表示</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>パスをコピー</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>メモリ停止</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 中はフレームが平均 {0:P0} 遅い</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>ほかのプログラムが CPU を平均 {0:P0} 使用中でした</value></data>

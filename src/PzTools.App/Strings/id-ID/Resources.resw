@@ -720,6 +720,14 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>Skrip</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>Kode game</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>Menunggu</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>Berkas ini tidak ada di PC ini. Rekaman mungkin dibuat di PC lain, atau mod telah dihapus atau dipindahkan.</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>Berubah sejak direkam: nomor barisnya bisa berbeda</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>Buka</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>Buka baris {0} di VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>Buka di VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>Buka di VS Code (VS Code tidak ditemukan)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>Tampilkan di folder</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>Salin jalur</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>Berhenti karena memori</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>bingkai {0:P0} lebih lambat saat GC berjalan</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>Program lain memakai rata-rata {0:P0} CPU</value></data>

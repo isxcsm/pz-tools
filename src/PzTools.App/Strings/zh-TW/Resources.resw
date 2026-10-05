@@ -720,6 +720,14 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>腳本</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>遊戲程式碼</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>等待</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>這台電腦上沒有這個檔案。錄製可能來自另一台電腦，或模組已被刪除或移動。</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>錄製後檔案已變更，行號可能不同</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>開啟</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>在 VS Code 中開啟第 {0} 行</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>在 VS Code 中開啟</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>在 VS Code 中開啟（找不到 VS Code）</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>在資料夾中顯示</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>複製路徑</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>記憶體停頓</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>GC 執行時畫格平均慢 {0:P0}</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>其他程式平均佔用了 {0:P0} 的 CPU</value></data>

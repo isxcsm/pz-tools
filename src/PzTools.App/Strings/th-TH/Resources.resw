@@ -727,6 +727,14 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="ProfileBreakdownScripts" xml:space="preserve"><value>สคริปต์</value></data>
   <data name="ProfileBreakdownGame" xml:space="preserve"><value>โค้ดของเกม</value></data>
   <data name="ProfileBreakdownWaiting" xml:space="preserve"><value>รอ</value></data>
+  <data name="ProfileScriptMissing" xml:space="preserve"><value>ไม่มีไฟล์นี้ในพีซีเครื่องนี้ อาจบันทึกจากพีซีเครื่องอื่น หรือม็อดถูกลบหรือย้ายไปแล้ว</value></data>
+  <data name="ProfileScriptChanged" xml:space="preserve"><value>ไฟล์เปลี่ยนหลังการบันทึก หมายเลขบรรทัดอาจไม่ตรง</value></data>
+  <data name="ProfileScriptOpen" xml:space="preserve"><value>เปิด</value></data>
+  <data name="ProfileScriptOpenInCodeFormat" xml:space="preserve"><value>เปิดบรรทัด {0} ใน VS Code</value></data>
+  <data name="ProfileScriptOpenInCode" xml:space="preserve"><value>เปิดใน VS Code</value></data>
+  <data name="ProfileScriptNoCode" xml:space="preserve"><value>เปิดใน VS Code (ไม่พบ VS Code)</value></data>
+  <data name="ProfileScriptShowInFolder" xml:space="preserve"><value>แสดงในโฟลเดอร์</value></data>
+  <data name="ProfileScriptCopyPath" xml:space="preserve"><value>คัดลอกเส้นทาง</value></data>
   <data name="ProfileBreakdownMemory" xml:space="preserve"><value>หยุดเพราะหน่วยความจำ</value></data>
   <data name="ProfileMemoryGcSlowerFormat" xml:space="preserve"><value>เฟรมช้าลง {0:P0} ขณะ GC ทำงาน</value></data>
   <data name="ProfileOtherCpuFormat" xml:space="preserve"><value>โปรแกรมอื่นใช้ CPU เฉลี่ย {0:P0}</value></data>

@@ -720,6 +720,68 @@ public sealed partial class ProfilerPage : UserControl
         MoreIcon.Visibility = saving ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    // ---- A script's file ----
+
+    // This PC's folders for scripts, found once: Steam's libraries and the game's install do not move while the app runs.
+    private ScriptFileLocator.Roots? scriptRoots;
+
+    /// <summary>
+    /// A script function's file, pressed: where it is on this PC, or why it is not there (a recording made on another
+    /// PC, a mod removed since), and the ways to open it. A file changed since the recording is said to be, as its lines
+    /// may have moved.
+    /// </summary>
+    private void ShowScriptMenu(FrameworkElement anchor, ScriptAt script)
+    {
+        string? full = null;
+        try
+        {
+            scriptRoots ??= App.Host is { } host ? ScriptFileLocator.Current(host.Settings.Load().SavesRoot) : null;
+            full = scriptRoots is null ? null : ScriptFileLocator.Locate(script.File, scriptRoots);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException) { }
+        var menu = new MenuFlyout();
+        menu.Items.Add(new MenuFlyoutItem { Text = full ?? Localizer.Get("ProfileScriptMissing"), IsEnabled = false });
+        if (full is not null && recording?.StartedUtc is { } started && File.GetLastWriteTimeUtc(full) > started.UtcDateTime)
+            menu.Items.Add(new MenuFlyoutItem { Text = Localizer.Get("ProfileScriptChanged"), IsEnabled = false, Icon = new FontIcon { Glyph = "" } });
+        menu.Items.Add(new MenuFlyoutSeparator());
+        var code = full is null ? null : ScriptFileLocator.VisualStudioCode();
+        void Add(string text, string glyph, bool enabled, Action run)
+        {
+            var item = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph }, IsEnabled = enabled };
+            item.Click += (_, _) =>
+            {
+                try { run(); }
+                catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+                {
+                    App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
+                }
+            };
+            menu.Items.Add(item);
+        }
+        // Through Explorer, so the editor does not start with the app's administrator rights.
+        Add(Localizer.Get("ProfileScriptOpen"), "", full is not null,
+            () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"\"{full}\"" })?.Dispose());
+        Add(code is null && full is not null ? Localizer.Get("ProfileScriptNoCode")
+                : script.Line > 0 ? Localizer.Format("ProfileScriptOpenInCodeFormat", script.Line) : Localizer.Get("ProfileScriptOpenInCode"),
+            "", code is not null, () =>
+            {
+                var start = new System.Diagnostics.ProcessStartInfo(code!) { UseShellExecute = false };
+                start.ArgumentList.Add("--goto");
+                start.ArgumentList.Add(script.Line > 0 ? $"{full}:{script.Line}" : full!);
+                System.Diagnostics.Process.Start(start)?.Dispose();
+            });
+        Add(Localizer.Get("ProfileScriptShowInFolder"), "", full is not null,
+            () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe") { Arguments = $"/select,\"{full}\"" })?.Dispose());
+        // The path as the recording names it when the file is not here: still what to look for.
+        Add(Localizer.Get("ProfileScriptCopyPath"), "", true, () =>
+        {
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(full ?? script.File);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        });
+        menu.ShowAt(anchor);
+    }
+
     private void OpenFolderItem_Click(object sender, RoutedEventArgs e)
     {
         if (service is null) return;
@@ -2578,7 +2640,7 @@ public sealed partial class ProfilerPage : UserControl
             var line = rows[index];
             var growIndex = grow && index < GrownRows ? index : -1;
             DetailRows.Children.Add(line.Tree is { } item ? TreeRow(columns, group, line, item, growIndex)
-                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex));
+                : TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex, line.Script));
         }
     }
 
@@ -2592,7 +2654,10 @@ public sealed partial class ProfilerPage : UserControl
     /// the range its total gained or lost, which the table adds as a last column.
     /// </summary>
     private sealed record TableLine((string Text, string? Tip, bool Right)[] Cells, double? Bar = null, TreeItem? Tree = null,
-        double? SelfBar = null, double? Delta = null);
+        double? SelfBar = null, double? Delta = null, ScriptAt? Script = null);
+
+    /// <summary>A script function's file as the recording names it, and the line to open it at (0: its top).</summary>
+    private sealed record ScriptAt(string File, int Line);
 
     // ---- Call tree ----
 
@@ -2866,7 +2931,8 @@ public sealed partial class ProfilerPage : UserControl
             (LuaFileName(file) is { Length: > 0 } fileName ? fileName + at : "", file + at + (fileNote is null ? "" : "\n" + fileNote), false),
             Part(selfSamples, allocatedSelf), Part(samples, allocatedTotal),
             (shownSamples.ToString("N0", Localizer.Culture), null, true),
-        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0, delta);
+        ], whole > 0 ? Math.Clamp((double)filled / whole, 0, 1) : 0, tree, all > 0 ? Math.Clamp(own / all, 0, 1) : 0, delta,
+            LuaFileName(file) is { Length: > 0 } && file.EndsWith(".lua", StringComparison.OrdinalIgnoreCase) ? new ScriptAt(file, line) : null);
     }
 
     /// <summary>
@@ -2885,7 +2951,7 @@ public sealed partial class ProfilerPage : UserControl
 
     private Grid TreeRow(IReadOnlyList<GridLength> columns, ResultGroup group, TableLine line, TreeItem item, int growIndex = -1)
     {
-        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex);
+        var row = TableRow(columns, line.Cells, header: false, line.Bar, line.SelfBar, line.Delta, growIndex, line.Script);
         // The name cell gives way to an indented one with the open/close arrow in front.
         row.Children.RemoveAt(0);
         var name = new Grid { Margin = new Thickness(item.Depth * 16, 0, 0, 0), ColumnSpacing = 2 };
@@ -2907,7 +2973,7 @@ public sealed partial class ProfilerPage : UserControl
             row.Tapped += (_, args) =>
             {
                 for (var element = args.OriginalSource as DependencyObject; element is not null; element = VisualTreeHelper.GetParent(element))
-                    if (ReferenceEquals(element, arrow)) return;
+                    if (ReferenceEquals(element, arrow) || element is HyperlinkButton) return;
                 ToggleNode(group, item.Path);
             };
         }
@@ -3182,7 +3248,7 @@ public sealed partial class ProfilerPage : UserControl
     /// <param name="bar">How full the gauge behind the total is (0..1), for a script function; none elsewhere.</param>
     /// <param name="selfBar">How full the gauge behind the self figure is: the line's own part of its total.</param>
     private Grid TableRow(IReadOnlyList<GridLength> columns, IReadOnlyList<(string Text, string? Tip, bool Right)> cells, bool header,
-        double? bar = null, double? selfBar = null, double? delta = null, int growIndex = -1)
+        double? bar = null, double? selfBar = null, double? delta = null, int growIndex = -1, ScriptAt? script = null)
     {
         var row = new Grid { ColumnSpacing = 12, Padding = new Thickness(0, header ? 0 : 5, 0, header ? 0 : 5) };
         foreach (var width in columns) row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -3238,13 +3304,27 @@ public sealed partial class ProfilerPage : UserControl
                 Grid.SetColumn(track, index);
                 row.Children.Add(track);
             }
+            // A script's file reads as a link: pressed, it says where the file is on this PC and opens it.
+            if (!header && index == FileColumn && script is not null && text.Length > 0)
+            {
+                var link = new HyperlinkButton
+                {
+                    Content = cell, Padding = new Thickness(0), MinHeight = 0, HorizontalAlignment = HorizontalAlignment.Left,
+                    HorizontalContentAlignment = HorizontalAlignment.Left,
+                };
+                link.Click += (_, _) => ShowScriptMenu(link, script);
+                if (tip is { Length: > 0 }) AppToolTip.SetTip(link, tip);
+                Grid.SetColumn(link, index);
+                row.Children.Add(link);
+                continue;
+            }
             row.Children.Add(cell);
         }
         return row;
     }
 
     // The numbers' places in a script function's line: name, file, self, total, samples, and compared, the change.
-    private const int SelfColumn = 2, TotalColumn = 3, DeltaColumn = 5;
+    private const int FileColumn = 1, SelfColumn = 2, TotalColumn = 3, DeltaColumn = 5;
 
     // ---- Copy ----
 

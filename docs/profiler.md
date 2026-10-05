@@ -304,7 +304,15 @@ the recorder keeps starts at the 24th. The list is still the way to see a helper
 many paths call: the tree splits its cost among them, the list adds it up.
 
 The *File* column names the line the function ran itself the most, as `Client.lua:125`
-(in *Memory allocation*, where it allocated most): what to change, not only where. In the
+(in *Memory allocation*, where it allocated most): what to change, not only where. The
+file reads as a link. Pressed, it finds the script on this PC from the path the recording
+keeps (a Workshop mod under Steam's libraries, a mod in the player's own *mods* folder,
+the game's own scripts under its install, each only inside its own folder and only a
+`.lua` file) and shows the full path with *Open* (through Explorer, so the editor does not
+start with the app's administrator rights), *Open line N in VS Code* (where VS Code is
+installed), *Show in folder* and *Copy path*. A script not on this PC (a recording made on
+another, a mod removed since) says so and leaves only the copy of the recorded path; one
+changed since the recording warns that its lines may have moved. In the
 list, a function's row opens into all its lines, most samples first; a line it only
 called from is marked *(call)*, as its time is the called function's. In the tree, a node
 opens into what it called, the heaviest first, and after them one closed row, *Lines it
