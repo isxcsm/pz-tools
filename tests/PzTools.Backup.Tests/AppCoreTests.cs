@@ -770,6 +770,31 @@ public sealed class AppCoreTests
         Assert.Equal("launch-failed", LogDiagnostics.Parse(log.PayloadJson)?.FailureCode);
     }
 
+    // Seen in a test of the app: a manual backup running when the app closed was found Abandoned at the next start,
+    // as the app's process ended first and Windows ended its worker with it.
+    [Fact]
+    public async Task ClosingTheApp_StopsAManualBackupAndRecordsItCancelled_BeforeItReturns()
+    {
+        using var temp = new TempDirectory();
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
+        var launcher = new WaitingLauncher();
+        var coordinator = new OperationCoordinator(repository, temp.Path, BackupTelemetry(repository), launcher,
+            new RunIndexAllocator(temp.GetPath("control.db")), temp.GetPath("operations"));
+        var backup = coordinator.BackupAsync("Sandbox/Save", temp.GetPath("source"), operationId: "local-backup:closing");
+        while (launcher.Executables.Count == 0) await Task.Delay(10);
+
+        await coordinator.StopAsync(TimeSpan.FromSeconds(10));
+
+        Assert.True(backup.IsCompleted);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => backup);
+        Assert.Equal(1, launcher.Cancelled);
+        Assert.Equal(WorkflowStatus.Cancelled, (await repository.TryReadWorkflowByAdmissionAsync("local-backup:closing", default))!.Status);
+        // Nothing starts once the app is closing.
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            coordinator.BackupAsync("Sandbox/Save", temp.GetPath("source")));
+        Assert.Single(launcher.Executables);
+    }
+
     [Fact]
     public async Task LiveExport_UsesSourceCommandWithoutBackupRevision()
     {

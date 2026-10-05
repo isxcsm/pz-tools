@@ -400,6 +400,12 @@ public sealed class AppHost : IAsyncDisposable
     {
         // While workers can still run: a recording left alone would keep the game recording until its time limit.
         await Profiles.StopAndWaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        // A backup, restore, export or deletion in progress stops as its own cancellation would, and records that it
+        // was cancelled, before the app's process ends and Windows ends its workers with it. A worker gets the grace
+        // to stop; the rest is the time to record the outcome.
+        if (Operations is { } operations)
+            await operations.StopAsync(TimeSpan.FromMilliseconds(runtime.ShutdownGraceMs) + TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
         lifetime.Cancel();
         Projections.RequestStop();
         try

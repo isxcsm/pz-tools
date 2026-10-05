@@ -41,8 +41,59 @@ public sealed class OperationCoordinator(
     private int runningDeletions;
     public bool IsDeletionRunning => Volatile.Read(ref runningDeletions) > 0;
 
+    // Work in progress, so that closing the app stops it and waits for it (StopAsync). Without that the app's process
+    // ended first, Windows ended its workers with it (the job object), and nothing recorded how the work ended: the
+    // next start found it Abandoned instead of Cancelled.
+    private readonly CancellationTokenSource stopping = new();
+    private readonly object flightGate = new();
+    private int inFlight;
+    private bool stopRequested;
+    private TaskCompletionSource? idle;
+
+    /// <summary>
+    /// Asks every operation in progress to stop, as its own cancellation does, and waits until each has recorded how it
+    /// ended, at most <paramref name="patience"/>. No operation starts after this.
+    /// </summary>
+    public async Task StopAsync(TimeSpan patience)
+    {
+        Task finished;
+        lock (flightGate)
+        {
+            stopRequested = true;
+            finished = inFlight == 0 ? Task.CompletedTask
+                : (idle ??= new(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+        }
+        stopping.Cancel();
+        try { await finished.WaitAsync(patience).ConfigureAwait(false); }
+        catch (TimeoutException) { }
+    }
+
+    // Each operation runs under this, with the caller's token linked to the app's stop.
+    private Flight Begin(ref CancellationToken cancellationToken)
+    {
+        lock (flightGate)
+        {
+            if (stopRequested) throw new OperationCanceledException(stopping.Token);
+            inFlight++;
+        }
+        var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stopping.Token);
+        cancellationToken = linked.Token;
+        return new Flight(this, linked);
+    }
+
+    private sealed class Flight(OperationCoordinator owner, CancellationTokenSource linked) : IDisposable
+    {
+        public void Dispose()
+        {
+            linked.Dispose();
+            lock (owner.flightGate)
+                if (--owner.inFlight == 0) owner.idle?.TrySetResult();
+        }
+    }
+
     public async Task RefreshStateAsync(string stateDatabasePath, string savesRoot, CancellationToken cancellationToken = default)
     {
+        using var flight = Begin(ref cancellationToken);
         // Uses the same StateCollection mutex as the periodic runner. The UI never changes the schedule or the database itself.
         for (var attempt = 0; attempt < runtime.StateRefreshAttempts; attempt++)
         {
@@ -63,6 +114,7 @@ public sealed class OperationCoordinator(
         string savesRoot, string saveId, CancellationToken cancellationToken = default,
         IProgress<SaveDeletionProgress>? progress = null)
     {
+        using var flight = Begin(ref cancellationToken);
         var sourcePath = Path.GetFullPath(Path.Combine(savesRoot, saveId.Replace('/', Path.DirectorySeparatorChar)));
         Interlocked.Increment(ref runningDeletions);
         try
@@ -99,6 +151,7 @@ public sealed class OperationCoordinator(
 
     public async Task DeleteRevisionAsync(long sourceId, long revision, CancellationToken cancellationToken = default)
     {
+        using var flight = Begin(ref cancellationToken);
         Interlocked.Increment(ref runningDeletions);
         try
         {
@@ -121,6 +174,7 @@ public sealed class OperationCoordinator(
     public async Task<int> DeleteAllRevisionsAsync(
         long sourceId, string saveId, CancellationToken cancellationToken = default)
     {
+        using var flight = Begin(ref cancellationToken);
         Interlocked.Increment(ref runningDeletions);
         try
         {
@@ -143,6 +197,7 @@ public sealed class OperationCoordinator(
         long sourceId, long revision, string displayName,
         CancellationToken cancellationToken = default)
     {
+        using var flight = Begin(ref cancellationToken);
         await using var admission = await TryAcquireAsync(
             [(OperationScope.RepositoryWrite, repository.RepositoryPath)], cancellationToken);
         if (admission is null) throw new IOException("operation-busy: Another operation is using the backup repository.");
@@ -161,6 +216,7 @@ public sealed class OperationCoordinator(
         string archivePath,
         CancellationToken cancellationToken = default)
     {
+        using var flight = Begin(ref cancellationToken);
         var identity = Path.GetFullPath(archivePath);
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         var operationId = $"archive-inspect-{Guid.NewGuid():N}";
@@ -226,6 +282,7 @@ public sealed class OperationCoordinator(
         CancellationToken cancellationToken = default,
         string? operationId = null)
     {
+        using var flight = Begin(ref cancellationToken);
         operationId ??= $"manual-backup:{Guid.NewGuid():N}";
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(
@@ -305,6 +362,7 @@ public sealed class OperationCoordinator(
         CancellationToken cancellationToken = default,
         string? operationId = null)
     {
+        using var flight = Begin(ref cancellationToken);
         operationId ??= $"restore:{Guid.NewGuid():N}";
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);
         await using var admission = await TryAcquireAsync(
@@ -484,6 +542,7 @@ public sealed class OperationCoordinator(
         string? operationId = null,
         Action<string>? standardOutput = null)
     {
+        using var flight = Begin(ref cancellationToken);
         var prefix = component == "archive-worker" ? $"archive-{kind}" : component == "profiler" ? component : kind;
         operationId ??= $"{prefix}:{Guid.NewGuid():N}";
         var runIndex = await runIndexes.AllocateAsync(cancellationToken: cancellationToken);

@@ -266,7 +266,11 @@ growing delay of up to 60 seconds and does not stop observation
 ([`OptionalWorkSupervisor`](../../src/PzTools.Process.Hosting/OptionalWorkSupervisor.cs)).
 
 On close ([`AppHost.DisposeCoreAsync`](../../src/PzTools.App.Core/AppHost.cs)) the app stops a running recording
-(waiting up to 10 seconds), cancels the schedulers through their stop events, drains the projections, and starts one
+(waiting up to 10 seconds), then every operation in progress: a manual backup, restore, export, import, revival,
+deletion or state refresh (`OperationCoordinator.StopAsync`). Each is cancelled as the user's own cancellation would be,
+so its worker gets the stop event and the operation records `Cancelled`; the app waits up to `shutdown_grace_ms` plus
+5 seconds for that, and no operation starts after it. Without this the app's process ended first, the job object ended
+the workers with it, and recovery later found the work `Abandoned` (`process-interrupted`). It then cancels the schedulers through their stop events, drains the projections, and starts one
 detached `OrphanBackups` pass (`OrphanCleanupDispatcher.DispatchOnExitAsync`). Many close the app right after the
 game, while it is still saving and exiting: with a game process present, the pass gets
 `--wait-for-game-exit-seconds 30`. It waits for the game before taking any lock, so an app started again meanwhile
