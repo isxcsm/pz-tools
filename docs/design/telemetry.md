@@ -39,11 +39,10 @@ state checks and maintenance lanes have none.
 | --- | --- |
 | `backup-scheduler`, `state-scheduler` | `scheduler.db` |
 | `state-runner`, `state-collector`, `state-reactor` | `state.db` |
-| `backup-runner`, `maintenance-runner`, `maintenance-worker`, `maintenance-lane-<lane>`, `backup-worker` | The backup folder |
+| `backup-runner`, `maintenance-runner`, `maintenance-worker`, `maintenance-lane-<lane>` | The backup folder |
 | `restore-worker`, `archive-worker`, `character-recovery`, `profiler` | `%LOCALAPPDATA%\PzTools\operations\<component>\<operation key>`, passed as `--telemetry-identity` |
 
-The backup worker's process database holds only its `backup.completed` event, written whenever `enabled` is
-true, also in `off` mode. The app never registers it as a source, so nothing reads it. The `backup-runner` and
+The backup worker has no process database: its events go to the backup folder's own `telemetry.db` (below). The `backup-runner` and
 `maintenance-runner` events go to the log only; they never make a card. `state-runner` events can. An operation's database is deleted once its events
 are in `logs.db` and its card has gone. Any left over at start-up are imported into `logs.db` and then deleted
 ([`AppHost.RegisterHistoricalOperationTelemetrySourcesAsync`](../../src/PzTools.App.Core/AppHost.cs)).

@@ -26,16 +26,16 @@ as busy. The mutex names and the writer lock are described in [process architect
 | Inspect an archive | None | None | No |
 | Export a backup | `repository:<backup folder>` (`RepositoryRead`) | `RepositoryAccess` on the backup folder | Held while the revision is read |
 | Export the current save (live export) | `save:<save folder>` | `SaveWrite` on the save folder | No |
-| Import | `save:<saves root>` | `SaveWrite` on the saves root | No |
+| Import | `save:<saves root>` | `SaveWrite` on the saves root, and on the new save's folder while it is moved in | No |
 | Delete a backup, delete all backups | `repository:<backup folder>` (`RepositoryWrite`) | `RepositoryAccess` on the backup folder | Yes |
 | Delete a save | `repository:<backup folder>` and `save:<save folder>` | `RepositoryAccess` on the backup folder and `SaveWrite` on the save folder | Yes, plus an open write transaction for the whole folder deletion |
 
 - The in-app gates are one `SemaphoreSlim(1, 1)` per family and full path. `RepositoryRead` and `RepositoryWrite`
   map to the same `repository:` gate, so inside the app a backup export excludes a backup or deletion as a write
   would.
-- `SaveWrite` locks are per path and do not nest. An import locks the saves root, not the folder it creates, so it
-  does not exclude a restore or deletion of another save's folder. Inside the app this does not matter, because the
-  page runs one action at a time (below).
+- `SaveWrite` locks are per path and do not nest. An import locks the saves root for its whole run, and the folder it
+  creates only for the final move (step 9 below), so a restore or deletion of another save's folder can run beside
+  it, but an import never moves a save in under a name a restore is working on.
 - Above the gates, the Save manager page refuses every action while any operation other than a performance recording
   is running, or while one of its own actions is in progress, from its dialog to its refresh
   (`HasConflictingOperation`). While the telemetry projection is faulted, work running elsewhere is not seen. The gates and mutexes are what stop
@@ -84,9 +84,14 @@ is exact and not rounded to two seconds. `ExportAndImport_KeepTheSavesFileTimes`
 
 ## Export
 
-Both kinds write a temporary file `<output>.<guid>.tmp` beside the chosen output and replace the output with
-`File.Move(..., overwrite: true)` only after everything succeeded. On any failure the temporary file is deleted in a
-`finally` and an existing output file is left as it was.
+Both kinds write a temporary file `<output>.pztools-export-<guid>.tmp` beside the chosen output and replace the output
+with `File.Move(..., overwrite: true)` only after everything succeeded. On any failure the temporary file is deleted in
+a `finally` and an existing output file is left as it was.
+
+While the temporary file exists, its export keeps a handle to the named mutex `ArchiveExport` for that file's path
+open (never acquired, only open). Before writing, each export deletes the `*.pztools-export-<guid>.tmp` files in its
+output folder whose mutex nobody has open: those of an export that was killed. It also deletes
+`<output>.<guid>.tmp` files of the same output, the name older versions used.
 
 ### Exporting a backup
 
@@ -155,8 +160,9 @@ accepts `.zip` and `.pzsave`.
 
 The limits come from `[archive]` in the archive worker's configuration, the preview limits below from its
 `[preview]` section ([files and
-folders](../reference/files-and-folders.md#importing-zip-archives)). `ArchiveSafetyOptions` also has a compression-ratio
-check (`archive-unsafe-ratio`), but its defaults turn it off and the worker never sets it.
+folders](../reference/files-and-folders.md#importing-zip-archives)). There is no compression-ratio check: ordinary
+save files such as `map_visited.bin` compress beyond 1000:1. Each entry is bounded by its size limit and its declared
+length, and the whole import by the free-space check.
 
 The preview reads `thumb.png` only up to `thumbnail_mib` (16) and only if it starts with the PNG signature, and
 extracts `players.db` to a temporary file only up to `players_database_mib` (64) to read the character's name and
@@ -168,23 +174,28 @@ hours survived. Above either limit the preview leaves that part out; the import 
    **Cancel** is the default button.
 2. On **Import**, the app takes the `save:<saves root>` gate and starts `import`. The worker takes `SaveWrite` on the
    saves root.
-3. It inspects the archive again with the configured limits.
-4. It deletes every folder in the saves root whose name starts with `.pztools-import-`, to remove staging left by an
-   earlier import. This match is by prefix alone, unlike recovery's (below).
-5. The mode folder must not be a reparse point; it is created if missing.
-6. It chooses the name: the manifest's save name if nothing in the mode folder has it (files and folders, ignoring
-   case), otherwise the first free of `Save(1)`, `Save(2)`, and so on.
-7. It creates `.pztools-import-<guid>` in the saves root as staging, opens the archive again, validates the entries,
-   reads the manifest again and refuses the archive if it differs from the inspected one, and checks the layout.
-8. Free space: the sum of the files' unpacked sizes must fit on the saves drive with a reserve left, the larger of
-   `minimum_free_space_reserve_bytes` (5 GiB) and `minimum_free_space_reserve_percent` (10) of that sum.
-9. Each entry except the manifest is written into staging with `FileMode.CreateNew`, after a check that its path stays
-   inside staging. Each copy stops at the entry's declared length, fails if the data is shorter or longer, and checks
-   CRC-32. Each file gets its time from the ZIP entry.
-10. The staged save must contain `players.db`, which gets `lastPlayedUtc`.
-11. `Directory.Move` moves the staged save to `<Mode>/<chosen name>`. This is the only step that makes the save
-    visible. It fails if that name appeared since step 6, so an existing save is never overwritten.
-12. Staging is deleted in a `finally`.
+3. It inspects the archive again with the configured limits. The mode folder, if it exists, must not be a reparse
+   point.
+4. It opens the archive again, validates the entries, reads the manifest again and refuses the archive if it differs
+   from the inspected one, and checks the layout.
+5. Free space: the sum of the files' unpacked sizes must fit on the saves drive with a reserve left, the larger of
+   `minimum_free_space_reserve_bytes` (5 GiB) and `minimum_free_space_reserve_percent` (10) of that sum. Nothing has
+   been created yet, so a refusal leaves the saves folder as it was.
+6. It deletes the `.pztools-import-<guid>` folders in the saves root, staging left by an earlier import. As in
+   recovery (below), only names whose suffix is a GUID.
+7. It creates `.pztools-import-<guid>` in the saves root as staging. Each entry except the manifest is written into it
+   with `FileMode.CreateNew`, after a check that its path stays inside staging. Each copy stops at the entry's
+   declared length, fails if the data is shorter or longer, and checks CRC-32. Each file gets its time from the ZIP
+   entry.
+8. The staged save must contain `players.db`, which gets `lastPlayedUtc`. The mode folder is checked again for a
+   reparse point and created if missing.
+9. It chooses the name: the manifest's save name if it is free, otherwise the first free of `Save(1)`, `Save(2)`, and
+   so on. A name is taken by anything in the mode folder with that name (files and folders, ignoring case), and by
+   restore or save-edit leftovers `.<name>.pztools-…`, because recovery may still move a save back under it. Under
+   `SaveWrite` on `<Mode>/<chosen name>` it checks the name again and `Directory.Move`s the staged save there. A name
+   whose lock is held, by a restore of a save not yet there for example, is skipped for the next one. This is the only
+   step that makes the save visible, and an existing save is never overwritten.
+10. Staging is deleted in a `finally`.
 
 The imported save has no backups. Its key is `Mode/<chosen name>`, so its revision numbers are independent of the
 save it came from (`Restore_UsesImportedSaveKeyWithIndependentRevisionNumbers`).
@@ -289,20 +300,20 @@ Other saves, other saves' backups and archives exported earlier are never touche
 
 | Interrupted | Left behind | Cleaned up by |
 | --- | --- | --- |
-| Export (either kind) | `<output>.<guid>.tmp` beside the chosen output. The output, if it existed, is unchanged. | Nothing; the file stays until deleted by hand |
-| Import before step 11 | `.pztools-import-<guid>` in the saves root; no save appears | The next import (step 4), and [interrupted-operation recovery](process-architecture.md#recovering-interrupted-operations) at app start and in every orphan-backups pass, which deletes it under `SaveWrite` on the saves root, so never during a running import |
-| Import after step 11 | A complete save | — |
+| Export (either kind) | `<output>.pztools-export-<guid>.tmp` beside the chosen output. The output, if it existed, is unchanged. | The next export into that folder ([above](#export)) |
+| Import before step 9 | `.pztools-import-<guid>` in the saves root; no save appears | The next import (step 6), and [interrupted-operation recovery](process-architecture.md#recovering-interrupted-operations) at app start and in every orphan-backups pass, which deletes it under `SaveWrite` on the saves root, so never during a running import |
+| Import after step 9 | A complete save | — |
 
 The state collector ignores `.pztools-import-<guid>` folders (`SaveOperationPaths.IsTemporaryDirectory`), so a half
-extracted import is never listed as a save. Recovery deletes only names whose suffix is a GUID and keeps lookalikes
-such as `.pztools-import-ordinary-save` (`ImportLookalikeDirectory_IsPreserved`); the import's own cleanup in step 4
-does not make that distinction.
+extracted import is never listed as a save. Recovery and the import's own cleanup delete only names whose suffix is a
+GUID and keep lookalikes such as `.pztools-import-ordinary-save` (`ImportLookalikeDirectory_IsPreserved`,
+`Import_RemovesOnlyItsOwnAbandonedStaging`).
 
 ## Tests
 
 | Test class | Covers |
 | --- | --- |
-| [`ArchiveTests`](../../tests/PzTools.Backup.Tests/ArchiveTests.cs) | Round trips, name collisions, version 1 layout, live export change detection, output inside the save, damaged objects, entry limits, path traversal, file times |
+| [`ArchiveTests`](../../tests/PzTools.Backup.Tests/ArchiveTests.cs) | Round trips, name collisions, version 1 layout, live export change detection, output inside the save, damaged objects, entry limits, path traversal, file times, leftovers of killed imports and exports, the free-space refusal, names a restore holds |
 | [`ArchiveIntegrityTests`](../../tests/PzTools.Backup.Tests/ArchiveIntegrityTests.cs) | CRC-32 and changed payloads, including empty files and the manifest |
 | [`SaveDeletionTests`](../../tests/PzTools.Backup.Tests/SaveDeletionTests.cs) | Scope checks, locked files, cancellation, files created after validation, progress |
 | [`AppCoreTests`](../../tests/PzTools.Backup.Tests/AppCoreTests.cs) | `DeleteRevision_*`, `DeleteAllRevisions_*`, `DeleteSave_*`, `LiveExport_*`, `ArchiveInspect_*` through `OperationCoordinator` |

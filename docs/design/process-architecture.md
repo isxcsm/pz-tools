@@ -129,9 +129,9 @@ waits for a mutex. A mutex abandoned by a dead process counts as acquired and is
 | `AppInstance` | Data folder | App, for its whole life | Second launch signals `AppActivate` (an event) to show the first window, then exits |
 | `BackupScheduler` | `scheduler.db` | Backup scheduler | One backup scheduler per data folder |
 | `StateScheduler` | `scheduler.db` and `state.db` | State scheduler | One state scheduler per data folder |
-| `StateCollection` | `state.db` | Every state write: periodic check, runtime state commit, state runner | State writes never overlap |
-| `RepositoryAccess` | Backup folder | Backup runner, maintenance runner, orphan-backups lane, restore, ZIP export of a backup, character recovery, the app's delete and rename actions, start-up recovery | One job per repository at a time; a second gets `Busy` |
-| `SaveWrite` | Save folder (saves root for import) | Restore, live export, import, character recovery, save deletion, start-up recovery | One writer per save |
+| `StateCollection` | `state.db` | Every state write: periodic check, runtime state commit, state runner, and the collector and reactor programs when run on their own (the state runner passes `--runner-holds-lock` to its children) | State writes never overlap |
+| `RepositoryAccess` | Backup folder | Backup runner, maintenance runner, orphan-backups lane, restore, ZIP export of a backup, `verify`, character recovery, the app's delete and rename actions, start-up recovery | One job per repository at a time; a second gets `Busy` |
+| `SaveWrite` | Save folder (saves root for import, plus the new save's folder while it is moved in) | Restore, live export, import, character recovery, save deletion, start-up recovery | One writer per save |
 | `MaintenanceDispatch` | Backup folder | Maintenance runner | One dispatch at a time |
 | `MaintenanceLane.<lane>` | Backup folder | That lane's process | One process per lane; doubles as the "is it running" probe |
 

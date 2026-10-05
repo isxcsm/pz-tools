@@ -34,13 +34,12 @@ Each program also accepts `--probe` alone, which exits with 0 and does nothing. 
 
 | What you run | Is it safe? |
 | --- | --- |
-| `backup`, `restore`, `maintenance prune`, `maintenance gc`, the ZIP commands, revive | Yes. They lock the backup folder as the app does. If the app is using it, they exit with 75 and change nothing. A save the game has open makes `restore` and revive fail with 1, also without changing it. `inspect` only reads the ZIP and takes no lock. |
-| `verify` | Close the app first. `verify` takes no lock, so cleanup the app runs at the same time can make it report damage that isn't there. |
+| `backup`, `restore`, `verify`, `maintenance prune`, `maintenance gc`, the ZIP commands, revive | Yes. They lock the backup folder as the app does. If the app is using it, they exit with 75 and change nothing. A save the game has open makes `restore` and revive fail with 1, also without changing it. `inspect` only reads the ZIP and takes no lock. |
 | `PzTools.Profiler.Cli.exe record` | Not while the app is recording. The game holds one recording, and starting one ends the one running. |
 | `PzTools.Profiler.Cli.exe roll-start`, `roll-save`, `roll-stop` | No. They control the recording behind **Keep the last minutes**, which the app manages. |
 | `PzTools.Backup.Scheduler.exe configure` on the app's `scheduler.db` | No. It changes the schedule behind the app: **Settings** then shows values that are not in effect, until you next change the backup settings there. |
 | Either scheduler's run on the app's databases | Pointless. It exits with 75, as the app's copy holds them. |
-| `PzTools.State.Collector.Cli.exe` or `PzTools.State.Reactor.Cli.exe` on the app's `state.db` | No. They take no lock. |
+| `PzTools.State.Collector.Cli.exe` or `PzTools.State.Reactor.Cli.exe` on the app's `state.db` | No. They wait their turn behind the app's own check (exit 75 while it runs), but what they record changes what the app believes about your saves. |
 
 The app's **Logs** page shows a command-line restore or ZIP operation after the app's next start.
 
@@ -66,7 +65,7 @@ PzTools.Backup.Cli.exe help
 
 | Command | What it does |
 | --- | --- |
-| `backup` | Takes one backup of one save. Creates the backup folder if it doesn't exist. Prints the result as JSON. |
+| `backup` | Takes one backup of one save. Creates the backup folder `--repository` if it doesn't exist. Prints the result as JSON. |
 | `restore` | Replaces the save folder `--target` with backup number `--revision`. See [restore safety](#restore-safety). |
 | `verify` | Reads every stored pack and checks it. Prints a JSON report. |
 | `maintenance prune` | Deletes all but the newest `--keep` automatic backups of one save (`--keep` at least 1). Other backups stay. This can't be undone. |
@@ -81,7 +80,7 @@ PzTools.Backup.Cli.exe help
 
 | Option | Effect |
 | --- | --- |
-| `--repository <folder>` | The backup folder. Without it, the current folder is used, so always give it. |
+| `--repository <folder>` | The backup folder. Required. |
 | `--source-id <mode/name>` | Which save to back up. It must match a `--source`. |
 | `--source <mode/name>=<folder>` | The save's folder. Repeat it for more saves. The app's settings file names no saves, so you need this. |
 | `--save-game` | Asks the game to save first, if it is running with this save loaded and **Save game before backup** is on. |
@@ -98,7 +97,7 @@ The app also passes options of its own (`--runtime-ticket`, `--runtime-authority
 
 | Option | Values |
 | --- | --- |
-| `--repository <folder>` | The backup folder. Default: the current folder. |
+| `--repository <folder>` | The backup folder. Required for `backup`; for `config` the default is the current folder. |
 | `--config <file>` | Another backup settings file, read instead of the one above. |
 | `--source <mode/name>=<folder>` | A save to back up. Replaces the saves named in the file. |
 | `--always-include <path>` | A file, relative to the save, to check in every backup even if its timestamps look unchanged. Repeatable. Replaces the list in the file. |
@@ -186,7 +185,7 @@ Each run prints one JSON line to standard output (the profiler prints progress l
 | 64 | Unknown command or option, or a bad value. See the exceptions below. |
 | 75 | Busy: another program is using that save or backup folder. Nothing was changed. Try again later. |
 
-Some return 1 instead of 64 for a bad option or value: `restore`, `maintenance prune --keep 0`, the revive program, the runners, `PzTools.Maintenance.Cli.exe` and the state programs. The ZIP and revive programs ignore an option they don't know.
+Some return 1 instead of 64 for a bad option or value: the revive program and `PzTools.State.Runner.exe`. The revive program ignores an option it doesn't know.
 
 A backup's `result` can carry `warnings`, such as diagnostic records that could not be written or leftover files found in the backup folder. They don't change the exit code.
 
