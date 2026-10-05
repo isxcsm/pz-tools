@@ -399,6 +399,9 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileCopyText" xml:space="preserve"><value>Copy for AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copies a report to paste into an AI chat: the whole report, or a detailed one on the mod in the table below only (in English).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Report copied. Paste it into an AI chat.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Save as a file</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Report saved: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Whole report</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frames, memory, every mod and a Java summary for this range; the same whatever is open here. For asking why the game is slow.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Detailed report: {0}</value></data>
@@ -459,15 +462,14 @@ The current save and other backups are kept. The deleted backup can no longer be
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Lines it ran itself · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (call)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC pause</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC working {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>working {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC working {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>working {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Waited for memory {0:N0} times, longest {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC pause: time the whole game stopped for garbage collection. ZGC, the game&apos;s default, hardly ever stops it.
 GC working: the share of the range the collector was running. It runs beside the game and shares its CPU, so with memory short it nears 100% and the game slows down.
 Waited for memory: how many times a thread stopped until memory was freed, because memory was full.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Click to hide or show this row</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Click to open the memory panel on this row</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Hotkey: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>New name (empty for the saved name)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Last {0} min</value></data>

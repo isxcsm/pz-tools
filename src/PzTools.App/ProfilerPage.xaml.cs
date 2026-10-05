@@ -1218,20 +1218,21 @@ public sealed partial class ProfilerPage : UserControl
     // shut for the others, which it would only push the tables down for.
     private static bool memoryOpen, memoryChosen;
 
-    // Each row can be put away by its figure on the panel's line, for as long as the app runs. The collections ride on
-    // the heap's row, whose drops they are, or have a row of their own without heap readings; the ones that paused the
-    // game long enough to feel are also marked on the frame graph, and their figure puts those marks away too.
-    private static bool heapRow = true, videoRow = true, collectionMarks = true;
+    // The collections ride on the heap's row, whose drops they are, or have a row of their own without heap readings;
+    // the ones that paused the game long enough to feel are also marked on the frame graph, with the collector's
+    // background, and their figure puts those away and back, for as long as the app runs. The panel itself opens and
+    // shuts by its button; its rows are not put away one by one.
+    private static bool collectionMarks = true;
 
-    // Whether the recording has anything for the panel: its line stays, so a row put away can be brought back.
+    // Whether the recording has anything for the panel.
     private bool MemoryAvailable => recording is { } loaded
         && (loaded.Heap.Count > 0 || loaded.Collections.Count > 0 || loaded.VideoMemory.Count > 0 || AllocationOwner is not null);
 
     // The rows shown: heap with its collections (the collections alone in a recording without the heap), the
     // highlighted mod's allocations, video memory.
-    private bool HeapRowShown => recording is { } loaded && heapRow && loaded.Heap.Count > 0;
+    private bool HeapRowShown => recording is { } loaded && loaded.Heap.Count > 0;
     private bool CollectionsAloneShown => recording is { } loaded && collectionMarks && loaded.Heap.Count == 0 && loaded.Collections.Count > 0;
-    private bool VideoRowShown => recording is { } loaded && videoRow && loaded.VideoMemory.Count > 0;
+    private bool VideoRowShown => recording is { } loaded && loaded.VideoMemory.Count > 0;
 
     private int MemoryRows => (HeapRowShown ? 1 : 0) + (CollectionsAloneShown ? 1 : 0) + (VideoRowShown ? 1 : 0)
         + (AllocationOwner is null ? 0 : 1);
@@ -1252,16 +1253,11 @@ public sealed partial class ProfilerPage : UserControl
         RecordingFacts();
         var rows = MemoryRows;
         MemoryHeader.Visibility = MemoryAvailable ? Visibility.Visible : Visibility.Collapsed;
-        // A figure whose row is put away stands faint.
-        HeapValue.Opacity = heapRow ? 1 : 0.45;
-        VideoValue.Opacity = videoRow ? 1 : 0.45;
+        // The collections' figure stands faint while their marks are put away.
         CollectionFigure.Opacity = collectionMarks ? 1 : 0.45;
         // The key to the frame graph's background, where the recording has the collector's runs to draw.
         CollectorSwatch.Visibility = recording?.HasCollectorRuns == true ? Visibility.Visible : Visibility.Collapsed;
         AppToolTip.SetTip(CollectorSwatch, Localizer.Get("ProfileChartCollectorTip"));
-        // What a press does now: closed, the panel opens onto the row; open, the row goes or comes back.
-        foreach (var figure in new[] { HeapValue, VideoValue })
-            AppToolTip.SetTip(figure, Localizer.Get(memoryOpen ? "ProfileMemoryRowToggleTip" : "ProfileMemoryRowOpenTip"));
         // The collections' figure also says what its parts mean: ZGC's pauses read near nothing however short memory is.
         AppToolTip.SetTip(CollectionValue, Localizer.Get("ProfileCollectorBusyTip") + "\n\n" + Localizer.Get("ProfileMemoryRowToggleTip"));
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
@@ -1364,23 +1360,12 @@ public sealed partial class ProfilerPage : UserControl
         RenderMemoryPanel();
     }
 
-    private void MemoryFigure_Tapped(object sender, TappedRoutedEventArgs e)
+    // The collections' figure: their marks on the frame graph, and the row they have of their own without the heap.
+    private void CollectionFigure_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        var heap = ReferenceEquals(sender, HeapValue);
-        // A closed panel's figure is pressed to see its row: the panel opens onto it, shown, rather than a row nobody
-        // can see being put away. Open, it puts its row away or back.
-        if (!memoryOpen && (heap || ReferenceEquals(sender, VideoValue)))
-        {
-            if (heap) heapRow = true; else videoRow = true;
-            memoryOpen = memoryChosen = true;
-        }
-        else if (heap) heapRow = !heapRow;
-        else if (ReferenceEquals(sender, VideoValue)) videoRow = !videoRow;
-        else collectionMarks = !collectionMarks;
+        collectionMarks = !collectionMarks;
         ApplyMemoryPanel();
-        // The pause marks on the frame graph go with the collections' figure; the rows are the panel's alone.
-        if (ReferenceEquals(sender, HeapValue) || ReferenceEquals(sender, VideoValue)) RenderMemoryPanel();
-        else QueueRender();
+        QueueRender();
     }
 
     private void MemorySurface_SizeChanged(object sender, SizeChangedEventArgs e) => RenderMemoryPanel();
@@ -3513,17 +3498,14 @@ public sealed partial class ProfilerPage : UserControl
     // ---- Copy ----
 
     /// <summary>
-    /// The copies, each named by what it holds: the range as a report for an AI model (<see cref="ProfileReport"/>), every
-    /// tab's heaviest whatever is open here; and the owner shown in the table alone in full, by its name, for its author
-    /// or a model asked about it (a mod's functions, lines, call tree and allocations; a Java area's methods and callers).
+    /// The reports, each named by what it holds: the range for an AI model (<see cref="ProfileReport"/>), every tab's
+    /// heaviest whatever is open here; and the owner shown in the table alone in full, by its name, for its author or a
+    /// model asked about it (a mod's functions, lines, call tree and allocations; a Java area's methods and callers).
+    /// Copied by the items themselves; saved as a file from the submenu below them, with the same two.
     /// </summary>
     private void CopyMenu_Opening(object sender, object e)
     {
         CopyMenu.Items.Clear();
-        var whole = new MenuFlyoutItem { Text = Localizer.Get("ProfileReportWhole"), Icon = new FontIcon { Glyph = "" } };
-        AppToolTip.SetTip(whole, Localizer.Get("ProfileReportWholeTip"));
-        whole.Click += (_, _) => CopyReport(null);
-        CopyMenu.Items.Add(whole);
         var focus = shownGroup?.Kind switch
         {
             DetailKind.Lua or DetailKind.Allocation => new ProfileReportFocus(false, shownGroup.Key),
@@ -3531,26 +3513,57 @@ public sealed partial class ProfilerPage : UserControl
             _ => null,
         };
         // The threads and the pauses are the whole report's already: no report of their own.
-        if (focus is null || shownGroup is null) return;
-        var owner = new MenuFlyoutItem { Text = Localizer.Format("ProfileReportOwnerFormat", shownGroup.Name), Icon = new FontIcon { Glyph = focus.Java ? "" : "" } };
-        AppToolTip.SetTip(owner, Localizer.Get(focus.Java ? "ProfileReportAreaTip" : "ProfileReportOwnerTip"));
-        owner.Click += (_, _) => CopyReport(focus);
-        CopyMenu.Items.Add(owner);
+        var reports = new List<(string Text, string Glyph, string Tip, ProfileReportFocus? Focus)>
+        {
+            (Localizer.Get("ProfileReportWhole"), "", Localizer.Get("ProfileReportWholeTip"), null),
+        };
+        if (focus is not null && shownGroup is not null)
+            reports.Add((Localizer.Format("ProfileReportOwnerFormat", shownGroup.Name), focus.Java ? "" : "",
+                Localizer.Get(focus.Java ? "ProfileReportAreaTip" : "ProfileReportOwnerTip"), focus));
+        var save = new MenuFlyoutSubItem { Text = Localizer.Get("ProfileReportSaveMenu"), Icon = new FontIcon { Glyph = "" } };
+        foreach (var (text, glyph, tip, report) in reports)
+        {
+            var copy = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph } };
+            AppToolTip.SetTip(copy, tip);
+            copy.Click += (_, _) => ExportReport(report, toFile: false);
+            CopyMenu.Items.Add(copy);
+            var file = new MenuFlyoutItem { Text = text, Icon = new FontIcon { Glyph = glyph } };
+            file.Click += (_, _) => ExportReport(report, toFile: true);
+            save.Items.Add(file);
+        }
+        CopyMenu.Items.Add(new MenuFlyoutSeparator());
+        CopyMenu.Items.Add(save);
     }
 
-    // Worked out on a worker: a report's callers walk the range's samples, a few methods' worth.
-    private async void CopyReport(ProfileReportFocus? focus)
+    // Worked out on a worker: a report's callers walk the range's samples, a few methods' worth. To a file, the place is
+    // asked for first, so nothing is worked out for a save the player cancels.
+    private async void ExportReport(ProfileReportFocus? focus, bool toFile)
     {
         if (recording is not { } current || shown is not { } range) return;
         var thread = AnalysedThread(current);
         var name = (RecordingList.SelectedItem as RecordingItem)?.Text;
         // Compared, with what the page compares with: the baseline analysed whole for the same kind of thread.
         var compared = baseline is { } other && baselineRange is { } otherRange ? new ProfileReportBaseline(other, otherRange, baselineName) : null;
-        // Off, with a ring in the icon's place, until the report is on the clipboard: a long recording takes a moment.
-        SetCopying(true);
         try
         {
+            string? path = null;
+            if (toFile)
+            {
+                var picker = new FileSavePicker(App.MainWindow.AppWindow.Id) { SuggestedFileName = ReportFileName(focus) };
+                picker.FileTypeChoices.Add(Localizer.Get("ProfileReportFileType"), [".md"]);
+                if (await picker.PickSaveFileAsync() is not { } chosen) return;
+                path = chosen.Path;
+            }
+            // Off, with a ring in the icon's place, until the report is written: a long recording takes a moment.
+            SetCopying(true);
             var report = await Task.Run(() => ProfileReport.Build(current, range, thread, name, compared, focus));
+            if (path is not null)
+            {
+                await File.WriteAllTextAsync(path, report, new System.Text.UTF8Encoding(false));
+                App.ShowSidebarNotification(InfoBarSeverity.Success, Localizer.Get("ProfilerNavigation"),
+                    Localizer.Format("ProfileReportSavedFormat", System.IO.Path.GetFileName(path)));
+                return;
+            }
             var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
             package.SetText(report);
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
@@ -3561,6 +3574,14 @@ public sealed partial class ProfilerPage : UserControl
             App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("ProfilerNavigation"), UserFacingError.FromException(exception));
         }
         finally { SetCopying(false); }
+    }
+
+    // The recording's own file name, and the owner's for a report on one: a few reports saved side by side tell apart.
+    private string ReportFileName(ProfileReportFocus? focus)
+    {
+        var recordingName = (RecordingList.SelectedItem as RecordingItem)?.File.Name is { } file ? System.IO.Path.GetFileNameWithoutExtension(file) : "profile";
+        var owner = focus is null ? "" : "-" + string.Concat(focus.Key.Select(letter => System.IO.Path.GetInvalidFileNameChars().Contains(letter) ? '_' : letter));
+        return $"{recordingName}{owner}-report.md";
     }
 
     private void SetCopying(bool copying)

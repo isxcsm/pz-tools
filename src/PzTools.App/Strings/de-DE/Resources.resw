@@ -371,6 +371,9 @@ Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pa
   <data name="ProfileCopyText" xml:space="preserve"><value>Für KI kopieren</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Kopiert einen Bericht zum Einfügen in einen KI-Chat: den ganzen Bericht oder einen ausführlichen nur zur Mod in der Tabelle unten (auf Englisch).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Bericht kopiert. Füge ihn in einen KI-Chat ein.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Als Datei speichern</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Bericht gespeichert: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Ganzer Bericht</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frames, Speicher, alle Mods und eine Java-Übersicht für diesen Bereich; gleich, egal was hier aufgeklappt ist. Für die Frage, warum das Spiel langsam ist.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Ausführlicher Bericht: {0}</value></data>
@@ -431,15 +434,14 @@ Detailliert: misst etwa alle 0,002 Sekunden und zeichnet auch Wartezeiten und Pa
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Selbst ausgeführte Zeilen · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (Aufruf)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC-Pause</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC aktiv {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>aktiv {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC aktiv {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>aktiv {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Auf Speicher gewartet: {0:N0}-mal, am längsten {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC-Pause: Zeit, in der das ganze Spiel für die Speicherbereinigung anhielt. ZGC, die Voreinstellung des Spiels, hält es kaum je an.
 GC aktiv: Anteil des Abschnitts, in dem die Speicherbereinigung lief. Sie läuft neben dem Spiel und teilt sich die CPU, daher geht sie bei knappem Speicher gegen 100 % und das Spiel wird langsamer.
 Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil er voll war.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klicken, um diese Zeile aus- oder einzublenden</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Klicken, um das Speicherfeld mit dieser Zeile zu öffnen</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Tastenkürzel: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Neuer Name (leer für den automatischen)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Letzte {0} Min.</value></data>

@@ -371,6 +371,9 @@ Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan je
   <data name="ProfileCopyText" xml:space="preserve"><value>Salin untuk AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Menyalin laporan untuk ditempel ke obrolan AI: laporan lengkap, atau laporan rinci tentang mod di tabel bawah saja (dalam bahasa Inggris).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Laporan disalin. Tempel ke obrolan AI.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Simpan sebagai file</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Laporan disimpan: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Laporan lengkap</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frame, memori, semua mod, dan ringkasan Java untuk rentang ini; sama apa pun yang sedang dibuka. Untuk bertanya mengapa game lambat.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Laporan rinci: {0}</value></data>
@@ -431,15 +434,14 @@ Detail: merekam sekitar setiap 0,002 detik dan juga mencatat waktu tunggu dan je
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Baris yang dijalankan sendiri · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (panggilan)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Jeda GC</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC bekerja {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>bekerja {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC bekerja {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>bekerja {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Menunggu memori {0:N0} kali, terlama {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Jeda GC: waktu seluruh gim berhenti untuk pembersihan memori. ZGC, bawaan gim ini, hampir tidak pernah menghentikannya.
 GC bekerja: bagian rentang saat pembersih memori berjalan. Ia berjalan di samping gim dan berbagi CPU, jadi saat memori kurang angkanya mendekati 100% dan gim melambat.
 Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, karena memori penuh.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klik untuk menyembunyikan atau menampilkan baris ini</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Klik untuk membuka panel memori dengan baris ini</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Pintasan: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nama baru (kosongkan untuk nama otomatis)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} menit terakhir</value></data>

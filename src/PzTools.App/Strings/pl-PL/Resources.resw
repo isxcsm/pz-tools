@@ -371,6 +371,9 @@ Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopiuj dla AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Kopiuje raport do wklejenia w czacie z AI: pełny raport albo szczegółowy tylko o modzie z tabeli poniżej (po angielsku).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Raport skopiowany. Wklej go w czacie z AI.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Zapisz jako plik</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Raport zapisany: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Pełny raport</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Klatki, pamięć, wszystkie mody i podsumowanie Javy dla tego zakresu; ten sam niezależnie od tego, co jest rozwinięte. Gdy pytasz, czemu gra zwalnia.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Szczegółowy raport: {0}</value></data>
@@ -431,15 +434,14 @@ Szczegółowy: zapisuje mniej więcej co 0,002 s i rejestruje też oczekiwania i
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Wiersze wykonane przez nią samą · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (wywołanie)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Czekanie na pamięć: {0:N0} razy, najdłużej {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: czas, w którym cała gra stanęła z powodu odśmiecania. ZGC, domyślny w grze, prawie nigdy jej nie zatrzymuje.
 GC pracuje: część zakresu, w której działało odśmiecanie. Działa obok gry i dzieli z nią procesor, więc przy braku pamięci zbliża się do 100% i gra zwalnia.
 Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była pełna.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknij, aby ukryć lub pokazać ten wiersz</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Kliknij, aby otworzyć panel pamięci z tym wierszem</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Skrót: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nowa nazwa (pusta = automatyczna)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ostatnie {0} min</value></data>

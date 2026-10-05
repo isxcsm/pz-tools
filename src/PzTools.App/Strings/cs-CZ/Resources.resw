@@ -400,6 +400,9 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileCopyText" xml:space="preserve"><value>Kopírovat pro AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Zkopíruje zprávu k vložení do chatu s AI: celou zprávu, nebo podrobnou zprávu jen o modu z tabulky níže (v angličtině).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Zpráva zkopírována. Vložte ji do chatu s AI.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Uložit jako soubor</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Zpráva uložena: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Celá zpráva</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Snímky, paměť, všechny mody a souhrn Javy pro tento úsek; stejná, ať je tu rozbaleno cokoli. Když se ptáte, proč hra zpomaluje.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Podrobná zpráva: {0}</value></data>
@@ -478,8 +481,8 @@ Před pokračováním vytvořte zálohu. Tato operace ji za vás nevytvoří.</v
   <data name="ProfileRollingWaiting" xml:space="preserve"><value>Jakmile hra poběží, začne uchovávat poslední minutu.</value></data>
   <data name="ProfileRollingTip" xml:space="preserve"><value>Právě se hra zasekla? Stiskněte: hra uchovala zhruba poslední minutu a ta se uloží jako záznam. Režim: {0}</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pauza GC</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC pracuje {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>pracuje {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Čekání na paměť {0:N0}×, nejdéle {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pauza GC: doba, kdy se kvůli úklidu paměti zastavila celá hra. ZGC, výchozí v této hře, ji téměř nezastavuje.
 GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a dělí se s ní o procesor, takže při nedostatku paměti se blíží 100 % a hra se zpomalí.
@@ -490,7 +493,6 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Klávesová zkratka: {0}</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknutím tento řádek skryjete nebo zobrazíte</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Kliknutím otevřete paměťový panel s tímto řádkem</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nový název (prázdný = automatický)</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Přejmenovat</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Včera {0}</value></data>

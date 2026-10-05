@@ -371,6 +371,9 @@
   <data name="ProfileCopyText" xml:space="preserve"><value>复制给 AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>复制可粘贴到 AI 对话中的报告：完整报告，或只针对下方表格中模组的详细报告（英文）。</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>报告已复制。请粘贴到 AI 对话中。</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>保存为文件</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>报告已保存：{0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>完整报告</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>此区间的帧、内存、所有模组和 Java 摘要；无论这里展开了什么，内容都相同。用于询问游戏为什么卡。</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>详细报告：{0}</value></data>
@@ -431,15 +434,14 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身执行的行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0}（调用）</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 暂停</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 运行 {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>运行 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 运行 {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>运行 {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>等待内存 {0:N0} 次，最长 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 暂停：因垃圾回收整个游戏停下的时间。游戏默认的 ZGC 几乎不会让它停下。
 GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同时运行并分享 CPU，内存不足时会接近 100%，游戏随之变慢。
 等待内存：因内存已满，线程停下等待释放内存的次数。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>单击以展开内存面板并显示此行</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名称（留空则使用自动名称）</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>最近 {0} 分钟</value></data>

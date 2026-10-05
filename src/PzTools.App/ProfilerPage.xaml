@@ -284,14 +284,14 @@
             <!-- The collections first, beside the button, with the colour of the frame graph's background while the
                  collector ran: the key to it where the eye is. Pressed, it puts that background and the pause marks away. -->
             <StackPanel x:Name="CollectionFigure" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                        Background="Transparent" Tapped="MemoryFigure_Tapped">
+                        Background="Transparent" Tapped="CollectionFigure_Tapped">
               <Rectangle x:Name="CollectorSwatch" Width="12" Height="10" RadiusX="2" RadiusY="2" VerticalAlignment="Center"
                          Fill="{ThemeResource SystemFillColorCautionBrush}" Opacity="0.4" />
               <TextBlock x:Name="CollectionValue" FontSize="12" VerticalAlignment="Center"
                          Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
-            <TextBlock x:Name="HeapValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
-            <TextBlock x:Name="VideoValue" Tapped="MemoryFigure_Tapped" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
+            <TextBlock x:Name="HeapValue" FontSize="12" Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+            <TextBlock x:Name="VideoValue" FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <!-- The game ran short of memory in this recording: said here, beside the heap it is about, with the way to
                  give it more; or, once the game has been given more since, said as what was, with what it has now. -->
             <StackPanel x:Name="MemoryShortPanel" Orientation="Horizontal" Spacing="4" Visibility="Collapsed" VerticalAlignment="Center">

@@ -378,6 +378,9 @@
   <data name="ProfileCopyText" xml:space="preserve"><value>คัดลอกสำหรับ AI</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>คัดลอกรายงานสำหรับวางในแชทกับ AI: รายงานทั้งหมด หรือรายงานละเอียดเฉพาะม็อดในตารางด้านล่าง (เป็นภาษาอังกฤษ)</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>คัดลอกรายงานแล้ว วางลงในแชทกับ AI ได้เลย</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>บันทึกเป็นไฟล์</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>บันทึกรายงานแล้ว: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>รายงานทั้งหมด</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>เฟรม หน่วยความจำ ทุกม็อด และสรุป Java ของช่วงนี้ เหมือนเดิมไม่ว่าจะเปิดอะไรไว้ ใช้เมื่อถามว่าทำไมเกมช้า</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>รายงานละเอียด: {0}</value></data>
@@ -438,15 +441,14 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>บรรทัดที่ทำงานเอง · {0} บรรทัด</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (เรียก)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC หยุดชั่วคราว</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ทำงาน {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>ทำงาน {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC ทำงาน {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>ทำงาน {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>รอหน่วยความจำ {0:N0} ครั้ง นานสุด {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC หยุด: เวลาที่ทั้งเกมหยุดเพื่อเก็บกวาดหน่วยความจำ ZGC ซึ่งเป็นค่าเริ่มต้นของเกมแทบไม่หยุดเกมเลย
 GC ทำงาน: สัดส่วนของช่วงที่ตัวเก็บกวาดหน่วยความจำกำลังทำงาน มันทำงานคู่กับเกมและแบ่ง CPU กัน เมื่อหน่วยความจำไม่พอจึงเข้าใกล้ 100% และเกมช้าลง
 รอหน่วยความจำ: จำนวนครั้งที่เธรดหยุดรอจนหน่วยความจำว่าง เพราะหน่วยความจำเต็ม</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>คลิกเพื่อซ่อนหรือแสดงแถวนี้</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>คลิกเพื่อเปิดแผงหน่วยความจำที่แถวนี้</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ปุ่มลัด: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>ชื่อใหม่ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติ)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} นาทีล่าสุด</value></data>

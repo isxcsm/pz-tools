@@ -370,6 +370,9 @@
   <data name="ProfileCopyText" xml:space="preserve"><value>AI용 복사</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>AI 채팅에 붙여넣기 좋은 보고서로 복사합니다. 전체 보고서와, 아래 표의 모드만 담은 상세 보고서 중에서 고르세요(영문).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>보고서를 복사했습니다. AI 채팅에 붙여넣으세요.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>파일로 저장</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>보고서를 저장했습니다: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>전체 보고서</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>이 구간의 프레임, 메모리, 모든 모드와 Java 요약. 무엇을 펼쳐 뒀든 같은 내용입니다. &apos;왜 느리지?&apos;를 물을 때 쓰세요.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>{0} 상세 보고서</value></data>
@@ -430,15 +433,14 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>직접 실행한 줄 · {0}줄</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (호출)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 멈춤</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 작동 {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>작동 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 작동 {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>작동 {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>메모리 대기 {0:N0}번, 최장 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 멈춤: 메모리 정리 때문에 게임 전체가 멈춘 시간입니다. 게임 기본값인 ZGC는 거의 멈추지 않습니다.
 GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니다. 게임과 동시에 돌며 CPU를 나눠 쓰므로, 메모리가 부족하면 100%에 가까워지고 게임이 느려집니다.
 메모리 대기: 메모리가 가득 차서 스레드가 정리를 기다리며 멈춘 횟수입니다.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>눌러서 이 줄을 숨기거나 다시 보이기</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>눌러서 메모리 패널을 펼쳐 이 줄 보기</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>단축키: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>새 이름 (비워 두면 자동 이름)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>직전 {0}분</value></data>

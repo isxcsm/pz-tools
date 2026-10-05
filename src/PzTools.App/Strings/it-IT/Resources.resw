@@ -371,6 +371,9 @@ Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il
   <data name="ProfileCopyText" xml:space="preserve"><value>Copia per IA</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Copia un rapporto da incollare in una chat con un&apos;IA: il rapporto completo, o uno dettagliato solo sulla mod nella tabella sotto (in inglese).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapporto copiato. Incollalo in una chat con un&apos;IA.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Salva come file</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Rapporto salvato: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Rapporto completo</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Frame, memoria, tutte le mod e un riepilogo Java per questo intervallo; uguale qualunque cosa sia aperta qui. Per chiedere perché il gioco rallenta.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Rapporto dettagliato: {0}</value></data>
@@ -431,15 +434,14 @@ Dettagliata: misura circa ogni 0,002 secondi e registra anche attese e pause. Il
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Righe eseguite da sé · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (chiamata)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Pausa GC</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC attivo {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>attivo {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC attivo {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>attivo {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Attese di memoria: {0:N0}, la più lunga {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Pausa GC: tempo in cui l&apos;intero gioco si è fermato per la raccolta dei rifiuti. ZGC, l&apos;impostazione predefinita del gioco, non lo ferma quasi mai.
 GC attivo: parte dell&apos;intervallo in cui il raccoglitore era al lavoro. Gira accanto al gioco e ne condivide la CPU, quindi con poca memoria si avvicina al 100% e il gioco rallenta.
 Attese di memoria: quante volte un thread si è fermato finché non è stata liberata memoria, perché era piena.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Fai clic per nascondere o mostrare questa riga</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Fai clic per aprire il pannello della memoria su questa riga</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Scorciatoia: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuovo nome (vuoto per quello automatico)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ultimi {0} min</value></data>

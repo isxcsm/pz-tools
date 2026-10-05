@@ -371,6 +371,9 @@
   <data name="ProfileCopyText" xml:space="preserve"><value>AI 用にコピー</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>AI とのチャットに貼り付けるレポートをコピーします: 全体レポート、または下の表の MOD だけの詳細レポート (英語)。</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>レポートをコピーしました。AI とのチャットに貼り付けてください。</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>ファイルとして保存</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>レポートを保存しました: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>全体レポート</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>この範囲のフレーム、メモリ、すべての MOD、Java の概要。ここで何を展開していても同じ内容です。ゲームが重い理由を聞くときに。</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>詳細レポート: {0}</value></data>
@@ -431,15 +434,14 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>自身で実行した行 · {0} 行</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (呼び出し)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC 停止</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 稼働 {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>稼働 {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC 稼働 {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>稼働 {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>メモリ待ち {0:N0} 回、最長 {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC 停止: メモリ整理のためにゲーム全体が止まった時間です。ゲームの既定である ZGC はほとんど止めません。
 GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です。ゲームと並行して動き CPU を分け合うため、メモリが足りないと 100% に近づき、ゲームが遅くなります。
 メモリ待ち: メモリがいっぱいで、スレッドが整理を待って止まった回数です。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>クリックでこの行を隠す/表示する</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>クリックでメモリパネルを開いてこの行を表示</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ショートカット: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新しい名前 (空欄で自動の名前)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>直前 {0} 分</value></data>

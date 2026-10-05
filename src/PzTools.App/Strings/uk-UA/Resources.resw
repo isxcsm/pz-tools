@@ -371,6 +371,9 @@
   <data name="ProfileCopyText" xml:space="preserve"><value>Копіювати для ШІ</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Копіює звіт для вставлення в чат зі ШІ: повний звіт або докладний лише про мод із таблиці нижче (англійською).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Звіт скопійовано. Вставте його в чат зі ШІ.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Зберегти у файл</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Звіт збережено: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Повний звіт</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Кадри, пам&apos;ять, усі моди та підсумок Java за цей проміжок; однаковий, хоч би що тут було розгорнуто. Щоб запитати, чому гра гальмує.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Докладний звіт: {0}</value></data>
@@ -431,15 +434,14 @@
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Рядки, виконані нею самою · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (виклик)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>Пауза GC</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC працює {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>працює {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC працює {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>працює {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Очікування пам&apos;яті: {0:N0} раз, найдовше {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>Пауза GC: час, коли вся гра стояла через збирання сміття. ZGC, типовий для гри, майже ніколи її не зупиняє.
 GC працює: частка відрізка, коли працював збирач сміття. Він працює поруч із грою й ділить із нею процесор, тож за браку пам&apos;яті частка наближається до 100 % і гра сповільнюється.
 Очікування пам&apos;яті: скільки разів потік зупинявся, доки не звільниться пам&apos;ять, бо вона була заповнена.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Натисніть, щоб приховати або показати цей рядок</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Натисніть, щоб відкрити панель пам&apos;яті з цим рядком</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сполучення клавіш: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Нова назва (порожньо — автоматична)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Останні {0} хв</value></data>

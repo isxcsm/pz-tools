@@ -214,12 +214,12 @@ time and frame under it instead, and while dragging a selection, the range being
 size of the drag reads as it grows. The **?** beside it lists the graph's mouse controls.
 
 Under the graph, a line carries the range's other figures, the memory ones in their lines'
-colours: heap peak, video memory peak, and garbage collections (*GC 3 times · working 4%*; a pause long enough to feel, 2 ms or more,
+colours: heap peak, video memory peak, and garbage collections (*GC 3 times · working 4.12%*; a pause long enough to feel, 2 ms or more,
 adds *GC pause 120 ms*). A collection stops the game without leaving samples, so the tables cannot show
 it; this is where it shows. With ZGC, the game's default, those pauses are well under a
 millisecond however short memory is: the collector works beside the game instead, on the
 CPU the game would use. So the line also gives how much of the range the collector was at
-work (*working 85%*, from each collection's whole run, overlaps counted once; absent in
+work (*working 85.40%*, two decimals, from each collection's whole run, overlaps counted once; absent in
 recordings made before 0.2.4) and how many times any thread stopped until memory was freed
 for it (*Waited for memory 12 times, longest 0.42 s*). A collector at work nearly all the
 time, or threads waiting for memory, say the game is short of memory, which its pauses
@@ -275,8 +275,8 @@ to read the figures come first. *Detailed report: <name>* is the owner shown in 
 full, after the same few lines on the recording, frames and memory: a mod's functions (25), the
 heaviest lines of its heaviest ten, the call tree that reached them (outermost first, each with the line of
 its caller, branches under a hundredth of the mod summed up) and what its functions allocated; an area's
-methods and who called the heaviest. An owner is always chosen in the list, so the two are two buttons rather
-than one that would guess. Compared with another recording, a report says what with and puts the baseline's
+methods and who called the heaviest. *Save as a file* below them offers the same two as a Markdown file (named for
+the recording, and the owner for its report), for a report too long to paste or to attach. For the threads and the pauses only the whole report is offered. Compared with another recording, a report says what with and puts the baseline's
 figure and the change beside each comparable one (frames, the time's parts, mods, functions, Java areas and
 methods, in percentage points of each range; allocations per minute; the baseline's memory in a line), with
 the mods that moved the most and a caution when the two were recorded in different modes. Reports are in
@@ -429,10 +429,9 @@ heading says what its column means when the pointer rests on it.
   row for each it has: the Java heap in use (green) with the collections (grey) under its
   line, as they are its drops, then the highlighted mod's allocations when there is one,
   and the game's video memory on the graphics card (text colour) at the bottom. The
-  figures on the panel's line put their rows away and back when clicked (the
-  collections' figure their marks), for as long as the app runs; a figure whose row is
-  away stands faint. With the panel shut, the heap's or video memory's figure opens it
-  onto its row instead, shown, and its tip says so. A collection that
+  collections' figure puts their marks and the collector's background away and back when
+  clicked, for as long as the app runs, and stands faint while they are away; the heap's and
+  video memory's figures only read: the panel opens and shuts as a whole. A collection that
   stopped the game for 2 ms or more is also marked on the frame graph itself, panel open
   or not: a dashed line up the graph and a small triangle on its floor in the alert
   colour, and the frame under the pointer names the pause. The many short ones stay the

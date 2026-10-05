@@ -371,6 +371,9 @@ Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamala
   <data name="ProfileCopyText" xml:space="preserve"><value>Yapay zekâ için kopyala</value></data>
   <data name="ProfileCopyReportTip" xml:space="preserve"><value>Bir yapay zekâ sohbetine yapıştırmak için rapor kopyalar: tüm rapor ya da yalnızca aşağıdaki tablodaki mod için ayrıntılı rapor (İngilizce).</value></data>
   <data name="ProfileReportCopied" xml:space="preserve"><value>Rapor kopyalandı. Bir yapay zekâ sohbetine yapıştırın.</value></data>
+  <data name="ProfileReportSaveMenu" xml:space="preserve"><value>Dosya olarak kaydet</value></data>
+  <data name="ProfileReportFileType" xml:space="preserve"><value>Markdown</value></data>
+  <data name="ProfileReportSavedFormat" xml:space="preserve"><value>Rapor kaydedildi: {0}</value></data>
   <data name="ProfileReportWhole" xml:space="preserve"><value>Tüm rapor</value></data>
   <data name="ProfileReportWholeTip" xml:space="preserve"><value>Bu aralığın kareleri, belleği, tüm modlar ve Java özeti; burada ne açık olursa olsun aynı. Oyunun neden yavaşladığını sormak için.</value></data>
   <data name="ProfileReportOwnerFormat" xml:space="preserve"><value>Ayrıntılı rapor: {0}</value></data>
@@ -431,15 +434,14 @@ Ayrıntılı: yaklaşık her 0,002 saniyede kayıt alır, bekleme ve duraklamala
   <data name="ProfileOwnLinesFormat" xml:space="preserve"><value>Kendi çalıştırdığı satırlar · {0}</value></data>
   <data name="ProfileLineCallFormat" xml:space="preserve"><value>{0} (çağrı)</value></data>
   <data name="ProfileStatGcPause" xml:space="preserve"><value>GC duraklaması</value></data>
-  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC çalışıyor {0:P0}</value></data>
-  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>çalışıyor {0:P0}</value></data>
+  <data name="ProfileCollectorBusyFormat" xml:space="preserve"><value>GC çalışıyor {0:P2}</value></data>
+  <data name="ProfileCollectorBusyShortFormat" xml:space="preserve"><value>çalışıyor {0:P2}</value></data>
   <data name="ProfileRangeStallsFormat" xml:space="preserve"><value>Bellek bekleme: {0:N0} kez, en uzun {1}</value></data>
   <data name="ProfileCollectorBusyTip" xml:space="preserve"><value>GC duraklaması: çöp toplama için tüm oyunun durduğu süre. Oyunun varsayılanı olan ZGC onu neredeyse hiç durdurmaz.
 GC çalışıyor: aralığın, çöp toplayıcının çalıştığı kısmı. Oyunla yan yana çalışır ve işlemciyi paylaşır; bellek azken %100&apos;e yaklaşır ve oyun yavaşlar.
 Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşalana kadar durduğu sayı.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Bu satırı gizlemek veya göstermek için tıklayın</value></data>
-  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Bellek panelini bu satırla açmak için tıklayın</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Kısayol: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Yeni ad (otomatik ad için boş bırakın)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Son {0} dk</value></data>
