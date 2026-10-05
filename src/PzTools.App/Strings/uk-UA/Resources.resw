@@ -663,6 +663,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Щоб застосувати їх, відновіть гру, зупиніть автомобіль, відпустіть газ і вимкніть круїз-контроль.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Гра в головному меню</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Гра завантажується</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Гра повертається до головного меню</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мертвий – копії чекають</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не вдалося підключитися до гри; копія створюється без збереження гри.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Стан сну зараз недоступний, тому враховується лише пауза.</value></data>

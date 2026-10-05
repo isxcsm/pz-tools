@@ -663,6 +663,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Untuk menerapkannya, lanjutkan gim, hentikan kendaraan, lepas pedal gas, dan matikan kontrol jelajah.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Gim berada di menu utama</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Gim sedang dimuat</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Gim kembali ke menu utama</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter mati – pencadangan menunggu</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Tidak dapat terhubung ke gim; mencadangkan tanpa menyimpan gim terlebih dahulu.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Status tidur saat ini tidak dapat dibaca, jadi hanya jeda yang diterapkan.</value></data>

@@ -663,6 +663,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pro použití pokračujte ve hře, zastavte vozidlo, uvolněte plyn a vypněte tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Hra v hlavní nabídce</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Hra se načítá</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Hra se vrací do hlavní nabídky</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postava je mrtvá – zálohy čekají</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nepodařilo se připojit ke hře; zálohuje se bez předchozího uložení hry.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>

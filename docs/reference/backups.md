@@ -70,7 +70,8 @@ The sidebar shows when the next automatic backup is due. Where a time is shown, 
 | **Character sleeping** | Yes, held | Your character is asleep. |
 | **Run only one instance of Project Zomboid** | Yes, held | Two copies of the game are running. |
 | **Game at main menu** | No | The game is at its main menu. |
-| **Game is loading** | No | The game is loading or leaving a world, or reloading mods on the way to the menu. |
+| **Game is returning to main menu** | No | The game is leaving a world: saving it, unloading it and reloading mods. This can take minutes with many mods. |
+| **Game is loading** | No | The game is loading a world or something else outside one. |
 | **Game starting** | No | The game has just been started and has not loaded yet. |
 | **Checking game status** | No | The game's state has been unknown for more than about 3 seconds. Shorter gaps keep the previous text. |
 | **Character dead – backups waiting** | No | Automatic backups wait for a new character or a revival. |

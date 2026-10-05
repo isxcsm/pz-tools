@@ -663,6 +663,7 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pour les appliquer, reprenez le jeu, arrêtez le véhicule, relâchez l’accélérateur et désactivez le régulateur de vitesse.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jeu dans le menu principal</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Chargement du jeu</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Retour du jeu au menu principal</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personnage mort – sauvegardes en attente</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Connexion au jeu impossible ; sauvegarde sans enregistrement préalable de la partie.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Le sommeil ne peut pas être lu pour l’instant : seule la pause s’applique.</value></data>

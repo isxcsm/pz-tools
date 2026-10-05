@@ -34,7 +34,7 @@ Look at the line under the next backup in the sidebar.
 | **Automatic backups off** | They were turned off, maybe by the hotkey | Turn on **Settings → Backup → Automatic backups** |
 | **Game paused** or **Character sleeping** | The countdown waits while you're not playing | Nothing. Turn off **Delay scheduled backups while paused or asleep** if you'd rather it didn't wait |
 | **Character dead – backups waiting** | Your last backups stay as they were until you play on | Start a new character, or [revive this one](revive-a-character.md) |
-| **Game is not running**, **Game at main menu** or **Game is loading** | There's no save open yet | Load a save |
+| **Game is not running**, **Game at main menu**, **Game is returning to main menu** or **Game is loading** | There's no save open yet | Load a save |
 | **Run only one instance of Project Zomboid** | Two copies of the game are running | Close one |
 | **Skipping this backup** | PZ Tools couldn't tell whether the last game save worked | Nothing. The next one runs as usual |
 | **Automatic backups after a game restart** | PZ Tools was updated while the game ran | Restart the game |

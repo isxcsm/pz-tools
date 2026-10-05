@@ -662,6 +662,7 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Game at main menu</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Game is loading</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Game is returning to main menu</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Character dead – backups waiting</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Could not connect to the game; backing up without saving it first.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Sleep cannot be read right now, so only pausing applies.</value></data>

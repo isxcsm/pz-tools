@@ -66,7 +66,7 @@ When the game thread has not sampled for a second and the last sample says `Read
 - `IngameState.updateInternal` calling `GameWindow.save` or `PlayerDB.saveLocalPlayersForce`.
 
 In that case the snapshot becomes the `Unloading` sample the game would have given, with a new sequence
-number. A sample the game thread took meanwhile wins. The app then shows **Game is loading**. Once the game
+number. A sample the game thread took meanwhile wins. The app then shows **Game is returning to main menu**. Once the game
 thread has not sampled for 2 s, the snapshot counts as `game-busy`, not as a link to fall back from. A game
 thread stopped anywhere else in a world stays `Ready`, and then stale.
 
@@ -160,7 +160,8 @@ unrecognised state. Each game-dependent feature stops only for what it needs.
 - a fresh frame whose phase is `Unknown` (the game answers without a recognisable state).
 
 A game still starting is a known state however long its first load takes: its observer samples on the main
-loop, which first runs after the load. A game busy outside a world shows **Game is loading**. A stale sample
+loop, which first runs after the load. A game busy outside a world shows **Game is loading**, or **Game is returning to main menu** when its last
+sample is `Unloading`. A stale sample
 inside a world may be a hung game and counts as unusable.
 
 | What is missing | What happens |

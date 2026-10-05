@@ -663,6 +663,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicá-las, retome o jogo, pare o veículo, solte o acelerador e desligue o controle de cruzeiro.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jogo no menu principal</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Carregando o jogo</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Jogo voltando ao menu principal</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personagem morto – backups em espera</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Não foi possível conectar ao jogo; fazendo backup sem salvar o jogo antes.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>No momento não é possível ler o sono, então só a pausa se aplica.</value></data>

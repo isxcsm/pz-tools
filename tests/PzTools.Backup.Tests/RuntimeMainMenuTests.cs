@@ -116,11 +116,11 @@ public sealed class RuntimeMainMenuTests
             ScheduleCountdownPresentation.Resolve(Read(views), Now).MessageKey);
     }
 
-    // Seen in the game: leaving for the main menu showed "Checking game status" instead of the game loading.
+    // Seen in the game: leaving for the main menu showed "Checking game status".
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task AWorldBeingLeft_IsShownAsTheGameLoading(bool pauseAware)
+    public async Task AWorldBeingLeft_IsShownAsReturningToTheMenu(bool pauseAware)
     {
         using var temp = new TempDirectory();
         var database = await CreateDatabaseAsync(temp, pauseAware);
@@ -137,7 +137,7 @@ public sealed class RuntimeMainMenuTests
             feed.Publish(leaving with { Snapshot = leaving.Snapshot! with { SampleAgeMilliseconds = age } });
             Assert.False(feed.Read().IsLinkUnusable);
             await projector.ProjectOnceAsync();
-            Assert.Equal(new CountdownPresentation("RuntimeBackupLoading"), ScheduleCountdownPresentation.Resolve(Read(views), Now));
+            Assert.Equal(new CountdownPresentation("RuntimeBackupLeavingWorld"), ScheduleCountdownPresentation.Resolve(Read(views), Now));
         }
     }
 
@@ -228,7 +228,8 @@ public sealed class RuntimeMainMenuTests
             Assert.False(busy.IsLinkUnusable);
             Assert.False(new GameLinkMonitor(linkGrace: TimeSpan.Zero, gameRunning: () => true).Update(busy).LinkUnavailable);
             await projector.ProjectOnceAsync();
-            Assert.Equal(new CountdownPresentation("RuntimeBackupLoading"), ScheduleCountdownPresentation.Resolve(Read(views), Now));
+            Assert.Equal(new CountdownPresentation(phase == WorldPhase.Unloading ? "RuntimeBackupLeavingWorld" : "RuntimeBackupLoading"),
+                ScheduleCountdownPresentation.Resolve(Read(views), Now));
         }
 
         // In a world, a game that stops sampling may be hung, and backups must not wait on it for good.

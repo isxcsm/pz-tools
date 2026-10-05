@@ -662,6 +662,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>게임을 재개하고 차량을 멈춘 뒤 가속 키를 놓고 크루즈 컨트롤을 끄면 적용됩니다.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>게임 메인 화면</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>게임 불러오는 중</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>메인 화면으로 나가는 중</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>캐릭터 사망 – 백업 대기</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>게임에 연결하지 못해 게임 저장 없이 백업합니다.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>수면 상태를 읽을 수 없어 지금은 일시정지만 적용됩니다.</value></data>

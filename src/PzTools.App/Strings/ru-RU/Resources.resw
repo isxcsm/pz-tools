@@ -663,6 +663,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Для применения возобновите игру, остановите автомобиль, отпустите газ и отключите круиз-контроль.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Игра в главном меню</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Игра загружается</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Игра возвращается в главное меню</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мёртв – копии ждут</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не удалось подключиться к игре; копия создаётся без сохранения игры.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Состояние сна сейчас недоступно, поэтому учитывается только пауза.</value></data>

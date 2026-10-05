@@ -663,6 +663,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicarla, reanuda la partida, detén el vehículo, suelta el acelerador y desactiva el control de crucero.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Juego en el menú principal</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Cargando el juego</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>El juego está volviendo al menú principal</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personaje muerto – copias en espera</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>No se pudo conectar con el juego; se hace la copia sin guardar antes la partida.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Por ahora no se puede leer el sueño, así que solo se aplica la pausa.</value></data>

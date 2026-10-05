@@ -663,6 +663,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Per applicarle, riprendi il gioco, ferma il veicolo, rilascia l’acceleratore e disattiva il cruise control.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Gioco nel menu principale</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Caricamento del gioco</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Il gioco torna al menu principale</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personaggio morto – backup in attesa</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Impossibile connettersi al gioco; backup eseguito senza salvare prima il gioco.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Al momento il sonno non è leggibile, quindi si applica solo la pausa.</value></data>

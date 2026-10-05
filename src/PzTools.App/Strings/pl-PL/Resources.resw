@@ -663,6 +663,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Aby je zastosować, wznów grę, zatrzymaj pojazd, puść gaz i wyłącz tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Gra w menu głównym</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Wczytywanie gry</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Gra wraca do menu głównego</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postać nie żyje – kopie czekają</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nie udało się połączyć z grą; kopia jest tworzona bez wcześniejszego zapisu gry.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Obecnie nie można odczytać snu, więc działa tylko pauza.</value></data>

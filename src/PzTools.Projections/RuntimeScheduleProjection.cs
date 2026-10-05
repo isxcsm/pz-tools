@@ -35,7 +35,9 @@ public static class RuntimeScheduleProjection
 
     internal static WorldPhase ObservedGamePhase(RuntimeObservation observation) =>
         observation.IsFresh ? observation.Snapshot!.Phase
-        // Busy outside a world, whatever its last sample said (the menu, a world being left, no phase while the mods
-        // reload): the game is loading something, and backups say they wait for it.
-        : observation.Reason == RuntimeObservation.GameBusyReason ? WorldPhase.Loading : WorldPhase.Unknown;
+        // Busy while leaving a world (saving it, unloading it, reloading the mods) is still leaving it. Busy anywhere
+        // else outside a world (the menu, no phase): the game is loading something, and backups say they wait for it.
+        : observation.Reason == RuntimeObservation.GameBusyReason
+            ? observation.Snapshot?.Phase == WorldPhase.Unloading ? WorldPhase.Unloading : WorldPhase.Loading
+            : WorldPhase.Unknown;
 }

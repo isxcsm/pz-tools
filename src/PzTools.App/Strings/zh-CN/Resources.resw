@@ -663,6 +663,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>恢复游戏并停车，松开油门并关闭定速巡航后即可应用设置。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>游戏处于主菜单</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>游戏正在加载</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>游戏正在返回主菜单</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>角色已死亡 – 备份等待中</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>无法连接到游戏，将不保存游戏直接备份。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>当前无法读取睡眠状态，仅暂停时生效。</value></data>

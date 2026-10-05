@@ -663,6 +663,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>ゲームのメインメニュー</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>ゲームを読み込み中</value></data>
+  <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>ゲームがメインメニューに戻っています</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>キャラクター死亡 – バックアップ待機中</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>ゲームに接続できないため、ゲームを保存せずにバックアップします。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>睡眠状態を読み取れないため、現在は一時停止のみ適用されます。</value></data>
