@@ -1241,8 +1241,9 @@ public sealed partial class ProfilerPage : UserControl
         // The key to the frame graph's background, where the recording has the collector's runs to draw.
         CollectorSwatch.Visibility = recording?.CollectorRuns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         AppToolTip.SetTip(CollectorSwatch, Localizer.Get("ProfileChartCollectorTip"));
+        // What a press does now: closed, the panel opens onto the row; open, the row goes or comes back.
         foreach (var figure in new[] { HeapValue, VideoValue })
-            AppToolTip.SetTip(figure, Localizer.Get("ProfileMemoryRowToggleTip"));
+            AppToolTip.SetTip(figure, Localizer.Get(memoryOpen ? "ProfileMemoryRowToggleTip" : "ProfileMemoryRowOpenTip"));
         // The collections' figure also says what its parts mean: ZGC's pauses read near nothing however short memory is.
         AppToolTip.SetTip(CollectionValue, Localizer.Get("ProfileCollectorBusyTip") + "\n\n" + Localizer.Get("ProfileMemoryRowToggleTip"));
         MemoryToggleText.Text = Localizer.Get("ProfileMemory");
@@ -1344,12 +1345,17 @@ public sealed partial class ProfilerPage : UserControl
 
     private void MemoryFigure_Tapped(object sender, TappedRoutedEventArgs e)
     {
-        if (ReferenceEquals(sender, HeapValue)) heapRow = !heapRow;
+        var heap = ReferenceEquals(sender, HeapValue);
+        // A closed panel's figure is pressed to see its row: the panel opens onto it, shown, rather than a row nobody
+        // can see being put away. Open, it puts its row away or back.
+        if (!memoryOpen && (heap || ReferenceEquals(sender, VideoValue)))
+        {
+            if (heap) heapRow = true; else videoRow = true;
+            memoryOpen = memoryChosen = true;
+        }
+        else if (heap) heapRow = !heapRow;
         else if (ReferenceEquals(sender, VideoValue)) videoRow = !videoRow;
         else collectionMarks = !collectionMarks;
-        // Putting a row back is what a closed panel's figure is pressed for: the panel opens to show it.
-        if (!memoryOpen && (ReferenceEquals(sender, HeapValue) ? heapRow : ReferenceEquals(sender, VideoValue) ? videoRow : false))
-            memoryOpen = memoryChosen = true;
         ApplyMemoryPanel();
         // The pause marks on the frame graph go with the collections' figure; the rows are the panel's alone.
         if (ReferenceEquals(sender, HeapValue) || ReferenceEquals(sender, VideoValue)) RenderMemoryPanel();

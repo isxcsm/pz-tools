@@ -438,6 +438,7 @@ GC aktiv: Anteil des Abschnitts, in dem die Speicherbereinigung lief. Sie läuft
 Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil er voll war.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klicken, um diese Zeile aus- oder einzublenden</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Klicken, um das Speicherfeld mit dieser Zeile zu öffnen</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Tastenkürzel: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Neuer Name (leer für den automatischen)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Letzte {0} Min.</value></data>

@@ -438,6 +438,7 @@ GC çalışıyor: aralığın, çöp toplayıcının çalıştığı kısmı. Oy
 Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşalana kadar durduğu sayı.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Bu satırı gizlemek veya göstermek için tıklayın</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Bellek panelini bu satırla açmak için tıklayın</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Kısayol: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Yeni ad (otomatik ad için boş bırakın)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Son {0} dk</value></data>

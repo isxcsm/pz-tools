@@ -437,6 +437,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
 메모리 대기: 메모리가 가득 차서 스레드가 정리를 기다리며 멈춘 횟수입니다.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>눌러서 이 줄을 숨기거나 다시 보이기</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>눌러서 메모리 패널을 펼쳐 이 줄 보기</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>단축키: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>새 이름 (비워 두면 자동 이름)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>직전 {0}분</value></data>

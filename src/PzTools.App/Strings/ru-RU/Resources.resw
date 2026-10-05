@@ -438,6 +438,7 @@ GC работает: доля отрезка, когда работал сбор
 Ожидание памяти: сколько раз поток останавливался, пока не освободится память, потому что она была заполнена.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Нажмите, чтобы скрыть или показать эту строку</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Нажмите, чтобы открыть панель памяти с этой строкой</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сочетание клавиш: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Новое имя (пусто — автоматическое)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Последние {0} мин</value></data>

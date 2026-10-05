@@ -438,6 +438,7 @@ GC actif : part de la plage pendant laquelle le ramasse-miettes travaillait. Il 
 Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;à ce que de la mémoire soit libérée, parce qu&apos;elle était pleine.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Cliquer pour masquer ou afficher cette ligne</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Cliquer pour ouvrir le panneau mémoire sur cette ligne</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Raccourci : {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nouveau nom (vide pour le nom automatique)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} dernières min</value></data>

@@ -438,6 +438,7 @@ GC bekerja: bagian rentang saat pembersih memori berjalan. Ia berjalan di sampin
 Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, karena memori penuh.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Klik untuk menyembunyikan atau menampilkan baris ini</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Klik untuk membuka panel memori dengan baris ini</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Pintasan: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nama baru (kosongkan untuk nama otomatis)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} menit terakhir</value></data>

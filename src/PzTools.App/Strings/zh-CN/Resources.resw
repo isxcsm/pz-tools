@@ -438,6 +438,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
 等待内存：因内存已满，线程停下等待释放内存的次数。</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>单击以隐藏或显示此行</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>单击以展开内存面板并显示此行</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>快捷键：{0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>新名称（留空则使用自动名称）</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>最近 {0} 分钟</value></data>

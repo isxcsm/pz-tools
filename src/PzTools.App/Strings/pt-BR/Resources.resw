@@ -438,6 +438,7 @@ GC ativo: parte do trecho em que o coletor estava trabalhando. Ele roda junto co
 Esperas por memória: quantas vezes uma thread parou até a memória ser liberada, porque estava cheia.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Clique para ocultar ou mostrar esta linha</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Clique para abrir o painel de memória nesta linha</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atalho: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Novo nome (vazio para o automático)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>

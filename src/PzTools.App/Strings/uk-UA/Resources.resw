@@ -438,6 +438,7 @@ GC працює: частка відрізка, коли працював зби
 Очікування пам&apos;яті: скільки разів потік зупинявся, доки не звільниться пам&apos;ять, бо вона була заповнена.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Натисніть, щоб приховати або показати цей рядок</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Натисніть, щоб відкрити панель пам&apos;яті з цим рядком</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Сполучення клавіш: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Нова назва (порожньо — автоматична)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Останні {0} хв</value></data>

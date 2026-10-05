@@ -438,6 +438,7 @@ GC attivo: parte dell&apos;intervallo in cui il raccoglitore era al lavoro. Gira
 Attese di memoria: quante volte un thread si è fermato finché non è stata liberata memoria, perché era piena.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Fai clic per nascondere o mostrare questa riga</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Fai clic per aprire il pannello della memoria su questa riga</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Scorciatoia: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuovo nome (vuoto per quello automatico)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Ultimi {0} min</value></data>

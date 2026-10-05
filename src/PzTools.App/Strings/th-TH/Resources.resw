@@ -445,6 +445,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
 รอหน่วยความจำ: จำนวนครั้งที่เธรดหยุดรอจนหน่วยความจำว่าง เพราะหน่วยความจำเต็ม</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>คลิกเพื่อซ่อนหรือแสดงแถวนี้</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>คลิกเพื่อเปิดแผงหน่วยความจำที่แถวนี้</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>ปุ่มลัด: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>ชื่อใหม่ (เว้นว่างเพื่อใช้ชื่ออัตโนมัติ)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>{0} นาทีล่าสุด</value></data>

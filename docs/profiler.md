@@ -431,7 +431,8 @@ heading says what its column means when the pointer rests on it.
   and the game's video memory on the graphics card (text colour) at the bottom. The
   figures on the panel's line put their rows away and back when clicked (the
   collections' figure their marks), for as long as the app runs; a figure whose row is
-  away stands faint, and the panel opens when one is brought back. A collection that
+  away stands faint. With the panel shut, the heap's or video memory's figure opens it
+  onto its row instead, shown, and its tip says so. A collection that
   stopped the game for 2 ms or more is also marked on the frame graph itself, panel open
   or not: a dashed line up the graph and a small triangle on its floor in the alert
   colour, and the frame under the pointer names the pause. The many short ones stay the

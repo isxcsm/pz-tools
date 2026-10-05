@@ -466,6 +466,7 @@ GC working: the share of the range the collector was running. It runs beside the
 Waited for memory: how many times a thread stopped until memory was freed, because memory was full.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Click to hide or show this row</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Click to open the memory panel on this row</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Hotkey: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>New name (empty for the saved name)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Last {0} min</value></data>

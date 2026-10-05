@@ -438,6 +438,7 @@ GC activo: parte del tramo en que el recolector estuvo trabajando. Funciona junt
 Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memoria, porque estaba llena.</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Haz clic para ocultar o mostrar esta fila</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Haz clic para abrir el panel de memoria con esta fila</value></data>
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Atajo: {0}</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nuevo nombre (vacío para el automático)</value></data>
   <data name="ProfileKindRollingFormat" xml:space="preserve"><value>Últimos {0} min</value></data>

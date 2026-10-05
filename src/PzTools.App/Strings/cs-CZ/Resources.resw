@@ -489,6 +489,7 @@ GC pracuje: podíl úseku, kdy běžel úklid paměti. Běží vedle hry a děl�
   <data name="ProfileHotKeyTipFormat" xml:space="preserve"><value>Klávesová zkratka: {0}</value></data>
   <data name="ProfileMemoryHeapCollectionsRowFormat" xml:space="preserve"><value>{0} · {1}</value></data>
   <data name="ProfileMemoryRowToggleTip" xml:space="preserve"><value>Kliknutím tento řádek skryjete nebo zobrazíte</value></data>
+  <data name="ProfileMemoryRowOpenTip" xml:space="preserve"><value>Kliknutím otevřete paměťový panel s tímto řádkem</value></data>
   <data name="ProfileRenamePlaceholder" xml:space="preserve"><value>Nový název (prázdný = automatický)</value></data>
   <data name="ProfileRename" xml:space="preserve"><value>Přejmenovat</value></data>
   <data name="ProfileWhenYesterdayFormat" xml:space="preserve"><value>Včera {0}</value></data>
