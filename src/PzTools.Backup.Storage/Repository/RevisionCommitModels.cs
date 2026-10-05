@@ -42,7 +42,8 @@ public sealed record RevisionCommitRequest(
     IReadOnlyList<StoredObjectRegistration> Objects,
     IReadOnlyList<EntryVersionRegistration> Entries,
     long? RequestedRevision = null,
-    SupportedLanguage NameLanguage = SupportedLanguage.English,
+    // No language named: this PC's (LanguageCatalog.Local).
+    SupportedLanguage? NameLanguage = null,
     string? GameVersion = null);
 
 public sealed record CommittedRevision(

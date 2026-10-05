@@ -192,7 +192,7 @@ internal static class BackupCli
                 // In-game notices warn a player that the scheduler is about to save. A backup someone starts from
                 // the app is started by someone looking at the app: it saves at once, without notices or delay.
                 options.GameSaveCountdown && (request.RequireActiveGame || request.ScheduledUtc is not null)
-                    ? LanguageCatalog.Get(options.NameLanguage).Tag : null, request.ScheduledUtc);
+                    ? LanguageCatalog.Get(options.NameLanguage ?? LanguageCatalog.Local).Tag : null, request.ScheduledUtc);
             var timing = new BackupTimingPreparation((path, token) => request.SaveGame && options.SaveGameBeforeBackup
                 ? gameSave.PrepareAsync(path, token) : Task.FromResult(new GameSaveResult("disabled")));
             BackupSourcePreparation? prepareSource = request.RequireActiveGame || request.ScheduledUtc is not null
@@ -206,7 +206,7 @@ internal static class BackupCli
                 var guarded = new GuardedGamePreparation(new GameSaveClient(Path.Combine(AppContext.BaseDirectory, "game-bridge"),
                     options.EffectiveTuning.GameConnectionTimeoutSeconds, options.EffectiveTuning.GameCompletionTimeoutSeconds,
                     options.EffectiveTuning.GameQueueTimeoutSeconds,
-                    options.GameSaveCountdown ? LanguageCatalog.Get(options.NameLanguage).Tag : null,
+                    options.GameSaveCountdown ? LanguageCatalog.Get(options.NameLanguage ?? LanguageCatalog.Local).Tag : null,
                     runtimeTicket: request.RuntimeTicket,
                     preparationAllowed: token => PzTools.Scheduling.RuntimePreparationPermit.IsCurrentAsync(
                         request.RuntimeAuthority!, request.RuntimeGeneration!.Value, options.Sources.Single(source => source.Id.Equals(request.SourceId, StringComparison.OrdinalIgnoreCase)).Path, token, request.RuntimeTicket)));
@@ -338,7 +338,7 @@ internal static class BackupCli
             }
             catch
             {
-                // 원래 worker 결과를 보존합니다. 다음 복구가 고아 workflow를 정리합니다.
+                // Keeps the worker's own result. The next recovery cleans up the orphaned workflow.
             }
         }
     }

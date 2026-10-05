@@ -216,11 +216,10 @@ public static class BackupConfiguration
                 ["retain_runs"] = options.Telemetry.RetainRuns,
                 ["max_database_mib"] = options.Telemetry.MaxDatabaseMib,
             },
-            ["naming"] = new TomlTable
-            {
-                ["language"] = LanguageCatalog.Get(options.NameLanguage).Tag,
-            },
         };
+        // A language named is kept; none named stays none, so this PC's is taken when the file is read.
+        if (options.NameLanguage is { } language)
+            root["naming"] = new TomlTable { ["language"] = LanguageCatalog.Get(language).Tag };
 
         return TomlSerializer.Serialize(root);
     }
@@ -237,7 +236,7 @@ public static class BackupConfiguration
                 $"Unsupported configuration format_version {options.FormatVersion}.");
         }
 
-        if (!Enum.IsDefined(options.NameLanguage))
+        if (options.NameLanguage is { } language && !Enum.IsDefined(language))
             throw new BackupConfigurationException("Unsupported backup naming language.");
 
         if (options.Sources.Count == 0)
@@ -444,11 +443,11 @@ public static class BackupConfiguration
 
     private static SupportedLanguage ParseNameLanguage(TomlTable root)
     {
-        if (!root.TryGetValue("naming", out var value)) return SupportedLanguage.English;
+        if (!root.TryGetValue("naming", out var value)) return LanguageCatalog.Local;
         if (value is not TomlTable table)
             throw new BackupConfigurationException("naming must be a TOML table.");
         EnsureOnlyKeys(table, ["language"], "naming");
-        return GetEnum(table, "language", SupportedLanguage.English,
+        return GetEnum(table, "language", LanguageCatalog.Local,
             text => LanguageCatalog.TryParse(text, out var parsed)
                 ? parsed
                 : throw new BackupConfigurationException($"Unknown naming language '{text}'."));

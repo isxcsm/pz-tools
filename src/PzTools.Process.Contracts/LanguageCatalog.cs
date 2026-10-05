@@ -34,6 +34,9 @@ public static class LanguageCatalog
     public static SupportedLanguage Parse(string value) => TryParse(value, out var language)
         ? language : throw new ArgumentException($"Unsupported language '{value}'.", nameof(value));
 
+    /// <summary>The language for anything that names none: this PC's display language, as the app would start in it.</summary>
+    public static SupportedLanguage Local => ForCulture(System.Globalization.CultureInfo.CurrentUICulture);
+
     /// <summary>
     /// The language to start in for a Windows display language: the same one where the app has it, the nearest variant
     /// where it has another (Spanish of Spain or of Latin America, Simplified or Traditional Chinese, Portuguese as

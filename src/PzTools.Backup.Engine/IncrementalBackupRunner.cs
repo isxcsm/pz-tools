@@ -326,7 +326,7 @@ public sealed class IncrementalBackupRunner(
                     entries,
                     RequestedRevision: executionOptions?.Revision,
                     NameLanguage: executionOptions?.NameLanguage
-                        ?? PzTools.Process.Contracts.SupportedLanguage.English,
+                        ?? PzTools.Process.Contracts.LanguageCatalog.Local,
                     GameVersion: executionOptions?.GameVersion),
                 cancellationToken,
                 () => FailureInjector.ThrowIfRequested(BackupFailurePoint.DuringRepositoryCommit));

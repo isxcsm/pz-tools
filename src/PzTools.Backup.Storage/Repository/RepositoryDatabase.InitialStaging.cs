@@ -16,7 +16,7 @@ public sealed partial class RepositoryDatabase
         CancellationToken cancellationToken = default,
         Action? beforeTransactionCommit = null,
         long? requestedRevision = null,
-        SupportedLanguage nameLanguage = SupportedLanguage.English,
+        SupportedLanguage? nameLanguage = null,
         string? gameVersion = null)
     {
         EnsureLease(lease);
