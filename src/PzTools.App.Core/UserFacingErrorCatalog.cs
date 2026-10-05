@@ -84,8 +84,6 @@ public static class UserFacingErrorCatalog
     {
         var key = FromException(exception);
         if (key != Generic) return key; // Missing files/permissions are not archive corruption.
-        // Contains, not a prefix: a worker's failure can arrive wrapped in an outer message.
-        if (Contains(exception.Message, "archive-unsafe-ratio:")) return "UnsafeArchiveCompression";
         return exception is InvalidDataException or FormatException ? "InvalidArchiveFormat" : Generic;
     }
 

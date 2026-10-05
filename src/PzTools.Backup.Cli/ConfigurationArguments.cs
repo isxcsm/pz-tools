@@ -9,9 +9,13 @@ internal sealed record ConfigurationArguments(
     string? ConfigPath,
     BackupOptionOverrides Overrides)
 {
-    public static ConfigurationArguments Parse(string[] arguments)
+    /// <param name="requireRepository">
+    /// For a command that writes: a backup creates the backup folder it is given, so one in whatever folder
+    /// the command happened to run from is never assumed. Reading the settings may default to it.
+    /// </param>
+    public static ConfigurationArguments Parse(string[] arguments, bool requireRepository = false)
     {
-        var repositoryPath = Environment.CurrentDirectory;
+        string? repositoryPath = null;
         string? configPath = null;
         var sources = new List<BackupSourceOptions>();
         ChecksumAlgorithm? checksum = null;
@@ -36,7 +40,10 @@ internal sealed record ConfigurationArguments(
             switch (name)
             {
                 case "--repository":
-                    repositoryPath = value;
+                    if (repositoryPath is not null)
+                        throw new BackupConfigurationException("Option '--repository' may be specified only once.");
+                    repositoryPath = string.IsNullOrWhiteSpace(value)
+                        ? throw new BackupConfigurationException("Option '--repository' requires a value.") : value;
                     break;
                 case "--config":
                     configPath = value;
@@ -92,8 +99,10 @@ internal sealed record ConfigurationArguments(
             }
         }
 
+        if (repositoryPath is null && requireRepository)
+            throw new BackupConfigurationException("backup requires --repository <path>.");
         return new ConfigurationArguments(
-            repositoryPath,
+            repositoryPath ?? Environment.CurrentDirectory,
             configPath,
             new BackupOptionOverrides
             {

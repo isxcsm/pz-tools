@@ -35,7 +35,8 @@ try
     var mutexResult = await NamedMutexRunner.TryRunAsync(mutex, async token =>
     {
         var host = new ChildProcessHost();
-        var reactorArguments = new List<string> { "--state-db", stateDb, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+        // The children would otherwise take this lock themselves, and find it held by this process.
+        var reactorArguments = new List<string> { "--state-db", stateDb, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), "--runner-holds-lock" };
         var reactorPath = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.State.Reactor.Cli.exe");
         var collectorPath = Path.Combine(Path.GetFullPath(workerDirectory), "PzTools.State.Collector.Cli.exe");
         var database = await StateDatabase.CreateOrOpenAsync(stateDb, token);
@@ -45,7 +46,7 @@ try
             ? await RunChildAsync(host, reactorPath, "state-reactor", runIndex, reactorArguments, token)
             : null;
         var collection = await RunChildAsync(host, collectorPath, "state-collector", runIndex,
-            ["--state-db", stateDb, "--saves-root", savesRoot, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)], token);
+            ["--state-db", stateDb, "--saves-root", savesRoot, "--run-index", runIndex.ToString(System.Globalization.CultureInfo.InvariantCulture), "--runner-holds-lock"], token);
         var applied = await RunChildAsync(
             host, reactorPath, "state-reactor", runIndex, reactorArguments, token);
         return JsonSerializer.Serialize(new { recovery, collection, applied });
