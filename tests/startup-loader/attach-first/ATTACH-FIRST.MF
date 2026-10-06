@@ -1,0 +1,2 @@
+Premain-Class: pztools.attachfirst.AttachFirst
+Can-Retransform-Classes: true

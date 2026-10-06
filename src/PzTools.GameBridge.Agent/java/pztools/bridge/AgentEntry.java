@@ -34,7 +34,9 @@ public final class AgentEntry {
     private static Method payloadWatch;
     private static Method payloadExtensions;
     // The startup loader's install folder, in a game it started; the resident controller of the payload last started.
-    private static Path residentRoot;
+    private static volatile Path residentRoot;
+    // Whether the control endpoint is set; guarded by the class, as residentRoot's writes are.
+    private static boolean endpointPublished;
     private static volatile Method payloadResident;
     private static Method residentStarted;
     private static final Object runtimeGate = new Object();
@@ -52,27 +54,27 @@ public final class AgentEntry {
     private static volatile long sessions;
 
     public static synchronized void agentmain(String options, Instrumentation value) throws Exception {
-        if (instrumentation != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
         String[] parts = options.split(":", -1);
         boolean startup = parts.length == 3 && parts[2].equals("STARTUP");
         if ((parts.length != 2 && !startup) || !parts[0].equals("BOOTSTRAP1"))
             throw new IllegalArgumentException("Incompatible bootstrap; rebuild app/workers and restart the game");
         Path candidate = Path.of(new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8));
         if (!candidate.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
+        if (instrumentation != null) {
+            // The app was open when the game started, and its helper attached before the startup loader ran. The game
+            // still becomes one the loader started, with its resident extensions and API, rather than refuse the loader.
+            if (!startup || residentRoot != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
+            becomeStartup(candidate.normalize());
+            return;
+        }
         payload = candidate.normalize();
-        // The loader gives the payload in the install's bridge folder: <install folder>\bridge-<id>\<payload>.
-        if (startup) residentRoot = payload.getParent().getParent();
         var server = new ServerSocket();
         server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 8);
         byte[] key = new byte[32];
         new SecureRandom().nextBytes(key);
         String secret = HexFormat.of().formatHex(key);
         instrumentation = value;
-        // The extension API exists only in a game the startup loader started; its Lua hook goes in before the game's Lua loads.
-        if (startup) {
-            try { ApiHooks.install(value); }
-            catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
-        }
+        if (startup) becomeStartup(payload);
         Thread control = new Thread(() -> controlLoop(server, secret), "PzTools-bridge-control");
         control.setDaemon(true);
         try {
@@ -80,8 +82,7 @@ public final class AgentEntry {
             System.setProperty("pztools.bridge.bootstrap.api", "11");
             // Published only after the listener is bound. Never print this credential.
             String endpoint = "2:" + ProcessHandle.current().pid() + ":" + server.getLocalPort() + ":" + secret;
-            if (startup) publishAfterPropertyList(endpoint);
-            else System.setProperty(CONTROL_PROPERTY, endpoint);
+            publishAfterPropertyList(endpoint);
         } catch (Throwable failure) {
             server.close();
             throw failure;
@@ -89,10 +90,27 @@ public final class AgentEntry {
     }
 
     /**
-     * Loaded by the startup loader, the bootstrap runs before the game's main method has written every system property
-     * to its log (console.txt), which players post with bug reports. The endpoint, which holds the secret, is set only
-     * once the game loads GameWindow: its main method lists the properties before it first uses that class. The helper
-     * waits for it meanwhile (it sees the API property without the endpoint). Nothing is changed in the class.
+     * Makes this a game the startup loader started: its install folder, the extension API's Lua hook (before the game's
+     * Lua loads), and, once the endpoint is set, the resident extensions.
+     */
+    private static void becomeStartup(Path startupPayload) {
+        boolean ready;
+        synchronized (AgentEntry.class) {
+            // The loader gives the payload in the install's bridge folder: <install folder>\bridge-<id>\<payload>.
+            residentRoot = startupPayload.getParent().getParent();
+            ready = endpointPublished;
+        }
+        try { ApiHooks.install(instrumentation); }
+        catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
+        if (ready) launchResident();
+    }
+
+    /**
+     * A bootstrap can run before the game's main method has written every system property to its log (console.txt),
+     * which players post with bug reports: the startup loader's always does, and the helper's does when the app was open
+     * as the game started. The endpoint, which holds the secret, is set only once the game loads GameWindow: its main
+     * method lists the properties before it first uses that class. The helper waits for it meanwhile (it sees the API
+     * property without the endpoint). Nothing is changed in the class.
      */
     private static void publishAfterPropertyList(String endpoint) {
         var published = new AtomicBoolean();
@@ -100,21 +118,29 @@ public final class AgentEntry {
             @Override public byte[] transform(ClassLoader loader, String name, Class<?> type,
                     ProtectionDomain domain, byte[] bytes) {
                 if (type == null && "zombie/GameWindow".equals(name) && published.compareAndSet(false, true)) {
-                    System.setProperty(CONTROL_PROPERTY, endpoint);
                     instrumentation.removeTransformer(this);
-                    launchResident();
+                    publish(endpoint);
                 }
                 return null;
             }
         };
         instrumentation.addTransformer(watcher, false);
-        // Already loaded (a game whose main method differs): the list was written, or never will be by this method.
+        // Already loaded (the usual attach, or a game whose main method differs): the list was written, or never will be.
         for (Class<?> type : instrumentation.getAllLoadedClasses())
             if (type.getName().equals("zombie.GameWindow") && published.compareAndSet(false, true)) {
                 instrumentation.removeTransformer(watcher);
-                System.setProperty(CONTROL_PROPERTY, endpoint);
-                launchResident();
+                publish(endpoint);
             }
+    }
+
+    private static void publish(String endpoint) {
+        boolean resident;
+        synchronized (AgentEntry.class) {
+            System.setProperty(CONTROL_PROPERTY, endpoint);
+            endpointPublished = true;
+            resident = residentRoot != null;
+        }
+        if (resident) launchResident();
     }
 
     /**

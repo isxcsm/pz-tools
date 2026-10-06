@@ -1,18 +1,22 @@
 package pztools.bridge;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
  * The startup loader against a synthetic game: install, start the game from its patched jar, a broken install, a game
- * update, reinstall, uninstall and someone else's patch. Arguments: the synthetic game's jar, the built bridge folder,
- * the java to start the game with. Run with -ea.
+ * update, reinstall, uninstall and someone else's patch; and a game the app's helper got into first. Arguments: the
+ * synthetic game's jar, the built bridge folder, the java to start the game with, and the agent jar that stands in for
+ * the helper. Run with -ea.
  */
 public final class StartupInstallTest {
     public static void main(String[] args) throws Exception {
         Path vanilla = Path.of(args[0]), bridge = Path.of(args[1]);
         String java = args[2];
+        Path attachFirst = Path.of(args[3]);
         Path work = Files.createTempDirectory("pztools-startup-test");
         try {
             Path game = work.resolve("game"), root = work.resolve("root"), jar = game.resolve(StartupInstall.GAME_JAR);
@@ -40,6 +44,14 @@ public final class StartupInstallTest {
             expect(start(java, jar), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
             assert log(root).contains("loaded bridge-") : log(root);
             expect(run(root, "refresh", bridge), "unchanged");
+
+            // The app was open as the game started, and its helper loaded the bootstrap before the loader ran: the game
+            // still becomes one the loader started, and the endpoint still waits for the property list.
+            String option = "BOOTSTRAP1:" + Base64.getEncoder().encodeToString(
+                bridge.resolve("pztools-game-bridge.jar").toAbsolutePath().toString().getBytes(StandardCharsets.UTF_8));
+            expect(start(java, jar, "-javaagent:" + attachFirst + "=" + option,
+                    bridge.resolve("pztools-game-bootstrap.jar").toString()), "STARTUP-FIXTURE	11	false	true	true	1.0");
+            assert log(root).contains("loaded bridge-") : log(root);
 
             // A broken install: the game starts as vanilla and the loader says why.
             Files.delete(root.resolve("current"));
@@ -88,8 +100,15 @@ public final class StartupInstallTest {
     }
 
     private static String start(String java, Path jar) throws Exception {
-        Process process = new ProcessBuilder(java, "--enable-native-access=ALL-UNNAMED", "-cp", jar.toString(),
-            "zombie.gameStates.MainScreenState").redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        return start(java, jar, null, null);
+    }
+
+    /** With an agent loaded before main, and a jar for it on the class path. */
+    private static String start(String java, Path jar, String agent, String classPath) throws Exception {
+        var command = new ArrayList<String>(List.of(java, "--enable-native-access=ALL-UNNAMED"));
+        if (agent != null) command.add(agent);
+        command.addAll(List.of("-cp", jar + (classPath == null ? "" : File.pathSeparator + classPath), "zombie.gameStates.MainScreenState"));
+        Process process = new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD).start();
         String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
         if (!process.waitFor(60, TimeUnit.SECONDS)) { process.destroyForcibly(); throw new AssertionError("game did not exit"); }
         assert process.exitValue() == 0 : "game exited with " + process.exitValue() + ": " + output;

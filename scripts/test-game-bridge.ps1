@@ -65,8 +65,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' 
 $startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader test compilation failed' }
+# Stands in for the app's helper getting into a game before the startup loader does.
+$attachFirstClasses = Join-Path $startupOutput 'attach-first'
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $attachFirstClasses (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/pztools/attachfirst/AttachFirst.java')
+if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent compilation failed' }
+$attachFirstJar = Join-Path $startupOutput 'attach-first.jar'
+& (Join-Path $JdkPath 'bin/jar.exe') --create --file $attachFirstJar --manifest (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/ATTACH-FIRST.MF') -C $attachFirstClasses pztools
+if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent packaging failed' }
 # The install runs on the app's own runtime, which has only the modules the bridge needs.
-& (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe')
+& (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe') $attachFirstJar
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
 # The extension API as Lua mods see it, against the same synthetic game.
 $apiOutput = Join-Path $fixtureOutput 'extension-api'

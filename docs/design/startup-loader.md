@@ -187,10 +187,24 @@ point publishes `pztools.bridge.control.v1` (`2:<pid>:<port>:<secret>`) before t
 so the secret ends up in the log; in the measured run the line was cut short, but its first 23 hex
 digits were there. Players post `console.txt` when they report bugs.
 
-The secret must not reach the log. The bootstrap in installed mode publishes the property only
-when the game loads `GameWindow`, which `main` first uses after writing its property list, and the
-helper waits for it (stage `bootstrap-starting`, up to 15 seconds). The secret's role is unchanged: anyone who
-can attach can read it anyway ([game bridge](game-bridge.md#getting-into-the-game)).
+The secret must not reach the log. The bootstrap publishes the property only when the game loads
+`GameWindow`, which `main` first uses after writing its property list, and the helper waits for it
+(stage `bootstrap-starting`, up to 15 seconds). This holds however the bootstrap was loaded: by the
+loader, or by the app's helper attaching to a game that has only just started. The secret's role is
+unchanged: anyone who can attach can read it anyway
+([game bridge](game-bridge.md#getting-into-the-game)).
+
+### The app open as the game starts
+
+An app that is already open finds the game's process as soon as it exists, and its helper can attach
+before `main` reaches the loader. Its bootstrap is then loaded first, and the loader's
+`Agent_OnAttach` reaches the same `AgentEntry` (the system class loader has it already). Until 7
+October 2026 that call failed (`the bootstrap did not load (102)`), and the game ran as if the app had
+attached to a vanilla game: no resident extensions, no extension API, and the secret in the log. Now
+the bootstrap takes the loader's call as making the game one the loader started: it takes the
+install folder, adds the extension API's hook, and starts the resident extensions once the endpoint is
+set. The startup loader test covers it by loading the bootstrap before `main` with an agent that stands
+in for the helper.
 
 ## Agents loaded into a running JVM
 

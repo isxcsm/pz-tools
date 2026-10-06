@@ -51,11 +51,15 @@ starts the same way:
 3. The helper takes `%USERPROFILE%\.pztools-bridge\bootstrap.lock` and holds it through the attach, the
    version check and the handshake, so helpers from different processes never attach at the same time. It
    attaches with the standard Java Attach API.
-4. If the game has no system property `pztools.bridge.control.v1`, this is the first attach since the game
-   started. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap jar
-   (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
-   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=11` and then
-   `pztools.bridge.control.v1=2:<pid>:<port>:<secret>`.
+4. If the game has neither `pztools.bridge.control.v1` nor `pztools.bridge.bootstrap.api`, no bootstrap
+   is loaded yet. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap
+   jar (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
+   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=11` at once and
+   `pztools.bridge.control.v1=2:<pid>:<port>:<secret>` once the game has loaded `GameWindow`, so that the
+   secret is not in the game's list of properties
+   ([startup loader](startup-loader.md#the-control-secret-and-the-games-log)). Without the endpoint yet,
+   the helper waits for it (stage `bootstrap-starting`, up to 15 seconds); a game still starting after that
+   gets "try again once it shows its menu".
 5. The helper requires `pztools.bridge.bootstrap.api` to be `11`. Any other value means the game still runs a
    bootstrap from another version; the helper stops without sending anything
    (see [restart required](#restart-required-after-an-app-update)).

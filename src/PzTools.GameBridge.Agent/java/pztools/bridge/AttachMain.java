@@ -54,18 +54,7 @@ public final class AttachMain {
             String endpoint;
             try {
                 endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
-                // A bootstrap the startup loader loaded sets its API at once and its endpoint only once the game has
-                // logged its properties (AgentEntry.publishAfterPropertyList); loading a second one would fail.
-                if (endpoint == null && vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api") != null) {
-                    stage = "bootstrap-starting";
-                    long deadline = System.nanoTime() + STARTUP_WAIT_NANOS;
-                    while (endpoint == null && System.nanoTime() < deadline) {
-                        Thread.sleep(250);
-                        endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
-                    }
-                    if (endpoint == null) throw new IOException("The game is still starting; try again once it shows its menu");
-                }
-                if (endpoint == null) {
+                if (endpoint == null && vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api") == null) {
                     // Embedded Windows launchers need their own jli.dll, not our helper's.
                     stage = "native-bootstrap";
                     if (System.getProperty("os.name").startsWith("Windows"))
@@ -73,6 +62,18 @@ public final class AttachMain {
                     stage = "bootstrap";
                     vm.loadAgent(attachable(payload.getParent().resolve("pztools-game-bootstrap.jar")).toString(), "BOOTSTRAP1:" + encoded);
                     endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
+                }
+                // A bootstrap sets its API at once and its endpoint only once the game has logged its properties
+                // (AgentEntry.publishAfterPropertyList): one the startup loader loaded, or this helper's own in a game
+                // that is still starting. Loading a second one would fail.
+                if (endpoint == null) {
+                    stage = "bootstrap-starting";
+                    long deadline = System.nanoTime() + STARTUP_WAIT_NANOS;
+                    while (endpoint == null && System.nanoTime() < deadline) {
+                        Thread.sleep(250);
+                        endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
+                    }
+                    if (endpoint == null) throw new IOException("The game is still starting; try again once it shows its menu");
                 }
                 stage = "bootstrap-version";
                 if (!"11".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
