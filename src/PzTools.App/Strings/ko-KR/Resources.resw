@@ -794,14 +794,14 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="StartupLoaderHeader" xml:space="preserve"><value>게임 시작 시 PZ Tools 로드 (실험적)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>게임 파일을 확인하는 중…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>게임 설치 폴더를 찾지 못했습니다. 게임을 실행해 두면 찾습니다.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools는 게임이 시작된 뒤에 게임에 연결합니다. 설치하면 게임의 projectzomboid.jar를 바꿔서 게임이 시작할 때 PZ Tools를 불러옵니다. 제거하면 게임의 원래 파일로 되돌립니다.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools는 게임이 시작된 뒤에 게임에 연결합니다. 켜면 게임의 projectzomboid.jar를 바꿔서 게임이 시작할 때 PZ Tools를 불러옵니다. 끄면 게임의 원래 파일로 되돌립니다.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>설치됨. 게임이 시작할 때 PZ Tools를 불러옵니다.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>게임 업데이트로 제거되었습니다. 쓰려면 다시 설치하세요.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>게임 업데이트로 제거되었습니다. 쓰려면 다시 켜세요.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>다른 도구가 게임의 projectzomboid.jar를 바꿨습니다. 먼저 Steam에서 게임 파일 무결성을 확인하세요.</value></data>
-  <data name="StartupLoaderInstall" xml:space="preserve"><value>설치</value></data>
-  <data name="StartupLoaderUninstall" xml:space="preserve"><value>제거</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>게임과, 게임 폴더에서 실행한 서버를 모두 끈 뒤 다시 시도하세요.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>이 게임 버전은 지원하지 않습니다.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>보관해 둔 게임 파일 사본이 없습니다. Steam에서 게임 파일 무결성을 확인해 복구하세요.</value></data>
   <data name="StartupLoaderFailed" xml:space="preserve"><value>게임 파일을 바꾸지 못했습니다. 자세한 내용은 로그에 있습니다.</value></data>
+  <data name="StartupLoaderInstalling" xml:space="preserve"><value>게임에 PZ Tools 설치 중</value></data>
+  <data name="StartupLoaderRemoving" xml:space="preserve"><value>게임에서 PZ Tools 제거 중</value></data>
 </root>

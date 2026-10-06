@@ -1034,7 +1034,7 @@ public sealed partial class MainWindowShell : UserControl
         QueueOperationCardFit();
         // Local deletion and background cleanup report no worker progress worth polling for.
         if (cards.Any(card => card.Operation.Status == OperationStatus.Running
-                && card.Group is not (OperationCardGroup.DeleteSave or OperationCardGroup.Maintenance)))
+                && card.Group is not (OperationCardGroup.DeleteSave or OperationCardGroup.Maintenance or OperationCardGroup.StartupLoader)))
             StartOperationProgressRefresh();
         else StopOperationProgressRefresh();
         UpdateOperationActions();
@@ -1188,6 +1188,8 @@ public sealed partial class MainWindowShell : UserControl
                 OperationCardGroup.DeleteSave => "DeletingSave",
                 OperationCardGroup.CharacterRecovery => "HealCharacterTitle",
                 OperationCardGroup.Profile => "ProfileRecordingTitle",
+                OperationCardGroup.StartupLoader => card.Operation.Kind == "startup-loader-uninstall"
+                    ? "StartupLoaderRemoving" : "StartupLoaderInstalling",
                 _ => "MaintenanceRunning",
             });
         // Several finished cards can be stacked, so each one names its work.
@@ -1200,6 +1202,7 @@ public sealed partial class MainWindowShell : UserControl
             OperationCardGroup.DeleteSave => "DeleteSaveTitle",
             OperationCardGroup.CharacterRecovery => "HealCharacterTitle",
             OperationCardGroup.Profile => "LogActivity.Profile",
+            OperationCardGroup.StartupLoader => "StartupLoaderHeader",
             _ => "LogActivity.Maintenance",
         });
         // The outcome is the icon beside the title and, when it needs words, the line below it;
@@ -1389,6 +1392,37 @@ public sealed partial class MainWindowShell : UserControl
         localOperationCardTimer.Interval = TimeSpan.FromSeconds(status is OperationStatus.Succeeded or OperationStatus.NoChange
             ? runtime.SuccessCardSeconds : runtime.FailureCardSeconds);
         localOperationCardTimer.Start();
+    }
+
+    /// <summary>
+    /// Installs or removes the startup loader with its own card, which says how it went; the failure's cause goes to
+    /// the log. Returns whether it went through.
+    /// </summary>
+    internal async Task<bool> ChangeStartupLoaderAsync(StartupLoader loader, bool install)
+    {
+        StartLocalOperationProgress(install ? "startup-loader-install" : "startup-loader-uninstall");
+        try
+        {
+            if (install) await loader.InstallAsync();
+            else await loader.UninstallAsync();
+            CompleteLocalOperationProgress(OperationStatus.Succeeded);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            var message = Localizer.Get((exception as StartupLoaderException)?.Code switch
+            {
+                "game-running" => "StartupLoaderGameRunning",
+                "game-not-found" => "StartupLoaderNotFound",
+                "unsupported-game" => "StartupLoaderUnsupported",
+                "foreign-install" => "StartupLoaderForeign",
+                "original-missing" => "StartupLoaderOriginalMissing",
+                _ => "StartupLoaderFailed",
+            });
+            CompleteLocalOperationProgress(OperationStatus.Failed, error: message);
+            App.Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), message, failed: true, cause: exception);
+            return false;
+        }
     }
 
     private async Task<AppOperationResult> RunWithProgressAsync(string kind, Func<string, Task<AppOperationResult>> action)

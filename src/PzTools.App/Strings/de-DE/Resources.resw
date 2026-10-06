@@ -795,14 +795,14 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="StartupLoaderHeader" xml:space="preserve"><value>PZ Tools beim Spielstart laden (experimentell)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Die Spieldateien werden geprüft …</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Der Spielordner wurde nicht gefunden. Starte das Spiel einmal, dann wird er gefunden.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools verbindet sich mit dem Spiel, nachdem es gestartet ist. Die Installation ändert die projectzomboid.jar des Spiels, sodass das Spiel PZ Tools beim Start lädt. Die Deinstallation stellt die Originaldatei des Spiels wieder her.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools verbindet sich mit dem Spiel, nachdem es gestartet ist. Eingeschaltet ändert es die projectzomboid.jar des Spiels, sodass das Spiel PZ Tools beim Start lädt. Ausgeschaltet wird die Originaldatei des Spiels wiederhergestellt.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installiert. Das Spiel lädt PZ Tools beim Start.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Ein Spielupdate hat es entfernt. Installiere es erneut, um es zu verwenden.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Ein Spielupdate hat es entfernt. Schalte es wieder ein, um es zu verwenden.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Ein anderes Werkzeug hat die projectzomboid.jar des Spiels geändert. Überprüfe zuerst die Spieldateien in Steam.</value></data>
-  <data name="StartupLoaderInstall" xml:space="preserve"><value>Installieren</value></data>
-  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Deinstallieren</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Schließe das Spiel und jeden aus seinem Ordner gestarteten Server und versuche es dann erneut.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Diese Spielversion wird nicht unterstützt.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Die gesicherte Kopie der Spieldatei fehlt. Überprüfe die Spieldateien in Steam, um sie wiederherzustellen.</value></data>
   <data name="StartupLoaderFailed" xml:space="preserve"><value>Die Spieldatei konnte nicht geändert werden. Die Details stehen in den Protokollen.</value></data>
+  <data name="StartupLoaderInstalling" xml:space="preserve"><value>PZ Tools wird ins Spiel installiert</value></data>
+  <data name="StartupLoaderRemoving" xml:space="preserve"><value>PZ Tools wird aus dem Spiel entfernt</value></data>
 </root>

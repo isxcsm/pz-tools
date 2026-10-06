@@ -802,14 +802,14 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderHeader" xml:space="preserve"><value>โหลด PZ Tools เมื่อเกมเริ่ม (ทดลอง)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>กำลังตรวจสอบไฟล์เกม…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>ไม่พบโฟลเดอร์ของเกม เปิดเกมหนึ่งครั้งแล้วจะพบ</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว การติดตั้งจะแก้ไขไฟล์ projectzomboid.jar ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม การถอนการติดตั้งจะคืนไฟล์เดิมของเกม</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว เมื่อเปิด จะแก้ไขไฟล์ projectzomboid.jar ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม เมื่อปิด จะคืนไฟล์เดิมของเกม</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Tools ตอนเริ่ม</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>การอัปเดตเกมได้ลบออกไป ติดตั้งอีกครั้งเพื่อใช้งาน</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>การอัปเดตเกมได้ลบออกไป เปิดอีกครั้งเพื่อใช้งาน</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>เครื่องมืออื่นได้แก้ไขไฟล์ projectzomboid.jar ของเกม โปรดตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam ก่อน</value></data>
-  <data name="StartupLoaderInstall" xml:space="preserve"><value>ติดตั้ง</value></data>
-  <data name="StartupLoaderUninstall" xml:space="preserve"><value>ถอนการติดตั้ง</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ปิดเกมและเซิร์ฟเวอร์ที่เปิดจากโฟลเดอร์ของเกม แล้วลองอีกครั้ง</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>ไม่รองรับเกมเวอร์ชันนี้</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>ไม่พบสำเนาไฟล์เกมที่เก็บไว้ ตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam เพื่อกู้คืน</value></data>
   <data name="StartupLoaderFailed" xml:space="preserve"><value>แก้ไขไฟล์เกมไม่ได้ รายละเอียดอยู่ในบันทึก</value></data>
+  <data name="StartupLoaderInstalling" xml:space="preserve"><value>กำลังติดตั้ง PZ Tools ลงในเกม</value></data>
+  <data name="StartupLoaderRemoving" xml:space="preserve"><value>กำลังนำ PZ Tools ออกจากเกม</value></data>
 </root>

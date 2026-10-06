@@ -795,14 +795,14 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="StartupLoaderHeader" xml:space="preserve"><value>ゲーム起動時に PZ Tools を読み込む (試験的)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>ゲームのファイルを確認しています…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>ゲームのフォルダーが見つかりません。一度ゲームを起動すると見つかります。</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools はゲームの起動後にゲームへ接続します。インストールするとゲームの projectzomboid.jar を変更し、ゲームが起動時に PZ Tools を読み込むようになります。アンインストールするとゲーム本来のファイルに戻します。</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools はゲームの起動後にゲームへ接続します。オンにするとゲームの projectzomboid.jar を変更し、ゲームが起動時に PZ Tools を読み込むようになります。オフにするとゲーム本来のファイルに戻します。</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>インストール済み。ゲームは起動時に PZ Tools を読み込みます。</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>ゲームのアップデートで削除されました。使うには再度インストールしてください。</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>ゲームのアップデートで削除されました。使うには再度オンにしてください。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>別のツールがゲームの projectzomboid.jar を変更しています。先に Steam でゲームファイルの整合性を確認してください。</value></data>
-  <data name="StartupLoaderInstall" xml:space="preserve"><value>インストール</value></data>
-  <data name="StartupLoaderUninstall" xml:space="preserve"><value>アンインストール</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ゲームと、そのフォルダーから起動したサーバーを閉じてから、もう一度お試しください。</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>このバージョンのゲームには対応していません。</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>保存しておいたゲームファイルのコピーがありません。Steam でゲームファイルの整合性を確認して復元してください。</value></data>
   <data name="StartupLoaderFailed" xml:space="preserve"><value>ゲームのファイルを変更できませんでした。詳細はログにあります。</value></data>
+  <data name="StartupLoaderInstalling" xml:space="preserve"><value>ゲームに PZ Tools をインストール中</value></data>
+  <data name="StartupLoaderRemoving" xml:space="preserve"><value>ゲームから PZ Tools を削除中</value></data>
 </root>

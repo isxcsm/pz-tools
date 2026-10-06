@@ -65,7 +65,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' 
 $startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader test compilation failed' }
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe')
+# The install runs on the app's own runtime, which has only the modules the bridge needs.
+& (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe')
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }

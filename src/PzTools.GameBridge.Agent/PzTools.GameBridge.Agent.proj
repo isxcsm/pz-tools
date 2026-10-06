@@ -47,7 +47,7 @@
           Inputs="$(BridgeJdkPath)\release;$(BridgeOutputPath)\runtime-inputs.txt;$(MSBuildProjectFullPath)"
           Outputs="$(BridgeOutputPath)\runtime-built.txt">
     <RemoveDir Directories="$(BridgeOutputPath)\runtime" />
-    <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach,jdk.jfr --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
+    <Exec Command="&quot;$(BridgeJdkPath)\bin\jlink.exe&quot; --add-modules jdk.attach,jdk.jfr,jdk.zipfs --strip-debug --no-header-files --no-man-pages --compress=zip-6 --output &quot;$(BridgeOutputPath)\runtime&quot;" />
     <Touch Files="$(BridgeOutputPath)\runtime-built.txt" AlwaysCreate="true" />
   </Target>
   <Target Name="BuildExtensions" DependsOnTargets="ValidateBridgeToolchain">

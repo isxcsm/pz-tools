@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PzTools.App.Core;
 
@@ -80,42 +81,35 @@ public sealed partial class GameExtensionsPage : UserControl
             StartupLoaderStatus.Foreign => "StartupLoaderForeign",
             _ => "StartupLoaderChecking",
         });
-        bool installed = status == StartupLoaderStatus.Installed;
-        StartupLoaderButton.Content = Localizer.Get(installed ? "StartupLoaderUninstall" : "StartupLoaderInstall");
-        StartupLoaderButton.IsEnabled = !changingStartupLoader
+        StartupLoaderSwitch.OnContent = Localizer.Get("SettingEnabled");
+        StartupLoaderSwitch.OffContent = Localizer.Get("SettingDisabled");
+        AutomationProperties.SetName(StartupLoaderSwitch, Localizer.Get("StartupLoaderHeader"));
+        // While a change runs, the switch keeps the position the player gave it; then it shows what the jar is.
+        if (!changingStartupLoader) ReflectStartupLoader(status == StartupLoaderStatus.Installed);
+        StartupLoaderSwitch.IsEnabled = !changingStartupLoader
             && status is StartupLoaderStatus.NotInstalled or StartupLoaderStatus.Installed or StartupLoaderStatus.Reverted;
-        StartupLoaderProgress.IsActive = changingStartupLoader;
-        StartupLoaderProgress.Visibility = changingStartupLoader ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    private async void StartupLoaderButton_Click(object sender, RoutedEventArgs e)
+    private bool reflectingStartupLoader;
+
+    private void ReflectStartupLoader(bool installed)
     {
-        if (App.StartupLoader is not { } loader || changingStartupLoader) return;
+        if (StartupLoaderSwitch.IsOn == installed) return;
+        reflectingStartupLoader = true;
+        try { StartupLoaderSwitch.IsOn = installed; }
+        finally { reflectingStartupLoader = false; }
+    }
+
+    // The switch is turned off while the jar changes; the change has its own card in the sidebar.
+    private async void StartupLoaderSwitch_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (reflectingStartupLoader || changingStartupLoader || App.StartupLoader is not { } loader) return;
+        if (App.MainWindow.Content is not MainWindowShell shell) { ApplyStartupLoader(); return; }
         changingStartupLoader = true;
         ApplyStartupLoader();
-        try
-        {
-            if (loader.State.Status == StartupLoaderStatus.Installed) await loader.UninstallAsync();
-            else await loader.InstallAsync();
-        }
-        catch (StartupLoaderException exception)
-        {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("StartupLoaderHeader"), Localizer.Get(exception.Code switch
-            {
-                "game-running" => "StartupLoaderGameRunning",
-                "game-not-found" => "StartupLoaderNotFound",
-                "unsupported-game" => "StartupLoaderUnsupported",
-                "foreign-install" => "StartupLoaderForeign",
-                "original-missing" => "StartupLoaderOriginalMissing",
-                _ => "StartupLoaderFailed",
-            }), exception);
-        }
-        // An async event handler: anything escaping it ends the app.
-        catch (Exception exception)
-        {
-            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("StartupLoaderHeader"),
-                Localizer.Get("StartupLoaderFailed"), exception);
-        }
+        // An async event handler: nothing may escape it. The shell reports every failure on the card.
+        try { await shell.ChangeStartupLoaderAsync(loader, StartupLoaderSwitch.IsOn); }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
         finally
         {
             changingStartupLoader = false;

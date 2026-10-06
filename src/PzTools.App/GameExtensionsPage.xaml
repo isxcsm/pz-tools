@@ -22,10 +22,7 @@
         <!-- Shown only with [experimental] startup_loader in the app's advanced settings (docs/design/startup-loader.md). -->
         <toolkit:SettingsCard x:Name="StartupLoaderCard" Visibility="Collapsed">
           <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7B5;" /></toolkit:SettingsCard.HeaderIcon>
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <ProgressRing x:Name="StartupLoaderProgress" IsActive="False" Visibility="Collapsed" Width="20" Height="20" />
-            <Button x:Name="StartupLoaderButton" MinWidth="120" Click="StartupLoaderButton_Click" />
-          </StackPanel>
+          <ToggleSwitch x:Name="StartupLoaderSwitch" Toggled="StartupLoaderSwitch_Toggled" />
         </toolkit:SettingsCard>
         <ItemsControl ItemsSource="{x:Bind Sections}">
           <ItemsControl.ItemsPanel>

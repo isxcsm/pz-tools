@@ -70,6 +70,12 @@ public sealed class OperationCardStackTests
         Assert.Equal(OperationCardGroup.Maintenance, OperationCardStack.GroupOf(running));
     }
 
+    [Theory]
+    [InlineData("startup-loader-install")]
+    [InlineData("startup-loader-uninstall")]
+    public void StartupLoaderChangesHaveTheirOwnCard(string kind) =>
+        Assert.Equal(OperationCardGroup.StartupLoader, OperationCardStack.GroupOf(Operation(kind, 0, OperationStatus.Running, "app")));
+
     [Fact]
     public void UnrelatedBackgroundProducersGetNoCard()
     {
