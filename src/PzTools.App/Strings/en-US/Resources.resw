@@ -795,7 +795,7 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Checking the game's files…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>The game's folder was not found. Start the game once and it will be.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools connects to the game after it has started. Turning this on changes the game's projectzomboid.jar so the game loads PZ Tools as it starts. Turning it off puts the game's own file back.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installed. The game loads PZ Tools as it starts.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installed. The game loads PZ Tools as it starts, and the extensions you have on keep running while PZ Tools is closed.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>A game update removed it. Turn it on again to use it.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Another tool has changed the game's projectzomboid.jar. Verify the game's files in Steam first.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Close the game, and any server started from its folder, then try again.</value></data>

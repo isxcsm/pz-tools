@@ -165,6 +165,7 @@ public partial class App : Application
         _ = StartHostAsync();
         _ = CheckForUpdatesAsync(updateLoop.Token);
         _ = WatchGameMemoryAsync(updateLoop.Token);
+        _ = WatchResidentExtensionsAsync(updateLoop.Token);
         _ = CheckInstallAsync(updateLoop.Token);
     }
 
@@ -218,11 +219,9 @@ public partial class App : Application
                     try
                     {
                         await loader.RefreshAsync(cancellationToken);
+                        // Not while a game runs from the install's bridge: tried again on a later round.
                         if (!bridgeRefreshed && loader.State.Status == StartupLoaderStatus.Installed)
-                        {
-                            await loader.RefreshBridgeAsync(cancellationToken);
-                            bridgeRefreshed = true;
-                        }
+                            bridgeRefreshed = await loader.RefreshBridgeAsync(cancellationToken);
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {
@@ -231,6 +230,27 @@ public partial class App : Application
                 }
             }
             while (await timer.WaitForNextTickAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    // With the startup loader installed, the game runs the extensions the player has on even while the app is closed.
+    // What it runs is written to the install folder whenever the extension settings or tuning files change; a game that
+    // runs takes it up in its next world, or at once when the app is not connected to it.
+    private async Task WatchResidentExtensionsAsync(CancellationToken cancellationToken)
+    {
+        if (startupLoader is not { } loader) return;
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                try { if (Host is { } host) await loader.UpdateResidentExtensionsAsync(host.RuntimeRoot, cancellationToken); }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    System.Diagnostics.Debug.WriteLine(exception);
+                }
+            }
         }
         catch (OperationCanceledException) { }
     }

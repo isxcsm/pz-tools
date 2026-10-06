@@ -36,6 +36,29 @@ public sealed class StartupLoaderTests
     }
 
     [Fact]
+    public async Task Refresh_Installed_NamesTheInstallFolder()
+    {
+        var tool = new FakeTool(_ => (0, "PZTOOLS-STARTUP\tinstalled\tabc\t" + @"C:\ProgramData\PzTools\startup\s-1"));
+        var loader = new StartupLoader(@"C:\App\game-bridge", () => Folder, () => false, tool.Run);
+        await loader.RefreshAsync();
+        Assert.Equal(new StartupLoaderState(StartupLoaderStatus.Installed, Folder, @"C:\ProgramData\PzTools\startup\s-1"), loader.State);
+    }
+
+    [Fact]
+    public async Task RefreshBridge_WhileAGameRuns_WaitsForTheGameToEnd()
+    {
+        bool running = true;
+        var tool = new FakeTool(_ => (0, "PZTOOLS-STARTUP\tunchanged"));
+        var loader = new StartupLoader(@"C:\App\game-bridge", () => Folder, () => running, tool.Run);
+        // The game runs its extensions from the install's bridge; a refresh would remove that copy.
+        Assert.False(await loader.RefreshBridgeAsync());
+        Assert.Empty(tool.Calls);
+        running = false;
+        Assert.True(await loader.RefreshBridgeAsync());
+        Assert.Equal([@"refresh C:\App\game-bridge"], tool.Calls);
+    }
+
+    [Fact]
     public async Task Refresh_WithoutAGameFolder_IsNotFound_AndRunsNothing()
     {
         var tool = new FakeTool(_ => throw new InvalidOperationException("not called"));

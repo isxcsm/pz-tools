@@ -796,7 +796,7 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="StartupLoaderChecking" xml:space="preserve"><value>正在檢查遊戲檔案…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>找不到遊戲資料夾。啟動一次遊戲即可找到。</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools 會在遊戲啟動後才連接到遊戲。開啟後會修改遊戲的 projectzomboid.jar，讓遊戲在啟動時載入 PZ Tools。關閉後會還原遊戲原本的檔案。</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>已安裝。遊戲啟動時會載入 PZ Tools。</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>已安裝。遊戲啟動時會載入 PZ Tools，已開啟的擴充功能在關閉 PZ Tools 後仍會繼續運作。</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>遊戲更新移除了它。若要使用，請重新開啟。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>另一個工具修改了遊戲的 projectzomboid.jar。請先在 Steam 中驗證遊戲檔案的完整性。</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>請關閉遊戲以及從其資料夾啟動的伺服器，然後再試一次。</value></data>

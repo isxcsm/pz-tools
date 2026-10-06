@@ -1,15 +1,17 @@
-# Startup loader (planned)
+# Startup loader
 
 [Documentation index](../README.md)
 
-> **Partly built, hidden.** Built: the install and uninstall
+> **Built, hidden.** The install and uninstall
 > ([`StartupInstall`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/StartupInstall.java),
 > [`StartupLoader`](../../src/PzTools.App.Core/StartupLoader.cs)), the loader in the game's jar, the
-> delayed endpoint, and a card on the game extensions page. It shows only with
-> `[experimental] startup_loader = true` in the app's advanced settings
+> delayed endpoint, a switch on the game extensions page and the
+> [resident extensions](#resident-extensions)
+> ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java)).
+> It shows only with `[experimental] startup_loader = true` in the app's advanced settings
 > (`%LOCALAPPDATA%\PzTools\config\app\default.toml`); the shipped file does not list it. Not built:
-> the [resident extensions](#resident-extensions) and the desired state, so extensions still need the
-> app. The rest of the page is the agreed design.
+> extensions that declare they need the install. The resident extensions have not been tried on the
+> real game yet.
 
 Today the game runs PZ Tools code only while the app is attached: the app's helper attaches after
 the game has started ([game bridge](game-bridge.md#getting-into-the-game)), and the game revokes
@@ -39,8 +41,9 @@ today.
    bootstrap jar and the option `BOOTSTRAP1:<base64 payload path>`, the same one the helper passes
    ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)).
 3. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
-   In installed mode it also starts the extension host from the
-   [desired state](#files) without waiting for the app.
+   In installed mode it also loads the payload once the game loads `GameWindow`, and the payload's
+   [resident controller](#resident-extensions) runs the extensions the app last asked for, without
+   waiting for the app.
 4. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
    skips loading anything and connects. `AgentEntry` refuses a second load, so a reuse is the only
    path that can succeed.
@@ -80,7 +83,7 @@ The install is separate from each extension's switch.
 | --- | --- | --- |
 | **Install** | The game's jar (patched), the [install folder](#files) | Only while no game runs |
 | **Uninstall** | The game's jar (original back), the install folder (removed) | Only while no game runs |
-| An extension's switch | The desired state file; the running game, if the app is connected | Any time |
+| An extension's switch | The [resident request](#files); the running game, if the app is connected | Any time |
 
 - **No game running.** `GameProcessFinder` already finds the launcher, a game started by `java`
   from a script, and several games. Install and uninstall are disabled while it finds any, with a
@@ -128,29 +131,50 @@ the old one is deleted later, so a path into the app folder would break at the n
 
 | File | Content |
 | --- | --- |
-| Install folder | One folder per user, chosen like the attach copies for non-ASCII paths ([game bridge](game-bridge.md#folders-with-letters-outside-ascii)): only the player's account and the administrators may change it |
-| `loader-<digest>.dll` | The native loader |
-| `bridge-<digest>\` | Copies of the bootstrap jar, the payload and the extension runtime and modules, by content digest so a running game keeps its open files while the app writes a newer set |
-| `current` | Which `bridge-<digest>` the next game start loads |
-| Desired state | Which extensions are on, at which revision, with their flat configuration: what the app would send in `APPLY` |
-| `original.jar` | The game's jar as it was before the install, with its SHA-256 and game version |
+| Install folder | `%ProgramData%\PzTools\startup\s-<account digest>`, one per user: only the player's account and the administrators may change it |
+| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) and the app's `extensions` folder (the extension runtime, the modules, the catalogue), named by content digest |
+| `current` | Which `bridge-<digest>` the next game start loads, with the bootstrap's SHA-256 |
+| `resident.tsv` | The [resident request](#resident-extensions): the settings revision and each continuous module, on or off, with its configuration as the app would send it in `APPLY` |
+| `install.tsv` | The game's jar, its SHA-256 before the install and the patched jar's |
+| `original.jar` | The game's jar as it was before the install |
+| `startup.log` | One line from the loader per game start: what it loaded, or why it did not |
 
-The patched call names the loader by a fixed path inside the install folder. The app rewrites
-`current` and the desired state; it never rewrites the game's jar to point somewhere new.
+The patched jar holds the install folder's path. The app rewrites `current` and `resident.tsv`; it
+never rewrites the game's jar to point somewhere new. The status the install tool reports names the
+folder, so the app writes `resident.tsv` without working out the path itself.
+
+The app brings the copied bridge up to its own once per run, and only while no game runs: a game
+keeps running the extensions from the copy it started with, and a refresh removes older copies.
 
 ## Resident extensions
 
 In installed mode, extensions stay in the game until it exits.
 
-- **No lease.** The 5-second lease does not revoke anything. The app's connection is used for
-  control and status only.
-- **World changes.** The host keeps the last desired state and activates it again in the next local
-  world, without the app.
-- **Faults.** A faulting module is revoked alone, as today. With no app connected, the game keeps the
-  fault and the failed revision; when the app connects, it records the failure as it does now
-  (`enabled: false` at that revision).
-- **Turning off.** An extension's switch while the app is connected turns it off at once. With no
-  app, only a game restart with an updated desired state does.
+- **The request.** While installed, the app writes `resident.tsv` to the install folder whenever it
+  changes: every two seconds it builds it from the extension settings, the deployed catalogue and
+  the tuning files, the same way the app builds an `APPLY`, and writes it only when it differs. A
+  module whose tuning file cannot be read is left out, so the game keeps what it runs.
+- **The resident controller.** The payload's `ResidentExtensions` holds the lifecycle slot when no
+  app is connected. Once a second it reads `resident.tsv` and, in a loaded local world, asks for each
+  module that is on and not already running at that revision in that world, and turns off each one
+  that is off. It goes through the same `ExtensionControl.Session` as the app, so the game checks
+  both alike. Its session has no lease.
+- **Handing over.** An app's connection pauses the resident controller and takes the slot. When that
+  connection ends, or its lease lapses, the modules keep running and the resident controller takes
+  the slot back. Neither side turns modules off on the hand-over. A payload reload asks the
+  resident controller to let go too; the new payload starts its own.
+- **World changes.** Leaving a world withdraws the modules as today. In the next world the resident
+  controller asks for them again.
+- **Faults.** A request the game refused, or a module it faulted, is not asked for again in the same
+  world at the same revision; a module that needs a restart is left alone. When the app connects, it
+  records the failure as it does now (`enabled: false` at that revision), which reaches
+  `resident.tsv` in turn.
+- **Turning off.** An extension's switch while the app is connected turns it off at once. With the
+  app running but not connected (the game at the main menu, say), the next world follows the new
+  request. With no app, nothing changes until the app runs again.
+- **Revisions.** The resident request carries the settings revision the app uses, so a module the
+  resident controller applied is already at the app's revision when the app connects, and the app's
+  reconciliation finds nothing to do.
 - **Not installed.** Nothing changes: the lease and the revoke on disconnect stay.
 
 Whether resident becomes the rule for both modes is decided after the installed mode has been in
@@ -164,8 +188,8 @@ so the secret ends up in the log; in the measured run the line was cut short, bu
 digits were there. Players post `console.txt` when they report bugs.
 
 The secret must not reach the log. The bootstrap in installed mode publishes the property only
-after the game has written its property list (the first game-loop tick is the candidate), and the
-helper waits for it as it already waits for a connection. The secret's role is unchanged: anyone who
+when the game loads `GameWindow`, which `main` first uses after writing its property list, and the
+helper waits for it (stage `bootstrap-starting`, up to 15 seconds). The secret's role is unchanged: anyone who
 can attach can read it anyway ([game bridge](game-bridge.md#getting-into-the-game)).
 
 ## Agents loaded into a running JVM
@@ -225,6 +249,8 @@ the install patched the jar, the game logged `pztools.bridge.bootstrap.api` but 
 
 Not tested yet:
 
+- the resident extensions on the real game: a world entered with the app closed, the app closed
+  in a world, and a second world;
 - the real game starting with the guarded call and no loader files (the cases above used a small
   class patched the same way);
 - whether a patched jar is refused when joining a multiplayer server.
@@ -241,7 +267,6 @@ Not tested yet:
 
 ## Open questions
 
-- Where installed mode publishes the control property, if not the first game-loop tick.
 - What the install shows when the game's jar does not have `MainScreenState.main` exactly once.
 - Whether multiplayer joining checks the jar. If it does, the install must say so before it runs.
 - How a player who deleted the app restores the jar: Steam's file check works; the guide should

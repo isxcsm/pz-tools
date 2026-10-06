@@ -141,7 +141,9 @@ it reads `settings.json` and the latest runtime snapshot.
 - **Wire.** `APPLY` names its module. `STATUS`, `PING` and `OFF` with a module field address one
   module; without it they address the host, and `OFF` then retires every module.
 - **Lease.** It lasts 5 seconds in the game (`ExtensionControl.LEASE_NANOS`) and every command
-  renews it. When it lapses, or the app's connection ends, the game revokes every module.
+  renews it. When it lapses, or the app's connection ends, the game revokes every module, unless
+  the [startup loader](startup-loader.md#resident-extensions) started the game: its resident
+  controller then takes the modules over as they are.
   `APPLY` and `OFF` time out after 15 seconds, other commands after 3.
 - **Slots.** `ModuleHost` keeps one `ContinuousRuntime` slot per module, at most 16. A slot has
   its own archive, class loader, [generation](glossary.md#generation-module), configuration,

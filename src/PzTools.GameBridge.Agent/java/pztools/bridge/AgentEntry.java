@@ -33,6 +33,10 @@ public final class AgentEntry {
     private static final AtomicBoolean extensionSession = new AtomicBoolean();
     private static Method payloadWatch;
     private static Method payloadExtensions;
+    // The startup loader's install folder, in a game it started; the resident controller of the payload last started.
+    private static Path residentRoot;
+    private static volatile Method payloadResident;
+    private static Method residentStarted;
     private static final Object runtimeGate = new Object();
     private static Instrumentation instrumentation;
     private static Class<?> window;
@@ -56,6 +60,8 @@ public final class AgentEntry {
         Path candidate = Path.of(new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8));
         if (!candidate.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
         payload = candidate.normalize();
+        // The loader gives the payload in the install's bridge folder: <install folder>\bridge-<id>\<payload>.
+        if (startup) residentRoot = payload.getParent().getParent();
         var server = new ServerSocket();
         server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 8);
         byte[] key = new byte[32];
@@ -91,6 +97,7 @@ public final class AgentEntry {
                 if (type == null && "zombie/GameWindow".equals(name) && published.compareAndSet(false, true)) {
                     System.setProperty(CONTROL_PROPERTY, endpoint);
                     instrumentation.removeTransformer(this);
+                    launchResident();
                 }
                 return null;
             }
@@ -101,7 +108,45 @@ public final class AgentEntry {
             if (type.getName().equals("zombie.GameWindow") && published.compareAndSet(false, true)) {
                 instrumentation.removeTransformer(watcher);
                 System.setProperty(CONTROL_PROPERTY, endpoint);
+                launchResident();
             }
+    }
+
+    /**
+     * Loads the payload and starts its resident extension controller, away from the class loading that calls this. A
+     * game started without the app runs its extensions this way; the controller waits for the game's first frames.
+     */
+    private static void launchResident() {
+        Thread starter = new Thread(() -> {
+            for (int attempt = 0; attempt < 30; attempt++) {
+                try {
+                    Path requested;
+                    synchronized (runtimeGate) { requested = payload; }
+                    preparePayload(requested, "RESIDENT");
+                    startResident();
+                    return;
+                } catch (ReloadBusy busy) {
+                    // An app's connection is reloading the payload; it starts the controller itself.
+                } catch (Exception failure) {
+                    System.err.println("[PzTools resident extensions] " + failure);
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException stopped) { return; }
+                synchronized (runtimeGate) { if (residentStarted != null) return; }
+            }
+        }, "PzTools-resident-start");
+        starter.setDaemon(true);
+        starter.start();
+    }
+
+    /** Starts the resident controller of the payload loaded now, in a game the startup loader started, once per payload. */
+    private static void startResident() {
+        Method start;
+        synchronized (runtimeGate) {
+            if (residentRoot == null || payloadResident == null || residentStarted == payloadResident) return;
+            start = residentStarted = payloadResident;
+        }
+        try { start.invoke(null, residentRoot.toString(), instrumentation); }
+        catch (Throwable failure) { System.err.println("[PzTools resident extensions] " + failure); }
     }
 
     /** The extension runtime, replaced when its jar changed (extension control, a provider save); WATCH stays connected. */
@@ -122,6 +167,12 @@ public final class AgentEntry {
         }
     }
     public static boolean runtimeReloadRequested() { return reloadRequested; }
+    /** Whether this resident controller class belongs to the payload loaded now; a replaced one ends. Not locked: a
+     *  reload holds the gate while it waits for that controller to let go. */
+    public static boolean residentCurrent(Class<?> controller) {
+        Method current = payloadResident;
+        return current != null && current.getDeclaringClass() == controller;
+    }
 
     /** No callback is executed under runtimeGate or the admission monitor. */
     private static Method preparePayload(Path requested, String kind) throws Exception {
@@ -135,7 +186,7 @@ public final class AgentEntry {
                         payload = requested;
                     }
                 }
-                return kind.equals("WATCH") ? payloadWatch : kind.equals("EXTENSIONS") ? payloadExtensions : payloadRun;
+                return entry(kind);
             }
             synchronized (AgentEntry.class) {
                 if (session.get() || callback != null) throw new ReloadBusy();
@@ -145,6 +196,8 @@ public final class AgentEntry {
             Method next = loader.loadClass("pztools.bridge.runtime.BridgeSession").getMethod("run", String.class, Instrumentation.class);
             Method nextWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch").getMethod("run", String.class, Instrumentation.class);
             Method nextExtensions = loader.loadClass("pztools.bridge.runtime.ExtensionControl").getMethod("run", String.class, Instrumentation.class);
+            Method nextResident = loader.loadClass("pztools.bridge.runtime.ResidentExtensions").getMethod("start", String.class, Instrumentation.class);
+            // The running resident controller lets go of the extensions when it sees this, and ends.
             reloadRequested = true;
             synchronized (AgentEntry.class) { dispatchPaused = true; }
             try {
@@ -157,14 +210,23 @@ public final class AgentEntry {
                     if (System.nanoTime() >= deadline) throw new ReloadBusy();
                     Thread.sleep(10); // Control thread only; never wait in game dispatch.
                 }
-                payloadRun = next; payloadWatch = nextWatch; payloadExtensions = nextExtensions; payloadDigest = archive.digest();
+                payloadRun = next; payloadWatch = nextWatch; payloadExtensions = nextExtensions; payloadResident = nextResident;
+                payloadDigest = archive.digest();
                 payload = requested; payloadLoads++;
-                return kind.equals("WATCH") ? nextWatch : kind.equals("EXTENSIONS") ? nextExtensions : next;
+                return entry(kind);
             } finally {
                 synchronized (AgentEntry.class) { dispatchPaused = false; }
                 reloadRequested = false;
             }
         }
+    }
+    private static Method entry(String kind) {
+        return switch (kind) {
+            case "WATCH" -> payloadWatch;
+            case "EXTENSIONS" -> payloadExtensions;
+            case "RESIDENT" -> payloadResident;
+            default -> payloadRun;
+        };
     }
     private static final class ReloadBusy extends Exception { }
 
@@ -194,6 +256,8 @@ public final class AgentEntry {
                 try { entry = preparePayload(requestedPayload.normalize(), kind); }
                 catch (ReloadBusy busy) { output.println("BUSY"); continue; }
                 catch (Exception incompatible) { output.println("PAYLOAD_UNAVAILABLE"); continue; }
+                // A payload loaded for this request brings its own resident controller, which this session pauses.
+                startResident();
                 AtomicBoolean slot = kind.equals("WATCH") ? watchSession : kind.equals("EXTENSIONS") ? extensionSession : session;
                 if (!slot.compareAndSet(false, true)) { output.println("BUSY"); continue; }
                 try {

@@ -27,6 +27,10 @@ public final class ExtensionControl {
     private ExtensionControl() { }
     public static void run(String options, Instrumentation instrumentation) {
         Session owner = null;
+        // In a game the startup loader started, the extensions run without the app: the app's connection takes them
+        // over from the resident controller and hands them back when it ends, rather than turning them off.
+        boolean resident = ResidentExtensions.started();
+        boolean paused = false;
         try {
             String[] p = options.split(":", -1);
             if (p.length != 2 || !p[1].matches("[0-9a-f]{64}")) throw new IllegalArgumentException("Invalid extension session");
@@ -34,7 +38,9 @@ public final class ExtensionControl {
                 channel.socket().connect(new InetSocketAddress(InetAddress.getLoopbackAddress(), Integer.parseInt(p[0])), 5000);
                 channel.configureBlocking(false);
                 send(channel, "EXTENSIONS\t1\t" + ProcessHandle.current().pid() + "\t" + p[1]);
-                owner = new Session(instrumentation, AgentEntry.ensureGameHook());
+                owner = new Session(instrumentation, AgentEntry.ensureGameHook(), System::nanoTime,
+                    () -> (ContinuousModules)AgentEntry.extensions(), ExtensionControl::residentHostAbi, true, resident);
+                if (resident) { paused = true; ResidentExtensions.pause(); }
                 if (!AgentEntry.acquireLifecycle(owner, owner::poll)) throw new IllegalStateException("Lifecycle already owned");
                 ByteBuffer buffer = ByteBuffer.allocate(8192);
                 var line = new StringBuilder();
@@ -64,7 +70,10 @@ public final class ExtensionControl {
             }
         } catch (Exception | LinkageError failure) {
             // Losing this authenticated channel revokes permission; it never starts or retries a save.
-        } finally { if (owner != null) owner.close(); }
+        } finally {
+            if (owner != null) owner.close();
+            if (paused) ResidentExtensions.resume();
+        }
     }
     private record Cached(String request, String response) { }
     static final class Session {
@@ -84,6 +93,9 @@ public final class ExtensionControl {
         // and short, unlike an app run's (Leases): a vehicle must not keep forces nobody controls any longer.
         private final Leases.Lease lease;
         private final AtomicBoolean active = new AtomicBoolean(true);
+        // A resident controller has no lease: it runs until it is closed. One that keeps its modules leaves them
+        // running when it ends, for the next controller to take over (ResidentExtensions).
+        private final boolean leased, keepsModules;
         private volatile ContinuousProvider.Context context;
         private String epoch;
         Session(Instrumentation instrumentation, Class<?> window) throws Exception {
@@ -98,12 +110,19 @@ public final class ExtensionControl {
         }
         Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock,
                 Callable<ContinuousModules> moduleHost, IntSupplier residentAbi) throws Exception {
+            this(instrumentation, window, clock, moduleHost, residentAbi, true, false);
+        }
+        Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock, Callable<ContinuousModules> moduleHost,
+                IntSupplier residentAbi, boolean leased, boolean keepsModules) throws Exception {
             this.instrumentation = instrumentation; loader = window.getClassLoader();
             this.moduleHost = moduleHost; this.residentAbi = residentAbi;
+            this.leased = leased; this.keepsModules = keepsModules;
             lease = new Leases.Lease(clock, LEASE_NANOS);
             adapter = new PzRuntimeAdapter(window); gameThread = window.getField("gameThread");
         }
-        boolean expired() { return !active.get() || lease.lapsed(); }
+        boolean expired() { return !active.get() || leased && lease.lapsed(); }
+        /** The world this controller's game-thread poll last found loaded and ready, or null. */
+        String worldId() { ContinuousProvider.Context current = context; return current == null ? null : current.worldId(); }
         void poll() {
             if (!active.get() || !operations.tryLock()) return;
             try { if (active.get()) pollOwned(); }
@@ -111,7 +130,7 @@ public final class ExtensionControl {
         }
         private void pollOwned() {
             ContinuousModules target = modules;
-            if (expired()) { if (target != null) target.revoke("lease-expired"); return; }
+            if (expired()) { if (target != null && !keepsModules) target.revoke("lease-expired"); return; }
             try {
                 if (Thread.currentThread() != gameThread.get(null)) throw new IllegalStateException("Wrong game thread");
                 adapter.read();
@@ -213,13 +232,13 @@ public final class ExtensionControl {
             invalidateWorld();
             ContinuousModules target = modules;
             // Revoke admission immediately, even if a game callback is still in flight.
-            try { if (target != null) target.revoke("connection-ended"); }
+            try { if (target != null && !keepsModules) target.revoke("connection-ended"); }
             catch (Throwable ignored) { /* Still drain this owner and attempt full retirement. */ }
             operations.lock();
             try {
                 // An already admitted poll/command may have published these after close began.
                 invalidateWorld(); target = modules;
-                try { if (target != null) target.deactivate("connection-ended"); }
+                try { if (target != null && !keepsModules) target.deactivate("connection-ended"); }
                 catch (Throwable ignored) { /* The closed owner cannot renew admission. */ }
                 finally { completed.clear(); modules = null; }
             } finally {

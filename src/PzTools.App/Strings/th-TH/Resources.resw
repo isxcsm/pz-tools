@@ -803,7 +803,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderChecking" xml:space="preserve"><value>กำลังตรวจสอบไฟล์เกม…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>ไม่พบโฟลเดอร์ของเกม เปิดเกมหนึ่งครั้งแล้วจะพบ</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว เมื่อเปิด จะแก้ไขไฟล์ projectzomboid.jar ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม เมื่อปิด จะคืนไฟล์เดิมของเกม</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Tools ตอนเริ่ม</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Tools ตอนเริ่ม และส่วนขยายที่เปิดไว้จะยังทำงานต่อแม้ปิด PZ Tools แล้ว</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>การอัปเดตเกมได้ลบออกไป เปิดอีกครั้งเพื่อใช้งาน</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>เครื่องมืออื่นได้แก้ไขไฟล์ projectzomboid.jar ของเกม โปรดตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam ก่อน</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ปิดเกมและเซิร์ฟเวอร์ที่เปิดจากโฟลเดอร์ของเกม แล้วลองอีกครั้ง</value></data>

@@ -27,6 +27,7 @@ public final class StartupInstall {
     static final String LOADER_ENTRY = "pztools/startup/StartupLoader.class";
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
+    static final String EXTENSIONS = "extensions";
 
     /** A failure with a code the app turns into a message. */
     static final class Refused extends Exception {
@@ -85,7 +86,8 @@ public final class StartupInstall {
         boolean patched = hasLoader(jar);
         if (record == null) return patched ? "foreign" : "not-installed";
         String digest = sha256(jar);
-        if (digest.equals(record.get("patched_sha256"))) return "installed\t" + digest;
+        // The folder too: the app writes there what the game's resident extensions should run.
+        if (digest.equals(record.get("patched_sha256"))) return "installed\t" + digest + "\t" + root;
         return patched ? "foreign" : "reverted";
     }
 
@@ -219,15 +221,26 @@ public final class StartupInstall {
             throw new Refused("unsafe-folder", "The install folder " + root + " may be changed by other accounts");
     }
 
-    /** Copies the app's bootstrap, payload and native library to bridge-<digest>, then points {@code current} at it. */
+    /**
+     * Copies the app's bootstrap, payload, native library and extensions (the files of its {@code extensions} folder) to
+     * bridge-<digest>, then points {@code current} at it. The extensions are what the game runs without the app.
+     */
     static Path copyBridge(Path root, Path bridge) throws Exception {
+        var files = new ArrayList<String>(List.of(BRIDGE_FILES));
+        Path extensions = bridge.resolve(EXTENSIONS);
+        if (Files.isDirectory(extensions)) try (var entries = Files.list(extensions)) {
+            for (Path file : entries.sorted().toList()) {
+                String name = file.getFileName().toString();
+                if (Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) && name.matches("[A-Za-z0-9._-]+")) files.add(EXTENSIONS + "/" + name);
+            }
+        }
         var digests = new StringBuilder();
-        for (String name : BRIDGE_FILES) digests.append(sha256(bridge.resolve(name)));
+        for (String name : files) digests.append(name).append('\t').append(sha256(bridge.resolve(name))).append('\n');
         String id = "bridge-" + sha256(digests.toString().getBytes(StandardCharsets.US_ASCII)).substring(0, 16);
         Path target = root.resolve(id);
-        Files.createDirectories(target);
+        Files.createDirectories(target.resolve(EXTENSIONS));
         UserPrincipal[] owners = AttachMain.principals();
-        for (String name : BRIDGE_FILES) {
+        for (String name : files) {
             Path file = target.resolve(name);
             if (!Files.isRegularFile(file) || !sha256(file).equals(sha256(bridge.resolve(name)))) replace(bridge.resolve(name), file);
             if (!AttachMain.safe(file, owners)) throw new Refused("unsafe-folder", "The copy " + file + " may be changed by other accounts");

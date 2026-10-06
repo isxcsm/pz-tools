@@ -796,7 +796,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Sprawdzanie plików gry…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Nie znaleziono folderu gry. Uruchom grę raz, a zostanie znaleziony.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie zmienia plik projectzomboid.jar gry, aby gra wczytywała PZ Tools przy starcie. Wyłączenie przywraca oryginalny plik gry.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Zainstalowano. Gra wczytuje PZ Tools przy starcie.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Zainstalowano. Gra wczytuje PZ Tools przy starcie, a włączone rozszerzenia działają dalej, nawet gdy PZ Tools jest zamknięte.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Aktualizacja gry to usunęła. Włącz ponownie, aby z tego korzystać.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Inne narzędzie zmieniło plik projectzomboid.jar gry. Najpierw zweryfikuj pliki gry w Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zamknij grę oraz każdy serwer uruchomiony z jej folderu, a potem spróbuj ponownie.</value></data>

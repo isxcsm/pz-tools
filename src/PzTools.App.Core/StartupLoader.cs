@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PzTools.GameExtensions;
 using PzTools.Process.Contracts;
 
 namespace PzTools.App.Core;
@@ -19,7 +20,9 @@ public enum StartupLoaderStatus
     Foreign,
 }
 
-public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null);
+/// <param name="InstallFolder">Where the install keeps its files, while installed: the app writes there what the game's
+/// resident extensions run.</param>
+public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null, string? InstallFolder = null);
 
 /// <summary>
 /// Why the install or uninstall did not happen: <c>game-running</c>, <c>game-not-found</c>, <c>unsupported-game</c>,
@@ -79,7 +82,7 @@ public sealed class StartupLoader
         {
             var folder = gameFolder();
             if (folder is null) { Publish(new(StartupLoaderStatus.NotFound)); return; }
-            try { Publish(new(Parse(await RunAsync(["status", folder], cancellationToken)), folder)); }
+            try { Publish(ReadState(await RunAsync(["status", folder], cancellationToken), folder)); }
             catch (StartupLoaderException error) when (error.Code == "game-not-found") { Publish(new(StartupLoaderStatus.NotFound)); }
             catch (StartupLoaderException) { if (state.Status == StartupLoaderStatus.Unknown) Publish(new(StartupLoaderStatus.Unknown, folder)); }
         }
@@ -98,12 +101,36 @@ public sealed class StartupLoader
 
     /// <summary>
     /// Brings the install's copy of the bridge up to this app's, so the next game start loads the bridge of this
-    /// version. Nothing happens when nothing is installed; a running game keeps the files it has open.
+    /// version. Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
+    /// extensions it runs from there, stay until it ends. False when it did not run for that.
     /// </summary>
-    public async Task RefreshBridgeAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
-        try { await RunAsync(["refresh", bridgeDirectory], cancellationToken); }
+        try
+        {
+            if (gameRunning()) return false;
+            await RunAsync(["refresh", bridgeDirectory], cancellationToken);
+            return true;
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>
+    /// Writes what a game started by the loader runs without the app (<see cref="ResidentExtensionRequest"/>) to the
+    /// install folder, when it changed. Nothing happens unless installed. True when it was written.
+    /// </summary>
+    /// <param name="runtimeRoot">The app's data folder: the extension settings and the tuning files.</param>
+    public async Task<bool> UpdateResidentExtensionsAsync(string runtimeRoot, CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            // Under the gate: an uninstall removes the folder, and must not find a file being written into it.
+            if (state is not { Status: StartupLoaderStatus.Installed, InstallFolder: { } folder }) return false;
+            return await Task.Run(() => ResidentExtensionRequest.Write(folder, ResidentExtensionRequest.Build(bridgeDirectory, runtimeRoot)),
+                cancellationToken);
+        }
         finally { gate.Release(); }
     }
 
@@ -118,7 +145,7 @@ public sealed class StartupLoader
             finally
             {
                 // What the jar is now, whether the change went through or stopped half way.
-                try { Publish(new(Parse(await RunAsync(["status", folder], CancellationToken.None)), folder)); }
+                try { Publish(ReadState(await RunAsync(["status", folder], CancellationToken.None), folder)); }
                 catch (StartupLoaderException) { }
             }
         }
@@ -149,6 +176,15 @@ public sealed class StartupLoader
             if (fields[0] == Mark && fields.Length >= 2 && exitCode == 0) return string.Join('\t', fields.Skip(1));
         }
         throw new StartupLoaderException("io", $"The install tool ended with {exitCode} and no result.");
+    }
+
+    /// <summary>The state a status result gives: installed results name the install folder after the jar's digest.</summary>
+    internal static StartupLoaderState ReadState(string result, string gameFolder)
+    {
+        var status = Parse(result);
+        var fields = result.Split('\t');
+        return new(status, gameFolder, status == StartupLoaderStatus.Installed && fields.Length >= 3 && Path.IsPathFullyQualified(fields[2])
+            ? fields[2] : null);
     }
 
     internal static StartupLoaderStatus Parse(string result) => result.Split('\t')[0] switch

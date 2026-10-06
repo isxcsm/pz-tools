@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\PzTools.Process.Contracts\PzTools.Process.Contracts.csproj" />
+    <ProjectReference Include="..\PzTools.GameExtensions\PzTools.GameExtensions.csproj" />
   </ItemGroup>
 </Project>

@@ -52,6 +52,8 @@ public sealed class AppHost : IAsyncDisposable
     public AppRuntimeOptions RuntimeOptions => runtime;
     /// <summary>The bridge's folder: its runtime, its jars and the extensions.</summary>
     public string BridgeDirectory => Path.Combine(paths.WorkerDirectory, "game-bridge");
+    /// <summary>The data folder: settings, logs and the extension settings and tuning files.</summary>
+    public string RuntimeRoot => paths.RuntimeRoot;
 
     public AppHost(
         AppHostPaths paths,

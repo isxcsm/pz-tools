@@ -796,7 +796,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Controllo dei file del gioco…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Cartella del gioco non trovata. Avvia il gioco una volta e verrà trovata.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools si collega al gioco dopo che è stato avviato. Attivandolo si modifica il file projectzomboid.jar del gioco in modo che carichi PZ Tools all'avvio. Disattivandolo si ripristina il file originale del gioco.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installato. Il gioco carica PZ Tools all'avvio.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installato. Il gioco carica PZ Tools all'avvio e le estensioni attive continuano a funzionare anche con PZ Tools chiuso.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Un aggiornamento del gioco lo ha rimosso. Riattivalo per usarlo.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Un altro strumento ha modificato il file projectzomboid.jar del gioco. Verifica prima i file del gioco su Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Chiudi il gioco, e qualsiasi server avviato dalla sua cartella, poi riprova.</value></data>

@@ -268,18 +268,16 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
     /// <summary>What a module is asked to do, from its own saved options and its own tuning file.</summary>
     private IReadOnlyDictionary<string, string> Configure(Module module, ExtensionPreference preference, long revision)
     {
-        switch (module.Id)
+        // The same settings a game the startup loader started runs with while the app is away (ResidentExtensionRequest).
+        var tuning = ContinuousConfiguration.For(module.Id, bridgeDirectory, runtimeRoot, preference);
+        if (module.Id == ExtensionIds.VehicleDrivetrain)
         {
-            case ExtensionIds.VehicleDrivetrain:
-                var tuning = VehicleDrivetrainConfiguration.Load(bridgeDirectory, runtimeRoot, preference.VehicleDrivetrain);
-                bool enabled = tuning["probe_only"] != "true";
-                module.Activation.RecordRequest(revision, new(enabled && tuning["torque_enabled"] == "true",
-                    enabled && tuning["reverse_enabled"] == "true", enabled && tuning["steering_enabled"] == "true",
-                    enabled && tuning["area_light_enabled"] == "true"));
-                return tuning;
-            default:
-                throw new InvalidDataException("No configuration is defined for this continuous module.");
+            bool enabled = tuning["probe_only"] != "true";
+            module.Activation.RecordRequest(revision, new(enabled && tuning["torque_enabled"] == "true",
+                enabled && tuning["reverse_enabled"] == "true", enabled && tuning["steering_enabled"] == "true",
+                enabled && tuning["area_light_enabled"] == "true"));
         }
+        return tuning;
     }
 
     /// <summary>The modules the deployed catalogue runs continuously; the built-in list when that file cannot be read.</summary>

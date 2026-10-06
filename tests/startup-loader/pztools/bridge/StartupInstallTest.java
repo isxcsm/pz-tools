@@ -25,21 +25,28 @@ public final class StartupInstallTest {
             String installed = run(root, "install", game, bridge);
             assert installed.startsWith("installed\t") : installed;
             assert StartupInstall.hasLoader(jar);
-            expect(run(root, "status", game), installed.split("\t")[0] + "\t" + StartupInstall.sha256(jar));
+            // The status names the install folder, where the app writes what the resident extensions run.
+            expect(run(root, "status", game), "installed\t" + StartupInstall.sha256(jar) + "\t" + root);
             assert run(root, "install", game, bridge).equals("installed\t" + StartupInstall.sha256(jar)) : "a second install changes nothing";
             assert StartupInstall.sha256(root.resolve(StartupInstall.ORIGINAL)).equals(vanillaDigest);
+            // The extensions go with the bridge: the game runs them without the app.
+            Path copied = root.resolve(installed.split("\t")[2]);
+            try (var files = Files.list(bridge.resolve(StartupInstall.EXTENSIONS))) {
+                for (Path file : files.toList())
+                    assert StartupInstall.sha256(copied.resolve(StartupInstall.EXTENSIONS).resolve(file.getFileName())).equals(StartupInstall.sha256(file)) : file;
+            }
 
             // The game loads the bootstrap at once and gets the endpoint only after its property list.
-            expect(start(java, jar), "STARTUP-FIXTURE\t11\tfalse\ttrue");
+            expect(start(java, jar), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue");
             assert log(root).contains("loaded bridge-") : log(root);
             expect(run(root, "refresh", bridge), "unchanged");
 
             // A broken install: the game starts as vanilla and the loader says why.
             Files.delete(root.resolve("current"));
-            expect(start(java, jar), "STARTUP-FIXTURE\tnull\tfalse\tfalse");
+            expect(start(java, jar), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse");
             assert log(root).contains("current file is not readable") : log(root);
             assert run(root, "refresh", bridge).startsWith("refreshed\tbridge-");
-            expect(start(java, jar), "STARTUP-FIXTURE\t11\tfalse\ttrue");
+            expect(start(java, jar), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue");
 
             // A game update replaces the jar: the game is vanilla again and a new install patches the new jar.
             Files.copy(vanilla, jar, StandardCopyOption.REPLACE_EXISTING);
@@ -50,7 +57,7 @@ public final class StartupInstallTest {
             assert StartupInstall.sha256(jar).equals(vanillaDigest) : "uninstall puts the original back";
             assert !Files.exists(root);
             expect(run(root, "status", game), "not-installed");
-            expect(start(java, jar), "STARTUP-FIXTURE\tnull\tfalse\tfalse");
+            expect(start(java, jar), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse");
 
             // After an update, uninstall leaves the game's new jar alone.
             assert run(root, "install", game, bridge).startsWith("installed\t");

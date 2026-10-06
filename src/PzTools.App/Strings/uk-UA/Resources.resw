@@ -796,7 +796,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Перевірка файлів гри…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Теку гри не знайдено. Запустіть гру один раз, і її буде знайдено.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools під'єднується до гри після її запуску. Якщо увімкнути, файл projectzomboid.jar гри зміниться, щоб гра завантажувала PZ Tools під час запуску. Якщо вимкнути, повернеться оригінальний файл гри.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Встановлено. Гра завантажує PZ Tools під час запуску.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Встановлено. Гра завантажує PZ Tools під час запуску, а увімкнені розширення працюють далі, навіть коли PZ Tools закрито.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Оновлення гри це видалило. Увімкніть знову, щоб користуватися.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Інша програма змінила файл projectzomboid.jar гри. Спершу перевірте цілісність файлів гри в Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закрийте гру та всі сервери, запущені з її теки, і спробуйте ще раз.</value></data>

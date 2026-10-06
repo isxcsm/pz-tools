@@ -150,17 +150,9 @@ public sealed class GameExtensionClient : IGameExtensionSession
             || expectedRevision < -1 || revision < 0 || string.IsNullOrWhiteSpace(moduleId)
             || moduleId.Length > 80 || moduleId.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '-'))
             throw new ArgumentException("Invalid extension identity or revision.");
-        var text = new StringBuilder();
-        foreach (var (key, value) in configuration.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            if (string.IsNullOrEmpty(key) || key.Length > 80 || key.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '.' and not '_' and not '-')
-                || value.Any(char.IsControl)) throw new ArgumentException("Invalid extension configuration field.");
-            text.Append(key).Append('\t').Append(value).Append('\n');
-        }
-        var bytes = Encoding.UTF8.GetBytes(text.ToString());
-        if (bytes.Length > 65536) throw new ArgumentException("Oversized extension configuration.");
         var suffix = string.Join('\t', processSession, worldSession, expectedRevision.ToString(CultureInfo.InvariantCulture),
-            revision.ToString(CultureInfo.InvariantCulture), moduleId, forceVersion ? "force" : "normal", Convert.ToBase64String(bytes));
+            revision.ToString(CultureInfo.InvariantCulture), moduleId, forceVersion ? "force" : "normal",
+            PzTools.GameExtensions.ContinuousConfiguration.Encode(configuration));
         return CommandAsync("APPLY", suffix, token);
     }
 

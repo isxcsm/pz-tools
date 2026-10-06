@@ -7,7 +7,12 @@ public final class MainScreenState {
         boolean endpointAtListing = System.getProperty("pztools.bridge.control.v1") != null;
         Class.forName("zombie.GameWindow");
         boolean endpointAfter = System.getProperty("pztools.bridge.control.v1") != null;
+        // Loaded at the start, the bridge starts the controller that runs the extensions without the app.
+        boolean resident = false;
+        if (System.getProperty("pztools.bridge.bootstrap.api") != null)
+            for (int wait = 0; wait < 100 && !(resident = Thread.getAllStackTraces().keySet().stream()
+                    .anyMatch(thread -> thread.getName().equals("PzTools-resident-extensions"))); wait++) Thread.sleep(100);
         System.out.println("STARTUP-FIXTURE\t" + System.getProperty("pztools.bridge.bootstrap.api") + "\t"
-            + endpointAtListing + "\t" + endpointAfter);
+            + endpointAtListing + "\t" + endpointAfter + "\t" + resident);
     }
 }

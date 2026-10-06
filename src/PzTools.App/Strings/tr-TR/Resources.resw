@@ -796,7 +796,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Oyun dosyaları denetleniyor…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Oyun klasörü bulunamadı. Oyunu bir kez başlatın, bulunacaktır.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools oyuna, oyun başladıktan sonra bağlanır. Açmak, oyunun projectzomboid.jar dosyasını değiştirir; böylece oyun başlarken PZ Tools'u yükler. Kapatmak, oyunun kendi dosyasını geri koyar.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Yüklendi. Oyun başlarken PZ Tools'u yükler.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Yüklendi. Oyun başlarken PZ Tools'u yükler ve açık olan uzantılar PZ Tools kapalıyken de çalışmaya devam eder.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Bir oyun güncellemesi bunu kaldırdı. Kullanmak için yeniden açın.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Başka bir araç oyunun projectzomboid.jar dosyasını değiştirmiş. Önce Steam'de oyun dosyalarını doğrulayın.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Oyunu ve klasöründen başlatılan tüm sunucuları kapatıp yeniden deneyin.</value></data>

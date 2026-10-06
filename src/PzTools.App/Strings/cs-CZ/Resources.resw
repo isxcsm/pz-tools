@@ -796,7 +796,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Kontrola souborů hry…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Složka hry nebyla nalezena. Jednou hru spusťte a bude nalezena.</value></data>
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se ke hře připojuje až po jejím spuštění. Zapnutí změní soubor projectzomboid.jar hry, aby hra při spuštění načetla PZ Tools. Vypnutí vrátí původní soubor hry.</value></data>
-  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Nainstalováno. Hra při spuštění načítá PZ Tools.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Nainstalováno. Hra při spuštění načte PZ Tools a zapnutá rozšíření běží dál, i když je PZ Tools zavřené.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Aktualizace hry to odstranila. Chcete-li to používat, znovu to zapněte.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Jiný nástroj změnil soubor projectzomboid.jar hry. Nejprve ověřte soubory hry ve službě Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zavřete hru i každý server spuštěný z její složky a zkuste to znovu.</value></data>

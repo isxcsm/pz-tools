@@ -61,7 +61,7 @@ first; the [glossary](design/glossary.md) explains the terms the other pages use
 - [Game extensions](design/game-extensions.md): the extension framework and version checks
 - [Vehicle model](design/vehicle-drivetrain.md): how the vehicle extension computes and applies driving forces
 - [Component updates](design/module-reload.md): replacing code inside a running game
-- [Startup loader](design/startup-loader.md) (planned): an optional install that loads the bridge as the game starts
+- [Startup loader](design/startup-loader.md) (hidden, experimental): an optional install that loads the bridge as the game starts
 
 **Interface**
 
