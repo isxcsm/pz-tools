@@ -10,8 +10,7 @@
 > ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java)).
 > It shows only with `[experimental] startup_loader = true` in the app's advanced settings
 > (`%LOCALAPPDATA%\PzTools\config\app\default.toml`); the shipped file does not list it. Not built:
-> extensions that declare they need the install. The resident extensions have not been tried on the
-> real game yet.
+> extensions that declare they need the install.
 
 Today the game runs PZ Tools code only while the app is attached: the app's helper attaches after
 the game has started ([game bridge](game-bridge.md#getting-into-the-game)), and the game revokes
@@ -247,10 +246,20 @@ the install patched the jar, the game logged `pztools.bridge.bootstrap.api` but 
 `console.txt`, the app connected a second after the game started and the vehicle extension became
 `Active`. The uninstall put back a jar with the original's SHA-256 and removed the install folder.
 
+On 7 October 2026, the resident extensions on the real game, read with `jcmd` (threads and live
+objects) while the app was closed:
+
+1. Started from Steam with the app closed, the game loaded the bridge, started the resident
+   controller and, in the world, applied the vehicle extension: one generation, activated, with one
+   `APPLY` sent.
+2. The app was opened in that world and closed again. The same generation was still running, under
+   a new resident session that sent no `APPLY`: the app took the module over and handed it back
+   without turning it off.
+3. Back to the main menu and into a world again, still without the app, the resident controller
+   sent one `APPLY` and the module ran in the new world.
+
 Not tested yet:
 
-- the resident extensions on the real game: a world entered with the app closed, the app closed
-  in a world, and a second world;
 - the real game starting with the guarded call and no loader files (the cases above used a small
   class patched the same way);
 - whether a patched jar is refused when joining a multiplayer server.
