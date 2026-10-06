@@ -3,8 +3,8 @@
 [Documentation index](../README.md)
 
 > **Planned.** Nothing on this page is built. The first areas serve a separate power and water mod.
-> The game facts below were read from the bytecode and Lua of Build 42 (7 October 2026) and have not
-> been tried in a running game.
+> The game facts below were read from the bytecode and Lua of Build 42 (7 October 2026); the ones
+> under [measured](#measured-in-the-game) were tried in the game with a throwaway probe.
 
 PZ Tools changes the game through Java hooks ([game extensions](game-extensions.md)). Lua mods
 cannot reach most of what those hooks reach, and what they can reach is often too slow to run often.
@@ -164,11 +164,35 @@ called very often (lighting, food, sounds), so it costs one lookup, never a walk
   into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while
   it is loaded reaches that system through `OnWaterAmountChange`.
 
-## Costs and risks
+## Measured in the game
 
-- An object excluded from a network still sits on a supplied square. Paths that ask about the
-  square, not the object (room light rendering, food freshness), may disagree with the object's own
-  answer. This has to be checked in the game, object kind by object kind.
+On 7 October 2026, a throwaway Java agent hooked `IsoGridSquare.haveElectricity()`,
+`ItemContainer.isObjectPowered` and `IsoLightSwitch.hasElectricityAround()` in a running Build 42
+single-player game (debug mode, grid power and water off), powered one building and excluded chosen
+objects. Retransforming the three classes took 135 ms.
+
+| Check | Result |
+| --- | --- |
+| A player-built shack (walls, door, floor, roof) | A user-defined `BuildingDef`: levels 0..0, one room, 4 by 3. Player-built buildings are found in single player. |
+| A map building (gas station) powered through the square hook | Its lights could be switched on and its fridges ran, on both levels. |
+| Two fridges excluded through the object hook | They stopped. Appliances ask about power when something needs it (the container open: about 900 asks a second; idle: none), so a change shows at that moment. |
+| One light switch excluded through the switch hook | The switch could not be used, as in a power cut, but its room stayed lit. |
+| Calls to `haveElectricity()` standing near buildings | 30,000 to 44,000 a second; `hasElectricityAround()` about 3,000 a second. |
+
+Consequences for the design:
+
+- The square check has to cost one table lookup. 44,000 calls a second leave no room for a walk over
+  buildings or for reflection.
+- Lights are not decided by the switch alone. A room light (`IsoRoomLight.addInfluence`) and a
+  switch's light sources (`IsoLightSource.update`, `LightingJNI`) ask the square, and the switch stays
+  `activated`. Excluding a switch must also reach its light sources (`IsoLightSwitch.lights`) and its
+  room's light (`IsoLightSwitch.roomId`).
+- Food freshness is decided by the square: `Food.updateAge` asks `haveElectricity()` of the fridge's
+  square, not the fridge. Food in an excluded fridge on a supplied square would stay chilled, so
+  `Food.updateAge` needs the object's answer too. (Read from the bytecode; aging was not watched in
+  the game.)
+
+## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
 - Splitting food age changes a vanilla calculation that other mods may also change.
@@ -178,7 +202,6 @@ called very often (lighting, food, sounds), so it costs one lookup, never a walk
 
 ## Open questions
 
-- Whether player-built spaces become buildings in single player too (the method is named
-  `clientProcessBuildings`), and how soon after the last wall.
+- How soon after the last wall or roof a player-built space becomes a building.
 - Whether `buildings.at` should report an extension room that vanilla discards, and as what.
 - The names of the events, and of the one that says the API appeared or went away.
