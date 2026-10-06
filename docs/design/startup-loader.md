@@ -52,6 +52,21 @@ as vanilla. A missing class at the call site is a `NoClassDefFoundError` thrown 
 so it is caught too. This is the reason for patching the jar rather than adding `-javaagent`: the
 JVM refuses to start when a `-javaagent` file is missing.
 
+Measured on 6 October 2026 with the game's JRE, on a small class patched the same way:
+
+| Case | Result |
+| --- | --- |
+| No loader class | `main` ran; nothing printed |
+| Loader class whose static initialiser throws | `main` ran; nothing printed |
+| Loader present, its settings missing | `main` ran; nothing printed |
+| Loader present, its DLL missing | `main` ran; the loader logged `UnsatisfiedLinkError` |
+| DLL present, bootstrap jar missing | `main` ran; `Agent_OnAttach` returned 100 and the JRE printed `Error opening zip file or JAR manifest missing` to standard error |
+| Bootstrap present, `agentmain` throws | `main` ran; `Agent_OnAttach` returned 102 and the JRE printed the exception to standard error |
+
+The loader therefore checks that the bootstrap jar exists and has the recorded digest before it
+calls `Agent_OnAttach`, so a broken install leaves one line in the loader's own log rather than
+JRE errors.
+
 ## Install, uninstall and the extension switches
 
 The install is separate from each extension's switch.
@@ -200,7 +215,8 @@ with the options of `ProjectZomboid64.json`:
 
 Not tested yet:
 
-- the game starting with the guarded call and no loader files;
+- the real game starting with the guarded call and no loader files (the cases above used a small
+  class patched the same way);
 - whether a patched jar is refused when joining a multiplayer server;
 - an install and uninstall against the real jar.
 
