@@ -3,14 +3,15 @@
 [Documentation index](../README.md)
 
 > **Planned.** Nothing on this page is built. The first areas serve a separate power and water mod.
-> The game facts below were read from the bytecode of Build 42 (`projectzomboid.jar`, 7 October
-> 2026) and have not been tried in a running game.
+> The game facts below were read from the bytecode and Lua of Build 42 (7 October 2026) and have not
+> been tried in a running game.
 
 PZ Tools changes the game through Java hooks ([game extensions](game-extensions.md)). Lua mods
 cannot reach most of what those hooks reach, and what they can reach is often too slow to run often.
-The extension API gives Lua mods that reach: it reports what the game knows and lets a mod override
-the game's own answers. It holds no game content. Panels, networks, generator order, distances,
-recipes, screens and balance belong to the mods that use it.
+The extension API gives Lua mods that reach: it reports what the game knows, and it runs mechanisms
+that are too slow or too far-reaching for Lua, such as utility networks. It holds no game content.
+Panels, which objects join a network, distances, recipes, screens and balance belong to the mods
+that use it.
 
 The first users are two mods kept outside this repository:
 
@@ -24,13 +25,14 @@ nothing and says why.
 
 | Principle | Meaning |
 | --- | --- |
-| No content | The API speaks the game's terms: squares, buildings, objects, generators, fluid containers, power and water. It never names a mod's concept, and it enforces no gameplay rule (how many of anything, how far, in which order). |
-| Facts and overrides | A call either reads a game fact or sets an override of one of the game's answers. Nothing else. |
-| Declarative | A mod sets overrides. It never registers a Lua callback that the game calls per square or per frame; the hot questions are answered in Java from the overrides. |
+| No content | The API speaks the game's terms and neutral ones: squares, buildings, objects, networks, producers, consumers, power, water. It never names a mod's concept and enforces no gameplay rule (how many of anything, how far, what joins what). |
+| Facts and mechanisms | A call reads a game fact, or configures a mechanism that the API runs. The mechanism's policies are parameters chosen by the mod. |
+| Declarative | A mod states what a network contains. It never registers a Lua callback that the game calls per square or per frame; hot questions are answered in Java. |
+| Independent of chunks | A network works whether or not its squares are loaded. Its state is computed from time, not simulated frame by frame. |
 | Narrow | No general reflection, file or process access. Any Lua mod can call the API, so nothing in it may reach outside the game. |
 | PZ Tools owns the hooks | One owner per vanilla method, so two areas that touch the same class do not conflict. Mods see areas, not hooks. |
-| Owned overrides | Each override belongs to the mod that set it (a name it passes once). A mod can only change or clear its own; two mods' overrides combine by the rules of each area. |
-| Runtime state only | PZ Tools keeps nothing in the save. A mod keeps its state in the save (`ModData`) and sets its overrides again each time a world loads. |
+| Owned definitions | Each network belongs to the mod that created it (a name it passes once). A mod can only change or remove its own. |
+| Adds to vanilla | Every answer is vanilla's answer, or more. Something no network contains behaves as in vanilla. |
 | Installed mode | Effects that must not stop with the app need the [startup loader](startup-loader.md). The API says whether the game was started that way; the mod decides what to do about it. |
 | Single player | PZ Tools runs only in a local single-player world; so does the API. |
 
@@ -44,19 +46,18 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | --- | --- |
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. |
 | `PZToolsAPI.installed` | Whether the startup loader started this game, so that the API outlives the app. |
-| `PZToolsAPI.client(name)` | A handle for one mod; every override is set through it and belongs to it. `handle:clear()` drops them all. |
-| Area fields (`buildings`, `power`, `water`, `generators`) | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
+| `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. |
+| `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
 
 A mod checks `PZToolsAPI` on `OnGameStart`, and again on a PZ Tools event when the table appears
-later (the app attached after the world loaded). Until its overrides are set, the game behaves as in
+later (the app attached after the world loaded). It keeps its definitions in the save (`ModData`)
+and defines its networks again each time a world loads. Until it does, the game behaves as in
 vanilla.
 
 Objects are named by position and sprite name (`x, y, z, sprite`). An object that moves is a
-different object; overrides on its old name stop applying.
+different object.
 
-## Areas for power and water
-
-### Buildings (facts)
+## Buildings (facts)
 
 | Call | Returns |
 | --- | --- |
@@ -65,50 +66,83 @@ different object; overrides on its old name stop applying.
 | `buildings.objects(key, filter)` | Objects in it that use power, water or both, with their room and vanilla power consumption. |
 | `buildings.near(key, tiles, filter)` | The same for squares within `tiles` of its edge that belong to no building. |
 
-A key is derived from the building's position; a player-built building changes key when the game
-rebuilds it after its walls change, so a mod finds its building again from a square it remembers.
+A key is derived from the building's position. A player-built building changes key when the game
+rebuilds it after its walls change, so a mod finds its building again from a square it remembers,
+and a network names its buildings by such a square.
 
-### Power (overrides)
+## Networks (mechanism)
+
+A network carries one utility, power or water, from producers to consumers.
+
+| Part | Meaning |
+| --- | --- |
+| Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
+| Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
+| Children | Networks whose load this network carries. Networks form a tree; a cycle is refused. |
+| Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
 
 | Call | Effect |
 | --- | --- |
-| `power.setBuilding(key, on)` | While on, every square of the building has electricity. |
-| `power.setObject(object, mode)` | `"on"`: the object is powered wherever it stands; `"off"`: it gets nothing from this mod's overrides (vanilla still applies); `nil`: back to following its square. |
-| `power.state(object)` | Whether the object is powered, and by what: grid, a generator's range, an override. |
+| `networks.define(id, utility, policy)` / `networks.remove(id)` | Creates or removes a network. Removing one gives its producers back to vanilla. |
+| `networks.setProducers(id, list)` | Producer positions, in order. |
+| `networks.addBuilding(id, square)` / `networks.removeBuilding(id, square)` | A building as a consumer. |
+| `networks.exclude(id, object)` / `networks.include(id, object)` / `networks.reset(id, object)` | Excludes an object of a member building, adds a single object, or undoes either. |
+| `networks.setParent(id, parentId)` | Makes a network a child; `nil` detaches it. |
+| `networks.state(id)` | Supplied or not, load (own and children), the producer in use, time left at the current load, and for water the amount and capacity. |
+| `networks.consumers(id)` | The objects it supplies, by building and room, with their consumption: the same classifier the hooks use. |
 
-Overrides only add to vanilla. A square or object that vanilla powers stays powered whatever a mod
-sets. Between mods, an object is powered if any mod's overrides power it.
+Events (raised through `LuaEventManager`, never per frame): a network's supply started or stopped,
+its producer in use changed, its load changed. Each carries the network id and the game time it
+happened, which can be in the past when the network's squares were not loaded.
 
-### Generators (overrides)
+### Power
 
-| Call | Effect |
-| --- | --- |
-| `generators.setRange(generator, enabled)` | Disabled: the generator powers no square around it, as if it were off, while it still runs, burns fuel, wears and makes noise. |
-| `generators.setLoad(generator, load)` | Its consumption, in vanilla's units, replacing what it would compute from the objects in its range. `nil` restores vanilla. |
-| `generators.state(generator)` | Activated, fuel, condition, load. |
+- **Supply.** A network is supplied while a producer can run (activated, fuel, condition). Under
+  `"sequential"` only the producer in use is activated; the API activates the next one when it
+  stops. A child is supplied when its parent is.
+- **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
+  constants on `IsoGenerator`) over its consumers and its children's, computed when a consumer is
+  added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
+  loaded is the last value computed while they were.
+- **Range.** A producer in a network powers no square around it. It adds itself to no chunk
+  (`IsoChunk.addGeneratorPos`), and its consumption is the network's load.
+- **Time.** Fuel and condition are computed from the last settled state, the load, the policy and
+  the time since. The API writes the result into the generator when its square is loaded and
+  advances the generator's `lastHour`, so vanilla's own catch-up does not burn the same hours
+  again. Condition wear follows vanilla's hourly rule (a chance of 1 in the item's
+  `ConditionLowerChance` per hour to lose 1 to 2 points).
+- **Food.** Vanilla ages food in a container over the whole time since it last aged, as refrigerated
+  if the square has power now, and splits that time only at the grid's shut-off. The API splits it
+  also at the times its network's supply stopped and started, so a fridge that lost power while the
+  player was away spoils from that moment, and one that kept power does not.
+- **Settled state.** Kept in the producers' own `ModData`, so it is saved with them. The API keeps no
+  other state in the save.
 
-Starting and stopping generators uses the game's own Lua functions; the API adds nothing there.
+### Water
 
-### Water (overrides)
-
-| Call | Effect |
-| --- | --- |
-| `water.setSource(fixture, source)` | The fixture draws from that fluid container, wherever it is. `nil` restores the fixture's own plumbing. |
-| `water.state(fixture)` | Its current source, amount, and whether the water is tainted. |
-
-Once a fixture's source is set, vanilla code reads the amount, draws the water and decides taint, as
-it does for a fixture plumbed to a barrel.
+- **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
+  gives each draw. Levels converge as water is used, and space opens first in the containers that
+  are fullest, so rain is lost only when all are full. No water is moved between containers.
+- **Fluids.** Vanilla decides amount, draw and taint from the container the draw comes from, as it
+  does for a fixture plumbed to a barrel.
+- **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
+  collectors fill themselves (see below), so a water network needs no catch-up of its own.
 
 ## How the game is answered
 
-| Game question | Vanilla method | With overrides |
+| Game question | Vanilla method | With networks |
 | --- | --- | --- |
-| Does this square have electricity? | `IsoGridSquare.haveElectricity()` (generators); `hasGridPower()` is the grid | Vanilla, or its building is on |
-| Is this appliance powered? (fridge, freezer, stove, washer, dryer, street light) | `ItemContainer.isObjectPowered(object, …)`, cached per tick by `IsoObject.checkObjectPowered()` | Vanilla, or the object's override is on, or it follows a powered square |
+| Does this square have electricity? | `IsoGridSquare.haveElectricity()` (generators); `hasGridPower()` is the grid | Vanilla, or its building is a consumer of a supplied network |
+| Is this appliance powered? (fridge, freezer, stove, washer, dryer, street light) | `ItemContainer.isObjectPowered(object, …)`, cached per tick by `IsoObject.checkObjectPowered()` | Vanilla, or it is a consumer (added on its own, or in a member building and not excluded) of a supplied network |
 | Does this light switch's room have power? | `IsoLightSwitch.hasElectricityAround()` | Same rule; lights are switched per room, not per bulb |
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
-| Where does this fixture's water come from? | `IsoObject.getUsesExternalWaterSource()`, `checkExternalFluidSource()` | The source set for it, if any |
-| Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()` adds the generator to every chunk in range (`IsoChunk.addGeneratorPos`) and sums the consumption of powered objects | No chunk when its range is disabled; the set load when one is set |
+| Where does this fixture's water come from? | `IsoObject.getUsesExternalWaterSource()`, `checkExternalFluidSource()` | For a consumer, the network's producer that gives the next draw |
+| Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
+| How much has this food aged? | `Food.updateAge(boolean)` | Split at the network's supply changes |
+
+The answers to the square and object questions come from an index the API keeps up to date: per
+chunk, the networks that touch it and a bitmap of their member squares. `haveElectricity()` is
+called very often (lighting, food, sounds), so it costs one lookup, never a walk over buildings.
 
 ## What vanilla does that mods need to know
 
@@ -118,28 +152,33 @@ it does for a fixture plumbed to a barrel.
   existing house belongs to no building.
 - Basements are merged into the building above (`Basements`).
 - Player-built rooms never have grid power (`IsoGridSquare.isNoPower()`).
+- A running generator inside a building makes it toxic (`IsoGenerator.update()` →
+  `IsoBuilding.setToxic`).
 - Street lights run only on grid power, and only at night. Generators never power them.
-- Without the sandbox option `AllowExteriorGenerator`, squares outside get no generator power. An
-  object override is not subject to it.
-- Vanilla's consumption figures are `IsoObject.getGeneratorPowerConsumption()` and the constants on
-  `IsoGenerator`; `buildings.objects` reports them so a mod can compute load in the same units.
+- Without the sandbox option `AllowExteriorGenerator`, squares outside get no generator power. A
+  single object added to a network is not subject to it.
+- A generator burns fuel hour by hour in `update()`: on the first update after its square loads, it
+  burns every hour since `lastHour` at its current consumption, until its fuel or condition runs out.
+- Rain collectors are kept by a Lua global object system (`SRainBarrelSystem`) that adds rain every
+  ten minutes while it rains, whether or not the collector's square is loaded, and writes the amount
+  into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while
+  it is loaded reaches that system through `OnWaterAmountChange`.
 
 ## Costs and risks
 
-- `haveElectricity()` is called very often (lighting, food, sounds). The answer must be a lookup
-  of the square's chunk in a table PZ Tools keeps up to date, never a walk over buildings.
-- An object turned `"off"` still sits on a powered square. Paths that ask about the square, not the
-  object (room light rendering, food freshness), may disagree with the object's own answer. This has
-  to be checked in the game, object kind by object kind.
+- An object excluded from a network still sits on a supplied square. Paths that ask about the
+  square, not the object (room light rendering, food freshness), may disagree with the object's own
+  answer. This has to be checked in the game, object kind by object kind.
+- The generator's hourly wear is random; computing it for hours that were not loaded draws the same
+  chances in one go, not the same sequence vanilla would have drawn.
+- Splitting food age changes a vanilla calculation that other mods may also change.
 - User-defined buildings are removed and created again when walls change
-  (`removeUserDefinedBuildingsFromCell`); `power.setBuilding` follows the building through that from
-  the square it was set on.
+  (`removeUserDefinedBuildingsFromCell`); a network follows its building from the square it was named
+  by.
 
 ## Open questions
 
 - Whether player-built spaces become buildings in single player too (the method is named
   `clientProcessBuildings`), and how soon after the last wall.
 - Whether `buildings.at` should report an extension room that vanilla discards, and as what.
-- The event that tells a mod the API appeared or went away, and its name.
-- How overrides of a mod that is removed from a save are cleared (they are runtime only, so a
-  world loaded without the mod has none).
+- The names of the events, and of the one that says the API appeared or went away.
