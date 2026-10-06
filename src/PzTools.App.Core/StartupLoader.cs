@@ -1,0 +1,192 @@
+using System.Diagnostics;
+using PzTools.Process.Contracts;
+
+namespace PzTools.App.Core;
+
+public enum StartupLoaderStatus
+{
+    /// <summary>Not looked at yet, or the last look could not finish.</summary>
+    Unknown,
+    /// <summary>No game folder known: no game installed through Steam, and none running.</summary>
+    NotFound,
+    /// <summary>The game's jar is the game's own.</summary>
+    NotInstalled,
+    /// <summary>The game's jar is the one the install patched: the game loads the bridge as it starts.</summary>
+    Installed,
+    /// <summary>Installed before, and a game update or Steam's file check has since replaced the jar.</summary>
+    Reverted,
+    /// <summary>The game's jar has a startup loader this install has no record of; it is left alone.</summary>
+    Foreign,
+}
+
+public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null);
+
+/// <summary>
+/// Why the install or uninstall did not happen: <c>game-running</c>, <c>game-not-found</c>, <c>unsupported-game</c>,
+/// <c>foreign-install</c>, <c>original-missing</c>, <c>unsafe-folder</c>, <c>unsupported-path</c>,
+/// <c>bridge-not-built</c> or <c>io</c>.
+/// </summary>
+public sealed class StartupLoaderException(string code, string message, Exception? inner = null) : Exception(message, inner)
+{
+    public string Code { get; } = code;
+}
+
+/// <summary>
+/// The startup loader (docs/design/startup-loader.md): an optional install that patches the game's jar so the game
+/// loads the bridge as it starts, without the app. The work is done by the bridge's own runtime
+/// (<c>pztools.bridge.StartupInstall</c>), which edits Java class files; this class decides when it may run and reads
+/// what it says. Install and uninstall run only while no game runs: a running game holds the jar, and a game started
+/// mid-install would read half of one.
+/// </summary>
+public sealed class StartupLoader
+{
+    /// <summary>Runs the install tool with these arguments; gives its exit code and its standard output.</summary>
+    public delegate Task<(int ExitCode, string Output)> Tool(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
+
+    private const string Mark = "PZTOOLS-STARTUP", Failed = "PZTOOLS-STARTUP-FAILED";
+    private static readonly TimeSpan ToolTimeout = TimeSpan.FromMinutes(2);
+
+    private readonly string bridgeDirectory;
+    private readonly Func<string?> gameFolder;
+    private readonly Func<bool> gameRunning;
+    private readonly Tool tool;
+    private readonly SemaphoreSlim gate = new(1, 1);
+    private StartupLoaderState state = new(StartupLoaderStatus.Unknown);
+
+    /// <param name="bridgeDirectory">The app's <c>game-bridge</c> folder: the runtime, the tool, and the files copied
+    /// to the install.</param>
+    /// <param name="gameFolder">The game's folder (the one holding <c>projectzomboid.jar</c>), or null when unknown.</param>
+    /// <param name="gameRunning">Whether a game runs now; by default any process <see cref="GameProcessFinder"/> finds.</param>
+    /// <param name="tool">Runs the install tool; by default the bridge's runtime.</param>
+    public StartupLoader(string bridgeDirectory, Func<string?> gameFolder, Func<bool>? gameRunning = null, Tool? tool = null)
+    {
+        this.bridgeDirectory = Path.GetFullPath(bridgeDirectory);
+        this.gameFolder = gameFolder;
+        this.gameRunning = gameRunning ?? (() => GameProcessFinder.Count() > 0);
+        this.tool = tool ?? RunBridgeTool;
+    }
+
+    /// <summary>Raised after the state changed, on whichever thread changed it.</summary>
+    public event Action? Changed;
+
+    public StartupLoaderState State => state;
+
+    /// <summary>Looks at the game's jar again. A look that fails leaves what was known.</summary>
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var folder = gameFolder();
+            if (folder is null) { Publish(new(StartupLoaderStatus.NotFound)); return; }
+            try { Publish(new(Parse(await RunAsync(["status", folder], cancellationToken)), folder)); }
+            catch (StartupLoaderException error) when (error.Code == "game-not-found") { Publish(new(StartupLoaderStatus.NotFound)); }
+            catch (StartupLoaderException) { if (state.Status == StartupLoaderStatus.Unknown) Publish(new(StartupLoaderStatus.Unknown, folder)); }
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>Patches the game's jar; installing again over an install only brings its bridge up to date.</summary>
+    /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
+    public Task InstallAsync(CancellationToken cancellationToken = default) =>
+        ChangeAsync(folder => ["install", folder, bridgeDirectory], cancellationToken);
+
+    /// <summary>Puts the game's own jar back (unless an update already did) and removes the install folder.</summary>
+    /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
+    public Task UninstallAsync(CancellationToken cancellationToken = default) =>
+        ChangeAsync(folder => ["uninstall", folder], cancellationToken);
+
+    /// <summary>
+    /// Brings the install's copy of the bridge up to this app's, so the next game start loads the bridge of this
+    /// version. Nothing happens when nothing is installed; a running game keeps the files it has open.
+    /// </summary>
+    public async Task RefreshBridgeAsync(CancellationToken cancellationToken = default)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try { await RunAsync(["refresh", bridgeDirectory], cancellationToken); }
+        finally { gate.Release(); }
+    }
+
+    private async Task ChangeAsync(Func<string, string[]> arguments, CancellationToken cancellationToken)
+    {
+        await gate.WaitAsync(cancellationToken);
+        try
+        {
+            var folder = gameFolder() ?? throw new StartupLoaderException("game-not-found", "The game's folder was not found.");
+            if (gameRunning()) throw new StartupLoaderException("game-running", "Close the game first.");
+            try { await RunAsync(arguments(folder), cancellationToken); }
+            finally
+            {
+                // What the jar is now, whether the change went through or stopped half way.
+                try { Publish(new(Parse(await RunAsync(["status", folder], CancellationToken.None)), folder)); }
+                catch (StartupLoaderException) { }
+            }
+        }
+        finally { gate.Release(); }
+    }
+
+    private void Publish(StartupLoaderState next)
+    {
+        if (next == state) return;
+        state = next;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The tool's result line after the mark, or its failure as an exception.</summary>
+    private async Task<string> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        (int exitCode, string output) = await tool(arguments, cancellationToken);
+        return Result(exitCode, output);
+    }
+
+    internal static string Result(int exitCode, string output)
+    {
+        foreach (var line in output.Split('\n').Select(line => line.TrimEnd('\r')).Reverse())
+        {
+            var fields = line.Split('\t');
+            if (fields[0] == Failed && fields.Length >= 3)
+                throw new StartupLoaderException(fields[1], string.Join(' ', fields.Skip(2)));
+            if (fields[0] == Mark && fields.Length >= 2 && exitCode == 0) return string.Join('\t', fields.Skip(1));
+        }
+        throw new StartupLoaderException("io", $"The install tool ended with {exitCode} and no result.");
+    }
+
+    internal static StartupLoaderStatus Parse(string result) => result.Split('\t')[0] switch
+    {
+        "installed" => StartupLoaderStatus.Installed,
+        "not-installed" => StartupLoaderStatus.NotInstalled,
+        "reverted" => StartupLoaderStatus.Reverted,
+        "foreign" => StartupLoaderStatus.Foreign,
+        var other => throw new StartupLoaderException("io", $"The install tool said '{other}'."),
+    };
+
+    private async Task<(int ExitCode, string Output)> RunBridgeTool(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
+        var java = Path.Combine(bridgeDirectory, "runtime", "bin", "java.exe");
+        var jar = Path.Combine(bridgeDirectory, "pztools-game-bridge.jar");
+        if (!File.Exists(java) || !File.Exists(jar))
+            throw new StartupLoaderException("bridge-not-built", "The bridge is not included in this build.");
+        var start = new ProcessStartInfo(java)
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        foreach (var value in new[] { "-cp", jar, "pztools.bridge.StartupInstall" }.Concat(arguments)) start.ArgumentList.Add(value);
+        // No game's account is passed (unlike an attach): the install folder is named for the account the app works
+        // for (USERDOMAIN\USERNAME of this process), the same on every run whether or not a game runs.
+        using var process = System.Diagnostics.Process.Start(start) ?? throw new StartupLoaderException("io", "The install tool did not start.");
+        var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
+        var error = process.StandardError.ReadToEndAsync(CancellationToken.None);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(ToolTimeout);
+        try { await process.WaitForExitAsync(deadline.Token); }
+        catch (OperationCanceledException)
+        {
+            try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            await process.WaitForExitAsync(CancellationToken.None);
+            if (cancellationToken.IsCancellationRequested) throw;
+            throw new StartupLoaderException("io", "The install tool did not finish in time.");
+        }
+        await error;
+        return (process.ExitCode, await output);
+    }
+}
