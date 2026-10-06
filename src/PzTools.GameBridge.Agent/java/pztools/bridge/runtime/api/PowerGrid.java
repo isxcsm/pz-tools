@@ -72,8 +72,9 @@ final class PowerGrid implements ApiHooks.Power {
 
     private final Method cell, getChunk, square, generatorOf, objectSquare, checkElectricity, hasGrid, gridObjects;
     private final Field squareX, squareY, squareZ, squareChunk, chunkX, chunkY;
-    private final Method removeGeneratorPos, activated, fuel, condition, setUsing, getUsing, surroundings;
-    private final Field itemsPowered, chunkRange, basePower, worldInstance;
+    private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings;
+    // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
+    private final Field itemsPowered, using, chunkRange, basePower, worldInstance;
     private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
     private final Class<?> objectType;
 
@@ -102,7 +103,7 @@ final class PowerGrid implements ApiHooks.Power {
         fuel = generator.getMethod("getFuel");
         condition = generator.getMethod("getCondition");
         setUsing = generator.getMethod("setTotalPowerUsing", float.class);
-        getUsing = generator.getMethod("getTotalPowerUsing");
+        using = accessible(generator.getDeclaredField("totalPowerUsing"));
         surroundings = generator.getMethod("setSurroundingElectricity");
         itemsPowered = accessible(generator.getDeclaredField("itemsPowered"));
         chunkRange = accessible(generator.getDeclaredField("generatorChunkRange"));
@@ -263,8 +264,8 @@ final class PowerGrid implements ApiHooks.Power {
         for (Network network : networks.values())
             for (Position producer : network.producers) {
                 Object generator = generatorAt(cells, producer);
-                float using = consumption(network, producer);
-                if (generator != null && (float)getUsing.invoke(generator) != using) setUsing.invoke(generator, using);
+                float consumption = consumption(network, producer);
+                if (generator != null && using.getFloat(generator) != consumption) setUsing.invoke(generator, consumption);
             }
         // The objects that gained or lost power update what follows from it (a fridge's hum, a lamp's light).
         for (Network network : supplyChanged)

@@ -219,7 +219,12 @@ public final class GameApiTest {
             "The network's state is wrong");
         double load = 0.08 + 0.002 + 0.01 + 0.05 + 0.05;
         check(near((Double)state.rawget("load"), load), "The load is wrong: " + state.rawget("load"));
-        check(near(first.getTotalPowerUsing(), 0.02 + load) && near(second.getTotalPowerUsing(), 0.02), "A producer burns the wrong amount");
+        check(near(first.getTotalPowerUsing(), (0.02 + load) * 0.1) && near(second.getTotalPowerUsing(), 0.02 * 0.1), "A producer burns the wrong amount");
+        // Worked out again with nothing changed, the generators are left alone.
+        int sets = first.consumptionSets;
+        call(networks, "addBuilding", mod, "grid", 11.0, 11.0, 0.0);
+        frame();
+        check(first.consumptionSets == sets, "An unchanged consumption was set again");
         var consumers = call(networks, "consumers", "grid");
         check(sprites(consumers.get(0)).equals(Set.of("fridge", "kitchen switch", "radio", "freezer a", "freezer b"))
             && consumers.get(1).equals(false), "Wrong consumers: " + sprites(consumers.get(0)));
@@ -272,7 +277,7 @@ public final class GameApiTest {
         state = (KahluaTable)call(networks, "state", "grid").get(0);
         check(((KahluaTable)state.rawget("producer")).rawget("x").equals(31.0) && square(11, 11, 0).haveElectricity()
             && !square(33, 30, 0).haveElectricity(), "The second producer does not carry the network");
-        check(near(second.getTotalPowerUsing(), 0.02 + 0.112) && near(first.getTotalPowerUsing(), 0.02), "The load moved wrongly");
+        check(near(second.getTotalPowerUsing(), (0.02 + 0.112) * 0.1) && near(first.getTotalPowerUsing(), 0.02 * 0.1), "The load moved wrongly");
 
         // A handler that fails gives the game's answers; a newer payload takes the definitions over.
         ApiHooks.setPower(new ApiHooks.Power() {
