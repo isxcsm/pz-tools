@@ -68,6 +68,11 @@ public final class AgentEntry {
         new SecureRandom().nextBytes(key);
         String secret = HexFormat.of().formatHex(key);
         instrumentation = value;
+        // The extension API exists only in a game the startup loader started; its Lua hook goes in before the game's Lua loads.
+        if (startup) {
+            try { ApiHooks.install(value); }
+            catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
+        }
         Thread control = new Thread(() -> controlLoop(server, secret), "PzTools-bridge-control");
         control.setDaemon(true);
         try {
@@ -130,9 +135,11 @@ public final class AgentEntry {
                 } catch (Exception failure) {
                     System.err.println("[PzTools resident extensions] " + failure);
                 }
-                try { Thread.sleep(1000); } catch (InterruptedException stopped) { return; }
+                try { Thread.sleep(1000); } catch (InterruptedException stopped) { break; }
                 synchronized (runtimeGate) { if (residentStarted != null) return; }
             }
+            // No payload: the game's Lua stops waiting for the API.
+            ApiHooks.set(null);
         }, "PzTools-resident-start");
         starter.setDaemon(true);
         starter.start();
@@ -335,13 +342,19 @@ public final class AgentEntry {
         } finally { if (hook == null) instrumentation.removeTransformer(candidate); }
     }
 
-    private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
-        // The new stack maps need the game's class hierarchy. It is read from the class files themselves: loading
-        // classes from inside a transformer, perhaps during another agent's retransformation, can fail or deadlock,
-        // and runs every agent's transformers on the classes it loads. Loading stays only as the last resort, for a
-        // class whose file cannot be read, as the hook was always installed before.
-        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.defaultResolver()
+    /**
+     * New stack maps need the game's class hierarchy. It is read from the class files themselves: loading classes from
+     * inside a transformer, perhaps during another agent's retransformation, can fail or deadlock, and runs every
+     * agent's transformers on the classes it loads. Loading stays only as the last resort, for a class whose file
+     * cannot be read, as the hook was always installed before.
+     */
+    static ClassFile classFile(ClassLoader loader) {
+        return ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.defaultResolver()
             .orElse(ClassHierarchyResolver.ofResourceParsing(loader)).orElse(ClassHierarchyResolver.ofClassLoading(loader)).cached()));
+    }
+
+    private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
+        var cf = classFile(loader);
         var model = cf.parse(bytes);
         if (model.methods().stream().filter(m -> m.methodName().equalsString("logic")
                 && m.methodType().equalsString("()V")).count() != 1)

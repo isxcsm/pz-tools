@@ -1,10 +1,12 @@
-# Extension API for Lua mods (planned)
+# Extension API for Lua mods (in progress)
 
 [Documentation index](../README.md)
 
-> **Planned.** Nothing on this page is built. The first areas serve a separate power and water mod.
-> The game facts below were read from the bytecode and Lua of Build 42 (7 October 2026); the ones
-> under [measured](#measured-in-the-game) were tried in the game with a throwaway probe.
+> **In progress.** Built: the `PZToolsAPI` table, `version`, `client` and the
+> [buildings](#buildings-facts) area. Planned: [networks](#networks-mechanism) and everything below
+> them. The first areas serve a separate power and water mod. The game facts below were read from the
+> bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
+> were tried in the game with a throwaway probe.
 
 PZ Tools changes the game through Java hooks ([game extensions](game-extensions.md)). Lua mods
 cannot reach most of what those hooks reach, and what they can reach is often too slow to run often.
@@ -46,9 +48,25 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 
 | Field | Meaning |
 | --- | --- |
-| `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. |
-| `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. |
+| `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
+| `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
 | `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
+
+Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
+colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
+
+How the table gets there:
+
+- The bootstrap adds one call to the end of `LuaManager.init()`, which makes each new Lua
+  environment, before the game loads any Lua
+  ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java)). The call sets
+  the table into the new environment, so mods find it as they load.
+- The payload that answers that call loads beside the game's start. If the game's first Lua
+  environment comes first, the call waits for the payload, at most 10 seconds, once per game.
+- A payload that replaces another, or that came after the game's Lua started, sets the table on the
+  next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
+  handles are kept.
+- A game started by an install from before the API has no API until it is started again.
 
 A mod checks `PZToolsAPI` on `OnGameStart`. Without it (PZ Tools not installed, or this game not
 started by the loader), the mod changes nothing and says why. It keeps its definitions in the save
@@ -67,16 +85,37 @@ different object.
 
 ## Buildings (facts)
 
+A building is what the game's map data (`IsoMetaGrid`) says it is: the rooms of one `BuildingDef`,
+for loaded and unloaded squares alike. A square belongs to it when one of its rooms covers the square
+(`IsoMetaGrid.getRoomAt`); walls and yards outside its rooms do not.
+([`Buildings`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/Buildings.java))
+
 | Call | Returns |
 | --- | --- |
-| `buildings.at(x, y, z)` | The building the square belongs to, as the game sees it now, or `nil`: a key, whether the player built it, its levels (lowest to highest, a basement included) and its bounds. |
-| `buildings.rooms(key)` | Its rooms per level, with the game's room names. |
-| `buildings.objects(key, filter)` | Objects in it that use power, water or both, with their room and vanilla power consumption. |
-| `buildings.near(key, tiles, filter)` | The same for squares within `tiles` of its edge that belong to no building. |
+| `buildings.at(x, y, z)` | The building the square belongs to, or `nil`: `key`; `playerBuilt`; `minLevel` and `maxLevel` (a basement included); `minX`, `minY`, `maxX`, `maxY` (inclusive); and the square's `room` (the game's room name) and `roomId`. |
+| `buildings.rooms(key)` | A list of its rooms: `id`, `name`, `level` and `rects` (a list of `x`, `y`, `w`, `h`). |
+| `buildings.objects(key, filter)` | A list of its objects that use power, water or either, and whether every square of the building was loaded. |
+| `buildings.near(key, tiles, filter)` | The same for squares that belong to no building, within `tiles` (0 to 32) of it on its own levels, a diagonal step counting as one. |
 
-A key is derived from the building's position. A player-built building changes key when the game
-rebuilds it after its walls change, so a mod finds its building again from a square it remembers,
-and a network names its buildings by such a square.
+`filter` is `nil` (either), `"power"` or `"water"`. Each object is `x`, `y`, `z`, `sprite`, `type`
+(the game's class, such as `IsoLightSwitch`), its `room` and `roomId` (not for `near`), and:
+
+- `power`: present when the game could power the object from a generator
+  (`IsoObject.couldBePoweredByGenerator()`), with the consumption the game gives for it now
+  (`getGeneratorPowerConsumption()`);
+- `water`: `true` when its sprite takes piped water (`waterPiped`).
+
+A light switch belongs to the room it lights (`IsoLightSwitch.roomId`). One on a south or east wall
+stands on the square beyond the wall, outside its room: `objects` reads one square around the
+building for those, and `near` leaves out every switch that lights a room. Objects exist only on
+loaded squares; the second result says whether some were missing.
+
+A key is the position `"x,y,z"` of the corner of the building's lowest level that is furthest north,
+then west: a square of that building, so no two buildings share it. A key that no longer names a
+building (`rooms` gives `nil`, `objects` and `near` give `nil, false`) means the building was
+removed or rebuilt. A player-built building changes key when the game rebuilds it after its walls
+change, so a mod finds its building again from a square it remembers, and a network names its
+buildings by such a square.
 
 ## Networks (mechanism)
 

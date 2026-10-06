@@ -1,6 +1,7 @@
 package pztools.bridge.runtime;
 
 import pztools.bridge.AgentEntry;
+import pztools.bridge.runtime.api.GameApi;
 import pztools.extensions.api.*;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
@@ -124,6 +125,7 @@ public final class ExtensionControl {
         /** The world this controller's game-thread poll last found loaded and ready, or null. */
         String worldId() { ContinuousProvider.Context current = context; return current == null ? null : current.worldId(); }
         void poll() {
+            GameApi.frame(loader);
             if (!active.get() || !operations.tryLock()) return;
             try { if (active.get()) pollOwned(); }
             finally { operations.unlock(); }

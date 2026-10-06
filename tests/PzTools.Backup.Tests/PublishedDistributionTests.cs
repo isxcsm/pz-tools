@@ -132,10 +132,15 @@ public sealed class PublishedDistributionTests
             if (name == "pztools-game-bootstrap.jar")
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));
+                Assert.NotNull(jar.GetEntry("pztools/bridge/ApiHooks.class"));
                 Assert.NotNull(jar.GetEntry("pztools/extensions/api/VehicleHooks.class"));
                 Assert.Null(jar.GetEntry("pztools/extensions/vehicle/VehicleDrivetrainProvider.class"));
             }
-            else Assert.NotNull(jar.GetEntry("pztools/bridge/AttachMain.class"));
+            else
+            {
+                Assert.NotNull(jar.GetEntry("pztools/bridge/AttachMain.class"));
+                Assert.Null(jar.GetEntry("pztools/bridge/ApiHooks.class"));
+            }
         }
         using var temporaryRuntime = new TempDirectory();
         var configuration = VehicleDrivetrainConfiguration.Load(bridge, temporaryRuntime.Path);

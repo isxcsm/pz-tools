@@ -1,6 +1,7 @@
 package pztools.bridge.runtime;
 
 import pztools.bridge.AgentEntry;
+import pztools.bridge.runtime.api.GameApi;
 import pztools.extensions.api.*;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +38,8 @@ public final class ResidentExtensions {
     public static void start(String installFolder, Instrumentation value) {
         Path folder = Path.of(installFolder);
         if (!folder.isAbsolute()) throw new IllegalArgumentException("Absolute install folder required");
+        // The extension API is part of the same install, and runs whatever the extensions do.
+        GameApi.start();
         synchronized (gate) {
             root = folder; instrumentation = value;
             if (runner != null && runner.isAlive()) return;

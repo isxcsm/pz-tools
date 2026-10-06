@@ -60,7 +60,7 @@ $startupGame = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/startup-loader/
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d (Join-Path $startupOutput 'game') @startupGame
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture compilation failed' }
 $startupJar = Join-Path $startupOutput 'projectzomboid.jar'
-& (Join-Path $JdkPath 'bin/jar.exe') --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie
+& (Join-Path $JdkPath 'bin/jar.exe') --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie -C (Join-Path $startupOutput 'game') se
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' }
 $startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
 & (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
@@ -68,6 +68,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Startup loader test compilation failed' }
 # The install runs on the app's own runtime, which has only the modules the bridge needs.
 & (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe')
 if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
+# The extension API as Lua mods see it, against the same synthetic game.
+$apiOutput = Join-Path $fixtureOutput 'extension-api'
+New-Item -ItemType Directory -Path $apiOutput -Force | Out-Null
+$apiClasspath = @($apiOutput, (Join-Path $startupOutput 'game'), (Join-Path $bridgeRoot 'pztools-game-bridge.jar'), (Join-Path $bridgeRoot 'pztools-game-bootstrap.jar')) -join ';'
+$apiSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-api') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $apiClasspath -d $apiOutput @apiSources
+if ($LASTEXITCODE -ne 0) { throw 'Extension API test compilation failed' }
+& (Join-Path $JdkPath 'bin/java.exe') -ea -cp $apiClasspath pztools.bridge.runtime.api.GameApiTest
+if ($LASTEXITCODE -ne 0) { throw 'Extension API tests failed' }
 # The CI caller runs the entire applicable suite once with these environment values.
 if ($PrepareOnly) { return }
 $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),

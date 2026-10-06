@@ -12,7 +12,7 @@ change is detected, and what survives the switch.
 | Layer | File in `game-bridge\` | Replaced while the game runs? |
 | --- | --- | --- |
 | Native attach bootstrap | `pztools-attach-bootstrap.dll` | No. Loaded on the first attach only. |
-| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
+| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ApiHooks` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
 | [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: save requests, WATCH, extension control, profiler, notices, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) | `extensions\pztools-extension-runtime.jar`: `ModuleHost`, `ContinuousRuntime` | Yes |
 | [Modules](glossary.md#extension-module) | `extensions\pztools-vehicle-drivetrain.jar`, listed in `extensions\catalog.tsv` | Yes, each in its own [slot](glossary.md#slot) |
@@ -28,6 +28,9 @@ The bootstrap owns everything that has to outlive a replacement
 - The game-loop hook: one call to `AgentEntry.poll()` added at the start of `GameWindow.logic()`. Each payload
   registers its per-frame work in three callback slots (save, observer, extension lifecycle) instead of hooking
   the game again.
+- In a game the [startup loader](startup-loader.md) started, the [extension API](extension-api.md)'s hook: one
+  call to `ApiHooks.luaStarted` added at the end of `LuaManager.init()` before the game loads its Lua. Each
+  payload sets the handler that answers it, replacing the last one's.
 - The extension API classes, including `RuntimeIdentity` (process and world ids) and `RuntimeCharacterIdentity`
   (character and death ids). Payload and module archives are loaded with their own copies of these packages
   skipped, so every generation sees the same classes.

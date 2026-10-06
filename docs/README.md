@@ -62,7 +62,7 @@ first; the [glossary](design/glossary.md) explains the terms the other pages use
 - [Vehicle model](design/vehicle-drivetrain.md): how the vehicle extension computes and applies driving forces
 - [Component updates](design/module-reload.md): replacing code inside a running game
 - [Startup loader](design/startup-loader.md) (hidden, experimental): an optional install that loads the bridge as the game starts
-- [Extension API](design/extension-api.md) (planned): game facts and utility networks for Lua mods, starting with power and water
+- [Extension API](design/extension-api.md) (in progress): game facts and utility networks for Lua mods, starting with power and water
 
 **Interface**
 
