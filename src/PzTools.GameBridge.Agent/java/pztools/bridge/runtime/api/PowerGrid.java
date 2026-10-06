@@ -57,10 +57,13 @@ final class PowerGrid implements ApiHooks.Power {
     /** An object rule of a network at one square. */
     private record Rule(String sprite, boolean included, boolean supplied, Network network) { }
 
-    /** What the hooks read. {@code supplied} holds the areas of the networks that have supply now. */
-    private record Snapshot(Area[] supplied, List<Network> withArea, Map<Position, Network> producers,
+    /**
+     * What the hooks read. {@code supplied} holds the areas of the networks that have supply now, {@code rooms} the
+     * ids of their buildings' rooms.
+     */
+    private record Snapshot(Area[] supplied, Set<Long> rooms, List<Network> withArea, Map<Position, Network> producers,
             Map<Position, List<Rule>> rules) {
-        static final Snapshot EMPTY = new Snapshot(new Area[0], List.of(), Map.of(), Map.of());
+        static final Snapshot EMPTY = new Snapshot(new Area[0], Set.of(), List.of(), Map.of(), Map.of());
     }
 
     private final Buildings buildings;
@@ -76,6 +79,8 @@ final class PowerGrid implements ApiHooks.Power {
     // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
     private final Field itemsPowered, using, chunkRange, basePower, worldInstance;
     private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
+    private final Method squarePowered, containerParent, containerSquare;
+    private final Field switchRoom;
     private final Class<?> objectType;
 
     PowerGrid(ClassLoader loader, Buildings buildings, Map<String, Network> networks) throws ReflectiveOperationException {
@@ -111,6 +116,11 @@ final class PowerGrid implements ApiHooks.Power {
         containerPowered = type(loader, "zombie.inventory.ItemContainer").getMethod("isObjectPowered", objectType, boolean.class);
         switchPowered = accessible(lightSwitch.getDeclaredMethod("hasElectricityAround"));
         devicePowered = device.getMethod("canBePoweredHere");
+        squarePowered = squareType.getMethod("haveElectricity");
+        Class<?> container = type(loader, "zombie.inventory.ItemContainer");
+        containerParent = container.getMethod("getParent");
+        containerSquare = container.getMethod("getSourceGrid");
+        switchRoom = lightSwitch.getField("roomId");
         battery = device.getMethod("getIsBatteryPowered");
         deviceParent = device.getMethod("getParent");
         worldInstance = worldType.getField("instance");
@@ -141,7 +151,7 @@ final class PowerGrid implements ApiHooks.Power {
     @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) {
         if (!generators || object == null) return vanilla;
         Snapshot current = snapshot;
-        if (current.rules().isEmpty()) return vanilla;
+        if (current.rules().isEmpty() && (kind != ApiHooks.ROOM_LIGHT || current.rooms().isEmpty())) return vanilla;
         boolean[] pure = PURE.get();
         if (pure[0]) return vanilla;
         try {
@@ -150,9 +160,12 @@ final class PowerGrid implements ApiHooks.Power {
                 if ((boolean)battery.invoke(object)) return vanilla;
                 target = deviceParent.invoke(object);
                 if (!objectType.isInstance(target)) return vanilla;
+            } else if (kind == ApiHooks.FOOD) {
+                target = containerParent.invoke(object);
+                if (!objectType.isInstance(target)) return vanilla;
             }
             boolean excluded = false;
-            for (Object part : parts(target)) {
+            for (Object part : current.rules().isEmpty() ? List.of() : parts(target)) {
                 Thing thing = thing(part);
                 List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
                 if (rules == null) continue;
@@ -162,14 +175,19 @@ final class PowerGrid implements ApiHooks.Power {
                     if (!rule.included()) excluded = true;
                 }
             }
-            if (!excluded || !vanilla) return vanilla;
+            // A switch powers its room's light when a network supplies that room, wherever the switch stands: one on a
+            // south or east wall stands on the square beyond, outside the building.
+            if (!excluded) return vanilla || kind == ApiHooks.ROOM_LIGHT && current.rooms().contains(switchRoom.getLong(object));
+            if (!vanilla) return false;
             // The game said yes, perhaps because a network powers the square: ask it again without the networks.
             pure[0] = true;
             try {
                 return switch (kind) {
                     case ApiHooks.APPLIANCE -> (boolean)containerPowered.invoke(null, object, true);
                     case ApiHooks.LIGHT_SWITCH -> (boolean)switchPowered.invoke(object);
-                    default -> (boolean)devicePowered.invoke(object);
+                    case ApiHooks.DEVICE -> (boolean)devicePowered.invoke(object);
+                    case ApiHooks.ROOM_LIGHT -> squarePowered(objectSquare.invoke(object));
+                    default -> squarePowered(containerSquare.invoke(object));
                 };
             } finally { pure[0] = false; }
         } catch (InvocationTargetException failure) {
@@ -350,20 +368,26 @@ final class PowerGrid implements ApiHooks.Power {
         return false;
     }
 
-    private Snapshot snapshot() {
+    private boolean squarePowered(Object square) throws ReflectiveOperationException {
+        return square != null && (boolean)squarePowered.invoke(square);
+    }
+
+    private Snapshot snapshot() throws ReflectiveOperationException {
         var supplied = new ArrayList<Area>();
+        var rooms = new HashSet<Long>();
         var withArea = new ArrayList<Network>();
         var producers = new HashMap<Position, Network>();
         var rules = new HashMap<Position, List<Rule>>();
         for (Network network : networks.values()) {
             boolean on = network.inUse != null;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
+            if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
             for (Position producer : network.producers) producers.put(producer, network);
             for (Thing thing : network.excluded) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), false, on, network));
             for (Thing thing : network.included) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, on, network));
         }
         rules.replaceAll((at, list) -> List.copyOf(list));
-        return new Snapshot(supplied.toArray(Area[]::new), List.copyOf(withArea), Map.copyOf(producers), Map.copyOf(rules));
+        return new Snapshot(supplied.toArray(Area[]::new), Set.copyOf(rooms), List.copyOf(withArea), Map.copyOf(producers), Map.copyOf(rules));
     }
 
     private Object generatorAt(Object cells, Position at) throws ReflectiveOperationException {

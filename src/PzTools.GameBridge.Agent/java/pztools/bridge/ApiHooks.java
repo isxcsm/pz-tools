@@ -1,6 +1,9 @@
 package pztools.bridge;
 
 import java.lang.classfile.*;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.classfile.instruction.LineNumber;
 import java.lang.classfile.instruction.ReturnInstruction;
 import java.lang.classfile.instruction.StoreInstruction;
 import java.lang.constant.*;
@@ -10,6 +13,7 @@ import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 /**
  * The stable calls that the extension API's hooks put into game code (docs/design/extension-api.md). The payload that
@@ -33,8 +37,11 @@ public final class ApiHooks {
 
         /**
          * An object's power: an appliance ({@code ItemContainer.isObjectPowered}), a light switch's
-         * ({@code IsoLightSwitch.hasElectricityAround}) or a radio's or television's ({@code DeviceData.canBePoweredHere}).
-         * {@code vanilla} is the game's answer, {@code generators} false when the game asks about the grid alone.
+         * ({@code IsoLightSwitch.hasElectricityAround}), a radio's or television's ({@code DeviceData.canBePoweredHere}),
+         * the power a room's light gets from one of the room's switches (the switch's square, in
+         * {@code LightingJNI.checkLights}), or the power that keeps food in a container cold (the container's square, in
+         * {@code Food.updateAge}). {@code vanilla} is the game's answer, {@code generators} false when the game asks
+         * about the grid alone.
          */
         boolean object(boolean vanilla, Object object, int kind, boolean generators);
 
@@ -46,7 +53,7 @@ public final class ApiHooks {
     }
 
     /** The kinds of {@link Power#object}. */
-    public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2;
+    public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
     // The payload loads beside the game's start; the first Lua environment may be made before it is ready.
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
@@ -85,6 +92,16 @@ public final class ApiHooks {
             Site.atReturns("canBePoweredHere", "()Z", 1, (code, owner) -> {
                 code.aload(0); code.iconst_2(); code.iconst_1(); objectPowered(code);
             }) },
+        "zombie/iso/LightingJNI", new Site[] {
+            // switch.square.haveElectricity(), for each switch of a room whose light is checked.
+            Site.square("checkLights", "()V", element -> element instanceof FieldInstruction field
+                && field.opcode() == Opcode.GETFIELD && field.owner().asInternalName().equals("zombie/iso/objects/IsoLightSwitch")
+                && field.name().equalsString("square"), ROOM_LIGHT) },
+        "zombie/inventory/types/Food", new Site[] {
+            // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
+            Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
+                && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
+                && invoke.name().equalsString("getSourceGrid"), FOOD) },
         "zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
                 Label vanilla = code.newLabel();
@@ -144,6 +161,17 @@ public final class ApiHooks {
             for (CodeElement element : methods.get(0).code().orElseThrow())
                 if (element instanceof StoreInstruction store && store.slot() < site.argumentSlots())
                     throw new IllegalArgumentException(name + "." + site.method() + " reuses its argument slot " + store.slot());
+            if (site.object() != null) {
+                int found = 0;
+                CodeElement previous = null;
+                for (CodeElement element : methods.get(0).code().orElseThrow()) {
+                    if (element instanceof LineNumber) continue;
+                    if (previous != null && site.object().test(previous) && Site.haveElectricity(element)) found++;
+                    previous = element;
+                }
+                if (found != 1)
+                    throw new IllegalArgumentException("Expected one square power question in " + name + "." + site.method() + ", found " + found);
+            }
             transform = transform.andThen(ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
         }
         if ("zombie/iso/IsoGridSquare".equals(name))
@@ -154,14 +182,28 @@ public final class ApiHooks {
         return cf.transformClass(model, transform);
     }
 
-    /** Where a hook goes in one method: before each return, with the return value on the stack, or at its start. */
-    private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
+    /**
+     * Where a hook goes in one method: before each return, with the return value on the stack; at its start; or after
+     * the one place where the method asks a square about power for an object ({@code object} gets the square from the
+     * object on the stack, and {@code IsoGridSquare.haveElectricity()} follows at once).
+     */
+    private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit,
+            Predicate<CodeElement> object, int kind) {
         static Site atReturns(String method, String type, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, true, argumentSlots, emit);
+            return new Site(method, type, true, argumentSlots, emit, null, 0);
         }
 
         static Site atStart(String method, String type, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit);
+            return new Site(method, type, false, 0, emit, null, 0);
+        }
+
+        static Site square(String method, String type, Predicate<CodeElement> object, int kind) {
+            return new Site(method, type, false, 0, null, object, kind);
+        }
+
+        static boolean haveElectricity(CodeElement element) {
+            return element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/iso/IsoGridSquare")
+                && invoke.name().equalsString("haveElectricity") && invoke.type().equalsString("()Z");
         }
 
         boolean matches(MethodModel model) {
@@ -169,6 +211,43 @@ public final class ApiHooks {
         }
 
         CodeTransform code(ClassDesc owner) {
+            if (object != null) return CodeTransform.ofStateful(() -> new CodeTransform() {
+                // The instruction that gets the square, held until the next one shows whether the square is asked.
+                private CodeElement held;
+                private final List<CodeElement> lines = new ArrayList<>();
+
+                @Override public void accept(CodeBuilder builder, CodeElement element) {
+                    if (held != null) {
+                        if (element instanceof LineNumber) { lines.add(element); return; }
+                        if (haveElectricity(element)) {
+                            // object -> object, object -> object, square -> object, answer -> answer, object -> hook
+                            builder.dup();
+                            builder.with(held);
+                            lines.forEach(builder::with);
+                            builder.with(element);
+                            builder.swap();
+                            builder.loadConstant(kind);
+                            builder.iconst_1();
+                            objectPowered(builder);
+                            held = null;
+                            lines.clear();
+                            return;
+                        }
+                        flush(builder);
+                    }
+                    if (object.test(element)) held = element;
+                    else builder.with(element);
+                }
+
+                @Override public void atEnd(CodeBuilder builder) { if (held != null) flush(builder); }
+
+                private void flush(CodeBuilder builder) {
+                    builder.with(held);
+                    lines.forEach(builder::with);
+                    held = null;
+                    lines.clear();
+                }
+            });
             if (returns) return (builder, element) -> {
                 if (element instanceof ReturnInstruction) emit.accept(builder, owner);
                 builder.with(element);

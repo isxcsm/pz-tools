@@ -5,6 +5,7 @@ import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
 import zombie.Lua.LuaManager;
 import zombie.inventory.ItemContainer;
+import zombie.inventory.types.Food;
 import zombie.iso.*;
 import zombie.iso.SpriteDetails.IsoFlagType;
 import zombie.iso.objects.IsoGenerator;
@@ -264,6 +265,32 @@ public final class GameApiTest {
         frame();
         check(ItemContainer.isObjectPowered(fridge, true) && near(load(networks), 0.112), "Reset did not give the fridge back");
 
+        // A room's light: from a switch of the room, even one beyond the wall, outside the house; not an excluded one.
+        var roomSwitches = List.of(kitchenSwitch);
+        check(!LightingJNI.roomLit(roomSwitches), "An excluded switch lights its room");
+        call(networks, "reset", mod, "grid", 11.0, 13.0, 0.0, "kitchen switch");
+        frame();
+        check(LightingJNI.roomLit(roomSwitches), "A switch beyond the wall does not light its room");
+        call(networks, "exclude", mod, "grid", 11.0, 13.0, 0.0, "kitchen switch");
+        var innerSwitch = place(13, 10, 0, new IsoLightSwitch(new IsoSprite("inner switch")));
+        innerSwitch.roomId = 1;
+        innerSwitch.powered = false;
+        frame();
+        check(LightingJNI.roomLit(List.of(innerSwitch)), "A switch in the room does not light it");
+        call(networks, "exclude", mod, "grid", 13.0, 10.0, 0.0, "inner switch");
+        frame();
+        check(!LightingJNI.roomLit(List.of(innerSwitch)), "An excluded switch in the room lights it");
+        // Food keeps cold in a fridge the network powers, not in an excluded one, whatever their squares have.
+        var food = new Food(new ItemContainer(fridge));
+        food.updateAge(false);
+        check(food.chilled, "Food in a powered fridge is not chilled");
+        var frozen = new Food(new ItemContainer(freezer));
+        frozen.updateAge(false);
+        check(!frozen.chilled && square(12, 12, 0).haveElectricity(), "Food in an excluded freezer is chilled");
+        var outside = new Food(new ItemContainer(light));
+        outside.updateAge(false);
+        check(outside.chilled, "Food in an object added on its own is not chilled");
+
         // The first producer stops: no supply until the next one runs, which then carries the load.
         int checks = fridge.electricityChecks;
         first.setActivated(false);
@@ -271,6 +298,10 @@ public final class GameApiTest {
         state = (KahluaTable)call(networks, "state", "grid").get(0);
         check(state.rawget("supplied").equals(false) && state.rawget("producer") == null && !square(11, 11, 0).haveElectricity()
             && !ItemContainer.isObjectPowered(light, true), "A network without a running producer has supply");
+        call(networks, "reset", mod, "grid", 13.0, 10.0, 0.0, "inner switch");
+        frame();
+        food.updateAge(false);
+        check(!LightingJNI.roomLit(List.of(innerSwitch)) && !food.chilled, "A room is lit or food chilled without supply");
         check(fridge.electricityChecks > checks, "The consumers were not told that the power went");
         second.setActivated(true);
         frame();

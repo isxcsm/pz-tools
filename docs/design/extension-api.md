@@ -166,12 +166,17 @@ happened, which can be in the past when the network's squares were not loaded.
 - Exclusion: an excluded object gets the game's own answer, as if no network powered its square, so a
   generator in range or the grid still powers it. An object that covers several squares is excluded
   when any of its parts is.
+- Lights: a room's light gets power from a switch of that room that the network supplies, wherever
+  the switch stands (one on a south or east wall stands outside the building), and not from an
+  excluded switch. A switch's own light sources follow the switch.
+- Food in a fridge or freezer keeps cold by the container's answer, not its square's: not in an
+  excluded fridge, and in a fridge added on its own.
 - When a network's supply starts or stops, its consumers are told (`IsoObject.checkHaveElectricity`),
   as vanilla tells the objects in a generator's range.
 - The definitions belong to the world they were made in: when the game's cell goes (the player left
   the world), the API removes them, and the mods define them again in the next world.
-- Not yet: switching producers, time and fuel while not loaded, food, events, water, children,
-  `"parallel"`, and the light sources and room light of an excluded switch.
+- Not yet: switching producers, time and fuel while not loaded, food aged across supply changes,
+  events, water, children and `"parallel"`.
 
 ### Power
 
@@ -213,10 +218,11 @@ happened, which can be in the past when the network's squares were not loaded.
 | Does this square have electricity? | `IsoGridSquare.haveElectricity()` (generators); `hasGridPower()` is the grid | Vanilla, or its building is a consumer of a supplied network |
 | Is this appliance powered? (fridge, freezer, stove, washer, dryer, street light) | `ItemContainer.isObjectPowered(object, …)`, cached per tick by `IsoObject.checkObjectPowered()` | Vanilla, or it is a consumer (added on its own, or in a member building and not excluded) of a supplied network |
 | Does this light switch's room have power? | `IsoLightSwitch.hasElectricityAround()` | Same rule; lights are switched per room, not per bulb |
+| Is this room's light on, and this switch's lamps? | `LightingJNI.checkLights()`: a room light asks its switches' squares (`haveElectricity()`); a lamp with switches asks its first switch (`canSwitchLight()`, which asks `hasElectricityAround()`) | A switch of the room that the network supplies (its room's building is a member), not excluded |
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
 | Where does this fixture's water come from? | `IsoObject.getUsesExternalWaterSource()`, `checkExternalFluidSource()` | For a consumer, the network's producer that gives the next draw |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
-| How much has this food aged? | `Food.updateAge(boolean)` | Split at the network's supply changes |
+| How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`) | The container's object, by the appliance rule. Planned: split at the network's supply changes |
 
 The bootstrap ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java))
 puts the hooks in as the classes load. Each return of the square and object questions passes the

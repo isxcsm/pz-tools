@@ -303,6 +303,8 @@ final class Buildings {
 
     int level(Object room) throws ReflectiveOperationException { return (int)roomLevel.invoke(room); }
 
+    long roomId(Object room) throws ReflectiveOperationException { return (long)roomId.invoke(room); }
+
     private Building describe(Object def) throws ReflectiveOperationException {
         if (def == null) return null;
         var list = new ArrayList<Object>((List<?>)rooms.invoke(def));
