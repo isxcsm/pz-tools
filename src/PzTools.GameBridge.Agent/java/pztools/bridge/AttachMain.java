@@ -15,6 +15,7 @@ import java.util.HexFormat;
 /** Short-lived helper. Reuses one authenticated bootstrap; never re-loads on dispatch failure. */
 public final class AttachMain {
     private static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
+    private static final long STARTUP_WAIT_NANOS = 15_000_000_000L;
     /** The first line a failure prints, before its stack trace: the step it stopped at, then the error, for the app. */
     static final String FAILURE_MARK = "PZTOOLS-ATTACH-FAILED";
     private static String stage = "arguments";
@@ -53,6 +54,17 @@ public final class AttachMain {
             String endpoint;
             try {
                 endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
+                // A bootstrap the startup loader loaded sets its API at once and its endpoint only once the game has
+                // logged its properties (AgentEntry.publishAfterPropertyList); loading a second one would fail.
+                if (endpoint == null && vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api") != null) {
+                    stage = "bootstrap-starting";
+                    long deadline = System.nanoTime() + STARTUP_WAIT_NANOS;
+                    while (endpoint == null && System.nanoTime() < deadline) {
+                        Thread.sleep(250);
+                        endpoint = vm.getSystemProperties().getProperty(CONTROL_PROPERTY);
+                    }
+                    if (endpoint == null) throw new IOException("The game is still starting; try again once it shows its menu");
+                }
                 if (endpoint == null) {
                     // Embedded Windows launchers need their own jli.dll, not our helper's.
                     stage = "native-bootstrap";
@@ -155,13 +167,13 @@ public final class AttachMain {
         return file;
     }
 
-    // The account the game reads as, then who this helper creates files as (the same when not elevated). No class of
-    // its own: the helper's jar holds this class alone.
+    // The account the game reads as, then who this helper creates files as (the same when not elevated). Shared with
+    // StartupInstall, whose install folder follows the same rules.
     private static boolean trusted(UserPrincipal[] owners, UserPrincipal principal) {
         return owners[0].equals(principal) || owners[1].equals(principal);
     }
 
-    private static UserPrincipal[] principals() throws IOException {
+    static UserPrincipal[] principals() throws IOException {
         Path probe = Files.createTempFile("pztools-owner", ".tmp");
         UserPrincipal creator;
         try { creator = Files.getOwner(probe); } finally { Files.deleteIfExists(probe); }
@@ -182,7 +194,7 @@ public final class AttachMain {
     }
 
     /** Makes the folder the user's alone, or checks that an existing one already is. */
-    private static boolean privateDirectory(Path directory, UserPrincipal[] owners) throws IOException {
+    static boolean privateDirectory(Path directory, UserPrincipal[] owners) throws IOException {
         if (Files.isSymbolicLink(directory)) return false;
         if (!Files.isDirectory(directory)) {
             Files.createDirectories(directory.getParent());
@@ -208,7 +220,7 @@ public final class AttachMain {
      * Owned by the user or the helper's creator, no one else allowed to change it or what is in it, and readable by
      * the user's own account, which the game loads it as.
      */
-    private static boolean safe(Path path, UserPrincipal[] owners) throws IOException {
+    static boolean safe(Path path, UserPrincipal[] owners) throws IOException {
         var view = Files.getFileAttributeView(path, AclFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
         if (view == null || !trusted(owners, view.getOwner())) return false;
         boolean readable = false;
@@ -220,7 +232,7 @@ public final class AttachMain {
         return readable;
     }
 
-    private static boolean ascii(String text) {
+    static boolean ascii(String text) {
         for (int index = 0; index < text.length(); index++) if (text.charAt(index) > 0x7E) return false;
         return true;
     }

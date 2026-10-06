@@ -50,7 +50,8 @@ public final class AgentEntry {
     public static synchronized void agentmain(String options, Instrumentation value) throws Exception {
         if (instrumentation != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
         String[] parts = options.split(":", -1);
-        if (parts.length != 2 || !parts[0].equals("BOOTSTRAP1"))
+        boolean startup = parts.length == 3 && parts[2].equals("STARTUP");
+        if ((parts.length != 2 && !startup) || !parts[0].equals("BOOTSTRAP1"))
             throw new IllegalArgumentException("Incompatible bootstrap; rebuild app/workers and restart the game");
         Path candidate = Path.of(new String(Base64.getDecoder().decode(parts[1]), StandardCharsets.UTF_8));
         if (!candidate.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
@@ -67,12 +68,40 @@ public final class AgentEntry {
             control.start();
             System.setProperty("pztools.bridge.bootstrap.api", "11");
             // Published only after the listener is bound. Never print this credential.
-            System.setProperty(CONTROL_PROPERTY, "2:" + ProcessHandle.current().pid() + ":"
-                + server.getLocalPort() + ":" + secret);
+            String endpoint = "2:" + ProcessHandle.current().pid() + ":" + server.getLocalPort() + ":" + secret;
+            if (startup) publishAfterPropertyList(endpoint);
+            else System.setProperty(CONTROL_PROPERTY, endpoint);
         } catch (Throwable failure) {
             server.close();
             throw failure;
         }
+    }
+
+    /**
+     * Loaded by the startup loader, the bootstrap runs before the game's main method has written every system property
+     * to its log (console.txt), which players post with bug reports. The endpoint, which holds the secret, is set only
+     * once the game loads GameWindow: its main method lists the properties before it first uses that class. The helper
+     * waits for it meanwhile (it sees the API property without the endpoint). Nothing is changed in the class.
+     */
+    private static void publishAfterPropertyList(String endpoint) {
+        var published = new AtomicBoolean();
+        ClassFileTransformer watcher = new ClassFileTransformer() {
+            @Override public byte[] transform(ClassLoader loader, String name, Class<?> type,
+                    ProtectionDomain domain, byte[] bytes) {
+                if (type == null && "zombie/GameWindow".equals(name) && published.compareAndSet(false, true)) {
+                    System.setProperty(CONTROL_PROPERTY, endpoint);
+                    instrumentation.removeTransformer(this);
+                }
+                return null;
+            }
+        };
+        instrumentation.addTransformer(watcher, false);
+        // Already loaded (a game whose main method differs): the list was written, or never will be by this method.
+        for (Class<?> type : instrumentation.getAllLoadedClasses())
+            if (type.getName().equals("zombie.GameWindow") && published.compareAndSet(false, true)) {
+                instrumentation.removeTransformer(watcher);
+                System.setProperty(CONTROL_PROPERTY, endpoint);
+            }
     }
 
     /** The extension runtime, replaced when its jar changed (extension control, a provider save); WATCH stays connected. */

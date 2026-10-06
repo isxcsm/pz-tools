@@ -303,7 +303,9 @@ coordinator (not asked again until it restarts) but periodic backups are not hel
 ## When attaching fails
 
 The helper's first line on failure is `PZTOOLS-ATTACH-FAILED\t<stage>\t<exception>`, where the stage is
-`arguments`, `lock`, `attach`, `native-bootstrap`, `bootstrap`, `bootstrap-version` or `handshake`. A line
+`arguments`, `lock`, `attach`, `bootstrap-starting`, `native-bootstrap`, `bootstrap`, `bootstrap-version` or
+`handshake`. `bootstrap-starting` is a bootstrap the [startup loader](startup-loader.md) loaded that had not
+published its endpoint within 15 seconds; the helper waits for it rather than loading a second one. A line
 `PZTOOLS-ATTACH-HANDED` before it says where each handed file came from (`own`, `own-non-ascii`, `temp-copy`,
 `programdata-copy`).
 
