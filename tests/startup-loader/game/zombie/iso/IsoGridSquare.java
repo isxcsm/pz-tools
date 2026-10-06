@@ -1,9 +1,9 @@
 package zombie.iso;
 
-import java.util.ArrayList;
+import zombie.util.list.PZArrayList;
 
-/** Synthetic. The game's list type is its own, a java.util.List. */
+/** Synthetic. */
 public final class IsoGridSquare {
-    public final ArrayList<IsoObject> objects = new ArrayList<>();
-    public ArrayList<IsoObject> getObjects() { return objects; }
+    public final PZArrayList<IsoObject> objects = new PZArrayList<>();
+    public PZArrayList<IsoObject> getObjects() { return objects; }
 }

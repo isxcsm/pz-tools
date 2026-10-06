@@ -151,7 +151,7 @@ final class Buildings {
                     boolean inside = room != null && building.invoke(room) == found.def();
                     Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
                     if (loaded == null) { complete &= !inside; continue; }
-                    for (Object object : (List<?>)objects.invoke(loaded)) {
+                    for (Object object : objectsOn(loaded)) {
                         Object owner = owner(object, room);
                         if (owner == null || building.invoke(owner) != found.def()) continue;
                         Object entry = entry(object, filter, x, y, z, owner);
@@ -191,7 +191,7 @@ final class Buildings {
                     if (roomAt(wx, wy, z) != null) continue;
                     Object loaded = cells == null ? null : square.invoke(cells, wx, wy, z);
                     if (loaded == null) { complete = false; continue; }
-                    for (Object object : (List<?>)objects.invoke(loaded)) {
+                    for (Object object : objectsOn(loaded)) {
                         if (owner(object, null) != null) continue;
                         Object entry = entry(object, filter, wx, wy, z, null);
                         if (entry != null) result.add(entry);
@@ -212,6 +212,14 @@ final class Buildings {
             for (int x = 0; x < width; x++)
                 if (rows[y * width + x])
                     for (int dy = Math.max(0, y - tiles); dy <= Math.min(height - 1, y + tiles); dy++) result[dy * width + x] = true;
+        return result;
+    }
+
+    /** A square's objects. The game's list (PZArrayList) is read by index: it has no iterator. */
+    private List<Object> objectsOn(Object loaded) throws ReflectiveOperationException {
+        var list = (List<?>)objects.invoke(loaded);
+        var result = new ArrayList<Object>(list.size());
+        for (int index = 0; index < list.size(); index++) result.add(list.get(index));
         return result;
     }
 
