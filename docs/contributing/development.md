@@ -143,20 +143,47 @@ exits with an error or does not write a result starting with `PASS`.
 pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
-[`test-game-bridge.ps1`](../../scripts/test-game-bridge.ps1) builds the bridge (Debug by
-default) and compiles the Java fixtures. It then runs
-[`test-game-extensions.ps1`](../../scripts/test-game-extensions.ps1), which builds the vehicle
-extension and runs the extension runtime and vehicle model tests, and then the Java tests of
-the control protocol and the profiler. Last it runs `GameSaveClientTests` against a synthetic
-JVM that imitates the game. None of it touches a real game.
+[`test-game-bridge.ps1`](../../scripts/test-game-bridge.ps1) first prepares what every test
+needs: it builds the bridge (Debug by default), compiles the synthetic game, builds the
+vehicle extension and the fixture modules
+([`test-game-extensions.ps1 -FixturesOnly`](../../scripts/test-game-extensions.ps1)), and sets
+the test variables. Then it runs its suites. None of it touches a real game.
+
+| Suite | Runs |
+| --- | --- |
+| `extensions` | `test-game-extensions.ps1`: the extension runtime, module slots, the vehicle extension and its models |
+| `control` | `ExtensionControlTest`: the extension control channel, its concurrency, the resident extensions |
+| `profiler` | `ProfileFramesTest` (no flight recorder) and `ProfileRollingTest` (a real one) |
+| `startup` | `StartupInstallTest`: install into a synthetic game's jar, start it, update, uninstall, the app attaching first |
+| `api` | `GameApiTest`: the extension API against the synthetic game |
+| `dotnet` | `GameSaveClientTests` against a synthetic JVM that imitates the game |
+
+Every suite asked for runs, whatever an earlier one did, and a table at the end gives each
+suite's result and time; the script fails if any suite failed. A failure in one area does
+not hide the others.
 
 | Option | Effect |
 | --- | --- |
+| `-Suite api,startup` | Runs only these suites, after the preparation |
+| `-DotnetFilter <filter>` | The `dotnet` suite runs this `dotnet test` filter instead, with the test variables set, for example `FullyQualifiedName~StartupLoader` |
 | `-Configuration Release` | Uses `artifacts/game-bridge/Release` |
 | `-ReuseBuild` | Uses the bridge from the last solution build instead of building it, and runs `dotnet test --no-build` |
-| `-PrepareOnly` | Stops before `dotnet test`, leaving the test variables set in the session |
+| `-PrepareOnly` | Every suite but `dotnet`, leaving the test variables set in the session |
 | `-GameBridgeOutput` | Another bridge folder, for example while a running game holds the DLL in the default one |
 | `-CheckIncrementalBuild` | Rebuilds once more and fails if an unchanged build rewrote any output |
+
+For one change, run the suites that cover what it touched. A change elsewhere needs only
+`dotnet test`, filtered to its tests.
+
+| Changed | Suites |
+| --- | --- |
+| `PzTools.GameExtensions.Java`, `PzTools.GameExtensions.VehicleDrivetrain`, `config/game-extensions/`, `tests/game-extensions*`, `tests/vehicle-drivetrain-fixture/` | `extensions`, `control`, `dotnet` |
+| Bridge runtime `ExtensionControl`, `ResidentExtensions`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
+| Bridge runtime `Profile*` | `profiler`, `dotnet` |
+| Bridge runtime `api/`; `tests/extension-api/` | `api` |
+| `AgentEntry`, `ApiHooks`, `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `api`, `dotnet` |
+| The rest of the bridge runtime, `PzTools.GameBridge`, `PzTools.GameExtensions` (C#), `tests/game-bridge/` | `dotnet` |
+| `scripts/test-game-*.ps1`, the bridge build | all |
 
 The variables persist only when the script runs in your own session (`./scripts/...`), not
 under `pwsh scripts/...`. To run the whole suite with the bridge tests included:
@@ -327,7 +354,7 @@ base.
 | Only `docs/`, `*.md`, `.gitignore`, `.gitattributes` | Nothing; the `windows` job is skipped |
 | Anything else | The `windows` job, with `GameSaveClientTests` filtered out |
 | `.github/`, `build/`, project, solution, `.props` and `.targets` files, `global.json`, `NuGet.config`, `config/defaults/`, `config/game-extensions/`, `scripts/publish-*`, `*.Cli`, `*.Runner`, `*.Scheduler` projects, tests named `*IntegrationTests*`, `*Distribution*`, `*StateStartup*` | Publication to `artifacts/ci-app`, with `PZTOOLS_DISTRIBUTION_DIR` and `PZTOOLS_TOOLS_DIR` set for the tests, plus everything in the next row |
-| The bridge and extension projects, their tests and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, and a list of bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
+| The bridge and extension projects, their Java tests (`tests/game-bridge`, `game-extensions*`, `extension-control`, `extension-api`, `startup-loader`, `vehicle-drivetrain-fixture`) and scripts, `Backup.Engine`, `Zomboid.Backup`, `Scheduling`, `Process.Hosting`, `Process.Contracts`, every file of the `GameSaveClientTests` class (a removed test file counts), and two other bridge test files | `test-game-bridge.ps1 -ReuseBuild -PrepareOnly`, and the bridge tests in the same test run |
 
 Unknown paths count as code. NuGet packages are cached; build output is not. A newer push
 to a pull request cancels the running one. TRX files are kept for seven days when a run

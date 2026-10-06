@@ -26,6 +26,25 @@ class PlanTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(plan([path])["bridge"])
 
+    def test_bridge_fixture_tests_keep_jvm_tests(self):
+        for path in ["tests/extension-control/pztools/bridge/runtime/ProfileRollingTest.java",
+                     "tests/extension-api/pztools/bridge/runtime/api/GameApiTest.java",
+                     "tests/startup-loader/game/zombie/Lua/LuaManager.java",
+                     "tests/vehicle-drivetrain-fixture/zombie/core/Core.java"]:
+            with self.subTest(path=path):
+                self.assertTrue(plan([path])["bridge"])
+
+    def test_every_file_of_the_bridge_test_class_keeps_jvm_tests(self):
+        texts = {"tests/PzTools.Backup.Tests/GameProfileBridgeTests.cs": "public sealed partial class GameSaveClientTests\n{",
+                 "tests/PzTools.Backup.Tests/SettingsTests.cs": "public sealed class SettingsTests\n{"}
+        read = texts.get
+        self.assertTrue(plan(["tests/PzTools.Backup.Tests/GameProfileBridgeTests.cs"], read=read)["bridge"])
+        self.assertFalse(plan(["tests/PzTools.Backup.Tests/SettingsTests.cs"], read=read)["bridge"])
+        # A removed test file may have been one of them.
+        self.assertTrue(plan(["tests/PzTools.Backup.Tests/RemovedTests.cs"], read=read)["bridge"])
+        # The real files of the class, read from the checkout.
+        self.assertTrue(plan(["tests/PzTools.Backup.Tests/StartupLoaderBridgeTests.cs"])["bridge"])
+
     def test_packaging_and_worker_changes_publish(self):
         for path in ["build/AppWorkers.targets", "src/PzTools.App/PzTools.App.csproj",
                      "scripts/publish-app.ps1", "src/PzTools.State.Scheduler/Program.cs",

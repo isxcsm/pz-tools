@@ -183,8 +183,9 @@ $env:PZTOOLS_DISTRIBUTION_DIR = (Resolve-Path artifacts/vehicle-validation/app).
 dotnet test tests/PzTools.Backup.Tests -c Release --no-build --filter FullyQualifiedName~PublishedDistributionTests
 ```
 
-`test-game-bridge.ps1 -PrepareOnly` runs the Java bridge and extension tests and leaves the
-test variables set in the session, so the next `dotnet test` includes the bridge tests.
+`test-game-bridge.ps1 -PrepareOnly` runs every suite but `dotnet` (the Java bridge and
+extension tests) and leaves the test variables set in the session, so the next `dotnet test`
+includes the bridge tests.
 `-InstalledGameJar` checks the bytecode of your installed game in a separate Java process;
 it does not start or attach to the game. Its log goes to
 `artifacts/game-extension-tests/installed-vehicle-verification.log`

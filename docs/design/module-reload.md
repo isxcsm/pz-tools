@@ -194,8 +194,8 @@ extension's own save, which no shipped module performs. Continuous module replac
 | Older bootstrap | `GameProfileBridgeTests.AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing` |
 | Continuous modules | `ContinuousExtensionTests`, and the Java tests `ContinuousRuntimeTest`, `ModuleSlotsTest`, `ModuleReloadTest`, `VehicleHooksTest`, `ExtensionControlTest` |
 
-The C# tests and `ExtensionControlTest` run through `scripts/test-game-bridge.ps1`. The other Java tests run
-through `scripts/test-game-extensions.ps1`; `ContinuousRuntimeTest`, `ModuleReloadTest` and `VehicleHooksTest` run
+The C# tests and `ExtensionControlTest` run through `scripts/test-game-bridge.ps1` (suites `dotnet` and
+`control`). The other Java tests run through `scripts/test-game-extensions.ps1` (suite `extensions`); `ContinuousRuntimeTest`, `ModuleReloadTest` and `VehicleHooksTest` run
 inside `CheckpointRuntimeTest`. The fixtures under `tests/game-extensions-fixture/` and
 `tests/game-extensions-continuous-fixture/` are synthetic modules. No test covers the 5-second drain timeout
 itself (failures are simulated with a throwing `close()`), a payload swap while extension control is active, or a

@@ -2,11 +2,31 @@
 """Small offline CI selector. Unknown changes run Windows tests, never skip silently."""
 import json
 import os
+from pathlib import Path
 import subprocess
 
+ROOT = Path(__file__).resolve().parent.parent
 
-def plan(paths, *, full=False, manual=False, benchmarks=False):
+
+def read_text(path):
+    """A changed file's text in the checkout, or None when the change removed it."""
+    try:
+        return (ROOT / path).read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def plan(paths, *, full=False, manual=False, benchmarks=False, read=read_text):
     paths = set(paths)
+
+    # GameSaveClientTests is one partial class over many files, and the managed run filters it out: a change to any
+    # of its files (or a removed test file, which may have been one) needs the bridge run.
+    def bridge_test_file(path):
+        if not (path.startswith("tests/PzTools.Backup.Tests/") and path.endswith(".cs")):
+            return False
+        text = read(path)
+        return text is None or "partial class GameSaveClientTests" in text
+
     # Only these known non-code files may skip Windows. Be conservative for new paths.
     def docs_only(path):
         return (path.startswith("docs/") or path.endswith(".md")
@@ -24,11 +44,13 @@ def plan(paths, *, full=False, manual=False, benchmarks=False):
     bridge = full or publish or any(
         path.startswith(("src/PzTools.GameBridge", "tests/game-bridge/",
                          "src/PzTools.GameExtensions", "config/game-extensions/", "tests/game-extensions", "scripts/test-game-extensions",
+                         "tests/extension-control/", "tests/extension-api/", "tests/startup-loader/", "tests/vehicle-drivetrain-fixture/",
                          "src/PzTools.Backup.Engine/", "src/PzTools.Zomboid.Backup/",
                          "src/PzTools.Scheduling/", "src/PzTools.Process.Hosting/",
                          "src/PzTools.Process.Contracts/", "scripts/build-game-bridge",
                          "scripts/test-game-bridge", "scripts/generate-bridge"))
-        or path.endswith(("GameSaveClientTests.cs", "GameSaveClientExtensionsTests.cs", "SavePipelineIntegrationTests.cs", "GameRuntimeBridgeTests.cs", "RuntimeExtensionIntegrationTests.cs", "ExtensionVersionTests.cs", "LiveCharacterBridgeTests.cs", "RuntimeDeathPolicyTests.cs")) for path in paths)
+        or path.endswith(("ExtensionVersionTests.cs", "RuntimeDeathPolicyTests.cs"))
+        or bridge_test_file(path) for path in paths)
     return dict(windows=full or (manual and not benchmarks) or any(not docs_only(path) for path in paths),
                 publish=publish, bridge=bridge, benchmarks=benchmarks)
 

@@ -3,13 +3,25 @@ param(
     [string] $GameBridgeOutput,
     [ValidateSet('Debug', 'Release')][string] $Configuration = 'Debug',
     [switch] $ReuseBuild,
+    # Every suite but dotnet, leaving the test variables set in the session for a dotnet test run after.
     [switch] $PrepareOnly,
-    [switch] $CheckIncrementalBuild
+    [switch] $CheckIncrementalBuild,
+    # The suites to run; all by default. See docs/contributing/development.md#game-bridge-tests for which code each covers.
+    [ValidateSet('extensions', 'control', 'profiler', 'startup', 'api', 'dotnet')][string[]] $Suite,
+    # The dotnet suite's test filter, in place of the bridge tests (GameSaveClientTests).
+    [string] $DotnetFilter = 'FullyQualifiedName~GameSaveClientTests'
 )
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 if ([string]::IsNullOrWhiteSpace($GameBridgeOutput)) { $GameBridgeOutput = "artifacts/game-bridge/$Configuration" }
 $bridgeRoot = Join-Path $repositoryRoot $GameBridgeOutput
+$java = Join-Path $JdkPath 'bin/java.exe'
+$javac = Join-Path $JdkPath 'bin/javac.exe'
+$jar = Join-Path $JdkPath 'bin/jar.exe'
+if (-not $Suite) { $Suite = @('extensions', 'control', 'profiler', 'startup', 'api', 'dotnet') }
+if ($PrepareOnly) { $Suite = @($Suite | Where-Object { $_ -ne 'dotnet' }) }
+
+# Preparation, shared by every suite: the bridge, the synthetic game, the fixture modules and the test variables.
 if (-not $ReuseBuild) {
     & (Join-Path $PSScriptRoot 'build-game-bridge.ps1') -JdkPath $JdkPath -Output $GameBridgeOutput -Configuration $Configuration
 }
@@ -33,62 +45,110 @@ if ($CheckIncrementalBuild) {
 $fixtureOutput = Join-Path $repositoryRoot 'artifacts/game-bridge-tests'
 New-Item -ItemType Directory -Path $fixtureOutput -Force | Out-Null
 $sources = Get-ChildItem (Join-Path $repositoryRoot 'tests/game-bridge') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $fixtureOutput @sources
+& $javac --release 25 -encoding UTF-8 -d $fixtureOutput @sources
 if ($LASTEXITCODE -ne 0) { throw 'Bridge fixture compilation failed' }
-& (Join-Path $JdkPath 'bin/jar.exe') --create --file (Join-Path $fixtureOutput 'inspector.jar') --manifest (Join-Path $repositoryRoot 'tests/game-bridge/INSPECTOR.MF') -C $fixtureOutput bridgefixture
+& $jar --create --file (Join-Path $fixtureOutput 'inspector.jar') --manifest (Join-Path $repositoryRoot 'tests/game-bridge/INSPECTOR.MF') -C $fixtureOutput bridgefixture
 if ($LASTEXITCODE -ne 0) { throw 'Bridge inspector packaging failed' }
 $env:PZTOOLS_GAME_BRIDGE_DIR = $bridgeRoot
-$env:PZTOOLS_BRIDGE_TEST_JAVA = Join-Path $JdkPath 'bin/java.exe'
+$env:PZTOOLS_BRIDGE_TEST_JAVA = $java
 $env:PZTOOLS_BRIDGE_TEST_CLASSES = $fixtureOutput
-& (Join-Path $PSScriptRoot 'test-game-extensions.ps1') -JdkPath $JdkPath -Configuration $Configuration -BridgeDirectory $bridgeRoot
+# Sets PZTOOLS_EXTENSION_FIXTURE_JAR and PZTOOLS_CONTINUOUS_FIXTURE_JAR.
+& (Join-Path $PSScriptRoot 'test-game-extensions.ps1') -JdkPath $JdkPath -Configuration $Configuration -BridgeDirectory $bridgeRoot -FixturesOnly
+
 $controlClasspath = @($fixtureOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar'), (Join-Path $bridgeRoot 'pztools-game-bootstrap.jar'), (Join-Path $bridgeRoot 'extensions/pztools-extension-runtime.jar')) -join ';'
-$controlSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-control') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $controlClasspath -d $fixtureOutput @controlSources
-if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol fixture compilation failed' }
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp $controlClasspath pztools.bridge.runtime.ExtensionControlTest
-if ($LASTEXITCODE -ne 0) { throw 'Continuous control protocol tests failed' }
-# A game runtime without the flight recorder: profiling must fail alone, never the state observer.
-& (Join-Path $JdkPath 'bin/java.exe') --limit-modules java.base,java.instrument -ea -cp $controlClasspath pztools.bridge.runtime.ProfileFramesTest
-if ($LASTEXITCODE -ne 0) { throw 'Profiler isolation tests failed' }
-# The rolling recording in a real flight recorder: saves, cuts to its window, runs beside a recording asked for.
-& (Join-Path $JdkPath 'bin/java.exe') --enable-native-access=ALL-UNNAMED -ea -cp $controlClasspath pztools.bridge.runtime.ProfileRollingTest
-if ($LASTEXITCODE -ne 0) { throw 'Rolling recording tests failed' }
-# The startup loader: install into a synthetic game's jar, start that game, update, reinstall, uninstall.
 $startupOutput = Join-Path $fixtureOutput 'startup-loader'
-New-Item -ItemType Directory -Path (Join-Path $startupOutput 'game') -Force | Out-Null
-$startupGame = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/startup-loader/game') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d (Join-Path $startupOutput 'game') @startupGame
-if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture compilation failed' }
-$startupJar = Join-Path $startupOutput 'projectzomboid.jar'
-& (Join-Path $JdkPath 'bin/jar.exe') --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie -C (Join-Path $startupOutput 'game') se
-if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' }
-$startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
-if ($LASTEXITCODE -ne 0) { throw 'Startup loader test compilation failed' }
-# Stands in for the app's helper getting into a game before the startup loader does.
-$attachFirstClasses = Join-Path $startupOutput 'attach-first'
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -d $attachFirstClasses (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/pztools/attachfirst/AttachFirst.java')
-if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent compilation failed' }
-$attachFirstJar = Join-Path $startupOutput 'attach-first.jar'
-& (Join-Path $JdkPath 'bin/jar.exe') --create --file $attachFirstJar --manifest (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/ATTACH-FIRST.MF') -C $attachFirstClasses pztools
-if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent packaging failed' }
-# The install runs on the app's own runtime, which has only the modules the bridge needs.
-& (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot (Join-Path $JdkPath 'bin/java.exe') $attachFirstJar
-if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
-# The extension API as Lua mods see it, against the same synthetic game.
-$apiOutput = Join-Path $fixtureOutput 'extension-api'
-New-Item -ItemType Directory -Path $apiOutput -Force | Out-Null
-$apiClasspath = @($apiOutput, (Join-Path $startupOutput 'game'), (Join-Path $bridgeRoot 'pztools-game-bridge.jar'), (Join-Path $bridgeRoot 'pztools-game-bootstrap.jar')) -join ';'
-$apiSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-api') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
-& (Join-Path $JdkPath 'bin/javac.exe') --release 25 -encoding UTF-8 -cp $apiClasspath -d $apiOutput @apiSources
-if ($LASTEXITCODE -ne 0) { throw 'Extension API test compilation failed' }
-& (Join-Path $JdkPath 'bin/java.exe') -ea -cp $apiClasspath pztools.bridge.runtime.api.GameApiTest
-if ($LASTEXITCODE -ne 0) { throw 'Extension API tests failed' }
-# The CI caller runs the entire applicable suite once with these environment values.
-if ($PrepareOnly) { return }
-$arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),
-    '-c', $Configuration, '--filter', 'FullyQualifiedName~GameSaveClientTests', '--verbosity', 'minimal',
-    '--logger', 'trx;LogFileName=game-bridge.trx', '--results-directory', (Join-Path $fixtureOutput 'results'))
-if ($ReuseBuild) { $arguments += @('--no-build', '--no-restore') }
-dotnet @arguments
-if ($LASTEXITCODE -ne 0) { throw 'Game bridge tests failed' }
+$compiled = @{}
+# The control and profiler tests share their sources.
+function Build-ControlTests {
+    if ($compiled.control) { return }
+    $controlSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-control') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+    & $javac --release 25 -encoding UTF-8 -cp $controlClasspath -d $fixtureOutput @controlSources
+    if ($LASTEXITCODE -ne 0) { throw 'Extension control test compilation failed' }
+    $compiled.control = $true
+}
+# The startup loader's synthetic game, which the extension API tests use too.
+function Build-StartupGame {
+    if ($compiled.startup) { return }
+    New-Item -ItemType Directory -Path (Join-Path $startupOutput 'game') -Force | Out-Null
+    $startupGame = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/startup-loader/game') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+    & $javac --release 25 -encoding UTF-8 -d (Join-Path $startupOutput 'game') @startupGame
+    if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture compilation failed' }
+    $compiled.startup = $true
+}
+function Invoke-Java([string] $failure, [string[]] $arguments) {
+    & $java @arguments
+    if ($LASTEXITCODE -ne 0) { throw $failure }
+}
+
+$suites = [ordered]@{
+    # The extension runtime, the vehicle extension and its models.
+    extensions = {
+        & (Join-Path $PSScriptRoot 'test-game-extensions.ps1') -JdkPath $JdkPath -Configuration $Configuration -BridgeDirectory $bridgeRoot
+    }
+    # The app's and the resident controller's control of the extensions.
+    control = {
+        Build-ControlTests
+        Invoke-Java 'Extension control tests failed' @('-ea', '-cp', $controlClasspath, 'pztools.bridge.runtime.ExtensionControlTest')
+    }
+    profiler = {
+        Build-ControlTests
+        # A game runtime without the flight recorder: profiling must fail alone, never the state observer.
+        Invoke-Java 'Profiler isolation tests failed' @('--limit-modules', 'java.base,java.instrument', '-ea', '-cp', $controlClasspath, 'pztools.bridge.runtime.ProfileFramesTest')
+        # The rolling recording in a real flight recorder: saves, cuts to its window, runs beside a recording asked for.
+        Invoke-Java 'Rolling recording tests failed' @('--enable-native-access=ALL-UNNAMED', '-ea', '-cp', $controlClasspath, 'pztools.bridge.runtime.ProfileRollingTest')
+    }
+    # The startup loader: install into a synthetic game's jar, start that game, update, reinstall, uninstall.
+    startup = {
+        Build-StartupGame
+        $startupJar = Join-Path $startupOutput 'projectzomboid.jar'
+        & $jar --create --file $startupJar -C (Join-Path $startupOutput 'game') zombie -C (Join-Path $startupOutput 'game') se
+        if ($LASTEXITCODE -ne 0) { throw 'Startup loader game fixture packaging failed' }
+        $startupClasspath = @($startupOutput, (Join-Path $bridgeRoot 'pztools-game-bridge.jar')) -join ';'
+        & $javac --release 25 -encoding UTF-8 -cp $startupClasspath -d $startupOutput (Join-Path $repositoryRoot 'tests/startup-loader/pztools/bridge/StartupInstallTest.java')
+        if ($LASTEXITCODE -ne 0) { throw 'Startup loader test compilation failed' }
+        # Stands in for the app's helper getting into a game before the startup loader does.
+        $attachFirstClasses = Join-Path $startupOutput 'attach-first'
+        & $javac --release 25 -encoding UTF-8 -d $attachFirstClasses (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/pztools/attachfirst/AttachFirst.java')
+        if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent compilation failed' }
+        $attachFirstJar = Join-Path $startupOutput 'attach-first.jar'
+        & $jar --create --file $attachFirstJar --manifest (Join-Path $repositoryRoot 'tests/startup-loader/attach-first/ATTACH-FIRST.MF') -C $attachFirstClasses pztools
+        if ($LASTEXITCODE -ne 0) { throw 'Attach-first agent packaging failed' }
+        # The install runs on the app's own runtime, which has only the modules the bridge needs.
+        & (Join-Path $bridgeRoot 'runtime/bin/java.exe') -ea -cp $startupClasspath pztools.bridge.StartupInstallTest $startupJar $bridgeRoot $java $attachFirstJar
+        if ($LASTEXITCODE -ne 0) { throw 'Startup loader tests failed' }
+    }
+    # The extension API as Lua mods see it, against the startup loader's synthetic game.
+    api = {
+        Build-StartupGame
+        $apiOutput = Join-Path $fixtureOutput 'extension-api'
+        New-Item -ItemType Directory -Path $apiOutput -Force | Out-Null
+        $apiClasspath = @($apiOutput, (Join-Path $startupOutput 'game'), (Join-Path $bridgeRoot 'pztools-game-bridge.jar'), (Join-Path $bridgeRoot 'pztools-game-bootstrap.jar')) -join ';'
+        $apiSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-api') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
+        & $javac --release 25 -encoding UTF-8 -cp $apiClasspath -d $apiOutput @apiSources
+        if ($LASTEXITCODE -ne 0) { throw 'Extension API test compilation failed' }
+        Invoke-Java 'Extension API tests failed' @('-ea', '-cp', $apiClasspath, 'pztools.bridge.runtime.api.GameApiTest')
+    }
+    # The app's side against a synthetic JVM that imitates the game.
+    dotnet = {
+        $arguments = @('test', (Join-Path $repositoryRoot 'tests/PzTools.Backup.Tests/PzTools.Backup.Tests.csproj'),
+            '-c', $Configuration, '--filter', $DotnetFilter, '--verbosity', 'minimal',
+            '--logger', 'trx;LogFileName=game-bridge.trx', '--results-directory', (Join-Path $fixtureOutput 'results'))
+        if ($ReuseBuild) { $arguments += @('--no-build', '--no-restore') }
+        dotnet @arguments
+        if ($LASTEXITCODE -ne 0) { throw 'Game bridge .NET tests failed' }
+    }
+}
+
+# Every suite asked for runs, whatever an earlier one did; the table at the end says which failed.
+$results = foreach ($name in $suites.Keys) {
+    if ($name -notin $Suite) { continue }
+    Write-Host "== $name"
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    # The suite's own output goes to the screen, not into the results.
+    try { & $suites[$name] | Out-Host; $outcome = 'passed'; $detail = '' }
+    catch { $outcome = 'FAILED'; $detail = $_.Exception.Message }
+    [pscustomobject]@{ Suite = $name; Result = $outcome; Seconds = [int]$watch.Elapsed.TotalSeconds; Detail = $detail }
+}
+$results | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+$failed = @($results | Where-Object Result -eq 'FAILED')
+if ($failed.Count -gt 0) { throw "Game bridge suites failed: $(($failed | ForEach-Object Suite) -join ', ')" }

@@ -296,6 +296,7 @@ C# tests are in `tests/PzTools.Backup.Tests`, Java tests under `tests/game-exten
 | Host and control channel | `ModuleSlotsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
 
 `scripts/test-game-extensions.ps1` runs the Java tests under `tests/game-extensions`.
-`scripts/test-game-bridge.ps1` runs that script too, then the control-channel tests, and
-(without `-PrepareOnly`) the `GameSaveClientTests` that need the built fixture archives. Checks
+`scripts/test-game-bridge.ps1` runs it as its `extensions` suite, the control-channel tests as
+`control`, and (without `-PrepareOnly`) the `GameSaveClientTests` that need the built fixture
+archives as `dotnet` ([suites](../contributing/development.md#game-bridge-tests)). Checks
 in a real game are in the [vehicle test guide](../contributing/e2e-vehicle-drivetrain.md).
