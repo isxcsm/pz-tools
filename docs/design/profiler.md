@@ -153,7 +153,10 @@ Lua sampler runs at the finer of the two periods. The converter takes each file 
 argument:
 
 - Java and native samples: `SamplingRounds` groups samples less than 300 µs apart into one JFR round, and while rounds
-  come faster than the file's period keeps only the first round in each period-long slice.
+  come faster than the file's period keeps only the first round in each period-long slice. A round after a pause in
+  sampling (a loaded machine) is kept, and the next fast round only half a period after it; before 7 October 2026 a
+  pause just before a slice's end kept two rounds about a millisecond apart (217 instead of about 150 busy samples in
+  1.5 s).
 - Lua samples: each event carries its tick number and period; a coarser file keeps one tick in `target / period`, and
   the bytes of dropped ticks carry over to the next kept one.
 - A Standard file drops the Detailed-only wait events.

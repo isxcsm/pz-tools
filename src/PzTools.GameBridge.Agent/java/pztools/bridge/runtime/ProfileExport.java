@@ -247,12 +247,14 @@ public final class ProfileExport {
      * a kind's samples (one thread writes them, in time order) those closer than ROUND_GAP belong to one round. While
      * rounds come clearly faster than this file's period (another recording asked for a finer one), only the first
      * round in each slice of the period is kept, all its samples: a thread then shows in it as often as in a sampler
-     * of the period, by what it was doing at that moment. At the file's own pace every round is kept.
+     * of the period, by what it was doing at that moment. At the file's own pace every round is kept. A round after a
+     * pause in sampling (a loaded machine) is kept too, and the next fast round is kept only half a period after it:
+     * otherwise a pause just before a slice's end kept two rounds a millisecond apart.
      */
-    private static final class SamplingRounds {
+    static final class SamplingRounds {
         private static final long ROUND_GAP = 300;
         private final long period;
-        private long previous = Long.MIN_VALUE, roundStart = Long.MIN_VALUE, slice = Long.MIN_VALUE;
+        private long previous = Long.MIN_VALUE, roundStart = Long.MIN_VALUE, slice = Long.MIN_VALUE, keptStart = Long.MIN_VALUE;
         private boolean keeping = true;
         SamplingRounds(long period) { this.period = period; }
 
@@ -261,8 +263,8 @@ public final class ProfileExport {
             if (previous == Long.MIN_VALUE || time - previous > ROUND_GAP || time < previous) {
                 long current = Math.floorDiv(time, period);
                 boolean faster = roundStart != Long.MIN_VALUE && time > roundStart && time - roundStart < period * 3 / 4;
-                keeping = !faster || current != slice;
-                if (keeping) slice = current;
+                keeping = !faster || current != slice && (time < keptStart || time - keptStart >= period / 2);
+                if (keeping) { slice = current; keptStart = time; }
                 roundStart = time;
             }
             previous = time;
