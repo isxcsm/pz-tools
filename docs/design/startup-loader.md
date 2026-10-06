@@ -218,12 +218,16 @@ with the options of `ProjectZomboid64.json`:
 2. PZ Tools 0.2.4 was started afterwards. Its helper connected to that bootstrap, and the vehicle
    extension went from `Pending` / `connecting` to `Active` in five seconds after the world loaded.
 
+The same day, through the app's switch on the real game folder (Build 42, started from Steam):
+the install patched the jar, the game logged `pztools.bridge.bootstrap.api` but no endpoint in
+`console.txt`, the app connected a second after the game started and the vehicle extension became
+`Active`. The uninstall put back a jar with the original's SHA-256 and removed the install folder.
+
 Not tested yet:
 
 - the real game starting with the guarded call and no loader files (the cases above used a small
   class patched the same way);
-- whether a patched jar is refused when joining a multiplayer server;
-- an install and uninstall against the real jar.
+- whether a patched jar is refused when joining a multiplayer server.
 
 ## Alternatives rejected
 
