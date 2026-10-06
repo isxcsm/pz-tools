@@ -239,6 +239,16 @@ Consequences for the design:
   `Food.updateAge` needs the object's answer too. (Read from the bytecode; aging was not watched in
   the game.)
 
+On 7 October 2026 the built `buildings` area was called from the debug Lua console of a game the
+startup loader started:
+
+| Check | Result |
+| --- | --- |
+| The gas station (map building), standing in its shop | Key `3570,10891,0`, not player-built. `objects`: 47, all squares loaded: fridges (0.13, a fridge and a freezer), stoves, radios, a television, a washer (power and water), a dryer, sinks, bathroom fixtures and light switches, each in the room it lights. Appliances that are off report 0; one switch that was on reported 0.002. `near` (5 squares): 9. |
+| The player-built shack | Key `3578,10907,0`, player-built, its one room unnamed (`""`). No objects; `near` (5 squares): 2. |
+| The app open before the game started | Found the attach-first case (see [startup loader](startup-loader.md#the-app-open-as-the-game-starts)); with it fixed, the API was there. |
+| A square's object list | `PZArrayList` has no iterator (`UnsupportedOperationException`); it is read by index. |
+
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
