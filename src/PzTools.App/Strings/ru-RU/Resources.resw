@@ -792,4 +792,17 @@ GC работает: доля отрезка, когда работал сбор
   <data name="CardPreview.Description" xml:space="preserve"><value>Показывает карточку боковой панели без её ситуации, чтобы проверить вид и кнопки. В опубликованных сборках нет.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Показать</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Убрать все</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Загружать PZ Tools при запуске игры (экспериментально)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Проверка файлов игры…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>Папка игры не найдена. Запустите игру один раз, и она будет найдена.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools подключается к игре после её запуска. Установка изменяет файл projectzomboid.jar игры, чтобы игра загружала PZ Tools при запуске. Удаление возвращает исходный файл игры.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Установлено. Игра загружает PZ Tools при запуске.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Обновление игры удалило это. Установите снова, чтобы пользоваться.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Другая программа изменила файл projectzomboid.jar игры. Сначала проверьте целостность файлов игры в Steam.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Установить</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Удалить</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закройте игру и все серверы, запущенные из её папки, и повторите попытку.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Эта версия игры не поддерживается.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Сохранённая копия файла игры отсутствует. Проверьте целостность файлов игры в Steam, чтобы восстановить его.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не удалось изменить файл игры. Подробности в журнале.</value></data>
 </root>

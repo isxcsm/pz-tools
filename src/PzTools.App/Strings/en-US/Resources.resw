@@ -791,4 +791,17 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="CardPreview.Description" xml:space="preserve"><value>Shows a sidebar card without its situation, to check its look and buttons. Not in published builds.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Show</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Clear all</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Load PZ Tools when the game starts (experimental)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Checking the game's files…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>The game's folder was not found. Start the game once and it will be.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools connects to the game after it has started. Installing changes the game's projectzomboid.jar so the game loads PZ Tools as it starts. Uninstalling puts the game's own file back.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installed. The game loads PZ Tools as it starts.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>A game update removed it. Install it again to use it.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Another tool has changed the game's projectzomboid.jar. Verify the game's files in Steam first.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Install</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Uninstall</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Close the game, and any server started from its folder, then try again.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>This version of the game is not supported.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>The saved copy of the game's file is missing. Verify the game's files in Steam to restore it.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>The game's file could not be changed. The details are in the logs.</value></data>
 </root>

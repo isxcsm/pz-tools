@@ -792,4 +792,17 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="CardPreview.Description" xml:space="preserve"><value>不觸發相應情況即顯示側邊欄卡片，用於檢查外觀和按鈕。發佈版本中沒有。</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>顯示</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>全部清除</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>遊戲啟動時載入 PZ Tools（實驗性）</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>正在檢查遊戲檔案…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>找不到遊戲資料夾。啟動一次遊戲即可找到。</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools 會在遊戲啟動後才連接到遊戲。安裝會修改遊戲的 projectzomboid.jar，讓遊戲在啟動時載入 PZ Tools。解除安裝會還原遊戲原本的檔案。</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>已安裝。遊戲啟動時會載入 PZ Tools。</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>遊戲更新移除了它。若要使用，請重新安裝。</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>另一個工具修改了遊戲的 projectzomboid.jar。請先在 Steam 中驗證遊戲檔案的完整性。</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>安裝</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>解除安裝</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>請關閉遊戲以及從其資料夾啟動的伺服器，然後再試一次。</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>不支援此版本的遊戲。</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>保存的遊戲檔案副本不見了。請在 Steam 中驗證遊戲檔案的完整性以還原。</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>無法修改遊戲檔案。詳細資訊在記錄中。</value></data>
 </root>

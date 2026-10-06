@@ -27,14 +27,17 @@ public sealed record AppRuntimeOptions(
     int CharacterMetadataRetrySeconds = 60,
     int TelemetryReadTimeoutSeconds = 1,
     ProfilerRuntimeOptions? Profiler = null,
-    HotKeyRuntimeOptions? HotKeys = null)
+    HotKeyRuntimeOptions? HotKeys = null,
+    bool StartupLoader = false)
 {
     public ProfilerRuntimeOptions ProfilerOptions => Profiler ?? new();
     public HotKeyRuntimeOptions HotKeyOptions => HotKeys ?? new();
 
     public static AppRuntimeOptions Read(ComponentConfiguration config)
     {
-        config.ValidateSections("logs", "runtime", "profiler", "hotkeys");
+        config.ValidateSections("logs", "runtime", "profiler", "hotkeys", "experimental");
+        // Hidden: not in the shipped file. On while the startup loader (docs/design/startup-loader.md) is tested.
+        config.ValidateSection("experimental", "startup_loader");
         config.ValidateSection("profiler", "general_limit_minutes", "detailed_limit_minutes", "rolling_max_megabytes");
         // backup_pause_minutes set the timed pause of automatic backups, which is gone; a file that still has it is
         // read as before, and the value goes unused.
@@ -91,7 +94,8 @@ public sealed record AppRuntimeOptions(
                 config.GetInt32("profiler", "rolling_max_megabytes", 256, 64, 2048)),
             new HotKeyRuntimeOptions(
                 config.GetBoolean("hotkeys", "sounds", true),
-                config.GetBoolean("hotkeys", "game_notices", true)));
+                config.GetBoolean("hotkeys", "game_notices", true)),
+            config.GetBoolean("experimental", "startup_loader", false));
     }
 }
 

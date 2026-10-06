@@ -792,4 +792,17 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="CardPreview.Description" xml:space="preserve"><value>Görünümünü ve düğmelerini denetlemek için bir kenar çubuğu kartını durumu olmadan gösterir. Yayımlanan sürümlerde yoktur.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Göster</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Tümünü temizle</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Oyun başlarken PZ Tools'u yükle (deneysel)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Oyun dosyaları denetleniyor…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>Oyun klasörü bulunamadı. Oyunu bir kez başlatın, bulunacaktır.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools oyuna, oyun başladıktan sonra bağlanır. Yükleme, oyunun projectzomboid.jar dosyasını değiştirir; böylece oyun başlarken PZ Tools'u yükler. Kaldırma, oyunun kendi dosyasını geri koyar.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Yüklendi. Oyun başlarken PZ Tools'u yükler.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Bir oyun güncellemesi bunu kaldırdı. Kullanmak için yeniden yükleyin.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Başka bir araç oyunun projectzomboid.jar dosyasını değiştirmiş. Önce Steam'de oyun dosyalarını doğrulayın.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Yükle</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Kaldır</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Oyunu ve klasöründen başlatılan tüm sunucuları kapatıp yeniden deneyin.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Oyunun bu sürümü desteklenmiyor.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Oyun dosyasının saklanan kopyası eksik. Geri yüklemek için Steam'de oyun dosyalarını doğrulayın.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Oyun dosyası değiştirilemedi. Ayrıntılar günlüklerde.</value></data>
 </root>

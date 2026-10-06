@@ -31,6 +31,9 @@ public partial class App : Application
     private GameMemory? gameMemory;
     /// <summary>The game's memory setting, in the game's own launcher file.</summary>
     internal GameMemory? GameMemory => gameMemory;
+    private StartupLoader? startupLoader;
+    /// <summary>The startup loader install; null unless the advanced setting [experimental] startup_loader is on.</summary>
+    internal StartupLoader? StartupLoader => startupLoader;
 
     public App()
     {
@@ -128,6 +131,11 @@ public partial class App : Application
         updates = new UpdateChecker(Path.Combine(runtimeRoot, "update.json"),
             typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0));
         gameMemory = new GameMemory(Path.Combine(runtimeRoot, "game-memory.json"));
+        // Hidden until it has been tried on real games (docs/design/startup-loader.md). The game folder is the one the
+        // memory setting found: the folder of the game's launcher file.
+        if (Host is { RuntimeOptions.StartupLoader: true } host)
+            startupLoader = new StartupLoader(host.BridgeDirectory,
+                () => gameMemory?.State.ConfigPath is { } launchFile ? Path.GetDirectoryName(launchFile) : null);
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
         Localizer.Warm();
@@ -192,11 +200,30 @@ public partial class App : Application
         {
             await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
             using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+            bool bridgeRefreshed = false;
             do
             {
                 if (gameMemory is { } memory)
                 {
                     try { await memory.RefreshAsync(cancellationToken); }
+                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    {
+                        System.Diagnostics.Debug.WriteLine(exception);
+                    }
+                }
+                // The startup loader's game folder is the one just found. An install made by an earlier version of the
+                // app gets this version's bridge once, so the game's next start loads the bridge this app speaks to.
+                if (startupLoader is { } loader)
+                {
+                    try
+                    {
+                        await loader.RefreshAsync(cancellationToken);
+                        if (!bridgeRefreshed && loader.State.Status == StartupLoaderStatus.Installed)
+                        {
+                            await loader.RefreshBridgeAsync(cancellationToken);
+                            bridgeRefreshed = true;
+                        }
+                    }
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {
                         System.Diagnostics.Debug.WriteLine(exception);

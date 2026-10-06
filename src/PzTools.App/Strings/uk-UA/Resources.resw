@@ -792,4 +792,17 @@ GC працює: частка відрізка, коли працював зби
   <data name="CardPreview.Description" xml:space="preserve"><value>Показує картку бічної панелі без її ситуації, щоб перевірити вигляд і кнопки. В опублікованих збірках немає.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Показати</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Прибрати всі</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Завантажувати PZ Tools під час запуску гри (експериментально)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Перевірка файлів гри…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>Теку гри не знайдено. Запустіть гру один раз, і її буде знайдено.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools під'єднується до гри після її запуску. Встановлення змінює файл projectzomboid.jar гри, щоб гра завантажувала PZ Tools під час запуску. Видалення повертає оригінальний файл гри.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Встановлено. Гра завантажує PZ Tools під час запуску.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Оновлення гри це видалило. Встановіть знову, щоб користуватися.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Інша програма змінила файл projectzomboid.jar гри. Спершу перевірте цілісність файлів гри в Steam.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Встановити</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Видалити</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закрийте гру та всі сервери, запущені з її теки, і спробуйте ще раз.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ця версія гри не підтримується.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Збережена копія файлу гри відсутня. Перевірте цілісність файлів гри в Steam, щоб відновити його.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не вдалося змінити файл гри. Подробиці в журналі.</value></data>
 </root>

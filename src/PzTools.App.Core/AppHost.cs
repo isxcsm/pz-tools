@@ -50,6 +50,8 @@ public sealed class AppHost : IAsyncDisposable
     private readonly AppRuntimeOptions runtime;
     private readonly Exception? runtimeConfigurationError;
     public AppRuntimeOptions RuntimeOptions => runtime;
+    /// <summary>The bridge's folder: its runtime, its jars and the extensions.</summary>
+    public string BridgeDirectory => Path.Combine(paths.WorkerDirectory, "game-bridge");
 
     public AppHost(
         AppHostPaths paths,

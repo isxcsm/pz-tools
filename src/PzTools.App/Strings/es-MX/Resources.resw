@@ -792,4 +792,17 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="CardPreview.Description" xml:space="preserve"><value>Muestra una tarjeta de la barra lateral sin su situación, para revisar su aspecto y sus botones. No está en las versiones publicadas.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Mostrar</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Quitar todas</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Cargar PZ Tools al iniciar el juego (experimental)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Revisando los archivos del juego…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>No se encontró la carpeta del juego. Inicia el juego una vez y se encontrará.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se conecta al juego una vez que ya inició. Al instalar se modifica el archivo projectzomboid.jar del juego para que cargue PZ Tools al iniciar. Al desinstalar se restaura el archivo original del juego.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Instalado. El juego carga PZ Tools al iniciar.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Una actualización del juego lo quitó. Vuelve a instalarlo para usarlo.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Otra herramienta modificó el archivo projectzomboid.jar del juego. Primero verifica los archivos del juego en Steam.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Instalar</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Desinstalar</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Cierra el juego, y cualquier servidor iniciado desde su carpeta, y vuelve a intentarlo.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Esta versión del juego no es compatible.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Falta la copia guardada del archivo del juego. Verifica los archivos del juego en Steam para restaurarlo.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>No se pudo modificar el archivo del juego. Los detalles están en los registros.</value></data>
 </root>

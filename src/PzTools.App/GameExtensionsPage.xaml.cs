@@ -27,16 +27,100 @@ public sealed partial class GameExtensionsPage : UserControl
             {
                 if (key == GameExtensionController.ViewKey) DispatcherQueue.Enqueue(ApplyLatestView);
             });
+            if (App.StartupLoader is { } loader)
+            {
+                loader.Changed -= StartupLoaderChanged;
+                loader.Changed += StartupLoaderChanged;
+                ApplyStartupLoader();
+                _ = RefreshStartupLoaderAsync(loader);
+            }
             await RefreshForNavigationAsync();
         };
-        Unloaded += (_, _) => { subscription?.Dispose(); subscription = null; };
+        Unloaded += (_, _) =>
+        {
+            subscription?.Dispose();
+            subscription = null;
+            if (App.StartupLoader is { } loader) loader.Changed -= StartupLoaderChanged;
+        };
     }
 
     internal void ApplyLocalizedText()
     {
         Language = Localizer.Culture.Name;
         PageTitle.Text = Localizer.Get("GameExtensions.Title");
+        ApplyStartupLoader();
         if (snapshot is not null) UpdateView(snapshot);
+    }
+
+    // ---- The startup loader (hidden unless the advanced setting turns it on) ----
+
+    private bool changingStartupLoader;
+
+    private void StartupLoaderChanged() => DispatcherQueue.TryEnqueue(ApplyStartupLoader);
+
+    // Called from the Loaded handler without being awaited: nothing may escape it.
+    private async Task RefreshStartupLoaderAsync(StartupLoader loader)
+    {
+        try { await loader.RefreshAsync(); }
+        catch (Exception exception) { System.Diagnostics.Debug.WriteLine(exception); }
+    }
+
+    private void ApplyStartupLoader()
+    {
+        if (App.StartupLoader is not { } loader) { StartupLoaderCard.Visibility = Visibility.Collapsed; return; }
+        var status = loader.State.Status;
+        StartupLoaderCard.Visibility = Visibility.Visible;
+        StartupLoaderCard.Header = Localizer.Get("StartupLoaderHeader");
+        StartupLoaderCard.Description = Localizer.Get(status switch
+        {
+            StartupLoaderStatus.NotFound => "StartupLoaderNotFound",
+            StartupLoaderStatus.NotInstalled => "StartupLoaderNotInstalled",
+            StartupLoaderStatus.Installed => "StartupLoaderInstalled",
+            StartupLoaderStatus.Reverted => "StartupLoaderReverted",
+            StartupLoaderStatus.Foreign => "StartupLoaderForeign",
+            _ => "StartupLoaderChecking",
+        });
+        bool installed = status == StartupLoaderStatus.Installed;
+        StartupLoaderButton.Content = Localizer.Get(installed ? "StartupLoaderUninstall" : "StartupLoaderInstall");
+        StartupLoaderButton.IsEnabled = !changingStartupLoader
+            && status is StartupLoaderStatus.NotInstalled or StartupLoaderStatus.Installed or StartupLoaderStatus.Reverted;
+        StartupLoaderProgress.IsActive = changingStartupLoader;
+        StartupLoaderProgress.Visibility = changingStartupLoader ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void StartupLoaderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (App.StartupLoader is not { } loader || changingStartupLoader) return;
+        changingStartupLoader = true;
+        ApplyStartupLoader();
+        try
+        {
+            if (loader.State.Status == StartupLoaderStatus.Installed) await loader.UninstallAsync();
+            else await loader.InstallAsync();
+        }
+        catch (StartupLoaderException exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("StartupLoaderHeader"), Localizer.Get(exception.Code switch
+            {
+                "game-running" => "StartupLoaderGameRunning",
+                "game-not-found" => "StartupLoaderNotFound",
+                "unsupported-game" => "StartupLoaderUnsupported",
+                "foreign-install" => "StartupLoaderForeign",
+                "original-missing" => "StartupLoaderOriginalMissing",
+                _ => "StartupLoaderFailed",
+            }), exception);
+        }
+        // An async event handler: anything escaping it ends the app.
+        catch (Exception exception)
+        {
+            App.ShowSidebarNotification(InfoBarSeverity.Error, Localizer.Get("StartupLoaderHeader"),
+                Localizer.Get("StartupLoaderFailed"), exception);
+        }
+        finally
+        {
+            changingStartupLoader = false;
+            ApplyStartupLoader();
+        }
     }
 
     internal async Task RefreshForNavigationAsync()

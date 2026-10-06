@@ -467,7 +467,7 @@ public sealed class AppSettingsService
 
     private static void ValidateLoggingDocument(TomlTable root)
     {
-        if (root.Keys.Any(key => key is not ("logs" or "runtime" or "profiler" or "hotkeys")))
+        if (root.Keys.Any(key => key is not ("logs" or "runtime" or "profiler" or "hotkeys" or "experimental")))
             throw new InvalidDataException("App advanced settings support only [logs], [runtime], [profiler] and [hotkeys].");
         if (!root.TryGetValue("logs", out var section) || section is not TomlTable logs)
             throw new InvalidDataException("The app's advanced settings need a [logs] section.");

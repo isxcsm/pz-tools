@@ -1,7 +1,8 @@
 <UserControl
     x:Class="PzTools.App.GameExtensionsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls">
   <UserControl.Resources>
     <x:Double x:Key="SettingsCardSpacing">4</x:Double>
   </UserControl.Resources>
@@ -18,6 +19,14 @@
       <StackPanel Spacing="8">
         <ProgressRing x:Name="LoadingIndicator" IsActive="False" Visibility="Collapsed"
                       HorizontalAlignment="Center" />
+        <!-- Shown only with [experimental] startup_loader in the app's advanced settings (docs/design/startup-loader.md). -->
+        <toolkit:SettingsCard x:Name="StartupLoaderCard" Visibility="Collapsed">
+          <toolkit:SettingsCard.HeaderIcon><FontIcon Glyph="&#xE7B5;" /></toolkit:SettingsCard.HeaderIcon>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <ProgressRing x:Name="StartupLoaderProgress" IsActive="False" Visibility="Collapsed" Width="20" Height="20" />
+            <Button x:Name="StartupLoaderButton" MinWidth="120" Click="StartupLoaderButton_Click" />
+          </StackPanel>
+        </toolkit:SettingsCard>
         <ItemsControl ItemsSource="{x:Bind Sections}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>

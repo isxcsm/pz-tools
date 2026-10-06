@@ -2,9 +2,14 @@
 
 [Documentation index](../README.md)
 
-> **Planned, not built.** This page is the design agreed before implementation. Nothing on it exists
-> in the code yet. When the code lands, this page becomes its design page and the facts are checked
-> against the code like any other.
+> **Partly built, hidden.** Built: the install and uninstall
+> ([`StartupInstall`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/StartupInstall.java),
+> [`StartupLoader`](../../src/PzTools.App.Core/StartupLoader.cs)), the loader in the game's jar, the
+> delayed endpoint, and a card on the game extensions page. It shows only with
+> `[experimental] startup_loader = true` in the app's advanced settings
+> (`%LOCALAPPDATA%\PzTools\config\app\default.toml`); the shipped file does not list it. Not built:
+> the [resident extensions](#resident-extensions) and the desired state, so extensions still need the
+> app. The rest of the page is the agreed design.
 
 Today the game runs PZ Tools code only while the app is attached: the app's helper attaches after
 the game has started ([game bridge](game-bridge.md#getting-into-the-game)), and the game revokes
@@ -232,7 +237,6 @@ Not tested yet:
 
 ## Open questions
 
-- The name and place of the hidden setting.
 - Where installed mode publishes the control property, if not the first game-loop tick.
 - What the install shows when the game's jar does not have `MainScreenState.main` exactly once.
 - Whether multiplayer joining checks the jar. If it does, the install must say so before it runs.

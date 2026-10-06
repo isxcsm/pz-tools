@@ -182,6 +182,15 @@ public sealed class RuntimeConfigurationTests
     }
 
     [Fact]
+    public void AppRuntime_StartupLoaderIsOffUnlessTheHiddenSettingTurnsItOn()
+    {
+        Assert.False(AppRuntimeOptions.Read(ComponentConfiguration.Parse("[runtime]\nsuccess_card_seconds = 5")).StartupLoader);
+        Assert.True(AppRuntimeOptions.Read(ComponentConfiguration.Parse("[experimental]\nstartup_loader = true")).StartupLoader);
+        Assert.Throws<InvalidDataException>(() => AppRuntimeOptions.Read(
+            ComponentConfiguration.Parse("[experimental]\nanything_else = true")));
+    }
+
+    [Fact]
     public void AppRuntime_UsesTomlAndRejectsZeroPolling()
     {
         var read = AppRuntimeOptions.Read(ComponentConfiguration.Parse("""

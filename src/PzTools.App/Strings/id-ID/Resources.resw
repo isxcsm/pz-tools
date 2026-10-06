@@ -792,4 +792,17 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="CardPreview.Description" xml:space="preserve"><value>Menampilkan kartu bilah samping tanpa situasinya, untuk memeriksa tampilan dan tombolnya. Tidak ada di build yang dirilis.</value></data>
   <data name="CardPreview.Show" xml:space="preserve"><value>Tampilkan</value></data>
   <data name="CardPreview.Clear" xml:space="preserve"><value>Hapus semua</value></data>
+  <data name="StartupLoaderHeader" xml:space="preserve"><value>Muat PZ Tools saat game dimulai (eksperimental)</value></data>
+  <data name="StartupLoaderChecking" xml:space="preserve"><value>Memeriksa file game…</value></data>
+  <data name="StartupLoaderNotFound" xml:space="preserve"><value>Folder game tidak ditemukan. Jalankan game sekali dan folder itu akan ditemukan.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools terhubung ke game setelah game dimulai. Memasang akan mengubah projectzomboid.jar milik game sehingga game memuat PZ Tools saat dimulai. Mencopot pemasangan mengembalikan file asli game.</value></data>
+  <data name="StartupLoaderInstalled" xml:space="preserve"><value>Terpasang. Game memuat PZ Tools saat dimulai.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Pembaruan game menghapusnya. Pasang lagi untuk menggunakannya.</value></data>
+  <data name="StartupLoaderForeign" xml:space="preserve"><value>Alat lain telah mengubah projectzomboid.jar milik game. Verifikasi file game di Steam terlebih dahulu.</value></data>
+  <data name="StartupLoaderInstall" xml:space="preserve"><value>Pasang</value></data>
+  <data name="StartupLoaderUninstall" xml:space="preserve"><value>Copot</value></data>
+  <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Tutup game, dan server apa pun yang dijalankan dari foldernya, lalu coba lagi.</value></data>
+  <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Versi game ini tidak didukung.</value></data>
+  <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Salinan file game yang disimpan tidak ada. Verifikasi file game di Steam untuk memulihkannya.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>File game tidak dapat diubah. Detailnya ada di log.</value></data>
 </root>
