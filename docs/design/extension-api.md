@@ -290,6 +290,18 @@ startup loader started:
 | The app open before the game started | Found the attach-first case (see [startup loader](startup-loader.md#the-app-open-as-the-game-starts)); with it fixed, the API was there. |
 | A square's object list | `PZArrayList` has no iterator (`UnsupportedOperationException`); it is read by index. |
 
+On 7 October 2026 a power network was defined from the debug Lua console of a game the startup loader
+started (sandbox generator fuel rate 0.1, no grid power): the gas station as its building, one
+generator outside it as its producer.
+
+| Check | Result |
+| --- | --- |
+| The hooks going in | No `[PzTools API]` report in the game's log: every power hook found its method. |
+| The generator switched on | The network supplied; load 0.652 (five fridges at 0.13, one lamp at 0.002 on the upper level); the generator's consumption 0.672, which the game shows as 0.0672 after its sandbox fuel rate. The square beside the generator had no power. |
+| One fridge excluded | Load 0.522; that fridge unpowered, the others powered on both levels. |
+| One part of a two-square fridge excluded | Both parts unpowered; load 0.262. |
+| The generator switched off | The building's lights and fridges went off. |
+
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
