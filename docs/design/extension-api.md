@@ -33,26 +33,34 @@ nothing and says why.
 | PZ Tools owns the hooks | One owner per vanilla method, so two areas that touch the same class do not conflict. Mods see areas, not hooks. |
 | Owned definitions | Each network belongs to the mod that created it (a name it passes once). A mod can only change or remove its own. |
 | Adds to vanilla | Every answer is vanilla's answer, or more. Something no network contains behaves as in vanilla. |
-| Installed mode | Effects that must not stop with the app need the [startup loader](startup-loader.md). The API says whether the game was started that way; the mod decides what to do about it. |
+| Part of the install | The API is infrastructure, not a feature with its own switch: turning it off would cut every dependent mod's power at once. It exists only in a game the [startup loader](startup-loader.md) started, and it is always on there. A game the app attached to has no API. |
+| Never fails closed | Other extensions are revoked when they fault. The API is not: a hook that cannot answer gives vanilla's answer for that call, and the API keeps running. A fault is reported, never turned into a power cut. |
 | Single player | PZ Tools runs only in a local single-player world; so does the API. |
 
 ## Reaching the API from Lua
 
-PZ Tools sets one global table, `PZToolsAPI`, in the game's Lua environment (`LuaManager.env`) when
-the extension that provides it activates in a world, and removes it when that extension stops. Its
+In a game the startup loader started, the resident runtime sets one global table, `PZToolsAPI`, in
+the game's Lua environment (`LuaManager.env`) as the game's Lua starts, before any world loads. It is
+not one of the extensions the player switches on and off, and it stays until the game exits. Its
 functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 
 | Field | Meaning |
 | --- | --- |
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. |
-| `PZToolsAPI.installed` | Whether the startup loader started this game, so that the API outlives the app. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. |
 | `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
 
-A mod checks `PZToolsAPI` on `OnGameStart`, and again on a PZ Tools event when the table appears
-later (the app attached after the world loaded). It keeps its definitions in the save (`ModData`)
-and defines its networks again each time a world loads. Until it does, the game behaves as in
-vanilla.
+A mod checks `PZToolsAPI` on `OnGameStart`. Without it (PZ Tools not installed, or this game not
+started by the loader), the mod changes nothing and says why. It keeps its definitions in the save
+(`ModData`) and defines its networks again each time a world loads. Until it does, the game behaves
+as in vanilla.
+
+When the app updates the API's code in a running game, the new code takes over the definitions of the
+old one; mods do not define anything again. A change that cannot take them over waits for the game's
+restart, as other bootstrap changes do.
+
+Uninstalling the startup loader removes the API from the next game start. The app says so before it
+uninstalls, naming the mods it has seen use the API.
 
 Objects are named by position and sprite name (`x, y, z, sprite`). An object that moves is a
 different object.
