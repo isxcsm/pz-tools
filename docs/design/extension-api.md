@@ -2,9 +2,10 @@
 
 [Documentation index](../README.md)
 
-> **In progress.** Built: the `PZToolsAPI` table, `version`, `client` and the
-> [buildings](#buildings-facts) area. Planned: [networks](#networks-mechanism) and everything below
-> them. The first areas serve a separate power and water mod. The game facts below were read from the
+> **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
+> [buildings](#buildings-facts) area, and power [networks](#networks-mechanism) with one producer
+> carrying the load ([built so far](#built-so-far)). Planned: the rest of the networks. The first
+> areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -128,19 +129,49 @@ A network carries one utility, power or water, from producers to consumers.
 | Children | Networks whose load this network carries. Networks form a tree; a cycle is refused. |
 | Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
 
+A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
+another mod's network is a Lua error. Network ids are 1 to 64 letters, digits, `_`, `.` or `-`, one
+id per network across all mods. Squares are `x, y, z`; objects are a square and a sprite name.
+
 | Call | Effect |
 | --- | --- |
-| `networks.define(id, utility, policy)` / `networks.remove(id)` | Creates or removes a network. Removing one gives its producers back to vanilla. |
-| `networks.setProducers(id, list)` | Producer positions, in order. |
-| `networks.addBuilding(id, square)` / `networks.removeBuilding(id, square)` | A building as a consumer. |
-| `networks.exclude(id, object)` / `networks.include(id, object)` / `networks.reset(id, object)` | Excludes an object of a member building, adds a single object, or undoes either. |
-| `networks.setParent(id, parentId)` | Makes a network a child; `nil` detaches it. |
-| `networks.state(id)` | Supplied or not, load (own and children), the producer in use, time left at the current load, and for water the amount and capacity. |
-| `networks.consumers(id)` | The objects it supplies, by building and room, with their consumption: the same classifier the hooks use. |
+| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now only `"power"` and `"sequential"`. |
+| `networks.remove(handle, id)` | Removes it, giving its producers back to vanilla; `true` when there was one. |
+| `networks.setProducers(handle, id, list)` | Producer squares (tables with `x`, `y`, `z`), in order. A square is a producer of one network at most. |
+| `networks.addBuilding(handle, id, x, y, z)` | A building as a consumer, named by one of its squares; `true` when the square is in a building now. |
+| `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
+| `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
+| `networks.setParent(handle, id, parentId)` | Planned: makes a network a child; `nil` detaches it. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `producer` (the square of the producer in use; absent without supply), `load` and `complete` (whether every consumer was loaded when the load was last worked out). Planned: time left at the current load, and for water the amount and capacity. |
+| `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 Events (raised through `LuaEventManager`, never per frame): a network's supply started or stopped,
 its producer in use changed, its load changed. Each carries the network id and the game time it
 happened, which can be in the past when the network's squares were not loaded.
+
+### Built so far
+
+- Power networks under `"sequential"`: buildings and single objects as consumers, and exclusions.
+- Supply: a network is supplied while one of its producers can run (switched on, with fuel, not
+  broken) as last seen loaded; a producer never seen loaded cannot. The first such producer carries the
+  load; the others burn only their own base consumption. The API does not switch producers on or
+  off yet; the player does.
+- Load: worked out when a definition changes; when the game says something that uses power was
+  switched, placed or taken in or beside a member building, or at an object added on its own
+  (`IsoGenerator.updateGenerator`); and every 5 seconds while some consumers are not loaded.
+  Consumers on squares that are not loaded count as they were last seen loaded.
+- Range: a producer powers no square around it. Its consumption is its base consumption, plus the
+  network's load while it carries it, and the game burns fuel from that hour by hour while its square
+  is loaded.
+- Exclusion: an excluded object gets the game's own answer, as if no network powered its square, so a
+  generator in range or the grid still powers it. An object that covers several squares is excluded
+  when any of its parts is.
+- When a network's supply starts or stops, its consumers are told (`IsoObject.checkHaveElectricity`),
+  as vanilla tells the objects in a generator's range.
+- The definitions belong to the world they were made in: when the game's cell goes (the player left
+  the world), the API removes them, and the mods define them again in the next world.
+- Not yet: switching producers, time and fuel while not loaded, food, events, water, children,
+  `"parallel"`, and the light sources and room light of an excluded switch.
 
 ### Power
 
@@ -187,9 +218,19 @@ happened, which can be in the past when the network's squares were not loaded.
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
 | How much has this food aged? | `Food.updateAge(boolean)` | Split at the network's supply changes |
 
-The answers to the square and object questions come from an index the API keeps up to date: per
-chunk, the networks that touch it and a bitmap of their member squares. `haveElectricity()` is
-called very often (lighting, food, sounds), so it costs one lookup, never a walk over buildings.
+The bootstrap ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java))
+puts the hooks in as the classes load. Each return of the square and object questions passes the
+game's answer to the API, which can only add to it; `setSurroundingElectricity()` and
+`updateGenerator()` ask the API first. A method that is not shaped as expected gets no hook, which
+the game's log reports, and that question gets the game's answer.
+
+The answers come from a snapshot the API makes again when something changes
+([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):
+for each supplied network, one bit per square over the box around its buildings, and the networks'
+object rules by square. `haveElectricity()` is called very often (lighting, food, sounds), so it
+costs a box test and a bit per network, never a walk over buildings. An object question looks at the
+object only when some network has a rule for an object. For an excluded object the API asks the game
+again with the networks silenced on that thread.
 
 ## What vanilla does that mods need to know
 

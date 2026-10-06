@@ -155,7 +155,7 @@ the test variables. Then it runs its suites. None of it touches a real game.
 | `control` | `ExtensionControlTest`: the extension control channel, its concurrency, the resident extensions |
 | `profiler` | `ProfileFramesTest` (no flight recorder) and `ProfileRollingTest` (a real one) |
 | `startup` | `StartupInstallTest`: install into a synthetic game's jar, start it, update, uninstall, the app attaching first |
-| `api` | `GameApiTest`: the extension API against the synthetic game |
+| `api` | `GameApiTest`: the extension API against the synthetic game, its hooks put in by a test agent as the bootstrap does |
 | `dotnet` | `GameSaveClientTests` against a synthetic JVM that imitates the game |
 
 Every suite asked for runs, whatever an earlier one did, and a table at the end gives each

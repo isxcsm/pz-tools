@@ -19,7 +19,7 @@ The build puts these files in `game-bridge\` next to the workers:
 | --- | --- | --- |
 | `runtime\` | Attach helper | A `jlink` image of the build JDK with `jdk.attach`, `jdk.jfr` and `jdk.zipfs`. It runs the attach helper and the [startup loader](startup-loader.md) install, and is never loaded into the game. |
 | `pztools-game-bridge.jar` | Helper and game | `pztools.bridge.AttachMain` (the helper's main class) and the payload (`pztools.bridge.runtime.*`) |
-| `pztools-game-bootstrap.jar` | Game | `AgentEntry`, `ApiHooks` (the [extension API](extension-api.md)'s Lua hook) and the extension API classes. Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
+| `pztools-game-bootstrap.jar` | Game | `AgentEntry`, `ApiHooks` (the [extension API](extension-api.md)'s hooks) and the extension API classes. Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
 | `pztools-attach-bootstrap.dll` | Game | A JVMTI agent that loads the game's own `jli.dll` |
 | `extensions\` | Game | Extension runtime, modules and catalogue ([game extensions](game-extensions.md)) |
 

@@ -1,24 +1,30 @@
 package pztools.bridge.runtime.api;
 
 import java.util.*;
+import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
 import zombie.Lua.LuaManager;
+import zombie.inventory.ItemContainer;
 import zombie.iso.*;
 import zombie.iso.SpriteDetails.IsoFlagType;
+import zombie.iso.objects.IsoGenerator;
 import zombie.iso.objects.IsoLightSwitch;
+import zombie.iso.objects.IsoRadio;
 import zombie.iso.sprite.IsoSprite;
 
 /**
  * The extension API as a Lua mod sees it, against the synthetic game of the startup loader test: the table, the facts
- * about buildings, the mods' handles, and a newer payload taking the table over.
+ * about buildings, the mods' handles, the power networks, and a newer payload taking the table over. The API's hooks
+ * are in the game's classes, put there by {@link pztools.bridge.ApiTestAgent} as the startup loader's bootstrap does.
  */
 public final class GameApiTest {
     private GameApiTest() { }
 
     public static void main(String[] args) throws Exception {
         world();
+        // As in the game: the payload sets the handler, and the hook sets the API as the game's Lua starts.
+        GameApi.start();
         LuaManager.init();
-        GameApi.register(LuaManager.class);
         KahluaTable api = (KahluaTable)LuaManager.env.rawget(GameApi.GLOBAL);
         check(api != null && api.rawget("version").equals(1.0), "The API table or its version is missing");
         KahluaTable buildings = (KahluaTable)api.rawget("buildings");
@@ -28,8 +34,9 @@ public final class GameApiTest {
         near(buildings);
         callerErrors(buildings);
         clients(api);
+        networks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, and a newer payload takes its table over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power networks, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -46,26 +53,32 @@ public final class GameApiTest {
         room(grid, new RoomDef(99, "", 0, shack), 20, 20, 2, 2);
         // Loaded: the house's lower levels and their surroundings, and the shack. The bedroom is not loaded.
         for (int z = -1; z <= 0; z++) for (int x = 5; x <= 25; x++) for (int y = 5; y <= 25; y++) square(x, y, z);
-        square(11, 11, 0).objects.add(powered("fridge", 0.08f));
+        place(11, 11, 0, powered("fridge", 0.08f));
         var sink = new IsoObject(new IsoSprite("sink"));
         sink.sprite.properties.flags.add(IsoFlagType.waterPiped);
-        square(12, 11, 0).objects.add(sink);
-        square(10, 10, 0).objects.add(new IsoObject(new IsoSprite("chair")));
+        place(12, 11, 0, sink);
+        place(10, 10, 0, new IsoObject(new IsoSprite("chair")));
         // On the kitchen's south wall, so on the square beyond it, lighting the kitchen.
         var kitchenSwitch = new IsoLightSwitch(new IsoSprite("kitchen switch"));
         kitchenSwitch.roomId = 1;
-        square(11, 13, 0).objects.add(kitchenSwitch);
-        square(15, 11, 0).objects.add(powered("street light", 0.002f));
+        place(11, 13, 0, kitchenSwitch);
+        place(15, 11, 0, powered("street light", 0.002f));
         // Two squares from the house, outside, but lighting the shack: it belongs to the shack, not to the house's surroundings.
         var shackSwitch = new IsoLightSwitch(new IsoSprite("shack switch"));
         shackSwitch.roomId = 99;
-        square(15, 12, 0).objects.add(shackSwitch);
-        square(20, 20, 0).objects.add(powered("shack fridge", 0.08f));
+        place(15, 12, 0, shackSwitch);
+        place(20, 20, 0, powered("shack fridge", 0.08f));
     }
 
     private static void room(IsoMetaGrid grid, RoomDef room, int x, int y, int w, int h) {
         room.rects.add(new RoomDef.RoomRect(x, y, w, h));
         grid.rooms.add(room);
+    }
+
+    private static <T extends IsoObject> T place(int x, int y, int z, T object) {
+        object.square = square(x, y, z);
+        object.square.objects.add(object);
+        return object;
     }
 
     private static IsoObject powered(String sprite, float consumption) {
@@ -138,7 +151,7 @@ public final class GameApiTest {
         var shack = call(buildings, "near", "20,20,0", 1.0);
         check(sprites(shack.get(0)).isEmpty() && shack.get(1).equals(true), "The shack's loaded surroundings were misreported");
         // Diagonal steps count as one: a corner of the house is within two of (15, 14).
-        square(15, 14, 0).objects.add(powered("corner light", 0.002f));
+        place(15, 14, 0, powered("corner light", 0.002f));
         check(sprites(call(buildings, "near", KEY, 2.0).get(0)).equals(Set.of("street light", "corner light")), "A diagonal step was miscounted");
         square(15, 14, 0).objects.clear();
         boolean[] marked = new boolean[25];
@@ -167,6 +180,179 @@ public final class GameApiTest {
         catch (IllegalArgumentException expected) { check(expected.getMessage().contains("with a colon"), expected.getMessage()); }
         try { call(api, "client", "no spaces"); throw new AssertionError("A bad name was accepted"); }
         catch (IllegalArgumentException expected) { check(expected.getMessage().contains("PZToolsAPI.client"), expected.getMessage()); }
+    }
+
+    /**
+     * A power network over the house: two generators outside it, the first in use. The house's squares and its
+     * appliances get power from it, the generators power nothing around themselves, and objects are excluded from it
+     * or added to it on their own.
+     */
+    private static void networks(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        check(networks != null, "The networks area is missing");
+        for (int x = 5; x <= 35; x++) for (int y = 5; y <= 35; y++) square(x, y, 0);
+        var radio = place(12, 10, 0, new IsoRadio(new IsoSprite("radio")));
+        var freezer = place(12, 12, 0, powered("freezer a", 0.05f));
+        var freezerEnd = place(13, 12, 0, powered("freezer b", 0.05f));
+        freezer.gridParts.add(freezerEnd);
+        freezerEnd.gridParts.add(freezer);
+        IsoObject fridge = square(11, 11, 0).objects.get(0), light = square(15, 11, 0).objects.get(0);
+        var kitchenSwitch = (IsoLightSwitch)square(11, 13, 0).objects.get(0);
+        var first = place(30, 30, 0, new IsoGenerator(new IsoSprite("generator")));
+        var second = place(31, 30, 0, new IsoGenerator(new IsoSprite("generator")));
+        first.setActivated(true);
+        check(square(28, 30, 0).haveElectricity() && !square(11, 11, 0).haveElectricity(), "The game's own generator range is wrong");
+
+        Object mod = call(api, "client", "power.mod").get(0);
+        check(call(networks, "define", mod, "grid", "power", "sequential").isEmpty(), "define returned something");
+        call(networks, "setProducers", mod, "grid", list(at(30, 30, 0), at(31, 30, 0)));
+        check(call(networks, "addBuilding", mod, "grid", 11.0, 11.0, 0.0).get(0).equals(true), "The house was not found");
+        check(call(networks, "addBuilding", mod, "grid", 12.0, 11.0, -1.0).get(0).equals(true), "The basement was not found");
+        frame();
+        check(!square(28, 30, 0).haveElectricity() && first.itemsPowered() == 0, "A network's generator kept its own range");
+        check(square(11, 11, 0).haveElectricity() && square(12, 12, -1).haveElectricity() && new IsoGridSquare(10, 10, 1).haveElectricity(),
+            "A level of the house has no power");
+        check(!square(9, 11, 0).haveElectricity() && !square(11, 13, 0).haveElectricity(), "A square outside the house has power");
+        KahluaTable state = (KahluaTable)call(networks, "state", "grid").get(0);
+        check(state.rawget("supplied").equals(true) && state.rawget("owner").equals("power.mod")
+            && ((KahluaTable)state.rawget("producer")).rawget("x").equals(30.0) && state.rawget("complete").equals(false),
+            "The network's state is wrong");
+        double load = 0.08 + 0.002 + 0.01 + 0.05 + 0.05;
+        check(near((Double)state.rawget("load"), load), "The load is wrong: " + state.rawget("load"));
+        check(near(first.getTotalPowerUsing(), 0.02 + load) && near(second.getTotalPowerUsing(), 0.02), "A producer burns the wrong amount");
+        var consumers = call(networks, "consumers", "grid");
+        check(sprites(consumers.get(0)).equals(Set.of("fridge", "kitchen switch", "radio", "freezer a", "freezer b"))
+            && consumers.get(1).equals(false), "Wrong consumers: " + sprites(consumers.get(0)));
+        check(ItemContainer.isObjectPowered(fridge, true) && !ItemContainer.isObjectPowered(fridge, false), "The fridge's power is wrong");
+        check(kitchenSwitch.canSwitch() && radio.device.canBePoweredHere(), "The switch or the radio has no power");
+
+        // Excluded: no power from the network, whatever its square has. Part of a two-square freezer excludes all of it.
+        call(networks, "exclude", mod, "grid", 11.0, 11.0, 0.0, "fridge");
+        call(networks, "exclude", mod, "grid", 13.0, 12.0, 0.0, "freezer b");
+        call(networks, "exclude", mod, "grid", 11.0, 13.0, 0.0, "kitchen switch");
+        frame();
+        check(!ItemContainer.isObjectPowered(fridge, true) && !ItemContainer.isObjectPowered(freezer, true)
+            && !kitchenSwitch.canSwitch(), "An excluded object has power");
+        check(square(11, 11, 0).haveElectricity() && ItemContainer.isObjectPowered(radio, true), "Excluding objects cut the others");
+        check(near(load(networks), 0.01), "Excluded objects still count: " + load(networks));
+        // The game's own power still reaches an excluded object.
+        var vanilla = place(12, 14, 0, new IsoGenerator(new IsoSprite("generator")));
+        vanilla.setActivated(true);
+        check(ItemContainer.isObjectPowered(fridge, true), "An excluded object lost the game's own power");
+        vanilla.setActivated(false);
+        call(networks, "exclude", mod, "grid", 12.0, 10.0, 0.0, "radio");
+        frame();
+        check(!radio.device.canBePoweredHere(), "An excluded radio has power");
+        call(networks, "reset", mod, "grid", 12.0, 10.0, 0.0, "radio");
+        // Added on its own: an object outside the house.
+        check(!ItemContainer.isObjectPowered(light, true), "The street light has power before it was added");
+        call(networks, "include", mod, "grid", 15.0, 11.0, 0.0, "street light");
+        frame();
+        check(ItemContainer.isObjectPowered(light, true) && !ItemContainer.isObjectPowered(light, false), "An added object has no power");
+        check(near(load(networks), 0.012), "The added object does not count: " + load(networks));
+        // The game says when something that uses power changed.
+        radio.consumption = 0.03f;
+        IsoGenerator.updateGenerator(radio.square);
+        frame();
+        check(near(load(networks), 0.032), "A consumer's change was missed: " + load(networks));
+        call(networks, "reset", mod, "grid", 11.0, 11.0, 0.0, "fridge");
+        frame();
+        check(ItemContainer.isObjectPowered(fridge, true) && near(load(networks), 0.112), "Reset did not give the fridge back");
+
+        // The first producer stops: no supply until the next one runs, which then carries the load.
+        int checks = fridge.electricityChecks;
+        first.setActivated(false);
+        frame();
+        state = (KahluaTable)call(networks, "state", "grid").get(0);
+        check(state.rawget("supplied").equals(false) && state.rawget("producer") == null && !square(11, 11, 0).haveElectricity()
+            && !ItemContainer.isObjectPowered(light, true), "A network without a running producer has supply");
+        check(fridge.electricityChecks > checks, "The consumers were not told that the power went");
+        second.setActivated(true);
+        frame();
+        state = (KahluaTable)call(networks, "state", "grid").get(0);
+        check(((KahluaTable)state.rawget("producer")).rawget("x").equals(31.0) && square(11, 11, 0).haveElectricity()
+            && !square(33, 30, 0).haveElectricity(), "The second producer does not carry the network");
+        check(near(second.getTotalPowerUsing(), 0.02 + 0.112) && near(first.getTotalPowerUsing(), 0.02), "The load moved wrongly");
+
+        // A handler that fails gives the game's answers; a newer payload takes the definitions over.
+        ApiHooks.setPower(new ApiHooks.Power() {
+            @Override public boolean square(int x, int y, int z) { throw new IllegalStateException("broken"); }
+            @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) { throw new IllegalStateException("broken"); }
+            @Override public boolean generator(Object generator) { throw new IllegalStateException("broken"); }
+            @Override public void consumerChanged(Object square) { throw new IllegalStateException("broken"); }
+        });
+        check(!square(11, 11, 0).haveElectricity() && !ItemContainer.isObjectPowered(fridge, true), "A failing hook did not give the game's answer");
+        second.setSurroundingElectricity();
+        check(square(33, 30, 0).haveElectricity(), "A failing hook did not let the game do the generator's range");
+        GameApi.register(LuaManager.class);
+        frame();
+        check(api.rawget("networks") == networks && square(11, 11, 0).haveElectricity() && !square(33, 30, 0).haveElectricity()
+            && ItemContainer.isObjectPowered(light, true), "A newer payload did not take the networks over");
+
+        // Each network belongs to its mod.
+        Object other = call(api, "client", "other.mod").get(0);
+        rejects(networks, "define", "grid belongs to another mod", other, "grid", "power", "sequential");
+        rejects(networks, "addBuilding", "grid belongs to another mod", other, "grid", 1.0, 1.0, 0.0);
+        call(networks, "define", other, "second", "power", "sequential");
+        rejects(networks, "setProducers", "31,30,0 is a producer of the network grid", other, "second", list(at(31, 30, 0)));
+        rejects(networks, "define", "utility must be \"power\"", mod, "water", "water", "fullest");
+        rejects(networks, "define", "policy must be \"sequential\"", mod, "x", "power", "parallel");
+        rejects(networks, "define", "id must be 1 to 64", mod, "no spaces", "power", "sequential");
+        rejects(networks, "define", "the first argument must be a handle", "power.mod", "x", "power", "sequential");
+        rejects(networks, "exclude", "sprite must be a sprite name", mod, "grid", 1.0, 1.0, 0.0, "");
+        rejects(networks, "setProducers", "producers[1]: x must be a whole number", mod, "grid", list(LuaManager.platform.newTable()));
+        rejects(networks, "setProducers", "is listed twice", mod, "grid", list(at(1, 1, 0), at(1, 1, 0)));
+        rejects(networks, "include", "there is no network nothing", mod, "nothing", 1.0, 1.0, 0.0, "lamp");
+        check(call(networks, "state", "nothing").get(0) == null && call(networks, "consumers", "nothing").get(0) == null,
+            "A network that does not exist has a state");
+
+        // Removed: the generators are the game's again. A mod's handle clears what it defined.
+        check(call(networks, "remove", mod, "grid").get(0).equals(true) && call(networks, "remove", mod, "grid").get(0).equals(false),
+            "remove reported wrongly");
+        frame();
+        check(square(33, 30, 0).haveElectricity() && !square(11, 11, 0).haveElectricity(), "A removed network's generator has no range");
+        call(networks, "define", mod, "grid", "power", "sequential");
+        invoke(((KahluaTable)((KahluaTable)mod).getMetatable().rawget("__index")).rawget("clear"), mod);
+        check(call(networks, "state", "grid").get(0) == null && call(networks, "state", "second").get(0) != null,
+            "Clearing a handle removed the wrong networks");
+        // Leaving the world removes its networks.
+        var world = IsoWorld.instance;
+        IsoWorld.instance = null;
+        frame();
+        IsoWorld.instance = world;
+        frame();
+        check(call(networks, "state", "second").get(0) == null, "A world's networks outlived it");
+        second.setActivated(false);
+    }
+
+    private static void frame() { GameApi.frame(GameApiTest.class.getClassLoader()); }
+
+    private static double load(KahluaTable networks) {
+        return (Double)((KahluaTable)call(networks, "state", "grid").get(0)).rawget("load");
+    }
+
+    private static boolean near(double value, double expected) { return Math.abs(value - expected) < 1e-5; }
+
+    private static KahluaTable at(int x, int y, int z) {
+        KahluaTable result = LuaManager.platform.newTable();
+        result.rawset("x", (double)x); result.rawset("y", (double)y); result.rawset("z", (double)z);
+        return result;
+    }
+
+    private static KahluaTable list(Object... items) {
+        KahluaTable result = LuaManager.platform.newTable();
+        for (int index = 0; index < items.length; index++) result.rawset((double)(index + 1), items[index]);
+        return result;
+    }
+
+    private static void rejects(KahluaTable networks, String name, String message, Object... arguments) {
+        try { call(networks, name, arguments); }
+        catch (IllegalArgumentException expected) {
+            check(expected.getMessage().startsWith("PZToolsAPI.networks." + name + ": ") && expected.getMessage().contains(message),
+                expected.getMessage());
+            return;
+        }
+        throw new AssertionError(name + " accepted bad arguments: " + message);
     }
 
     private static void takeover(KahluaTable api, KahluaTable buildings) throws Exception {

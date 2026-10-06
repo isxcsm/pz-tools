@@ -126,7 +126,11 @@ $suites = [ordered]@{
         $apiSources = @(Get-ChildItem (Join-Path $repositoryRoot 'tests/extension-api') -Recurse -Filter '*.java' | Select-Object -ExpandProperty FullName)
         & $javac --release 25 -encoding UTF-8 -cp $apiClasspath -d $apiOutput @apiSources
         if ($LASTEXITCODE -ne 0) { throw 'Extension API test compilation failed' }
-        Invoke-Java 'Extension API tests failed' @('-ea', '-cp', $apiClasspath, 'pztools.bridge.runtime.api.GameApiTest')
+        # Puts the API's hooks into the synthetic game as its classes load, as the startup loader's bootstrap does.
+        $apiAgent = Join-Path $fixtureOutput 'extension-api-agent.jar'
+        & $jar --create --file $apiAgent --manifest (Join-Path $repositoryRoot 'tests/extension-api/API-TEST-AGENT.MF') -C $apiOutput pztools/bridge/ApiTestAgent.class
+        if ($LASTEXITCODE -ne 0) { throw 'Extension API test agent packaging failed' }
+        Invoke-Java 'Extension API tests failed' @("-javaagent:$apiAgent", '-ea', '-cp', $apiClasspath, 'pztools.bridge.runtime.api.GameApiTest')
     }
     # The app's side against a synthetic JVM that imitates the game.
     dotnet = {

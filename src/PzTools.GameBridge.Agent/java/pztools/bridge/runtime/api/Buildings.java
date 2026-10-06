@@ -89,9 +89,12 @@ final class Buildings {
     }
 
     /** A building as its rooms describe it. Its key is its lowest level's northernmost, then westernmost room corner. */
-    private record Building(Object def, List<Object> rooms, String key, int minLevel, int maxLevel,
+    record Building(Object def, List<Object> rooms, String key, int minLevel, int maxLevel,
             int minX, int minY, int maxX, int maxY) { }
-    private record Rect(int x, int y, int w, int h) { }
+    record Rect(int x, int y, int w, int h) { }
+
+    /** An object that uses power or water, on a loaded square; {@code room} is the room it belongs to, if any. */
+    record Found(Object object, int x, int y, int z, Object room, boolean power, boolean water) { }
 
     private Object at(int x, int y, int z) throws ReflectiveOperationException {
         Object room = roomAt(x, y, z);
@@ -141,24 +144,31 @@ final class Buildings {
     private Object[] objects(String key, Filter filter) throws ReflectiveOperationException {
         Building found = resolve(key);
         if (found == null) return new Object[] { null, false };
-        Object cells = cell();
+        boolean[] complete = { true };
         var result = new ArrayList<Object>();
-        boolean complete = true;
+        for (Found thing : scan(found, filter, complete)) result.add(entry(thing));
+        return new Object[] { lua.list(result), complete[0] };
+    }
+
+    /** The objects of a building, as {@code objects} reports them; {@code complete[0]} is cleared when some were missing. */
+    List<Found> scan(Building found, Filter filter, boolean[] complete) throws ReflectiveOperationException {
+        Object cells = cell();
+        var result = new ArrayList<Found>();
         for (int z = found.minLevel(); z <= found.maxLevel(); z++)
             for (int y = found.minY() - 1; y <= found.maxY() + 1; y++)
                 for (int x = found.minX() - 1; x <= found.maxX() + 1; x++) {
                     Object room = roomAt(x, y, z);
                     boolean inside = room != null && building.invoke(room) == found.def();
                     Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
-                    if (loaded == null) { complete &= !inside; continue; }
+                    if (loaded == null) { if (inside) complete[0] = false; continue; }
                     for (Object object : objectsOn(loaded)) {
                         Object owner = owner(object, room);
                         if (owner == null || building.invoke(owner) != found.def()) continue;
-                        Object entry = entry(object, filter, x, y, z, owner);
-                        if (entry != null) result.add(entry);
+                        Found thing = classify(object, filter, x, y, z, owner);
+                        if (thing != null) result.add(thing);
                     }
                 }
-        return new Object[] { lua.list(result), complete };
+        return result;
     }
 
     /**
@@ -193,8 +203,8 @@ final class Buildings {
                     if (loaded == null) { complete = false; continue; }
                     for (Object object : objectsOn(loaded)) {
                         if (owner(object, null) != null) continue;
-                        Object entry = entry(object, filter, wx, wy, z, null);
-                        if (entry != null) result.add(entry);
+                        Found thing = classify(object, filter, wx, wy, z, null);
+                        if (thing != null) result.add(entry(thing));
                     }
                 }
         }
@@ -216,7 +226,7 @@ final class Buildings {
     }
 
     /** A square's objects. The game's list (PZArrayList) is read by index: it has no iterator. */
-    private List<Object> objectsOn(Object loaded) throws ReflectiveOperationException {
+    List<Object> objectsOn(Object loaded) throws ReflectiveOperationException {
         var list = (List<?>)objects.invoke(loaded);
         var result = new ArrayList<Object>(list.size());
         for (int index = 0; index < list.size(); index++) result.add(list.get(index));
@@ -236,26 +246,42 @@ final class Buildings {
         return squareRoom;
     }
 
-    private Object entry(Object object, Filter filter, int x, int y, int z, Object room) throws ReflectiveOperationException {
+    /** The object when it uses what the filter asks for, or null. */
+    Found classify(Object object, Filter filter, int x, int y, int z, Object room) throws ReflectiveOperationException {
         boolean power = (boolean)couldBePowered.invoke(object);
         Object sprite = objectSprite.invoke(object);
         Object flags = sprite == null ? null : properties.invoke(sprite);
         boolean water = flags != null && (boolean)has.invoke(flags, waterPiped);
-        if (!(power && filter.power() || water && filter.water())) return null;
+        return power && filter.power() || water && filter.water() ? new Found(object, x, y, z, room, power, water) : null;
+    }
+
+    /** The object as a Lua table, with the consumption the game gives for it now. */
+    Object entry(Found thing) throws ReflectiveOperationException {
         Object result = lua.table();
-        lua.set(result, "x", (double)x); lua.set(result, "y", (double)y); lua.set(result, "z", (double)z);
-        Object name = spriteName.invoke(object);
-        if (name == null && sprite != null) name = spriteNameOf.invoke(sprite);
-        lua.set(result, "sprite", name);
-        lua.set(result, "type", object.getClass().getSimpleName());
-        if (room != null) {
-            lua.set(result, "room", roomName.invoke(room));
-            lua.set(result, "roomId", Long.toString((long)roomId.invoke(room)));
+        lua.set(result, "x", (double)thing.x()); lua.set(result, "y", (double)thing.y()); lua.set(result, "z", (double)thing.z());
+        lua.set(result, "sprite", sprite(thing.object()));
+        lua.set(result, "type", thing.object().getClass().getSimpleName());
+        if (thing.room() != null) {
+            lua.set(result, "room", roomName.invoke(thing.room()));
+            lua.set(result, "roomId", Long.toString((long)roomId.invoke(thing.room())));
         }
-        if (power) lua.set(result, "power", (double)(float)consumption.invoke(object));
-        if (water) lua.set(result, "water", true);
+        if (thing.power()) lua.set(result, "power", (double)consumption(thing.object()));
+        if (thing.water()) lua.set(result, "water", true);
         return result;
     }
+
+    /** The name objects are known by: the object's sprite name, or its sprite's. */
+    String sprite(Object object) throws ReflectiveOperationException {
+        Object name = spriteName.invoke(object);
+        if (name == null) {
+            Object sprite = objectSprite.invoke(object);
+            if (sprite != null) name = spriteNameOf.invoke(sprite);
+        }
+        return (String)name;
+    }
+
+    /** What the game gives for the object's power use now. */
+    float consumption(Object object) throws ReflectiveOperationException { return (float)consumption.invoke(object); }
 
     /** The building a key names, or null when no building has that key now (it was rebuilt, or removed). */
     private Building resolve(String key) throws ReflectiveOperationException {
@@ -268,6 +294,14 @@ final class Buildings {
         Building found = room == null ? null : describe(building.invoke(room));
         return found != null && found.key().equals(key) ? found : null;
     }
+
+    /** The building the square belongs to now, or null. */
+    Building buildingAt(int x, int y, int z) throws ReflectiveOperationException {
+        Object room = roomAt(x, y, z);
+        return room == null ? null : describe(building.invoke(room));
+    }
+
+    int level(Object room) throws ReflectiveOperationException { return (int)roomLevel.invoke(room); }
 
     private Building describe(Object def) throws ReflectiveOperationException {
         if (def == null) return null;
@@ -290,7 +324,7 @@ final class Buildings {
         return new Building(def, List.copyOf(list), keyX + "," + keyY + "," + minLevel, minLevel, maxLevel, minX, minY, maxX, maxY);
     }
 
-    private List<Rect> rects(Object room) throws ReflectiveOperationException {
+    List<Rect> rects(Object room) throws ReflectiveOperationException {
         var result = new ArrayList<Rect>();
         for (Object rect : (List<?>)roomRects.invoke(room)) {
             int w = (int)rectW.invoke(rect), h = (int)rectH.invoke(rect);
@@ -309,7 +343,7 @@ final class Buildings {
         return current == null ? null : metaGrid.invoke(current);
     }
 
-    private Object cell() throws ReflectiveOperationException {
+    Object cell() throws ReflectiveOperationException {
         Object current = world.get(null);
         return current == null ? null : cell.invoke(current);
     }

@@ -19,6 +19,8 @@ public final class GameApi {
     private static final String NAME = "[A-Za-z0-9_.-]{1,64}";
     // Set when this payload's API has not reached the Lua environment the game has now.
     private static volatile boolean pending;
+    // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
+    private static volatile Networks networks;
 
     private GameApi() { }
 
@@ -38,10 +40,13 @@ public final class GameApi {
      * started: a payload that replaced an older one, or one that came after the game's Lua had started.
      */
     public static void frame(ClassLoader game) {
-        if (!pending) return;
-        pending = false;
-        try { register(Class.forName("zombie.Lua.LuaManager", false, game)); }
-        catch (Throwable failure) { report(failure); }
+        if (pending) {
+            pending = false;
+            try { register(Class.forName("zombie.Lua.LuaManager", false, game)); }
+            catch (Throwable failure) { report(failure); }
+        }
+        Networks current = networks;
+        if (current != null) current.frame();
     }
 
     private static void luaStarted(Class<?> luaManager) {
@@ -63,13 +68,45 @@ public final class GameApi {
             lua.setMetatable(api, meta);
         }
         lua.set(api, "version", (double)VERSION);
-        clients(lua, api, meta);
-        new Buildings(lua, luaManager.getClassLoader()).register(table(lua, api, "buildings"));
+        Object handles = clients(lua, api, meta);
+        var buildings = new Buildings(lua, luaManager.getClassLoader());
+        buildings.register(table(lua, api, "buildings"));
+        networks(lua, api, meta, handles, buildings, luaManager.getClassLoader());
         lua.set(env, GLOBAL, api);
     }
 
-    /** {@code PZToolsAPI.client(name)}: one handle per name, which everything the mod defines will belong to. */
-    private static void clients(Kahlua lua, Object api, Object meta) throws ReflectiveOperationException {
+    /**
+     * {@code PZToolsAPI.networks}, with the definitions an earlier payload kept in this environment. Without it (a game
+     * started by an install from before the networks, or a game this payload cannot read), mods find no
+     * {@code networks} and the game answers every power question alone.
+     */
+    private static void networks(Kahlua lua, Object api, Object meta, Object handles, Buildings buildings, ClassLoader game)
+            throws ReflectiveOperationException {
+        Networks next;
+        try {
+            next = new Networks(lua, buildings, game, meta, handle -> owner(lua, handles, handle));
+            ApiHooks.setPower(next.grid());
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PzTools API] Networks are not in this game; restart it to use them: " + olderBootstrap);
+            next = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            try { ApiHooks.setPower(null); } catch (LinkageError olderBootstrap) { }
+            next = null;
+        }
+        networks = next;
+        if (next != null) next.register(table(lua, api, "networks"));
+        else lua.set(api, "networks", null);
+    }
+
+    /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */
+    private static String owner(Kahlua lua, Object handles, Object handle) throws ReflectiveOperationException {
+        Object name = lua.isTable(handle) ? lua.get(handle, "name") : null;
+        return name instanceof String text && lua.get(handles, text) == handle ? text : null;
+    }
+
+    /** {@code PZToolsAPI.client(name)}: one handle per name, which everything the mod defines belongs to. The handles. */
+    private static Object clients(Kahlua lua, Object api, Object meta) throws ReflectiveOperationException {
         Object handles = table(lua, meta, HANDLES), methods = table(lua, meta, HANDLE_METHODS);
         Object handleMeta = lua.get(meta, HANDLE_META);
         if (!lua.isTable(handleMeta)) {
@@ -91,14 +128,14 @@ public final class GameApi {
             }
             return new Object[] { handle };
         }));
-        // Nothing can be defined yet; the areas that define things remove a handle's definitions here.
         lua.set(methods, "clear", lua.function(AREA + "client:clear", arguments -> {
-            Object handle = arguments.length > 0 ? arguments[0] : null;
-            Object name = lua.isTable(handle) ? lua.get(handle, "name") : null;
-            if (name == null || lua.get(handles, name) != handle)
-                throw new IllegalArgumentException(AREA + "client:clear: call it on a handle, with a colon");
+            String name = owner(lua, handles, arguments.length > 0 ? arguments[0] : null);
+            if (name == null) throw new IllegalArgumentException(AREA + "client:clear: call it on a handle, with a colon");
+            Networks current = networks;
+            if (current != null) current.clear(name);
             return new Object[0];
         }));
+        return handles;
     }
 
     private static Object table(Kahlua lua, Object owner, String key) throws ReflectiveOperationException {
