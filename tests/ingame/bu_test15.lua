@@ -1,14 +1,11 @@
 -- Batch 4: the battery bank. Capacity by kind and condition, wear by depth, worn batteries, the bank carrying the
 -- load and charging, with a made-up network state. "[bu15]" lines. Leaves nothing behind.
+RUN("bu_lib.lua")
 RUN("bu_rack.lua")
 local BU = BuildingUtilities
 local Store, Units, Changes, Energy, Networks = BU.Store, BU.Units, BU.Changes, BU.Energy, BU.Networks
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu15] " .. table.concat(parts, " "))
-end
-local function f(v) return v and string.format("%.3f", v) or "nil" end
+local say = BUT.say("bu15")
+local f = BUT.f
 local player = getPlayer()
 
 say("capacity std/heavy/sport full", f(Energy.batteryCapacity({ type = "Base.CarBattery1", condition = 100 })),
@@ -17,26 +14,14 @@ say("capacity std/heavy/sport full", f(Energy.batteryCapacity({ type = "Base.Car
 say("wearAt 0.8/0.5/0.35/0.2/0.1/0", f(Energy.wearAt(0.8)), f(Energy.wearAt(0.5)), f(Energy.wearAt(0.35)), f(Energy.wearAt(0.2)), f(Energy.wearAt(0.1)), f(Energy.wearAt(0)))
 say("cold now", f(Energy.coldShare({})), "temp", f(getClimateManager():getTemperature()))
 
-local panel
-for _, p in ipairs(Store.list()) do
-    if not p.parent and math.abs(p.x - player:getX()) + math.abs(p.y - player:getY()) < 60 then panel = p; break end
-end
+local panel = BUT.nearPanel()
 if not panel then say("no panel"); return end
 local tier = panel.tier
 -- The scene's units (bu_visual) would count too: off the panel while this runs.
 local scene = Store.unitList(nil, panel.id)
 for _, unit in ipairs(scene) do unit.panel = nil end
 panel.tier = 1
-local square
-for r = 1, 12 do
-    for dx = -r, r do
-        for dy = -r, r do
-            local sq = getCell():getGridSquare(panel.x + dx, panel.y + dy, panel.z)
-            if not square and sq and Units.canInstall("rack", sq) then square = sq end
-        end
-    end
-    if square then break end
-end
+local square = BUT.square(panel.x, panel.y, panel.z, 1, 12, function(sq) return Units.canInstall("rack", sq) end)
 local rack = Changes.installUnit("rack", square, BU.Rack.SPRITE)
 say("tier 1 rack", tostring(select(2, Units.canConnect(rack, panel))))
 panel.tier = 2

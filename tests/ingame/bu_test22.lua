@@ -2,13 +2,10 @@
 -- radius, half inside a room), the disc it makes, and the range showing it on the plan and the ground (dim while the
 -- generator is off, shown again when it starts). "[bu22]" lines. Puts two generators down and takes them away again,
 -- unless BU22_KEEP is set: then they and the range stay for a look, and BU22_CLEAN() takes them away.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Panels, Geometry, Changes, PanelWindow = BU.Store, BU.Panels, BU.Geometry, BU.Changes, BU.PanelWindow
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu22] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu22")
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 
@@ -30,18 +27,10 @@ say("disc 20 reaches (20,0)", Geometry.reached(Geometry.disc(0, 0, 20), 20, 0), 
 
 -- A free square near the player, outside or in a room.
 local function freeSquare(inside)
-    local p = getPlayer():getSquare()
-    for r = 2, 20 do
-        for dx = -r, r do
-            for dy = -r, r do
-                local q = getCell():getGridSquare(p:getX() + dx, p:getY() + dy, 0)
-                if q and (q:getRoom() ~= nil) == inside and q:getObjects():size() == 1 and q:isFree(false)
-                    and not q:getGenerator() and q:getMovingObjects():size() == 0 then
-                    return q
-                end
-            end
-        end
-    end
+    return BUT.squareNear(2, 20, function(q)
+        return (q:getRoom() ~= nil) == inside and q:getObjects():size() == 1 and q:isFree(false) and not q:getGenerator()
+            and q:getMovingObjects():size() == 0
+    end)
 end
 local outside, inside = freeSquare(false), freeSquare(true)
 local old = IsoGenerator.new(instanceItem("Base.Generator_Old"), getCell(), outside)

@@ -1,12 +1,9 @@
 -- Batch 1 of the plan (DESIGN 12): the window's status line, the time format, stats, the empty hint. "[bu18]" lines.
 -- The trip and quiet cut are set on the panel's data only for the reading and put back; the window opens at the end.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, PanelWindow, Ui = BU.Store, BU.PanelWindow, BU.PanelUi
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu18] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu18")
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local function show(label)

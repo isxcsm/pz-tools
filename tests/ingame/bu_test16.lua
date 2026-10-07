@@ -1,19 +1,13 @@
 -- Batch 5: the charge controller (tier 3) and deep discharge protection (tier 4), with made-up network states.
 -- "[bu16]" lines. Leaves nothing behind.
+RUN("bu_lib.lua")
 RUN("bu_rack.lua")
 local BU = BuildingUtilities
 local Store, Units, Changes, Energy, Panels, Networks = BU.Store, BU.Units, BU.Changes, BU.Energy, BU.Panels, BU.Networks
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu16] " .. table.concat(parts, " "))
-end
-local function f(v) return v and string.format("%.3f", v) or "nil" end
+local say = BUT.say("bu16")
+local f = BUT.f
 local player = getPlayer()
-local panel
-for _, p in ipairs(Store.list()) do
-    if not p.parent and math.abs(p.x - player:getX()) + math.abs(p.y - player:getY()) < 60 then panel = p; break end
-end
+local panel = BUT.nearPanel()
 if not panel then say("no panel"); return end
 local tier, controller = panel.tier, panel.controller
 -- The scene's units (bu_visual) would count too: off the panel while this runs.
@@ -45,16 +39,7 @@ say("quiet all day: quiet", q.quiet, "floor", f(q.floor), "restart", f(q.restart
 -- A rack at tier 4: the source can carry the load down to 5%, a generator ready takes over below 30% outside quiet hours.
 panel.tier = 4
 panel.controller = { start = 30, stop = 90, quietFrom = 0, quietTo = 0, protect = 20 }
-local square
-for r = 1, 12 do
-    for dx = -r, r do
-        for dy = -r, r do
-            local sq = getCell():getGridSquare(panel.x + dx, panel.y + dy, panel.z)
-            if not square and sq and Units.canInstall("rack", sq) then square = sq end
-        end
-    end
-    if square then break end
-end
+local square = BUT.square(panel.x, panel.y, panel.z, 1, 12, function(sq) return Units.canInstall("rack", sq) end)
 local rack = Changes.installUnit("rack", square, BU.Rack.SPRITE)
 Changes.connectUnit(rack, panel, {})
 for i = 1, 2 do BURACK.put(rack, { type = "Base.CarBattery1", charge = 0.25, condition = 100 }) end

@@ -1,12 +1,9 @@
 -- For bu_combo: what the water units installed by hand do now, the crops' water, the box's power; then the box's
 -- window on its water tab. "[bucombo2]" lines.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Units, WaterUnits, PanelWindow = BU.Store, BU.Networks, BU.Units, BU.WaterUnits, BU.PanelWindow
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bucombo2] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bucombo2")
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local power = Networks.state(panel, "power")

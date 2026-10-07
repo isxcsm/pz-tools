@@ -3,7 +3,8 @@
 A map's rooms are named in its .lotheader files ("kitchen", "gasstore"); the game has no words for them, so the mod
 gives them its own (BU.roomName, which shows a name without one capitalised). Reads the headers as the game does
 (IsoMetaGrid: "LOTH", version, the tiles used, the chunk size and levels, then each room: its name, level, rectangles
-and objects) and lists the names no translation file has, the most rooms first.
+and objects) and lists the names no translation file has, the most rooms first, then the translated names no map
+has (texts no room shows). Exit code 1 when there are either.
 
     py tools/room_names.py           the names without a translation, with how many rooms have them
     py tools/room_names.py --all     every name, with its count
@@ -80,9 +81,14 @@ def main():
     names = found if '--all' in sys.argv else {name: count for name, count in found.items() if name and name not in have}
     for name, count in sorted(names.items(), key=lambda item: (-item[1], item[0])):
         print(count, name)
-    print('%d names, %d without a translation' % (len(found), len([n for n in found if n and n not in have])),
+    unused = sorted(have - set(found))
+    for name in unused:
+        print('no map has', name)
+    missing = len([n for n in found if n and n not in have])
+    print('%d names, %d without a translation, %d translations no map has' % (len(found), missing, len(unused)),
           file=sys.stderr)
+    return 1 if missing or unused else 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

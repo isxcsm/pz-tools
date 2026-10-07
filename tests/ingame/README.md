@@ -32,14 +32,18 @@ look; `BU22_CLEAN()` takes them away.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the
   console, the tripped lamp's blink frames), each line "ok" or "BAD"; `BULOOKS_CLEAN()` takes its units away. Needs the
   test panel (`bu_setup.lua`) and the game restarted after the sheet changed.
-- `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
-  test save and are kept as a record.
+- `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in a
+  test save that is gone; they are in the history (removed 2026-10-08).
+- `bu_lib.lua`: helpers the checks share (`BUT`: a tagged `say`, number formats, the main panel near the player, the
+  first square around a place that a test takes, free outside squares, the mod's Lua folder). A check that uses them
+  runs `RUN("bu_lib.lua")` first.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.
 - `bu_rack.lua`: helpers that put batteries in a rack's container and take them out.
 - `bu_revive.lua`: a worn battery and the tools in the inventory with Electricity 4, and its context menu opened;
   `BUREVIVE_DONE=true` then running it again puts the level back.
-- The rest look at one thing (`bu_net`, `bu_rackdiag`, `bu_where`, `bu_flowdiag`) or check one game fact (`bu_plumb`,
-  `bu_rainbarrel`, `bu_handover`, `bu_relay`: the relay's click as a generator takes over; `bu_walllamp`: a lamp on an
-  outer wall listed as the building's).
+- `bu_reload.lua`: loads changed mod files (`BU_RELOAD`, paths under `media/lua`) again in the running game, from the
+  active mod's folder or `BU_LUA_DIR`.
+- The rest look at one thing: `bu_diag` (the save's store), `bu_net` (the test panel's power network), `bu_rackdiag`
+  (each rack's container and records), `bu_flowdiag` (the open plan's flow paths).
 
 Files read with `getFileReader` lose non-ASCII letters: take Korean strings from `getText`.

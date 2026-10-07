@@ -1,11 +1,8 @@
 -- Four tiers and the name: capacity, ranges, loss, unlocks per tier; an old save's tier 3 box becomes tier 4.
 -- "[bu12]" lines. Leaves nothing behind.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu12] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu12")
 say("tiers", BU.TIERS, "smart", BU.SMART_TIER, "timer", BU.TIMER_TIER, "link", BU.LINK_TIER)
 for tier = 1, BU.TIERS do
     say("tier", tier, "capacity", BU.capacity(tier), "ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier),

@@ -1,12 +1,9 @@
 -- Batch 3: solar output, the source in the network, snow. "[bu14]" lines. Leaves nothing behind.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Panels, Units, Changes, Networks, Energy = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Networks, BU.Energy
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu14] " .. table.concat(parts, " "))
-end
-local function f(v) return v and string.format("%.3f", v) or "nil" end
+local say = BUT.say("bu14")
+local f = BUT.f
 local player = getPlayer()
 local climate = getClimateManager()
 say("sun", f(Energy.sunlight()), "snowing", climate:isSnowing(), f(climate:getSnowIntensity()), "temp", f(climate:getTemperature()),
@@ -14,27 +11,15 @@ say("sun", f(Energy.sunlight()), "snowing", climate:isSnowing(), f(climate:getSn
 say("canCarry", Energy.canCarry(0.3, 0.28, false), Energy.canCarry(0.3, 0.28, true), Energy.canCarry(0.27, 0.28, true), Energy.canCarry(0, 0, false),
     Energy.canCarry(0.1, 0, false))
 
-local panel
-for _, p in ipairs(Store.list()) do
-    if not p.parent and math.abs(p.x - player:getX()) + math.abs(p.y - player:getY()) < 60 then panel = p; break end
-end
+local panel = BUT.nearPanel()
 say("panel", panel and panel.id or "none", "generators", panel and #panel.power.producers)
 if not panel then return end
-local cell = getCell()
 local squares = {}
-for r = 1, 12 do
-    for dx = -r, r do
-        for dy = -r, r do
-            local sq = cell:getGridSquare(panel.x + dx, panel.y + dy, 0)
-            if sq and #squares < 4 and Units.canInstall("solar", sq) then
-                local taken = false
-                for _, other in ipairs(squares) do taken = taken or other == sq end
-                if not taken then squares[#squares + 1] = sq end
-            end
-        end
-    end
-    if #squares >= 4 then break end
+local function untaken(sq)
+    for _, other in ipairs(squares) do if other == sq then return false end end
+    return Units.canInstall("solar", sq)
 end
+for _ = 1, 4 do squares[#squares + 1] = BUT.square(panel.x, panel.y, 0, 1, 12, untaken) end
 local units = {}
 for _, sq in ipairs(squares) do
     local unit = Changes.installUnit("solar", sq, Units.spriteFor("solar", sq, player))

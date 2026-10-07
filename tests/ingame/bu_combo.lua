@@ -3,13 +3,10 @@
 -- seeded crops beside where the sprinkler goes, and a fuelled generator wired to the test panel. Prints where the
 -- squares are on the screen ("[bucombo]" lines). BUCOMBO_CLEAN() takes away what it put down (the crops, the well, the
 -- generator's line); units installed by hand are taken down by hand.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Changes = BU.Store, BU.Changes
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bucombo] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bucombo")
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local player = getPlayer()
@@ -38,24 +35,16 @@ end
 
 -- Squares outside near the player, free, in a row of four along x: the pump's (the well east of it), the
 -- sprinkler's (the crops south of it), the filter's.
-local function free(q) return q and q:isOutside() and q:getObjects():size() == 1 and q:isFree(false) and q:getMovingObjects():size() == 0 end
 local function row(fromX, y, count)
     for i = 0, count - 1 do
-        if not free(cell:getGridSquare(fromX + i, y, 0)) then return false end
+        local q = cell:getGridSquare(fromX + i, y, 0)
+        if not (q and BUT.freeOutside(q)) then return false end
     end
     return true
 end
-local p = player:getSquare()
-local baseX, baseY
-for r = 2, 10 do
-    for dy = -r, r do
-        for dx = -r, r do
-            local x, y = p:getX() + dx, p:getY() + dy
-            if not baseX and row(x, y, 6) and row(x + 2, y + 1, 2) then baseX, baseY = x, y end
-        end
-    end
-end
-if not baseX then say("no free squares"); return end
+local base = BUT.squareNear(2, 10, function(q) return row(q:getX(), q:getY(), 6) and row(q:getX() + 2, q:getY() + 1, 2) end)
+if not base then say("no free squares"); return end
+local baseX, baseY = base:getX(), base:getY()
 local pumpAt, wellAt = { baseX, baseY }, { baseX + 1, baseY }
 local sprinklerAt, cropsAt = { baseX + 3, baseY }, { { baseX + 2, baseY + 1 }, { baseX + 3, baseY + 1 } }
 local filterAt = { baseX + 5, baseY }
@@ -72,15 +61,7 @@ for _, at in ipairs(cropsAt) do
 end
 
 -- A generator with fuel, wired to the box: the panel's power and the noise.
-local generatorSquare
-for r = 3, 12 do
-    for dy = -r, r do
-        for dx = -r, r do
-            local q = cell:getGridSquare(p:getX() + dx, p:getY() + dy, 0)
-            if not generatorSquare and q and q:getGenerator() then generatorSquare = q end
-        end
-    end
-end
+local generatorSquare = BUT.squareNear(3, 12, function(q) return q:getGenerator() ~= nil end)
 local placed = false
 if not generatorSquare then
     generatorSquare = cell:getGridSquare(baseX, baseY + 2, 0)

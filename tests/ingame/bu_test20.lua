@@ -1,14 +1,11 @@
 -- Batch 3 of the plan (DESIGN 12): the water groups and their floor trees, draw and fill through the API, freezing,
 -- lamps on outer walls, the plan's room outlines and the range's speed. "[bu20]" lines. Leaves the panel's water as
 -- it found it, and the window open with the plan shown.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Water, Changes, PanelWindow = BU.Store, BU.Networks, BU.Water, BU.Changes, BU.PanelWindow
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu20] " .. table.concat(parts, " "))
-end
-local function litres(value) return value and string.format("%.1f", value) or "-" end
+local say = BUT.say("bu20")
+local function litres(value) return BUT.litres(value, 1) end
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local api = BU.api()
