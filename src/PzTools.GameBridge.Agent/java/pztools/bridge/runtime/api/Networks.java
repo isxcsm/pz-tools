@@ -189,6 +189,7 @@ final class Networks {
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
             network.standby.keySet().retainAll(producers);
+            if (!producers.contains(network.resume)) network.resume = null;
             List<Position> squares = network.squares();
             network.settled.keySet().retainAll(squares);
             network.stored.keySet().retainAll(squares);
@@ -728,7 +729,9 @@ final class Networks {
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.supplied ? "1" : "").append('\t').append(network.suppliedAt)
                 .append('\t').append(network.load).append('\t').append(network.total).append('\t').append(network.loadComplete ? "1" : "")
-                .append('\t').append(key(network.inUse)).append('\n');
+                .append('\t').append(key(network.inUse))
+                // Added later: whether the API stopped its producers as it was switched off, and the one to start first.
+                .append('\t').append(network.stopped ? "1" : "").append('\t').append(key(network.resume)).append('\n');
             for (var seen : network.seen.entrySet()) {
                 // Added later, at the end so that an earlier payload reads the line still: the standby mark, if any.
                 Integer standby = network.standby.get(seen.getKey());
@@ -800,6 +803,13 @@ final class Networks {
                 network.loadComplete = "1".equals(fields[6]);
                 Producer inUse = producer(fields[7]);
                 network.inUse = network.producers.contains(inUse) ? inUse : null;
+                // From a payload before them, none: a network it left switched off with its producer running is stopped
+                // at the next frame, which starts that producer first when the network is switched on again.
+                if (fields.length > 9) {
+                    network.stopped = "1".equals(fields[8]);
+                    Producer resume = producer(fields[9]);
+                    network.resume = network.producers.contains(resume) ? resume : null;
+                }
                 network.consumption = new LinkedHashMap<>();
                 continue;
             }

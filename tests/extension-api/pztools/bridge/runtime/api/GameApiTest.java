@@ -63,6 +63,7 @@ public final class GameApiTest {
         cheapHooks(api);
         sources(api);
         service(api);
+        switchedOff(api);
         failedTakeover(api);
         handover(api);
         water(api);
@@ -603,8 +604,9 @@ public final class GameApiTest {
     }
 
     /**
-     * A network switched off has no supply, nor have its children; its producer keeps running without the load, which
-     * still reads. Food in its fridge ages unchilled for the hours it was off, and a newer payload keeps the switch.
+     * A network switched off has no supply, nor have its children; the API switches its producer off, and its load still
+     * reads. A child switched off leaves its parent's producer running. Food in its fridge ages unchilled for the hours
+     * it was off, and a newer payload keeps the switch.
      */
     private static void switches(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -639,7 +641,7 @@ public final class GameApiTest {
         check(near((Double)sub.rawget("load"), subLoad) && near((Double)main.rawget("load"), ownLoad)
             && main.rawget("supplied").equals(true) && square(11, 11, 0).haveElectricity(), "The parent still carries the child switched off");
         check(near(generator.getTotalPowerUsing(), (0.02 + ownLoad) * 0.1), "The producer burns the load of a child switched off");
-        // The parent off for ten hours: neither has supply, and the producer keeps running without the load.
+        // The parent off for ten hours: neither has supply, and the API switches its producer off, on standby.
         call(networks, "setEnabled", mod, "sub", true);
         time.hours = 2510;
         call(networks, "setEnabled", mod, "main", false);
@@ -647,15 +649,16 @@ public final class GameApiTest {
         main = state(networks, "main");
         check(main.rawget("supplied").equals(false) && state(networks, "sub").rawget("supplied").equals(false)
             && !square(11, 11, 0).haveElectricity() && !square(21, 21, 0).haveElectricity(), "A network switched off has supply");
-        check(generator.isActivated() && near(generator.getTotalPowerUsing(), 0.02 * 0.1) && near((Double)main.rawget("load"), ownLoad + subLoad),
-            "Switched off, the producer stopped, burned the load, or the load no longer reads");
+        check(!generator.isActivated() && main.rawget("producer") == null && standby(networks, "main", 1)
+            && near((Double)main.rawget("load"), ownLoad + subLoad), "Switched off, the producer still runs, or the load no longer reads");
         rejects(networks, "setEnabled", "on must be true or false", mod, "main", "yes");
         Object other = call(api, "client", "other.mod").get(0);
         rejects(networks, "setEnabled", "main belongs to another mod", other, "main", true);
         time.hours = 2520;
         call(networks, "setEnabled", mod, "main", true);
         frame();
-        check(state(networks, "main").rawget("supplied").equals(true) && square(21, 21, 0).haveElectricity(), "Switched on again, no supply");
+        check(state(networks, "main").rawget("supplied").equals(true) && square(21, 21, 0).haveElectricity() && generator.isActivated()
+            && generator.lastHour() == 2520, "Switched on again, no supply, or its producer did not start again");
         time.hours = 2530;
         food.updateAge(false);
         check(near(food.age, (20 * 0.2 + 10) / 24), "Food aged chilled while the network was switched off: " + food.age * 24);
@@ -1092,6 +1095,100 @@ public final class GameApiTest {
         call(networks, "remove", mod, "svc");
         frame();
         for (int x = 36; x <= 38; x++) square(x, 40, 0).objects.clear();
+    }
+
+    /**
+     * A power network switched off stops its generators: the API switches them off, on standby, and they burn nothing.
+     * Switched on again, the one in use before starts, or the first on standby that can run if it cannot; never one out
+     * of service. One a player switches on meanwhile goes back off at once and starts first. A world loaded again and a
+     * newer payload keep which one starts first.
+     */
+    private static void switchedOff(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 6000;
+        IsoGenerator d = place(36, 42, 0, new IsoGenerator(new IsoSprite("generator"))), e = place(37, 42, 0, new IsoGenerator(new IsoSprite("generator"))),
+            f = place(38, 42, 0, new IsoGenerator(new IsoSprite("generator")));
+        Runnable define = () -> {
+            call(networks, "define", mod, "svc", "power", "sequential");
+            call(networks, "setProducers", mod, "svc", list(at(36, 42, 0), at(37, 42, 0), at(38, 42, 0)));
+            call(networks, "addBuilding", mod, "svc", 11.0, 11.0, 0.0);
+        };
+        define.run();
+        frame();
+        e.setActivated(true);
+        frame();
+        d.setActivated(true);
+        frame();
+        check(d.activated && !e.activated && !f.activated && standby(networks, "svc", 2) && !standby(networks, "svc", 3), "The network does not run");
+        // Switched off: the one in use is switched off, on standby, marked to start first, and burns nothing.
+        LuaEventManager.raised.clear();
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        check(!d.activated && !e.activated && !f.activated && standby(networks, "svc", 1) && standby(networks, "svc", 2)
+            && !standby(networks, "svc", 3) && state(networks, "svc").rawget("producer") == null && raised("svc", "supply", 6000)
+            && Boolean.TRUE.equals(d.getModData().rawget(PowerGrid.RESUME)), "Switching the network off did not stop its generator");
+        float fuel = d.fuel;
+        time.hours = 6010;
+        d.update();
+        check(d.fuel == fuel, "A generator of a network switched off burned fuel");
+        // Switched on: it starts again, from now.
+        call(networks, "setEnabled", mod, "svc", true);
+        frame();
+        check(d.activated && !e.activated && !f.activated && d.lastHour() == 6010 && serving(networks) == 36.0
+            && state(networks, "svc").rawget("supplied").equals(true) && d.getModData().rawget(PowerGrid.RESUME) == null,
+            "Switching the network on did not start the one in use before");
+        // It can no longer run when the network is switched on: the first on standby that can starts instead.
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        d.fuel = 0;
+        call(networks, "setEnabled", mod, "svc", true);
+        frame();
+        check(e.activated && !d.activated && !f.activated && serving(networks) == 37.0, "The next on standby did not start for one that cannot run");
+        // None on standby can run: the one out of service stays off, and the network has no supply.
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        e.fuel = 0;
+        call(networks, "setEnabled", mod, "svc", true);
+        frame();
+        check(!d.activated && !e.activated && !f.activated && state(networks, "svc").rawget("supplied").equals(false),
+            "Switching the network on started a generator out of service");
+        // Switched on by hand while the network is off: back off at once, on standby, and the one to start first.
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        f.setActivated(true);
+        frame();
+        check(!f.activated && standby(networks, "svc", 3) && state(networks, "svc").rawget("supplied").equals(false)
+            && Boolean.TRUE.equals(f.getModData().rawget(PowerGrid.RESUME)), "A generator switched on in a network switched off kept running");
+        // A world loaded again, the network defined switched off: none starts until it is switched on, and then the
+        // marked one, before the first in order.
+        d.fuel = 5;
+        var world = IsoWorld.instance;
+        IsoWorld.instance = null;
+        frame();
+        IsoWorld.instance = world;
+        frame();
+        define.run();
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        check(!d.activated && !f.activated && standby(networks, "svc", 1) && standby(networks, "svc", 3), "A world loaded again lost the standby marks");
+        call(networks, "setEnabled", mod, "svc", true);
+        frame();
+        check(f.activated && !d.activated && !e.activated && serving(networks) == 38.0, "After a load, the one to start first did not");
+        // A newer payload keeps it too.
+        call(networks, "setEnabled", mod, "svc", false);
+        frame();
+        GameApi.register(LuaManager.class);
+        frame();
+        check(!f.activated && !d.activated, "A newer payload started a generator of a network switched off");
+        call(networks, "setEnabled", mod, "svc", true);
+        frame();
+        check(f.activated && !d.activated && !e.activated && serving(networks) == 38.0, "After a newer payload, the one to start first did not");
+        call(networks, "remove", mod, "svc");
+        frame();
+        f.setActivated(false);
+        for (int x = 36; x <= 38; x++) square(x, 42, 0).objects.clear();
     }
 
     /** The x of the producer in use of the network "svc", or NaN without one or for a source. */

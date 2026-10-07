@@ -104,6 +104,13 @@ final class Network {
      * hand, or never switched on in the network.
      */
     final Map<Producer, Integer> standby = new HashMap<>();
+    /**
+     * Power, at the top of its parents: whether the API stopped its producers as it was switched off (and has not
+     * started one since it was switched on again), and the producer to start first as it is switched on again: the one
+     * in use when it was switched off, or one a player switched on meanwhile. Null for none.
+     */
+    boolean stopped;
+    Producer resume;
     /** The producer that carries the load; null when the network has none running, and always for a child. */
     Producer inUse;
     /**

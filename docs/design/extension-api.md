@@ -158,7 +158,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setExtraLoad(handle, id, load)` | Power only: adds a load (0 to 1000) to the network's consumers', as for a source that charges from it. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
-| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
+| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children. A power network at the top of its parents runs no producer while it is off: the API switches its running generators off, on standby, and leaves its sources off; a generator a player switches on meanwhile goes back off at once. Switched on again, the producer in use before starts if it can run (also after the world was loaded again, by its mark), or else the first on standby, in order, that can; with none, it has no supply. A generator out of service never starts. A child switched off leaves its parent's producers running. A mod sets the switch as it defines the network, before the next frame. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
 | `networks.setPurify(handle, id, on)` | Water only: whether the water its fixtures give is purified, as vanilla purifies plumbed water (`true`, the default), or keeps the taint of the producer it comes from (`false`; see [fluids](#water)). Its own setting, also for a child. `false` is a Lua error in a game without both of the hooks it needs (`IsoObject.createSampleAndPurifyWater` and `isTaintedWater`, as the class is now): a game started by an install from before them gets them as it starts again; `PZToolsAPI.hooks()` says why one is missing. |
 | `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `standby` (`true` while it is off and on standby: the API may switch it on when the one in use stops, if it can run; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `standby` is out of service: switched off by hand, and the API never switches it on (see [power](#power)); its fuel and condition tell one that could not run anyway. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
@@ -211,7 +211,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
   supply started and stopped (see Food below).
-- Switch: `setEnabled` switches a network off and on, for power and water.
+- Switch: `setEnabled` switches a network off and on, for power and water. A power network switched
+  off stops its generators (on standby, burning nothing); switched on, the one in use before starts
+  again, or the next on standby that can run.
 - Load factor: `setLoadFactor` multiplies a power network's load on its way to the producer.
 - Rooms: `addRoom` takes single rooms of a building instead of all of it.
 - Sources: producers its mod runs (`setSource`), in the same order as generators under `"sequential"`;
@@ -227,9 +229,12 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - **Supply.** A network is supplied while its producer in use runs. Under `"sequential"` only that
   one is switched on; the API switches on the next on standby when it is switched off, runs out or
   breaks. A child is supplied
-  when its parent is. A network switched off (`setEnabled`) is not, nor are its children; its
-  producer in use keeps running as the game runs it and burns its base consumption alone, and a child
-  switched off adds nothing to its parent's load.
+  when its parent is. A network switched off (`setEnabled`) is not, nor are its children; the
+  API switches its generators off, on standby, and the one in use before starts first when it is
+  switched on again (if it cannot run, the first on standby that can). A generator switched on by hand
+  while the network is off is in service again: the API switches it straight back off, and it is the
+  one that starts first. A child switched off adds nothing to its parent's load, and its parent's
+  producer keeps running.
 - **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
   constants on `IsoGenerator`) over its consumers and its children's, each network's times its load
   factor, computed when a consumer is added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
@@ -282,7 +287,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   the marks also in memory, for generators on squares that are not loaded too, and a newer payload
   takes them over. After a world loads, the producer
   the game runs is the one in use; the API records it as its first update starts, before the game
-  makes up for the hours away.
+  makes up for the hours away. The one to start first when a network switched off is switched on
+  again carries a second mark, `PZToolsResume` (`true`), which counts only with its standby mark; a
+  newer payload takes that over too.
 
 ### Water
 
@@ -499,7 +506,8 @@ switched off by the API, takes over at once with `producer` instead of `supply`.
 the game: a generator switched off by hand stays off through a failover, a running-out and a source
 stopping; the mark in `modData` after a save is loaded again; and a generator switched on and off by
 hand within the same hour that the API marked it (the API sees the switch only through the
-generator's update while it runs).
+generator's update while it runs); and a network switched off with `setEnabled` stopping its
+generator and starting it again.
 
 On 7 October 2026 stage 3 was checked in the same game, started again with the new bootstrap, by a
 throwaway Lua script loaded from the debug console. No `[PzTools API]` report: the water hooks found
@@ -520,6 +528,9 @@ and `PZToolsAPI.hooks()` in the debug console gave 15 of 15 applied. With one ho
 failure by hand, the app's next round logged a warning naming `IsoGenerator.update`.
 
 ## Costs and risks
+- A generator in use whose square is not loaded when its network is switched off cannot be switched
+  off then: it runs on in the save, and the API switches it off as its square loads, after the game
+  burned the hours it was away.
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
 - Splitting food age changes a vanilla calculation that other mods may also change.
