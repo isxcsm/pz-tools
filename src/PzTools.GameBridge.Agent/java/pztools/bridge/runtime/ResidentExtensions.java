@@ -22,7 +22,7 @@ import java.util.*;
 final class ResidentExtensions {
     static final String DESIRED = "resident.tsv";
     private static final int MAX_DESIRED = 1 << 20;
-    private static final long INTERVAL_MILLIS = 1000, WAKE_MILLIS = 250;
+    private static final long WAKE_MILLIS = 250;
     private static final Object gate = new Object();
     // Guarded by gate.
     private static Path root;
@@ -30,6 +30,26 @@ final class ResidentExtensions {
     private static Thread runner;
     private static int pauses;
     private static ExtensionControl.Session owner;
+
+    /** What the controller asks of the bootstrap and the game. The tests, which run without either, give their own. */
+    interface Host {
+        boolean reloadRequested();
+        /** Whether this controller's payload is still the one loaded; a replaced one ends. */
+        boolean current();
+        /** A session that keeps the modules when it ends; throws while the game is not ready for one. */
+        ExtensionControl.Session session(Instrumentation instrumentation) throws Exception;
+        /** How long between two passes over the wanted modules. */
+        default long intervalMillis() { return 1000; }
+    }
+
+    static volatile Host host = new Host() {
+        @Override public boolean reloadRequested() { return AgentEntry.runtimeReloadRequested(); }
+        @Override public boolean current() { return AgentEntry.payloadCurrent(ResidentExtensions.class); }
+        @Override public ExtensionControl.Session session(Instrumentation value) throws Exception {
+            return new ExtensionControl.Session(value, AgentEntry.ensureGameHook(), System::nanoTime,
+                ExtensionHost::continuous, ExtensionControl::residentHostAbi, false, true);
+        }
+    };
 
     private ResidentExtensions() { }
 
@@ -65,7 +85,7 @@ final class ResidentExtensions {
         synchronized (gate) {
             if (pauses > 0) pauses--;
             gate.notifyAll();
-            if (root != null && (runner == null || !runner.isAlive()) && AgentEntry.payloadCurrent(ResidentExtensions.class)) {
+            if (root != null && (runner == null || !runner.isAlive()) && host.current()) {
                 runner = new Thread(ResidentExtensions::run, "PzTools-resident-extensions");
                 runner.setDaemon(true);
                 runner.start();
@@ -75,24 +95,32 @@ final class ResidentExtensions {
 
     private static void run() {
         var controller = new Controller();
+        String reported = null;
         try {
             long next = System.nanoTime();
             while (true) {
-                if (AgentEntry.runtimeReloadRequested()) {
-                    // A payload reload waits for the lifecycle job. Should it fail, this controller goes on; should
-                    // it succeed, the new payload starts its own and this one ends.
+                // Whatever one pass throws (a host that does not link, say), this controller lets go of the session and
+                // tries again on the next pass: the extensions of a game without the app must not stop for good.
+                try {
+                    if (host.reloadRequested()) {
+                        // A payload reload waits for the lifecycle job. Should it fail, this controller goes on; should
+                        // it succeed, the new payload starts its own and this one ends.
+                        releaseOwner();
+                    } else if (!host.current()) return;
+                    else if (System.nanoTime() - next >= 0) {
+                        next = System.nanoTime() + host.intervalMillis() * 1_000_000;
+                        pass(controller);
+                    }
+                } catch (Throwable failure) {
                     releaseOwner();
-                } else if (!AgentEntry.payloadCurrent(ResidentExtensions.class)) return;
-                else if (System.nanoTime() - next >= 0) {
-                    next = System.nanoTime() + INTERVAL_MILLIS * 1_000_000;
-                    pass(controller);
+                    String text = String.valueOf(failure);
+                    if (!text.equals(reported)) System.err.println("[PzTools resident extensions] " + text);
+                    reported = text;
                 }
-                synchronized (gate) { gate.wait(WAKE_MILLIS); }
+                synchronized (gate) { gate.wait(Math.min(WAKE_MILLIS, host.intervalMillis())); }
             }
         } catch (InterruptedException stopped) {
             Thread.currentThread().interrupt();
-        } catch (Throwable failure) {
-            System.err.println("[PzTools resident extensions] " + failure);
         } finally {
             ExtensionControl.Session current;
             synchronized (gate) {
@@ -123,10 +151,8 @@ final class ResidentExtensions {
         ExtensionControl.Session session;
         Instrumentation value;
         synchronized (gate) { value = instrumentation; }
-        try {
-            session = new ExtensionControl.Session(value, AgentEntry.ensureGameHook(), System::nanoTime,
-                ExtensionHost::continuous, ExtensionControl::residentHostAbi, false, true);
-        } catch (Exception | LinkageError notReady) { return null; } // GameWindow has not loaded yet, for one.
+        try { session = host.session(value); }
+        catch (Exception | LinkageError notReady) { return null; } // GameWindow has not loaded yet, for one.
         synchronized (gate) {
             if (pauses == 0 && owner == null && Frames.add(Frames.Job.LIFECYCLE, session, session::poll)) { owner = session; return session; }
         }

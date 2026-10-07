@@ -213,7 +213,9 @@ In installed mode, extensions stay in the game until it exits.
 - **World changes.** Leaving a world withdraws the modules as today. In the next world the resident
   controller asks for them again.
 - **Faults.** A request the game refused, or a module it faulted, is not asked for again in the same
-  world at the same revision; a module that needs a restart is left alone. When the app connects, it
+  world at the same revision; a module that needs a restart is left alone. A pass of the controller
+  that fails in any way (an extension runtime whose classes do not link, say) lets go of the
+  lifecycle, and the next pass tries again: the controller does not stop while the game runs. When the app connects, it
   records the failure as it does now (`enabled: false` at that revision), which reaches
   `resident.tsv` in turn.
 - **Turning off.** An extension's switch while the app is connected turns it off at once. With the
