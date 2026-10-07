@@ -38,7 +38,7 @@ nothing and says why.
 | Adds to vanilla | Every answer is vanilla's answer, or more. Something no network contains behaves as in vanilla. |
 | Part of the install | The API is infrastructure, not a feature with its own switch: turning it off would cut every dependent mod's power at once. It exists only in a game the [startup loader](startup-loader.md) started, and it is always on there. A game the app attached to has no API. |
 | Never fails closed | Other extensions are revoked when they fault. The API is not: a hook that cannot answer gives vanilla's answer for that call, and the API keeps running. A fault is reported, never turned into a power cut. |
-| Single player | PZ Tools runs only in a local single-player world; so does the API. |
+| Single player supported | Single player is what is supported and tested. Multiplayer is not blocked, only untested: the API runs there as it does in single player, and only what would be wrong on a client (changing what producers hold) is refused. |
 
 ## Reaching the API from Lua
 
