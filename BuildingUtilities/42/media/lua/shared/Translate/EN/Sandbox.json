@@ -1,0 +1,9 @@
+{
+    "Sandbox_BuildingUtilities": "Building Utilities",
+    "Sandbox_BuildingUtilities_ProducerRange": "Generator and water tank range",
+    "Sandbox_BuildingUtilities_ProducerRange_tooltip": "How far from a building's outline, in tiles, a generator or water tank can be connected to its breaker box.",
+    "Sandbox_BuildingUtilities_ExteriorRange": "Outside device range",
+    "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "How far from a building's outline, in tiles, a device outside any building can be connected to its breaker box.",
+    "Sandbox_BuildingUtilities_SubPanelRange": "Sub-panel range",
+    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "How far apart, in tiles, two buildings can be for one's breaker box to take supply from the other's."
+}

@@ -1,0 +1,9 @@
+{
+    "Sandbox_BuildingUtilities": "건물 유틸리티",
+    "Sandbox_BuildingUtilities_ProducerRange": "발전기·물탱크 거리",
+    "Sandbox_BuildingUtilities_ProducerRange_tooltip": "건물 외곽에서 몇 칸 안의 발전기·물탱크를 차단기함에 연결할 수 있는지.",
+    "Sandbox_BuildingUtilities_ExteriorRange": "바깥 기기 거리",
+    "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기를 차단기함에 연결할 수 있는지.",
+    "Sandbox_BuildingUtilities_SubPanelRange": "보조 차단기함 거리",
+    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "한 건물의 차단기함이 다른 건물의 차단기함에서 공급받을 수 있는 두 건물 사이 거리(칸)."
+}

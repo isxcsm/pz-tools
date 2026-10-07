@@ -1,0 +1,19 @@
+VERSION = 1,
+
+option BuildingUtilities.ProducerRange
+{
+    type = integer, min = 1, max = 100, default = 20,
+    page = BuildingUtilities, translation = BuildingUtilities_ProducerRange,
+}
+
+option BuildingUtilities.ExteriorRange
+{
+    type = integer, min = 0, max = 32, default = 10,
+    page = BuildingUtilities, translation = BuildingUtilities_ExteriorRange,
+}
+
+option BuildingUtilities.SubPanelRange
+{
+    type = integer, min = 1, max = 300, default = 50,
+    page = BuildingUtilities, translation = BuildingUtilities_SubPanelRange,
+}

@@ -1,0 +1,6 @@
+name=Building Utilities
+id=BuildingUtilities
+author=PZ Tools
+description=One breaker box powers and waters a whole building, from generators and water tanks outside it. Needs PZ Tools installed (its startup loader).
+modversion=0.1.0
+versionMin=42.0.0
