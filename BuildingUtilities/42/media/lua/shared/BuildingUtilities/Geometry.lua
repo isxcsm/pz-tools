@@ -111,6 +111,18 @@ function Geometry.toBuilding(x, y, rooms)
     return best
 end
 
+-- The rectangles of rooms (as buildings.rooms lists them): those on a level, and all of them.
+function Geometry.roomRects(rooms, level)
+    local onLevel, all = {}, {}
+    for _, room in ipairs(rooms) do
+        for _, rect in ipairs(room.rects) do
+            all[#all + 1] = rect
+            if room.level == level then onLevel[#onLevel + 1] = rect end
+        end
+    end
+    return onLevel, all
+end
+
 -- Steps between two buildings' outlines.
 function Geometry.betweenBuildings(roomsA, roomsB)
     local best

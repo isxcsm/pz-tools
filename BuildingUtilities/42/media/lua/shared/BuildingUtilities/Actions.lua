@@ -34,11 +34,7 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not ok then return nil, reason end
         return Costs.producer(utility, Panels.steps(panel, x, y))
     elseif kind == "outside" then
-        local device = Panels.device(panel, utility, BU.thingKey(x, y, z, extra))
-        if not device or device.inside then return nil, "noDevice" end
-        if device.state == "other" then return nil, "connectedElsewhere" end
-        if device.state == "on" then return nil, "connected" end
-        return Costs.outside(utility, Panels.steps(panel, x, y)), device
+        return Actions.outsideCost(panel, utility, Panels.device(panel, utility, BU.thingKey(x, y, z, extra)))
     elseif kind == "link" then
         local parent = Store.get(extra)
         if not parent then return nil, "noPanel" end
@@ -53,6 +49,15 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         return Costs.producer(Units.utility(unit), Panels.steps(panel, x, y)), unit
     end
     return nil, "noPanel"
+end
+
+-- What the line of a device outside costs, from the device as Panels.devices gives it (a menu or a window that has
+-- the panel's devices already does not ask the API for them again); nil with a reason when it cannot be laid.
+function Actions.outsideCost(panel, utility, device)
+    if not device or device.inside then return nil, "noDevice" end
+    if device.state == "other" then return nil, "connectedElsewhere" end
+    if device.state == "on" then return nil, "connected" end
+    return Costs.outside(utility, Panels.steps(panel, device.entry.x, device.entry.y)), device
 end
 
 -- How long laying a line takes: longer the farther it goes.

@@ -112,3 +112,10 @@ function Energy.run(panel, state, hours, available, rules)
     if Energy.canCarry(output, rules.load, available) then return true, bank, output end
     return bank.usable > bank.capacity * (available and rules.floor or rules.restart), bank, output
 end
+
+-- How many hours the bank lasts drawn at a flow (below 0, load an hour) down to the floor its rules keep (a share of
+-- its capacity); nil when it is not drawn.
+function Energy.bankHoursLeft(bank, floor, flow)
+    if not bank or flow >= 0 then return nil end
+    return math.max(0, bank.usable - bank.capacity * floor) / -flow
+end

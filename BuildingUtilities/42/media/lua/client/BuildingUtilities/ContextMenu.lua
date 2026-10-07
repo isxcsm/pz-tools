@@ -223,26 +223,52 @@ local function addDeviceOption(context, playerObj, utility, panel, device)
     else
         local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), playerObj, onConnect,
             "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
-        local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local cost, reason = Actions.outsideCost(panel, utility, device)
         if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
     end
 end
 
-local function addDeviceOptions(context, playerObj, square)
-    local seen = {}
+local function uses(object, utility)
+    if utility == "power" then return object:couldBePoweredByGenerator() end
+    return object:getProperties() ~= nil and object:getProperties():has(IsoFlagType.waterPiped)
+end
+
+-- The square's objects that are devices of a panel, each once: { panel, device, utility }. The panels near the square
+-- and their devices are found once for the menu (Panels.deviceOf).
+local function squareDevices(square)
+    local result, seen, cache = {}, {}, {}
     for _, object in ipairs(squareObjects(square)) do
         for _, utility in ipairs(BU.UTILITIES) do
-            local uses = utility == "power" and object:couldBePoweredByGenerator()
-                or utility == "water" and object:getProperties() and object:getProperties():has(IsoFlagType.waterPiped)
-            if uses then
-                local panel, device = Panels.deviceOf(object, utility)
+            if uses(object, utility) then
+                local panel, device = Panels.deviceOf(object, utility, cache)
                 if panel and not seen[device.key .. utility] then
                     seen[device.key .. utility] = true
-                    addDeviceOption(context, playerObj, utility, panel, device)
+                    result[#result + 1] = { panel = panel, device = device, utility = utility }
                 end
             end
         end
     end
+    return result
+end
+
+local function addDeviceOptions(context, playerObj, square)
+    for _, found in ipairs(squareDevices(square)) do
+        addDeviceOption(context, playerObj, found.utility, found.panel, found.device)
+    end
+end
+
+-- Whether the menu has an option of this mod for the square, without building it: the controller's test pass.
+local function hasOptions(playerObj, square)
+    for _, object in ipairs(squareObjects(square)) do
+        if Panels.ofObject(object) or Units.ofObject(object) then return true end
+    end
+    local inventory = playerObj:getInventory()
+    if inventory:getFirstTypeRecurse(BU.PANEL_ITEM) then return true end
+    for _, kind in ipairs(Units.KINDS) do
+        if inventory:getFirstTypeRecurse(Units.definition(kind).item) then return true end
+    end
+    if not BU.api() then return false end
+    return Panels.producerOn(square) ~= nil or #squareDevices(square) > 0
 end
 
 function ContextMenu.fill(player, context, worldobjects, test)
@@ -250,6 +276,10 @@ function ContextMenu.fill(player, context, worldobjects, test)
     local playerObj = getSpecificPlayer(player)
     local square = clickedSquare(worldobjects)
     if not playerObj or not square then return end
+    if test then
+        if hasOptions(playerObj, square) then return ISWorldObjectContextMenu.setTest() end
+        return
+    end
     for _, object in ipairs(squareObjects(square)) do
         local panel = Panels.ofObject(object)
         if panel then addPanelOptions(context, playerObj, panel) end

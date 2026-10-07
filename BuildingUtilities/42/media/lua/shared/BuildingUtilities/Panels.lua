@@ -414,18 +414,66 @@ function Panels.device(panel, utility, key)
     return nil
 end
 
+-- The panels a square can be a device of: those of its building, and those whose outside range reaches it. The
+-- steps are to the building's rooms on any level, never more than buildings.near counts on the square's own, so
+-- none that has it is left out; a square far from every box asks the API for no devices.
+local function devicePanels(x, y, z)
+    local building = Panels.buildingAt(x, y, z)
+    local result = {}
+    for _, panel in ipairs(Store.list()) do
+        local own = Panels.building(panel)
+        local steps = own and Geometry.toBuilding(x, y, Panels.rooms(own))
+        if own and (building and own.key == building.key or steps and steps <= BU.exteriorRange(panel.tier)) then
+            result[#result + 1] = panel
+        end
+    end
+    return result
+end
+
+-- A panel's devices of a utility by the key of each of their parts.
+local function devicesByKey(panel, utility)
+    local result = {}
+    for _, device in ipairs(Panels.devices(panel, utility)) do
+        for _, part in ipairs(device.keys) do result[part] = device end
+    end
+    return result
+end
+
 -- The panel and device entry for a world object, for the context menu: the panel of its building, or a panel in
--- whose outside range it stands. Nil when it is no device of a panel.
-function Panels.deviceOf(object, utility)
+-- whose outside range it stands. Nil when it is no device of a panel. cache, a table kept for one menu, saves
+-- finding the panels near a square and their devices again for each object and utility.
+function Panels.deviceOf(object, utility, cache)
     local square = object:getSquare()
     if not square then return nil end
     local sprite = object:getSprite() and object:getSprite():getName()
     if not sprite then return nil end
-    local key = BU.thingKey(square:getX(), square:getY(), square:getZ(), sprite)
-    for _, panel in ipairs(Store.list()) do
-        local device = Panels.device(panel, utility, key)
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local key = BU.thingKey(x, y, z, sprite)
+    cache = cache or {}
+    cache.near, cache.devices = cache.near or {}, cache.devices or {}
+    local at = x .. "," .. y .. "," .. z
+    cache.near[at] = cache.near[at] or devicePanels(x, y, z)
+    for _, panel in ipairs(cache.near[at]) do
+        local slot = panel.id .. "|" .. utility
+        cache.devices[slot] = cache.devices[slot] or devicesByKey(panel, utility)
+        local device = cache.devices[slot][key]
         if device then return panel, device end
     end
+    return nil
+end
+
+-- For a device that uses both power and water and is connected for one utility: the other when the panel lacks it
+-- there (excluded inside, not added outside, or its network, otherState, without supply), else nil.
+function Panels.missingOther(panel, utility, device, otherState)
+    local entry = device.entry
+    if not (entry.power and entry.water) then return nil end
+    local other = utility == "power" and "water" or "power"
+    local excluded, included = false, false
+    for _, key in ipairs(device.keys) do
+        excluded = excluded or device.inside and panel[other].excluded[key] ~= nil
+        included = included or not device.inside and panel[other].included[key] ~= nil
+    end
+    if excluded or (not device.inside and not included) or not (otherState and otherState.supplied) then return other end
     return nil
 end
 
@@ -554,7 +602,13 @@ function Panels.name(panel)
     return count > 1 and (base .. " " .. count) or base
 end
 
+-- Kept a few seconds by panel: the tooltip over a box and the windows ask for names often, and each name asks the API
+-- for every unnamed panel's building and rooms.
+local autoNames, AUTO_NAME_MS = {}, 5000
 function Panels.autoName(panel)
+    local now = getTimestampMs()
+    local cached = autoNames[panel.id]
+    if cached and now - cached.at < AUTO_NAME_MS then return cached.name end
     local building = Panels.building(panel)
     local best, area = nil, 0
     for _, room in ipairs(Panels.rooms(building)) do
@@ -562,8 +616,9 @@ function Panels.autoName(panel)
         for _, rect in ipairs(room.rects) do size = size + rect.w * rect.h end
         if room.name and room.name ~= "" and size > area then best, area = room.name, size end
     end
-    if best then return getText("IGUI_BU_PanelOf", BU.roomName(best)) end
-    return getText("IGUI_BU_PanelDefault")
+    local name = best and getText("IGUI_BU_PanelOf", BU.roomName(best)) or getText("IGUI_BU_PanelDefault")
+    autoNames[panel.id] = { at = now, name = name }
+    return name
 end
 
 -- A place relative to a panel's building: "12 NE".
