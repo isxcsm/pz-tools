@@ -2,6 +2,8 @@
     "ContextMenu_BU_Install": "차단기함 설치",
     "ContextMenu_BU_Open": "열기",
     "ContextMenu_BU_Remove": "떼어내기",
+    "ContextMenu_BU_ResetBreaker": "차단기 올리기",
+    "ContextMenu_BU_Upgrade": "%1단계로 업그레이드",
     "ContextMenu_BU_ConnectTo": "차단기함에 연결",
     "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",
     "ContextMenu_BU_DeviceOn": "%1을(를) %3에 연결 (%2)",

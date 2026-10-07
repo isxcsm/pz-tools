@@ -2,6 +2,8 @@
     "ContextMenu_BU_Install": "Install Breaker Box",
     "ContextMenu_BU_Open": "Open",
     "ContextMenu_BU_Remove": "Take Down",
+    "ContextMenu_BU_ResetBreaker": "Reset Breaker",
+    "ContextMenu_BU_Upgrade": "Upgrade to Tier %1",
     "ContextMenu_BU_ConnectTo": "Connect to Breaker Box",
     "ContextMenu_BU_DisconnectFrom": "Disconnect from %1",
     "ContextMenu_BU_DeviceOn": "Connect %1 to %3 (%2)",

@@ -1,6 +1,6 @@
--- The mod's rules: one breaker box per building; producers outside within a range of its outline; the devices of its
--- building connected unless excluded; devices near it, outside any building, connected only on their own; another
--- building's box as a sub-panel. Each change goes to the save, then to the API.
+-- The mod's rules, as questions: one breaker box per building; producers outside within a range of its outline; the
+-- devices of its building connected unless excluded; devices near it, outside any building, connected only on their
+-- own; another building's box as a sub-panel. Nothing here changes anything: BU.Changes does.
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 local BU = BuildingUtilities
@@ -18,7 +18,7 @@ end
 
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
--- A building's rooms as plain tables: { level, rects = { { x, y, w, h } } }.
+-- A building's rooms as plain tables: { name, level, rects = { { x, y, w, h } } }.
 function Panels.rooms(building)
     local api = BU.api()
     local list = api and building and api.buildings.rooms(building.key)
@@ -73,37 +73,8 @@ function Panels.canInstall(square)
     return building
 end
 
--- Puts a box on the square and starts its networks. The caller has checked Panels.canInstall.
-function Panels.install(square, sprite)
-    local object = IsoObject.new(square, sprite, nil, false)
-    local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
-    object:getModData()[Panels.MODDATA] = panel.id
-    square:AddTileObject(object)
-    Networks.define(panel)
-    BU.log("installed", panel.id, "at", panel.x, panel.y, panel.z)
-    return panel
-end
-
--- Takes a panel away: its networks go, its producers are the game's again, its sub-panels become main panels.
-function Panels.remove(panel)
-    local object = Panels.object(panel)
-    if object then object:getSquare():transmitRemoveItemFromSquare(object) end
-    Networks.remove(panel)
-    for _, child in ipairs(Store.children(panel.id)) do child.parent = nil end
-    Store.remove(panel.id)
-    BU.log("removed", panel.id)
-end
-
--- A panel whose box is gone from its loaded square (destroyed, or taken by other means) is removed too.
-function Panels.checkObjects()
-    for _, panel in ipairs(Store.list()) do
-        local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
-        if square and not Panels.object(panel) then
-            BU.log("the box of", panel.id, "is gone")
-            Panels.remove(panel)
-        end
-    end
-end
+-- What a box carries before its breaker trips.
+function Panels.capacity(panel) return BU.capacity(panel.tier) end
 
 -- Producers.
 
@@ -118,6 +89,12 @@ function Panels.producerOn(square)
         if BU.isWaterContainer(object) then return "water", object end
     end
     return nil
+end
+
+-- Steps from a square to a panel's building outline, or nil when the building is not known now.
+function Panels.steps(panel, x, y)
+    local building = Panels.building(panel)
+    return building and Geometry.toBuilding(x, y, Panels.rooms(building)) or nil
 end
 
 -- The main panels a producer square can be connected to: within the producer range of their building's outline,
@@ -139,27 +116,16 @@ function Panels.inProducerRange(x, y, z)
     return result
 end
 
--- Connects a producer; it is used after those connected before. False with a reason when it cannot be.
-function Panels.connectProducer(panel, utility, x, y, z)
+-- Whether a producer can be connected to a panel. True, or false and a reason.
+function Panels.canConnectProducer(panel, utility, x, y, z)
     if panel.parent then return false, "isSubPanel" end
     if Store.producerOwner(x, y, z) then return false, "connectedElsewhere" end
-    table.insert(panel[utility].producers, { x = x, y = y, z = z })
-    Networks.setProducers(panel, utility)
-    return true
-end
-
-function Panels.disconnectProducer(panel, utility, index)
-    table.remove(panel[utility].producers, index)
-    Networks.setProducers(panel, utility)
-end
-
--- Moves a producer up (-1) or down (+1) the order.
-function Panels.moveProducer(panel, utility, index, delta)
-    local list = panel[utility].producers
-    local other = index + delta
-    if other < 1 or other > #list then return end
-    list[index], list[other] = list[other], list[index]
-    Networks.setProducers(panel, utility)
+    local square = getCell():getGridSquare(x, y, z)
+    if square and Panels.producerOn(square) ~= utility then return false, "noProducer" end
+    for _, candidate in ipairs(Panels.inProducerRange(x, y, z)) do
+        if candidate.panel == panel then return true end
+    end
+    return false, "tooFar"
 end
 
 -- Devices.
@@ -170,11 +136,10 @@ end
 function Panels.devices(panel, utility)
     local api = BU.api()
     local building = Panels.building(panel)
-    local result, complete = {}, true
+    local result = {}
     if not api or not building then return result, false end
     local inside, insideComplete = api.buildings.objects(building.key, utility)
     local outside, outsideComplete = api.buildings.near(building.key, BU.exteriorRange(), utility)
-    complete = insideComplete and outsideComplete
     for i = 1, inside and #inside or 0 do
         local entry = inside[i]
         local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
@@ -188,32 +153,15 @@ function Panels.devices(panel, utility)
         local state = owner == panel and "on" or owner and "other" or "off"
         result[#result + 1] = { entry = entry, key = key, inside = false, state = state }
     end
-    return result, complete
+    return result, insideComplete and outsideComplete
 end
 
--- Connects or disconnects one device. An outside device connected to another panel is refused.
-function Panels.setDevice(panel, utility, device, connected)
-    local x, y, z, sprite = device.entry.x, device.entry.y, device.entry.z, device.entry.sprite
-    local lists = panel[utility]
-    if device.inside then
-        lists.excluded[device.key] = (not connected) or nil
-        Networks.device(panel, utility, connected and "reset" or "exclude", x, y, z, sprite)
-    else
-        local owner = Store.inclusionOwner(utility, device.key)
-        if connected and owner and owner ~= panel then return false, "connectedElsewhere" end
-        lists.included[device.key] = connected or nil
-        Networks.device(panel, utility, connected and "include" or "reset", x, y, z, sprite)
+-- One device of a panel by its key, or nil.
+function Panels.device(panel, utility, key)
+    for _, device in ipairs(Panels.devices(panel, utility)) do
+        if device.key == key then return device end
     end
-    device.state = connected and "on" or "off"
-    return true
-end
-
--- Connects or disconnects every device of its building.
-function Panels.setAllInside(panel, utility, connected)
-    local devices = Panels.devices(panel, utility)
-    for _, device in ipairs(devices) do
-        if device.inside and (device.state == "on") ~= connected then Panels.setDevice(panel, utility, device, connected) end
-    end
+    return nil
 end
 
 -- The panel and device entry for a world object, for the context menu: the panel of its building, or a panel in
@@ -221,24 +169,30 @@ end
 function Panels.deviceOf(object, utility)
     local square = object:getSquare()
     if not square then return nil end
-    local x, y, z = square:getX(), square:getY(), square:getZ()
     local sprite = object:getSprite() and object:getSprite():getName()
     if not sprite then return nil end
-    local key = BU.thingKey(x, y, z, sprite)
+    local key = BU.thingKey(square:getX(), square:getY(), square:getZ(), sprite)
     for _, panel in ipairs(Store.list()) do
-        for _, device in ipairs(Panels.devices(panel, utility)) do
-            if device.key == key then return panel, device end
-        end
+        local device = Panels.device(panel, utility, key)
+        if device then return panel, device end
     end
     return nil
 end
 
 -- Sub-panels.
 
+-- Steps between two panels' buildings, or nil when one is not known now.
+function Panels.linkSteps(child, parent)
+    local childBuilding, parentBuilding = Panels.building(child), Panels.building(parent)
+    if not childBuilding or not parentBuilding then return nil end
+    return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
+end
+
 -- Whether a panel can take its supply from another: a main panel in another building within the sub-panel range
 -- of its own, with no producers of its own, and not one of its own sub-panels. Returns true, or false and a reason.
 function Panels.canLink(child, parent)
     if child == parent then return false, "self" end
+    if child.parent then return false, "isSubPanel" end
     for _, utility in ipairs(BU.UTILITIES) do
         if #child[utility].producers > 0 then return false, "hasProducers" end
     end
@@ -247,41 +201,22 @@ function Panels.canLink(child, parent)
         if above == child then return false, "cycle" end
         above = Store.get(above.parent)
     end
-    local childBuilding, parentBuilding = Panels.building(child), Panels.building(parent)
-    if not childBuilding or not parentBuilding then return false, "noBuilding" end
-    local steps = Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
-    if not steps or steps > BU.subPanelRange() then return false, "tooFar" end
+    local steps = Panels.linkSteps(child, parent)
+    if not steps then return false, "noBuilding" end
+    if steps > BU.subPanelRange() then return false, "tooFar" end
     return true
 end
 
 -- The panels a panel could take its supply from, nearest first, with their distances.
 function Panels.linkCandidates(child)
     local result = {}
-    local childBuilding = Panels.building(child)
-    if not childBuilding then return result end
-    local childRooms = Panels.rooms(childBuilding)
     for _, panel in ipairs(Store.list()) do
         if panel ~= child and Panels.canLink(child, panel) then
-            local building = Panels.building(panel)
-            result[#result + 1] = { panel = panel, building = building,
-                steps = Geometry.betweenBuildings(childRooms, Panels.rooms(building)) }
+            result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel) }
         end
     end
     table.sort(result, function(a, b) return a.steps < b.steps end)
     return result
-end
-
-function Panels.link(child, parent)
-    local ok, reason = Panels.canLink(child, parent)
-    if not ok then return false, reason end
-    child.parent = parent.id
-    Networks.link(child)
-    return true
-end
-
-function Panels.unlink(child)
-    child.parent = nil
-    Networks.link(child)
 end
 
 -- Names.

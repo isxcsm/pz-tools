@@ -17,3 +17,51 @@ option BuildingUtilities.SubPanelRange
     type = integer, min = 1, max = 300, default = 50,
     page = BuildingUtilities, translation = BuildingUtilities_SubPanelRange,
 }
+
+option BuildingUtilities.CostsEnabled
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_CostsEnabled,
+}
+
+option BuildingUtilities.TilesPerPiece
+{
+    type = integer, min = 1, max = 50, default = 5,
+    page = BuildingUtilities, translation = BuildingUtilities_TilesPerPiece,
+}
+
+option BuildingUtilities.RefundPercent
+{
+    type = integer, min = 0, max = 100, default = 50,
+    page = BuildingUtilities, translation = BuildingUtilities_RefundPercent,
+}
+
+option BuildingUtilities.OverloadEnabled
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_OverloadEnabled,
+}
+
+option BuildingUtilities.Capacity1
+{
+    type = double, min = 0.05, max = 10.0, default = 0.3,
+    page = BuildingUtilities, translation = BuildingUtilities_Capacity1,
+}
+
+option BuildingUtilities.Capacity2
+{
+    type = double, min = 0.05, max = 10.0, default = 0.6,
+    page = BuildingUtilities, translation = BuildingUtilities_Capacity2,
+}
+
+option BuildingUtilities.Capacity3
+{
+    type = double, min = 0.05, max = 10.0, default = 1.5,
+    page = BuildingUtilities, translation = BuildingUtilities_Capacity3,
+}
+
+option BuildingUtilities.LowFuelHours
+{
+    type = integer, min = 0, max = 168, default = 6,
+    page = BuildingUtilities, translation = BuildingUtilities_LowFuelHours,
+}

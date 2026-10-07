@@ -1,17 +1,33 @@
--- The world context menu: install, open and remove a breaker box; connect generators and water containers to one;
--- connect or disconnect a device.
+-- The world context menu: install, open, upgrade and take down a breaker box and reset its breaker; lay and take
+-- away the lines of generators, water containers and outside devices; switch a device of the building.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
-local Store, Panels = BU.Store, BU.Panels
+local Store, Panels, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Costs, BU.Actions, BU.Sync
 local ContextMenu = {}
 BU.ContextMenu = ContextMenu
 
+local function tooltip(option, text)
+    local tip = ISWorldObjectContextMenu.addToolTip()
+    tip.description = text
+    option.toolTip = tip
+end
+
 local function unavailable(option, text)
     option.notAvailable = true
-    local tooltip = ISWorldObjectContextMenu.addToolTip()
-    tooltip.description = text
-    option.toolTip = tooltip
+    tooltip(option, text)
+end
+
+-- An option that lays a line or upgrades: what it needs, and not available when the player lacks it.
+local function costed(option, playerObj, cost, note)
+    local text = Costs.describe(playerObj, cost)
+    if note then text = note .. (text ~= "" and " <LINE> " .. text or "") end
+    tooltip(option, text)
+    if not Costs.affords(playerObj, cost) then option.notAvailable = true end
+end
+
+local function refundNote()
+    return BU.costsEnabled() and getText("IGUI_BU_RefundNote", BU.refundPercent()) or nil
 end
 
 local function apiMissingText()
@@ -34,36 +50,33 @@ local function squareObjects(square)
     return result
 end
 
+-- Walks next to the square, then does the action there.
+function ContextMenu.queueAt(playerObj, x, y, z, action)
+    local square = getCell():getGridSquare(x, y, z)
+    if square and luautils.walkAdj(playerObj, square, true) then ISTimedActionQueue.add(action) end
+end
+
+local function queueAt(playerObj, x, y, z, action) ContextMenu.queueAt(playerObj, x, y, z, action) end
+
 local function onInstall(playerObj, square, item)
-    if luautils.walkAdj(playerObj, square) then ISTimedActionQueue.add(ISBUInstallPanel:new(playerObj, square, item)) end
+    queueAt(playerObj, square:getX(), square:getY(), square:getZ(), ISBUInstallPanel:new(playerObj, square, item))
 end
 
-local function onRemove(playerObj, panel)
-    local object = Panels.object(panel)
-    if object and luautils.walkAdj(playerObj, object:getSquare()) then
-        ISTimedActionQueue.add(ISBURemovePanel:new(playerObj, panel))
-    end
-end
-
+local function onRemove(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBURemovePanel:new(playerObj, panel)) end
+local function onUpgrade(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUUpgradePanel:new(playerObj, panel)) end
 local function onOpen(playerObj, panel) BU.PanelWindow.open(playerObj, panel) end
+local function onReset(playerObj, panel) Sync.send(playerObj, "resetBreaker", { panel = panel.id }) end
 
-local function onConnectProducer(playerObj, panel, utility, square)
-    local ok, reason = Panels.connectProducer(panel, utility, square:getX(), square:getY(), square:getZ())
-    if ok then HaloTextHelper.addGoodText(playerObj, getText("IGUI_BU_Connected", Panels.name(panel)))
-    else HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_" .. reason)) end
-    BU.PanelWindow.refreshAll()
+local function onConnect(playerObj, kind, panel, utility, x, y, z, extra)
+    queueAt(playerObj, x, y, z, ISBUConnect:new(playerObj, kind, panel, utility, x, y, z, extra))
 end
 
-local function onDisconnectProducer(playerObj, panel, utility, index)
-    Panels.disconnectProducer(panel, utility, index)
-    HaloTextHelper.addText(playerObj, getText("IGUI_BU_Disconnected", Panels.name(panel)))
-    BU.PanelWindow.refreshAll()
+local function onDisconnect(playerObj, kind, panel, utility, x, y, z, extra)
+    queueAt(playerObj, x, y, z, ISBUDisconnect:new(playerObj, kind, panel, utility, x, y, z, extra))
 end
 
-local function onDevice(playerObj, panel, utility, device, connected)
-    local ok, reason = Panels.setDevice(panel, utility, device, connected)
-    if not ok then HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_" .. reason)) end
-    BU.PanelWindow.refreshAll()
+local function onInside(playerObj, panel, utility, device, connected)
+    Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = device.key, on = connected })
 end
 
 local function addPanelOptions(context, playerObj, panel)
@@ -72,7 +85,14 @@ local function addPanelOptions(context, playerObj, panel)
     context:addSubMenu(option, sub)
     local open = sub:addOption(getText("ContextMenu_BU_Open"), playerObj, onOpen, panel)
     if not BU.api() then unavailable(open, apiMissingText()) end
-    sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemove, panel)
+    if panel.tripped then sub:addOption(getText("ContextMenu_BU_ResetBreaker"), playerObj, onReset, panel) end
+    if (panel.tier or 1) < BU.TIERS then
+        local upgrade = sub:addOption(getText("ContextMenu_BU_Upgrade", (panel.tier or 1) + 1), playerObj, onUpgrade, panel)
+        costed(upgrade, playerObj, Costs.upgrade((panel.tier or 1) + 1),
+            getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity((panel.tier or 1) + 1))))
+    end
+    local remove = sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemove, panel)
+    if refundNote() then tooltip(remove, refundNote()) end
 end
 
 local function addInstallOption(context, playerObj, square)
@@ -88,15 +108,16 @@ end
 local function addProducerOptions(context, playerObj, square)
     local utility = Panels.producerOn(square)
     if not utility then return end
-    local owner, ownedUtility, index = Store.producerOwner(square:getX(), square:getY(), square:getZ())
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local owner, ownedUtility = Store.producerOwner(x, y, z)
     if owner then
-        context:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(owner)), playerObj, onDisconnectProducer,
-            owner, ownedUtility, index)
+        local option = context:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(owner)), playerObj, onDisconnect,
+            "producer", owner, ownedUtility, x, y, z)
+        if refundNote() then tooltip(option, refundNote()) end
         return
     end
     local option = context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)
-    if not BU.api() then unavailable(option, apiMissingText()); return end
-    local candidates = Panels.inProducerRange(square:getX(), square:getY(), square:getZ())
+    local candidates = Panels.inProducerRange(x, y, z)
     if #candidates == 0 then
         unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.producerRange()))
         return
@@ -105,8 +126,34 @@ local function addProducerOptions(context, playerObj, square)
     context:addSubMenu(option, sub)
     for _, candidate in ipairs(candidates) do
         local panel = candidate.panel
-        sub:addOption(getText("IGUI_BU_PanelChoice", Panels.name(panel), Panels.where(panel, square:getX(), square:getY())),
-            playerObj, onConnectProducer, panel, utility, square)
+        local choice = sub:addOption(getText("IGUI_BU_PanelChoice", Panels.name(panel), Panels.where(panel, x, y)),
+            playerObj, onConnect, "producer", panel, utility, x, y, z)
+        local cost, reason = Actions.lineCost("producer", panel, utility, x, y, z)
+        if cost then costed(choice, playerObj, cost) else unavailable(choice, getText("IGUI_BU_Reason_" .. reason)) end
+    end
+end
+
+local function addDeviceOption(context, playerObj, utility, panel, device)
+    local entry = device.entry
+    local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
+    local label = getText("ContextMenu_BU_Utility_" .. utility)
+    if device.state == "other" then
+        local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), nil, nil)
+        local other = Store.inclusionOwner(utility, device.key)
+        unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
+    elseif device.inside then
+        local connected = device.state == "on"
+        context:addOption(getText(connected and "ContextMenu_BU_DeviceOff" or "ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)),
+            playerObj, onInside, panel, utility, device, not connected)
+    elseif device.state == "on" then
+        local option = context:addOption(getText("ContextMenu_BU_DeviceOff", name, label, Panels.name(panel)), playerObj, onDisconnect,
+            "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        if refundNote() then tooltip(option, refundNote()) end
+    else
+        local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), playerObj, onConnect,
+            "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        if cost then costed(option, playerObj, cost) else unavailable(option, getText("IGUI_BU_Reason_" .. reason)) end
     end
 end
 
@@ -120,19 +167,7 @@ local function addDeviceOptions(context, playerObj, square)
                 local panel, device = Panels.deviceOf(object, utility)
                 if panel and not seen[device.key .. utility] then
                     seen[device.key .. utility] = true
-                    local name = BU.displayName(device.entry.x, device.entry.y, device.entry.z, device.entry.sprite)
-                    local label = getText("ContextMenu_BU_Utility_" .. utility)
-                    if device.state == "on" then
-                        context:addOption(getText("ContextMenu_BU_DeviceOff", name, label, Panels.name(panel)), playerObj,
-                            onDevice, panel, utility, device, false)
-                    elseif device.state == "off" then
-                        context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), playerObj,
-                            onDevice, panel, utility, device, true)
-                    else
-                        local option = context:addOption(getText("ContextMenu_BU_DeviceOn", name, label, Panels.name(panel)), nil, nil)
-                        local other = Store.inclusionOwner(utility, device.key)
-                        unavailable(option, getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""))
-                    end
+                    addDeviceOption(context, playerObj, utility, panel, device)
                 end
             end
         end
@@ -155,3 +190,5 @@ function ContextMenu.fill(player, context, worldobjects, test)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
+
+return ContextMenu

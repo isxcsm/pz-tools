@@ -5,5 +5,19 @@
     "Sandbox_BuildingUtilities_ExteriorRange": "바깥 기기 거리",
     "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "건물 외곽에서 몇 칸 안의 바깥 기기를 차단기함에 연결할 수 있는지.",
     "Sandbox_BuildingUtilities_SubPanelRange": "보조 차단기함 거리",
-    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "한 건물의 차단기함이 다른 건물의 차단기함에서 공급받을 수 있는 두 건물 사이 거리(칸)."
+    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "한 건물의 차단기함이 다른 건물의 차단기함에서 공급받을 수 있는 두 건물 사이 거리(칸).",
+    "Sandbox_BuildingUtilities_CostsEnabled": "연결에 재료 필요",
+    "Sandbox_BuildingUtilities_CostsEnabled_tooltip": "발전기·물탱크·바깥 기기·보조 차단기함을 연결할 때 도구와 길이만큼의 전선이나 파이프가 듭니다.",
+    "Sandbox_BuildingUtilities_TilesPerPiece": "전선·파이프 하나당 칸 수",
+    "Sandbox_BuildingUtilities_TilesPerPiece_tooltip": "전선이나 파이프 하나로 몇 칸을 잇는지.",
+    "Sandbox_BuildingUtilities_RefundPercent": "돌려받는 비율",
+    "Sandbox_BuildingUtilities_RefundPercent_tooltip": "연결을 떼어낼 때 돌려받는 전선·파이프의 비율(퍼센트).",
+    "Sandbox_BuildingUtilities_OverloadEnabled": "과부하 차단",
+    "Sandbox_BuildingUtilities_OverloadEnabled_tooltip": "부하가 단계별 상한을 넘으면 차단기함이 전기를 끊고, 플레이어가 다시 올려야 합니다.",
+    "Sandbox_BuildingUtilities_Capacity1": "1단계 부하 상한",
+    "Sandbox_BuildingUtilities_Capacity1_tooltip": "냉장·냉동고 0.13, 스토브 0.09, 세탁기 0.09, 전등 0.002를 씁니다.",
+    "Sandbox_BuildingUtilities_Capacity2": "2단계 부하 상한",
+    "Sandbox_BuildingUtilities_Capacity3": "3단계 부하 상한",
+    "Sandbox_BuildingUtilities_LowFuelHours": "연료 부족 알림(시간)",
+    "Sandbox_BuildingUtilities_LowFuelHours_tooltip": "발전기 연료가 이 시간보다 적게 남으면 근처 플레이어에게 알립니다."
 }

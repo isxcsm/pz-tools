@@ -1,21 +1,55 @@
--- Wiring: the networks from the save as the world starts, boxes that went missing, and windows that show changes.
+-- The player's side: windows that show changes, notices for players near a box, and in multiplayer the server's
+-- data and messages. The world itself changes on the server side (server/BuildingUtilities/Server.lua).
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/Moveables"
 local BU = BuildingUtilities
+local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 
-local function onGameStart()
-    local api, reason = BU.api()
-    if not api then
-        BU.log("the PZ Tools extension API is", reason == "version" and "another version" or "missing", "- boxes do nothing")
-        return
+-- How far from a box's building, in squares, a player hears it; one with its window open always does.
+local NOTICE_RANGE = 40
+local GOOD = { IGUI_BU_Notice_Switched = true }
+
+function BU.onChanged() PanelWindow.refreshAll() end
+
+function BU.onNotice(panelId, key, args)
+    local panel = Store.get(panelId)
+    if not panel then return end
+    args = args or {}
+    local text = getText(key, args[1] ~= nil and tostring(args[1]) or "", args[2] ~= nil and tostring(args[2]) or "")
+    for index = 0, getNumActivePlayers() - 1 do
+        local player = getSpecificPlayer(index)
+        if player and not player:isDead() then
+            local steps = Panels.steps(panel, player:getX(), player:getY())
+            if PanelWindow.isOpen(panelId) or steps and steps <= NOTICE_RANGE then
+                if GOOD[key] then HaloTextHelper.addGoodText(player, text) else HaloTextHelper.addBadText(player, text) end
+            end
+        end
     end
-    BU.Networks.defineAll()
-    BU.log("defined the networks of", #BU.Store.list(), "panels")
+    PanelWindow.refreshAll()
 end
 
-local function onNetworkChange(id) BU.PanelWindow.onNetworkChange(id) end
+-- Multiplayer: the server's data, and what it tells.
+local function onServerCommand(module, command, args)
+    if module ~= BU.MOD then return end
+    if command == "changed" then BU.onChanged(args and args.panel)
+    elseif command == "notice" and args then BU.onNotice(args.panel, args.key, args.args) end
+end
 
+local function onReceiveGlobalModData(key, data)
+    if key ~= Store.KEY or type(data) ~= "table" then return end
+    ModData.add(key, data)
+    BU.onChanged()
+end
+
+local function onGameStart()
+    if isClient() then ModData.request(Store.KEY) end
+end
+
+-- A network the API runs here changed: the windows that show it.
+local function onNetworkChange(id) PanelWindow.onNetworkChange(id) end
+
+Events.OnServerCommand.Add(onServerCommand)
+Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
 Events.OnGameStart.Add(onGameStart)
-Events.EveryTenMinutes.Add(BU.Panels.checkObjects)
 if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end

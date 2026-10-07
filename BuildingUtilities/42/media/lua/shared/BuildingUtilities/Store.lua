@@ -8,9 +8,14 @@ BU.Store = Store
 local KEY = "BuildingUtilities"
 
 -- { version, next, panels = { [id] = panel } }. A panel:
---   id, x, y, z (the box's square), sprite, name (set by the player, or nil), parent (a panel id, or nil),
---   and per utility (power, water): producers (a list of { x, y, z }, in order), excluded and included
---   (sets of BU.thingKey).
+--   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
+--   breaker is down), parent (a panel id, or nil) and parentPaid (what linking it cost),
+--   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
+--   BU.thingKey) and included (BU.thingKey to what connecting it cost).
+-- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
+-- changes it (BU.Changes).
+Store.KEY = KEY
+
 function Store.data()
     local data = ModData.getOrCreate(KEY)
     if not data.version then
@@ -29,7 +34,7 @@ function Store.newPanel(x, y, z, sprite)
     local data = Store.data()
     local id = "p" .. data.next
     data.next = data.next + 1
-    local panel = { id = id, x = x, y = y, z = z, sprite = sprite }
+    local panel = { id = id, x = x, y = y, z = z, sprite = sprite, tier = 1, tripped = false }
     for _, utility in ipairs(BU.UTILITIES) do
         panel[utility] = { producers = {}, excluded = {}, included = {} }
     end

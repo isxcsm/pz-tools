@@ -38,6 +38,12 @@ function Networks.define(panel)
         eachThing(panel[utility].excluded, function(x, y, z, sprite) change("exclude", id, x, y, z, sprite) end)
         eachThing(panel[utility].included, function(x, y, z, sprite) change("include", id, x, y, z, sprite) end)
     end
+    if panel.tripped then Networks.setEnabled(panel, false) end
+end
+
+-- The power network on or off: a box's breaker.
+function Networks.setEnabled(panel, on)
+    change("setEnabled", BU.networkId(panel.id, "power"), on)
 end
 
 function Networks.link(panel)

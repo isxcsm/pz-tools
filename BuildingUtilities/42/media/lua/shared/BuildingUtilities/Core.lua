@@ -51,6 +51,21 @@ function BU.exteriorRange() return math.max(0, math.min(32, BU.sandbox("Exterior
 function BU.producerRange() return math.max(1, BU.sandbox("ProducerRange", 20)) end
 function BU.subPanelRange() return math.max(1, BU.sandbox("SubPanelRange", 50)) end
 
+-- Connections cost wire or pipe by length; taken away, they give back a share.
+function BU.costsEnabled() return BU.sandbox("CostsEnabled", true) == true end
+function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) end
+function BU.refundPercent() return math.max(0, math.min(100, BU.sandbox("RefundPercent", 50))) end
+
+-- A box carries so much power for its tier; past it, its breaker trips.
+BU.TIERS = 3
+local CAPACITY_DEFAULTS = { 0.3, 0.6, 1.5 }
+function BU.overloadEnabled() return BU.sandbox("OverloadEnabled", true) == true end
+function BU.capacity(tier)
+    tier = math.max(1, math.min(BU.TIERS, tier or 1))
+    return BU.sandbox("Capacity" .. tier, CAPACITY_DEFAULTS[tier])
+end
+function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
+
 -- The breaker box: no vanilla tile is one, so a small electric terminal stands in for it, one sprite per facing.
 BU.PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"

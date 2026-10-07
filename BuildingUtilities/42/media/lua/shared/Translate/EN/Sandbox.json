@@ -5,5 +5,19 @@
     "Sandbox_BuildingUtilities_ExteriorRange": "Outside device range",
     "Sandbox_BuildingUtilities_ExteriorRange_tooltip": "How far from a building's outline, in tiles, a device outside any building can be connected to its breaker box.",
     "Sandbox_BuildingUtilities_SubPanelRange": "Sub-panel range",
-    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "How far apart, in tiles, two buildings can be for one's breaker box to take supply from the other's."
+    "Sandbox_BuildingUtilities_SubPanelRange_tooltip": "How far apart, in tiles, two buildings can be for one's breaker box to take supply from the other's.",
+    "Sandbox_BuildingUtilities_CostsEnabled": "Lines cost materials",
+    "Sandbox_BuildingUtilities_CostsEnabled_tooltip": "Connecting a generator, a water tank, an outside device or a sub-panel takes tools and wire or pipe by length.",
+    "Sandbox_BuildingUtilities_TilesPerPiece": "Tiles per wire or pipe",
+    "Sandbox_BuildingUtilities_TilesPerPiece_tooltip": "How many tiles of line one wire or one pipe makes.",
+    "Sandbox_BuildingUtilities_RefundPercent": "Share given back",
+    "Sandbox_BuildingUtilities_RefundPercent_tooltip": "The percent of a line's wire and pipe given back when it is taken away.",
+    "Sandbox_BuildingUtilities_OverloadEnabled": "Breakers trip under overload",
+    "Sandbox_BuildingUtilities_OverloadEnabled_tooltip": "A breaker box whose load is over what its tier carries cuts its power until a player resets it.",
+    "Sandbox_BuildingUtilities_Capacity1": "Tier 1 load",
+    "Sandbox_BuildingUtilities_Capacity1_tooltip": "A fridge and freezer draw 0.13, a stove 0.09, a washer 0.09, a light 0.002.",
+    "Sandbox_BuildingUtilities_Capacity2": "Tier 2 load",
+    "Sandbox_BuildingUtilities_Capacity3": "Tier 3 load",
+    "Sandbox_BuildingUtilities_LowFuelHours": "Low fuel warning (hours)",
+    "Sandbox_BuildingUtilities_LowFuelHours_tooltip": "Players near a breaker box are told when its generators have fuel for fewer hours than this."
 }
