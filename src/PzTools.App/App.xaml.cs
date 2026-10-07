@@ -137,7 +137,7 @@ public partial class App : Application
         {
             startupLoader = new StartupLoader(host.BridgeDirectory,
                 () => gameMemory?.State.ConfigPath is { } launchFile ? Path.GetDirectoryName(launchFile) : null);
-            startupLoader.Changed += () => window?.DispatcherQueue.TryEnqueue(RecordStartupGame);
+            startupLoader.Changed += () => window?.DispatcherQueue.Enqueue(RecordStartupGame);
         }
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.

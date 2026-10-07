@@ -57,7 +57,7 @@ public sealed partial class GameExtensionsPage : UserControl
 
     private bool changingStartupLoader;
 
-    private void StartupLoaderChanged() => DispatcherQueue.TryEnqueue(ApplyStartupLoader);
+    private void StartupLoaderChanged() => DispatcherQueue.Enqueue(ApplyStartupLoader);
 
     // Called from the Loaded handler without being awaited: nothing may escape it.
     private async Task RefreshStartupLoaderAsync(StartupLoader loader)
