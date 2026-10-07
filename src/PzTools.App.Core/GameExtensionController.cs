@@ -4,18 +4,18 @@ using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App.Core;
 
-public sealed record GameExtensionsView(IReadOnlyList<ExtensionCardView> Cards, bool GameSavingEnabled,
-    RuntimeSaveExecution? LastSave = null, IReadOnlyDictionary<string, RuntimeExtensionStatus>? Statuses = null, bool RuntimeWorldReady = false)
+public sealed record GameExtensionsView(IReadOnlyList<ExtensionCardView> Cards,
+    IReadOnlyDictionary<string, RuntimeExtensionStatus>? Statuses = null, bool RuntimeWorldReady = false)
 {
     /// <summary>What the game reports for one continuous module; null when nothing current is known.</summary>
     public RuntimeExtensionStatus? StatusOf(string extensionId) => Statuses?.GetValueOrDefault(extensionId);
     public ExtensionActivationView ActivationFor(ExtensionCardView card) =>
         // Capability decides behavior; runtime evidence still belongs to one specific module.
-        ExtensionActivationView.Project(card, GameSavingEnabled, RuntimeWorldReady, StatusOf(card.Definition.Id));
+        ExtensionActivationView.Project(card, RuntimeWorldReady, StatusOf(card.Definition.Id));
 }
 
 /// <summary>UI-independent controller. Disk I/O runs away from the dispatcher; only committed preferences are projected.</summary>
-public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<bool>? gameSavingEnabled = null, Func<string?>? gameVersion = null, string? cataloguePath = null, Func<RuntimeSaveExecution?>? lastSave = null, Func<string, RuntimeExtensionStatus?>? extensionStatus = null, Func<bool>? runtimeWorldReady = null, ExtensionRuntimeDiagnostics? diagnostics = null)
+public sealed class GameExtensionController(string runtimeRoot, RevisionedViewStore views, Func<string?>? gameVersion = null, string? cataloguePath = null, Func<string, RuntimeExtensionStatus?>? extensionStatus = null, Func<bool>? runtimeWorldReady = null, ExtensionRuntimeDiagnostics? diagnostics = null)
 {
     public static ViewKey ViewKey { get; } = new("game-extensions");
     private GameExtensionService? service;
@@ -91,8 +91,6 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
     {
         var current = Service.ReadCards().SingleOrDefault(card => card.Definition.Id == id)
             ?? throw new InvalidDataException("Unknown extension.");
-        if (setting == GameExtensionSetting.Enabled && value && !current.SupportsActivation)
-            throw new InvalidDataException("Extension capability is unsupported.");
         var preference = current.Preference;
         preference = setting switch
         {
@@ -144,16 +142,14 @@ public sealed class GameExtensionController(string runtimeRoot, RevisionedViewSt
             if (status is not null) statuses[card.Definition.Id] = status;
             diagnostics?.Observe(card.Definition.Id, status);
         }
-        var view = new GameExtensionsView(cards, gameSavingEnabled?.Invoke() ?? true, lastSave?.Invoke(),
-            statuses, runtimeWorldReady?.Invoke() ?? false);
+        var view = new GameExtensionsView(cards, statuses, runtimeWorldReady?.Invoke() ?? false);
         views.Publish(ViewKey, view, comparer: new ViewComparer());
         return view;
     }
     private sealed class ViewComparer : IEqualityComparer<GameExtensionsView>
     {
         public bool Equals(GameExtensionsView? x, GameExtensionsView? y) =>
-            ReferenceEquals(x, y) || x is not null && y is not null && x.GameSavingEnabled == y.GameSavingEnabled
-                && x.LastSave == y.LastSave && SameStatuses(x.Statuses, y.Statuses)
+            ReferenceEquals(x, y) || x is not null && y is not null && SameStatuses(x.Statuses, y.Statuses)
                 && x.RuntimeWorldReady == y.RuntimeWorldReady && SameCards(x.Cards, y.Cards);
         public int GetHashCode(GameExtensionsView obj) => obj.Cards.Count;
 

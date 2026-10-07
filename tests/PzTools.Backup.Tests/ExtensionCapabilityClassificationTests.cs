@@ -37,30 +37,36 @@ public sealed class ExtensionCapabilityClassificationTests
         var card = new ExtensionCardView(definition, true, "runtime-pending", 4, ForceVersion: true);
         Assert.False(card.CanEnable);
         Assert.False(card.EffectiveEnabled);
-        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.False(activation.IsOn);
-        Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         Assert.False(activation.CanToggle);
         Assert.Equal("unsupported-capability", activation.FailureReason);
     }
 
+    /// <summary>
+    /// Only continuous modules have a card: nothing in the app asks the game for a save provider, so a switch for one
+    /// would save a preference nothing reads; an unknown capability has nothing to run.
+    /// </summary>
     [Fact]
-    public void ForceVersionCannotBypassUnsupportedCapabilityAdmission()
+    public async Task OnlyContinuousModulesHaveACard()
     {
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.Path);
-        var definition = Definition("pztools.unknown-extension", ["unknown.feature.v1"]);
-        var service = new GameExtensionService(store, () => "42.20.0", () => [definition]);
-        var unsupported = Assert.Single(service.ReadCards());
-        Assert.False(unsupported.CanEnable);
+        var continuous = Definition("pztools.continuous-extension", [ExtensionCapabilities.Continuous]);
+        var service = new GameExtensionService(store, () => "42.20.0", () =>
+            [Definition("pztools.unknown-extension", ["unknown.feature.v1"]),
+                Definition("pztools.test-save", [ExtensionCapabilities.SavePreparation]), continuous]);
+        Assert.Equal(continuous.Id, Assert.Single(service.ReadCards()).Definition.Id);
+
+        var catalogue = temp.GetPath("catalog.tsv");
+        File.WriteAllText(catalogue, string.Join('\t', "pztools.test-save", "0.2.0", "pztools.extensions.test", "pztools.extensions.test.Provider",
+            "test.jar", "All", "-", "-", "Extension.Test.Title", "Extension.Test.Description", ExtensionCapabilities.SavePreparation));
+        var controller = new GameExtensionController(temp.Path, new PzTools.Projections.RevisionedViewStore(), cataloguePath: catalogue);
+        Assert.Empty((await controller.RefreshAsync()).Cards);
+        await Assert.ThrowsAsync<InvalidDataException>(() => controller.ApplyEditAsync("pztools.test-save", GameExtensionSetting.Enabled, true));
         Assert.False(File.Exists(store.FilePath));
-        // The override remains an editable preference even when activation itself is unavailable.
-        var card = Assert.Single(service.Save(unsupported, unsupported.Preference with { ForceVersion = true }));
-        Assert.True(card.ForceVersion);
-        Assert.False(card.Enabled);
-        Assert.False(card.CanEnable);
     }
 
     [Theory]
@@ -74,11 +80,10 @@ public sealed class ExtensionCapabilityClassificationTests
         var runtime = Active() with { State = state, Reason = state == RuntimeExtensionState.FaultedPassThrough ? "vehicle-failed" : null };
         if (state == RuntimeExtensionState.FaultedPassThrough)
             runtime = runtime with { ControlReady = false, AppliedConfiguration = null };
-        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [VehicleDrivetrainExtension.Id] = runtime }, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], Statuses: new Dictionary<string, RuntimeExtensionStatus> { [VehicleDrivetrainExtension.Id] = runtime }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.Equal(ExtensionActivationKind.Continuous, definition.ActivationKind);
         Assert.True(activation.IsOn); // This module's saved request, not the vehicle module's runtime evidence.
-        Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         Assert.True(activation.CanToggle);
         Assert.Null(activation.FailureReason);
@@ -89,28 +94,13 @@ public sealed class ExtensionCapabilityClassificationTests
     {
         var card = new ExtensionCardView(Definition(VehicleDrivetrainExtension.Id,
             [ExtensionCapabilities.Continuous]), true, "runtime-pending", 4);
-        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.True(activation.IsOn);
         Assert.True(activation.CanToggle);
-        Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         // Its own evidence: saved off while the game still runs it, turning it off is in progress.
         Assert.True(view.ActivationFor(card with { Enabled = false }).IsBusy);
-    }
-
-    [Fact]
-    public void AnotherSaveProviderUsesPerSaveSelectionWithoutInheritingVehicleFailure()
-    {
-        var card = new ExtensionCardView(Definition("pztools.another-save", [ExtensionCapabilities.SavePreparation]),
-            true, "compatibility-on-request", 4);
-        var failure = new RuntimeExtensionStatus(RuntimeExtensionState.RestartRequired, "vehicle-retirement-failed");
-        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = failure }, RuntimeWorldReady: true);
-        var activation = view.ActivationFor(card);
-        Assert.True(activation.IsOn);
-        Assert.True(activation.IsPerSave);
-        Assert.True(activation.CanToggle);
-        Assert.Null(activation.FailureReason);
     }
 
     [Fact]

@@ -153,7 +153,7 @@ public sealed class ExtensionActivationViewTests
     public void AnyContinuousModuleTheGameRunsAsRequestedIsApplied_SoTurningItOffShowsProgress()
     {
         // The evidence is the digest of what the app sent, the same for every module; nothing about it is the vehicle's.
-        var other = Card() with { Definition = Definition(VehicleDrivetrainExtension.Id) with { Id = "pztools.another-module" } };
+        var other = Card() with { Definition = Definition("pztools.another-module") };
         var stopping = Project(other, Active());
         Assert.False(stopping.IsOn);
         Assert.True(stopping.IsBusy);
@@ -184,20 +184,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(Project(Card(enabled: true) with { GameVersion = "41.78", VersionMatches = false }, Active()).CanToggle);
     }
 
-    [Fact]
-    public void SaveProviderIsAnExplicitPerSaveSelectionNotContinuousActivation()
-    {
-        var card = Card() with { Definition = Definition("pztools.test-save") };
-        var unready = ExtensionActivationView.Project(card, true, false, Active());
-        Assert.True(unready.IsPerSave);
-        Assert.False(unready.IsOn);
-        Assert.True(unready.CanToggle);
-        Assert.True(ExtensionActivationView.Project(card, true, true, null).CanToggle);
-        Assert.True(ExtensionActivationView.Project(card, false, true, null).CanToggle);
-        var selected = ExtensionActivationView.Project(card with { Enabled = true }, false, false, null);
-        Assert.True(selected.IsOn);
-        Assert.True(selected.CanToggle); // OFF must remain possible when the game disappears.
-    }
 
     [Fact]
     public async Task RuntimeRefreshReadsWorkerRollbackInsteadOfCachedDesiredPreference()
@@ -266,12 +252,11 @@ public sealed class ExtensionActivationViewTests
     }
 
     private static ExtensionActivationView Project(ExtensionCardView card, RuntimeExtensionStatus? runtime,
-        bool worldReady = true) => ExtensionActivationView.Project(card, true, worldReady, runtime);
+        bool worldReady = true) => ExtensionActivationView.Project(card, worldReady, runtime);
     private static ExtensionCardView Card(bool enabled = false, long revision = 8) =>
         new(Definition(VehicleDrivetrainExtension.Id), enabled, "runtime-pending", revision);
     private static ExtensionDefinition Definition(string id) =>
-        new(id, "0.2.0", "title", "description", "runtime-pending",
-            [id == VehicleDrivetrainExtension.Id ? ExtensionCapabilities.Continuous : ExtensionCapabilities.SavePreparation]);
+        new(id, "0.2.0", "title", "description", "runtime-pending", [ExtensionCapabilities.Continuous]);
     private static RuntimeExtensionStatus Active() => new(RuntimeExtensionState.Active, null,
         Process, World, Generation, 8, "0.2.0", new string('a', 64), RequestedRevision: 8,
         ControlReady: true, AppliedConfiguration: new string('e', 64));

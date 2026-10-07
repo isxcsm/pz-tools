@@ -110,11 +110,11 @@ public sealed class VehicleDrivingUiSourceTests
     {
         var section = Source("ExtensionSettingsSection.cs");
         Assert.Contains("Header = title, Description = description, Content = enabled.Control", section);
-        Assert.Contains("new[] { version, status, lastSave, hint }", section);
+        Assert.Contains("new[] { version, hint }", section);
         Assert.Contains("Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details })", section);
         Assert.Contains("GameExtensions.CompatibilityStatus", section);
         foreach (var key in new[] { "VersionInfo", "InitializationFailed", "Applying",
-            "WorldRequired", "VersionMismatch", "VersionUnknown", "ForceWarning", "ExecutionFailed", "ExecutionFallback" })
+            "WorldRequired", "VersionMismatch", "VersionUnknown", "ForceWarning" })
             Assert.Contains("GameExtensions." + key, section);
     }
 

@@ -427,19 +427,18 @@ public sealed class VehicleDrivetrainConfigurationTests
     }
 
     [Fact]
-    public async Task AppliedRuntimeStatusChangesProjectionWithoutChangingPreferencesOrSavePolicy()
+    public async Task AppliedRuntimeStatusChangesProjectionWithoutChangingPreferences()
     {
         using var temp = new TempDirectory();
         var views = new RevisionedViewStore();
         RuntimeExtensionStatus? state = null;
-        var controller = new GameExtensionController(temp.Path, views, () => false, extensionStatus: _ => state);
+        var controller = new GameExtensionController(temp.Path, views, extensionStatus: _ => state);
         var before = await controller.RefreshAsync();
         Assert.Null(before.StatusOf(VehicleDrivetrainExtension.Id));
         state = new(RuntimeExtensionState.Pending, "waiting-for-game");
         await controller.RefreshRuntimeAsync(default);
         var first = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0);
         Assert.Equal(state, first.Snapshot!.StatusOf(VehicleDrivetrainExtension.Id));
-        Assert.False(first.Snapshot.GameSavingEnabled);
         Assert.All(first.Snapshot.Cards, card => Assert.False(card.Enabled));
         await controller.RefreshRuntimeAsync(default);
         Assert.False(views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, first.ViewRevision).Modified);

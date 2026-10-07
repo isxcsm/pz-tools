@@ -81,7 +81,8 @@ public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enab
     public ExtensionPreference Preference => new(Enabled, ForceVersion, Options);
     /// <summary>The switch's saved value, or its default.</summary>
     public bool Option(ExtensionOption option) => Preference.Option(option);
-    public bool SupportsActivation => Definition.ActivationKind != ExtensionActivationKind.Unsupported;
+    /// <summary>The module runs continuously, the only kind the app turns on and off.</summary>
+    public bool SupportsActivation => Definition.ActivationKind == ExtensionActivationKind.Continuous;
     // Admission hint only. Saving a desired preference does not require a currently running compatible game.
     public bool CanEnable => SupportsActivation && (VersionMatches || ForceVersion);
     public bool EffectiveEnabled => Enabled && CanEnable;
@@ -106,6 +107,10 @@ public sealed class ExtensionSettingsConflictException()
 /// <summary>Management plane only. A saved preference is never evidence of an applied game patch.</summary>
 public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<string?>? gameVersion = null, Func<IReadOnlyList<ExtensionDefinition>>? catalogue = null)
 {
+    /// <summary>
+    /// One card per continuous module of the catalogue. A save provider (<c>save.prepare.v1</c>) has none: nothing in the
+    /// app asks the game for one, so a switch for it would save a preference nothing reads.
+    /// </summary>
     public IReadOnlyList<ExtensionCardView> ReadCards() => Project(settings.Read());
 
     /// <summary>
@@ -119,7 +124,9 @@ public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<s
     private IReadOnlyList<ExtensionCardView> Project(ExtensionConfiguration config)
     {
         var version = gameVersion?.Invoke();
-        return (catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Select(definition => ExtensionCardView.For(definition,
-            config.Extensions.GetValueOrDefault(definition.Id) ?? new(), config.Revision, version)).ToArray();
+        return (catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn)
+            .Where(definition => definition.ActivationKind == ExtensionActivationKind.Continuous)
+            .Select(definition => ExtensionCardView.For(definition, config.Extensions.GetValueOrDefault(definition.Id) ?? new(),
+                config.Revision, version)).ToArray();
     }
 }

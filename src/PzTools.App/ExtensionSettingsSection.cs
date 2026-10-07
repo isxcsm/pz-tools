@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PzTools.App.Core;
 using PzTools.GameExtensions;
-using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App;
 
@@ -16,8 +15,6 @@ internal sealed class ExtensionSettingsSection
     private readonly TextBlock description = Text();
     private readonly TextBlock statusTitle = Text();
     private readonly TextBlock version = Text();
-    private readonly TextBlock status = Text();
-    private readonly TextBlock lastSave = Text();
     private readonly TextBlock hint = Text();
     private readonly SettingToggle enabled;
     private readonly List<SettingRow> options = [];
@@ -30,7 +27,7 @@ internal sealed class ExtensionSettingsSection
         descriptor = ExtensionDescriptors.For(id);
         enabled = new(value => save(GameExtensionSetting.Enabled, value));
         var details = new StackPanel { Spacing = 4 };
-        foreach (var text in new[] { version, status, lastSave, hint }) details.Children.Add(text);
+        foreach (var text in new[] { version, hint }) details.Children.Add(text);
         Control = new SettingsExpander
         {
             Header = title, Description = description, Content = enabled.Control, IsExpanded = initiallyExpanded,
@@ -67,8 +64,6 @@ internal sealed class ExtensionSettingsSection
         SetText(description, Localizer.Get(card.Definition.DescriptionKey));
         SetText(statusTitle, Localizer.Get("GameExtensions.CompatibilityStatus"));
         SetText(version, VersionDescription(card));
-        SetText(status, activation.IsPerSave ? StatusText(card) : null);
-        SetText(lastSave, ExecutionText(view.LastSave, card.Definition.Id));
         SetText(hint, ActivationHint(view, card, activation, descriptor));
         enabled.Update(activation.IsOn, activation.CanToggle, name);
         // The rows stay editable whatever the game does: they show and change the saved preference.
@@ -88,9 +83,9 @@ internal sealed class ExtensionSettingsSection
         if (activation.IsBusy) return Localizer.Get(view.StatusOf(card.Definition.Id)?.Reason == "safe-boundary"
             ? descriptor.SafeBoundaryHintKey : "GameExtensions.Applying");
         if (card.Enabled && !view.RuntimeWorldReady) return Localizer.Get("GameExtensions.WorldRequired");
-        if (!activation.IsPerSave && !card.CanEnable) return StatusText(card);
-        if (activation.IsPerSave && !view.GameSavingEnabled)
-            return Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled");
+        // The range is not ignored, and the game's version is outside it or not known yet.
+        if (!card.CanEnable) return Localizer.Get(card.StatusCode == "version-mismatch"
+            ? "GameExtensions.VersionMismatch" : "GameExtensions.VersionUnknown");
         return null;
     }
 
@@ -101,24 +96,6 @@ internal sealed class ExtensionSettingsSection
             : Localizer.Format(support.Scope == VersionSupportScope.Major ? "GameExtensions.VersionMajor" : "GameExtensions.VersionMinor", support.RangeText);
         return Localizer.Format("GameExtensions.VersionInfo", range, card.GameVersion ?? Localizer.Get("Unknown"));
     }
-
-    private static string StatusText(ExtensionCardView card) => Localizer.Get(card.StatusCode switch
-    {
-        "version-mismatch" => "GameExtensions.VersionMismatch",
-        "version-unknown" => "GameExtensions.VersionUnknown",
-        "forced-version" => "GameExtensions.ForcedVersion",
-        "disabled" => "GameExtensions.Disabled",
-        _ => "GameExtensions.AwaitingValidation",
-    });
-
-    private static string? ExecutionText(RuntimeSaveExecution? save, string id) => save is null || save.RequestedProvider != id ? null
-        : save.Outcome switch
-        {
-            RuntimeSaveOutcome.Running => Localizer.Get("GameExtensions.ExecutionRunning"),
-            RuntimeSaveOutcome.Failed => Localizer.Format("GameExtensions.ExecutionFailed", save.Reason ?? "save-failed"),
-            _ when save.Provider != id => Localizer.Format("GameExtensions.ExecutionFallback", save.Reason ?? "module-unavailable"),
-            _ => Localizer.Get("GameExtensions.ExecutionSucceeded"),
-        };
 
     private static TextBlock Text() => new() { TextWrapping = TextWrapping.Wrap };
     private static void SetText(TextBlock block, string? value)

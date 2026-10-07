@@ -40,18 +40,18 @@ public sealed class GameExtensionProjectionTests
         cards.Single(card => card.Definition.Id == VehicleDrivetrainExtension.Id);
 
     [Fact]
-    public async Task ProjectionReflectsGlobalSavePolicyWithoutPublishingUnchangedViews()
+    public async Task RefreshesPublishAViewOnlyWhenSomethingChanged()
     {
         using var temp = new TempDirectory();
         var views = new RevisionedViewStore();
-        var saveEnabled = false;
-        var controller = new GameExtensionController(temp.GetPath("runtime"), views, () => saveEnabled);
-        Assert.False((await controller.RefreshAsync()).GameSavingEnabled);
+        string? version = "42.20";
+        var controller = new GameExtensionController(temp.GetPath("runtime"), views, gameVersion: () => version);
+        await controller.RefreshAsync();
         var first = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0);
         await controller.RefreshAsync();
         Assert.False(views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, first.ViewRevision).Modified);
-        saveEnabled = true;
-        Assert.True((await controller.RefreshAsync()).GameSavingEnabled);
+        version = "42.21";
+        await controller.RefreshAsync();
         Assert.True(views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, first.ViewRevision).Modified);
     }
 }

@@ -7,11 +7,10 @@ namespace PzTools.App.Core;
 /// <summary>
 /// Preference controls display the committed request, not a runtime acknowledgement. Runtime
 /// pending/failure/applied values are separate hints and diagnostics; they do not lock settings.
-/// Unsupported capabilities, a current process restart requirement and a running game outside the
-/// supported version range still fail closed.
+/// A card without the continuous capability, a current process restart requirement and a running
+/// game outside the supported version range still fail closed.
 /// </summary>
-public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsBusy,
-    string? FailureReason = null, bool IsPerSave = false)
+public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsBusy, string? FailureReason = null)
 {
     private const long MaximumRuntimeStatusAgeMilliseconds = 3000;
 
@@ -47,18 +46,10 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
         return status with { AgeMilliseconds = 0 };
     }
 
-    public static ExtensionActivationView Project(ExtensionCardView card, bool gameSavingEnabled,
-        bool runtimeWorldReady, RuntimeExtensionStatus? runtime)
+    public static ExtensionActivationView Project(ExtensionCardView card, bool runtimeWorldReady, RuntimeExtensionStatus? runtime)
     {
-        var kind = card.Definition.ActivationKind;
-        if (kind == ExtensionActivationKind.Unsupported)
-            return new(false, false, false, FailureReason: "unsupported-capability");
-        if (kind == ExtensionActivationKind.PerSave)
-        {
-            // This is deliberately not a claim that a save adapter is initialized or executing.
-            // Save policy and compatibility are checked when a save is requested, not when editing preferences.
-            return new(card.Enabled, true, false, IsPerSave: true);
-        }
+        // The app runs continuous modules only (GameExtensionService gives no other cards).
+        if (!card.SupportsActivation) return new(false, false, false, FailureReason: "unsupported-capability");
 
         var fresh = IsFresh(runtime);
         var failed = fresh && runtime!.State is RuntimeExtensionState.Unsupported

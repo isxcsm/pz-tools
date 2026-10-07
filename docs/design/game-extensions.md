@@ -275,12 +275,14 @@ match in this order (`ExtensionSettingsSection.ActivationHint`), or hidden:
 
 "In progress" means the world is ready, the status is fresh and not failed, and either the game
 reports `Pending`, the saved revision differs from the one last requested, or the module is
-saved off but still applied. There is no "applied" text: when everything matches, the hint is
-hidden.
+saved off but still applied ("applied" is the evidence in
+[Statuses keyed by extension id](#statuses-keyed-by-extension-id)). There is no "applied" text:
+when everything matches, the hint is hidden.
 
-The card code also has texts for per-save modules (**Off · Standard saving**, **Compatibility
-checked on next save · Experimental**, **Version override · Essential checks still apply**, the
-**Last request: ...** lines). They appear only for a `save.prepare.v1` module, and none ships.
+Only continuous modules have a card (`GameExtensionService.ReadCards`). A `save.prepare.v1` row
+has none: nothing in the app asks the game for a save provider yet (the bridge's
+`GameSaveClient.RequestProviderAsync` is kept for that, used only by tests), so a switch for one
+would save a preference nothing reads.
 
 ## Adding an extension
 
