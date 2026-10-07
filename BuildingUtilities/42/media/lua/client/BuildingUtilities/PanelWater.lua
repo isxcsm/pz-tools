@@ -148,8 +148,13 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         return getText(WaterUnits.spraying(unit) and "IGUI_BU_Sprinkler_watering" or "IGUI_BU_Sprinkler_waiting")
     end
     local media = getText("IGUI_BU_FilterMedia", BU.percent(WaterUnits.mediaLeft(unit) * 100))
-    if not WaterUnits.unpurifiedPipes() then return media .. ", " .. getText("IGUI_BU_Filter_resting") end
-    return media
+    if WaterUnits.unpurifiedPipes() then return media end
+    -- The option asks for unpurified pipes, but this game's API cannot keep the taint: say so, not just "resting".
+    local purify, why = BU.purifyAvailable()
+    if BU.sandbox("RiskPlumbingUnpurified", false) == true and not purify then
+        return media .. ", " .. getText("IGUI_BU_Filter_restingNoRisk", why)
+    end
+    return media .. ", " .. getText("IGUI_BU_Filter_resting")
 end
 
 -- The water units' rows, after the tanks: what each does, its group (with more than one) and its line.

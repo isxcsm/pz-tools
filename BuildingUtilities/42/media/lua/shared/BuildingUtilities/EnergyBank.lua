@@ -114,7 +114,7 @@ function Energy.run(panel, state, hours, available, rules)
         rate = flow * Energy.efficiency()
         if hours > 0 then rate = math.min(rate, room / hours) elseif room <= 0 then rate = 0 end
     elseif flow < 0 then
-        local above = math.max(0, bank.usable - bank.capacity * rules.floor)
+        local above = Energy.aboveFloor(bank, rules.floor)
         rate = flow
         if hours > 0 then rate = math.max(rate, -above / hours) elseif above <= 0 then rate = 0 end
         wear(bank, -rate * hours)
@@ -129,9 +129,11 @@ function Energy.run(panel, state, hours, available, rules)
     return bank.usable > bank.capacity * (available and rules.floor or rules.restart), bank, output
 end
 
--- How many hours the bank lasts drawn at a flow (below 0, load an hour) down to the floor its rules keep (a share of
--- its capacity); nil when it is not drawn.
+-- What the bank holds usable above the floor its rules keep (a share of its capacity).
+function Energy.aboveFloor(bank, floor) return math.max(0, bank.usable - bank.capacity * floor) end
+
+-- How many hours the bank lasts drawn at a flow (below 0, load an hour) down to that floor; nil when it is not drawn.
 function Energy.bankHoursLeft(bank, floor, flow)
     if not bank or flow >= 0 then return nil end
-    return math.max(0, bank.usable - bank.capacity * floor) / -flow
+    return Energy.aboveFloor(bank, floor) / -flow
 end

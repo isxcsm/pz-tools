@@ -38,8 +38,10 @@ function ISBUPanelWindow:sourceRows(state)
         else status = getText("IGUI_BU_SolarShort") end
         local text = getText("IGUI_BU_SolarRow", count, load2(output), status)
         if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(snow * 100)) end
-        local tooltip = getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(Energy.rated()),
-            BU.percent(Energy.sunlight() * 100), load2(state and state.load or 0))
+        -- Only the mechanics this game has on are told.
+        local tooltip = getText("IGUI_BU_SolarLightTip", load2(Energy.rated()), BU.percent(Energy.sunlight() * 100))
+        if Energy.snowEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_SolarSnowTip") end
+        tooltip = tooltip .. " " .. getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(state and state.load or 0))
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank }, tooltip = tooltip }
     end
     local racks = Store.unitList("rack", panel.id)
@@ -55,7 +57,13 @@ function ISBUPanelWindow:sourceRows(state)
             if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
             if panel.quietCut then text = text .. "  " .. getText("IGUI_BU_QuietCut") end
             if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", BU.percent(bank.cold * 100)) end
-            tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, BU.percent(Energy.efficiency() * 100)) .. " <LINE> "
+            tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, BU.percent(Energy.efficiency() * 100))
+            if Energy.wearRate() > 0 then tooltip = tooltip .. " " .. getText("IGUI_BU_BankWearTip") end
+            if Energy.weakDrainEnabled() then
+                tooltip = tooltip .. " " .. getText("IGUI_BU_BankWeakTip", Energy.WEAK, BU.percent(Energy.WEAK_PER_DAY * 100))
+            end
+            if Energy.coldLockEnabled() then tooltip = tooltip .. " " .. getText("IGUI_BU_BankColdTip") end
+            tooltip = tooltip .. " " .. getText("IGUI_BU_BankEmptyTip") .. " <LINE> "
             for _, battery in ipairs(bank.batteries) do tooltip = tooltip .. " <LINE> " .. BU.Rack.batteryText(battery) end
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
