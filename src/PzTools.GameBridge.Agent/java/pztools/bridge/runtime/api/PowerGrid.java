@@ -461,7 +461,8 @@ final class PowerGrid implements ApiHooks.Power {
      * burns the hours since, as it does for a generator whose square was not loaded. Switched off by the player, the
      * one in use stops the network. A producer whose square is not loaded counts as last seen, and the one in use as
      * stopped once its fuel would have run out. A source is always as its mod last set it: switched on by the mod, it
-     * carries the load; no longer available, it stops at the hour the mod gave, and the next takes over from then.
+     * carries the load; no longer available, it stops at the hour the mod gave, and the next takes over from then. One
+     * taken out of the producers while in use stops now, and the next takes over.
      */
     private void producers(Network network, Object cells, double hours, List<Change> changes) throws ReflectiveOperationException {
         var generators = new HashMap<Producer, Object>();
@@ -482,13 +483,18 @@ final class PowerGrid implements ApiHooks.Power {
             }
             loaded.add(producer);
             Seen last = network.seen.put(producer, now);
-            if (now.activated() && last != null && !last.activated()) newcomers.add(producer);
+            // Switched on since last seen; a source only its mod switches, so one on at first sight was switched on too.
+            if (now.activated() && (last == null ? producer.source() != null : !last.activated())) newcomers.add(producer);
         }
         // The one in use as the API knew it, or one the game ran before the API knew which (see generatorUpdate).
         Producer before = network.inUse, current = before != null ? before : network.adopted, inUse = current;
         network.adopted = null;
         double at = hours;
-        if (current != null && network.seen.containsKey(current)) {
+        if (current != null && !network.producers.contains(current)) {
+            // Taken out of the producers while it carried the load (a generator disconnected, a source its mod
+            // dropped): the next one takes over now.
+            inUse = next(network, current, generators);
+        } else if (current != null && network.seen.containsKey(current)) {
             Seen state = network.seen.get(current);
             Settled settled = current.at() == null ? null : network.settled.get(current.at());
             if (loaded.contains(current)) {

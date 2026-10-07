@@ -757,6 +757,17 @@ public final class GameApiTest {
         state = state(networks, "solar");
         check(state.rawget("supplied").equals(true) && ((KahluaTable)state.rawget("producer")).rawget("source").equals("bank")
             && near((Double)state.rawget("ownLoad"), ownLoad + 0.5), "A newer payload lost the source or the extra load");
+        // Taken out of the producers while it carries the load: the generator takes over at once.
+        call(networks, "setProducers", mod, "solar", list(at(34, 33, 0)));
+        frame();
+        state = state(networks, "solar");
+        check(generator.activated && state.rawget("supplied").equals(true) && state.rawget("producer") != null
+            && ((KahluaTable)state.rawget("producer")).rawget("x").equals(34.0), "A source taken out of the producers still carried the network");
+        call(networks, "setProducers", mod, "solar", list(bank, at(34, 33, 0)));
+        call(networks, "setSource", mod, "solar", "bank", true, true);
+        frame();
+        check(!generator.activated && ((KahluaTable)state(networks, "solar").rawget("producer")).rawget("source").equals("bank"),
+            "The source listed again did not take over");
         // Switched off by its mod while it can run: the network stops, as when a player switches a generator off.
         call(networks, "setSource", mod, "solar", "bank", true, false);
         frame();
