@@ -250,7 +250,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             local bx = width - (#BUTTONS - index + 1) * (BUTTON_W + 4) - PAD
             smallButton(self, bx, y, BUTTON_W, getText("IGUI_BU_" .. name), 1, 1, 1)
         end
-    elseif row.kind == "device" or row.kind == "all" then
+    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
         if row.choosable then chooseBox(self, indent, y, row.chosen) else tick(self, indent, y, row.state == "on" and "on" or "off") end
         local shade = row.state ~= "other" and 1 or 0.5
@@ -292,6 +292,8 @@ function ISBUPanelList:prerender()
         if row then outline(self.window.playerObj:getPlayerNum(), rowObjects(row), getCore():getGoodHighlitedColor(), self.highlighted) end
     end
     ISScrollingListBox.prerender(self)
+    -- The list's tooltip does not wrap; the units' explanations are long.
+    if self.tooltipUI then self.tooltipUI.maxLineWidth = 460 end
 end
 
 function ISBUPanelList:unhighlight()
@@ -399,11 +401,10 @@ function ISBUPanelWindow:createChildren()
     anchorRight(self.planButton)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     self.renameButton:setTitle(getText("IGUI_BU_Rename"))
-    self.mainButton = button(self, PAD + 106, buttonsY, 200, ROW, ISBUPanelWindow.onMainPanel)
+    self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
     self.resetButton = button(self, PAD + 312, buttonsY, 110, ROW, ISBUPanelWindow.onReset)
     self.resetButton:setTitle(getText("ContextMenu_BU_ResetBreaker"))
     self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
-    self.blackoutButton = button(self, PAD + 594, buttonsY, 150, ROW, ISBUPanelWindow.onBlackout)
     local tabsY = buttonsY + ROW + PAD
     local listW = self.width
     local height = self.height - tabsY - self:resizeWidgetHeight()
@@ -641,7 +642,9 @@ function ISBUPanelWindow:refresh()
     -- What the line into the box loses, counted in the load.
     local pieces, loss = Panels.powerLine(panel, power)
     if self.load and pieces and loss > 0 and power.loadFactor then
-        self.loadText = self.loadText .. "   " .. getText("IGUI_BU_LineLoss", string.format("%.1f", loss), pieces)
+        local withLoss = self.loadText .. "   " .. getText("IGUI_BU_LineLoss", string.format("%.1f", loss), pieces)
+        local room = self.planButton:getX() - (PAD + BAR_W + 8) - PAD
+        if getTextManager():MeasureStringX(UIFont.Small, withLoss) <= room then self.loadText = withLoss end
     end
     self.loadArea:setVisible(self.load ~= nil)
     self.loadArea:setWidth(BAR_W + 8 + getTextManager():MeasureStringX(UIFont.Small, self.loadText))
@@ -662,9 +665,6 @@ function ISBUPanelWindow:refresh()
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     self.resetButton:setVisible(panel.tripped == true)
-    local dark = count(panel.power.blackout)
-    self.blackoutButton:setTitle(dark > 0 and getText("IGUI_BU_BlackoutEnd", dark) or getText("IGUI_BU_Blackout"))
-    self.blackoutButton:setTooltip(getText(dark > 0 and "IGUI_BU_BlackoutEndTip" or "IGUI_BU_BlackoutTip"))
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)
     if tier < BU.TIERS then
@@ -672,6 +672,14 @@ function ISBUPanelWindow:refresh()
         local cost = Costs.upgrade(tier + 1)
         self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
+    end
+    -- The buttons shown, left to right: the reset only while the breaker is down, so the row fits the narrowest window.
+    local x = PAD
+    for _, shown in ipairs({ self.renameButton, self.mainButton, self.resetButton, self.upgradeButton }) do
+        if shown:getIsVisible() then
+            shown:setX(x)
+            x = x + shown:getWidth() + 6
+        end
     end
     local building = Panels.building(panel)
     self.building = building
@@ -797,14 +805,15 @@ function ISBUPanelWindow:sourceRows(state)
     local bank = Energy.bank(panel)
     if count > 0 then
         local status
-        if inUse then status = getText("IGUI_BU_Running")
+        if Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")
+        elseif bank then status = ""
+        elseif inUse then status = getText("IGUI_BU_Running")
         elseif seen and seen.available then status = getText("IGUI_BU_Standby")
-        elseif Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")
         else status = getText("IGUI_BU_SolarShort") end
         local text = getText("IGUI_BU_SolarRow", count, load2(output), status)
-        if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(snow * 100 + 0.5)) end
+        if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(snow * 100)) end
         local tooltip = getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(Energy.rated()),
-            math.floor(Energy.sunlight() * 100 + 0.5), load2(state and state.load or 0))
+            BU.percent(Energy.sunlight() * 100), load2(state and state.load or 0))
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank }, tooltip = tooltip }
     end
     local racks = Store.unitList("rack", panel.id)
@@ -815,17 +824,18 @@ function ISBUPanelWindow:sourceRows(state)
             local status = getText("IGUI_BU_Standby")
             if flow > 0.0005 then status = getText("IGUI_BU_BankCharging", load2(flow))
             elseif flow < -0.0005 then status = getText("IGUI_BU_BankDrawn", load2(-flow)) end
-            text = getText("IGUI_BU_BankRow", math.floor(bank.charge * 100 + 0.5), string.format("%.1f", bank.energy),
+            text = getText("IGUI_BU_BankRow", BU.percent(bank.charge * 100), string.format("%.1f", bank.energy),
                 string.format("%.1f", bank.capacity), status)
             if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
             if panel.quietCut then text = text .. "  " .. getText("IGUI_BU_QuietCut") end
-            if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", math.floor(bank.cold * 100 + 0.5)) end
-            tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, math.floor(Energy.efficiency() * 100 + 0.5))
+            if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", BU.percent(bank.cold * 100)) end
+            tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, BU.percent(Energy.efficiency() * 100)) .. " <LINE> "
+            for _, battery in ipairs(bank.batteries) do tooltip = tooltip .. " <LINE> " .. Units.batteryText(battery) end
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end
         local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
-        if controller then tooltip = (tooltip and tooltip .. " " or "") .. self:controllerText() end
+        if controller then tooltip = (tooltip and tooltip .. " <LINE> <LINE> " or "") .. self:controllerText() end
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
     end
     return rows
@@ -836,8 +846,8 @@ function ISBUPanelWindow:controllerText()
     local settings = Energy.settings(self.panel)
     local quiet = settings.quietFrom == settings.quietTo and getText("IGUI_BU_QuietNone")
         or getText("IGUI_BU_QuietHours", settings.quietFrom, settings.quietTo)
-    local text = getText("IGUI_BU_ControllerTip", settings.start, settings.stop, quiet)
-    if (self.panel.tier or 1) >= BU.SMART_TIER then text = text .. " " .. getText("IGUI_BU_ProtectTip", settings.protect) end
+    local text = getText("IGUI_BU_ControllerTip", BU.percent(settings.start), BU.percent(settings.stop), quiet)
+    if (self.panel.tier or 1) >= BU.SMART_TIER then text = text .. " <LINE> <LINE> " .. getText("IGUI_BU_ProtectTip", BU.percent(settings.protect)) end
     return text
 end
 
@@ -860,10 +870,10 @@ function ISBUPanelWindow:controllerMenu()
         end
         return sub
     end
-    local function percentLabel(value) return value .. "%" end
-    submenu(getText("IGUI_BU_SetStart", settings.start), Energy.CHOICES.start, function(v) return v == settings.start or v >= settings.stop end,
+    local percentLabel = BU.percent
+    submenu(getText("IGUI_BU_SetStart", BU.percent(settings.start)), Energy.CHOICES.start, function(v) return v == settings.start or v >= settings.stop end,
         percentLabel, function(v) return { start = v } end)
-    submenu(getText("IGUI_BU_SetStop", settings.stop), Energy.CHOICES.stop, function(v) return v == settings.stop or v <= settings.start end,
+    submenu(getText("IGUI_BU_SetStop", BU.percent(settings.stop)), Energy.CHOICES.stop, function(v) return v == settings.stop or v <= settings.start end,
         percentLabel, function(v) return { stop = v } end)
     submenu(getText("IGUI_BU_SetQuiet"), Energy.CHOICES.quiet,
         function(pair) return pair[1] == settings.quietFrom and pair[2] == settings.quietTo end,
@@ -873,7 +883,7 @@ function ISBUPanelWindow:controllerMenu()
         end,
         function(pair) return { quietFrom = pair[1], quietTo = pair[2] } end)
     if (panel.tier or 1) >= BU.SMART_TIER then
-        submenu(getText("IGUI_BU_SetProtect", settings.protect), Energy.CHOICES.protect, function(v) return v == settings.protect end,
+        submenu(getText("IGUI_BU_SetProtect", BU.percent(settings.protect)), Energy.CHOICES.protect, function(v) return v == settings.protect end,
             percentLabel, function(v) return { protect = v } end)
     end
 end
@@ -958,6 +968,11 @@ function ISBUPanelWindow:fill(utility, state)
         allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.capacity))
     end
     add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
+    if utility == "power" then
+        local dark = count(panel.power.blackout)
+        add({ kind = "blackout", text = dark > 0 and getText("IGUI_BU_BlackoutOn", dark) or getText("IGUI_BU_Blackout"),
+            state = dark > 0 and "on" or "off" }, getText(dark > 0 and "IGUI_BU_BlackoutEndTip" or "IGUI_BU_BlackoutTip"))
+    end
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
     -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
     local options = PanelWindow.options
@@ -1474,6 +1489,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         if target then PanelWindow.open(playerObj, target) end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
+    elseif row.kind == "blackout" then
+        Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "batch" then
@@ -1585,9 +1602,6 @@ end
 
 function ISBUPanelWindow:onReset() Sync.send(self.playerObj, "resetBreaker", { panel = self.panel.id }) end
 
-function ISBUPanelWindow:onBlackout()
-    Sync.send(self.playerObj, "setBlackout", { panel = self.panel.id, on = count(self.panel.power.blackout) == 0 })
-end
 
 function ISBUPanelWindow:onUpgrade()
     local panel = self.panel

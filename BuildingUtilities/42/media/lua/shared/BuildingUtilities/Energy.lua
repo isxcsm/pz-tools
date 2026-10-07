@@ -99,8 +99,9 @@ end
 
 -- The bank.
 
--- A battery's share of the sandbox's capacity by its kind (vanilla's are alike; this mod tells them apart).
-local KINDS = { ["Base.CarBattery1"] = 1, ["Base.CarBattery2"] = 1.5, ["Base.CarBattery3"] = 0.75 }
+-- A battery's share of the sandbox's capacity by its kind (Units.batteryKind: standard, heavy-duty, sports). Vanilla
+-- holds them alike; this mod tells them apart.
+Energy.KIND_SHARE = { 1, 1.5, 0.75 }
 -- Wear: condition lost per full bank drawn, by the charge it is drawn at; a worn battery (below WEAK) takes so much
 -- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST.
 Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
@@ -149,7 +150,7 @@ function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
 
 -- What a battery holds full, in load-hours: its kind's share of BatteryCapacity, less as it wears.
 function Energy.batteryCapacity(record)
-    local base = math.max(0, BU.sandbox("BatteryCapacity", 2.0)) * (KINDS[record.type] or 1)
+    local base = math.max(0, BU.sandbox("BatteryCapacity", 2.0)) * Energy.KIND_SHARE[Units.batteryKind(record.type)]
     return base * (0.3 + 0.7 * math.max(0, math.min(100, record.condition or 100)) / 100)
 end
 
@@ -213,13 +214,15 @@ end
 -- the bank takes to charge), charging (that), floor (the share of the bank it is not drawn below: the cutoff at
 -- tier 4; with a charge controller and a generator to hand over to, its start setting, but in quiet hours), restart
 -- (the share it needs to carry the load again: 2% over the floor, or the stop setting), quiet, generators (whether
--- a generator of the panel could take over: with fuel and not broken, as last seen) and settings.
+-- a generator of the panel could take over: on a loaded square, as the API hands over only to those, with fuel and
+-- not broken) and settings.
 function Energy.rules(panel, state)
     local settings = Energy.settings(panel)
     local tier = panel.tier or 1
     local generators = false
     for _, producer in ipairs(state.producers or {}) do
-        if not producer.source and (producer.fuel == nil or producer.fuel > 0) and (producer.condition == nil or producer.condition > 0) then
+        if not producer.source and getCell():getGridSquare(producer.x, producer.y, producer.z)
+                and (producer.fuel == nil or producer.fuel > 0) and (producer.condition == nil or producer.condition > 0) then
             generators = true
         end
     end

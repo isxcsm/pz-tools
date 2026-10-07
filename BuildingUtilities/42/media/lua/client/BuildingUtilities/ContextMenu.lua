@@ -1,7 +1,7 @@
 -- The world context menu: install, open, upgrade and take down a breaker box and reset its breaker; lay and take
 -- away the lines of generators, water containers, units and outside devices; switch a device of the building; put
--- down and take up solar panels and battery racks, and put batteries into a rack. The inventory menu: recondition a
--- battery.
+-- down and take up solar panels and battery racks (a rack's batteries go in and out in the loot window). The
+-- inventory menu: recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
@@ -157,83 +157,22 @@ end
 
 local function onRemoveUnit(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBURemoveUnit:new(playerObj, unit)) end
 
--- Batteries into a rack, or out of it by index (the last first, so the indexes stay right).
-local function onPutBatteries(playerObj, unit, items)
-    local square = getCell():getGridSquare(unit.x, unit.y, unit.z)
-    if not square or not luautils.walkAdj(playerObj, square, true) then return end
-    for _, item in ipairs(items) do
-        ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-        ISTimedActionQueue.add(ISBURackBattery:new(playerObj, unit, item, nil))
-    end
-end
-
-local function onTakeBatteries(playerObj, unit, indexes)
-    local square = getCell():getGridSquare(unit.x, unit.y, unit.z)
-    if not square or not luautils.walkAdj(playerObj, square, true) then return end
-    table.sort(indexes, function(a, b) return a > b end)
-    for _, index in ipairs(indexes) do ISTimedActionQueue.add(ISBURackBattery:new(playerObj, unit, nil, index)) end
-end
-
--- The car batteries the player carries, bags included.
-local function carriedBatteries(playerObj)
-    local list = playerObj:getInventory():getAllTagRecurse(ItemTag.CAR_BATTERY, ArrayList.new())
-    local result = {}
-    for i = 0, list:size() - 1 do result[#result + 1] = list:get(i) end
-    return result
-end
-
-local function addRackOptions(sub, context, playerObj, unit)
-    local count = #unit.batteries
-    local carried = carriedBatteries(playerObj)
-    local put = sub:addOption(getText("ContextMenu_BU_PutBattery"), nil, nil)
-    if count >= Units.RACK_SIZE then
-        unavailable(put, getText("IGUI_BU_Reason_rackFull", Units.RACK_SIZE))
-    elseif #carried == 0 then
-        unavailable(put, getText("IGUI_BU_Reason_noBattery"))
-    else
-        local menu = ISContextMenu:getNew(context)
-        context:addSubMenu(put, menu)
-        if #carried > 1 then
-            local room = math.min(#carried, Units.RACK_SIZE - count)
-            local some = {}
-            for index = 1, room do some[index] = carried[index] end
-            menu:addOption(getText("ContextMenu_BU_PutAll", room), playerObj, onPutBatteries, unit, some)
-        end
-        for _, item in ipairs(carried) do
-            menu:addOption(Units.batteryText(Units.batteryRecord(item)), playerObj, onPutBatteries, unit, { item })
-        end
-    end
-    if count == 0 then return end
-    local take = sub:addOption(getText("ContextMenu_BU_TakeBattery"), nil, nil)
-    local menu = ISContextMenu:getNew(context)
-    context:addSubMenu(take, menu)
-    if count > 1 then
-        local all = {}
-        for index = 1, count do all[index] = index end
-        menu:addOption(getText("ContextMenu_BU_TakeAll", count), playerObj, onTakeBatteries, unit, all)
-    end
-    for index, record in ipairs(unit.batteries) do
-        menu:addOption(Units.batteryText(record), playerObj, onTakeBatteries, unit, { index })
-    end
-end
-
 local function onClearSnow(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBUClearSnow:new(playerObj, unit)) end
 
 local function addUnitOptions(context, playerObj, unit)
     local panel = Store.get(unit.panel)
     local title = Units.name(unit)
     if (unit.snow or 0) >= BU.Energy.SNOW_TRACE then
-        title = title .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(unit.snow * 100 + 0.5))
+        title = title .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(unit.snow * 100))
     end
     if unit.kind == "rack" then
         title = getText("IGUI_BU_RackTitle", title, #unit.batteries, Units.RACK_SIZE)
-        if #unit.batteries > 0 then title = title .. "  " .. math.floor(Units.rackCharge(unit) * 100 + 0.5) .. "%" end
+        if #unit.batteries > 0 then title = title .. "  " .. BU.percent(Units.rackCharge(unit) * 100) end
     end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    if unit.kind == "rack" then addRackOptions(sub, context, playerObj, unit) end
     if (unit.snow or 0) > 0 then sub:addOption(getText("ContextMenu_BU_ClearSnow"), playerObj, onClearSnow, unit) end
     if BU.api() then
         if panel then
@@ -245,7 +184,7 @@ local function addUnitOptions(context, playerObj, unit)
         end
     end
     local remove = sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemoveUnit, unit)
-    if #(unit.batteries or {}) > 0 then
+    if not Units.isEmpty(unit) then
         unavailable(remove, getText("IGUI_BU_Reason_rackNotEmpty"))
     elseif refundNote() and unit.paid then
         tooltip(remove, refundNote())

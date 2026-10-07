@@ -1,6 +1,7 @@
 -- Solar panels and battery racks ("units"): objects this mod puts down and wires to a main panel like a generator.
 -- They are kept in the save (Store.units), not only on their squares, because they count while those are not
--- loaded. A rack keeps its car batteries in the save too; they go in and come out as items.
+-- loaded. A rack is a container players put car batteries in and take them out of, as any other; the save keeps a
+-- record of each (Changes.syncRack), which the bank works on while the rack is not loaded.
 require "BuildingUtilities/Panels"
 local BU = BuildingUtilities
 local Store, Panels = BU.Store, BU.Panels
@@ -12,7 +13,11 @@ Units.MODDATA = "BuildingUtilitiesUnit"
 Units.ITEMS = { solar = "BuildingUtilities.SolarPanel", rack = "BuildingUtilities.BatteryRack" }
 -- A panel on the ground stands on a frame facing W or N; on a roof it lies flat. A rack stands against a W wall.
 Units.SPRITES = { flat = "bu_solar_01_8", W = "bu_solar_01_9", N = "bu_solar_01_10", rack = "bu_solar_01_0" }
-Units.RACK_SIZE = 20
+-- A rack holds this many batteries: its container takes car batteries only (Units.acceptBattery), by weight up to
+-- RACK_WEIGHT (a battery weighs 5).
+Units.RACK_SIZE, Units.RACK_WEIGHT = 20, 100
+Units.CONTAINER = "BuildingUtilitiesRack"
+Units.ACCEPT = "BuildingUtilities.Units.acceptBattery"
 -- Reconditioning: a battery below this condition, so much better, so many times.
 Units.REVIVE_BELOW, Units.REVIVE_GAIN, Units.REVIVE_TIMES = 50, 25, 3
 Units.REVIVE_SKILL = 4
@@ -87,25 +92,62 @@ end
 
 function Units.isBattery(item) return item ~= nil and item:hasTag(ItemTag.CAR_BATTERY) end
 
--- A battery item as a rack keeps it, and the other way.
+-- A battery's kind, as vanilla's vehicles tell them apart: 1 standard, 2 heavy-duty, 3 sports (IGUI_VehicleType_N).
+-- Car batteries of other mods count as standard.
+local KIND_OF = { ["Base.CarBattery1"] = 1, ["Base.CarBattery2"] = 2, ["Base.CarBattery3"] = 3 }
+function Units.batteryKind(fullType) return KIND_OF[fullType] or 1 end
+
+-- The rack's container (made when missing). The game does not keep what a container accepts in the save, so this
+-- runs again whenever the rack is loaded or shown.
+function Units.rackContainer(object)
+    local container = object:getContainer()
+    if not container then
+        container = ItemContainer.new(Units.CONTAINER, object:getSquare(), object)
+        container:setCapacity(Units.RACK_WEIGHT)
+        container:setExplored(true)
+        object:setContainer(container)
+    end
+    if container:getAcceptItemFunction() ~= Units.ACCEPT then container:setAcceptItemFunction(Units.ACCEPT) end
+    return container
+end
+
+-- What a rack's container takes: car batteries, RACK_SIZE of them.
+function Units.acceptBattery(container, item)
+    return Units.isBattery(item) and container:getCountTag(ItemTag.CAR_BATTERY) < Units.RACK_SIZE
+end
+
+-- The record the save keeps of a battery in a rack: the item's id, type, charge, condition and reconditionings.
 function Units.batteryRecord(item)
-    return { type = item:getFullType(), charge = item:getCurrentUsesFloat(), condition = item:getCondition(),
-        revived = item:getModData()[Units.REVIVED] or 0 }
+    return { id = item:getID(), type = item:getFullType(), charge = item:getCurrentUsesFloat(),
+        condition = item:getCondition(), revived = item:getModData()[Units.REVIVED] or 0 }
 end
 
-function Units.batteryItem(record)
-    local item = instanceItem(record.type)
-    if not item then return nil end
-    item:setUsedDelta(math.max(0, math.min(1, record.charge or 0)))
-    item:setCondition(math.floor((record.condition or 100) + 0.5))
-    if (record.revived or 0) > 0 then item:getModData()[Units.REVIVED] = record.revived end
-    return item
+-- A battery item takes its record's charge and condition, when they differ by enough to be seen (each change goes to
+-- the clients in multiplayer).
+function Units.writeBattery(item, record)
+    local charge = math.max(0, math.min(1, record.charge or 0))
+    local condition = math.max(0, math.min(item:getConditionMax(), math.floor((record.condition or 100) + 0.5)))
+    if math.abs(item:getCurrentUsesFloat() - charge) < 0.005 and item:getCondition() == condition then return end
+    item:setUsedDelta(charge)
+    item:setCondition(condition)
+    if isServer() then sendItemStats(item) end
 end
 
--- A battery as players read it: "Car Battery 82% (condition 64)".
+-- A battery as players read it: "Car Battery (Heavy-Duty) 82%, condition 64, holds 2.4".
 function Units.batteryText(record)
-    return getText("IGUI_BU_BatteryLine", getItemNameFromFullType(record.type), math.floor((record.charge or 0) * 100 + 0.5),
-        math.floor((record.condition or 0) + 0.5))
+    return getText("IGUI_BU_BatteryLine", getItemNameFromFullType(record.type),
+        getText("IGUI_VehicleType_" .. Units.batteryKind(record.type)), BU.percent((record.charge or 0) * 100),
+        math.floor((record.condition or 0) + 0.5), string.format("%.1f", BU.Energy.batteryCapacity(record)))
+end
+
+-- Whether a unit holds nothing, so that it can be taken down: a rack's container empty (its records while it is
+-- not loaded); a solar panel always.
+function Units.isEmpty(unit)
+    if unit.kind ~= "rack" then return true end
+    local object = Units.object(unit)
+    local container = object and object:getContainer()
+    if container then return container:isEmpty() end
+    return #(unit.batteries or {}) == 0
 end
 
 -- A rack's charge as a share of what its batteries hold full, for its look; 0 without batteries.

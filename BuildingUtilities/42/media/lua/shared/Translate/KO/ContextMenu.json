@@ -12,10 +12,6 @@
     "ContextMenu_BU_Utility_water": "물",
     "ContextMenu_BU_Install_solar": "태양광 패널 설치",
     "ContextMenu_BU_Install_rack": "배터리 랙 설치",
-    "ContextMenu_BU_PutBattery": "배터리 넣기",
-    "ContextMenu_BU_PutAll": "모두 넣기 (%1개)",
-    "ContextMenu_BU_TakeBattery": "배터리 꺼내기",
-    "ContextMenu_BU_TakeAll": "모두 꺼내기 (%1개)",
     "ContextMenu_BU_ReviveBattery": "배터리 재생",
     "ContextMenu_BU_ClearSnow": "눈 털기"
 }

@@ -41,6 +41,10 @@ function BU.parseThing(key)
     return tonumber(x), tonumber(y), tonumber(z), sprite
 end
 
+-- A percentage as an argument of a text: "63%". The texts themselves hold no %, which the game's formatting takes
+-- for its own.
+function BU.percent(value) return tostring(math.floor(value + 0.5)) .. "%" end
+
 function BU.sandbox(name, default)
     local page = SandboxVars and SandboxVars.BuildingUtilities
     local value = page and page[name]

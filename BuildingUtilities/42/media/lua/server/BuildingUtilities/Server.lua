@@ -162,28 +162,45 @@ local function checkSource(panel, hours)
     local state = Networks.state(panel, "power")
     if not state then return end
     local source = Energy.sourceState(state)
-    local available = source ~= nil and source.available == true
+    local inUse = Energy.inUse(state)
+    -- The source carried the load when last seen and nothing does now: the world was loaded again (the source is
+    -- defined off), or a quiet cut ended. It counts as available, and goes on again below; if it cannot carry the
+    -- load, it is switched on for this minute so that the API hands over to a generator in the next.
+    local lost = panel.sourceOn and not inUse and not state.supplied and state.enabled and not panel.tripped
+    local available = source ~= nil and source.available == true or lost == true
     local rules = Energy.rules(panel, state)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
-    for _, rack in ipairs(Store.unitList("rack", panel.id)) do Changes.showRack(rack) end
-    if panel.tripped then return end
-    local inUse = Energy.inUse(state)
+    if panel.tripped then
+        -- Charging would count in the load the breaker carries: none while it is down.
+        if (state.extraLoad or 0) > 0 then Networks.setExtraLoad(panel, 0) end
+        return
+    end
     local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+    local ready = Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
     if panel.quietCut then
-        if not rules.quiet or can then Changes.setQuietCut(panel, false) end
+        if not rules.quiet or ready then Changes.setQuietCut(panel, false) end
         return
     end
     if controller and rules.quiet and rules.generators and inUse and state.supplied and not can then
         Changes.setQuietCut(panel, true)
         return
     end
+    if lost then
+        if can or rules.generators then Networks.setSource(panel, true, true) else panel.sourceOn = nil end
+        return
+    end
+    panel.sourceOn = inUse or nil
+    -- Charging from a generator (tier 3): what the bank lacks, at most CHARGE_RATE a battery, and within what the box
+    -- carries over its devices' load, since charging counts toward overload.
     local charging = 0
     if controller and bank and state.supplied and not inUse then
         charging = math.min(Energy.CHARGE_RATE * #bank.batteries, (bank.capacity - bank.energy) / math.max(0.01, Energy.efficiency()))
+        if BU.overloadEnabled() then
+            charging = math.min(charging, math.max(0, Panels.capacity(panel) * 0.9 - rules.load) / math.max(state.loadFactor or 1, 1e-6))
+        end
         if charging < 0.001 then charging = 0 end
     end
     if math.abs(charging - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, charging) end
-    local ready = Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
     local switchOn = can and state.enabled and (not state.supplied or (controller and not inUse and ready)) or nil
     if available and not can and inUse and bank then
         Sync.notice(panel, rules.generators and "IGUI_BU_Notice_BankLow" or "IGUI_BU_Notice_BankEmpty", Panels.name(panel))
@@ -192,7 +209,9 @@ local function checkSource(panel, hours)
     checkSaving(panel, state, bank, output, rules)
 end
 
--- The units over the time since they were last worked out: snow on the panels, then each panel's source.
+-- The units over the time since they were last worked out: snow on the panels, then each panel's source; then the
+-- loaded racks' batteries follow what it made of them, and their records the batteries put in or taken out (the bank
+-- counts those from the next minute).
 local function updateUnits()
     local data = Store.data()
     local now = getGameTime():getWorldAgeHours()
@@ -200,6 +219,7 @@ local function updateUnits()
     data.energyHour = now
     if Energy.weather(hours) then Sync.changed(nil) end
     for _, panel in ipairs(Store.list()) do checkSource(panel, hours) end
+    for _, rack in ipairs(Store.unitList("rack")) do Changes.syncRack(rack) end
 end
 
 local function onNetworkChange(id, what)
@@ -225,22 +245,28 @@ end
 
 -- What each panel's power did this minute, for its energy graph: what its solar panels made, the load supplied,
 -- its bank's charge.
+-- Returns whether its hour ended.
 local function recordEnergy(panel)
     local state = Networks.state(panel, "power")
-    if not state then return end
+    if not state then return false end
     local made = Energy.hasSource(panel) and Energy.output(panel) or 0
     local bank = Energy.bank(panel)
+    local hour = panel.energyNow and panel.energyNow.hour
     Store.recordEnergy(panel, made, state.supplied and state.load or 0, bank and bank.charge or nil)
+    return hour ~= panel.energyNow.hour
 end
 
 local function everyMinute()
     if not BU.api() then return end
     updateUnits()
+    local hourEnded = false
     for _, panel in ipairs(Store.list()) do
         checkLoad(panel)
         checkFuel(panel)
-        recordEnergy(panel)
+        hourEnded = recordEnergy(panel) or hourEnded
     end
+    -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
+    if hourEnded and isServer() then ModData.transmit(Store.KEY) end
 end
 
 -- Timers turn with dusk and dawn; ten minutes is near enough.
@@ -250,14 +276,22 @@ local function everyTenMinutes()
     for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
 end
 
--- A rack's look follows its batteries (Changes.showRack), also for those that changed while it was not loaded.
+-- A rack loaded: its container takes car batteries only again, and its batteries and look take what the bank made of
+-- them while it was not loaded (Changes.syncRack). A client only sets what the container takes.
 MapObjects.OnLoadWithSprite(BU.Units.SPRITES.rack, function(object)
     local unit = BU.Units.ofObject(object)
-    if unit then Changes.showRack(unit, object) end
+    if not unit then return end
+    if isClient() then
+        if object:getContainer() then BU.Units.rackContainer(object) end
+        return
+    end
+    Changes.syncRack(unit, object)
 end, 5)
 
+-- A multiplayer client loads this file too; the world is not decided there.
+if isClient() then return end
 Events.OnClientCommand.Add(onClientCommand)
-Events.OnGameStart.Add(function() if not isClient() then defineAll() end end)
+Events.OnGameStart.Add(defineAll)
 if Events.OnServerStarted then Events.OnServerStarted.Add(defineAll) end
 Events.EveryOneMinute.Add(everyMinute)
 Events.EveryTenMinutes.Add(everyTenMinutes)

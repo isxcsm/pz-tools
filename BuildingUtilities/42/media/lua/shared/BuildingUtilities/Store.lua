@@ -20,12 +20,14 @@ local KEY = "BuildingUtilities"
 --   energyLog: what the panel's power did hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour (world age,
 --   whole), made (what its solar panels made, on average), used (the load supplied), charge (its bank's at the end,
 --   or nil) }; energyNow is the hour being summed { hour, made, used, n, charge }.
---   A panel with units may keep controller (the charge controller's settings, BU.Energy.settings) and quietCut (its
---   power is off because the bank ran empty in quiet hours).
+--   A panel with units may keep controller (the charge controller's settings, BU.Energy.settings), quietCut (its
+--   power is off because the bank ran empty in quiet hours) and sourceOn (its units' source carried the load when last
+--   seen: a world loaded again defines the source off, and the server switches it back on).
 -- units = { [id] = unit }: the solar panels and battery racks this mod put down (BU.Units). A unit:
 --   id, kind ("solar" or "rack"), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
---   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries (a list of
---   { type, charge 0 to 1, condition 0 to 100, revived: how often it was reconditioned }, in the order they went in).
+--   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
+--   each car battery in its container (Changes.syncRack): { id (the item's), type, charge 0 to 1, condition 0 to
+--   100, revived: how often it was reconditioned }.
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server

@@ -3,6 +3,7 @@
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/Moveables"
+require "BuildingUtilities/Batteries"
 local BU = BuildingUtilities
 local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 

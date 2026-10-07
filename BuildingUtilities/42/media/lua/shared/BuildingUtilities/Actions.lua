@@ -1,5 +1,5 @@
 -- Timed actions: putting a box or a unit down and taking it up, laying and taking away lines, upgrading a box,
--- putting batteries into a rack and taking them out, reconditioning a battery. Each names
+-- brushing snow off a solar panel, reconditioning a battery. Each names
 -- panels and squares, not objects, and checks again as it completes, where the world is decided (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
@@ -302,12 +302,12 @@ ISBURemoveUnit = base("ISBURemoveUnit")
 
 function ISBURemoveUnit:isValid()
     local unit = Store.unit(self.unitId)
-    return unit ~= nil and #(unit.batteries or {}) == 0 and Units.object(unit) ~= nil
+    return unit ~= nil and Units.isEmpty(unit) and Units.object(unit) ~= nil
 end
 
 function ISBURemoveUnit:complete()
     local unit = Store.unit(self.unitId)
-    if not unit or #(unit.batteries or {}) > 0 then return false end
+    if not unit or not Units.isEmpty(unit) then return false end
     local kind = unit.kind
     Costs.refund(self.character, Changes.removeUnit(unit))
     giveItem(self.character, Units.ITEMS[kind])
@@ -322,53 +322,6 @@ end
 function ISBURemoveUnit:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
-    o.maxTime = o:getDuration()
-    return o
-end
-
--- A battery into a rack (item), or the one at an index out of it, with its charge and condition.
-ISBURackBattery = base("ISBURackBattery")
-
-function ISBURackBattery:isValid()
-    local unit = Store.unit(self.unitId)
-    if not unit or not unit.batteries then return false end
-    if self.item then
-        return #unit.batteries < Units.RACK_SIZE and self.character:getInventory():contains(self.item)
-    end
-    return unit.batteries[self.index] ~= nil
-end
-
-function ISBURackBattery:complete()
-    local unit = Store.unit(self.unitId)
-    if not unit or not unit.batteries then return false end
-    if self.item then
-        if #unit.batteries >= Units.RACK_SIZE then return false end
-        local container = self.item:getContainer()
-        if not container then return false end
-        local record = Units.batteryRecord(self.item)
-        container:DoRemoveItem(self.item)
-        sendRemoveItemFromContainer(container, self.item)
-        Changes.addBattery(unit, record)
-        return true
-    end
-    if not unit.batteries[self.index] then return false end
-    local item = Units.batteryItem(Changes.takeBattery(unit, self.index))
-    if item then
-        local inventory = self.character:getInventory()
-        inventory:AddItem(item)
-        sendAddItemToContainer(inventory, item)
-    end
-    return true
-end
-
-function ISBURackBattery:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 60
-end
-
-function ISBURackBattery:new(character, unit, item, index)
-    local o = ISBaseTimedAction.new(self, character)
-    o.unitId, o.item, o.index, o.x, o.y = unit.id, item, index, unit.x, unit.y
     o.maxTime = o:getDuration()
     return o
 end

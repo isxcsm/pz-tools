@@ -12,10 +12,6 @@
     "ContextMenu_BU_Utility_water": "water",
     "ContextMenu_BU_Install_solar": "Install Solar Panel",
     "ContextMenu_BU_Install_rack": "Install Battery Rack",
-    "ContextMenu_BU_PutBattery": "Put In Battery",
-    "ContextMenu_BU_PutAll": "All (%1)",
-    "ContextMenu_BU_TakeBattery": "Take Out Battery",
-    "ContextMenu_BU_TakeAll": "All (%1)",
     "ContextMenu_BU_ReviveBattery": "Recondition Battery",
     "ContextMenu_BU_ClearSnow": "Brush Off Snow"
 }

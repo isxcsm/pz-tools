@@ -32,8 +32,8 @@
     "Sandbox_BuildingUtilities_SnowOnPanels": "패널 위 눈",
     "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "눈이 오면 바깥 패널에 쌓여 두 시간이면 출력이 0이 되고, 2°C를 넘으면 녹습니다. 우클릭 \"눈 털기\"로 바로 치웁니다.",
     "Sandbox_BuildingUtilities_BatteryCapacity": "배터리 용량",
-    "Sandbox_BuildingUtilities_BatteryCapacity_tooltip": "일반 차량 배터리 하나가 가득일 때 담는 전기(부하·시간, 냉장고 하루 3.1). 대형은 1.5배, 스포츠는 0.75배. 상태가 낮으면 줄어 상태 0에서 30%입니다.",
-    "Sandbox_BuildingUtilities_ChargeEfficiency": "충전 효율(%)",
+    "Sandbox_BuildingUtilities_BatteryCapacity_tooltip": "일반 차량 배터리 하나가 가득일 때 담는 전기(부하·시간, 냉장고 하루 3.1). 대형은 1.5배, 스포츠는 0.75배. 상태가 낮으면 줄어 상태 0에서 30퍼센트입니다.",
+    "Sandbox_BuildingUtilities_ChargeEfficiency": "충전 효율(퍼센트)",
     "Sandbox_BuildingUtilities_ChargeEfficiency_tooltip": "배터리에 넣은 전기 중 남는 몫.",
     "Sandbox_BuildingUtilities_WearRate": "배터리 마모 배율",
     "Sandbox_BuildingUtilities_WearRate_tooltip": "배터리가 쓰는 만큼 닳는 정도. 뱅크 하나 분량을 절반 위에서 쓰면 상태 1, 바닥까지 빼면 최대 6이 깎입니다. 0이면 닳지 않습니다."

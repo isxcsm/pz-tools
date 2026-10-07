@@ -144,10 +144,40 @@ function Changes.showRack(unit, object)
     end
 end
 
+-- A rack's records follow the batteries in its container: one put in gets a record from the item, one taken out
+-- loses its record, and the others' items take what the bank made of their records (Units.writeBattery), so a
+-- battery taken out has the charge and condition it had in the rack.
+function Changes.syncRack(unit, object)
+    object = object or Units.object(unit)
+    if not object or unit.kind ~= "rack" then return end
+    local items = Units.rackContainer(object):getAllTag(ItemTag.CAR_BATTERY, ArrayList.new())
+    local known = {}
+    for _, record in ipairs(unit.batteries) do
+        if record.id then known[record.id] = record end
+    end
+    local batteries, changed = {}, #unit.batteries ~= items:size()
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        local record = known[item:getID()]
+        if record then
+            record.revived = item:getModData()[Units.REVIVED] or 0
+            Units.writeBattery(item, record)
+        else
+            record = Units.batteryRecord(item)
+            changed = true
+        end
+        batteries[#batteries + 1] = record
+    end
+    unit.batteries = batteries
+    Changes.showRack(unit, object)
+    if changed then Sync.changed(unit.panel) end
+end
+
 function Changes.installUnit(kind, square, sprite)
     local object = IsoObject.new(square, sprite, nil, false)
     local unit = Store.newUnit(kind, square:getX(), square:getY(), square:getZ(), sprite)
     object:getModData()[Units.MODDATA] = unit.id
+    if kind == "rack" then Units.rackContainer(object) end
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
     BU.log("installed", kind, unit.id, "at", unit.x, unit.y, unit.z)
@@ -256,20 +286,6 @@ end
 function Changes.clearSnow(unit)
     unit.snow = nil
     Sync.changed(unit.panel)
-end
-
--- A battery into a rack (a record of Units.batteryRecord), or the one at an index out of it (returned).
-function Changes.addBattery(unit, record)
-    table.insert(unit.batteries, record)
-    Changes.showRack(unit)
-    Sync.changed(unit.panel)
-end
-
-function Changes.takeBattery(unit, index)
-    local record = table.remove(unit.batteries, index)
-    Changes.showRack(unit)
-    Sync.changed(unit.panel)
-    return record
 end
 
 -- Producers. A new one is used after those connected before.
