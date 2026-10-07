@@ -7,14 +7,16 @@ namespace PzTools.GameExtensions;
 /// <summary>What a continuous module is asked to run with, and the form the game reads it in.</summary>
 public static class ContinuousConfiguration
 {
-    /// <summary>A module's settings: the player's saved options for it over its tuning files.</summary>
+    /// <summary>
+    /// A module's settings: the player's saved options for it over its tuning files, as its descriptor builds them
+    /// (<see cref="ExtensionDescriptor.Configuration"/>).
+    /// </summary>
     /// <exception cref="InvalidDataException">No configuration is defined for the module, or a tuning file is invalid.</exception>
     public static IReadOnlyDictionary<string, string> For(string id, string bridgeDirectory, string runtimeRoot,
-        ExtensionPreference preference) => id switch
-    {
-        ExtensionIds.VehicleDrivetrain => VehicleDrivetrainConfiguration.Load(bridgeDirectory, runtimeRoot, preference.VehicleDrivetrain),
-        _ => throw new InvalidDataException("No configuration is defined for this continuous module."),
-    };
+        ExtensionPreference preference) =>
+        (ExtensionDescriptors.For(id).Configuration
+            ?? throw new InvalidDataException("No configuration is defined for this continuous module."))
+        .Load(bridgeDirectory, runtimeRoot, preference);
 
     /// <summary>The settings as the game reads them: <c>key\tvalue\n</c> lines in key order, UTF-8, base64.</summary>
     /// <exception cref="ArgumentException">A key or value the game would refuse, or more than the game reads.</exception>

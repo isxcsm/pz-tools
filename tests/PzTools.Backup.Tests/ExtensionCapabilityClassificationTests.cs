@@ -8,10 +8,11 @@ public sealed class ExtensionCapabilityClassificationTests
 {
     [Theory]
     [InlineData(ExtensionCapabilities.SavePreparation, ExtensionActivationKind.PerSave)]
-    [InlineData(ExtensionCapabilities.VehicleDrivetrain, ExtensionActivationKind.Continuous)]
+    [InlineData(ExtensionCapabilities.Continuous, ExtensionActivationKind.Continuous)]
+    [InlineData(ExtensionCapabilities.LegacyContinuous, ExtensionActivationKind.Continuous)]
     public void ARecognizedSingleCapabilityDeterminesBehaviorIndependentlyOfIdentity(string capability, ExtensionActivationKind expected)
     {
-        foreach (var id in new[] { "pztools.test-save", ExtensionIds.VehicleDrivetrain, "pztools.another-extension" })
+        foreach (var id in new[] { "pztools.test-save", VehicleDrivetrainExtension.Id, "pztools.another-extension" })
             Assert.Equal(expected, Definition(id, [capability]).ActivationKind);
     }
 
@@ -22,7 +23,7 @@ public sealed class ExtensionCapabilityClassificationTests
         yield return [new[] { "" }];
         yield return [new[] { "unknown.feature.v1" }];
         yield return [new[] { "SAVE.PREPARE.V1" }];
-        yield return [new[] { ExtensionCapabilities.SavePreparation, ExtensionCapabilities.VehicleDrivetrain }];
+        yield return [new[] { ExtensionCapabilities.SavePreparation, ExtensionCapabilities.Continuous }];
         yield return [new[] { ExtensionCapabilities.SavePreparation, ExtensionCapabilities.SavePreparation }];
         yield return [new[] { ExtensionCapabilities.SavePreparation, "unknown.feature.v1" }];
     }
@@ -31,7 +32,7 @@ public sealed class ExtensionCapabilityClassificationTests
     [MemberData(nameof(UnsupportedCapabilities))]
     public void MissingUnknownDuplicateAndCompositeCapabilitiesAreFailClosed(string[]? capabilities)
     {
-        var definition = Definition(ExtensionIds.VehicleDrivetrain, capabilities!);
+        var definition = Definition(VehicleDrivetrainExtension.Id, capabilities!);
         Assert.Equal(ExtensionActivationKind.Unsupported, definition.ActivationKind);
         var card = new ExtensionCardView(definition, true, "runtime-pending", 4, ForceVersion: true);
         Assert.False(card.CanEnable);
@@ -42,7 +43,6 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         Assert.False(activation.CanToggle);
-        Assert.False(activation.CanEditOptions);
         Assert.Equal("unsupported-capability", activation.FailureReason);
     }
 
@@ -53,11 +53,11 @@ public sealed class ExtensionCapabilityClassificationTests
         var store = new ExtensionSettingsStore(temp.Path);
         var definition = Definition("pztools.unknown-extension", ["unknown.feature.v1"]);
         var service = new GameExtensionService(store, () => "42.20.0", () => [definition]);
-        Assert.Throws<InvalidDataException>(() => service.SetEnabled(definition.Id, true, 0));
-        Assert.Throws<InvalidDataException>(() => service.SetPreference(definition.Id, true, true, 0));
+        var unsupported = Assert.Single(service.ReadCards());
+        Assert.False(unsupported.CanEnable);
         Assert.False(File.Exists(store.FilePath));
         // The override remains an editable preference even when activation itself is unavailable.
-        var card = Assert.Single(service.SetPreference(definition.Id, false, true, 0));
+        var card = Assert.Single(service.Save(unsupported, unsupported.Preference with { ForceVersion = true }));
         Assert.True(card.ForceVersion);
         Assert.False(card.Enabled);
         Assert.False(card.CanEnable);
@@ -69,32 +69,30 @@ public sealed class ExtensionCapabilityClassificationTests
     [InlineData(RuntimeExtensionState.FaultedPassThrough)]
     public void VehicleRuntimeEvidenceIsNeverRoutedToAnotherContinuousModule(RuntimeExtensionState state)
     {
-        var definition = Definition("pztools.another-driver", [ExtensionCapabilities.VehicleDrivetrain]);
+        var definition = Definition("pztools.another-driver", [ExtensionCapabilities.Continuous]);
         var card = new ExtensionCardView(definition, true, "runtime-pending", 4);
         var runtime = Active() with { State = state, Reason = state == RuntimeExtensionState.FaultedPassThrough ? "vehicle-failed" : null };
         if (state == RuntimeExtensionState.FaultedPassThrough)
             runtime = runtime with { ControlReady = false, AppliedConfiguration = null };
-        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [ExtensionIds.VehicleDrivetrain] = runtime }, RuntimeWorldReady: true);
+        var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [VehicleDrivetrainExtension.Id] = runtime }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.Equal(ExtensionActivationKind.Continuous, definition.ActivationKind);
         Assert.True(activation.IsOn); // This module's saved request, not the vehicle module's runtime evidence.
         Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         Assert.True(activation.CanToggle);
-        Assert.True(activation.CanEditOptions);
         Assert.Null(activation.FailureReason);
     }
 
     [Fact]
     public void OwningVehicleModuleStillReceivesItsAppliedState()
     {
-        var card = new ExtensionCardView(Definition(ExtensionIds.VehicleDrivetrain,
-            [ExtensionCapabilities.VehicleDrivetrain]), true, "runtime-pending", 4);
+        var card = new ExtensionCardView(Definition(VehicleDrivetrainExtension.Id,
+            [ExtensionCapabilities.Continuous]), true, "runtime-pending", 4);
         var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [card.Definition.Id] = Active() }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.True(activation.IsOn);
         Assert.True(activation.CanToggle);
-        Assert.True(activation.CanEditOptions);
         Assert.False(activation.IsPerSave);
         Assert.False(activation.IsBusy);
         // Its own evidence: saved off while the game still runs it, turning it off is in progress.
@@ -112,23 +110,25 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.True(activation.IsOn);
         Assert.True(activation.IsPerSave);
         Assert.True(activation.CanToggle);
-        Assert.True(activation.CanEditOptions);
         Assert.Null(activation.FailureReason);
     }
 
     [Fact]
-    public void CatalogueUsesTheSameClassificationAndKeepsLegacySaveRows()
+    public void CatalogueUsesTheSameClassification_AndEveryRowNamesItsCapability()
     {
-        var legacy = Assert.Single(ExtensionCatalog.Parse(Row("pztools.legacy-save")));
-        Assert.Equal(ExtensionActivationKind.PerSave, legacy.ActivationKind);
-        Assert.Equal(ExtensionCapabilities.SavePreparation, Assert.Single(legacy.Capabilities));
-        Assert.Equal("compatibility-on-request", legacy.ReadinessCode);
-        var continuous = Assert.Single(ExtensionCatalog.Parse(Row(ExtensionIds.VehicleDrivetrain)
-            + "\t" + ExtensionCapabilities.VehicleDrivetrain));
-        Assert.Equal(ExtensionActivationKind.Continuous, continuous.ActivationKind);
-        Assert.Equal("runtime-pending", continuous.ReadinessCode);
-        // This is an identity invariant, separate from the general capability classifier.
-        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(Row(ExtensionIds.VehicleDrivetrain)));
+        var save = Assert.Single(ExtensionCatalog.Parse(Row("pztools.test-save") + "\t" + ExtensionCapabilities.SavePreparation));
+        Assert.Equal(ExtensionActivationKind.PerSave, save.ActivationKind);
+        Assert.Equal("compatibility-on-request", save.ReadinessCode);
+        foreach (var capability in new[] { ExtensionCapabilities.Continuous, ExtensionCapabilities.LegacyContinuous })
+        {
+            var continuous = Assert.Single(ExtensionCatalog.Parse(Row("pztools.another-extension") + "\t" + capability));
+            Assert.Equal(ExtensionActivationKind.Continuous, continuous.ActivationKind);
+            Assert.Equal(capability, Assert.Single(continuous.Capabilities));
+            Assert.Equal("runtime-pending", continuous.ReadinessCode);
+        }
+        // A row without a capability is refused, whichever module it names: it never quietly becomes a save provider.
+        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(Row("pztools.legacy-save")));
+        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(Row(VehicleDrivetrainExtension.Id)));
     }
 
     [Theory]

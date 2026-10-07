@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using PzTools.GameExtensions;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Projections;
 
@@ -52,7 +51,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                 if (!observed && status is null) return;
                 var occurred = time.GetUtcNow();
                 bool changed = !observed || last!.Identity != identity;
-                // With diagnostics on, every status carries the game's latest driving sample, but steady driving
+                // With diagnostics on, every status carries the module's latest sample, but a module running steadily
                 // changes no state. A sample entry now and then shows it on the Logs page without flooding it.
                 var reading = SampleKey(status?.Diagnostics);
                 bool sample = !changed && reading is { Length: > 0 }
@@ -82,8 +81,8 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         }
     }
 
-    // The sample without its age, which grows while the sample stays the same: a vehicle standing still, or left, keeps
-    // its last sample, and only a sample that changed is news.
+    // The sample without its age, which grows while the sample stays the same: a module with nothing new to measure
+    // keeps its last sample, and only a sample that changed is news.
     private static string? SampleKey(string? diagnostics) => diagnostics is null ? null
         : System.Text.RegularExpressions.Regex.Replace(diagnostics, @"(^|;)sample_age_ms=[^;]*", "");
 

@@ -76,11 +76,17 @@ public static class VehicleDrivetrainConfiguration
         }
     }
 
+    /// <summary>The packaged tuning in the app's <c>game-bridge</c> folder, under the player's override.</summary>
+    public static string PackagedPath(string bridgeDirectory) =>
+        Path.Combine(Path.GetFullPath(bridgeDirectory), "extensions", "vehicle-drivetrain.toml");
+
+    /// <param name="preference">The vehicle's saved preference; its switches (VehicleDrivetrainExtension.Descriptor) override
+    /// both files. Null reads every switch at its default.</param>
     public static IReadOnlyDictionary<string, string> Load(string bridgeDirectory, string runtimeRoot,
-        VehicleDrivetrainPreference? preference = null)
+        ExtensionPreference? preference = null)
     {
         var values = Defaults();
-        Apply(values, Read(Path.Combine(Path.GetFullPath(bridgeDirectory), "extensions", "vehicle-drivetrain.toml")));
+        Apply(values, Read(PackagedPath(bridgeDirectory)));
         Validate(values);
         var overridePath = OverridePath(runtimeRoot);
         try { Apply(values, Read(overridePath)); }
@@ -88,11 +94,9 @@ public static class VehicleDrivetrainConfiguration
         catch (DirectoryNotFoundException) { }
         // The visible switches have one source of truth, including before the first
         // settings write. A TOML override must not disagree with the defaults shown by the UI.
-        preference ??= new VehicleDrivetrainPreference();
-        values["torque_enabled"] = preference.TorqueEnabled ? "true" : "false";
-        values["reverse_enabled"] = preference.ReverseEnabled ? "true" : "false";
-        values["steering_enabled"] = preference.SteeringEnabled ? "true" : "false";
-        values["area_light_enabled"] = preference.AreaLightEnabled ? "true" : "false";
+        preference ??= new ExtensionPreference();
+        foreach (var option in VehicleDrivetrainExtension.Descriptor.Options)
+            values[VehicleDrivetrainExtension.TuningKey(option.Key)] = preference.Option(option) ? "true" : "false";
         Validate(values);
         return new ReadOnlyDictionary<string, string>(values);
     }

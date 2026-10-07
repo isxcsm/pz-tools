@@ -117,14 +117,14 @@ public sealed class GameExtensionActivationStateTests
     public void FailureDisablesOnlyTheExactRevisionAndPreservesOtherPreferences()
     {
         using var temp = new TempDirectory(); var store = new ExtensionSettingsStore(temp.Path);
-        var options = new VehicleDrivetrainPreference(true, false, true);
-        var requested = store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, true, options), 0);
+        var options = VehicleOptions.Of(true, false, true);
+        var requested = store.SetPreference(VehicleDrivetrainExtension.Id, new(true, true, options), 0);
         var state = Bound(); state.RecordRequest(requested.Revision, First);
         Assert.True(state.FailClosed(Active(-1) with { State = RuntimeExtensionState.Unsupported,
                 Reason = "update-rejected:preflight" }, requested.Revision, () => true,
-            revision => store.SetEnabled(ExtensionIds.VehicleDrivetrain, false, revision).Revision));
-        var committed = store.Read(); var preference = committed.Extensions[ExtensionIds.VehicleDrivetrain];
-        Assert.False(preference.Enabled); Assert.True(preference.ForceVersion); Assert.Equal(options, preference.VehicleDrivetrain);
+            revision => store.SetEnabled(VehicleDrivetrainExtension.Id, false, revision).Revision));
+        var committed = store.Read(); var preference = committed.Extensions[VehicleDrivetrainExtension.Id];
+        Assert.False(preference.Enabled); Assert.True(preference.ForceVersion); VehicleOptions.AssertSame(options, preference.Options);
         var failure = state.Blocked(committed.Revision)!;
         Assert.False(failure.ControlReady); Assert.Null(failure.AppliedConfiguration);
         Assert.Equal(requested.Revision, failure.RequestedRevision);
@@ -135,19 +135,19 @@ public sealed class GameExtensionActivationStateTests
     public void ConcurrentNewPreferenceCannotBeOverwrittenByAnOlderFailure()
     {
         using var temp = new TempDirectory(); var store = new ExtensionSettingsStore(temp.Path);
-        var requested = store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, new(true, false, true)), 0);
-        var newerOptions = new VehicleDrivetrainPreference(false, true, false);
+        var requested = store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, VehicleOptions.Of(true, false, true)), 0);
+        var newerOptions = VehicleOptions.Of(false, true, false);
         var state = Bound();
         state.FailClosed(Active(-1) with { State = RuntimeExtensionState.Unsupported }, requested.Revision, () => true, expected =>
         {
-            store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, true, newerOptions), expected);
-            try { return store.SetEnabled(ExtensionIds.VehicleDrivetrain, false, expected).Revision; }
+            store.SetPreference(VehicleDrivetrainExtension.Id, new(true, true, newerOptions), expected);
+            try { return store.SetEnabled(VehicleDrivetrainExtension.Id, false, expected).Revision; }
             catch (ExtensionSettingsConflictException) { return null; }
         });
         var current = store.Read();
-        Assert.True(current.Extensions[ExtensionIds.VehicleDrivetrain].Enabled);
-        Assert.True(current.Extensions[ExtensionIds.VehicleDrivetrain].ForceVersion);
-        Assert.Equal(newerOptions, current.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
+        Assert.True(current.Extensions[VehicleDrivetrainExtension.Id].Enabled);
+        Assert.True(current.Extensions[VehicleDrivetrainExtension.Id].ForceVersion);
+        VehicleOptions.AssertSame(newerOptions, current.Extensions[VehicleDrivetrainExtension.Id].Options);
         Assert.Null(state.Blocked(current.Revision));
     }
 
@@ -283,11 +283,11 @@ public sealed class GameExtensionActivationStateTests
     {
         var accepted = new ReplySession(Pending(-1));
         var state = new GameExtensionReconciler(new(RuntimeExtensionState.Disabled));
-        await state.ReconcileAsync(accepted, Process, World, 1, ExtensionIds.VehicleDrivetrain, false,
+        await state.ReconcileAsync(accepted, Process, World, 1, VehicleDrivetrainExtension.Id, false,
             () => new Dictionary<string, string>(), default);
         Assert.False(state.RequestRejected);
         var rejected = new ReplySession(Active(1, "update-rejected"));
-        await state.ReconcileAsync(rejected, Process, World, 2, ExtensionIds.VehicleDrivetrain, false,
+        await state.ReconcileAsync(rejected, Process, World, 2, VehicleDrivetrainExtension.Id, false,
             () => new Dictionary<string, string>(), default);
         Assert.True(state.RequestRejected);
     }

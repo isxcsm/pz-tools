@@ -10,7 +10,7 @@ namespace PzTools.App.Core;
 /// Unsupported capabilities, a current process restart requirement and a running game outside the
 /// supported version range still fail closed.
 /// </summary>
-public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsBusy, bool CanEditOptions,
+public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsBusy,
     string? FailureReason = null, bool IsPerSave = false)
 {
     private const long MaximumRuntimeStatusAgeMilliseconds = 3000;
@@ -52,12 +52,12 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
     {
         var kind = card.Definition.ActivationKind;
         if (kind == ExtensionActivationKind.Unsupported)
-            return new(false, false, false, false, FailureReason: "unsupported-capability");
+            return new(false, false, false, FailureReason: "unsupported-capability");
         if (kind == ExtensionActivationKind.PerSave)
         {
             // This is deliberately not a claim that a save adapter is initialized or executing.
             // Save policy and compatibility are checked when a save is requested, not when editing preferences.
-            return new(card.Enabled, true, false, true, IsPerSave: true);
+            return new(card.Enabled, true, false, IsPerSave: true);
         }
 
         var fresh = IsFresh(runtime);
@@ -77,7 +77,7 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
         var restartRequired = fresh && runtime!.State == RuntimeExtensionState.RestartRequired
             && runtime.ProcessSession.Length != 0;
         // Neither a restart requirement nor a version outside the range may prevent turning a saved ON request OFF.
-        return new(card.Enabled, card.Enabled || !restartRequired && !card.OutsideKnownSupportedRange, busy, true,
+        return new(card.Enabled, card.Enabled || !restartRequired && !card.OutsideKnownSupportedRange, busy,
             failed ? runtime!.Reason : null);
     }
 }

@@ -214,7 +214,7 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal("true", VehicleDrivetrainConfiguration.Load(bridge, runtime)["low_mode"]);
         Assert.False(File.Exists(overrides));
         File.WriteAllText(overrides, "force_scale = 0.9\nprobe_only = true\ndiagnostics_enabled = true\nsteering_enabled = false\n");
-        var values = VehicleDrivetrainConfiguration.Load(bridge, runtime, new(TorqueEnabled: false, ReverseEnabled: false));
+        var values = VehicleDrivetrainConfiguration.Load(bridge, runtime, new(Options: VehicleOptions.Of(torque: false, reverse: false)));
         Assert.Equal("0.9", values["force_scale"]);
         Assert.Equal("true", values["low_mode"]);
         Assert.Equal("true", values["probe_only"]);
@@ -286,16 +286,17 @@ public sealed class VehicleDrivetrainConfigurationTests
         using var temp = new TempDirectory();
         var definition = VehicleDefinition();
         var service = new GameExtensionService(new ExtensionSettingsStore(temp.Path), () => "42.20", () => [definition]);
-        var options = new VehicleDrivetrainPreference(true, true, true);
-        var saved = Assert.Single(service.SetVehicleDrivetrainPreference(options, 0));
+        var options = VehicleOptions.Of(true, true, true);
+        var initial = Assert.Single(service.ReadCards());
+        var saved = Assert.Single(service.Save(initial, initial.Preference with { Options = options }));
         Assert.False(saved.Enabled);
-        Assert.Equal(options, saved.VehicleDrivetrain);
-        var on = Assert.Single(service.SetPreference(definition.Id, true, true, saved.SettingsRevision));
-        Assert.Equal(options, on.VehicleDrivetrain);
+        VehicleOptions.AssertSame(options, saved.Options);
+        var on = Assert.Single(service.Save(saved, saved.Preference with { Enabled = true, ForceVersion = true }));
+        VehicleOptions.AssertSame(options, on.Options);
         Assert.True(on.Enabled && on.ForceVersion);
-        Assert.Throws<ExtensionSettingsConflictException>(() => service.SetVehicleDrivetrainPreference(new(), saved.SettingsRevision));
-        var off = Assert.Single(service.SetEnabled(definition.Id, false, on.SettingsRevision));
-        Assert.Equal(options, off.VehicleDrivetrain);
+        Assert.Throws<ExtensionSettingsConflictException>(() => service.Save(saved, new()));
+        var off = Assert.Single(service.Save(on, on.Preference with { Enabled = false }));
+        VehicleOptions.AssertSame(options, off.Options);
         Assert.True(off.ForceVersion);
     }
 
@@ -312,13 +313,13 @@ public sealed class VehicleDrivetrainConfigurationTests
     {
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.Path);
-        var options = new VehicleDrivetrainPreference(torque, reverse, steering);
-        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, options), 0);
-        var saved = store.Read().Extensions[ExtensionIds.VehicleDrivetrain];
-        Assert.Equal(options, saved.VehicleDrivetrain);
+        var options = VehicleOptions.Of(torque, reverse, steering);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, options), 0);
+        var saved = store.Read().Extensions[VehicleDrivetrainExtension.Id];
+        VehicleOptions.AssertSame(options, saved.Options);
         Directory.CreateDirectory(temp.GetPath("extensions"));
         File.WriteAllText(temp.GetPath("extensions/vehicle-drivetrain.toml"), "schema_version = 1");
-        var values = VehicleDrivetrainConfiguration.Load(temp.Path, temp.GetPath("overrides"), saved.VehicleDrivetrain);
+        var values = VehicleDrivetrainConfiguration.Load(temp.Path, temp.GetPath("overrides"), saved);
         Assert.Equal(torque ? "true" : "false", values["torque_enabled"]);
         Assert.Equal(reverse ? "true" : "false", values["reverse_enabled"]);
         Assert.Equal(steering ? "true" : "false", values["steering_enabled"]);
@@ -346,23 +347,32 @@ public sealed class VehicleDrivetrainConfigurationTests
     {
         using var temp = new TempDirectory();
         var store = new ExtensionSettingsStore(temp.Path);
-        var options = new VehicleDrivetrainPreference(AreaLightEnabled: true);
-        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, options), 0);
-        var saved = store.Read().Extensions[ExtensionIds.VehicleDrivetrain];
-        Assert.Equal(options, saved.VehicleDrivetrain);
+        var options = VehicleOptions.Of(areaLight: true);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, options), 0);
+        var saved = store.Read().Extensions[VehicleDrivetrainExtension.Id];
+        VehicleOptions.AssertSame(options, saved.Options);
         Assert.Matches("\"areaLightEnabled\":\\s*true", File.ReadAllText(store.FilePath));
         Directory.CreateDirectory(temp.GetPath("extensions"));
         File.WriteAllText(temp.GetPath("extensions/vehicle-drivetrain.toml"), "schema_version = 1\narea_light_radius = 12\narea_light_brightness = 0.35\n");
-        var values = VehicleDrivetrainConfiguration.Load(temp.Path, temp.GetPath("overrides"), saved.VehicleDrivetrain);
+        var values = VehicleDrivetrainConfiguration.Load(temp.Path, temp.GetPath("overrides"), saved);
         Assert.Equal("true", values["area_light_enabled"]);
         Assert.Equal("12", values["area_light_radius"]);
         Assert.Equal("0.35", values["area_light_brightness"]);
         // On when not written, like the other switches (files from before the light existed lack it);
         // an old observation-only file still turns it off.
         foreach (var json in new[] { "{}", "{\"steeringEnabled\":true}" })
-            Assert.True(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
+            Assert.True(LegacyLight(json));
         foreach (var json in new[] { "{\"areaLightEnabled\":false}", "{\"probeOnly\":true}", "{\"probeOnly\":true,\"areaLightEnabled\":true}" })
-            Assert.False(System.Text.Json.JsonSerializer.Deserialize<VehicleDrivetrainPreference>(json)!.AreaLightEnabled);
+            Assert.False(LegacyLight(json));
+
+        // The light's switch of an earlier vehicle object, as the settings file reads it.
+        bool LegacyLight(string json)
+        {
+            var legacy = new ExtensionSettingsStore(temp.GetPath("legacy"));
+            Directory.CreateDirectory(Path.GetDirectoryName(legacy.FilePath)!);
+            File.WriteAllText(legacy.FilePath, "{\"schemaVersion\":1,\"revision\":1,\"extensions\":{\"pztools.vehicle-drivetrain\":{\"vehicleDrivetrain\":" + json + "}}}");
+            return legacy.Read().Extensions[VehicleDrivetrainExtension.Id].Option(VehicleDrivetrainExtension.Descriptor.Option(VehicleDrivetrainExtension.AreaLight)!);
+        }
     }
 
     [Theory]
@@ -382,7 +392,7 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.Equal(7, read.Revision);
         // The light was never written by these files: on, unless the file is an old observation-only one.
         var light = !json.Contains("\"probeOnly\":true", StringComparison.Ordinal);
-        Assert.Equal(new VehicleDrivetrainPreference(torque, reverse, steering, light), read.Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
+        VehicleOptions.AssertSame(VehicleOptions.Of(torque, reverse, steering, light), read.Extensions[VehicleDrivetrainExtension.Id].Options);
         Assert.Equal(original, File.ReadAllText(store.FilePath));
     }
 
@@ -404,14 +414,16 @@ public sealed class VehicleDrivetrainConfigurationTests
     }
 
     [Fact]
-    public void CatalogueSeparatesLegacySavingFromExplicitVehicleCapability()
+    public void CatalogueRowsNameTheirCapability_AndTheVehiclesFirstCapabilityStillReads()
     {
-        const string save = "pztools.example\t1.0.0\tpztools.example\tpztools.example.Provider\tmodule.jar\tAll\t-\t-\tExtension.Example.Title\tExtension.Example.Description";
-        Assert.Equal("save.prepare.v1", Assert.Single(ExtensionCatalog.Parse(save)).Capabilities.Single());
-        var vehicle = save.Replace("pztools.example", ExtensionIds.VehicleDrivetrain);
+        const string row = "pztools.example\t1.0.0\tpztools.example\tpztools.example.Provider\tmodule.jar\tAll\t-\t-\tExtension.Example.Title\tExtension.Example.Description";
+        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(row));
+        Assert.Equal("save.prepare.v1", Assert.Single(ExtensionCatalog.Parse(row + "\tsave.prepare.v1")).Capabilities.Single());
+        var vehicle = row.Replace("pztools.example", VehicleDrivetrainExtension.Id);
         Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(vehicle));
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(ExtensionCatalog.Parse(vehicle + "\tvehicle.drivetrain.v1")).Capabilities.Single());
-        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(save + "\tunknown.v1"));
+        Assert.Equal(ExtensionActivationKind.Continuous, Assert.Single(ExtensionCatalog.Parse(vehicle + "\tcontinuous.v1")).ActivationKind);
+        Assert.Throws<InvalidDataException>(() => ExtensionCatalog.Parse(row + "\tunknown.v1"));
     }
 
     [Fact]
@@ -422,11 +434,11 @@ public sealed class VehicleDrivetrainConfigurationTests
         RuntimeExtensionStatus? state = null;
         var controller = new GameExtensionController(temp.Path, views, () => false, extensionStatus: _ => state);
         var before = await controller.RefreshAsync();
-        Assert.Null(before.StatusOf(ExtensionIds.VehicleDrivetrain));
+        Assert.Null(before.StatusOf(VehicleDrivetrainExtension.Id));
         state = new(RuntimeExtensionState.Pending, "waiting-for-game");
         await controller.RefreshRuntimeAsync(default);
         var first = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0);
-        Assert.Equal(state, first.Snapshot!.StatusOf(ExtensionIds.VehicleDrivetrain));
+        Assert.Equal(state, first.Snapshot!.StatusOf(VehicleDrivetrainExtension.Id));
         Assert.False(first.Snapshot.GameSavingEnabled);
         Assert.All(first.Snapshot.Cards, card => Assert.False(card.Enabled));
         await controller.RefreshRuntimeAsync(default);
@@ -437,7 +449,7 @@ public sealed class VehicleDrivetrainConfigurationTests
         Assert.False(File.Exists(new ExtensionSettingsStore(temp.Path).FilePath));
     }
 
-    private static ExtensionDefinition VehicleDefinition() => new(ExtensionIds.VehicleDrivetrain, "0.1.0",
+    private static ExtensionDefinition VehicleDefinition() => new(VehicleDrivetrainExtension.Id, "0.1.0",
         "Extension.VehicleDrivetrain.Title", "Extension.VehicleDrivetrain.Description", "runtime-pending",
         ["vehicle.drivetrain.v1"], GameVersionSupport.All);
 }

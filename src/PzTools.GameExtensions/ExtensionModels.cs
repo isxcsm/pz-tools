@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace PzTools.GameExtensions;
@@ -10,7 +11,6 @@ public sealed record ExtensionDefinition(string Id, string Version, string Title
 
 public static partial class ExtensionIds
 {
-    public const string VehicleDrivetrain = "pztools.vehicle-drivetrain";
     public static void Validate(string id)
     {
         if (id is null || id.Length > 80 || !ValidId().IsMatch(id))
@@ -20,17 +20,42 @@ public static partial class ExtensionIds
     private static partial Regex ValidId();
 }
 
-[System.Text.Json.Serialization.JsonConverter(typeof(VehicleDrivetrainPreferenceConverter))]
-// The light is an addition to the game rather than a correction of its driving, so it has its own
-// switch apart from the three driving options. Like them it starts on.
-public sealed record VehicleDrivetrainPreference(bool TorqueEnabled = true, bool ReverseEnabled = true, bool SteeringEnabled = true,
-    bool AreaLightEnabled = true);
 /// <summary>
-/// One extension's saved request. Each options property belongs to the extension of that name and is null for the others.
-/// Properties of extensions that no longer exist (an earlier "screenLook") are ignored when read and dropped on the next write.
+/// One extension's saved request: its main switch, the version override, and its own switches by key
+/// (<see cref="ExtensionDescriptor.Options"/>). A switch not saved takes its default. Two preferences are equal when
+/// their values are, whatever dictionary holds the switches.
 /// </summary>
 public sealed record ExtensionPreference(bool Enabled = false, bool ForceVersion = false,
-    VehicleDrivetrainPreference? VehicleDrivetrain = null);
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyDictionary<string, bool>? Options = null)
+{
+    /// <summary>The switch's saved value, or its default when none is saved.</summary>
+    public bool Option(ExtensionOption option) =>
+        Options is not null && Options.TryGetValue(option.Key, out var value) ? value : option.Default;
+
+    /// <summary>This preference with one switch set and the others as saved.</summary>
+    public ExtensionPreference WithOption(string key, bool value)
+    {
+        var options = new SortedDictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var (name, saved) in Options ?? new Dictionary<string, bool>()) options[name] = saved;
+        options[key] = value;
+        return this with { Options = options };
+    }
+
+    public bool Equals(ExtensionPreference? other) => other is not null && Enabled == other.Enabled
+        && ForceVersion == other.ForceVersion && SameOptions(Options, other.Options);
+
+    public override int GetHashCode() => HashCode.Combine(Enabled, ForceVersion, Options?.Count ?? 0);
+
+    /// <summary>Whether two sets of switches say the same; none saved and an empty set do.</summary>
+    public static bool SameOptions(IReadOnlyDictionary<string, bool>? left, IReadOnlyDictionary<string, bool>? right)
+    {
+        if ((left?.Count ?? 0) != (right?.Count ?? 0)) return false;
+        foreach (var (key, value) in left ?? new Dictionary<string, bool>())
+            if (!right!.TryGetValue(key, out var other) || other != value) return false;
+        return true;
+    }
+}
+
 public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
     Dictionary<string, ExtensionPreference> Extensions)
 {
@@ -39,15 +64,23 @@ public sealed record ExtensionConfiguration(int SchemaVersion, long Revision,
 
 public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enabled,
     string StatusCode, long SettingsRevision, bool ForceVersion = false, bool VersionMatches = true, string? GameVersion = null,
-    VehicleDrivetrainPreference? VehicleDrivetrain = null)
+    IReadOnlyDictionary<string, bool>? Options = null)
 {
-    public ExtensionCardView WithVersion(string? version)
+    /// <summary>The card of one catalogue row, from its saved preference and the running game's version.</summary>
+    public static ExtensionCardView For(ExtensionDefinition definition, ExtensionPreference preference, long settingsRevision,
+        string? gameVersion)
     {
-        bool matches = (Definition.SupportedVersions ?? GameVersionSupport.All).Matches(version);
-        string status = !matches && !ForceVersion ? version is null ? "version-unknown" : "version-mismatch"
-            : !Enabled ? "disabled" : ForceVersion && !matches ? "forced-version" : Definition.ReadinessCode;
-        return this with { GameVersion = version, VersionMatches = matches, StatusCode = status };
+        bool matches = (definition.SupportedVersions ?? GameVersionSupport.All).Matches(gameVersion);
+        string status = !matches && !preference.ForceVersion ? gameVersion is null ? "version-unknown" : "version-mismatch"
+            : !preference.Enabled ? "disabled" : preference.ForceVersion && !matches ? "forced-version" : definition.ReadinessCode;
+        return new(definition, preference.Enabled, status, settingsRevision, preference.ForceVersion, matches, gameVersion,
+            preference.Options);
     }
+
+    /// <summary>The saved preference the card shows.</summary>
+    public ExtensionPreference Preference => new(Enabled, ForceVersion, Options);
+    /// <summary>The switch's saved value, or its default.</summary>
+    public bool Option(ExtensionOption option) => Preference.Option(option);
     public bool SupportsActivation => Definition.ActivationKind != ExtensionActivationKind.Unsupported;
     // Admission hint only. Saving a desired preference does not require a currently running compatible game.
     public bool CanEnable => SupportsActivation && (VersionMatches || ForceVersion);
@@ -58,6 +91,13 @@ public sealed record ExtensionCardView(ExtensionDefinition Definition, bool Enab
     /// An unknown version is not this: an ON saved while no game runs is checked when one starts.
     /// </summary>
     public bool OutsideKnownSupportedRange => GameVersion is not null && !VersionMatches && !ForceVersion;
+
+    public bool Equals(ExtensionCardView? other) => other is not null && Definition == other.Definition
+        && Enabled == other.Enabled && StatusCode == other.StatusCode && SettingsRevision == other.SettingsRevision
+        && ForceVersion == other.ForceVersion && VersionMatches == other.VersionMatches && GameVersion == other.GameVersion
+        && ExtensionPreference.SameOptions(Options, other.Options);
+
+    public override int GetHashCode() => HashCode.Combine(Definition.Id, Enabled, SettingsRevision);
 }
 
 public sealed class ExtensionSettingsConflictException()
@@ -66,44 +106,20 @@ public sealed class ExtensionSettingsConflictException()
 /// <summary>Management plane only. A saved preference is never evidence of an applied game patch.</summary>
 public sealed class GameExtensionService(ExtensionSettingsStore settings, Func<string?>? gameVersion = null, Func<IReadOnlyList<ExtensionDefinition>>? catalogue = null)
 {
-    public IReadOnlyList<ExtensionCardView> ReadCards()
+    public IReadOnlyList<ExtensionCardView> ReadCards() => Project(settings.Read());
+
+    /// <summary>
+    /// Saves one extension's preference over the card it was read with. The settings revision the card shows is checked
+    /// under the file's lock: a file changed since is refused with <see cref="ExtensionSettingsConflictException"/>,
+    /// never overwritten. The cards come from what was written, without reading the file again.
+    /// </summary>
+    public IReadOnlyList<ExtensionCardView> Save(ExtensionCardView card, ExtensionPreference preference) =>
+        Project(settings.SetPreference(card.Definition.Id, preference, card.SettingsRevision));
+
+    private IReadOnlyList<ExtensionCardView> Project(ExtensionConfiguration config)
     {
-        var config = settings.Read();
-        return (catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Select(definition =>
-        {
-            var preference = config.Extensions.GetValueOrDefault(definition.Id) ?? new();
-            var enabled = preference.Enabled;
-            var version = gameVersion?.Invoke();
-            bool matches = (definition.SupportedVersions ?? GameVersionSupport.All).Matches(version);
-            return new ExtensionCardView(definition, enabled,
-                !matches && !preference.ForceVersion ? version is null ? "version-unknown" : "version-mismatch"
-                    : !enabled ? "disabled" : preference.ForceVersion && !matches ? "forced-version" : definition.ReadinessCode,
-                config.Revision, preference.ForceVersion, matches, version, preference.VehicleDrivetrain);
-        }).ToArray();
-    }
-    public IReadOnlyList<ExtensionCardView> SetPreference(string id, bool enabled, bool forceVersion, long revision)
-    {
-        var card = ReadCards().Single(item => item.Definition.Id == id);
-        if (enabled && !card.SupportsActivation)
-            throw new InvalidDataException("Extension capability is unsupported.");
-        settings.SetPreference(id, new(enabled, forceVersion, card.VehicleDrivetrain), revision);
-        return ReadCards();
-    }
-    public IReadOnlyList<ExtensionCardView> SetVehicleDrivetrainPreference(VehicleDrivetrainPreference preference, long revision)
-    {
-        ArgumentNullException.ThrowIfNull(preference);
-        var card = ReadCards().Single(item => item.Definition.Id == ExtensionIds.VehicleDrivetrain);
-        settings.SetPreference(ExtensionIds.VehicleDrivetrain, new(card.Enabled, card.ForceVersion, preference), revision);
-        return ReadCards();
-    }
-    public IReadOnlyList<ExtensionCardView> SetEnabled(string id, bool enabled, long revision)
-    {
-        if (!(catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Any(item => item.Id == id))
-            throw new ArgumentException("Unknown extension.", nameof(id));
-        var card = ReadCards().Single(item => item.Definition.Id == id);
-        if (enabled && !card.SupportsActivation)
-            throw new InvalidDataException("Extension capability is unsupported.");
-        settings.SetEnabled(id, enabled, revision);
-        return ReadCards();
+        var version = gameVersion?.Invoke();
+        return (catalogue?.Invoke() ?? ExtensionCatalog.BuiltIn).Select(definition => ExtensionCardView.For(definition,
+            config.Extensions.GetValueOrDefault(definition.Id) ?? new(), config.Revision, version)).ToArray();
     }
 }

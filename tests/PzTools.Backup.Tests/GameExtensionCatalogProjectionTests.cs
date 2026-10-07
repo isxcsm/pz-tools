@@ -36,7 +36,7 @@ public sealed class GameExtensionCatalogProjectionTests
     [InlineData(7, "42.22")]
     [InlineData(8, "Extension.Test.RenamedTitle")]
     [InlineData(9, "Extension.Test.RenamedDescription")]
-    [InlineData(10, ExtensionCapabilities.VehicleDrivetrain)]
+    [InlineData(10, ExtensionCapabilities.Continuous)]
     public async Task ChangedFileCatalogueMetadataPublishesExactlyOneNewView(int field, string replacement)
     {
         using var temp = new TempDirectory();
@@ -105,7 +105,7 @@ public sealed class GameExtensionCatalogProjectionTests
         using var temp = new TempDirectory();
         var catalogue = temp.GetPath("catalog.tsv");
         var fields = Fields();
-        fields[0] = "pztools.deployed-continuous"; fields[10] = ExtensionCapabilities.VehicleDrivetrain;
+        fields[0] = "pztools.deployed-continuous"; fields[10] = ExtensionCapabilities.Continuous;
         File.WriteAllText(catalogue, string.Join('\t', fields));
         var asked = new List<string>();
         var controller = new GameExtensionController(temp.GetPath("runtime"), new RevisionedViewStore(),

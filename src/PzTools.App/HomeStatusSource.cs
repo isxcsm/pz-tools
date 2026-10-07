@@ -25,10 +25,9 @@ internal static class HomeStatusSource
                 .SelectMany(source => source.Revisions)
                 .Select(revision => (DateTimeOffset?)revision.CreatedUtc)
                 .Max();
-        var vehicle = extensions?.Cards.FirstOrDefault(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
-        var preference = vehicle?.VehicleDrivetrain ?? new VehicleDrivetrainPreference();
-        var features = new[] { preference.TorqueEnabled, preference.ReverseEnabled, preference.SteeringEnabled, preference.AreaLightEnabled }
-            .Count(enabled => enabled);
+        var vehicle = extensions?.Cards.FirstOrDefault(card => card.Definition.Id == VehicleDrivetrainExtension.Id);
+        var preference = vehicle?.Preference ?? new ExtensionPreference();
+        var features = VehicleDrivetrainExtension.Descriptor.Options.Count(preference.Option);
         return new HomeStatus(
             !ready ? HomeGameState.Unknown : saves!.Game switch
             {

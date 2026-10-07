@@ -111,11 +111,11 @@ public sealed class PublishedDistributionTests
         }
         var cataloguePath = Path.Combine(extensions, "catalog.tsv");
         var catalogue = ExtensionCatalog.ReadFile(cataloguePath);
-        Assert.Equal([ExtensionIds.VehicleDrivetrain], catalogue.Select(item => item.Id).Order());
-        var vehicle = catalogue.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
+        Assert.Equal([VehicleDrivetrainExtension.Id], catalogue.Select(item => item.Id).Order());
+        var vehicle = catalogue.Single(item => item.Id == VehicleDrivetrainExtension.Id);
         Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
         Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), vehicle.SupportedVersions);
-        var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(ExtensionIds.VehicleDrivetrain + "\t", StringComparison.Ordinal)).Split('\t');
+        var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(VehicleDrivetrainExtension.Id + "\t", StringComparison.Ordinal)).Split('\t');
         Assert.Equal(11, row.Length);
         Assert.Equal("pztools-vehicle-drivetrain.jar", row[4]);
         using (var module = ZipFile.OpenRead(Path.Combine(extensions, row[4])))

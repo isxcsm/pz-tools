@@ -1,15 +1,28 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace PzTools.GameExtensions;
 
 /// <summary>Independent of backup configuration and WinUI. Failed reads never overwrite preferences.</summary>
-public sealed class ExtensionSettingsStore
+public sealed partial class ExtensionSettingsStore
 {
     private const int MaximumBytes = 64 * 1024;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     public string FilePath { get; }
     public ExtensionSettingsStore(string runtimeRoot) =>
         FilePath = Path.Combine(Path.GetFullPath(runtimeRoot), "extensions", "settings.json");
+
+    // The file as read: each preference keeps the properties this version does not know, where an earlier version may
+    // have saved an extension's switches (ExtensionDescriptor.LegacyOptions).
+    private sealed record StoredConfiguration(int SchemaVersion, long Revision, Dictionary<string, StoredPreference?>? Extensions);
+    private sealed class StoredPreference
+    {
+        public bool Enabled { get; set; }
+        public bool ForceVersion { get; set; }
+        public Dictionary<string, bool>? Options { get; set; }
+        [JsonExtensionData] public Dictionary<string, JsonElement>? Other { get; set; }
+    }
 
     public ExtensionConfiguration Read()
     {
@@ -19,8 +32,23 @@ public sealed class ExtensionSettingsStore
             using var input = new FileStream(FilePath, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete);
             if (input.Length > MaximumBytes) throw new InvalidDataException("Oversized extension settings.");
-            var value = JsonSerializer.Deserialize<ExtensionConfiguration>(input, Json)
+            var stored = JsonSerializer.Deserialize<StoredConfiguration>(input, Json)
                 ?? throw new InvalidDataException("Empty extension settings.");
+            if (stored.Extensions is null || stored.Extensions.Count > 64)
+                throw new InvalidDataException("Unsupported extension settings schema or invalid configuration.");
+            var extensions = new Dictionary<string, ExtensionPreference>(StringComparer.Ordinal);
+            foreach (var (id, preference) in stored.Extensions)
+            {
+                if (preference is null) throw new InvalidDataException("Missing extension preference.");
+                try { ExtensionIds.Validate(id); }
+                catch (ArgumentException exception) { throw new InvalidDataException("Invalid extension identifier.", exception); }
+                // Switches saved the way an earlier version saved them are read as options; the next write leaves the
+                // old form behind. Properties no extension reads (those of a retired one) are dropped the same way.
+                var options = preference.Options ?? (preference.Other is { Count: > 0 } other
+                    ? ExtensionDescriptors.For(id).LegacyOptions?.Invoke(other) : null);
+                extensions[id] = new(preference.Enabled, preference.ForceVersion, options);
+            }
+            var value = new ExtensionConfiguration(stored.SchemaVersion, stored.Revision, extensions);
             Validate(value);
             return value;
         }
@@ -77,6 +105,11 @@ public sealed class ExtensionSettingsStore
             try { ExtensionIds.Validate(id); }
             catch (ArgumentException exception) { throw new InvalidDataException("Invalid extension identifier.", exception); }
             if (preference is null) throw new InvalidDataException("Missing extension preference.");
+            if (preference.Options is { } options && (options.Count > 64 || options.Keys.Any(key => key is null || !OptionKey().IsMatch(key))))
+                throw new InvalidDataException("Invalid extension option.");
         }
     }
+
+    [GeneratedRegex("^[A-Za-z][A-Za-z0-9._-]{0,79}$", RegexOptions.CultureInvariant)]
+    private static partial Regex OptionKey();
 }

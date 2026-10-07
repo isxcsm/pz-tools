@@ -9,33 +9,35 @@ public sealed class GameExtensionProjectionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task PreferenceCommandsRejectStaleWritesAndCanRetryAfterRefreshing(bool changeVehicleOptions)
+    public void ASaveOverAStaleCardIsRefusedAndCanBeRetriedAfterReadingAgain(bool changeVehicleOptions)
     {
         using var temp = new TempDirectory();
         var root = temp.GetPath("runtime");
         var store = new ExtensionSettingsStore(root);
-        var controller = new GameExtensionController(root, new RevisionedViewStore(), gameVersion: () => "42.20");
-        var first = (await controller.RefreshAsync()).Cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
-        var externalOptions = new VehicleDrivetrainPreference(false, false, true);
-        var requestedOptions = new VehicleDrivetrainPreference(true, true, false);
-        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, externalOptions), first.SettingsRevision);
+        var service = new GameExtensionService(store, () => "42.20");
+        var first = Vehicle(service.ReadCards());
+        var externalOptions = VehicleOptions.Of(false, false, true);
+        var requestedOptions = VehicleOptions.Of(true, true, false);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, externalOptions), first.SettingsRevision);
 
-        Task<GameExtensionsView> Save(long revision) => changeVehicleOptions
-            ? controller.SetVehicleDrivetrainPreferenceAsync(requestedOptions, revision)
-            : controller.SetPreferenceAsync(ExtensionIds.VehicleDrivetrain, false, false, revision);
+        IReadOnlyList<ExtensionCardView> Save(ExtensionCardView card) => service.Save(card, changeVehicleOptions
+            ? card.Preference with { Options = requestedOptions } : card.Preference with { Enabled = false });
 
-        await Assert.ThrowsAsync<ExtensionSettingsConflictException>(() => Save(first.SettingsRevision));
-        var refreshed = (await controller.RefreshAsync()).Cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
+        Assert.Throws<ExtensionSettingsConflictException>(() => Save(first));
+        var refreshed = Vehicle(service.ReadCards());
         Assert.True(refreshed.Enabled);
-        Assert.Equal(externalOptions, refreshed.VehicleDrivetrain);
+        VehicleOptions.AssertSame(externalOptions, refreshed.Options);
         Assert.Equal(1, refreshed.SettingsRevision);
 
-        var saved = (await Save(refreshed.SettingsRevision)).Cards.Single(card => card.Definition.Id == ExtensionIds.VehicleDrivetrain);
+        var saved = Vehicle(Save(refreshed));
         Assert.Equal(changeVehicleOptions, saved.Enabled);
-        Assert.Equal(changeVehicleOptions ? requestedOptions : externalOptions, saved.VehicleDrivetrain);
+        VehicleOptions.AssertSame(changeVehicleOptions ? requestedOptions : externalOptions, saved.Options);
         Assert.Equal(2, saved.SettingsRevision);
-        Assert.Equal(saved.VehicleDrivetrain, store.Read().Extensions[ExtensionIds.VehicleDrivetrain].VehicleDrivetrain);
+        Assert.Equal(saved.Preference, store.Read().Extensions[VehicleDrivetrainExtension.Id]);
     }
+
+    private static ExtensionCardView Vehicle(IEnumerable<ExtensionCardView> cards) =>
+        cards.Single(card => card.Definition.Id == VehicleDrivetrainExtension.Id);
 
     [Fact]
     public async Task ProjectionReflectsGlobalSavePolicyWithoutPublishingUnchangedViews()

@@ -84,7 +84,7 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
 
     private async Task RunAsync(Grid host)
     {
-        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
+        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == VehicleDrivetrainExtension.Id);
         var original = new ExtensionCardView(definition, false, "version-unknown", 0, VersionMatches: false);
         foreach (var theme in new[] { ElementTheme.Light, ElementTheme.Dark })
         foreach (var width in new[] { 1040, 560 })
@@ -92,7 +92,7 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
             host.RequestedTheme = theme;
             host.Width = width;
             host.Children.Clear();
-            var writes = new List<(GameExtensionSetting Setting, bool Value)>();
+            var writes = new List<(string Setting, bool Value)>();
             var section = new ExtensionSettingsSection(definition.Id, (setting, value) =>
             {
                 writes.Add((setting, value));

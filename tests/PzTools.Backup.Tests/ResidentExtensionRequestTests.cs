@@ -24,15 +24,15 @@ public sealed class ResidentExtensionRequestTests
         using var temp = new TempDirectory();
         var (bridge, runtime) = Folders(temp);
         var store = new ExtensionSettingsStore(runtime);
-        Assert.Equal(["off", "normal", ""], Fields(ResidentExtensionRequest.Build(bridge, runtime), ExtensionIds.VehicleDrivetrain)[2..]);
+        Assert.Equal(["off", "normal", ""], Fields(ResidentExtensionRequest.Build(bridge, runtime), VehicleDrivetrainExtension.Id)[2..]);
 
-        var saved = store.SetPreference(ExtensionIds.VehicleDrivetrain,
-            new(Enabled: true, ForceVersion: true, VehicleDrivetrain: new(ReverseEnabled: false)), store.Read().Revision);
+        var saved = store.SetPreference(VehicleDrivetrainExtension.Id,
+            new(Enabled: true, ForceVersion: true, Options: VehicleOptions.Of(reverse: false)), store.Read().Revision);
         var request = ResidentExtensionRequest.Build(bridge, runtime);
         Assert.StartsWith($"PZTOOLS-RESIDENT\t1\nrevision\t{saved.Revision}\n", request);
-        var fields = Fields(request, ExtensionIds.VehicleDrivetrain);
+        var fields = Fields(request, VehicleDrivetrainExtension.Id);
         Assert.Equal(["on", "force"], fields[2..4]);
-        var expected = ContinuousConfiguration.For(ExtensionIds.VehicleDrivetrain, bridge, runtime, saved.Extensions[ExtensionIds.VehicleDrivetrain]);
+        var expected = ContinuousConfiguration.For(VehicleDrivetrainExtension.Id, bridge, runtime, saved.Extensions[VehicleDrivetrainExtension.Id]);
         Assert.Equal(ContinuousConfiguration.Encode(expected), fields[4]);
         var sent = Encoding.UTF8.GetString(Convert.FromBase64String(fields[4]));
         Assert.Contains("force_scale\t1.25\n", sent);
@@ -45,7 +45,7 @@ public sealed class ResidentExtensionRequestTests
         using var temp = new TempDirectory();
         var (bridge, runtime) = Folders(temp);
         var store = new ExtensionSettingsStore(runtime);
-        store.SetEnabled(ExtensionIds.VehicleDrivetrain, true, store.Read().Revision);
+        store.SetEnabled(VehicleDrivetrainExtension.Id, true, store.Read().Revision);
         var tuning = VehicleDrivetrainConfiguration.OverridePath(runtime);
         Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
         File.WriteAllText(tuning, "force_scale = 99");

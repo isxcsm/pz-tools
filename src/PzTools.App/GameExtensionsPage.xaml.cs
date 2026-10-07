@@ -180,7 +180,7 @@ public sealed partial class GameExtensionsPage : UserControl
         foreach (var removed in sections.Keys.Where(id => !ids.Contains(id)).ToArray()) sections.Remove(removed);
     }
 
-    private async Task SaveEditAsync(string id, GameExtensionSetting setting, bool value)
+    private async Task SaveEditAsync(string id, string setting, bool value)
     {
         if (App.Host is not { } host) { ShowSettingsError(); return; }
         try
