@@ -7,6 +7,9 @@ local Sync = {}
 BU.Sync = Sync
 
 function Sync.changed(panelId)
+    -- The box shows it in the world first (BU.PanelLook: its breaker, its power).
+    local panel = panelId and BU.PanelLook and BU.Store.get(panelId)
+    if panel then BU.PanelLook.show(panel) end
     if isServer() then
         ModData.transmit(BU.Store.KEY)
         sendServerCommand(BU.MOD, "changed", { panel = panelId })

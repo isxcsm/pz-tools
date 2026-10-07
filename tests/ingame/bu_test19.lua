@@ -26,7 +26,6 @@ end
 panel.bankFlow = saved
 PanelWindow.planShown = true
 PanelWindow.open(getPlayer(), panel)
-say("lights element", ISBUStatusLights ~= nil)
 -- The plan zoomed in on the box, so the short paths of the test scene show their dots.
 local window = PanelWindow.get(panel.id)
 window:setPlanShown(true)

@@ -29,6 +29,9 @@ look; `BU22_CLEAN()` takes them away.
   filter down for its Replace option. `BUCOMBO3_CLEAN()` and `BUCOMBO_CLEAN()` take their things away.
 - `bu_spray.lua`: a spraying sprinkler near the player, its frames read over a second and a half (the spray going
   round); `BUSPRAY_CLEAN()` takes it away. A new sprite sheet needs the game restarted, not only the save reloaded.
+- `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the
+  console, the tripped lamp's blink frames), each line "ok" or "BAD"; `BULOOKS_CLEAN()` takes its units away. Needs the
+  test panel (`bu_setup.lua`) and the game restarted after the sheet changed.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
   test save and are kept as a record.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.

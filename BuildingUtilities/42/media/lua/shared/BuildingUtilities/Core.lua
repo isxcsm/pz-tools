@@ -177,8 +177,10 @@ function BU.scheduleOn(schedule)
     return (schedule == "night") == night
 end
 
--- The breaker box: no vanilla tile is one, so a small electric terminal stands in for it, one sprite per facing.
-BU.PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
+-- The breaker box: this mod's console, one sprite per facing (S, E, N, W), put down with its lamps dark; its other
+-- looks are BU.PanelLook's. Boxes of older saves stood as a vanilla terminal, and take the console as they load.
+BU.PANEL_SPRITES = { "bu_water_01_32", "bu_water_01_33", "bu_water_01_34", "bu_water_01_35" }
+BU.OLD_PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
 
 -- A water producer: an object the game fills with rain or water (rain barrels, metal drums), with a fluid container.

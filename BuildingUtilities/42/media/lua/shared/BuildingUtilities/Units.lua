@@ -17,7 +17,8 @@ local definitions = {}
 --   item: the item the player puts down and gets back.
 --   canPlace(square): whether it may stand there besides a free floor: true, or nil and a reason.
 --   sprite(square, character): the sprite it stands as when put down there.
---   sprites: each sprite it can stand as (the server learns of them as their squares load: onLoad).
+--   sprites: each sprite it can stand as, in each of its looks (the server learns of them as their squares load:
+--     onLoad).
 --   utility: what it is wired for: "power" (a source of the panel's power) or "water" (it works for one of the
 --     panel's water groups); minTier and tierReason: the lowest tier of a panel it is wired to.
 --   colour: { r, g, b } on the plan.
@@ -25,7 +26,8 @@ local definitions = {}
 --   create(unit, object): as it is put down (the server).
 --   isEmpty(unit): whether it holds nothing, so that it can be taken down; notEmptyReason the text key when not.
 --   onLoad(unit, object): as its square loads (the server).
---   sync(unit, object): each minute while its square is loaded (the server).
+--   sync(unit, object): each minute while its square is loaded (the server): what keeps its object in step, as its
+--     look (Units.setSprite, Units.setOverlay).
 --   title(unit, text): its line on the world menu, from its name.
 --   options(unit, character): world menu options, each { text, action = function(character, unit) a timed action,
 --     reason (why it cannot now, or nil) }.
@@ -69,6 +71,63 @@ end
 function Units.ofObject(object)
     local id = object and object:getModData()[Units.MODDATA]
     return id and Store.unit(id) or nil
+end
+
+-- An object of this mod shows another sprite, or another overlay over it (nil for none), when it does not already;
+-- on a server its players see it too.
+function Units.setSprite(object, name)
+    local sprite = object:getSprite()
+    if sprite and sprite:getName() == name then return end
+    object:setSprite(getSprite(name))
+    if isServer() then object:transmitUpdatedSpriteToClients() end
+end
+
+function Units.setOverlay(object, name)
+    local current = object:getOverlaySprite() and object:getOverlaySprite():getName() or nil
+    if current ~= name then object:setOverlaySprite(name or "", isServer()) end
+end
+
+-- Looks: what a thing shows of its state, a sprite for each way it faces ({ [look] = { [facing] = sprite } }), drawn in
+-- this mod's sheet (bu_water_01, tools/tile_art.py). A look's sprites follow each other in the sheet, from first, in
+-- the order of facings.
+function Units.sheetSprites(first, facings)
+    local result = {}
+    for index, facing in ipairs(facings) do result[facing] = "bu_water_01_" .. (first + index - 1) end
+    return result
+end
+
+-- What each sprite of a set of looks shows: { look, facing } by its name.
+function Units.lookOf(looks)
+    local result = {}
+    for look, sprites in pairs(looks) do
+        for facing, name in pairs(sprites) do result[name] = { look = look, facing = facing } end
+    end
+    return result
+end
+
+-- Every sprite of a set of looks, in the order of the looks and the facings given.
+function Units.lookSprites(looks, order, facings)
+    local result = {}
+    for _, look in ipairs(order) do
+        for _, facing in ipairs(facings) do result[#result + 1] = looks[look][facing] end
+    end
+    return result
+end
+
+-- A unit's object, when loaded, in step with it now (its kind's sync): after a player changed it, without waiting for
+-- the next minute.
+function Units.show(unit)
+    local sync = definitions[unit.kind].sync
+    local object = sync and Units.object(unit)
+    if object then sync(unit, object) end
+end
+
+-- An object takes the sprite of a look, facing as it does (lookOf: what its sprites show); one that shows another
+-- sprite is left as it is.
+function Units.showLook(object, looks, look, lookOf)
+    local current = object:getSprite() and object:getSprite():getName()
+    local shown = current and lookOf[current]
+    if shown then Units.setSprite(object, looks[look][shown.facing]) end
 end
 
 local function blocked(square)
