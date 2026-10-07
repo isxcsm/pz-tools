@@ -56,7 +56,10 @@ final class Network {
     record Stored(float amount, float capacity) { }
 
     final String id, owner, utility, policy;
-    /** The network whose producers supply this one, which then has none of its own; null for a network with its own. */
+    /**
+     * The network whose producers supply this one: for power, a child has none of its own; for water, it draws from its
+     * own and then its parents'. Null for a network at the top.
+     */
     String parent;
     /** In order: under {@code "sequential"} the next that can run takes over when the one in use stops. */
     final List<Producer> producers = new ArrayList<>();
@@ -91,8 +94,8 @@ final class Network {
     /** The producer that carries the load; null when the network has none running, and always for a child. */
     Producer inUse;
     /**
-     * Whether it has supply: for power, its producer in use runs; for water, one of its producers holds some; for a
-     * child, its parent has supply.
+     * Whether it has supply: for power, its producer in use runs, and for a child, its parent has supply; for water, one
+     * of the producers it draws from, its own or its parents', holds some.
      */
     boolean supplied;
     /** The hour its supply last started or stopped. */

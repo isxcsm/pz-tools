@@ -18,7 +18,7 @@ final class WaterGrid implements ApiHooks.Water {
     static final String UTILITY = "water";
     private static final long REFRESH_NANOS = TimeUnit.SECONDS.toNanos(1);
 
-    /** A network that has water now: its squares, and the producers of the network at the top of its parents. */
+    /** A network that has water now: its squares, and the producers it draws from (see {@link #producers}). */
     private record Supplier(Network network, Area area, List<Position> producers) { }
 
     /** An object rule of a network at one square; {@code supplier} is null while the network has no water. */
@@ -138,9 +138,20 @@ final class WaterGrid implements ApiHooks.Water {
     // The game's thread.
 
     /**
+     * The producers a network draws from: its own, then each parent's up to the one at the top. None when a parent is
+     * missing.
+     */
+    List<Position> producers(Network network) {
+        var result = new ArrayList<Position>();
+        if (members.root(network) == null) return result;
+        for (Network above : members.chain(network)) result.addAll(above.squares());
+        return result;
+    }
+
+    /**
      * Once a frame: once a second, or when something changed, reads what the producers hold and works out which
-     * networks have water. A producer whose square is not loaded counts as last seen; a child has water while the
-     * network at the top of its parents has.
+     * networks have water. A producer whose square is not loaded counts as last seen; a network has water while one of
+     * the producers it draws from has, and it and each parent above it are switched on.
      */
     void frame(Object cells) throws ReflectiveOperationException {
         long now = System.nanoTime();
@@ -151,7 +162,6 @@ final class WaterGrid implements ApiHooks.Water {
         List<Network> networks = members.of(UTILITY);
         for (Network network : networks) {
             members.resolve(network);
-            if (network.parent != null) continue;
             for (Position at : network.squares()) {
                 Object loaded = members.square(cells, at);
                 if (loaded == null) continue;
@@ -166,9 +176,8 @@ final class WaterGrid implements ApiHooks.Water {
         double hours = (double)worldHours.invoke(gameTime.invoke(null));
         var supplyChanged = new ArrayList<Network>();
         for (Network network : networks) {
-            Network root = members.root(network);
-            boolean supplied = root != null && members.switchedOn(network)
-                && root.stored.values().stream().anyMatch(stored -> stored.amount() > 0);
+            boolean supplied = members.root(network) != null && members.switchedOn(network)
+                && members.chain(network).stream().anyMatch(above -> above.stored.values().stream().anyMatch(stored -> stored.amount() > 0));
             if (supplied == network.supplied) continue;
             network.supplied = supplied;
             network.suppliedAt = hours;
@@ -185,9 +194,8 @@ final class WaterGrid implements ApiHooks.Water {
         var producers = new HashSet<Position>();
         for (Network network : networks) {
             producers.addAll(network.squares());
-            Network root = members.root(network);
-            if (!network.supplied || root == null) continue;
-            var supplier = new Supplier(network, network.area, root.squares());
+            if (!network.supplied || members.root(network) == null) continue;
+            var supplier = new Supplier(network, network.area, List.copyOf(producers(network)));
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }

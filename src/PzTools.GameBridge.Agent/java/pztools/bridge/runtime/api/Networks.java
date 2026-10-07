@@ -109,7 +109,8 @@ final class Networks {
             Network network = mine(arguments, call);
             Object list = arguments.length > 2 ? arguments[2] : null;
             if (!lua.isTable(list)) throw new IllegalArgumentException(call + ": producers must be a list of squares");
-            if (network.parent != null && lua.get(list, 1.0) != null)
+            // A water child draws from its own producers and its parents'; a power child's parent carries its load.
+            if (network.parent != null && lua.get(list, 1.0) != null && PowerGrid.UTILITY.equals(network.utility))
                 throw new IllegalArgumentException(call + ": " + network.id + " is a child network; its parent's producers supply it");
             var producers = new ArrayList<Producer>();
             for (int index = 1;; index++) {
@@ -186,8 +187,8 @@ final class Networks {
             own(parent, network.owner, call);
             if (!parent.utility.equals(network.utility))
                 throw new IllegalArgumentException(call + ": " + text + " carries " + parent.utility + ", not " + network.utility);
-            if (!network.producers.isEmpty())
-                throw new IllegalArgumentException(call + ": " + network.id + " has producers; a child network has none");
+            if (!network.producers.isEmpty() && PowerGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " has producers; a child power network has none");
             for (Network above = parent; above != null; above = above.parent == null ? null : networks.get(above.parent))
                 if (above == network) throw new IllegalArgumentException(call + ": " + text + " is a child of " + network.id);
             network.parent = parent.id;
@@ -340,24 +341,24 @@ final class Networks {
     }
 
     /**
-     * A water network's state: what its producers hold, as last seen; for a child, those of the network at the top of
-     * its parents.
+     * A water network's state: what the producers it draws from hold, as last seen: its own and, for a child, its
+     * parents'. It lists its own.
      */
     private void water(Object result, Network network) throws ReflectiveOperationException {
-        Network root = members.root(network);
         double held = 0, most = 0;
         var producers = new ArrayList<Object>();
-        for (Position at : root == null ? List.<Position>of() : root.squares()) {
-            Object entry = square(at);
-            var stored = root.stored.get(at);
-            if (stored != null) {
-                lua.set(entry, "amount", (double)stored.amount());
-                lua.set(entry, "capacity", (double)stored.capacity());
-                held += stored.amount();
-                most += stored.capacity();
+        for (Network above : members.root(network) == null ? List.<Network>of() : members.chain(network))
+            for (Position at : above.squares()) {
+                Object entry = square(at);
+                var stored = above.stored.get(at);
+                if (stored != null) {
+                    lua.set(entry, "amount", (double)stored.amount());
+                    lua.set(entry, "capacity", (double)stored.capacity());
+                    held += stored.amount();
+                    most += stored.capacity();
+                }
+                if (above == network) producers.add(entry);
             }
-            if (network == root) producers.add(entry);
-        }
         lua.set(result, "amount", held);
         lua.set(result, "capacity", most);
         lua.set(result, "producers", lua.list(producers));

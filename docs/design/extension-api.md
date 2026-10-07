@@ -127,7 +127,7 @@ A network carries one utility, power or water, from producers to consumers.
 | --- | --- |
 | Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
 | Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
-| Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A child has no producers of its own. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
+| Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A power child has no producers of its own; a water child may have its own, and draws from them and its parents'. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
 | Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
 
 A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
@@ -138,7 +138,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | --- | --- |
 | `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"`. Defined again with another utility, it detaches its children. |
 | `networks.remove(handle, id)` | Removes it, giving its producers back to vanilla; `true` when there was one. |
-| `networks.setProducers(handle, id, list)` | Producers in order: squares (tables with `x`, `y`, `z`), and for power also sources the mod runs (tables with `source`, a name of 1 to 64 letters, digits, `_`, `.` or `-`). A square is a producer of one network at most. A new source is not available and switched off. A producer taken out of the list while it carries the load stops, and the next that can run takes over. |
+| `networks.setProducers(handle, id, list)` | Producers in order: squares (tables with `x`, `y`, `z`), and for power also sources the mod runs (tables with `source`, a name of 1 to 64 letters, digits, `_`, `.` or `-`). A square is a producer of one network at most. A power child takes none; a water child may. A new source is not available and switched off. A producer taken out of the list while it carries the load stops, and the next that can run takes over. |
 | `networks.setSource(handle, id, name, available, switchOn, hour)` | Sets a source of the network as its mod runs it: whether it can carry the load (`available`); `switchOn` `true` switches it on (it takes over, as a generator a player switches on), `false` off (the network stops if it was in use), `nil` leaves it; a source that is not available is switched off, and if it was in use the next producer takes over from `hour` (when it ran out; now when `nil`). The API does not know what the source is: the mod keeps its charge and says when it is empty. |
 | `networks.addBuilding(handle, id, x, y, z)` | A building as a consumer, named by one of its squares; `true` when the square is in a building now. |
 | `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
@@ -149,7 +149,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
 | `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what the producers it draws from hold, as last seen: its own and, for a child, its parents') and `producers`, its own alone, each its square and, once seen loaded, `amount` and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
@@ -190,7 +190,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - Water networks under `"fullest"`: a fixture the game can pipe water to (`waterPiped`), in a member
   building or added on its own and not excluded, takes its water from the network while one of its
   producers holds some: from the fullest of them by share of its capacity, at each question. A child's
-  fixtures draw from the producers of the network at the top of its parents. A producer's square has
+  fixtures draw from its own producers and its parents', the fullest of them all; a parent's never
+  draw from its child's. A producer's square has
   no consumers. The producers are read once a second; a `"supply"` event says when the network got or
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
@@ -241,10 +242,11 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 
 ### Water
 
-- **Supply.** A network has water while one of its producers holds some, as last seen loaded, and it
-  is switched on. A child has water when the network at the top of its parents has and it and each
-  parent between are switched on. Without water, its fixtures are the
-  game's again.
+- **Supply.** A network has water while one of the producers it draws from holds some, as last seen
+  loaded, and it is switched on. A child draws from its own producers, if it has any, and from each
+  parent's up to the one at the top; it has water while one of those holds some and it and each
+  parent above it are switched on. A parent switched off cuts its children, whatever they hold.
+  Without water, its fixtures are the game's again.
 - **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
   gives each draw. Levels converge as water is used, and space opens first in the containers that
   are fullest, so rain is lost only when all are full. No water is moved between containers. A

@@ -517,7 +517,7 @@ public final class GameApiTest {
         rejects(networks, "setProducers", "sub is a child network", mod, "sub", list(at(33, 33, 0)));
         call(networks, "define", mod, "third", "power", "sequential");
         call(networks, "setProducers", mod, "third", list(at(33, 33, 0)));
-        rejects(networks, "setParent", "third has producers", mod, "third", "main");
+        rejects(networks, "setParent", "third has producers; a child power network has none", mod, "third", "main");
         Object other = call(api, "client", "other.mod").get(0);
         call(networks, "define", other, "foreign", "power", "sequential");
         rejects(networks, "setParent", "main belongs to another mod", other, "foreign", "main");
@@ -851,13 +851,44 @@ public final class GameApiTest {
             && shed.getFluidAmount() == 20, "The child has no water from its parent");
         call(networks, "define", mod, "lights", "power", "sequential");
         rejects(networks, "setParent", "pipes carries water, not power", mod, "lights", "pipes");
-        // Dry: no supply, and the fixtures are the game's again.
+        // A water child with a producer of its own: its fixtures draw from the fullest of its own and its parent's, the
+        // parent's from its own alone; the state sums them all and lists its own.
+        IsoObject tank = place(23, 20, 0, barrel(40));
+        call(networks, "setProducers", mod, "annex", list(at(23, 20, 0)));
+        frame();
+        annex = state(networks, "annex");
+        var own = (KahluaTable)((KahluaTable)annex.rawget("producers")).rawget(1.0);
+        check(annex.rawget("amount").equals(75.0) && annex.rawget("capacity").equals(300.0) && ((KahluaTable)annex.rawget("producers")).len() == 1
+            && own.rawget("x").equals(23.0) && own.rawget("amount").equals(40.0), "The child's own producer is not in its state");
+        check(shed.getFluidAmount() == 40 && sink.getFluidAmount() == 20 && state(networks, "pipes").rawget("amount").equals(35.0),
+            "The child's own producer is not drawn from, or the parent draws from it: " + shed.getFluidAmount() + ", " + sink.getFluidAmount());
+        call(networks, "define", mod, "wing", "water", "fullest");
+        call(networks, "setProducers", mod, "wing", list(at(24, 20, 0)));
+        call(networks, "setParent", mod, "wing", "pipes");
+        call(networks, "remove", mod, "wing");
+        // Dry: no supply, and the fixtures are the game's again; a child with water of its own keeps it.
         low.fluidContainer.amount = 0;
         high.fluidContainer.amount = 0;
         LuaEventManager.raised.clear();
         frame();
         check(state(networks, "pipes").rawget("supplied").equals(false) && !sink.getUsesExternalWaterSource()
-            && raised("pipes", "supply", hours) && raised("annex", "supply", hours), "A dry network supplies water");
+            && raised("pipes", "supply", hours) && !raised("annex", "supply", hours) && shed.getFluidAmount() == 40,
+            "A dry network supplies water, or its child lost its own");
+        // A parent switched off cuts its child, whatever the child holds.
+        LuaEventManager.raised.clear();
+        call(networks, "setEnabled", mod, "pipes", false);
+        frame();
+        check(state(networks, "annex").rawget("supplied").equals(false) && !shed.getUsesExternalWaterSource() && raised("annex", "supply", hours),
+            "A child of a network switched off has water");
+        call(networks, "setEnabled", mod, "pipes", true);
+        frame();
+        check(state(networks, "annex").rawget("supplied").equals(true), "A child lost its own water when its parent was switched on");
+        LuaEventManager.raised.clear();
+        tank.fluidContainer.amount = 0;
+        // Named again, so that the next frame reads the producers rather than waiting a second.
+        call(networks, "addBuilding", mod, "annex", 20.0, 20.0, 0.0);
+        frame();
+        check(state(networks, "annex").rawget("supplied").equals(false) && raised("annex", "supply", hours), "A dry child supplies water");
         // A failing hook gives the game's answers; a newer payload takes the networks over.
         high.fluidContainer.amount = 50;
         frame();
