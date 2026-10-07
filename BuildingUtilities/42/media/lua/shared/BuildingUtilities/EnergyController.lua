@@ -10,6 +10,12 @@ Energy.DEFAULTS = { start = 30, stop = 90, quietFrom = 22, quietTo = 6, protect 
 Energy.CHOICES = { start = { 10, 20, 30, 40, 50 }, stop = { 60, 70, 80, 90, 100 }, protect = { 10, 20, 30, 40 },
     quiet = { { 0, 0 }, { 21, 6 }, { 22, 6 }, { 23, 7 }, { 0, 5 } } }
 
+-- Whether a panel's bank has a charge controller: from its tier, while the controller is on (BU.enabled). Without one
+-- the bank runs as at tier 2.
+function Energy.hasController(panel)
+    return (panel.tier or 1) >= BU.CONTROLLER_TIER and BU.enabled("controller")
+end
+
 function Energy.settings(panel)
     local saved, result = panel.controller or {}, {}
     for name, value in pairs(Energy.DEFAULTS) do
@@ -54,10 +60,11 @@ function Energy.rules(panel, state)
             generators = true
         end
     end
-    local quiet = tier >= BU.CONTROLLER_TIER and Energy.isQuiet(settings)
+    local controller = Energy.hasController(panel)
+    local quiet = controller and Energy.isQuiet(settings)
     local floor = tier >= BU.SMART_TIER and Energy.CUTOFF or 0
     local restart = floor + Energy.BANK_START
-    if tier >= BU.CONTROLLER_TIER and generators and not quiet then
+    if controller and generators and not quiet then
         floor = math.max(floor, settings.start / 100)
         restart = math.max(restart, settings.stop / 100)
     end

@@ -76,11 +76,12 @@ local function statusLine(lines, label, status)
         r = c[1], g = c[2], b = c[3] }
 end
 
--- The summary of a box: { title, lines = { { label, value, r, g, b } } }.
+-- The summary of a box: { title, lines = { { label, value, r, g, b } } }. Only the utilities that are on (BU.enabled).
 local function summaryOf(panel)
     local lines = {}
-    if panel.tripped then lines[#lines + 1] = { label = getText("IGUI_BU_TipBreaker"), value = getText("IGUI_BU_Tripped"), r = 1, g = 0.4, b = 0.4 } end
-    statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power"))
+    local powerOn = BU.enabled("power")
+    if powerOn and panel.tripped then lines[#lines + 1] = { label = getText("IGUI_BU_TipBreaker"), value = getText("IGUI_BU_Tripped"), r = 1, g = 0.4, b = 0.4 } end
+    if powerOn then statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power")) end
     local power = BU.Networks.state(panel, "power")
     if power and power.load then
         local capacity = Panels.capacity(panel)
@@ -92,7 +93,7 @@ local function summaryOf(panel)
     -- Water where the box, or the main panel it takes its supply from, has tanks.
     local top, steps = panel, 0
     while Store.get(top.parent) and steps < 10 do top, steps = Store.get(top.parent), steps + 1 end
-    if #top.water.producers > 0 then statusLine(lines, getText("IGUI_BU_TipWater"), PanelWindow.status(panel, "water")) end
+    if BU.enabled("water") and #top.water.producers > 0 then statusLine(lines, getText("IGUI_BU_TipWater"), PanelWindow.status(panel, "water")) end
     local parent = Store.get(panel.parent)
     if parent then lines[#lines + 1] = { label = getText("IGUI_BU_TipMain"), value = Panels.name(parent), r = 1, g = 1, b = 1 } end
     return { title = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1), lines = lines }

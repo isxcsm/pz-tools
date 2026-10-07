@@ -47,11 +47,12 @@ function Units.name(unit) return getText("IGUI_BU_Unit_" .. unit.kind) end
 
 function Units.utility(unit) return definitions[unit.kind].utility end
 
--- The units wired to a panel that are of a utility.
+-- The units wired to a panel that are of a utility, of the kinds that are on (BU.enabled): one of a kind that is off
+-- does nothing.
 function Units.of(panelId, utility)
     local result = {}
     for _, unit in ipairs(Store.unitList(nil, panelId)) do
-        if definitions[unit.kind].utility == utility then result[#result + 1] = unit end
+        if definitions[unit.kind].utility == utility and BU.enabled(unit.kind) then result[#result + 1] = unit end
     end
     return result
 end
@@ -138,8 +139,10 @@ local function blocked(square)
     return not square:getFloor() or not square:isFree(false)
 end
 
--- Whether a unit of a kind can go on a square: where its kind may stand, on a free floor. True, or nil and a reason.
+-- Whether a unit of a kind can go on a square: of a kind that is on, where its kind may stand, on a free floor. True,
+-- or nil and a reason.
 function Units.canInstall(kind, square)
+    if not BU.enabled(kind) then return nil, "disabled" end
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local ok, reason = definitions[kind].canPlace(square)
@@ -156,6 +159,7 @@ function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y,
 
 -- Whether a unit can be wired to a panel. True, or false and a reason.
 function Units.canConnect(unit, panel)
+    if not BU.enabled(unit.kind) then return false, "disabled" end
     if panel.parent then return false, "isSubPanel" end
     if unit.panel then return false, "connectedElsewhere" end
     local definition = definitions[unit.kind]

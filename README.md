@@ -19,7 +19,12 @@ The design, in Korean, is [DESIGN.md](DESIGN.md).
 
 ## Options
 
-Sandbox options, on the "Building Utilities" page: ranges for supplies, outside devices and sub-panels and how much
+Sandbox options. The "Building Utilities: Features" page turns parts of the mod on or off, each on by default: power,
+water, and within them solar panels, battery racks, the charge controller, water pumps, sprinklers and water filters
+(a part needs the one it belongs to; a pump needs both water and power). A part that is off cannot be made or put
+down, its menus and window rows are hidden, and what of it is already placed does nothing (a utility that is off gives
+its generators and tanks back to the game) but can still be taken down; its saved setup comes back when it is on
+again. The "Building Utilities" page: ranges for supplies, outside devices and sub-panels and how much
 each tier adds; whether lines cost materials, the tiles per wire or pipe and the share given back; overload and the
 load each tier carries; line loss per wire; the low fuel warning; Electricity experience; solar output, snow on
 panels, battery capacity, charge efficiency, wear, the cold lock and the drain of worn batteries; water only from

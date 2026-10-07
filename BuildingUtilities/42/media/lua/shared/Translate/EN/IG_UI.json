@@ -931,5 +931,7 @@
     "IGUI_BU_GroupOverflow": "When full: %1",
     "IGUI_BU_OverflowStop": "stop the pumps",
     "IGUI_BU_Pump_noWater": "running dry: no water beside it",
-    "IGUI_BU_Legend_rangeNoise": "Where zombies hear a generator"
+    "IGUI_BU_Legend_rangeNoise": "Where zombies hear a generator",
+    "IGUI_BU_UnitOff": "%1 (off in the sandbox)",
+    "IGUI_BU_Reason_disabled": "Turned off in the sandbox options."
 }

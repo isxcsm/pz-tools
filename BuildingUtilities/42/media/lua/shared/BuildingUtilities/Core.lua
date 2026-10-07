@@ -117,6 +117,67 @@ function BU.sandbox(name, default)
     return value
 end
 
+-- What the sandbox's features page (Sandbox_BuildingUtilitiesFeatures) turns off, each on by default: by name, its
+-- option and the features it needs. The unit kinds go by their names (BU.Units.KINDS); the box itself ("panel") is on
+-- while either utility is. A feature that is off cannot be made or put down, its menus, tabs and rows are hidden, and
+-- what of it stands in the world does nothing, its saved data kept for when it is on again (BU.Changes.applyFeatures).
+local FEATURES = {
+    power = { option = "EnablePower" },
+    water = { option = "EnableWater" },
+    solar = { option = "EnableSolar", needs = { "power" } },
+    rack = { option = "EnableBatteries", needs = { "power" } },
+    controller = { option = "EnableChargeController", needs = { "rack" } },
+    pump = { option = "EnablePumps", needs = { "water", "power" } },
+    sprinkler = { option = "EnableSprinklers", needs = { "water" } },
+    filter = { option = "EnableFilters", needs = { "water" } },
+}
+BU.FEATURES = { "power", "water", "solar", "rack", "controller", "pump", "sprinkler", "filter" }
+
+-- Whether a feature is on: its option, and those of the features it needs. A name that is no feature's is on.
+function BU.enabled(name)
+    if name == "panel" then return BU.enabled("power") or BU.enabled("water") end
+    local feature = name and FEATURES[name]
+    if not feature then return true end
+    if BU.sandbox(feature.option, true) ~= true then return false end
+    for _, need in ipairs(feature.needs or {}) do
+        if not BU.enabled(need) then return false end
+    end
+    return true
+end
+
+-- The utilities that are on, in BU.UTILITIES' order.
+function BU.utilities()
+    local result = {}
+    for _, utility in ipairs(BU.UTILITIES) do
+        if BU.enabled(utility) then result[#result + 1] = utility end
+    end
+    return result
+end
+
+-- The features on, as one text ("power,water,solar"): compared to tell when the sandbox changed them.
+function BU.featureKey()
+    local on = {}
+    for _, name in ipairs(BU.FEATURES) do
+        if BU.enabled(name) then on[#on + 1] = name end
+    end
+    return table.concat(on, ",")
+end
+
+-- The crafting window lists a recipe of this mod only while what it makes is on: the scripts name this global as each
+-- recipe's OnAddToMenu, which the game looks up by its plain name. Each recipe's OnTest (BU.RecipeTest) refuses every
+-- input meanwhile, so that one reached another way (an item's Craft menu) cannot be made either.
+BU.RECIPE_FEATURES = { MakeBreakerBox = "panel", MakeSolarPanel = "solar", MakeBatteryRack = "rack",
+    MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter" }
+function BuildingUtilitiesRecipeShown(param)
+    local name = param and param.recipe and param.recipe:getName()
+    local feature = name and BU.RECIPE_FEATURES[name:match("[^%.]+$")]
+    return feature == nil or BU.enabled(feature)
+end
+BU.RecipeTest = {}
+for recipe, feature in pairs(BU.RECIPE_FEATURES) do
+    BU.RecipeTest[recipe] = function() return BU.enabled(feature) end
+end
+
 -- How far a box of a tier reaches, in squares from its building's outline: the sandbox's range at tier 1, and
 -- RangePerTier percent of it more for each tier above. Devices outside join within the exterior range of their own
 -- box (the API reads at most 32); producers and sub-panels within the producer and sub-panel range of the main box.

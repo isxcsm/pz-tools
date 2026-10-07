@@ -107,8 +107,11 @@ function ISBUPanelWindow:createChildren()
     self.tabs:setEqualTabWidth(false)
     self:addChild(self.tabs)
     self.lists = {}
+    -- A tab for each utility that is on (BU.enabled), and the log; the window opens anew when that changes (refresh).
+    self.utilities = BU.utilities()
+    self.utilitiesKey = table.concat(self.utilities, ",")
     local views = {}
-    for _, utility in ipairs(BU.UTILITIES) do views[#views + 1] = utility end
+    for _, utility in ipairs(self.utilities) do views[#views + 1] = utility end
     views[#views + 1] = LOG
     for _, view in ipairs(views) do
         local list = ISBUPanelList:new(0, 0, listW, self.tabs.height - self.tabs.tabHeight, self, view)
@@ -258,11 +261,11 @@ function ISBUPanelWindow:onByLoad()
     self:redraw()
 end
 
--- The utility the list shows now: the plan follows it (power while the log is shown).
+-- The utility the list shows now: the plan follows it (the first tab's while the log is shown; nil with both off).
 function ISBUPanelWindow:activeUtility()
     local view = self.tabs and self.tabs.activeView and self.tabs.activeView.view
     local utility = view and view.utility
-    if utility == nil or utility == LOG then return "power" end
+    if utility == nil or utility == LOG then return self.utilities and self.utilities[1] end
     return utility
 end
 
@@ -349,6 +352,16 @@ function ISBUPanelWindow:refresh()
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
+    -- A utility turned on or off in the sandbox: the window opens anew where it is, with its tabs.
+    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey then
+        local x, y = self:getX(), self:getY()
+        self:close()
+        local window = PanelWindow.open(self.playerObj, panel)
+        window:setX(x)
+        window:setY(y)
+        return
+    end
+    local powerOn = BU.enabled("power")
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
     self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
@@ -369,9 +382,9 @@ function ISBUPanelWindow:refresh()
     self.loadArea:setWidth(BAR_W + 8 + getTextManager():MeasureStringX(UIFont.Small, self.loadText))
     -- The banner: the breaker down, devices shed, or the load near what the box carries.
     local shed = count(panel.power.shed)
-    if panel.tripped then
+    if powerOn and panel.tripped then
         self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.capacity)), r = 0.6, g = 0.1, b = 0.1 }
-    elseif shed > 0 then
+    elseif powerOn and shed > 0 then
         self.banner = { text = getText("IGUI_BU_BannerShed", shed), r = 0.6, g = 0.35, b = 0.05 }
     elseif self.load and BU.overloadEnabled() and self.load > self.capacity * 0.8 then
         self.banner = { text = getText("IGUI_BU_BannerNear", string.format("%.0f", self.load * 100 / self.capacity)), r = 0.45, g = 0.4, b = 0.05 }
@@ -383,7 +396,7 @@ function ISBUPanelWindow:refresh()
     self.planButton:setTitle(getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
-    self.resetButton:setVisible(panel.tripped == true)
+    self.resetButton:setVisible(powerOn and panel.tripped == true)
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)
     if tier < BU.TIERS then
@@ -406,7 +419,7 @@ function ISBUPanelWindow:refresh()
     self.titles = Panels.roomTitles(building)
     self.pending = {}
     local active = self:activeUtility()
-    for _, utility in ipairs(BU.UTILITIES) do
+    for _, utility in ipairs(self.utilities) do
         if utility == active or utility == "power" and self.load then self:fill(utility, self.states[utility])
         else self.pending[utility] = { state = self.states[utility] } end
     end
@@ -458,7 +471,7 @@ end
 -- Every tab's rows again so (a search, a view option, a room filtered): the one shown now, the other as it opens.
 function ISBUPanelWindow:redraw()
     local active = self:activeUtility()
-    for _, utility in ipairs(BU.UTILITIES) do
+    for _, utility in ipairs(self.utilities) do
         local view = self.views[utility]
         if utility == active then
             self:refill(utility)

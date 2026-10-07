@@ -931,5 +931,7 @@
     "IGUI_BU_GroupOverflow": "가득 차면: %1",
     "IGUI_BU_OverflowStop": "펌프 멈춤",
     "IGUI_BU_Pump_noWater": "헛도는 중: 옆에 물이 없음",
-    "IGUI_BU_Legend_rangeNoise": "좀비가 발전기 소리를 듣는 곳"
+    "IGUI_BU_Legend_rangeNoise": "좀비가 발전기 소리를 듣는 곳",
+    "IGUI_BU_UnitOff": "%1 (샌드박스에서 꺼짐)",
+    "IGUI_BU_Reason_disabled": "샌드박스 옵션에서 꺼져 있습니다."
 }

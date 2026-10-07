@@ -49,5 +49,22 @@
     "Sandbox_BuildingUtilities_RiskPipesFreeze": "Risk: pipes freeze",
     "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "A utility panel's water stops after 6 hours below -5 degrees C at the panel (a heated building stays warmer) and flows again after 2 hours above 0. Off by default.",
     "Sandbox_BuildingUtilities_RiskPlumbingUnpurified": "Risk: pipes do not purify",
-    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified_tooltip": "A utility panel's pipes give water as its tanks hold it: rain and river water comes out tainted unless a water filter of its group purifies it. Off by default (the game's pipes purify). Needs a PZ Tools version that can keep the taint; otherwise it has no effect."
+    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified_tooltip": "A utility panel's pipes give water as its tanks hold it: rain and river water comes out tainted unless a water filter of its group purifies it. Off by default (the game's pipes purify). Needs a PZ Tools version that can keep the taint; otherwise it has no effect.",
+    "Sandbox_BuildingUtilitiesFeatures": "Building Utilities: Features",
+    "Sandbox_BuildingUtilities_EnablePower": "Power",
+    "Sandbox_BuildingUtilities_EnablePower_tooltip": "Utility panels power their buildings from the generators, solar panels and battery racks connected to them, with breakers, line loss, timers and the rest of their power side. On by default. Off: panels give no power and nothing of their power side can be made or connected; generators and devices work as in the game without this mod. What was connected stays, and works again once this is on.",
+    "Sandbox_BuildingUtilities_EnableWater": "Water",
+    "Sandbox_BuildingUtilities_EnableWater_tooltip": "Utility panels water their buildings from the tanks connected to them, with water groups, pumps, sprinklers and filters. On by default. Off: panels give no water and nothing of their water side can be made or connected; tanks and fixtures work as in the game without this mod. What was connected stays, and works again once this is on.",
+    "Sandbox_BuildingUtilities_EnableSolar": "Solar panels",
+    "Sandbox_BuildingUtilities_EnableSolar_tooltip": "Solar panels can be made and put down, and power their panel by day. Needs Power. On by default. Off: none can be made; those put down make nothing and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableBatteries": "Battery racks",
+    "Sandbox_BuildingUtilities_EnableBatteries_tooltip": "Battery racks can be made and put down, and from tier 2 store power in car batteries; worn car batteries can be reconditioned. Needs Power. On by default. Off: none can be made; those put down keep their batteries but take and give no power, and can still be emptied and removed.",
+    "Sandbox_BuildingUtilities_EnableChargeController": "Charge controller",
+    "Sandbox_BuildingUtilities_EnableChargeController_tooltip": "From tier 3 a panel's charge controller hands the load to a generator when the batteries run low, charges them from it and starts no generator in quiet hours; at tier 4 it keeps devices that are not essential off to save the batteries. Needs Battery racks. On by default. Off: the batteries work as at tier 2.",
+    "Sandbox_BuildingUtilities_EnablePumps": "Water pumps",
+    "Sandbox_BuildingUtilities_EnablePumps_tooltip": "Water pumps can be made and put down, and fill their panel's tanks from a river, a lake or a well while it has power. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableSprinklers": "Sprinklers",
+    "Sandbox_BuildingUtilities_EnableSprinklers_tooltip": "Sprinklers can be made and put down, and water the crops around them from their panel's tanks. Needs Water. On by default. Off: none can be made; those put down water nothing and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableFilters": "Water filters",
+    "Sandbox_BuildingUtilities_EnableFilters_tooltip": "Water filters can be made and put down, and purify their group's water while \"Risk: pipes do not purify\" is on. Needs Water. On by default. Off: none can be made; those put down purify nothing (with that risk on, the water comes out as the tanks hold it) and can still be removed."
 }

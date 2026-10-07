@@ -49,5 +49,22 @@
     "Sandbox_BuildingUtilities_RiskPipesFreeze": "위험: 배관 동파",
     "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "제어반 자리 기온이 -5°C 아래로 6시간이면 물이 멈추고(난방된 건물은 덜 춥습니다), 0°C 위로 2시간이면 다시 나옵니다. 기본은 꺼짐.",
     "Sandbox_BuildingUtilities_RiskPlumbingUnpurified": "위험: 배관이 정수하지 않음",
-    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified_tooltip": "제어반 배관이 통에 든 물을 그대로 내보냅니다. 빗물과 강물은 그 그룹의 정수 필터가 정수하지 않으면 오염된 채 나옵니다. 기본은 꺼짐(게임의 배관은 정수합니다). 오염을 유지할 수 있는 PZ Tools 버전이 필요하고, 아니면 효과가 없습니다."
+    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified_tooltip": "제어반 배관이 통에 든 물을 그대로 내보냅니다. 빗물과 강물은 그 그룹의 정수 필터가 정수하지 않으면 오염된 채 나옵니다. 기본은 꺼짐(게임의 배관은 정수합니다). 오염을 유지할 수 있는 PZ Tools 버전이 필요하고, 아니면 효과가 없습니다.",
+    "Sandbox_BuildingUtilitiesFeatures": "건물 유틸리티: 기능",
+    "Sandbox_BuildingUtilities_EnablePower": "전기",
+    "Sandbox_BuildingUtilities_EnablePower_tooltip": "제어반이 연결된 발전기, 태양광 패널, 배터리 랙으로 건물에 전기를 댑니다. 차단기, 선 손실, 타이머 등 전기 쪽 전부가 여기에 들어갑니다. 기본은 켜짐. 끄면 제어반이 전기를 대지 않고 전기 쪽 물건은 만들거나 연결할 수 없으며, 발전기와 기기는 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남고, 다시 켜면 다시 동작합니다.",
+    "Sandbox_BuildingUtilities_EnableWater": "물",
+    "Sandbox_BuildingUtilities_EnableWater_tooltip": "제어반이 연결된 물탱크로 건물에 물을 댑니다. 물 그룹, 펌프, 스프링클러, 필터가 여기에 들어갑니다. 기본은 켜짐. 끄면 제어반이 물을 대지 않고 물 쪽 물건은 만들거나 연결할 수 없으며, 물탱크와 시설은 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남고, 다시 켜면 다시 동작합니다.",
+    "Sandbox_BuildingUtilities_EnableSolar": "태양광 패널",
+    "Sandbox_BuildingUtilities_EnableSolar_tooltip": "태양광 패널을 만들어 놓을 수 있고, 낮에 제어반에 전기를 댑니다. 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 패널은 전기를 내지 않으며 떼어낼 수는 있습니다.",
+    "Sandbox_BuildingUtilities_EnableBatteries": "배터리 랙",
+    "Sandbox_BuildingUtilities_EnableBatteries_tooltip": "배터리 랙을 만들어 놓을 수 있고, 2단계부터 차량 배터리에 전기를 모아 둡니다. 낡은 차량 배터리를 재생할 수도 있습니다. 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 랙은 배터리를 담아 두기만 할 뿐 전기를 넣거나 빼지 않으며, 비우고 떼어낼 수는 있습니다.",
+    "Sandbox_BuildingUtilities_EnableChargeController": "충전 컨트롤러",
+    "Sandbox_BuildingUtilities_EnableChargeController_tooltip": "3단계부터 제어반의 충전 컨트롤러가 배터리가 낮으면 발전기에 부하를 넘기고, 그동안 발전기로 배터리를 채우며, 조용한 시간에는 발전기를 켜지 않습니다. 4단계에서는 배터리를 아끼려 필수가 아닌 기기를 끕니다. 배터리 랙이 켜져 있어야 합니다. 기본은 켜짐. 끄면 배터리가 2단계처럼 동작합니다.",
+    "Sandbox_BuildingUtilities_EnablePumps": "양수 펌프",
+    "Sandbox_BuildingUtilities_EnablePumps_tooltip": "양수 펌프를 만들어 놓을 수 있고, 제어반에 전기가 있는 동안 강, 호수, 우물에서 물을 끌어 제어반의 물탱크를 채웁니다. 물과 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 펌프는 멈춰 전기를 쓰지 않으며 떼어낼 수는 있습니다.",
+    "Sandbox_BuildingUtilities_EnableSprinklers": "스프링클러",
+    "Sandbox_BuildingUtilities_EnableSprinklers_tooltip": "스프링클러를 만들어 놓을 수 있고, 제어반의 물탱크 물로 주변 작물에 물을 줍니다. 물이 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 스프링클러는 물을 주지 않으며 떼어낼 수는 있습니다.",
+    "Sandbox_BuildingUtilities_EnableFilters": "정수 필터",
+    "Sandbox_BuildingUtilities_EnableFilters_tooltip": "정수 필터를 만들어 놓을 수 있고, \"위험: 배관이 정수하지 않음\"이 켜져 있는 동안 그 그룹의 물을 정수합니다. 물이 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 필터는 정수하지 않으며(그 위험이 켜져 있으면 물이 통에 든 그대로 나옵니다) 떼어낼 수는 있습니다."
 }

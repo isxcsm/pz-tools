@@ -106,7 +106,7 @@ local function powerStatus(panel, state)
             local left = bankLeft(panel, bank, rules)
             result.left = left and left .. "  " .. fuel or fuel
         end
-        local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+        local controller = Energy.hasController(panel)
         if hasSource and bank and controller and Energy.charging(panel) > 0 then
             result.reason = getText("IGUI_BU_Why_Charging", BU.percent(rules.settings.stop))
         elseif hasSource and bank and controller then
@@ -172,9 +172,15 @@ function PanelWindow.status(panel, utility)
 end
 
 -- The status line as drawn: the text and what is left on it after the dot; the reason after it in grey when it fits
--- (it ends at reasonEnd), else only in the tooltip, which has both utilities in full. Measured here, not each frame.
+-- (it ends at reasonEnd), else only in the tooltip, which has the utilities that are on in full. Measured here, not
+-- each frame. None with both off.
 function ISBUPanelWindow:updateStatus()
     self.statusUtility = self:activeUtility()
+    if not self.statusUtility then
+        self.status = nil
+        self.statusArea:setTooltip(nil)
+        return
+    end
     local status = PanelWindow.status(self.panel, self.statusUtility)
     local text = status.left and status.text .. ", " .. status.left or status.text
     local textX = PAD + FONT_HGT_SMALL
@@ -186,7 +192,7 @@ function ISBUPanelWindow:updateStatus()
         self.status.reasonEnd = self.status.reasonX + measure:MeasureStringX(UIFont.Small, self.status.reason)
     end
     local lines = {}
-    for _, utility in ipairs(BU.UTILITIES) do
+    for _, utility in ipairs(self.utilities) do
         local each = PanelWindow.status(self.panel, utility)
         lines[#lines + 1] = " <RGB:1,1,1> " .. getText("IGUI_BU_Tab_" .. utility) .. ": " .. each.text
         if each.left then lines[#lines + 1] = " <RGB:0.8,0.8,0.8> " .. each.left end

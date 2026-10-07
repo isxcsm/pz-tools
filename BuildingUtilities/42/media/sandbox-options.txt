@@ -1,5 +1,53 @@
 VERSION = 1,
 
+option BuildingUtilities.EnablePower
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnablePower,
+}
+
+option BuildingUtilities.EnableWater
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableWater,
+}
+
+option BuildingUtilities.EnableSolar
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableSolar,
+}
+
+option BuildingUtilities.EnableBatteries
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableBatteries,
+}
+
+option BuildingUtilities.EnableChargeController
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableChargeController,
+}
+
+option BuildingUtilities.EnablePumps
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnablePumps,
+}
+
+option BuildingUtilities.EnableSprinklers
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableSprinklers,
+}
+
+option BuildingUtilities.EnableFilters
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableFilters,
+}
+
 option BuildingUtilities.ProducerRange
 {
     type = integer, min = 1, max = 100, default = 20,

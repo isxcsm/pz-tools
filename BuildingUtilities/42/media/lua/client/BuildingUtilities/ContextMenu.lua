@@ -84,13 +84,15 @@ local function onInside(playerObj, panel, utility, device, connected)
 end
 
 local function addPanelOptions(context, playerObj, panel)
-    local name = panel.tripped and getText("IGUI_BU_NameTripped", Panels.name(panel)) or Panels.name(panel)
+    -- The breaker is power's: with power off in the sandbox it is not told.
+    local tripped = panel.tripped and BU.enabled("power")
+    local name = tripped and getText("IGUI_BU_NameTripped", Panels.name(panel)) or Panels.name(panel)
     local option = context:addOptionOnTop(name, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     local open = sub:addOption(getText("ContextMenu_BU_Open"), playerObj, onOpen, panel)
     if not BU.api() then unavailable(open, apiMissingText()) end
-    if panel.tripped then sub:addOption(getText("ContextMenu_BU_ResetBreaker"), playerObj, onReset, panel) end
+    if tripped then sub:addOption(getText("ContextMenu_BU_ResetBreaker"), playerObj, onReset, panel) end
     if (panel.tier or 1) < BU.TIERS then
         local upgrade = sub:addOption(getText("ContextMenu_BU_Upgrade", (panel.tier or 1) + 1), playerObj, onUpgrade, panel)
         costed(upgrade, playerObj, Costs.upgrade((panel.tier or 1) + 1), Panels.upgradeNote((panel.tier or 1) + 1))
@@ -100,7 +102,7 @@ local function addPanelOptions(context, playerObj, panel)
 end
 
 local function addInstallOption(context, playerObj, square)
-    local item = playerObj:getInventory():getFirstTypeRecurse(BU.PANEL_ITEM)
+    local item = BU.enabled("panel") and playerObj:getInventory():getFirstTypeRecurse(BU.PANEL_ITEM)
     if not item then return end
     local option = context:addOption(getText("ContextMenu_BU_Install"), playerObj, onInstall, square, item)
     local building, reason = Panels.canInstall(square)
@@ -160,21 +162,24 @@ local function onRemoveUnit(playerObj, unit) queueAt(playerObj, unit.x, unit.y, 
 
 local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, unit.y, unit.z, action(playerObj, unit)) end
 
--- A unit's line and its submenu: what its kind offers (Units.define), its line to a panel, taking it down.
+-- A unit's line and its submenu: what its kind offers (Units.define), its line to a panel, taking it down. One of a
+-- kind that is off (BU.enabled) is only taken down.
 local function addUnitOptions(context, playerObj, unit)
     local definition = Units.definition(unit.kind)
+    local on = BU.enabled(unit.kind)
     local panel = Store.get(unit.panel)
     local title = Units.name(unit)
-    if definition.title then title = definition.title(unit, title) end
+    if on and definition.title then title = definition.title(unit, title) end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
+    if not on then title = getText("IGUI_BU_UnitOff", title) end
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    for _, entry in ipairs(definition.options and definition.options(unit, playerObj) or {}) do
+    for _, entry in ipairs(on and definition.options and definition.options(unit, playerObj) or {}) do
         local choice = sub:addOption(entry.text, playerObj, onUnitAction, unit, entry.action)
         if entry.reason then unavailable(choice, entry.reason) end
     end
-    if BU.api() then
+    if on and BU.api() then
         if panel then
             local disconnect = sub:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj, onDisconnect,
                 "unit", panel, Units.utility(unit), unit.x, unit.y, unit.z, unit.id)
@@ -193,7 +198,7 @@ end
 
 local function addInstallUnitOptions(context, playerObj, square)
     for _, kind in ipairs(Units.KINDS) do
-        local item = playerObj:getInventory():getFirstTypeRecurse(Units.definition(kind).item)
+        local item = BU.enabled(kind) and playerObj:getInventory():getFirstTypeRecurse(Units.definition(kind).item)
         if item then
             local option = context:addOption(getText("ContextMenu_BU_Install_" .. kind), playerObj, onInstallUnit, kind, square, item)
             local ok, reason = Units.canInstall(kind, square)
@@ -263,9 +268,9 @@ local function hasOptions(playerObj, square)
         if Panels.ofObject(object) or Units.ofObject(object) then return true end
     end
     local inventory = playerObj:getInventory()
-    if inventory:getFirstTypeRecurse(BU.PANEL_ITEM) then return true end
+    if BU.enabled("panel") and inventory:getFirstTypeRecurse(BU.PANEL_ITEM) then return true end
     for _, kind in ipairs(Units.KINDS) do
-        if inventory:getFirstTypeRecurse(Units.definition(kind).item) then return true end
+        if BU.enabled(kind) and inventory:getFirstTypeRecurse(Units.definition(kind).item) then return true end
     end
     if not BU.api() then return false end
     return Panels.producerOn(square) ~= nil or #squareDevices(square) > 0
@@ -313,7 +318,7 @@ function ContextMenu.fillInventory(player, context, items)
     if not playerObj or #items ~= 1 then return end
     local item = items[1]
     if not instanceof(item, "InventoryItem") then item = item.items and item.items[1] end
-    if not Rack.isBattery(item) then return end
+    if not Rack.isBattery(item) or not BU.enabled("rack") then return end
     local option = context:addOption(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)
     local ok, reason = Rack.canRevive(playerObj, item)
     if ok then

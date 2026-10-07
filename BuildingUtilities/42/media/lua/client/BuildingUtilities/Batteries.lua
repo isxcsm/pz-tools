@@ -21,11 +21,12 @@ Events.OnRefreshInventoryWindowContainers.Add(function(page, state)
     end
 end)
 
--- The tooltip's line: given to the item only while the tooltip draws, so nothing of it stays on the item.
+-- The tooltip's line: given to the item only while the tooltip draws, so nothing of it stays on the item. None while
+-- racks are off (BU.enabled).
 local render = ISToolTipInv.render
 function ISToolTipInv:render()
     local item = self.item
-    if not Rack.isBattery(item) or item:getTooltip() ~= nil then return render(self) end
+    if not Rack.isBattery(item) or item:getTooltip() ~= nil or not BU.enabled("rack") then return render(self) end
     item:setTooltip("IGUI_BU_BatteryKindTip_" .. Rack.batteryKind(item:getFullType()))
     local ok, err = pcall(render, self)
     item:setTooltip(nil)

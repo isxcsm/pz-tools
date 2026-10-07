@@ -10,6 +10,16 @@ local Store, Networks, Changes, Water, Sync, WaterUnits = BU.Store, BU.Networks,
 local WaterRun = {}
 BU.WaterRun = WaterRun
 
+-- Clears what a kind of unit that is off (BU.enabled) shows of its last run (a pump's running, a filter's working);
+-- returns whether any had it.
+local function rest(units, field)
+    local changed = false
+    for _, unit in ipairs(units) do
+        if unit[field] then unit[field], changed = nil, true end
+    end
+    return changed
+end
+
 -- Whether a panel's power is on for its units: supplied, its breaker up.
 local function powered(panel)
     if panel.tripped then return false end
@@ -44,10 +54,15 @@ end
 -- Each minute (so many of them): a panel's pumps run while it has power and their water has somewhere to go; running,
 -- they add to its load (BU.Changes.setExtraLoad). Its frozen pipes stop them ("frozen"). A pump with no water beside
 -- it cannot tell: it runs dry whenever it has power, drawing it and lifting nothing ("noWater"). While its square is
--- loaded the water beside it is looked at again.
+-- loaded the water beside it is looked at again. Pumps that are off (BU.enabled) stand still and draw nothing.
 function WaterRun.pumps(panel, minutes)
     local pumps = Store.unitList("pump", panel.id)
     if #pumps == 0 and not (panel.extraLoads and panel.extraLoads.pumps) then return end
+    if not BU.enabled("pump") then
+        Changes.setExtraLoad(panel, "pumps", 0)
+        if rest(pumps, "running") then Sync.changed(panel.id) end
+        return
+    end
     local on = powered(panel)
     local running, changed = 0, false
     local cell = getCell()
@@ -85,8 +100,9 @@ end
 
 -- Each ten minutes: a panel's sprinklers water the growing crops around them that need it, from their group, unless
 -- it rains or the group is down to its reserve. The farming system keeps its plants whether or not their squares
--- are loaded.
+-- are loaded. Sprinklers that are off (BU.enabled) water nothing.
 function WaterRun.sprinklers(panel)
+    if not BU.enabled("sprinkler") then return end
     local sprinklers = Store.unitList("sprinkler", panel.id)
     local system = SFarmingSystem and SFarmingSystem.instance
     if #sprinklers == 0 or not system or RainManager.isRaining() then return end
@@ -122,12 +138,21 @@ end
 -- Each minute (so many of them): while the pipes leave water unpurified (the risk option), a group's water is purified
 -- as long as one of its filters has media, and that one wears by the hour (a group's other filters wait their turn).
 -- Without the option the pipes purify and filters rest. A sub-panel's water hangs from its main panel's first group
--- and goes with it.
+-- and goes with it. Filters that are off (BU.enabled) rest and purify nothing: with the option, the water stays as
+-- the tanks hold it.
 function WaterRun.filters(panel, minutes)
-    if not BU.waterAvailable() then return end
-    local unpurified = WaterUnits.unpurifiedPipes()
     local filters = Store.unitList("filter", panel.id)
-    local filtering, changed = {}, false
+    local changed = false
+    if not BU.enabled("filter") then
+        changed = rest(filters, "working")
+        filters = {}
+    end
+    if not BU.enabled("water") or not BU.waterAvailable() then
+        if changed then Sync.changed(panel.id) end
+        return
+    end
+    local unpurified = WaterUnits.unpurifiedPipes()
+    local filtering = {}
     for _, unit in ipairs(filters) do
         local group = WaterUnits.group(unit)
         local working = unpurified and not filtering[group] and (unit.media or 0) > 0
