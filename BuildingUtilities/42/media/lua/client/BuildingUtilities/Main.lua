@@ -2,6 +2,7 @@
 -- box, and in multiplayer the server's data and messages. The world itself changes on the server side (server/BuildingUtilities/Server.lua).
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
+require "BuildingUtilities/PanelStatus"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/Batteries"
 local BU = BuildingUtilities
@@ -39,9 +40,15 @@ local function markTripped()
     end
 end
 
+-- The summaries over boxes (summaryOf), by panel id.
+local summaries = {}
+
 function BU.onChanged()
     markTripped()
     PanelWindow.refreshAll()
+    summaries = {}
+    -- A client's data is the server's only once received (onReceiveGlobalModData).
+    if not isClient() then PanelWindow.forgetRemoved() end
 end
 
 -- A sound at a box, heard where it is.
@@ -68,8 +75,10 @@ function BU.onNotice(panelId, key, args)
     PanelWindow.refreshAll()
 end
 
--- The mouse over a box: its name and tier, the breaker, power with the hours left, the load, water, and the box
--- that supplies it.
+-- The mouse over a box: its name and tier, the breaker, power and water as its window's status line tells them
+-- (PanelWindow.status), the load, and the box that supplies it. Worked out every SUMMARY_MS, not each frame.
+local SUMMARY_MS = 500
+
 local function boxOn(square)
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
@@ -79,35 +88,46 @@ local function boxOn(square)
     return nil
 end
 
-local function drawSummary(tooltip, panel)
-    local title = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1)
+-- A utility's status in a line: its text, what is left, in its level's colour.
+local function statusLine(lines, label, status)
+    local c = PanelWindow.STATUS_COLOURS[status.level]
+    lines[#lines + 1] = { label = label, value = status.left and status.text .. ", " .. status.left or status.text,
+        r = c[1], g = c[2], b = c[3] }
+end
+
+-- The summary of a box: { title, lines = { { label, value, r, g, b } } }.
+local function summaryOf(panel)
+    local lines = {}
+    if panel.tripped then lines[#lines + 1] = { label = getText("IGUI_BU_TipBreaker"), value = getText("IGUI_BU_Tripped"), r = 1, g = 0.4, b = 0.4 } end
+    statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power"))
+    local power = BU.Networks.state(panel, "power")
+    if power and power.load then
+        local capacity = Panels.capacity(panel)
+        -- Amber near what the box carries, as its window's banner, where overload trips it.
+        local near = BU.overloadEnabled() and power.load > capacity * 0.8
+        lines[#lines + 1] = { label = getText("IGUI_BU_TipLoad"), value = string.format("%.2f / %.2f", power.load, capacity),
+            r = 1, g = near and 0.7 or 1, b = near and 0.4 or 1 }
+    end
+    -- Water where the box, or the main panel it takes its supply from, has tanks.
+    local top, steps = panel, 0
+    while Store.get(top.parent) and steps < 10 do top, steps = Store.get(top.parent), steps + 1 end
+    if #top.water.producers > 0 then statusLine(lines, getText("IGUI_BU_TipWater"), PanelWindow.status(panel, "water")) end
+    local parent = Store.get(panel.parent)
+    if parent then lines[#lines + 1] = { label = getText("IGUI_BU_TipMain"), value = Panels.name(parent), r = 1, g = 1, b = 1 } end
+    return { title = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1), lines = lines }
+end
+
+local function drawSummary(tooltip, summary)
+    local title = summary.title
     tooltip:DrawTextureScaled(tooltip:getTexture(), 0, 0, tooltip:getWidth(), tooltip:getHeight(), 0.75)
     tooltip:DrawTextCentre(tooltip:getFont(), title, tooltip:getWidth() / 2, 5, 1, 1, 1, 1)
     tooltip:adjustWidth(5, title)
     local layout = tooltip:beginLayout()
-    local function line(label, value, r, g, b)
+    for _, line in ipairs(summary.lines) do
         local item = layout:addItem()
-        item:setLabel(label .. ":", 1, 1, 1, 1)
-        item:setValue(value, r or 1, g or 1, b or 1, 1)
+        item:setLabel(line.label .. ":", 1, 1, 1, 1)
+        item:setValue(line.value, line.r, line.g, line.b, 1)
     end
-    local power, water = BU.Networks.state(panel, "power"), BU.Networks.state(panel, "water")
-    if panel.tripped then line(getText("IGUI_BU_TipBreaker"), getText("IGUI_BU_Tripped"), 1, 0.4, 0.4) end
-    if power and power.supplied then
-        local text = power.hoursLeft and getText("IGUI_BU_TipHoursLeft", string.format("%.0f", power.hoursLeft)) or getText("IGUI_BU_TipSupplied")
-        line(getText("IGUI_BU_TipPower"), text, 0.5, 1, 0.5)
-    else
-        line(getText("IGUI_BU_TipPower"), getText("IGUI_BU_TipNoSupply"), 0.7, 0.7, 0.7)
-    end
-    if power and power.load then
-        local capacity = Panels.capacity(panel)
-        local over = power.load > capacity * 0.8
-        line(getText("IGUI_BU_TipLoad"), string.format("%.2f / %.2f", power.load, capacity), 1, over and 0.7 or 1, over and 0.4 or 1)
-    end
-    if water and water.supplied then
-        line(getText("IGUI_BU_TipWater"), string.format("%.0f / %.0f", water.amount or 0, water.capacity or 0), 0.6, 0.8, 1)
-    end
-    local parent = Store.get(panel.parent)
-    if parent then line(getText("IGUI_BU_TipMain"), Panels.name(parent)) end
     local y = layout:render(5, 5 + getTextManager():getFontHeight(tooltip:getFont()), tooltip)
     tooltip:setHeight(y + 5)
     tooltip:endLayout(layout)
@@ -116,11 +136,18 @@ end
 local function onSpecialTooltip(tooltip, square)
     local panel = square and boxOn(square)
     if not panel then return end
+    local now = getTimestampMs()
+    local summary = summaries[panel.id]
+    if not summary or now - summary.at >= SUMMARY_MS then
+        summary = summaryOf(panel)
+        summary.at = now
+        summaries[panel.id] = summary
+    end
     tooltip:setWidth(100)
     tooltip:setMeasureOnly(true)
-    drawSummary(tooltip, panel)
+    drawSummary(tooltip, summary)
     tooltip:setMeasureOnly(false)
-    drawSummary(tooltip, panel)
+    drawSummary(tooltip, summary)
 end
 
 -- Multiplayer: the server's data, and what it tells.
@@ -135,15 +162,24 @@ local function onReceiveGlobalModData(key, data)
     if key ~= Store.KEY or type(data) ~= "table" then return end
     ModData.add(key, data)
     BU.onChanged()
-end
-
-local function onGameStart()
-    if isClient() then ModData.request(Store.KEY) end
-    markTripped()
+    PanelWindow.forgetRemoved()
 end
 
 -- A network the API runs here changed: the windows that show it.
 local function onNetworkChange(id) PanelWindow.onNetworkChange(id) end
+
+-- The API's network events, heard from the game's start where the API is (it may set its event up after this file
+-- loads), once.
+local listening = false
+
+local function onGameStart()
+    if isClient() then ModData.request(Store.KEY) end
+    markTripped()
+    if not listening and BU.api() and Events.OnPZToolsNetworkChange then
+        Events.OnPZToolsNetworkChange.Add(onNetworkChange)
+        listening = true
+    end
+end
 
 Events.OnServerCommand.Add(onServerCommand)
 Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
@@ -151,4 +187,3 @@ Events.OnGameStart.Add(onGameStart)
 Events.DoSpecialTooltip.Add(onSpecialTooltip)
 -- Boxes come into view as squares load.
 Events.EveryOneMinute.Add(markTripped)
-if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end
