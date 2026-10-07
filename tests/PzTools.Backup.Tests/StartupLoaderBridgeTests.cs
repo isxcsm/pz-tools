@@ -9,7 +9,7 @@ public sealed partial class GameSaveClientTests
     /// The app starts the built install tool and reads its answer. Only <c>status</c> runs: install and uninstall
     /// write the player's install folder under ProgramData, and the Java test (StartupInstallTest) covers them.
     /// </summary>
-    [Fact]
+    [BridgeFact]
     public async Task StartupLoader_RunsTheBuiltInstallTool_AndReadsTheGameJar()
     {
         using var temp = new TempDirectory();
