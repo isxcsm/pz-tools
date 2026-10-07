@@ -483,6 +483,10 @@ public final class GameApiTest {
         call(networks, "setParent", mod, "sub", "main");
         frame();
         check(!square(21, 21, 0).haveElectricity() && !state(networks, "sub").rawget("supplied").equals(true), "A child has supply before its parent");
+        // What a generator would burn at the load, also with nothing in use.
+        KahluaTable idle = state(networks, "main");
+        check(idle.rawget("hoursLeft") == null && near((Double)idle.rawget("fuelPerHour"), (0.02 + (Double)idle.rawget("load")) * 0.1),
+            "The fuel an hour is wrong with nothing in use: " + idle.rawget("fuelPerHour"));
         LuaEventManager.raised.clear();
         generator.setActivated(true);
         frame();
@@ -495,6 +499,8 @@ public final class GameApiTest {
         check(near(generator.getTotalPowerUsing(), (0.02 + total) * 0.1), "The producer does not burn both loads");
         check(near((Double)main.rawget("hoursLeft"), 6 / ((0.02 + total) * 0.1)) && main.rawget("hoursLeft").equals(sub.rawget("hoursLeft")),
             "Wrong hours left: " + main.rawget("hoursLeft"));
+        check(near((Double)main.rawget("fuelPerHour"), (0.02 + total) * 0.1) && main.rawget("fuelPerHour").equals(sub.rawget("fuelPerHour")),
+            "Wrong fuel an hour: " + main.rawget("fuelPerHour") + ", " + sub.rawget("fuelPerHour"));
         var producer = (KahluaTable)((KahluaTable)main.rawget("producers")).rawget(1.0);
         check(producer.rawget("x").equals(34.0) && producer.rawget("running").equals(true) && producer.rawget("fuel").equals(6.0)
             && producer.rawget("condition").equals(100.0), "A producer's state is wrong");
@@ -730,6 +736,8 @@ public final class GameApiTest {
         check(state.rawget("supplied").equals(true) && ((KahluaTable)state.rawget("producer")).rawget("source").equals("bank")
             && state.rawget("hoursLeft") == null && !generator.activated && square(11, 11, 0).haveElectricity()
             && raised("solar", "supply", 3000), "The source switched on does not carry the network");
+        check(near((Double)state.rawget("fuelPerHour"), (0.02 + (Double)state.rawget("load")) * 0.1),
+            "A source carrying the load hides what a generator would burn: " + state.rawget("fuelPerHour"));
         // It ran out two hours ago: the generator takes over from then.
         time.hours = 3010;
         call(networks, "setSource", mod, "solar", "bank", false, null, 3008.0);

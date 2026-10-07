@@ -306,7 +306,7 @@ final class Networks {
         });
     }
 
-    /** A power network's state: its load, how long its fuel lasts, and its producers as last seen. */
+    /** A power network's state: its load, the fuel it burns and how long that lasts, and its producers as last seen. */
     private void power(Object result, Network network) throws ReflectiveOperationException {
         lua.set(result, "load", (double)network.total);
         lua.set(result, "ownLoad", (double)network.load);
@@ -314,6 +314,8 @@ final class Networks {
         lua.set(result, "loadFactor", (double)network.loadFactor);
         lua.set(result, "complete", network.loadComplete);
         if (network.inUse != null) lua.set(result, "producer", producer(network.inUse));
+        Double fuelPerHour = grid.fuelPerHour(network);
+        if (fuelPerHour != null) lua.set(result, "fuelPerHour", fuelPerHour);
         Double hoursLeft = grid.hoursLeft(network);
         if (hoursLeft != null) lua.set(result, "hoursLeft", hoursLeft);
         var producers = new ArrayList<Object>();

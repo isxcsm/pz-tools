@@ -595,6 +595,17 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     /**
+     * The litres of fuel a generator burns an hour carrying the network's load now: its base consumption and the load of
+     * the network at the top of the child's parents, times the sandbox's fuel rate. Whatever carries the load, and with
+     * nothing in use; null when a parent is missing.
+     */
+    Double fuelPerHour(Network network) throws ReflectiveOperationException {
+        Network root = members.root(network);
+        if (root == null) return null;
+        return (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
+    }
+
+    /**
      * How long the network's supply lasts at its load now: the fuel of its producer in use and of those that can take
      * over, as last seen, over what the one in use would burn an hour. Null without supply or without consumption, and
      * while a source carries it (its mod knows what it holds).
@@ -602,7 +613,7 @@ final class PowerGrid implements ApiHooks.Power {
     Double hoursLeft(Network network) throws ReflectiveOperationException {
         Network root = members.root(network);
         if (root == null || root.inUse == null || root.inUse.source() != null || !members.switchedOn(network)) return null;
-        double perHour = (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
+        double perHour = fuelPerHour(network);
         if (perHour <= 0) return null;
         double fuel = 0;
         for (Producer producer : root.producers) {
