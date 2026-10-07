@@ -1,5 +1,5 @@
--- The player's side: windows that show changes, notices for players near a box, and in multiplayer the server's
--- data and messages. The world itself changes on the server side (server/BuildingUtilities/Server.lua).
+-- The player's side: windows that show changes, notices for players near a box, a summary when the mouse is over a
+-- box, and in multiplayer the server's data and messages. The world itself changes on the server side (server/BuildingUtilities/Server.lua).
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/Moveables"
@@ -23,7 +23,10 @@ local function markTripped()
     end
     marked = {}
     for _, panel in ipairs(Store.list()) do
-        local object = panel.tripped and Panels.object(panel)
+        -- Boxes from before the summary existed get it as they come into view.
+        local box = Panels.object(panel)
+        if box and not box:haveSpecialTooltip() then box:setSpecialTooltip(true) end
+        local object = panel.tripped and box
         if object then
             for index = 0, getNumActivePlayers() - 1 do
                 object:setHighlightColor(index, RED)
@@ -64,6 +67,61 @@ function BU.onNotice(panelId, key, args)
     PanelWindow.refreshAll()
 end
 
+-- The mouse over a box: its name and tier, the breaker, power with the hours left, the load, water, and the box
+-- that supplies it.
+local function boxOn(square)
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local panel = Panels.ofObject(objects:get(i))
+        if panel then return panel end
+    end
+    return nil
+end
+
+local function drawSummary(tooltip, panel)
+    local title = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1)
+    tooltip:DrawTextureScaled(tooltip:getTexture(), 0, 0, tooltip:getWidth(), tooltip:getHeight(), 0.75)
+    tooltip:DrawTextCentre(tooltip:getFont(), title, tooltip:getWidth() / 2, 5, 1, 1, 1, 1)
+    tooltip:adjustWidth(5, title)
+    local layout = tooltip:beginLayout()
+    local function line(label, value, r, g, b)
+        local item = layout:addItem()
+        item:setLabel(label .. ":", 1, 1, 1, 1)
+        item:setValue(value, r or 1, g or 1, b or 1, 1)
+    end
+    local power, water = BU.Networks.state(panel, "power"), BU.Networks.state(panel, "water")
+    if panel.tripped then line(getText("IGUI_BU_TipBreaker"), getText("IGUI_BU_Tripped"), 1, 0.4, 0.4) end
+    if power and power.supplied then
+        local text = power.hoursLeft and getText("IGUI_BU_TipHoursLeft", string.format("%.0f", power.hoursLeft)) or getText("IGUI_BU_TipSupplied")
+        line(getText("IGUI_BU_TipPower"), text, 0.5, 1, 0.5)
+    else
+        line(getText("IGUI_BU_TipPower"), getText("IGUI_BU_TipNoSupply"), 0.7, 0.7, 0.7)
+    end
+    if power and power.load then
+        local capacity = Panels.capacity(panel)
+        local over = power.load > capacity * 0.8
+        line(getText("IGUI_BU_TipLoad"), string.format("%.2f / %.2f", power.load, capacity), 1, over and 0.7 or 1, over and 0.4 or 1)
+    end
+    if water and water.supplied then
+        line(getText("IGUI_BU_TipWater"), string.format("%.0f / %.0f", water.amount or 0, water.capacity or 0), 0.6, 0.8, 1)
+    end
+    local parent = Store.get(panel.parent)
+    if parent then line(getText("IGUI_BU_TipMain"), Panels.name(parent)) end
+    local y = layout:render(5, 5 + getTextManager():getFontHeight(tooltip:getFont()), tooltip)
+    tooltip:setHeight(y + 5)
+    tooltip:endLayout(layout)
+end
+
+local function onSpecialTooltip(tooltip, square)
+    local panel = square and boxOn(square)
+    if not panel then return end
+    tooltip:setWidth(100)
+    tooltip:setMeasureOnly(true)
+    drawSummary(tooltip, panel)
+    tooltip:setMeasureOnly(false)
+    drawSummary(tooltip, panel)
+end
+
 -- Multiplayer: the server's data, and what it tells.
 local function onServerCommand(module, command, args)
     if module ~= BU.MOD then return end
@@ -89,6 +147,7 @@ local function onNetworkChange(id) PanelWindow.onNetworkChange(id) end
 Events.OnServerCommand.Add(onServerCommand)
 Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
 Events.OnGameStart.Add(onGameStart)
+Events.DoSpecialTooltip.Add(onSpecialTooltip)
 -- Boxes come into view as squares load.
 Events.EveryOneMinute.Add(markTripped)
 if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end

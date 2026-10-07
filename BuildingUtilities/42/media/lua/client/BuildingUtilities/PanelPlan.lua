@@ -7,8 +7,9 @@
 -- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
 -- devices outside it is connected to. While the window shows the range, the plan does too: an outline where devices
 -- outside join (blue) and where producers do (yellow). While devices outside are chosen to connect, a click on one
--- chooses it. Everything is laid out when the window refreshes or the plan is resized; a frame only draws the
--- rectangles laid out.
+-- chooses it. Ctrl and the wheel (or the wheel alone for one floor) zoom at the mouse, dragging moves the plan, Fit
+-- goes back. Everything is laid out when the window refreshes or the plan is resized; a frame only draws the
+-- rectangles laid out, inside the map.
 require "ISUI/ISPanel"
 local BU = BuildingUtilities
 
@@ -22,6 +23,8 @@ local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
 local TOGGLE_W = 18
 local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
+local FIT_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFit")) + 10
+local MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 8, 48, 4
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -269,9 +272,17 @@ function ISBUPlan:layout()
         end
     end
     local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
-    local scale = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
-    local ox = left + (availW - (maxX - minX) * scale) / 2
-    local oy = top + (availH - (maxY - minY) * scale) / 2
+    -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
+    local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
+    local zoom = self.zoom or 1
+    if zoom <= 1 then self.panX, self.panY = 0, 0 end
+    local scale = math.min(fit * zoom, math.max(fit, MAX_ZOOM_SCALE))
+    local baseX, baseY = (minX + maxX) / 2, (minY + maxY) / 2
+    local centreX, centreY = baseX + (self.panX or 0), baseY + (self.panY or 0)
+    local ox = left + availW / 2 - (centreX - minX) * scale
+    local oy = top + availH / 2 - (centreY - minY) * scale
+    self.map = { left = left, top = top, w = availW, h = availH, scale = scale, fit = fit, centreX = centreX, centreY = centreY,
+        baseX = baseX, baseY = baseY }
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
     self.scale = scale
@@ -363,7 +374,7 @@ function ISBUPlan:layout()
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
                 text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off",
-                chosen = device.chosen, choosable = device.choosable }
+                chosen = device.chosen, choosable = device.choosable, fresh = device.fresh }
         end
     end
     for _, producer in ipairs(data.producers) do
@@ -416,17 +427,50 @@ function ISBUPlan:prerender()
         self:drawRectBorder(x, PAD - 1, ZONE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
         self:drawTextCentre(getText("IGUI_BU_Zone"), x + ZONE_W / 2, PAD, 1, 1, 1, editing and 1 or 0.75, UIFont.Small)
     end
+    if (self.zoom or 1) > 1 then
+        local x = self:fitToggleX()
+        self:drawRectBorder(x, PAD - 1, FIT_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
+        self:drawTextCentre(getText("IGUI_BU_PlanFit"), x + FIT_W / 2, PAD, 1, 1, 1, 0.9, UIFont.Small)
+    end
 end
 
 function ISBUPlan:zoneToggleX() return self.width - PAD - TOGGLE_W - 4 - ZONE_W end
 
--- Which switch at the top is under the mouse: "legend", "zone" or nil.
+function ISBUPlan:fitToggleX()
+    local right = self.data and self.data.zoneEditable and self:zoneToggleX() or self.width - PAD - TOGGLE_W
+    return right - 4 - FIT_W
+end
+
+-- Which switch at the top is under the mouse: "legend", "zone", "fit" or nil.
 function ISBUPlan:toggleAt(x, y)
     if y >= PAD + FONT_HGT_SMALL + 2 then return nil end
     if x >= self.width - PAD - TOGGLE_W then return "legend" end
     local zoneX = self:zoneToggleX()
     if self.data and self.data.zoneEditable and x >= zoneX and x < zoneX + ZONE_W then return "zone" end
+    local fitX = self:fitToggleX()
+    if (self.zoom or 1) > 1 and x >= fitX and x < fitX + FIT_W then return "fit" end
     return nil
+end
+
+-- Whether a point is on the map, where rooms, dots and lines are drawn.
+function ISBUPlan:inMap(x, y)
+    local map = self.map
+    return map ~= nil and x >= map.left and x < map.left + map.w and y >= map.top and y < map.top + map.h
+end
+
+-- Zooms by a factor, keeping the square under the point where it is.
+function ISBUPlan:zoomAt(x, y, factor)
+    local map = self.map
+    if not map then return end
+    local zoom = math.max(1, math.min(MAX_ZOOM, (self.zoom or 1) * factor))
+    local midX, midY = map.left + map.w / 2, map.top + map.h / 2
+    local worldX = map.centreX + (x - midX) / map.scale
+    local worldY = map.centreY + (y - midY) / map.scale
+    local scale = math.min(map.fit * zoom, math.max(map.fit, MAX_ZOOM_SCALE))
+    self.zoom = zoom
+    self.panX = worldX - (x - midX) / scale - map.baseX
+    self.panY = worldY - (y - midY) / scale - map.baseY
+    self:layout()
 end
 
 function ISBUPlan:render()
@@ -435,6 +479,8 @@ function ISBUPlan:render()
     local hoverRoom = self.hoverRoom or window.listHoverRoom
     local hoverKey = self.hoverKey or window.listHoverKey
     local filter = self.data and self.data.filter
+    local map = self.map
+    if map then self:setStencilRect(map.left, map.top, map.w, map.h) end
     for _, cell in ipairs(self.cells) do
         local bright = cell.room == hoverRoom or cell.room == filter
         local edge = bright and 1 or cell.dim and 0.3 or 0.55
@@ -469,8 +515,10 @@ function ISBUPlan:render()
             local c = COLOURS.chosen
             self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 0.5, c[1], c[2], c[3])
         end
+        if dot.fresh then self:drawRect(dot.x + DOT / 2, dot.y - DOT / 2 - 3, 3, 3, 1, 0.3, 0.9, 1) end
         if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, 1, 1, 1, 1) end
     end
+    if map then self:clearStencilRect() end
     for _, cell in ipairs(self.strip) do
         local current = cell.level == self.floor
         self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
@@ -502,6 +550,7 @@ function ISBUPlan:hit(x, y)
     for _, cell in ipairs(self.strip) do
         if x >= cell.x and x <= cell.x + cell.w and y >= cell.y and y <= cell.y + cell.h then return "floor", cell end
     end
+    if not self:inMap(x, y) then return nil end
     for _, dot in ipairs(self.dots) do
         if math.abs(x - dot.x) <= HIT and math.abs(y - dot.y) <= HIT then return "dot", dot end
     end
@@ -538,14 +587,29 @@ function ISBUPlan:onMouseMove(dx, dy)
         self.status = BU.floorName(thing.level)
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
+    elseif self:inMap(self:getMouseX(), self:getMouseY()) then
+        self.status = getText(#(self.levels or {}) > 1 and "IGUI_BU_PlanHint" or "IGUI_BU_PlanHintOne")
     else
         self.status = nil
     end
+    self:drag(dx, dy)
 end
 
 function ISBUPlan:onMouseMoveOutside(dx, dy)
     if self.hoverKey or self.hoverRoom then self:setHover(nil, nil) end
     self.status = nil
+    self:drag(dx, dy)
+end
+
+-- A press on the map that moves far enough moves the plan instead of clicking.
+function ISBUPlan:drag(dx, dy)
+    if not self.pressed then return end
+    self.moved = (self.moved or 0) + math.abs(dx) + math.abs(dy)
+    if self.moved < DRAG or (self.zoom or 1) <= 1 or not self.map then return end
+    self.dragged = true
+    self.panX = (self.panX or 0) - dx / self.map.scale
+    self.panY = (self.panY or 0) - dy / self.map.scale
+    self:layout()
 end
 
 function ISBUPlan:showFloor(level)
@@ -555,7 +619,11 @@ function ISBUPlan:showFloor(level)
 end
 
 function ISBUPlan:onMouseWheel(delta)
-    if #(self.levels or {}) < 2 then return false end
+    -- Ctrl (or a building of one floor): zoom; up the wheel, closer.
+    if isCtrlKeyDown() or #(self.levels or {}) < 2 then
+        self:zoomAt(self:getMouseX(), self:getMouseY(), delta < 0 and 1.25 or 0.8)
+        return true
+    end
     local index = 1
     for i, level in ipairs(self.levels) do if level == self.floor then index = i end end
     -- Up the wheel, up the building.
@@ -573,7 +641,30 @@ function ISBUPlan:onMouseDown(x, y)
     elseif toggle == "zone" then
         self.window:setZoneEditing(not self.data.zoneEdit)
         return true
+    elseif toggle == "fit" then
+        self.zoom = 1
+        self:layout()
+        return true
     end
+    -- On the map, a click is known when the button comes up without the plan moved.
+    if self:inMap(x, y) then
+        self.pressed, self.moved, self.dragged = true, 0, false
+        return true
+    end
+    self:click(x, y)
+    return true
+end
+
+function ISBUPlan:onMouseUp(x, y)
+    local wasPressed, dragged = self.pressed, self.dragged
+    self.pressed, self.dragged = false, false
+    if wasPressed and not dragged then self:click(x, y) end
+    return true
+end
+
+function ISBUPlan:onMouseUpOutside(x, y) self.pressed, self.dragged = false, false end
+
+function ISBUPlan:click(x, y)
     local kind, thing = self:hit(x, y)
     if self.data and self.data.zoneEdit and kind ~= "floor" then
         -- Editing the zone: a room, or the room of a dot, goes in or out.

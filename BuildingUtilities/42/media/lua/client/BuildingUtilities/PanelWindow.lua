@@ -4,12 +4,15 @@
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
 -- away by the player at the place, as timed actions. Devices outside can be chosen several at a time (the Choose
--- button on their group) and connected in one walk, with what they all take shown first.
+-- button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
+-- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
+-- tells what makes the load; a main or sub-panel row opens that box's window.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISTabPanel"
 require "ISUI/ISButton"
 require "ISUI/ISTextBox"
+require "ISUI/ISTextEntryBox"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 local BU = BuildingUtilities
@@ -25,7 +28,8 @@ local SCROLLBAR = 16
 local LOG = "log"
 -- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
 local LIST_W, MIN_LIST, MIN_PLAN = 560, 470, 260
-local OPTION_W = 110
+local OPTION_W = 84
+local SEEN = "BuildingUtilitiesSeen"
 local OUTSIDE = "outside"
 local ROOM_TICK_X = PAD + 14
 local CHOOSE_W = 90
@@ -156,7 +160,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     item.height = ROW
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
-    if (self.hovered == item.index and (row.device or row.at)) or self.selected == item.index and row.device then
+    if (self.hovered == item.index and (row.device or row.at or row.kind == "link")) or self.selected == item.index and row.device then
         self:drawRect(0, y, width, ROW, 0.15, 1, 1, 1)
     end
     -- What the mouse is over on the plan.
@@ -190,6 +194,12 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             smallButton(self, batchButtonX(width, index), y, BATCH_W, getText("IGUI_BU_Batch" .. name),
                 enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
         end
+    elseif row.kind == "link" then
+        if row.header then self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3) end
+        local r, g, b = 0.75, 0.85, 1
+        if row.header then r, g, b = 1, 0.85, 0.5 end
+        self:drawText(row.text, row.header and PAD or PAD * 2, textY, r, g, b, 1, UIFont.Small)
+        self:drawTextRight(getText("IGUI_BU_Open"), width - PAD - SCROLLBAR, textY, 0.5, 0.75, 1, 1, UIFont.Small)
     elseif row.kind == "note" or row.kind == "filter" then
         local shade = row.kind == "filter" and 1 or 0.7
         self:drawText(row.text, PAD * 2, textY, shade, shade, row.kind == "filter" and 0.6 or shade, 1, UIFont.Small)
@@ -209,6 +219,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.choosable then chooseBox(self, indent, y, row.chosen) else tick(self, indent, y, row.state == "on" and "on" or "off") end
         local shade = row.state ~= "other" and 1 or 0.5
         self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
+        if row.fresh then
+            local x = indent + ROW + 4 + getTextManager():MeasureStringX(UIFont.Small, row.text) + 6
+            self:drawText(getText("IGUI_BU_New"), x, textY, 0.3, 0.9, 1, 1, UIFont.Small)
+        end
         local buttons, textRight = deviceButtons(width, row)
         for _, button in ipairs(buttons) do
             if button.name == "timer" then
@@ -379,6 +393,20 @@ function ISBUPanelWindow:createChildren()
     self.activeButton:setTitle(getText("IGUI_BU_ActiveOnly"))
     self.loadSortButton = button(self, 0, tabsY, OPTION_W, optionH, ISBUPanelWindow.onByLoad)
     self.loadSortButton:setTitle(getText("IGUI_BU_ByLoad"))
+    -- The search, between the tabs and the options.
+    self.search = ISTextEntryBox:new("", 0, tabsY + 1, 100, optionH - 2)
+    self.search:initialise()
+    self.search:instantiate()
+    self.search:setClearButton(true)
+    self.search.onTextChangeFunction = ISBUPanelWindow.onSearch
+    self.search.target = self
+    self:addChild(self.search)
+    -- Over the load bar and its text: what makes the load, as a tooltip.
+    self.loadArea = ISButton:new(PAD, self.loadY, BAR_W, ROW, "", self, nil)
+    self.loadArea:initialise()
+    self.loadArea.displayBackground = false
+    self.loadArea.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+    self:addChild(self.loadArea)
     -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
     self.splitter = ISBUSplitter:new(listW, tabsY, PAD, height, self)
     self.splitter:initialise()
@@ -432,6 +460,13 @@ function ISBUPanelWindow:placeOptions()
     local right = self.tabs:getX() + self.tabs:getWidth() - PAD
     self.loadSortButton:setX(right - OPTION_W)
     self.activeButton:setX(right - OPTION_W * 2 - 4)
+    if self.search then
+        local x = self.tabs:getX() + self.tabs:getWidthOfAllTabs() + PAD
+        local w = right - OPTION_W * 2 - 4 - PAD - x
+        self.search:setX(x)
+        self.search:setWidth(math.max(10, w))
+        self.search:setVisible(w >= 60)
+    end
     local function mark(b, on)
         b.backgroundColor = on and { r = 0.25, g = 0.45, b = 0.25, a = 1 } or { r = 0, g = 0, b = 0, a = 1 }
     end
@@ -505,6 +540,11 @@ function ISBUPanelWindow:render()
         self:drawRectBorder(PAD, barY, BAR_W, FONT_HGT_SMALL, 1, 0.6, 0.6, 0.6)
         self:drawText(self.loadText, PAD + BAR_W + 8, barY, 1, 1, 1, 1, UIFont.Small)
     end
+    local search = self.search
+    if search and search:getIsVisible() and search:getText() == "" and not search:isFocused() then
+        self:drawText(getText("IGUI_BU_Search"), search:getX() + 6, search:getY() + (search:getHeight() - FONT_HGT_SMALL) / 2,
+            0.5, 0.5, 0.5, 1, UIFont.Small)
+    end
     local banner = self.banner
     if banner then
         self:drawRect(PAD, self.bannerY, self.width - PAD * 2, ROW, 0.85, banner.r, banner.g, banner.b)
@@ -519,6 +559,13 @@ function ISBUPanelWindow:update()
 end
 
 function ISBUPanelWindow:close()
+    -- What the window listed is no longer new.
+    local store = ModData.getOrCreate(SEEN)
+    for utility, view in pairs(self.views or {}) do
+        local set = {}
+        for _, device in ipairs(view.devices or {}) do set[device.key] = true end
+        store[self.panel.id .. "|" .. utility] = set
+    end
     for _, list in pairs(self.lists or {}) do
         list:unhighlight()
         list:hideTooltip()
@@ -559,6 +606,8 @@ function ISBUPanelWindow:refresh()
     if self.load and pieces and loss > 0 and power.loadFactor then
         self.loadText = self.loadText .. "   " .. getText("IGUI_BU_LineLoss", string.format("%.1f", loss), pieces)
     end
+    self.loadArea:setVisible(self.load ~= nil)
+    self.loadArea:setWidth(BAR_W + 8 + getTextManager():MeasureStringX(UIFont.Small, self.loadText))
     -- The banner: the breaker down, devices shed, or the load near what the box carries.
     local shed = count(panel.power.shed)
     if panel.tripped then
@@ -590,7 +639,59 @@ function ISBUPanelWindow:refresh()
     self.titles = Panels.roomTitles(building)
     for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
     self:fillLog()
+    self.loadArea:setTooltip(self:loadBreakdown())
     self:updatePlan()
+end
+
+-- What makes the load, for the load bar's tooltip: the rooms that draw most, devices outside, sub-panels, what
+-- the line loses, and the total against what the box carries.
+function ISBUPanelWindow:loadBreakdown()
+    if not self.load then return nil end
+    local view = self.views.power
+    local lines = { getText("IGUI_BU_Breakdown") }
+    local groups = {}
+    for id, totals in pairs(view and view.totals or {}) do
+        if totals.total > 0 then groups[#groups + 1] = { id = id, title = totals.title, total = totals.total } end
+    end
+    table.sort(groups, function(a, b) return a.total > b.total end)
+    local SHOWN, rest, restTotal = 6, 0, 0
+    for index, group in ipairs(groups) do
+        if index <= SHOWN then lines[#lines + 1] = "  " .. group.title .. "  " .. load2(group.total)
+        else rest, restTotal = rest + 1, restTotal + group.total end
+    end
+    if rest > 0 then lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownMore", rest) .. "  " .. load2(restTotal) end
+    for _, child in ipairs(Store.children(self.panel.id)) do
+        local childState = Networks.state(child, "power")
+        if childState and childState.load then
+            lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownSub", Panels.name(child)) .. "  " .. load2(childState.load)
+        end
+    end
+    local factor = self.loadFactor or 1
+    if factor > 1 then
+        lines[#lines + 1] = "  " .. getText("IGUI_BU_BreakdownLoss") .. "  " .. load2(self.load - self.load / factor)
+    end
+    lines[#lines + 1] = getText("IGUI_BU_BreakdownTotal", load2(self.load), load2(self.capacity))
+    return table.concat(lines, "\n")
+end
+
+-- Search.
+function ISBUPanelWindow:onSearch()
+    local text = self.search:getText() or ""
+    self.query = text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+    self:refresh()
+end
+
+-- The devices of a window's list the player has not seen: those not listed when its window last closed. The first
+-- time a box is looked at, everything counts as seen.
+function ISBUPanelWindow:seenSet(utility, devices)
+    local store = ModData.getOrCreate(SEEN)
+    local key = self.panel.id .. "|" .. utility
+    if not store[key] then
+        local set = {}
+        for _, device in ipairs(devices) do set[device.key] = true end
+        store[key] = set
+    end
+    return store[key]
 end
 
 -- What switching a power device would make of the load, for its row's tooltip; nil when it would not change it.
@@ -646,11 +747,12 @@ function ISBUPanelWindow:fill(utility, state)
     list:clear()
     local panel, playerObj = self.panel, self.playerObj
     local function add(row, tooltip) list:addItem(row.text or "", row, tooltip) end
-    local view = { state = state, devices = {}, names = {}, status = {}, totals = {}, producerText = {} }
+    local view = { state = state, devices = {}, names = {}, status = {}, totals = {}, producerText = {}, fresh = {} }
     self.views[utility] = view
     local parent = Store.get(panel.parent)
     if parent then
-        add({ kind = "header", text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)) })
+        add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
+            getText("IGUI_BU_OpenTip"))
     else
         add({ kind = "header", text = getText("IGUI_BU_Producers") })
         local producers = panel[utility].producers
@@ -681,11 +783,16 @@ function ISBUPanelWindow:fill(utility, state)
             local childState = Networks.state(child, utility)
             local right = utility == "power" and childState and childState.load and load2(childState.load) or ""
             if child.tripped and utility == "power" then right = right .. "  " .. getText("IGUI_BU_Tripped") end
-            add({ kind = "note", text = Panels.name(child) .. "   " .. right })
+            add({ kind = "link", text = Panels.name(child) .. "   " .. right, target = child.id }, getText("IGUI_BU_OpenTip"))
         end
     end
     local devices, complete = Panels.devices(panel, utility)
     view.devices = devices
+    local seen = self:seenSet(utility, devices)
+    for _, device in ipairs(devices) do
+        if not seen[device.key] then view.fresh[device.key] = true end
+    end
+    local query = self.query or ""
     -- Devices outside chosen to connect: only those still not connected stay chosen.
     local choosing = self.choosing[utility] == true
     local chosen = self.chosen[utility]
@@ -749,9 +856,17 @@ function ISBUPanelWindow:fill(utility, state)
     local timers = (panel.tier or 1) >= BU.TIMER_TIER
     for _, group in ipairs(order) do
         view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
+        -- Searching: a room whose name has the words keeps all its rows, any other only the devices that have them.
+        if query ~= "" and not title(group.id):lower():find(query, 1, true) then
+            local kept = {}
+            for _, shown in ipairs(group.devices) do
+                if shown.name:lower():find(query, 1, true) then kept[#kept + 1] = shown end
+            end
+            group.devices = kept
+        end
         if #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) then
             local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
-            local folded = PanelWindow.folded[foldKey] == true
+            local folded = PanelWindow.folded[foldKey] == true and query == ""
             local roomState
             if group.id ~= OUTSIDE then
                 roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
@@ -787,7 +902,8 @@ function ISBUPanelWindow:fill(utility, state)
                     local choosableDevice = choosing and not device.inside and device.state == "off"
                     add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
                         state = device.state, held = device.held, controls = controls, sheds = sheds,
-                        choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true }, tooltip)
+                        choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
+                        fresh = view.fresh[device.key] }, tooltip)
                 end
             end
         end
@@ -868,7 +984,8 @@ function ISBUPanelWindow:updatePlan()
         devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
             state = device.state, held = device.held, power = device.power, utility = utility,
             name = view.names[device.key] or "", status = view.status[device.key],
-            choosable = choosable, chosen = choosable and self.chosen[utility][device.key] == true }
+            choosable = choosable, chosen = choosable and self.chosen[utility][device.key] == true,
+            fresh = view.fresh[device.key] }
     end
     local producers = {}
     if not panel.parent then
@@ -1192,6 +1309,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 end
             end
         end
+    elseif row.kind == "link" then
+        local target = Store.get(row.target)
+        if target then PanelWindow.open(playerObj, target) end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "filter" then

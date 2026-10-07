@@ -14,6 +14,8 @@ function Changes.install(square, sprite)
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     local zone = building and Panels.defaultZone(building, square:getZ())
     local object = IsoObject.new(square, sprite, nil, false)
+    -- The mouse over it shows a summary (client/BuildingUtilities/Main.lua).
+    object:setSpecialTooltip(true)
     local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
     panel.rooms = zone
     object:getModData()[Panels.MODDATA] = panel.id
