@@ -36,6 +36,7 @@ final class Networks {
         this.owners = owners;
         grid = new PowerGrid(game, buildings, networks);
         load(lua.get(meta, MIRROR));
+        grid.changed();
     }
 
     /** The hooks' handler. */
@@ -43,6 +44,7 @@ final class Networks {
 
     /** Sets this area's functions into its table, replacing those of an earlier payload. */
     void register(Object table) throws ReflectiveOperationException {
+        grid.addEvent();
         function(table, "define", (call, arguments) -> {
             String owner = owner(arguments, call), id = id(arguments, call);
             String utility = Arguments.string(arguments, 2, call, "utility"), policy = Arguments.string(arguments, 3, call, "policy");
@@ -81,7 +83,8 @@ final class Networks {
             }
             network.producers.clear();
             network.producers.addAll(producers);
-            network.runnable.keySet().retainAll(producers);
+            network.seen.keySet().retainAll(producers);
+            network.settled.keySet().retainAll(producers);
             saved();
             return new Object[0];
         });

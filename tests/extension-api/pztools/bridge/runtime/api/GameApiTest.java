@@ -3,6 +3,8 @@ package pztools.bridge.runtime.api;
 import java.util.*;
 import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
+import zombie.GameTime;
+import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
 import zombie.inventory.ItemContainer;
 import zombie.inventory.types.Food;
@@ -36,6 +38,7 @@ public final class GameApiTest {
         callerErrors(buildings);
         clients(api);
         networks(api);
+        sequence(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power networks, and a newer payload takes it over");
     }
@@ -359,6 +362,109 @@ public final class GameApiTest {
         frame();
         check(call(networks, "state", "second").get(0) == null, "A world's networks outlived it");
         second.setActivated(false);
+    }
+
+    /**
+     * Under "sequential" one producer runs at a time. When it runs out, the next takes over from the hour it ran out,
+     * also when its square was not loaded; the one switched on last carries the network; switched off, it stops it.
+     * Each change is raised to Lua with the hour it happened.
+     */
+    private static void sequence(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        check(LuaEventManager.added.contains("OnPZToolsNetworkChange"), "The networks' event was not added");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 100;
+        var first = place(33, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        var second = place(34, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        first.fuel = 1;
+        call(networks, "define", mod, "seq", "power", "sequential");
+        call(networks, "setProducers", mod, "seq", list(at(33, 33, 0), at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "seq", 11.0, 11.0, 0.0);
+        frame();
+        LuaEventManager.raised.clear();
+        first.setActivated(true);
+        frame();
+        check(raised("supply", 100) && producer(networks) == 33.0 && !second.activated, "Switching the first on did not supply the network");
+        // It burns its share hour by hour; it runs out in hour 100 + ceil(1 / per hour), and the second carries on from then.
+        double perHour = first.getTotalPowerUsing();
+        int out = 100 + (int)Math.ceil(1 / perHour);
+        first.update();
+        time.hours = 200.5;
+        first.update();
+        check(!first.activated && first.fuel == 0, "The first did not run out");
+        frame();
+        check(second.activated && second.lastHour() == out && producer(networks) == 34.0 && raised("producer", out),
+            "The second did not take over from hour " + out + ": " + second.lastHour() + ", " + LuaEventManager.raised);
+        second.update();
+        check(near(second.fuel, 10 - (200 - out) * second.getTotalPowerUsing()), "The second did not burn the hours since: " + second.fuel);
+        // The one switched on last carries it; the other is switched off.
+        first.fuel = 5;
+        first.setActivated(true);
+        frame();
+        check(first.activated && !second.activated && producer(networks) == 33.0 && raised("producer", 200.5), "The one switched on last does not carry it");
+        // Not loaded: once its fuel would have run out, the next takes over from that hour.
+        first.update();
+        var settledHour = first.lastHour();
+        var settledFuel = first.fuel;
+        var settledPerHour = first.getTotalPowerUsing();
+        var unloaded = IsoWorld.instance.cell.squares.remove("33,33,0");
+        time.hours = 500;
+        frame();
+        int end = settledHour + (int)Math.ceil(settledFuel / settledPerHour);
+        check(second.activated && second.lastHour() == end && producer(networks) == 34.0 && raised("producer", end),
+            "The next did not take over from the hour an unloaded producer ran out: " + second.lastHour() + " for " + end);
+        IsoWorld.instance.cell.squares.put("33,33,0", unloaded);
+        first.update();
+        frame();
+        check(!first.activated && second.activated, "The first ran again after it loaded");
+        // Switched off by the player: the network stops, and the API does not start another.
+        second.setActivated(false);
+        frame();
+        check(!first.activated && !second.activated && Double.isNaN(producer(networks)) && raised("supply", 500), "Switching off did not stop the network");
+        // The load changing is raised too.
+        second.setActivated(true);
+        frame();
+        var radio = (IsoObject)square(12, 10, 0).objects.get(0);
+        radio.consumption = 0.05f;
+        IsoGenerator.updateGenerator(radio.square);
+        frame();
+        check(raised("load", 500), "A load change was not raised");
+        call(networks, "remove", mod, "seq");
+        frame();
+        second.setActivated(false);
+        // A world loaded with the first still running: the game makes up for the hours away as the first updates,
+        // before a frame worked the network out. The second takes over from the hour the first ran out.
+        time.hours = 600;
+        first.fuel = 0.5f;
+        first.setActivated(true);
+        double savedPerHour = first.getTotalPowerUsing();
+        time.hours = 1000;
+        call(networks, "define", mod, "seq", "power", "sequential");
+        call(networks, "setProducers", mod, "seq", list(at(33, 33, 0), at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "seq", 11.0, 11.0, 0.0);
+        LuaEventManager.raised.clear();
+        first.update();
+        frame();
+        int ranOut = 600 + (int)Math.ceil(0.5 / savedPerHour);
+        check(!first.activated && second.activated && second.lastHour() == ranOut && raised("supply", ranOut),
+            "After a load the second did not take over from hour " + ranOut + ": " + second.lastHour());
+        call(networks, "remove", mod, "seq");
+        frame();
+        second.setActivated(false);
+    }
+
+    /** Whether the networks' event was raised for the network "seq" with that change and hour; clears what was raised. */
+    private static boolean raised(String what, double hour) {
+        boolean found = LuaEventManager.raised.stream().anyMatch(event -> event.equals(List.of("OnPZToolsNetworkChange", "seq", what, hour)));
+        LuaEventManager.raised.clear();
+        return found;
+    }
+
+    /** The x of the producer in use, or NaN without supply. */
+    private static double producer(KahluaTable networks) {
+        var producer = (KahluaTable)((KahluaTable)call(networks, "state", "seq").get(0)).rawget("producer");
+        return producer == null ? Double.NaN : (Double)producer.rawget("x");
     }
 
     private static void frame() { GameApi.frame(GameApiTest.class.getClassLoader()); }

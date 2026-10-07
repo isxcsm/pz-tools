@@ -50,6 +50,9 @@ public final class ApiHooks {
 
         /** {@code IsoGenerator.updateGenerator(square)}: something that uses power was switched, placed or taken there. */
         void consumerChanged(Object square);
+
+        /** {@code IsoGenerator.update()}, before the game burns the hours since the generator last did. */
+        default void generatorUpdate(Object generator) { }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -63,7 +66,7 @@ public final class ApiHooks {
     private static boolean expected;
     private static volatile Power power;
     // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[4];
+    private static final boolean[] reported = new boolean[5];
 
     private ApiHooks() { }
 
@@ -114,6 +117,10 @@ public final class ApiHooks {
             Site.atStart("updateGenerator", "(Lzombie/iso/IsoGridSquare;)V", (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "consumerChanged", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+            }),
+            Site.atStart("update", "()V", (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "generatorUpdate", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
             }) });
 
     private static void objectPowered(CodeBuilder code) {
@@ -323,6 +330,14 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.consumerChanged(square); }
         catch (Throwable problem) { reportOnce(3, "consumerChanged", problem); }
+    }
+
+    /** Put at the start of {@code IsoGenerator.update()}. */
+    public static void generatorUpdate(Object generator) {
+        Power current = power;
+        if (current == null) return;
+        try { current.generatorUpdate(generator); }
+        catch (Throwable problem) { reportOnce(4, "generatorUpdate", problem); }
     }
 
     private static void reportOnce(int hook, String name, Throwable problem) {

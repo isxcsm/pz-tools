@@ -20,8 +20,21 @@ final class Network {
     /** An object, named by its square and its sprite. */
     record Thing(Position at, String sprite) { }
 
+    /** A producer as last seen loaded. */
+    record Seen(boolean activated, float fuel, int condition) {
+        boolean canRun() { return fuel > 0 && condition > 0; }
+    }
+
+    /**
+     * A running producer before the game's hourly update: the hour it has burned up to, its fuel, and what it burns an
+     * hour. The game burns hour by hour and stops it in the hour its fuel runs out.
+     */
+    record Settled(int lastHour, float fuel, float perHour) {
+        double end() { return perHour > 0 ? lastHour + Math.ceil(fuel / perHour) : Double.POSITIVE_INFINITY; }
+    }
+
     final String id, owner, utility, policy;
-    /** In order: under {@code "sequential"} the first that can run carries the load. */
+    /** In order: under {@code "sequential"} the next that can run takes over when the one in use stops. */
     final List<Position> producers = new ArrayList<>();
     /** Squares that name the member buildings. */
     final List<Position> buildings = new ArrayList<>();
@@ -31,10 +44,14 @@ final class Network {
     /** The member buildings as last resolved, by their BuildingDef's identity. */
     List<Buildings.Building> resolved = List.of();
     PowerGrid.Area area;
-    /** Whether each producer could run, as last seen loaded. A producer never seen loaded cannot. */
-    final Map<Position, Boolean> runnable = new HashMap<>();
+    /** Each producer as last seen loaded. */
+    final Map<Position, Seen> seen = new HashMap<>();
+    /** Each running producer before the game's last hourly update of it. */
+    final Map<Position, Settled> settled = new HashMap<>();
     /** The producer that carries the load; null when the network has no supply. */
     Position inUse;
+    /** A producer the game ran while the API knew of none in use, until the next frame takes it in. */
+    Position adopted;
     /** Each consumer's consumption, as last seen loaded. */
     Map<Thing, Float> consumption = Map.of();
     float load;

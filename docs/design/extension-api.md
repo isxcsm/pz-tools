@@ -71,8 +71,9 @@ How the table gets there:
 
 A mod checks `PZToolsAPI` on `OnGameStart`. Without it (PZ Tools not installed, or this game not
 started by the loader), the mod changes nothing and says why. It keeps its definitions in the save
-(`ModData`) and defines its networks again each time a world loads. Until it does, the game behaves
-as in vanilla.
+(`ModData`) and defines its networks again each time a world loads, on `OnGameStart`: a world's
+generators make up for the hours it was away as they first update, and the API sees that only for
+networks defined by then. Until a mod defines its networks, the game behaves as in vanilla.
 
 When the app updates the API's code in a running game, the new code takes over the definitions of the
 old one; mods do not define anything again. A change that cannot take them over waits for the game's
@@ -145,17 +146,19 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `producer` (the square of the producer in use; absent without supply), `load` and `complete` (whether every consumer was loaded when the load was last worked out). Planned: time left at the current load, and for water the amount and capacity. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
-Events (raised through `LuaEventManager`, never per frame): a network's supply started or stopped,
-its producer in use changed, its load changed. Each carries the network id and the game time it
-happened, which can be in the past when the network's squares were not loaded.
+One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
+change, never per frame. `what` is `"supply"` (it started or stopped), `"producer"` (another producer
+carries it) or `"load"`; `hour` is the world age in hours when it happened, which is in the past when
+a producer ran out while its square was not loaded. A mod reads the rest with `networks.state(id)`.
 
 ### Built so far
 
 - Power networks under `"sequential"`: buildings and single objects as consumers, and exclusions.
-- Supply: a network is supplied while one of its producers can run (switched on, with fuel, not
-  broken) as last seen loaded; a producer never seen loaded cannot. The first such producer carries the
-  load; the others burn only their own base consumption. The API does not switch producers on or
-  off yet; the player does.
+- Supply under `"sequential"`: one producer runs at a time and carries the load. The player switches
+  the network on and off with its producers: the one switched on last carries it, and the API
+  switches the others off; switching off the one in use stops the network. When the one in use runs
+  out of fuel or breaks, the API switches on the first other producer, in order, that can run, from
+  the hour the first ran out (see Time below).
 - Load: worked out when a definition changes; when the game says something that uses power was
   switched, placed or taken in or beside a member building, or at an object added on its own
   (`IsoGenerator.updateGenerator`); and every 5 seconds while some consumers are not loaded.
@@ -175,31 +178,37 @@ happened, which can be in the past when the network's squares were not loaded.
   as vanilla tells the objects in a generator's range.
 - The definitions belong to the world they were made in: when the game's cell goes (the player left
   the world), the API removes them, and the mods define them again in the next world.
-- Not yet: switching producers, time and fuel while not loaded, food aged across supply changes,
-  events, water, children and `"parallel"`.
+- Events: `OnPZToolsNetworkChange` for supply, the producer in use and the load.
+- Not yet: food aged across supply changes, time left in `state`, water, children and `"parallel"`.
 
 ### Power
 
-- **Supply.** A network is supplied while a producer can run (activated, fuel, condition). Under
-  `"sequential"` only the producer in use is activated; the API activates the next one when it
-  stops. A child is supplied when its parent is.
+- **Supply.** A network is supplied while its producer in use runs. Under `"sequential"` only that
+  one is switched on; the API switches on the next when it runs out or breaks. A child is supplied
+  when its parent is.
 - **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
   constants on `IsoGenerator`) over its consumers and its children's, computed when a consumer is
   added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
   loaded is the last value computed while they were.
 - **Range.** A producer in a network powers no square around it. It adds itself to no chunk
   (`IsoChunk.addGeneratorPos`), and its consumption is the network's load.
-- **Time.** Fuel and condition are computed from the last settled state, the load, the policy and
-  the time since. The API writes the result into the generator when its square is loaded and
-  advances the generator's `lastHour`, so vanilla's own catch-up does not burn the same hours
-  again. Condition wear follows vanilla's hourly rule (a chance of 1 in the item's
-  `ConditionLowerChance` per hour to lose 1 to 2 points).
+- **Time.** The game burns a running generator's fuel hour by hour from its `lastHour`, also for the
+  hours its square was not loaded, and switches it off in the hour its fuel runs out; then it sets
+  `lastHour` to now. So the API records each running producer as it starts its hourly update
+  (`IsoGenerator.update()`): the hour it has burned up to, its fuel, and what it burns an hour. When it
+  stops for want of fuel, it ran out at that hour plus its fuel over what it burns an hour, rounded
+  up. The API switches the next producer on and sets its `lastHour` back to that hour, and the game
+  burns the hours since on its next update, as for any generator. A producer in use whose square is
+  not loaded counts as stopped once that hour has passed, and the next takes over then if its own
+  square is loaded. Condition wear is the game's own.
 - **Food.** Vanilla ages food in a container over the whole time since it last aged, as refrigerated
   if the square has power now, and splits that time only at the grid's shut-off. The API splits it
   also at the times its network's supply stopped and started, so a fridge that lost power while the
   player was away spoils from that moment, and one that kept power does not.
-- **Settled state.** Kept in the producers' own `ModData`, so it is saved with them. The API keeps no
-  other state in the save.
+- **Settled state.** The generators' own saved fields (switched on, fuel, condition, `lastHour`) are
+  the state: the API keeps nothing in the save. After a world loads, the producer the game runs is
+  the one in use; the API records it as its first update starts, before the game makes up for the
+  hours away.
 
 ### Water
 
@@ -314,6 +323,9 @@ generator outside it as its producer.
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
 - Splitting food age changes a vanilla calculation that other mods may also change.
+- A producer that breaks before its fuel runs out stops at a random hour the API does not see. The
+  next producer starts from the hour the first's fuel would have run out (or now, if that hour has not
+  come), later than it broke; the hours between burn no fuel.
 - User-defined buildings are removed and created again when walls change
   (`removeUserDefinedBuildingsFromCell`); a network follows its building from the square it was named
   by.
@@ -322,4 +334,4 @@ generator outside it as its producer.
 
 - How soon after the last wall or roof a player-built space becomes a building.
 - Whether `buildings.at` should report an extension room that vanilla discards, and as what.
-- The names of the events, and of the one that says the API appeared or went away.
+- The name of an event that says the API appeared or went away.
