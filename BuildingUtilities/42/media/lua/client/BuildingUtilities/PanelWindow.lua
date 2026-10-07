@@ -155,8 +155,41 @@ local function tick(list, x, y, state)
     end
 end
 
+-- The energy graph: a column an hour, the last Store.ENERGY_HOURS of them and the hour going on; what the solar
+-- panels made (yellow) and the load supplied (grey) against the largest of them, and the bank's charge (green, of
+-- the full height).
+local GRAPH_H = 96
+local function drawGraph(list, y, width, row)
+    local hours = row.hours
+    local left, right = PAD, width - PAD - SCROLLBAR
+    local top, bottom = y + FONT_HGT_SMALL + 6, y + GRAPH_H - 6
+    local plotH = bottom - top
+    local most = 0.05
+    for _, hour in ipairs(hours) do most = math.max(most, hour.made or 0, hour.used or 0) end
+    list:drawText(getText("IGUI_BU_GraphTitle", #hours, string.format("%.2f", most)), left, y + 2, 0.9, 0.9, 0.9, 1, UIFont.Small)
+    list:drawRectBorder(left, top, right - left, plotH, 0.6, 0.5, 0.5, 0.5)
+    local columns = Store.ENERGY_HOURS + 1
+    local w = (right - left) / columns
+    local first = columns - #hours
+    for index, hour in ipairs(hours) do
+        local x = left + (first + index - 1) * w
+        local made = (hour.made or 0) / most * plotH
+        local used = (hour.used or 0) / most * plotH
+        if made > 0 then list:drawRect(x + 1, bottom - made, math.max(1, w / 2 - 1), made, 0.85, 1, 0.85, 0.2) end
+        if used > 0 then list:drawRect(x + w / 2, bottom - used, math.max(1, w / 2 - 1), used, 0.7, 0.75, 0.75, 0.75) end
+        if hour.charge then
+            list:drawRect(x, bottom - hour.charge * plotH - 1, math.max(2, w), 3, 1, 0.3, 0.9, 0.4)
+        end
+    end
+end
+
 function ISBUPanelList:doDrawItem(y, item, alt)
     local row = item.item
+    if row.kind == "graph" then
+        item.height = GRAPH_H
+        drawGraph(self, y, self:getWidth(), row)
+        return y + GRAPH_H
+    end
     item.height = ROW
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
@@ -370,6 +403,7 @@ function ISBUPanelWindow:createChildren()
     self.resetButton = button(self, PAD + 312, buttonsY, 110, ROW, ISBUPanelWindow.onReset)
     self.resetButton:setTitle(getText("ContextMenu_BU_ResetBreaker"))
     self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
+    self.blackoutButton = button(self, PAD + 594, buttonsY, 150, ROW, ISBUPanelWindow.onBlackout)
     local tabsY = buttonsY + ROW + PAD
     local listW = self.width
     local height = self.height - tabsY - self:resizeWidgetHeight()
@@ -628,6 +662,9 @@ function ISBUPanelWindow:refresh()
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     self.resetButton:setVisible(panel.tripped == true)
+    local dark = count(panel.power.blackout)
+    self.blackoutButton:setTitle(dark > 0 and getText("IGUI_BU_BlackoutEnd", dark) or getText("IGUI_BU_Blackout"))
+    self.blackoutButton:setTooltip(getText(dark > 0 and "IGUI_BU_BlackoutEndTip" or "IGUI_BU_BlackoutTip"))
     local tier = panel.tier or 1
     self.upgradeButton:setVisible(tier < BU.TIERS)
     if tier < BU.TIERS then
@@ -728,7 +765,7 @@ function ISBUPanelWindow:deviceStatus(utility, device)
             text, dim = power > 0 and string.format("%.3f", power) or "", true
         elseif device.held then
             text = getText(device.held == "shed" and "IGUI_BU_HeldShed" or device.held == "saving" and "IGUI_BU_HeldSaving"
-                or "IGUI_BU_HeldTimer")
+                or device.held == "blackout" and "IGUI_BU_HeldBlackout" or "IGUI_BU_HeldTimer")
         elseif power > 0 then
             text = string.format("%.3f", power) .. " (" .. percent(power, self.capacity) .. ")"
         else
@@ -1037,13 +1074,18 @@ function ISBUPanelWindow:fillLog()
     local scroll = list:getYScroll()
     list:clear()
     local log = self.panel.log or {}
+    local hours = {}
+    for _, hour in ipairs(self.panel.energyLog or {}) do hours[#hours + 1] = hour end
+    local now = self.panel.energyNow
+    if now and now.n > 0 then hours[#hours + 1] = { made = now.made / now.n, used = now.used / now.n, charge = now.charge } end
+    if #hours > 0 then list:addItem("", { kind = "graph", hours = hours }) end
     if #log == 0 then list:addItem("", { kind = "note", text = getText("IGUI_BU_LogEmpty") }) end
-    local now = getGameTime():getWorldAgeHours()
+    local worldHours = getGameTime():getWorldAgeHours()
     for index = #log, 1, -1 do
         local entry = log[index]
         local args = entry.args or {}
         local text = getText(entry.key, args[1] ~= nil and tostring(args[1]) or "", args[2] ~= nil and tostring(args[2]) or "")
-        list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, now - (entry.hour or now))),
+        list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, worldHours - (entry.hour or worldHours))),
             bad = BAD[entry.key], good = GOOD[entry.key] })
     end
     list:setYScroll(scroll)
@@ -1542,6 +1584,10 @@ function ISBUPanelWindow:onRenamed(button)
 end
 
 function ISBUPanelWindow:onReset() Sync.send(self.playerObj, "resetBreaker", { panel = self.panel.id }) end
+
+function ISBUPanelWindow:onBlackout()
+    Sync.send(self.playerObj, "setBlackout", { panel = self.panel.id, on = count(self.panel.power.blackout) == 0 })
+end
 
 function ISBUPanelWindow:onUpgrade()
     local panel = self.panel

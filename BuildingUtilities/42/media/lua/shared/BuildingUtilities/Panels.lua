@@ -262,7 +262,7 @@ end
 -- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
 -- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
--- schedule (BU.SCHEDULES) and held ("shed", "saving" or "timer" while the box keeps it off on its own, or nil).
+-- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off, or nil).
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
         if set[key] then return set[key] end
@@ -328,7 +328,7 @@ function Panels.devices(panel, utility)
             device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"
             device.held = data.shed[device.key] and "shed" or data.saving[device.key] and "saving"
-                or data.timed[device.key] and "timer" or nil
+                or data.blackout[device.key] and "blackout" or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device
     end
@@ -409,6 +409,21 @@ function Panels.linkSteps(child, parent)
     local childBuilding, parentBuilding = Panels.building(child), Panels.building(parent)
     if not childBuilding or not parentBuilding then return nil end
     return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
+end
+
+-- The lights a blackout switches off: the panel's connected power devices that are light switches or lamps on
+-- loaded squares, but those essential at a tier that sheds.
+function Panels.blackoutLights(panel)
+    local keys = {}
+    local essential = (panel.tier or 1) >= BU.SMART_TIER
+    for _, device in ipairs(Panels.devices(panel, "power")) do
+        if device.state == "on" and not (essential and device.essential) then
+            local entry = device.entry
+            local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+            if object and instanceof(object, "IsoLightSwitch") then keys[#keys + 1] = device.key end
+        end
+    end
+    return keys
 end
 
 -- Whether a panel can take its supply from another: a main panel in another building or another zone of its own,

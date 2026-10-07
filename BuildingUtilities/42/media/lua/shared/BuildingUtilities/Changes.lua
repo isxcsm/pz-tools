@@ -60,7 +60,7 @@ function Changes.setZone(panel, ids)
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed" }) do
+            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -203,6 +203,25 @@ function Changes.unsave(panel)
     for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
     Store.record(panel, "IGUI_BU_Log_Unsaved", { #keys })
     Sync.changed(panel.id)
+end
+
+-- A blackout: the panel's lights off (Panels.blackoutLights), or on again as they were.
+function Changes.setBlackout(panel, on)
+    local data = panel.power
+    local keys = {}
+    if on then
+        for _, key in ipairs(Panels.blackoutLights(panel)) do
+            data.blackout[key] = true
+            keys[#keys + 1] = key
+        end
+    else
+        for key in pairs(data.blackout) do keys[#keys + 1] = key end
+        data.blackout = {}
+    end
+    for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
+    Store.record(panel, on and "IGUI_BU_Log_Blackout" or "IGUI_BU_Log_BlackoutEnd", { #keys })
+    Sync.changed(panel.id)
+    Sync.sound(panel, "LightSwitch")
 end
 
 -- The charge controller's settings (BU.Energy.settings), checked by the caller.
@@ -348,7 +367,7 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "timed" }) do
+    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "blackout", "timed" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)

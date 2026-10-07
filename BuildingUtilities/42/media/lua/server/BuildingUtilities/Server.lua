@@ -47,6 +47,8 @@ end
 
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
+function commands.setBlackout(player, panel, args) Changes.setBlackout(panel, args.on == true) end
+
 -- The charge controller's settings, from its choices (Energy.CHOICES).
 function commands.setController(player, panel, args)
     if (panel.tier or 1) < BU.CONTROLLER_TIER then return end
@@ -221,12 +223,23 @@ local function onNetworkChange(id, what)
     end
 end
 
+-- What each panel's power did this minute, for its energy graph: what its solar panels made, the load supplied,
+-- its bank's charge.
+local function recordEnergy(panel)
+    local state = Networks.state(panel, "power")
+    if not state then return end
+    local made = Energy.hasSource(panel) and Energy.output(panel) or 0
+    local bank = Energy.bank(panel)
+    Store.recordEnergy(panel, made, state.supplied and state.load or 0, bank and bank.charge or nil)
+end
+
 local function everyMinute()
     if not BU.api() then return end
     updateUnits()
     for _, panel in ipairs(Store.list()) do
         checkLoad(panel)
         checkFuel(panel)
+        recordEnergy(panel)
     end
 end
 

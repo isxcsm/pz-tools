@@ -26,11 +26,12 @@ end
 
 -- What the network does with one device of a panel: "exclude", "include" or "reset" (the building's rule). A
 -- device of the building is connected unless the player excluded it; one outside only when this panel connected it;
--- either is off while the box sheds it, keeps it off for its bank or its timer has it off. A device the panel connected outside is in
+-- either is off while the box sheds it, keeps it off for its bank, has it off for a blackout or its timer has it off. A device the panel connected outside is in
 -- included; any other it names is of its building.
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
-    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.timed and data.timed[key]
+    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.blackout and data.blackout[key]
+        or data.timed and data.timed[key]
     if not data.included[key] then return (data.excluded[key] or off) and "exclude" or "reset" end
     return off and "exclude" or "include"
 end
@@ -91,7 +92,7 @@ function Networks.define(panel)
         if not panel.parent then change("setProducers", id, producerList(panel, utility)) end
         addMembers(panel, id)
         local data, keys = panel[utility], {}
-        for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.saving or {}, data.timed or {} }) do
+        for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.saving or {}, data.blackout or {}, data.timed or {} }) do
             for key in pairs(set) do keys[key] = true end
         end
         for key in pairs(keys) do
