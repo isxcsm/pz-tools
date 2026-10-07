@@ -1,6 +1,8 @@
 package pztools.bridge.runtime.api;
 
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
+import java.lang.classfile.MethodModel;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
@@ -1126,11 +1128,11 @@ public final class GameApiTest {
         call(networks, "define", mod, "wires", "power", "sequential");
         rejects(networks, "setPurify", "wires carries power, not water", mod, "wires", false);
         call(networks, "remove", mod, "wires");
-        // A game whose bootstrap has no such hooks needs a restart for water that keeps its taint.
+        // A game without both of its hooks has no water that keeps its taint.
         var hooked = ApiHooks.class.getDeclaredField("purifyHooked");
         hooked.setAccessible(true);
         hooked.setBoolean(null, false);
-        rejects(networks, "setPurify", "restart it to use it", mod, "rain", false);
+        rejects(networks, "setPurify", "water that keeps its taint is not in this game", mod, "rain", false);
         hooked.setBoolean(null, true);
         call(networks, "remove", mod, "rain");
         frame();
@@ -1286,6 +1288,20 @@ public final class GameApiTest {
             "The status file was not written again when it changed");
         try (var files = Files.list(folder)) { for (var file : files.toList()) Files.delete(file); }
         Files.delete(folder);
+
+        // Water that keeps its taint needs both of IsoObject's taint hooks, as the class is now.
+        String object = "zombie/iso/IsoObject";
+        byte[] own;
+        try (var input = game.getResourceAsStream(object + ".class")) { own = input.readAllBytes(); }
+        var files = ClassFile.of();
+        byte[] untainted = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
+            element instanceof MethodModel method && method.methodName().equalsString("isTaintedWater")));
+        check(transform.invoke(null, object, untainted, game) != null && !ApiHooks.waterPurifyHooked()
+            && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoObject.createSampleAndPurifyWater")),
+            "Water that keeps its taint was offered with one of its two hooks");
+        transform.invoke(null, object, own, game);
+        check(ApiHooks.waterPurifyHooked() && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoObject.isTaintedWater")),
+            "The taint hooks did not come back");
     }
 
     /** A generator class as another mod might have it: without updateGenerator, or with an update the game cannot verify. */

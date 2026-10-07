@@ -225,9 +225,10 @@ final class Networks {
                 throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", not water");
             if (!(arguments.length > 2 && arguments[2] instanceof Boolean on))
                 throw new IllegalArgumentException(call + ": on must be true or false");
-            // The hooks that keep the taint are in the bootstrap: a game started before them gets them as it starts again.
+            // The hooks that keep the taint are in the bootstrap: a game started before them gets them as it starts again,
+            // and one whose IsoObject they did not fit has neither.
             if (!on && (water == null || !water.purifyHooked()))
-                throw new IllegalArgumentException(call + ": water that keeps its taint is not in this game; restart it to use it");
+                throw new IllegalArgumentException(call + ": water that keeps its taint is not in this game; PZToolsAPI.hooks() says why");
             if (network.purify != on) {
                 network.purify = on;
                 saved();

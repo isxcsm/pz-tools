@@ -98,11 +98,23 @@ public final class ApiHooks {
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
-    // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[10];
-    private static final int POWER_HOOKS = 6;
+    /** The handlers' calls, each reported once; a newer handler of its kind may report again. */
+    private enum Call {
+        SQUARE("square"), OBJECT("object"), GENERATOR("generator"), CONSUMER_CHANGED("consumerChanged"),
+        GENERATOR_UPDATE("generatorUpdate"), FOOD_HOURS("foodHours"), WATER_PLUMBED("waterPlumbed", true),
+        WATER_SOURCE("waterSource", true), WATER_SAMPLE("waterSample", true), WATER_TAINTED("waterTainted", true);
+
+        final String label;
+        final boolean water;
+
+        Call(String label) { this(label, false); }
+        Call(String label, boolean water) { this.label = label; this.water = water; }
+    }
+
+    // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
+    private static final Set<Call> reported = EnumSet.noneOf(Call.class);
     private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
-    // Set once IsoObject has its hooks, the ones on the game's purification of a fixture's water among them.
+    // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
 
     private ApiHooks() { }
@@ -273,7 +285,8 @@ public final class ApiHooks {
             }
         }
         for (String label : kept.keySet()) record(label, APPLIED);
-        if (kept.containsKey(PURIFY)) purifyHooked = true;
+        // The class as it is now: a later transform (another agent's, say) may keep one of the two hooks, or neither.
+        if ("zombie/iso/IsoObject".equals(name)) purifyHooked = kept.containsKey(PURIFY) && kept.containsKey(TAINTED);
         return kept.isEmpty() ? null : result;
     }
 
@@ -287,7 +300,8 @@ public final class ApiHooks {
 
     /** A hook's state in {@link #hookStatus}; anything else is why it did not go in. */
     public static final String APPLIED = "applied", NOT_LOADED = "not-loaded";
-    private static final String PLUMBING = "IsoObject.waterQuestions", PURIFY = "IsoObject.createSampleAndPurifyWater";
+    private static final String PLUMBING = "IsoObject.waterQuestions", PURIFY = "IsoObject.createSampleAndPurifyWater",
+        TAINTED = "IsoObject.isTaintedWater";
     // Guarded by itself. By label: applied, or why not; a class that has not loaded yet is not in it.
     private static final Map<String, String> status = new HashMap<>();
 
@@ -489,7 +503,7 @@ public final class ApiHooks {
 
     /** Sets the power networks, replacing an earlier payload's; null gives every power question to the game alone. */
     public static void setPower(Power next) {
-        synchronized (reported) { Arrays.fill(reported, 0, POWER_HOOKS, false); }
+        synchronized (reported) { reported.removeIf(call -> !call.water); }
         power = next;
     }
 
@@ -513,7 +527,7 @@ public final class ApiHooks {
 
     /** Sets the water networks, replacing an earlier payload's; null gives every water question to the game alone. */
     public static void setWater(Water next) {
-        synchronized (reported) { Arrays.fill(reported, POWER_HOOKS, reported.length, false); }
+        synchronized (reported) { reported.removeIf(call -> call.water); }
         water = next;
     }
 
@@ -523,7 +537,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return false;
         try { return current.plumbed(false, fixture); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS, "waterPlumbed", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.WATER_PLUMBED, problem); return false; }
     }
 
     /** Put before each return of {@code IsoObject.checkExternalFluidSource()}. */
@@ -531,7 +545,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return vanilla;
         try { return current.source(vanilla, fixture); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS + 1, "waterSource", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.WATER_SOURCE, problem); return vanilla; }
     }
 
     /** Put at the start of {@code IsoObject.createSampleAndPurifyWater(source, amount)}: a sample it gives is returned at once. */
@@ -539,7 +553,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return null;
         try { return current.sample(fixture, source, amount); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS + 2, "waterSample", problem); return null; }
+        catch (Throwable problem) { reportOnce(Call.WATER_SAMPLE, problem); return null; }
     }
 
     /** Put before each return of {@code IsoObject.isTaintedWater()}. */
@@ -548,7 +562,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return false;
         try { return current.tainted(false, fixture); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS + 3, "waterTainted", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.WATER_TAINTED, problem); return false; }
     }
 
     /** Whether the game's purification of a fixture's water has its hooks: IsoObject loaded with them. */
@@ -560,7 +574,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return false;
         try { return current.square(x, y, z); }
-        catch (Throwable problem) { reportOnce(0, "square", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.SQUARE, problem); return false; }
     }
 
     /** Put before each return of the object questions; see {@link Power#object}. */
@@ -568,7 +582,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return vanilla;
         try { return current.object(vanilla, object, kind, generators); }
-        catch (Throwable problem) { reportOnce(1, "object", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.OBJECT, problem); return vanilla; }
     }
 
     /** Put at the start of {@code IsoGenerator.setSurroundingElectricity()}: true returns at once. */
@@ -576,7 +590,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return false;
         try { return current.generator(generator); }
-        catch (Throwable problem) { reportOnce(2, "generator", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.GENERATOR, problem); return false; }
     }
 
     /** Put at the start of {@code IsoGenerator.updateGenerator(square)}. */
@@ -584,7 +598,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return;
         try { current.consumerChanged(square); }
-        catch (Throwable problem) { reportOnce(3, "consumerChanged", problem); }
+        catch (Throwable problem) { reportOnce(Call.CONSUMER_CHANGED, problem); }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */
@@ -592,7 +606,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return;
         try { current.generatorUpdate(generator); }
-        catch (Throwable problem) { reportOnce(4, "generatorUpdate", problem); }
+        catch (Throwable problem) { reportOnce(Call.GENERATOR_UPDATE, problem); }
     }
 
     /** Put before {@code Food.updateAge} reads the food's rot speed, with the hours it ages over on the stack. */
@@ -600,15 +614,12 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return vanilla;
         try { return current.foodHours(vanilla, food); }
-        catch (Throwable problem) { reportOnce(5, "foodHours", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.FOOD_HOURS, problem); return vanilla; }
     }
 
-    private static void reportOnce(int hook, String name, Throwable problem) {
-        synchronized (reported) {
-            if (reported[hook]) return;
-            reported[hook] = true;
-        }
-        report(name, problem);
+    private static void reportOnce(Call call, Throwable problem) {
+        synchronized (reported) { if (!reported.add(call)) return; }
+        report(call.label, problem);
     }
 
     // To the game's console log; the game goes on as if the hook were not there.
