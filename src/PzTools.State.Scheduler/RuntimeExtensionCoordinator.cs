@@ -36,6 +36,8 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         // (a long save, a stall) makes its samples old; that is not the world going away.
         DateTimeOffset? staleSince = null;
         string? boundProcess = null, boundWorld = null;
+        // Rounds in a row that lost the link; each waits longer before the next attempt (MaxLinkRetryDelay).
+        int linkFailures = 0;
 
         bool StaleButUnchanged(RuntimeObservation latest, string? process, string? world)
         {
@@ -210,6 +212,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         }
                         handling = null;
                     }
+                    linkFailures = 0;
                     await Task.Delay(options.ReconcileIntervalMs, token);
                 }
                 catch (ExtensionSessionMismatchException)
@@ -237,6 +240,10 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     var affected = shared ? modules : [handling!];
                     RuntimeExtensionStatus? stopped = null;
                     if (shared) stopped = await CloseLeaseAsync(requestOff: affected.Any(module => wanted[module.Id]));
+                    // A lost or refused link is not the extension failing: the game was not asked anything, or could
+                    // not answer. The preference stays and the link is tried again. Only what the game itself reports
+                    // (a restart the update needs, here) or a failure while handling one module is definitive.
+                    bool definitive = !shared || failed.State == RuntimeExtensionState.RestartRequired;
                     foreach (var module in affected)
                     {
                         if (!wanted[module.Id])
@@ -247,11 +254,12 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                             published.Publish(module.Id, new(RuntimeExtensionState.Disabled, "control-offline", process ?? "", world,
                                 RequestedRevision: revision));
                         }
-                        else if (process is not null && world is not null && revision >= 0 && IsCurrent(process, world))
+                        else if (definitive && process is not null && world is not null && revision >= 0 && IsCurrent(process, world))
                             await FailClosedAsync(module, failed, revision, process, world, stopped, leaseGone: shared);
                         else published.Publish(module.Id, failed);
                     }
-                    await Task.Delay(options.ReconcileIntervalMs, token);
+                    linkFailures = definitive ? 0 : linkFailures + 1;
+                    await Task.Delay(LinkRetryDelay(options.ReconcileIntervalMs, linkFailures), token);
                 }
             }
         }
@@ -261,6 +269,13 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
             published.Publish(new(RuntimeExtensionState.Disabled, "observer-disconnected"));
         }
     }
+
+    /// <summary>The longest wait between attempts at a link that keeps failing: each attempt starts a helper process.</summary>
+    internal static readonly TimeSpan MaxLinkRetryDelay = TimeSpan.FromSeconds(30);
+
+    /// <summary>The reconcile interval, doubled for each failed link in a row up to <see cref="MaxLinkRetryDelay"/>.</summary>
+    internal static TimeSpan LinkRetryDelay(int intervalMs, int failures) =>
+        TimeSpan.FromMilliseconds(Math.Min(MaxLinkRetryDelay.TotalMilliseconds, intervalMs * Math.Pow(2, Math.Min(failures, 16))));
 
     /// <summary>How long a game whose state has stopped arriving keeps its extensions before they are released.</summary>
     internal static readonly TimeSpan TransientStaleGrace = TimeSpan.FromSeconds(30);

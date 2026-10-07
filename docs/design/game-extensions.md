@@ -197,7 +197,13 @@ not fit) skips step 2: nothing failed, so the switch keeps its setting and the e
 game.
 
 The lease and the other modules carry on. `RestartRequired` stays latched for the whole game
-process, across world changes, until the game restarts. If the lease breaks while a module is
+process, across world changes, until the game restarts.
+
+A link that cannot be made or breaks (the helper cannot attach, the bootstrap is busy with a payload
+reload, the connection ends or a command gets no answer) is not definitive: the game was not asked,
+or could not answer. Every wanted module is reported `FaultedPassThrough` / `connection-unavailable`,
+the preference stays, and the scheduler tries again, waiting twice as long after each failure in a
+row, up to 30 seconds (each attempt starts a helper process). If the lease breaks while a module is
 wanted off, that module is reported `Disabled` / `control-offline` and not attached again in
 that world.
 

@@ -223,4 +223,66 @@ public sealed partial class GameSaveClientTests
             await feed;
         }
     }
+
+    /// <summary>
+    /// A link to the game that cannot be made (here: no bridge in this build) is not the extension failing. The switch
+    /// stays on and the scheduler keeps trying, each attempt later than the one before.
+    /// </summary>
+    [Fact]
+    public async Task Coordinator_ALinkThatCannotBeMade_KeepsThePreference()
+    {
+        using var temp = new TempDirectory();
+        var bridge = temp.GetPath("bridge");
+        Directory.CreateDirectory(bridge);
+        var runtimeRoot = temp.GetPath("runtime");
+        var stream = Guid.NewGuid().ToString("N");
+        var observations = new RuntimeSnapshotStore();
+        var published = new RuntimeExtensionStatusStore();
+        string process = Guid.NewGuid().ToString("N"), world = Guid.NewGuid().ToString("N");
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var feed = Task.Run(async () =>
+        {
+            for (long sequence = 1; !stop.IsCancellationRequested; sequence++)
+            {
+                observations.Publish(new RuntimeObservation(stream, RuntimeQuality.Fresh, new RuntimeSnapshot(process, stream, world,
+                    1, 1, sequence, WorldPhase.Ready, GamePause.Running, RuntimeMode.LocalSinglePlayer, 1, sequence * 100, 0,
+                    temp.GetPath("Saves", "Sandbox", "World"))));
+                try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { }
+            }
+        });
+        var settings = new ExtensionSettingsStore(runtimeRoot);
+        Assert.Equal(1, settings.SetEnabled(ExtensionIds.VehicleDrivetrain, true, 0).Revision);
+        var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
+            new ExtensionControlOptions(ReconcileIntervalMs: 100, ConnectTimeoutSeconds: 20)).RunAsync(Environment.ProcessId, stream, stop.Token);
+        try
+        {
+            var give = DateTime.UtcNow.AddSeconds(30);
+            RuntimeExtensionStatus status;
+            while ((status = published.Read(ExtensionIds.VehicleDrivetrain)).Reason != "connection-unavailable")
+            {
+                if (run.IsCompleted) await run;
+                if (DateTime.UtcNow > give) throw new TimeoutException($"vehicle connection unavailable: last status was {status}");
+                await Task.Delay(20);
+            }
+            // Several attempts later the switch is still on, and nothing blocked the revision.
+            await Task.Delay(1500);
+            var after = settings.Read();
+            Assert.Equal(1, after.Revision);
+            Assert.True(after.Extensions[ExtensionIds.VehicleDrivetrain].Enabled);
+            Assert.Equal("connection-unavailable", published.Read(ExtensionIds.VehicleDrivetrain).Reason);
+        }
+        finally
+        {
+            await stop.CancelAsync();
+            try { await run; } catch (OperationCanceledException) { }
+            await feed;
+        }
+    }
+
+    [Theory]
+    [InlineData(1, 500)]
+    [InlineData(3, 2000)]
+    [InlineData(40, 30000)]
+    public void LinkRetryDelay_DoublesUpToItsCeiling(int failures, int expectedMs) =>
+        Assert.Equal(TimeSpan.FromMilliseconds(expectedMs), RuntimeExtensionCoordinator.LinkRetryDelay(250, failures));
 }

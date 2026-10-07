@@ -95,6 +95,9 @@ public sealed class GameExtensionClient : IGameExtensionSession
                     // stream already reports it (GameRuntimeClient), not a failure of the extension.
                     if (GameSaveException.NamesRestart(detail))
                         throw new GameSaveException("restart-required", "The loaded bootstrap requires one game restart after this bridge update.");
+                    // Busy with another request for a moment (a payload being reloaded): the scheduler tries again.
+                    if (detail.Contains(GameSaveClient.ChannelBusy, StringComparison.Ordinal))
+                        throw new GameSaveException("busy", "The game's bridge is busy; try again shortly.");
                     throw new GameSaveException("runtime-unavailable", "Continuous extension attach failed.",
                         AttachDiagnostics.Describe(processId, detail, helper.ExitCode, bridgeDirectory));
                 }
