@@ -31,7 +31,7 @@
     <ItemGroup><_InstallClasses Include="$(_BridgeClasses)\pztools\bridge\StartupInstall*.class" /></ItemGroup>
     <Exec Command="&quot;$(BridgeJdkPath)\bin\jar.exe&quot; --create --date=2020-01-01T00:00:00Z --file &quot;$(BridgeOutputPath)\pztools-game-bridge.jar&quot; --manifest &quot;$(MSBuildProjectDirectory)\MANIFEST.MF&quot; -C &quot;$(_BridgeClasses)&quot; pztools/bridge/runtime -C &quot;$(_BridgeClasses)&quot; pztools/bridge/AttachMain.class -C &quot;$(_BridgeClasses)&quot; pztools/startup @(_InstallClasses->'-C &quot;$(_BridgeClasses)&quot; pztools/bridge/%(Filename)%(Extension)', ' ')" />
     <!-- Package all stable bootstrap nested classes, but no attach/runtime classes. -->
-    <ItemGroup><_BootstrapClasses Include="$(_BridgeClasses)\pztools\bridge\AgentEntry*.class;$(_BridgeClasses)\pztools\bridge\ApiHooks*.class" /></ItemGroup>
+    <ItemGroup><_BootstrapClasses Include="$(_BridgeClasses)\pztools\bridge\AgentEntry*.class;$(_BridgeClasses)\pztools\bridge\ApiHooks*.class;$(_BridgeClasses)\pztools\bridge\GameHook*.class;$(_BridgeClasses)\pztools\bridge\ControlServer*.class;$(_BridgeClasses)\pztools\bridge\Payload*.class" /></ItemGroup>
     <RemoveDir Directories="$(_BridgeClasses)\bootstrap" />
     <MakeDir Directories="$(_BridgeClasses)\bootstrap\pztools\bridge" />
     <Copy SourceFiles="@(_BootstrapClasses)" DestinationFolder="$(_BridgeClasses)\bootstrap\pztools\bridge" />

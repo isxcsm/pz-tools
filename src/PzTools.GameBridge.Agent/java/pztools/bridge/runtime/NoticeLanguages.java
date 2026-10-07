@@ -24,8 +24,14 @@ final class NoticeLanguages {
             if (fields.length != 10) throw new IllegalStateException("Invalid language catalog");
             result.put(fields[1], new String[] { fields[6], fields[7], fields[8], fields[9] });
         }
-        result.put("ko", result.get("ko-KR"));
-        result.put("en", result.get("en-US"));
+        return withShortTags(result);
+    }
+
+    /** The catalog's languages by tag, with the short tags ko and en for Korean and English; the notes use it too. */
+    static <T> Map<String, T> withShortTags(Map<String, T> byTag) {
+        var result = new HashMap<>(byTag);
+        result.put("ko", byTag.get("ko-KR"));
+        result.put("en", byTag.get("en-US"));
         return Map.copyOf(result);
     }
 }
