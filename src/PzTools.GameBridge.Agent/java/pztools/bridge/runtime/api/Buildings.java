@@ -164,19 +164,19 @@ final class Buildings {
      * to (see Members.resolve). {@code complete[0]} is cleared when some were missing.
      */
     List<Found> scan(Building found, Filter filter, boolean[] complete) throws ReflectiveOperationException {
-        Object cells = cell();
+        Object cells = cell(), grid = grid();
         var result = new ArrayList<Found>();
         var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
         rooms.addAll(found.rooms());
         for (int z = found.minLevel(); z <= found.maxLevel(); z++)
             for (int y = found.minY() - 1; y <= found.maxY() + 1; y++)
                 for (int x = found.minX() - 1; x <= found.maxX() + 1; x++) {
-                    Object room = roomAt(x, y, z);
+                    Object room = roomAt(grid, x, y, z);
                     boolean inside = room != null && rooms.contains(room);
                     Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
                     if (loaded == null) { if (inside) complete[0] = false; continue; }
                     for (Object object : objectsOn(loaded)) {
-                        Object owner = owner(object, room, x, y, z);
+                        Object owner = owner(grid, object, room, x, y, z);
                         if (owner == null || !rooms.contains(owner)) continue;
                         Found thing = classify(object, filter, x, y, z, owner);
                         if (thing != null) result.add(thing);
@@ -192,7 +192,7 @@ final class Buildings {
     private Object[] near(String key, int tiles, Filter filter) throws ReflectiveOperationException {
         Building found = resolve(key);
         if (found == null) return new Object[] { null, false };
-        Object cells = cell();
+        Object cells = cell(), grid = grid();
         int left = found.minX() - tiles, top = found.minY() - tiles;
         int width = found.maxX() - found.minX() + 1 + 2 * tiles, height = found.maxY() - found.minY() + 1 + 2 * tiles;
         var result = new ArrayList<Object>();
@@ -212,11 +212,11 @@ final class Buildings {
                 for (int x = 0; x < width; x++) {
                     if (!ring[y * width + x] || inside[y * width + x]) continue;
                     int wx = left + x, wy = top + y;
-                    if (roomAt(wx, wy, z) != null) continue;
+                    if (roomAt(grid, wx, wy, z) != null) continue;
                     Object loaded = cells == null ? null : square.invoke(cells, wx, wy, z);
                     if (loaded == null) { complete = false; continue; }
                     for (Object object : objectsOn(loaded)) {
-                        if (owner(object, null, wx, wy, z) != null) continue;
+                        if (owner(grid, object, null, wx, wy, z) != null) continue;
                         Found thing = classify(object, filter, wx, wy, z, null);
                         if (thing != null) result.add(entry(thing));
                     }
@@ -251,18 +251,15 @@ final class Buildings {
      * The room an object belongs to: a light switch's lit room, or else its square's room, or else, for one hanging on a
      * wall outside (a lamp on a building's outer wall), the room across that wall (see {@link #home}).
      */
-    private Object owner(Object object, Object squareRoom, int x, int y, int z) throws ReflectiveOperationException {
+    private Object owner(Object grid, Object object, Object squareRoom, int x, int y, int z) throws ReflectiveOperationException {
         if (lightSwitch.isInstance(object)) {
             long lit = switchRoom.getLong(object);
-            if (lit != -1) {
-                Object grid = grid();
-                Object room = grid == null ? null : roomById.invoke(grid, lit);
-                if (room != null) return room;
-            }
+            Object room = lit == -1 || grid == null ? null : roomById.invoke(grid, lit);
+            if (room != null) return room;
         }
         if (squareRoom != null) return squareRoom;
         int[] step = across(object);
-        return step.length == 0 ? null : roomAt(x + step[0], y + step[1], z);
+        return step.length == 0 ? null : roomAt(grid, x + step[0], y + step[1], z);
     }
 
     /**
@@ -273,9 +270,11 @@ final class Buildings {
     Position home(Object object, Position at) throws ReflectiveOperationException {
         if (at == null) return null;
         int[] step = across(object);
-        if (step.length == 0 || roomAt(at.x(), at.y(), at.z()) != null) return at;
+        if (step.length == 0) return at;
+        Object grid = grid();
+        if (roomAt(grid, at.x(), at.y(), at.z()) != null) return at;
         Position beyond = new Position(at.x() + step[0], at.y() + step[1], at.z());
-        return roomAt(beyond.x(), beyond.y(), beyond.z()) != null ? beyond : at;
+        return roomAt(grid, beyond.x(), beyond.y(), beyond.z()) != null ? beyond : at;
     }
 
     /** The step to the square across the wall the object's sprite hangs on, or none. */
@@ -399,8 +398,10 @@ final class Buildings {
         return result;
     }
 
-    private Object roomAt(int x, int y, int z) throws ReflectiveOperationException {
-        Object grid = grid();
+    private Object roomAt(int x, int y, int z) throws ReflectiveOperationException { return roomAt(grid(), x, y, z); }
+
+    /** The room at the square, from the meta grid a caller that asks about many squares got once. */
+    private Object roomAt(Object grid, int x, int y, int z) throws ReflectiveOperationException {
         return grid == null ? null : roomAt.invoke(grid, x, y, z);
     }
 
