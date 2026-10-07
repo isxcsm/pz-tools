@@ -307,6 +307,8 @@ generator outside it as its producer.
 | One fridge excluded | Load 0.522; that fridge unpowered, the others powered on both levels. |
 | One part of a two-square fridge excluded | Both parts unpowered; load 0.262. |
 | The generator switched off | The building's lights and fridges went off. |
+| The room light and food hooks (game started again) | No `[PzTools API]` report: both found their question in `LightingJNI.checkLights` and `Food.updateAge`. |
+| The switch of a lit room excluded | The room went dark and the switch could not be used; after `reset` it could switch the light on again. |
 
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
