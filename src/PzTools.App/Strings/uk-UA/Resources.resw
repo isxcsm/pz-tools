@@ -795,14 +795,14 @@ GC працює: частка відрізка, коли працював зби
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Завантажувати PZ Tools під час запуску гри (експериментально)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Перевірка файлів гри…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Теку гри не знайдено. Запустіть гру один раз, і її буде знайдено.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools під'єднується до гри після її запуску. Якщо увімкнути, файл projectzomboid.jar гри зміниться, щоб гра завантажувала PZ Tools під час запуску. Якщо вимкнути, повернеться оригінальний файл гри.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools під'єднується до гри після її запуску. Якщо увімкнути, до теки гри буде додано власні файли PZ Tools, щоб гра завантажувала PZ Tools під час запуску; файли гри не змінюються. Якщо вимкнути, їх буде видалено.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Встановлено. Гра завантажує PZ Tools під час запуску, а увімкнені розширення працюють далі, навіть коли PZ Tools закрито.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Оновлення гри це видалило. Увімкніть знову, щоб користуватися.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Деякі його файли зникли з теки гри. Увімкніть знову, щоб користуватися.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Інша програма змінила файл projectzomboid.jar гри. Спершу перевірте цілісність файлів гри в Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закрийте гру та всі сервери, запущені з її теки, і спробуйте ще раз.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ця версія гри не підтримується.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Збережена копія файлу гри відсутня. Перевірте цілісність файлів гри в Steam, щоб відновити його.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не вдалося змінити файл гри. Подробиці в журналі.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не вдалося змінити теку гри. Подробиці в журналі.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Встановлення PZ Tools у гру</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Видалення PZ Tools з гри</value></data>
 </root>

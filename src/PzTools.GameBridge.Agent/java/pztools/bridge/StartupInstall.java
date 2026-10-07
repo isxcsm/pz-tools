@@ -1,13 +1,12 @@
 package pztools.bridge;
 
 import java.io.*;
-import java.lang.classfile.*;
-import java.lang.constant.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.UserPrincipal;
 import java.security.MessageDigest;
 import java.util.*;
+import pztools.startup.BootProvider;
 import pztools.startup.StartupLoader;
 
 /**
@@ -16,15 +15,22 @@ import pztools.startup.StartupLoader;
  * {@code refresh <bridge folder>}. Prints one line, {@code PZTOOLS-STARTUP\t<state>\t<detail>}; a failure prints
  * {@code PZTOOLS-STARTUP-FAILED\t<code>\t<message>} and exits 1.
  *
- * <p>The game's jar gets two things: one call at the start of {@code MainScreenState.main}, inside a handler that
- * ignores anything thrown, and the {@link StartupLoader} class with the install folder's path. Everything else the
- * game loads stays in the install folder, which only the player's account and the administrators may change.
+ * <p>No game file changes. The game's folder is on the game's class path, and gets four files of PZ Tools' own: the
+ * {@link StartupLoader} and {@link BootProvider} classes, the install folder's path, and a line naming the provider
+ * in the folder's file system provider services list. Everything else the game loads stays in the install folder,
+ * which only the player's account and the administrators may change.
+ *
+ * <p>Earlier versions patched the game's jar instead. Other mods compare the game's classes with the ones they were
+ * built for, and took the patched jar for a game update. An install of that kind is turned into this one by the next
+ * install or refresh, which put the game's own jar back.
  */
 public final class StartupInstall {
     static final String MARK = "PZTOOLS-STARTUP", FAILED = "PZTOOLS-STARTUP-FAILED";
     static final String GAME_JAR = "projectzomboid.jar", LAUNCHER = "ProjectZomboid64.exe";
-    static final String MAIN_ENTRY = "zombie/gameStates/MainScreenState.class";
+    static final String SERVICES = "META-INF/services/java.nio.file.spi.FileSystemProvider";
+    static final String PROVIDER = BootProvider.class.getName();
     static final String LOADER_ENTRY = "pztools/startup/StartupLoader.class";
+    static final String PROVIDER_ENTRY = "pztools/startup/BootProvider.class";
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
     static final String EXTENSIONS = "extensions";
@@ -54,13 +60,12 @@ public final class StartupInstall {
         if (args.length == 2 && args[0].equals("refresh")) return refresh(root, Path.of(args[1]));
         if (args.length < 2) throw new Refused("arguments", "Expected a command and the game folder");
         Path game = Path.of(args[1]).toAbsolutePath().normalize();
-        Path jar = game.resolve(GAME_JAR);
-        if (!Files.isRegularFile(jar) || !Files.isRegularFile(game.resolve(LAUNCHER)))
+        if (!Files.isRegularFile(game.resolve(GAME_JAR)) || !Files.isRegularFile(game.resolve(LAUNCHER)))
             throw new Refused("game-not-found", "No game in " + game);
         return switch (args[0]) {
-            case "status" -> args.length == 2 ? status(root, jar) : usage();
-            case "install" -> args.length == 3 ? install(root, jar, Path.of(args[2])) : usage();
-            case "uninstall" -> args.length == 2 ? uninstall(root, jar) : usage();
+            case "status" -> args.length == 2 ? status(root, game) : usage();
+            case "install" -> args.length == 3 ? install(root, game, Path.of(args[2])) : usage();
+            case "uninstall" -> args.length == 2 ? uninstall(root, game) : usage();
             default -> usage();
         };
     }
@@ -80,71 +85,160 @@ public final class StartupInstall {
 
     // ---- state ----
 
-    /** installed, not-installed, reverted (an update replaced the patched jar) or foreign (someone else's patch). */
-    static String status(Path root, Path jar) throws Exception {
+    /**
+     * installed, not-installed, reverted (installed before, and the game no longer has all of it) or foreign (a patch in
+     * the game's jar this install has no record of).
+     */
+    static String status(Path root, Path game) throws Exception {
         Map<String, String> record = readRecord(root);
-        boolean patched = hasLoader(jar);
-        if (record == null) return patched ? "foreign" : "not-installed";
-        String digest = sha256(jar);
+        if (record == null) return foreign(game) ? "foreign" : "not-installed";
         // The folder too: the app writes there what the game's resident extensions should run.
-        if (digest.equals(record.get("patched_sha256"))) return "installed\t" + digest + "\t" + root;
-        return patched ? "foreign" : "reverted";
+        if (record.containsKey("entry_sha256")) return present(game, root) ? "installed\t" + entryDigest(game) + "\t" + root : "reverted";
+        // Installed by an earlier version, into the jar: works until the next refresh or install turns it into this.
+        Path jar = game.resolve(GAME_JAR);
+        return sha256(jar).equals(record.get("patched_sha256")) ? "installed\t" + sha256(jar) + "\t" + root : "reverted";
     }
 
-    static String install(Path root, Path jar, Path bridge) throws Exception {
+    static String install(Path root, Path game, Path bridge) throws Exception {
         Map<String, String> record = readRecord(root);
-        String current = sha256(jar);
-        if (record != null && current.equals(record.get("patched_sha256"))) {
-            refresh(root, bridge);
-            return "installed\t" + current;
-        }
-        if (hasLoader(jar)) throw new Refused("foreign-install",
-            "The game's jar already has a startup loader this install did not put there. Verify the game's files in Steam.");
-        byte[] main = readEntry(jar, MAIN_ENTRY);
-        if (main == null || hasVersionedEntry(jar, MAIN_ENTRY))
-            throw new Refused("unsupported-game", "This game version has no single MainScreenState class");
-
+        if (record == null && foreign(game)) throw new Refused("foreign-install",
+            "The game already has a startup loader this install did not put there. Verify the game's files in Steam.");
         privateRoot(root);
         Path copied = copyBridge(root, bridge);
-        Path original = root.resolve(ORIGINAL);
-        if (!Files.isRegularFile(original) || !sha256(original).equals(current)) replace(jar, original);
-
-        Path staged = Files.createTempFile(jar.getParent(), "projectzomboid", ".pztools.tmp");
-        try {
-            Files.copy(jar, staged, StandardCopyOption.REPLACE_EXISTING);
-            try (FileSystem zip = FileSystems.newFileSystem(staged)) {
-                byte[] patched;
-                try { patched = patchMain(main, zip); }
-                catch (IllegalArgumentException unsupported) { throw new Refused("unsupported-game", unsupported.getMessage()); }
-                Files.write(zip.getPath(MAIN_ENTRY), patched);
-                Path loader = zip.getPath(LOADER_ENTRY);
-                Files.createDirectories(loader.getParent());
-                Files.write(loader, loaderClass());
-                var settings = new Properties();
-                settings.setProperty("root", root.toString());
-                try (OutputStream output = Files.newOutputStream(zip.getPath(StartupLoader.SETTINGS))) {
-                    settings.store(output, null);
-                }
-            }
-            String patchedDigest = sha256(staged);
-            // The record goes first: if the move then fails, the game's jar is still the original, which the
-            // record names, so the state reads as not installed rather than as someone else's patch.
-            writeRecord(root, jar, current, patchedDigest);
-            try { Files.move(staged, jar, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
-            catch (FileSystemException inUse) {
-                throw new Refused("game-running", "The game's jar is in use. Close the game and any server started from its folder.");
-            }
-            return "installed\t" + patchedDigest + "\t" + copied.getFileName();
-        } finally { Files.deleteIfExists(staged); }
+        boolean already = record != null && record.containsKey("entry_sha256") && current(game, root);
+        restoreJar(root, game, record);
+        writeEntry(root, game);
+        return "installed\t" + entryDigest(game) + (already ? "" : "\t" + copied.getFileName());
     }
 
-    static String uninstall(Path root, Path jar) throws Exception {
+    static String uninstall(Path root, Path game) throws Exception {
         Map<String, String> record = readRecord(root);
         if (record == null) {
-            if (hasLoader(jar)) throw new Refused("foreign-install",
-                "The game's jar has a startup loader this install did not put there. Verify the game's files in Steam.");
+            if (foreign(game)) throw new Refused("foreign-install",
+                "The game has a startup loader this install did not put there. Verify the game's files in Steam.");
+            removeEntry(game);
             return "not-installed";
         }
+        restoreJar(root, game, record);
+        removeEntry(game);
+        deleteTree(root);
+        return "uninstalled";
+    }
+
+    /**
+     * Brings the install folder's bridge up to the app's, so the next game start loads the current bootstrap, and the
+     * game folder's entry up to this version's. An install of an earlier version (in the jar) becomes one of this kind.
+     */
+    static String refresh(Path root, Path bridge) throws Exception {
+        Map<String, String> record = readRecord(root);
+        if (record == null) return "not-installed";
+        Path current = root.resolve(StartupLoader.CURRENT);
+        String before = Files.isRegularFile(current) ? Files.readString(current, StandardCharsets.UTF_8).strip() : "";
+        Path copied = copyBridge(root, bridge);
+        String game = record.get("game");
+        if (game == null && record.get("game_jar") != null) game = Path.of(record.get("game_jar")).getParent().toString();
+        boolean entryChanged = false;
+        if (game != null && Files.isRegularFile(Path.of(game, GAME_JAR))) {
+            Path folder = Path.of(game);
+            // A game that runs keeps its jar open: the move waits for a refresh while it is closed.
+            try { restoreJar(root, folder, record); } catch (Refused running) { return "refreshed\t" + copied.getFileName(); }
+            if (!record.containsKey("entry_sha256") || !current(folder, root)) {
+                writeEntry(root, folder);
+                entryChanged = true;
+            }
+        }
+        return !entryChanged && before.startsWith(copied.getFileName() + "\t") ? "unchanged" : "refreshed\t" + copied.getFileName();
+    }
+
+    // ---- the entry in the game's folder ----
+
+    /** The loader's files, then the service line: a line naming a class that is not there would break the JDK's list. */
+    private static void writeEntry(Path root, Path game) throws Exception {
+        writeAtomically(game.resolve(LOADER_ENTRY), ownClass(LOADER_ENTRY));
+        writeAtomically(game.resolve(PROVIDER_ENTRY), ownClass(PROVIDER_ENTRY));
+        writeAtomically(game.resolve(StartupLoader.SETTINGS), settings(root));
+        var lines = serviceLines(game);
+        if (!lines.contains(PROVIDER)) {
+            lines.add(PROVIDER);
+            writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+        writeRecord(root, game);
+    }
+
+    /** The service line first, then the files; other tools' service lines stay. */
+    private static void removeEntry(Path game) throws IOException {
+        var lines = serviceLines(game);
+        if (lines.remove(PROVIDER)) {
+            if (lines.stream().allMatch(line -> line.isBlank() || line.startsWith("#"))) Files.deleteIfExists(game.resolve(SERVICES));
+            else writeAtomically(game.resolve(SERVICES), (String.join("\n", lines) + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS }) Files.deleteIfExists(game.resolve(name));
+        for (String folder : new String[] { "pztools/startup", "pztools", "META-INF/services", "META-INF" }) deleteIfEmpty(game.resolve(folder));
+    }
+
+    /** The entry is all there and names this install folder; it may be an earlier version's, which still loads. */
+    private static boolean present(Path game, Path root) throws Exception {
+        if (!serviceLines(game).contains(PROVIDER)) return false;
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS })
+            if (!Files.isRegularFile(game.resolve(name), LinkOption.NOFOLLOW_LINKS)) return false;
+        return Arrays.equals(Files.readAllBytes(game.resolve(StartupLoader.SETTINGS)), settings(root));
+    }
+
+    /** Present, and this version's: what install and refresh leave. */
+    private static boolean current(Path game, Path root) throws Exception {
+        if (!present(game, root)) return false;
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY })
+            if (!Arrays.equals(Files.readAllBytes(game.resolve(name)), ownClass(name))) return false;
+        return true;
+    }
+
+    /**
+     * A patch in the game's jar with no record: an earlier version's whose record is gone, or another tool's; either way
+     * not this install's to change. An entry in the game's folder with no record (the install folder was deleted) is
+     * this install's own files: install takes them over and uninstall removes them.
+     */
+    private static boolean foreign(Path game) throws IOException {
+        return hasLoader(game.resolve(GAME_JAR));
+    }
+
+    private static List<String> serviceLines(Path game) throws IOException {
+        Path file = game.resolve(SERVICES);
+        if (!Files.isRegularFile(file)) return new ArrayList<>();
+        var lines = new ArrayList<String>();
+        for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) lines.add(line.strip());
+        while (!lines.isEmpty() && lines.getLast().isEmpty()) lines.removeLast();
+        return lines;
+    }
+
+    /**
+     * {@code root} for the loader's Properties.load, written by hand without Properties.store's date line: the same
+     * install gives the same bytes, which status compares. The path is plain ASCII (see root()).
+     */
+    private static byte[] settings(Path root) {
+        return ("root=" + root.toString().replace("\\", "\\\\").replace(":", "\\:") + "\n").getBytes(StandardCharsets.ISO_8859_1);
+    }
+
+    private static String entryDigest(Path game) throws Exception {
+        var digest = MessageDigest.getInstance("SHA-256");
+        for (String name : new String[] { LOADER_ENTRY, PROVIDER_ENTRY, StartupLoader.SETTINGS })
+            digest.update(Files.readAllBytes(game.resolve(name)));
+        return HexFormat.of().formatHex(digest.digest());
+    }
+
+    private static byte[] ownClass(String name) throws IOException {
+        try (InputStream input = StartupInstall.class.getClassLoader().getResourceAsStream(name)) {
+            if (input == null) throw new FileNotFoundException(name);
+            return input.readAllBytes();
+        }
+    }
+
+    /**
+     * An earlier version's install patched the jar: the game's own goes back from the copy it kept, and with it the
+     * copy. A jar a game update has since replaced is the game's own already.
+     */
+    private static void restoreJar(Path root, Path game, Map<String, String> record) throws Exception {
+        if (record == null || record.get("patched_sha256") == null) return;
+        Path jar = game.resolve(GAME_JAR);
         if (sha256(jar).equals(record.get("patched_sha256"))) {
             Path original = root.resolve(ORIGINAL);
             if (!Files.isRegularFile(original) || !sha256(original).equals(record.get("original_sha256")))
@@ -159,58 +253,8 @@ public final class StartupInstall {
                 }
             } finally { Files.deleteIfExists(staged); }
         }
-        // Otherwise a game update already replaced the jar: it is the game's own, and only the folder goes.
-        deleteTree(root);
-        return "uninstalled";
-    }
-
-    /** Brings the install folder's bridge up to the app's, so the next game start loads the current bootstrap. */
-    static String refresh(Path root, Path bridge) throws Exception {
-        if (readRecord(root) == null) return "not-installed";
-        Path current = root.resolve(StartupLoader.CURRENT);
-        String before = Files.isRegularFile(current) ? Files.readString(current, StandardCharsets.UTF_8).strip() : "";
-        Path copied = copyBridge(root, bridge);
-        return before.startsWith(copied.getFileName() + "\t") ? "unchanged" : "refreshed\t" + copied.getFileName();
-    }
-
-    // ---- the patch ----
-
-    /** One static call to the loader at the start of main(String[]), inside a handler that drops any Throwable. */
-    static byte[] patchMain(byte[] bytes, FileSystem jar) {
-        var cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.defaultResolver()
-            .orElse(ClassHierarchyResolver.ofResourceParsing(desc -> {
-                try { return Files.newInputStream(jar.getPath(desc.descriptorString()
-                    .substring(1, desc.descriptorString().length() - 1) + ".class")); }
-                catch (IOException missing) { return null; }
-            })).cached()));
-        var model = cf.parse(bytes);
-        if (model.methods().stream().filter(StartupInstall::isMain).count() != 1)
-            throw new IllegalArgumentException("Expected exactly one MainScreenState.main(String[])");
-        ClassDesc loader = ClassDesc.of(StartupLoader.class.getName());
-        byte[] patched = cf.transformClass(model, ClassTransform.transformingMethodBodies(StartupInstall::isMain,
-            CodeTransform.ofStateful(() -> new CodeTransform() {
-                @Override public void atStart(CodeBuilder builder) {
-                    builder.trying(body -> body.invokestatic(loader, "start", MethodTypeDesc.of(ConstantDescs.CD_void)),
-                        handlers -> handlers.catching(ClassDesc.of("java.lang.Throwable"), handler -> handler.pop()));
-                }
-                @Override public void accept(CodeBuilder builder, CodeElement element) { builder.with(element); }
-            })));
-        // A class the JVM would reject would stop the game at its first line; the install refuses it instead.
-        var errors = cf.verify(patched);
-        if (!errors.isEmpty()) throw new IllegalArgumentException("The patched MainScreenState does not verify: " + errors.getFirst());
-        return patched;
-    }
-
-    private static boolean isMain(MethodModel method) {
-        return method.methodName().equalsString("main") && method.methodType().equalsString("([Ljava/lang/String;)V")
-            && (method.flags().flagsMask() & ClassFile.ACC_STATIC) != 0;
-    }
-
-    private static byte[] loaderClass() throws IOException {
-        try (InputStream input = StartupInstall.class.getClassLoader().getResourceAsStream(LOADER_ENTRY)) {
-            if (input == null) throw new FileNotFoundException(LOADER_ENTRY);
-            return input.readAllBytes();
-        }
+        Files.deleteIfExists(root.resolve(ORIGINAL));
+        writeRecord(root, game);
     }
 
     // ---- files ----
@@ -245,7 +289,8 @@ public final class StartupInstall {
             if (!Files.isRegularFile(file) || !sha256(file).equals(sha256(bridge.resolve(name)))) replace(bridge.resolve(name), file);
             if (!AttachMain.safe(file, owners)) throw new Refused("unsafe-folder", "The copy " + file + " may be changed by other accounts");
         }
-        writeAtomically(root.resolve(StartupLoader.CURRENT), id + "\t" + sha256(target.resolve(StartupLoader.BOOTSTRAP)) + "\n");
+        writeAtomically(root.resolve(StartupLoader.CURRENT),
+            (id + "\t" + sha256(target.resolve(StartupLoader.BOOTSTRAP)) + "\n").getBytes(StandardCharsets.UTF_8));
         // Folders of earlier versions; one a running game still has open stays until a later refresh.
         try (DirectoryStream<Path> entries = Files.newDirectoryStream(root, "bridge-*")) {
             for (Path old : entries) if (!old.equals(target)) try { deleteTree(old); } catch (IOException inUse) { }
@@ -261,10 +306,11 @@ public final class StartupInstall {
         } finally { Files.deleteIfExists(staged); }
     }
 
-    private static void writeAtomically(Path target, String text) throws IOException {
+    private static void writeAtomically(Path target, byte[] bytes) throws IOException {
+        Files.createDirectories(target.getParent());
         Path staged = Files.createTempFile(target.getParent(), "staging", ".tmp");
         try {
-            Files.writeString(staged, text, StandardCharsets.UTF_8);
+            Files.write(staged, bytes);
             Files.move(staged, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } finally { Files.deleteIfExists(staged); }
     }
@@ -280,26 +326,25 @@ public final class StartupInstall {
         return record;
     }
 
-    private static void writeRecord(Path root, Path jar, String original, String patched) throws IOException {
-        writeAtomically(root.resolve(RECORD), "game_jar\t" + jar + "\noriginal_sha256\t" + original
-            + "\npatched_sha256\t" + patched + "\n");
+    /** The game folder, and the entry's digest once it is there; an earlier version's jar patch while it still is. */
+    private static void writeRecord(Path root, Path game) throws Exception {
+        Map<String, String> old = readRecord(root);
+        var text = new StringBuilder("game\t" + game + "\n");
+        if (Files.isRegularFile(game.resolve(PROVIDER_ENTRY))) text.append("entry_sha256\t").append(entryDigest(game)).append('\n');
+        if (old != null && old.get("patched_sha256") != null && sha256(game.resolve(GAME_JAR)).equals(old.get("patched_sha256")))
+            text.append("original_sha256\t").append(old.get("original_sha256")).append("\npatched_sha256\t").append(old.get("patched_sha256")).append('\n');
+        writeAtomically(root.resolve(RECORD), text.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    static boolean hasLoader(Path jar) throws IOException { return readEntry(jar, LOADER_ENTRY) != null; }
-
-    private static byte[] readEntry(Path jar, String name) throws IOException {
-        try (var zip = new java.util.zip.ZipFile(jar.toFile())) {
-            var entry = zip.getEntry(name);
-            if (entry == null) return null;
-            try (InputStream input = zip.getInputStream(entry)) { return input.readAllBytes(); }
-        }
+    /** An earlier version's patch: the loader class in the game's jar. */
+    static boolean hasLoader(Path jar) throws IOException {
+        try (var zip = new java.util.zip.ZipFile(jar.toFile())) { return zip.getEntry(LOADER_ENTRY) != null; }
     }
 
-    private static boolean hasVersionedEntry(Path jar, String name) throws IOException {
-        try (var zip = new java.util.zip.ZipFile(jar.toFile())) {
-            return zip.stream().anyMatch(entry -> entry.getName().startsWith("META-INF/versions/")
-                && entry.getName().endsWith("/" + name));
-        }
+    private static void deleteIfEmpty(Path folder) throws IOException {
+        if (!Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS)) return;
+        try (var entries = Files.list(folder)) { if (entries.findAny().isPresent()) return; }
+        Files.delete(folder);
     }
 
     static void deleteTree(Path root) throws IOException {

@@ -795,14 +795,14 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Wczytuj PZ Tools przy starcie gry (eksperymentalne)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Sprawdzanie plików gry…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Nie znaleziono folderu gry. Uruchom grę raz, a zostanie znaleziony.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie zmienia plik projectzomboid.jar gry, aby gra wczytywała PZ Tools przy starcie. Wyłączenie przywraca oryginalny plik gry.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie dodaje własne pliki PZ Tools do folderu gry, aby gra wczytywała PZ Tools przy starcie; żaden plik gry się nie zmienia. Wyłączenie je usuwa.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Zainstalowano. Gra wczytuje PZ Tools przy starcie, a włączone rozszerzenia działają dalej, nawet gdy PZ Tools jest zamknięte.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Aktualizacja gry to usunęła. Włącz ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Niektórych jego plików brakuje w folderze gry. Włącz ponownie, aby z tego korzystać.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Inne narzędzie zmieniło plik projectzomboid.jar gry. Najpierw zweryfikuj pliki gry w Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zamknij grę oraz każdy serwer uruchomiony z jej folderu, a potem spróbuj ponownie.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ta wersja gry nie jest obsługiwana.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Brakuje zapisanej kopii pliku gry. Zweryfikuj pliki gry w Steam, aby go przywrócić.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Nie udało się zmienić pliku gry. Szczegóły są w dzienniku.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Nie udało się zmienić folderu gry. Szczegóły są w dzienniku.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Instalowanie PZ Tools w grze</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Usuwanie PZ Tools z gry</value></data>
 </root>

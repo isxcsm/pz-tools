@@ -151,7 +151,8 @@ Changed, in memory only, until the game exits:
 - a halo note above the player during a save, when notices are on;
 - whatever an enabled extension does ([game extensions](game-extensions.md)).
 
-Not changed: game files, launch options, Workshop mods and Lua code. The game is saved only through its own
+Not changed: game files, launch options, Workshop mods and Lua code (the optional
+[startup loader](startup-loader.md) adds files of PZ Tools' own to the game's folder, and changes none of the game's). The game is saved only through its own
 `GameWindow.save(true)`, and only when a request asks for it. The bridge stays loaded after PZ Tools exits;
 what PZ Tools asked for ends with its [lease](#leases).
 

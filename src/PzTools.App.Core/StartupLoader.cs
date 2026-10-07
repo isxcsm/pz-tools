@@ -10,13 +10,14 @@ public enum StartupLoaderStatus
     Unknown,
     /// <summary>No game folder known: no game installed through Steam, and none running.</summary>
     NotFound,
-    /// <summary>The game's jar is the game's own.</summary>
+    /// <summary>The game's folder has no startup loader.</summary>
     NotInstalled,
-    /// <summary>The game's jar is the one the install patched: the game loads the bridge as it starts.</summary>
+    /// <summary>The game's folder has the install's entry: the game loads the bridge as it starts.</summary>
     Installed,
-    /// <summary>Installed before, and a game update or Steam's file check has since replaced the jar.</summary>
+    /// <summary>Installed before, and the game's folder no longer has all of it (or, for an install an earlier version
+    /// put in the jar, a game update replaced the jar).</summary>
     Reverted,
-    /// <summary>The game's jar has a startup loader this install has no record of; it is left alone.</summary>
+    /// <summary>The game's jar has a startup loader patched in that this install has no record of; it is left alone.</summary>
     Foreign,
 }
 
@@ -35,11 +36,11 @@ public sealed class StartupLoaderException(string code, string message, Exceptio
 }
 
 /// <summary>
-/// The startup loader (docs/design/startup-loader.md): an optional install that patches the game's jar so the game
-/// loads the bridge as it starts, without the app. The work is done by the bridge's own runtime
-/// (<c>pztools.bridge.StartupInstall</c>), which edits Java class files; this class decides when it may run and reads
-/// what it says. Install and uninstall run only while no game runs: a running game holds the jar, and a game started
-/// mid-install would read half of one.
+/// The startup loader (docs/design/startup-loader.md): an optional install that adds PZ Tools' own files to the game's
+/// folder so the game loads the bridge as it starts, without the app; no game file changes. The work is done by the
+/// bridge's own runtime (<c>pztools.bridge.StartupInstall</c>); this class decides when it may run and reads what it
+/// says. Install and uninstall run only while no game runs: a game started mid-install would find half of one, and
+/// turning an earlier version's install (a patched jar) into this kind puts back a jar a running game holds.
 /// </summary>
 public sealed class StartupLoader
 {
@@ -74,7 +75,7 @@ public sealed class StartupLoader
 
     public StartupLoaderState State => state;
 
-    /// <summary>Looks at the game's jar again. A look that fails leaves what was known.</summary>
+    /// <summary>Looks at the game's folder again. A look that fails leaves what was known.</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
@@ -89,19 +90,21 @@ public sealed class StartupLoader
         finally { gate.Release(); }
     }
 
-    /// <summary>Patches the game's jar; installing again over an install only brings its bridge up to date.</summary>
+    /// <summary>Adds the loader to the game's folder; installing again over an install only brings it up to date.</summary>
     /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
     public Task InstallAsync(CancellationToken cancellationToken = default) =>
         ChangeAsync(folder => ["install", folder, bridgeDirectory], cancellationToken);
 
-    /// <summary>Puts the game's own jar back (unless an update already did) and removes the install folder.</summary>
+    /// <summary>Removes the loader from the game's folder (and puts back the jar an earlier version patched, unless an
+    /// update already did), then the install folder.</summary>
     /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
     public Task UninstallAsync(CancellationToken cancellationToken = default) =>
         ChangeAsync(folder => ["uninstall", folder], cancellationToken);
 
     /// <summary>
-    /// Brings the install's copy of the bridge up to this app's, so the next game start loads the bridge of this
-    /// version. Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
+    /// Brings the install's copy of the bridge, and its entry in the game's folder, up to this app's, so the next game
+    /// start loads the bridge of this version; an earlier version's install in the jar becomes one in the folder.
+    /// Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
     /// extensions it runs from there, stay until it ends. False when it did not run for that.
     /// </summary>
     public async Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default)
@@ -144,7 +147,7 @@ public sealed class StartupLoader
             try { await RunAsync(arguments(folder), cancellationToken); }
             finally
             {
-                // What the jar is now, whether the change went through or stopped half way.
+                // What the game has now, whether the change went through or stopped half way.
                 try { Publish(ReadState(await RunAsync(["status", folder], CancellationToken.None), folder)); }
                 catch (StartupLoaderException) { }
             }
@@ -178,7 +181,7 @@ public sealed class StartupLoader
         throw new StartupLoaderException("io", $"The install tool ended with {exitCode} and no result.");
     }
 
-    /// <summary>The state a status result gives: installed results name the install folder after the jar's digest.</summary>
+    /// <summary>The state a status result gives: installed results name the install folder after the entry's digest.</summary>
     internal static StartupLoaderState ReadState(string result, string gameFolder)
     {
         var status = Parse(result);

@@ -794,14 +794,14 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Load PZ Tools when the game starts (experimental)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Checking the game's files…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>The game's folder was not found. Start the game once and it will be.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools connects to the game after it has started. Turning this on changes the game's projectzomboid.jar so the game loads PZ Tools as it starts. Turning it off puts the game's own file back.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools connects to the game after it has started. Turning this on adds PZ Tools' own files to the game's folder so the game loads PZ Tools as it starts; none of the game's files change. Turning it off removes them.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installed. The game loads PZ Tools as it starts, and the extensions you have on keep running while PZ Tools is closed.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>A game update removed it. Turn it on again to use it.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Some of its files are gone from the game's folder. Turn it on again to use it.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Another tool has changed the game's projectzomboid.jar. Verify the game's files in Steam first.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Close the game, and any server started from its folder, then try again.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>This version of the game is not supported.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>The saved copy of the game's file is missing. Verify the game's files in Steam to restore it.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>The game's file could not be changed. The details are in the logs.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>The game's folder could not be changed. The details are in the logs.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Installing PZ Tools into the game</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Removing PZ Tools from the game</value></data>
 </root>

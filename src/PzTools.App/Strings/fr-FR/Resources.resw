@@ -795,14 +795,14 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Charger PZ Tools au démarrage du jeu (expérimental)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Vérification des fichiers du jeu…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Le dossier du jeu est introuvable. Lancez le jeu une fois et il sera trouvé.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se connecte au jeu une fois celui-ci démarré. L'activer modifie le fichier projectzomboid.jar du jeu pour qu'il charge PZ Tools au démarrage. Le désactiver remet le fichier d'origine du jeu.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se connecte au jeu une fois celui-ci démarré. L'activer ajoute les propres fichiers de PZ Tools au dossier du jeu pour qu'il charge PZ Tools au démarrage ; aucun fichier du jeu n'est modifié. Le désactiver les retire.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Installé. Le jeu charge PZ Tools au démarrage, et les extensions activées continuent de fonctionner quand PZ Tools est fermé.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Une mise à jour du jeu l'a retiré. Réactivez-le pour l'utiliser.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Certains de ses fichiers ont disparu du dossier du jeu. Réactivez-le pour l'utiliser.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Un autre outil a modifié le fichier projectzomboid.jar du jeu. Vérifiez d'abord les fichiers du jeu dans Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Fermez le jeu, ainsi que tout serveur lancé depuis son dossier, puis réessayez.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Cette version du jeu n'est pas prise en charge.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>La copie enregistrée du fichier du jeu est introuvable. Vérifiez les fichiers du jeu dans Steam pour le restaurer.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Le fichier du jeu n'a pas pu être modifié. Les détails sont dans les journaux.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Le dossier du jeu n'a pas pu être modifié. Les détails sont dans les journaux.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Installation de PZ Tools dans le jeu</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Retrait de PZ Tools du jeu</value></data>
 </root>

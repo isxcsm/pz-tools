@@ -12,15 +12,15 @@ import java.util.HexFormat;
 import java.util.Properties;
 
 /**
- * Copied into the game's jar by the startup loader install, and called first thing in the game's main method, inside
- * a handler that ignores anything thrown. It loads the PZ Tools bootstrap from the install folder the way an attach
- * would, so the game has the bridge without the app. Nothing here may stop the game from starting: every failure is
- * written to the install folder's log and the game goes on as vanilla.
+ * Put in the game's folder by the startup loader install and started by {@link BootProvider}, early in the game's main
+ * method, inside a handler that ignores anything thrown. It loads the PZ Tools bootstrap from the install folder the
+ * way an attach would, so the game has the bridge without the app. Nothing here may stop the game from starting: every
+ * failure is written to the install folder's log and the game goes on as vanilla.
  *
  * <p>Uses java.base alone: it runs before the game has set anything up.
  */
 public final class StartupLoader {
-    /** In the game's jar beside this class: {@code root}, the install folder. */
+    /** In the game's folder beside this class: {@code root}, the install folder. */
     public static final String SETTINGS = "pztools/startup/install.properties";
     /** In the install folder: the bridge folder to load, a tab, and the SHA-256 of its bootstrap jar. */
     public static final String CURRENT = "current";
@@ -33,7 +33,14 @@ public final class StartupLoader {
 
     private static native int load(String options);
 
+    private static boolean started;
+
     public static void start() {
+        // Once a run: anything that lists the file system providers again makes another BootProvider.
+        synchronized (StartupLoader.class) {
+            if (started) return;
+            started = true;
+        }
         Path root = null;
         try {
             var settings = new Properties();

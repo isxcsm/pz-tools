@@ -795,14 +795,14 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Muat PZ Tools saat game dimulai (eksperimental)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Memeriksa file game…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Folder game tidak ditemukan. Jalankan game sekali dan folder itu akan ditemukan.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools terhubung ke game setelah game dimulai. Menyalakannya akan mengubah projectzomboid.jar milik game sehingga game memuat PZ Tools saat dimulai. Mematikannya mengembalikan file asli game.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools terhubung ke game setelah game dimulai. Menyalakannya akan menambahkan file milik PZ Tools sendiri ke folder game sehingga game memuat PZ Tools saat dimulai; tidak ada file game yang diubah. Mematikannya akan menghapus file tersebut.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Terpasang. Game memuat PZ Tools saat dimulai, dan ekstensi yang Anda nyalakan tetap berjalan meski PZ Tools ditutup.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Pembaruan game menghapusnya. Nyalakan lagi untuk menggunakannya.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Sebagian filenya hilang dari folder game. Nyalakan lagi untuk menggunakannya.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Alat lain telah mengubah projectzomboid.jar milik game. Verifikasi file game di Steam terlebih dahulu.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Tutup game, dan server apa pun yang dijalankan dari foldernya, lalu coba lagi.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Versi game ini tidak didukung.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Salinan file game yang disimpan tidak ada. Verifikasi file game di Steam untuk memulihkannya.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>File game tidak dapat diubah. Detailnya ada di log.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Folder game tidak dapat diubah. Detailnya ada di log.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Memasang PZ Tools ke game</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Mencopot PZ Tools dari game</value></data>
 </root>

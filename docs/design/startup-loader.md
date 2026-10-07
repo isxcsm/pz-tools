@@ -4,7 +4,8 @@
 
 > **Built, hidden.** The install and uninstall
 > ([`StartupInstall`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/StartupInstall.java),
-> [`StartupLoader`](../../src/PzTools.App.Core/StartupLoader.cs)), the loader in the game's jar, the
+> [`StartupLoader`](../../src/PzTools.App.Core/StartupLoader.cs)), the entry in the game's folder
+> ([`BootProvider`](../../src/PzTools.GameBridge.Agent/java/pztools/startup/BootProvider.java)), the
 > delayed endpoint, a switch on the game extensions page and the
 > [resident extensions](#resident-extensions)
 > ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java)).
@@ -27,40 +28,70 @@ so extensions run whether or not the app is open. Two needs drive it:
 
 ## How it works
 
-Installing patches one guarded call into the game's own jar. The call loads a small loader, which
-loads the existing bootstrap from inside the game. From there everything is the path that exists
-today.
+No game file changes. The game's launcher puts the game's folder (`.`) first on the class path, and
+the install adds four files of PZ Tools' own there. They make the JDK start a small loader early in
+the game's `main`, which loads the existing bootstrap from inside the game. From there everything
+is the path that exists today.
 
-1. **Install** copies `projectzomboid.jar`, inserts at the start of
-   `zombie.gameStates.MainScreenState.main(String[])` one static call to the loader, wrapped in a
-   handler that catches `Throwable` and does nothing, and replaces the game's jar with the result.
-2. **At game start** the call runs before any game code. The loader is a native library: it loads
-   the game JRE's `jli.dll` (as `pztools-attach-bootstrap.dll` does today), then `instrument.dll`
-   from the same `bin` folder, and calls its `Agent_OnAttach` on the current thread with the
-   bootstrap jar and the option `BOOTSTRAP1:<base64 payload path>`, the same one the helper passes
+1. **Install** writes, in the game's folder:
+   - `pztools/startup/StartupLoader.class` and `pztools/startup/BootProvider.class`;
+   - `pztools/startup/install.properties`, the install folder's path;
+   - a line `pztools.startup.BootProvider` in `META-INF/services/java.nio.file.spi.FileSystemProvider`,
+     beside any lines of other tools.
+2. **At game start** the JDK lists the installed file system providers the first time anything
+   asks for one, and creates each provider named in a services file on the class path. The game
+   asks early in `MainScreenState.main`, when it zips its last logs (`ZipLogs.addZipFile`, right
+   after reading its arguments, before its property list). Creating `BootProvider` starts the
+   loader. The provider serves no files; its scheme, `pztools-startup`, is its own.
+3. **The loader** is a native library: it loads the game JRE's `jli.dll` (as
+   `pztools-attach-bootstrap.dll` does today), then `instrument.dll` from the same `bin` folder, and
+   calls its `Agent_OnAttach` on the current thread with the bootstrap jar and the option
+   `BOOTSTRAP1:<base64 payload path>`, the same one the helper passes
    ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)).
-3. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
+4. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
    In installed mode it also adds the [extension API](extension-api.md)'s hooks, to `LuaManager.init()`
-   before the game loads its Lua and to the game's power and water questions, loads the payload once the game loads `GameWindow`, and the payload's
-   [resident controller](#resident-extensions) runs the extensions the app last asked for, without
-   waiting for the app.
-4. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
+   before the game loads its Lua and to the game's power and water questions, loads the payload once
+   the game loads `GameWindow`, and the payload's [resident controller](#resident-extensions) runs
+   the extensions the app last asked for, without waiting for the app.
+5. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
    skips loading anything and connects. `AgentEntry` refuses a second load, so a reuse is the only
    path that can succeed.
 
-The patch never contains feature code. Hooks into the game (the game loop, vehicles, power, water)
+The entry never contains feature code. Hooks into the game (the game loop, vehicles, power, water)
 are installed at run time through `Instrumentation`, as they are today, so a new feature never
-changes the patch.
+changes the entry.
 
-### What the guarded call must survive
+### Why not a changed game class
 
-The call is inside a `try` that catches `Throwable`, and the loader itself catches everything. A
-missing loader, a missing DLL, a load that fails or a bootstrap that throws leaves the game to start
-as vanilla. A missing class at the call site is a `NoClassDefFoundError` thrown inside the `try`,
-so it is caught too. This is the reason for patching the jar rather than adding `-javaagent`: the
-JVM refuses to start when a `-javaagent` file is missing.
+Earlier versions patched the same call into `MainScreenState.main` inside the game's jar. That
+worked alone, but other mods check the game's classes against the ones they were built for.
+PZ Optimize (loose class files that replace about 130 game classes, `MainScreenState` among them)
+compares the SHA-256 of each class it replaces with the stock one at every start; on 7 October 2026
+it took the patched `MainScreenState` for a game update, removed all of its 1064 files and restarted
+the game without them. Such mods update several times a day, and the set of classes they replace
+changes with them, so no game class is safe to change. The entry adds files of its own and changes
+none of the game's.
 
-Measured on 6 October 2026 with the game's JRE, on a small class patched the same way:
+An install from an earlier version is turned into this one by the next install or refresh, which put
+the game's own jar back from the copy the install kept.
+
+### What the entry must survive
+
+The JDK creates the providers inside its own lock, with a flag that marks the list as loading. A
+provider that cannot be created (`ServiceConfigurationError`) leaves the flag set, and every later
+request for a provider, the game's log zip included, fails for the rest of the run. So:
+
+- `BootProvider` uses `java.base` alone and catches everything in its constructor. A missing or
+  broken `StartupLoader` is a `NoClassDefFoundError` inside that `try`.
+- The install writes the classes before the service line, and uninstall removes the line before the
+  classes, so the line never names a class that is not there.
+- Neither the loader nor the bootstrap asks for a file system provider while it runs (the JDK would
+  call that circular), and neither waits for another thread that might.
+- `StartupLoader.start` runs once per process, however many times something lists the providers.
+
+The loader itself catches everything. A missing DLL, a load that fails or a bootstrap that throws
+leaves the game to start as vanilla. Measured on 6 October 2026 with the game's JRE, on a small
+class calling the loader the same guarded way:
 
 | Case | Result |
 | --- | --- |
@@ -73,7 +104,8 @@ Measured on 6 October 2026 with the game's JRE, on a small class patched the sam
 
 The loader therefore checks that the bootstrap jar exists and has the recorded digest before it
 calls `Agent_OnAttach`, so a broken install leaves one line in the loader's own log rather than
-JRE errors.
+JRE errors. The startup loader test starts its synthetic game, which zips a file first as the game
+does, after each change to the install, a broken one included.
 
 ## Install, uninstall and the extension switches
 
@@ -81,15 +113,14 @@ The install is separate from each extension's switch.
 
 | Control | Changes | When |
 | --- | --- | --- |
-| **Install** | The game's jar (patched), the [install folder](#files) | Only while no game runs |
-| **Uninstall** | The game's jar (original back), the install folder (removed) | Only while no game runs |
+| **Install** | The [entry](#how-it-works) in the game's folder, the [install folder](#files) | Only while no game runs |
+| **Uninstall** | The entry (removed; other tools' service lines stay), the install folder (removed) | Only while no game runs |
 | An extension's switch | The [resident request](#files); the running game, if the app is connected | Any time |
 
 - **No game running.** `GameProcessFinder` already finds the launcher, a game started by `java`
   from a script, and several games. Install and uninstall are disabled while it finds any, with a
-  line under the buttons saying why. A dedicated server (`zombie.network.GameServer`) uses the same
-  jar but never runs `MainScreenState`; it is not found by the finder, so the
-  [replace](#replacing-the-jar) handles it.
+  line under the buttons saying why: a game started mid-install would find half of one, and turning
+  an earlier version's install into this kind puts back a jar a running game holds.
 - **Not installed** is today's behaviour: extensions run while the app is attached, under the
   lease.
 - **Installed** adds the start without the app and the [resident](#resident-extensions) rules.
@@ -97,32 +128,21 @@ The install is separate from each extension's switch.
   needs the install. Its switch is disabled until the loader is installed. The vehicle extension
   does not need it: when it stops, driving falls back to vanilla.
 
-### Replacing the jar
+### States
 
-1. Read the game's jar and check that `MainScreenState.main(String[])` exists exactly once. If not,
-   the install is refused as unsupported for this game version.
-2. Write the patched jar to a temporary file beside the game's jar.
-3. Copy the original to the install folder, with its SHA-256 and the game version, unless a copy of
-   that exact file is already there.
-4. Move the temporary file over the game's jar. A game or server that opened the jar in the
-   meantime holds it, so the move fails; the original stays, nothing else changed, and the install
-   reports that the game is running.
-5. Record the patched jar's SHA-256.
-
-The jar is about 65 MB, so an install takes seconds, not milliseconds; it runs as an operation with
-a card, not on the UI thread.
-
-Uninstall moves the saved original back when the game's jar is still the patched one (same
-SHA-256). When the game's jar is something else, a game update has already replaced it, so
-uninstall leaves it alone and only removes the install folder.
+| State | Means |
+| --- | --- |
+| Installed | The install folder's record, and the whole entry in the game's folder naming that install folder |
+| Not installed | No record. An entry left in the game's folder by an install whose folder was deleted is still this install's own: install takes it over and uninstall removes it. |
+| Reverted | A record, and part of the entry is gone from the game's folder. Install again. |
+| Foreign | A loader patched into the game's jar with no record: an earlier version's whose record is gone, or another tool's. Install and uninstall refuse it; Steam's file check restores the jar. |
 
 ### After a game update
 
-A game update or Steam's file check replaces the jar, which removes the patch. This is the safe
-direction: the game starts as vanilla, never with an old copy of a class. The app then sees that the
-jar no longer has the recorded SHA-256 and shows a card like the one for
-[game memory](game-memory.md#after-a-game-update): the loader was removed by the update, with a
-button to install it again. Until then, extensions run only while the app is attached.
+A game update or Steam's file check replaces the game's own files and leaves files it does not know,
+so the entry stays and the game keeps loading PZ Tools. The entry holds no game code: it runs the
+same in a new game version. The hooks the bootstrap installs check the game's classes as they load
+and give vanilla's answer where a class is not shaped as expected.
 
 ## Files
 
@@ -135,16 +155,17 @@ the old one is deleted later, so a path into the app folder would break at the n
 | `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) and the app's `extensions` folder (the extension runtime, the modules, the catalogue), named by content digest |
 | `current` | Which `bridge-<digest>` the next game start loads, with the bootstrap's SHA-256 |
 | `resident.tsv` | The [resident request](#resident-extensions): the settings revision and each continuous module, on or off, with its configuration as the app would send it in `APPLY` |
-| `install.tsv` | The game's jar, its SHA-256 before the install and the patched jar's |
-| `original.jar` | The game's jar as it was before the install |
+| `install.tsv` | The game's folder and the entry's SHA-256 (while an earlier version's jar patch is still in place: the jar's SHA-256 before and after it) |
+| `original.jar` | Only while an earlier version's jar patch is in place: the game's jar as it was before it |
 | `startup.log` | One line from the loader per game start: what it loaded, or why it did not |
 
-The patched jar holds the install folder's path. The app rewrites `current` and `resident.tsv`; it
-never rewrites the game's jar to point somewhere new. The status the install tool reports names the
-folder, so the app writes `resident.tsv` without working out the path itself.
+The entry's `install.properties` holds the install folder's path. The app rewrites `current` and
+`resident.tsv`; it never rewrites the entry to point somewhere new. The status the install tool
+reports names the folder, so the app writes `resident.tsv` without working out the path itself.
 
-The app brings the copied bridge up to its own once per run, and only while no game runs: a game
-keeps running the extensions from the copy it started with, and a refresh removes older copies.
+The app brings the copied bridge and the entry up to its own once per run, and only while no game
+runs: a game keeps running the extensions from the copy it started with, and a refresh removes older
+copies.
 
 ## Resident extensions
 
@@ -232,7 +253,7 @@ The fallbacks, in order:
    must then treat both as its own and keep both when it writes **Game default**. A game started
    from a script reads nothing from that file.
 3. **Hooks patched into the jar**: needs no `Instrumentation` at all, but every feature changes the
-   patch.
+   patch, and other mods take any changed game class for a game update.
 
 ## Release stages
 
@@ -242,8 +263,8 @@ The fallbacks, in order:
 | Recommended | **Install** on the game extensions page, marked experimental. Extensions that need it say so. |
 | Default refused | If the game's Java refuses agents by default and the in-process load is refused too, the app adds fallback 2. |
 
-The app keeps the external attach in every stage. It covers a game that is not installed, a game
-whose patch an update removed, and a game started from a script with its own class path.
+The app keeps the external attach in every stage. It covers a game that is not installed and a game
+started from a script with its own class path.
 
 ## Measured end to end
 
@@ -273,25 +294,47 @@ objects) while the app was closed:
 3. Back to the main menu and into a world again, still without the app, the resident controller
    sent one `APPLY` and the module ran in the new world.
 
+### Choosing the entry
+
+On 7 October 2026 the real game (Build 42.21) was started with a measuring agent that logged every
+`ServiceLoader` the JVM created, with the time since `main` started, until `LuaManager.init` (13.6
+seconds after `main`). The lookups before it, through the system class loader:
+
+| After `main` | Service | Asked by | As an entry |
+| --- | --- | --- | --- |
+| 0.48 s | `LocaleDataMetaInfo` | The JDK's locale data | Not read from the class path |
+| 0.56 s | `FileSystemProvider` | The game's log zip (`ZipLogs.addZipFile`) | Chosen: a provider of its own scheme changes nothing else |
+| 0.58 s | `ZoneRulesProvider` | Time zones | A failure ends the game (an error in a static initialiser) |
+| 0.99 s | `System.LoggerFinder` | The JDK's logging | Registering one replaces the logging backend |
+| 3.4–3.5 s | XML and JAXB factories, `CharsetProvider` | The game's XML files | Registering one takes over XML parsing or character sets |
+
+PZ Optimize's own `MainScreenState` calls `ZipLogs.addZipFile` the same way.
+
+On 8 October 2026 the game was started with its original jar and the entry on the class path: the
+JDK created the provider 0.48 seconds after `main`, the loader logged `loaded bridge-…`, the game
+zipped its logs as usual, and at the main menu the extension API's classes were loaded (`jcmd`) after
+`LuaManager.init` 14 seconds later.
+
 Not tested yet:
 
-- the real game starting with the guarded call and no loader files (the cases above used a small
-  class patched the same way);
-- whether a patched jar is refused when joining a multiplayer server.
+- the real game starting with the entry and no install folder (the synthetic game covers it);
+- the real game with PZ Optimize installed beside the entry.
 
 ## Alternatives rejected
 
 | Way | Why not |
 | --- | --- |
+| A call patched into `MainScreenState` in the game's jar | Mods that check the game's classes against stock (PZ Optimize) take the changed class for a game update and remove themselves. Used until 8 October 2026. |
 | `-javaagent` in `ProjectZomboid64.json` | The JVM does not start when the file is missing, so a deleted or moved app folder stops the game. A game started from a script is not covered. |
-| A patched class file in the game folder | The class path starts with `./`, so a class there wins over the jar. A game update replaces the jar but leaves the file, and the old class then runs inside the new game. |
+| A patched game class file in the game folder | The class path starts with `./`, so a class there wins over the jar. A game update replaces the jar but leaves the file, and the old class then runs inside the new game. Mods that replace the same class collide with it. The entry's classes are PZ Tools' own and replace nothing. |
+| Another service as the entry | See [choosing the entry](#choosing-the-entry). |
 | Feature hooks patched into the jar | Every new feature and every game update would need a new patch. |
 | Starting the game through the app | A game started from Steam or a script would get nothing. |
 | A separate code path for installed mode | The bootstrap, the extension host and the fault handling would exist twice. Only the entry differs; everything after it is shared. |
 
 ## Open questions
 
-- What the install shows when the game's jar does not have `MainScreenState.main` exactly once.
-- Whether multiplayer joining checks the jar. If it does, the install must say so before it runs.
-- How a player who deleted the app restores the jar: Steam's file check works; the guide should
-  say so.
+- Whether multiplayer joining checks the game folder's extra files. If it does, the install must
+  say so before it runs.
+- A game that stops listing file system providers before Lua starts would load PZ Tools late or not
+  at all; the app does not yet show that the loader did not run in a game it started.

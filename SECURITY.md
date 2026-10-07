@@ -16,7 +16,10 @@ else goes in [issues](https://github.com/isxcsm/pz-tools/issues).
 
 - **It attaches to the game that is already running**, through Java's own attach
   mechanism (the one debuggers and profilers use). It does not patch the game's files or
-  change how the game is started. Inside the running game it starts its own threads and,
+  change how the game is started. (The experimental startup loader, off unless turned on,
+  adds four files of PZ Tools' own to the game's folder so the game loads PZ Tools as it
+  starts; it changes none of the game's files. See
+  [the startup loader](docs/design/startup-loader.md).) Inside the running game it starts its own threads and,
   in memory only, adds one call to the game's main loop, so its requests run on the game's
   own thread. See
   [the game bridge](docs/design/game-bridge.md).

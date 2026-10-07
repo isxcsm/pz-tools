@@ -1,11 +1,28 @@
 package zombie.gameStates;
 
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
 
-/** Synthetic game entry for the startup loader test. Mirrors the order that matters: the property list, then GameWindow. */
+/**
+ * Synthetic game entry for the startup loader test. Mirrors the order that matters: the log zip, the property list,
+ * then GameWindow.
+ */
 public final class MainScreenState {
     public static void main(String[] args) throws Exception {
+        // The game zips its last logs first (ZipLogs.addZipFile): the JDK lists the installed file system providers,
+        // which is when the loader starts. A provider that broke that list would fail here.
+        Path zip = Files.createTempFile("startup-fixture", ".zip");
+        Files.delete(zip);
+        try (FileSystem logs = FileSystems.newFileSystem(URI.create("jar:" + zip.toUri()), Map.of("create", "true"))) {
+            Files.writeString(logs.getPath("log.txt"), "log");
+        }
+        Files.delete(zip);
         // The game writes every system property to its log here; the control secret must not be among them yet.
         boolean endpointAtListing = System.getProperty("pztools.bridge.control.v1") != null;
         Class.forName("zombie.GameWindow");
