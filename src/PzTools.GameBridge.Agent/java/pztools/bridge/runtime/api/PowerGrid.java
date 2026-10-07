@@ -34,14 +34,34 @@ final class PowerGrid implements ApiHooks.Power {
     /** An object rule of a network at one square. */
     private record Rule(String sprite, boolean included, boolean supplied, Network network) { }
 
-    /** A network's supply history (see Network.history), as the hooks read it. */
-    record History(double[] hours, boolean[] supplied, boolean before) {
-        static History of(Network network) {
-            double[] hours = new double[network.history.size()];
-            boolean[] supplied = new boolean[hours.length];
+    /** Changes of one yes-or-no over the hours: when it became true or false, and what it was before the first. */
+    record Track(double[] hours, boolean[] values, boolean before) {
+        static Track of(NavigableMap<Double, Boolean> changes, boolean before) {
+            double[] hours = new double[changes.size()];
+            boolean[] values = new boolean[hours.length];
             int index = 0;
-            for (var change : network.history.entrySet()) { hours[index] = change.getKey(); supplied[index++] = change.getValue(); }
-            return new History(hours, supplied, network.suppliedBefore);
+            for (var change : changes.entrySet()) { hours[index] = change.getKey(); values[index++] = change.getValue(); }
+            return new Track(hours, values, before);
+        }
+
+        boolean at(double hour) {
+            boolean result = before;
+            for (int index = 0; index < hours.length && hours[index] <= hour; index++) result = values[index];
+            return result;
+        }
+    }
+
+    /**
+     * A network's supply over the hours, as the hooks read it: the supply of the network at the top of its parents
+     * (see Network.history), while it and each parent between were switched on (Network.switches).
+     */
+    record History(List<Track> tracks) {
+        static History of(Network root, List<Network> chain) {
+            var tracks = new ArrayList<Track>();
+            tracks.add(Track.of(root.history, root.suppliedBefore));
+            for (Network network : chain)
+                if (!network.switches.isEmpty() || !network.enabledBefore) tracks.add(Track.of(network.switches, network.enabledBefore));
+            return new History(List.copyOf(tracks));
         }
 
         /**
@@ -50,7 +70,7 @@ final class PowerGrid implements ApiHooks.Power {
          */
         double chilled(double from, double to, double gridEnd) {
             var cuts = new TreeSet<Double>(List.of(from, to));
-            for (double hour : hours) if (hour > from && hour < to) cuts.add(hour);
+            for (Track track : tracks) for (double hour : track.hours()) if (hour > from && hour < to) cuts.add(hour);
             if (gridEnd > from && gridEnd < to) cuts.add(gridEnd);
             double result = 0, start = from;
             for (double end : cuts.tailSet(from, false)) {
@@ -62,9 +82,8 @@ final class PowerGrid implements ApiHooks.Power {
         }
 
         private boolean at(double hour) {
-            boolean result = before;
-            for (int index = 0; index < hours.length && hours[index] <= hour; index++) result = supplied[index];
-            return result;
+            for (Track track : tracks) if (!track.at(hour)) return false;
+            return true;
         }
     }
 
@@ -176,6 +195,13 @@ final class PowerGrid implements ApiHooks.Power {
     void changed() throws ReflectiveOperationException {
         snapshot = snapshot();
         changed = true;
+    }
+
+    /** The mod switched the network on or off: remembered for food, and worked out again in the next frame. */
+    void switched(Network network) throws ReflectiveOperationException {
+        network.switches.put((double)worldHours.invoke(gameTime.invoke(null)), network.enabled);
+        while (network.switches.size() > MAX_HISTORY) network.enabledBefore = network.switches.pollFirstEntry().getValue();
+        network.loadChanged = true;
     }
 
     // The hooks.
@@ -384,10 +410,10 @@ final class PowerGrid implements ApiHooks.Power {
                 load(network, cells, now);
             }
         }
-        // A child has supply while its parent has, and its parent carries its load.
+        // A child has supply while its parent has, and its parent carries its load; switched off, neither.
         for (Network network : networks) {
             Network root = members.root(network);
-            boolean supplied = root != null && root.inUse != null;
+            boolean supplied = root != null && root.inUse != null && members.switchedOn(network);
             if (supplied != network.supplied) {
                 network.supplied = supplied;
                 supplyChanged.add(network);
@@ -512,19 +538,19 @@ final class PowerGrid implements ApiHooks.Power {
 
     /**
      * What a producer of the network burns: its own base consumption, and the load of the network and its children when
-     * it carries it.
+     * it carries it and the network is switched on.
      */
     private float consumption(Network network, Position producer) throws IllegalAccessException {
-        return basePower.getFloat(null) + (producer.equals(network.inUse) ? network.total : 0f);
+        return basePower.getFloat(null) + (producer.equals(network.inUse) && network.enabled ? network.total : 0f);
     }
 
     /**
-     * The load of the network and of its children, theirs included. Networks form a tree of one utility (see
-     * Networks.setParent).
+     * The load of the network and of its children that are switched on, theirs included: what it draws while it has
+     * supply. Networks form a tree of one utility (see Networks.setParent).
      */
     private static float total(Network network, List<Network> networks) {
         float total = network.load;
-        for (Network child : networks) if (network.id.equals(child.parent)) total += total(child, networks);
+        for (Network child : networks) if (network.id.equals(child.parent) && child.enabled) total += total(child, networks);
         return total;
     }
 
@@ -534,7 +560,7 @@ final class PowerGrid implements ApiHooks.Power {
      */
     Double hoursLeft(Network network) throws ReflectiveOperationException {
         Network root = members.root(network);
-        if (root == null || root.inUse == null) return null;
+        if (root == null || root.inUse == null || !members.switchedOn(network)) return null;
         double perHour = (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
         if (perHour <= 0) return null;
         double fuel = 0;
@@ -581,7 +607,7 @@ final class PowerGrid implements ApiHooks.Power {
         var histories = new HashMap<Network, History>();
         for (Network network : members.of(UTILITY)) {
             Network root = members.root(network);
-            if (root != null && root.history != null) histories.put(network, History.of(root));
+            if (root != null && root.history != null) histories.put(network, History.of(root, members.chain(network)));
             boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));

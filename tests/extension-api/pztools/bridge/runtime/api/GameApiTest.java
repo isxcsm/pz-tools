@@ -43,10 +43,11 @@ public final class GameApiTest {
         networks(api);
         sequence(api);
         children(api);
+        switches(api);
         water(api);
         food(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, ages food by their supply, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, ages food by their supply, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -514,6 +515,78 @@ public final class GameApiTest {
             && raised("sub", "supply", 2000), "The child kept its supply without its parent");
         for (String id : List.of("leaf", "sub", "third")) call(networks, "remove", mod, id);
         call(networks, "remove", other, "foreign");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A network switched off has no supply, nor have its children; its producer keeps running without the load, which
+     * still reads. Food in its fridge ages unchilled for the hours it was off, and a newer payload keeps the switch.
+     */
+    private static void switches(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 2500;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        IsoObject fridge = square(11, 11, 0).objects.get(0);
+        var container = new ItemContainer(fridge);
+        container.fridge = true;
+        call(networks, "define", mod, "main", "power", "sequential");
+        call(networks, "setProducers", mod, "main", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "main", 11.0, 11.0, 0.0);
+        call(networks, "define", mod, "sub", "power", "sequential");
+        call(networks, "addBuilding", mod, "sub", 20.0, 20.0, 0.0);
+        call(networks, "setParent", mod, "sub", "main");
+        generator.setActivated(true);
+        frame();
+        var food = aged(container, 2500);
+        KahluaTable main = state(networks, "main"), sub = state(networks, "sub");
+        check(main.rawget("enabled").equals(true) && sub.rawget("supplied").equals(true), "A network starts switched off");
+        double ownLoad = (Double)main.rawget("ownLoad"), subLoad = (Double)sub.rawget("load");
+        // The child off: the parent carries its own load alone.
+        LuaEventManager.raised.clear();
+        call(networks, "setEnabled", mod, "sub", false);
+        frame();
+        main = state(networks, "main");
+        sub = state(networks, "sub");
+        check(sub.rawget("enabled").equals(false) && sub.rawget("supplied").equals(false) && !square(21, 21, 0).haveElectricity()
+            && sub.rawget("hoursLeft") == null && raised("sub", "supply", 2500), "A child switched off has supply");
+        check(near((Double)sub.rawget("load"), subLoad) && near((Double)main.rawget("load"), ownLoad)
+            && main.rawget("supplied").equals(true) && square(11, 11, 0).haveElectricity(), "The parent still carries the child switched off");
+        check(near(generator.getTotalPowerUsing(), (0.02 + ownLoad) * 0.1), "The producer burns the load of a child switched off");
+        // The parent off for ten hours: neither has supply, and the producer keeps running without the load.
+        call(networks, "setEnabled", mod, "sub", true);
+        time.hours = 2510;
+        call(networks, "setEnabled", mod, "main", false);
+        frame();
+        main = state(networks, "main");
+        check(main.rawget("supplied").equals(false) && state(networks, "sub").rawget("supplied").equals(false)
+            && !square(11, 11, 0).haveElectricity() && !square(21, 21, 0).haveElectricity(), "A network switched off has supply");
+        check(generator.isActivated() && near(generator.getTotalPowerUsing(), 0.02 * 0.1) && near((Double)main.rawget("load"), ownLoad + subLoad),
+            "Switched off, the producer stopped, burned the load, or the load no longer reads");
+        rejects(networks, "setEnabled", "on must be true or false", mod, "main", "yes");
+        Object other = call(api, "client", "other.mod").get(0);
+        rejects(networks, "setEnabled", "main belongs to another mod", other, "main", true);
+        time.hours = 2520;
+        call(networks, "setEnabled", mod, "main", true);
+        frame();
+        check(state(networks, "main").rawget("supplied").equals(true) && square(21, 21, 0).haveElectricity(), "Switched on again, no supply");
+        time.hours = 2530;
+        food.updateAge(false);
+        check(near(food.age, (20 * 0.2 + 10) / 24), "Food aged chilled while the network was switched off: " + food.age * 24);
+        // A newer payload keeps the switch, and counts a network it finds switched off as off before.
+        call(networks, "setEnabled", mod, "main", false);
+        GameApi.register(LuaManager.class);
+        frame();
+        check(state(networks, "main").rawget("enabled").equals(false) && !square(11, 11, 0).haveElectricity(), "A newer payload lost the switch");
+        time.hours = 2540;
+        food = aged(container, 2530);
+        food.updateAge(false);
+        check(near(food.age, 10 / 24.0), "Food aged chilled in a network a newer payload found switched off: " + food.age * 24);
+        call(networks, "remove", mod, "sub");
+        call(networks, "remove", mod, "main");
         frame();
         generator.setActivated(false);
     }

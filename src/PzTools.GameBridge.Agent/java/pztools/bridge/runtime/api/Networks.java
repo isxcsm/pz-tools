@@ -144,6 +144,17 @@ final class Networks {
             saved();
             return new Object[0];
         });
+        function(table, "setEnabled", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof Boolean on))
+                throw new IllegalArgumentException(call + ": on must be true or false");
+            if (network.enabled != on) {
+                network.enabled = on;
+                grid.switched(network);
+                saved();
+            }
+            return new Object[0];
+        });
         function(table, "addBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
@@ -199,6 +210,7 @@ final class Networks {
             lua.set(result, "utility", network.utility);
             lua.set(result, "policy", network.policy);
             lua.set(result, "supplied", network.supplied);
+            lua.set(result, "enabled", network.enabled);
             if (network.parent != null) lua.set(result, "parent", network.parent);
             if (WaterGrid.UTILITY.equals(network.utility)) water(result, network);
             else power(result, network);
@@ -358,7 +370,8 @@ final class Networks {
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.owner).append('\t')
                 .append(network.utility).append('\t').append(network.policy).append('\t')
-                .append(network.parent == null ? "" : network.parent).append('\n');
+                .append(network.parent == null ? "" : network.parent).append('\t')
+                .append(network.enabled ? "" : "off").append('\n');
             for (Position at : network.producers) text.append("P\t").append(at).append('\n');
             for (Position at : network.buildings) text.append("B\t").append(at).append('\n');
             for (Thing thing : network.excluded) text.append("X\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
@@ -389,6 +402,8 @@ final class Networks {
                 case "N" -> {
                     networks.put(fields[1], network = new Network(fields[1], fields[2], fields[3], fields[4]));
                     if (fields.length > 5 && !fields[5].isEmpty()) network.parent = fields[5];
+                    // Switched off when taken over: off before, as far as the API knows.
+                    if (fields.length > 6 && "off".equals(fields[6])) network.enabled = network.enabledBefore = false;
                 }
                 case "P" -> network.producers.add(Position.parse(fields[1]));
                 case "B" -> network.buildings.add(Position.parse(fields[1]));

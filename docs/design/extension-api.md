@@ -143,7 +143,8 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's included) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
+| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's that are switched on included; what it draws while it has supply, also while it is switched off) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
@@ -189,13 +190,16 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
   supply started and stopped (see Food below).
+- Switch: `setEnabled` switches a network off and on, for power and water.
 - Not yet: `"parallel"`.
 
 ### Power
 
 - **Supply.** A network is supplied while its producer in use runs. Under `"sequential"` only that
   one is switched on; the API switches on the next when it runs out or breaks. A child is supplied
-  when its parent is.
+  when its parent is. A network switched off (`setEnabled`) is not, nor are its children; its
+  producer in use keeps running as the game runs it and burns its base consumption alone, and a child
+  switched off adds nothing to its parent's load.
 - **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
   constants on `IsoGenerator`) over its consumers and its children's, computed when a consumer is
   added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
@@ -216,7 +220,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   also at the times its network's supply stopped and started, so a fridge that lost power while the
   player was away spoils from that moment, and one that kept power does not. The API keeps those
   times in memory, from when it first works a network out: supply it then finds running counts as
-  running before, and a producer that ran out meanwhile stops it at the hour its fuel ran out. A fridge
+  running before, and a producer that ran out meanwhile stops it at the hour its fuel ran out. The
+  hours a network or a parent above it was switched off count as without supply. A fridge
   with the game's own power now (the grid, a generator in range), an excluded one and frozen food age
   as in vanilla. Freezing and thawing follow the power now, as in vanilla. The times are not saved: a
   world loaded again, or a newer payload, starts them anew.
@@ -227,8 +232,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 
 ### Water
 
-- **Supply.** A network has water while one of its producers holds some, as last seen loaded. A
-  child has water when the network at the top of its parents has. Without water, its fixtures are the
+- **Supply.** A network has water while one of its producers holds some, as last seen loaded, and it
+  is switched on. A child has water when the network at the top of its parents has and it and each
+  parent between are switched on. Without water, its fixtures are the
   game's again.
 - **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
   gives each draw. Levels converge as water is used, and space opens first in the containers that

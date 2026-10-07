@@ -45,6 +45,14 @@ final class Network {
     /** Squares that name the member buildings. */
     final List<Position> buildings = new ArrayList<>();
     final Set<Thing> excluded = new LinkedHashSet<>(), included = new LinkedHashSet<>();
+    /** Switched off, it has no supply, nor have its children; its producer in use carries no load. */
+    boolean enabled = true;
+    /**
+     * The hours it was switched on (true) and off (false) since it was defined, kept for food as {@link #history} is;
+     * {@code enabledBefore} is whether it was on before the first.
+     */
+    final NavigableMap<Double, Boolean> switches = new TreeMap<>();
+    boolean enabledBefore = true;
 
     // Worked out by the grid of its utility.
     /** The member buildings as last resolved, by their BuildingDef's identity. */

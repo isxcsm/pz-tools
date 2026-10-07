@@ -82,6 +82,26 @@ final class Members {
         return null;
     }
 
+    /** Whether the network and every parent above it are switched on. */
+    boolean switchedOn(Network network) {
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            if (!network.enabled) return false;
+            if (network.parent == null) return true;
+            network = networks.get(network.parent);
+        }
+        return false;
+    }
+
+    /** The network and its parents, up to the one at the top. */
+    List<Network> chain(Network network) {
+        var result = new ArrayList<Network>();
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            result.add(network);
+            network = network.parent == null ? null : networks.get(network.parent);
+        }
+        return result;
+    }
+
     /** The game's current cell, or null when no world is loaded. */
     Object cell() throws ReflectiveOperationException { return buildings.cell(); }
 

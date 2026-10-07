@@ -166,7 +166,8 @@ final class WaterGrid implements ApiHooks.Water {
         var supplyChanged = new ArrayList<Network>();
         for (Network network : networks) {
             Network root = members.root(network);
-            boolean supplied = root != null && root.stored.values().stream().anyMatch(stored -> stored.amount() > 0);
+            boolean supplied = root != null && members.switchedOn(network)
+                && root.stored.values().stream().anyMatch(stored -> stored.amount() > 0);
             if (supplied == network.supplied) continue;
             network.supplied = supplied;
             network.suppliedAt = hours;
