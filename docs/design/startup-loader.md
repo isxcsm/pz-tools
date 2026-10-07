@@ -124,7 +124,9 @@ The install is separate from each extension's switch.
 - **No game running.** `GameProcessFinder` already finds the launcher, a game started by `java`
   from a script, and several games. Install and uninstall are disabled while it finds any, with a
   line under the buttons saying why: a game started mid-install would find half of one, and turning
-  an earlier version's install into this kind puts back a jar a running game holds.
+  an earlier version's install into this kind puts back a jar a running game holds. The app's
+  `StartupLoader` does this look, the install tool's runs and its file reads on the thread pool,
+  never on the UI thread that calls it.
 - **Not installed** is today's behaviour: extensions run while the app is attached, under the
   lease.
 - **Installed** adds the start without the app and the [resident](#resident-extensions) rules.
@@ -197,9 +199,13 @@ game goes back to the copy (`ExtensionHost.directory`).
 In installed mode, extensions stay in the game until it exits.
 
 - **The request.** While installed, the app writes `resident.tsv` to the install folder whenever it
-  changes: every two seconds it builds it from the extension settings, the deployed catalogue and
-  the tuning files, the same way the app builds an `APPLY`, and writes it only when it differs. A
-  module whose tuning file cannot be read is left out, so the game keeps what it runs.
+  changes. Every two seconds it compares the time and length of the files it is built from (the
+  extension settings, the deployed catalogue, each extension's tuning files) and of `resident.tsv`
+  itself with those of its last write. When one moved, it builds the request the same way the app
+  builds an `APPLY`, and writes it only when it differs. A
+  module whose configuration cannot be built (a tuning file unreadable or invalid) is written off,
+  as the app turns it off while connected
+  ([failure handling](game-extensions.md#failure-handling)); its saved switch stays as it is.
 - **The resident controller.** The payload's `ResidentExtensions` holds the extension lifecycle (the
   frame router's lifecycle job, see [the game-loop hook](game-bridge.md#the-game-loop-hook)) when no
   app is connected. Once a second it reads `resident.tsv` and, in a loaded local world, asks for each

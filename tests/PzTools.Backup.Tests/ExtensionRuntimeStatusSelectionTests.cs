@@ -25,7 +25,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
     {
         var status = new RuntimeExtensionStatus(state, ProcessSession: Process, WorldSession: Other,
             Generation: new string('d', 32), AppliedRevision: 3, ModuleVersion: "0.2.0", ModuleHash: new string('e', 64),
-            RequestedRevision: 4, ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+            RequestedRevision: 4, ControlReady: true, AppliedConfiguration: new string('e', 64));
         AssertUnavailable(Select(status));
     }
 
@@ -78,7 +78,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         Assert.Equal(failure.RequestedRevision, selected.RequestedRevision);
         Assert.Equal(failure.Reason, selected.Reason);
         Assert.False(selected.ControlReady);
-        Assert.Null(selected.AppliedVehicleOptions);
+        Assert.Null(selected.AppliedConfiguration);
         Assert.Equal(0, selected.AgeMilliseconds);
         var menu = Observation(failure);
         Assert.Equal(RuntimeExtensionState.RestartRequired, ExtensionActivationView.SelectCurrentStatus(menu with
@@ -109,7 +109,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         var selected = ExtensionActivationView.SelectCurrentStatus(RuntimeObservation.Unknown() with { Extension = status });
         Assert.Equal(status with { AgeMilliseconds = 0 }, selected);
         Assert.False(selected!.ControlReady);
-        Assert.Null(selected.AppliedVehicleOptions);
+        Assert.Null(selected.AppliedConfiguration);
     }
 
     private static RuntimeExtensionStatus Select(RuntimeExtensionStatus status) =>
@@ -124,7 +124,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         Assert.Equal(RuntimeExtensionState.Pending, status.State);
         Assert.Equal("waiting-for-local-world", status.Reason);
         Assert.False(status.ControlReady);
-        Assert.Null(status.AppliedVehicleOptions);
+        Assert.Null(status.AppliedConfiguration);
         Assert.Equal(-1, status.AppliedRevision);
     }
 }

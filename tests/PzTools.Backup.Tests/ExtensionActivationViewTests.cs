@@ -17,9 +17,7 @@ public sealed class ExtensionActivationViewTests
         var value = Project(Card(enabled: true), null, worldReady: false);
         Assert.True(value.IsOn);
         Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
         Assert.False(value.IsBusy);
-        Assert.Null(value.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -31,7 +29,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(Project(Card(), status, worldReady: false).CanToggle);
         Assert.True(Project(Card() with { VersionMatches = false }, status).CanToggle);
         Assert.True(Project(Card() with { VersionMatches = false, ForceVersion = true }, status).CanToggle);
-        Assert.True(Project(Card(), null, worldReady: false).CanEditOptions);
     }
 
     [Fact]
@@ -42,22 +39,17 @@ public sealed class ExtensionActivationViewTests
         Assert.True(value.IsOn);
         Assert.True(value.IsBusy);
         Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
-        Assert.Null(value.AppliedVehicleOptions);
     }
 
     [Fact]
     public void PendingUpdateKeepsLastGoodDiagnosticsWithoutLockingPreferenceControls()
     {
-        var desired = Card(enabled: true) with { VehicleDrivetrain = new(false, true, false) };
+        var desired = Card(enabled: true) with { Options = VehicleOptions.Of(false, true, false) };
         var value = Project(desired, Active() with { State = RuntimeExtensionState.Pending,
             Reason = "safe-boundary", AppliedRevision = 7 });
         Assert.True(value.IsOn);
         Assert.True(value.IsBusy);
         Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
-        Assert.Equal(new VehicleDrivetrainPreference(true, false, true), value.AppliedVehicleOptions);
-        Assert.NotEqual(desired.VehicleDrivetrain, value.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -68,12 +60,9 @@ public sealed class ExtensionActivationViewTests
         Assert.True(initial.IsOn);
         Assert.True(initial.IsBusy);
         Assert.True(initial.CanToggle);
-        Assert.True(initial.CanEditOptions);
-        Assert.Null(initial.AppliedVehicleOptions);
         var update = Project(Card(enabled: true), Active() with { RequestedRevision = 7, AppliedRevision = 7 });
         Assert.True(update.IsOn);
         Assert.True(update.IsBusy);
-        Assert.True(update.CanEditOptions);
     }
 
     [Theory]
@@ -86,7 +75,6 @@ public sealed class ExtensionActivationViewTests
         Assert.False(value.IsOn);
         Assert.False(value.IsBusy);
         Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
         Assert.Equal("initialization-failed", value.FailureReason);
     }
 
@@ -98,7 +86,6 @@ public sealed class ExtensionActivationViewTests
         var off = Project(Card(revision: 9), restart);
         Assert.False(off.IsOn);
         Assert.False(off.CanToggle);
-        Assert.True(off.CanEditOptions);
         Assert.False(off.IsBusy);
         Assert.Equal("retirement-failed", off.FailureReason);
         var on = Project(Card(enabled: true), restart);
@@ -135,16 +122,16 @@ public sealed class ExtensionActivationViewTests
     }
 
     [Fact]
-    public void StaleOrUnavailableWorldDropsAppliedDiagnosticsWithoutHidingSavedOn()
+    public void StaleOrUnavailableWorldDropsAppliedEvidenceWithoutHidingSavedOn()
     {
-        foreach (var value in new[] { Project(Card(enabled: true), Active() with { AgeMilliseconds = 3001 }),
-            Project(Card(enabled: true), Active(), worldReady: false),
-            Project(Card(enabled: true), Active() with { AppliedVehicleOptions = null }) })
+        foreach (var (status, worldReady) in new[] { (Active() with { AgeMilliseconds = 3001 }, true), (Active(), false),
+            (Active() with { AppliedConfiguration = null }, true) })
         {
+            var value = Project(Card(enabled: true), status, worldReady);
             Assert.True(value.IsOn);
             Assert.True(value.CanToggle);
-            Assert.True(value.CanEditOptions);
-            Assert.Null(value.AppliedVehicleOptions);
+            // Without current evidence that the game runs what was asked for, a saved OFF has nothing left to wait for.
+            Assert.False(Project(Card(), status, worldReady).IsBusy);
         }
     }
 
@@ -155,24 +142,25 @@ public sealed class ExtensionActivationViewTests
         Assert.False(stopping.IsOn);
         Assert.True(stopping.IsBusy);
         Assert.True(stopping.CanToggle);
-        Assert.True(stopping.CanEditOptions);
-        Assert.NotNull(stopping.AppliedVehicleOptions);
         var stopped = Project(Card(), new(RuntimeExtensionState.Disabled, "user-disabled",
             RequestedRevision: 8, ControlReady: true));
         Assert.False(stopped.IsOn);
         Assert.False(stopped.IsBusy);
         Assert.True(stopped.CanToggle);
-        Assert.True(stopped.CanEditOptions);
     }
 
     [Fact]
-    public void ActiveCapabilityWithAllFeaturesOffRemainsAnActiveCapability()
+    public void AnyContinuousModuleTheGameRunsAsRequestedIsApplied_SoTurningItOffShowsProgress()
     {
-        var value = Project(Card(enabled: true), Active() with { AppliedVehicleOptions = new(false, false, false) });
-        Assert.True(value.IsOn);
-        Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
-        Assert.Equal(new VehicleDrivetrainPreference(false, false, false), value.AppliedVehicleOptions);
+        // The evidence is the digest of what the app sent, the same for every module; nothing about it is the vehicle's.
+        var other = Card() with { Definition = Definition("pztools.another-module") };
+        var stopping = Project(other, Active());
+        Assert.False(stopping.IsOn);
+        Assert.True(stopping.IsBusy);
+        Assert.False(Project(other, Active() with { AppliedConfiguration = null }).IsBusy);
+        var running = Project(other with { Enabled = true }, Active());
+        Assert.True(running.IsOn);
+        Assert.False(running.IsBusy);
     }
 
     [Fact]
@@ -181,7 +169,6 @@ public sealed class ExtensionActivationViewTests
         // The game would reject the request with version-mismatch and the module would be saved off again.
         var outside = Card() with { GameVersion = "41.78", VersionMatches = false };
         Assert.False(Project(outside, null).CanToggle);
-        Assert.True(Project(outside, null).CanEditOptions); // "Ignore supported version range" stays reachable.
         Assert.True(Project(outside with { ForceVersion = true }, null).CanToggle);
         // An unknown version (no game running) still lets a desired ON be saved.
         Assert.True(Project(Card() with { VersionMatches = false }, null, worldReady: false).CanToggle);
@@ -197,21 +184,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(Project(Card(enabled: true) with { GameVersion = "41.78", VersionMatches = false }, Active()).CanToggle);
     }
 
-    [Fact]
-    public void SaveProviderIsAnExplicitPerSaveSelectionNotContinuousActivation()
-    {
-        var card = Card() with { Definition = Definition("pztools.test-save") };
-        var unready = ExtensionActivationView.Project(card, true, false, Active());
-        Assert.True(unready.IsPerSave);
-        Assert.False(unready.IsOn);
-        Assert.True(unready.CanToggle);
-        Assert.True(unready.CanEditOptions);
-        Assert.True(ExtensionActivationView.Project(card, true, true, null).CanToggle);
-        Assert.True(ExtensionActivationView.Project(card, false, true, null).CanToggle);
-        var selected = ExtensionActivationView.Project(card with { Enabled = true }, false, false, null);
-        Assert.True(selected.IsOn);
-        Assert.True(selected.CanToggle); // OFF must remain possible when the game disappears.
-    }
 
     [Fact]
     public async Task RuntimeRefreshReadsWorkerRollbackInsteadOfCachedDesiredPreference()
@@ -219,18 +191,18 @@ public sealed class ExtensionActivationViewTests
         using var temp = new TempDirectory();
         var root = temp.GetPath("runtime");
         var store = new ExtensionSettingsStore(root);
-        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, new(false, true, false)), 0);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, VehicleOptions.Of(false, true, false)), 0);
         var views = new RevisionedViewStore();
         var controller = new GameExtensionController(root, views, gameVersion: () => "42.20.0");
         var first = await controller.RefreshAsync();
-        Assert.True(first.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain).Enabled);
-        store.SetEnabled(ExtensionIds.VehicleDrivetrain, false, 1);
+        Assert.True(first.Cards.Single(x => x.Definition.Id == VehicleDrivetrainExtension.Id).Enabled);
+        store.SetEnabled(VehicleDrivetrainExtension.Id, false, 1);
         await controller.RefreshRuntimeAsync(default);
         var latest = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0).Snapshot!;
-        var card = latest.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
+        var card = latest.Cards.Single(x => x.Definition.Id == VehicleDrivetrainExtension.Id);
         Assert.False(card.Enabled);
         Assert.Equal(2, card.SettingsRevision);
-        Assert.Equal(new VehicleDrivetrainPreference(false, true, false), card.VehicleDrivetrain);
+        VehicleOptions.AssertSame(VehicleOptions.Of(false, true, false), card.Options);
     }
 
     [Fact]
@@ -239,29 +211,28 @@ public sealed class ExtensionActivationViewTests
         using var temp = new TempDirectory();
         var root = temp.GetPath("runtime");
         var store = new ExtensionSettingsStore(root);
-        var previous = new VehicleDrivetrainPreference(true, false, true);
-        store.SetPreference(ExtensionIds.VehicleDrivetrain, new(true, false, previous), 0);
+        var previous = VehicleOptions.Of(true, false, true);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(true, false, previous), 0);
         var pending = Active() with { State = RuntimeExtensionState.Pending, Reason = "safe-boundary",
             AppliedRevision = 1, RequestedRevision = 2 };
         var controller = new GameExtensionController(root, new RevisionedViewStore(), gameVersion: () => "42.20.0",
             extensionStatus: _ => pending, runtimeWorldReady: () => true);
         var initial = await controller.RefreshAsync();
-        var card = initial.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
+        var card = initial.Cards.Single(x => x.Definition.Id == VehicleDrivetrainExtension.Id);
         Assert.True(initial.ActivationFor(card).IsBusy);
-        Assert.True(initial.ActivationFor(card).CanEditOptions);
-        var requested = new VehicleDrivetrainPreference(false, true, false);
-        var edited = await controller.SetVehicleDrivetrainPreferenceAsync(requested, card.SettingsRevision);
-        card = edited.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
-        Assert.Equal(requested, card.VehicleDrivetrain);
-        Assert.Equal(previous, edited.ActivationFor(card).AppliedVehicleOptions);
+        var requested = VehicleOptions.Of(false, true, false);
+        GameExtensionsView edited = initial;
+        foreach (var (key, value) in requested)
+            edited = await controller.ApplyEditAsync(VehicleDrivetrainExtension.Id, key, value);
+        card = edited.Cards.Single(x => x.Definition.Id == VehicleDrivetrainExtension.Id);
+        VehicleOptions.AssertSame(requested, card.Options);
         Assert.True(edited.ActivationFor(card).CanToggle);
-        var stopped = await controller.SetPreferenceAsync(card.Definition.Id, false, false, card.SettingsRevision);
-        card = stopped.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
+        var stopped = await controller.ApplyEditAsync(card.Definition.Id, GameExtensionSetting.Enabled, false);
+        card = stopped.Cards.Single(x => x.Definition.Id == VehicleDrivetrainExtension.Id);
         Assert.False(stopped.ActivationFor(card).IsOn);
         Assert.True(stopped.ActivationFor(card).IsBusy);
-        Assert.True(stopped.ActivationFor(card).CanEditOptions);
         Assert.False(store.Read().Extensions[card.Definition.Id].Enabled);
-        Assert.Equal(requested, store.Read().Extensions[card.Definition.Id].VehicleDrivetrain);
+        VehicleOptions.AssertSame(requested, store.Read().Extensions[card.Definition.Id].Options);
     }
 
     [Fact]
@@ -281,13 +252,12 @@ public sealed class ExtensionActivationViewTests
     }
 
     private static ExtensionActivationView Project(ExtensionCardView card, RuntimeExtensionStatus? runtime,
-        bool worldReady = true) => ExtensionActivationView.Project(card, true, worldReady, runtime);
+        bool worldReady = true) => ExtensionActivationView.Project(card, worldReady, runtime);
     private static ExtensionCardView Card(bool enabled = false, long revision = 8) =>
-        new(Definition(ExtensionIds.VehicleDrivetrain), enabled, "runtime-pending", revision);
+        new(Definition(VehicleDrivetrainExtension.Id), enabled, "runtime-pending", revision);
     private static ExtensionDefinition Definition(string id) =>
-        new(id, "0.2.0", "title", "description", "runtime-pending",
-            [id == ExtensionIds.VehicleDrivetrain ? ExtensionCapabilities.VehicleDrivetrain : ExtensionCapabilities.SavePreparation]);
+        new(id, "0.2.0", "title", "description", "runtime-pending", [ExtensionCapabilities.Continuous]);
     private static RuntimeExtensionStatus Active() => new(RuntimeExtensionState.Active, null,
         Process, World, Generation, 8, "0.2.0", new string('a', 64), RequestedRevision: 8,
-        ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+        ControlReady: true, AppliedConfiguration: new string('e', 64));
 }

@@ -7,16 +7,18 @@ namespace PzTools.Backup.Tests;
 
 public sealed class ExtensionRuntimeDiagnosticsTests
 {
+    private const string Module = "pztools.vehicle-drivetrain";
+
     [Fact]
     public async Task HeartbeatsAndSamplesDoNotFloodDurableLog()
     {
         using var temp = new TempDirectory();
         var logger = new ExtensionRuntimeDiagnostics(temp.Path);
         var status = Active();
-        logger.Observe(null);
-        logger.Observe(status);
+        logger.Observe(Module, null);
+        logger.Observe(Module, status);
         for (var i = 0; i < 1000; i++)
-            logger.Observe(status with { AgeMilliseconds = i, Diagnostics = $"rpm={800 + i}" });
+            logger.Observe(Module, status with { AgeMilliseconds = i, Diagnostics = $"rpm={800 + i}" });
         await logger.FlushAsync();
 
         var sink = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
@@ -31,10 +33,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         Assert.Equal("rpm=800", payload.RootElement.GetProperty("diagnostics").GetString());
         Assert.Equal(4, payload.RootElement.GetProperty("requestedRevision").GetInt64());
         Assert.True(payload.RootElement.GetProperty("controlReady").GetBoolean());
-        var options = payload.RootElement.GetProperty("appliedVehicleOptions");
-        Assert.True(options.GetProperty("torqueEnabled").GetBoolean());
-        Assert.False(options.GetProperty("reverseEnabled").GetBoolean());
-        Assert.True(options.GetProperty("steeringEnabled").GetBoolean());
+        Assert.Equal(status.AppliedConfiguration, payload.RootElement.GetProperty("appliedConfiguration").GetString());
     }
 
     // Seen in a test drive: after the vehicle stopped, its last sample was written again every ten seconds, only older.
@@ -49,7 +48,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         void At(double seconds, string diagnostics)
         {
             clock.Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero).AddSeconds(seconds);
-            logger.Observe(status with { Diagnostics = diagnostics });
+            logger.Observe(Module, status with { Diagnostics = diagnostics });
         }
         At(0, "samples=5;rpm=1000;sample_age_ms=3");
         At(10, "samples=9;rpm=1200;sample_age_ms=1");    // Driving: a newer sample.
@@ -77,7 +76,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         void At(double seconds, RuntimeExtensionStatus value)
         {
             clock.Now = new DateTimeOffset(2026, 10, 5, 12, 0, 0, TimeSpan.Zero).AddSeconds(seconds);
-            logger.Observe(value);
+            logger.Observe(Module, value);
         }
         At(0, status);                                                  // The state: one entry.
         At(5, status with { Diagnostics = "rpm=900" });                 // Too soon after it.
@@ -122,11 +121,11 @@ public sealed class ExtensionRuntimeDiagnosticsTests
             status with { AppliedRevision = 5 },
             status with { RequestedRevision = 5 },
             status with { Reason = "revision-conflict" }];
-        logger.Observe(status);
+        logger.Observe(Module, status);
         foreach (var transition in transitions)
         {
-            logger.Observe(transition);
-            logger.Observe(status);
+            logger.Observe(Module, transition);
+            logger.Observe(Module, status);
         }
         await logger.FlushAsync();
         var entries = (await ReadAsync(sink)).Entries.OrderBy(entry => entry.EventId).ToArray();
@@ -153,7 +152,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         using var temp = new TempDirectory();
         var sink = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var logger = new ExtensionRuntimeDiagnostics(temp.Path, () => sink);
-        logger.Observe(Active() with { State = state, Reason = reason });
+        logger.Observe(Module, Active() with { State = state, Reason = reason });
         await logger.FlushAsync();
         var entry = Assert.Single((await ReadAsync(sink)).Entries);
         Assert.Equal(expected, entry.Level);
@@ -168,8 +167,8 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         await sink.ConfigureStorageAsync(LogLevel.Warning, 10000);
         Assert.Empty((await ReadAsync(sink)).Entries);
         var logger = new ExtensionRuntimeDiagnostics(temp.Path, () => sink);
-        logger.Observe(Active());
-        logger.Observe(Active() with { State = RuntimeExtensionState.FaultedPassThrough, Reason = "callback-failed" });
+        logger.Observe(Module, Active());
+        logger.Observe(Module, Active() with { State = RuntimeExtensionState.FaultedPassThrough, Reason = "callback-failed" });
         await logger.FlushAsync();
         Assert.Equal(LogLevel.Error, Assert.Single((await ReadAsync(sink)).Entries).Level);
     }
@@ -181,9 +180,9 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         var sink = await LogInboxStore.CreateOrOpenAsync(temp.GetPath("logs.db"));
         var logger = new ExtensionRuntimeDiagnostics(temp.Path, () => sink);
         var status = Active();
-        Parallel.For(0, 100, _ => logger.Observe(status));
-        logger.Observe(null);
-        logger.Observe(null);
+        Parallel.For(0, 100, _ => logger.Observe(Module, status));
+        logger.Observe(Module, null);
+        logger.Observe(Module, null);
         await logger.FlushAsync();
         var entries = (await ReadAsync(sink)).Entries.OrderBy(entry => entry.EventId).ToArray();
         Assert.Equal(2, entries.Length);
@@ -205,10 +204,10 @@ public sealed class ExtensionRuntimeDiagnosticsTests
             throw new IOException("synthetic log sink failure");
         });
         var status = Active();
-        for (var i = 0; i < 100; i++) logger.Observe(status with { AgeMilliseconds = i });
+        for (var i = 0; i < 100; i++) logger.Observe(Module, status with { AgeMilliseconds = i });
         await logger.FlushAsync();
         Assert.Equal(1, calls);
-        logger.Observe(status with { RequestedRevision = 5 });
+        logger.Observe(Module, status with { RequestedRevision = 5 });
         await logger.FlushAsync();
         Assert.Equal(2, calls);
     }
@@ -219,7 +218,7 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         using var temp = new TempDirectory();
         Directory.CreateDirectory(temp.GetPath("logs.db"));
         var logger = new ExtensionRuntimeDiagnostics(temp.Path);
-        logger.Observe(Active());
+        logger.Observe(Module, Active());
         await logger.FlushAsync();
     }
 
@@ -236,5 +235,5 @@ public sealed class ExtensionRuntimeDiagnosticsTests
         ProcessSession: "11111111111111111111111111111111", WorldSession: "22222222222222222222222222222222",
         Generation: "33333333333333333333333333333333", AppliedRevision: 4,
         ModuleVersion: "0.2.0", ModuleHash: new string('a', 64), Diagnostics: "rpm=800",
-        RequestedRevision: 4, ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+        RequestedRevision: 4, ControlReady: true, AppliedConfiguration: new string('e', 64));
 }

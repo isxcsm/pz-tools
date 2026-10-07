@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using PzTools.App.Core;
 using PzTools.GameExtensions;
-using PzTools.Process.Contracts.GameRuntime;
 
 namespace PzTools.App;
 
@@ -16,47 +15,38 @@ internal sealed class ExtensionSettingsSection
     private readonly TextBlock description = Text();
     private readonly TextBlock statusTitle = Text();
     private readonly TextBlock version = Text();
-    private readonly TextBlock status = Text();
-    private readonly TextBlock lastSave = Text();
     private readonly TextBlock hint = Text();
     private readonly SettingToggle enabled;
     private readonly List<SettingRow> options = [];
+    private readonly ExtensionDescriptor descriptor;
 
-    public ExtensionSettingsSection(string id, Func<GameExtensionSetting, bool, Task> save, bool initiallyExpanded = false)
+    /// <param name="save">Saves one edit: <see cref="GameExtensionSetting.Enabled"/>, <see cref="GameExtensionSetting.ForceVersion"/>
+    /// or the key of one of the extension's own switches.</param>
+    public ExtensionSettingsSection(string id, Func<string, bool, Task> save, bool initiallyExpanded = false)
     {
+        descriptor = ExtensionDescriptors.For(id);
         enabled = new(value => save(GameExtensionSetting.Enabled, value));
         var details = new StackPanel { Spacing = 4 };
-        foreach (var text in new[] { version, status, lastSave, hint }) details.Children.Add(text);
+        foreach (var text in new[] { version, hint }) details.Children.Add(text);
         Control = new SettingsExpander
         {
             Header = title, Description = description, Content = enabled.Control, IsExpanded = initiallyExpanded,
             // A plain glyph in the text colour, one per extension, so the sections tell apart at a glance.
-            HeaderIcon = new FontIcon { Glyph = HeaderGlyph(id), FontSize = 20 },
+            HeaderIcon = new FontIcon { Glyph = descriptor.Glyph, FontSize = 20 },
         };
-        if (id == ExtensionIds.VehicleDrivetrain)
-        {
-            AddOption(GameExtensionSetting.Torque, "VehicleDrivetrain.Torque", "VehicleDrivetrain.TorqueDescription");
-            AddOption(GameExtensionSetting.Reverse, "VehicleDrivetrain.Reverse", "VehicleDrivetrain.ReverseDescription");
-            AddOption(GameExtensionSetting.Steering, "VehicleDrivetrain.Steering", "VehicleDrivetrain.SteeringDescription");
-            AddOption(GameExtensionSetting.AreaLight, "VehicleDrivetrain.AreaLight", "VehicleDrivetrain.AreaLightDescription");
-        }
+        // The extension's own switches first, in its descriptor's order; then its status and the version override.
+        foreach (var option in descriptor.Options) AddOption(option.Key, option.TitleKey, option.DescriptionKey, option);
         Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details });
-        AddOption(GameExtensionSetting.ForceVersion, "GameExtensions.ForceVersion", "GameExtensions.ForceWarning");
+        AddOption(GameExtensionSetting.ForceVersion, "GameExtensions.ForceVersion", "GameExtensions.ForceWarning", null);
         Control.Loaded += CompleteInitialLayout;
 
-        void AddOption(GameExtensionSetting setting, string titleKey, string descriptionKey)
+        void AddOption(string setting, string titleKey, string descriptionKey, ExtensionOption? option)
         {
-            var row = new SettingRow(setting, titleKey, descriptionKey, value => save(setting, value));
+            var row = new SettingRow(option, titleKey, descriptionKey, value => save(setting, value));
             options.Add(row);
             Control.Items.Add(row.Card);
         }
     }
-
-    private static string HeaderGlyph(string id) => id switch
-    {
-        ExtensionIds.VehicleDrivetrain => "\uE804", // car
-        _ => "\uEA86",                              // puzzle piece: an extension
-    };
 
     private void CompleteInitialLayout(object sender, RoutedEventArgs args)
     {
@@ -74,27 +64,14 @@ internal sealed class ExtensionSettingsSection
         SetText(description, Localizer.Get(card.Definition.DescriptionKey));
         SetText(statusTitle, Localizer.Get("GameExtensions.CompatibilityStatus"));
         SetText(version, VersionDescription(card));
-        SetText(status, activation.IsPerSave ? StatusText(card) : null);
-        SetText(lastSave, ExecutionText(view.LastSave, card.Definition.Id));
-        SetText(hint, ActivationHint(view, card, activation));
+        SetText(hint, ActivationHint(view, card, activation, descriptor));
         enabled.Update(activation.IsOn, activation.CanToggle, name);
-        var preference = card.VehicleDrivetrain ?? new VehicleDrivetrainPreference();
-        foreach (var row in options)
-        {
-            bool value = row.Setting switch
-            {
-                GameExtensionSetting.ForceVersion => card.ForceVersion,
-                GameExtensionSetting.Torque => preference.TorqueEnabled,
-                GameExtensionSetting.Reverse => preference.ReverseEnabled,
-                GameExtensionSetting.Steering => preference.SteeringEnabled,
-                GameExtensionSetting.AreaLight => preference.AreaLightEnabled,
-                _ => throw new InvalidOperationException("Unknown extension setting row."),
-            };
-            row.Update(value, activation.CanEditOptions);
-        }
+        // The rows stay editable whatever the game does: they show and change the saved preference.
+        foreach (var row in options) row.Update(row.Option is { } option ? card.Option(option) : card.ForceVersion);
     }
 
-    private static string? ActivationHint(GameExtensionsView view, ExtensionCardView card, ExtensionActivationView activation)
+    private static string? ActivationHint(GameExtensionsView view, ExtensionCardView card, ExtensionActivationView activation,
+        ExtensionDescriptor descriptor)
     {
         // The game's own version check (an ON saved while no game ran, then a game outside the range started)
         // has a hint of its own that says what to do; the generic failure would only send the player to the logs.
@@ -102,12 +79,13 @@ internal sealed class ExtensionSettingsSection
         // An update of the app that waits for the game's restart: the sidebar's game-link card asks the same.
         if (activation.AwaitsGameRestart) return Localizer.Get("GameLinkCardRestartMessage");
         if (activation.FailureReason is not null) return Localizer.Get("GameExtensions.InitializationFailed");
+        // Waiting for the module's own safe point: what the player can do about it is the module's to say.
         if (activation.IsBusy) return Localizer.Get(view.StatusOf(card.Definition.Id)?.Reason == "safe-boundary"
-            ? "GameExtensions.ApplyWhenSafe" : "GameExtensions.Applying");
+            ? descriptor.SafeBoundaryHintKey : "GameExtensions.Applying");
         if (card.Enabled && !view.RuntimeWorldReady) return Localizer.Get("GameExtensions.WorldRequired");
-        if (!activation.IsPerSave && !card.CanEnable) return StatusText(card);
-        if (activation.IsPerSave && !view.GameSavingEnabled)
-            return Localizer.Get("GameSaveSetting.Header") + ": " + Localizer.Get("SettingDisabled");
+        // The range is not ignored, and the game's version is outside it or not known yet.
+        if (!card.CanEnable) return Localizer.Get(card.StatusCode == "version-mismatch"
+            ? "GameExtensions.VersionMismatch" : "GameExtensions.VersionUnknown");
         return null;
     }
 
@@ -118,24 +96,6 @@ internal sealed class ExtensionSettingsSection
             : Localizer.Format(support.Scope == VersionSupportScope.Major ? "GameExtensions.VersionMajor" : "GameExtensions.VersionMinor", support.RangeText);
         return Localizer.Format("GameExtensions.VersionInfo", range, card.GameVersion ?? Localizer.Get("Unknown"));
     }
-
-    private static string StatusText(ExtensionCardView card) => Localizer.Get(card.StatusCode switch
-    {
-        "version-mismatch" => "GameExtensions.VersionMismatch",
-        "version-unknown" => "GameExtensions.VersionUnknown",
-        "forced-version" => "GameExtensions.ForcedVersion",
-        "disabled" => "GameExtensions.Disabled",
-        _ => "GameExtensions.AwaitingValidation",
-    });
-
-    private static string? ExecutionText(RuntimeSaveExecution? save, string id) => save is null || save.RequestedProvider != id ? null
-        : save.Outcome switch
-        {
-            RuntimeSaveOutcome.Running => Localizer.Get("GameExtensions.ExecutionRunning"),
-            RuntimeSaveOutcome.Failed => Localizer.Format("GameExtensions.ExecutionFailed", save.Reason ?? "save-failed"),
-            _ when save.Provider != id => Localizer.Format("GameExtensions.ExecutionFallback", save.Reason ?? "module-unavailable"),
-            _ => Localizer.Get("GameExtensions.ExecutionSucceeded"),
-        };
 
     private static TextBlock Text() => new() { TextWrapping = TextWrapping.Wrap };
     private static void SetText(TextBlock block, string? value)
@@ -148,26 +108,27 @@ internal sealed class ExtensionSettingsSection
 
     private sealed class SettingRow
     {
-        public GameExtensionSetting Setting { get; }
+        /// <summary>The extension's own switch this row shows; null for the version override.</summary>
+        public ExtensionOption? Option { get; }
         public SettingsCard Card { get; }
         private readonly string titleKey, descriptionKey;
         private readonly TextBlock title = Text(), description = Text();
         private readonly SettingToggle editor;
 
-        public SettingRow(GameExtensionSetting setting, string titleKey, string descriptionKey, Func<bool, Task> save)
+        public SettingRow(ExtensionOption? option, string titleKey, string descriptionKey, Func<bool, Task> save)
         {
-            Setting = setting;
+            Option = option;
             this.titleKey = titleKey; this.descriptionKey = descriptionKey;
             editor = new(save);
             Card = new SettingsCard { Header = title, Description = description, Content = editor.Control };
         }
 
-        public void Update(bool value, bool canEdit)
+        public void Update(bool value)
         {
             var name = Localizer.Get(titleKey);
             SetText(title, name);
             SetText(description, Localizer.Get(descriptionKey));
-            editor.Update(value, canEdit, name);
+            editor.Update(value, canEdit: true, name);
         }
     }
 

@@ -106,11 +106,8 @@ public sealed class AppHost : IAsyncDisposable
             options: runtime.ProfilerOptions);
         saveVersions = new SaveGameVersionMemory(this.paths.RuntimeRoot);
         GameExtensions = new GameExtensionController(this.paths.RuntimeRoot, Views,
-            () => Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.SaveGameBeforeBackup ?? true,
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
             Path.Combine(this.paths.WorkerDirectory, "game-bridge", "extensions", "catalog.tsv"),
-            () => { var o = runtimeSnapshot.Read(); var s = o.Snapshot; var result = s?.LastSave;
-                return o.IsFresh && result?.ProcessSession == s?.ProcessSession && result?.WorldSession == s?.WorldSession ? result : null; },
             moduleId => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read(), moduleId),
             () => { var o = runtimeSnapshot.Read(); return o.IsFresh && o.Snapshot?.IsWorldReady == true; },
             extensionDiagnostics);

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PzTools.GameExtensions;
@@ -6,18 +7,30 @@ namespace PzTools.GameExtensions;
 /// <summary>What a continuous module is asked to run with, and the form the game reads it in.</summary>
 public static class ContinuousConfiguration
 {
-    /// <summary>A module's settings: the player's saved options for it over its tuning files.</summary>
+    /// <summary>
+    /// A module's settings: the player's saved options for it over its tuning files, as its descriptor builds them
+    /// (<see cref="ExtensionDescriptor.Configuration"/>).
+    /// </summary>
     /// <exception cref="InvalidDataException">No configuration is defined for the module, or a tuning file is invalid.</exception>
     public static IReadOnlyDictionary<string, string> For(string id, string bridgeDirectory, string runtimeRoot,
-        ExtensionPreference preference) => id switch
-    {
-        ExtensionIds.VehicleDrivetrain => VehicleDrivetrainConfiguration.Load(bridgeDirectory, runtimeRoot, preference.VehicleDrivetrain),
-        _ => throw new InvalidDataException("No configuration is defined for this continuous module."),
-    };
+        ExtensionPreference preference) =>
+        (ExtensionDescriptors.For(id).Configuration
+            ?? throw new InvalidDataException("No configuration is defined for this continuous module."))
+        .Load(bridgeDirectory, runtimeRoot, preference);
 
     /// <summary>The settings as the game reads them: <c>key\tvalue\n</c> lines in key order, UTF-8, base64.</summary>
     /// <exception cref="ArgumentException">A key or value the game would refuse, or more than the game reads.</exception>
-    public static string Encode(IReadOnlyDictionary<string, string> configuration)
+    public static string Encode(IReadOnlyDictionary<string, string> configuration) => Convert.ToBase64String(Bytes(configuration));
+
+    /// <summary>
+    /// The configuration's SHA-256 (lowercase hex) in the form the game reads: equal for equal configurations, whatever the
+    /// module. The scheduler keeps it per requested revision as the evidence of what the game applied.
+    /// </summary>
+    /// <exception cref="ArgumentException">A key or value the game would refuse, or more than the game reads.</exception>
+    public static string Digest(IReadOnlyDictionary<string, string> configuration) =>
+        Convert.ToHexStringLower(SHA256.HashData(Bytes(configuration)));
+
+    private static byte[] Bytes(IReadOnlyDictionary<string, string> configuration)
     {
         var text = new StringBuilder();
         foreach (var (key, value) in configuration.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -28,7 +41,7 @@ public static class ContinuousConfiguration
         }
         var bytes = Encoding.UTF8.GetBytes(text.ToString());
         if (bytes.Length > 65536) throw new ArgumentException("Oversized extension configuration.");
-        return Convert.ToBase64String(bytes);
+        return bytes;
     }
 }
 
@@ -54,18 +67,57 @@ public static class ResidentExtensionRequest
         foreach (var definition in catalogue.Where(definition => definition.ActivationKind == ExtensionActivationKind.Continuous))
         {
             var preference = settings.Extensions.GetValueOrDefault(definition.Id) ?? new();
+            bool on = preference.Enabled;
             string configuration = "";
-            if (preference.Enabled)
+            if (on)
             {
-                // A module whose tuning cannot be read is left as the game has it, as the app leaves it when connected.
+                // A module whose configuration cannot be built (a tuning file unreadable or invalid) is off, as the app
+                // turns it off while connected, where the request fails as configuration-rejected
+                // (docs/design/game-extensions.md, "Failure handling"): the game runs its own code.
                 try { configuration = ContinuousConfiguration.Encode(ContinuousConfiguration.For(definition.Id, bridgeDirectory, runtimeRoot, preference)); }
                 catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
-                    or FormatException or OverflowException or Tomlyn.TomlException) { continue; }
+                    or FormatException or OverflowException) { on = false; }
             }
-            text.Append("module\t").Append(definition.Id).Append('\t').Append(preference.Enabled ? "on" : "off").Append('\t')
+            text.Append("module\t").Append(definition.Id).Append('\t').Append(on ? "on" : "off").Append('\t')
                 .Append(preference.ForceVersion ? "force" : "normal").Append('\t').Append(configuration).Append('\n');
         }
         return text.ToString();
+    }
+
+    /// <summary>
+    /// The time and length of every file <see cref="Build"/> reads: the settings, the deployed catalogue, and each known
+    /// extension's configuration inputs (<see cref="IContinuousConfiguration.Inputs"/>). Equal stamps mean an equal
+    /// request, so a caller can skip the build; null when a file could not be looked at.
+    /// </summary>
+    public static string? InputStamp(string bridgeDirectory, string runtimeRoot)
+    {
+        var files = new List<string>
+        {
+            new ExtensionSettingsStore(runtimeRoot).FilePath,
+            Path.Combine(bridgeDirectory, "extensions", "catalog.tsv"),
+        };
+        foreach (var descriptor in ExtensionDescriptors.All)
+            if (descriptor.Configuration is { } configuration) files.AddRange(configuration.Inputs(bridgeDirectory, runtimeRoot));
+        var text = new StringBuilder();
+        foreach (var file in files)
+        {
+            if (Stamp(file) is not { } stamp) return null;
+            text.Append(file).Append('\t').Append(stamp).Append('\n');
+        }
+        return text.ToString();
+    }
+
+    /// <summary>A file's last write time and length, <c>-</c> when there is none; null when it could not be looked at.</summary>
+    public static string? Stamp(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            return file.Exists
+                ? file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture) + "/" + file.Length.ToString(CultureInfo.InvariantCulture)
+                : "-";
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
     }
 
     /// <summary>Writes the request to the install folder unless it already says this; true when it was written.</summary>

@@ -32,13 +32,6 @@ public static partial class AttachDiagnostics
             Describe(stage, error, exitCode, rights, bridgeDirectory, helperOutput));
     }
 
-    /// <summary>The same detail, for a helper failure reported under another code (the runtime and extension links).</summary>
-    public static string Describe(int processId, string helperOutput, int? exitCode, string bridgeDirectory)
-    {
-        var (stage, error) = Read(helperOutput);
-        return Describe(stage, error, exitCode, Rights(processId), bridgeDirectory, helperOutput);
-    }
-
     /// <summary>The step and the error from the helper's mark; none when it printed none (an older helper, a crash).</summary>
     public static (string? Stage, string? Error) Read(string helperOutput)
     {

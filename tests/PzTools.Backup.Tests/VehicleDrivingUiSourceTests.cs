@@ -22,10 +22,61 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.Contains("Control.Items.Add(row.Card)", section);
         Assert.Contains("Content = enabled.Control", section);
         Assert.Contains("Content = editor.Control", section);
-        Assert.Equal(4, Regex.Matches(section, @"AddOption\(GameExtensionSetting\.(Torque|Reverse|Steering|AreaLight),").Count);
+        // The extension's own switches come from its descriptor, in its order, before the status card.
+        Assert.Contains("foreach (var option in descriptor.Options) AddOption(option.Key, option.TitleKey, option.DescriptionKey, option);", section);
+        Assert.True(section.IndexOf("foreach (var option in descriptor.Options)", StringComparison.Ordinal)
+            < section.IndexOf("Control.Items.Add(new SettingsCard { Header = statusTitle", StringComparison.Ordinal));
         Assert.Single(Regex.Matches(section, @"AddOption\(GameExtensionSetting.ForceVersion,").Cast<Match>());
-        foreach (var name in new[] { "Torque", "Reverse", "Steering", "AreaLight" })
-            Assert.Contains($"GameExtensionSetting.{name} => preference.{name}Enabled", section);
+        Assert.Contains("row.Update(row.Option is { } option ? card.Option(option) : card.ForceVersion)", section);
+        Assert.Contains("Glyph = descriptor.Glyph", section);
+    }
+
+    [Fact]
+    public void TheVehicleSectionKeepsItsRowsTextsGlyphAndOrder()
+    {
+        var vehicle = PzTools.GameExtensions.ExtensionDescriptors.For(PzTools.GameExtensions.VehicleDrivetrainExtension.Id);
+        Assert.Equal("\uE804", vehicle.Glyph);
+        Assert.Equal(["Torque", "Reverse", "Steering", "AreaLight"], vehicle.Options.Select(option => option.TitleKey["VehicleDrivetrain.".Length..]));
+        Assert.All(vehicle.Options, option =>
+        {
+            Assert.Equal(option.TitleKey + "Description", option.DescriptionKey);
+            Assert.True(option.Default);
+        });
+        Assert.Equal(["torqueEnabled", "reverseEnabled", "steeringEnabled", "areaLightEnabled"], vehicle.Options.Select(option => option.Key));
+        Assert.Equal("GameExtensions.ApplyWhenSafe", vehicle.SafeBoundaryHintKey);
+        // No switch takes the name of the main switch or of the version override.
+        Assert.All(PzTools.GameExtensions.ExtensionDescriptors.All.SelectMany(descriptor => descriptor.Options), option =>
+            Assert.DoesNotContain(option.Key, new[] { PzTools.App.Core.GameExtensionSetting.Enabled, PzTools.App.Core.GameExtensionSetting.ForceVersion }));
+        // An extension without a descriptor: no switches of its own, the general glyph and hint.
+        var other = PzTools.GameExtensions.ExtensionDescriptors.For("pztools.another-extension");
+        Assert.Empty(other.Options);
+        Assert.Equal("\uEA86", other.Glyph);
+        Assert.Equal("GameExtensions.Applying", other.SafeBoundaryHintKey);
+    }
+
+    /// <summary>The generic layers know no extension by name: what is particular to one lives in its own files.</summary>
+    [Fact]
+    public void NoGenericLayerNamesTheVehicle()
+    {
+        foreach (var file in new[]
+        {
+            "PzTools.Process.Contracts/GameRuntime/RuntimeExtensionStatus.cs", "PzTools.Process.Hosting/RuntimeExtensionStatusStore.cs",
+            "PzTools.GameExtensions/ExtensionSettingsStore.cs", "PzTools.GameExtensions/ExtensionModels.cs",
+            "PzTools.GameExtensions/ExtensionCatalog.cs", "PzTools.GameExtensions/ContinuousConfiguration.cs",
+            "PzTools.GameExtensions/GameVersionSupport.cs", "PzTools.GameBridge/GameExtensionActivationState.cs",
+            "PzTools.GameBridge/GameExtensionReconciler.cs", "PzTools.GameBridge/GameExtensionClient.cs",
+            "PzTools.State.Scheduler/RuntimeExtensionCoordinator.cs", "PzTools.App.Core/ExtensionActivationView.cs",
+            "PzTools.App.Core/GameExtensionController.cs", "PzTools.App.Core/GameExtensionSetting.cs",
+            "PzTools.App.Core/ExtensionRuntimeDiagnostics.cs", "PzTools.App/ExtensionSettingsSection.cs", "PzTools.App/GameExtensionsPage.xaml.cs",
+        })
+            Assert.DoesNotMatch("(?i)vehicle|drivetrain|torque|steering", File.ReadAllText(Path.Combine(Root(), "src", file)));
+        // The capabilities name the vehicle's first capability only as the alias of the continuous one; the registry
+        // only registers its descriptor.
+        var capabilities = File.ReadAllText(Path.Combine(Root(), "src", "PzTools.GameExtensions", "ExtensionCapabilities.cs"));
+        Assert.Single(Regex.Matches(capabilities, "(?i)vehicle").Cast<Match>());
+        Assert.Contains("LegacyContinuous = \"vehicle.drivetrain.v1\"", capabilities);
+        var registry = File.ReadAllText(Path.Combine(Root(), "src", "PzTools.GameExtensions", "ExtensionDescriptor.cs"));
+        Assert.Single(Regex.Matches(registry, "(?i)vehicle").Cast<Match>());
     }
 
     [Fact]
@@ -59,11 +110,11 @@ public sealed class VehicleDrivingUiSourceTests
     {
         var section = Source("ExtensionSettingsSection.cs");
         Assert.Contains("Header = title, Description = description, Content = enabled.Control", section);
-        Assert.Contains("new[] { version, status, lastSave, hint }", section);
+        Assert.Contains("new[] { version, hint }", section);
         Assert.Contains("Control.Items.Add(new SettingsCard { Header = statusTitle, Description = details })", section);
         Assert.Contains("GameExtensions.CompatibilityStatus", section);
-        foreach (var key in new[] { "VersionInfo", "InitializationFailed", "ApplyWhenSafe", "Applying",
-            "WorldRequired", "VersionMismatch", "VersionUnknown", "ForceWarning", "ExecutionFailed", "ExecutionFallback" })
+        foreach (var key in new[] { "VersionInfo", "InitializationFailed", "Applying",
+            "WorldRequired", "VersionMismatch", "VersionUnknown", "ForceWarning" })
             Assert.Contains("GameExtensions." + key, section);
     }
 
@@ -90,10 +141,10 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.DoesNotContain("applying", page);
         Assert.DoesNotContain("IsEnabled = false", page + section);
         Assert.DoesNotContain("new ProgressRing", page + section);
-        Assert.Contains("GameExtensions.ApplyWhenSafe", section);
-        Assert.Contains("row.Update(value, activation.CanEditOptions)", section);
+        Assert.Contains("descriptor.SafeBoundaryHintKey", section);
+        Assert.Contains("row.Update(row.Option is { } option ? card.Option(option) : card.ForceVersion)", section);
         Assert.Contains("enabled.Update(activation.IsOn, activation.CanToggle, name)", section);
-        Assert.DoesNotContain("AppliedVehicleOptions", section);
+        Assert.DoesNotContain("AppliedConfiguration", section);
         Assert.Contains("ToggleSwitch Control { get; } = new()", section);
         Assert.DoesNotContain("Control.Header", section);
     }

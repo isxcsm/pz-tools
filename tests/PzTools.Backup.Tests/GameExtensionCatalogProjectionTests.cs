@@ -29,14 +29,14 @@ public sealed class GameExtensionCatalogProjectionTests
     }
 
     [Theory]
-    [InlineData(0, "pztools.renamed-save")]
+    [InlineData(0, "pztools.renamed-module")]
     [InlineData(1, "0.3.0")]
     [InlineData(5, "Major")]
     [InlineData(6, "42.19")]
     [InlineData(7, "42.22")]
     [InlineData(8, "Extension.Test.RenamedTitle")]
     [InlineData(9, "Extension.Test.RenamedDescription")]
-    [InlineData(10, ExtensionCapabilities.VehicleDrivetrain)]
+    [InlineData(10, ExtensionCapabilities.LegacyContinuous)]
     public async Task ChangedFileCatalogueMetadataPublishesExactlyOneNewView(int field, string replacement)
     {
         using var temp = new TempDirectory();
@@ -105,7 +105,7 @@ public sealed class GameExtensionCatalogProjectionTests
         using var temp = new TempDirectory();
         var catalogue = temp.GetPath("catalog.tsv");
         var fields = Fields();
-        fields[0] = "pztools.deployed-continuous"; fields[10] = ExtensionCapabilities.VehicleDrivetrain;
+        fields[0] = "pztools.deployed-continuous";
         File.WriteAllText(catalogue, string.Join('\t', fields));
         var asked = new List<string>();
         var controller = new GameExtensionController(temp.GetPath("runtime"), new RevisionedViewStore(),
@@ -122,9 +122,9 @@ public sealed class GameExtensionCatalogProjectionTests
         Assert.Equal(["pztools.replaced-continuous"], asked);
     }
 
-    private static string[] Fields() => ["pztools.test-save", "0.2.0", "pztools.extensions.test",
+    private static string[] Fields() => ["pztools.test-module", "0.2.0", "pztools.extensions.test",
         "pztools.extensions.test.Provider", "test.jar", "Minor", "42.20", "42.21",
-        "Extension.Test.Title", "Extension.Test.Description", ExtensionCapabilities.SavePreparation];
+        "Extension.Test.Title", "Extension.Test.Description", ExtensionCapabilities.Continuous];
 
     private static ViewReadResult<GameExtensionsView> Current(RevisionedViewStore views) =>
         views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0);

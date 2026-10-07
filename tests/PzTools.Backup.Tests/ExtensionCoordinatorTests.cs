@@ -51,7 +51,7 @@ public sealed partial class GameSaveClientTests
                 await Task.Delay(50);
             }
         }
-        const string vehicle = ExtensionIds.VehicleDrivetrain;
+        const string vehicle = VehicleDrivetrainExtension.Id;
         try
         {
             // Nothing asked for: the module is confirmed off.
@@ -60,25 +60,27 @@ public sealed partial class GameSaveClientTests
             // Switched on: active at the saved revision, with the options it was asked for.
             Assert.Equal(1, settings.SetEnabled(vehicle, true, 0).Revision);
             var driving = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 1, "vehicle active");
-            Assert.NotNull(driving.AppliedVehicleOptions);
+            Assert.NotNull(driving.AppliedConfiguration);
 
             // Its options change: applied to the running generation, not a new one.
-            Assert.Equal(2, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(TorqueEnabled: false)), 1).Revision);
+            Assert.Equal(2, settings.SetPreference(vehicle, new(true, false, VehicleOptions.Of(torque: false)), 1).Revision);
             var retuned = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 2, "vehicle options applied");
             Assert.Equal(driving.Generation, retuned.Generation);
+            Assert.NotNull(retuned.AppliedConfiguration);
+            Assert.NotEqual(driving.AppliedConfiguration, retuned.AppliedConfiguration);
 
             // Its tuning file becomes invalid. The next request is rejected before it reaches the game:
             // the module is turned off, in the game and in the saved preferences, which keep its options.
             var tuning = VehicleDrivetrainConfiguration.OverridePath(runtimeRoot);
             Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
             await File.WriteAllTextAsync(tuning, "area_light_radius = 999\n");
-            Assert.Equal(3, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(ReverseEnabled: false)), 2).Revision);
+            Assert.Equal(3, settings.SetPreference(vehicle, new(true, false, VehicleOptions.Of(reverse: false)), 2).Revision);
             var rejected = await Until(vehicle, s => s.State == RuntimeExtensionState.Unsupported && s.Reason == "configuration-rejected", "vehicle rejected");
             Assert.False(rejected.ControlReady);
             var after = settings.Read();
             Assert.Equal(4, after.Revision);
             Assert.False(after.Extensions[vehicle].Enabled);
-            Assert.Equal(new VehicleDrivetrainPreference(ReverseEnabled: false), after.Extensions[vehicle].VehicleDrivetrain);
+            VehicleOptions.AssertSame(VehicleOptions.Of(reverse: false), after.Extensions[vehicle].Options);
         }
         finally
         {
@@ -122,7 +124,7 @@ public sealed partial class GameSaveClientTests
         var settings = new ExtensionSettingsStore(runtimeRoot);
         var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
             new ExtensionControlOptions(ReconcileIntervalMs: 250, ConnectTimeoutSeconds: 20)).RunAsync(game.Pid, stream, stop.Token);
-        const string vehicle = ExtensionIds.VehicleDrivetrain;
+        const string vehicle = VehicleDrivetrainExtension.Id;
         async Task<RuntimeExtensionStatus> Until(Func<RuntimeExtensionStatus, bool> reached, string what)
         {
             var give = DateTime.UtcNow.AddSeconds(30);
@@ -194,14 +196,14 @@ public sealed partial class GameSaveClientTests
             }
         });
         var settings = new ExtensionSettingsStore(runtimeRoot);
-        Assert.Equal(1, settings.SetEnabled(ExtensionIds.VehicleDrivetrain, true, 0).Revision);
+        Assert.Equal(1, settings.SetEnabled(VehicleDrivetrainExtension.Id, true, 0).Revision);
         var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
             new ExtensionControlOptions(ReconcileIntervalMs: 250, ConnectTimeoutSeconds: 20)).RunAsync(game.Pid, stream, stop.Token);
         try
         {
             var give = DateTime.UtcNow.AddSeconds(30);
             RuntimeExtensionStatus status;
-            while ((status = published.Read(ExtensionIds.VehicleDrivetrain)).State != RuntimeExtensionState.RestartRequired)
+            while ((status = published.Read(VehicleDrivetrainExtension.Id)).State != RuntimeExtensionState.RestartRequired)
             {
                 if (run.IsCompleted) await run;
                 if (DateTime.UtcNow > give) throw new TimeoutException($"vehicle restart required: last status was {status}");
@@ -211,10 +213,10 @@ public sealed partial class GameSaveClientTests
             Assert.Equal(GameExtensionActivationState.BootstrapUpdateReason, status.Reason);
             // Further rounds keep the answer and leave the preference alone.
             await Task.Delay(1000);
-            Assert.Equal(GameExtensionActivationState.BootstrapUpdateReason, published.Read(ExtensionIds.VehicleDrivetrain).Reason);
+            Assert.Equal(GameExtensionActivationState.BootstrapUpdateReason, published.Read(VehicleDrivetrainExtension.Id).Reason);
             var after = settings.Read();
             Assert.Equal(1, after.Revision);
-            Assert.True(after.Extensions[ExtensionIds.VehicleDrivetrain].Enabled);
+            Assert.True(after.Extensions[VehicleDrivetrainExtension.Id].Enabled);
         }
         finally
         {
@@ -251,14 +253,14 @@ public sealed partial class GameSaveClientTests
             }
         });
         var settings = new ExtensionSettingsStore(runtimeRoot);
-        Assert.Equal(1, settings.SetEnabled(ExtensionIds.VehicleDrivetrain, true, 0).Revision);
+        Assert.Equal(1, settings.SetEnabled(VehicleDrivetrainExtension.Id, true, 0).Revision);
         var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
             new ExtensionControlOptions(ReconcileIntervalMs: 100, ConnectTimeoutSeconds: 20)).RunAsync(Environment.ProcessId, stream, stop.Token);
         try
         {
             var give = DateTime.UtcNow.AddSeconds(30);
             RuntimeExtensionStatus status;
-            while ((status = published.Read(ExtensionIds.VehicleDrivetrain)).Reason != "connection-unavailable")
+            while ((status = published.Read(VehicleDrivetrainExtension.Id)).Reason != "connection-unavailable")
             {
                 if (run.IsCompleted) await run;
                 if (DateTime.UtcNow > give) throw new TimeoutException($"vehicle connection unavailable: last status was {status}");
@@ -268,8 +270,8 @@ public sealed partial class GameSaveClientTests
             await Task.Delay(1500);
             var after = settings.Read();
             Assert.Equal(1, after.Revision);
-            Assert.True(after.Extensions[ExtensionIds.VehicleDrivetrain].Enabled);
-            Assert.Equal("connection-unavailable", published.Read(ExtensionIds.VehicleDrivetrain).Reason);
+            Assert.True(after.Extensions[VehicleDrivetrainExtension.Id].Enabled);
+            Assert.Equal("connection-unavailable", published.Read(VehicleDrivetrainExtension.Id).Reason);
         }
         finally
         {

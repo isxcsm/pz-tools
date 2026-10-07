@@ -142,21 +142,4 @@ public sealed class RuntimeDeathPolicyTests
         Assert.Null(await db.PrepareBackupTickAsync(DateTimeOffset.UtcNow.AddSeconds(30)));
         Assert.Equal(0, (await db.ReadBackupStateIfChangedAsync(-1)).PendingRuns);
     }
-    [Fact]
-    public async Task ExecutionProjectionDoesNotChangePreferences_AndCanClearAStaleResult()
-    {
-        using var temp = new TempDirectory(); var views = new RevisionedViewStore();
-        RuntimeSaveExecution? last = null;
-        var controller = new GameExtensionController(temp.Path, views, lastSave: () => last);
-        var original = (await controller.RefreshAsync()).Cards;
-        Assert.NotEmpty(original);
-        Assert.All(original, card => Assert.False(card.Enabled));
-        last = new(Id(), Id(), Id(), "pztools.test-save", "pztools.standard-save", RuntimeSaveOutcome.Succeeded, "unsupported-game-build", 25, 30);
-        await controller.RefreshRuntimeAsync(default);
-        var view = views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0).Snapshot!;
-        Assert.Equal(last, view.LastSave);
-        Assert.Equal(original, view.Cards);
-        last = null; await controller.RefreshRuntimeAsync(default);
-        Assert.Null(views.ReadIfChanged<GameExtensionsView>(GameExtensionController.ViewKey, 0).Snapshot!.LastSave);
-    }
 }

@@ -84,7 +84,7 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
 
     private async Task RunAsync(Grid host)
     {
-        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == ExtensionIds.VehicleDrivetrain);
+        var definition = ExtensionCatalog.BuiltIn.Single(item => item.Id == VehicleDrivetrainExtension.Id);
         var original = new ExtensionCardView(definition, false, "version-unknown", 0, VersionMatches: false);
         foreach (var theme in new[] { ElementTheme.Light, ElementTheme.Dark })
         foreach (var width in new[] { 1040, 560 })
@@ -92,13 +92,13 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
             host.RequestedTheme = theme;
             host.Width = width;
             host.Children.Clear();
-            var writes = new List<(GameExtensionSetting Setting, bool Value)>();
+            var writes = new List<(string Setting, bool Value)>();
             var section = new ExtensionSettingsSection(definition.Id, (setting, value) =>
             {
                 writes.Add((setting, value));
                 return Task.CompletedTask;
             }, initiallyExpanded: true);
-            section.Update(new([original], true), original);
+            section.Update(new([original]), original);
             var page = new StackPanel { Spacing = 16, Margin = new Thickness(24) };
             page.Children.Add(new TextBlock { Text = Localizer.Get("GameExtensions.Title"), FontSize = 28 });
             page.Children.Add(section.Control);
@@ -152,15 +152,15 @@ internal sealed class SmokeApp(string outputDirectory) : Application, IXamlMetad
             }
             section.Control.IsExpanded = false;
             var next = original with { Enabled = true };
-            section.Update(new([next], true), next);
+            section.Update(new([next]), next);
             Check(!section.Control.IsExpanded && ReferenceEquals(master, section.Control.Content),
                 "Preference update reopened or replaced the section.");
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.WorldRequired")),
                 "World-required hint was lost.");
-            section.Update(new([next], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.Pending, "safe-boundary") }, RuntimeWorldReady: true), next);
+            section.Update(new([next], Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.Pending, "safe-boundary") }, RuntimeWorldReady: true), next);
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.ApplyWhenSafe")),
                 "Safe-boundary hint was lost.");
-            section.Update(new([next], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.FaultedPassThrough, "test-failure") }, RuntimeWorldReady: true), next);
+            section.Update(new([next], Statuses: new Dictionary<string, RuntimeExtensionStatus> { [next.Definition.Id] = new(RuntimeExtensionState.FaultedPassThrough, "test-failure") }, RuntimeWorldReady: true), next);
             Check(details.Children.OfType<TextBlock>().Any(text => text.Text == Localizer.Get("GameExtensions.InitializationFailed")),
                 "Failure hint was lost.");
             section.Control.IsExpanded = true;

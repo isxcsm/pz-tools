@@ -625,9 +625,6 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="LogChooseDateTime" xml:space="preserve"><value>Pilih tanggal dan waktu</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Tanggal</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Ekstensi gim</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Nonaktif · Penyimpanan standar</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilitas akan diperiksa saat penyimpanan berikutnya · Eksperimental</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Terapkan</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Pengaturan ekstensi tidak tersedia</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Perubahan tidak dapat disimpan. Buka kembali halaman dan periksa berkas pengaturan ekstensi.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Semua versi</value></data>
@@ -638,11 +635,6 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Menunggu versi gim · Ekstensi tidak aktif</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Abaikan rentang versi yang didukung</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Versi yang tidak didukung dapat menyebabkan kesalahan. Hanya batas versi yang diabaikan; pemeriksaan keamanan penting tetap aktif. Ekstensi harus diaktifkan secara terpisah.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Batas versi diabaikan · Pemeriksaan penting tetap aktif</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Penyimpanan melalui ekstensi berlangsung</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Permintaan terakhir: penyimpanan melalui ekstensi selesai</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Permintaan terakhir: penyimpanan standar digunakan ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Permintaan terakhir: penyimpanan gagal ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Traktir saya kopi</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>Apakah PZ Tools membantu Anda?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Gim tidak berjalan</value></data>

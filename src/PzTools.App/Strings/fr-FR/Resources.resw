@@ -625,9 +625,6 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="LogChooseDateTime" xml:space="preserve"><value>Choisir la date et l’heure</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Date</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Extensions du jeu</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Désactivé · Enregistrement standard</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Compatibilité vérifiée au prochain enregistrement · Expérimental</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Appliquer</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Paramètres des extensions indisponibles</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Impossible d’enregistrer vos modifications. Rouvrez la page et vérifiez le fichier des paramètres des extensions.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Toutes les versions</value></data>
@@ -638,11 +635,6 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>En attente de la version du jeu · Extension inactive</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Ignorer la plage de versions prises en charge</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Les versions non prises en charge peuvent provoquer des erreurs. Seule la restriction de version est ignorée ; les contrôles de sécurité essentiels restent actifs. L’extension doit être activée séparément.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Restriction de version ignorée · Contrôles essentiels maintenus</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Enregistrement par l’extension en cours</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Dernière demande : enregistrement par l’extension terminé</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Dernière demande : enregistrement standard utilisé ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Dernière demande : échec de l’enregistrement ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Offrir un café</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools vous a été utile ?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Le jeu n’est pas lancé</value></data>

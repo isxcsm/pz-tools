@@ -16,6 +16,12 @@ public sealed class GameExtensionReconciler(RuntimeExtensionStatus initial)
     /// <summary>The latest requested revision was rejected, rather than accepted at a pending safe boundary.</summary>
     public bool RequestRejected => rejection is not null;
 
+    /// <summary>
+    /// The revision of the last APPLY the game answered, and the digest of the configuration sent with it
+    /// (<see cref="PzTools.GameExtensions.ContinuousConfiguration.Digest"/>); null before the first.
+    /// </summary>
+    public (long Revision, string Configuration)? Sent { get; private set; }
+
     public async Task<RuntimeExtensionStatus> ReconcileAsync(IGameExtensionSession session,
         string processSession, string worldSession, long revision, string moduleId, bool forceVersion,
         Func<IReadOnlyDictionary<string, string>> configuration, CancellationToken token)
@@ -30,7 +36,13 @@ public sealed class GameExtensionReconciler(RuntimeExtensionStatus initial)
         attemptedProcess = processSession; attemptedWorld = worldSession; attemptedRevision = revision;
         rejection = null;
         IReadOnlyDictionary<string, string> tuning;
-        try { tuning = configuration(); }
+        string digest;
+        try
+        {
+            tuning = configuration();
+            // Also refuses a configuration the game would not read, before anything is sent.
+            digest = PzTools.GameExtensions.ContinuousConfiguration.Digest(tuning);
+        }
         catch (Exception failure) when (failure is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
             or FormatException or OverflowException)
         {
@@ -41,6 +53,7 @@ public sealed class GameExtensionReconciler(RuntimeExtensionStatus initial)
 
         var response = await session.ApplyAsync(processSession, worldSession, actual.AppliedRevision, revision,
             moduleId, forceVersion, tuning, token);
+        Sent = (revision, digest);
         if (response.Reason == "revision-conflict")
         {
             // An accepted pending request may have become applied since our previous heartbeat.

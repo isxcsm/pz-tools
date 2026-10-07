@@ -36,6 +36,31 @@ public sealed class StartupLoaderTests
     }
 
     [Fact]
+    public async Task EveryCall_DoesItsWorkOffTheCallersThread()
+    {
+        // The app calls the loader from its UI thread: the folder lookup, the process scan and the install tool must not
+        // run there. Done on the caller's thread, they would see the caller's context.
+        var caller = new SynchronizationContext();
+        var seen = new System.Collections.Concurrent.ConcurrentBag<SynchronizationContext?>();
+        var loader = new StartupLoader(@"C:\App\game-bridge",
+            () => { seen.Add(SynchronizationContext.Current); return Folder; },
+            () => { seen.Add(SynchronizationContext.Current); return []; },
+            (_, _) => { seen.Add(SynchronizationContext.Current); return Task.FromResult((0, "PZTOOLS-STARTUP\tnot-installed")); });
+        var previous = SynchronizationContext.Current;
+        Task[] calls;
+        SynchronizationContext.SetSynchronizationContext(caller);
+        try
+        {
+            calls = [loader.RefreshAsync(), loader.RefreshBridgeAsync(), loader.InstallAsync(), loader.UninstallAsync(),
+                loader.UpdateResidentExtensionsAsync(@"C:\App\data")];
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await Task.WhenAll(calls);
+        Assert.NotEmpty(seen);
+        Assert.DoesNotContain(caller, seen);
+    }
+
+    [Fact]
     public async Task Refresh_Installed_NamesTheInstallFolder()
     {
         var tool = new FakeTool(_ => (0, "PZTOOLS-STARTUP\tinstalled\tabc\t" + @"C:\ProgramData\PzTools\startup\s-1"));
