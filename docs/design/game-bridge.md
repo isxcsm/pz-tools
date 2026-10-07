@@ -330,7 +330,8 @@ absolute path is cut to its last part.
 `AttachDiagnostics.Classify` recognises one cause the player can change: Java reports that the target "does
 not support the attach mechanism", which is what `-XX:+DisableAttachMechanism` does. Its code is
 `attach-disabled`, and the app says **A game launch option is blocking the connection.** Everything else is
-`attach-failed` (on the state stream, `runtime-unavailable`). The app always runs as administrator by its
+`attach-failed` (on the state stream and extension control, which start the helper the same way through
+`AttachLink`, `runtime-unavailable`). The app always runs as administrator by its
 manifest, so a game with more rights than the app is not a cause.
 
 | Link | Log entry |
