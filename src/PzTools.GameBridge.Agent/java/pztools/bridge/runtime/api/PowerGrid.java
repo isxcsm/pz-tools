@@ -101,6 +101,9 @@ final class PowerGrid implements ApiHooks.Power {
     private final Buildings buildings;
     private final Cadence cadence = new Cadence();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
+    // Set by a definition change, made on the thread that changed it; see current().
+    private volatile boolean stale;
+    private volatile Thread changer;
     // The producers the last frame left in networks: one that joins or leaves gets its surroundings worked out again.
     private Set<Position> grouped = Set.of();
     // In a frame: the hour each network's producer in use started or stopped, when it did.
@@ -168,12 +171,27 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     /**
-     * A definition changed: the hooks know the producers at once (a world's generators make up for the hours the world
-     * was away as they first update, which can come before the next frame), and the next frame works the rest out.
+     * A definition changed: the hooks know the definitions at once on the thread that changed them, the game's (a world's
+     * generators make up for the hours the world was away as they first update, which can come before the next frame),
+     * and the next frame works the rest out. Many changes in a row make one snapshot, not one each.
      */
-    void changed() throws ReflectiveOperationException {
-        snapshot = snapshot();
+    void changed() {
+        changer = Thread.currentThread();
+        stale = true;
         cadence.changed();
+    }
+
+    /**
+     * What the hooks read: made again here after a definition changed, when the question comes on the thread that
+     * changed it, which is the one that changes the networks; another thread reads the last one until the next frame.
+     */
+    private Snapshot current() {
+        if (stale && Thread.currentThread() == changer) {
+            stale = false;
+            try { snapshot = build(); }
+            catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
+        }
+        return snapshot;
     }
 
     /** The mod switched the network on or off: remembered for food, and worked out again in the next frame. */
@@ -186,13 +204,13 @@ final class PowerGrid implements ApiHooks.Power {
     // The hooks.
 
     @Override public boolean square(int x, int y, int z) {
-        for (Area area : snapshot.supplied()) if (area.contains(x, y, z)) return !PURE.get()[0];
+        for (Area area : current().supplied()) if (area.contains(x, y, z)) return !PURE.get()[0];
         return false;
     }
 
     @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) {
         if (!generators || object == null) return vanilla;
-        Snapshot current = snapshot;
+        Snapshot current = current();
         // The game said no while a network has supply: a network may add to it. Its yes stands but for an exclusion.
         boolean asked = !vanilla && current.supplied().length > 0;
         if (!asked && current.rules().isEmpty()) return vanilla;
@@ -260,7 +278,7 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     @Override public boolean generator(Object generator) {
-        Snapshot current = snapshot;
+        Snapshot current = current();
         if (current.producers().isEmpty()) return false;
         try {
             Position at = game.at(generator);
@@ -287,7 +305,7 @@ final class PowerGrid implements ApiHooks.Power {
 
     @Override public void consumerChanged(Object square) {
         if (square == null) return;
-        Snapshot current = snapshot;
+        Snapshot current = current();
         try {
             int x = game.x(square), y = game.y(square), z = game.z(square);
             for (Network network : current.withArea()) {
@@ -305,7 +323,7 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     @Override public void generatorUpdate(Object generator) {
-        Snapshot current = snapshot;
+        Snapshot current = current();
         if (current.producers().isEmpty()) return;
         try {
             Position at = game.at(generator);
@@ -326,7 +344,7 @@ final class PowerGrid implements ApiHooks.Power {
      * network without the game's own power, they are split also where the network's supply started and stopped.
      */
     @Override public double foodHours(double vanilla, Object food) {
-        Snapshot current = snapshot;
+        Snapshot current = current();
         if (current.histories().isEmpty() || food == null) return vanilla;
         boolean[] pure = PURE.get();
         if (pure[0]) return vanilla;
@@ -406,7 +424,8 @@ final class PowerGrid implements ApiHooks.Power {
         for (Network network : powered)
             if (!fresh.contains(network) && Math.abs(network.total - totals.get(network)) > 1e-6f)
                 changes.add(new Change(network.id, "load", hours));
-        snapshot = snapshot();
+        stale = false;
+        snapshot = build();
         // Producers that joined or left a network: the API, or the game, works out their surroundings again.
         Set<Position> producersNow = snapshot.producers().keySet(), producersBefore = grouped;
         var regrouped = new HashSet<Position>(producersBefore);
@@ -628,7 +647,7 @@ final class PowerGrid implements ApiHooks.Power {
         return square != null && (boolean)squarePowered.invoke(square);
     }
 
-    private Snapshot snapshot() throws ReflectiveOperationException {
+    private Snapshot build() throws ReflectiveOperationException {
         var supplied = new ArrayList<Area>();
         var rooms = new TreeSet<Long>();
         var withArea = new ArrayList<Network>();

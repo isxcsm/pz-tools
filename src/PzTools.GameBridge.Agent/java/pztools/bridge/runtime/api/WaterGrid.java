@@ -54,6 +54,9 @@ final class WaterGrid implements ApiHooks.Water {
     private final PendingFluids pending;
     private final Cadence cadence = new Cadence();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
+    // Set by a definition change, made on the thread that changed it; see current().
+    private volatile boolean stale;
+    private volatile Thread changer;
     private final Method fluidContainer, amount, capacity;
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
@@ -99,10 +102,23 @@ final class WaterGrid implements ApiHooks.Water {
      */
     void hook() { ApiHooks.setWater(this); }
 
-    /** A definition changed: the next frame works the networks out again. */
+    /**
+     * A definition changed: the hooks know the definitions at once on the thread that changed them, and the next frame
+     * works the networks out again. Many changes in a row make one snapshot, not one each.
+     */
     void changed() {
-        snapshot = snapshot(networks.of(UTILITY));
+        changer = Thread.currentThread();
+        stale = true;
         cadence.changed();
+    }
+
+    /** What the hooks read, made again on the thread that changed a definition (as PowerGrid.current). */
+    private Snapshot current() {
+        if (stale && Thread.currentThread() == changer) {
+            stale = false;
+            snapshot = build(networks.of(UTILITY));
+        }
+        return snapshot;
     }
 
     // The hooks.
@@ -126,7 +142,7 @@ final class WaterGrid implements ApiHooks.Water {
      * turning TaintedWater into Water; null, the game's, for any other, and for a source that is not the network's.
      */
     @Override public Object sample(Object fixture, Object source, float amount) {
-        if (!snapshot.unpurified() || source == null) return null;
+        if (!current().unpurified() || source == null) return null;
         try {
             Object from = unpurifiedSource(fixture);
             return from != null && fluidContainer.invoke(from) == source ? unpurified(source, amount) : null;
@@ -136,7 +152,7 @@ final class WaterGrid implements ApiHooks.Water {
 
     /** {@code vanilla}, or the fixture's network does not purify its water and its source holds tainted water. */
     @Override public boolean tainted(boolean vanilla, Object fixture) {
-        if (vanilla || !snapshot.unpurified()) return vanilla;
+        if (vanilla || !current().unpurified()) return vanilla;
         try {
             Object from = unpurifiedSource(fixture);
             Object container = from == null ? null : fluidContainer.invoke(from);
@@ -176,7 +192,7 @@ final class WaterGrid implements ApiHooks.Water {
      * rule names allocates nothing.
      */
     private Supplier supplier(Object fixture) throws ReflectiveOperationException {
-        Snapshot current = snapshot;
+        Snapshot current = current();
         if (current.suppliers().isEmpty() || fixture == null || !buildings.piped(fixture)) return null;
         Object square = game.squareOf(fixture);
         if (square == null) return null;
@@ -542,7 +558,8 @@ final class WaterGrid implements ApiHooks.Water {
             network.suppliedAt = hours;
             supplyChanged.add(network);
         }
-        snapshot = snapshot(watered);
+        stale = false;
+        snapshot = build(watered);
         // Last, so that a mod that asks for the state then gets it.
         for (Network network : supplyChanged) networks.raise(network.id, "supply", hours);
     }
@@ -555,7 +572,7 @@ final class WaterGrid implements ApiHooks.Water {
         return false;
     }
 
-    private Snapshot snapshot(List<Network> watered) {
+    private Snapshot build(List<Network> watered) {
         var suppliers = new ArrayList<Supplier>();
         var byNetwork = new HashMap<Network, Supplier>();
         var producers = new HashMap<Position, Long>();

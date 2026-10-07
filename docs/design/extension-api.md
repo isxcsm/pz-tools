@@ -67,7 +67,10 @@ How the table gets there:
   environment comes first, the call waits for the payload, at most 10 seconds, once per game.
 - A payload that replaces another, or that came after the game's Lua started, sets the table on the
   next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
-  handles are kept.
+  handles are kept. A function a mod copied out of the table (`local define =
+  PZToolsAPI.networks.define`) belongs to the payload replaced: calling it is a Lua error that says
+  the API was updated, and the mod reads it from `PZToolsAPI` again. A payload that fails to set the
+  table leaves the game as in vanilla, and the functions mods copied give the same error.
 - A game started by an install from before the API has no API until it is started again.
 
 A mod checks `PZToolsAPI` on `OnGameStart`. Without it (PZ Tools not installed, or this game not
@@ -77,8 +80,12 @@ generators make up for the hours it was away as they first update, and the API s
 networks defined by then. Until a mod defines its networks, the game behaves as in vanilla.
 
 When the app updates the API's code in a running game, the new code takes over the definitions of the
-old one; mods do not define anything again. A change that cannot take them over waits for the game's
-restart, as other bootstrap changes do.
+old one, and what the old code knew of them: the producer in use and each producer as last seen, the
+supply, the load of consumers that are not loaded, and the supply's history for food. Mods do not
+define anything again, and a producer running on a square that is not loaded goes on carrying its
+network. The old code keeps the definitions in the API table's metatable, written once a frame when
+they changed, and hands them over with the rest as the new code takes over. A change that cannot take
+them over waits for the game's restart, as other bootstrap changes do.
 
 Uninstalling the startup loader removes the API from the next game start. The app says so before it
 uninstalls, naming the mods it has seen use the API.
@@ -245,7 +252,7 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   hours a network or a parent above it was switched off count as without supply. A fridge
   with the game's own power now (the grid, a generator in range), an excluded one and frozen food age
   as in vanilla. Freezing and thawing follow the power now, as in vanilla. The times are not saved: a
-  world loaded again, or a newer payload, starts them anew.
+  world loaded again starts them anew; a newer payload takes them over.
 - **Settled state.** The generators' own saved fields (switched on, fuel, condition, `lastHour`) are
   the state: the API keeps nothing in the save. After a world loads, the producer the game runs is
   the one in use; the API records it as its first update starts, before the game makes up for the
@@ -343,7 +350,11 @@ writes it to the install folder for the app, which says so on the startup loader
 ([startup loader](startup-loader.md#the-game-that-runs)).
 
 The answers come from a snapshot the API makes again when something changes
-([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):
+([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)).
+A definition that changes marks it out of date: the next frame makes it again, or the first question
+the game asks before then on its own thread, the one the mods' calls come on (a world's generators
+make up for the hours away as they first update, which can come before the next frame). So a mod that
+defines many objects in a row costs one snapshot, and a call that changes nothing costs none. It holds,
 for each supplied network, one bit per square of its buildings, kept in blocks of 8 by 8 squares of a
 level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
 and the networks' object rules by square. `haveElectricity()` is called very often (lighting, food,

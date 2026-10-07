@@ -63,6 +63,7 @@ public final class GameApiTest {
         cheapHooks(api);
         sources(api);
         failedTakeover(api);
+        handover(api);
         water(api);
         fluids(api);
         purify(api);
@@ -965,6 +966,78 @@ public final class GameApiTest {
     }
 
     /**
+     * A newer payload takes over what the networks know besides their definitions: a producer running on a square that
+     * is not loaded goes on carrying its network until its fuel would run out, a water producer that is not loaded
+     * still holds what it was last seen to, and consumers that are not loaded still count. The definitions are written
+     * where a newer payload finds them once a frame, or as it takes over; a function a mod kept from before says that
+     * the API was updated.
+     */
+    private static void handover(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks"), meta = api.getMetatable();
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 4000;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "kept", "power", "sequential");
+        call(networks, "setProducers", mod, "kept", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "kept", 11.0, 11.0, 0.0);
+        place(30, 40, 0, barrel(40));
+        call(networks, "define", mod, "keptWater", "water", "fullest");
+        call(networks, "setProducers", mod, "keptWater", list(at(30, 40, 0)));
+        generator.setActivated(true);
+        frame();
+        generator.update();
+        int end = generator.lastHour() + (int)Math.ceil(generator.fuel / generator.getTotalPowerUsing());
+        double load = (Double)state(networks, "kept").rawget("load");
+        check(state(networks, "kept").rawget("supplied").equals(true) && near((Double)state(networks, "keptWater").rawget("amount"), 40),
+            "The networks do not run");
+        // Written once a frame, and not again for a call that changes nothing.
+        Object written = meta.rawget("networks");
+        check(written instanceof String text && text.contains("kept"), "The definitions were not written at the frame");
+        call(networks, "addBuilding", mod, "kept", 11.0, 11.0, 0.0);
+        frame();
+        check(meta.rawget("networks") == written, "A call that changed nothing wrote the definitions again");
+        call(networks, "define", mod, "late", "power", "sequential");
+        check(meta.rawget("networks") == written, "The definitions were written at the call, not at the frame");
+        // The producer's, the barrel's and the fridge's squares leave the world; a newer payload takes over before a frame.
+        var squares = IsoWorld.instance.cell.squares;
+        var away = new LinkedHashMap<String, IsoGridSquare>();
+        for (String key : List.of("34,33,0", "30,40,0", "11,11,0")) away.put(key, squares.remove(key));
+        Object define = networks.rawget("define");
+        LuaEventManager.raised.clear();
+        GameApi.register(LuaManager.class);
+        frame();
+        KahluaTable kept = state(networks, "kept");
+        check(kept.rawget("supplied").equals(true) && ((KahluaTable)kept.rawget("producer")).rawget("x").equals(34.0)
+            && kept.rawget("hoursLeft") != null && new IsoGridSquare(11, 11, 0).haveElectricity(),
+            "A newer payload lost the producer running on a square that is not loaded");
+        check(near((Double)kept.rawget("load"), load), "A newer payload lost the load of consumers not loaded: " + kept.rawget("load") + " for " + load);
+        check(state(networks, "keptWater").rawget("supplied").equals(true) && near((Double)state(networks, "keptWater").rawget("amount"), 40),
+            "A newer payload lost what a water producer not loaded holds");
+        check(LuaEventManager.raised.isEmpty(), "A newer payload changed the supply: " + LuaEventManager.raised);
+        check(state(networks, "late") != null, "A newer payload lost a definition made since the last frame");
+        // The producer not loaded runs out at the hour its fuel would: the newer payload knows when. (A definition
+        // changes, so that the next frame works the networks out rather than waiting a second.)
+        time.hours = end + 5;
+        call(networks, "remove", mod, "late");
+        frame();
+        check(state(networks, "kept").rawget("supplied").equals(false) && raised("kept", "supply", end),
+            "The producer not loaded did not run out at hour " + end + ": " + LuaEventManager.raised);
+        // A function a mod kept from before the takeover.
+        try { invoke(define, mod, "stale", "power", "sequential"); throw new AssertionError("A function kept from before the takeover ran"); }
+        catch (IllegalArgumentException expected) {
+            check(expected.getMessage().startsWith("PZToolsAPI.networks.define: the API was updated"), expected.getMessage());
+        }
+        check(call(networks, "state", "stale").get(0) == null, "A function kept from before the takeover defined a network");
+        squares.putAll(away);
+        for (String id : List.of("kept", "keptWater")) call(networks, "remove", mod, id);
+        frame();
+        generator.setActivated(false);
+        square(30, 40, 0).objects.clear();
+    }
+
+    /**
      * A water network over the house, with two barrels outside it. Its sink takes water from the fullest barrel that
      * holds some; the barrels answer for themselves, and what the world saves is the game's own flag.
      */
@@ -1053,7 +1126,9 @@ public final class GameApiTest {
         check(state(networks, "annex").rawget("supplied").equals(true), "A child lost its own water when its parent was switched on");
         LuaEventManager.raised.clear();
         tank.fluidContainer.amount = 0;
-        // Named again, so that the next frame reads the producers rather than waiting a second.
+        // Changed, so that the next frame reads the producers rather than waiting a second. Named again alone, the
+        // building would change nothing.
+        call(networks, "removeBuilding", mod, "annex", 20.0, 20.0, 0.0);
         call(networks, "addBuilding", mod, "annex", 20.0, 20.0, 0.0);
         frame();
         check(state(networks, "annex").rawget("supplied").equals(false) && raised("annex", "supply", hours), "A dry child supplies water");

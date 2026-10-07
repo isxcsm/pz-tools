@@ -89,18 +89,24 @@ public final class GameApi {
             lua.set(meta, MARK, true);
             lua.setMetatable(api, meta);
         }
-        lua.set(api, "version", (double)VERSION);
-        lua.set(api, "hooks", lua.function(AREA + "hooks", arguments -> {
-            Object table = lua.table();
-            for (var hook : hooks().entrySet()) lua.set(table, hook.getKey(), hook.getValue());
-            return new Object[] { table };
-        }));
-        Object handles = clients(lua, api, meta);
-        var game = new Game(luaManager.getClassLoader());
-        var buildings = new Buildings(lua, game, luaManager.getClassLoader());
-        buildings.register(table(lua, api, "buildings"));
-        networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
-        lua.set(env, GLOBAL, api);
+        try {
+            lua.set(api, "version", (double)VERSION);
+            lua.set(api, "hooks", lua.function(AREA + "hooks", arguments -> {
+                Object table = lua.table();
+                for (var hook : hooks().entrySet()) lua.set(table, hook.getKey(), hook.getValue());
+                return new Object[] { table };
+            }));
+            Object handles = clients(lua, api, meta);
+            var game = new Game(luaManager.getClassLoader());
+            var buildings = new Buildings(lua, game, luaManager.getClassLoader());
+            buildings.register(table(lua, api, "buildings"));
+            networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
+            lua.set(env, GLOBAL, api);
+        } catch (Throwable failure) {
+            // The functions mods kept refuse to be called rather than change networks that no longer run.
+            Networks.retire(lua, meta);
+            throw failure;
+        }
     }
 
     /**
@@ -124,7 +130,10 @@ public final class GameApi {
         }
         networks = next;
         if (next != null) next.register(table(lua, api, "networks"));
-        else lua.set(api, "networks", null);
+        else {
+            Networks.retire(lua, meta);
+            lua.set(api, "networks", null);
+        }
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */
@@ -158,7 +167,7 @@ public final class GameApi {
             String name = owner(lua, handles, arguments.length > 0 ? arguments[0] : null);
             if (name == null) throw new IllegalArgumentException(AREA + "client:clear: call it on a handle, with a colon");
             Networks current = networks;
-            if (current != null) current.clear(name);
+            if (current != null) current.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;
