@@ -102,10 +102,18 @@ final class Network {
      * PowerGrid.OUT_OF_SERVICE). The API never switches them on. Every other generator that is off is on standby.
      */
     final Set<Producer> outOfService = new HashSet<>();
+    /** The squares of generators the game ran since the last frame (see PowerGrid.generatorUpdate). */
+    final Set<Position> ran = new HashSet<>();
+    /**
+     * Producers a payload from before the marks handed over: the next frame reads their marks as at first sight, which
+     * that payload did not keep.
+     */
+    final Set<Producer> recheck = new HashSet<>();
     /**
      * Power, at the top of its parents: whether the API stopped its producers as it was switched off (and has not
-     * started one since it was switched on again), and the producer to start first as it is switched on again: the one
-     * in use when it was switched off, or one a player switched on meanwhile. Null for none.
+     * started one since it was switched on again: it may wait for the square of the one to start first to load), and
+     * the producer to start first as it is switched on again: the one in use when it was switched off, or one a player
+     * or a source's mod switched on meanwhile. Null for none, and whenever it is not stopped.
      */
     boolean stopped;
     Producer resume;
