@@ -43,6 +43,25 @@ local UPGRADES = {
 }
 function Costs.upgrade(tier) return UPGRADES[tier] end
 
+-- Costs together, as one: each tool once, the items summed by type, the highest skill.
+function Costs.sum(costs)
+    local result, tools, items = { tools = {}, items = {} }, {}, {}
+    for _, cost in ipairs(costs) do
+        for _, tool in ipairs(cost.tools) do
+            if not tools[tool] then tools[tool] = true; result.tools[#result.tools + 1] = tool end
+        end
+        for _, item in ipairs(cost.items) do
+            if not items[item[1]] then
+                items[item[1]] = { item[1], 0 }
+                result.items[#result.items + 1] = items[item[1]]
+            end
+            items[item[1]][2] = items[item[1]][2] + item[2]
+        end
+        if cost.skill and (result.skill or 0) < cost.skill then result.skill = cost.skill end
+    end
+    return result
+end
+
 -- How many of an item a cost takes.
 function Costs.count(cost, itemType)
     for _, item in ipairs(cost.items) do

@@ -203,13 +203,7 @@ function ISBUPlan:ranges(floor)
     if self.rangeKey ~= data.rangeKey then self.rangeCache, self.rangeKey = {}, data.rangeKey end
     local cached = self.rangeCache[floor]
     if cached then return cached end
-    local floorRects, allRects = {}, {}
-    for _, room in ipairs(data.rooms) do
-        for _, rect in ipairs(room.rects) do
-            allRects[#allRects + 1] = rect
-            if room.level == floor then floorRects[#floorRects + 1] = rect end
-        end
-    end
+    local floorRects, allRects = Geometry.roomRects(data.rooms, floor)
     -- Devices outside join by the floor's own rooms (as the API finds them); producers by the whole outline.
     cached = { exterior = rangeEdges(floorRects, data.ranges.exterior or 0),
         producer = data.ranges.producer and rangeEdges(allRects, data.ranges.producer) or {}, noise = {} }
@@ -280,6 +274,7 @@ function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
     self.flows, self.walls = {}, {}
+    self:layoutTop()
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
@@ -353,13 +348,7 @@ function ISBUPlan:layout()
         addEdges(ranges.exterior, COLOURS.rangeOutside)
     end
     -- The lines: from the building's outline (this floor's, else any) to each producer and device outside it takes.
-    local floorRects, allRects = {}, {}
-    for _, room in ipairs(data.rooms) do
-        for _, rect in ipairs(room.rects) do
-            allRects[#allRects + 1] = rect
-            if room.level == self.floor then floorRects[#floorRects + 1] = rect end
-        end
-    end
+    local floorRects, allRects = Geometry.roomRects(data.rooms, self.floor)
     -- A line, and with a flow the dots' path: from the thing to the building, on to the box when it is on this floor;
     -- they run along it to the box (flow 1) or from it (-1).
     local function addLine(x, y, colour, flow)
@@ -501,39 +490,41 @@ function ISBUPlan:layoutStrip()
     if overflow then arrow(1, first + fit - 1 < #downward) end
 end
 
--- The switches of the top bar, right to left: the legend, the zone (where zones can be edited), the range, Fit
--- (zoomed or moved). Each { name, x, w, text }.
-function ISBUPlan:toggles()
-    local result, right = {}, self.width - PAD
-    local function add(name, w, text)
-        right = right - w
-        result[#result + 1] = { name = name, x = right, w = w, text = text }
-        right = right - 4
-    end
-    add("legend", TOGGLE_W, "?")
-    if self.data and self.data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
-    add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
-    if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
-    return result
-end
-
-function ISBUPlan:prerender()
-    ISPanel.prerender(self)
-    -- The floor shown, with what its devices draw; with several floors, a click on it lists them.
-    local text = BU.floorName(self.floor or 0)
+-- The top bar, laid out with the rest: the floor shown with what its devices draw (with several floors, a click on
+-- it lists them) and how far its name reaches either side of the middle; the switches, right to left: the legend,
+-- the zone (where zones can be edited), the range, Fit (zoomed or moved), each { name, x, w, text }.
+function ISBUPlan:layoutTop()
     local data = self.data
+    local name = BU.floorName(self.floor or 0)
+    local text = name
     if data and data.utility == "power" then
         text = getText("IGUI_BU_FloorLoad", text, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
     end
     if #(self.levels or {}) > 1 then text = text .. "  v" end
-    self:drawTextCentre(text, self.width / 2, PAD, 1, 1, 1, 1, UIFont.Small)
-    local on = { legend = self:legendShown(), zone = data and data.zoneEdit, range = self.window.rangeShown }
-    for _, toggle in ipairs(self:toggles()) do
-        if on[toggle.name] and toggle.name ~= "legend" then
-            self:drawRect(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6)
-        end
+    self.floorTitle, self.titleHalf = text, getTextManager():MeasureStringX(UIFont.Small, name) / 2 + 60
+    local toggles, right = {}, self.width - PAD
+    local function add(toggleName, w, label)
+        right = right - w
+        toggles[#toggles + 1] = { name = toggleName, x = right, w = w, text = label }
+        right = right - 4
+    end
+    add("legend", TOGGLE_W, "?")
+    if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
+    add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
+    if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
+    self.toggles = toggles
+end
+
+function ISBUPlan:prerender()
+    ISPanel.prerender(self)
+    if not self.floorTitle then self:layoutTop() end
+    self:drawTextCentre(self.floorTitle, self.width / 2, PAD, 1, 1, 1, 1, UIFont.Small)
+    local legend = self:legendShown()
+    for _, toggle in ipairs(self.toggles) do
+        local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
+        if on then self:drawRect(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
         self:drawRectBorder(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-        local lit = toggle.name ~= "legend" or on.legend
+        local lit = toggle.name ~= "legend" or legend
         self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, PAD, 1, lit and 0.9 or 0.6, lit and 0.5 or 0.6,
             toggle.name == "legend" and 1 or 0.9, UIFont.Small)
     end
@@ -542,11 +533,11 @@ end
 -- Which part of the top bar is under the mouse: a switch's name, "title" (the floor's name) or nil.
 function ISBUPlan:toggleAt(x, y)
     if y >= PAD + FONT_HGT_SMALL + 2 then return nil end
-    for _, toggle in ipairs(self:toggles()) do
+    if not self.floorTitle then self:layoutTop() end
+    for _, toggle in ipairs(self.toggles) do
         if x >= toggle.x and x < toggle.x + toggle.w then return toggle.name end
     end
-    local half = getTextManager():MeasureStringX(UIFont.Small, BU.floorName(self.floor or 0)) / 2 + 60
-    if math.abs(x - self.width / 2) <= half then return "title" end
+    if math.abs(x - self.width / 2) <= self.titleHalf then return "title" end
     return nil
 end
 

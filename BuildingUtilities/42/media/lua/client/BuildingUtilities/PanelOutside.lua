@@ -1,39 +1,19 @@
 -- The breaker box window: devices outside chosen several at a time and connected in one walk.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
-    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
-local Ui = BU.PanelUi
-local count = Ui.count
+local Costs, Actions = BU.Costs, BU.Actions
 
 -- Devices outside, chosen to connect in one go.
 
--- What connecting the chosen devices takes together: how many, and one cost (tools once, items summed).
+-- What connecting the chosen devices takes together: how many, and one cost (Costs.sum), priced from the devices the
+-- window has.
 function ISBUPanelWindow:chosenCost(utility)
-    local panel, count = self.panel, 0
-    local cost = { tools = {}, items = {} }
-    local tools, items = {}, {}
+    local costs = {}
     local view = self.views[utility]
     for _, device in ipairs(view and view.devices or {}) do
-        if self.chosen[utility][device.key] then
-            local entry = device.entry
-            local one = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
-            if one then
-                count = count + 1
-                for _, tool in ipairs(one.tools) do
-                    if not tools[tool] then tools[tool] = true; cost.tools[#cost.tools + 1] = tool end
-                end
-                for _, item in ipairs(one.items) do
-                    if not items[item[1]] then
-                        items[item[1]] = { item[1], 0 }
-                        cost.items[#cost.items + 1] = items[item[1]]
-                    end
-                    items[item[1]][2] = items[item[1]][2] + item[2]
-                end
-            end
-        end
+        if self.chosen[utility][device.key] then costs[#costs + 1] = Actions.outsideCost(self.panel, utility, device) end
     end
-    return count, cost
+    return #costs, Costs.sum(costs)
 end
 
 -- A cost in a few words: "wire 4, electronics scrap 3".
@@ -46,14 +26,15 @@ end
 function ISBUPanelWindow:setChoosing(utility, on)
     self.choosing[utility] = on or nil
     if not on then self.chosen[utility] = {} end
-    self:refresh()
+    self:refill(utility)
+    self:updatePlan()
 end
 
 function ISBUPanelWindow:toggleChosen(key)
     local utility = self:activeUtility()
     local chosen = self.chosen[utility]
     chosen[key] = (not chosen[key]) or nil
-    self:fill(utility, self.views[utility] and self.views[utility].state)
+    self:refill(utility)
     self:updatePlan()
 end
 
@@ -62,7 +43,7 @@ function ISBUPanelWindow:chooseAll(utility, on)
     for _, device in ipairs(view and view.devices or {}) do
         if not device.inside and device.state == "off" then self.chosen[utility][device.key] = on or nil end
     end
-    self:fill(utility, view and view.state)
+    self:refill(utility)
     self:updatePlan()
 end
 
