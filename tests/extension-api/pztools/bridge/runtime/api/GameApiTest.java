@@ -5,6 +5,7 @@ import java.util.*;
 import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
 import zombie.GameTime;
+import zombie.SandboxOptions;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
 import zombie.entity.components.fluids.FluidContainer;
@@ -43,8 +44,9 @@ public final class GameApiTest {
         sequence(api);
         children(api);
         water(api);
+        food(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, ages food by their supply, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -592,6 +594,87 @@ public final class GameApiTest {
         for (String id : List.of("annex", "pipes", "lights")) call(networks, "remove", mod, id);
         frame();
         check(!sink.getUsesExternalWaterSource() && !outside.getUsesExternalWaterSource(), "A removed network still supplies water");
+    }
+
+    /**
+     * Food in a fridge of a network ages as chilled only for the hours the network had supply: the hours since it
+     * last aged are split where the supply started and stopped, also where it ran out while its producer was not
+     * loaded, and at the grid's shut-off.
+     */
+    private static void food(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 3000;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 10;
+        IsoObject fridge = square(11, 11, 0).objects.get(0);
+        var container = new ItemContainer(fridge);
+        container.fridge = true;
+        call(networks, "define", mod, "cold", "power", "sequential");
+        call(networks, "setProducers", mod, "cold", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "cold", 11.0, 11.0, 0.0);
+        frame();
+        var food = aged(container, 3000);
+        time.hours = 3010;
+        generator.setActivated(true);
+        frame();
+        time.hours = 3020;
+        generator.setActivated(false);
+        frame();
+        time.hours = 3030;
+        food.updateAge(false);
+        check(near(food.age, (10 * 0.2 + 20) / 24), "Food did not age chilled for the hours of supply alone: " + food.age * 24);
+        // With supply now, the hours before it started count unchilled.
+        time.hours = 3040;
+        generator.setActivated(true);
+        frame();
+        time.hours = 3050;
+        food = aged(container, 3030);
+        food.updateAge(false);
+        check(near(food.age, (10 + 10 * 0.2) / 24), "Food with supply now aged chilled for all the hours: " + food.age * 24);
+        // The grid had power until hour 3024.
+        SandboxOptions.instance.elecShutModifier = 126;
+        food = aged(container, 3000);
+        food.updateAge(false);
+        check(near(food.age, (34 * 0.2 + 16) / 24), "The grid's hours were not chilled: " + food.age * 24);
+        SandboxOptions.instance.elecShutModifier = -1;
+        // An excluded fridge, frozen food and a container that is not a fridge age as the game has it.
+        call(networks, "exclude", mod, "cold", 11.0, 11.0, 0.0, "fridge");
+        food = aged(container, 3000);
+        food.updateAge(false);
+        check(near(food.age, 50 / 24.0), "Food in an excluded fridge aged chilled: " + food.age * 24);
+        call(networks, "reset", mod, "cold", 11.0, 11.0, 0.0, "fridge");
+        food = aged(container, 3000);
+        food.frozen = true;
+        food.updateAge(false);
+        check(food.age == 0, "Frozen food aged");
+        var shelf = new ItemContainer(fridge);
+        food = aged(shelf, 3000);
+        food.updateAge(false);
+        check(near(food.age, 50 / 24.0), "Food outside a fridge aged chilled");
+        // Run out while its producer was not loaded: chilled until the hour the fuel ran out.
+        generator.update();
+        generator.fuel = 1;
+        generator.update();
+        double perHour = generator.getTotalPowerUsing();
+        int end = 3050 + (int)Math.ceil(1 / perHour);
+        food = aged(container, 3050);
+        var unloaded = IsoWorld.instance.cell.squares.remove("34,33,0");
+        time.hours = end + 50;
+        frame();
+        IsoWorld.instance.cell.squares.put("34,33,0", unloaded);
+        food.updateAge(false);
+        check(near(food.age, ((end - 3050) * 0.2 + 50) / 24), "Food was not chilled until the fuel ran out: " + food.age * 24 + " for " + end);
+        call(networks, "remove", mod, "cold");
+        frame();
+        generator.setActivated(false);
+    }
+
+    private static Food aged(ItemContainer container, float lastAged) {
+        var food = new Food(container);
+        food.setLastAged(lastAged);
+        return food;
     }
 
     private static IsoObject barrel(float amount) {

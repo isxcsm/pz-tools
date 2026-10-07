@@ -65,6 +65,13 @@ final class Network {
     boolean supplied;
     /** The hour its supply last started or stopped. */
     double suppliedAt;
+    /**
+     * A power network's supply as the API saw it since it first worked the network out: the hours it started (true)
+     * and stopped (false), and whether it had supply before the first. Null until then; kept for a network with its
+     * own producers.
+     */
+    NavigableMap<Double, Boolean> history;
+    boolean suppliedBefore;
     /** A producer the game ran while the API knew of none in use, until the next frame takes it in. */
     Position adopted;
     /** Each consumer's consumption, as last seen loaded. */

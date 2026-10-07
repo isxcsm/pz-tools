@@ -20,6 +20,8 @@ final class PowerGrid implements ApiHooks.Power {
     private static final long REFRESH_NANOS = TimeUnit.SECONDS.toNanos(1);
     // A network whose consumers were not all loaded is worked out again this often, until they were.
     private static final long INCOMPLETE_LOAD_NANOS = TimeUnit.SECONDS.toNanos(5);
+    // The supply changes a network keeps for food: a bound on memory, far more than a fridge sees between two ageings.
+    private static final int MAX_HISTORY = 256;
     // Set while the game's own answer is asked again for an excluded object: the networks then give no square power.
     private static final ThreadLocal<boolean[]> PURE = ThreadLocal.withInitial(() -> new boolean[1]);
 
@@ -32,13 +34,47 @@ final class PowerGrid implements ApiHooks.Power {
     /** An object rule of a network at one square. */
     private record Rule(String sprite, boolean included, boolean supplied, Network network) { }
 
+    /** A network's supply history (see Network.history), as the hooks read it. */
+    record History(double[] hours, boolean[] supplied, boolean before) {
+        static History of(Network network) {
+            double[] hours = new double[network.history.size()];
+            boolean[] supplied = new boolean[hours.length];
+            int index = 0;
+            for (var change : network.history.entrySet()) { hours[index] = change.getKey(); supplied[index++] = change.getValue(); }
+            return new History(hours, supplied, network.suppliedBefore);
+        }
+
+        /**
+         * How many of the hours from {@code from} to {@code to} were chilled: the network had supply, or the grid had
+         * power (before {@code gridEnd}).
+         */
+        double chilled(double from, double to, double gridEnd) {
+            var cuts = new TreeSet<Double>(List.of(from, to));
+            for (double hour : hours) if (hour > from && hour < to) cuts.add(hour);
+            if (gridEnd > from && gridEnd < to) cuts.add(gridEnd);
+            double result = 0, start = from;
+            for (double end : cuts.tailSet(from, false)) {
+                double middle = (start + end) / 2;
+                if (middle < gridEnd || at(middle)) result += end - start;
+                start = end;
+            }
+            return result;
+        }
+
+        private boolean at(double hour) {
+            boolean result = before;
+            for (int index = 0; index < hours.length && hours[index] <= hour; index++) result = supplied[index];
+            return result;
+        }
+    }
+
     /**
      * What the hooks read. {@code supplied} holds the areas of the networks that have supply now, {@code rooms} the
      * ids of their buildings' rooms.
      */
     private record Snapshot(Area[] supplied, Set<Long> rooms, List<Network> withArea, Map<Position, Network> producers,
-            Map<Position, List<Rule>> rules) {
-        static final Snapshot EMPTY = new Snapshot(new Area[0], Set.of(), List.of(), Map.of(), Map.of());
+            Map<Position, List<Rule>> rules, Map<Network, History> histories) {
+        static final Snapshot EMPTY = new Snapshot(new Area[0], Set.of(), List.of(), Map.of(), Map.of(), Map.of());
     }
 
     private final Members members;
@@ -55,7 +91,8 @@ final class PowerGrid implements ApiHooks.Power {
     private final Method getChunk, generatorOf, objectSquare, checkElectricity;
     private final Field squareChunk, chunkX, chunkY;
     private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
-    private final Method gameTime, worldHours, addEvent, triggerEvent, optionValue;
+    private final Method gameTime, worldHours, addEvent, triggerEvent, optionValue, elecShut;
+    private final Method outermost, frozen, fridgeFactor, lastAged, isFridge, isFreezer;
     private final Field sandbox, fuelRate;
     private final Field lastHour;
     // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
@@ -97,6 +134,12 @@ final class PowerGrid implements ApiHooks.Power {
         sandbox = options.getField("instance");
         fuelRate = options.getField("generatorFuelConsumption");
         optionValue = fuelRate.getType().getMethod("getValue");
+        elecShut = options.getMethod("getElecShutModifier");
+        Class<?> food = type(loader, "zombie.inventory.types.Food");
+        outermost = food.getMethod("getOutermostContainer");
+        frozen = food.getMethod("isFrozen");
+        fridgeFactor = accessible(food.getDeclaredMethod("getFridgeFactor"));
+        lastAged = food.getMethod("getLastAged");
         Class<?> events = type(loader, "zombie.Lua.LuaEventManager");
         addEvent = events.getMethod("AddEvent", String.class);
         triggerEvent = events.getMethod("triggerEvent", String.class, Object.class, Object.class, Object.class);
@@ -110,6 +153,8 @@ final class PowerGrid implements ApiHooks.Power {
         Class<?> container = type(loader, "zombie.inventory.ItemContainer");
         containerParent = container.getMethod("getParent");
         containerSquare = container.getMethod("getSourceGrid");
+        isFridge = container.getMethod("isFridge");
+        isFreezer = container.getMethod("isFreezer");
         switchRoom = lightSwitch.getField("roomId");
         battery = device.getMethod("getIsBatteryPowered");
         deviceParent = device.getMethod("getParent");
@@ -256,6 +301,63 @@ final class PowerGrid implements ApiHooks.Power {
         }
     }
 
+    /**
+     * The hours food in a fridge or freezer of a network ages over: vanilla counts every hour since it last aged as
+     * chilled when the container has power now, and splits them only at the grid's shut-off. For a consumer of a
+     * network without the game's own power, they are split also where the network's supply started and stopped.
+     */
+    @Override public double foodHours(double vanilla, Object food) {
+        Snapshot current = snapshot;
+        boolean[] pure = PURE.get();
+        if (current.histories().isEmpty() || food == null || pure[0]) return vanilla;
+        try {
+            Object container = outermost.invoke(food);
+            if (container == null || (boolean)frozen.invoke(food) || !(boolean)isFridge.invoke(container) && !(boolean)isFreezer.invoke(container))
+                return vanilla;
+            Object object = containerParent.invoke(container);
+            Network network = objectType.isInstance(object) ? consumerOf(current, object) : null;
+            History history = network == null ? null : current.histories().get(network);
+            if (history == null) return vanilla;
+            // The game's own power now (the grid, a generator in range) chills all the hours, as in vanilla.
+            pure[0] = true;
+            try { if (squarePowered(containerSquare.invoke(container))) return vanilla; }
+            finally { pure[0] = false; }
+            float now = (float)(double)worldHours.invoke(gameTime.invoke(null)), last = (float)lastAged.invoke(food);
+            int shut = (int)elecShut.invoke(sandbox.get(null));
+            double chilled = history.chilled(last, now, shut > -1 ? shut * 24.0 : Double.NEGATIVE_INFINITY);
+            return chilled * (float)fridgeFactor.invoke(food) + (now - last - chilled);
+        } catch (InvocationTargetException failure) {
+            throw new IllegalStateException(failure.getCause());
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException(failure);
+        }
+    }
+
+    /**
+     * The network whose consumer the object is, with supply or without: one that added it on its own, or one whose
+     * buildings it stands in that did not exclude it.
+     */
+    private Network consumerOf(Snapshot current, Object object) throws ReflectiveOperationException {
+        var excluded = new ArrayList<Network>();
+        for (Object part : current.rules().isEmpty() ? List.of() : members.parts(object)) {
+            Thing thing = members.thing(part);
+            List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
+            if (rules == null) continue;
+            for (Rule rule : rules) {
+                if (!rule.sprite().equals(thing.sprite())) continue;
+                if (rule.included()) return rule.network();
+                excluded.add(rule.network());
+            }
+        }
+        Position at = members.at(object);
+        if (at == null) return null;
+        for (Network network : current.withArea()) {
+            Area area = network.area;
+            if (area != null && area.contains(at) && !excluded.contains(network)) return network;
+        }
+        return null;
+    }
+
     // The game's thread.
 
     /** Once a frame: works the networks out again once a second, or when something changed. */
@@ -388,6 +490,17 @@ final class PowerGrid implements ApiHooks.Power {
         }
         if ((before == null) != (inUse == null)) supplyHours.put(network, at);
         else if (inUse != null && !inUse.equals(before)) changes.add(new Change(network.id, "producer", at));
+        if (network.history == null) {
+            // First worked out: a producer found running supplied it before; one that ran out while away, until then.
+            network.history = new TreeMap<>();
+            network.suppliedBefore = current != null || inUse != null;
+            if (network.suppliedBefore && inUse == null) remember(network, at, false);
+        } else if ((before == null) != (inUse == null)) remember(network, at, inUse != null);
+    }
+
+    private static void remember(Network network, double hour, boolean supplied) {
+        network.history.put(hour, supplied);
+        while (network.history.size() > MAX_HISTORY) network.suppliedBefore = network.history.pollFirstEntry().getValue();
     }
 
     /** The first producer of the network, in order, that is loaded and can run, other than the one that stopped. */
@@ -465,7 +578,10 @@ final class PowerGrid implements ApiHooks.Power {
         var withArea = new ArrayList<Network>();
         var producers = new HashMap<Position, Network>();
         var rules = new HashMap<Position, List<Rule>>();
+        var histories = new HashMap<Network, History>();
         for (Network network : members.of(UTILITY)) {
+            Network root = members.root(network);
+            if (root != null && root.history != null) histories.put(network, History.of(root));
             boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
@@ -474,7 +590,8 @@ final class PowerGrid implements ApiHooks.Power {
             for (Thing thing : network.included) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, on, network));
         }
         rules.replaceAll((at, list) -> List.copyOf(list));
-        return new Snapshot(supplied.toArray(Area[]::new), Set.copyOf(rooms), List.copyOf(withArea), Map.copyOf(producers), Map.copyOf(rules));
+        return new Snapshot(supplied.toArray(Area[]::new), Set.copyOf(rooms), List.copyOf(withArea), Map.copyOf(producers),
+            Map.copyOf(rules), Map.copyOf(histories));
     }
 
     private Object generatorAt(Object cells, Position at) throws ReflectiveOperationException {

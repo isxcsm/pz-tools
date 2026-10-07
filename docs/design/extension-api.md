@@ -4,8 +4,8 @@
 
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
-> water networks under `"fullest"`, with children ([built so far](#built-so-far)). Planned: food
-> across supply changes, `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
+> water networks under `"fullest"`, with children, and food aged across supply changes
+> ([built so far](#built-so-far)). Planned: `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -187,7 +187,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   fixtures draw from the producers of the network at the top of its parents. A producer's square has
   no consumers. The producers are read once a second; a `"supply"` event says when the network got or
   lost water.
-- Not yet: food aged across supply changes and `"parallel"`.
+- Food: the hours food in a network's fridge or freezer ages over are split where the network's
+  supply started and stopped (see Food below).
+- Not yet: `"parallel"`.
 
 ### Power
 
@@ -212,7 +214,12 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - **Food.** Vanilla ages food in a container over the whole time since it last aged, as refrigerated
   if the square has power now, and splits that time only at the grid's shut-off. The API splits it
   also at the times its network's supply stopped and started, so a fridge that lost power while the
-  player was away spoils from that moment, and one that kept power does not.
+  player was away spoils from that moment, and one that kept power does not. The API keeps those
+  times in memory, from when it first works a network out: supply it then finds running counts as
+  running before, and a producer that ran out meanwhile stops it at the hour its fuel ran out. A fridge
+  with the game's own power now (the grid, a generator in range), an excluded one and frozen food age
+  as in vanilla. Freezing and thawing follow the power now, as in vanilla. The times are not saved: a
+  world loaded again, or a newer payload, starts them anew.
 - **Settled state.** The generators' own saved fields (switched on, fuel, condition, `lastHour`) are
   the state: the API keeps nothing in the save. After a world loads, the producer the game runs is
   the one in use; the API records it as its first update starts, before the game makes up for the
@@ -244,15 +251,15 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 | Does this fixture take water from another object? | Each water question of `IsoObject` (`getFluidAmount`, `useFluid`, `hasWater`, `getUsesExternalWaterSource` and the others) reads its field `usesExternalWaterSource` | Vanilla, or it is a consumer of a network that has water |
 | Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the network's fullest producer; vanilla when none holds water |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
-| How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`) | The container's object, by the appliance rule. Planned: split at the network's supply changes |
+| How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`), and ages it over the hours since it last aged | The container's object, by the appliance rule; the hours split where the network's supply started and stopped |
 
 The bootstrap ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java))
 puts the hooks in as the classes load. Each return of the square and object questions passes the
 game's answer to the API, which can only add to it; `setSurroundingElectricity()` and
-`updateGenerator()` ask the API first. Each read of `usesExternalWaterSource` in the water questions
-passes the field and the object to the API; `save` keeps the game's own field, so the world saves
-what vanilla would. A method that is not shaped as expected gets no hook, which
-the game's log reports, and that question gets the game's answer.
+`updateGenerator()` ask the API first; `Food.updateAge` passes the hours it ages the food over. Each
+read of `usesExternalWaterSource` in the water questions passes the field and the object to the API;
+`save` keeps the game's own field, so the world saves what vanilla would. A method that is not shaped
+as expected gets no hook, which the game's log reports, and that question gets the game's answer.
 
 The answers come from a snapshot the API makes again when something changes
 ([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):

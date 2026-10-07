@@ -4,6 +4,7 @@ import java.lang.classfile.*;
 import java.lang.classfile.instruction.FieldInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.LineNumber;
+import java.lang.classfile.instruction.LoadInstruction;
 import java.lang.classfile.instruction.ReturnInstruction;
 import java.lang.classfile.instruction.StoreInstruction;
 import java.lang.constant.*;
@@ -53,6 +54,12 @@ public final class ApiHooks {
 
         /** {@code IsoGenerator.update()}, before the game burns the hours since the generator last did. */
         default void generatorUpdate(Object generator) { }
+
+        /**
+         * {@code Food.updateAge}: the hours the food ages over since it last aged, chilled hours counted at the fridge
+         * factor. {@code vanilla} is the game's, which counts every hour as the container has power now.
+         */
+        default double foodHours(double vanilla, Object food) { return vanilla; }
     }
 
     /** Set by the payload: the water networks. Asked on the thread that uses the fixture. */
@@ -82,7 +89,8 @@ public final class ApiHooks {
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
     // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[7];
+    private static final boolean[] reported = new boolean[8];
+    private static final int POWER_HOOKS = 6;
 
     private ApiHooks() { }
 
@@ -120,7 +128,18 @@ public final class ApiHooks {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
                 && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
-                && invoke.name().equalsString("getSourceGrid"), FOOD) },
+                && invoke.name().equalsString("getSourceGrid"), FOOD),
+            // age + hours * this.getFoodRotSpeed() / 24: the hours, then this, are on the stack.
+            Site.before("updateAge", "(Z)V", (second, first, element) -> element instanceof InvokeInstruction invoke
+                && invoke.name().equalsString("getFoodRotSpeed") && invoke.type().equalsString("()F")
+                && first instanceof LoadInstruction self && self.slot() == 0 && self.typeKind() == TypeKind.REFERENCE
+                && second instanceof LoadInstruction hours && hours.typeKind() == TypeKind.DOUBLE, (code, owner) -> {
+                    code.pop();
+                    code.aload(0);
+                    code.invokestatic(HOOKS, "foodHours", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double,
+                        ConstantDescs.CD_Object));
+                    code.aload(0);
+                }) },
         "zombie/iso/IsoObject", new Site[] {
             // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
             Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
@@ -203,6 +222,18 @@ public final class ApiHooks {
                 if (found != 1)
                     throw new IllegalArgumentException("Expected one square power question in " + name + "." + site.method() + ", found " + found);
             }
+            if (site.at() != null) {
+                int found = 0;
+                CodeElement second = null, first = null;
+                for (CodeElement element : methods.get(0).code().orElseThrow()) {
+                    if (element instanceof LineNumber) continue;
+                    if (site.at().test(second, first, element)) found++;
+                    second = first;
+                    first = element;
+                }
+                if (found != 1)
+                    throw new IllegalArgumentException("Expected one place for the hook in " + name + "." + site.method() + ", found " + found);
+            }
             transform = transform.andThen(ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
         }
         if ("zombie/iso/IsoObject".equals(name)) transform = transform.andThen(plumbing(model, owner));
@@ -214,23 +245,31 @@ public final class ApiHooks {
         return cf.transformClass(model, transform);
     }
 
+    /** An instruction, with the two before it (line numbers skipped; null at the method's start). */
+    @FunctionalInterface private interface Window { boolean test(CodeElement second, CodeElement first, CodeElement element); }
+
     /**
-     * Where a hook goes in one method: before each return, with the return value on the stack; at its start; or after
+     * Where a hook goes in one method: before each return, with the return value on the stack; at its start; after
      * the one place where the method asks a square about power for an object ({@code object} gets the square from the
-     * object on the stack, and {@code IsoGridSquare.haveElectricity()} follows at once).
+     * object on the stack, and {@code IsoGridSquare.haveElectricity()} follows at once); or before the one instruction
+     * {@code at} names.
      */
     private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit,
-            Predicate<CodeElement> object, int kind) {
+            Predicate<CodeElement> object, int kind, Window at) {
         static Site atReturns(String method, String type, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, true, argumentSlots, emit, null, 0);
+            return new Site(method, type, true, argumentSlots, emit, null, 0, null);
         }
 
         static Site atStart(String method, String type, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0);
+            return new Site(method, type, false, 0, emit, null, 0, null);
         }
 
         static Site square(String method, String type, Predicate<CodeElement> object, int kind) {
-            return new Site(method, type, false, 0, null, object, kind);
+            return new Site(method, type, false, 0, null, object, kind, null);
+        }
+
+        static Site before(String method, String type, Window at, BiConsumer<CodeBuilder, ClassDesc> emit) {
+            return new Site(method, type, false, 0, emit, null, 0, at);
         }
 
         static boolean haveElectricity(CodeElement element) {
@@ -280,6 +319,18 @@ public final class ApiHooks {
                     lines.clear();
                 }
             });
+            if (at != null) return CodeTransform.ofStateful(() -> new CodeTransform() {
+                private CodeElement second, first;
+
+                @Override public void accept(CodeBuilder builder, CodeElement element) {
+                    if (!(element instanceof LineNumber)) {
+                        if (at.test(second, first, element)) emit.accept(builder, owner);
+                        second = first;
+                        first = element;
+                    }
+                    builder.with(element);
+                }
+            });
             if (returns) return (builder, element) -> {
                 if (element instanceof ReturnInstruction) emit.accept(builder, owner);
                 builder.with(element);
@@ -324,7 +375,7 @@ public final class ApiHooks {
 
     /** Sets the power networks, replacing an earlier payload's; null gives every power question to the game alone. */
     public static void setPower(Power next) {
-        synchronized (reported) { Arrays.fill(reported, 0, 5, false); }
+        synchronized (reported) { Arrays.fill(reported, 0, POWER_HOOKS, false); }
         power = next;
     }
 
@@ -348,7 +399,7 @@ public final class ApiHooks {
 
     /** Sets the water networks, replacing an earlier payload's; null gives every water question to the game alone. */
     public static void setWater(Water next) {
-        synchronized (reported) { reported[5] = false; reported[6] = false; }
+        synchronized (reported) { Arrays.fill(reported, POWER_HOOKS, reported.length, false); }
         water = next;
     }
 
@@ -358,7 +409,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return false;
         try { return current.plumbed(false, fixture); }
-        catch (Throwable problem) { reportOnce(5, "waterPlumbed", problem); return false; }
+        catch (Throwable problem) { reportOnce(POWER_HOOKS, "waterPlumbed", problem); return false; }
     }
 
     /** Put before each return of {@code IsoObject.checkExternalFluidSource()}. */
@@ -366,7 +417,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return vanilla;
         try { return current.source(vanilla, fixture); }
-        catch (Throwable problem) { reportOnce(6, "waterSource", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(POWER_HOOKS + 1, "waterSource", problem); return vanilla; }
     }
 
     /** Put before each return of {@code IsoGridSquare.haveElectricity()}. */
@@ -408,6 +459,14 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.generatorUpdate(generator); }
         catch (Throwable problem) { reportOnce(4, "generatorUpdate", problem); }
+    }
+
+    /** Put before {@code Food.updateAge} reads the food's rot speed, with the hours it ages over on the stack. */
+    public static double foodHours(double vanilla, Object food) {
+        Power current = power;
+        if (current == null) return vanilla;
+        try { return current.foodHours(vanilla, food); }
+        catch (Throwable problem) { reportOnce(5, "foodHours", problem); return vanilla; }
     }
 
     private static void reportOnce(int hook, String name, Throwable problem) {
