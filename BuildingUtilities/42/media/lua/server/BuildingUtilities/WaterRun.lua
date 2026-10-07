@@ -123,7 +123,10 @@ function WaterRun.filters(panel, minutes)
     local filtering, changed = {}, false
     for _, unit in ipairs(filters) do
         local group = WaterUnits.group(unit)
-        if unpurified and not filtering[group] and (unit.media or 0) > 0 then
+        local working = unpurified and not filtering[group] and (unit.media or 0) > 0
+        -- For its look (WaterUnits.filterLook).
+        unit.working = working or nil
+        if working then
             filtering[group] = true
             local before = math.floor(WaterUnits.mediaLeft(unit) * 100)
             unit.media = math.max(0, unit.media - minutes / 60)

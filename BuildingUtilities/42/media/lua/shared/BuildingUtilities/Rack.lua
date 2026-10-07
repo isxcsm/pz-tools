@@ -95,11 +95,7 @@ end
 function Rack.show(unit, object)
     object = object or Units.object(unit)
     if not object then return end
-    local overlay = Rack.overlay(unit)
-    local current = object:getOverlaySprite() and object:getOverlaySprite():getName() or nil
-    if current ~= overlay then
-        object:setOverlaySprite(overlay or "", isServer())
-    end
+    Units.setOverlay(object, Rack.overlay(unit))
 end
 
 -- A rack's records follow the batteries in its container: one put in gets a record from the item, one taken out

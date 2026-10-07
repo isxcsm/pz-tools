@@ -3,7 +3,8 @@
 -- (it goes anywhere, but without water beside it it runs dry: it draws its power and lifts nothing); the
 -- sprinkler waters the crops around it from the group; the filter purifies the group's water while the
 -- RiskPlumbingUnpurified option leaves the pipes unpurified. What they do each minute is the server's
--- (server/BuildingUtilities/WaterRun.lua); their art is the bu_water_01 sheet (tools/water_art.py).
+-- (server/BuildingUtilities/WaterRun.lua); their art is the bu_water_01 sheet (tools/tile_art.py), a lamp on each
+-- telling how it runs.
 require "BuildingUtilities/Units"
 require "BuildingUtilities/Water"
 local BU = BuildingUtilities
@@ -11,15 +12,25 @@ local Units, Water, Store = BU.Units, BU.Water, BU.Store
 local WaterUnits = {}
 BU.WaterUnits = WaterUnits
 
--- The pump stands beside the water, its suction on that side.
-WaterUnits.PUMP_SPRITES = { E = "bu_water_01_0", S = "bu_water_01_1", W = "bu_water_01_2", N = "bu_water_01_3" }
+-- The pump stands beside the water, its suction on that side; put down stopped. Its lamp: dark stopped, green running,
+-- amber running dry (no water beside it); under rime while its box's pipes are frozen (WaterUnits.pumpLook).
+local PUMP_SIDES, PUMP_ORDER = { "E", "S", "W", "N" }, { "stopped", "running", "dry", "frozen" }
+WaterUnits.PUMP_SPRITES = Units.sheetSprites(0, PUMP_SIDES)
+WaterUnits.PUMP_LOOKS = { stopped = WaterUnits.PUMP_SPRITES, running = Units.sheetSprites(16, PUMP_SIDES),
+    dry = Units.sheetSprites(20, PUMP_SIDES), frozen = Units.sheetSprites(24, PUMP_SIDES) }
+local PUMP_LOOK_OF = Units.lookOf(WaterUnits.PUMP_LOOKS)
 -- A spraying sprinkler's head goes round: its frames in turn (client/BuildingUtilities/SprinklerSpray.lua).
 WaterUnits.SPRINKLER_SPRITES = { idle = "bu_water_01_4", spraying = { "bu_water_01_5", "bu_water_01_8", "bu_water_01_9",
     "bu_water_01_10", "bu_water_01_11", "bu_water_01_12", "bu_water_01_13", "bu_water_01_14" } }
 local SPRAY_FRAME = {}
 for _, name in ipairs(WaterUnits.SPRINKLER_SPRITES.spraying) do SPRAY_FRAME[name] = true end
--- The filter's pipe runs W-E or N-S.
-WaterUnits.FILTER_SPRITES = { across = "bu_water_01_6", along = "bu_water_01_7" }
+-- The filter's pipe runs W-E (across) or N-S (along); put down resting. Its lamp: dark resting, green working, red
+-- with its media spent (WaterUnits.filterLook).
+local FILTER_WAYS, FILTER_ORDER = { "across", "along" }, { "resting", "working", "spent" }
+WaterUnits.FILTER_SPRITES = Units.sheetSprites(6, FILTER_WAYS)
+WaterUnits.FILTER_LOOKS = { resting = WaterUnits.FILTER_SPRITES, working = Units.sheetSprites(28, FILTER_WAYS),
+    spent = Units.sheetSprites(30, FILTER_WAYS) }
+local FILTER_LOOK_OF = Units.lookOf(WaterUnits.FILTER_LOOKS)
 -- Litres a pump lifts an hour, and the load it puts on its panel's power while it runs.
 WaterUnits.PUMP_RATE = 20
 WaterUnits.PUMP_LOAD = 0.12
@@ -40,6 +51,23 @@ end
 
 -- Whether a sprite is one of a spraying sprinkler's frames.
 function WaterUnits.isSprayFrame(name) return SPRAY_FRAME[name] == true end
+
+-- How a pump looks: frozen while its box's pipes are, else running (lifting), dry (running with no water beside it)
+-- or stopped.
+function WaterUnits.pumpLook(unit)
+    local panel = Store.get(unit.panel)
+    if panel and panel.water.frozen then return "frozen" end
+    if unit.running then return unit.fluid and "running" or "dry" end
+    return "stopped"
+end
+
+-- How a filter looks: spent without media, working while it purifies its group's water (WaterRun.filters), else
+-- resting.
+function WaterUnits.filterLook(unit)
+    if (unit.media or 0) <= 0 then return "spent" end
+    if unit.working and unit.panel then return "working" end
+    return "resting"
+end
 
 -- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option): then only a filter
 -- purifies a group's water.
@@ -74,7 +102,7 @@ end
 
 Units.define("pump", {
     item = "BuildingUtilities.WaterPump",
-    sprites = { WaterUnits.PUMP_SPRITES.E, WaterUnits.PUMP_SPRITES.S, WaterUnits.PUMP_SPRITES.W, WaterUnits.PUMP_SPRITES.N },
+    sprites = Units.lookSprites(WaterUnits.PUMP_LOOKS, PUMP_ORDER, PUMP_SIDES),
     utility = "water",
     minTier = WaterUnits.TIER,
     tierReason = "waterUnitTier",
@@ -93,6 +121,7 @@ Units.define("pump", {
     create = function(unit, object)
         unit.fluid = WaterUnits.waterBeside(object:getSquare())
     end,
+    sync = function(unit, object) Units.showLook(object, WaterUnits.PUMP_LOOKS, WaterUnits.pumpLook(unit), PUMP_LOOK_OF) end,
     title = function(unit, text)
         return text .. "  " .. getText(unit.running and "IGUI_BU_PumpRunning" or "IGUI_BU_PumpStopped")
     end,
@@ -120,8 +149,7 @@ Units.define("sprinkler", {
         if not current then return end
         local spraying = WaterUnits.spraying(unit)
         if spraying == WaterUnits.isSprayFrame(current) then return end
-        object:setSprite(getSprite(spraying and WaterUnits.SPRINKLER_SPRITES.spraying[1] or WaterUnits.SPRINKLER_SPRITES.idle))
-        if isServer() then object:transmitUpdatedSpriteToClients() end
+        Units.setSprite(object, spraying and WaterUnits.SPRINKLER_SPRITES.spraying[1] or WaterUnits.SPRINKLER_SPRITES.idle)
     end,
     flow = function(unit) return WaterUnits.spraying(unit) and -1 or nil end,
 })
@@ -140,7 +168,7 @@ end
 
 Units.define("filter", {
     item = "BuildingUtilities.WaterFilter",
-    sprites = { WaterUnits.FILTER_SPRITES.across, WaterUnits.FILTER_SPRITES.along },
+    sprites = Units.lookSprites(WaterUnits.FILTER_LOOKS, FILTER_ORDER, FILTER_WAYS),
     utility = "water",
     minTier = WaterUnits.TIER,
     tierReason = "waterUnitTier",
@@ -153,6 +181,9 @@ Units.define("filter", {
     end,
     -- Put down with a fresh charge.
     create = function(unit) unit.media = WaterUnits.FILTER_HOURS end,
+    sync = function(unit, object)
+        Units.showLook(object, WaterUnits.FILTER_LOOKS, WaterUnits.filterLook(unit), FILTER_LOOK_OF)
+    end,
     title = function(unit, text)
         return text .. "  " .. getText("IGUI_BU_FilterMedia", BU.percent(WaterUnits.mediaLeft(unit) * 100))
     end,

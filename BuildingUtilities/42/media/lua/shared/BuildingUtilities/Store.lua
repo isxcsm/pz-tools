@@ -39,7 +39,7 @@ local KEY = "BuildingUtilities"
 --   100, revived: how often it was reconditioned }. A water unit may have group (the panel's water group it works
 --   for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake) and
 --   running (it lifted water at the last minute); a sprinkler sprayedAt (the world age it last watered at); a filter
---   media (hours of use left in its charge).
+--   media (hours of use left in its charge) and working (it purified its group's water at the last minute).
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server

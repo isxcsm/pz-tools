@@ -336,7 +336,10 @@ end
 
 function ISBUClearSnow:complete()
     local unit = Store.unit(self.unitId)
-    if unit then Changes.clearSnow(unit) end
+    if unit then
+        Changes.clearSnow(unit)
+        Units.show(unit)
+    end
     return unit ~= nil
 end
 
@@ -375,6 +378,7 @@ function ISBUReplaceMedia:complete()
         end
     end
     Changes.replaceMedia(unit)
+    Units.show(unit)
     return true
 end
 
