@@ -40,5 +40,7 @@
     "Sandbox_BuildingUtilities_WaterFromAboveOnly": "Water only from above",
     "Sandbox_BuildingUtilities_WaterFromAboveOnly_tooltip": "As vanilla plumbing: a fixture takes water only from tanks on the floors above it. Off: also from tanks on its own floor. Either way never from tanks below (a pump lifts water).",
     "Sandbox_BuildingUtilities_RiskPipesFreeze": "Risk: pipes freeze",
-    "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "A box's water stops after 6 hours below -5 degrees at the box (a heated building stays warmer) and flows again after 2 hours above 0. Off by default."
+    "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "A box's water stops after 6 hours below -5 degrees at the box (a heated building stays warmer) and flows again after 2 hours above 0. Off by default.",
+    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified": "Risk: pipes do not purify",
+    "Sandbox_BuildingUtilities_RiskPlumbingUnpurified_tooltip": "A box's pipes give water as its tanks hold it: rain and river water comes out tainted unless a water filter of its group purifies it. Off by default (the game's pipes purify)."
 }

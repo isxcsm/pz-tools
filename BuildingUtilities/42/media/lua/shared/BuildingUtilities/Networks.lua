@@ -294,6 +294,29 @@ function Networks.groupState(panel, group)
     return stateOf(Water.lowestId(panel, group))
 end
 
+-- Litres of a fluid into a group's tanks: its lowest floor's network draws from every floor above, so it reaches them
+-- all. The litres they took.
+function Networks.fill(panel, group, litres, fluid)
+    local id = Water.lowestId(panel, group)
+    return id and change("fill", id, litres, fluid) or 0
+end
+
+-- Litres out of a group's tanks for something on a floor, as a fixture there draws. The litres drawn.
+function Networks.draw(panel, group, z, litres)
+    local id = Water.networkFor(panel, group, z)
+    return id and change("draw", id, litres) or 0
+end
+
+-- A group's water purified as its fixtures take it (as the game's pipes do, and the API by default), or left as its
+-- tanks hold it. Each of its floors' networks; only those that differ are changed.
+function Networks.setGroupPurify(panel, group, on)
+    for _, level in ipairs(Water.levels(panel, group)) do
+        local id = Water.networkId(panel, group, level)
+        local state = stateOf(id)
+        if state and state.purify ~= on then change("setPurify", id, on) end
+    end
+end
+
 -- The power network's state, or for water the panel's groups together: { supplied (any group), enabled, amount and
 -- capacity (summed), producers (every tank as the networks last saw it), groups (by id, each group's state) }.
 function Networks.state(panel, utility)

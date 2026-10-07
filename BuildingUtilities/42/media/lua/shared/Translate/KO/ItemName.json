@@ -1,5 +1,8 @@
 {
     "BuildingUtilities.BreakerBox": "설비 제어반",
     "BuildingUtilities.SolarPanel": "태양광 패널",
-    "BuildingUtilities.BatteryRack": "배터리 랙"
+    "BuildingUtilities.BatteryRack": "배터리 랙",
+    "BuildingUtilities.WaterPump": "양수 펌프",
+    "BuildingUtilities.Sprinkler": "스프링클러",
+    "BuildingUtilities.WaterFilter": "정수 필터"
 }

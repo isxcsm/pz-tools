@@ -54,13 +54,16 @@ function ISBUPanelWindow:updatePlan()
             producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, flow = flow, colour = colour,
                 text = view.producerText[index] }
         end
-        if utility == "power" then
-            local inUse = Energy.inUse(state)
-            for _, unit in ipairs(Store.unitList(nil, panel.id)) do
-                producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse, unit = unit.kind,
-                    flow = state and Units.flow(unit, panel, state) or nil,
-                    text = Units.name(unit) .. (view.sourceText and "  " .. view.sourceText or "") }
-            end
+        -- The units: power's as its source, water's each on its own (in its group's colour, with more than one).
+        local inUse = utility == "power" and Energy.inUse(state)
+        for _, unit in ipairs(Units.of(panel.id, utility)) do
+            local text = Units.name(unit)
+            if utility == "power" and view.sourceText then text = text .. "  " .. view.sourceText end
+            if utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
+            local colour = utility == "water" and #BU.Water.groups(panel) > 1
+                and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
+            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true,
+                unit = unit.kind, colour = colour, flow = state and Units.flow(unit, panel, state) or nil, text = text }
         end
     end
     -- The zones of the building: this box's, the free rooms and other boxes'.

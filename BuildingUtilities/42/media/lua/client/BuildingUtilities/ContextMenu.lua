@@ -170,17 +170,17 @@ local function addUnitOptions(context, playerObj, unit)
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    for _, entry in ipairs(definition.options and definition.options(unit) or {}) do
+    for _, entry in ipairs(definition.options and definition.options(unit, playerObj) or {}) do
         local choice = sub:addOption(entry.text, playerObj, onUnitAction, unit, entry.action)
         if entry.reason then unavailable(choice, entry.reason) end
     end
     if BU.api() then
         if panel then
             local disconnect = sub:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj, onDisconnect,
-                "unit", panel, "power", unit.x, unit.y, unit.z, unit.id)
+                "unit", panel, Units.utility(unit), unit.x, unit.y, unit.z, unit.id)
             if refundNote() then tooltip(disconnect, refundNote()) end
         else
-            addConnectOption(sub, playerObj, "unit", "power", unit.x, unit.y, unit.z, unit.id)
+            addConnectOption(sub, playerObj, "unit", Units.utility(unit), unit.x, unit.y, unit.z, unit.id)
         end
     end
     local remove = sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemoveUnit, unit)

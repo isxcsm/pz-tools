@@ -61,7 +61,7 @@ function Energy.rules(panel, state)
         floor = math.max(floor, settings.start / 100)
         restart = math.max(restart, settings.stop / 100)
     end
-    local charging = state.extraLoad or 0
+    local charging = Energy.charging(panel)
     return { load = math.max(0, (state.load or 0) - charging * (state.loadFactor or 1)), charging = charging,
         floor = floor, restart = restart, quiet = quiet, generators = generators, settings = settings }
 end

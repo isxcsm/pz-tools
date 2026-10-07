@@ -13,5 +13,9 @@
     "ContextMenu_BU_Install_solar": "Install Solar Panel",
     "ContextMenu_BU_Install_rack": "Install Battery Rack",
     "ContextMenu_BU_ReviveBattery": "Recondition Battery",
-    "ContextMenu_BU_ClearSnow": "Brush Off Snow"
+    "ContextMenu_BU_ClearSnow": "Brush Off Snow",
+    "ContextMenu_BU_Install_pump": "Install Water Pump",
+    "ContextMenu_BU_Install_sprinkler": "Install Sprinkler",
+    "ContextMenu_BU_Install_filter": "Install Water Filter",
+    "ContextMenu_BU_ReplaceMedia": "Replace Filter Media"
 }

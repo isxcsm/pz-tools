@@ -30,6 +30,30 @@ module BuildingUtilities
         Icon = BUBatteryRack,
     }
 
+    item WaterPump
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 12.0,
+        Icon = BUWaterPump,
+    }
+
+    item Sprinkler
+    {
+        DisplayCategory = Gardening,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = BUSprinkler,
+    }
+
+    item WaterFilter
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 6.0,
+        Icon = BUWaterFilter,
+    }
+
     model SolarPanelModel
     {
         mesh = WorldItems/BUSolarPanel,
@@ -105,6 +129,75 @@ module BuildingUtilities
         outputs
         {
             item 1 BuildingUtilities.BreakerBox,
+        }
+    }
+
+    craftRecipe MakeWaterPump
+    {
+        timedAction = MakingElectrical,
+        time = 400,
+        SkillRequired = Electricity:2,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:10,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 1 [Base.SmallSheetMetal],
+            item 4 [Base.ElectronicsScrap],
+            item 3 [Base.ElectricWire],
+            item 6 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.WaterPump,
+        }
+    }
+
+    craftRecipe MakeSprinkler
+    {
+        timedAction = Making,
+        time = 150,
+        Tags = AnySurfaceCraft,
+        category = Farming,
+        xpAward = Maintenance:5,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 1 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 2 [Base.ScrapMetal],
+            item 2 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.Sprinkler,
+        }
+    }
+
+    craftRecipe MakeWaterFilter
+    {
+        timedAction = Making,
+        time = 250,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Maintenance:10,
+        inputs
+        {
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 2 [Base.MetalPipe],
+            item 1 [Base.SmallSheetMetal],
+            item 1 [Base.RubberHose],
+            item 2 [Base.Charcoal],
+            item 1 [Base.RippedSheets],
+            item 4 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.WaterFilter,
         }
     }
 }

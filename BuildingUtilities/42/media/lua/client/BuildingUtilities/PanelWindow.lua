@@ -552,6 +552,7 @@ function ISBUPanelWindow:fill(utility, state)
             end
             add(row)
         end
+        if utility == "water" then self:waterUnitRows(add) end
     end
     local children = Store.children(panel.id)
     if #children > 0 then
@@ -701,7 +702,7 @@ end
 -- What happened to the box, newest first, with how long ago.
 local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
     IGUI_BU_Notice_WaterEmptyGroup = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
-    IGUI_BU_Notice_Frozen = true }
+    IGUI_BU_Notice_Frozen = true, IGUI_BU_Notice_FilterSpent = true }
 local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
     IGUI_BU_Notice_Thawed = true }
 
@@ -794,6 +795,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
     if row.kind == "source" and row.settings then
         self:controllerMenu()
+    elseif row.kind == "producer" and row.unit then
+        self:onWaterUnitRow(row, x, width)
     elseif row.kind == "producer" then
         for _, button in ipairs(Ui.producerButtons(width, row)) do
             if x >= button.x and x <= button.x + button.w then

@@ -2,6 +2,7 @@
 -- players' commands, breakers that trip under overload, and what players near a box should hear.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
+require "BuildingUtilities/WaterRun"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync, BU.Energy
 
@@ -71,6 +72,20 @@ end
 function commands.setDeviceGroup(player, panel, args)
     local device = type(args.key) == "string" and Panels.device(panel, "water", args.key)
     if device and device.state == "on" then Changes.setDeviceGroup(panel, device, tonumber(args.group)) end
+end
+
+-- A water unit of the panel to work for one of its groups; a group's reserve and overflow.
+function commands.setUnitGroup(player, panel, args)
+    local unit = BU.Store.unit(args.unit)
+    if unit and unit.panel == panel.id then Changes.setUnitGroup(unit, tonumber(args.group)) end
+end
+
+function commands.setGroupReserve(player, panel, args)
+    Changes.setGroupReserve(panel, tonumber(args.group), tonumber(args.percent))
+end
+
+function commands.setGroupOverflow(player, panel, args)
+    Changes.setGroupOverflow(panel, tonumber(args.group), tonumber(args.target))
 end
 
 function commands.resetBreaker(player, panel, args)
@@ -186,7 +201,7 @@ local function checkSource(panel, hours)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
     if panel.tripped then
         -- Charging would count in the load the breaker carries: none while it is down.
-        if (state.extraLoad or 0) > 0 then Networks.setExtraLoad(panel, 0) end
+        Changes.setExtraLoad(panel, "charging", 0)
         return
     end
     local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
@@ -213,7 +228,7 @@ local function checkSource(panel, hours)
         end
         if charging < 0.001 then charging = 0 end
     end
-    if math.abs(charging - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, charging) end
+    Changes.setExtraLoad(panel, "charging", charging)
     local switchOn = can and state.enabled and (not state.supplied or (controller and not inUse and ready)) or nil
     if available and not can and inUse and bank then
         Sync.notice(panel, rules.generators and "IGUI_BU_Notice_BankLow" or "IGUI_BU_Notice_BankEmpty", Panels.name(panel))
@@ -328,6 +343,10 @@ local function everyMinute()
         hourEnded = recordEnergy(panel) or hourEnded
         recordStats(panel)
         recordWater(panel)
+        if not panel.parent then
+            BU.WaterRun.pumps(panel, 1)
+            BU.WaterRun.filters(panel, 1)
+        end
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end
@@ -358,6 +377,7 @@ local function everyTenMinutes()
     for _, panel in ipairs(Store.list()) do
         Changes.applyTimers(panel)
         checkFreezing(panel)
+        if not panel.parent then BU.WaterRun.sprinklers(panel) end
     end
 end
 

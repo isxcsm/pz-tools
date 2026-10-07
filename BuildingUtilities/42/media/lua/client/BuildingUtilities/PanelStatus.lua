@@ -109,7 +109,7 @@ local function powerStatus(panel, state)
             result.left = left and left .. "  " .. fuel or fuel
         end
         local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
-        if hasSource and bank and controller and (state.extraLoad or 0) > 0 then
+        if hasSource and bank and controller and Energy.charging(panel) > 0 then
             result.reason = getText("IGUI_BU_Why_Charging", BU.percent(rules.settings.stop))
         elseif hasSource and bank and controller then
             result.reason = getText("IGUI_BU_Why_BankLow", BU.percent(rules.settings.start), BU.percent(rules.settings.stop))

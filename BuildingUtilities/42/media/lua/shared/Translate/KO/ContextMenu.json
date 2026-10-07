@@ -13,5 +13,9 @@
     "ContextMenu_BU_Install_solar": "태양광 패널 설치",
     "ContextMenu_BU_Install_rack": "배터리 랙 설치",
     "ContextMenu_BU_ReviveBattery": "배터리 재생",
-    "ContextMenu_BU_ClearSnow": "눈 털기"
+    "ContextMenu_BU_ClearSnow": "눈 털기",
+    "ContextMenu_BU_Install_pump": "양수 펌프 설치",
+    "ContextMenu_BU_Install_sprinkler": "스프링클러 설치",
+    "ContextMenu_BU_Install_filter": "정수 필터 설치",
+    "ContextMenu_BU_ReplaceMedia": "필터 매체 교체"
 }

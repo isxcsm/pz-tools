@@ -6,7 +6,8 @@ buffer and scaled down. Units are a square's side; the game's 2x tiles show a sq
 of a 128x256 tile, and a unit up as UP pixels (the game's 2:1 view looks down 30 degrees). The viewer sees the south
 (+y, screen left) and east (+x, screen right) sides of things.
 
-    py tools/water_art.py            writes media/bu_water.tiles and media/texturepacks/BuildingUtilitiesWater.pack
+    py tools/water_art.py            writes media/bu_water.tiles and media/texturepacks/BuildingUtilitiesWater.pack,
+                                     and the items' icons (media/textures/Item_BU*.png) from the tiles
     py tools/water_art.py --preview  also writes tools/water_art_preview.png (every tile on a floor, for a look)
 
 Needs Pillow and numpy (py -m pip install --user pillow numpy).
@@ -380,6 +381,20 @@ def write_pack(path, images):
         f.write(out.getvalue())
 
 
+# The items' icons: a tile's thing, fitted into 64x64.
+ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6}
+
+
+def write_icons(images):
+    for name, index in ICONS.items():
+        crop = trim(images[index][1])[0]
+        scale = 60 / max(crop.width, crop.height)
+        crop = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.LANCZOS)
+        icon = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+        icon.alpha_composite(crop, ((64 - crop.width) // 2, (64 - crop.height) // 2))
+        icon.save(os.path.join(ROOT, 'textures', 'Item_%s.png' % name))
+
+
 def preview(images, path):
     """Each tile on a floor square, side by side, at twice the size."""
     sheet = Image.new('RGBA', (W * len(images), H - 64), (40, 44, 40, 255))
@@ -397,6 +412,7 @@ def main():
     images = [('%s_%d' % (SHEET, index), make()) for index, (make, _) in enumerate(TILES)]
     write_tiles(os.path.join(ROOT, 'bu_water.tiles'))
     write_pack(os.path.join(ROOT, 'texturepacks', PACK + '.pack'), images)
+    write_icons(images)
     if '--preview' in sys.argv:
         preview(images, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'water_art_preview.png'))
     print('wrote', len(images), 'tiles')

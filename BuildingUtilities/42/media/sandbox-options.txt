@@ -131,3 +131,9 @@ option BuildingUtilities.RiskPipesFreeze
     type = boolean, default = false,
     page = BuildingUtilities, translation = BuildingUtilities_RiskPipesFreeze,
 }
+
+option BuildingUtilities.RiskPlumbingUnpurified
+{
+    type = boolean, default = false,
+    page = BuildingUtilities, translation = BuildingUtilities_RiskPlumbingUnpurified,
+}

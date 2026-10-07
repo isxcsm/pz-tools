@@ -1,5 +1,8 @@
 {
     "MakeBreakerBox": "Make Utility Panel",
     "MakeSolarPanel": "Make Solar Panel",
-    "MakeBatteryRack": "Make Battery Rack"
+    "MakeBatteryRack": "Make Battery Rack",
+    "MakeWaterPump": "Make Water Pump",
+    "MakeSprinkler": "Make Sprinkler",
+    "MakeWaterFilter": "Make Water Filter"
 }

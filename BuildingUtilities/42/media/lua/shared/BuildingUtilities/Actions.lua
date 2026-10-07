@@ -26,7 +26,7 @@ end
 
 -- What a line costs, or nil with a reason when it cannot be laid. kind: "producer" (a square of the panel's
 -- utility), "outside" (a device, x, y, z and its sprite), "link" (the panel as a sub-panel of the one named by extra),
--- "unit" (a solar panel or rack at x, y, z, its id extra; power, priced as a generator's line).
+-- "unit" (a unit at x, y, z, its id extra; priced as a producer's line of its utility).
 function Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if not panel then return nil, "noPanel" end
     if kind == "producer" then
@@ -50,7 +50,7 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not unit then return nil, "noUnit" end
         local ok, reason = Units.canConnect(unit, panel)
         if not ok then return nil, reason end
-        return Costs.producer("power", Panels.steps(panel, x, y)), unit
+        return Costs.producer(Units.utility(unit), Panels.steps(panel, x, y)), unit
     end
     return nil, "noPanel"
 end
@@ -346,6 +346,44 @@ function ISBUClearSnow:getDuration()
 end
 
 function ISBUClearSnow:new(character, unit)
+    local o = ISBaseTimedAction.new(self, character)
+    o.unitId, o.x, o.y = unit.id, unit.x, unit.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- A filter's media replaced: the charcoal and cloth a charge takes (BU.WaterUnits.MEDIA) used up.
+ISBUReplaceMedia = base("ISBUReplaceMedia")
+
+function ISBUReplaceMedia:isValid()
+    local unit = Store.unit(self.unitId)
+    return unit ~= nil and BU.WaterUnits.mediaLeft(unit) < 1 and BU.WaterUnits.hasMedia(self.character)
+end
+
+function ISBUReplaceMedia:complete()
+    local unit = Store.unit(self.unitId)
+    if not unit or not BU.WaterUnits.hasMedia(self.character) then return false end
+    local inventory = self.character:getInventory()
+    for _, need in ipairs(BU.WaterUnits.MEDIA) do
+        for _ = 1, need.count do
+            local item = inventory:getFirstTypeRecurse(need.type)
+            if item then
+                local container = item:getContainer()
+                container:DoRemoveItem(item)
+                sendRemoveItemFromContainer(container, item)
+            end
+        end
+    end
+    Changes.replaceMedia(unit)
+    return true
+end
+
+function ISBUReplaceMedia:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 200
+end
+
+function ISBUReplaceMedia:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
     o.maxTime = o:getDuration()

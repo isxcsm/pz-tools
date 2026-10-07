@@ -7,7 +7,7 @@
 -- locks part of it.
 require "BuildingUtilities/Units"
 local BU = BuildingUtilities
-local Store, Panels = BU.Store, BU.Panels
+local Store, Panels, Units = BU.Store, BU.Panels, BU.Units
 local Energy = {}
 BU.Energy = Energy
 
@@ -33,9 +33,12 @@ function Energy.panelOutput(unit, sun)
     return Energy.rated() * (sun or Energy.sunlight()) * (1 - (unit.snow or 0))
 end
 
--- Whether a panel's network has the source: a main panel with units.
+-- What charging the panel's bank from a generator adds to its load now (BU.Changes.setExtraLoad).
+function Energy.charging(panel) return panel.extraLoads and panel.extraLoads.charging or 0 end
+
+-- Whether a panel's network has the source: a main panel with power units.
 function Energy.hasSource(panel)
-    return not panel.parent and #Store.unitList(nil, panel.id) > 0
+    return not panel.parent and #Units.of(panel.id, "power") > 0
 end
 
 -- What a panel's solar panels make now, how many there are and how much snow lies on them on average (0 to 1).
@@ -64,7 +67,7 @@ end
 -- Steps of the source's line: from its nearest unit to the building, or nil.
 function Energy.lineSteps(panel)
     local best
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do
+    for _, unit in ipairs(Units.of(panel.id, "power")) do
         local steps = Panels.steps(panel, unit.x, unit.y)
         if steps and (not best or steps < best) then best = steps end
     end

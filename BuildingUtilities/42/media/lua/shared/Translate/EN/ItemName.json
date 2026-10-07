@@ -1,5 +1,8 @@
 {
     "BuildingUtilities.BreakerBox": "Utility Panel",
     "BuildingUtilities.SolarPanel": "Solar Panel",
-    "BuildingUtilities.BatteryRack": "Battery Rack"
+    "BuildingUtilities.BatteryRack": "Battery Rack",
+    "BuildingUtilities.WaterPump": "Water Pump",
+    "BuildingUtilities.Sprinkler": "Sprinkler",
+    "BuildingUtilities.WaterFilter": "Water Filter"
 }

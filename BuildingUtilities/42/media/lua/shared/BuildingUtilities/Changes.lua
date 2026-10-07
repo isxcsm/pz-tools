@@ -6,6 +6,7 @@ require "BuildingUtilities/Energy"
 require "BuildingUtilities/Sync"
 require "BuildingUtilities/Solar"
 require "BuildingUtilities/Rack"
+require "BuildingUtilities/WaterUnits"
 require "BuildingUtilities/Networks"
 local BU = BuildingUtilities
 local Store, Networks, Panels, Units, Sync, Water = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync, BU.Water
@@ -162,13 +163,24 @@ function Changes.removeUnit(unit)
     return paid
 end
 
+-- A part of the load the box adds to its devices' (the API's extra load): "charging" its bank from a generator,
+-- "pumps" its water pumps running. The network gets their sum when that differs from what it has.
+function Changes.setExtraLoad(panel, part, load)
+    panel.extraLoads = panel.extraLoads or {}
+    panel.extraLoads[part] = load > 0 and load or nil
+    local total = 0
+    for _, each in pairs(panel.extraLoads) do total = total + each end
+    local state = Networks.state(panel, "power")
+    if state and math.abs(total - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, total) end
+end
+
 -- A panel's units changed: its network has the units' source or not, and its line may be another. Without a bank
 -- nothing charges it, and nothing is kept off for it.
 function Changes.unitsChanged(panel)
     Networks.setProducers(panel, "power")
     Networks.applyLoss(panel)
     if not BU.Energy.bank(panel) then
-        Networks.setExtraLoad(panel, 0)
+        Changes.setExtraLoad(panel, "charging", 0)
         if panel.quietCut then
             panel.quietCut = nil
             Networks.setEnabled(panel, not panel.tripped)
@@ -395,12 +407,50 @@ function Changes.removeWaterGroup(panel, id)
             for key, group in pairs(data.groupOf) do
                 if group == id then data.groupOf[key] = nil; keys[key] = true end
             end
+            -- Its units work for the first group; no group overflows into it.
+            for _, unit in ipairs(Units.of(panel.id, "water")) do
+                if unit.group == id then unit.group = nil end
+            end
+            for _, other in ipairs(data.groups) do
+                if other.overflow == id then other.overflow = nil end
+            end
             data.levelLog[id] = nil
             Networks.defineWater(panel, keys)
             Sync.changed(panel.id)
             return
         end
     end
+end
+
+-- A water unit to work for a group of its panel.
+function Changes.setUnitGroup(unit, id)
+    local panel = Store.get(unit.panel)
+    if not panel or not Water.group(panel, id) then return end
+    unit.group = id ~= Water.FIRST and id or nil
+    Sync.changed(panel.id)
+end
+
+-- How full a group's tanks stay for its people: sprinklers stop at this percent (0 for none).
+function Changes.setGroupReserve(panel, id, percent)
+    local group = Water.group(panel, id)
+    if not group then return end
+    percent = math.max(0, math.min(90, math.floor(tonumber(percent) or 0)))
+    group.reserve = percent > 0 and percent or nil
+    Sync.changed(panel.id)
+end
+
+-- Where a group's pumps send water once its tanks are full: another group, or nil to stop.
+function Changes.setGroupOverflow(panel, id, target)
+    local group = Water.group(panel, id)
+    if not group or target == id or (target and not Water.group(panel, target)) then return end
+    group.overflow = target
+    Sync.changed(panel.id)
+end
+
+-- A filter's media replaced: a fresh charge.
+function Changes.replaceMedia(unit)
+    unit.media = BU.WaterUnits.FILTER_HOURS
+    Sync.changed(unit.panel)
 end
 
 -- A tank into a group.

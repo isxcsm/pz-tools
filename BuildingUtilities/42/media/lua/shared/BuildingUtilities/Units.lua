@@ -1,5 +1,5 @@
--- Units: objects this mod puts down and wires to a main panel like a generator (solar panels, battery racks, and the
--- kinds to come). They are kept in the save (Store.units), not only on their squares, because they count while those
+-- Units: objects this mod puts down and wires to a main panel like a generator (solar panels and battery racks for its
+-- power; pumps, sprinklers and filters for its water). They are kept in the save (Store.units), not only on their squares, because they count while those
 -- are not loaded. Each kind is defined once (Units.define) with what sets it apart; the rest of the mod asks the
 -- definition rather than the kind's name.
 require "BuildingUtilities/Panels"
@@ -18,7 +18,8 @@ local definitions = {}
 --   canPlace(square): whether it may stand there besides a free floor: true, or nil and a reason.
 --   sprite(square, character): the sprite it stands as when put down there.
 --   sprites: each sprite it can stand as (the server learns of them as their squares load: onLoad).
---   utility: what it is wired for ("power"); minTier and tierReason: the lowest tier of a panel it is wired to.
+--   utility: what it is wired for: "power" (a source of the panel's power) or "water" (it works for one of the
+--     panel's water groups); minTier and tierReason: the lowest tier of a panel it is wired to.
 --   colour: { r, g, b } on the plan.
 -- And, each optional:
 --   create(unit, object): as it is put down (the server).
@@ -26,9 +27,10 @@ local definitions = {}
 --   onLoad(unit, object): as its square loads (the server).
 --   sync(unit, object): each minute while its square is loaded (the server).
 --   title(unit, text): its line on the world menu, from its name.
---   options(unit): world menu options, each { text, action = function(character, unit) a timed action }.
---   flow(unit, panel, state): which way power runs on its line on the plan now, given its panel's network state:
---     1 to the box, -1 from it, nil none.
+--   options(unit, character): world menu options, each { text, action = function(character, unit) a timed action,
+--     reason (why it cannot now, or nil) }.
+--   flow(unit, panel, state): which way power or water runs on its line on the plan now, given its panel's
+--     network state: 1 to the box, -1 from it, nil none.
 -- Its texts: IGUI_BU_Unit_<kind> (its name) and ContextMenu_BU_Install_<kind>.
 function Units.define(kind, definition)
     if not definitions[kind] then Units.KINDS[#Units.KINDS + 1] = kind end
@@ -40,6 +42,17 @@ end
 function Units.definition(kind) return definitions[kind] end
 
 function Units.name(unit) return getText("IGUI_BU_Unit_" .. unit.kind) end
+
+function Units.utility(unit) return definitions[unit.kind].utility end
+
+-- The units wired to a panel that are of a utility.
+function Units.of(panelId, utility)
+    local result = {}
+    for _, unit in ipairs(Store.unitList(nil, panelId)) do
+        if definitions[unit.kind].utility == utility then result[#result + 1] = unit end
+    end
+    return result
+end
 
 -- The unit's object on its loaded square, or nil.
 function Units.object(unit)

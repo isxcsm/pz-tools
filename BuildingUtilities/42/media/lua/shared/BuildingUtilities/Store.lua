@@ -17,7 +17,9 @@ local KEY = "BuildingUtilities"
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
 --   shed (a set, under overload), saving (a set, keeping a low battery bank), blackout (a set: its lights, off by
 --   the player at the box) and timed (a set, by their timers).
---   For water also groups (the player's water groups, BU.Water: a list of { id, name }, the first always there),
+--   For water also groups (the player's water groups, BU.Water: a list of { id, name, reserve (the percent its
+--   tanks keep from sprinklers, or nil), overflow (the group its pumps fill once it is full, or nil) }, the first
+--   always there),
 --   nextGroup, groupOf (BU.thingKey to the group of a fixture not in the first) and levelLog (by group, what its
 --   tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour, amount, capacity }); a water producer
 --   may have group (nil for the first). With the freezing risk: frozen (its pipes are), coldHours and warmHours
@@ -27,12 +29,17 @@ local KEY = "BuildingUtilities"
 --   or nil) }; energyNow is the hour being summed { hour, made, used, n, charge }.
 --   A panel with units may keep controller (the charge controller's settings, BU.Energy.settings), quietCut (its
 --   power is off because the bank ran empty in quiet hours) and sourceOn (its units' source carried the load when last
---   seen: a world loaded again defines the source off, and the server switches it back on).
--- units = { [id] = unit }: the solar panels and battery racks this mod put down (BU.Units). A unit:
+--   seen: a world loaded again defines the source off, and the server switches it back on). extraLoads: what the box
+--   adds to its devices' load, by part (BU.Changes.setExtraLoad).
+-- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
+-- A unit:
 --   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
---   100, revived: how often it was reconditioned }.
+--   100, revived: how often it was reconditioned }. A water unit may have group (the panel's water group it works
+--   for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake) and
+--   running (it lifted water at the last minute); a sprinkler sprayedAt (the world age it last watered at); a filter
+--   media (hours of use left in its charge).
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server

@@ -64,9 +64,9 @@ local function producerButtons(width, row)
     return result
 end
 
--- A water group's row's buttons, left to right: Rename, and Remove but for the first group.
+-- A water group's row's buttons, left to right: Settings, Rename, and Remove but for the first group.
 local function groupButtons(width, row)
-    local names = row.removable and { "Rename", "Remove" } or { "Rename" }
+    local names = row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" }
     local result, x = {}, width - PAD - SCROLLBAR
     for index = #names, 1, -1 do
         x = x - BUTTON_W - 4
