@@ -150,20 +150,25 @@ final class Buildings {
         return new Object[] { lua.list(result), complete[0] };
     }
 
-    /** The objects of a building, as {@code objects} reports them; {@code complete[0]} is cleared when some were missing. */
+    /**
+     * The objects of a building's rooms, as {@code objects} reports them: of all its rooms, or of those it was narrowed
+     * to (see Members.resolve). {@code complete[0]} is cleared when some were missing.
+     */
     List<Found> scan(Building found, Filter filter, boolean[] complete) throws ReflectiveOperationException {
         Object cells = cell();
         var result = new ArrayList<Found>();
+        var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
+        rooms.addAll(found.rooms());
         for (int z = found.minLevel(); z <= found.maxLevel(); z++)
             for (int y = found.minY() - 1; y <= found.maxY() + 1; y++)
                 for (int x = found.minX() - 1; x <= found.maxX() + 1; x++) {
                     Object room = roomAt(x, y, z);
-                    boolean inside = room != null && building.invoke(room) == found.def();
+                    boolean inside = room != null && rooms.contains(room);
                     Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
                     if (loaded == null) { if (inside) complete[0] = false; continue; }
                     for (Object object : objectsOn(loaded)) {
                         Object owner = owner(object, room);
-                        if (owner == null || building.invoke(owner) != found.def()) continue;
+                        if (owner == null || !rooms.contains(owner)) continue;
                         Found thing = classify(object, filter, x, y, z, owner);
                         if (thing != null) result.add(thing);
                     }
@@ -303,6 +308,20 @@ final class Buildings {
     Building buildingAt(int x, int y, int z) throws ReflectiveOperationException {
         Object room = roomAt(x, y, z);
         return room == null ? null : describe(building.invoke(room));
+    }
+
+    /** The room the square belongs to now (a RoomDef), or null. */
+    Object roomOf(int x, int y, int z) throws ReflectiveOperationException { return roomAt(x, y, z); }
+
+    /** The building of a room, as its rooms describe it now. */
+    Building buildingOf(Object room) throws ReflectiveOperationException { return describe(building.invoke(room)); }
+
+    /** The building narrowed to some of its rooms, in its own order: what a network takes of it. */
+    static Building narrowed(Building whole, Set<Object> rooms) {
+        var kept = new ArrayList<Object>();
+        for (Object room : whole.rooms()) if (rooms.contains(room)) kept.add(room);
+        return new Building(whole.def(), List.copyOf(kept), whole.key(), whole.minLevel(), whole.maxLevel(),
+            whole.minX(), whole.minY(), whole.maxX(), whole.maxY());
     }
 
     int level(Object room) throws ReflectiveOperationException { return (int)roomLevel.invoke(room); }

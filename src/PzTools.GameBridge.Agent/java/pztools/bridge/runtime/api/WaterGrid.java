@@ -152,7 +152,7 @@ final class WaterGrid implements ApiHooks.Water {
         for (Network network : networks) {
             members.resolve(network);
             if (network.parent != null) continue;
-            for (Position at : network.producers) {
+            for (Position at : network.squares()) {
                 Object loaded = members.square(cells, at);
                 if (loaded == null) continue;
                 float held = 0, most = 0;
@@ -184,10 +184,10 @@ final class WaterGrid implements ApiHooks.Water {
         var byNetwork = new HashMap<Network, Supplier>();
         var producers = new HashSet<Position>();
         for (Network network : networks) {
-            producers.addAll(network.producers);
+            producers.addAll(network.squares());
             Network root = members.root(network);
             if (!network.supplied || root == null) continue;
-            var supplier = new Supplier(network, network.area, List.copyOf(root.producers));
+            var supplier = new Supplier(network, network.area, root.squares());
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }

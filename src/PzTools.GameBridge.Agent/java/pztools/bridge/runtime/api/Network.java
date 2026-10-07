@@ -21,6 +21,24 @@ final class Network {
     /** An object, named by its square and its sprite. */
     record Thing(Position at, String sprite) { }
 
+    /**
+     * A producer: a square with a generator or a water container on it, or a source that its mod runs (power only),
+     * named by the mod. Exactly one of the two is set.
+     */
+    record Producer(Position at, String source) {
+        static Producer square(Position at) { return new Producer(at, null); }
+        static Producer source(String name) { return new Producer(null, name); }
+    }
+
+    /**
+     * A source as its mod last set it: whether it can carry the load, whether it is switched on, and the hour it last
+     * became unable to (NaN when the mod gave none).
+     */
+    static final class Source {
+        boolean available, on;
+        double stoppedAt = Double.NaN;
+    }
+
     /** A producer as last seen loaded. */
     record Seen(boolean activated, float fuel, int condition) {
         boolean canRun() { return fuel > 0 && condition > 0; }
@@ -41,14 +59,18 @@ final class Network {
     /** The network whose producers supply this one, which then has none of its own; null for a network with its own. */
     String parent;
     /** In order: under {@code "sequential"} the next that can run takes over when the one in use stops. */
-    final List<Position> producers = new ArrayList<>();
-    /** Squares that name the member buildings. */
-    final List<Position> buildings = new ArrayList<>();
+    final List<Producer> producers = new ArrayList<>();
+    /** The sources among the producers, by name. */
+    final Map<String, Source> sources = new HashMap<>();
+    /** Squares that name the member buildings, and squares that name single member rooms. */
+    final List<Position> buildings = new ArrayList<>(), rooms = new ArrayList<>();
     final Set<Thing> excluded = new LinkedHashSet<>(), included = new LinkedHashSet<>();
     /** Switched off, it has no supply, nor have its children; its producer in use carries no load. */
     boolean enabled = true;
     /** What its load, its children's included, is multiplied by on its way to the producer: 1 for none. */
     float loadFactor = 1f;
+    /** A load its mod adds to its consumers' (power only). */
+    float extraLoad;
     /**
      * The hours it was switched on (true) and off (false) since it was defined, kept for food as {@link #history} is;
      * {@code enabledBefore} is whether it was on before the first.
@@ -57,17 +79,17 @@ final class Network {
     boolean enabledBefore = true;
 
     // Worked out by the grid of its utility.
-    /** The member buildings as last resolved, by their BuildingDef's identity. */
+    /** The member buildings as last resolved, by their BuildingDef's identity; one named by rooms alone has those. */
     List<Buildings.Building> resolved = List.of();
     Members.Area area;
-    /** Each power producer as last seen loaded. */
-    final Map<Position, Seen> seen = new HashMap<>();
+    /** Each power producer as last seen loaded; a source as its mod last set it. */
+    final Map<Producer, Seen> seen = new HashMap<>();
     /** Each water producer as last seen loaded. */
     final Map<Position, Stored> stored = new HashMap<>();
     /** Each running producer before the game's last hourly update of it. */
     final Map<Position, Settled> settled = new HashMap<>();
     /** The producer that carries the load; null when the network has none running, and always for a child. */
-    Position inUse;
+    Producer inUse;
     /**
      * Whether it has supply: for power, its producer in use runs; for water, one of its producers holds some; for a
      * child, its parent has supply.
@@ -83,10 +105,10 @@ final class Network {
     NavigableMap<Double, Boolean> history;
     boolean suppliedBefore;
     /** A producer the game ran while the API knew of none in use, until the next frame takes it in. */
-    Position adopted;
+    Producer adopted;
     /** Each consumer's consumption, as last seen loaded. */
     Map<Thing, Float> consumption = Map.of();
-    /** Its own consumers' load; and with its children's, times its load factor. */
+    /** Its own consumers' load and its extra load; and with its children's, times its load factor. */
     float load, total;
     boolean loadComplete;
     long loadAt;
@@ -94,5 +116,12 @@ final class Network {
 
     Network(String id, String owner, String utility, String policy) {
         this.id = id; this.owner = owner; this.utility = utility; this.policy = policy;
+    }
+
+    /** The squares of its producers, in order: all but its sources. */
+    List<Position> squares() {
+        var result = new ArrayList<Position>();
+        for (Producer producer : producers) if (producer.at() != null) result.add(producer.at());
+        return result;
     }
 }

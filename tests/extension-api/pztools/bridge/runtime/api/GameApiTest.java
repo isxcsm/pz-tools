@@ -45,10 +45,12 @@ public final class GameApiTest {
         children(api);
         switches(api);
         loadFactors(api);
+        memberRooms(api);
+        sources(api);
         water(api);
         food(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, ages food by their supply, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -648,6 +650,129 @@ public final class GameApiTest {
             "A newer payload lost the load factors");
         call(networks, "remove", mod, "sub");
         call(networks, "remove", mod, "main");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A network can take single rooms of a building instead of all of it: only their squares have power and only their
+     * objects are its consumers. A room named again, or of a building it takes whole, changes nothing; a newer payload
+     * keeps them.
+     */
+    private static void memberRooms(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "flat", "power", "sequential");
+        call(networks, "setProducers", mod, "flat", list(at(34, 33, 0)));
+        check(call(networks, "addRoom", mod, "flat", 11.0, 11.0, 0.0).get(0).equals(true), "A room's square was not in a room");
+        check(call(networks, "addRoom", mod, "flat", 0.0, 0.0, 0.0).get(0).equals(false), "A square of no room was in a room");
+        generator.setActivated(true);
+        frame();
+        Object consumers = call(networks, "consumers", "flat").get(0);
+        check(square(11, 11, 0).haveElectricity() && !square(11, 11, -1).haveElectricity() && !square(21, 21, 0).haveElectricity(),
+            "Power reached past the kitchen, or not into it");
+        check(sprites(consumers).contains("fridge") && !sprites(consumers).contains("shack fridge"), "The kitchen's consumers were wrong: " + sprites(consumers));
+        double kitchen = (Double)state(networks, "flat").rawget("ownLoad");
+        // The basement too, named by another of its squares; then without it again.
+        call(networks, "addRoom", mod, "flat", 12.0, 12.0, -1.0);
+        call(networks, "addRoom", mod, "flat", 11.0, 11.0, -1.0);
+        frame();
+        check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "A second room did not get power");
+        check(near((Double)state(networks, "flat").rawget("ownLoad"), kitchen), "The basement changed the load");
+        // A newer payload keeps the rooms.
+        GameApi.register(LuaManager.class);
+        frame();
+        check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "A newer payload lost the rooms");
+        check(call(networks, "removeRoom", mod, "flat", 12.0, 11.0, -1.0).get(0).equals(true), "Removing a room by another square failed");
+        check(call(networks, "removeRoom", mod, "flat", 12.0, 11.0, -1.0).get(0).equals(false), "A room was removed twice");
+        frame();
+        check(!square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "The removed room kept power");
+        // The whole building: a room of it named too changes nothing.
+        call(networks, "addBuilding", mod, "flat", 11.0, 11.0, 0.0);
+        frame();
+        check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "The whole building lost a room");
+        Object other = call(api, "client", "other.mod").get(0);
+        rejects(networks, "addRoom", "flat belongs to another mod", other, "flat", 11.0, 11.0, 0.0);
+        call(networks, "remove", mod, "flat");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A source its mod runs carries the load like a generator: switched on by the mod it takes over, and the API switches
+     * the generators off; when the mod says it can no longer run, the next producer takes over from the hour the mod
+     * gives. Its extra load adds to the network's, and a newer payload keeps both.
+     */
+    private static void sources(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 3000;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        KahluaTable bank = LuaManager.platform.newTable();
+        bank.rawset("source", "bank");
+        call(networks, "define", mod, "solar", "power", "sequential");
+        call(networks, "setProducers", mod, "solar", list(bank, at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "solar", 11.0, 11.0, 0.0);
+        frame();
+        KahluaTable state = state(networks, "solar");
+        KahluaTable listed = (KahluaTable)((KahluaTable)state.rawget("producers")).rawget(1.0);
+        check(listed.rawget("source").equals("bank") && listed.rawget("running").equals(false) && listed.rawget("available").equals(false)
+            && state.rawget("supplied").equals(false), "A new source ran, or was listed wrong");
+        // Switched on by its mod: it carries the load.
+        LuaEventManager.raised.clear();
+        call(networks, "setSource", mod, "solar", "bank", true, true);
+        frame();
+        state = state(networks, "solar");
+        check(state.rawget("supplied").equals(true) && ((KahluaTable)state.rawget("producer")).rawget("source").equals("bank")
+            && state.rawget("hoursLeft") == null && !generator.activated && square(11, 11, 0).haveElectricity()
+            && raised("solar", "supply", 3000), "The source switched on does not carry the network");
+        // It ran out two hours ago: the generator takes over from then.
+        time.hours = 3010;
+        call(networks, "setSource", mod, "solar", "bank", false, null, 3008.0);
+        frame();
+        state = state(networks, "solar");
+        check(generator.activated && generator.lastHour() == 3008 && ((KahluaTable)state.rawget("producer")).rawget("x").equals(34.0)
+            && raised("solar", "producer", 3008), "The generator did not take over from the hour the source ran out: " + generator.lastHour());
+        listed = (KahluaTable)((KahluaTable)state.rawget("producers")).rawget(1.0);
+        check(listed.rawget("running").equals(false) && listed.rawget("available").equals(false), "The source still runs");
+        // Charged again and switched on: it takes over, and the generator is switched off.
+        call(networks, "setSource", mod, "solar", "bank", true, true);
+        frame();
+        check(!generator.activated && ((KahluaTable)state(networks, "solar").rawget("producer")).rawget("source").equals("bank"),
+            "The source did not take over from the generator");
+        // Extra load: added to the consumers'.
+        double ownLoad = (Double)state(networks, "solar").rawget("ownLoad");
+        call(networks, "setExtraLoad", mod, "solar", 0.5);
+        frame();
+        state = state(networks, "solar");
+        check(near((Double)state.rawget("ownLoad"), ownLoad + 0.5) && state.rawget("extraLoad").equals(0.5)
+            && near((Double)state.rawget("load"), ownLoad + 0.5), "The extra load was not added");
+        // A newer payload keeps the source switched on, and the extra load.
+        GameApi.register(LuaManager.class);
+        frame();
+        state = state(networks, "solar");
+        check(state.rawget("supplied").equals(true) && ((KahluaTable)state.rawget("producer")).rawget("source").equals("bank")
+            && near((Double)state.rawget("ownLoad"), ownLoad + 0.5), "A newer payload lost the source or the extra load");
+        // Switched off by its mod while it can run: the network stops, as when a player switches a generator off.
+        call(networks, "setSource", mod, "solar", "bank", true, false);
+        frame();
+        check(state(networks, "solar").rawget("supplied").equals(false) && !generator.activated, "Switching the source off did not stop the network");
+        rejects(networks, "setSource", "solar has no source tank", mod, "solar", "tank", true);
+        rejects(networks, "setSource", "available must be true or false", mod, "solar", "bank", "yes");
+        rejects(networks, "setSource", "a source that is not available cannot be switched on", mod, "solar", "bank", false, true);
+        rejects(networks, "setSource", "hour must be a number or nil", mod, "solar", "bank", false, null, "now");
+        rejects(networks, "setExtraLoad", "load must be a number from 0.0 to 1000.0", mod, "solar", -1.0);
+        KahluaTable bad = LuaManager.platform.newTable();
+        bad.rawset("source", "no spaces");
+        rejects(networks, "setProducers", "producers[1].source must be", mod, "solar", list(bad));
+        call(networks, "define", mod, "pipes", "water", "fullest");
+        rejects(networks, "setProducers", "sources are for power", mod, "pipes", list(bank));
+        call(networks, "remove", mod, "pipes");
+        call(networks, "remove", mod, "solar");
         frame();
         generator.setActivated(false);
     }

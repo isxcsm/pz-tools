@@ -3,6 +3,8 @@ package pztools.bridge.runtime.api;
 import java.util.*;
 import pztools.bridge.ApiHooks;
 import pztools.bridge.runtime.api.Network.Position;
+import pztools.bridge.runtime.api.Network.Producer;
+import pztools.bridge.runtime.api.Network.Source;
 import pztools.bridge.runtime.api.Network.Thing;
 
 /**
@@ -16,8 +18,8 @@ final class Networks {
     private static final int MAX_SPRITE = 256;
     // The key in the API's metatable, and the version of the text kept there.
     private static final String MIRROR = "networks", FORMAT = "pztools-networks 1";
-    // The most a load factor multiplies a load by.
-    private static final double MAX_LOAD_FACTOR = 100;
+    // The most a load factor multiplies a load by, and the most extra load a network takes.
+    private static final double MAX_LOAD_FACTOR = 100, MAX_EXTRA_LOAD = 1000;
 
     /** The mod a handle belongs to, or null when the value is not one of the API's handles. */
     @FunctionalInterface interface Owners { String of(Object handle) throws ReflectiveOperationException; }
@@ -109,23 +111,69 @@ final class Networks {
             if (!lua.isTable(list)) throw new IllegalArgumentException(call + ": producers must be a list of squares");
             if (network.parent != null && lua.get(list, 1.0) != null)
                 throw new IllegalArgumentException(call + ": " + network.id + " is a child network; its parent's producers supply it");
-            var producers = new ArrayList<Position>();
+            var producers = new ArrayList<Producer>();
             for (int index = 1;; index++) {
                 Object item = lua.get(list, (double)index);
                 if (item == null) break;
-                Position at = position(item, call, "producers[" + index + "]");
-                if (producers.contains(at)) throw new IllegalArgumentException(call + ": " + at + " is listed twice");
-                for (Network other : networks.values())
-                    if (other != network && other.producers.contains(at))
-                        throw new IllegalArgumentException(call + ": " + at + " is a producer of the network " + other.id);
-                producers.add(at);
+                Producer producer = producer(item, network, call, "producers[" + index + "]");
+                String named = producer.at() != null ? producer.at().toString() : "source " + producer.source();
+                if (producers.contains(producer)) throw new IllegalArgumentException(call + ": " + named + " is listed twice");
+                if (producer.at() != null)
+                    for (Network other : networks.values())
+                        if (other != network && other.producers.contains(producer))
+                            throw new IllegalArgumentException(call + ": " + named + " is a producer of the network " + other.id);
+                producers.add(producer);
             }
             network.producers.clear();
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
-            network.settled.keySet().retainAll(producers);
-            network.stored.keySet().retainAll(producers);
+            List<Position> squares = network.squares();
+            network.settled.keySet().retainAll(squares);
+            network.stored.keySet().retainAll(squares);
+            var names = new HashSet<String>();
+            for (Producer producer : producers) if (producer.source() != null) names.add(producer.source());
+            network.sources.keySet().retainAll(names);
+            for (String name : names) network.sources.computeIfAbsent(name, unused -> new Source());
             saved();
+            return new Object[0];
+        });
+        function(table, "setSource", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            String name = Arguments.string(arguments, 2, call, "name");
+            Source source = network.sources.get(name);
+            if (source == null) throw new IllegalArgumentException(call + ": " + network.id + " has no source " + name);
+            if (!(arguments.length > 3 && arguments[3] instanceof Boolean available))
+                throw new IllegalArgumentException(call + ": available must be true or false");
+            Object switchOn = arguments.length > 4 ? arguments[4] : null;
+            if (switchOn != null && !(switchOn instanceof Boolean))
+                throw new IllegalArgumentException(call + ": switchOn must be true, false or nil");
+            Object hour = arguments.length > 5 ? arguments[5] : null;
+            if (hour != null && !(hour instanceof Double))
+                throw new IllegalArgumentException(call + ": hour must be a number or nil");
+            if (!available && Boolean.TRUE.equals(switchOn))
+                throw new IllegalArgumentException(call + ": a source that is not available cannot be switched on");
+            boolean wasAvailable = source.available;
+            source.available = available;
+            if (!available) {
+                source.on = false;
+                // When it ran out: now, unless the mod knows it was earlier.
+                if (wasAvailable || hour != null) source.stoppedAt = hour != null ? (Double)hour : Double.NaN;
+            } else if (switchOn != null) {
+                source.on = (Boolean)switchOn;
+            }
+            saved();
+            return new Object[0];
+        });
+        function(table, "setExtraLoad", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!PowerGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", which has no load");
+            float load = (float)Arguments.number(arguments, 2, call, "load", 0, MAX_EXTRA_LOAD);
+            if (network.extraLoad != load) {
+                network.extraLoad = load;
+                network.loadChanged = true;
+                saved();
+            }
             return new Object[0];
         });
         function(table, "setParent", (call, arguments) -> {
@@ -174,6 +222,24 @@ final class Networks {
             if (!network.buildings.contains(at)) network.buildings.add(at);
             saved();
             return new Object[] { buildings.buildingAt(at.x(), at.y(), at.z()) != null };
+        });
+        function(table, "addRoom", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            Position at = square(arguments, 2, call);
+            if (!network.rooms.contains(at)) network.rooms.add(at);
+            saved();
+            return new Object[] { buildings.roomOf(at.x(), at.y(), at.z()) != null };
+        });
+        function(table, "removeRoom", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            Position at = square(arguments, 2, call);
+            Object room = buildings.roomOf(at.x(), at.y(), at.z());
+            var named = new ArrayList<Position>();
+            for (Position other : network.rooms)
+                if (other.equals(at) || room != null && buildings.roomOf(other.x(), other.y(), other.z()) == room) named.add(other);
+            network.rooms.removeAll(named);
+            saved();
+            return new Object[] { !named.isEmpty() };
         });
         function(table, "removeBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
@@ -244,15 +310,23 @@ final class Networks {
     private void power(Object result, Network network) throws ReflectiveOperationException {
         lua.set(result, "load", (double)network.total);
         lua.set(result, "ownLoad", (double)network.load);
+        lua.set(result, "extraLoad", (double)network.extraLoad);
         lua.set(result, "loadFactor", (double)network.loadFactor);
         lua.set(result, "complete", network.loadComplete);
-        if (network.inUse != null) lua.set(result, "producer", square(network.inUse));
+        if (network.inUse != null) lua.set(result, "producer", producer(network.inUse));
         Double hoursLeft = grid.hoursLeft(network);
         if (hoursLeft != null) lua.set(result, "hoursLeft", hoursLeft);
         var producers = new ArrayList<Object>();
-        for (Position at : network.producers) {
-            Object entry = square(at);
-            var seen = network.seen.get(at);
+        for (Producer producer : network.producers) {
+            Object entry = producer(producer);
+            if (producer.source() != null) {
+                Source source = network.sources.get(producer.source());
+                lua.set(entry, "running", source.on);
+                lua.set(entry, "available", source.available);
+                producers.add(entry);
+                continue;
+            }
+            var seen = network.seen.get(producer);
             if (seen != null) {
                 lua.set(entry, "running", seen.activated());
                 lua.set(entry, "fuel", (double)seen.fuel());
@@ -271,7 +345,7 @@ final class Networks {
         Network root = members.root(network);
         double held = 0, most = 0;
         var producers = new ArrayList<Object>();
-        for (Position at : root == null ? List.<Position>of() : root.producers) {
+        for (Position at : root == null ? List.<Position>of() : root.squares()) {
             Object entry = square(at);
             var stored = root.stored.get(at);
             if (stored != null) {
@@ -370,6 +444,25 @@ final class Networks {
         return result;
     }
 
+    /** A producer as the state gives it: its square, or a table with its source's name. */
+    private Object producer(Producer producer) throws ReflectiveOperationException {
+        if (producer.at() != null) return square(producer.at());
+        Object result = lua.table();
+        lua.set(result, "source", producer.source());
+        return result;
+    }
+
+    /** A producer as a mod lists it: a table with {@code source}, a name, or with {@code x}, {@code y} and {@code z}. */
+    private Producer producer(Object item, Network network, String call, String name) throws ReflectiveOperationException {
+        Object source = lua.isTable(item) ? lua.get(item, "source") : null;
+        if (source == null) return Producer.square(position(item, call, name));
+        if (!(source instanceof String text) || !text.matches(NAME))
+            throw new IllegalArgumentException(call + ": " + name + ".source must be 1 to 64 letters, digits, '_', '.' or '-'");
+        if (!PowerGrid.UTILITY.equals(network.utility))
+            throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + "; sources are for power");
+        return Producer.source(text);
+    }
+
     /** The network's consumers changed: its load is worked out again, without what was last seen of the object. */
     private static void consumersChanged(Network network, Thing thing) {
         var consumption = new LinkedHashMap<>(network.consumption);
@@ -386,9 +479,17 @@ final class Networks {
                 .append(network.utility).append('\t').append(network.policy).append('\t')
                 .append(network.parent == null ? "" : network.parent).append('\t')
                 .append(network.enabled ? "" : "off").append('\t')
-                .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\n');
-            for (Position at : network.producers) text.append("P\t").append(at).append('\n');
+                .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\t')
+                .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad)).append('\n');
+            for (Producer producer : network.producers) {
+                if (producer.at() != null) { text.append("P\t").append(producer.at()).append('\n'); continue; }
+                Source source = network.sources.get(producer.source());
+                text.append("S\t").append(producer.source()).append('\t').append(source.available ? "available" : "")
+                    .append('\t').append(source.on ? "on" : "").append('\t')
+                    .append(Double.isNaN(source.stoppedAt) ? "" : Double.toString(source.stoppedAt)).append('\n');
+            }
             for (Position at : network.buildings) text.append("B\t").append(at).append('\n');
+            for (Position at : network.rooms) text.append("R\t").append(at).append('\n');
             for (Thing thing : network.excluded) text.append("X\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
             for (Thing thing : network.included) text.append("I\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
         }
@@ -420,9 +521,19 @@ final class Networks {
                     // Switched off when taken over: off before, as far as the API knows.
                     if (fields.length > 6 && "off".equals(fields[6])) network.enabled = network.enabledBefore = false;
                     if (fields.length > 7 && !fields[7].isEmpty()) network.loadFactor = Float.parseFloat(fields[7]);
+                    if (fields.length > 8 && !fields[8].isEmpty()) network.extraLoad = Float.parseFloat(fields[8]);
                 }
-                case "P" -> network.producers.add(Position.parse(fields[1]));
+                case "P" -> network.producers.add(Producer.square(Position.parse(fields[1])));
+                case "S" -> {
+                    network.producers.add(Producer.source(fields[1]));
+                    Source source = new Source();
+                    source.available = "available".equals(fields[2]);
+                    source.on = "on".equals(fields[3]);
+                    if (!fields[4].isEmpty()) source.stoppedAt = Double.parseDouble(fields[4]);
+                    network.sources.put(fields[1], source);
+                }
                 case "B" -> network.buildings.add(Position.parse(fields[1]));
+                case "R" -> network.rooms.add(Position.parse(fields[1]));
                 case "X" -> network.excluded.add(new Thing(Position.parse(fields[1]), fields[2]));
                 case "I" -> network.included.add(new Thing(Position.parse(fields[1]), fields[2]));
                 default -> throw new IllegalStateException("Unknown line in the kept networks: " + lines[index]);

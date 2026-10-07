@@ -110,13 +110,29 @@ final class Members {
         return cells == null ? null : square.invoke(cells, at.x(), at.y(), at.z());
     }
 
-    /** The member buildings as the map data has them now; a player-built one is made again when its walls change. */
+    /**
+     * The member buildings as the map data has them now; a player-built one is made again when its walls change. A
+     * building named by rooms alone, and not as a whole, is narrowed to those rooms.
+     */
     void resolve(Network network) throws ReflectiveOperationException {
         var found = new ArrayList<Buildings.Building>();
         for (Position at : network.buildings) {
             var building = buildings.buildingAt(at.x(), at.y(), at.z());
             if (building != null && found.stream().noneMatch(other -> other.def() == building.def())) found.add(building);
         }
+        var narrowed = new ArrayList<Buildings.Building>();
+        var rooms = new IdentityHashMap<Object, Set<Object>>();
+        for (Position at : network.rooms) {
+            Object room = buildings.roomOf(at.x(), at.y(), at.z());
+            var building = room == null ? null : buildings.buildingOf(room);
+            if (building == null || found.stream().anyMatch(other -> other.def() == building.def())) continue;
+            if (!rooms.containsKey(building.def())) {
+                rooms.put(building.def(), Collections.newSetFromMap(new IdentityHashMap<>()));
+                narrowed.add(building);
+            }
+            rooms.get(building.def()).add(room);
+        }
+        for (var building : narrowed) found.add(Buildings.narrowed(building, rooms.get(building.def())));
         boolean same = found.size() == network.resolved.size();
         for (int index = 0; same && index < found.size(); index++)
             same = found.get(index).def() == network.resolved.get(index).def()

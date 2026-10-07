@@ -5,7 +5,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import pztools.bridge.ApiHooks;
 import pztools.bridge.runtime.api.Network.Position;
+import pztools.bridge.runtime.api.Network.Producer;
 import pztools.bridge.runtime.api.Network.Seen;
+import pztools.bridge.runtime.api.Network.Source;
 import pztools.bridge.runtime.api.Network.Settled;
 import pztools.bridge.runtime.api.Network.Thing;
 import pztools.bridge.runtime.api.Members.Area;
@@ -279,7 +281,7 @@ final class PowerGrid implements ApiHooks.Power {
                         if (near != null) removeGeneratorPos.invoke(near, at.x(), at.y(), at.z());
                     }
             }
-            setUsing.invoke(generator, consumption(network, at));
+            setUsing.invoke(generator, consumption(network, Producer.square(at)));
             changed = true;
             return true;
         } catch (InvocationTargetException failure) {
@@ -320,7 +322,7 @@ final class PowerGrid implements ApiHooks.Power {
             // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
             network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator)));
             // Running before the API knew which producer was in use: the world was just loaded, or the player switched it on.
-            if (network.inUse == null) network.adopted = at;
+            if (network.inUse == null) network.adopted = Producer.square(at);
         } catch (InvocationTargetException failure) {
             throw new IllegalStateException(failure.getCause());
         } catch (ReflectiveOperationException failure) {
@@ -440,9 +442,9 @@ final class PowerGrid implements ApiHooks.Power {
         }
         // The producer in use carries the load; the others only their own.
         for (Network network : networks)
-            for (Position producer : network.producers) {
+            for (Position producer : network.squares()) {
                 Object generator = generatorAt(cells, producer);
-                float consumption = consumption(network, producer);
+                float consumption = consumption(network, Producer.square(producer));
                 if (generator != null && using.getFloat(generator) != consumption) setUsing.invoke(generator, consumption);
             }
         // The objects that gained or lost power update what follows from it (a fridge's hum, a lamp's light).
@@ -458,35 +460,42 @@ final class PowerGrid implements ApiHooks.Power {
      * switches on the first other producer, in order, that can run, from the hour the first stopped: the game then
      * burns the hours since, as it does for a generator whose square was not loaded. Switched off by the player, the
      * one in use stops the network. A producer whose square is not loaded counts as last seen, and the one in use as
-     * stopped once its fuel would have run out.
+     * stopped once its fuel would have run out. A source is always as its mod last set it: switched on by the mod, it
+     * carries the load; no longer available, it stops at the hour the mod gave, and the next takes over from then.
      */
     private void producers(Network network, Object cells, double hours, List<Change> changes) throws ReflectiveOperationException {
-        var generators = new HashMap<Position, Object>();
-        var loaded = new HashSet<Position>();
-        var newcomers = new ArrayList<Position>();
-        for (Position producer : network.producers) {
-            Object generator = generatorAt(cells, producer);
-            if (generator == null && members.square(cells, producer) == null) continue;
+        var generators = new HashMap<Producer, Object>();
+        var loaded = new HashSet<Producer>();
+        var newcomers = new ArrayList<Producer>();
+        for (Producer producer : network.producers) {
+            Seen now;
+            if (producer.source() != null) {
+                Source source = network.sources.get(producer.source());
+                now = new Seen(source.on, source.available ? 1 : 0, source.available ? 1 : 0);
+            } else {
+                Object generator = generatorAt(cells, producer.at());
+                if (generator == null && members.square(cells, producer.at()) == null) continue;
+                // A loaded square without the generator: it was taken away.
+                now = generator == null ? new Seen(false, 0, 0)
+                    : new Seen((boolean)activated.invoke(generator), (float)fuel.invoke(generator), (int)condition.invoke(generator));
+                if (generator != null) generators.put(producer, generator);
+            }
             loaded.add(producer);
-            // A loaded square without the generator: it was taken away.
-            Seen now = generator == null ? new Seen(false, 0, 0)
-                : new Seen((boolean)activated.invoke(generator), (float)fuel.invoke(generator), (int)condition.invoke(generator));
             Seen last = network.seen.put(producer, now);
-            if (generator != null) generators.put(producer, generator);
             if (now.activated() && last != null && !last.activated()) newcomers.add(producer);
         }
         // The one in use as the API knew it, or one the game ran before the API knew which (see generatorUpdate).
-        Position before = network.inUse, current = before != null ? before : network.adopted, inUse = current;
+        Producer before = network.inUse, current = before != null ? before : network.adopted, inUse = current;
         network.adopted = null;
         double at = hours;
         if (current != null && network.seen.containsKey(current)) {
             Seen state = network.seen.get(current);
-            Settled settled = network.settled.get(current);
+            Settled settled = current.at() == null ? null : network.settled.get(current.at());
             if (loaded.contains(current)) {
                 if (!state.activated()) {
                     if (state.canRun()) inUse = null;
                     else {
-                        at = settled == null ? hours : Math.min(hours, settled.end());
+                        at = Math.min(hours, stoppedAt(network, current, settled, hours));
                         inUse = next(network, current, generators);
                     }
                 }
@@ -497,13 +506,13 @@ final class PowerGrid implements ApiHooks.Power {
         }
         if (!newcomers.isEmpty() && !newcomers.contains(inUse)) { inUse = newcomers.get(0); at = hours; }
         else if (inUse == null && before == null)
-            for (Position producer : network.producers) {
+            for (Producer producer : network.producers) {
                 Seen state = network.seen.get(producer);
                 if (loaded.contains(producer) && state.activated()) { inUse = producer; break; }
             }
         network.inUse = inUse;
         for (var entry : generators.entrySet()) {
-            Position producer = entry.getKey();
+            Producer producer = entry.getKey();
             Seen state = network.seen.get(producer);
             if (producer.equals(inUse) && !state.activated()) {
                 // Started by the API, from the hour the last one stopped.
@@ -513,6 +522,17 @@ final class PowerGrid implements ApiHooks.Power {
             } else if (!producer.equals(inUse) && state.activated()) {
                 setActivated.invoke(entry.getValue(), false);
                 network.seen.put(producer, new Seen(false, state.fuel(), state.condition()));
+            }
+        }
+        // Sources are switched as generators are; the mod reads which is on in the state.
+        for (Producer producer : network.producers) {
+            if (producer.source() == null) continue;
+            Source source = network.sources.get(producer.source());
+            boolean on = producer.equals(inUse);
+            if (source.on != on) {
+                source.on = on;
+                Seen state = network.seen.get(producer);
+                network.seen.put(producer, new Seen(on, state.fuel(), state.condition()));
             }
         }
         if ((before == null) != (inUse == null)) supplyHours.put(network, at);
@@ -530,18 +550,31 @@ final class PowerGrid implements ApiHooks.Power {
         while (network.history.size() > MAX_HISTORY) network.suppliedBefore = network.history.pollFirstEntry().getValue();
     }
 
-    /** The first producer of the network, in order, that is loaded and can run, other than the one that stopped. */
-    private static Position next(Network network, Position stopped, Map<Position, Object> generators) {
-        for (Position producer : network.producers)
-            if (!producer.equals(stopped) && generators.containsKey(producer) && network.seen.get(producer).canRun()) return producer;
+    /**
+     * The first producer of the network, in order, that can run, other than the one that stopped: a source its mod
+     * says is available, or a loaded generator.
+     */
+    private static Producer next(Network network, Producer stopped, Map<Producer, Object> generators) {
+        for (Producer producer : network.producers)
+            if (!producer.equals(stopped) && (producer.source() != null || generators.containsKey(producer))
+                    && network.seen.get(producer).canRun()) return producer;
         return null;
+    }
+
+    /** When a producer that can no longer run stopped: a source at the hour its mod gave, a generator as it settled. */
+    private static double stoppedAt(Network network, Producer producer, Settled settled, double hours) {
+        if (producer.source() != null) {
+            double hour = network.sources.get(producer.source()).stoppedAt;
+            return Double.isNaN(hour) ? hours : hour;
+        }
+        return settled == null ? hours : settled.end();
     }
 
     /**
      * What a producer of the network burns: its own base consumption, and the load of the network and its children when
      * it carries it and the network is switched on.
      */
-    private float consumption(Network network, Position producer) throws IllegalAccessException {
+    private float consumption(Network network, Producer producer) throws IllegalAccessException {
         return basePower.getFloat(null) + (producer.equals(network.inUse) && network.enabled ? network.total : 0f);
     }
 
@@ -557,15 +590,17 @@ final class PowerGrid implements ApiHooks.Power {
 
     /**
      * How long the network's supply lasts at its load now: the fuel of its producer in use and of those that can take
-     * over, as last seen, over what the one in use would burn an hour. Null without supply or without consumption.
+     * over, as last seen, over what the one in use would burn an hour. Null without supply or without consumption, and
+     * while a source carries it (its mod knows what it holds).
      */
     Double hoursLeft(Network network) throws ReflectiveOperationException {
         Network root = members.root(network);
-        if (root == null || root.inUse == null || !members.switchedOn(network)) return null;
+        if (root == null || root.inUse == null || root.inUse.source() != null || !members.switchedOn(network)) return null;
         double perHour = (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
         if (perHour <= 0) return null;
         double fuel = 0;
-        for (Position producer : root.producers) {
+        for (Producer producer : root.producers) {
+            if (producer.source() != null) continue;
             Seen state = root.seen.get(producer);
             if (state != null && (producer.equals(root.inUse) || state.canRun())) fuel += state.fuel();
         }
@@ -586,7 +621,7 @@ final class PowerGrid implements ApiHooks.Power {
             Position at = last.getKey().at();
             if (!next.containsKey(last.getKey()) && members.square(cells, at) == null) next.put(last.getKey(), last.getValue());
         }
-        float load = 0;
+        float load = network.extraLoad;
         for (float value : next.values()) load += value;
         network.consumption = next;
         network.load = load;
@@ -612,7 +647,7 @@ final class PowerGrid implements ApiHooks.Power {
             boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
-            for (Position producer : network.producers) producers.put(producer, network);
+            for (Position producer : network.squares()) producers.put(producer, network);
             for (Thing thing : network.excluded) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), false, on, network));
             for (Thing thing : network.included) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, on, network));
         }
