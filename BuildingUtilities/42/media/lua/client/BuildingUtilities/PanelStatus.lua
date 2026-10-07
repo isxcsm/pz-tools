@@ -62,15 +62,23 @@ local function solarShort(output, load)
     return getText("IGUI_BU_Why_SolarShort", load2(output), load2(load))
 end
 
+-- A box whose breaker is down, or whose main switch a player has off, as its own status (a sub-panel's too).
+local function trippedStatus(panel)
+    return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.capacity(panel))),
+        level = BAD }
+end
+
+local function switchedOffStatus()
+    return { text = getText("IGUI_BU_St_Off"), reason = getText("IGUI_BU_Why_SwitchedOff"), level = WARN }
+end
+
 -- A main panel's power: { text, left, reason, level }.
 local function powerStatus(panel, state)
     if getWorld():isHydroPowerOn() then
         return { text = getText("IGUI_BU_St_Grid"), reason = getText("IGUI_BU_Why_Grid"), level = OK }
     end
-    if panel.tripped then
-        return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.capacity(panel))),
-            level = BAD }
-    end
+    if panel.tripped then return trippedStatus(panel) end
+    if panel.switchedOff then return switchedOffStatus() end
     if not state then return { text = getText("IGUI_BU_St_None"), level = BAD } end
     local hasSource = Energy.hasSource(panel)
     local rules = Energy.rules(panel, state)
@@ -81,7 +89,6 @@ local function powerStatus(panel, state)
         return { text = getText("IGUI_BU_St_QuietCut"), left = bankLeft(panel, bank, rules),
             reason = getText("IGUI_BU_Why_Quiet", settings.quietFrom, settings.quietTo), level = WARN }
     end
-    if not state.enabled then return { text = getText("IGUI_BU_St_Off"), level = WARN } end
     if state.supplied and Energy.inUse(state) then
         local result = { level = OK }
         if bank and output < rules.load then
@@ -157,10 +164,8 @@ end
 -- The status of a panel's utility; a sub-panel's is its main panel's, told as coming from it.
 function PanelWindow.status(panel, utility)
     local parent = Store.get(panel.parent)
-    if parent and utility == "power" and panel.tripped then
-        return { text = getText("IGUI_BU_St_Tripped"), reason = getText("IGUI_BU_Why_Tripped", load2(Panels.capacity(panel))),
-            level = BAD }
-    end
+    if parent and utility == "power" and panel.tripped then return trippedStatus(panel) end
+    if parent and utility == "power" and panel.switchedOff then return switchedOffStatus() end
     if parent then
         local result = PanelWindow.status(parent, utility)
         result.text = getText("IGUI_BU_St_Sub", Panels.name(parent), result.text)

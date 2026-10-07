@@ -209,8 +209,9 @@ local function checkSource(panel, hours)
     local rules = Energy.rules(panel, state)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
     thisMinute[panel.id] = { bank = bank, output = output }
-    if panel.tripped then
-        -- Charging would count in the load the breaker carries: none while it is down.
+    if panel.tripped or panel.switchedOff then
+        -- Charging would count in the load the breaker carries: none while it is down. With the main switch off the
+        -- player has the power off: the controller leaves it so, quiet hours too.
         Changes.setExtraLoad(panel, "charging", 0)
         return
     end
@@ -323,7 +324,8 @@ end
 
 -- What each main panel did for its player over so many hours, for the log: hours its units' source carried the load,
 -- the generator fuel that spared (litres, from the API's fuelPerHour at the load), and when its power was last cut
--- (not for quiet hours, nor while the grid runs; a cut of a minute is the source handed on as the world loads).
+-- (not for quiet hours or the main switch, nor while the grid runs; a cut of a minute is the source handed on as the
+-- world loads).
 local function recordStats(panel, hours)
     if panel.parent then return end
     local state = Networks.state(panel, "power")
@@ -336,7 +338,7 @@ local function recordStats(panel, hours)
         stats.saved = (stats.saved or 0) + (state.fuelPerHour or 0) * hours
     end
     local wanted = #panel.power.producers > 0 or Energy.hasSource(panel)
-    if wanted and not state.supplied and not panel.quietCut and not getWorld():isHydroPowerOn() then
+    if wanted and not state.supplied and not panel.quietCut and not panel.switchedOff and not getWorld():isHydroPowerOn() then
         stats.dark = (stats.dark or 0) + 1
         if stats.dark >= 2 then stats.outage = now end
     else

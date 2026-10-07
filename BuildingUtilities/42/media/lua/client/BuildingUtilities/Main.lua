@@ -10,7 +10,7 @@ local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 
 -- How far from a box's building, in squares, a player hears it; one with its window open always does.
 local NOTICE_RANGE = 40
-local GOOD = { IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_Thawed = true }
+local GOOD = { IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
 
 -- Boxes from before the summary existed get it as they come into view. (A tripped box shows it on its own lamps:
 -- BU.PanelLook.)
@@ -56,8 +56,9 @@ function BU.onNotice(panelId, key, args)
     PanelWindow.refreshAll()
 end
 
--- The mouse over a box: its name and tier, the breaker, power and water as its window's status line tells them
--- (PanelWindow.status), the load, and the box that supplies it. Worked out every SUMMARY_MS, not each frame.
+-- The mouse over a box: its name and tier, the breaker and main switch, power and water as its window's status line
+-- tells them (PanelWindow.status), the load, and the box that supplies it. Worked out every SUMMARY_MS, not each
+-- frame.
 local SUMMARY_MS = 500
 
 local function boxOn(square)
@@ -80,6 +81,8 @@ end
 local function summaryOf(panel)
     local lines = {}
     if panel.tripped then lines[#lines + 1] = { label = getText("IGUI_BU_TipBreaker"), value = getText("IGUI_BU_Tripped"), r = 1, g = 0.4, b = 0.4 } end
+    -- Told apart from the status, which the grid has while it runs.
+    if panel.switchedOff then lines[#lines + 1] = { label = getText("IGUI_BU_TipSwitch"), value = getText("IGUI_BU_SwitchOff"), r = 1, g = 0.75, b = 0.3 } end
     statusLine(lines, getText("IGUI_BU_TipPower"), PanelWindow.status(panel, "power"))
     local power = BU.Networks.state(panel, "power")
     if power and power.load then

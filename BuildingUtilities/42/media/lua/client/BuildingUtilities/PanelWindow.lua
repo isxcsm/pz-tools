@@ -1,10 +1,11 @@
 -- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load against what it carries and a banner when the breaker is
--- down or devices are shed, then a tab per utility with its producers (or the main panel that supplies it), its
--- sub-panels, and its devices room by room, and a tab with what happened to the box; beside them the floor plan
+-- down or devices are shed, then a tab per utility (power's led by the box's main switch) with its producers
+-- or the main panel that supplies it, its sub-panels, and its
+-- devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away by the player at the place, as timed actions. Devices outside can be chosen several at a time (the Choose
--- button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
+-- away, and the main switch thrown, by the player at the place, as timed actions. Devices outside can be chosen
+-- several at a time (the Choose button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
 -- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
 -- tells what makes the load; a main or sub-panel row opens that box's window.
 require "ISUI/ISCollapsableWindow"
@@ -548,6 +549,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
+    -- The box's main switch first: all its power, thrown at the box.
+    if utility == "power" then
+        local off = panel.switchedOff == true
+        add({ kind = "mainSwitch", text = getText(off and "IGUI_BU_MainSwitchOff" or "IGUI_BU_MainSwitchOn"),
+            state = off and "off" or "on" }, getText("IGUI_BU_MainSwitchTip"))
+    end
     local parent = Store.get(panel.parent)
     if parent then
         add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
@@ -737,7 +744,7 @@ local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IG
     IGUI_BU_Notice_WaterEmptyGroup = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
     IGUI_BU_Notice_Frozen = true, IGUI_BU_Notice_FilterSpent = true }
 local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
-    IGUI_BU_Notice_Thawed = true }
+    IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
 
 local function ago(hours)
     if hours < 1 / 60 then return getText("IGUI_BU_AgoNow") end
@@ -837,6 +844,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "blackout" then
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
+    elseif row.kind == "mainSwitch" then
+        BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, row.state == "on"))
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "batch" then

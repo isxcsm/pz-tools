@@ -1,7 +1,7 @@
 -- How a breaker box looks: this mod's console (the bu_water_01 sheet, tools/tile_art.py) facing S, E, N or W, its
--- lamps telling its power: off (all dark), on (the green and amber lamps lit) or tripped (the red one lit, the main
--- breaker's handle fallen). A tripped box's red lamp blinks: the client turns it between two frames
--- (client/BuildingUtilities/PanelBlink.lua), and either counts as tripped here. Where the world is decided the box
+-- lamps telling its power: off (all dark: no power, or its main switch off), on (the green and amber lamps lit) or
+-- tripped (the red one lit, the main breaker's handle fallen). A tripped box's red lamp blinks: the client turns it
+-- between two frames (client/BuildingUtilities/PanelBlink.lua), and either counts as tripped here. Where the world is decided the box
 -- takes the look of its state as that changes (Sync.changed) and each minute (server/BuildingUtilities/Boxes.lua); a
 -- box of an older save, a vanilla terminal (BU.OLD_PANEL_SPRITES), takes this mod's console the same way.
 require "BuildingUtilities/Units"
@@ -28,10 +28,13 @@ function PanelLook.of(object)
     return sprite and LOOK_OF[sprite:getName()] or nil
 end
 
--- The look a box's state calls for: tripped while its breaker is down, on while power reaches it (the grid, or its
--- network supplied: a sub-panel's is while its main panel's is), else off.
+-- The look a box's state calls for: tripped while its breaker is down; off while its main switch is, also with the
+-- grid alive (the lamps tell the box's own power, which the switch cuts; the grid still powers the building past the
+-- box); on while power reaches it (the grid, or its network supplied: a sub-panel's is while its main panel's is),
+-- else off.
 function PanelLook.wanted(panel)
     if panel.tripped then return "tripped" end
+    if panel.switchedOff then return "off" end
     if getWorld():isHydroPowerOn() then return "on" end
     local state = Networks.state(panel, "power")
     return state and state.supplied and "on" or "off"

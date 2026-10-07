@@ -9,8 +9,9 @@ local KEY = "BuildingUtilities"
 
 -- { version, next, panels = { [id] = panel } }. A panel:
 --   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
---   breaker is down), parent (a panel id, or nil) and parentPaid (what linking it cost), rooms (its zone: a set of
---   the building's room ids it takes, or nil for the whole building),
+--   breaker is down), switchedOff (true while a player has its main switch off, else nil), parent (a panel id, or
+--   nil) and parentPaid (what linking it cost), rooms (its zone: a set of the building's room ids it takes, or nil for
+--   the whole building),
 --   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
 --   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box

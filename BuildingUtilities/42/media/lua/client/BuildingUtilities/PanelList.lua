@@ -266,7 +266,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.right then self:drawTextRight(row.right, buttons[1].x - 8, textY, 0.8, 0.85, 1, 1, UIFont.Small) end
     elseif row.kind == "addGroup" then
         self:drawText(row.text, PAD * 2, textY, 0.5, 0.75, 1, 1, UIFont.Small)
-    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" then
+    elseif row.kind == "device" or row.kind == "all" or row.kind == "blackout" or row.kind == "mainSwitch" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
         if row.choosable then chooseBox(self, indent, y, row.chosen) else tick(self, indent, y, row.state == "on" and "on" or "off") end
         local shade = row.state ~= "other" and 1 or 0.5

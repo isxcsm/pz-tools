@@ -1,6 +1,7 @@
 -- Timed actions: putting a box or a unit down and taking it up, laying and taking away lines, upgrading a box,
--- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. Each names panels and
--- squares, not objects, and checks again as it completes, where the world is decided (BU.Changes).
+-- throwing its main switch, brushing snow off a solar panel, replacing a filter's media, reconditioning a battery.
+-- Each names panels and squares, not objects, and checks again as it completes, where the world is decided
+-- (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
@@ -256,6 +257,28 @@ end
 function ISBUUpgradePanel:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- The box's main switch thrown, off (off true) or on: a moment at the box (Changes.setSwitchedOff).
+ISBUMainSwitch = base("ISBUMainSwitch", 50)
+
+function ISBUMainSwitch:isValid()
+    local panel = Store.get(self.panelId)
+    return panel ~= nil and (panel.switchedOff == true) ~= self.off
+end
+
+function ISBUMainSwitch:complete()
+    local panel = Store.get(self.panelId)
+    if not panel then return false end
+    Changes.setSwitchedOff(panel, self.off)
+    return true
+end
+
+function ISBUMainSwitch:new(character, panel, off)
+    local o = ISBaseTimedAction.new(self, character)
+    o.panelId, o.x, o.y, o.off = panel.id, panel.x, panel.y, off == true
     o.maxTime = o:getDuration()
     return o
 end

@@ -1,7 +1,7 @@
--- The world context menu: install, open, upgrade and take down a breaker box and reset its breaker; lay and take
--- away the lines of generators, water containers, units and outside devices; switch a device of the building; put
--- down and take up solar panels and battery racks (a rack's batteries go in and out in the loot window). The
--- inventory menu: recondition a battery.
+-- The world context menu: install, open, upgrade and take down a breaker box, reset its breaker and throw its main
+-- switch; lay and take away the lines of generators, water containers, units and outside devices; switch a device of
+-- the building; put down and take up solar panels and battery racks (a rack's batteries go in and out in the loot
+-- window). The inventory menu: recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
@@ -70,6 +70,7 @@ local function onRemove(playerObj, panel) queueAt(playerObj, panel.x, panel.y, p
 local function onUpgrade(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUUpgradePanel:new(playerObj, panel)) end
 local function onOpen(playerObj, panel) BU.PanelWindow.open(playerObj, panel) end
 local function onReset(playerObj, panel) Sync.send(playerObj, "resetBreaker", { panel = panel.id }) end
+local function onSwitch(playerObj, panel, off) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, off)) end
 
 local function onConnect(playerObj, kind, panel, utility, x, y, z, extra)
     queueAt(playerObj, x, y, z, ISBUConnect:new(playerObj, kind, panel, utility, x, y, z, extra))
@@ -91,6 +92,8 @@ local function addPanelOptions(context, playerObj, panel)
     local open = sub:addOption(getText("ContextMenu_BU_Open"), playerObj, onOpen, panel)
     if not BU.api() then unavailable(open, apiMissingText()) end
     if panel.tripped then sub:addOption(getText("ContextMenu_BU_ResetBreaker"), playerObj, onReset, panel) end
+    local off = panel.switchedOff == true
+    sub:addOption(getText(off and "ContextMenu_BU_SwitchOn" or "ContextMenu_BU_SwitchOff"), playerObj, onSwitch, panel, not off)
     if (panel.tier or 1) < BU.TIERS then
         local upgrade = sub:addOption(getText("ContextMenu_BU_Upgrade", (panel.tier or 1) + 1), playerObj, onUpgrade, panel)
         costed(upgrade, playerObj, Costs.upgrade((panel.tier or 1) + 1), Panels.upgradeNote((panel.tier or 1) + 1))
