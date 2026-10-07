@@ -105,8 +105,44 @@ local KINDS = { ["Base.CarBattery1"] = 1, ["Base.CarBattery2"] = 1.5, ["Base.Car
 -- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST.
 Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
 Energy.COLD_PER_DEGREE, Energy.COLD_MOST = 0.015, 0.3
--- The bank starts carrying the load again with this share of it usable.
-Energy.BANK_START = 0.02
+-- The bank starts carrying the load again with this share of it usable. At tier 4 it is never drawn below CUTOFF.
+-- A charge controller charges it from a generator at most CHARGE_RATE an hour a battery.
+Energy.BANK_START, Energy.CUTOFF, Energy.CHARGE_RATE = 0.02, 0.05, 0.1
+
+-- The charge controller's settings, in percent of the bank and hours of the day: below start it hands the load to a
+-- generator, above stop it takes it back; in quiet hours (from quietFrom to quietTo; none when equal) it starts no
+-- generator; at tier 4, below protect it keeps the devices that are not essential off.
+Energy.DEFAULTS = { start = 30, stop = 90, quietFrom = 22, quietTo = 6, protect = 20 }
+Energy.CHOICES = { start = { 10, 20, 30, 40, 50 }, stop = { 60, 70, 80, 90, 100 }, protect = { 10, 20, 30, 40 },
+    quiet = { { 0, 0 }, { 21, 6 }, { 22, 6 }, { 23, 7 }, { 0, 5 } } }
+
+function Energy.settings(panel)
+    local saved, result = panel.controller or {}, {}
+    for name, value in pairs(Energy.DEFAULTS) do
+        result[name] = type(saved[name]) == "number" and saved[name] or value
+    end
+    return result
+end
+
+-- Whether settings are ones the controller takes: from its choices, start below stop.
+function Energy.validSettings(settings)
+    local function among(list, value)
+        for _, choice in ipairs(list) do if choice == value then return true end end
+        return false
+    end
+    local quiet = false
+    for _, pair in ipairs(Energy.CHOICES.quiet) do quiet = quiet or (pair[1] == settings.quietFrom and pair[2] == settings.quietTo) end
+    return quiet and among(Energy.CHOICES.start, settings.start) and among(Energy.CHOICES.stop, settings.stop)
+        and among(Energy.CHOICES.protect, settings.protect) and settings.start < settings.stop
+end
+
+function Energy.isQuiet(settings)
+    local from, to = settings.quietFrom, settings.quietTo
+    if from == to then return false end
+    local hour = getGameTime():getTimeOfDay()
+    if from < to then return hour >= from and hour < to end
+    return hour >= from or hour < to
+end
 
 function Energy.efficiency() return math.max(0, math.min(100, BU.sandbox("ChargeEfficiency", 85))) / 100 end
 function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
@@ -173,32 +209,61 @@ local function wear(bank, drawn)
     for _, battery in ipairs(bank.batteries) do battery.condition = math.max(0, (battery.condition or 100) - loss) end
 end
 
--- The panel's units over so many hours, as its network is now (state): the bank takes what the solar panels make
--- over the load while the source carries it, or all of it while another producer does, and gives what they lack;
--- worn batteries drain it. Returns whether the source can carry the load now (available is whether it could).
-function Energy.run(panel, state, hours, available)
+-- How the source runs for a panel this minute, by its tier and settings: load (what its devices draw, without what
+-- the bank takes to charge), charging (that), floor (the share of the bank it is not drawn below: the cutoff at
+-- tier 4; with a charge controller and a generator to hand over to, its start setting, but in quiet hours), restart
+-- (the share it needs to carry the load again: 2% over the floor, or the stop setting), quiet, generators (whether
+-- a generator of the panel could take over: with fuel and not broken, as last seen) and settings.
+function Energy.rules(panel, state)
+    local settings = Energy.settings(panel)
+    local tier = panel.tier or 1
+    local generators = false
+    for _, producer in ipairs(state.producers or {}) do
+        if not producer.source and (producer.fuel == nil or producer.fuel > 0) and (producer.condition == nil or producer.condition > 0) then
+            generators = true
+        end
+    end
+    local quiet = tier >= BU.CONTROLLER_TIER and Energy.isQuiet(settings)
+    local floor = tier >= BU.SMART_TIER and Energy.CUTOFF or 0
+    local restart = floor + Energy.BANK_START
+    if tier >= BU.CONTROLLER_TIER and generators and not quiet then
+        floor = math.max(floor, settings.start / 100)
+        restart = math.max(restart, settings.stop / 100)
+    end
+    local charging = state.extraLoad or 0
+    return { load = math.max(0, (state.load or 0) - charging * (state.loadFactor or 1)), charging = charging,
+        floor = floor, restart = restart, quiet = quiet, generators = generators, settings = settings }
+end
+
+-- The panel's units over so many hours, as its network is now (state) and by its rules (Energy.rules): the bank
+-- takes what the solar panels make over the load while the source carries it, or all of it and what the controller
+-- charges while another producer does, and gives what they lack down to the floor; worn batteries drain it.
+-- Returns whether the source can carry the load now (available is whether it could), the bank and the output.
+function Energy.run(panel, state, hours, available, rules)
+    rules = rules or Energy.rules(panel, state)
     local output = Energy.output(panel)
-    local load = state.load or 0
     local bank = Energy.bank(panel)
     if not bank then
         panel.bankFlow = nil
-        return Energy.canCarry(output, load, available)
+        return Energy.canCarry(output, rules.load, available), nil, output
     end
     local carrying = Energy.inUse(state) and state.supplied
-    local flow = carrying and output - load or output
+    local flow
+    if carrying then flow = output - rules.load
+    else flow = output + (state.supplied and rules.charging or 0) end
     local energy = bank.energy
     if flow > 0 then
         energy = energy + flow * Energy.efficiency() * hours
     elseif flow < 0 then
-        local drawn = math.min(-flow * hours, bank.usable)
+        local drawn = math.min(-flow * hours, math.max(0, bank.usable - bank.capacity * rules.floor))
         wear(bank, drawn)
         energy = energy - drawn
     end
     energy = energy - bank.weak * Energy.WEAK_PER_DAY * bank.capacity * hours / 24
     setEnergy(bank, energy)
     panel.bankFlow = flow > 0 and flow * Energy.efficiency() or flow
-    if Energy.canCarry(output, load, available) then return true end
-    return bank.usable > (available and 0 or bank.capacity * Energy.BANK_START)
+    if Energy.canCarry(output, rules.load, available) then return true, bank, output end
+    return bank.usable > bank.capacity * (available and rules.floor or rules.restart), bank, output
 end
 
 return Energy

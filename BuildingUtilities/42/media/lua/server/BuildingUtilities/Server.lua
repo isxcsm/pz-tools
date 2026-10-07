@@ -47,6 +47,16 @@ end
 
 function commands.rename(player, panel, args) Changes.rename(panel, args.name) end
 
+-- The charge controller's settings, from its choices (Energy.CHOICES).
+function commands.setController(player, panel, args)
+    if (panel.tier or 1) < BU.CONTROLLER_TIER then return end
+    local settings = Energy.settings(panel)
+    for name in pairs(Energy.DEFAULTS) do
+        if type(args[name]) == "number" then settings[name] = args[name] end
+    end
+    if Energy.validSettings(settings) then Changes.setController(panel, settings) end
+end
+
 function commands.resetBreaker(player, panel, args)
     if panel.tripped then Changes.resetBreaker(panel) end
 end
@@ -122,20 +132,62 @@ local function checkFuel(panel)
     end
 end
 
+-- Tier 4 keeps its bank: while the bank carries the load and is below the protect setting, the devices that are not
+-- essential are off ("saving"), until it is 5% above it or something else carries the load.
+local function checkSaving(panel, state, bank, output, rules)
+    local onBank = bank ~= nil and Energy.inUse(state) and state.supplied
+    local protect = rules.settings.protect / 100
+    if (panel.tier or 1) >= BU.SMART_TIER and onBank and output < rules.load and bank.charge < protect then
+        local keys = {}
+        for _, device in ipairs(Panels.devices(panel, "power")) do
+            if device.state == "on" and not device.held and not device.essential and (device.power or 0) > 0 then
+                keys[#keys + 1] = device.key
+            end
+        end
+        if #keys > 0 then Changes.save(panel, keys) end
+    elseif any(panel.power.saving) and (not onBank or bank.charge >= protect + 0.05) then
+        Changes.unsave(panel)
+    end
+end
+
 -- The units' source of a main panel over so many hours (Energy.run): available while its solar panels or its bank
 -- carry the load. It is switched on when it can and the network has no supply: nothing ran, or the player switched
--- the generator in use off. A generator the player runs keeps running.
+-- the generator in use off. Below tier 3 a generator the player runs keeps running; a charge controller (tier 3)
+-- takes the load back from it once the bank is charged to its stop setting, charges the bank from it meanwhile, and
+-- in quiet hours switches the power off rather than let a generator start.
 local function checkSource(panel, hours)
     if not Energy.hasSource(panel) then return end
     local state = Networks.state(panel, "power")
     if not state then return end
     local source = Energy.sourceState(state)
     local available = source ~= nil and source.available == true
-    local can = Energy.run(panel, state, hours, available)
+    local rules = Energy.rules(panel, state)
+    local can, bank, output = Energy.run(panel, state, hours, available, rules)
     for _, rack in ipairs(Store.unitList("rack", panel.id)) do Changes.showRack(rack) end
     if panel.tripped then return end
-    local switchOn = can and not state.supplied and state.enabled or nil
+    local inUse = Energy.inUse(state)
+    local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+    if panel.quietCut then
+        if not rules.quiet or can then Changes.setQuietCut(panel, false) end
+        return
+    end
+    if controller and rules.quiet and rules.generators and inUse and state.supplied and not can then
+        Changes.setQuietCut(panel, true)
+        return
+    end
+    local charging = 0
+    if controller and bank and state.supplied and not inUse then
+        charging = math.min(Energy.CHARGE_RATE * #bank.batteries, (bank.capacity - bank.energy) / math.max(0.01, Energy.efficiency()))
+        if charging < 0.001 then charging = 0 end
+    end
+    if math.abs(charging - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, charging) end
+    local ready = Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
+    local switchOn = can and state.enabled and (not state.supplied or (controller and not inUse and ready)) or nil
+    if available and not can and inUse and bank then
+        Sync.notice(panel, rules.generators and "IGUI_BU_Notice_BankLow" or "IGUI_BU_Notice_BankEmpty", Panels.name(panel))
+    end
     if can ~= available or switchOn then Networks.setSource(panel, can, switchOn) end
+    checkSaving(panel, state, bank, output, rules)
 end
 
 -- The units over the time since they were last worked out: snow on the panels, then each panel's source.

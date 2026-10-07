@@ -177,7 +177,9 @@ function Panels.upgradeNote(tier, plain)
     if tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
     if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end
     if tier == BU.BANK_TIER then lines[#lines + 1] = getText("IGUI_BU_BankNote") end
+    if tier == BU.CONTROLLER_TIER then lines[#lines + 1] = getText("IGUI_BU_ControllerNote") end
     if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
+    if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_ProtectNote") end
     return table.concat(lines, plain and "\n" or " <LINE> ")
 end
 
@@ -260,7 +262,7 @@ end
 -- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
 -- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
--- schedule (BU.SCHEDULES) and held ("shed" or "timer" while the box keeps it off on its own, or nil).
+-- schedule (BU.SCHEDULES) and held ("shed", "saving" or "timer" while the box keeps it off on its own, or nil).
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
         if set[key] then return set[key] end
@@ -325,7 +327,8 @@ function Panels.devices(panel, utility)
         if utility == "power" and device.state == "on" then
             device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"
-            device.held = data.shed[device.key] and "shed" or data.timed[device.key] and "timer" or nil
+            device.held = data.shed[device.key] and "shed" or data.saving[device.key] and "saving"
+                or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device
     end

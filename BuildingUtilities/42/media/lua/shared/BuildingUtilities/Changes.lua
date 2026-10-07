@@ -60,7 +60,7 @@ function Changes.setZone(panel, ids)
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "timed" }) do
+            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "timed" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -168,10 +168,55 @@ function Changes.removeUnit(unit)
     return paid
 end
 
--- A panel's units changed: its network has the units' source or not, and its line may be another.
+-- A panel's units changed: its network has the units' source or not, and its line may be another. Without a bank
+-- nothing charges it, and nothing is kept off for it.
 function Changes.unitsChanged(panel)
     Networks.setProducers(panel, "power")
     Networks.applyLoss(panel)
+    if not BU.Energy.bank(panel) then
+        Networks.setExtraLoad(panel, 0)
+        if panel.quietCut then
+            panel.quietCut = nil
+            Networks.setEnabled(panel, not panel.tripped)
+        end
+        Changes.unsave(panel)
+    end
+end
+
+-- The bank low at tier 4: these devices off until it has charge again (Changes.unsave).
+function Changes.save(panel, keys)
+    local first = true
+    for _ in pairs(panel.power.saving) do first = false end
+    for _, key in ipairs(keys) do
+        panel.power.saving[key] = true
+        Networks.apply(panel, "power", key)
+    end
+    Sync.changed(panel.id)
+    if first then Sync.notice(panel, "IGUI_BU_Notice_Saving", Panels.name(panel), #keys) end
+end
+
+function Changes.unsave(panel)
+    local keys = {}
+    for key in pairs(panel.power.saving) do keys[#keys + 1] = key end
+    if #keys == 0 then return end
+    panel.power.saving = {}
+    for _, key in ipairs(keys) do Networks.apply(panel, "power", key) end
+    Store.record(panel, "IGUI_BU_Log_Unsaved", { #keys })
+    Sync.changed(panel.id)
+end
+
+-- The charge controller's settings (BU.Energy.settings), checked by the caller.
+function Changes.setController(panel, settings)
+    panel.controller = settings
+    Sync.changed(panel.id)
+end
+
+-- Quiet hours with the bank empty: the panel's power off rather than a generator heard, and on again.
+function Changes.setQuietCut(panel, cut)
+    panel.quietCut = cut or nil
+    Networks.setEnabled(panel, not cut and not panel.tripped)
+    Sync.changed(panel.id)
+    if cut then Sync.notice(panel, "IGUI_BU_Notice_QuietCut", Panels.name(panel)) end
 end
 
 function Changes.connectUnit(unit, panel, paid)
@@ -257,6 +302,7 @@ local function setInside(panel, utility, device, connected)
     end
     data.excluded[device.key] = (not connected) or nil
     if connected and data.shed then data.shed[device.key] = nil end
+    if connected and data.saving then data.saving[device.key] = nil end
     Networks.apply(panel, utility, device.key)
 end
 
@@ -302,7 +348,7 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "essential", "schedule", "shed", "timed" }) do
+    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "timed" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)
@@ -314,8 +360,8 @@ end
 function Changes.setEssential(panel, key, essential)
     local data = panel.power
     data.essential[key] = essential or nil
-    if essential and data.shed[key] then
-        data.shed[key] = nil
+    if essential and (data.shed[key] or data.saving[key]) then
+        data.shed[key], data.saving[key] = nil, nil
         Networks.apply(panel, "power", key)
     end
     Sync.changed(panel.id)
@@ -414,7 +460,7 @@ end
 
 function Changes.resetBreaker(panel)
     panel.tripped = false
-    Networks.setEnabled(panel, true)
+    Networks.setEnabled(panel, not panel.quietCut)
     Store.record(panel, "IGUI_BU_Log_Reset")
     Sync.changed(panel.id)
     Sync.sound(panel, "LightSwitch")

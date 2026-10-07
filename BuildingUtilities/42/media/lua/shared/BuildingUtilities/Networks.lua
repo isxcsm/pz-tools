@@ -26,11 +26,11 @@ end
 
 -- What the network does with one device of a panel: "exclude", "include" or "reset" (the building's rule). A
 -- device of the building is connected unless the player excluded it; one outside only when this panel connected it;
--- either is off while the box sheds it or its timer has it off. A device the panel connected outside is in
+-- either is off while the box sheds it, keeps it off for its bank or its timer has it off. A device the panel connected outside is in
 -- included; any other it names is of its building.
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
-    local off = data.shed and data.shed[key] or data.timed and data.timed[key]
+    local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.timed and data.timed[key]
     if not data.included[key] then return (data.excluded[key] or off) and "exclude" or "reset" end
     return off and "exclude" or "include"
 end
@@ -91,7 +91,7 @@ function Networks.define(panel)
         if not panel.parent then change("setProducers", id, producerList(panel, utility)) end
         addMembers(panel, id)
         local data, keys = panel[utility], {}
-        for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.timed or {} }) do
+        for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.saving or {}, data.timed or {} }) do
             for key in pairs(set) do keys[key] = true end
         end
         for key in pairs(keys) do
@@ -99,7 +99,7 @@ function Networks.define(panel)
             if rule ~= "reset" then apply(id, rule, key) end
         end
     end
-    if panel.tripped then Networks.setEnabled(panel, false) end
+    if panel.tripped or panel.quietCut then Networks.setEnabled(panel, false) end
     Networks.applyLoss(panel)
 end
 
@@ -137,6 +137,11 @@ end
 
 function Networks.setProducers(panel, utility)
     change("setProducers", BU.networkId(panel.id, utility), producerList(panel, utility))
+end
+
+-- What the bank takes to charge from the producer in use (the charge controller).
+function Networks.setExtraLoad(panel, load)
+    change("setExtraLoad", BU.networkId(panel.id, "power"), load)
 end
 
 -- The units' source: whether it carries the load, and switched on (true) or left (nil).

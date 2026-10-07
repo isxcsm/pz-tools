@@ -65,7 +65,7 @@ local function dotColour(device, supplied)
     local colour
     if device.state == "other" then colour = COLOURS.other
     elseif device.state ~= "on" then colour = COLOURS.off
-    elseif device.held == "shed" then colour = COLOURS.shed
+    elseif device.held == "shed" or device.held == "saving" then colour = COLOURS.shed
     elseif device.held == "timer" then colour = COLOURS.timer
     elseif not supplied then colour = COLOURS.unsupplied
     elseif (device.power or 0) > 0 or device.utility == "water" then colour = COLOURS.using

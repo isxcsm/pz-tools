@@ -15,7 +15,9 @@ local KEY = "BuildingUtilities"
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
 --   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
---   shed (a set, under overload) and timed (a set, by their timers).
+--   shed (a set, under overload), saving (a set, keeping a low battery bank) and timed (a set, by their timers).
+--   A panel with units may keep controller (the charge controller's settings, BU.Energy.settings) and quietCut (its
+--   power is off because the bank ran empty in quiet hours).
 -- units = { [id] = unit }: the solar panels and battery racks this mod put down (BU.Units). A unit:
 --   id, kind ("solar" or "rack"), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries (a list of { type, charge 0 to 1, condition 0 to 100,
@@ -26,11 +28,11 @@ local KEY = "BuildingUtilities"
 -- changes it (BU.Changes).
 Store.KEY = KEY
 Store.LOG_SIZE = 30
--- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units.
-local VERSION = 4
+-- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units. 5: saving.
+local VERSION = 5
 
 local function utilityData()
-    return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, timed = {} }
+    return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, saving = {}, timed = {} }
 end
 
 -- A panel saved by an older version gets what this one keeps.

@@ -210,6 +210,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
     elseif row.kind == "source" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
+        if row.settings then smallButton(self, width - (BUTTON_W + 4) - PAD, y, BUTTON_W, getText("IGUI_BU_Settings"), 1, 1, 1) end
     elseif row.kind == "producer" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
         for index, name in ipairs(BUTTONS) do
@@ -726,7 +727,8 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         if device.state ~= "on" then
             text, dim = power > 0 and string.format("%.3f", power) or "", true
         elseif device.held then
-            text = getText(device.held == "shed" and "IGUI_BU_HeldShed" or "IGUI_BU_HeldTimer")
+            text = getText(device.held == "shed" and "IGUI_BU_HeldShed" or device.held == "saving" and "IGUI_BU_HeldSaving"
+                or "IGUI_BU_HeldTimer")
         elseif power > 0 then
             text = string.format("%.3f", power) .. " (" .. percent(power, self.capacity) .. ")"
         else
@@ -779,14 +781,64 @@ function ISBUPanelWindow:sourceRows(state)
             text = getText("IGUI_BU_BankRow", math.floor(bank.charge * 100 + 0.5), string.format("%.1f", bank.energy),
                 string.format("%.1f", bank.capacity), status)
             if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
+            if panel.quietCut then text = text .. "  " .. getText("IGUI_BU_QuietCut") end
             if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", math.floor(bank.cold * 100 + 0.5)) end
             tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, math.floor(Energy.efficiency() * 100 + 0.5))
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end
-        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil }, tooltip = tooltip }
+        local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+        if controller then tooltip = (tooltip and tooltip .. " " or "") .. self:controllerText() end
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
     end
     return rows
+end
+
+-- The charge controller's settings in words, for the bank's tooltip.
+function ISBUPanelWindow:controllerText()
+    local settings = Energy.settings(self.panel)
+    local quiet = settings.quietFrom == settings.quietTo and getText("IGUI_BU_QuietNone")
+        or getText("IGUI_BU_QuietHours", settings.quietFrom, settings.quietTo)
+    local text = getText("IGUI_BU_ControllerTip", settings.start, settings.stop, quiet)
+    if (self.panel.tier or 1) >= BU.SMART_TIER then text = text .. " " .. getText("IGUI_BU_ProtectTip", settings.protect) end
+    return text
+end
+
+-- The charge controller's menu: each setting from its choices.
+function ISBUPanelWindow:controllerMenu()
+    local panel, playerObj = self.panel, self.playerObj
+    local settings = Energy.settings(panel)
+    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    local function send(changes)
+        local args = { panel = panel.id }
+        for name, value in pairs(changes) do args[name] = value end
+        Sync.send(playerObj, "setController", args)
+    end
+    local function submenu(title, choices, current, label, changes)
+        local sub = ISContextMenu:getNew(menu)
+        menu:addSubMenu(menu:addOption(title, nil, nil), sub)
+        for _, choice in ipairs(choices) do
+            local option = sub:addOption(label(choice), nil, function() send(changes(choice)) end)
+            if current(choice) then option.notAvailable = true end
+        end
+        return sub
+    end
+    local function percentLabel(value) return value .. "%" end
+    submenu(getText("IGUI_BU_SetStart", settings.start), Energy.CHOICES.start, function(v) return v == settings.start or v >= settings.stop end,
+        percentLabel, function(v) return { start = v } end)
+    submenu(getText("IGUI_BU_SetStop", settings.stop), Energy.CHOICES.stop, function(v) return v == settings.stop or v <= settings.start end,
+        percentLabel, function(v) return { stop = v } end)
+    submenu(getText("IGUI_BU_SetQuiet"), Energy.CHOICES.quiet,
+        function(pair) return pair[1] == settings.quietFrom and pair[2] == settings.quietTo end,
+        function(pair)
+            if pair[1] == pair[2] then return getText("IGUI_BU_QuietNone") end
+            return getText("IGUI_BU_QuietHours", pair[1], pair[2])
+        end,
+        function(pair) return { quietFrom = pair[1], quietTo = pair[2] } end)
+    if (panel.tier or 1) >= BU.SMART_TIER then
+        submenu(getText("IGUI_BU_SetProtect", settings.protect), Energy.CHOICES.protect, function(v) return v == settings.protect end,
+            percentLabel, function(v) return { protect = v } end)
+    end
 end
 
 function ISBUPanelWindow:fill(utility, state)
@@ -1361,7 +1413,9 @@ end
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
-    if row.kind == "producer" then
+    if row.kind == "source" and row.settings then
+        self:controllerMenu()
+    elseif row.kind == "producer" then
         for index, name in ipairs(BUTTONS) do
             local bx = width - (#BUTTONS - index + 1) * (BUTTON_W + 4) - PAD
             if x >= bx and x <= bx + BUTTON_W then
