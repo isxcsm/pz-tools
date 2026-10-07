@@ -9,15 +9,20 @@ import pztools.extensions.runtime.input.*;
  * steering then uses the game's own per-frame input.
  */
 final class SteeringKeys {
-    /** Tests replace the platform source; production opens the Windows one on first use. */
+    /** Tests replace the platform; production uses Windows. */
     interface Platform {
         /** Virtual key for a game key code, 0 when it is not a single keyboard key. */
         int virtualKey(int gameKey) throws Throwable;
-        KeyStateSource source();
+        /** A source for one timeline, released by that timeline when it stops. */
+        KeyStateSource source() throws Throwable;
     }
+    /** Holds nothing: the native binding is shared, and each source closes its own timer when its timeline stops. */
+    private static final Platform WINDOWS=new Platform() {
+        @Override public int virtualKey(int gameKey) throws Throwable { return WindowsKeys.virtualKeyForGameKey(gameKey); }
+        @Override public KeyStateSource source() throws Throwable { return WindowsKeys.open(); }
+    };
     private final VehicleAccess access;
-    private final Platform injected;
-    private Platform platform;
+    private final Platform platform;
     private final int[] bindings=new int[4], applied={-1,-1,-1,-1};
     private int[] side=new int[0];
     private volatile KeyTimeline timeline;
@@ -28,7 +33,7 @@ final class SteeringKeys {
     int generation;
     String state="not-started";
 
-    SteeringKeys(VehicleAccess access,Platform injected) { this.access=access; this.injected=injected; }
+    SteeringKeys(VehicleAccess access,Platform injected) { this.access=access; platform=injected!=null?injected:WINDOWS; }
 
     /**
      * The measuring thread polls about once a millisecond. Once nothing has asked for a reading for
@@ -67,7 +72,6 @@ final class SteeringKeys {
     private boolean rebind() throws Throwable {
         retire("rebinding");
         System.arraycopy(bindings,0,applied,0,4);
-        if(platform==null) platform=injected!=null?injected:windows();
         int[] keys=new int[4], sides=new int[4]; int count=0; boolean left=false,right=false;
         for(int i=0;i<4;i++) {
             if(bindings[i]==0) continue;
@@ -81,21 +85,11 @@ final class SteeringKeys {
         side=Arrays.copyOf(sides,count);
         reading=new KeyTimeline.Reading(count);
         generation++;
-        timeline=KeyTimeline.start(platform.source(),Arrays.copyOf(keys,count));
+        KeyStateSource source=platform.source();
+        try { timeline=KeyTimeline.start(source,Arrays.copyOf(keys,count)); }
+        catch(Throwable failure) { try { source.release(); } catch(Throwable ignored) { } throw failure; }
         if(stopped) stop();
         return true;
-    }
-
-    private static Platform windows() throws Throwable {
-        WindowsKeys keys=WindowsKeys.open();
-        return new Platform() {
-            @Override public int virtualKey(int gameKey) throws Throwable { return keys.virtualKeyForGameKey(gameKey); }
-            // Each timeline needs its own source: a source's timer ends with the timeline that used it.
-            @Override public KeyStateSource source() {
-                try { return WindowsKeys.open(); }
-                catch(Throwable failure) { throw new IllegalStateException(failure); }
-            }
-        };
     }
 
     /** Longest time any key bound to that side (0 left, 1 right) was down since {@code previous}. */

@@ -82,7 +82,8 @@ Invoke-JavaTest 'extension catalogue' @('pztools.extensions.runtime.CatalogueTes
 Invoke-JavaTest 'shared extension version rules' @('VersionSupportTest', (Join-Path $root 'tests/game-extensions/version-support.tsv'), (Join-Path $root 'config/game-extensions/catalog.tsv'))
 Invoke-JavaTest 'vehicle drivetrain model' @('pztools.extensions.vehicle.model.DrivetrainModelTest')
 Invoke-JavaTest 'keyboard steering model' @('pztools.extensions.vehicle.model.SteeringModelTest')
-Invoke-JavaTest 'key timeline' @('pztools.extensions.runtime.input.KeyTimelineTest')
+# The game's JVM allows native access, as the Windows key source needs.
+Invoke-JavaTest 'key timeline' @('--enable-native-access=ALL-UNNAMED', 'pztools.extensions.runtime.input.KeyTimelineTest')
 Invoke-JavaTest 'vehicle adapter control preservation' @('pztools.extensions.vehicle.VehicleAdapterBehaviorTest', $vehicleFixture)
 Invoke-JavaTest 'vehicle adapter compatibility' @('pztools.extensions.vehicle.VehicleCompatibilityTest', $vehicleFixture)
 Invoke-JavaTest 'independent module slots' @('pztools.extensions.runtime.ModuleSlotsTest', $slots)

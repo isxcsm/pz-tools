@@ -269,7 +269,8 @@ half updates equal one whole.
 - `KeyTimeline` (in the extension runtime, `pztools.extensions.runtime.input`) polls on its own
   daemon thread every 0.5 ms requested, about 1 ms in practice, and keeps running totals.
   `WindowsKeys` reads `GetAsyncKeyState` through the JDK's foreign-function interface with a
-  private high-resolution waitable timer. Keys count only while the game window is in front.
+  private high-resolution waitable timer. The functions are bound once; each timeline has its own
+  timer, closed when the timeline stops. Keys count only while the game window is in front.
   It installs no hook, injects no input and loads no native library of its own. The game's JVM
   already runs with `--enable-native-access=ALL-UNNAMED`, so no warning appears.
 - `SteeringKeys` matches the timeline to the game's current bindings and replaces it when they

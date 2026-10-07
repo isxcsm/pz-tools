@@ -5,14 +5,30 @@ import java.util.concurrent.TimeUnit;
 
 /** A scripted key source with its own clock: no real keyboard, timer or native call is involved. */
 public final class KeyTimelineTest {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Throwable {
         heldTimeIsMeasuredPerKey();
         unfocusedKeysAreNotInput();
         starvedIntervalsAreReported();
         failureStopsCleanly();
         closeEndsTheThread();
         rejectsInvalidArguments();
-        System.out.println("PASS key timeline: per-key held time, midpoint transitions, focus, starvation and failure reporting, clean stop");
+        windowsBinding();
+        System.out.println("PASS key timeline: per-key held time, midpoint transitions, focus, starvation and failure reporting, clean stop, Windows binding");
+    }
+
+    /** Key codes need no source; every source has its own timer and can be released once its timeline is done. */
+    private static void windowsBinding() throws Throwable {
+        if(!System.getProperty("os.name","").startsWith("Windows")) return;
+        equal(WindowsKeys.virtualKeyForGameKey(203),0x25,"the Left arrow (extended scan code) maps to VK_LEFT");
+        equal(WindowsKeys.virtualKeyForGameKey(30),0x41,"A maps to VK_A");
+        equal(WindowsKeys.virtualKeyForGameKey(0)+WindowsKeys.virtualKeyForGameKey(256),0,"no key, and a mouse button, map to nothing");
+        for(int i=0;i<3;i++) {
+            var source=WindowsKeys.open();
+            long started=System.nanoTime(); source.pause(500_000);
+            check(System.nanoTime()-started<100_000_000L,"a short wait stays short");
+            source.focused(); source.down(0x25);
+            source.release(); source.release(); // A second release is harmless.
+        }
     }
 
     /** One permit is one poll: the test sets the state, advances the clock and waits for the poll to finish. */

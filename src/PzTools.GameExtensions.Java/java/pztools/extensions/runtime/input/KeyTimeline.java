@@ -1,5 +1,6 @@
 package pztools.extensions.runtime.input;
 
+import java.lang.invoke.VarHandle;
 import java.util.Objects;
 
 /**
@@ -43,7 +44,8 @@ public final class KeyTimeline implements AutoCloseable {
     private final boolean[] down;
     private long clock, unreliable;
     private int downMask;
-    // Sequence lock: odd while the single writer is between its two increments.
+    // Sequence lock: odd while the single writer is between its two increments. The plain data around the
+    // volatile counter needs the two fences StampedLock.validate relies on: see run() and read().
     private volatile long version;
     private volatile boolean closed;
     private volatile String failure;
@@ -89,6 +91,8 @@ public final class KeyTimeline implements AutoCloseable {
             if ((before & 1) != 0) { Thread.onSpinWait(); continue; }
             out.clock = clock; out.unreliable = unreliable; out.downMask = downMask;
             System.arraycopy(held, 0, out.held, 0, held.length);
+            // The copies above must be done before the version is read again, or a torn copy could pass.
+            VarHandle.loadLoadFence();
             if (before == version) return true;
         }
         return false;
@@ -115,6 +119,8 @@ public final class KeyTimeline implements AutoCloseable {
                 }
                 // Publish only plain arithmetic: a reader never waits on a system call.
                 version++;
+                // No write below may become visible before the odd version that announces it.
+                VarHandle.storeStoreFence();
                 clock += elapsed;
                 if (elapsed > toleranceNanos) unreliable += elapsed;
                 for (int i = 0; i < keys.length; i++) held[i] += credit[i];

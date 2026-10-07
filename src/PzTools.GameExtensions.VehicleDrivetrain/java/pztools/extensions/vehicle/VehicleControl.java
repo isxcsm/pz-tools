@@ -1,5 +1,6 @@
 package pztools.extensions.vehicle;
 
+import java.lang.invoke.VarHandle;
 import java.lang.ref.WeakReference;
 import java.util.*;
 import pztools.extensions.api.*;
@@ -15,6 +16,7 @@ final class VehicleControl implements VehicleHooks.Controller {
     private final VehicleAccess.Frame frame=new VehicleAccess.Frame();
     private final VehicleAccess.SteeringFrame steeringFrame=new VehicleAccess.SteeringFrame();
     private volatile boolean invalidated;
+    // Sequence lock over the diagnostics sample: odd while the game thread is writing it.
     private volatile long sampleVersion;
     private int sampleMode,sampleGear,sampleOutcome;
     private double sampleDt,sampleRpm,sampleForce,sampleSpeed,sampleMass,sampleThrottle,sampleDemand,sampleRadiusMin,sampleRadiusMax;
@@ -239,7 +241,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             throw new IllegalStateException(failure);
         } finally {
             steeringFrame.clear();
-            if(started!=0) { sampleVersion++; steeringCostNanos=Math.max(0,System.nanoTime()-started); sampleVersion++; }
+            if(started!=0) { beginSample(); steeringCostNanos=Math.max(0,System.nanoTime()-started); endSample(); }
         }
     }
     /**
@@ -264,12 +266,12 @@ final class VehicleControl implements VehicleHooks.Controller {
     }
     private void recordSteering(boolean applied,String reason,double angle) {
         if(!settings.diagnostics) return;
-        sampleVersion++; steeringSamples++; steeringSampleFrame=steeringFrame.frame;
+        beginSample(); steeringSamples++; steeringSampleFrame=steeringFrame.frame;
         steeringSampleInput=steeringFrame.input; steeringSampleMaximum=steeringFrame.maximum;
         steeringSampleAngle=angle; steeringSampleApplied=applied; steeringSampleReason=reason;
         steeringSamplePrecise=applied && steeringPrecise; steeringSampleHeld=applied?steeringHeld:0; steeringSampleKeys=keys.state;
         steeringSampleTiming=applied?steeringTiming:"frame";
-        sampleVersion++;
+        endSample();
     }
     private int vanilla(Slot slot,int mode,String reason) {
         if(slot!=null) slot.model.reset();
@@ -277,17 +279,17 @@ final class VehicleControl implements VehicleHooks.Controller {
     }
     private void record(int mode,int outcome,String reason,DrivetrainModel.Output output) {
         if(!settings.diagnostics) return;
-        sampleVersion++; sampleMode=mode; sampleOutcome=outcome; sampleReason=reason;
+        beginSample(); sampleMode=mode; sampleOutcome=outcome; sampleReason=reason;
         sampleDt=frame.dt; sampleSpeed=frame.speed; sampleMass=frame.mass;
         sampleOffroad=frame.offroad; sampleRadiusMin=frame.radiusMin; sampleRadiusMax=frame.radiusMax;
         sampleThrottle=output==null?0:output.throttle; sampleDemand=frame.pedal; sampleNativeValid=false;
         sampleNativeForce=sampleNativeBrake=sampleNativeSteering=0;
         sampleGear=output==null?frame.gear:output.gear; sampleRpm=output==null?frame.rpm:output.engineRpm;
-        sampleForce=output==null?0:output.engineForce; sampleCount++; lastSampleNanos=System.nanoTime(); sampleVersion++;
+        sampleForce=output==null?0:output.engineForce; sampleCount++; lastSampleNanos=System.nanoTime(); endSample();
     }
     private void recordCost(long started) {
         long now=System.nanoTime(), cost=Math.max(0,now-started);
-        sampleVersion++;
+        beginSample();
         if(windowStart==0) windowStart=started;
         windowCalls++; windowNanos+=cost; windowMaximum=Math.max(windowMaximum,cost);
         if(now-windowStart>=1_000_000_000L) {
@@ -295,15 +297,18 @@ final class VehicleControl implements VehicleHooks.Controller {
             completedNanos=windowNanos; completedMaximum=windowMaximum; completedWindowNanos=now-windowStart;
             windowStart=now; windowCalls=windowNativeCalls=windowNanos=windowMaximum=0;
         }
-        sampleVersion++;
+        endSample();
     }
     @Override public void observeNative(Object controller,float force,float brake,float steering) {
         if(!settings.diagnostics || Thread.currentThread()!=context.gameThread() || !context.worldValid().get()
                 || sampledController.get()!=controller) return;
-        sampleVersion++;
+        beginSample();
         sampleNativeForce=force; sampleNativeBrake=brake; sampleNativeSteering=steering;
-        sampleNativeValid=true; windowNativeCalls++; sampleVersion++;
+        sampleNativeValid=true; windowNativeCalls++; endSample();
     }
+    /** The one writer at a time. No sample write may become visible before the odd version that announces it. */
+    private void beginSample() { sampleVersion++; VarHandle.storeStoreFence(); }
+    private void endSample() { sampleVersion++; }
     String diagnostics() {
         if(!settings.diagnostics) return "";
         for(int attempt=0;attempt<3;attempt++) {
@@ -319,6 +324,7 @@ final class VehicleControl implements VehicleHooks.Controller {
             double steeringInput=steeringSampleInput,steeringAngle=steeringSampleAngle,steeringMaximum=steeringSampleMaximum;
             boolean steeringApplied=steeringSampleApplied; String steeringReason=steeringSampleReason;
             boolean precise=steeringSamplePrecise; double heldShare=steeringSampleHeld; String keyState=steeringSampleKeys,timing=steeringSampleTiming;
+            VarHandle.loadLoadFence(); // The copies above are done before the version is read again.
             if(before!=sampleVersion) continue;
             return "mode="+mode+";outcome="+outcome+";reason="+reason+";samples="+count+";dt_seconds="+dt
                 +";gear="+gear+";rpm="+rpm+";requested_force="+force+";speed_kph="+speed+";mass="+mass
@@ -337,7 +343,7 @@ final class VehicleControl implements VehicleHooks.Controller {
     }
     void clear() {
         states.clear(); steeringStates.clear(); frame.clear(); steeringFrame.clear(); sampledController.clear();
-        sampleVersion++;
+        beginSample();
         sampleNativeValid=false; sampleNativeForce=sampleNativeBrake=sampleNativeSteering=0;
         sampleCount=0; sampleMode=sampleGear=sampleOutcome=0; sampleReason="awaiting-controller";
         sampleDt=sampleRpm=sampleForce=sampleSpeed=sampleMass=sampleThrottle=sampleDemand=sampleRadiusMin=sampleRadiusMax=0;
@@ -348,7 +354,7 @@ final class VehicleControl implements VehicleHooks.Controller {
         steeringSamplePrecise=false; steeringSampleHeld=0; steeringSampleKeys="not-started"; steeringSampleTiming="frame"; keys.clear();
         windowStart=windowCalls=windowNativeCalls=windowNanos=windowMaximum=0;
         completedCalls=completedNativeCalls=completedNanos=completedMaximum=completedWindowNanos=0;
-        lastSampleNanos=0; sampleVersion++;
+        lastSampleNanos=0; endSample();
     }
     void reconfigure(Settings settings) { context.requireGameThread(); clear(); this.settings=settings; }
     static final class Settings {
