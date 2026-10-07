@@ -72,7 +72,7 @@ public sealed partial class GameExtensionsPage : UserControl
         var status = loader.State.Status;
         StartupLoaderCard.Visibility = Visibility.Visible;
         StartupLoaderCard.Header = Localizer.Get("StartupLoaderHeader");
-        StartupLoaderCard.Description = Localizer.Get(status switch
+        var description = Localizer.Get(status switch
         {
             StartupLoaderStatus.NotFound => "StartupLoaderNotFound",
             StartupLoaderStatus.NotInstalled => "StartupLoaderNotInstalled",
@@ -81,6 +81,7 @@ public sealed partial class GameExtensionsPage : UserControl
             StartupLoaderStatus.Foreign => "StartupLoaderForeign",
             _ => "StartupLoaderChecking",
         });
+        StartupLoaderCard.Description = StartupGameText(loader.State.Game) is { } game ? description + "\n" + game : description;
         StartupLoaderSwitch.OnContent = Localizer.Get("SettingEnabled");
         StartupLoaderSwitch.OffContent = Localizer.Get("SettingDisabled");
         AutomationProperties.SetName(StartupLoaderSwitch, Localizer.Get("StartupLoaderHeader"));
@@ -89,6 +90,16 @@ public sealed partial class GameExtensionsPage : UserControl
         StartupLoaderSwitch.IsEnabled = !changingStartupLoader
             && status is StartupLoaderStatus.NotInstalled or StartupLoaderStatus.Installed or StartupLoaderStatus.Reverted;
     }
+
+    /// <summary>What to say about the game that runs now: it started without the loader, the loader did not load, or
+    /// some of the extension API's hooks did not go in. Null when all is well or nothing is known.</summary>
+    internal static string? StartupGameText(StartupGameReport? game) => game switch
+    {
+        null or { HasProblem: false } => null,
+        { Status: StartupGameStatus.StartedWithout } => Localizer.Get("StartupLoaderGameWithout"),
+        { Status: StartupGameStatus.LoadFailed } => Localizer.Get("StartupLoaderGameFailed"),
+        _ => Localizer.Format("StartupLoaderHooksMissing", string.Join(", ", game.MissingHookNames)),
+    };
 
     private bool reflectingStartupLoader;
 

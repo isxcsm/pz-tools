@@ -798,6 +798,9 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools terhubung ke game setelah game dimulai. Menyalakannya akan menambahkan file milik PZ Tools sendiri ke folder game sehingga game memuat PZ Tools saat dimulai; tidak ada file game yang diubah. Mematikannya akan menghapus file tersebut.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Terpasang. Game memuat PZ Tools saat dimulai, dan ekstensi yang Anda nyalakan tetap berjalan meski PZ Tools ditutup.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Sebagian filenya hilang dari folder game. Nyalakan lagi untuk menggunakannya.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Game yang sedang berjalan dimulai tanpa fitur ini. Mulai ulang game untuk menggunakannya.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Fitur ini tidak dimuat ke game yang sedang berjalan. Detailnya ada di log.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>Di game yang sedang berjalan, sebagian hook API ekstensi tidak dapat dipasang, kemungkinan karena mod lain mengubah kode game yang sama: {0}. Di bagian itu, mod mendapat jawaban asli dari game. Detailnya ada di log.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Alat lain telah mengubah projectzomboid.jar milik game. Verifikasi file game di Steam terlebih dahulu.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Tutup game, dan server apa pun yang dijalankan dari foldernya, lalu coba lagi.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Versi game ini tidak didukung.</value></data>

@@ -134,8 +134,11 @@ public partial class App : Application
         // Hidden until it has been tried on real games (docs/design/startup-loader.md). The game folder is the one the
         // memory setting found: the folder of the game's launcher file.
         if (Host is { RuntimeOptions.StartupLoader: true } host)
+        {
             startupLoader = new StartupLoader(host.BridgeDirectory,
                 () => gameMemory?.State.ConfigPath is { } launchFile ? Path.GetDirectoryName(launchFile) : null);
+            startupLoader.Changed += () => window?.DispatcherQueue.TryEnqueue(RecordStartupGame);
+        }
         window = new MainWindow();
         // Log entries the app wrote in another language are shown in today's; the table for that takes a second.
         Localizer.Warm();
@@ -232,6 +235,19 @@ public partial class App : Application
             while (await timer.WaitForNextTickAsync(cancellationToken));
         }
         catch (OperationCanceledException) { }
+    }
+
+    private StartupGameReport? recordedStartupGame;
+
+    // A game the loader did not load into, or that lacks some of the extension API's hooks, goes to the log once: the card
+    // says it only while the page is open. On the UI thread.
+    private void RecordStartupGame()
+    {
+        if (startupLoader?.State.Game is not { } game || game == recordedStartupGame) return;
+        recordedStartupGame = game;
+        if (GameExtensionsPage.StartupGameText(game) is not { } message) return;
+        Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), message, failed: false,
+            diagnostics: string.Join('\n', new[] { game.Detail, game.MissingHooks }.Where(text => text.Length > 0)));
     }
 
     // With the startup loader installed, the game runs the extensions the player has on even while the app is closed.

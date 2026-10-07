@@ -805,6 +805,9 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว เมื่อเปิด จะเพิ่มไฟล์ของ PZ Tools เองลงในโฟลเดอร์ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม โดยไม่เปลี่ยนไฟล์ใดๆ ของเกม เมื่อปิด จะลบไฟล์เหล่านั้นออก</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Tools ตอนเริ่ม และส่วนขยายที่เปิดไว้จะยังทำงานต่อแม้ปิด PZ Tools แล้ว</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>ไฟล์บางส่วนหายไปจากโฟลเดอร์ของเกม เปิดอีกครั้งเพื่อใช้งาน</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>เกมที่กำลังทำงานอยู่ตอนนี้เริ่มโดยไม่มีฟีเจอร์นี้ เริ่มเกมใหม่เพื่อใช้งาน</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>ไม่ได้โหลดเข้าไปในเกมที่กำลังทำงานอยู่ รายละเอียดอยู่ในบันทึก</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>ในเกมที่กำลังทำงานอยู่ ใส่ฮุกบางส่วนของ API ส่วนขยายไม่ได้ อาจเป็นเพราะม็อดอื่นแก้ไขโค้ดเกมส่วนเดียวกัน: {0} ในส่วนนั้นม็อดจะได้รับผลลัพธ์เดิมของเกม รายละเอียดอยู่ในบันทึก</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>เครื่องมืออื่นได้แก้ไขไฟล์ projectzomboid.jar ของเกม โปรดตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam ก่อน</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ปิดเกมและเซิร์ฟเวอร์ที่เปิดจากโฟลเดอร์ของเกม แล้วลองอีกครั้ง</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>ไม่รองรับเกมเวอร์ชันนี้</value></data>

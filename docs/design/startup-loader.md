@@ -137,12 +137,28 @@ The install is separate from each extension's switch.
 | Reverted | A record, and part of the entry is gone from the game's folder. Install again. |
 | Foreign | A loader patched into the game's jar with no record: an earlier version's whose record is gone, or another tool's. Install and uninstall refuse it; Steam's file check restores the jar. |
 
+### The game that runs
+
+Installed says what the next game start loads. While one game runs, the app also reads how it went
+in that game, from the install folder (`StartupLoader.ReadGame`), and the startup loader's card says
+when it did not go well; each new finding also goes to the log once, as a warning:
+
+| Finding | From |
+| --- | --- |
+| Started without the loader | `startup.log` is older than the game process: the game started before the entry was in its folder, or did not run it |
+| Did not load | `startup.log` is this run's and says why (a missing file, a bootstrap that does not match) |
+| Hooks missing | `api.tsv` names this process and some of the [extension API's hooks](extension-api.md#how-the-game-is-answered) did not go in, with why |
+
+The app reads them on its own rounds (every two minutes) and when the page opens, not as they
+happen: most hooks go in as the first world loads.
+
 ### After a game update
 
 A game update or Steam's file check replaces the game's own files and leaves files it does not know,
 so the entry stays and the game keeps loading PZ Tools. The entry holds no game code: it runs the
 same in a new game version. The hooks the bootstrap installs check the game's classes as they load
-and give vanilla's answer where a class is not shaped as expected.
+and give vanilla's answer where a method is not shaped as expected, one hook at a time; the app
+says which ([The game that runs](#the-game-that-runs)).
 
 ## Files
 
@@ -158,6 +174,7 @@ the old one is deleted later, so a path into the app folder would break at the n
 | `install.tsv` | The game's folder and the entry's SHA-256 (while an earlier version's jar patch is still in place: the jar's SHA-256 before and after it) |
 | `original.jar` | Only while an earlier version's jar patch is in place: the game's jar as it was before it |
 | `startup.log` | One line from the loader per game start: what it loaded, or why it did not |
+| `api.tsv` | Written by the game: its process id, and each of the extension API's hooks, applied, not loaded yet, or why it did not go in. Rewritten when that changes. |
 
 The entry's `install.properties` holds the install folder's path. The app rewrites `current` and
 `resident.tsv`; it never rewrites the entry to point somewhere new. The status the install tool

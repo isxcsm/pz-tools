@@ -798,6 +798,9 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se ke hře připojuje až po jejím spuštění. Zapnutí přidá do složky hry vlastní soubory PZ Tools, aby hra při spuštění načetla PZ Tools; žádný soubor hry se nezmění. Vypnutí je odebere.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Nainstalováno. Hra při spuštění načte PZ Tools a zapnutá rozšíření běží dál, i když je PZ Tools zavřené.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Některé jeho soubory ze složky hry zmizely. Chcete-li to používat, znovu to zapněte.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Právě běžící hra byla spuštěna bez něj. Chcete-li to používat, spusťte hru znovu.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Do právě běžící hry se nenačetlo. Podrobnosti jsou v protokolech.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>V právě běžící hře se nepodařilo vložit některé háčky rozhraní API pro rozšíření, nejspíš proto, že stejný kód hry mění jiný mod: {0}. Mody tam dostávají původní odpovědi hry. Podrobnosti jsou v protokolech.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Jiný nástroj změnil soubor projectzomboid.jar hry. Nejprve ověřte soubory hry ve službě Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zavřete hru i každý server spuštěný z její složky a zkuste to znovu.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Tato verze hry není podporována.</value></data>

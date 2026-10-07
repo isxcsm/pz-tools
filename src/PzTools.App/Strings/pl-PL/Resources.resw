@@ -798,6 +798,9 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie dodaje własne pliki PZ Tools do folderu gry, aby gra wczytywała PZ Tools przy starcie; żaden plik gry się nie zmienia. Wyłączenie je usuwa.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Zainstalowano. Gra wczytuje PZ Tools przy starcie, a włączone rozszerzenia działają dalej, nawet gdy PZ Tools jest zamknięte.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Niektórych jego plików brakuje w folderze gry. Włącz ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Uruchomiona teraz gra wystartowała bez tego. Uruchom grę ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Nie wczytało się do uruchomionej teraz gry. Szczegóły są w dzienniku.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>W uruchomionej teraz grze nie udało się wstawić niektórych hooków API rozszerzeń, prawdopodobnie dlatego, że inny mod zmienia ten sam kod gry: {0}. Mody dostają tam oryginalne odpowiedzi gry. Szczegóły są w dzienniku.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Inne narzędzie zmieniło plik projectzomboid.jar gry. Najpierw zweryfikuj pliki gry w Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zamknij grę oraz każdy serwer uruchomiony z jej folderu, a potem spróbuj ponownie.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ta wersja gry nie jest obsługiwana.</value></data>

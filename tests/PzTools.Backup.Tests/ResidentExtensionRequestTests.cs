@@ -77,7 +77,7 @@ public sealed class ResidentExtensionRequestTests
         var install = temp.GetPath("install");
         Directory.CreateDirectory(install);
         string status = "PZTOOLS-STARTUP\tnot-installed";
-        var loader = new StartupLoader(bridge, () => @"C:\Game", () => false,
+        var loader = new StartupLoader(bridge, () => @"C:\Game", () => [],
             (_, _) => Task.FromResult((0, status)));
         await loader.RefreshAsync();
         Assert.False(await loader.UpdateResidentExtensionsAsync(runtime));

@@ -798,6 +798,9 @@ GC працює: частка відрізка, коли працював зби
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools під'єднується до гри після її запуску. Якщо увімкнути, до теки гри буде додано власні файли PZ Tools, щоб гра завантажувала PZ Tools під час запуску; файли гри не змінюються. Якщо вимкнути, їх буде видалено.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Встановлено. Гра завантажує PZ Tools під час запуску, а увімкнені розширення працюють далі, навіть коли PZ Tools закрито.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Деякі його файли зникли з теки гри. Увімкніть знову, щоб користуватися.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Гру, що працює зараз, запущено без нього. Перезапустіть гру, щоб користуватися.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>У гру, що працює зараз, він не завантажився. Подробиці в журналі.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>У грі, що працює зараз, не вдалося вбудувати деякі хуки API розширень — імовірно, інший мод змінює той самий код гри: {0}. Там моди отримують початкові відповіді гри. Подробиці в журналі.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Інша програма змінила файл projectzomboid.jar гри. Спершу перевірте цілісність файлів гри в Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закрийте гру та всі сервери, запущені з її теки, і спробуйте ще раз.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ця версія гри не підтримується.</value></data>

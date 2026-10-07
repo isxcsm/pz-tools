@@ -798,6 +798,9 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools はゲームの起動後にゲームへ接続します。オンにするとゲームのフォルダーに PZ Tools 自身のファイルを追加し、ゲームが起動時に PZ Tools を読み込むようになります。ゲームのファイルは変更しません。オフにすると追加したファイルを削除します。</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>インストール済み。ゲームは起動時に PZ Tools を読み込み、オンにした拡張は PZ Tools を閉じても動き続けます。</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>ゲームのフォルダーから一部のファイルがなくなっています。使うには再度オンにしてください。</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>実行中のゲームはこれなしで起動されています。使うにはゲームを再起動してください。</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>実行中のゲームに読み込まれませんでした。詳細はログにあります。</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>実行中のゲームで、拡張 API のフックの一部（{0}）を組み込めませんでした。別の MOD が同じゲームコードを変更しているためと思われます。その箇所では、MOD にはゲーム本来の結果が返ります。詳細はログにあります。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>別のツールがゲームの projectzomboid.jar を変更しています。先に Steam でゲームファイルの整合性を確認してください。</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ゲームと、そのフォルダーから起動したサーバーを閉じてから、もう一度お試しください。</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>このバージョンのゲームには対応していません。</value></data>

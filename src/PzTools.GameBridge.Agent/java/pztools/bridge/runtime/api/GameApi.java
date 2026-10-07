@@ -1,6 +1,10 @@
 package pztools.bridge.runtime.api;
 
 import pztools.bridge.ApiHooks;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.Map;
 
 /**
  * The extension API for Lua mods (docs/design/extension-api.md): the global table {@code PZToolsAPI}, set into each Lua
@@ -10,6 +14,8 @@ import pztools.bridge.ApiHooks;
 public final class GameApi {
     /** Raised on any incompatible change to what a mod sees. */
     public static final int VERSION = 1;
+    /** In the install folder: which of the API's hooks this game has, for the app (see {@link #writeStatus}). */
+    public static final String STATUS = "api.tsv";
     static final String GLOBAL = "PZToolsAPI";
     private static final String AREA = "PZToolsAPI.";
     // In the table's metatable: marks it as this API's, so that a newer payload updates it in place and the tables mods
@@ -21,6 +27,8 @@ public final class GameApi {
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Networks networks;
+    // What writeStatus last wrote; on the resident controller's thread only.
+    private static String written;
 
     private GameApi() { }
 
@@ -68,6 +76,11 @@ public final class GameApi {
             lua.setMetatable(api, meta);
         }
         lua.set(api, "version", (double)VERSION);
+        lua.set(api, "hooks", lua.function(AREA + "hooks", arguments -> {
+            Object table = lua.table();
+            for (var hook : hooks().entrySet()) lua.set(table, hook.getKey(), hook.getValue());
+            return new Object[] { table };
+        }));
         Object handles = clients(lua, api, meta);
         var buildings = new Buildings(lua, luaManager.getClassLoader());
         buildings.register(table(lua, api, "buildings"));
@@ -136,6 +149,31 @@ public final class GameApi {
             return new Object[0];
         }));
         return handles;
+    }
+
+    /** {@link ApiHooks#hookStatus}; empty from a bootstrap that does not keep it (a game started before it did). */
+    private static Map<String, String> hooks() {
+        try { return ApiHooks.hookStatus(); }
+        catch (LinkageError olderBootstrap) { return Map.of(); }
+    }
+
+    /**
+     * Writes which hooks this game has to the install folder, for the app, when that changed. Called by the resident
+     * controller about once a second; a hook's state changes as its class loads, most of them with the first world.
+     * The file names this process, so that the app does not read an earlier game's.
+     */
+    public static void writeStatus(Path folder) {
+        var text = new StringBuilder("PZTOOLS-API\t1\npid\t").append(ProcessHandle.current().pid()).append('\n');
+        for (var hook : hooks().entrySet())
+            text.append("hook\t").append(hook.getKey()).append('\t').append(hook.getValue().replaceAll("[\\t\\r\\n]+", " ")).append('\n');
+        String next = text.toString();
+        if (next.equals(written)) return;
+        try {
+            Path temporary = folder.resolve(STATUS + ".tmp");
+            Files.writeString(temporary, next, StandardCharsets.UTF_8);
+            Files.move(temporary, folder.resolve(STATUS), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            written = next;
+        } catch (IOException | RuntimeException unwritable) { } // Tried again on the next pass; the app reads no file as unknown.
     }
 
     private static Object table(Kahlua lua, Object owner, String key) throws ReflectiveOperationException {

@@ -798,6 +798,9 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools 在游戏启动后才连接到游戏。开启后会将 PZ Tools 自己的文件添加到游戏文件夹，使游戏在启动时加载 PZ Tools；不会更改游戏的任何文件。关闭后会移除这些文件。</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>已安装。游戏启动时会加载 PZ Tools，已开启的扩展在关闭 PZ Tools 后仍会继续运行。</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>它的部分文件已从游戏文件夹中消失。要使用，请重新开启。</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>当前运行的游戏启动时没有加载它。要使用，请重启游戏。</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>它没能加载到当前运行的游戏中。详细信息见日志。</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>在当前运行的游戏中，扩展 API 的部分钩子未能注入，可能是因为其他模组修改了相同的游戏代码：{0}。在这些位置，模组会得到游戏原本的结果。详细信息见日志。</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>另一个工具修改了游戏的 projectzomboid.jar。请先在 Steam 中验证游戏文件的完整性。</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>请关闭游戏以及从其文件夹启动的服务器，然后重试。</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>不支持此版本的游戏。</value></data>

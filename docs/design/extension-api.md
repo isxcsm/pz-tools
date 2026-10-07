@@ -50,6 +50,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | Field | Meaning |
 | --- | --- |
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
+| `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
 | `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
 
@@ -331,8 +332,15 @@ game's answer to the API, which can only add to it; `setSurroundingElectricity()
 read of `usesExternalWaterSource` in the water questions passes the field and the object to the API;
 `save` keeps the game's own field, so the world saves what vanilla would. `createSampleAndPurifyWater`
 asks the API first, at its start because it reassigns its amount, and returns the API's sample when
-there is one; each return of `isTaintedWater` passes the game's answer. A method that is not shaped
-as expected gets no hook, which the game's log reports, and that question gets the game's answer.
+there is one; each return of `isTaintedWater` passes the game's answer.
+
+Each hook is checked and put in on its own. A method that is not shaped as expected (another mod
+changed it, or a game update did) gets no hook, and that question gets the game's answer; the class's
+other hooks still go in. Should the class fail to build with all its hooks (new stack maps over a
+type that cannot be loaded, say), the hooks go in one at a time and only the ones it takes stay. The
+game's log names each missing hook and why; `PZToolsAPI.hooks()` gives the same to mods, and the game
+writes it to the install folder for the app, which says so on the startup loader's card
+([startup loader](startup-loader.md#the-game-that-runs)).
 
 The answers come from a snapshot the API makes again when something changes
 ([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):
@@ -439,6 +447,12 @@ throwaway Lua script loaded from the debug console. No `[PzTools API]` report: t
 | A rain barrel (made as the game makes a map's) outside the gas station, filled to 400, as the producer of a water network over the gas station | Supplied, amount 400 of 400. All 13 fixtures (sinks, toilets, a washer) took their water from the barrel; a draw of 2 from a sink left 398 in the barrel. The network removed, the sink had its own 20 again. |
 | A steak in the gas station's fridge, the generator off for an hour (13.24 to 14.24) and on for half of one | Aged from 14.24: 0.0042; aged from 13.24: 0.0458. The difference is the hour off unchilled; the fridge factor seen is 0.2, the sandbox's (vanilla would give 1). |
 | Found on the way | A milk carton is a fluid container in Build 42, not food: it does not age. |
+
+On 8 October 2026 the game was started from Steam with PZ Optimize installed (its loose class
+overrides include `IsoGridSquare` and `IsoLightSwitch`). At the main menu `api.tsv` had the hooks of
+the classes loaded by then applied and the rest not loaded; after the save loaded, all 15 were applied,
+and `PZToolsAPI.hooks()` in the debug console gave 15 of 15 applied. With one hook's line changed to a
+failure by hand, the app's next round logged a warning naming `IsoGenerator.update`.
 
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same

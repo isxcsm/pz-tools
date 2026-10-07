@@ -798,6 +798,9 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools oyuna, oyun başladıktan sonra bağlanır. Açmak, PZ Tools'un kendi dosyalarını oyun klasörüne ekler; böylece oyun başlarken PZ Tools'u yükler. Oyunun hiçbir dosyası değişmez. Kapatmak bu dosyaları kaldırır.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Yüklendi. Oyun başlarken PZ Tools'u yükler ve açık olan uzantılar PZ Tools kapalıyken de çalışmaya devam eder.</value></data>
   <data name="StartupLoaderReverted" xml:space="preserve"><value>Dosyalarının bazıları oyun klasöründe artık yok. Kullanmak için yeniden açın.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Şu anda çalışan oyun bu özellik olmadan başlatıldı. Kullanmak için oyunu yeniden başlatın.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Şu anda çalışan oyuna yüklenemedi. Ayrıntılar günlüklerde.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>Şu anda çalışan oyunda uzantı API'sinin bazı kancaları eklenemedi; muhtemelen başka bir mod oyunun aynı kodunu değiştiriyor: {0}. Modlar orada oyunun kendi yanıtlarını alır. Ayrıntılar günlüklerde.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Başka bir araç oyunun projectzomboid.jar dosyasını değiştirmiş. Önce Steam'de oyun dosyalarını doğrulayın.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Oyunu ve klasöründen başlatılan tüm sunucuları kapatıp yeniden deneyin.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Oyunun bu sürümü desteklenmiyor.</value></data>

@@ -91,6 +91,7 @@ public final class ResidentExtensions {
                 } else if (!AgentEntry.residentCurrent(ResidentExtensions.class)) return;
                 else if (System.nanoTime() - next >= 0) {
                     next = System.nanoTime() + INTERVAL_MILLIS * 1_000_000;
+                    GameApi.writeStatus(rootValue());
                     ExtensionControl.Session current;
                     synchronized (gate) { current = pauses == 0 ? owner : null; }
                     if (current == null && !paused()) current = acquire(controller);

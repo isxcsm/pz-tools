@@ -1,6 +1,13 @@
 package pztools.bridge.runtime.api;
 
+import java.lang.classfile.ClassFile;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
@@ -55,8 +62,9 @@ public final class GameApiTest {
         fluids(api);
         purify(api);
         food(api);
+        hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -1201,6 +1209,76 @@ public final class GameApiTest {
     private static double producer(KahluaTable networks) {
         var producer = (KahluaTable)((KahluaTable)call(networks, "state", "seq").get(0)).rawget("producer");
         return producer == null ? Double.NaN : (Double)producer.rawget("x");
+    }
+
+    /**
+     * {@code PZToolsAPI.hooks()} and the install folder's status file say which hooks went in. A class another mod has
+     * changed loses only the hooks whose methods no longer fit: one method gone, or one whose new code cannot be built
+     * (here, stack maps over a type the game cannot load); the class's other hooks still go in.
+     */
+    private static void hooks(KahluaTable api) throws Exception {
+        var hooks = (KahluaTable)call(api, "hooks").get(0);
+        for (String label : new String[] { "LuaManager.init", "IsoGridSquare.haveElectricity", "ItemContainer.isObjectPowered",
+                "IsoObject.checkExternalFluidSource", "IsoObject.createSampleAndPurifyWater", "IsoObject.isTaintedWater",
+                "IsoObject.waterQuestions", "Food.updateAge:power", "Food.updateAge:hours", "IsoGenerator.setSurroundingElectricity",
+                "IsoGenerator.updateGenerator", "IsoGenerator.update", "IsoLightSwitch.hasElectricityAround",
+                "DeviceData.canBePoweredHere", "LightingJNI.checkLights" })
+            check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
+        check(ApiHooks.hookStatus().size() == 15, "The hooks are " + ApiHooks.hookStatus().keySet());
+
+        Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
+        transform.setAccessible(true);
+        String generator = "zombie/iso/objects/IsoGenerator";
+        ClassLoader game = GameApiTest.class.getClassLoader();
+        byte[] changed = (byte[])transform.invoke(null, generator, generator(false, false), game);
+        check(changed != null && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoGenerator.setSurroundingElectricity"))
+            && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoGenerator.update"))
+            && ApiHooks.hookStatus().get("IsoGenerator.updateGenerator").contains("found 0"),
+            "A missing method cost the class's other hooks: " + ApiHooks.hookStatus());
+        changed = (byte[])transform.invoke(null, generator, generator(true, true), game);
+        check(changed != null && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoGenerator.setSurroundingElectricity"))
+            && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoGenerator.updateGenerator"))
+            && ApiHooks.hookStatus().get("IsoGenerator.update").startsWith("its code could not be built"),
+            "A method that cannot be built cost the class's other hooks: " + ApiHooks.hookStatus());
+
+        var folder = Files.createTempDirectory("pztools-api-status");
+        GameApi.writeStatus(folder);
+        String status = Files.readString(folder.resolve(GameApi.STATUS), StandardCharsets.UTF_8);
+        check(status.startsWith("PZTOOLS-API\t1\npid\t" + ProcessHandle.current().pid() + "\n")
+            && status.contains("\nhook\tIsoGenerator.update\t") && status.contains("\nhook\tIsoGenerator.updateGenerator\tapplied\n"),
+            "The status file is wrong: " + status);
+        // The game's own class again: every hook is back.
+        try (var input = game.getResourceAsStream(generator + ".class")) { transform.invoke(null, generator, input.readAllBytes(), game); }
+        check(ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoGenerator.update")), "The hooks did not come back");
+        GameApi.writeStatus(folder);
+        check(Files.readString(folder.resolve(GameApi.STATUS), StandardCharsets.UTF_8).contains("\nhook\tIsoGenerator.update\tapplied\n"),
+            "The status file was not written again when it changed");
+        try (var files = Files.list(folder)) { for (var file : files.toList()) Files.delete(file); }
+        Files.delete(folder);
+    }
+
+    /** A generator class as another mod might have it: without updateGenerator, or with an update the game cannot verify. */
+    private static byte[] generator(boolean updateGenerator, boolean unresolvable) {
+        var self = ClassDesc.of("zombie.iso.objects.IsoGenerator");
+        var none = MethodTypeDesc.of(ConstantDescs.CD_void);
+        // No stack maps in the input; the hook's rebuilt method needs them, over types that cannot be loaded.
+        return ClassFile.of(ClassFile.StackMapsOption.DROP_STACK_MAPS).build(self, type -> {
+            type.withMethodBody("setSurroundingElectricity", none, ClassFile.ACC_PUBLIC, code -> code.return_());
+            if (updateGenerator)
+                type.withMethodBody("updateGenerator", MethodTypeDesc.of(ConstantDescs.CD_void, ClassDesc.of("zombie.iso.IsoGridSquare")),
+                    ClassFile.ACC_PUBLIC, code -> code.return_());
+            type.withMethodBody("update", none, ClassFile.ACC_PUBLIC, code -> {
+                if (!unresolvable) { code.return_(); return; }
+                var second = code.newLabel();
+                var join = code.newLabel();
+                code.aload(0).ifnull(second);
+                code.aconst_null().checkcast(ClassDesc.of("pztools.missing.First")).goto_(join);
+                code.labelBinding(second);
+                code.aconst_null().checkcast(ClassDesc.of("pztools.missing.Second"));
+                code.labelBinding(join);
+                code.astore(1).return_();
+            });
+        });
     }
 
     private static void frame() { GameApi.frame(GameApiTest.class.getClassLoader()); }
