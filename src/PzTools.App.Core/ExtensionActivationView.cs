@@ -39,7 +39,7 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
             if (status.State == RuntimeExtensionState.RestartRequired)
                 return status with { WorldSession = snapshot.WorldSession, AgeMilliseconds = 0,
                     ControlReady = false, AppliedConfiguration = null };
-            if (!snapshot.IsWorldReady || status.WorldSession is not null && snapshot.WorldSession != status.WorldSession)
+            if (!snapshot.IsExtensionWorldReady || status.WorldSession is not null && snapshot.WorldSession != status.WorldSession)
                 return new(RuntimeExtensionState.Pending, "waiting-for-local-world");
         }
         // Age is an admission check, not a semantic UI change on every heartbeat.

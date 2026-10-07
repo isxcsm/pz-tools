@@ -109,7 +109,7 @@ public sealed class AppHost : IAsyncDisposable
             () => { var observation = runtimeSnapshot.Read(); return observation.IsFresh ? observation.Snapshot?.GameVersion : null; },
             Path.Combine(this.paths.WorkerDirectory, "game-bridge", "extensions", "catalog.tsv"),
             moduleId => ExtensionActivationView.SelectCurrentStatus(runtimeSnapshot.Read(), moduleId),
-            () => { var o = runtimeSnapshot.Read(); return o.IsFresh && o.Snapshot?.IsWorldReady == true; },
+            () => { var o = runtimeSnapshot.Read(); return o.IsFresh && o.Snapshot?.IsExtensionWorldReady == true; },
             extensionDiagnostics);
     }
 

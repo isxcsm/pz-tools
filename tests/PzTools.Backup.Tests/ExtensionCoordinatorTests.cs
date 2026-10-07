@@ -94,6 +94,66 @@ public sealed partial class GameSaveClientTests
     }
 
     /// <summary>
+    /// A multiplayer client's world runs the extensions: untested, not refused. The world the game reports is the one
+    /// the module is bound to. It is still no local save, so a save request is refused and nothing is saved.
+    /// </summary>
+    [BridgeFact]
+    public async Task Coordinator_RunsTheModuleInAMultiplayerClientsWorld_WhichIsNeverSaved()
+    {
+        using var temp = new TempDirectory();
+        var bridge = ContinuousFixtureBridge(temp);
+        var runtimeRoot = temp.GetPath("runtime");
+        await using var game = await FakeGame.StartAsync(temp.Path, "multiplayer");
+        await using var watch = new RuntimeWatchCapture(game.Pid, bridge);
+        var ready = await watch.WaitAsync(s => s.Phase == WorldPhase.Ready && s.Mode == RuntimeMode.Networked);
+        Assert.True(ready.IsExtensionWorldReady);
+        Assert.False(ready.IsWorldReady);
+        Assert.Equal(RuntimeCharacterLife.Unknown, ready.CharacterLife);
+
+        var stream = Guid.NewGuid().ToString("N");
+        var observations = new RuntimeSnapshotStore();
+        var published = new RuntimeExtensionStatusStore();
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        var feed = Task.Run(async () =>
+        {
+            while (!stop.IsCancellationRequested)
+            {
+                observations.Publish(new RuntimeObservation(stream, RuntimeQuality.Fresh, await watch.WaitAsync(_ => true)));
+                try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { }
+            }
+        });
+        var settings = new ExtensionSettingsStore(runtimeRoot);
+        var run = new RuntimeExtensionCoordinator(bridge, runtimeRoot, observations, published,
+            new ExtensionControlOptions(ReconcileIntervalMs: 250, ConnectTimeoutSeconds: 20)).RunAsync(game.Pid, stream, stop.Token);
+        const string vehicle = VehicleDrivetrainExtension.Id;
+        try
+        {
+            Assert.Equal(1, settings.SetEnabled(vehicle, true, 0).Revision);
+            var give = DateTime.UtcNow.AddSeconds(30);
+            RuntimeExtensionStatus status;
+            while (!((status = published.Read(vehicle)) is { State: RuntimeExtensionState.Active, AppliedRevision: 1 }))
+            {
+                if (run.IsCompleted) await run;
+                if (DateTime.UtcNow > give) throw new TimeoutException($"vehicle active: last status was {status}");
+                await Task.Delay(50);
+            }
+            Assert.Equal((ready.ProcessSession, ready.WorldSession), (status.ProcessSession, status.WorldSession));
+
+            var refused = await Assert.ThrowsAsync<GameSaveException>(() =>
+                new GameSaveClient(bridge).RequestAsync(game.Pid, temp.Path, true, stop.Token));
+            Assert.Equal("multiplayer", refused.Code);
+            Assert.Equal(RuntimeExtensionState.Active, published.Read(vehicle).State);
+        }
+        finally
+        {
+            await stop.CancelAsync();
+            try { await run; } catch (OperationCanceledException) { }
+            await feed;
+        }
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+    }
+
+    /// <summary>
     /// A game thread busy for a few seconds (a long save of a big world) stops fresh samples. The coordinator
     /// keeps the lease and the running module instead of tearing it down and installing it again.
     /// </summary>
@@ -228,10 +288,14 @@ public sealed partial class GameSaveClientTests
 
     /// <summary>
     /// A link to the game that cannot be made (here: no bridge in this build) is not the extension failing. The switch
-    /// stays on and the scheduler keeps trying, each attempt later than the one before.
+    /// stays on and the scheduler keeps trying, each attempt later than the one before. A loaded world is enough to try,
+    /// whatever its mode: a multiplayer client's or one without saves is linked to as a single-player one is.
     /// </summary>
-    [Fact]
-    public async Task Coordinator_ALinkThatCannotBeMade_KeepsThePreference()
+    [Theory]
+    [InlineData(RuntimeMode.LocalSinglePlayer)]
+    [InlineData(RuntimeMode.Networked)]
+    [InlineData(RuntimeMode.Unsupported)]
+    public async Task Coordinator_ALinkThatCannotBeMade_KeepsThePreference(RuntimeMode mode)
     {
         using var temp = new TempDirectory();
         var bridge = temp.GetPath("bridge");
@@ -247,7 +311,7 @@ public sealed partial class GameSaveClientTests
             for (long sequence = 1; !stop.IsCancellationRequested; sequence++)
             {
                 observations.Publish(new RuntimeObservation(stream, RuntimeQuality.Fresh, new RuntimeSnapshot(process, stream, world,
-                    1, 1, sequence, WorldPhase.Ready, GamePause.Running, RuntimeMode.LocalSinglePlayer, 1, sequence * 100, 0,
+                    1, 1, sequence, WorldPhase.Ready, GamePause.Running, mode, 1, sequence * 100, 0,
                     temp.GetPath("Saves", "Sandbox", "World"))));
                 try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { }
             }

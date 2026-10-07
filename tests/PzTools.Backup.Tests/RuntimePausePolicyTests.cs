@@ -37,6 +37,28 @@ public sealed class RuntimePausePolicyTests
         Assert.Equal(ScheduleHold.None, state.Hold);
     }
 
+    /// <summary>
+    /// A multiplayer client's loaded world, or one without saves, runs the game extensions. It is still no local save:
+    /// the save resolver and the backup schedule leave it alone.
+    /// </summary>
+    [Theory]
+    [InlineData(RuntimeMode.Networked)]
+    [InlineData(RuntimeMode.Unsupported)]
+    public void AWorldThatIsNoLocalSave_RunsExtensions_ButIsNeverBackedUp(RuntimeMode mode)
+    {
+        var local = Sample();
+        Assert.True(local.Snapshot!.IsWorldReady && local.Snapshot.IsExtensionWorldReady);
+        Assert.NotNull(RuntimeSaveResolver.Resolve(local.Snapshot, @"C:\fixture\Saves"));
+        var other = local with { Snapshot = local.Snapshot with { Mode = mode } };
+        Assert.True(other.Snapshot!.IsExtensionWorldReady);
+        Assert.False(other.Snapshot.IsWorldReady);
+        Assert.Null(RuntimeSaveResolver.Resolve(other.Snapshot, @"C:\fixture\Saves"));
+        var state = Step(Step(new(1, 300_000, 300_000), local), other);
+        Assert.True(state.Hold.HasFlag(ScheduleHold.Unsupported));
+        Assert.False(state.Anchored);
+        Assert.Null(state.AttemptId);
+    }
+
     [Fact]
     public void MissingObservationDoesNotAccrueTime_AndReconnectionReanchors()
     {

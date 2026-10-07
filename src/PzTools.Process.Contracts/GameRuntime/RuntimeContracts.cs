@@ -27,7 +27,13 @@ public sealed record RuntimeSnapshot(
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
+    /// <summary>A loaded local single-player world with its save: what saves, backups and schedules act on.</summary>
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
+    /// <summary>
+    /// A loaded world in any mode, which game extensions run in: they need no save. A multiplayer client's world is
+    /// untested, not refused. <see cref="WorldSession"/> names each loaded world, whatever its mode.
+    /// </summary>
+    public bool IsExtensionWorldReady => Phase == WorldPhase.Ready;
     /// <summary>
     /// The observer's initial snapshot, repeated until the game's main loop first runs. A game that runs
     /// but cannot be read is sampled too: its Unknown moves past sequence 0 within a tenth of a second.

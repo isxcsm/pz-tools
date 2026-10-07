@@ -55,6 +55,23 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         })!);
     }
 
+    /// <summary>A multiplayer client's world, or one without saves, is a world the extensions run in.</summary>
+    [Theory]
+    [InlineData(RuntimeMode.Networked)]
+    [InlineData(RuntimeMode.Unsupported)]
+    public void AWorldThatIsNoLocalSaveGrantsReadiness(RuntimeMode mode)
+    {
+        var status = new RuntimeExtensionStatus(RuntimeExtensionState.Disabled, ProcessSession: Process,
+            WorldSession: World, RequestedRevision: 4, ControlReady: true);
+        var observation = Observation(status);
+        var selected = ExtensionActivationView.SelectCurrentStatus(observation with
+        {
+            Snapshot = observation.Snapshot! with { Mode = mode },
+        })!;
+        Assert.Equal(RuntimeExtensionState.Disabled, selected.State);
+        Assert.True(selected.ControlReady);
+    }
+
     [Fact]
     public void ExtensionFreshnessHasItsOwnBoundAndAgeDoesNotCreateViewChanges()
     {
