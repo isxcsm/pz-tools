@@ -3,9 +3,9 @@
 [Documentation index](../README.md)
 
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
-> [buildings](#buildings-facts) area, and power [networks](#networks-mechanism) with one producer
-> carrying the load ([built so far](#built-so-far)). Planned: the rest of the networks. The first
-> areas serve a separate power and water mod. The game facts below were read from the
+> [buildings](#buildings-facts) area, and power [networks](#networks-mechanism) under
+> `"sequential"`, with children ([built so far](#built-so-far)). Planned: water, food across supply
+> changes, `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -127,7 +127,7 @@ A network carries one utility, power or water, from producers to consumers.
 | --- | --- |
 | Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
 | Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
-| Children | Networks whose load this network carries. Networks form a tree; a cycle is refused. |
+| Children | Networks whose load this network carries, and which have supply while it has. A child has no producers of its own. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
 | Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
 
 A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
@@ -142,8 +142,8 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.addBuilding(handle, id, x, y, z)` | A building as a consumer, named by one of its squares; `true` when the square is in a building now. |
 | `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
-| `networks.setParent(handle, id, parentId)` | Planned: makes a network a child; `nil` detaches it. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `producer` (the square of the producer in use; absent without supply), `load` and `complete` (whether every consumer was loaded when the load was last worked out). Planned: time left at the current load, and for water the amount and capacity. |
+| `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's included) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. Planned: for water the amount and capacity. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
@@ -179,7 +179,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - The definitions belong to the world they were made in: when the game's cell goes (the player left
   the world), the API removes them, and the mods define them again in the next world.
 - Events: `OnPZToolsNetworkChange` for supply, the producer in use and the load.
-- Not yet: food aged across supply changes, time left in `state`, water, children and `"parallel"`.
+- Children: a child has supply while its parent has (its supply events carry the parent's hour), and
+  the parent's producer burns both loads.
+- Not yet: food aged across supply changes, water and `"parallel"`.
 
 ### Power
 

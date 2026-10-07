@@ -63,6 +63,8 @@ final class Networks {
             if (existing == null) return new Object[] { false };
             own(existing, owner, call);
             networks.remove(id);
+            // Its children have no supply until they get another parent.
+            for (Network child : networks.values()) if (id.equals(child.parent)) child.parent = null;
             saved();
             return new Object[] { true };
         });
@@ -70,6 +72,8 @@ final class Networks {
             Network network = mine(arguments, call);
             Object list = arguments.length > 2 ? arguments[2] : null;
             if (!lua.isTable(list)) throw new IllegalArgumentException(call + ": producers must be a list of squares");
+            if (network.parent != null && lua.get(list, 1.0) != null)
+                throw new IllegalArgumentException(call + ": " + network.id + " is a child network; its parent's producers supply it");
             var producers = new ArrayList<Position>();
             for (int index = 1;; index++) {
                 Object item = lua.get(list, (double)index);
@@ -85,6 +89,24 @@ final class Networks {
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
             network.settled.keySet().retainAll(producers);
+            saved();
+            return new Object[0];
+        });
+        function(table, "setParent", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            Object parentId = arguments.length > 2 ? arguments[2] : null;
+            if (parentId == null) { network.parent = null; saved(); return new Object[0]; }
+            if (!(parentId instanceof String text)) throw new IllegalArgumentException(call + ": parent must be a network id or nil");
+            Network parent = networks.get(text);
+            if (parent == null) throw new IllegalArgumentException(call + ": there is no network " + text);
+            own(parent, network.owner, call);
+            if (!parent.utility.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + text + " carries " + parent.utility + ", not " + network.utility);
+            if (!network.producers.isEmpty())
+                throw new IllegalArgumentException(call + ": " + network.id + " has producers; a child network has none");
+            for (Network above = parent; above != null; above = above.parent == null ? null : networks.get(above.parent))
+                if (above == network) throw new IllegalArgumentException(call + ": " + text + " is a child of " + network.id);
+            network.parent = parent.id;
             saved();
             return new Object[0];
         });
@@ -142,10 +164,26 @@ final class Networks {
             lua.set(result, "owner", network.owner);
             lua.set(result, "utility", network.utility);
             lua.set(result, "policy", network.policy);
-            lua.set(result, "supplied", network.inUse != null);
-            lua.set(result, "load", (double)network.load);
+            lua.set(result, "supplied", network.supplied);
+            lua.set(result, "load", (double)network.total);
+            lua.set(result, "ownLoad", (double)network.load);
             lua.set(result, "complete", network.loadComplete);
+            if (network.parent != null) lua.set(result, "parent", network.parent);
             if (network.inUse != null) lua.set(result, "producer", square(network.inUse));
+            Double hoursLeft = grid.hoursLeft(network);
+            if (hoursLeft != null) lua.set(result, "hoursLeft", hoursLeft);
+            var producers = new ArrayList<Object>();
+            for (Position at : network.producers) {
+                Object entry = square(at);
+                var seen = network.seen.get(at);
+                if (seen != null) {
+                    lua.set(entry, "running", seen.activated());
+                    lua.set(entry, "fuel", (double)seen.fuel());
+                    lua.set(entry, "condition", (double)seen.condition());
+                }
+                producers.add(entry);
+            }
+            lua.set(result, "producers", lua.list(producers));
             return new Object[] { result };
         });
         function(table, "consumers", (call, arguments) -> {
@@ -248,7 +286,8 @@ final class Networks {
         var text = new StringBuilder(FORMAT).append('\n');
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.owner).append('\t')
-                .append(network.utility).append('\t').append(network.policy).append('\n');
+                .append(network.utility).append('\t').append(network.policy).append('\t')
+                .append(network.parent == null ? "" : network.parent).append('\n');
             for (Position at : network.producers) text.append("P\t").append(at).append('\n');
             for (Position at : network.buildings) text.append("B\t").append(at).append('\n');
             for (Thing thing : network.excluded) text.append("X\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
@@ -270,7 +309,10 @@ final class Networks {
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             switch (fields[0]) {
-                case "N" -> networks.put(fields[1], network = new Network(fields[1], fields[2], fields[3], fields[4]));
+                case "N" -> {
+                    networks.put(fields[1], network = new Network(fields[1], fields[2], fields[3], fields[4]));
+                    if (fields.length > 5 && !fields[5].isEmpty()) network.parent = fields[5];
+                }
                 case "P" -> network.producers.add(Position.parse(fields[1]));
                 case "B" -> network.buildings.add(Position.parse(fields[1]));
                 case "X" -> network.excluded.add(new Thing(Position.parse(fields[1]), fields[2]));

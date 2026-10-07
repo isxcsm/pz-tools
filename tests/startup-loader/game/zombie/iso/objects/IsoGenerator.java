@@ -2,6 +2,7 @@ package zombie.iso.objects;
 
 import java.util.HashMap;
 import zombie.GameTime;
+import zombie.SandboxOptions;
 import zombie.iso.IsoChunk;
 import zombie.iso.IsoGridSquare;
 import zombie.iso.IsoObject;
@@ -27,8 +28,8 @@ public class IsoGenerator extends IsoObject {
     public boolean isActivated() { return activated; }
     public float getFuel() { return fuel; }
     public int getCondition() { return condition; }
-    // Like the game's: scaled by the sandbox's generator fuel rate (here 0.1).
-    public float getTotalPowerUsing() { return totalPowerUsing * 0.1f; }
+    // Like the game's: scaled by the sandbox's generator fuel rate.
+    public float getTotalPowerUsing() { return (float)(totalPowerUsing * SandboxOptions.instance.generatorFuelConsumption.getValue()); }
     public int consumptionSets;
     public void setTotalPowerUsing(float value) { totalPowerUsing = value; consumptionSets++; }
     public int itemsPowered() { return itemsPowered.size(); }

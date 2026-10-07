@@ -39,6 +39,7 @@ public final class GameApiTest {
         clients(api);
         networks(api);
         sequence(api);
+        children(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power networks, and a newer payload takes it over");
     }
@@ -454,11 +455,74 @@ public final class GameApiTest {
         second.setActivated(false);
     }
 
+    /**
+     * A child network takes its supply from its parent, whose producer carries both loads. The state tells each
+     * producer as last seen and how long the fuel lasts at the load now.
+     */
+    private static void children(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        GameTime.getInstance().hours = 2000;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "main", "power", "sequential");
+        call(networks, "setProducers", mod, "main", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "main", 11.0, 11.0, 0.0);
+        call(networks, "define", mod, "sub", "power", "sequential");
+        call(networks, "addBuilding", mod, "sub", 20.0, 20.0, 0.0);
+        call(networks, "setParent", mod, "sub", "main");
+        frame();
+        check(!square(21, 21, 0).haveElectricity() && !state(networks, "sub").rawget("supplied").equals(true), "A child has supply before its parent");
+        LuaEventManager.raised.clear();
+        generator.setActivated(true);
+        frame();
+        KahluaTable main = state(networks, "main"), sub = state(networks, "sub");
+        check(sub.rawget("supplied").equals(true) && sub.rawget("parent").equals("main") && square(21, 21, 0).haveElectricity()
+            && raised("sub", "supply", 2000) && raised("main", "supply", 2000), "The child has no supply with its parent: " + LuaEventManager.raised);
+        LuaEventManager.raised.clear();
+        double subLoad = (Double)sub.rawget("load"), ownLoad = (Double)main.rawget("ownLoad"), total = (Double)main.rawget("load");
+        check(near(subLoad, 0.08) && near(total, ownLoad + subLoad), "The parent does not carry the child's load: " + total + ", " + ownLoad + ", " + subLoad);
+        check(near(generator.getTotalPowerUsing(), (0.02 + total) * 0.1), "The producer does not burn both loads");
+        check(near((Double)main.rawget("hoursLeft"), 6 / ((0.02 + total) * 0.1)) && main.rawget("hoursLeft").equals(sub.rawget("hoursLeft")),
+            "Wrong hours left: " + main.rawget("hoursLeft"));
+        var producer = (KahluaTable)((KahluaTable)main.rawget("producers")).rawget(1.0);
+        check(producer.rawget("x").equals(34.0) && producer.rawget("running").equals(true) && producer.rawget("fuel").equals(6.0)
+            && producer.rawget("condition").equals(100.0), "A producer's state is wrong");
+        // A tree of the mod's own networks of one utility; a child has no producers of its own.
+        call(networks, "define", mod, "leaf", "power", "sequential");
+        call(networks, "setParent", mod, "leaf", "sub");
+        rejects(networks, "setParent", "leaf is a child of sub", mod, "sub", "leaf");
+        rejects(networks, "setProducers", "sub is a child network", mod, "sub", list(at(33, 33, 0)));
+        call(networks, "define", mod, "third", "power", "sequential");
+        call(networks, "setProducers", mod, "third", list(at(33, 33, 0)));
+        rejects(networks, "setParent", "third has producers", mod, "third", "main");
+        Object other = call(api, "client", "other.mod").get(0);
+        call(networks, "define", other, "foreign", "power", "sequential");
+        rejects(networks, "setParent", "main belongs to another mod", other, "foreign", "main");
+        rejects(networks, "setParent", "there is no network none", mod, "sub", "none");
+        // The parent removed: the child has no supply.
+        call(networks, "remove", mod, "main");
+        frame();
+        sub = state(networks, "sub");
+        check(sub.rawget("parent") == null && sub.rawget("supplied").equals(false) && !square(21, 21, 0).haveElectricity()
+            && raised("sub", "supply", 2000), "The child kept its supply without its parent");
+        for (String id : List.of("leaf", "sub", "third")) call(networks, "remove", mod, id);
+        call(networks, "remove", other, "foreign");
+        frame();
+        generator.setActivated(false);
+    }
+
+    private static KahluaTable state(KahluaTable networks, String id) { return (KahluaTable)call(networks, "state", id).get(0); }
+
     /** Whether the networks' event was raised for the network "seq" with that change and hour; clears what was raised. */
     private static boolean raised(String what, double hour) {
-        boolean found = LuaEventManager.raised.stream().anyMatch(event -> event.equals(List.of("OnPZToolsNetworkChange", "seq", what, hour)));
+        boolean found = raised("seq", what, hour);
         LuaEventManager.raised.clear();
         return found;
+    }
+
+    private static boolean raised(String id, String what, double hour) {
+        return LuaEventManager.raised.stream().anyMatch(event -> event.equals(List.of("OnPZToolsNetworkChange", id, what, hour)));
     }
 
     /** The x of the producer in use, or NaN without supply. */

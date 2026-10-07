@@ -80,12 +80,15 @@ final class PowerGrid implements ApiHooks.Power {
     private volatile boolean changed = true;
     // The producers the last frame left in networks: one that joins or leaves gets its surroundings worked out again.
     private Set<Position> grouped = Set.of();
+    // In a frame: the hour each network's producer in use started or stopped, when it did.
+    private final Map<Network, Double> supplyHours = new HashMap<>();
     private long refreshedAt = Long.MIN_VALUE;
 
     private final Method cell, getChunk, square, generatorOf, objectSquare, checkElectricity, hasGrid, gridObjects;
     private final Field squareX, squareY, squareZ, squareChunk, chunkX, chunkY;
     private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
-    private final Method gameTime, worldHours, addEvent, triggerEvent;
+    private final Method gameTime, worldHours, addEvent, triggerEvent, optionValue;
+    private final Field sandbox, fuelRate;
     private final Field lastHour;
     // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
     private final Field itemsPowered, using, chunkRange, basePower, worldInstance;
@@ -127,6 +130,10 @@ final class PowerGrid implements ApiHooks.Power {
         Class<?> time = type(loader, "zombie.GameTime");
         gameTime = time.getMethod("getInstance");
         worldHours = time.getMethod("getWorldAgeHours");
+        Class<?> options = type(loader, "zombie.SandboxOptions");
+        sandbox = options.getField("instance");
+        fuelRate = options.getField("generatorFuelConsumption");
+        optionValue = fuelRate.getType().getMethod("getValue");
         Class<?> events = type(loader, "zombie.Lua.LuaEventManager");
         addEvent = events.getMethod("AddEvent", String.class);
         triggerEvent = events.getMethod("triggerEvent", String.class, Object.class, Object.class, Object.class);
@@ -304,18 +311,35 @@ final class PowerGrid implements ApiHooks.Power {
         var supplyChanged = new ArrayList<Network>();
         var changes = new ArrayList<Change>();
         double hours = (double)worldHours.invoke(gameTime.invoke(null));
+        var fresh = new HashSet<Network>();
+        supplyHours.clear();
+        var totals = new HashMap<Network, Float>();
         for (Network network : networks.values()) {
+            totals.put(network, network.total);
             resolve(network);
-            boolean supplied = network.inUse != null;
-            producers(network, cells, hours, changes);
-            if (supplied != (network.inUse != null)) supplyChanged.add(network);
+            if (network.parent == null) producers(network, cells, hours, changes);
+            else network.inUse = null;
             if (network.loadChanged || !network.loadComplete && now - network.loadAt >= INCOMPLETE_LOAD_NANOS) {
-                float before = network.load;
-                boolean first = network.loadAt == 0;
+                if (network.loadAt == 0) fresh.add(network);
                 load(network, cells, now);
-                if (!first && Math.abs(network.load - before) > 1e-6f) changes.add(new Change(network.id, "load", hours));
             }
         }
+        // A child has supply while its parent has, and its parent carries its load.
+        for (Network network : networks.values()) {
+            Network root = root(network);
+            boolean supplied = root != null && root.inUse != null;
+            if (supplied != network.supplied) {
+                network.supplied = supplied;
+                supplyChanged.add(network);
+                // When the producer in use started or stopped; for a child, when its parent's did.
+                network.suppliedAt = supplyHours.getOrDefault(root, hours);
+                changes.add(new Change(network.id, "supply", network.suppliedAt));
+            }
+            network.total = total(network);
+        }
+        for (Network network : networks.values())
+            if (!fresh.contains(network) && Math.abs(network.total - totals.get(network)) > 1e-6f)
+                changes.add(new Change(network.id, "load", hours));
         snapshot = snapshot();
         // Producers that joined or left a network: the API, or the game, works out their surroundings again.
         Set<Position> producersNow = snapshot.producers().keySet(), producersBefore = grouped;
@@ -404,7 +428,7 @@ final class PowerGrid implements ApiHooks.Power {
                 network.seen.put(producer, new Seen(false, state.fuel(), state.condition()));
             }
         }
-        if ((before == null) != (inUse == null)) changes.add(new Change(network.id, "supply", at));
+        if ((before == null) != (inUse == null)) supplyHours.put(network, at);
         else if (inUse != null && !inUse.equals(before)) changes.add(new Change(network.id, "producer", at));
     }
 
@@ -415,9 +439,45 @@ final class PowerGrid implements ApiHooks.Power {
         return null;
     }
 
-    /** What a producer of the network burns: its own base consumption, and the network's load when it carries it. */
+    /**
+     * What a producer of the network burns: its own base consumption, and the load of the network and its children when
+     * it carries it.
+     */
     private float consumption(Network network, Position producer) throws IllegalAccessException {
-        return basePower.getFloat(null) + (producer.equals(network.inUse) ? network.load : 0f);
+        return basePower.getFloat(null) + (producer.equals(network.inUse) ? network.total : 0f);
+    }
+
+    /** The network at the top of a child's parents; null when a parent is missing. */
+    Network root(Network network) {
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            if (network.parent == null) return network;
+            network = networks.get(network.parent);
+        }
+        return null;
+    }
+
+    /** The load of the network and of its children, theirs included. Networks form a tree (see Networks.setParent). */
+    private float total(Network network) {
+        float total = network.load;
+        for (Network child : networks.values()) if (network.id.equals(child.parent)) total += total(child);
+        return total;
+    }
+
+    /**
+     * How long the network's supply lasts at its load now: the fuel of its producer in use and of those that can take
+     * over, as last seen, over what the one in use would burn an hour. Null without supply or without consumption.
+     */
+    Double hoursLeft(Network network) throws ReflectiveOperationException {
+        Network root = root(network);
+        if (root == null || root.inUse == null) return null;
+        double perHour = (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
+        if (perHour <= 0) return null;
+        double fuel = 0;
+        for (Position producer : root.producers) {
+            Seen state = root.seen.get(producer);
+            if (state != null && (producer.equals(root.inUse) || state.canRun())) fuel += state.fuel();
+        }
+        return fuel / perHour;
     }
 
     /** The member buildings as the map data has them now; a player-built one is made again when its walls change. */
@@ -504,7 +564,7 @@ final class PowerGrid implements ApiHooks.Power {
         var producers = new HashMap<Position, Network>();
         var rules = new HashMap<Position, List<Rule>>();
         for (Network network : networks.values()) {
-            boolean on = network.inUse != null;
+            boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
             for (Position producer : network.producers) producers.put(producer, network);

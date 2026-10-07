@@ -34,6 +34,8 @@ final class Network {
     }
 
     final String id, owner, utility, policy;
+    /** The network whose producers supply this one, which then has none of its own; null for a network with its own. */
+    String parent;
     /** In order: under {@code "sequential"} the next that can run takes over when the one in use stops. */
     final List<Position> producers = new ArrayList<>();
     /** Squares that name the member buildings. */
@@ -48,13 +50,18 @@ final class Network {
     final Map<Position, Seen> seen = new HashMap<>();
     /** Each running producer before the game's last hourly update of it. */
     final Map<Position, Settled> settled = new HashMap<>();
-    /** The producer that carries the load; null when the network has no supply. */
+    /** The producer that carries the load; null when the network has none running, and always for a child. */
     Position inUse;
+    /** Whether it has supply: its producer in use runs, or a child's parent has supply. */
+    boolean supplied;
+    /** The hour its supply last started or stopped. */
+    double suppliedAt;
     /** A producer the game ran while the API knew of none in use, until the next frame takes it in. */
     Position adopted;
     /** Each consumer's consumption, as last seen loaded. */
     Map<Thing, Float> consumption = Map.of();
-    float load;
+    /** Its own consumers' load, and with its children's. */
+    float load, total;
     boolean loadComplete;
     long loadAt;
     volatile boolean loadChanged = true;
