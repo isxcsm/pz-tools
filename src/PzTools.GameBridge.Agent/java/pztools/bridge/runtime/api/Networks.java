@@ -188,7 +188,7 @@ final class Networks {
             network.producers.clear();
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
-            network.standby.keySet().retainAll(producers);
+            network.outOfService.retainAll(producers);
             if (!producers.contains(network.resume)) network.resume = null;
             List<Position> squares = network.squares();
             network.settled.keySet().retainAll(squares);
@@ -433,8 +433,8 @@ final class Networks {
                 lua.set(entry, "running", seen.activated());
                 lua.set(entry, "fuel", (double)seen.fuel());
                 lua.set(entry, "condition", (double)seen.condition());
-                // Off and not on standby: out of service, switched off by hand (fuel and condition tell one that cannot run).
-                if (!seen.activated() && network.standby.containsKey(producer)) lua.set(entry, "standby", true);
+                // Switched off by hand: the API never switches it on. Absent, one that is off is on standby.
+                if (!seen.activated() && network.outOfService.contains(producer)) lua.set(entry, "outOfService", true);
             }
             producers.add(entry);
         }
@@ -716,9 +716,9 @@ final class Networks {
     /**
      * Called by a newer payload as it takes over (see {@link #HANDOVER}), on the game's thread: writes the definitions
      * to the mirror, and gives what this payload knows of the networks beyond them, which the mirror does not keep: the
-     * producer in use and each producer as last seen, with its standby mark, the supply, the load of consumers on
+     * producer in use and each producer as last seen, out of service or not, the supply, the load of consumers on
      * squares that are not loaded, and the supply's history for food. A producer running on a square that is not loaded
-     * so goes on carrying its network, and one on standby there stays on standby.
+     * so goes on carrying its network, and one out of service there stays out of service.
      */
     private String handover() {
         try { write(); }
@@ -733,11 +733,10 @@ final class Networks {
                 // Added later: whether the API stopped its producers as it was switched off, and the one to start first.
                 .append('\t').append(network.stopped ? "1" : "").append('\t').append(key(network.resume)).append('\n');
             for (var seen : network.seen.entrySet()) {
-                // Added later, at the end so that an earlier payload reads the line still: the standby mark, if any.
-                Integer standby = network.standby.get(seen.getKey());
+                // Added later, at the end so that an earlier payload reads the line still: out of service.
                 text.append("E\t").append(key(seen.getKey())).append('\t').append(seen.getValue().activated() ? "1" : "").append('\t')
                     .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition())
-                    .append(standby == null ? "" : "\t" + standby).append('\n');
+                    .append(network.outOfService.contains(seen.getKey()) ? "\tout" : "").append('\n');
             }
             for (var settled : network.settled.entrySet())
                 text.append("T\t").append(settled.getKey()).append('\t').append(settled.getValue().lastHour()).append('\t')
@@ -819,9 +818,8 @@ final class Networks {
                     Producer producer = producer(fields[1]);
                     if (!network.producers.contains(producer)) continue;
                     network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
-                    // From a payload before the standby marks, none: its generators that are off are out of service.
-                    if (fields.length > 5 && !fields[5].isEmpty())
-                        network.standby.put(producer, Integer.parseInt(fields[5]));
+                    // From a payload before the marks, none: its generators that are off are on standby, as it ran them.
+                    if (fields.length > 5 && "out".equals(fields[5])) network.outOfService.add(producer);
                 }
                 case "T" -> {
                     Position at = Position.parse(fields[1]);

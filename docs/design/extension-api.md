@@ -81,7 +81,7 @@ networks defined by then. Until a mod defines its networks, the game behaves as 
 
 When the app updates the API's code in a running game, the new code takes over the definitions of the
 old one, and what the old code knew of them: the producer in use and each producer as last seen (with
-whether it is on standby), the supply, the load of consumers that are not loaded, and the supply's history for food. Mods do not
+whether it is out of service), the supply, the load of consumers that are not loaded, and the supply's history for food. Mods do not
 define anything again, and a producer running on a square that is not loaded goes on carrying its
 network. The old code keeps the definitions in the API table's metatable, written once a frame when
 they changed, and hands them over with the rest as the new code takes over. A change that cannot take
@@ -158,10 +158,10 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setExtraLoad(handle, id, load)` | Power only: adds a load (0 to 1000) to the network's consumers', as for a source that charges from it. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
-| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children. A power network at the top of its parents runs no producer while it is off: the API switches its running generators off, on standby, and leaves its sources off; a generator a player switches on meanwhile goes back off at once. Switched on again, the producer in use before starts if it can run (also after the world was loaded again, by its mark), or else the first on standby, in order, that can; with none, it has no supply. A generator out of service never starts. A child switched off leaves its parent's producers running. A mod sets the switch as it defines the network, before the next frame. A network is defined switched on. |
+| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children. A power network at the top of its parents runs no producer while it is off: the API switches its running generators off, on standby, and leaves its sources off; a generator a player switches on meanwhile goes back off at once. Switched on again, the producer in use before starts if it can run (also after the world was loaded again, by its mark), or else the first on standby, in order, that can; with none, it has no supply. A generator out of service (switched off by hand) never starts. A child switched off leaves its parent's producers running. A mod sets the switch as it defines the network, before the next frame. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
 | `networks.setPurify(handle, id, on)` | Water only: whether the water its fixtures give is purified, as vanilla purifies plumbed water (`true`, the default), or keeps the taint of the producer it comes from (`false`; see [fluids](#water)). Its own setting, also for a child. `false` is a Lua error in a game without both of the hooks it needs (`IsoObject.createSampleAndPurifyWater` and `isTaintedWater`, as the class is now): a game started by an install from before them gets them as it starts again; `PZToolsAPI.hooks()` says why one is missing. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `standby` (`true` while it is off and on standby: the API may switch it on when the one in use stops, if it can run; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `standby` is out of service: switched off by hand, and the API never switches it on (see [power](#power)); its fuel and condition tell one that could not run anyway. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `outOfService` (`true` while it is off and out of service: the API saw it switched off by hand and never switches it on; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `outOfService` is on standby: the API switches it on when the one in use stops, if it can run, as its fuel and condition tell (see [power](#power)). An API from before the field gives none, and has none out of service: a mod needs no version check. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 | `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, the fullest first (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
 | `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
@@ -175,11 +175,11 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 
 - Power networks under `"sequential"`: buildings and single objects as consumers, and exclusions.
 - Supply under `"sequential"`: one producer runs at a time and carries the load. The one the player
-  switched on last carries it, and the API switches the others off, which puts them on standby. A
-  generator the player switches off is out of service: the API never switches it on until a player
-  switches it on again. When the one in use is switched off, runs out of fuel or breaks, the API
-  switches on the first other producer, in order, that is on standby and can run, at once or from the
-  hour the first ran out (see Time below); with none, the network stops (see Standby below).
+  switched on last carries it, and the API switches the others off, on standby. A generator the API
+  sees switched off by hand is out of service: the API never switches it on until a player switches
+  it on again. When the one in use is switched off, runs out of fuel or breaks, the API switches on
+  the first other producer, in order, that is on standby and can run, at once or from the hour the
+  first ran out (see Time below); with none, the network stops (see Standby below).
 - Load: worked out when a definition changes; when the game says something that uses power was
   switched, placed or taken in or beside a member building, or at an object added on its own
   (`IsoGenerator.updateGenerator`); and every 5 seconds while some consumers are not loaded.
@@ -260,36 +260,31 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   with the game's own power now (the grid, a generator in range), an excluded one and frozen food age
   as in vanilla. Freezing and thawing follow the power now, as in vanilla. The times are not saved: a
   world loaded again starts them anew; a newer payload takes them over.
-- **Standby.** Under `"sequential"` a generator that is off is on standby or out of service. On
-  standby: the API switched it off (another carries the load, or a source took over), or it stopped
-  in use for want of fuel or condition; when the one in use stops, the first on standby, in order,
-  that can run takes over. Out of service: switched off by hand while it could run (the API knows the
-  switches it makes; any other is by hand), and the API never switches it on: not when
-  the one in use is switched off, runs out or breaks, nor when a source stops. Switched on by hand, it
-  carries the load as the one switched on last, and is in service again. Switching off the one in use
-  hands the load to the next on standby at once (`"producer"`); only with none does the network stop
-  (`"supply"`). A source is as its mod sets it: switched off by its mod while available, it stops the
-  network, as before; no longer available, the next on standby takes over.
-- **First seen off.** A generator that is off when the API first sees it (a new producer, a world
-  loaded, a save from before standby) is on standby only if the API switched it off itself and it
-  has not run since; otherwise it is out of service. The API cannot tell a generator never switched
-  on from one a player switched off to work on, and it must never start one a player switched off. So
-  generators new to a network are put in service by switching each on once by hand: switched on one
-  after the other, the last carries the load and the others are on standby.
+- **Standby.** Under `"sequential"` a generator that is off is on standby, unless it is out of
+  service. Out of service: the API saw it switched off by hand while it could run (the API knows the
+  switches it makes; any other is by hand). The API never switches it on: not when the one in use is
+  switched off, runs out or breaks, nor when a source stops, nor when its network is switched on.
+  Switched on by hand, it carries the load as the one switched on last, and is in service again. Every
+  other generator that is off is on standby, also one the API first sees off (a new producer, a world
+  loaded, a save from before this, a newer payload taking over from one before it), as under the API
+  before; so does one that stopped for want of fuel or condition, which takes over once it can run
+  again. When the one in use stops, the first on standby, in order, that can run takes over:
+  switched off by hand, at once (`"producer"`); only with none does the network stop (`"supply"`). A
+  source is as its mod sets it: switched off by its mod while available, it stops the network, as
+  before; no longer available, the next on standby takes over.
 - **Settled state.** The generators' own saved fields (switched on, fuel, condition, `lastHour`) are
-  the state, with one mark the API keeps on each generator on standby: `PZToolsStandby` in its
-  `modData`, its `lastHour` when it was marked. The world saves it with the generator, as it saves
-  its switch, so a world loaded again knows which generators are on standby as their squares load;
-  picked up, a generator leaves it behind (`ISTakeGenerator` copies fuel and
-  condition, not `modData`). The game changes `lastHour` only while the generator runs, so a mark
-  whose hour is not the generator's is from before it ran again, and counts for nothing: switched on
-  and off by hand where the API did not see it, it is out of service. In a running game the API keeps
-  the marks also in memory, for generators on squares that are not loaded too, and a newer payload
-  takes them over. After a world loads, the producer
-  the game runs is the one in use; the API records it as its first update starts, before the game
-  makes up for the hours away. The one to start first when a network switched off is switched on
-  again carries a second mark, `PZToolsResume` (`true`), which counts only with its standby mark; a
-  newer payload takes that over too.
+  the state, with two marks the API keeps in a generator's `modData`. `PZToolsOutOfService` (`true`)
+  is on a generator out of service, and goes when it is seen running. The world saves it with the
+  generator, as it saves its switch, so a world loaded again knows which generators are out of
+  service as their squares load; picked up, a generator leaves it behind (`ISTakeGenerator` copies
+  fuel and condition, not `modData`). `PZToolsResume` is on the generator to start first when its
+  network, switched off, is switched on again: its `lastHour` when it was marked. The game changes
+  `lastHour` only while the generator runs, so a resume mark whose hour is not the generator's is from
+  before it ran again, and counts for nothing. In a running game the API keeps both also in memory,
+  for generators on squares that are not loaded too, and a newer payload takes them over; one from
+  before the marks hands over none, which leaves every generator on standby. After a world loads, the
+  producer the game runs is the one in use; the API records it as its first update starts, before the
+  game makes up for the hours away.
 
 ### Water
 
@@ -499,15 +494,12 @@ generator outside it as its producer.
 | The first refuelled and switched on while the second ran | `producer` at 7.41; the second was switched off. |
 | The first switched off | `supply` at 7.43; the building went dark and the second stayed off. |
 
-These checks predate standby (8 October 2026). With it, the second in the row of two generators
-starts only if it was on standby (switched on once by hand and then off by the API), and in the last
-row the second,
-switched off by the API, takes over at once with `producer` instead of `supply`. Not yet checked in
-the game: a generator switched off by hand stays off through a failover, a running-out and a source
-stopping; the mark in `modData` after a save is loaded again; and a generator switched on and off by
-hand within the same hour that the API marked it (the API sees the switch only through the
-generator's update while it runs); and a network switched off with `setEnabled` stopping its
-generator and starting it again.
+These checks predate out of service (8 October 2026). With it, the last row changes: the first,
+switched off by hand, is out of service, and the second, on standby, takes over at once with
+`producer` instead of `supply`. Not yet checked in the game: a generator switched off by hand stays
+off through a failover, a running-out and a source stopping; the `modData` marks after a save is
+loaded again; and a network switched off with `setEnabled` stopping its generator and starting it
+again.
 
 On 7 October 2026 stage 3 was checked in the same game, started again with the new bootstrap, by a
 throwaway Lua script loaded from the debug console. No `[PzTools API]` report: the water hooks found
@@ -528,6 +520,10 @@ and `PZToolsAPI.hooks()` in the debug console gave 15 of 15 applied. With one ho
 failure by hand, the app's next round logged a warning naming `IsoGenerator.update`.
 
 ## Costs and risks
+- A generator switched off by hand while the API was not running (PZ Tools not started, the startup
+  loader removed, or the generator in no network then) carries no out-of-service mark: it counts as
+  on standby, and failover may start it. So may one switched on and off by hand within one of the
+  API's frames (a second), which the game's own actions are too slow for.
 - A generator in use whose square is not loaded when its network is switched off cannot be switched
   off then: it runs on in the save, and the API switches it off as its square loads, after the game
   burned the hours it was away.
