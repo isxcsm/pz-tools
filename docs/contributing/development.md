@@ -249,6 +249,33 @@ finally {
 `--filter "FullyQualifiedName~PublishedDistributionTests|FullyQualifiedName~PublishedWorker"`
 limits the run to the checks `build-release.ps1` uses.
 
+### Restart a published folder with administrator rights
+
+The app asks for administrator rights, so a script or agent without them cannot start a build it
+just published. On a development computer, a scheduled task can do it on demand. Register it once
+from an administrator PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/register-elevated-launcher.ps1
+```
+
+Then, without administrator rights:
+
+```powershell
+powershell -NoProfile -File scripts/dev/request-elevated-launch.ps1 -Build app-local [-StopGame]
+```
+
+[`request-elevated-launch.ps1`](../../scripts/dev/request-elevated-launch.ps1) writes the request
+to `%LOCALAPPDATA%\PzToolsDev` and starts the task.
+[`elevated-launcher.ps1`](../../scripts/dev/elevated-launcher.ps1), copied to the
+administrators-only `%ProgramData%\PzToolsDev`, closes the running app and its workers (and the
+game with `-StopGame`), starts `artifacts/<Build>/PzTools.App.exe` and answers. The build must be
+a folder directly under the artifacts root that was given at registration.
+
+The task lets anything running as your user start an executable from your artifacts folder with
+administrator rights and no UAC prompt. Remove it when you no longer need it: run the register
+script again with `-Unregister`.
+
 ## Releases
 
 Releases are built by GitHub Actions from a tag, not on a developer's PC.
