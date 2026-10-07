@@ -10,7 +10,42 @@ local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 local NOTICE_RANGE = 40
 local GOOD = { IGUI_BU_Notice_Switched = true }
 
-function BU.onChanged() PanelWindow.refreshAll() end
+-- A tripped box blinks red in the world for the players here, until its breaker is reset.
+local marked = {}
+local RED = ColorInfo.new(1, 0.2, 0.2, 1)
+
+local function markTripped()
+    for _, object in ipairs(marked) do
+        for index = 0, getNumActivePlayers() - 1 do
+            object:setHighlighted(index, false, false)
+            object:setBlink(index, false)
+        end
+    end
+    marked = {}
+    for _, panel in ipairs(Store.list()) do
+        local object = panel.tripped and Panels.object(panel)
+        if object then
+            for index = 0, getNumActivePlayers() - 1 do
+                object:setHighlightColor(index, RED)
+                object:setHighlighted(index, true, false)
+                object:setBlink(index, true)
+            end
+            marked[#marked + 1] = object
+        end
+    end
+end
+
+function BU.onChanged()
+    markTripped()
+    PanelWindow.refreshAll()
+end
+
+-- A sound at a box, heard where it is.
+function BU.onSound(panelId, name)
+    local panel = Store.get(panelId)
+    local square = panel and getCell():getGridSquare(panel.x, panel.y, panel.z)
+    if square then square:playSoundLocal(name) end
+end
 
 function BU.onNotice(panelId, key, args)
     local panel = Store.get(panelId)
@@ -33,7 +68,8 @@ end
 local function onServerCommand(module, command, args)
     if module ~= BU.MOD then return end
     if command == "changed" then BU.onChanged(args and args.panel)
-    elseif command == "notice" and args then BU.onNotice(args.panel, args.key, args.args) end
+    elseif command == "notice" and args then BU.onNotice(args.panel, args.key, args.args)
+    elseif command == "sound" and args then BU.onSound(args.panel, args.name) end
 end
 
 local function onReceiveGlobalModData(key, data)
@@ -44,6 +80,7 @@ end
 
 local function onGameStart()
     if isClient() then ModData.request(Store.KEY) end
+    markTripped()
 end
 
 -- A network the API runs here changed: the windows that show it.
@@ -52,4 +89,6 @@ local function onNetworkChange(id) PanelWindow.onNetworkChange(id) end
 Events.OnServerCommand.Add(onServerCommand)
 Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
 Events.OnGameStart.Add(onGameStart)
+-- Boxes come into view as squares load.
+Events.EveryOneMinute.Add(markTripped)
 if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end

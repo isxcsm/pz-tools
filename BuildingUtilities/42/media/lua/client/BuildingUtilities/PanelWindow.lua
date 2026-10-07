@@ -1,15 +1,16 @@
 -- The breaker box window: its name and supply, its load against what it carries and a banner when the breaker is
 -- down or devices are shed, then a tab per utility with its producers (or the main panel that supplies it), its
--- sub-panels, and its devices by room, each with a tick, and a tab with what happened to the box. A row under the
--- mouse outlines its objects in the world and tells what switching it would do to the load; the range button marks
--- how far the box reaches. Free changes go to the server as commands; lines are laid and taken away by the player
--- at the place, as timed actions.
+-- sub-panels, and its devices room by room, and a tab with what happened to the box; beside them the floor plan
+-- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
+-- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
+-- away by the player at the place, as timed actions.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISTabPanel"
 require "ISUI/ISButton"
 require "ISUI/ISTextBox"
 require "BuildingUtilities/ContextMenu"
+require "BuildingUtilities/PanelPlan"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Geometry = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Geometry
@@ -21,20 +22,38 @@ local REFRESH_MS = 5000
 local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
+local LIST_W, PLAN_W = 680, 380
+local OPTION_W = 110
+local OUTSIDE = "outside"
+local ROOM_TICK_X = PAD + 14
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
 local open = {}
+-- What the player chose, kept while the game runs: view options, folded rooms, the plan shown.
+PanelWindow.options = { activeOnly = false, byLoad = false }
+PanelWindow.folded = {}
 
 local function load2(value) return string.format("%.2f", value) end
 
--- The objects a row stands for: a device's, every part of it, or what is on a producer's square.
+local function percent(value, most)
+    if not value or not most or most <= 0 then return "-" end
+    local share = value * 100 / most
+    if share > 0 and share < 0.5 then return "<1%" end
+    return string.format("%.0f%%", share)
+end
+
+-- The objects of a device, every part of it.
+local function deviceObjects(device)
+    local entry = device.entry
+    local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+    return object and BU.objectParts(object) or {}
+end
+
+-- The objects a row stands for: a device's, or what is on a producer's square.
 local function rowObjects(row)
-    if row.device then
-        local entry = row.device.entry
-        local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
-        return object and BU.objectParts(object) or {}
-    elseif row.at then
+    if row.device then return deviceObjects(row.device) end
+    if row.at then
         local square = getCell():getGridSquare(row.at.x, row.at.y, row.at.z)
         local _, object = Panels.producerOn(square)
         return object and { object } or {}
@@ -99,9 +118,14 @@ local function smallButton(list, x, y, w, text, r, g, b)
     list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
 end
 
-local function tick(list, x, y, on)
+-- A tick: "on", "off", or "some" for a room whose devices are partly connected.
+local function tick(list, x, y, state)
     list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, 0.8, 0.8, 0.8)
-    if on then list:drawRect(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.4, 0.9, 0.4) end
+    if state == "on" then
+        list:drawRect(x + 3, y + 6, ROW - 12, ROW - 12, 1, 0.4, 0.9, 0.4)
+    elseif state == "some" then
+        list:drawRect(x + 4, y + ROW / 2 - 2, ROW - 14, 4, 1, 0.4, 0.9, 0.4)
+    end
 end
 
 function ISBUPanelList:doDrawItem(y, item, alt)
@@ -109,14 +133,25 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     item.height = ROW
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
-    if self.hovered == item.index and (row.device or row.at) then
+    if (self.hovered == item.index and (row.device or row.at)) or self.selected == item.index and row.device then
         self:drawRect(0, y, width, ROW, 0.15, 1, 1, 1)
     end
     if row.kind == "header" then
         self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
         self:drawText(row.text, PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
-    elseif row.kind == "note" then
-        self:drawText(row.text, PAD * 2, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
+    elseif row.kind == "room" then
+        self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
+        self:drawText(row.folded and "+" or "-", PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+        local x = ROOM_TICK_X
+        if row.state then
+            tick(self, x, y, row.state)
+            x = x + ROW + 4
+        end
+        self:drawText(row.text, x, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+        if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.9, 0.85, 0.6, 1, UIFont.Small) end
+    elseif row.kind == "note" or row.kind == "filter" then
+        local shade = row.kind == "filter" and 1 or 0.7
+        self:drawText(row.text, PAD * 2, textY, shade, shade, row.kind == "filter" and 0.6 or shade, 1, UIFont.Small)
     elseif row.kind == "log" then
         local r, g, b = 0.9, 0.9, 0.9
         if row.bad then r, g, b = 1, 0.55, 0.5 elseif row.good then r, g, b = 0.6, 1, 0.6 end
@@ -129,10 +164,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             smallButton(self, bx, y, BUTTON_W, getText("IGUI_BU_" .. name), 1, 1, 1)
         end
     elseif row.kind == "device" or row.kind == "all" then
-        local enabled = row.state ~= "other"
-        tick(self, PAD * 2, y, row.state == "on")
-        local shade = enabled and 1 or 0.5
-        self:drawText(row.text, PAD * 2 + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
+        local indent = row.kind == "device" and PAD * 3 or PAD * 2
+        tick(self, indent, y, row.state == "on" and "on" or "off")
+        local shade = row.state ~= "other" and 1 or 0.5
+        self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
         local buttons, textRight = deviceButtons(width, row)
         for _, button in ipairs(buttons) do
             if button.name == "timer" then
@@ -146,17 +181,19 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
         if row.right then
             local r, g, b = 0.8, 0.8, 0.8
-            if row.held then r, g, b = 1, 0.65, 0.3 end
+            if row.held then r, g, b = 1, 0.65, 0.3 elseif row.dim then r, g, b = 0.55, 0.55, 0.55 end
             self:drawTextRight(row.right, textRight, textY, r, g, b, 1, UIFont.Small)
         end
     end
     return y + ROW
 end
 
--- The row under the mouse outlines its objects in the world, until the mouse leaves it.
+-- The row under the mouse outlines its objects in the world and marks them on the plan, until the mouse leaves it.
 function ISBUPanelList:prerender()
     local index = self:isVisible() and self:isMouseOver() and self.mouseoverselected or nil
     local row = index and self.items[index] and self.items[index].item
+    self.window.listHoverKey = row and row.device and row.device.key or nil
+    self.window.listHoverRoom = row and (row.device and row.device.roomId or row.kind == "room" and row.id) or nil
     if not (row and (row.device or row.at)) then index = nil end
     if index ~= self.hovered then
         self:unhighlight()
@@ -188,23 +225,36 @@ end
 -- The window.
 ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 
+-- Shown at first on a screen wide enough for the window and the game beside it.
+local function planByDefault() return getCore():getScreenWidth() >= 1500 end
+
 function ISBUPanelWindow:new(x, y, playerObj, panel)
-    local o = ISCollapsableWindow.new(self, x, y, 680, 610)
+    local shown = PanelWindow.planShown
+    if shown == nil then shown = planByDefault() end
+    local o = ISCollapsableWindow.new(self, x, y, LIST_W + (shown and PLAN_W + PAD or 0), 610)
     o.playerObj = playerObj
     o.panel = panel
+    o.planWanted = shown
     o.resizable = true
-    o.minimumWidth = 560
+    o.minimumWidth = 560 + (shown and PLAN_W + PAD or 0)
     o.minimumHeight = 340
     o.rangeObjects = {}
+    o.planOutlined = {}
+    o.views = {}
     o:setTitle(getText("IGUI_BU_WindowTitle"))
     return o
 end
 
-local function button(window, x, y, width, onclick)
-    local b = ISButton:new(x, y, width, ROW, "", window, onclick)
+local function button(window, x, y, width, height, onclick)
+    local b = ISButton:new(x, y, width, height, "", window, onclick)
     b:initialise()
     window:addChild(b)
     return b
+end
+
+local function anchorRight(element)
+    element:setAnchorLeft(false)
+    element:setAnchorRight(true)
 end
 
 function ISBUPanelWindow:createChildren()
@@ -214,18 +264,21 @@ function ISBUPanelWindow:createChildren()
     self.loadY = top + FONT_HGT_SMALL + 4
     self.bannerY = self.loadY + ROW + 4
     local buttonsY = self.bannerY + ROW + 4
-    self.rangeButton = button(self, self.width - PAD - 130, self.loadY, 130, ISBUPanelWindow.onRange)
-    self.rangeButton:setAnchorLeft(false)
-    self.rangeButton:setAnchorRight(true)
+    self.rangeButton = button(self, self.width - PAD - 130, self.loadY, 130, ROW, ISBUPanelWindow.onRange)
+    anchorRight(self.rangeButton)
     self.rangeButton:setTooltip(getText("IGUI_BU_RangeNote"))
-    self.renameButton = button(self, PAD, buttonsY, 100, ISBUPanelWindow.onRename)
+    self.planButton = button(self, self.width - PAD - 130 - 4 - 110, self.loadY, 110, ROW, ISBUPanelWindow.onPlan)
+    anchorRight(self.planButton)
+    self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     self.renameButton:setTitle(getText("IGUI_BU_Rename"))
-    self.mainButton = button(self, PAD + 106, buttonsY, 200, ISBUPanelWindow.onMainPanel)
-    self.resetButton = button(self, PAD + 312, buttonsY, 110, ISBUPanelWindow.onReset)
+    self.mainButton = button(self, PAD + 106, buttonsY, 200, ROW, ISBUPanelWindow.onMainPanel)
+    self.resetButton = button(self, PAD + 312, buttonsY, 110, ROW, ISBUPanelWindow.onReset)
     self.resetButton:setTitle(getText("ContextMenu_BU_ResetBreaker"))
-    self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ISBUPanelWindow.onUpgrade)
+    self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
     local tabsY = buttonsY + ROW + PAD
-    self.tabs = ISTabPanel:new(0, tabsY, self.width, self.height - tabsY - self:resizeWidgetHeight())
+    local listW = self.width - (self.planWanted and PLAN_W + PAD or 0)
+    local height = self.height - tabsY - self:resizeWidgetHeight()
+    self.tabs = ISTabPanel:new(0, tabsY, listW, height)
     self.tabs:initialise()
     self.tabs:setAnchorRight(true)
     self.tabs:setAnchorBottom(true)
@@ -236,20 +289,95 @@ function ISBUPanelWindow:createChildren()
     for _, utility in ipairs(BU.UTILITIES) do views[#views + 1] = utility end
     views[#views + 1] = LOG
     for _, view in ipairs(views) do
-        local list = ISBUPanelList:new(0, 0, self.width, self.tabs.height - self.tabs.tabHeight, self, view)
+        local list = ISBUPanelList:new(0, 0, listW, self.tabs.height - self.tabs.tabHeight, self, view)
         list:initialise()
         list:setAnchorRight(true)
         list:setAnchorBottom(true)
         self.tabs:addView(getText("IGUI_BU_Tab_" .. view), list)
         self.lists[view] = list
     end
+    -- View options on the tab strip, at the right end of the list.
+    local optionH = self.tabs.tabHeight - 2
+    self.activeButton = button(self, 0, tabsY, OPTION_W, optionH, ISBUPanelWindow.onActiveOnly)
+    self.activeButton:setTitle(getText("IGUI_BU_ActiveOnly"))
+    self.loadSortButton = button(self, 0, tabsY, OPTION_W, optionH, ISBUPanelWindow.onByLoad)
+    self.loadSortButton:setTitle(getText("IGUI_BU_ByLoad"))
+    anchorRight(self.activeButton)
+    anchorRight(self.loadSortButton)
+    self:placeOptions()
+    self.plan = ISBUPlan:new(listW, tabsY, PLAN_W, height, self)
+    self.plan:initialise()
+    anchorRight(self.plan)
+    self.plan:setAnchorBottom(true)
+    self:addChild(self.plan)
+    self.plan:setVisible(self.planWanted)
     if PanelWindow.lastTab then self.tabs:activateView(PanelWindow.lastTab) end
     self:refresh()
+end
+
+function ISBUPanelWindow:placeOptions()
+    local right = self.tabs:getX() + self.tabs:getWidth() - PAD
+    self.loadSortButton:setX(right - OPTION_W)
+    self.activeButton:setX(right - OPTION_W * 2 - 4)
+    local function mark(b, on)
+        b.backgroundColor = on and { r = 0.25, g = 0.45, b = 0.25, a = 1 } or { r = 0, g = 0, b = 0, a = 1 }
+    end
+    mark(self.activeButton, PanelWindow.options.activeOnly)
+    mark(self.loadSortButton, PanelWindow.options.byLoad)
+end
+
+-- The plan beside the list, or not: the window grows or shrinks by it and the list keeps its width. The window's
+-- width is set silently: a resize moves anchored children by the difference a frame later, over where they are put
+-- here.
+function ISBUPanelWindow:setPlanShown(shown)
+    PanelWindow.planShown = shown
+    if self.plan:getIsVisible() == shown then return end
+    local listW = self.tabs:getWidth()
+    local delta = PLAN_W + PAD
+    self.plan:setVisible(shown)
+    self.minimumWidth = 560 + (shown and delta or 0)
+    self.width = listW + (shown and delta or 0)
+    self.javaObject:setWidthSilent(self.width)
+    self.plan:setX(listW)
+    self.rangeButton:setX(self.width - PAD - 130)
+    self.planButton:setX(self.width - PAD - 130 - 4 - 110)
+    self:placeOptions()
+    if shown then
+        local overflow = self:getX() + self.width - getCore():getScreenWidth()
+        if overflow > 0 then self:setX(math.max(0, self:getX() - overflow)) end
+        self:updatePlan()
+    else
+        self:outlineDevice(nil)
+    end
+    self.planButton:setTitle(getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
+end
+
+function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()) end
+
+function ISBUPanelWindow:onActiveOnly()
+    PanelWindow.options.activeOnly = not PanelWindow.options.activeOnly
+    self:placeOptions()
+    self:refresh()
+end
+
+function ISBUPanelWindow:onByLoad()
+    PanelWindow.options.byLoad = not PanelWindow.options.byLoad
+    self:placeOptions()
+    self:refresh()
+end
+
+-- The utility the list shows now: the plan follows it (power while the log is shown).
+function ISBUPanelWindow:activeUtility()
+    local view = self.tabs and self.tabs.activeView and self.tabs.activeView.view
+    local utility = view and view.utility
+    if utility == nil or utility == LOG then return "power" end
+    return utility
 end
 
 function ISBUPanelWindow:prerender()
     ISCollapsableWindow.prerender(self)
     if self.tabs and self.tabs.activeView then PanelWindow.lastTab = self.tabs.activeView.name end
+    if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
 end
 
 function ISBUPanelWindow:render()
@@ -284,6 +412,7 @@ function ISBUPanelWindow:close()
         list:hideTooltip()
     end
     self:showRange(false)
+    self:outlineDevice(nil)
     open[self.panel.id] = nil
     self:setVisible(false)
     self:removeFromUIManager()
@@ -295,7 +424,7 @@ local function count(set)
     return n
 end
 
--- What the panel and its networks are now, as rows.
+-- What the panel and its networks are now, as rows, and the plan.
 function ISBUPanelWindow:refresh()
     self.refreshedAt = getTimestampMs()
     -- On a client in multiplayer the data is received anew: the panel by its id.
@@ -324,6 +453,7 @@ function ISBUPanelWindow:refresh()
         self.banner = nil
     end
     self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
+    self.planButton:setTitle(getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     self.resetButton:setVisible(panel.tripped == true)
@@ -337,13 +467,12 @@ function ISBUPanelWindow:refresh()
         self.upgradeButton:setTooltip(note .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
+    local building = Panels.building(panel)
+    self.rooms = Panels.rooms(building)
+    self.titles = Panels.roomTitles(building)
     for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
     self:fillLog()
-end
-
-local function percent(value, most)
-    if not value or not most or most <= 0 then return "-" end
-    return string.format("%.0f%%", value * 100 / most)
+    self:updatePlan()
 end
 
 -- What switching a power device would make of the load, for its row's tooltip; nil when it would not change it.
@@ -363,14 +492,44 @@ function ISBUPanelWindow:preview(device)
     return text
 end
 
+-- What a device does now, in words, for its row and the plan.
+function ISBUPanelWindow:deviceStatus(utility, device)
+    local text, dim = "", false
+    if device.state == "other" then
+        local other
+        for _, key in ipairs(device.keys) do other = other or Store.inclusionOwner(utility, key) end
+        return getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or ""), false
+    end
+    if utility == "power" then
+        local power = device.power or 0
+        if device.state ~= "on" then
+            text, dim = power > 0 and string.format("%.3f", power) or "", true
+        elseif device.held then
+            text = getText(device.held == "shed" and "IGUI_BU_HeldShed" or "IGUI_BU_HeldTimer")
+        elseif power > 0 then
+            text = string.format("%.3f", power) .. " (" .. percent(power, self.capacity) .. ")"
+        else
+            text, dim = getText("IGUI_BU_Idle"), true
+        end
+    end
+    if device.state == "on" then
+        local missing = self:missingOther(utility, device)
+        if missing then text = (text ~= "" and text .. "  " or "") .. missing end
+    end
+    return text, dim
+end
+
 function ISBUPanelWindow:fill(utility, state)
     local list = self.lists[utility]
     local scroll = list:getYScroll()
     list:unhighlight()
     list.hovered = nil
+    list.selected = -1
     list:clear()
     local panel, playerObj = self.panel, self.playerObj
     local function add(row, tooltip) list:addItem(row.text or "", row, tooltip) end
+    local view = { state = state, devices = {}, names = {}, status = {}, totals = {}, producerText = {} }
+    self.views[utility] = view
     local parent = Store.get(panel.parent)
     if parent then
         add({ kind = "header", text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)) })
@@ -393,6 +552,7 @@ function ISBUPanelWindow:fill(utility, state)
                 text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
                     seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
             end
+            view.producerText[index] = text
             add({ kind = "producer", text = text, index = index, at = at, inUse = inUse })
         end
     end
@@ -407,6 +567,7 @@ function ISBUPanelWindow:fill(utility, state)
         end
     end
     local devices, complete = Panels.devices(panel, utility)
+    view.devices = devices
     -- Switching on every device of the building that is off: what the load would be.
     local allTip, offPower = nil, 0
     for _, device in ipairs(devices) do
@@ -417,51 +578,78 @@ function ISBUPanelWindow:fill(utility, state)
     end
     add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
-    -- Rooms by name, devices in no room after them, then those outside.
-    local OUTSIDE = {}
+    -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
+    local options = PanelWindow.options
     local groups, order = {}, {}
     for _, device in ipairs(devices) do
-        local group = device.inside and (device.entry.room or "") or OUTSIDE
-        if not groups[group] then groups[group] = {}; order[#order + 1] = group end
-        table.insert(groups[group], device)
+        local entry = device.entry
+        local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
+        if not device.inside then name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")" end
+        view.names[device.key] = name
+        local status, dim = self:deviceStatus(utility, device)
+        view.status[device.key] = status
+        local group = device.inside and device.roomId or OUTSIDE
+        if not groups[group] then
+            groups[group] = { id = group, devices = {}, total = 0, on = 0, off = 0 }
+            order[#order + 1] = groups[group]
+        end
+        local g = groups[group]
+        if device.state == "on" then
+            g.on = g.on + 1
+            if not device.held then g.total = g.total + (device.power or 0) end
+        elseif device.state == "off" then
+            g.off = g.off + 1
+        end
+        local shown = not options.activeOnly or utility ~= "power" or (device.power or 0) > 0 or device.held ~= nil
+        if shown then table.insert(g.devices, { device = device, name = name, status = status, dim = dim }) end
     end
-    local function title(group)
-        if group == OUTSIDE then return getText("IGUI_BU_Outside") end
-        return group == "" and getText("IGUI_BU_NoRoom") or BU.roomName(group)
+    local function title(id)
+        if id == OUTSIDE then return getText("IGUI_BU_Outside") end
+        if id == "" then return getText("IGUI_BU_NoRoom") end
+        return self.titles[id] or getText("IGUI_BU_NoRoom")
     end
-    local function rank(group) return group == OUTSIDE and 2 or group == "" and 1 or 0 end
+    local function rank(group) return group.id == OUTSIDE and 2 or group.id == "" and 1 or 0 end
     table.sort(order, function(a, b)
         if rank(a) ~= rank(b) then return rank(a) < rank(b) end
-        return title(a) < title(b)
+        if options.byLoad and a.total ~= b.total then return a.total > b.total end
+        return title(a.id) < title(b.id)
     end)
+    if self.roomFilter then
+        add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
+    end
     local sheds = Panels.sheds(panel)
     for _, group in ipairs(order) do
-        add({ kind = "header", text = title(group) })
-        for _, device in ipairs(groups[group]) do
-            local entry = device.entry
-            local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
-            if not device.inside then name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")" end
-            local right = utility == "power" and device.power and string.format("%.3f", device.power) or ""
-            if device.state == "other" then
-                local other = Store.inclusionOwner(utility, device.key)
-                right = getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or "")
-            elseif device.state == "on" then
-                local missing = self:missingOther(utility, device)
-                if missing then right = right .. "  " .. missing end
-                if device.held then right = right .. "  " .. getText(device.held == "shed" and "IGUI_BU_HeldShed" or "IGUI_BU_HeldTimer") end
+        view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
+        if #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) then
+            local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
+            local folded = PanelWindow.folded[foldKey] == true
+            local roomState
+            if group.id ~= OUTSIDE then
+                roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
             end
-            local tooltip = utility == "power" and self:preview(device) or nil
-            if not device.inside and device.state == "off" then
-                local cost = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
-                if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
+            local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
+            add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey })
+            if not folded then
+                table.sort(group.devices, function(a, b)
+                    if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
+                    return a.name < b.name
+                end)
+                for _, shown in ipairs(group.devices) do
+                    local device, entry = shown.device, shown.device.entry
+                    local tooltip = utility == "power" and self:preview(device) or nil
+                    if not device.inside and device.state == "off" then
+                        local cost = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+                        if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
+                    end
+                    local controls = utility == "power" and device.state == "on"
+                    if controls then
+                        tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
+                            .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
+                    end
+                    add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
+                        state = device.state, held = device.held, controls = controls, sheds = sheds }, tooltip)
+                end
             end
-            local controls = utility == "power" and device.state == "on"
-            if controls then
-                tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
-                    .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
-            end
-            add({ kind = "device", text = name, right = right, device = device, state = device.state, held = device.held,
-                controls = controls, sheds = sheds }, tooltip)
         end
     end
     list:setYScroll(scroll)
@@ -520,6 +708,88 @@ function ISBUPanelWindow:missingOther(utility, device)
     return nil
 end
 
+-- The plan.
+
+function ISBUPanelWindow:updatePlan()
+    if not (self.plan and self.plan:getIsVisible()) then return end
+    local utility = self:activeUtility()
+    local view = self.views[utility]
+    if not view then return end
+    self.planUtility = utility
+    local panel = self.panel
+    local rooms = {}
+    for _, room in ipairs(self.rooms or {}) do
+        rooms[#rooms + 1] = { id = room.id, title = self.titles[room.id] or BU.roomName(room.name or ""), level = room.level, rects = room.rects }
+    end
+    local devices = {}
+    for _, device in ipairs(view.devices) do
+        local entry = device.entry
+        devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
+            state = device.state, held = device.held, power = device.power, utility = utility,
+            name = view.names[device.key] or "", status = view.status[device.key] }
+    end
+    local producers = {}
+    if not panel.parent then
+        local state = view.state
+        for index, at in ipairs(panel[utility].producers) do
+            local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
+            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, text = view.producerText[index] }
+        end
+    end
+    self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
+        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter })
+end
+
+-- A room of the plan in words: its name and what its devices draw.
+function ISBUPanelWindow:roomStatus(id)
+    local view = self.views[self:activeUtility()]
+    local totals = view and view.totals[id or ""]
+    local title = totals and totals.title or (self.titles and self.titles[id]) or ""
+    if not totals then return title end
+    if self:activeUtility() == "power" then return title .. "  " .. load2(totals.total) end
+    return title .. "  " .. totals.on .. " / " .. totals.count
+end
+
+-- The device under the mouse on the plan, outlined in the world.
+function ISBUPanelWindow:outlineDevice(key)
+    local playerNum = self.playerObj:getPlayerNum()
+    unoutline(playerNum, self.planOutlined)
+    self.planOutlined = {}
+    if not key then return end
+    local view = self.views[self:activeUtility()]
+    for _, device in ipairs(view and view.devices or {}) do
+        if device.key == key then outline(playerNum, deviceObjects(device), getCore():getGoodHighlitedColor(), self.planOutlined) end
+    end
+end
+
+-- A dot clicked on the plan: its row, unfolded and shown.
+function ISBUPanelWindow:showDevice(key)
+    local utility = self:activeUtility()
+    local view = self.views[utility]
+    local roomId
+    for _, device in ipairs(view and view.devices or {}) do
+        if device.key == key then roomId = device.inside and device.roomId or OUTSIDE end
+    end
+    if not roomId then return end
+    PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil
+    if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
+    if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
+    self:refresh()
+    local list = self.lists[utility]
+    for index, item in ipairs(list.items) do
+        if item.item.device and item.item.device.key == key then
+            list.selected = index
+            list:ensureVisible(index)
+        end
+    end
+end
+
+-- A room clicked on the plan: the list shows only it; nil shows them all again.
+function ISBUPanelWindow:filterRoom(id)
+    self.roomFilter = id
+    self:refresh()
+end
+
 local function nextSchedule(schedule)
     for index, name in ipairs(BU.SCHEDULES) do
         if name == schedule then return BU.SCHEDULES[index % #BU.SCHEDULES + 1] end
@@ -544,6 +814,15 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
+    elseif row.kind == "filter" then
+        self:filterRoom(nil)
+    elseif row.kind == "room" then
+        if row.state and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
+            Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
+        else
+            PanelWindow.folded[row.foldKey] = (not row.folded) or nil
+            self:fill(utility, self.views[utility] and self.views[utility].state)
+        end
     elseif row.kind == "device" and row.state ~= "other" then
         local device, entry = row.device, row.device.entry
         for _, button in ipairs((deviceButtons(width, row))) do
@@ -682,7 +961,9 @@ end
 function PanelWindow.open(playerObj, panel)
     local window = open[panel.id]
     if window then window:bringToTop(); window:refresh(); return window end
-    window = ISBUPanelWindow:new(getCore():getScreenWidth() / 2 - 340, getCore():getScreenHeight() / 2 - 305, playerObj, panel)
+    window = ISBUPanelWindow:new(0, 0, playerObj, panel)
+    window:setX(math.max(0, (getCore():getScreenWidth() - window.width) / 2))
+    window:setY(math.max(0, (getCore():getScreenHeight() - window.height) / 2))
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)

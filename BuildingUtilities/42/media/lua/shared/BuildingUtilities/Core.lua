@@ -136,15 +136,26 @@ function BU.partKeys(object)
     return keys
 end
 
--- What players call an object: its moveable name, or its sprite name when the square is not loaded.
+-- What players call an object: its moveable name, or its sprite name when the square is not loaded. A moveable
+-- name the game has no translation for ("Light Switch") may have one here.
+local function translated(name)
+    return getTextOrNull("IGUI_BU_Name_" .. name:gsub("%W", "")) or name
+end
+
 function BU.displayName(x, y, z, sprite)
     local object = BU.objectsWithSprite(x, y, z, sprite)[1]
     if object then
         local name = Translator.getMoveableDisplayName(object)
-        if name and name ~= "" then return name end
-        if object:getObjectName() and object:getObjectName() ~= "" then return object:getObjectName() end
+        if name and name ~= "" then return translated(name) end
+        if object:getObjectName() and object:getObjectName() ~= "" then return translated(object:getObjectName()) end
     end
     return sprite
+end
+
+-- A level of a building as players count floors: 1F for the ground, B1 below it.
+function BU.floorName(level)
+    if level < 0 then return getText("IGUI_BU_Basement", -level) end
+    return getText("IGUI_BU_Floor", level + 1)
 end
 
 -- A room name of the map ("kitchen", "gasstore") as words.

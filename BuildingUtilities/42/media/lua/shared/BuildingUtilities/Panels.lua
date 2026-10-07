@@ -18,7 +18,7 @@ end
 
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
--- A building's rooms as plain tables: { name, level, rects = { { x, y, w, h } } }.
+-- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }.
 function Panels.rooms(building)
     local api = BU.api()
     local list = api and building and api.buildings.rooms(building.key)
@@ -31,7 +31,7 @@ function Panels.rooms(building)
             local rect = room.rects[j]
             rects[#rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
         end
-        result[#result + 1] = { name = room.name, level = room.level, rects = rects }
+        result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects }
     end
     return result
 end
@@ -186,7 +186,8 @@ function Panels.devices(panel, utility)
         for _, part in ipairs(group.entries) do
             if part.entry.power then power = (power or 0) + part.entry.power end
         end
-        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside }
+        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside,
+            roomId = group.inside and (first.entry.roomId or "") or nil }
         if group.inside then
             device.state = anyKey(data.excluded, group.keys) and "off" or "on"
         else
@@ -311,6 +312,49 @@ function Panels.linkCandidates(child)
 end
 
 -- Names.
+
+-- What players call each room of a building, by id: its name, and where names repeat its floor, its side of the
+-- building and at last a number. "Hall (2F, N)".
+function Panels.roomTitles(building)
+    local rooms = Panels.rooms(building)
+    local byName = {}
+    for _, room in ipairs(rooms) do
+        local name = room.name or ""
+        byName[name] = byName[name] or {}
+        table.insert(byName[name], room)
+    end
+    local cx, cy
+    if building then cx, cy = Geometry.centre(building) end
+    local titles = {}
+    for name, same in pairs(byName) do
+        local base = name == "" and getText("IGUI_BU_NoRoom") or BU.roomName(name)
+        if #same == 1 then
+            titles[same[1].id] = base
+        else
+            local levels = {}
+            for _, room in ipairs(same) do levels[room.level] = true end
+            local manyLevels = false
+            for level in pairs(levels) do if level ~= same[1].level then manyLevels = true end end
+            local seen = {}
+            for _, room in ipairs(same) do
+                local parts = {}
+                if manyLevels then parts[#parts + 1] = BU.floorName(room.level) end
+                local rx, ry, area = 0, 0, 0
+                for _, rect in ipairs(room.rects) do
+                    local size = rect.w * rect.h
+                    rx, ry, area = rx + (rect.x + rect.w / 2) * size, ry + (rect.y + rect.h / 2) * size, area + size
+                end
+                local point = area > 0 and cx and Geometry.direction(cx, cy, rx / area, ry / area)
+                if point then parts[#parts + 1] = getText("IGUI_BU_Dir_" .. point) end
+                local qualifier = table.concat(parts, ", ")
+                seen[qualifier] = (seen[qualifier] or 0) + 1
+                if seen[qualifier] > 1 then qualifier = (qualifier ~= "" and qualifier .. " " or "") .. seen[qualifier] end
+                titles[room.id] = qualifier ~= "" and getText("IGUI_BU_RoomQualified", base, qualifier) or base
+            end
+        end
+    end
+    return titles
+end
 
 -- The panel's name: the player's, or its building's largest room and a number among panels of the same name.
 function Panels.name(panel)

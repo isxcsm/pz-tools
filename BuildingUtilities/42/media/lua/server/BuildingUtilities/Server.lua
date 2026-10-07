@@ -26,6 +26,10 @@ end
 
 function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
 
+function commands.setRoomInside(player, panel, args)
+    if type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
+end
+
 function commands.moveProducer(player, panel, args)
     Changes.moveProducer(panel, args.utility, tonumber(args.index) or 0, args.delta == -1 and -1 or 1)
 end

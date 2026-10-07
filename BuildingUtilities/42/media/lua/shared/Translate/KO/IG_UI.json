@@ -190,5 +190,16 @@
     "IGUI_BU_AgoMinutes": "%1분 전",
     "IGUI_BU_AgoHours": "%1시간 전",
     "IGUI_BU_AgoDays": "%1일 전",
-    "IGUI_BU_NameTripped": "%1 (차단기 내려감)"
+    "IGUI_BU_NameTripped": "%1 (차단기 내려감)",
+    "IGUI_BU_ActiveOnly": "소비 중만",
+    "IGUI_BU_ByLoad": "소비량순",
+    "IGUI_BU_PlanShow": "평면도 보기",
+    "IGUI_BU_PlanHide": "평면도 숨기기",
+    "IGUI_BU_Idle": "꺼짐",
+    "IGUI_BU_FilterNote": "%1만 보는 중입니다. 여기를 누르면 모두 봅니다.",
+    "IGUI_BU_RoomQualified": "%1 (%2)",
+    "IGUI_BU_Floor": "%1층",
+    "IGUI_BU_Basement": "지하 %1층",
+    "IGUI_BU_Name_LightSwitch": "전등 스위치",
+    "IGUI_BU_Name_TallLamp": "스탠드 조명"
 }

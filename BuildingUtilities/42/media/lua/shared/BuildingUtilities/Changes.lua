@@ -125,6 +125,16 @@ function Changes.setAllInside(panel, utility, connected)
     Sync.changed(panel.id)
 end
 
+-- Every device of one room of the building at once ("" for those in no room).
+function Changes.setRoomInside(panel, utility, roomId, connected)
+    for _, device in ipairs(Panels.devices(panel, utility)) do
+        if device.inside and device.roomId == roomId and (device.state == "on") ~= connected then
+            setInside(panel, utility, device, connected)
+        end
+    end
+    Sync.changed(panel.id)
+end
+
 -- A device outside any building wired or piped to the panel.
 function Changes.includeOutside(panel, utility, device, paid)
     panel[utility].included[device.key] = paid or {}
@@ -245,6 +255,7 @@ function Changes.trip(panel)
     Networks.setEnabled(panel, false)
     BU.log("tripped", panel.id)
     Sync.changed(panel.id)
+    Sync.sound(panel, "GeneratorStopping")
     Sync.notice(panel, "IGUI_BU_Notice_Tripped", Panels.name(panel))
 end
 
@@ -253,6 +264,7 @@ function Changes.resetBreaker(panel)
     Networks.setEnabled(panel, true)
     Store.record(panel, "IGUI_BU_Log_Reset")
     Sync.changed(panel.id)
+    Sync.sound(panel, "LightSwitch")
 end
 
 return Changes

@@ -28,6 +28,15 @@ function Sync.notice(panel, key, ...)
     end
 end
 
+-- A sound at the box, for the players who hear it there.
+function Sync.sound(panel, name)
+    if isServer() then
+        sendServerCommand(BU.MOD, "sound", { panel = panel.id, name = name })
+    elseif BU.onSound then
+        BU.onSound(panel.id, name)
+    end
+end
+
 -- What a client asks of the server: a command and its arguments, as the player who asks. Alone, the game's own
 -- server part answers it.
 function Sync.send(player, command, args)
