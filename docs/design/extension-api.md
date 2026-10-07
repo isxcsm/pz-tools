@@ -149,7 +149,8 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
 | `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
+| `networks.setPurify(handle, id, on)` | Water only: whether the water its fixtures give is purified, as vanilla purifies plumbed water (`true`, the default), or keeps the taint of the producer it comes from (`false`; see [fluids](#water)). Its own setting, also for a child. `false` in a game whose bootstrap has no such hooks is a Lua error that asks for a restart. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 | `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, the fullest first (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
 | `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
@@ -205,6 +206,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   `setExtraLoad` adds a load to a network.
 - Draw and fill: `draw` and `fill` move water out of and into a water network's producers, also those
   whose squares are not loaded, which take the change as they load ([draw and fill](#draw-and-fill)).
+- Purification: `setPurify(false)` lets a water network's fixtures give their producer's taint
+  instead of vanilla's purified water.
 - Not yet: `"parallel"`.
 
 ### Power
@@ -255,8 +258,15 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   gives each draw. Levels converge as water is used, and space opens first in the containers that
   are fullest, so rain is lost only when all are full. No water is moved between containers. A
   producer is the fluid container on a producer square; one whose square is not loaded gives no draw.
-- **Fluids.** Vanilla decides amount, draw and taint from the container the draw comes from, as it
-  does for a fixture plumbed to a barrel.
+- **Fluids.** Vanilla decides amount and draw from the container the draw comes from, as it does for
+  a fixture plumbed to a barrel, and it purifies plumbed water: what a fixture passes on
+  (`IsoObject.transferFluidTo`) comes through a sample of its source
+  (`createSampleAndPurifyWater`) in which TaintedWater is Water; the fluid and name the fixture shows
+  (`getPrimaryFluid`, `getFluidUiName`) are that sample's; and `isTaintedWater` says no while the
+  source holds anything. So a network's fixtures give clean water from rain-filled producers, as in
+  vanilla. A network with `setPurify(false)` keeps its producer's taint: the sample is a copy of the
+  source as it is, and `isTaintedWater` says yes while that source holds TaintedWater. A multiplayer
+  client defines no networks, so its interface may still show such water as clean.
 - **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
   collectors fill themselves (see below), so a water network needs no catch-up of its own.
 
@@ -307,6 +317,7 @@ own, then its parents'), and nothing while the network or a parent above it is s
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
 | Does this fixture take water from another object? | Each water question of `IsoObject` (`getFluidAmount`, `useFluid`, `hasWater`, `getUsesExternalWaterSource` and the others) reads its field `usesExternalWaterSource` | Vanilla, or it is a consumer of a network that has water |
 | Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the network's fullest producer; vanilla when none holds water |
+| What comes out of it, and is it tainted? | `IsoObject.createSampleAndPurifyWater(source, amount)` (TaintedWater becomes Water), behind `transferFluidTo`, `getPrimaryFluid` and `getFluidUiName`; `IsoObject.isTaintedWater()` | Vanilla; for a consumer of a network that does not purify, a sample with the producer's fluids as they are, and tainted while the producer holds TaintedWater |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
 | How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`), and ages it over the hours since it last aged | The container's object, by the appliance rule; the hours split where the network's supply started and stopped |
 
@@ -315,7 +326,9 @@ puts the hooks in as the classes load. Each return of the square and object ques
 game's answer to the API, which can only add to it; `setSurroundingElectricity()` and
 `updateGenerator()` ask the API first; `Food.updateAge` passes the hours it ages the food over. Each
 read of `usesExternalWaterSource` in the water questions passes the field and the object to the API;
-`save` keeps the game's own field, so the world saves what vanilla would. A method that is not shaped
+`save` keeps the game's own field, so the world saves what vanilla would. `createSampleAndPurifyWater`
+asks the API first, at its start because it reassigns its amount, and returns the API's sample when
+there is one; each return of `isTaintedWater` passes the game's answer. A method that is not shaped
 as expected gets no hook, which the game's log reports, and that question gets the game's answer.
 
 The answers come from a snapshot the API makes again when something changes
@@ -348,6 +361,10 @@ those areas, or with no water network, costs a lookup of the object's square.
   water shut-off (`IsoObject.isWaterInfinite()` asks `getUsesExternalWaterSource()`). So a consumer of
   a water network that has water draws from its producers from the start; without water it has the
   mains while they run, and its own reserve after.
+- Water through a fixture that takes it from another object is purified: TaintedWater in the source
+  comes out as Water, and the fixture says it is not tainted while its source holds anything
+  (`IsoObject.createSampleAndPurifyWater`, `isTaintedWater`). Drinking from or filling at the source
+  object itself gives its water as it is.
 - Rain collectors are kept by a Lua global object system (`SRainBarrelSystem`) that adds rain every
   ten minutes while it rains, whether or not the collector's square is loaded, and writes the amount
   into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while

@@ -29,14 +29,18 @@ final class WaterGrid implements ApiHooks.Water {
     // Raised by the game when an object's fluid changes, so that what keeps its own record of it (rain collectors) follows.
     private static final String AMOUNT_CHANGE = "OnWaterAmountChange";
 
-    /** A network that has water now: its squares, and the producers it draws from (see {@link #producers}). */
-    private record Supplier(Network network, Area area, List<Position> producers) { }
+    /**
+     * A network that has water now: its squares, the producers it draws from (see {@link #producers}), and whether its
+     * fixtures get their water purified.
+     */
+    private record Supplier(Network network, Area area, List<Position> producers, boolean purify) { }
 
     /** An object rule of a network at one square; {@code supplier} is null while the network has no water. */
     private record Rule(String sprite, boolean included, Network network, Supplier supplier) { }
 
-    private record Snapshot(List<Supplier> suppliers, Map<Position, List<Rule>> rules, Set<Position> producers) {
-        static final Snapshot EMPTY = new Snapshot(List.of(), Map.of(), Set.of());
+    /** {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. */
+    private record Snapshot(List<Supplier> suppliers, Map<Position, List<Rule>> rules, Set<Position> producers, boolean unpurified) {
+        static final Snapshot EMPTY = new Snapshot(List.of(), Map.of(), Set.of(), false);
     }
 
     /**
@@ -55,7 +59,8 @@ final class WaterGrid implements ApiHooks.Water {
     // Due at the first frame. (Long.MIN_VALUE would overflow the difference: never due.)
     private long refreshedAt = System.nanoTime() - REFRESH_NANOS;
     private final Method fluidContainer, amount, capacity, gameTime, worldHours, triggerEvent;
-    private final Method sample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
+    private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
+    private final Method createContainer, isTainted;
     private final Method removeFluid, addFluid, modData, sync, amountChanged;
     private final Field client;
 
@@ -74,6 +79,9 @@ final class WaterGrid implements ApiHooks.Water {
         amount = container.getMethod("getAmount");
         capacity = container.getMethod("getCapacity");
         sample = container.getMethod("createFluidSample");
+        scaledSample = container.getMethod("createFluidSample", float.class);
+        createContainer = container.getMethod("CreateContainer");
+        isTainted = container.getMethod("isTainted");
         removeFluid = container.getMethod("removeFluid", float.class);
         addFluid = container.getMethod("addFluid", fluid, float.class);
         sampleSize = fluidSample.getMethod("size");
@@ -120,6 +128,56 @@ final class WaterGrid implements ApiHooks.Water {
         }
         catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
         catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+    }
+
+    /**
+     * For a fixture whose network does not purify its water, a sample of its source as the game makes one, without
+     * turning TaintedWater into Water; null, the game's, for any other, and for a source that is not the network's.
+     */
+    @Override public Object sample(Object fixture, Object source, float amount) {
+        if (!snapshot.unpurified() || source == null) return null;
+        try {
+            Object from = unpurifiedSource(fixture);
+            return from != null && fluidContainer.invoke(from) == source ? unpurified(source, amount) : null;
+        }
+        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
+        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+    }
+
+    /** {@code vanilla}, or the fixture's network does not purify its water and its source holds tainted water. */
+    @Override public boolean tainted(boolean vanilla, Object fixture) {
+        if (vanilla || !snapshot.unpurified()) return vanilla;
+        try {
+            Object from = unpurifiedSource(fixture);
+            Object container = from == null ? null : fluidContainer.invoke(from);
+            return container != null && (boolean)isTainted.invoke(container);
+        }
+        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
+        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+    }
+
+    /** The producer a fixture takes its water from, when its network does not purify it; null otherwise. */
+    private Object unpurifiedSource(Object fixture) throws ReflectiveOperationException {
+        Supplier supplier = supplier(fixture);
+        return supplier == null || supplier.purify() ? null : fullest(supplier.producers(), members.cell());
+    }
+
+    /** As {@code IsoObject.createSampleAndPurifyWater} makes the sample, each fluid as it is. */
+    private Object unpurified(Object source, float litres) throws ReflectiveOperationException {
+        Object result = createContainer.invoke(null);
+        litres = Math.max(0, Math.min(litres, (float)amount.invoke(source)));
+        Object copy = scaledSample.invoke(source, 1f);
+        try {
+            for (int index = 0, count = (int)sampleSize.invoke(copy); index < count; index++)
+                addFluid.invoke(result, sampleFluid.invoke(copy, index), litres * (float)instanceAmount.invoke(sampleInstance.invoke(copy, index)));
+        } finally { sampleRelease.invoke(copy); }
+        return result;
+    }
+
+    /** Whether the game's purification of a fixture's water has its hooks; false in a game whose bootstrap has none. */
+    boolean purifyHooked() {
+        try { return ApiHooks.waterPurifyHooked(); }
+        catch (LinkageError olderBootstrap) { return false; }
     }
 
     /**
@@ -522,7 +580,7 @@ final class WaterGrid implements ApiHooks.Water {
         for (Network network : networks) {
             producers.addAll(network.squares());
             if (!network.supplied || members.root(network) == null) continue;
-            var supplier = new Supplier(network, network.area, List.copyOf(producers(network)));
+            var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), network.purify);
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }
@@ -535,6 +593,7 @@ final class WaterGrid implements ApiHooks.Water {
                 rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, network, supplier));
         }
         rules.replaceAll((at, list) -> List.copyOf(list));
-        return new Snapshot(List.copyOf(suppliers), Map.copyOf(rules), Set.copyOf(producers));
+        return new Snapshot(List.copyOf(suppliers), Map.copyOf(rules), Set.copyOf(producers),
+            suppliers.stream().anyMatch(supplier -> !supplier.purify()));
     }
 }

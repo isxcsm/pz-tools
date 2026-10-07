@@ -72,6 +72,16 @@ public final class ApiHooks {
 
         /** The object the fixture takes its water from ({@code IsoObject.checkExternalFluidSource()}): {@code vanilla}, or the network's. */
         Object source(Object vanilla, Object fixture);
+
+        /**
+         * The sample a fixture's water comes through from its source container
+         * ({@code IsoObject.createSampleAndPurifyWater}, which turns TaintedWater into Water): null for the game's, or
+         * one in its place.
+         */
+        default Object sample(Object fixture, Object source, float amount) { return null; }
+
+        /** Whether the fixture's water is tainted ({@code IsoObject.isTaintedWater()}): {@code vanilla}, or more. */
+        default boolean tainted(boolean vanilla, Object fixture) { return vanilla; }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -89,8 +99,11 @@ public final class ApiHooks {
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
     // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[8];
+    private static final boolean[] reported = new boolean[10];
     private static final int POWER_HOOKS = 6;
+    private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
+    // Set once IsoObject has its hooks, the ones on the game's purification of a fixture's water among them.
+    private static volatile boolean purifyHooked;
 
     private ApiHooks() { }
 
@@ -147,6 +160,25 @@ public final class ApiHooks {
                 code.invokestatic(HOOKS, "waterSource", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
                     ConstantDescs.CD_Object));
                 code.checkcast(owner);
+            }),
+            // At the start: the method reassigns its amount. A sample from the API is returned in place of the game's.
+            Site.atStart("createSampleAndPurifyWater",
+                "(Lzombie/entity/components/fluids/FluidContainer;F)Lzombie/entity/components/fluids/FluidContainer;", (code, owner) -> {
+                    Label vanilla = code.newLabel();
+                    code.aload(0); code.aload(1); code.fload(2);
+                    code.invokestatic(HOOKS, "waterSample", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_float));
+                    code.dup();
+                    code.ifnull(vanilla);
+                    code.checkcast(FLUID_CONTAINER);
+                    code.areturn();
+                    code.labelBinding(vanilla);
+                    code.pop();
+                }),
+            Site.atReturns("isTaintedWater", "()Z", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "waterTainted", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
+                    ConstantDescs.CD_Object));
             }) },
         "zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
@@ -242,7 +274,9 @@ public final class ApiHooks {
                 if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(axis)
                         && field.fieldType().equalsString("I") && !field.flags().has(AccessFlag.STATIC)))
                     throw new IllegalArgumentException("Expected the field IsoGridSquare." + axis);
-        return cf.transformClass(model, transform);
+        byte[] result = cf.transformClass(model, transform);
+        if ("zombie/iso/IsoObject".equals(name)) purifyHooked = true;
+        return result;
     }
 
     /** An instruction, with the two before it (line numbers skipped; null at the method's start). */
@@ -419,6 +453,26 @@ public final class ApiHooks {
         try { return current.source(vanilla, fixture); }
         catch (Throwable problem) { reportOnce(POWER_HOOKS + 1, "waterSource", problem); return vanilla; }
     }
+
+    /** Put at the start of {@code IsoObject.createSampleAndPurifyWater(source, amount)}: a sample it gives is returned at once. */
+    public static Object waterSample(Object fixture, Object source, float amount) {
+        Water current = water;
+        if (current == null) return null;
+        try { return current.sample(fixture, source, amount); }
+        catch (Throwable problem) { reportOnce(POWER_HOOKS + 2, "waterSample", problem); return null; }
+    }
+
+    /** Put before each return of {@code IsoObject.isTaintedWater()}. */
+    public static boolean waterTainted(boolean vanilla, Object fixture) {
+        if (vanilla) return true;
+        Water current = water;
+        if (current == null) return false;
+        try { return current.tainted(false, fixture); }
+        catch (Throwable problem) { reportOnce(POWER_HOOKS + 3, "waterTainted", problem); return false; }
+    }
+
+    /** Whether the game's purification of a fixture's water has its hooks: IsoObject loaded with them. */
+    public static boolean waterPurifyHooked() { return purifyHooked; }
 
     /** Put before each return of {@code IsoGridSquare.haveElectricity()}. */
     public static boolean squarePowered(boolean vanilla, int x, int y, int z) {

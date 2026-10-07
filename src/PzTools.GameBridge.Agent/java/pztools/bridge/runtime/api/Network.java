@@ -77,6 +77,8 @@ final class Network {
     float loadFactor = 1f;
     /** A load its mod adds to its consumers' (power only). */
     float extraLoad;
+    /** Whether its fixtures get their water purified, as the game purifies plumbed water (water only). */
+    boolean purify = true;
     /**
      * The hours it was switched on (true) and off (false) since it was defined, kept for food as {@link #history} is;
      * {@code enabledBefore} is whether it was on before the first.

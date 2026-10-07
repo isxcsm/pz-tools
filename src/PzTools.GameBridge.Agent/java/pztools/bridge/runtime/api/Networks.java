@@ -219,6 +219,21 @@ final class Networks {
             }
             return new Object[0];
         });
+        function(table, "setPurify", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!WaterGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", not water");
+            if (!(arguments.length > 2 && arguments[2] instanceof Boolean on))
+                throw new IllegalArgumentException(call + ": on must be true or false");
+            // The hooks that keep the taint are in the bootstrap: a game started before them gets them as it starts again.
+            if (!on && (water == null || !water.purifyHooked()))
+                throw new IllegalArgumentException(call + ": water that keeps its taint is not in this game; restart it to use it");
+            if (network.purify != on) {
+                network.purify = on;
+                saved();
+            }
+            return new Object[0];
+        });
         function(table, "addBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
@@ -397,6 +412,7 @@ final class Networks {
             }
         lua.set(result, "amount", held);
         lua.set(result, "capacity", most);
+        lua.set(result, "purify", network.purify);
         lua.set(result, "producers", lua.list(producers));
     }
 
@@ -519,7 +535,9 @@ final class Networks {
                 .append(network.parent == null ? "" : network.parent).append('\t')
                 .append(network.enabled ? "" : "off").append('\t')
                 .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\t')
-                .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad)).append('\n');
+                .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad))
+                // Added later: a line without it is from an earlier payload, and purifies.
+                .append(network.purify ? "" : "\tunpurified").append('\n');
             for (Producer producer : network.producers) {
                 if (producer.at() != null) { text.append("P\t").append(producer.at()).append('\n'); continue; }
                 Source source = network.sources.get(producer.source());
@@ -561,6 +579,7 @@ final class Networks {
                     if (fields.length > 6 && "off".equals(fields[6])) network.enabled = network.enabledBefore = false;
                     if (fields.length > 7 && !fields[7].isEmpty()) network.loadFactor = Float.parseFloat(fields[7]);
                     if (fields.length > 8 && !fields[8].isEmpty()) network.extraLoad = Float.parseFloat(fields[8]);
+                    if (fields.length > 9 && "unpurified".equals(fields[9])) network.purify = false;
                 }
                 case "P" -> network.producers.add(Producer.square(Position.parse(fields[1])));
                 case "S" -> {

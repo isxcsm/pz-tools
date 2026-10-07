@@ -52,6 +52,7 @@ public final class GameApiTest {
         sources(api);
         water(api);
         fluids(api);
+        purify(api);
         food(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, and a newer payload takes it over");
@@ -1009,6 +1010,51 @@ public final class GameApiTest {
         call(networks, "setEnabled", mod, "tanks", false);
         check(call(networks, "draw", mod, "tanks", 5.0).get(0).equals(0.0), "A network switched off gave water");
         for (String id : List.of("tanks", "pair")) call(networks, "remove", mod, id);
+        frame();
+    }
+
+    /**
+     * As in vanilla, water a fixture takes from a network is purified; a network that does not purify passes its
+     * producer's taint on, in the fixture's water and in what the game says of it. A newer payload keeps the switch.
+     */
+    private static void purify(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject sink = square(12, 11, 0).objects.get(0);
+        var rain = place(30, 36, 0, new IsoObject(new IsoSprite("barrel")));
+        rain.fluidContainer = new FluidContainer(100, 50, Fluid.TaintedWater);
+        call(networks, "define", mod, "rain", "water", "fullest");
+        call(networks, "setProducers", mod, "rain", list(at(30, 36, 0)));
+        call(networks, "addBuilding", mod, "rain", 11.0, 11.0, 0.0);
+        frame();
+        var bottle = new FluidContainer(10, 0);
+        check(state(networks, "rain").rawget("purify").equals(true) && !sink.isTaintedWater() && sink.transferFluidTo(bottle, 1) == 1
+            && near(bottle.fluid(Fluid.Water), 1) && near(rain.fluidContainer.amount, 49), "A network does not purify its water by default");
+        call(networks, "setPurify", mod, "rain", false);
+        bottle = new FluidContainer(10, 0);
+        check(state(networks, "rain").rawget("purify").equals(false) && sink.isTaintedWater() && sink.transferFluidTo(bottle, 1) == 1
+            && near(bottle.fluid(Fluid.TaintedWater), 1) && near(bottle.fluid(Fluid.Water), 0), "A network that does not purify passed clean water");
+        // A producer with clean water is clean either way.
+        var clean = place(30, 36, 0, barrel(90));
+        check(!sink.isTaintedWater(), "Clean water from a network that does not purify is tainted");
+        clean.fluidContainer.amount = 0;
+        // A newer payload keeps the switch; on again, the water is purified.
+        GameApi.register(LuaManager.class);
+        frame();
+        check(state(networks, "rain").rawget("purify").equals(false) && sink.isTaintedWater(), "A newer payload lost the switch");
+        call(networks, "setPurify", mod, "rain", true);
+        check(!sink.isTaintedWater(), "Switched on again, the water is not purified");
+        rejects(networks, "setPurify", "on must be true or false", mod, "rain", "no");
+        call(networks, "define", mod, "wires", "power", "sequential");
+        rejects(networks, "setPurify", "wires carries power, not water", mod, "wires", false);
+        call(networks, "remove", mod, "wires");
+        // A game whose bootstrap has no such hooks needs a restart for water that keeps its taint.
+        var hooked = ApiHooks.class.getDeclaredField("purifyHooked");
+        hooked.setAccessible(true);
+        hooked.setBoolean(null, false);
+        rejects(networks, "setPurify", "restart it to use it", mod, "rain", false);
+        hooked.setBoolean(null, true);
+        call(networks, "remove", mod, "rain");
         frame();
     }
 
