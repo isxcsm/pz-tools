@@ -1219,18 +1219,43 @@ public final class GameApiTest {
         IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
         frame();
         check(tainted.fluidContainer.amount < 40, "A change owed after an older ModData was not taken");
-        // Several containers on a square: draws come from the fullest first, fills go to the emptiest first.
+        // A fill owed after such a world does not add to a fill of the same fluid read from it, which the square took.
+        float held = tainted.fluidContainer.amount + clean.fluidContainer.amount;
+        KahluaTable reloaded = LuaManager.platform.newTable();
+        reloaded.rawset("deltas", before);
+        ModData.tables.put(PendingFluids.KEY, reloaded);
+        IsoWorld.instance.cell.squares.remove("31,34,0");
+        // Numbers grow with the clock, which moves on between two sessions of a world; here it has to pass the last
+        // number the square took.
+        Thread.sleep(5);
+        call(networks, "fill", mod, "tanks", 10.0, "Water");
+        check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 3, "A change was added to one the square took already");
+        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        frame();
+        check(near(tainted.fluidContainer.amount + clean.fluidContainer.amount, held + 10),
+            "A change read from an older ModData was taken again: " + tainted.fluidContainer.amount);
+        // Several containers on a square: draws come from the fullest first, fills go to the emptiest first. Draws owed
+        // one after the other add up to one change, and so do fills of one fluid; the square takes them as it would
+        // take them one by one.
         IsoObject fuller = place(32, 34, 0, barrel(50)), emptier = place(32, 34, 0, barrel(10));
         call(networks, "define", mod, "pair", "water", "fullest");
         call(networks, "setProducers", mod, "pair", list(at(32, 34, 0)));
         frame();
         unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
-        check(near((Double)call(networks, "draw", mod, "pair", 30.0).get(0), 30), "A draw from an unloaded square went wrong");
+        check(near((Double)call(networks, "draw", mod, "pair", 10.0).get(0), 10) && near((Double)call(networks, "draw", mod, "pair", 20.0).get(0), 20),
+            "A draw from an unloaded square went wrong");
+        var pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
+        check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), -30),
+            "Two draws owed one after the other were not added up");
         IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 20) && near(emptier.fluidContainer.amount, 10), "The owed draw did not come from the fullest");
         unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
-        call(networks, "fill", mod, "pair", 50.0, "Water");
+        call(networks, "fill", mod, "pair", 20.0, "Water");
+        call(networks, "fill", mod, "pair", 30.0, "Water");
+        pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
+        check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), 50),
+            "Two fills owed one after the other were not added up");
         IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 40) && near(emptier.fluidContainer.amount, 40), "The owed fill did not go to the emptiest");

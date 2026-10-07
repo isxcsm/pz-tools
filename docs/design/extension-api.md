@@ -306,6 +306,14 @@ own, then its parents'), and nothing while the network or a parent above it is s
   what it is owed on the first frame it is loaded, in order: draws from its fullest container first,
   fills into its emptiest, between empty and full. Until then no fixture draws from it. A square whose
   containers are gone drops what it is owed, and the game's log says so.
+- **Added up.** A draw owed right after a draw to the same square adds to it, and so does a fill of one
+  fluid after a fill of the same, so a mod that draws every few minutes from a producer far away owes
+  one change, not one per draw. The square takes the sum as it would take the two one after the other:
+  its containers level their shares from the fullest down (or their room from the emptiest), and a
+  second draw levels on from where the first stopped, each container giving every fluid in proportion.
+  A change of another kind starts a new one, and none adds to a change read from the ModData as the
+  world loaded, which the square may have taken already (see below). Each change goes into the ModData
+  table as it is owed, without writing the others again.
 - **Once only.** A chunk is saved as it unloads, the global ModData only when the world is saved, so a
   world that stopped between the two still owes a square changes it took. Each change has a sequence
   number, and the containers on a square record the last one they took in their own modData
