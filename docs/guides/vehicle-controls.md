@@ -1,8 +1,8 @@
 # Better vehicle controls
 
 **Vehicle driving improvements** changes how cars pull away, shift, reverse and steer from the
-keyboard. It also lights the ground around your car at night. It's experimental and works in
-single player only. It doesn't change any game files.
+keyboard. It also lights the ground around your car at night. It's experimental, and untested in
+multiplayer, where it changes only the car you drive. It doesn't change any game files.
 
 ![The same road driven with the extension off and on](../media/steering.webp)
 

@@ -640,7 +640,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Das Spiel läuft nicht</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Charakter schläft</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Verbessertes Fahrverhalten</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Vorwärtsbeschleunigung, Gangwechsel, Rückwärtsfahren und Tastaturlenkung unabhängig verbessern und bei eingeschalteten Scheinwerfern die Umgebung des Fahrzeugs beleuchten. Experimentell; nur im Einzelspielermodus.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Vorwärtsbeschleunigung, Gangwechsel, Rückwärtsfahren und Tastaturlenkung unabhängig verbessern und bei eingeschalteten Scheinwerfern die Umgebung des Fahrzeugs beleuchten. Experimentell; im Mehrspielermodus nicht getestet.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Natürliches Beschleunigen und Schalten</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Passt die Vorwärtsbeschleunigung an Motordrehzahl und Gang an.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Sanftes Rückwärtsfahren</value></data>
@@ -651,7 +651,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Beleuchtet die Umgebung des Fahrzeugs, in dem du sitzt, solange die Scheinwerfer an sind. Benötigt funktionierende Scheinwerfer und eine geladene Batterie; im Spielstand wird nichts gespeichert.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Änderungen werden im Spiel angewendet.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Die Erweiterung konnte nicht angewendet werden. Details stehen im Protokoll.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Gespeicherte Einstellungen werden beim Einstieg in ein Einzelspielerspiel angewendet.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Gespeicherte Einstellungen werden beim Einstieg in ein Spiel angewendet.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Zum Anwenden das Spiel fortsetzen, das Fahrzeug anhalten, Gas loslassen und den Tempomaten ausschalten.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Spiel im Hauptmenü</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Spiel wird geladen</value></data>

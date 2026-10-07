@@ -39,6 +39,9 @@ The backup scheduler uses an observation only once `runtime_facts` holds the sam
 | Save path | `ZomboidFileSystem.getCurrentSaveDir()`, read once per world |
 | Life, sleep | `IsoPlayer.getInstance()`, `isDead()`, `isAsleep()`, only when `IsoPlayer.numPlayers` is 1 |
 
+Each loaded world gets a new world id, whatever the mode: the [game extensions](game-extensions.md) are bound
+to it. Life and sleep are read, and the clock runs, in a `LocalSinglePlayer` world only.
+
 The active clock (`activeMillis`) grows only between two samples that both have the world ready, unpaused and
 the character not asleep. A sleep value that cannot be read is `Unknown`, which does not stop the clock: only
 the sleep pause is lost. A gap of more than 2 s between samples, or a new world, starts a new clock epoch at

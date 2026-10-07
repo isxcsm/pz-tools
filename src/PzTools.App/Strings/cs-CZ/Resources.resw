@@ -640,7 +640,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Hra není spuštěna</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postava spí</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vylepšení řízení vozidel</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí a při rozsvícených světlech osvětluje okolí vozidla. Experimentální; pouze pro jednoho hráče.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí a při rozsvícených světlech osvětluje okolí vozidla. Experimentální; v multiplayeru netestováno.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Přirozené zrychlování a řazení</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Přizpůsobuje zrychlování vpřed otáčkám motoru a převodovému stupni.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Plynulé couvání</value></data>
@@ -651,7 +651,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Osvětluje okolí vozidla, ve kterém sedíte, dokud svítí jeho světlomety. Vyžaduje funkční světlomety a nabitou baterii a do uložené hry se nic nezapisuje.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Probíhá změna nastavení ve hře.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Rozšíření se nepodařilo použít. Podrobnosti najdete v protokolech.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry pro jednoho hráče.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pro použití pokračujte ve hře, zastavte vozidlo, uvolněte plyn a vypněte tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Hra v hlavní nabídce</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Hra se načítá</value></data>

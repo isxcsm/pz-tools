@@ -640,7 +640,7 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>遊戲未執行</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>角色正在睡眠</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車輛駕駛改善</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分別改善前進加速與換檔、倒車和鍵盤轉向，並在開啟前燈時照亮車輛周圍。僅限單人遊戲的實驗性功能。</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分別改善前進加速與換檔、倒車和鍵盤轉向，並在開啟前燈時照亮車輛周圍。實驗性功能，未在多人遊戲中測試。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然加速與換檔</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>根據引擎轉速和檔位調整前進加速。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>平穩倒車</value></data>
@@ -651,7 +651,7 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>車頭燈亮著時，照亮你所乘車輛的周圍。需要車頭燈和電瓶正常才會亮起，不會在存檔中寫入任何內容。</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>正在遊戲中套用變更。</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>無法套用擴充功能。請查看記錄瞭解詳情。</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>進入單人遊戲後，將套用已儲存的設定。</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>進入遊戲後，將套用已儲存的設定。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>繼續遊戲並停車，放開油門並關閉定速巡航後即可套用設定。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>遊戲處於主選單</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>遊戲載入中</value></data>

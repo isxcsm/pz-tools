@@ -138,8 +138,11 @@ modules off), so the refresh must not trust its cache beyond those inputs.
 in `[extensions]` of the state-scheduler [advanced settings](../reference/advanced-settings.md))
 it reads `settings.json` and the latest runtime snapshot.
 
-- **No local world ready.** It closes the lease and publishes `Pending` (module wanted) or
-  `Disabled`, both with reason `waiting-for-local-world`.
+- **No world ready.** It closes the lease and publishes `Pending` (module wanted) or
+  `Disabled`, both with reason `waiting-for-local-world`. A world is ready when it is loaded
+  (`RuntimeSnapshot.IsExtensionWorldReady`), in any mode and with or without a save: a
+  multiplayer client's world is untested, not refused. Saves keep their own, single-player
+  `IsWorldReady`.
 - **World ready.** It opens one [control lease](glossary.md#control-lease) for all continuous
   modules (`connect_timeout_seconds`, 20 by default), then handles each module in turn:
   - Wanted on: `GameExtensionReconciler` sends `APPLY` with the module id, the revision it
@@ -198,7 +201,7 @@ thread (`activation-failed:<exception class>`). A reason the module gives (prefl
 `failureReason`) is passed on cut to 256 characters, with control characters replaced.
 
 `ExtensionControl` ticks the host on the game thread once per frame, and only while the game
-phase is `Ready`, the mode is local single-player and the game is not paused. On each tick a
+phase is `Ready` (in any mode) and the game is not paused. On each tick a
 slot with a pending request asks the provider's `readyToActivate`. When it says yes, the slot
 calls `activate` (first time) or `updateConfig` and reports `Active`. Until then the previous
 configuration keeps running. What "ready" means is the module's choice; the vehicle's rule is
@@ -305,7 +308,7 @@ match in this order (`ExtensionSettingsSection.ActivationHint`), or hidden:
 | Any other fresh `Unsupported`, `FaultedPassThrough` or `RestartRequired` status | **The extension could not be applied. Check the logs for details.** |
 | A change is in progress and the game said `safe-boundary` | The extension's own hint (`ExtensionDescriptor.SafeBoundaryHintKey`); the vehicle's is **To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.**, any other's **Applying changes in the game.** |
 | A change is in progress for another reason | **Applying changes in the game.** |
-| Saved on, no single-player world ready | **Saved settings will be applied when you enter a single-player game.** |
+| Saved on, no world ready | **Saved settings will be applied when you enter a game.** |
 | Version outside the range, not overridden | **Outside supported range · Extension inactive** |
 | No game version known, not overridden | **Waiting for game version · Extension inactive** |
 

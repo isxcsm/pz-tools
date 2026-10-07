@@ -639,7 +639,7 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Game is not running</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Character sleeping</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vehicle driving improvements</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Improve forward acceleration and shifting, reversing, and keyboard steering independently, and light the ground around the vehicle while its headlights are on. Experimental; single-player only.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Improve forward acceleration and shifting, reversing, and keyboard steering independently, and light the ground around the vehicle while its headlights are on. Experimental; untested in multiplayer.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Natural acceleration and shifting</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Adjust forward acceleration based on engine speed and the current gear.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Smooth reversing</value></data>
@@ -650,7 +650,7 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Lights the area around the vehicle you are in while its headlights are on. It needs working headlights and a charged battery, and nothing is written to your save.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Applying changes in the game.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>The extension could not be applied. Check the logs for details.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Saved settings will be applied when you enter a single-player game.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Saved settings will be applied when you enter a game.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>To apply, resume the game, stop the vehicle, release the accelerator, and turn off cruise control.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Game at main menu</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Game is loading</value></data>

@@ -640,7 +640,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>游戏未运行</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>角色正在睡眠</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>车辆驾驶优化</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分别改善前进加速与换挡、倒车和键盘转向，并在开启前灯时照亮车辆周围。仅限单人游戏的实验性功能。</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>分别改善前进加速与换挡、倒车和键盘转向，并在开启前灯时照亮车辆周围。实验性功能，未在多人游戏中测试。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然加速与换挡</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>根据发动机转速和挡位调整前进加速。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>平稳倒车</value></data>
@@ -651,7 +651,7 @@ GC 运行：区间中垃圾回收器在工作的时间比例。它与游戏同�
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>车头灯亮着时，照亮你所乘车辆的周围。需要车头灯和电瓶正常才会亮起，不会向存档写入任何内容。</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>正在游戏中应用更改。</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>无法应用扩展功能。请查看日志了解详情。</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>进入单人游戏后，将应用已保存的设置。</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>进入游戏后，将应用已保存的设置。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>恢复游戏并停车，松开油门并关闭定速巡航后即可应用设置。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>游戏处于主菜单</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>游戏正在加载</value></data>

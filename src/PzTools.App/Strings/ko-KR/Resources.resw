@@ -639,7 +639,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>게임이 실행 중이 아닙니다</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>캐릭터 수면 중</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>차량 주행 개선</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진, 키보드 조향을 각각 개선하고, 헤드라이트를 켜면 차량 주변을 밝힙니다. 싱글플레이용 실험 기능입니다.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>전진 가속·변속, 후진, 키보드 조향을 각각 개선하고, 헤드라이트를 켜면 차량 주변을 밝힙니다. 멀티플레이에서는 검증되지 않은 실험 기능입니다.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>자연스러운 가속·변속</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>엔진 회전수와 기어에 맞춰 전진 가속을 조절합니다.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>부드러운 후진</value></data>
@@ -650,7 +650,7 @@ GC 작동: 구간 중 메모리 정리가 돌고 있던 시간의 비율입니�
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>전조등이 켜져 있는 동안 타고 있는 차량 주변을 밝힙니다. 전조등과 배터리가 정상일 때만 켜지며, 세이브에는 아무것도 저장되지 않습니다.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>게임에 변경 사항을 적용하는 중입니다.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>확장을 적용할 수 없습니다. 자세한 내용은 로그를 확인해 주세요.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>싱글플레이를 시작하면 저장된 설정이 적용됩니다.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>게임에 들어가면 저장된 설정이 적용됩니다.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>게임을 재개하고 차량을 멈춘 뒤 가속 키를 놓고 크루즈 컨트롤을 끄면 적용됩니다.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>게임 메인 화면</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>게임 불러오는 중</value></data>

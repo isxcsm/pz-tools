@@ -640,7 +640,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Персонаж спит</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Улучшенное управление автомобилем</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры, а при включённых фарах освещает пространство вокруг машины. Экспериментально; только для одиночной игры.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры, а при включённых фарах освещает пространство вокруг машины. Экспериментально; в сетевой игре не проверено.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Естественный разгон и переключение передач</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Настраивает разгон вперёд в зависимости от оборотов двигателя и передачи.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Плавный задний ход</value></data>
@@ -651,7 +651,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Освещает пространство вокруг машины, в которой вы находитесь, пока включены фары. Нужны исправные фары и заряженный аккумулятор; в сохранение ничего не записывается.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Применение изменений в игре.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Не удалось применить расширение. Подробности — в журнале.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Сохранённые настройки будут применены после входа в одиночную игру.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Сохранённые настройки будут применены после входа в игру.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Для применения возобновите игру, остановите автомобиль, отпустите газ и отключите круиз-контроль.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Игра в главном меню</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Игра загружается</value></data>

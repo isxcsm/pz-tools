@@ -640,7 +640,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>ゲームが起動していません</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>キャラクターが睡眠中</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>車両の操作性改善</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善し、ヘッドライト点灯中は車両の周囲を照らします。シングルプレイ専用の実験的な機能です。</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>前進時の加速・変速、後退、キーボード操舵を個別に改善し、ヘッドライト点灯中は車両の周囲を照らします。マルチプレイでは未検証の実験的な機能です。</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>自然な加速・変速</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>エンジン回転数とギアに合わせて前進時の加速を調整します。</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>滑らかな後退</value></data>
@@ -651,7 +651,7 @@ GC 稼働: 区間のうちメモリ整理が動いていた時間の割合です
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>ヘッドライトが点灯している間、乗っている車両の周囲を照らします。ヘッドライトとバッテリーが正常なときだけ点灯し、セーブデータには何も書き込まれません。</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>ゲームに変更を適用しています。</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>拡張機能を適用できませんでした。詳細はログを確認してください。</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>保存した設定はシングルプレイのゲームに入ると適用されます。</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>保存した設定はゲームに入ると適用されます。</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>ゲームを再開して車を止め、アクセルを離してクルーズコントロールを解除すると適用されます。</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>ゲームのメインメニュー</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>ゲームを読み込み中</value></data>

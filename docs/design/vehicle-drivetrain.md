@@ -11,8 +11,9 @@ The player's steps are in [Better vehicle controls](../guides/vehicle-controls.m
 The model, the adapter and the bytecode checks are tested against synthetic game classes.
 Real driving has not been accepted yet: what the game's force and time values mean physically,
 fuel use and engine noise, and module updates in a running game still need live testing
-([vehicle test guide](../contributing/e2e-vehicle-drivetrain.md)). Multiplayer is not supported
-by any part of it.
+([vehicle test guide](../contributing/e2e-vehicle-drivetrain.md)). Multiplayer is not blocked,
+only untested: on a multiplayer client every part runs as in single player, for the vehicle the
+local player drives.
 
 ## The four options
 
@@ -115,7 +116,7 @@ check, in this order:
 | Rule | Reason |
 | --- | --- |
 | The option for this mode is on | `forward-disabled`, `reverse-disabled` |
-| Single-player, the activation's world | `multiplayer-unsupported`, `world-or-controller-changed` |
+| The activation's world | `world-or-controller-changed` |
 | The driver is the local player | `not-local-driver` |
 | Not towed, not burnt, not towing a burnt vehicle | `towed-or-burnt`, `burnt-tow-unsupported` |
 | Engine running | `engine-not-running` |
@@ -127,7 +128,7 @@ check, in this order:
 Ordinary towing is allowed.
 
 Steering (`VehicleAccess.readSteering`) is checked separately and does not need a running
-engine or a known engine family. It needs: single-player, the local player driving, keyboard
+engine or a known engine family. It needs: the activation's world, the local player driving, keyboard
 control (`getJoypad() == -1`), not towed or burnt, four wheels, and a game step that does not
 overshoot (`0.06 × m × f < 1`, see [keyboard steering](#keyboard-steering)).
 
@@ -137,7 +138,7 @@ Turning the extension on, and every later configuration change, waits until
 `VehicleDrivetrainProvider.readyToActivate` (`VehicleAccess.ready`) returns true on the game
 thread. That requires:
 
-- single-player and the activation's world;
+- the activation's world;
 - for every player in `IsoPlayer.players` (the local players) who is in a vehicle, driver or
   passenger: speed at most 0.5 km/h, throttle at most 0.01 and cruise control (`isRegulator`)
   off.

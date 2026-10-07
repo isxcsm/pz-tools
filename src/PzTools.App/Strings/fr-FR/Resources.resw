@@ -640,7 +640,7 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Le jeu n’est pas lancé</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Le personnage dort</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Amélioration de la conduite</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Améliore séparément l’accélération en marche avant et les changements de rapport, la marche arrière et la direction au clavier, et éclaire les abords du véhicule phares allumés. Fonction expérimentale, réservée au solo.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Améliore séparément l’accélération en marche avant et les changements de rapport, la marche arrière et la direction au clavier, et éclaire les abords du véhicule phares allumés. Fonction expérimentale, non testée en multijoueur.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Accélération et changements de rapport naturels</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Adapte l’accélération en marche avant au régime moteur et au rapport engagé.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Marche arrière progressive</value></data>
@@ -651,7 +651,7 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Éclaire les alentours du véhicule dans lequel vous êtes tant que ses phares sont allumés. Il faut des phares en état et une batterie chargée ; rien n'est écrit dans votre sauvegarde.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Application des modifications dans le jeu.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>L’extension n’a pas pu être appliquée. Consultez les journaux pour en savoir plus.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Les paramètres enregistrés seront appliqués lorsque vous rejoindrez une partie solo.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Les paramètres enregistrés seront appliqués lorsque vous rejoindrez une partie.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pour les appliquer, reprenez le jeu, arrêtez le véhicule, relâchez l’accélérateur et désactivez le régulateur de vitesse.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Jeu dans le menu principal</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Chargement du jeu</value></data>

@@ -647,7 +647,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>เกมไม่ได้กำลังทำงาน</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>ตัวละครกำลังนอนหลับ</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน และส่องสว่างรอบตัวรถเมื่อเปิดไฟหน้า ฟีเจอร์ทดลองสำหรับผู้เล่นคนเดียวเท่านั้น</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน และส่องสว่างรอบตัวรถเมื่อเปิดไฟหน้า ฟีเจอร์ทดลองที่ยังไม่ได้ทดสอบในโหมดผู้เล่นหลายคน</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>เร่งและเปลี่ยนเกียร์อย่างเป็นธรรมชาติ</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>ปรับการเร่งเดินหน้าตามรอบเครื่องยนต์และเกียร์</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>ถอยหลังอย่างนุ่มนวล</value></data>
@@ -658,7 +658,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>ส่องสว่างบริเวณรอบรถที่คุณนั่งอยู่ขณะเปิดไฟหน้า ต้องมีไฟหน้าที่ใช้งานได้และแบตเตอรี่ที่มีไฟ และจะไม่มีการเขียนอะไรลงในเซฟของคุณ</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>กำลังนำการเปลี่ยนแปลงไปใช้ในเกม</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>ไม่สามารถใช้ส่วนขยายได้ โปรดดูรายละเอียดในบันทึก</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>การตั้งค่าที่บันทึกไว้จะมีผลเมื่อเข้าเกมผู้เล่นคนเดียว</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>การตั้งค่าที่บันทึกไว้จะมีผลเมื่อเข้าเกม</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>หากต้องการใช้การตั้งค่า ให้เล่นเกมต่อ หยุดรถ ปล่อยคันเร่ง และปิดระบบควบคุมความเร็วอัตโนมัติ</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>เกมอยู่ที่เมนูหลัก</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>กำลังโหลดเกม</value></data>

@@ -640,7 +640,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir; farlar açıkken aracın çevresini aydınlatır. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir; farlar açıkken aracın çevresini aydınlatır. Deneyseldir; çok oyunculu oyunda test edilmemiştir.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Doğal hızlanma ve vites geçişleri</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>İleri hızlanmayı motor devrine ve vitese göre ayarlar.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Yumuşak geri sürüş</value></data>
@@ -651,7 +651,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Farlar açıkken içinde bulunduğunuz aracın çevresini aydınlatır. Çalışan farlar ve dolu bir akü gerekir; kaydınıza hiçbir şey yazılmaz.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Değişiklikler oyunda uygulanıyor.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Eklenti uygulanamadı. Ayrıntılar için günlükleri kontrol edin.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, tek oyunculu bir oyuna girdiğinizde uygulanır.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, bir oyuna girdiğinizde uygulanır.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Uygulamak için oyuna devam edin, aracı durdurun, gazı bırakın ve hız sabitleyiciyi kapatın.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Oyun ana menüde</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Oyun yükleniyor</value></data>

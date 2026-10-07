@@ -640,7 +640,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>El juego no está en ejecución</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>El personaje está durmiendo</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Mejoras de conducción</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Mejora por separado la aceleración hacia adelante y los cambios de marcha, la reversa y la dirección con teclado, e ilumina alrededor del vehículo con los faros encendidos. Experimental; solo para un jugador.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Mejora por separado la aceleración hacia adelante y los cambios de marcha, la reversa y la dirección con teclado, e ilumina alrededor del vehículo con los faros encendidos. Experimental; sin probar en multijugador.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Aceleración y cambios de marcha naturales</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Ajusta la aceleración hacia adelante a las revoluciones del motor y a la marcha.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Reversa suave</value></data>
@@ -651,7 +651,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Ilumina el área alrededor del vehículo en el que estás mientras los faros están encendidos. Necesita faros en buen estado y batería con carga, y no se guarda nada en tu partida.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Aplicando los cambios en el juego.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>No se pudo aplicar la extensión. Consulta los registros para ver los detalles.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>La configuración guardada se aplicará cuando entres a una partida de un jugador.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>La configuración guardada se aplicará cuando entres a una partida.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Para aplicarla, reanuda la partida, detén el vehículo, suelta el acelerador y desactiva el control de crucero.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Juego en el menú principal</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Cargando el juego</value></data>
