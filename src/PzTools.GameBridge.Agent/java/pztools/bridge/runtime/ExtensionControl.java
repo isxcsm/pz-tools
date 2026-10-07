@@ -135,7 +135,10 @@ public final class ExtensionControl {
             try {
                 if (Thread.currentThread() != gameThread.get(null)) throw new IllegalStateException("Wrong game thread");
                 adapter.read();
-                if (!adapter.phase.equals("Ready") || !adapter.mode.equals("LocalSinglePlayer")) {
+                // Any loaded world, whatever its mode: extensions need no save. A multiplayer client's world is
+                // untested, not refused; each module keeps to what is right there (the vehicle model drives only
+                // the local player's vehicle).
+                if (!adapter.phase.equals("Ready")) {
                     invalidateWorld(); if (target != null) target.tick(null); return;
                 }
                 ContinuousProvider.Context previous = context;

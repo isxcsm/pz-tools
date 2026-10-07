@@ -134,9 +134,9 @@ public final class VehicleAdapterBehaviorTest {
             check(control.diagnostics().contains("invalid-or-long-dt"),"zero dt diagnostic");
             e.set(e.time,"dt",1f/60); e.tick(); check(e.nativeForce()<=initial*1.15,"zero dt discards prior model ramp");
             Object script=e.get(e.vehicle,"script"); e.set(script,"engineRpmType","modded-unknown"); e.tick(); near(e.nativeForce(),11,"unknown profile original");
-            e.set(script,"engineRpmType","generic"); e.setStatic("zombie.network.GameClient","client",true); e.tick(); near(e.nativeForce(),11,"multiplayer original");
-            check(control.diagnostics().contains("mass=0.0"),"early rejection does not expose prior sample fields");
+            e.set(script,"engineRpmType","generic"); e.setStatic("zombie.network.GameClient","client",true); e.tick(); check(Math.abs(e.nativeForce()-11)>1e-6,"a multiplayer client's local driver gets the model");
             e.setStatic("zombie.network.GameClient","client",false); e.set(e.vehicle,"towedBy",e.vehicle); e.tick(); near(e.nativeForce(),11,"towed original");
+            check(control.diagnostics().contains("mass=0.0"),"early rejection does not expose prior sample fields");
             e.set(e.vehicle,"towedBy",null); e.set(e.vehicle,"running",false); e.tick();
             near(e.number(e.controller,"startRequests"),1,"adapter rejection preserves starting"); near(e.nativeForce(),0,"engine off ends with native zero");
         }

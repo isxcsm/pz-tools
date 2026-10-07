@@ -45,6 +45,7 @@ public final class ExtensionControlTest {
         pausedPendingOff();
         lifecycleRelease();
         worldIdentity();
+        worldsWithoutLocalSave();
         FramesTest.run();
         ResidentExtensionsTest.run();
         ExtensionControlConcurrencyTest.run();
@@ -155,6 +156,30 @@ public final class ExtensionControlTest {
             check(modules.context.worldIdentity() == zombie.iso.IsoWorld.instance.currentCell
                 && !modules.context.worldId().equals(first.worldId()), "Reloaded cell reused the prior world identity");
         } finally { session.close(); zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1); }
+    }
+    /** A multiplayer client's world and a world without saves run the extensions as a single-player world does. */
+    private static void worldsWithoutLocalSave() throws Exception {
+        zombie.GameWindow.mode="normal"; zombie.GameWindow.gameThread=Thread.currentThread();
+        zombie.ZomboidFileSystem.path="synthetic-world";
+        zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
+        boolean previousClient = zombie.network.GameClient.client;
+        var session = new ExtensionControl.Session(null, zombie.GameWindow.class);
+        var field = ExtensionControl.Session.class.getDeclaredField("modules"); field.setAccessible(true);
+        var modules = new FixtureModules(); field.set(session, modules);
+        try {
+            zombie.network.GameClient.client = true;
+            session.poll();
+            var networked = modules.context;
+            check(modules.ticks.get() == 1 && networked != null && networked.worldValid().get()
+                && networked.worldIdentity() == zombie.iso.IsoWorld.instance.currentCell
+                && networked.worldId().equals(session.worldId())
+                && networked.worldId().equals(RuntimeIdentity.worldId(zombie.iso.IsoWorld.instance.currentCell)),
+                "A multiplayer client's loaded world did not run the extensions");
+            zombie.network.GameClient.client = false; zombie.GameWindow.mode = "no-save";
+            session.poll();
+            check(modules.ticks.get() == 2 && modules.context == networked && networked.worldValid().get() && modules.revokes.get() == 0,
+                "A world without saves did not run the extensions");
+        } finally { session.close(); zombie.network.GameClient.client = previousClient; zombie.GameWindow.mode = "normal"; }
     }
     private static void pausedPendingOff() throws Exception {
         zombie.GameWindow.mode="normal"; zombie.GameWindow.gameThread=Thread.currentThread();

@@ -64,8 +64,11 @@ public final class RuntimeObserver {
             long now = System.nanoTime();
             try {
                 adapter.read();
-                boolean ready = adapter.phase.equals("Ready") && adapter.mode.equals("LocalSinglePlayer");
-                boolean newWorld = ready && adapter.worldCell != lastCell;
+                // Every loaded world has its own identity, which the extensions are bound to in any mode. The
+                // character and the active clock are about local saves, and read in a single-player world only.
+                boolean loaded = adapter.phase.equals("Ready");
+                boolean ready = loaded && adapter.mode.equals("LocalSinglePlayer");
+                boolean newWorld = loaded && adapter.worldCell != lastCell;
                 if (newWorld) world = RuntimeIdentity.worldId(adapter.worldCell);
                 LiveCharacter.Facts nextCharacter = ready ? characterReader.read(world) : LiveCharacter.observe(null, null, "Unknown");
                 // Sleep that cannot be read only loses the sleep pause; it must not stop the clock.
@@ -81,7 +84,7 @@ public final class RuntimeObserver {
                 if (gap || newWorld || !running && wasRunning || !adapter.phase.equals(phase)) eligibility++;
                 lastTick = now; lastSample = now;
                 changed |= !nextCharacter.equals(character) || snapshot.execution() != SaveExecution.latest(); character = nextCharacter;
-                if (ready) lastCell = adapter.worldCell;
+                if (loaded) lastCell = adapter.worldCell;
                 else if (adapter.phase.equals("Menu") || adapter.phase.equals("Unloading")) {
                     lastCell = null; RuntimeIdentity.forgetWorld();
                 }
