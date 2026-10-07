@@ -104,6 +104,8 @@ function ISBUPlan:setData(data)
         end
     end
     self:layout()
+    -- What the status line says of the thing under the mouse may have changed with the data.
+    if self.status then self:onMouseMove(0, 0) end
 end
 
 function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end

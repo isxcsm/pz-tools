@@ -219,7 +219,7 @@
     "IGUI_BU_Legend_other": "다른 차단기함",
     "IGUI_BU_Legend_producer": "발전기",
     "IGUI_BU_Legend_tank": "물탱크",
-    "IGUI_BU_Legend_box": "차단기함",
+    "IGUI_BU_Legend_box": "차단기함 위치",
     "IGUI_BU_Menu_Connect": "연결",
     "IGUI_BU_Menu_Disconnect": "연결 해제",
     "IGUI_BU_Menu_Timer": "타이머",
