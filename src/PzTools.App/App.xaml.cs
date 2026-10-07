@@ -204,7 +204,7 @@ public partial class App : Application
         {
             await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
             using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
-            bool bridgeRefreshed = false;
+            bool bridgeRefreshed = false, refreshRefusalRecorded = false;
             do
             {
                 if (gameMemory is { } memory)
@@ -225,6 +225,15 @@ public partial class App : Application
                         // Not while a game runs from the install's bridge: tried again on a later round.
                         if (!bridgeRefreshed && loader.State.Status == StartupLoaderStatus.Installed)
                             bridgeRefreshed = await loader.RefreshBridgeAsync(cancellationToken);
+                    }
+                    // The install tool refused to bring the install up to date (an earlier version's jar patch whose
+                    // saved original is gone, for one): the game keeps loading the old bridge. Said once a run.
+                    catch (StartupLoaderException exception) when (!refreshRefusalRecorded)
+                    {
+                        refreshRefusalRecorded = true;
+                        Host?.RecordActionIssue(Localizer.Get("StartupLoaderHeader"), Localizer.Get(
+                            exception.Code == "original-missing" ? "StartupLoaderOriginalMissing" : "StartupLoaderFailed"),
+                            failed: true, cause: exception);
                     }
                     catch (Exception exception) when (exception is not OperationCanceledException)
                     {

@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.*;
 public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
     /** The bootstrap API: the helper and every payload jar must name this one. */
-    static final String API = "11";
+    static final String API = "12";
     private static Instrumentation instrumentation;
     // In a game the startup loader started: the install's payload, <install folder>\bridge-<id>\<payload>.
     private static volatile Path startupPayload;

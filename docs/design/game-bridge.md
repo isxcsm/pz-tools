@@ -54,13 +54,13 @@ starts the same way:
 4. If the game has neither `pztools.bridge.control.v1` nor `pztools.bridge.bootstrap.api`, no bootstrap
    is loaded yet. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap
    jar (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
-   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=11` at once and
+   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=12` at once and
    `pztools.bridge.control.v1=2:<pid>:<port>:<secret>` once the game has loaded `GameWindow`, so that the
    secret is not in the game's list of properties
    ([startup loader](startup-loader.md#the-control-secret-and-the-games-log)). Without the endpoint yet,
    the helper waits for it (stage `bootstrap-starting`, up to 15 seconds); a game still starting after that
    gets "try again once it shows its menu".
-5. The helper requires `pztools.bridge.bootstrap.api` to be `11`. Any other value means the game still runs a
+5. The helper requires `pztools.bridge.bootstrap.api` to be `12`. Any other value means the game still runs a
    bootstrap from another version; the helper stops without sending anything
    (see [restart required](#restart-required-after-an-app-update)).
 6. The helper detaches, connects to the bootstrap's port and sends the secret, the app's port and token, the
@@ -153,7 +153,7 @@ its own is `STARTUP`, which it dispatches once per payload in a game the [startu
 started. One session of each kind runs at a time; a second gets `BUSY`. A new kind of session, or a new per-frame
 job of the payload (see [the game-loop hook](#the-game-loop-hook)), is the payload's alone.
 
-The payload jar must declare `PzTools-Bootstrap-Api: 11` in its manifest and link (`PayloadEntry` and the
+The payload jar must declare `PzTools-Bootstrap-Api: 12` in its manifest and link (`PayloadEntry` and the
 classes it names load), or the bootstrap answers `PAYLOAD_UNAVAILABLE`; whatever went wrong with one connection,
 the control listener goes on with the next. A jar with the same digest as the loaded one is reused, also from a new
 folder after the app has moved. For a new digest the bootstrap answers `BUSY` at once if a request session (save,
@@ -399,7 +399,7 @@ These numbers decide what happens. This table is the one place they are recorded
 | Contract | Current | Checked between | On a mismatch |
 | --- | --- | --- | --- |
 | Java runtime | 25, with retransformation | The game's JVM and the bootstrap/payload | `unsupported-runtime` or a refused hook |
-| Bootstrap API | 11 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
+| Bootstrap API | 12 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
 | Save protocol | `HELLO` 6 | `GameSaveClient` and the payload | Payloads speaking 1–4 still serve plain saves with fewer features. A guarded request, non-default timeouts or a due time on an older payload give `unsupported-protocol`. |
 | State stream | `STATE5` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE5` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap. |
 | Extension host ABI | 3 | The extension runtime and each module | The module is not loaded |

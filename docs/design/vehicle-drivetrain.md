@@ -3,7 +3,7 @@
 [Documentation index](../README.md)
 
 **Vehicle driving improvements** is the continuous [game extension](game-extensions.md)
-`pztools.vehicle-drivetrain`, version 0.2.0, capability `vehicle.drivetrain.v1`, shipped as
+`pztools.vehicle-drivetrain`, version 0.2.0, capability `continuous.v1`, shipped as
 `pztools-vehicle-drivetrain.jar`. The source is in
 [PzTools.GameExtensions.VehicleDrivetrain](../../src/PzTools.GameExtensions.VehicleDrivetrain/java/pztools/extensions/vehicle/).
 The player's steps are in [Better vehicle controls](../guides/vehicle-controls.md).

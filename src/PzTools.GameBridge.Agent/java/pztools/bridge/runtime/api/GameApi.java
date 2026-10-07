@@ -26,7 +26,7 @@ public final class GameApi {
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Networks networks;
-    // What writeStatus last wrote; on the resident controller's thread only.
+    // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
     private GameApi() { }
@@ -180,8 +180,8 @@ public final class GameApi {
     }
 
     /**
-     * Writes which hooks this game has to the install folder, for the app, when that changed. Called by the resident
-     * controller about once a second; a hook's state changes as its class loads, most of them with the first world.
+     * Writes which hooks this game has to the install folder, for the app, when that changed. Called by ResidentApi
+     * about once a second; a hook's state changes as its class loads, most of them with the first world.
      * The file names this process, so that the app does not read an earlier game's.
      */
     public static void writeStatus(Path folder) {

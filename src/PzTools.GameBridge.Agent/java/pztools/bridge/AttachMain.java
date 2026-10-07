@@ -78,7 +78,7 @@ public final class AttachMain {
                     if (endpoint == null) throw new IOException("The game is still starting; try again once it shows its menu");
                 }
                 stage = "bootstrap-version";
-                if (!"11".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
+                if (!"12".equals(vm.getSystemProperties().getProperty("pztools.bridge.bootstrap.api")))
                     throw new IOException("Restart the game to use the updated bridge; no save request was sent");
             } finally { vm.detach(); }
             if (endpoint == null) throw new IOException("Bootstrap is incompatible; restart the game with matching app/workers");

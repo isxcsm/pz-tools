@@ -233,8 +233,8 @@ Java's mechanism for loading an agent into a running Java program. A helper proc
 
 ### Bootstrap
 
-The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`, class `AgentEntry`):
-the control socket, the game-loop hook and the extension API classes. A PZ Tools update with a different bootstrap
+The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks`):
+the control socket, the game-loop hook, the hooks of the extension API and the extensions' module API. A PZ Tools update with a different bootstrap
 API needs one game restart. Also called the *resident* part. See [module reload](module-reload.md).
 
 ### Payload

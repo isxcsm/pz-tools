@@ -47,8 +47,8 @@ The bootstrap owns everything that has to outlive a replacement, and no feature
 
 | Check | Where | Failure |
 | --- | --- | --- |
-| The game's `pztools.bridge.bootstrap.api` property is `11` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge", and nothing is sent. The state stream and extension control report `restart-required`; a save request reports `attach-failed`. |
-| The payload jar's manifest has `PzTools-Bootstrap-Api: 11`, and its entry links | `Payload.prepare` (bootstrap) | `PAYLOAD_UNAVAILABLE`; the old payload stays |
+| The game's `pztools.bridge.bootstrap.api` property is `12` | Attach helper ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)), before sending anything | "Restart the game to use the updated bridge", and nothing is sent. The state stream and extension control report `restart-required`; a save request reports `attach-failed`. |
+| The payload jar's manifest has `PzTools-Bootstrap-Api: 12`, and its entry links | `Payload.prepare` (bootstrap) | `PAYLOAD_UNAVAILABLE`; the old payload stays |
 | The runtime and module jars have `PzTools-Extension-Api: 3` (`ExtensionApi.HOST_ABI`) | `ExtensionHost.current` (payload, against the API classes the game loaded), `ModuleHost.resolve`, `ContinuousRuntime.apply` | The runtime or module is not loaded |
 
 `HOST_ABI` is compiled into the resident API classes, so a runtime jar with a new extension ABI is refused and

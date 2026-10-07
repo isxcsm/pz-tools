@@ -106,7 +106,7 @@ public sealed class PublishedDistributionTests
         using (var runtime = ZipFile.OpenRead(Path.Combine(extensions, "pztools-extension-runtime.jar")))
         {
             Assert.NotNull(runtime.GetEntry("pztools/extensions/api/ContinuousProvider.class"));
-            Assert.NotNull(runtime.GetEntry("pztools/extensions/api/VehicleHooks.class"));
+            Assert.NotNull(runtime.GetEntry("pztools/extensions/api/ControlPoints.class"));
             Assert.NotNull(runtime.GetEntry("pztools/extensions/runtime/ContinuousRuntime.class"));
         }
         var cataloguePath = Path.Combine(extensions, "catalog.tsv");
@@ -128,12 +128,12 @@ public sealed class PublishedDistributionTests
         foreach (var name in new[] { "pztools-game-bootstrap.jar", "pztools-game-bridge.jar" })
         {
             using var jar = ZipFile.OpenRead(Path.Combine(bridge, name));
-            Assert.Equal("11", Manifest(jar)["PzTools-Bootstrap-Api"]);
+            Assert.Equal("12", Manifest(jar)["PzTools-Bootstrap-Api"]);
             if (name == "pztools-game-bootstrap.jar")
             {
                 Assert.NotNull(jar.GetEntry("pztools/bridge/AgentEntry.class"));
                 Assert.NotNull(jar.GetEntry("pztools/bridge/ApiHooks.class"));
-                Assert.NotNull(jar.GetEntry("pztools/extensions/api/VehicleHooks.class"));
+                Assert.NotNull(jar.GetEntry("pztools/extensions/api/ControlPoints.class"));
                 Assert.Null(jar.GetEntry("pztools/extensions/vehicle/VehicleDrivetrainProvider.class"));
             }
             else

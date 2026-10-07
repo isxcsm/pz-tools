@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarFile;
 
 /**
  * The startup loader against a synthetic game: install, start the game from its folder, a broken install, a damaged
@@ -15,6 +16,12 @@ import java.util.concurrent.TimeUnit;
 public final class StartupInstallTest {
     public static void main(String[] args) throws Exception {
         Path vanilla = Path.of(args[0]), bridge = Path.of(args[1]);
+        // What the synthetic game prints once the startup loader loaded this build's bootstrap, whose API the payload names.
+        String api;
+        try (var payload = new JarFile(bridge.resolve("pztools-game-bridge.jar").toFile())) {
+            api = payload.getManifest().getMainAttributes().getValue("PzTools-Bootstrap-Api");
+        }
+        String loaded = "STARTUP-FIXTURE\t" + api + "\tfalse\ttrue\ttrue\t1.0";
         String java = args[2];
         Path attachFirst = Path.of(args[3]);
         Path work = Files.createTempDirectory("pztools-startup-test");
@@ -46,7 +53,7 @@ public final class StartupInstallTest {
             }
 
             // The game loads the bootstrap at its log zip and gets the endpoint only after its property list.
-            expect(start(java, game), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
+            expect(start(java, game), loaded);
             assert log(root).contains("loaded bridge-") : log(root);
             expect(run(root, "refresh", bridge), "unchanged");
 
@@ -55,7 +62,7 @@ public final class StartupInstallTest {
             String option = "BOOTSTRAP1:" + Base64.getEncoder().encodeToString(
                 bridge.resolve("pztools-game-bridge.jar").toAbsolutePath().toString().getBytes(StandardCharsets.UTF_8));
             expect(start(java, game, "-javaagent:" + attachFirst + "=" + option,
-                    bridge.resolve("pztools-game-bootstrap.jar").toString()), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
+                    bridge.resolve("pztools-game-bootstrap.jar").toString()), loaded);
             assert log(root).contains("loaded bridge-") : log(root);
 
             // A broken install folder: the game starts as vanilla, its zip files work, and the loader says why.
@@ -63,13 +70,13 @@ public final class StartupInstallTest {
             expect(start(java, game), "STARTUP-FIXTURE\tnull\tfalse\tfalse\tfalse\tnull");
             assert log(root).contains("current file is not readable") : log(root);
             assert run(root, "refresh", bridge).startsWith("refreshed\tbridge-");
-            expect(start(java, game), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
+            expect(start(java, game), loaded);
 
             // The loader's files went from the game's folder: reported, and the next install puts them back.
             StartupInstall.deleteTree(game.resolve("pztools"));
             expect(run(root, "status", game), "reverted");
             assert run(root, "install", game, bridge).startsWith("installed\t");
-            expect(start(java, game), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
+            expect(start(java, game), loaded);
 
             // Another tool's service line stays through install and uninstall.
             Files.writeString(services, "com.example.OtherProvider\n" + StartupInstall.PROVIDER + "\n");
@@ -99,7 +106,7 @@ public final class StartupInstallTest {
                 assert StartupInstall.sha256(jar).equals(vanillaDigest) : command + " left the patched jar";
                 assert !Files.exists(root.resolve(StartupInstall.ORIGINAL));
                 assert run(root, "status", game).startsWith("installed\t");
-                expect(start(java, game), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
+                expect(start(java, game), loaded);
                 expect(run(root, "uninstall", game), "uninstalled");
             }
             // An earlier patch whose saved copy of the game's jar has gone: a refresh says so, rather than call itself done
