@@ -106,6 +106,7 @@ public class IsoObject {
         return fluidContainer != null && fluidContainer.isTainted();
     }
 
+    public boolean hasModData() { return modData != null; }
     public KahluaTable getModData() {
         if (modData == null) modData = LuaManager.platform.newTable();
         return modData;

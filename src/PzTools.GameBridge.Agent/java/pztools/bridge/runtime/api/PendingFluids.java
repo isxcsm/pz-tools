@@ -9,6 +9,13 @@ import pztools.bridge.runtime.api.Network.Position;
  * until they load (docs/design/extension-api.md, "Draw and fill"). Kept by square for the world, not in a network: a
  * network defined again, or one whose producers change, owes the same. The world saves it in the game's global ModData
  * under {@link #KEY}; {@link WaterGrid} applies a square's changes as it loads.
+ * <p>
+ * A draw owed right after a draw to the same square adds to it, and so does a fill of one fluid after a fill of the
+ * same: the square takes them as one change, exactly as it would take them one after the other. The containers on a
+ * square give a draw by levelling their shares of their capacities, from the fullest down (WaterGrid.level), and a
+ * second draw levels on from where the first stopped, so the two take what one draw of both would; a fill levels the
+ * room left the same way, and each container gives or takes every fluid in proportion. So a mod that draws every few
+ * minutes from a producer far away owes one change, not one per draw.
  */
 final class PendingFluids {
     /** The global ModData table: {@code next}, the next sequence number, and {@code deltas}, a list of the changes. */
@@ -28,7 +35,16 @@ final class PendingFluids {
     private final Map<Position, List<Delta>> deltas = new LinkedHashMap<>();
     // The squares owed something, for the water hooks, which ask on the fixture's thread.
     private volatile Set<Position> squares = Set.of();
+    // The next sequence number: past every one given, read or seen taken in this game, never lower (see add).
     private long next;
+    // The lowest sequence number given since the changes were read. One below it was read from the ModData, and its
+    // square may have taken it already (a world that stopped before its ModData was saved): nothing adds to it.
+    private long fresh = Long.MAX_VALUE;
+    // The list of changes in the ModData table as this class last wrote it, its length, and the item of each square's
+    // last change: a new change is added to it, and one that adds to the last changes that item alone.
+    private Object list;
+    private int length;
+    private final Map<Position, Object> lastItems = new HashMap<>();
 
     PendingFluids(ClassLoader loader, Kahlua lua) throws ReflectiveOperationException {
         this.lua = lua;
@@ -44,9 +60,8 @@ final class PendingFluids {
         read = true;
         table = current;
         deltas.clear();
-        next = 0;
         if (current != null) {
-            if (lua.get(current, "next") instanceof Double number) next = number.longValue();
+            if (lua.get(current, "next") instanceof Double number) next = Math.max(next, number.longValue());
             Object list = lua.get(current, "deltas");
             for (int index = 1; lua.isTable(list); index++) {
                 Object item = lua.get(list, (double)index);
@@ -64,6 +79,9 @@ final class PendingFluids {
         }
         for (List<Delta> owed : deltas.values()) owed.sort(Comparator.comparingLong(Delta::sequence));
         squares = Set.copyOf(deltas.keySet());
+        fresh = next;
+        // Written whole at the next change, without what was not a change.
+        list = null;
     }
 
     boolean isEmpty() { return deltas.isEmpty(); }
@@ -84,38 +102,79 @@ final class PendingFluids {
         return result;
     }
 
-    /** Owes the square a change; {@code fluid} names what a fill adds. */
+    /**
+     * Owes the square a change; {@code fluid} names what a fill adds. A draw right after a draw owed to the square, or a
+     * fill after a fill of the same fluid, adds to it (see the class).
+     */
     void add(Position at, double litres, String fluid) throws ReflectiveOperationException {
         refresh();
-        // With the clock too: a world loaded again after a crash may have kept an older next, but its squares the
-        // numbers of the changes they took (see WaterGrid.apply).
+        // Past every number given, read or seen taken in this game, whatever the ModData read says; and with the clock
+        // too, for a game started again: a world that stopped before its ModData was saved may have kept an older next,
+        // but its squares the numbers of the changes they took (see WaterGrid.apply).
         long sequence = Math.max(next, System.currentTimeMillis());
         next = sequence + 1;
-        deltas.computeIfAbsent(at, unused -> new ArrayList<>()).add(new Delta(sequence, litres, litres > 0 ? fluid : null));
-        save();
+        List<Delta> owed = deltas.computeIfAbsent(at, unused -> new ArrayList<>());
+        Delta last = owed.isEmpty() ? null : owed.get(owed.size() - 1);
+        boolean adds = last != null && last.sequence() >= fresh
+            && (litres < 0 ? last.litres() < 0 : last.litres() > 0 && last.fluid().equals(fluid));
+        // The sum takes the later number: the square has taken neither.
+        Delta delta = new Delta(sequence, adds ? last.litres() + litres : litres, litres > 0 ? fluid : null);
+        if (adds) owed.set(owed.size() - 1, delta);
+        else owed.add(delta);
+        write(at, delta, adds);
     }
+
+    /** A square was seen to have taken the change of that number: later ones are numbered past it. */
+    void numberPast(long sequence) { next = Math.max(next, sequence + 1); }
+
+    /** The next sequence number, for a newer payload to go on from (see Networks.handover). */
+    long next() { return next; }
 
     /** The square took what it was owed, or can no longer. */
     void remove(Position at) throws ReflectiveOperationException {
         if (deltas.remove(at) != null) save();
     }
 
+    /** Writes one change to the ModData table: into its list as this class last wrote it, or the list whole. */
+    private void write(Position at, Delta delta, boolean adds) throws ReflectiveOperationException {
+        Object current = getOrCreate.invoke(null, KEY), item = adds ? lastItems.get(at) : null;
+        if (current != table || list == null || lua.get(current, "deltas") != list || adds && item == null) { save(); return; }
+        if (adds) {
+            lua.set(item, "sequence", (double)delta.sequence());
+            lua.set(item, "litres", delta.litres());
+        } else {
+            item = item(at, delta);
+            lua.set(list, (double)++length, item);
+            lastItems.put(at, item);
+            if (!squares.contains(at)) squares = Set.copyOf(deltas.keySet());
+        }
+        lua.set(current, "next", (double)next);
+    }
+
     private void save() throws ReflectiveOperationException {
         Object current = getOrCreate.invoke(null, KEY);
-        var list = new ArrayList<Object>();
+        var items = new ArrayList<Object>();
+        lastItems.clear();
         for (var entry : deltas.entrySet())
             for (Delta delta : entry.getValue()) {
-                Object item = lua.table();
-                Position at = entry.getKey();
-                lua.set(item, "x", (double)at.x()); lua.set(item, "y", (double)at.y()); lua.set(item, "z", (double)at.z());
-                lua.set(item, "sequence", (double)delta.sequence());
-                lua.set(item, "litres", delta.litres());
-                if (delta.fluid() != null) lua.set(item, "fluid", delta.fluid());
-                list.add(item);
+                Object item = item(entry.getKey(), delta);
+                items.add(item);
+                lastItems.put(entry.getKey(), item);
             }
+        list = lua.list(items);
+        length = items.size();
         lua.set(current, "next", (double)next);
-        lua.set(current, "deltas", lua.list(list));
+        lua.set(current, "deltas", list);
         table = current;
         squares = Set.copyOf(deltas.keySet());
+    }
+
+    private Object item(Position at, Delta delta) throws ReflectiveOperationException {
+        Object item = lua.table();
+        lua.set(item, "x", (double)at.x()); lua.set(item, "y", (double)at.y()); lua.set(item, "z", (double)at.z());
+        lua.set(item, "sequence", (double)delta.sequence());
+        lua.set(item, "litres", delta.litres());
+        if (delta.fluid() != null) lua.set(item, "fluid", delta.fluid());
+        return item;
     }
 }

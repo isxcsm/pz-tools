@@ -53,10 +53,11 @@ final class Network {
     }
 
     /**
-     * What a water producer's square holds, as last seen loaded: the amounts and capacities of its fluid containers, and
-     * the litres of each fluid in them, by the game's name for it.
+     * What a water producer's square holds, as last seen loaded: the amounts and capacities of its fluid containers, the
+     * litres of each fluid in them, by the game's name for it, and the sequence number of the last change owed to the
+     * square that they took (PendingFluids; Long.MIN_VALUE for none).
      */
-    record Stored(float amount, float capacity, Map<String, Float> fluids) { }
+    record Stored(float amount, float capacity, Map<String, Float> fluids, long taken) { }
 
     final String id, owner, utility, policy;
     /**

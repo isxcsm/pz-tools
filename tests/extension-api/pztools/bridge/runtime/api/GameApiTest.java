@@ -1,6 +1,8 @@
 package pztools.bridge.runtime.api;
 
 import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
+import java.lang.classfile.MethodModel;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.MethodTypeDesc;
@@ -57,7 +59,11 @@ public final class GameApiTest {
         switches(api);
         loadFactors(api);
         memberRooms(api);
+        farApart(api);
+        cheapHooks(api);
         sources(api);
+        failedTakeover(api);
+        handover(api);
         water(api);
         fluids(api);
         purify(api);
@@ -759,6 +765,87 @@ public final class GameApiTest {
     }
 
     /**
+     * A network's buildings can be any distance apart: one a million squares west and south of the house, on two levels,
+     * is powered with it, and the squares between are not.
+     */
+    private static void farApart(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var grid = IsoWorld.instance.metaGrid;
+        var far = new BuildingDef(false);
+        var hall = new RoomDef(500, "hall", 0, far);
+        var loft = new RoomDef(501, "loft", 1, far);
+        room(grid, hall, -1_000_003, 1_000_005, 9, 3);
+        room(grid, loft, -1_000_003, 1_000_005, 2, 2);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "far", "power", "sequential");
+        call(networks, "setProducers", mod, "far", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "far", 11.0, 11.0, 0.0);
+        check(call(networks, "addBuilding", mod, "far", -1_000_000.0, 1_000_006.0, 0.0).get(0).equals(true), "The far building was not found");
+        generator.setActivated(true);
+        frame();
+        check(state(networks, "far").rawget("supplied").equals(true), "The network with a far building has no supply");
+        check(square(11, 11, 0).haveElectricity() && new IsoGridSquare(-1_000_003, 1_000_005, 0).haveElectricity()
+            && new IsoGridSquare(-999_995, 1_000_007, 0).haveElectricity() && new IsoGridSquare(-1_000_002, 1_000_006, 1).haveElectricity(),
+            "A square of one of the buildings has no power");
+        check(!new IsoGridSquare(-1_000_004, 1_000_005, 0).haveElectricity() && !new IsoGridSquare(-999_994, 1_000_007, 0).haveElectricity()
+            && !new IsoGridSquare(-1_000_001, 1_000_006, 1).haveElectricity() && !new IsoGridSquare(-500_000, 500_000, 0).haveElectricity()
+            && !new IsoGridSquare(-1_000_000, 1_000_006, 2).haveElectricity(), "A square outside the buildings has power");
+        call(networks, "remove", mod, "far");
+        frame();
+        generator.setActivated(false);
+        grid.rooms.remove(hall);
+        grid.rooms.remove(loft);
+    }
+
+    /**
+     * The questions the game asks tens of thousands of times a second allocate nothing, with networks supplied and
+     * rules in place: a square's, an object's that no rule names and that hangs on no wall, and a water question about
+     * an object that takes no pipes.
+     */
+    private static void cheapHooks(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "hot", "power", "sequential");
+        call(networks, "setProducers", mod, "hot", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "hot", 11.0, 11.0, 0.0);
+        call(networks, "exclude", mod, "hot", 11.0, 11.0, 0.0, "fridge");
+        call(networks, "define", mod, "hotWater", "water", "fullest");
+        place(30, 38, 0, barrel(50));
+        call(networks, "setProducers", mod, "hotWater", list(at(30, 38, 0)));
+        call(networks, "addBuilding", mod, "hotWater", 11.0, 11.0, 0.0);
+        call(networks, "exclude", mod, "hotWater", 12.0, 11.0, 0.0, "sink");
+        generator.setActivated(true);
+        frame();
+        IsoObject chair = square(10, 10, 0).objects.get(0);
+        check(ApiHooks.squarePowered(false, 11, 11, 0) && !ApiHooks.squarePowered(false, 40, 40, 0)
+            && !ApiHooks.objectPowered(false, chair, ApiHooks.APPLIANCE, true) && ApiHooks.objectPowered(true, chair, ApiHooks.APPLIANCE, true)
+            && !ApiHooks.waterPlumbed(false, chair) && state(networks, "hotWater").rawget("supplied").equals(true), "The networks do not run");
+        var threads = (com.sun.management.ThreadMXBean)java.lang.management.ManagementFactory.getThreadMXBean();
+        long allocated = 0;
+        for (int round = 0; round < 3; round++) {
+            long before = threads.getCurrentThreadAllocatedBytes();
+            for (int index = 0; index < 10_000; index++) {
+                ApiHooks.squarePowered(false, 11, 11, 0);
+                ApiHooks.squarePowered(false, 40, 40, 0);
+                ApiHooks.objectPowered(false, chair, ApiHooks.APPLIANCE, true);
+                ApiHooks.objectPowered(true, chair, ApiHooks.APPLIANCE, true);
+                ApiHooks.waterPlumbed(false, chair);
+            }
+            allocated = threads.getCurrentThreadAllocatedBytes() - before;
+        }
+        check(allocated < 10_000, "50,000 hot questions allocated " + allocated + " bytes");
+        call(networks, "remove", mod, "hot");
+        call(networks, "remove", mod, "hotWater");
+        frame();
+        generator.setActivated(false);
+        square(30, 38, 0).objects.clear();
+    }
+
+    /**
      * A source its mod runs carries the load like a generator: switched on by the mod it takes over, and the API switches
      * the generators off; when the mod says it can no longer run, the next producer takes over from the hour the mod
      * gives. Its extra load adds to the network's, and a newer payload keeps both.
@@ -846,6 +933,108 @@ public final class GameApiTest {
         call(networks, "remove", mod, "solar");
         frame();
         generator.setActivated(false);
+    }
+
+    /**
+     * A newer payload that fails to take the API over leaves the game as vanilla: the earlier payload's networks no
+     * longer run, so they answer nothing. A later payload takes the definitions over.
+     */
+    private static void failedTakeover(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "held", "power", "sequential");
+        call(networks, "setProducers", mod, "held", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "held", 11.0, 11.0, 0.0);
+        generator.setActivated(true);
+        frame();
+        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "The network does not run");
+        // Here the payload cannot read the game's Lua at all.
+        try { GameApi.register(String.class); throw new AssertionError("A payload that cannot read the game's Lua took the API over"); }
+        catch (ReflectiveOperationException expected) { }
+        frame();
+        check(!square(11, 11, 0).haveElectricity(), "A failed takeover left the earlier payload's networks answering");
+        generator.setSurroundingElectricity();
+        check(square(32, 33, 0).haveElectricity(), "After a failed takeover the game does not power the generator's range");
+        GameApi.register(LuaManager.class);
+        frame();
+        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "A later payload did not take the networks over");
+        call(networks, "remove", mod, "held");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A newer payload takes over what the networks know besides their definitions: a producer running on a square that
+     * is not loaded goes on carrying its network until its fuel would run out, a water producer that is not loaded
+     * still holds what it was last seen to, and consumers that are not loaded still count. The definitions are written
+     * where a newer payload finds them once a frame, or as it takes over; a function a mod kept from before says that
+     * the API was updated.
+     */
+    private static void handover(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks"), meta = api.getMetatable();
+        Object mod = call(api, "client", "power.mod").get(0);
+        var time = GameTime.getInstance();
+        time.hours = 4000;
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "kept", "power", "sequential");
+        call(networks, "setProducers", mod, "kept", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "kept", 11.0, 11.0, 0.0);
+        place(30, 40, 0, barrel(40));
+        call(networks, "define", mod, "keptWater", "water", "fullest");
+        call(networks, "setProducers", mod, "keptWater", list(at(30, 40, 0)));
+        generator.setActivated(true);
+        frame();
+        generator.update();
+        int end = generator.lastHour() + (int)Math.ceil(generator.fuel / generator.getTotalPowerUsing());
+        double load = (Double)state(networks, "kept").rawget("load");
+        check(state(networks, "kept").rawget("supplied").equals(true) && near((Double)state(networks, "keptWater").rawget("amount"), 40),
+            "The networks do not run");
+        // Written once a frame, and not again for a call that changes nothing.
+        Object written = meta.rawget("networks");
+        check(written instanceof String text && text.contains("kept"), "The definitions were not written at the frame");
+        call(networks, "addBuilding", mod, "kept", 11.0, 11.0, 0.0);
+        frame();
+        check(meta.rawget("networks") == written, "A call that changed nothing wrote the definitions again");
+        call(networks, "define", mod, "late", "power", "sequential");
+        check(meta.rawget("networks") == written, "The definitions were written at the call, not at the frame");
+        // The producer's, the barrel's and the fridge's squares leave the world; a newer payload takes over before a frame.
+        var squares = IsoWorld.instance.cell.squares;
+        var away = new LinkedHashMap<String, IsoGridSquare>();
+        for (String key : List.of("34,33,0", "30,40,0", "11,11,0")) away.put(key, squares.remove(key));
+        Object define = networks.rawget("define");
+        LuaEventManager.raised.clear();
+        GameApi.register(LuaManager.class);
+        frame();
+        KahluaTable kept = state(networks, "kept");
+        check(kept.rawget("supplied").equals(true) && ((KahluaTable)kept.rawget("producer")).rawget("x").equals(34.0)
+            && kept.rawget("hoursLeft") != null && new IsoGridSquare(11, 11, 0).haveElectricity(),
+            "A newer payload lost the producer running on a square that is not loaded");
+        check(near((Double)kept.rawget("load"), load), "A newer payload lost the load of consumers not loaded: " + kept.rawget("load") + " for " + load);
+        check(state(networks, "keptWater").rawget("supplied").equals(true) && near((Double)state(networks, "keptWater").rawget("amount"), 40),
+            "A newer payload lost what a water producer not loaded holds");
+        check(LuaEventManager.raised.isEmpty(), "A newer payload changed the supply: " + LuaEventManager.raised);
+        check(state(networks, "late") != null, "A newer payload lost a definition made since the last frame");
+        // The producer not loaded runs out at the hour its fuel would: the newer payload knows when. (A definition
+        // changes, so that the next frame works the networks out rather than waiting a second.)
+        time.hours = end + 5;
+        call(networks, "remove", mod, "late");
+        frame();
+        check(state(networks, "kept").rawget("supplied").equals(false) && raised("kept", "supply", end),
+            "The producer not loaded did not run out at hour " + end + ": " + LuaEventManager.raised);
+        // A function a mod kept from before the takeover.
+        try { invoke(define, mod, "stale", "power", "sequential"); throw new AssertionError("A function kept from before the takeover ran"); }
+        catch (IllegalArgumentException expected) {
+            check(expected.getMessage().startsWith("PZToolsAPI.networks.define: the API was updated"), expected.getMessage());
+        }
+        check(call(networks, "state", "stale").get(0) == null, "A function kept from before the takeover defined a network");
+        squares.putAll(away);
+        for (String id : List.of("kept", "keptWater")) call(networks, "remove", mod, id);
+        frame();
+        generator.setActivated(false);
+        square(30, 40, 0).objects.clear();
     }
 
     /**
@@ -937,7 +1126,9 @@ public final class GameApiTest {
         check(state(networks, "annex").rawget("supplied").equals(true), "A child lost its own water when its parent was switched on");
         LuaEventManager.raised.clear();
         tank.fluidContainer.amount = 0;
-        // Named again, so that the next frame reads the producers rather than waiting a second.
+        // Changed, so that the next frame reads the producers rather than waiting a second. Named again alone, the
+        // building would change nothing.
+        call(networks, "removeBuilding", mod, "annex", 20.0, 20.0, 0.0);
         call(networks, "addBuilding", mod, "annex", 20.0, 20.0, 0.0);
         frame();
         check(state(networks, "annex").rawget("supplied").equals(false) && raised("annex", "supply", hours), "A dry child supplies water");
@@ -1028,18 +1219,45 @@ public final class GameApiTest {
         IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
         frame();
         check(tainted.fluidContainer.amount < 40, "A change owed after an older ModData was not taken");
-        // Several containers on a square: draws come from the fullest first, fills go to the emptiest first.
+        // Such a world again, the square not loaded: the changes read from the ModData that the square took, as it was
+        // last seen, are not owed. A fill owed then does not add to a fill of the same fluid read from it, and its
+        // number is past the ones the square took, however little time has passed.
+        float held = tainted.fluidContainer.amount + clean.fluidContainer.amount;
+        KahluaTable reloaded = LuaManager.platform.newTable();
+        reloaded.rawset("deltas", before);
+        ModData.tables.put(PendingFluids.KEY, reloaded);
+        IsoWorld.instance.cell.squares.remove("31,34,0");
+        var taken = (KahluaTable)((KahluaTable)state(networks, "tanks").rawget("producers")).rawget(2.0);
+        check(near((Double)taken.rawget("pending"), 0) && near((Double)taken.rawget("amount"), tainted.fluidContainer.amount),
+            "A square not loaded is owed changes it took: " + taken.rawget("pending") + ", " + taken.rawget("amount"));
+        call(networks, "fill", mod, "tanks", 10.0, "Water");
+        check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 3, "A change was added to one the square took already");
+        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        frame();
+        check(near(tainted.fluidContainer.amount + clean.fluidContainer.amount, held + 10),
+            "A change read from an older ModData was taken again: " + tainted.fluidContainer.amount);
+        // Several containers on a square: draws come from the fullest first, fills go to the emptiest first. Draws owed
+        // one after the other add up to one change, and so do fills of one fluid; the square takes them as it would
+        // take them one by one.
         IsoObject fuller = place(32, 34, 0, barrel(50)), emptier = place(32, 34, 0, barrel(10));
         call(networks, "define", mod, "pair", "water", "fullest");
         call(networks, "setProducers", mod, "pair", list(at(32, 34, 0)));
         frame();
         unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
-        check(near((Double)call(networks, "draw", mod, "pair", 30.0).get(0), 30), "A draw from an unloaded square went wrong");
+        check(near((Double)call(networks, "draw", mod, "pair", 10.0).get(0), 10) && near((Double)call(networks, "draw", mod, "pair", 20.0).get(0), 20),
+            "A draw from an unloaded square went wrong");
+        var pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
+        check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), -30),
+            "Two draws owed one after the other were not added up");
         IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 20) && near(emptier.fluidContainer.amount, 10), "The owed draw did not come from the fullest");
         unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
-        call(networks, "fill", mod, "pair", 50.0, "Water");
+        call(networks, "fill", mod, "pair", 20.0, "Water");
+        call(networks, "fill", mod, "pair", 30.0, "Water");
+        pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
+        check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), 50),
+            "Two fills owed one after the other were not added up");
         IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 40) && near(emptier.fluidContainer.amount, 40), "The owed fill did not go to the emptiest");
@@ -1095,11 +1313,11 @@ public final class GameApiTest {
         call(networks, "define", mod, "wires", "power", "sequential");
         rejects(networks, "setPurify", "wires carries power, not water", mod, "wires", false);
         call(networks, "remove", mod, "wires");
-        // A game whose bootstrap has no such hooks needs a restart for water that keeps its taint.
+        // A game without both of its hooks has no water that keeps its taint.
         var hooked = ApiHooks.class.getDeclaredField("purifyHooked");
         hooked.setAccessible(true);
         hooked.setBoolean(null, false);
-        rejects(networks, "setPurify", "restart it to use it", mod, "rain", false);
+        rejects(networks, "setPurify", "water that keeps its taint is not in this game", mod, "rain", false);
         hooked.setBoolean(null, true);
         call(networks, "remove", mod, "rain");
         frame();
@@ -1255,6 +1473,20 @@ public final class GameApiTest {
             "The status file was not written again when it changed");
         try (var files = Files.list(folder)) { for (var file : files.toList()) Files.delete(file); }
         Files.delete(folder);
+
+        // Water that keeps its taint needs both of IsoObject's taint hooks, as the class is now.
+        String object = "zombie/iso/IsoObject";
+        byte[] own;
+        try (var input = game.getResourceAsStream(object + ".class")) { own = input.readAllBytes(); }
+        var files = ClassFile.of();
+        byte[] untainted = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
+            element instanceof MethodModel method && method.methodName().equalsString("isTaintedWater")));
+        check(transform.invoke(null, object, untainted, game) != null && !ApiHooks.waterPurifyHooked()
+            && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoObject.createSampleAndPurifyWater")),
+            "Water that keeps its taint was offered with one of its two hooks");
+        transform.invoke(null, object, own, game);
+        check(ApiHooks.waterPurifyHooked() && ApiHooks.APPLIED.equals(ApiHooks.hookStatus().get("IsoObject.isTaintedWater")),
+            "The taint hooks did not come back");
     }
 
     /** A generator class as another mod might have it: without updateGenerator, or with an update the game cannot verify. */

@@ -22,7 +22,6 @@ public final class GameApi {
     // hold stay valid; and keeps the mods' handles.
     private static final String MARK = "pztools", HANDLES = "clients", HANDLE_METHODS = "clientMethods",
         HANDLE_META = "clientMeta";
-    private static final String NAME = "[A-Za-z0-9_.-]{1,64}";
     // Set when this payload's API has not reached the Lua environment the game has now.
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
@@ -34,13 +33,14 @@ public final class GameApi {
 
     /** In a game the startup loader started, once per payload: the game's Lua environments get the API from now on. */
     public static void start() {
+        // Before the handler is published: the game's Lua may start at once, and its start sets the API and clears this.
+        pending = true;
         try { ApiHooks.set(GameApi::luaStarted); }
         catch (LinkageError olderBootstrap) {
             // The game was started by an install from before the API: it comes with the next start.
+            pending = false;
             System.err.println("[PzTools API] Not in this game; restart it to use the API: " + olderBootstrap);
-            return;
         }
-        pending = true;
     }
 
     /**
@@ -63,7 +63,21 @@ public final class GameApi {
         catch (Throwable failure) { report(failure); }
     }
 
+    /**
+     * Sets the API into the game's Lua environment, taking over from an earlier payload. Should that fail, the game
+     * answers every power and water question alone: the earlier payload's networks no longer run, so they must not
+     * answer from what they last knew.
+     */
     static void register(Class<?> luaManager) throws ReflectiveOperationException {
+        try { install(luaManager); }
+        catch (Throwable failure) {
+            networks = null;
+            Networks.unhook();
+            throw failure;
+        }
+    }
+
+    private static void install(Class<?> luaManager) throws ReflectiveOperationException {
         var lua = new Kahlua(luaManager);
         Object env = lua.environment();
         if (env == null) return; // The game's Lua has not started; its start sets the API.
@@ -75,17 +89,24 @@ public final class GameApi {
             lua.set(meta, MARK, true);
             lua.setMetatable(api, meta);
         }
-        lua.set(api, "version", (double)VERSION);
-        lua.set(api, "hooks", lua.function(AREA + "hooks", arguments -> {
-            Object table = lua.table();
-            for (var hook : hooks().entrySet()) lua.set(table, hook.getKey(), hook.getValue());
-            return new Object[] { table };
-        }));
-        Object handles = clients(lua, api, meta);
-        var buildings = new Buildings(lua, luaManager.getClassLoader());
-        buildings.register(table(lua, api, "buildings"));
-        networks(lua, api, meta, handles, buildings, luaManager.getClassLoader());
-        lua.set(env, GLOBAL, api);
+        try {
+            lua.set(api, "version", (double)VERSION);
+            lua.set(api, "hooks", lua.function(AREA + "hooks", arguments -> {
+                Object table = lua.table();
+                for (var hook : hooks().entrySet()) lua.set(table, hook.getKey(), hook.getValue());
+                return new Object[] { table };
+            }));
+            Object handles = clients(lua, api, meta);
+            var game = new Game(luaManager.getClassLoader());
+            var buildings = new Buildings(lua, game, luaManager.getClassLoader());
+            buildings.register(table(lua, api, "buildings"));
+            networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
+            lua.set(env, GLOBAL, api);
+        } catch (Throwable failure) {
+            // The functions mods kept refuse to be called rather than change networks that no longer run.
+            Networks.retire(lua, meta);
+            throw failure;
+        }
     }
 
     /**
@@ -93,11 +114,11 @@ public final class GameApi {
      * started by an install from before the networks, or a game this payload cannot read), mods find no
      * {@code networks} and the game answers every power and water question alone.
      */
-    private static void networks(Kahlua lua, Object api, Object meta, Object handles, Buildings buildings, ClassLoader game)
-            throws ReflectiveOperationException {
+    private static void networks(Kahlua lua, Object api, Object meta, Object handles, Game game, Buildings buildings,
+            ClassLoader loader) throws ReflectiveOperationException {
         Networks next;
         try {
-            next = new Networks(lua, buildings, game, meta, handle -> owner(lua, handles, handle));
+            next = new Networks(lua, game, buildings, loader, meta, handle -> owner(lua, handles, handle));
             next.hook();
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PzTools API] Networks are not in this game; restart it to use them: " + olderBootstrap);
@@ -109,7 +130,10 @@ public final class GameApi {
         }
         networks = next;
         if (next != null) next.register(table(lua, api, "networks"));
-        else lua.set(api, "networks", null);
+        else {
+            Networks.retire(lua, meta);
+            lua.set(api, "networks", null);
+        }
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */
@@ -129,9 +153,7 @@ public final class GameApi {
         }
         Object handleMetatable = handleMeta;
         lua.set(api, "client", lua.function(AREA + "client", arguments -> {
-            String name = Arguments.string(arguments, 0, AREA + "client", "name");
-            if (!name.matches(NAME))
-                throw new IllegalArgumentException(AREA + "client: name must be 1 to 64 letters, digits, '_', '.' or '-'");
+            String name = Arguments.name(arguments, 0, AREA + "client", "name");
             Object handle = lua.get(handles, name);
             if (handle == null) {
                 handle = lua.table();
@@ -145,7 +167,7 @@ public final class GameApi {
             String name = owner(lua, handles, arguments.length > 0 ? arguments[0] : null);
             if (name == null) throw new IllegalArgumentException(AREA + "client:clear: call it on a handle, with a colon");
             Networks current = networks;
-            if (current != null) current.clear(name);
+            if (current != null) current.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;
