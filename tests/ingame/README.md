@@ -32,6 +32,11 @@ look; `BU22_CLEAN()` takes them away.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the
   console, the tripped lamp's blink frames), each line "ok" or "BAD"; `BULOOKS_CLEAN()` takes its units away. Needs the
   test panel (`bu_setup.lua`) and the game restarted after the sheet changed.
+- `bu_switch.lua`: the box's main switch (off and on by its action, quiet hours, the controller's minutes and the
+  breaker reset leaving it off, a trip together with it) and the generators' rows and the controller's count for a
+  faked state (running, standby, out of service, cannot run), each line "ok" or "BAD"; it waits two game minutes and
+  ends with "done", putting the box back as it was. Needs the test panel (`bu_setup.lua`); not in `bu_all.lua`, as
+  it waits.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
   test save and are kept as a record.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.
