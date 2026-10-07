@@ -89,3 +89,15 @@ option BuildingUtilities.ExperienceMultiplier
     type = double, min = 0.0, max = 10.0, default = 1.0,
     page = BuildingUtilities, translation = BuildingUtilities_ExperienceMultiplier,
 }
+
+option BuildingUtilities.SolarOutput
+{
+    type = double, min = 0.0, max = 1.0, default = 0.08,
+    page = BuildingUtilities, translation = BuildingUtilities_SolarOutput,
+}
+
+option BuildingUtilities.SnowOnPanels
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_SnowOnPanels,
+}

@@ -12,7 +12,7 @@
     "IGUI_BU_Steps": "%1칸",
     "IGUI_BU_SuppliedBy": "%1에서 공급",
     "IGUI_BU_Producers": "공급원 (이 순서로 사용)",
-    "IGUI_BU_NoProducers_power": "연결된 발전기가 없습니다. 바깥의 발전기를 우클릭해 연결하세요.",
+    "IGUI_BU_NoProducers_power": "연결된 발전기나 태양광 패널이 없습니다. 바깥의 발전기나 패널을 우클릭해 연결하세요.",
     "IGUI_BU_NoProducers_water": "연결된 물탱크가 없습니다. 바깥의 빗물통을 우클릭해 연결하세요.",
     "IGUI_BU_GeneratorRow": "%1. 발전기 (%2)  %3  연료 %4  상태 %5",
     "IGUI_BU_TankRow": "%1. 물탱크 (%2)  %3 / %4",
@@ -295,5 +295,11 @@
     "IGUI_BU_Reason_notWorn": "상태가 %1 미만인 배터리만 재생할 수 있습니다.",
     "IGUI_BU_Reason_screwdriver": "드라이버가 필요합니다.",
     "IGUI_BU_Reason_bakingSoda": "베이킹소다가 필요합니다.",
-    "IGUI_BU_Reason_skill": "전기 기술 %1 이상이 필요합니다."
+    "IGUI_BU_Reason_skill": "전기 기술 %1 이상이 필요합니다.",
+    "IGUI_BU_SolarRow": "태양광 패널 %1개  출력 %2  %3",
+    "IGUI_BU_SolarNight": "밤",
+    "IGUI_BU_SolarShort": "부하보다 적음",
+    "IGUI_BU_SolarSnow": "눈 %1%",
+    "IGUI_BU_SolarTip": "패널 하나가 맑은 낮에 %1을 냅니다. 지금 햇빛 %2%, 눈이 덮인 만큼 줄어듭니다. 부하 %3 이상을 내면 발전기 대신 전기를 맡고, 모자라면 발전기가 이어받습니다. 발전기가 돌고 있으면 그대로 두고, 발전기를 끄면 태양광으로 돌아갑니다.",
+    "IGUI_BU_Notice_SolarOn": "%1: 태양광으로 넘어갔습니다"
 }

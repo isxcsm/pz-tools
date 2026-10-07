@@ -373,6 +373,32 @@ function ISBURackBattery:new(character, unit, item, index)
     return o
 end
 
+-- Brushing the snow off a solar panel.
+ISBUClearSnow = base("ISBUClearSnow")
+
+function ISBUClearSnow:isValid()
+    local unit = Store.unit(self.unitId)
+    return unit ~= nil and (unit.snow or 0) > 0
+end
+
+function ISBUClearSnow:complete()
+    local unit = Store.unit(self.unitId)
+    if unit then Changes.clearSnow(unit) end
+    return unit ~= nil
+end
+
+function ISBUClearSnow:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 120
+end
+
+function ISBUClearSnow:new(character, unit)
+    local o = ISBaseTimedAction.new(self, character)
+    o.unitId, o.x, o.y = unit.id, unit.x, unit.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
 -- Reconditioning a worn battery with baking soda (Units.canRevive): better by Units.REVIVE_GAIN, a few times.
 ISBUReviveBattery = ISBaseTimedAction:derive("ISBUReviveBattery")
 

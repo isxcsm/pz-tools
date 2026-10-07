@@ -141,8 +141,8 @@ end
 -- What a box carries before its breaker trips.
 function Panels.capacity(panel) return BU.capacity(panel.tier) end
 
--- The power line into a box: a main panel's from its producer in use (state.producer; else its first), a
--- sub-panel's from its main panel. The pieces of wire it took and the percent of the load it loses; nil without one.
+-- The power line into a box: a main panel's from its producer in use (state.producer; else its first; for the
+-- units' source, the nearest unit), a sub-panel's from its main panel. The pieces of wire it took and the percent of the load it loses; nil without one.
 function Panels.powerLine(panel, state)
     local steps
     if panel.parent then
@@ -150,7 +150,9 @@ function Panels.powerLine(panel, state)
         steps = parent and Panels.linkSteps(panel, parent)
     else
         local at = state and state.producer or panel.power.producers[1]
-        steps = at and Panels.steps(panel, at.x, at.y)
+        if at and at.source then steps = BU.Energy.lineSteps(panel)
+        elseif at then steps = Panels.steps(panel, at.x, at.y)
+        else steps = BU.Energy.lineSteps(panel) end
     end
     if not steps then return nil end
     local pieces = BU.Costs.pieces(steps)

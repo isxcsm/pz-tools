@@ -217,15 +217,21 @@ local function addRackOptions(sub, context, playerObj, unit)
     end
 end
 
+local function onClearSnow(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBUClearSnow:new(playerObj, unit)) end
+
 local function addUnitOptions(context, playerObj, unit)
     local panel = Store.get(unit.panel)
     local title = Units.name(unit)
+    if (unit.snow or 0) >= BU.Energy.SNOW_TRACE then
+        title = title .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(unit.snow * 100 + 0.5))
+    end
     if unit.kind == "rack" then title = getText("IGUI_BU_RackTitle", title, #unit.batteries, Units.RACK_SIZE) end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     if unit.kind == "rack" then addRackOptions(sub, context, playerObj, unit) end
+    if (unit.snow or 0) > 0 then sub:addOption(getText("ContextMenu_BU_ClearSnow"), playerObj, onClearSnow, unit) end
     if BU.api() then
         if panel then
             local disconnect = sub:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj, onDisconnect,

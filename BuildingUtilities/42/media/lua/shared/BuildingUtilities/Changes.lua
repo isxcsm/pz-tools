@@ -2,7 +2,7 @@
 -- command handler and from the timed actions' complete, which run there. Each goes to the save, then to the API,
 -- then to the players (BU.Sync). Callers have checked the rules (BU.Panels) and taken the costs (BU.Costs).
 require "BuildingUtilities/Panels"
-require "BuildingUtilities/Units"
+require "BuildingUtilities/Energy"
 require "BuildingUtilities/Sync"
 local BU = BuildingUtilities
 local Store, Networks, Panels, Units, Sync = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync
@@ -160,24 +160,38 @@ end
 function Changes.removeUnit(unit)
     local object = Units.object(unit)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
-    local panelId, paid = unit.panel, unit.paid
+    local panel, paid = Store.get(unit.panel), unit.paid
     Store.removeUnit(unit.id)
     BU.log("removed", unit.kind, unit.id)
-    Sync.changed(panelId)
+    if panel then Changes.unitsChanged(panel) end
+    Sync.changed(panel and panel.id)
     return paid
+end
+
+-- A panel's units changed: its network has the units' source or not, and its line may be another.
+function Changes.unitsChanged(panel)
+    Networks.setProducers(panel, "power")
+    Networks.applyLoss(panel)
 end
 
 function Changes.connectUnit(unit, panel, paid)
     unit.panel, unit.paid = panel.id, paid or {}
+    Changes.unitsChanged(panel)
     Sync.changed(panel.id)
 end
 
 -- Its line taken away; returns what it took.
 function Changes.disconnectUnit(unit)
-    local panelId, paid = unit.panel, unit.paid or {}
+    local panel, paid = Store.get(unit.panel), unit.paid or {}
     unit.panel, unit.paid = nil, nil
-    Sync.changed(panelId)
+    if panel then Changes.unitsChanged(panel) end
+    Sync.changed(panel and panel.id)
     return paid
+end
+
+function Changes.clearSnow(unit)
+    unit.snow = nil
+    Sync.changed(unit.panel)
 end
 
 -- A battery into a rack (a record of Units.batteryRecord), or the one at an index out of it (returned).

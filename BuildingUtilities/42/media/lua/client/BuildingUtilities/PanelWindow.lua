@@ -16,8 +16,8 @@ require "ISUI/ISTextEntryBox"
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
-    BU.Sync, BU.Geometry
+local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
+    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
 local ROW = FONT_HGT_SMALL + 6
@@ -208,6 +208,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.bad then r, g, b = 1, 0.55, 0.5 elseif row.good then r, g, b = 0.6, 1, 0.6 end
         self:drawText(row.text, PAD, textY, r, g, b, 1, UIFont.Small)
         self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
+    elseif row.kind == "source" then
+        self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
     elseif row.kind == "producer" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
         for index, name in ipairs(BUTTONS) do
@@ -738,6 +740,31 @@ function ISBUPanelWindow:deviceStatus(utility, device)
     return text, dim
 end
 
+-- A producer square as the network's state last saw it, or nil.
+function PanelWindow.seenProducer(state, at)
+    for _, producer in ipairs(state and state.producers or {}) do
+        if producer.x == at.x and producer.y == at.y and producer.z == at.z then return producer end
+    end
+    return nil
+end
+
+-- The units' source: how many solar panels and what they make, whether it carries the load, snow on them.
+function ISBUPanelWindow:sourceRow(state)
+    local output, count, snow = Energy.output(self.panel)
+    local seen = Energy.sourceState(state)
+    local inUse = Energy.inUse(state)
+    local status
+    if inUse then status = getText("IGUI_BU_Running")
+    elseif seen and seen.available then status = getText("IGUI_BU_Standby")
+    elseif count > 0 and Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")
+    else status = getText("IGUI_BU_SolarShort") end
+    local text = getText("IGUI_BU_SolarRow", count, load2(output), status)
+    if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(snow * 100 + 0.5)) end
+    local tooltip = getText("IGUI_BU_SolarTip", load2(Energy.rated()), math.floor(Energy.sunlight() * 100 + 0.5),
+        load2(state and state.load or 0))
+    return { kind = "source", text = text, inUse = inUse }, tooltip
+end
+
 function ISBUPanelWindow:fill(utility, state)
     local list = self.lists[utility]
     local scroll = list:getYScroll()
@@ -756,9 +783,15 @@ function ISBUPanelWindow:fill(utility, state)
     else
         add({ kind = "header", text = getText("IGUI_BU_Producers") })
         local producers = panel[utility].producers
-        if #producers == 0 then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
+        local source = utility == "power" and Energy.hasSource(panel)
+        if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
+        if source then
+            local row, tooltip = self:sourceRow(state)
+            view.sourceText = row.text
+            add(row, tooltip)
+        end
         for index, at in ipairs(producers) do
-            local seen = state and state.producers and state.producers[index]
+            local seen = PanelWindow.seenProducer(state, at)
             local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
             local where = Panels.where(panel, at.x, at.y)
             local text
@@ -993,6 +1026,13 @@ function ISBUPanelWindow:updatePlan()
         for index, at in ipairs(panel[utility].producers) do
             local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
             producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, text = view.producerText[index] }
+        end
+        if utility == "power" then
+            local inUse = Energy.inUse(state)
+            for _, unit in ipairs(Store.unitList(nil, panel.id)) do
+                producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse, unit = unit.kind,
+                    text = Units.name(unit) .. (view.sourceText and "  " .. view.sourceText or "") }
+            end
         end
     end
     -- The zones of the building: this box's, the free rooms and other boxes'.

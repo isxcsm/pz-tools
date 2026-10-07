@@ -15,9 +15,12 @@ local function change(name, ...)
     return result
 end
 
-local function positions(list)
+-- The producers as the API takes them: the units' source first (BU.Energy), so it is the first to take over when a
+-- generator stops, then the squares in the player's order.
+local function producerList(panel, utility)
     local result = {}
-    for index, at in ipairs(list) do result[index] = { x = at.x, y = at.y, z = at.z } end
+    if utility == "power" and BU.Energy.hasSource(panel) then result[1] = { source = BU.Energy.SOURCE } end
+    for _, at in ipairs(panel[utility].producers) do result[#result + 1] = { x = at.x, y = at.y, z = at.z } end
     return result
 end
 
@@ -85,7 +88,7 @@ function Networks.define(panel)
     for _, utility in ipairs(BU.UTILITIES) do
         local id = BU.networkId(panel.id, utility)
         change("define", id, utility, BU.POLICY[utility])
-        if not panel.parent then change("setProducers", id, positions(panel[utility].producers)) end
+        if not panel.parent then change("setProducers", id, producerList(panel, utility)) end
         addMembers(panel, id)
         local data, keys = panel[utility], {}
         for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.timed or {} }) do
@@ -133,7 +136,12 @@ function Networks.remove(panel)
 end
 
 function Networks.setProducers(panel, utility)
-    change("setProducers", BU.networkId(panel.id, utility), positions(panel[utility].producers))
+    change("setProducers", BU.networkId(panel.id, utility), producerList(panel, utility))
+end
+
+-- The units' source: whether it carries the load, and switched on (true) or left (nil).
+function Networks.setSource(panel, available, switchOn)
+    change("setSource", BU.networkId(panel.id, "power"), BU.Energy.SOURCE, available, switchOn)
 end
 
 -- One device as the panel's data has it now (Networks.rule).

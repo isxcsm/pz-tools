@@ -26,5 +26,9 @@
     "Sandbox_BuildingUtilities_RangePerTier_tooltip": "Each utility panel tier above the first adds this share of the ranges above (50: tier 2 reaches 1.5 times, tier 3 twice, tier 4 2.5 times as far). Outside devices stay within 32 tiles.",
     "Sandbox_BuildingUtilities_LossPerWire": "Line loss per wire (percent)",
     "Sandbox_BuildingUtilities_LossPerWire_tooltip": "The power line into a tier 1 utility panel, from its generator or its main panel, adds this much of the load per wire it took (the generator burns it and it counts toward overload). Tier 2 loses two thirds of that, tier 3 one third, tier 4 nothing. 0 turns losses off.",
-    "Sandbox_BuildingUtilities_Capacity4": "Tier 4 load"
+    "Sandbox_BuildingUtilities_Capacity4": "Tier 4 load",
+    "Sandbox_BuildingUtilities_SolarOutput": "Solar panel output",
+    "Sandbox_BuildingUtilities_SolarOutput_tooltip": "What one clean panel makes at a clear noon, as load (a fridge draws 0.13). Less in weaker daylight, none at night.",
+    "Sandbox_BuildingUtilities_SnowOnPanels": "Snow on panels",
+    "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "Snow settles on panels outside while it snows, covering them in two hours, and melts above 2 degrees C. Right-click \"Brush Off Snow\" clears it at once."
 }

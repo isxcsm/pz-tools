@@ -26,5 +26,9 @@
     "Sandbox_BuildingUtilities_RangePerTier_tooltip": "제어반이 1단계보다 한 단계 오를 때마다 위 거리들에 이만큼을 더합니다(50이면 2단계는 1.5배, 3단계는 2배, 4단계는 2.5배). 바깥 기기는 32칸을 넘지 않습니다.",
     "Sandbox_BuildingUtilities_LossPerWire": "전선 1개당 손실 (퍼센트)",
     "Sandbox_BuildingUtilities_LossPerWire_tooltip": "1단계 제어반으로 들어오는 전기 선(발전기나 주 제어반에서)이 전선 1개마다 부하에 이만큼을 더합니다(발전기가 그만큼 더 태우고 과부하에도 셉니다). 2단계는 3분의 2, 3단계는 3분의 1, 4단계는 손실이 없습니다. 0이면 손실이 없습니다.",
-    "Sandbox_BuildingUtilities_Capacity4": "4단계 부하 상한"
+    "Sandbox_BuildingUtilities_Capacity4": "4단계 부하 상한",
+    "Sandbox_BuildingUtilities_SolarOutput": "태양광 패널 출력",
+    "Sandbox_BuildingUtilities_SolarOutput_tooltip": "깨끗한 패널 하나가 맑은 한낮에 내는 전기(부하 단위, 냉장고 0.13). 햇빛이 약하면 그만큼 줄고 밤에는 0입니다.",
+    "Sandbox_BuildingUtilities_SnowOnPanels": "패널 위 눈",
+    "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "눈이 오면 바깥 패널에 쌓여 두 시간이면 출력이 0이 되고, 2°C를 넘으면 녹습니다. 우클릭 \"눈 털기\"로 바로 치웁니다."
 }

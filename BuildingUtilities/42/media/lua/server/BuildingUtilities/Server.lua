@@ -3,7 +3,7 @@
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Changes, Sync = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync
+local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync, BU.Energy
 
 local function defineAll()
     local api, reason = BU.api()
@@ -122,6 +122,30 @@ local function checkFuel(panel)
     end
 end
 
+-- The units' source of a main panel: available while its solar panels carry the load (Energy.canCarry). It is
+-- switched on when it can and the network has no supply: nothing ran, or the player switched the generator in use
+-- off. A generator the player runs keeps running.
+local function checkSource(panel)
+    if not Energy.hasSource(panel) or panel.tripped then return end
+    local state = Networks.state(panel, "power")
+    if not state then return end
+    local source = Energy.sourceState(state)
+    local available = source ~= nil and source.available == true
+    local can = Energy.canCarry(Energy.output(panel), state.load, available)
+    local switchOn = can and not state.supplied and state.enabled or nil
+    if can ~= available or switchOn then Networks.setSource(panel, can, switchOn) end
+end
+
+-- The units over the time since they were last worked out: snow on the panels, then each panel's source.
+local function updateUnits()
+    local data = Store.data()
+    local now = getGameTime():getWorldAgeHours()
+    local hours = data.energyHour and math.max(0, math.min(1, now - data.energyHour)) or 0
+    data.energyHour = now
+    if Energy.weather(hours) then Sync.changed(nil) end
+    for _, panel in ipairs(Store.list()) do checkSource(panel) end
+end
+
 local function onNetworkChange(id, what)
     local panel, utility = Networks.owner(id)
     if not panel then return end
@@ -130,7 +154,9 @@ local function onNetworkChange(id, what)
     if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
     if utility == "power" then checkLoad(panel) end
     if panel.parent or not state then return end
-    if what == "producer" and state.producer then
+    if what == "producer" and Energy.inUse(state) then
+        Sync.notice(panel, "IGUI_BU_Notice_SolarOn", Panels.name(panel))
+    elseif what == "producer" and state.producer then
         for index, at in ipairs(panel.power.producers) do
             if at.x == state.producer.x and at.y == state.producer.y and at.z == state.producer.z then
                 Sync.notice(panel, "IGUI_BU_Notice_Switched", Panels.name(panel), index)
@@ -143,6 +169,7 @@ end
 
 local function everyMinute()
     if not BU.api() then return end
+    updateUnits()
     for _, panel in ipairs(Store.list()) do
         checkLoad(panel)
         checkFuel(panel)

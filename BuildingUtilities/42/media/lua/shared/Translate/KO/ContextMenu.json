@@ -16,5 +16,6 @@
     "ContextMenu_BU_PutAll": "모두 넣기 (%1개)",
     "ContextMenu_BU_TakeBattery": "배터리 꺼내기",
     "ContextMenu_BU_TakeAll": "모두 꺼내기 (%1개)",
-    "ContextMenu_BU_ReviveBattery": "배터리 재생"
+    "ContextMenu_BU_ReviveBattery": "배터리 재생",
+    "ContextMenu_BU_ClearSnow": "눈 털기"
 }
