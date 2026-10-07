@@ -318,6 +318,9 @@ generator outside it as its producer.
 | The generator switched off | The building's lights and fridges went off. |
 | The room light and food hooks (game started again) | No `[PzTools API]` report: both found their question in `LightingJNI.checkLights` and `Food.updateAge`. |
 | The switch of a lit room excluded | The room went dark and the switch could not be used; after `reset` it could switch the light on again. |
+| Two generators under `"sequential"`, the first with 0.05 fuel (0.067 an hour) switched on at hour 6.41 | `supply` at 6.41. The first ran out and the second started by itself: `producer` at hour 7, the first's `lastHour` (6) plus one hour of fuel. |
+| The first refuelled and switched on while the second ran | `producer` at 7.41; the second was switched off. |
+| The first switched off | `supply` at 7.43; the building went dark and the second stayed off. |
 
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
