@@ -9,6 +9,15 @@ local OUTSIDE, load2, deviceObjects, outline, unoutline = Ui.OUTSIDE, Ui.load2, 
     Ui.unoutline
 local PanelWindow = BU.PanelWindow
 
+-- What the generators' noise rings are of, to tell when one changed.
+local function noiseKey(noises)
+    local parts = {}
+    for _, noise in ipairs(noises) do
+        parts[#parts + 1] = noise.x .. "," .. noise.y .. "," .. noise.z .. "," .. noise.radius .. (noise.running and "+" or "-")
+    end
+    return table.concat(parts, "|")
+end
+
 -- The plan.
 
 function ISBUPanelWindow:updatePlan()
@@ -76,14 +85,19 @@ function ISBUPanelWindow:updatePlan()
     if not editable then self.zoneEditing = false end
     -- The range, while the window shows it in the world.
     local ranges, tier = nil, panel.tier or 1
+    local rangeKey = (self.building and self.building.key or "") .. "|" .. tier
     if self.rangeShown then
         local exterior = BU.exteriorRange(tier)
         ranges = { exterior = exterior > 0 and exterior or nil, producer = not panel.parent and BU.producerRange(tier) or nil }
+        if utility == "power" then
+            ranges.noise = self:generatorNoises()
+            rangeKey = rangeKey .. "|" .. noiseKey(ranges.noise)
+        end
     end
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
         producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
-        ranges = ranges, rangeKey = (self.building and self.building.key or "") .. "|" .. tier,
+        ranges = ranges, rangeKey = rangeKey,
         choosing = self.choosing[utility] == true })
 end
 
@@ -249,8 +263,25 @@ function ISBUPanelWindow:roomMenu(id)
     end
 end
 
+-- The box's generators and how far each is heard (Panels.generatorNoise): { x, y, z, radius, running }. A sub-panel
+-- has none of its own.
+function ISBUPanelWindow:generatorNoises()
+    local result = {}
+    local panel = self.panel
+    if panel.parent then return result end
+    local state = Networks.state(panel, "power")
+    for _, at in ipairs(panel.power.producers) do
+        local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y
+            and state.producer.z == at.z
+        local radius, running = Panels.generatorNoise(at.x, at.y, at.z, inUse)
+        result[#result + 1] = { x = at.x, y = at.y, z = at.z, radius = radius, running = running }
+    end
+    return result
+end
+
 -- The range: on the ground around the building, where producers reach (yellow, for a main panel) and where devices
--- outside reach (blue); producers within reach that are no panel's are outlined.
+-- outside reach (blue); producers within reach that are no panel's are outlined. Around each of the box's generators,
+-- on its floor, how far zombies hear it (red, dim while it is off).
 -- Rows of the range's squares outlined each frame, until this many milliseconds went in it: the world shows the range
 -- over a few frames instead of stopping for it.
 local RANGE_BUDGET_MS = 8
@@ -262,6 +293,8 @@ function ISBUPanelWindow:showRange(on)
     self.rangeShown = on
     self.rangeJob = nil
     if not on then return end
+    local noises = self:generatorNoises()
+    self.rangeNoiseKey = noiseKey(noises)
     local panel = self.panel
     local rooms = Panels.rooms(Panels.building(panel))
     if #rooms == 0 then return end
@@ -282,6 +315,10 @@ function ISBUPanelWindow:showRange(on)
     end
     local producers = not panel.parent and Geometry.reach(all, BU.producerRange(panel.tier)) or nil
     if producers then rings[#rings + 1] = { area = producers, colour = ColorInfo.new(1, 0.85, 0.2, 1) } end
+    for _, noise in ipairs(noises) do
+        rings[#rings + 1] = { area = Geometry.disc(noise.x, noise.y, noise.radius), z = noise.z,
+            colour = noise.running and ColorInfo.new(1, 0.35, 0.3, 1) or ColorInfo.new(0.6, 0.3, 0.3, 1) }
+    end
     if #rings == 0 then return end
     -- The squares to go over: the box around every ring's area.
     local minX, minY, maxX, maxY
@@ -297,7 +334,8 @@ function ISBUPanelWindow:showRange(on)
 end
 
 -- Outlines the range's next rows, as many as the frame's budget allows (ISBUPanelWindow.prerender calls it): each
--- ring's edge on the ground, and the producers not connected yet within the producers' reach.
+-- ring's edge on its floor (the ground but for a generator's), and the producers not connected yet within the
+-- producers' reach.
 function ISBUPanelWindow:stepRange()
     local job = self.rangeJob
     local playerNum = self.playerObj:getPlayerNum()
@@ -308,23 +346,26 @@ function ISBUPanelWindow:stepRange()
         local y = job.y
         job.y = y + 1
         for x = job.minX, job.maxX do
-            local seekProducer = Geometry.reached(job.producers, x, y) and not Geometry.reached(job.inside, x, y)
-            local edges
             for _, ring in ipairs(job.rings) do
-                if Geometry.onEdge(ring.area, x, y) then edges = edges or {}; edges[#edges + 1] = ring.colour end
-            end
-            local square = (edges or seekProducer) and cell:getGridSquare(x, y, 0)
-            if square then
-                local floor = edges and square:getFloor()
-                for _, colour in ipairs(floor and edges or {}) do outline(playerNum, { floor }, colour, self.rangeObjects) end
-                if seekProducer then
-                    local utility, object = Panels.producerOn(square)
-                    if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
+                if Geometry.onEdge(ring.area, x, y) then
+                    local square = cell:getGridSquare(x, y, ring.z or 0)
+                    local floor = square and square:getFloor()
+                    if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
                 end
+            end
+            if Geometry.reached(job.producers, x, y) and not Geometry.reached(job.inside, x, y) then
+                local utility, object = Panels.producerOn(cell:getGridSquare(x, y, 0))
+                if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
             end
         end
     end
     if job.y > job.maxY then self.rangeJob = nil end
+end
+
+-- The range shown again when a generator's noise changed (it started or stopped, came or went); the window's
+-- refresh calls it.
+function ISBUPanelWindow:checkRange()
+    if self.rangeShown and noiseKey(self:generatorNoises()) ~= self.rangeNoiseKey then self:showRange(true) end
 end
 
 function ISBUPanelWindow:onRange()

@@ -66,6 +66,25 @@ function Geometry.reach(rects, range)
     return areas[key]
 end
 
+-- The squares whose middle is within a radius of a square's middle, as the game measures how far a sound carries:
+-- an area as Geometry.reach gives (and kept with those).
+function Geometry.disc(x, y, radius)
+    local key = "disc;" .. x .. "," .. y .. "," .. radius
+    if areas[key] then return areas[key] end
+    local w = radius * 2 + 1
+    local cells = {}
+    for row = 0, w - 1 do
+        for col = 0, w - 1 do
+            local dx, dy = col - radius, row - radius
+            if dx * dx + dy * dy <= radius * radius then cells[row * w + col] = true end
+        end
+    end
+    if areaCount >= 16 then areas, areaCount = {}, 0 end
+    areas[key] = { minX = x - radius, minY = y - radius, w = w, h = w, cells = cells }
+    areaCount = areaCount + 1
+    return areas[key]
+end
+
 -- Whether a square is in an area of Geometry.reach.
 function Geometry.reached(area, x, y)
     if not area then return false end

@@ -8,7 +8,8 @@
 -- devices outside it is connected to; dots run along them the way power or water goes now, from the producers in
 -- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the
 -- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
--- (yellow). While devices outside are chosen to connect, a click on one
+-- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). While devices outside
+-- are chosen to connect, a click on one
 -- chooses it. The wheel zooms at the mouse, dragging moves the plan, Fit goes back. Over the floor strip the wheel
 -- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
 -- one shape, its outline only where it meets another room or the outside. The top bar also shows the range (as the
@@ -67,7 +68,8 @@ local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
     producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 }, chosen = { 0.4, 0.8, 1 },
-    rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 },
+    rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 }, rangeNoise = { 1, 0.35, 0.3 },
+    rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
 }
 
@@ -106,14 +108,14 @@ local function legendEntries(utility, zones, ranges)
     if ranges and not zones then
         if ranges.exterior then add("rangeOutside", "line") end
         if ranges.producer then add("rangeProducer", "line") end
+        if ranges.noise and #ranges.noise > 0 then add("rangeNoise", "line") end
     end
     return result
 end
 
--- Where a range reaches around rectangles (Geometry.reach), as the edges between squares in it and out of it: { x,
--- y, len, across } in squares (across: along x).
-local function rangeEdges(rects, range)
-    local area = range > 0 and Geometry.reach(rects, range)
+-- An area's edges (Geometry.reach, Geometry.disc), between squares in it and out of it: { x, y, len, across } in
+-- squares (across: along x).
+local function areaEdges(area)
     if not area then return {} end
     local minX, minY, w, h, cells = area.minX, area.minY, area.w, area.h, area.cells
     local function at(col, row)
@@ -145,6 +147,11 @@ local function rangeEdges(rects, range)
     return edges
 end
 
+-- Where a range reaches around rectangles, as its area's edges.
+local function rangeEdges(rects, range)
+    return areaEdges(range > 0 and Geometry.reach(rects, range) or nil)
+end
+
 -- The point of the rectangles nearest a square's middle, in squares.
 local function nearestPoint(rects, x, y)
     local best, bestX, bestY
@@ -161,7 +168,8 @@ end
 -- state, held, power, name, status, flow } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
 -- or nil, flow } } (flow: 1 to the box, -1 from it, nil none), box = { x, y, z }, filter = room id, zone = room id to
 -- { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote, ranges = { exterior =
--- steps, producer = steps or nil } while the range is shown, rangeKey (the building and tier the ranges are of),
+-- steps, producer = steps or nil, noise = for power { { x, y, z, radius, running } } } while the range is shown,
+-- rangeKey (the building, tier and generators' noise the ranges are of),
 -- choosing (devices outside are being chosen) }. A device may be chosen and choosable.
 function ISBUPlan:setData(data)
     self.data = data
@@ -204,7 +212,14 @@ function ISBUPlan:ranges(floor)
     end
     -- Devices outside join by the floor's own rooms (as the API finds them); producers by the whole outline.
     cached = { exterior = rangeEdges(floorRects, data.ranges.exterior or 0),
-        producer = data.ranges.producer and rangeEdges(allRects, data.ranges.producer) or {} }
+        producer = data.ranges.producer and rangeEdges(allRects, data.ranges.producer) or {}, noise = {} }
+    -- How far the generators on this floor are heard.
+    for _, noise in ipairs(data.ranges.noise or {}) do
+        if noise.z == floor then
+            cached.noise[#cached.noise + 1] = { edges = areaEdges(Geometry.disc(noise.x, noise.y, noise.radius)),
+                running = noise.running }
+        end
+    end
     self.rangeCache[floor] = cached
     return cached
 end
@@ -279,9 +294,11 @@ function ISBUPlan:layout()
     for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
     cover(data.box.x, data.box.y, 1, 1)
     if not minX then return end
-    -- With the range shown, the plan takes in where devices outside and producers join.
+    -- With the range shown, the plan takes in where devices outside and producers join, and where generators are heard.
     local ranges = self:ranges(self.floor)
-    for _, edges in ipairs(ranges and { ranges.exterior, ranges.producer } or {}) do
+    local rangeSets = ranges and { ranges.exterior, ranges.producer } or {}
+    for _, noise in ipairs(ranges and ranges.noise or {}) do rangeSets[#rangeSets + 1] = noise.edges end
+    for _, edges in ipairs(rangeSets) do
         for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
     end
     local left = PAD + (#self.levels > 1 and STRIP_W or 0)
@@ -329,6 +346,9 @@ function ISBUPlan:layout()
         end
     end
     if ranges then
+        for _, noise in ipairs(ranges.noise) do
+            addEdges(noise.edges, noise.running and COLOURS.rangeNoise or COLOURS.rangeNoiseIdle)
+        end
         addEdges(ranges.producer, COLOURS.rangeProducer)
         addEdges(ranges.exterior, COLOURS.rangeOutside)
     end

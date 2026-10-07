@@ -929,5 +929,6 @@
     "IGUI_BU_ReserveNone": "없음",
     "IGUI_BU_GroupOverflow": "가득 차면: %1",
     "IGUI_BU_OverflowStop": "펌프 멈춤",
-    "IGUI_BU_Pump_noWater": "헛도는 중: 옆에 물이 없음"
+    "IGUI_BU_Pump_noWater": "헛도는 중: 옆에 물이 없음",
+    "IGUI_BU_Legend_rangeNoise": "좀비가 발전기 소리를 듣는 곳"
 }

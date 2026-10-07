@@ -192,6 +192,25 @@ end
 
 -- Producers.
 
+-- How far a generator is heard while it runs, as the game has it: its item's sound radius (20 without one), half
+-- that inside a room; and whether it runs now. One not loaded is taken as the plain one (its room is the map's), and
+-- as running when its box uses it.
+local NOISE_RADIUS = 20
+function Panels.generatorNoise(x, y, z, inUse)
+    local square = getCell():getGridSquare(x, y, z)
+    local generator = square and square:getGenerator()
+    local radius, inside, running = NOISE_RADIUS, false, inUse == true
+    if generator then
+        local item = ScriptManager.instance:getItem(generator:getGeneratorItemType())
+        if item and item:getSoundRadius() > 0 then radius = item:getSoundRadius() end
+        inside, running = square:getRoom() ~= nil, generator:isActivated()
+    else
+        inside = getWorld():getMetaGrid():getRoomAt(x, y, z) ~= nil
+    end
+    if inside then radius = math.floor(radius / 2) end
+    return radius, running
+end
+
 -- What a square can produce: "power" for a generator, "water" for a water container; with the object.
 function Panels.producerOn(square)
     if not square then return nil end

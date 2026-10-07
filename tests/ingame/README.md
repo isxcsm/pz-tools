@@ -16,9 +16,11 @@ each other by bare name):
 function RUN(f) local r,t=getFileReader("bu/"..f,false),{} local l=r:readLine() while l do t[#t+1]=l l=r:readLine() end r:close() loadstring(table.concat(t,"\n"))() end
 ```
 
-Then `RUN("bu_all.lua")` runs the logic checks of the solar and battery batches and of the plan's batches 1 to 3
-(`bu_test12` to `bu_test21`; `bu_test21` is the water pump, sprinkler and filter). `bu_test20` needs water producers:
-`bu_water20.lua` puts two part-filled rain barrels near the player and connects them to the test panel, once.
+Then `RUN("bu_all.lua")` runs the logic checks of the solar and battery batches and of the plan's batches 1 to 4
+(`bu_test12` to `bu_test22`; `bu_test21` is the water pump, sprinkler and filter, `bu_test22` the generators' noise).
+`bu_test20` needs water producers: `bu_water20.lua` puts two part-filled rain barrels near the player and connects
+them to the test panel, once. `BU22_KEEP=true` before `bu_test22` leaves its generators and the range shown for a
+look; `BU22_CLEAN()` takes them away.
 
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
   test save and are kept as a record.

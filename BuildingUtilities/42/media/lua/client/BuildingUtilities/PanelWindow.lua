@@ -403,6 +403,7 @@ function ISBUPanelWindow:refresh()
     for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
     self:fillLog()
     self.loadArea:setTooltip(self:loadBreakdown())
+    self:checkRange()
     self:updatePlan()
 end
 
