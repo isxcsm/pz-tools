@@ -76,6 +76,24 @@ end
 -- What a box carries before its breaker trips.
 function Panels.capacity(panel) return BU.capacity(panel.tier) end
 
+-- How far a box of a tier reaches, for the player: producers, outside devices, sub-panels.
+function Panels.rangesText(tier)
+    return getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
+end
+
+-- What upgrading to a tier gives, one line each: the load it carries, the ranges when they grow, what it can do.
+-- Plain lines for a button tooltip, rich text otherwise.
+function Panels.upgradeNote(tier, plain)
+    local lines = { getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(tier))) }
+    if Panels.rangesText(tier) ~= Panels.rangesText(tier - 1) then
+        lines[#lines + 1] = Panels.rangesText(tier)
+    end
+    if tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
+    if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end
+    if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
+    return table.concat(lines, plain and "\n" or " <LINE> ")
+end
+
 -- Producers.
 
 -- What a square can produce: "power" for a generator, "water" for a water container; with the object.
@@ -97,22 +115,42 @@ function Panels.steps(panel, x, y)
     return building and Geometry.toBuilding(x, y, Panels.rooms(building)) or nil
 end
 
--- The main panels a producer square can be connected to: within the producer range of their building's outline,
--- on a level of it or on the ground. Each with its distance.
-function Panels.inProducerRange(x, y, z)
+-- The lowest tier whose range (BU.producerRange and the like) reaches so many squares; nil when none does.
+function Panels.tierReaching(range, steps)
+    for tier = 1, BU.TIERS do
+        if steps <= range(tier) then return tier end
+    end
+    return nil
+end
+
+-- The main panels a producer square could be connected to: on a level of their building or on the ground, within
+-- the producer range of the top tier from its outline. Each with its distance and the tier that reaches it; nearest
+-- first.
+function Panels.producerCandidates(x, y, z)
     local result = {}
     for _, panel in ipairs(Store.list()) do
         if not panel.parent then
             local building = Panels.building(panel)
             if building and (z == 0 or z >= building.minLevel and z <= building.maxLevel) then
                 local steps = Geometry.toBuilding(x, y, Panels.rooms(building))
-                if steps and steps <= BU.producerRange() then
-                    result[#result + 1] = { panel = panel, steps = steps, building = building }
+                local tier = steps and Panels.tierReaching(BU.producerRange, steps)
+                if tier then
+                    result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
+                        inRange = tier <= (panel.tier or 1) }
                 end
             end
         end
     end
     table.sort(result, function(a, b) return a.steps < b.steps end)
+    return result
+end
+
+-- Of those, the ones whose own tier reaches the square.
+function Panels.inProducerRange(x, y, z)
+    local result = {}
+    for _, candidate in ipairs(Panels.producerCandidates(x, y, z)) do
+        if candidate.inRange then result[#result + 1] = candidate end
+    end
     return result
 end
 
@@ -176,7 +214,7 @@ function Panels.devices(panel, utility)
         end
     end
     local inside, insideComplete = api.buildings.objects(building.key, utility)
-    local outside, outsideComplete = api.buildings.near(building.key, BU.exteriorRange(), utility)
+    local outside, outsideComplete = api.buildings.near(building.key, BU.exteriorRange(panel.tier), utility)
     collect(inside, true)
     collect(outside, false)
     for _, group in ipairs(order) do
@@ -280,8 +318,9 @@ function Panels.linkSteps(child, parent)
     return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
 end
 
--- Whether a panel can take its supply from another: a main panel in another building within the sub-panel range
--- of its own, with no producers of its own, and not one of its own sub-panels. Returns true, or false and a reason.
+-- Whether a panel can take its supply from another: a main panel in another building, of a tier that gives supply
+-- (BU.LINK_TIER) and whose sub-panel range reaches its own building, with no producers of its own, and not one of
+-- its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
 function Panels.canLink(child, parent)
     if child == parent then return false, "self" end
     if child.parent then return false, "isSubPanel" end
@@ -295,16 +334,25 @@ function Panels.canLink(child, parent)
     end
     local steps = Panels.linkSteps(child, parent)
     if not steps then return false, "noBuilding" end
-    if steps > BU.subPanelRange() then return false, "tooFar" end
+    local tier = Panels.tierReaching(BU.subPanelRange, steps)
+    if not tier then return false, "tooFar" end
+    tier = math.max(tier, BU.LINK_TIER)
+    if (parent.tier or 1) < tier then return false, "lowTier", steps, tier end
     return true
 end
 
--- The panels a panel could take its supply from, nearest first, with their distances.
+-- The panels a panel could take its supply from, nearest first, with their distances: those it can now, and those
+-- it could once they are of a higher tier (with the tier needed), for the player to see what an upgrade gives.
 function Panels.linkCandidates(child)
     local result = {}
     for _, panel in ipairs(Store.list()) do
-        if panel ~= child and Panels.canLink(child, panel) then
-            result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel) }
+        if panel ~= child then
+            local ok, reason, steps, tier = Panels.canLink(child, panel)
+            if ok then
+                result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel) }
+            elseif reason == "lowTier" then
+                result[#result + 1] = { panel = panel, steps = steps, tier = tier }
+            end
         end
     end
     table.sort(result, function(a, b) return a.steps < b.steps end)

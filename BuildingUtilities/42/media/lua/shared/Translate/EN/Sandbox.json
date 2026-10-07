@@ -21,5 +21,7 @@
     "Sandbox_BuildingUtilities_LowFuelHours": "Low fuel warning (hours)",
     "Sandbox_BuildingUtilities_LowFuelHours_tooltip": "Players near a breaker box are told when its generators have fuel for fewer hours than this.",
     "Sandbox_BuildingUtilities_ExperienceMultiplier": "Electricity experience",
-    "Sandbox_BuildingUtilities_ExperienceMultiplier_tooltip": "Multiplies the Electricity experience for putting up boxes, laying wire and upgrading boxes. 0 gives none."
+    "Sandbox_BuildingUtilities_ExperienceMultiplier_tooltip": "Multiplies the Electricity experience for putting up boxes, laying wire and upgrading boxes. 0 gives none.",
+    "Sandbox_BuildingUtilities_RangePerTier": "Range gain per tier (percent)",
+    "Sandbox_BuildingUtilities_RangePerTier_tooltip": "Each breaker box tier above the first adds this share of the ranges above (50: tier 2 reaches 1.5 times, tier 3 twice as far). Outside devices stay within 32 tiles."
 }

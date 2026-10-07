@@ -53,7 +53,9 @@ end
 function commands.setSchedule(player, panel, args)
     local known = false
     for _, schedule in ipairs(BU.SCHEDULES) do known = known or schedule == args.schedule end
-    if known and connectedDevice(panel, args.key) then Changes.setSchedule(panel, args.key, args.schedule) end
+    if known and (panel.tier or 1) >= BU.TIMER_TIER and connectedDevice(panel, args.key) then
+        Changes.setSchedule(panel, args.key, args.schedule)
+    end
 end
 
 local function onClientCommand(module, command, player, args)

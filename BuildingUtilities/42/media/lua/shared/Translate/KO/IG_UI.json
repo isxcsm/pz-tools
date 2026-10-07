@@ -201,5 +201,10 @@
     "IGUI_BU_Floor": "%1층",
     "IGUI_BU_Basement": "지하 %1층",
     "IGUI_BU_Name_LightSwitch": "전등 스위치",
-    "IGUI_BU_Name_TallLamp": "스탠드 조명"
+    "IGUI_BU_Name_TallLamp": "스탠드 조명",
+    "IGUI_BU_Ranges": "발전기·물탱크 %1칸, 바깥 기기 %2칸, 보조 차단기함 %3칸까지 닿습니다.",
+    "IGUI_BU_TimerNote": "기기마다 타이머(밤에만, 낮에만)를 걸 수 있습니다.",
+    "IGUI_BU_LinkNote": "다른 건물의 보조 차단기함에 공급할 수 있습니다.",
+    "IGUI_BU_NeedsTier": "그 차단기함이 %1단계가 되면 닿습니다.",
+    "IGUI_BU_Reason_lowTier": "그 차단기함을 먼저 업그레이드해야 합니다."
 }

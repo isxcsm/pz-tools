@@ -18,6 +18,12 @@ option BuildingUtilities.SubPanelRange
     page = BuildingUtilities, translation = BuildingUtilities_SubPanelRange,
 }
 
+option BuildingUtilities.RangePerTier
+{
+    type = integer, min = 0, max = 200, default = 50,
+    page = BuildingUtilities, translation = BuildingUtilities_RangePerTier,
+}
+
 option BuildingUtilities.CostsEnabled
 {
     type = boolean, default = true,

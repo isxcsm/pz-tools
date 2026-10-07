@@ -89,8 +89,7 @@ local function addPanelOptions(context, playerObj, panel)
     if panel.tripped then sub:addOption(getText("ContextMenu_BU_ResetBreaker"), playerObj, onReset, panel) end
     if (panel.tier or 1) < BU.TIERS then
         local upgrade = sub:addOption(getText("ContextMenu_BU_Upgrade", (panel.tier or 1) + 1), playerObj, onUpgrade, panel)
-        costed(upgrade, playerObj, Costs.upgrade((panel.tier or 1) + 1),
-            getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity((panel.tier or 1) + 1))))
+        costed(upgrade, playerObj, Costs.upgrade((panel.tier or 1) + 1), Panels.upgradeNote((panel.tier or 1) + 1))
     end
     local remove = sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemove, panel)
     if refundNote() then tooltip(remove, refundNote()) end
@@ -118,9 +117,9 @@ local function addProducerOptions(context, playerObj, square)
         return
     end
     local option = context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)
-    local candidates = Panels.inProducerRange(x, y, z)
+    local candidates = Panels.producerCandidates(x, y, z)
     if #candidates == 0 then
-        unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.producerRange()))
+        unavailable(option, getText("IGUI_BU_NoPanelInRange", BU.producerRange(BU.TIERS)))
         return
     end
     local sub = ISContextMenu:getNew(context)
@@ -130,7 +129,13 @@ local function addProducerOptions(context, playerObj, square)
         local choice = sub:addOption(getText("IGUI_BU_PanelChoice", Panels.name(panel), Panels.where(panel, x, y)),
             playerObj, onConnect, "producer", panel, utility, x, y, z)
         local cost, reason = Actions.lineCost("producer", panel, utility, x, y, z)
-        if cost then costed(choice, playerObj, cost) else unavailable(choice, getText("IGUI_BU_Reason_" .. reason)) end
+        if not candidate.inRange then
+            unavailable(choice, getText("IGUI_BU_NeedsTier", candidate.tier))
+        elseif cost then
+            costed(choice, playerObj, cost)
+        else
+            unavailable(choice, getText("IGUI_BU_Reason_" .. reason))
+        end
     end
 end
 

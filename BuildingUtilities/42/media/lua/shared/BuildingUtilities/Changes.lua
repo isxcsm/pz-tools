@@ -181,14 +181,16 @@ function Changes.setSchedule(panel, key, schedule)
     Sync.changed(panel.id)
 end
 
--- Devices whose timer turned: off or on as their timer says now. Returns how many changed.
+-- Devices whose timer turned: off or on as their timer says now (always on below the tier with timers). Returns
+-- how many changed.
 function Changes.applyTimers(panel)
     local data, changed = panel.power, 0
+    local timers = (panel.tier or 1) >= BU.TIMER_TIER
     local keys = {}
     for key in pairs(data.schedule) do keys[key] = true end
     for key in pairs(data.timed) do keys[key] = true end
     for key in pairs(keys) do
-        local off = not BU.scheduleOn(data.schedule[key])
+        local off = timers and not BU.scheduleOn(data.schedule[key])
         if (data.timed[key] == true) ~= off then
             data.timed[key] = off or nil
             Networks.apply(panel, "power", key)
@@ -246,6 +248,7 @@ end
 function Changes.upgrade(panel)
     panel.tier = math.min(BU.TIERS, (panel.tier or 1) + 1)
     Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
+    Changes.applyTimers(panel)
     Sync.changed(panel.id)
 end
 

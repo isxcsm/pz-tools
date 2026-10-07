@@ -7,6 +7,8 @@ BU.MOD = "BuildingUtilities"
 BU.UTILITIES = { "power", "water" }
 BU.POLICY = { power = "sequential", water = "fullest" }
 BU.API_VERSION = 1
+-- Breaker box tiers: an upgrade carries more load, reaches farther and can do more (below).
+BU.TIERS = 3
 
 function BU.log(...)
     local parts = {}
@@ -46,10 +48,17 @@ function BU.sandbox(name, default)
     return value
 end
 
--- Squares around a building, from its outline, in which a device outside it can join: the API reads at most 32.
-function BU.exteriorRange() return math.max(0, math.min(32, BU.sandbox("ExteriorRange", 10))) end
-function BU.producerRange() return math.max(1, BU.sandbox("ProducerRange", 20)) end
-function BU.subPanelRange() return math.max(1, BU.sandbox("SubPanelRange", 50)) end
+-- How far a box of a tier reaches, in squares from its building's outline: the sandbox's range at tier 1, and
+-- RangePerTier percent of it more for each tier above. Devices outside join within the exterior range of their own
+-- box (the API reads at most 32); producers and sub-panels within the producer and sub-panel range of the main box.
+local function reach(name, default, tier)
+    tier = math.max(1, math.min(BU.TIERS, tier or 1))
+    local perTier = math.max(0, BU.sandbox("RangePerTier", 50))
+    return math.floor(BU.sandbox(name, default) * (1 + (tier - 1) * perTier / 100))
+end
+function BU.exteriorRange(tier) return math.max(0, math.min(32, reach("ExteriorRange", 10, tier))) end
+function BU.producerRange(tier) return math.max(1, reach("ProducerRange", 20, tier)) end
+function BU.subPanelRange(tier) return math.max(1, reach("SubPanelRange", 50, tier)) end
 
 -- Connections cost wire or pipe by length; taken away, they give back a share.
 function BU.costsEnabled() return BU.sandbox("CostsEnabled", true) == true end
@@ -57,7 +66,6 @@ function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) e
 function BU.refundPercent() return math.max(0, math.min(100, BU.sandbox("RefundPercent", 50))) end
 
 -- A box carries so much power for its tier; past it, its breaker trips.
-BU.TIERS = 3
 local CAPACITY_DEFAULTS = { 0.3, 0.6, 1.5 }
 function BU.overloadEnabled() return BU.sandbox("OverloadEnabled", true) == true end
 function BU.capacity(tier)
@@ -66,7 +74,10 @@ function BU.capacity(tier)
 end
 function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
 
--- A box of this tier sheds its devices that are not essential, the largest first, before its breaker trips.
+-- What a box can do from a tier: put devices on timers, give supply to sub-panels, and shed its devices that are
+-- not essential, the largest first, before its breaker trips.
+BU.TIMER_TIER = 2
+BU.LINK_TIER = 2
 BU.SMART_TIER = 3
 
 -- Electricity experience for wiring: so much times the sandbox's multiplier (0: none).

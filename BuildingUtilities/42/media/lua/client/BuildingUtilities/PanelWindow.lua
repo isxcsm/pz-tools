@@ -266,7 +266,6 @@ function ISBUPanelWindow:createChildren()
     local buttonsY = self.bannerY + ROW + 4
     self.rangeButton = button(self, self.width - PAD - 130, self.loadY, 130, ROW, ISBUPanelWindow.onRange)
     anchorRight(self.rangeButton)
-    self.rangeButton:setTooltip(getText("IGUI_BU_RangeNote"))
     self.planButton = button(self, self.width - PAD - 130 - 4 - 110, self.loadY, 110, ROW, ISBUPanelWindow.onPlan)
     anchorRight(self.planButton)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
@@ -453,6 +452,7 @@ function ISBUPanelWindow:refresh()
         self.banner = nil
     end
     self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
+    self.rangeButton:setTooltip(getText("IGUI_BU_RangeNote") .. "\n" .. Panels.rangesText(panel.tier))
     self.planButton:setTitle(getText(self.plan:getIsVisible() and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
@@ -462,9 +462,7 @@ function ISBUPanelWindow:refresh()
     if tier < BU.TIERS then
         self.upgradeButton:setTitle(getText("ContextMenu_BU_Upgrade", tier + 1))
         local cost = Costs.upgrade(tier + 1)
-        local note = getText("IGUI_BU_UpgradeNote", load2(BU.capacity(tier + 1)))
-        if tier + 1 == BU.SMART_TIER then note = note .. "\n" .. getText("IGUI_BU_SmartNote") end
-        self.upgradeButton:setTooltip(note .. "\n" .. Costs.describe(self.playerObj, cost, true))
+        self.upgradeButton:setTooltip(Panels.upgradeNote(tier + 1, true) .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
     local building = Panels.building(panel)
@@ -618,6 +616,7 @@ function ISBUPanelWindow:fill(utility, state)
         add({ kind = "filter", text = getText("IGUI_BU_FilterNote", title(self.roomFilter)) })
     end
     local sheds = Panels.sheds(panel)
+    local timers = (panel.tier or 1) >= BU.TIMER_TIER
     for _, group in ipairs(order) do
         view.totals[group.id] = { title = title(group.id), total = group.total, on = group.on, count = group.on + group.off }
         if #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) then
@@ -641,7 +640,7 @@ function ISBUPanelWindow:fill(utility, state)
                         local cost = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
                         if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
                     end
-                    local controls = utility == "power" and device.state == "on"
+                    local controls = timers and utility == "power" and device.state == "on"
                     if controls then
                         tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
                             .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
@@ -872,13 +871,14 @@ function ISBUPanelWindow:showRange(on)
     end
     -- A range of 0 has no ring: devices outside do not join at all.
     local rings, reach = {}, 0
-    if BU.exteriorRange() > 0 then
-        rings[#rings + 1] = { steps = BU.exteriorRange(), colour = ColorInfo.new(0.3, 0.6, 1, 1) }
-        reach = BU.exteriorRange()
+    local exterior, producers = BU.exteriorRange(panel.tier), BU.producerRange(panel.tier)
+    if exterior > 0 then
+        rings[#rings + 1] = { steps = exterior, colour = ColorInfo.new(0.3, 0.6, 1, 1) }
+        reach = exterior
     end
     if not panel.parent then
-        rings[#rings + 1] = { steps = BU.producerRange(), colour = ColorInfo.new(1, 0.85, 0.2, 1) }
-        reach = math.max(reach, BU.producerRange())
+        rings[#rings + 1] = { steps = producers, colour = ColorInfo.new(1, 0.85, 0.2, 1) }
+        reach = math.max(reach, producers)
     end
     local producerColour = getCore():getGoodHighlitedColor()
     for x = minX - reach, maxX + reach do
@@ -890,7 +890,7 @@ function ISBUPanelWindow:showRange(on)
                     local floor = steps == ring.steps and square:getFloor()
                     if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
                 end
-                if not panel.parent and steps and steps > 0 and steps <= BU.producerRange() then
+                if not panel.parent and steps and steps > 0 and steps <= producers then
                     local utility, object = Panels.producerOn(square)
                     if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
                 end
@@ -936,7 +936,7 @@ function ISBUPanelWindow:onMainPanel()
     if #candidates == 0 then
         local hasProducers = #panel.power.producers > 0 or #panel.water.producers > 0
         local option = menu:addOption(getText(hasProducers and "IGUI_BU_Reason_hasProducers" or "IGUI_BU_NoMainInRange",
-            BU.subPanelRange()), nil, nil)
+            BU.subPanelRange(BU.TIERS)), nil, nil)
         option.notAvailable = true
         return
     end
@@ -947,9 +947,15 @@ function ISBUPanelWindow:onMainPanel()
         local tip = ISToolTip:new()
         tip:initialise()
         tip:setVisible(false)
-        tip.description = Costs.describe(playerObj, cost)
         option.toolTip = tip
-        if not Costs.affords(playerObj, cost) then option.notAvailable = true end
+        if candidate.tier then
+            -- In reach once that box is upgraded.
+            tip.description = getText("IGUI_BU_NeedsTier", candidate.tier)
+            option.notAvailable = true
+        else
+            tip.description = Costs.describe(playerObj, cost)
+            if not Costs.affords(playerObj, cost) then option.notAvailable = true end
+        end
     end
 end
 
