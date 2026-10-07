@@ -8,7 +8,9 @@
 -- devices outside it is connected to; dots run along them the way power or water goes now, from the producers in
 -- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the
 -- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
--- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). While devices outside
+-- (yellow), and on the power plan how far each generator is heard (red, dim while it is off). The supply lines' switch
+-- at the top shows them with their dots, the lines alone, or none (the player's choice, kept between games); without
+-- dots or lines, the mouse over a producer shows its line. While devices outside
 -- are chosen to connect, a click on one
 -- chooses it. The wheel zooms at the mouse, dragging moves the plan, Fit goes back. Over the floor strip the wheel
 -- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
@@ -16,6 +18,7 @@
 -- window's range button would). Everything is laid out when the window refreshes or the plan is resized; a frame only
 -- draws the rectangles laid out, inside the map.
 require "ISUI/ISPanel"
+require "PZAPI/ModOptions"
 require "BuildingUtilities/Geometry"
 local BU = BuildingUtilities
 local Geometry = BU.Geometry
@@ -39,6 +42,50 @@ local STRIP_SCROLL = 3
 local FLOW_GAP, FLOW_SPEED, FLOW_DOT = 14, 24, 4
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
+
+-- How the plan shows the producers' supply lines, a view preference of the player's: "flow" (the lines and dots
+-- running along them, the default), "lines" (the lines alone) or "off" (none, but the line of the producer under the
+-- mouse). The game's mod options keep it (PZAPI.ModOptions, by its place in FLOW_STATES, in Zomboid\Lua\ModOptions.ini
+-- as their screen writes it), so it lasts between games and saves, is the player's own in multiplayer, and shows on
+-- that screen too. Without that API, for the session.
+ISBUPlan.FLOW_STATES = { "flow", "lines", "off" }
+local FLOW_STATES = ISBUPlan.FLOW_STATES
+local FLOW_W = 0
+for _, state in ipairs(FLOW_STATES) do
+    FLOW_W = math.max(FLOW_W, getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFlow_" .. state)) + 10)
+end
+local flowOption, flowSession = nil, 1
+if PZAPI and PZAPI.ModOptions then
+    local options = PZAPI.ModOptions:getOptions(BU.MOD) or PZAPI.ModOptions:create(BU.MOD, "IGUI_BU_ModOptions")
+    flowOption = options:getOption("planFlow")
+    if not flowOption then
+        flowOption = options:addComboBox("planFlow", "IGUI_BU_PlanFlowOption", "IGUI_BU_PlanFlowHint")
+        for index, state in ipairs(FLOW_STATES) do flowOption:addItem("IGUI_BU_PlanFlow_" .. state, index == 1) end
+    end
+end
+
+function ISBUPlan.flowState()
+    local index = flowOption and tonumber(flowOption:getValue()) or flowSession
+    return FLOW_STATES[index] or FLOW_STATES[1]
+end
+
+function ISBUPlan.setFlowState(state)
+    local index = 1
+    for each, name in ipairs(FLOW_STATES) do
+        if name == state then index = each end
+    end
+    if not flowOption then flowSession = index; return end
+    flowOption:setValue(index)
+    PZAPI.ModOptions:save()
+end
+
+-- The state after a state, as the switch goes round.
+local function nextFlowState(state)
+    for index, name in ipairs(FLOW_STATES) do
+        if name == state then return FLOW_STATES[index % #FLOW_STATES + 1] end
+    end
+    return FLOW_STATES[1]
+end
 
 local WHITE = Texture.getWhite()
 
@@ -273,7 +320,7 @@ end
 function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
-    self.flows, self.walls = {}, {}
+    self.flows, self.walls, self.hoverLine = {}, {}, nil
     self:layoutTop()
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
@@ -347,17 +394,20 @@ function ISBUPlan:layout()
         addEdges(ranges.producer, COLOURS.rangeProducer)
         addEdges(ranges.exterior, COLOURS.rangeOutside)
     end
-    -- The lines: from the building's outline (this floor's, else any) to each producer and device outside it takes.
+    -- The lines: from the building's outline (this floor's, else any) to each producer and device outside it takes;
+    -- the producers' as the supply lines' switch has them (ISBUPlan.flowState).
     local floorRects, allRects = Geometry.roomRects(data.rooms, self.floor)
-    -- A line, and with a flow the dots' path: from the thing to the building, on to the box when it is on this floor;
-    -- they run along it to the box (flow 1) or from it (-1).
-    local function addLine(x, y, colour, flow)
+    local flowState = ISBUPlan.flowState()
+    -- A line, drawn when shown, and while the switch shows the flow, with a flow the dots' path: from the thing to the
+    -- building, on to the box when it is on this floor; they run along it to the box (flow 1) or from it (-1). Returns
+    -- the line, for the mouse over a producer.
+    local function addLine(x, y, colour, flow, shown)
         local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
-        if not px then return end
+        if not px then return nil end
         local line = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
             x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
-        self.lines[#self.lines + 1] = line
-        if not flow then return end
+        if shown then self.lines[#self.lines + 1] = line end
+        if not (flow and shown and flowState == "flow") then return line end
         local points = { { line.x1, line.y1 }, { line.x2, line.y2 } }
         if data.box.z == self.floor then
             points[3] = { ox + (data.box.x + 0.5 - minX) * scale, oy + (data.box.y + 0.5 - minY) * scale }
@@ -369,14 +419,15 @@ function ISBUPlan:layout()
             lengths[index] = math.sqrt(dx * dx + dy * dy)
             length = length + lengths[index]
         end
-        if length < 1 then return end
+        if length < 1 then return line end
         -- Brighter than the line, so the dots show on it.
         self.flows[#self.flows + 1] = { points = points, lengths = lengths, length = length, toBox = flow > 0,
             r = math.min(1, colour[1] + 0.3), g = math.min(1, colour[2] + 0.3), b = math.min(1, colour[3] + 0.3) }
+        return line
     end
     for _, device in ipairs(data.devices) do
         if device.z == self.floor and not device.inside and device.state == "on" then
-            addLine(device.x, device.y, COLOURS.idle, device.flow)
+            addLine(device.x, device.y, COLOURS.idle, device.flow, true)
         end
     end
     -- A producer's colour: its own (a tank's group's), a unit's (its kind's, Units.define), a tank's or a generator's.
@@ -385,8 +436,11 @@ function ISBUPlan:layout()
         if producer.unit then return BU.Units.definition(producer.unit).colour end
         return data.utility == "water" and COLOURS.tank or COLOURS.producer
     end
-    for _, producer in ipairs(data.producers) do
-        if producer.z == self.floor then addLine(producer.x, producer.y, producerColour(producer), producer.flow) end
+    local producerLines = {}
+    for index, producer in ipairs(data.producers) do
+        if producer.z == self.floor then
+            producerLines[index] = addLine(producer.x, producer.y, producerColour(producer), producer.flow, flowState ~= "off")
+        end
     end
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
@@ -444,11 +498,12 @@ function ISBUPlan:layout()
                 chosen = device.chosen, choosable = device.choosable, fresh = device.fresh }
         end
     end
-    for _, producer in ipairs(data.producers) do
+    for index, producer in ipairs(data.producers) do
         if producer.z == self.floor then
             local colour = producerColour(producer)
             self.squares[#self.squares + 1] = { x = sx(producer.x), y = sy(producer.y), size = math.max(scale, 8),
-                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text }
+                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text,
+                line = producerLines[index] }
         end
     end
     if data.box.z == self.floor then
@@ -511,6 +566,7 @@ function ISBUPlan:layoutTop()
     add("legend", TOGGLE_W, "?")
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
+    add("flow", FLOW_W, getText("IGUI_BU_PlanFlow_" .. ISBUPlan.flowState()))
     if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
     self.toggles = toggles
 end
@@ -522,6 +578,7 @@ function ISBUPlan:prerender()
     local legend = self:legendShown()
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
+            or toggle.name == "flow" and ISBUPlan.flowState() ~= "off"
         if on then self:drawRect(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
         self:drawRectBorder(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
         local lit = toggle.name ~= "legend" or legend
@@ -592,13 +649,20 @@ function ISBUPlan:render()
     for _, line in ipairs(self.lines) do
         self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, 1, 0.8, line.r, line.g, line.b)
     end
+    -- The line of the producer under the mouse, brighter, while the switch shows no dots.
+    local hover = self.hoverLine
+    if hover then
+        self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, 2, 1, math.min(1, hover.r + 0.3),
+            math.min(1, hover.g + 0.3), math.min(1, hover.b + 0.3))
+    end
     for _, square in ipairs(self.squares) do
         local size = square.size
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         if square.ring then self:drawRectBorder(square.x - 2, square.y - 2, size + 4, size + 4, 1, 1, 1, 1) end
     end
-    -- The flows: dots along each path, moving with the clock, over the squares they run between.
-    local moved = getTimestampMs() / 1000 * FLOW_SPEED
+    -- The flows: dots along each path, moving with the clock, over the squares they run between (none laid out while
+    -- the Flow switch is off).
+    local moved = #self.flows > 0 and getTimestampMs() / 1000 * FLOW_SPEED
     for _, flow in ipairs(self.flows) do
         local points, lengths = flow.points, flow.lengths
         -- A short path closer, so that it still shows a few.
@@ -697,6 +761,8 @@ end
 function ISBUPlan:onMouseMove(dx, dy)
     local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
     self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
+    -- A producer's line, as laid out with the rest, while the switch shows no dots.
+    self.hoverLine = kind == "square" and ISBUPlan.flowState() ~= "flow" and thing.line or nil
     if kind == "dot" or kind == "square" then
         self.status = thing.text
     elseif kind == "room" then
@@ -713,6 +779,8 @@ function ISBUPlan:onMouseMove(dx, dy)
         self.status = BU.floorName(thing.level)
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "flow" then
+        self.status = getText("IGUI_BU_PlanFlowHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
         self.status = getText("IGUI_BU_PlanRangeHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and #(self.levels or {}) > 1 then
@@ -727,6 +795,7 @@ end
 
 function ISBUPlan:onMouseMoveOutside(dx, dy)
     if self.hoverKey or self.hoverRoom then self:setHover(nil, nil) end
+    self.hoverLine = nil
     self.status = nil
     self:drag(dx, dy)
 end
@@ -797,6 +866,10 @@ function ISBUPlan:onMouseDown(x, y)
         return true
     elseif toggle == "range" then
         self.window:onRange()
+        return true
+    elseif toggle == "flow" then
+        ISBUPlan.setFlowState(nextFlowState(ISBUPlan.flowState()))
+        self:layout()
         return true
     elseif toggle == "title" then
         if #(self.levels or {}) > 1 then self:floorMenu() end

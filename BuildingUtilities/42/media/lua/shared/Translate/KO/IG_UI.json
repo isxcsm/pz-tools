@@ -933,5 +933,11 @@
     "IGUI_BU_Pump_noWater": "헛도는 중: 옆에 물이 없음",
     "IGUI_BU_Legend_rangeNoise": "좀비가 발전기 소리를 듣는 곳",
     "IGUI_BU_UnitOff": "%1 (샌드박스에서 꺼짐)",
-    "IGUI_BU_Reason_disabled": "샌드박스 옵션에서 꺼져 있습니다."
+    "IGUI_BU_Reason_disabled": "샌드박스 옵션에서 꺼져 있습니다.",
+    "IGUI_BU_PlanFlowHint": "공급선, 누르면 바뀝니다: 흐름(선과 전기나 물이 흐르는 쪽으로 움직이는 점), 선만(선만), 선 없음(안 보임). 점이 없으면 공급원에 마우스를 올려 그 선을 봅니다",
+    "IGUI_BU_ModOptions": "건물 유틸리티",
+    "IGUI_BU_PlanFlowOption": "평면도: 공급선",
+    "IGUI_BU_PlanFlow_flow": "흐름",
+    "IGUI_BU_PlanFlow_lines": "선만",
+    "IGUI_BU_PlanFlow_off": "선 없음"
 }

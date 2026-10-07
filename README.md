@@ -31,6 +31,9 @@ panels, battery capacity, charge efficiency, wear, the cold lock and the drain o
 above. Risk options (`Risk...`: pipes freeze, pipes do not purify) are off by default. Each option's tooltip in the
 game says what it does.
 
+The plan's supply lines (flowing dots, lines alone, or none) are each player's own choice, switched on the plan and
+kept in the game's mod options.
+
 ## Repository
 
 - `BuildingUtilities/`: the mod (`42/media/lua/{shared,client,server}/BuildingUtilities`, scripts, sandbox options,
