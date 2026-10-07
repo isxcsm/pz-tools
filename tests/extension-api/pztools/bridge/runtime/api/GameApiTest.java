@@ -8,6 +8,7 @@ import zombie.GameTime;
 import zombie.SandboxOptions;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
+import zombie.entity.components.fluids.Fluid;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.inventory.ItemContainer;
 import zombie.inventory.types.Food;
@@ -17,6 +18,8 @@ import zombie.iso.objects.IsoGenerator;
 import zombie.iso.objects.IsoLightSwitch;
 import zombie.iso.objects.IsoRadio;
 import zombie.iso.sprite.IsoSprite;
+import zombie.network.GameClient;
+import zombie.world.moddata.ModData;
 
 /**
  * The extension API as a Lua mod sees it, against the synthetic game of the startup loader test: the table, the facts
@@ -48,6 +51,7 @@ public final class GameApiTest {
         memberRooms(api);
         sources(api);
         water(api);
+        fluids(api);
         food(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, and a newer payload takes it over");
@@ -903,6 +907,109 @@ public final class GameApiTest {
         for (String id : List.of("annex", "pipes", "lights")) call(networks, "remove", mod, id);
         frame();
         check(!sink.getUsesExternalWaterSource() && !outside.getUsesExternalWaterSource(), "A removed network still supplies water");
+    }
+
+    /**
+     * A mod draws from and fills a water network's producers, the fullest first and the emptiest first. A loaded
+     * container changes at once, as the game changes one; a producer whose square is not loaded is owed the change, from
+     * what it held when last seen, in the world's ModData, and takes it as it loads, once only, also when the world kept
+     * an older ModData.
+     */
+    private static void fluids(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject clean = place(30, 34, 0, barrel(60)), tainted = place(31, 34, 0, new IsoObject(new IsoSprite("barrel")));
+        tainted.fluidContainer = new FluidContainer(100, 40, Fluid.TaintedWater);
+        call(networks, "define", mod, "tanks", "water", "fullest");
+        call(networks, "setProducers", mod, "tanks", list(at(30, 34, 0), at(31, 34, 0)));
+        frame();
+        // Loaded: the fullest gives until it is level with the other, then both; each fluid in proportion.
+        LuaEventManager.raised.clear();
+        var drawn = call(networks, "draw", mod, "tanks", 30.0);
+        KahluaTable mix = (KahluaTable)drawn.get(1);
+        check(near((Double)drawn.get(0), 30) && near((Double)mix.rawget("Water"), 25) && near((Double)mix.rawget("TaintedWater"), 5)
+            && near(clean.fluidContainer.amount, 35) && near(tainted.fluidContainer.amount, 35), "A draw did not take from the fullest first: " + drawn);
+        check(clean.syncs == 1 && tainted.syncs == 1 && LuaEventManager.raised.contains(List.of("OnWaterAmountChange", clean, 60f)),
+            "A drawn container was not synced or its change not raised");
+        // Not loaded: owed, from what it held when last seen.
+        var unloaded = IsoWorld.instance.cell.squares.remove("31,34,0");
+        drawn = call(networks, "draw", mod, "tanks", 20.0);
+        mix = (KahluaTable)drawn.get(1);
+        check(near((Double)drawn.get(0), 20) && near((Double)mix.rawget("Water"), 10) && near((Double)mix.rawget("TaintedWater"), 10)
+            && near(clean.fluidContainer.amount, 25) && near(tainted.fluidContainer.amount, 35), "A draw from an unloaded producer went wrong: " + drawn);
+        check(near((Double)call(networks, "fill", mod, "tanks", 30.0, "Water").get(0), 30) && near(clean.fluidContainer.amount, 40)
+            && near(clean.fluidContainer.fluid(Fluid.Water), 40), "A fill did not go to the emptiest first");
+        KahluaTable tanks = state(networks, "tanks");
+        var owed = (KahluaTable)((KahluaTable)tanks.rawget("producers")).rawget(2.0);
+        check(near((Double)owed.rawget("amount"), 40) && near((Double)owed.rawget("pending"), 5) && near((Double)tanks.rawget("amount"), 80)
+            && ((KahluaTable)((KahluaTable)tanks.rawget("producers")).rawget(1.0)).rawget("pending").equals(0.0),
+            "The state does not count what is owed: " + owed.rawget("amount") + ", " + owed.rawget("pending"));
+        KahluaTable kept = ModData.get(PendingFluids.KEY);
+        check(kept != null && ((KahluaTable)kept.rawget("deltas")).len() == 2, "What is owed is not in the world's ModData");
+        rejects(networks, "fill", "fluid must name one of the game's fluids", mod, "tanks", 1.0, "Lava");
+        rejects(networks, "draw", "amount must be a number from 0.0", mod, "tanks", -1.0);
+        call(networks, "define", mod, "wires", "power", "sequential");
+        rejects(networks, "draw", "wires carries power, not fluids", mod, "wires", 1.0);
+        call(networks, "remove", mod, "wires");
+        GameClient.client = true;
+        rejects(networks, "draw", "a multiplayer client cannot change what producers hold", mod, "tanks", 1.0);
+        GameClient.client = false;
+        // A newer payload owes the same.
+        GameApi.register(LuaManager.class);
+        check(near((Double)((KahluaTable)((KahluaTable)state(networks, "tanks").rawget("producers")).rawget(2.0)).rawget("pending"), 5),
+            "A newer payload lost what is owed");
+        // Loaded again: it takes what it is owed at the next frame, and records the last change it took.
+        Object before = kept.rawget("deltas");
+        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        frame();
+        check(near(tainted.fluidContainer.amount, 40) && near(tainted.fluidContainer.fluid(Fluid.TaintedWater), 25)
+            && near(tainted.fluidContainer.fluid(Fluid.Water), 15) && tainted.syncs == 2, "A loaded producer did not take what it was owed: "
+            + tainted.fluidContainer.amount);
+        check(((KahluaTable)kept.rawget("deltas")).len() == 0 && tainted.getModData().rawget(WaterGrid.APPLIED) instanceof Double,
+            "What was taken is still owed, or not recorded");
+        // A world that stopped before its ModData was saved owes it again: the producer takes nothing twice.
+        KahluaTable older = LuaManager.platform.newTable();
+        older.rawset("deltas", before);
+        ModData.tables.put(PendingFluids.KEY, older);
+        frame();
+        check(near(tainted.fluidContainer.amount, 40) && ((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 0,
+            "A change was taken twice: " + tainted.fluidContainer.amount);
+        // And a change owed after such a world gets a number past the ones the producer took.
+        IsoWorld.instance.cell.squares.remove("31,34,0");
+        call(networks, "draw", mod, "tanks", 2.0);
+        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        frame();
+        check(tainted.fluidContainer.amount < 40, "A change owed after an older ModData was not taken");
+        // Several containers on a square: draws come from the fullest first, fills go to the emptiest first.
+        IsoObject fuller = place(32, 34, 0, barrel(50)), emptier = place(32, 34, 0, barrel(10));
+        call(networks, "define", mod, "pair", "water", "fullest");
+        call(networks, "setProducers", mod, "pair", list(at(32, 34, 0)));
+        frame();
+        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        check(near((Double)call(networks, "draw", mod, "pair", 30.0).get(0), 30), "A draw from an unloaded square went wrong");
+        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        frame();
+        check(near(fuller.fluidContainer.amount, 20) && near(emptier.fluidContainer.amount, 10), "The owed draw did not come from the fullest");
+        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        call(networks, "fill", mod, "pair", 50.0, "Water");
+        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        frame();
+        check(near(fuller.fluidContainer.amount, 40) && near(emptier.fluidContainer.amount, 40), "The owed fill did not go to the emptiest");
+        // Its containers gone, a square drops what it is owed.
+        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        call(networks, "fill", mod, "pair", 5.0, "Water");
+        unloaded.objects.clear();
+        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        frame();
+        check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 0, "A square without containers kept what it was owed");
+        // A producer never seen loaded takes nothing; nor does a network switched off.
+        call(networks, "setProducers", mod, "pair", list(at(60, 60, 0)));
+        check(call(networks, "draw", mod, "pair", 5.0).get(0).equals(0.0) && call(networks, "fill", mod, "pair", 5.0, "Water").get(0).equals(0.0),
+            "A producer never seen took a draw or a fill");
+        call(networks, "setEnabled", mod, "tanks", false);
+        check(call(networks, "draw", mod, "tanks", 5.0).get(0).equals(0.0), "A network switched off gave water");
+        for (String id : List.of("tanks", "pair")) call(networks, "remove", mod, id);
+        frame();
     }
 
     /**

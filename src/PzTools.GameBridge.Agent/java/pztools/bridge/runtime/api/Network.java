@@ -52,8 +52,11 @@ final class Network {
         double end() { return perHour > 0 ? lastHour + Math.ceil(fuel / perHour) : Double.POSITIVE_INFINITY; }
     }
 
-    /** What a water producer's square holds, as last seen loaded: the amounts and capacities of its fluid containers. */
-    record Stored(float amount, float capacity) { }
+    /**
+     * What a water producer's square holds, as last seen loaded: the amounts and capacities of its fluid containers, and
+     * the litres of each fluid in them, by the game's name for it.
+     */
+    record Stored(float amount, float capacity, Map<String, Float> fluids) { }
 
     final String id, owner, utility, policy;
     /**

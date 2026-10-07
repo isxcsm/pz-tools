@@ -20,6 +20,8 @@ final class Networks {
     private static final String MIRROR = "networks", FORMAT = "pztools-networks 1";
     // The most a load factor multiplies a load by, and the most extra load a network takes.
     private static final double MAX_LOAD_FACTOR = 100, MAX_EXTRA_LOAD = 1000;
+    // The most litres one draw or fill moves.
+    private static final double MAX_FLUID = 1_000_000;
 
     /** The mod a handle belongs to, or null when the value is not one of the API's handles. */
     @FunctionalInterface interface Owners { String of(Object handle) throws ReflectiveOperationException; }
@@ -44,7 +46,7 @@ final class Networks {
         this.owners = owners;
         members = new Members(game, buildings, networks);
         grid = new PowerGrid(game, members);
-        try { water = new WaterGrid(game, members); }
+        try { water = new WaterGrid(game, members, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
         load(lua.get(meta, MIRROR));
         changed();
@@ -305,6 +307,37 @@ final class Networks {
             for (var consumer : members.consumers(network, filter, complete)) result.add(buildings.entry(consumer));
             return new Object[] { lua.list(result), complete[0] };
         });
+        function(table, "draw", (call, arguments) -> {
+            Network network = fluids(arguments, call);
+            double litres = Arguments.number(arguments, 2, call, "amount", 0, MAX_FLUID);
+            var mix = new TreeMap<String, Double>();
+            double drawn = water.draw(network, litres, mix);
+            Object taken = lua.table();
+            for (var fluid : mix.entrySet()) lua.set(taken, fluid.getKey(), fluid.getValue());
+            return new Object[] { drawn, taken };
+        });
+        function(table, "fill", (call, arguments) -> {
+            Network network = fluids(arguments, call);
+            double litres = Arguments.number(arguments, 2, call, "amount", 0, MAX_FLUID);
+            String fluid = Arguments.string(arguments, 3, call, "fluid");
+            if (!water.fluid(fluid))
+                throw new IllegalArgumentException(call + ": fluid must name one of the game's fluids, such as \"Water\" or \"TaintedWater\"");
+            return new Object[] { water.fill(network, litres, fluid) };
+        });
+    }
+
+    /**
+     * The caller's own water network named by the arguments, for a call that changes what its producers hold: only where
+     * the game changes what objects hold, a single-player game or a multiplayer game's server.
+     */
+    private Network fluids(Object[] arguments, String call) throws ReflectiveOperationException {
+        if (water == null) throw new IllegalArgumentException(call + ": water networks are not in this game; restart it to use them");
+        if (!water.authoritative())
+            throw new IllegalArgumentException(call + ": a multiplayer client cannot change what producers hold; the server does");
+        Network network = mine(arguments, call);
+        if (!WaterGrid.UTILITY.equals(network.utility))
+            throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", not fluids");
+        return network;
     }
 
     /** A power network's state: its load, the fuel it burns and how long that lasts, and its producers as last seen. */
@@ -341,16 +374,19 @@ final class Networks {
     }
 
     /**
-     * A water network's state: what the producers it draws from hold, as last seen: its own and, for a child, its
-     * parents'. It lists its own.
+     * A water network's state: what the producers it draws from hold, as last seen and with what draws and fills owe
+     * them: its own and, for a child, its parents'. It lists its own.
      */
     private void water(Object result, Network network) throws ReflectiveOperationException {
         double held = 0, most = 0;
         var producers = new ArrayList<Object>();
+        if (water != null) water.refreshOwed();
         for (Network above : members.root(network) == null ? List.<Network>of() : members.chain(network))
             for (Position at : above.squares()) {
                 Object entry = square(at);
-                var stored = above.stored.get(at);
+                // What draws and fills owe a producer whose square is not loaded counts already.
+                var stored = water == null ? above.stored.get(at) : water.withOwed(at, above.stored.get(at));
+                if (water != null) lua.set(entry, "pending", water.owed(at));
                 if (stored != null) {
                     lua.set(entry, "amount", (double)stored.amount());
                     lua.set(entry, "capacity", (double)stored.capacity());

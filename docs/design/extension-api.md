@@ -149,8 +149,10 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
 | `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what the producers it draws from hold, as last seen: its own and, for a child, its parents') and `producers`, its own alone, each its square and, once seen loaded, `amount` and `capacity`. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
+| `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, the fullest first (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
+| `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
 change, never per frame. `what` is `"supply"` (it started or stopped), `"producer"` (another producer
@@ -201,6 +203,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - Rooms: `addRoom` takes single rooms of a building instead of all of it.
 - Sources: producers its mod runs (`setSource`), in the same order as generators under `"sequential"`;
   `setExtraLoad` adds a load to a network.
+- Draw and fill: `draw` and `fill` move water out of and into a water network's producers, also those
+  whose squares are not loaded, which take the change as they load ([draw and fill](#draw-and-fill)).
 - Not yet: `"parallel"`.
 
 ### Power
@@ -243,7 +247,7 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 ### Water
 
 - **Supply.** A network has water while one of the producers it draws from holds some, as last seen
-  loaded, and it is switched on. A child draws from its own producers, if it has any, and from each
+  loaded and with what draws and fills owe it, and it is switched on. A child draws from its own producers, if it has any, and from each
   parent's up to the one at the top; it has water while one of those holds some and it and each
   parent above it are switched on. A parent switched off cuts its children, whatever they hold.
   Without water, its fixtures are the game's again.
@@ -255,6 +259,42 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   does for a fixture plumbed to a barrel.
 - **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
   collectors fill themselves (see below), so a water network needs no catch-up of its own.
+
+#### Draw and fill
+
+A mod moves water into and out of a network's producers with `draw` and `fill`, for consumers and
+producers of its own that are not game fixtures. They reach the producers the network draws from (its
+own, then its parents'), and nothing while the network or a parent above it is switched off.
+
+- **Order.** A draw takes from the fullest by share of its capacity until it is level with the next,
+  then from both, and so on, as many small draws by fixtures would; a fill levels the room left the
+  same way, so the emptiest takes first. Each container gives every fluid it holds in proportion,
+  which is what the draw's table reports.
+- **Loaded.** A container on a loaded square changes at once, through the game's own
+  `FluidContainer.removeFluid` and `addFluid` (a container that does not take that fluid takes none).
+  As the game does after a fluid change, the object is synced (`IsoObject.sync()`, which sends it to
+  multiplayer clients) and `OnWaterAmountChange` is raised.
+- **Not loaded.** A producer whose square is not loaded is drawn and filled as last seen, with what it
+  is owed already, its fluids included; the change is owed to its square. A producer never seen loaded
+  since the networks were defined takes neither. `state` counts what is owed in `amount` and reports
+  it as `pending`.
+- **Owed.** What is owed belongs to the world, by square, not to a network: defining a network again
+  or changing its producers loses none. The world keeps it in the game's global ModData under
+  `PZToolsPendingFluids` (`next`, the next sequence number, and `deltas`, a list of `x`, `y`, `z`,
+  `sequence`, `litres` and, for a fill, `fluid`), which the game saves with the world. A square takes
+  what it is owed on the first frame it is loaded, in order: draws from its fullest container first,
+  fills into its emptiest, between empty and full. Until then no fixture draws from it. A square whose
+  containers are gone drops what it is owed, and the game's log says so.
+- **Once only.** A chunk is saved as it unloads, the global ModData only when the world is saved, so a
+  world that stopped between the two still owes a square changes it took. Each change has a sequence
+  number, and the containers on a square record the last one they took in their own modData
+  (`PZToolsFluidsApplied`), which is saved with them; a square takes no change at or below it. The
+  numbers grow with the clock as well, so a change owed after such a world is reloaded is numbered past
+  the ones taken.
+- **Multiplayer.** Only the server, or a single-player game, changes what producers hold: on a
+  multiplayer client `draw` and `fill` are a Lua error.
+- The API does not simulate rain for producers that are not loaded. Whether the game fills a rain
+  collector for the time its square was not loaded is not verified.
 
 ## How the game is answered
 
