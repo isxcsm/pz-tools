@@ -22,6 +22,11 @@ Then `RUN("bu_all.lua")` runs the logic checks of the solar and battery batches 
 them to the test panel, once. `BU22_KEEP=true` before `bu_test22` leaves its generators and the range shown for a
 look; `BU22_CLEAN()` takes them away.
 
+- `bu_combo.lua`, `bu_combo2.lua`, `bu_combo3.lua`: the combined check of the plan's batches 3 and 4 by hand. `bu_combo`
+  gives the items and tools, puts a well, two seeded crops and a fuelled generator wired to the test panel down; the
+  units are then installed and wired from their context menus. `bu_combo2` prints what they do and opens the water
+  tab; `bu_combo3` starts the generator, puts a well east of the pump, turns RiskPlumbingUnpurified on and wears the
+  filter down for its Replace option. `BUCOMBO3_CLEAN()` and `BUCOMBO_CLEAN()` take their things away.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
   test save and are kept as a record.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.
