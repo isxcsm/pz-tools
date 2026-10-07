@@ -27,6 +27,11 @@ look; `BU22_CLEAN()` takes them away.
   units are then installed and wired from their context menus. `bu_combo2` prints what they do and opens the water
   tab; `bu_combo3` starts the generator, puts a well east of the pump, turns RiskPlumbingUnpurified on and wears the
   filter down for its Replace option. `BUCOMBO3_CLEAN()` and `BUCOMBO_CLEAN()` take their things away.
+- `bu_features.lua`: the sandbox's features page: each toggle turned off and on in `SandboxVars` at runtime, the passes
+  run, and what is off checked inert and hidden (networks gone from the API, no load, no fill or draw, no tabs, rows or
+  installs, recipes hidden), both utilities off together, then the plan's supply lines' switch in its three states and
+  a producer's line under the mouse. Puts a pump, a sprinkler and a filter down and takes them away; each line "ok" or
+  "BAD". Needs the test panel (`bu_setup.lua`) and tanks (`bu_water20.lua`) for the water and plan checks.
 - `bu_spray.lua`: a spraying sprinkler near the player, its frames read over a second and a half (the spray going
   round); `BUSPRAY_CLEAN()` takes it away. A new sprite sheet needs the game restarted, not only the save reloaded.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the

@@ -4,7 +4,8 @@ Reports:
 - keys one language has and the other lacks, in any file;
 - UI keys (IG_UI and ContextMenu) the code names that no language has, and UI keys no code names (directly, or by a
   prefix the code builds keys from, as getText("IGUI_BU_Reason_" .. reason));
-- sandbox options (media/sandbox-options.txt) without a name or a tooltip, and sandbox texts no option has;
+- sandbox pages and options (media/sandbox-options.txt) without a name, options without a tooltip, and sandbox texts
+  no page or option has;
 - items and craft recipes (media/scripts) without a name, and names no item or recipe has;
 - texts with a bare percent sign, which breaks the game's String.format, and texts whose %1, %2 ... differ between
   the languages.
@@ -29,7 +30,6 @@ PREFIX = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_BU_\w+)["\']\s*\.\.')
 # Keys built in ways the patterns above cannot see: the game names a container's title itself
 # (IGUI_ContainerTitle_<type>); the list's row buttons are "IGUI_BU_" .. name (PanelList.lua, BUTTONS).
 BUILT = {'IGUI_ContainerTitle_BuildingUtilitiesRack', 'IGUI_BU_Up', 'IGUI_BU_Down', 'IGUI_BU_Remove'}
-SANDBOX_PAGE = 'Sandbox_BuildingUtilities'
 
 
 def load(lang, names):
@@ -54,10 +54,11 @@ def code():
 
 
 def sandbox_keys():
-    """The texts the sandbox options need: the page, and each option's name and tooltip."""
+    """The texts the sandbox options need: each page's name, and each option's name and tooltip."""
     with open(os.path.join(MEDIA, 'sandbox-options.txt'), encoding='utf-8') as f:
-        names = re.findall(r'translation\s*=\s*(\w+)', f.read())
-    keys = {SANDBOX_PAGE}
+        text = f.read()
+    names = re.findall(r'translation\s*=\s*(\w+)', text)
+    keys = {'Sandbox_' + page for page in re.findall(r'page\s*=\s*(\w+)', text)}
     for name in names:
         keys |= {'Sandbox_' + name, 'Sandbox_' + name + '_tooltip'}
     return keys

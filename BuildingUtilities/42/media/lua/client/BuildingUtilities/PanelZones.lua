@@ -265,11 +265,11 @@ function ISBUPanelWindow:roomMenu(id)
 end
 
 -- The box's generators and how far each is heard (Panels.generatorNoise): { x, y, z, radius, running }. A sub-panel
--- has none of its own.
+-- has none of its own, nor has a box while power is off (BU.enabled).
 function ISBUPanelWindow:generatorNoises()
     local result = {}
     local panel = self.panel
-    if panel.parent then return result end
+    if panel.parent or not BU.enabled("power") then return result end
     local state = Networks.state(panel, "power")
     for _, at in ipairs(panel.power.producers) do
         local inUse = PanelWindow.producerInUse(state, at)

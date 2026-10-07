@@ -101,9 +101,17 @@ function commands.setSchedule(player, panel, args)
     end
 end
 
+-- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
+-- the window no longer offers it.
+local NEEDS = { setBlackout = "power", resetBreaker = "power", setEssential = "power", setSchedule = "power",
+    setController = "controller", addWaterGroup = "water", renameWaterGroup = "water", removeWaterGroup = "water",
+    setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water", setGroupReserve = "water",
+    setGroupOverflow = "water" }
+
 local function onClientCommand(module, command, player, args)
     if module ~= BU.MOD or not commands[command] or type(args) ~= "table" then return end
     if args.utility ~= nil and args.utility ~= "power" and args.utility ~= "water" then return end
+    if not BU.enabled(args.utility) or not BU.enabled(NEEDS[command]) then return end
     local panel = Store.get(args.panel)
     if panel then commands[command](player, panel, args) end
 end
@@ -171,7 +179,8 @@ local savingLooked = {}
 local function checkSaving(panel, state, bank, output, rules)
     local onBank = bank ~= nil and Energy.inUse(state) and state.supplied
     local protect = rules.settings.protect / 100
-    if (panel.tier or 1) >= BU.SMART_TIER and onBank and output < rules.load and bank.charge < protect then
+    if Energy.hasController(panel) and (panel.tier or 1) >= BU.SMART_TIER and onBank and output < rules.load
+            and bank.charge < protect then
         if savingLooked[panel.id] then return end
         savingLooked[panel.id] = true
         local keys = {}
@@ -214,7 +223,7 @@ local function checkSource(panel, hours)
         Changes.setExtraLoad(panel, "charging", 0)
         return
     end
-    local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+    local controller = Energy.hasController(panel)
     local ready = Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
     if panel.quietCut then
         if not rules.quiet or ready then Changes.setQuietCut(panel, false) end
@@ -346,7 +355,7 @@ end
 
 -- What each water group's tanks held this minute, for its level graph.
 local function recordWater(panel)
-    if panel.parent or not BU.waterAvailable() then return end
+    if panel.parent or not BU.enabled("water") or not BU.waterAvailable() then return end
     local floors = select(2, BU.Water.layout(panel))
     for _, group in ipairs(BU.Water.groups(panel)) do
         local state = Networks.groupState(panel, group.id, floors)
@@ -354,16 +363,21 @@ local function recordWater(panel)
     end
 end
 
--- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute).
+-- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute), after
+-- what the sandbox turned on or off (Changes.applyFeatures). Power's checks and records only while it is on.
 local function everyMinute()
     if not BU.api() then return end
+    Changes.applyFeatures()
     local hours = updateUnits()
     local hourEnded = false
+    local power = BU.enabled("power")
     for _, panel in ipairs(Store.list()) do
-        checkLoad(panel)
-        checkFuel(panel)
-        hourEnded = recordEnergy(panel) or hourEnded
-        recordStats(panel, hours)
+        if power then
+            checkLoad(panel)
+            checkFuel(panel)
+            hourEnded = recordEnergy(panel) or hourEnded
+            recordStats(panel, hours)
+        end
         recordWater(panel)
         if not panel.parent and hours > 0 then
             BU.WaterRun.pumps(panel, hours * 60)
@@ -399,13 +413,15 @@ local function checkFreezing(panel)
     if water.frozen and (water.warmHours or 0) >= BU.Water.THAW_HOURS then Changes.setFrozen(panel, false) end
 end
 
--- Timers turn with dusk and dawn; ten minutes is near enough.
+-- Timers turn with dusk and dawn; ten minutes is near enough. Timers only while power is on, freezing while water is.
 local function everyTenMinutes()
     if not BU.api() then return end
+    Changes.applyFeatures()
     Changes.checkObjects()
+    local power, water = BU.enabled("power"), BU.enabled("water")
     for _, panel in ipairs(Store.list()) do
-        Changes.applyTimers(panel)
-        checkFreezing(panel)
+        if power then Changes.applyTimers(panel) end
+        if water then checkFreezing(panel) end
         if not panel.parent then BU.WaterRun.sprinklers(panel) end
     end
 end
@@ -446,8 +462,11 @@ local function defineAll()
         BU.log("water that keeps its taint is not in this game - the pipes purify:", notPurify)
     end
     Networks.defineAll()
-    for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
-    BU.log("defined the networks of", #Store.list(), "panels")
+    Changes.applyFeatures(true)
+    if BU.enabled("power") then
+        for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
+    end
+    BU.log("defined the networks of", #Store.list(), "panels, features on:", BU.featureKey())
 end
 
 -- A multiplayer client loads this file too; the world is not decided there.

@@ -52,11 +52,11 @@ end
 -- Whether a sprite is one of a spraying sprinkler's frames.
 function WaterUnits.isSprayFrame(name) return SPRAY_FRAME[name] == true end
 
--- How a pump looks: frozen while its box's pipes are, else running (lifting), dry (running with no water beside it)
--- or stopped.
+-- How a pump looks: frozen while its box's pipes are (with water on), else running (lifting), dry (running with no
+-- water beside it) or stopped.
 function WaterUnits.pumpLook(unit)
     local panel = Store.get(unit.panel)
-    if panel and panel.water.frozen then return "frozen" end
+    if panel and panel.water.frozen and BU.enabled("water") then return "frozen" end
     if unit.running then return unit.fluid and "running" or "dry" end
     return "stopped"
 end

@@ -123,9 +123,10 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
--- Whether a box can go on a square: inside a building, in a room no other box's zone has. Returns the building, or
--- nil and a reason.
+-- Whether a box can go on a square: with a utility on (BU.enabled), inside a building, in a room no other box's zone
+-- has. Returns the building, or nil and a reason.
 function Panels.canInstall(square)
+    if not BU.enabled("panel") then return nil, "disabled" end
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
@@ -161,22 +162,24 @@ function Panels.rangesText(tier)
     return getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
 end
 
--- What upgrading to a tier gives, one line each: the load it carries, the ranges when they grow, what it can do.
--- Plain lines for a button tooltip, rich text otherwise.
+-- What upgrading to a tier gives, one line each: the load it carries, the ranges when they grow, what it can do; only
+-- what the features on (BU.enabled) have. Plain lines for a button tooltip, rich text otherwise.
 function Panels.upgradeNote(tier, plain)
-    local lines = { getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(tier))) }
+    local power = BU.enabled("power")
+    local lines = {}
+    if power then lines[1] = getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(tier))) end
     if Panels.rangesText(tier) ~= Panels.rangesText(tier - 1) then
         lines[#lines + 1] = Panels.rangesText(tier)
     end
-    if BU.lossPerPiece(tier) < BU.lossPerPiece(tier - 1) then
+    if power and BU.lossPerPiece(tier) < BU.lossPerPiece(tier - 1) then
         lines[#lines + 1] = getText("IGUI_BU_LossNote", string.format("%.1f", BU.lossPerPiece(tier)))
     end
-    if tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
+    if power and tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
     if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end
-    if tier == BU.BANK_TIER then lines[#lines + 1] = getText("IGUI_BU_BankNote") end
-    if tier == BU.CONTROLLER_TIER then lines[#lines + 1] = getText("IGUI_BU_ControllerNote") end
-    if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
-    if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_ProtectNote") end
+    if BU.enabled("rack") and tier == BU.BANK_TIER then lines[#lines + 1] = getText("IGUI_BU_BankNote") end
+    if BU.enabled("controller") and tier == BU.CONTROLLER_TIER then lines[#lines + 1] = getText("IGUI_BU_ControllerNote") end
+    if power and tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
+    if BU.enabled("controller") and tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_ProtectNote") end
     return table.concat(lines, plain and "\n" or " <LINE> ")
 end
 
@@ -201,11 +204,13 @@ function Panels.generatorNoise(x, y, z, inUse)
     return radius, running
 end
 
--- What a square can produce: "power" for a generator, "water" for a water container; with the object.
+-- What a square can produce: "power" for a generator, "water" for a water container, while that utility is on
+-- (BU.enabled); with the object.
 function Panels.producerOn(square)
     if not square then return nil end
-    local generator = square:getGenerator()
+    local generator = BU.enabled("power") and square:getGenerator()
     if generator then return "power", generator end
+    if not BU.enabled("water") then return nil end
     local objects = square:getObjects()
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
@@ -261,6 +266,7 @@ end
 
 -- Whether a producer can be connected to a panel. True, or false and a reason.
 function Panels.canConnectProducer(panel, utility, x, y, z)
+    if not BU.enabled(utility) then return false, "disabled" end
     if panel.parent then return false, "isSubPanel" end
     if Store.producerOwner(x, y, z) then return false, "connectedElsewhere" end
     local square = getCell():getGridSquare(x, y, z)
@@ -278,7 +284,8 @@ end
 -- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
 -- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
--- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off, or nil).
+-- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off, or nil). A
+-- utility that is off (BU.enabled) has none.
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
         if set[key] then return set[key] end
@@ -298,6 +305,7 @@ function Panels.devices(panel, utility)
     local api = BU.api()
     local building = Panels.building(panel)
     local result = {}
+    if not BU.enabled(utility) then return result, true end
     if not api or not building then return result, false end
     local data = panel[utility]
     -- The listed parts by object: each part's key leads to its object's group.
@@ -462,11 +470,13 @@ function Panels.deviceOf(object, utility, cache)
 end
 
 -- For a device that uses both power and water and is connected for one utility: the other when the panel lacks it
--- there (excluded inside, not added outside, or its network, otherState, without supply), else nil.
+-- there (excluded inside, not added outside, or its network, otherState, without supply), else nil; nil too while
+-- the other is off (BU.enabled).
 function Panels.missingOther(panel, utility, device, otherState)
     local entry = device.entry
     if not (entry.power and entry.water) then return nil end
     local other = utility == "power" and "water" or "power"
+    if not BU.enabled(other) then return nil end
     local excluded, included = false, false
     for _, key in ipairs(device.keys) do
         excluded = excluded or device.inside and panel[other].excluded[key] ~= nil

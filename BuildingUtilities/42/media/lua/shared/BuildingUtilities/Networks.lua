@@ -9,11 +9,16 @@ local Store, Water = BU.Store, BU.Water
 local Networks = {}
 BU.Networks = Networks
 
--- Calls a function of PZToolsAPI.networks with this mod's handle first. Without the API it does nothing.
-local function change(name, ...)
+-- The utility of one of this mod's network ids ("bu-p3-power", "bu-p3-water-g1-L0"), or nil.
+local function utilityOf(id) return tostring(id):match("^bu%-p%d+%-(%a+)") end
+
+-- Calls a function of PZToolsAPI.networks with this mod's handle first, on the network id. Without the API it does
+-- nothing; a utility turned off in the sandbox (BU.enabled) has no networks, and nothing is asked of them but to go.
+local function change(name, id, ...)
     local api = BU.api()
     if not api then return nil end
-    local ok, result = pcall(api.networks[name], BU.handle(), ...)
+    if name ~= "remove" and not BU.enabled(utilityOf(id)) then return nil end
+    local ok, result = pcall(api.networks[name], BU.handle(), id, ...)
     if not ok then BU.log("networks." .. name .. " failed:", result); return nil end
     return result
 end
@@ -84,9 +89,15 @@ end
 
 -- Water.
 
+-- Whether the panels' water can be networks: water is on (BU.enabled) and in this game (BU.waterAvailable).
+local function waterOn() return BU.enabled("water") and BU.waterAvailable() end
+
 -- The water networks defined for each panel now, by id: { parent, producers, rooms (a set of room ids) }. Not saved:
 -- the networks are defined anew as a world loads.
 local defined = {}
+-- Whether every panel's power networks, and water networks, are defined now: as the features were when the world
+-- started or Networks.applyFeatures last ran.
+local powerDefined, waterDefined = false, false
 
 -- Every water device key a panel names, as a set.
 local function waterKeys(panel)
@@ -103,7 +114,7 @@ end
 -- a group's other floors, none (reset), so that a rule left where the device mapped before goes.
 local function applyWaterRule(panel, key, floors)
     local x, y, z = BU.parseThing(key)
-    if not x or not BU.waterAvailable() then return end
+    if not x or not waterOn() then return end
     local mine = Water.deviceGroup(panel, { key })
     local rule = Networks.rule(panel, "water", key)
     local inside = not panel.water.included[key]
@@ -137,7 +148,7 @@ end
 -- device may map to another floor's network now), else the keys given (all when none are). Networks that stay keep
 -- what the API saw of their tanks. Sub-panels hang from the first group's lowest network, so theirs follow too.
 function Networks.defineWater(panel, keys)
-    if not BU.waterAvailable() then return end
+    if not waterOn() then return end
     local layout, floors = Water.layout(panel)
     local before = defined[panel.id] or {}
     local now, floorsChanged = {}, false
@@ -252,7 +263,7 @@ end
 
 -- The power network's load factor: what its line loses on the way (Panels.powerLine).
 function Networks.applyLoss(panel)
-    if not BU.api() then return end
+    if not BU.api() or not BU.enabled("power") then return end
     local _, percent = BU.Panels.powerLine(panel, Networks.state(panel, "power"))
     change("setLoadFactor", powerId(panel), 1 + (percent or 0) / 100)
 end
@@ -270,10 +281,12 @@ function Networks.link(panel)
     Networks.defineWater(panel)
 end
 
--- Every panel of the save, as the world starts: main panels first, so that sub-panels' water hangs from theirs.
+-- Every panel of the save, as the world starts: main panels first, so that sub-panels' water hangs from theirs. Only
+-- the utilities that are on (BU.enabled).
 function Networks.defineAll()
     if not BU.api() then return end
     defined = {}
+    powerDefined, waterDefined = BU.enabled("power"), waterOn()
     local panels = Store.list()
     for _, panel in ipairs(panels) do Networks.define(panel) end
     for _, panel in ipairs(panels) do
@@ -287,6 +300,33 @@ end
 function Networks.remove(panel)
     change("remove", powerId(panel))
     removeWater(panel)
+end
+
+-- A utility turned on or off in the sandbox since the networks were defined (BU.Changes.applyFeatures): turned off,
+-- every panel's networks of it go, which gives their producers back to the game; turned on, they are defined from the
+-- save, main panels first, as the world starts.
+function Networks.applyFeatures()
+    if not BU.api() then return end
+    local panels = Store.list()
+    local power, water = BU.enabled("power"), waterOn()
+    if power ~= powerDefined then
+        powerDefined = power
+        for _, panel in ipairs(panels) do
+            if power then Networks.define(panel) else change("remove", powerId(panel)) end
+        end
+        for _, panel in ipairs(power and panels or {}) do
+            if panel.parent then change("setParent", powerId(panel), BU.networkId(panel.parent, "power")) end
+        end
+    end
+    if water ~= waterDefined then
+        waterDefined = water
+        for _, panel in ipairs(panels) do
+            if not water then removeWater(panel) elseif not panel.parent then Networks.defineWater(panel) end
+        end
+        for _, panel in ipairs(water and panels or {}) do
+            if panel.parent then Networks.defineWater(panel) end
+        end
+    end
 end
 
 function Networks.setProducers(panel, utility)
@@ -307,36 +347,37 @@ end
 -- One device as the panel's data has it now (Networks.rule; for water in each group, applyWaterRule).
 function Networks.apply(panel, utility, key)
     if utility == "water" then
-        if BU.waterAvailable() then applyWaterRule(panel, key, select(2, Water.layout(panel))) end
+        if waterOn() then applyWaterRule(panel, key, select(2, Water.layout(panel))) end
         return
     end
     applyRule(powerId(panel), Networks.rule(panel, utility, key), key)
 end
 
+-- A network's state; nil for a utility that is off (BU.enabled).
 local function stateOf(id)
     local api = BU.api()
-    return api and id and api.networks.state(id) or nil
+    return api and id and BU.enabled(utilityOf(id)) and api.networks.state(id) or nil
 end
 
 -- The water calls below take floors, Water.layout's second result, when the caller has it for the panel: working
--- the layout out reads the building's rooms. Without water in this game (BU.waterAvailable) they do nothing.
+-- the layout out reads the building's rooms. Without water (off, or not in this game: waterOn) they do nothing.
 
 -- A water group's state: its lowest network's, which reaches every tank of the group's tree.
 function Networks.groupState(panel, group, floors)
-    if not BU.waterAvailable() then return nil end
+    if not waterOn() then return nil end
     return stateOf(Water.lowestId(panel, group, floors))
 end
 
 -- Litres of a fluid into a group's tanks: its lowest floor's network draws from every floor above, so it reaches them
 -- all. The litres they took.
 function Networks.fill(panel, group, litres, fluid, floors)
-    local id = BU.waterAvailable() and Water.lowestId(panel, group, floors)
+    local id = waterOn() and Water.lowestId(panel, group, floors)
     return id and change("fill", id, litres, fluid) or 0
 end
 
 -- Litres out of a group's tanks for something on a floor, as a fixture there draws. The litres drawn.
 function Networks.draw(panel, group, z, litres, floors)
-    local id = BU.waterAvailable() and Water.networkFor(panel, group, z, floors)
+    local id = waterOn() and Water.networkFor(panel, group, z, floors)
     return id and change("draw", id, litres) or 0
 end
 
@@ -344,7 +385,7 @@ end
 -- tanks hold it. Each of its floors' networks; only those that differ are changed. A game without the hooks that
 -- keep the taint refuses false: the pipes purify then (BU.purifyAvailable), and the callers stop asking.
 function Networks.setGroupPurify(panel, group, on, floors)
-    if not BU.waterAvailable() then return end
+    if not waterOn() then return end
     for _, level in ipairs(Water.levels(panel, group, floors)) do
         local id = Water.networkId(panel, group, level)
         local state = stateOf(id)
@@ -358,10 +399,10 @@ end
 
 -- The power network's state, or for water the panel's groups together: { supplied (any group), enabled, amount and
 -- capacity (summed), producers (every tank as the networks last saw it), groups (by id, each group's state) }; nil
--- without water in this game.
+-- for a utility that is off, or without water in this game.
 function Networks.state(panel, utility)
     if utility ~= "water" then return stateOf(powerId(panel)) end
-    if not BU.waterAvailable() then return nil end
+    if not waterOn() then return nil end
     local result = { supplied = false, enabled = true, amount = 0, capacity = 0, producers = {}, groups = {} }
     local layout, floors = Water.layout(panel)
     for _, group in ipairs(Water.groups(panel)) do

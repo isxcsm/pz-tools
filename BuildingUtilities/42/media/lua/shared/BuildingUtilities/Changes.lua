@@ -452,8 +452,8 @@ function Changes.removeWaterGroup(panel, id)
             for key, group in pairs(data.groupOf) do
                 if group == id then data.groupOf[key] = nil; keys[key] = true end
             end
-            -- Its units work for the first group; no group overflows into it.
-            for _, unit in ipairs(Units.of(panel.id, "water")) do
+            -- Its units work for the first group, those that are off too; no group overflows into it.
+            for _, unit in ipairs(Store.unitList(nil, panel.id)) do
                 if unit.group == id then unit.group = nil end
             end
             for _, other in ipairs(data.groups) do
@@ -608,6 +608,34 @@ function Changes.unlink(child)
     Networks.applyLoss(child)
     Sync.changed(child.id)
     return paid
+end
+
+-- Features turned on or off in the sandbox (BU.enabled).
+
+-- The features (BU.featureKey) the world was last brought to; nil before it started.
+local appliedFeatures = nil
+
+-- Brings the world to the features on now, once the sandbox changed them: the networks of a utility turned off go
+-- (their producers are the game's again) and those of one turned on are defined from the save (Networks.applyFeatures);
+-- each main panel's power takes its units that are on as its source, and what is left of its bank and charge
+-- controller (Changes.unitsChanged); timers turn again; the boxes show it. What the save keeps stays, for when a
+-- feature is on again. The world's start, which defines the networks as the features are, only takes them as applied
+-- (defined). Returns whether they changed.
+function Changes.applyFeatures(defined)
+    local key = BU.featureKey()
+    if key == appliedFeatures then return false end
+    appliedFeatures = key
+    if defined then return false end
+    BU.log("features on:", key ~= "" and key or "none")
+    Networks.applyFeatures()
+    local power = BU.enabled("power")
+    for _, panel in ipairs(Store.list()) do
+        if power and not panel.parent then Changes.unitsChanged(panel) end
+        if power then Changes.applyTimers(panel) end
+        if BU.PanelLook then BU.PanelLook.show(panel) end
+    end
+    Sync.changed(nil)
+    return true
 end
 
 -- The box itself.

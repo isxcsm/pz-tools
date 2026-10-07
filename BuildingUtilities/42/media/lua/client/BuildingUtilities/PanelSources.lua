@@ -44,7 +44,7 @@ function ISBUPanelWindow:sourceRows(state)
         tooltip = tooltip .. " " .. getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(state and state.load or 0))
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank }, tooltip = tooltip }
     end
-    local racks = Store.unitList("rack", panel.id)
+    local racks = BU.enabled("rack") and Store.unitList("rack", panel.id) or {}
     if #racks > 0 then
         local text, tooltip
         if bank then
@@ -68,7 +68,7 @@ function ISBUPanelWindow:sourceRows(state)
         else
             text = getText("IGUI_BU_BankEmpty", #racks)
         end
-        local controller = (panel.tier or 1) >= BU.CONTROLLER_TIER
+        local controller = Energy.hasController(panel)
         if controller then tooltip = (tooltip and tooltip .. " <LINE> <LINE> " or "") .. self:controllerText() end
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
     end

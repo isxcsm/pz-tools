@@ -51,10 +51,11 @@ function Energy.coldShare(racks)
     return math.min(Energy.COLD_MOST, -coldest * Energy.COLD_PER_DEGREE)
 end
 
--- A panel's bank, or nil (below BU.BANK_TIER, or no batteries): racks, batteries, capacity and energy (load-hours),
--- charge (0 to 1), weak (how many are worn), cold (the share locked) and usable (energy above what cold locks).
+-- A panel's bank, or nil (below BU.BANK_TIER, no batteries, or racks off: BU.enabled): racks, batteries, capacity and
+-- energy (load-hours), charge (0 to 1), weak (how many are worn), cold (the share locked) and usable (energy above
+-- what cold locks).
 function Energy.bank(panel)
-    if panel.parent or (panel.tier or 1) < BU.BANK_TIER then return nil end
+    if panel.parent or (panel.tier or 1) < BU.BANK_TIER or not BU.enabled("rack") then return nil end
     local racks = Store.unitList("rack", panel.id)
     local bank = { racks = racks, batteries = {}, capacity = 0, energy = 0, weak = 0 }
     for _, rack in ipairs(racks) do

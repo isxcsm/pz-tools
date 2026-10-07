@@ -41,10 +41,11 @@ function Energy.hasSource(panel)
     return not panel.parent and #Units.of(panel.id, "power") > 0
 end
 
--- What a panel's solar panels make now, how many there are and how much snow lies on them on average (0 to 1).
+-- What a panel's solar panels make now, how many there are and how much snow lies on them on average (0 to 1). None
+-- while they are off (BU.enabled).
 function Energy.output(panel)
     local sun, total, count, snow = Energy.sunlight(), 0, 0, 0
-    for _, unit in ipairs(Store.unitList("solar", panel.id)) do
+    for _, unit in ipairs(BU.enabled("solar") and Store.unitList("solar", panel.id) or {}) do
         total = total + Energy.panelOutput(unit, sun)
         count = count + 1
         snow = snow + (unit.snow or 0)
@@ -80,9 +81,10 @@ function Energy.canCarry(output, load, available)
     return output >= (load or 0) * (available and 1 or Energy.START_MARGIN)
 end
 
--- Snow on every solar panel outside over so many hours of the weather now; returns whether any changed much.
+-- Snow on every solar panel outside over so many hours of the weather now; returns whether any changed much. Panels
+-- that are off keep what lies on them.
 function Energy.weather(hours)
-    if not Energy.snowEnabled() then return false end
+    if not Energy.snowEnabled() or not BU.enabled("solar") then return false end
     local climate = getClimateManager()
     local settles = climate:isSnowing() and climate:getSnowIntensity() >= Energy.SNOW_FROM
     local melts = climate:getTemperature() > Energy.MELT_ABOVE

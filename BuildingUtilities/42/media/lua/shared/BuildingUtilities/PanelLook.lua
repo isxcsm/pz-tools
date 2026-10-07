@@ -29,8 +29,9 @@ function PanelLook.of(object)
 end
 
 -- The look a box's state calls for: tripped while its breaker is down, on while power reaches it (the grid, or its
--- network supplied: a sub-panel's is while its main panel's is), else off.
+-- network supplied: a sub-panel's is while its main panel's is), else off; off while power is off in the sandbox.
 function PanelLook.wanted(panel)
+    if not BU.enabled("power") then return "off" end
     if panel.tripped then return "tripped" end
     if getWorld():isHydroPowerOn() then return "on" end
     local state = Networks.state(panel, "power")
