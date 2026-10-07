@@ -22,35 +22,49 @@ public sealed class ApplicationInstanceLease : IDisposable
     public void Dispose() => marker.Dispose();
 }
 
-/// <summary>
-/// Lets a second launch ask the running instance to show its window instead of exiting silently,
-/// which looks like "the app does not start" when the first instance is hidden in the tray.
-/// </summary>
-public static class ApplicationActivationSignal
+/// <summary>What another launch asks of the running instance.</summary>
+public enum ApplicationRequest
 {
-    private static string Name(string dataRoot) =>
-        NamedMutexRunner.CreateName("AppActivate", Path.GetFullPath(dataRoot));
+    /// <summary>Show the window, instead of exiting silently, which looks like "the app does not start" when the
+    /// running instance is hidden in the tray.</summary>
+    Activate,
 
-    /// <summary>Runs <paramref name="activate"/> on a pool thread each time another launch signals.</summary>
-    public static IDisposable Listen(string dataRoot, Action activate)
+    /// <summary>Close as the Exit button does, without asking (a development restart asks it, see
+    /// scripts/dev/elevated-launcher.ps1).</summary>
+    Exit,
+}
+
+/// <summary>Lets a second launch ask the running instance for an <see cref="ApplicationRequest"/>.</summary>
+public static class ApplicationRequestSignal
+{
+    private static string Name(string dataRoot, ApplicationRequest request) =>
+        NamedMutexRunner.CreateName(request switch
+        {
+            ApplicationRequest.Activate => "AppActivate",
+            ApplicationRequest.Exit => "AppExit",
+            _ => throw new ArgumentOutOfRangeException(nameof(request)),
+        }, Path.GetFullPath(dataRoot));
+
+    /// <summary>Runs <paramref name="handle"/> on a pool thread each time another launch signals the request.</summary>
+    public static IDisposable Listen(string dataRoot, ApplicationRequest request, Action handle)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
-        ArgumentNullException.ThrowIfNull(activate);
-        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Name(dataRoot));
+        ArgumentNullException.ThrowIfNull(handle);
+        var signal = new EventWaitHandle(false, EventResetMode.AutoReset, Name(dataRoot, request));
         var registration = ThreadPool.RegisterWaitForSingleObject(
-            signal, (_, timedOut) => { if (!timedOut) activate(); }, null, Timeout.Infinite, executeOnlyOnce: false);
+            signal, (_, timedOut) => { if (!timedOut) handle(); }, null, Timeout.Infinite, executeOnlyOnce: false);
         return new Listener(signal, registration);
     }
 
     /// <summary>False when no instance is listening (for example it is still starting or shutting down).</summary>
-    public static bool TrySignal(string dataRoot)
+    public static bool TrySignal(string dataRoot, ApplicationRequest request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(dataRoot);
         // Opening a named event exists only on Windows; elsewhere the second launch simply finds no listener.
         if (!OperatingSystem.IsWindows()) return false;
         try
         {
-            if (!EventWaitHandle.TryOpenExisting(Name(dataRoot), out var signal)) return false;
+            if (!EventWaitHandle.TryOpenExisting(Name(dataRoot, request), out var signal)) return false;
             using (signal) return signal.Set();
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException) { return false; }

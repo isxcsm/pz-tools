@@ -46,19 +46,40 @@ public sealed class AppStartupSafetyTests
     public async Task SecondLaunch_AsksTheRunningInstanceToShowItself()
     {
         using var temp = new TempDirectory();
-        Assert.False(ApplicationActivationSignal.TrySignal(temp.Path)); // Nothing is running yet.
+        Assert.False(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Activate)); // Nothing is running yet.
 
         var activated = new SemaphoreSlim(0);
-        using (ApplicationActivationSignal.Listen(temp.Path, () => activated.Release()))
+        using (ApplicationRequestSignal.Listen(temp.Path, ApplicationRequest.Activate, () => activated.Release()))
         {
-            Assert.True(ApplicationActivationSignal.TrySignal(temp.Path));
+            Assert.True(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Activate));
             Assert.True(await activated.WaitAsync(TimeSpan.FromSeconds(5)));
-            Assert.True(ApplicationActivationSignal.TrySignal(temp.Path)); // Works more than once.
+            Assert.True(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Activate)); // Works more than once.
             Assert.True(await activated.WaitAsync(TimeSpan.FromSeconds(5)));
             // Another data root is another app instance.
-            Assert.False(ApplicationActivationSignal.TrySignal(temp.GetPath("other")));
+            Assert.False(ApplicationRequestSignal.TrySignal(temp.GetPath("other"), ApplicationRequest.Activate));
         }
 
-        Assert.False(ApplicationActivationSignal.TrySignal(temp.Path)); // The instance has closed.
+        Assert.False(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Activate)); // The instance has closed.
+    }
+
+    [Fact]
+    public async Task ExitRequest_ReachesOnlyItsOwnListener()
+    {
+        using var temp = new TempDirectory();
+        Assert.False(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Exit));
+
+        var activated = new SemaphoreSlim(0);
+        var exited = new SemaphoreSlim(0);
+        using (ApplicationRequestSignal.Listen(temp.Path, ApplicationRequest.Activate, () => activated.Release()))
+        {
+            // An instance that only listens for activation (an older build) is not asked to exit.
+            Assert.False(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Exit));
+            using (ApplicationRequestSignal.Listen(temp.Path, ApplicationRequest.Exit, () => exited.Release()))
+            {
+                Assert.True(ApplicationRequestSignal.TrySignal(temp.Path, ApplicationRequest.Exit));
+                Assert.True(await exited.WaitAsync(TimeSpan.FromSeconds(5)));
+                Assert.Equal(0, activated.CurrentCount);
+            }
+        }
     }
 }

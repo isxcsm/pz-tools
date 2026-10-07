@@ -20,8 +20,10 @@ public partial class App : Application
     private bool useSystemTray;
     private bool exitConfirmed;
     private bool exitDialogOpen;
+    private bool exiting;
 
     private IDisposable? activationListener;
+    private IDisposable? exitListener;
     private static int fatalReported;
     private UpdateChecker? updates;
     private readonly CancellationTokenSource updateLoop = new();
@@ -100,13 +102,21 @@ public partial class App : Application
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         runtimeRoot = PzTools.Process.Contracts.PzToolsPathLayout.CreateDefault().DataRoot;
+        // "--exit" only asks the running instance to close as its Exit button does (a development restart,
+        // scripts/dev/elevated-launcher.ps1); this launch never starts the app.
+        if (Environment.GetCommandLineArgs().Skip(1).Contains("--exit", StringComparer.OrdinalIgnoreCase))
+        {
+            ApplicationRequestSignal.TrySignal(runtimeRoot, ApplicationRequest.Exit);
+            Exit();
+            return;
+        }
         instanceLease = ApplicationInstanceLease.TryAcquire(runtimeRoot);
         if (instanceLease is null)
         {
             // Already running, possibly hidden in the tray. Bring that window forward rather than
             // exit with no sign of life; this launch may hand over its right to take the foreground.
             AllowSetForegroundWindow(-1);
-            ApplicationActivationSignal.TrySignal(runtimeRoot);
+            ApplicationRequestSignal.TrySignal(runtimeRoot, ApplicationRequest.Activate);
             Exit();
             return;
         }
@@ -141,11 +151,16 @@ public partial class App : Application
         Localizer.Warm();
         window.AppWindow.Closing += MainWindow_Closing;
         var dispatcher = window.DispatcherQueue;
-        activationListener = ApplicationActivationSignal.Listen(runtimeRoot, () => dispatcher.Enqueue(RestoreWindow));
+        activationListener = ApplicationRequestSignal.Listen(runtimeRoot, ApplicationRequest.Activate,
+            () => dispatcher.Enqueue(RestoreWindow));
+        exitListener = ApplicationRequestSignal.Listen(runtimeRoot, ApplicationRequest.Exit,
+            () => dispatcher.Enqueue(() => _ = ExitAsync()));
         window.Closed += async (_, _) =>
         {
             activationListener?.Dispose();
             activationListener = null;
+            exitListener?.Dispose();
+            exitListener = null;
             updateLoop.Cancel();
             hotKeys?.Dispose();
             hotKeys = null;
@@ -544,18 +559,7 @@ public partial class App : Application
                 DefaultButton = ContentDialogButton.Close,
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            var host = Host;
-            Host = null;
-            try
-            {
-                if (host is not null) await host.DisposeAsync();
-            }
-            catch (Exception exception)
-            {
-                System.Diagnostics.Debug.WriteLine(exception);
-            }
-            exitConfirmed = true;
-            window.Close();
+            await ExitAsync();
         }
         catch (Exception exception)
         {
@@ -563,6 +567,26 @@ public partial class App : Application
             System.Diagnostics.Debug.WriteLine(exception);
         }
         finally { exitDialogOpen = false; }
+    }
+
+    // Work in progress stops and records how (AppHost.DisposeAsync), then the window closes and the app with it.
+    // Once only: the confirmation and an exit request (ApplicationRequest.Exit) may both arrive.
+    private async Task ExitAsync()
+    {
+        if (exiting || window is null) return;
+        exiting = true;
+        var host = Host;
+        Host = null;
+        try
+        {
+            if (host is not null) await host.DisposeAsync();
+        }
+        catch (Exception exception)
+        {
+            System.Diagnostics.Debug.WriteLine(exception);
+        }
+        exitConfirmed = true;
+        window.Close();
     }
 
     private static AppHost CreateHost(string runtime)

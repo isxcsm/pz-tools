@@ -270,7 +270,11 @@ to `%LOCALAPPDATA%\PzToolsDev` and starts the task.
 [`elevated-launcher.ps1`](../../scripts/dev/elevated-launcher.ps1), copied to the
 administrators-only `%ProgramData%\PzToolsDev`, closes the running app and its workers (and the
 game with `-StopGame`), starts `artifacts/<Build>/PzTools.App.exe` and answers. The build must be
-a folder directly under the artifacts root that was given at registration.
+a folder directly under the artifacts root that was given at registration. To close the app it runs
+the new build with `--exit`, which asks the running app to close as its Exit button does, without
+the confirmation: work in progress stops and records how. An app that has not closed after a minute,
+or a build too old to listen, is ended by force. The task runs the copy, so after a change to
+`elevated-launcher.ps1` run the register script again.
 
 The task lets anything running as your user start an executable from your artifacts folder with
 administrator rights and no UAC prompt. Remove it when you no longer need it: run the register

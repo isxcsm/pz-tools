@@ -32,11 +32,12 @@ function Write-Result([string]$id, [bool]$ok, [string]$message, $processId) {
     Write-Log ('{0} id={1}: {2}' -f ($(if ($ok) { 'ok' } else { 'failed' })), $id, $message)
 }
 
-# Closes processes by name: politely first (their main window), then by force after the wait.
-function Stop-Named([string[]]$names, [int]$waitSeconds) {
+# Closes processes by name: waits for them (after closing their main window when asked), then ends what is left by
+# force.
+function Stop-Named([string[]]$names, [int]$waitSeconds, [bool]$closeWindows) {
     $running = @(Get-Process -Name $names -ErrorAction SilentlyContinue)
     if ($running.Count -eq 0) { return }
-    foreach ($process in $running) { [void]$process.CloseMainWindow() }
+    if ($closeWindows) { foreach ($process in $running) { [void]$process.CloseMainWindow() } }
     $deadline = (Get-Date).AddSeconds($waitSeconds)
     while ((Get-Date) -lt $deadline -and @(Get-Process -Name $names -ErrorAction SilentlyContinue).Count -gt 0) {
         Start-Sleep -Milliseconds 500
@@ -60,11 +61,18 @@ try {
     $exe = Join-Path $folder 'PzTools.App.exe'
     if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "No PzTools.App.exe in $folder." }
 
-    # The app first, so it stops its own workers; whatever is left of them after it.
-    Stop-Named @('PzTools.App') 15
+    # The app first, so it stops its own workers; whatever is left of them after it. Closing its window would only ask
+    # the player to confirm: "--exit" asks it to close as its Exit button does, so work in progress stops and records
+    # how. An app too old to listen for that, or one that does not finish in time, is ended by force.
+    if (@(Get-Process -Name 'PzTools.App' -ErrorAction SilentlyContinue).Count -gt 0) {
+        $asker = Start-Process -FilePath $exe -ArgumentList '--exit' -PassThru
+        if (-not $asker.WaitForExit(30000)) { Stop-Process -Id $asker.Id -Force -ErrorAction SilentlyContinue }
+        Write-Log 'asked the app to exit'
+        Stop-Named @('PzTools.App') 60 $false
+    }
     $workers = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'PzTools.*' })
-    if ($workers.Count -gt 0) { Stop-Named @($workers.Name | Sort-Object -Unique) 5 }
-    if ($request.stopGame -eq $true) { Stop-Named @('ProjectZomboid64') 20 }
+    if ($workers.Count -gt 0) { Stop-Named @($workers.Name | Sort-Object -Unique) 5 $false }
+    if ($request.stopGame -eq $true) { Stop-Named @('ProjectZomboid64') 20 $true }
 
     $process = Start-Process -FilePath $exe -WorkingDirectory $folder -PassThru
     Write-Result $id $true "Started $exe." $process.Id

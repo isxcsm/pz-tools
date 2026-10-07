@@ -11,7 +11,8 @@ and exits 1 when it failed or did not answer within -TimeoutSeconds.
 param(
     [Parameter(Mandatory)][string]$Build,
     [switch]$StopGame,
-    [int]$TimeoutSeconds = 60
+    # The app may take up to a minute to stop work in progress before the launcher ends it.
+    [int]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
 $exchange = Join-Path $env:LOCALAPPDATA 'PzToolsDev'
