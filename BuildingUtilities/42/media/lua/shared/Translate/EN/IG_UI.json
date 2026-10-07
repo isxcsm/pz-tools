@@ -918,6 +918,7 @@
     "IGUI_BU_Pump_noPower": "stopped: no power",
     "IGUI_BU_Pump_noTanks": "stopped: no tank seen yet",
     "IGUI_BU_Pump_full": "stopped: the tanks are full",
+    "IGUI_BU_Pump_frozen": "stopped: the pipes are frozen",
     "IGUI_BU_Sprinkler_watering": "watering",
     "IGUI_BU_Sprinkler_waiting": "waiting for dry crops",
     "IGUI_BU_Filter_resting": "resting: the pipes purify",

@@ -32,6 +32,65 @@ function BU.handle()
     return api and api.client(BU.MOD) or nil
 end
 
+-- Water and its purification need hooks of the API in the game, by the names PZToolsAPI.hooks() gives them: a
+-- game started by an older install, or whose IsoObject another mod changed, may lack them. Water needs the plumbing's
+-- questions; water that keeps its taint (the RiskPlumbingUnpurified option) also the purification's two.
+local WATER_HOOKS = { "IsoObject.waterQuestions", "IsoObject.checkExternalFluidSource" }
+local PURIFY_HOOKS = { "IsoObject.createSampleAndPurifyWater", "IsoObject.isTaintedWater" }
+-- Why each is missing (false: it is not), once known for this game; and what a call refused (BU.hookFault).
+local known, faults = {}, {}
+
+-- Why one of the hooks is missing: "label: reason", or nil. "not-loaded" (IsoObject has not loaded yet; it has by the
+-- time a world starts) counts as there, and is asked again next time. An API from before hooks(), or one whose
+-- bootstrap predates the list (an empty table), says nothing: then a call that needs the hooks tells (BU.hookFault).
+local function missing(name, labels)
+    if known[name] ~= nil then return known[name] or nil end
+    local api = BU.api()
+    if not api then return "PZToolsAPI" end
+    local ok, hooks = pcall(function() return type(api.hooks) == "function" and api.hooks() or nil end)
+    if not ok or type(hooks) ~= "table" then known[name] = false; return nil end
+    local settled = true
+    for _, label in ipairs(labels) do
+        local state = hooks[label]
+        if state == "not-loaded" then settled = false
+        elseif state ~= nil and state ~= "applied" then
+            known[name] = label .. ": " .. tostring(state)
+            return known[name]
+        end
+    end
+    if settled then known[name] = false end
+    return nil
+end
+
+-- A call the API refused for want of hooks: water (a water network it cannot define) or purify (setPurify(false)).
+-- What it said stands as the reason for this world, logged once.
+function BU.hookFault(name, reason)
+    if faults[name] then return end
+    faults[name] = tostring(reason)
+    BU.log(name == "water" and "water networks are not in this game - boxes give no water:"
+        or "water that keeps its taint is not in this game - the pipes purify:", faults[name])
+end
+
+-- Forgets what was learnt, for a world that starts.
+function BU.resetHooks() known, faults = {}, {} end
+
+-- Whether boxes can give water in this game: true, or false and why (for the player: a hook and its state, or what
+-- the API said).
+function BU.waterAvailable()
+    local reason = faults.water or missing("water", WATER_HOOKS)
+    if reason then return false, reason end
+    return true
+end
+
+-- Whether water can keep its taint (RiskPlumbingUnpurified): true, or false and why. Without it the pipes purify.
+function BU.purifyAvailable()
+    local ok, reason = BU.waterAvailable()
+    if not ok then return false, reason end
+    reason = faults.purify or missing("purify", PURIFY_HOOKS)
+    if reason then return false, reason end
+    return true
+end
+
 function BU.networkId(panelId, utility) return "bu-" .. panelId .. "-" .. utility end
 
 -- "x,y,z,sprite": how an object is named in the saved lists.
@@ -43,12 +102,12 @@ function BU.parseThing(key)
     return tonumber(x), tonumber(y), tonumber(z), sprite
 end
 
--- A percentage as an argument of a text: "63%". The texts themselves hold no %, which the game's formatting takes
--- for its own.
 -- What is left of value over whole sizes, from 0 up to size. Kahlua's % differs from Lua's on negative numbers and
 -- is wrong on the clock's milliseconds (getTimestampMs).
 function BU.remainder(value, size) return value - math.floor(value / size) * size end
 
+-- A percentage as an argument of a text: "63%". The texts themselves hold no %, which the game's formatting takes
+-- for its own.
 function BU.percent(value) return tostring(math.floor(value + 0.5)) .. "%" end
 
 function BU.sandbox(name, default)
@@ -85,7 +144,7 @@ end
 function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
 
 -- The power line into a box loses so much of the load per piece of wire it took (Costs.pieces), in percent: the
--- sandbox's at tier 1, half of it at tier 2, none at tier 3.
+-- sandbox's at tier 1, two thirds of it at tier 2, one third at tier 3, none at tier 4.
 function BU.lossPerPiece(tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
     return math.max(0, BU.sandbox("LossPerWire", 1)) * (BU.TIERS - tier) / (BU.TIERS - 1)
@@ -189,13 +248,13 @@ function BU.displayName(x, y, z, sprite)
     return object and getText("IGUI_BU_Name_Unknown") or sprite
 end
 
--- A level of a building as players count floors: 1F for the ground, B1 below it.
 -- A floor in a few letters, for the plan's floor strip: "B1", "1", "2".
 function BU.floorShort(level)
     if level < 0 then return "B" .. tostring(-level) end
     return tostring(level + 1)
 end
 
+-- A level of a building as players count floors: 1F for the ground, B1 below it.
 function BU.floorName(level)
     if level < 0 then return getText("IGUI_BU_Basement", -level) end
     return getText("IGUI_BU_Floor", level + 1)

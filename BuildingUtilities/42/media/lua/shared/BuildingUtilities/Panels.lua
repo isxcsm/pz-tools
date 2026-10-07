@@ -18,8 +18,8 @@ end
 
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
--- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }.
--- A building's rooms, kept a second: windows and the water layout ask for them often.
+-- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }, kept a second: windows and the
+-- water layout ask for them often.
 local roomsCache = {}
 function Panels.rooms(building)
     if not building then return {} end
@@ -358,7 +358,7 @@ end
 function Panels.sheds(panel) return BU.overloadEnabled() and (panel.tier or 1) >= BU.SMART_TIER end
 
 -- Which devices a box sheds to draw less by at least excess: connected and on, not essential, the largest first, so
--- that few go off. Nil when shedding all it may does not do.
+-- that few go off. Nil when shedding all it may does not do; else their keys, and what each draws by key.
 function Panels.shedPlan(panel, excess)
     local candidates = {}
     for _, device in ipairs(Panels.devices(panel, "power")) do
@@ -368,21 +368,30 @@ function Panels.shedPlan(panel, excess)
         end
     end
     table.sort(candidates, function(a, b) return a.power > b.power end)
-    local keys, total = {}, 0
+    local keys, powers, total = {}, {}, 0
     for _, candidate in ipairs(candidates) do
         if total >= excess - 1e-6 then break end
         keys[#keys + 1] = candidate.key
+        powers[candidate.key] = candidate.power
         total = total + candidate.power
     end
     if total < excess - 1e-6 then return nil end
-    return keys
+    return keys, powers
 end
 
--- Which shed devices fit again within room: the smallest first.
+-- Which shed devices fit again within room: the smallest first, by what each drew as it was shed (BU.Changes.shed).
+-- A device shed by an older version, kept without it, has the building's devices looked at.
 function Panels.restorePlan(panel, room)
     local candidates = {}
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
+    for key, power in pairs(panel.power.shed) do
+        if type(power) ~= "number" then candidates = nil; break end
+        candidates[#candidates + 1] = { key = key, power = power }
+    end
+    if not candidates then
+        candidates = {}
+        for _, device in ipairs(Panels.devices(panel, "power")) do
+            if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
+        end
     end
     table.sort(candidates, function(a, b) return a.power < b.power end)
     local keys, total = {}, 0

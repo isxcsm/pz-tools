@@ -918,6 +918,7 @@
     "IGUI_BU_Pump_noPower": "멈춤: 전기 없음",
     "IGUI_BU_Pump_noTanks": "멈춤: 아직 본 통이 없음",
     "IGUI_BU_Pump_full": "멈춤: 통이 가득 참",
+    "IGUI_BU_Pump_frozen": "멈춤: 배관이 얼어붙음",
     "IGUI_BU_Sprinkler_watering": "물 주는 중",
     "IGUI_BU_Sprinkler_waiting": "마른 작물을 기다리는 중",
     "IGUI_BU_Filter_resting": "쉬는 중: 배관이 정수함",
