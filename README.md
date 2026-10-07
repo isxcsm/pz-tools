@@ -32,7 +32,7 @@ game says what it does.
   translations in EN and KO).
 - `tests/ingame/`: checks run from the game's debug console ([README](tests/ingame/README.md)).
 - `tools/`: `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room
-  names of the game's maps against the translations), `water_art.py` (the water units' sprite sheet).
+  names of the game's maps against the translations), `tile_art.py` (the mod's own sprite sheet: water units, the utility panel console and snow on panels).
 
 The solar panel and battery rack art comes from Immersive Solar Arrays (Apache-2.0); see
 `BuildingUtilities/common/licenses/ImmersiveSolarArrays/`.
