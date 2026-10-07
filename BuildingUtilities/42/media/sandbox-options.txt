@@ -66,6 +66,12 @@ option BuildingUtilities.Capacity3
     page = BuildingUtilities, translation = BuildingUtilities_Capacity3,
 }
 
+option BuildingUtilities.LossPerWire
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = BuildingUtilities, translation = BuildingUtilities_LossPerWire,
+}
+
 option BuildingUtilities.LowFuelHours
 {
     type = integer, min = 0, max = 168, default = 6,

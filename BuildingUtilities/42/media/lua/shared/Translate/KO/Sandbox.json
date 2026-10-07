@@ -23,5 +23,7 @@
     "Sandbox_BuildingUtilities_ExperienceMultiplier": "전기 경험치 배율",
     "Sandbox_BuildingUtilities_ExperienceMultiplier_tooltip": "차단기함 설치, 전선 연결, 업그레이드로 얻는 전기 경험치에 곱합니다. 0이면 주지 않습니다.",
     "Sandbox_BuildingUtilities_RangePerTier": "단계마다 늘어나는 거리 (퍼센트)",
-    "Sandbox_BuildingUtilities_RangePerTier_tooltip": "차단기함이 1단계보다 한 단계 오를 때마다 위 거리들에 이만큼을 더합니다(50이면 2단계는 1.5배, 3단계는 2배). 바깥 기기는 32칸을 넘지 않습니다."
+    "Sandbox_BuildingUtilities_RangePerTier_tooltip": "차단기함이 1단계보다 한 단계 오를 때마다 위 거리들에 이만큼을 더합니다(50이면 2단계는 1.5배, 3단계는 2배). 바깥 기기는 32칸을 넘지 않습니다.",
+    "Sandbox_BuildingUtilities_LossPerWire": "전선 1개당 손실 (퍼센트)",
+    "Sandbox_BuildingUtilities_LossPerWire_tooltip": "1단계 차단기함으로 들어오는 전기 선(발전기나 주 차단기함에서)이 전선 1개마다 부하에 이만큼을 더합니다(발전기가 그만큼 더 태우고 과부하에도 셉니다). 2단계는 절반, 3단계는 손실이 없습니다. 0이면 손실이 없습니다."
 }

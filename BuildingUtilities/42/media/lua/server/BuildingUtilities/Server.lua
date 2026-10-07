@@ -83,12 +83,13 @@ local function checkLoad(panel)
     if not BU.overloadEnabled() or panel.tripped then return end
     local state = Networks.state(panel, "power")
     if not (state and state.supplied and state.load) then return end
-    local capacity = Panels.capacity(panel)
+    -- The load counts what the line loses; a device takes that much more of it.
+    local capacity, factor = Panels.capacity(panel), math.max(state.loadFactor or 1, 1e-6)
     if state.load > capacity + 1e-6 then
-        local keys = Panels.sheds(panel) and Panels.shedPlan(panel, state.load - capacity)
+        local keys = Panels.sheds(panel) and Panels.shedPlan(panel, (state.load - capacity) / factor)
         if keys then Changes.shed(panel, keys) else Changes.trip(panel) end
     elseif any(shed) then
-        local keys = Panels.restorePlan(panel, capacity - state.load)
+        local keys = Panels.restorePlan(panel, (capacity - state.load) / factor)
         if #keys > 0 then Changes.restore(panel, keys) end
     end
 end
@@ -114,6 +115,8 @@ local function onNetworkChange(id, what)
     local panel, utility = Networks.owner(id)
     if not panel then return end
     local state = Networks.state(panel, utility)
+    -- Another producer carries it: its line is another length.
+    if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
     if utility == "power" then checkLoad(panel) end
     if panel.parent or not state then return end
     if what == "producer" and state.producer then

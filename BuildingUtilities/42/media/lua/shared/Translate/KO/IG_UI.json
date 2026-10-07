@@ -206,5 +206,7 @@
     "IGUI_BU_TimerNote": "기기마다 타이머(밤에만, 낮에만)를 걸 수 있습니다.",
     "IGUI_BU_LinkNote": "다른 건물의 보조 차단기함에 공급할 수 있습니다.",
     "IGUI_BU_NeedsTier": "그 차단기함이 %1단계가 되면 닿습니다.",
-    "IGUI_BU_Reason_lowTier": "그 차단기함을 먼저 업그레이드해야 합니다."
+    "IGUI_BU_Reason_lowTier": "그 차단기함을 먼저 업그레이드해야 합니다.",
+    "IGUI_BU_LineLoss": "(선 손실 %1퍼센트, 전선 %2개)",
+    "IGUI_BU_LossNote": "들어오는 전기 선의 손실이 전선 1개당 부하의 %1퍼센트가 됩니다."
 }

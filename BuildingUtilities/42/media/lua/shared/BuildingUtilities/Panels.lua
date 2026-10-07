@@ -76,6 +76,22 @@ end
 -- What a box carries before its breaker trips.
 function Panels.capacity(panel) return BU.capacity(panel.tier) end
 
+-- The power line into a box: a main panel's from its producer in use (state.producer; else its first), a
+-- sub-panel's from its main panel. The pieces of wire it took and the percent of the load it loses; nil without one.
+function Panels.powerLine(panel, state)
+    local steps
+    if panel.parent then
+        local parent = Store.get(panel.parent)
+        steps = parent and Panels.linkSteps(panel, parent)
+    else
+        local at = state and state.producer or panel.power.producers[1]
+        steps = at and Panels.steps(panel, at.x, at.y)
+    end
+    if not steps then return nil end
+    local pieces = BU.Costs.pieces(steps)
+    return pieces, pieces * BU.lossPerPiece(panel.tier)
+end
+
 -- How far a box of a tier reaches, for the player: producers, outside devices, sub-panels.
 function Panels.rangesText(tier)
     return getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
@@ -87,6 +103,9 @@ function Panels.upgradeNote(tier, plain)
     local lines = { getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(tier))) }
     if Panels.rangesText(tier) ~= Panels.rangesText(tier - 1) then
         lines[#lines + 1] = Panels.rangesText(tier)
+    end
+    if BU.lossPerPiece(tier) < BU.lossPerPiece(tier - 1) then
+        lines[#lines + 1] = getText("IGUI_BU_LossNote", string.format("%.1f", BU.lossPerPiece(tier)))
     end
     if tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
     if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end

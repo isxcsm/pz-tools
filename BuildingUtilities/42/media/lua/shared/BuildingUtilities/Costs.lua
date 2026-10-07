@@ -9,7 +9,10 @@ Costs.WIRE, Costs.PIPE, Costs.PART, Costs.SHEET = "Base.ElectricWire", "Base.Pip
 local TOOL_TAGS = { screwdriver = "SCREWDRIVER", pipewrench = "PIPE_WRENCH" }
 
 -- A cost: { tools = { "screwdriver", ... }, items = { { type, count }, ... }, skill = level of Electricity or nil }.
-local function pieces(steps) return math.max(1, math.ceil(math.max(0, steps or 0) / BU.tilesPerPiece())) end
+
+-- The pieces of wire or pipe a line so many squares long takes: at least one.
+function Costs.pieces(steps) return math.max(1, math.ceil(math.max(0, steps or 0) / BU.tilesPerPiece())) end
+local pieces = Costs.pieces
 
 local function lineCost(utility, steps)
     if utility == "water" then return { tools = { "pipewrench" }, items = { { Costs.PIPE, pieces(steps) } } } end

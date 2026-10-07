@@ -438,8 +438,14 @@ function ISBUPanelWindow:refresh()
     self.summary = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1) .. "   " .. powerText .. "   " .. waterText
     self.capacity = Panels.capacity(panel)
     self.load = power and power.load or nil
+    self.loadFactor = power and power.loadFactor or 1
     self.loadText = self.load and getText(panel.tripped and "IGUI_BU_LoadTripped" or "IGUI_BU_Load", load2(self.load),
         load2(self.capacity)) or ""
+    -- What the line into the box loses, counted in the load.
+    local pieces, loss = Panels.powerLine(panel, power)
+    if self.load and pieces and loss > 0 and power.loadFactor then
+        self.loadText = self.loadText .. "   " .. getText("IGUI_BU_LineLoss", string.format("%.1f", loss), pieces)
+    end
     -- The banner: the breaker down, devices shed, or the load near what the box carries.
     local shed = count(panel.power.shed)
     if panel.tripped then
@@ -475,7 +481,7 @@ end
 
 -- What switching a power device would make of the load, for its row's tooltip; nil when it would not change it.
 function ISBUPanelWindow:preview(device)
-    local power = device.power or 0
+    local power = (device.power or 0) * (self.loadFactor or 1)
     if power <= 0 or not self.load or device.state == "other" or device.held then return nil end
     local after, key
     if device.state == "on" then

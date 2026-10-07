@@ -74,6 +74,13 @@ function BU.capacity(tier)
 end
 function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
 
+-- The power line into a box loses so much of the load per piece of wire it took (Costs.pieces), in percent: the
+-- sandbox's at tier 1, half of it at tier 2, none at tier 3.
+function BU.lossPerPiece(tier)
+    tier = math.max(1, math.min(BU.TIERS, tier or 1))
+    return math.max(0, BU.sandbox("LossPerWire", 1)) * (BU.TIERS - tier) / (BU.TIERS - 1)
+end
+
 -- What a box can do from a tier: put devices on timers, give supply to sub-panels, and shed its devices that are
 -- not essential, the largest first, before its breaker trips.
 BU.TIMER_TIER = 2

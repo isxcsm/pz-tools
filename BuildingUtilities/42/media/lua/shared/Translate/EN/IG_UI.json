@@ -206,5 +206,7 @@
     "IGUI_BU_TimerNote": "Devices can be put on timers (night or day only).",
     "IGUI_BU_LinkNote": "Can supply sub-panels in other buildings.",
     "IGUI_BU_NeedsTier": "In reach once that breaker box is tier %1.",
-    "IGUI_BU_Reason_lowTier": "That breaker box needs an upgrade first."
+    "IGUI_BU_Reason_lowTier": "That breaker box needs an upgrade first.",
+    "IGUI_BU_LineLoss": "(line loss %1 percent, %2 wires)",
+    "IGUI_BU_LossNote": "Its power line loses %1 percent of the load per wire."
 }

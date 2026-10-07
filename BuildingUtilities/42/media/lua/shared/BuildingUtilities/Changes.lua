@@ -68,6 +68,7 @@ end
 function Changes.connectProducer(panel, utility, x, y, z, paid)
     table.insert(panel[utility].producers, { x = x, y = y, z = z, paid = paid })
     Networks.setProducers(panel, utility)
+    Networks.applyLoss(panel)
     Sync.changed(panel.id)
 end
 
@@ -78,6 +79,7 @@ function Changes.disconnectProducer(panel, utility, x, y, z)
         if at.x == x and at.y == y and at.z == z then
             table.remove(list, index)
             Networks.setProducers(panel, utility)
+            Networks.applyLoss(panel)
             Sync.changed(panel.id)
             return at.paid or {}
         end
@@ -225,6 +227,7 @@ end
 function Changes.link(child, parent, paid)
     child.parent, child.parentPaid = parent.id, paid or {}
     Networks.link(child)
+    Networks.applyLoss(child)
     Sync.changed(child.id)
 end
 
@@ -233,6 +236,7 @@ function Changes.unlink(child)
     local paid = child.parentPaid or {}
     child.parent, child.parentPaid = nil, nil
     Networks.link(child)
+    Networks.applyLoss(child)
     Sync.changed(child.id)
     return paid
 end
@@ -249,6 +253,7 @@ function Changes.upgrade(panel)
     panel.tier = math.min(BU.TIERS, (panel.tier or 1) + 1)
     Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
     Changes.applyTimers(panel)
+    Networks.applyLoss(panel)
     Sync.changed(panel.id)
 end
 

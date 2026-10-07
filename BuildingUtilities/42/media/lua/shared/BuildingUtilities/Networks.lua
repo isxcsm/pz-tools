@@ -54,6 +54,16 @@ function Networks.define(panel)
         end
     end
     if panel.tripped then Networks.setEnabled(panel, false) end
+    Networks.applyLoss(panel)
+end
+
+-- The power network's load factor: what its line loses on the way (Panels.powerLine). An API from before load
+-- factors has no loss.
+function Networks.applyLoss(panel)
+    local api = BU.api()
+    if not (api and api.networks.setLoadFactor) then return end
+    local _, percent = BU.Panels.powerLine(panel, Networks.state(panel, "power"))
+    change("setLoadFactor", BU.networkId(panel.id, "power"), 1 + (percent or 0) / 100)
 end
 
 -- The power network on or off: a box's breaker.
