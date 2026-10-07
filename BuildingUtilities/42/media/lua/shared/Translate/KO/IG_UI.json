@@ -798,7 +798,7 @@
     "IGUI_BU_Reason_revivedOut": "이미 %1번 재생한 배터리입니다.",
     "IGUI_BU_Reason_notWorn": "상태가 %1 미만인 배터리만 재생할 수 있습니다.",
     "IGUI_BU_Reason_screwdriver": "드라이버가 필요합니다.",
-    "IGUI_BU_Reason_bakingSoda": "베이킹소다가 필요합니다.",
+    "IGUI_BU_Reason_bakingSoda": "베이킹소다 2회분이 필요합니다.",
     "IGUI_BU_Reason_skill": "전기 기술 %1 이상이 필요합니다.",
     "IGUI_BU_SolarRow": "태양광 패널 %1개  출력 %2  %3",
     "IGUI_BU_SolarNight": "밤",

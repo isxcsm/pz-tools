@@ -36,10 +36,11 @@ local KEY = "BuildingUtilities"
 --   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
---   100, revived: how often it was reconditioned }. A water unit may have group (the panel's water group it works
---   for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake) and
---   running (it lifted water at the last minute); a sprinkler sprayedAt (the world age it last watered at); a filter
---   media (hours of use left in its charge).
+--   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
+--   panel's water group it works for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from
+--   a river or lake), running (it lifted water, or ran dry, at the last minute) and idle (why it lifted none:
+--   "noPower", "frozen", "noWater", "noTanks" or "full"); a sprinkler sprayedAt (the world age it last watered at); a
+--   filter media (hours of use left in its charge).
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server

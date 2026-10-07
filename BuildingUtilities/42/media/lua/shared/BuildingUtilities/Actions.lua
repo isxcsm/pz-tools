@@ -1,6 +1,6 @@
 -- Timed actions: putting a box or a unit down and taking it up, laying and taking away lines, upgrading a box,
--- brushing snow off a solar panel, reconditioning a battery. Each names
--- panels and squares, not objects, and checks again as it completes, where the world is decided (BU.Changes).
+-- brushing snow off a solar panel, replacing a filter's media, reconditioning a battery. Each names panels and
+-- squares, not objects, and checks again as it completes, where the world is decided (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
@@ -61,9 +61,19 @@ local function lineDuration(character, steps)
     return math.min(1000, 100 + 15 * (steps or 0))
 end
 
--- The common part: the character faces the square the action is at, and loots low.
-local function base(name)
+-- A getDuration of so many ticks; one for a character whose actions are instant.
+local function fixedDuration(ticks)
+    return function(self)
+        if self.character:isTimedActionInstant() then return 1 end
+        return ticks
+    end
+end
+
+-- The common part: the character faces the square the action is at, and loots low; it takes so many ticks, when
+-- given (else the action has its own getDuration).
+local function base(name, ticks)
     local action = ISBaseTimedAction:derive(name)
+    if ticks then action.getDuration = fixedDuration(ticks) end
     function action:waitToStart()
         self.character:faceLocation(self.x, self.y)
         return self.character:shouldBeTurning()
@@ -78,7 +88,7 @@ local function base(name)
 end
 
 -- Putting a box down.
-ISBUInstallPanel = base("ISBUInstallPanel")
+ISBUInstallPanel = base("ISBUInstallPanel", 200)
 
 function ISBUInstallPanel:isValid()
     return self.character:getInventory():contains(self.item) and Panels.canInstall(self.square) ~= nil
@@ -96,11 +106,6 @@ function ISBUInstallPanel:complete()
     return true
 end
 
-function ISBUInstallPanel:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 200
-end
-
 function ISBUInstallPanel:new(character, square, item)
     local o = ISBaseTimedAction.new(self, character)
     o.square, o.item = square, item
@@ -110,7 +115,7 @@ function ISBUInstallPanel:new(character, square, item)
 end
 
 -- Taking a box down: the box back, and a share of what its lines took.
-ISBURemovePanel = base("ISBURemovePanel")
+ISBURemovePanel = base("ISBURemovePanel", 200)
 
 function ISBURemovePanel:isValid()
     local panel = Store.get(self.panelId)
@@ -125,11 +130,6 @@ function ISBURemovePanel:complete()
     Costs.refund(self.character, paid)
     giveItem(self.character, BU.PANEL_ITEM)
     return true
-end
-
-function ISBURemovePanel:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 200
 end
 
 function ISBURemovePanel:new(character, panel)
@@ -185,7 +185,7 @@ function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
 end
 
 -- Taking a line away, with a share of what it took back.
-ISBUDisconnect = base("ISBUDisconnect")
+ISBUDisconnect = base("ISBUDisconnect", 80)
 
 function ISBUDisconnect:connected()
     local panel = Store.get(self.panelId)
@@ -218,11 +218,6 @@ function ISBUDisconnect:complete()
     return true
 end
 
-function ISBUDisconnect:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 80
-end
-
 function ISBUDisconnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel.id, utility, x, y, z, extra
@@ -231,7 +226,7 @@ function ISBUDisconnect:new(character, kind, panel, utility, x, y, z, extra)
 end
 
 -- Upgrading a box to carry more.
-ISBUUpgradePanel = base("ISBUUpgradePanel")
+ISBUUpgradePanel = base("ISBUUpgradePanel", 400)
 
 function ISBUUpgradePanel:cost()
     local panel = Store.get(self.panelId)
@@ -253,11 +248,6 @@ function ISBUUpgradePanel:complete()
     return true
 end
 
-function ISBUUpgradePanel:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 400
-end
-
 function ISBUUpgradePanel:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
@@ -265,8 +255,8 @@ function ISBUUpgradePanel:new(character, panel)
     return o
 end
 
--- Putting a unit down: a solar panel or a battery rack (Units.canInstall).
-ISBUInstallUnit = base("ISBUInstallUnit")
+-- Putting a unit down (Units.canInstall).
+ISBUInstallUnit = base("ISBUInstallUnit", 250)
 
 function ISBUInstallUnit:isValid()
     return self.character:getInventory():contains(self.item) and Units.canInstall(self.kind, self.square) ~= nil
@@ -284,11 +274,6 @@ function ISBUInstallUnit:complete()
     return true
 end
 
-function ISBUInstallUnit:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 250
-end
-
 function ISBUInstallUnit:new(character, kind, square, item)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.square, o.item = kind, square, item
@@ -298,7 +283,7 @@ function ISBUInstallUnit:new(character, kind, square, item)
 end
 
 -- Taking a unit down: the unit back, and a share of what its line took. A rack is emptied first.
-ISBURemoveUnit = base("ISBURemoveUnit")
+ISBURemoveUnit = base("ISBURemoveUnit", 200)
 
 function ISBURemoveUnit:isValid()
     local unit = Store.unit(self.unitId)
@@ -314,11 +299,6 @@ function ISBURemoveUnit:complete()
     return true
 end
 
-function ISBURemoveUnit:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 200
-end
-
 function ISBURemoveUnit:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
@@ -327,7 +307,7 @@ function ISBURemoveUnit:new(character, unit)
 end
 
 -- Brushing the snow off a solar panel.
-ISBUClearSnow = base("ISBUClearSnow")
+ISBUClearSnow = base("ISBUClearSnow", 120)
 
 function ISBUClearSnow:isValid()
     local unit = Store.unit(self.unitId)
@@ -340,11 +320,6 @@ function ISBUClearSnow:complete()
     return unit ~= nil
 end
 
-function ISBUClearSnow:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 120
-end
-
 function ISBUClearSnow:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
@@ -353,7 +328,7 @@ function ISBUClearSnow:new(character, unit)
 end
 
 -- A filter's media replaced: the charcoal and cloth a charge takes (BU.WaterUnits.MEDIA) used up.
-ISBUReplaceMedia = base("ISBUReplaceMedia")
+ISBUReplaceMedia = base("ISBUReplaceMedia", 200)
 
 function ISBUReplaceMedia:isValid()
     local unit = Store.unit(self.unitId)
@@ -378,11 +353,6 @@ function ISBUReplaceMedia:complete()
     return true
 end
 
-function ISBUReplaceMedia:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 200
-end
-
 function ISBUReplaceMedia:new(character, unit)
     local o = ISBaseTimedAction.new(self, character)
     o.unitId, o.x, o.y = unit.id, unit.x, unit.y
@@ -392,9 +362,7 @@ end
 
 -- Reconditioning a worn battery with baking soda (Rack.canRevive): better by Rack.REVIVE_GAIN, a few times.
 ISBUReviveBattery = ISBaseTimedAction:derive("ISBUReviveBattery")
-
--- The baking soda it takes: two uses of a box.
-local SODA_USES = 2
+ISBUReviveBattery.getDuration = fixedDuration(400)
 
 function ISBUReviveBattery:isValid()
     return self.character:getInventory():contains(self.item) and BU.Rack.canRevive(self.character, self.item)
@@ -408,9 +376,13 @@ function ISBUReviveBattery:perform() ISBaseTimedAction.perform(self) end
 
 function ISBUReviveBattery:complete()
     if not BU.Rack.canRevive(self.character, self.item) then return false end
-    local soda = self.character:getInventory():getFirstTypeRecurse("Base.BakingSoda")
-    for _ = 1, SODA_USES do
-        if soda and soda:getCurrentUsesFloat() > 0 then soda:UseAndSync() end
+    -- The uses it takes (Rack.REVIVE_SODA), from one box after another.
+    local left = BU.Rack.REVIVE_SODA
+    for _, box in ipairs((BU.Rack.bakingSoda(self.character:getInventory()))) do
+        local take = math.min(left, box:getCurrentUses())
+        for _ = 1, take do box:UseAndSync() end
+        left = left - take
+        if left <= 0 then break end
     end
     local item = self.item
     item:setCondition(math.min(item:getConditionMax(), item:getCondition() + BU.Rack.REVIVE_GAIN))
@@ -418,11 +390,6 @@ function ISBUReviveBattery:complete()
     item:syncItemFields()
     BU.giveXp(self.character, 10)
     return true
-end
-
-function ISBUReviveBattery:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    return 400
 end
 
 function ISBUReviveBattery:new(character, item)

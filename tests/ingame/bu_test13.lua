@@ -66,7 +66,7 @@ local battery = instanceItem("Base.CarBattery2")
 battery:setUsedDelta(0.62)
 battery:setCondition(41)
 local record = BU.Rack.batteryRecord(battery)
-say("record", record.type, string.format("%.2f", record.charge), record.condition, record.revived, BU.Rack.batteryText(record))
+say("record", record.type, string.format("%.2f", record.charge), record.condition, BU.Rack.batteryText(record))
 for i = 1, 6 do BURACK.put(rack, { type = "Base.CarBattery2", charge = 0.62, condition = 41 }) end
 local object = Units.object(rack)
 local box = object:getContainer()

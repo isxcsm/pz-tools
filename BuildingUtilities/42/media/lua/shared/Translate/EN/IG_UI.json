@@ -798,7 +798,7 @@
     "IGUI_BU_Reason_revivedOut": "It was reconditioned %1 times already.",
     "IGUI_BU_Reason_notWorn": "Only a battery below condition %1 can be reconditioned.",
     "IGUI_BU_Reason_screwdriver": "It takes a screwdriver.",
-    "IGUI_BU_Reason_bakingSoda": "It takes baking soda.",
+    "IGUI_BU_Reason_bakingSoda": "It takes two uses of baking soda.",
     "IGUI_BU_Reason_skill": "It takes Electrical %1.",
     "IGUI_BU_SolarRow": "Solar panels: %1  output %2  %3",
     "IGUI_BU_SolarNight": "night",

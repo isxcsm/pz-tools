@@ -16,10 +16,12 @@ Rack.SPRITE = "bu_solar_01_0"
 Rack.SIZE, Rack.WEIGHT = 20, 100
 Rack.CONTAINER = "BuildingUtilitiesRack"
 Rack.ACCEPT = "BuildingUtilities.Rack.acceptBattery"
--- Reconditioning: a battery below this condition, so much better, so many times.
+-- Reconditioning: a battery below this condition, so much better, so many times (counted in the item's modData under
+-- REVIVED), taking so many uses of baking soda, from one box or several.
 Rack.REVIVE_BELOW, Rack.REVIVE_GAIN, Rack.REVIVE_TIMES = 50, 25, 3
 Rack.REVIVE_SKILL = 4
 Rack.REVIVED = "BuildingUtilitiesRevived"
+Rack.REVIVE_SODA = 2
 
 function Rack.isBattery(item) return item ~= nil and item:hasTag(ItemTag.CAR_BATTERY) end
 
@@ -47,10 +49,10 @@ function Rack.acceptBattery(container, item)
     return Rack.isBattery(item) and container:getCountTag(ItemTag.CAR_BATTERY) < Rack.SIZE
 end
 
--- The record the save keeps of a battery in a rack: the item's id, type, charge, condition and reconditionings.
+-- The record the save keeps of a battery in a rack: the item's id, type, charge and condition.
 function Rack.batteryRecord(item)
     return { id = item:getID(), type = item:getFullType(), charge = item:getCurrentUsesFloat(),
-        condition = item:getCondition(), revived = item:getModData()[Rack.REVIVED] or 0 }
+        condition = item:getCondition() }
 end
 
 -- A battery item takes its record's charge and condition, when they differ by enough to be seen (each change goes to
@@ -118,7 +120,6 @@ function Rack.sync(unit, object)
         local item = items:get(i)
         local record = known[item:getID()]
         if record then
-            record.revived = item:getModData()[Rack.REVIVED] or 0
             Rack.writeBattery(item, record)
         else
             record = Rack.batteryRecord(item)
@@ -141,8 +142,22 @@ function Rack.canRevive(character, item)
     if not inventory:getFirstTagEvalRecurse(ItemTag.SCREWDRIVER, function(tool) return not tool:isBroken() end) then
         return false, "screwdriver"
     end
-    if not inventory:getFirstTypeRecurse("Base.BakingSoda") then return false, "bakingSoda" end
+    if select(2, Rack.bakingSoda(inventory)) < Rack.REVIVE_SODA then return false, "bakingSoda" end
     return true
+end
+
+-- The boxes of baking soda a character carries that have some left, and how many uses they have together.
+function Rack.bakingSoda(inventory)
+    local boxes, uses = {}, 0
+    local items = inventory:getAllTypeRecurse("Base.BakingSoda")
+    for i = 0, items:size() - 1 do
+        local box = items:get(i)
+        if box:getCurrentUses() > 0 then
+            boxes[#boxes + 1] = box
+            uses = uses + box:getCurrentUses()
+        end
+    end
+    return boxes, uses
 end
 
 Units.define("rack", {
