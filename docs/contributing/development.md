@@ -178,10 +178,10 @@ For one change, run the suites that cover what it touched. A change elsewhere ne
 | Changed | Suites |
 | --- | --- |
 | `PzTools.GameExtensions.Java`, `PzTools.GameExtensions.VehicleDrivetrain`, `config/game-extensions/`, `tests/game-extensions*`, `tests/vehicle-drivetrain-fixture/` | `extensions`, `control`, `dotnet` |
-| Bridge runtime `ExtensionControl`, `ResidentExtensions`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
+| Bridge runtime `ExtensionControl`, `ResidentExtensions`, `ResidentApi`, `ExtensionHost`, `Frames`, `Leases`; `tests/extension-control/` | `control`, `dotnet` |
 | Bridge runtime `Profile*` | `profiler`, `dotnet` |
 | Bridge runtime `api/`; `tests/extension-api/` | `api` |
-| `AgentEntry`, `ApiHooks`, `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `api`, `dotnet` |
+| The bootstrap (`AgentEntry`, `ControlServer`, `GameHook`, `Payload`), `ApiHooks`, `AttachMain`, `StartupInstall`, `pztools/startup/`, `PzTools.GameBridge.Native`; `tests/startup-loader/` | `startup`, `api`, `control`, `dotnet` |
 | The rest of the bridge runtime, `PzTools.GameBridge`, `PzTools.GameExtensions` (C#), `tests/game-bridge/` | `dotnet` |
 | `scripts/test-game-*.ps1`, the bridge build | all |
 

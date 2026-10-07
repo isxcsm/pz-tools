@@ -1,9 +1,9 @@
 package pztools.bridge.runtime;
 
 /**
- * The game loop's way to the profiler, and the only one. The per-frame callback (the state observer's, or the
- * recording's own when nothing observes) calls {@link #tick()} here, never the recorder: this class needs nothing but
- * the base module, so the recorder and the flight recorder behind it are loaded only once a recording starts.
+ * The game loop's way to the profiler, and the only one. The frame router's profiler job ({@link Frames.Job#PROFILE})
+ * calls {@link #tick()} here, never the recorder: this class needs nothing but the base module, so the recorder and the
+ * flight recorder behind it are loaded only once a recording starts.
  *
  * <p>Whatever the recorder throws ends the frame marks of that recording and nothing else: a game update that drops
  * the flight recorder from its Java runtime, or a fault inside it, must not take the state observer (and with it the
@@ -26,11 +26,8 @@ final class ProfileFrames {
     /** Why the marks stopped by themselves, or empty. */
     static String failure() { return failure; }
 
-    /** Game thread, once per frame. Two reads while no recording runs and no note waits. */
+    /** Game thread, once per frame. One read while no recording runs. */
     static void tick() {
-        // A note over the player for the app. Whatever it throws, even on loading its class, stays here: the state
-        // observer calls this first in the same frame and would be dropped with it.
-        try { GameNotices.tick(); } catch (Throwable ignored) { }
         Runnable current = mark;
         if (current == null) return;
         try { current.run(); }

@@ -1,7 +1,6 @@
 package pztools.bridge.runtime;
 
 import pztools.bridge.AgentEntry;
-import pztools.bridge.runtime.api.GameApi;
 import pztools.extensions.api.*;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,10 +19,10 @@ import java.util.*;
  * <p>It speaks to the extension host through the same {@link ExtensionControl.Session} the app's connection uses, so a
  * request from either is checked the same way, and it never retries a request the game refused in the same world.
  */
-public final class ResidentExtensions {
+final class ResidentExtensions {
     static final String DESIRED = "resident.tsv";
     private static final int MAX_DESIRED = 1 << 20;
-    private static final long INTERVAL_MILLIS = 1000, WAKE_MILLIS = 250;
+    private static final long WAKE_MILLIS = 250;
     private static final Object gate = new Object();
     // Guarded by gate.
     private static Path root;
@@ -32,14 +31,31 @@ public final class ResidentExtensions {
     private static int pauses;
     private static ExtensionControl.Session owner;
 
+    /** What the controller asks of the bootstrap and the game. The tests, which run without either, give their own. */
+    interface Host {
+        boolean reloadRequested();
+        /** Whether this controller's payload is still the one loaded; a replaced one ends. */
+        boolean current();
+        /** A session that keeps the modules when it ends; throws while the game is not ready for one. */
+        ExtensionControl.Session session(Instrumentation instrumentation) throws Exception;
+        /** How long between two passes over the wanted modules. */
+        default long intervalMillis() { return 1000; }
+    }
+
+    static volatile Host host = new Host() {
+        @Override public boolean reloadRequested() { return AgentEntry.runtimeReloadRequested(); }
+        @Override public boolean current() { return AgentEntry.payloadCurrent(ResidentExtensions.class); }
+        @Override public ExtensionControl.Session session(Instrumentation value) throws Exception {
+            return new ExtensionControl.Session(value, AgentEntry.ensureGameHook(), System::nanoTime,
+                ExtensionHost::continuous, ExtensionControl::residentHostAbi, false, true);
+        }
+    };
+
     private ResidentExtensions() { }
 
-    /** Called by the bootstrap with the install folder, once per payload. Starts the controller unless it runs. */
-    public static void start(String installFolder, Instrumentation value) {
-        Path folder = Path.of(installFolder);
+    /** Called by the payload's startup with the install folder, once per payload. Starts the controller unless it runs. */
+    static void start(Path folder, Instrumentation value) {
         if (!folder.isAbsolute()) throw new IllegalArgumentException("Absolute install folder required");
-        // The extension API is part of the same install, and runs whatever the extensions do.
-        GameApi.start();
         synchronized (gate) {
             root = folder; instrumentation = value;
             if (runner != null && runner.isAlive()) return;
@@ -69,7 +85,7 @@ public final class ResidentExtensions {
         synchronized (gate) {
             if (pauses > 0) pauses--;
             gate.notifyAll();
-            if (root != null && (runner == null || !runner.isAlive()) && AgentEntry.residentCurrent(ResidentExtensions.class)) {
+            if (root != null && (runner == null || !runner.isAlive()) && host.current()) {
                 runner = new Thread(ResidentExtensions::run, "PzTools-resident-extensions");
                 runner.setDaemon(true);
                 runner.start();
@@ -79,30 +95,32 @@ public final class ResidentExtensions {
 
     private static void run() {
         var controller = new Controller();
+        String reported = null;
         try {
             long next = System.nanoTime();
             while (true) {
-                if (AgentEntry.runtimeReloadRequested()) {
-                    // A payload reload waits for the lifecycle slot. Should it fail, this controller goes on; should
-                    // it succeed, the new payload starts its own and this one ends.
-                    ExtensionControl.Session current;
-                    synchronized (gate) { current = owner; }
-                    if (current != null) release(current);
-                } else if (!AgentEntry.residentCurrent(ResidentExtensions.class)) return;
-                else if (System.nanoTime() - next >= 0) {
-                    next = System.nanoTime() + INTERVAL_MILLIS * 1_000_000;
-                    GameApi.writeStatus(rootValue());
-                    ExtensionControl.Session current;
-                    synchronized (gate) { current = pauses == 0 ? owner : null; }
-                    if (current == null && !paused()) current = acquire(controller);
-                    if (current != null && !controller.reconcile(current, rootValue())) release(current);
+                // Whatever one pass throws (a host that does not link, say), this controller lets go of the session and
+                // tries again on the next pass: the extensions of a game without the app must not stop for good.
+                try {
+                    if (host.reloadRequested()) {
+                        // A payload reload waits for the lifecycle job. Should it fail, this controller goes on; should
+                        // it succeed, the new payload starts its own and this one ends.
+                        releaseOwner();
+                    } else if (!host.current()) return;
+                    else if (System.nanoTime() - next >= 0) {
+                        next = System.nanoTime() + host.intervalMillis() * 1_000_000;
+                        pass(controller);
+                    }
+                } catch (Throwable failure) {
+                    releaseOwner();
+                    String text = String.valueOf(failure);
+                    if (!text.equals(reported)) System.err.println("[PzTools resident extensions] " + text);
+                    reported = text;
                 }
-                synchronized (gate) { gate.wait(WAKE_MILLIS); }
+                synchronized (gate) { gate.wait(Math.min(WAKE_MILLIS, host.intervalMillis())); }
             }
         } catch (InterruptedException stopped) {
             Thread.currentThread().interrupt();
-        } catch (Throwable failure) {
-            System.err.println("[PzTools resident extensions] " + failure);
         } finally {
             ExtensionControl.Session current;
             synchronized (gate) {
@@ -113,20 +131,39 @@ public final class ResidentExtensions {
         }
     }
 
+    /** One pass: the session this controller holds, or a new one unless the app has the extensions; then the modules. */
+    private static void pass(Controller controller) {
+        ExtensionControl.Session current;
+        synchronized (gate) { current = pauses == 0 ? owner : null; }
+        if (current == null && !paused()) current = acquire();
+        Path folder;
+        synchronized (gate) { folder = root; }
+        if (current != null && !controller.reconcile(current, folder)) release(current);
+    }
+
     private static boolean paused() { synchronized (gate) { return pauses > 0; } }
 
     /**
-     * Takes the lifecycle slot unless an app's connection paused this controller meanwhile. The session is made outside
+     * Takes the lifecycle job unless an app's connection paused this controller meanwhile. The session is made outside
      * the gate: it installs the game hook the first time, which a pause must not wait for.
      */
-    private static ExtensionControl.Session acquire(Controller controller) {
-        ExtensionControl.Session session = controller.session();
-        if (session == null) return null;
+    private static ExtensionControl.Session acquire() {
+        ExtensionControl.Session session;
+        Instrumentation value;
+        synchronized (gate) { value = instrumentation; }
+        try { session = host.session(value); }
+        catch (Exception | LinkageError notReady) { return null; } // GameWindow has not loaded yet, for one.
         synchronized (gate) {
-            if (pauses == 0 && owner == null && AgentEntry.acquireLifecycle(session, session::poll)) { owner = session; return session; }
+            if (pauses == 0 && owner == null && Frames.add(Frames.Job.LIFECYCLE, session, session::poll)) { owner = session; return session; }
         }
         session.close();
         return null;
+    }
+
+    private static void releaseOwner() {
+        ExtensionControl.Session current;
+        synchronized (gate) { current = owner; }
+        if (current != null) release(current);
     }
 
     private static void release(ExtensionControl.Session session) {
@@ -176,14 +213,6 @@ public final class ResidentExtensions {
             epoch = HexFormat.of().formatHex(bytes);
         }
 
-        /** A session that keeps the modules when it ends, or null while the game is not ready for one. */
-        ExtensionControl.Session session() {
-            try {
-                return new ExtensionControl.Session(instrumentationValue(), AgentEntry.ensureGameHook(), System::nanoTime,
-                    () -> (ContinuousModules)AgentEntry.extensions(), ExtensionControl::residentHostAbi, false, true);
-            } catch (Exception | LinkageError notReady) { return null; } // GameWindow has not loaded yet, for one.
-        }
-
         /** One pass over the wanted modules; false when this session can no longer be used. */
         boolean reconcile(ExtensionControl.Session session, Path folder) {
             String world = session.worldId();
@@ -223,7 +252,4 @@ public final class ResidentExtensions {
 
         private String id() { return "r" + (++commands); }
     }
-
-    private static Path rootValue() { synchronized (gate) { return root; } }
-    private static Instrumentation instrumentationValue() { synchronized (gate) { return instrumentation; } }
 }

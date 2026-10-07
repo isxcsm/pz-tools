@@ -48,7 +48,7 @@ public final class RuntimeObserver {
         long leavingChecked;
         boolean wasRunning;
         Context(Class<?> window) throws Exception {
-            adapter = new PzRuntimeAdapter(window);
+            adapter = PzRuntimeAdapter.of(window);
             characterReader = new LiveCharacter(window.getClassLoader());
             lastSample = System.nanoTime(); published = lastSample; leavingChecked = lastSample - 1_000_000_000L;
             snapshot = exact();
@@ -121,25 +121,21 @@ public final class RuntimeObserver {
     public static synchronized boolean start() throws Exception {
         if (context != null && context.active) return false;
         Context next = new Context(AgentEntry.ensureGameHook());
+        // Sampled each frame by the frame router, beside the profiler's marks and the other jobs, none of which can
+        // take this observer down with it.
+        if (!Frames.add(Frames.Job.OBSERVER, next, next::sample)) return false;
         context = next;
-        AgentEntry.observe(perFrame(next::sample));
         return true;
     }
-    /**
-     * The per-frame callback. Its slot is shared with an optional profile recording, reached only through its relay:
-     * one read when idle, and whatever the profiler throws ends the profiler's marks, never this observer.
-     */
-    static Runnable perFrame(Runnable sample) { return () -> { ProfileFrames.tick(); sample.run(); }; }
     public static synchronized void stop() {
         Context previous = context;
         if (previous != null) {
             previous.active = false;
             LiveCharacter.disconnect();
             BridgeSession.cancelObserver(previous.observer);
+            Frames.remove(Frames.Job.OBSERVER, previous);
         }
-        AgentEntry.observe(null);
         context = null;
-        ProfileControl.observerStopped();
     }
     static boolean running() { Context value = context; return value != null && value.active; }
     static String frame() {

@@ -34,6 +34,7 @@ public final class StartupInstall {
     static final String RECORD = "install.tsv", ORIGINAL = "original.jar";
     static final String[] BRIDGE_FILES = { StartupLoader.BOOTSTRAP, StartupLoader.PAYLOAD, StartupLoader.NATIVE };
     static final String EXTENSIONS = "extensions";
+    static final String GAME_RUNNING = "game-running";
 
     /** A failure with a code the app turns into a message. */
     static final class Refused extends Exception {
@@ -140,8 +141,13 @@ public final class StartupInstall {
         boolean entryChanged = false;
         if (game != null && Files.isRegularFile(Path.of(game, GAME_JAR))) {
             Path folder = Path.of(game);
-            // A game that runs keeps its jar open: the move waits for a refresh while it is closed.
-            try { restoreJar(root, folder, record); } catch (Refused running) { return "refreshed\t" + copied.getFileName(); }
+            // A game that runs keeps its jar open: the move waits for a refresh while it is closed. Any other refusal (the
+            // saved copy of the jar is gone, say) is the app's to show.
+            try { restoreJar(root, folder, record); }
+            catch (Refused refused) {
+                if (!refused.code.equals(GAME_RUNNING)) throw refused;
+                return "refreshed\t" + copied.getFileName();
+            }
             if (!record.containsKey("entry_sha256") || !current(folder, root)) {
                 writeEntry(root, folder);
                 entryChanged = true;
@@ -249,7 +255,7 @@ public final class StartupInstall {
                 Files.copy(original, staged, StandardCopyOption.REPLACE_EXISTING);
                 try { Files.move(staged, jar, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE); }
                 catch (FileSystemException inUse) {
-                    throw new Refused("game-running", "The game's jar is in use. Close the game and any server started from its folder.");
+                    throw new Refused(GAME_RUNNING, "The game's jar is in use. Close the game and any server started from its folder.");
                 }
             } finally { Files.deleteIfExists(staged); }
         }

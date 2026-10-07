@@ -1,13 +1,19 @@
 package pztools.bridge.runtime;
 
+import pztools.bridge.AgentEntry;
 import pztools.extensions.api.*;
+import java.lang.instrument.Instrumentation;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 
-/** The resident controller of a game the startup loader started: what it reads, what it asks for, what it leaves. */
+/**
+ * The resident controller of a game the startup loader started: what it reads, what it asks for, what it leaves, and
+ * its thread: the hand-over to an app's connection and back, a payload switch, a pass that throws, its end and restart.
+ */
 final class ResidentExtensionsTest {
     private ResidentExtensionsTest() { }
 
@@ -17,11 +23,13 @@ final class ResidentExtensionsTest {
             desiredFile(folder);
             residentSessionKeepsModules();
             reconcile(folder);
+            runner(folder);
         } finally {
             try (var files = Files.list(folder)) { for (Path file : files.toList()) Files.delete(file); }
             Files.delete(folder);
         }
-        System.out.println("PASS: resident extensions read the app's file, apply once per world and revision, and keep modules on handover");
+        System.out.println("PASS: resident extensions read the app's file, apply once per world and revision, keep modules on handover, "
+            + "hand the lifecycle to an app and a payload switch and take it back, and outlive a pass that throws");
     }
 
     private static final String CONFIG = Base64.getEncoder().encodeToString("force_scale\t1.25\n".getBytes(StandardCharsets.UTF_8));
@@ -133,6 +141,107 @@ final class ResidentExtensionsTest {
             modules.set("pztools.first-module", "Disabled", session.worldId(), -1);
             check(controller.reconcile(session, folder) && modules.applies.size() == 3, "Acted without the app's file");
         } finally { session.close(); }
+    }
+
+    /** The bootstrap and the game as the controller's thread sees them, switched by the test. */
+    private static final class FakeHost implements ResidentExtensions.Host {
+        final Modules modules = new Modules();
+        volatile boolean reload, current = true, linkFailure;
+        public boolean reloadRequested() { return reload; }
+        public boolean current() { return current; }
+        public ExtensionControl.Session session(Instrumentation instrumentation) throws Exception {
+            return new ExtensionControl.Session(instrumentation, zombie.GameWindow.class, System::nanoTime, () -> {
+                // As a runtime jar whose classes do not link: the error, not an exception, reaches the controller.
+                if (linkFailure) throw new NoClassDefFoundError("pztools/extensions/runtime/Synthetic");
+                return modules;
+            }, ExtensionControl::residentHostAbi, false, true);
+        }
+        public long intervalMillis() { return 20; }
+    }
+
+    private static void runner(Path folder) throws Exception {
+        zombie.GameWindow.mode = "normal"; zombie.GameWindow.gameThread = Thread.currentThread();
+        zombie.ZomboidFileSystem.path = "synthetic-world";
+        zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
+        zombie.iso.IsoWorld.instance.currentCell = new Object();
+        var host = new FakeHost();
+        var previous = ResidentExtensions.host;
+        ResidentExtensions.host = host;
+        try {
+            write(folder, "PZTOOLS-RESIDENT\t1\nrevision\t5\nmodule\tpztools.first-module\ton\tnormal\t" + CONFIG + "\n");
+            ResidentExtensions.start(folder, null);
+            // The game loop runs the controller's session, which names the world; then the module is asked for.
+            await(() -> host.modules.applies.size() == 1, "The controller did not apply the wanted module");
+            check(lifecycleHeld() && runnerAlive(), "The controller does not hold the extension lifecycle");
+
+            // An app's connection takes the extensions: the controller lets go, and takes nothing while paused.
+            ResidentExtensions.pause();
+            check(!lifecycleHeld(), "A pause did not let go of the lifecycle");
+            for (int frame = 0; frame < 10; frame++) { AgentEntry.poll(); Thread.sleep(10); }
+            check(!lifecycleHeld(), "A paused controller took the lifecycle");
+            // The app's connection ended: taken back, and the module, still running, is not asked for again.
+            ResidentExtensions.resume();
+            await(ResidentExtensionsTest::lifecycleHeld, "The controller did not take the lifecycle back");
+            check(host.modules.applies.size() == 1 && host.modules.revokes == 0 && host.modules.closes == 0,
+                "The hand-over withdrew or applied the module again");
+
+            // A payload switch waits for the controller to let go; one that fails leaves it going on.
+            host.reload = true;
+            await(() -> !lifecycleHeld(), "A payload switch did not get the lifecycle");
+            host.reload = false;
+            await(ResidentExtensionsTest::lifecycleHeld, "The controller did not go on after a failed switch");
+
+            // Passes that throw an error (a host whose classes do not link): the controller lets go each time and goes on.
+            write(folder, "PZTOOLS-RESIDENT\t1\nrevision\t6\nmodule\tpztools.first-module\ton\tnormal\t" + CONFIG + "\n");
+            host.linkFailure = true;
+            ResidentExtensions.pause();
+            ResidentExtensions.resume();
+            for (int frame = 0; frame < 20; frame++) { AgentEntry.poll(); Thread.sleep(10); }
+            check(runnerAlive() && host.modules.applies.size() == 1, "A pass that threw ended the controller");
+            host.linkFailure = false;
+            await(() -> host.modules.applies.size() == 2 && host.modules.applies.get(1).revision() == 6,
+                "The controller did not recover from a pass that threw");
+
+            // Replaced by a newer payload: it ends and lets go, and is not started again by a hand-back.
+            host.current = false;
+            await(() -> !runnerAlive(), "A replaced controller kept running");
+            check(!lifecycleHeld(), "A replaced controller kept the lifecycle");
+            ResidentExtensions.pause();
+            ResidentExtensions.resume();
+            check(!runnerAlive(), "A hand-back restarted a replaced controller");
+            // Still current (its thread ended for another reason): a hand-back starts it again.
+            host.current = true;
+            ResidentExtensions.pause();
+            ResidentExtensions.resume();
+            await(ResidentExtensionsTest::lifecycleHeld, "A hand-back did not start the controller again");
+        } finally {
+            host.current = false;
+            for (int wait = 0; wait < 500 && runnerAlive(); wait++) Thread.sleep(10);
+            ResidentExtensions.host = previous;
+        }
+        check(!runnerAlive(), "The controller's thread did not end");
+    }
+
+    /** Whether someone holds the lifecycle job: a probe is refused it. */
+    private static boolean lifecycleHeld() {
+        Object probe = new Object();
+        if (!Frames.add(Frames.Job.LIFECYCLE, probe, () -> { })) return true;
+        Frames.remove(Frames.Job.LIFECYCLE, probe);
+        return false;
+    }
+
+    private static boolean runnerAlive() {
+        return Thread.getAllStackTraces().keySet().stream().anyMatch(thread -> thread.getName().equals("PzTools-resident-extensions"));
+    }
+
+    /** Runs the game loop on this thread, as the game thread, until the condition holds. */
+    private static void await(BooleanSupplier condition, String message) throws InterruptedException {
+        for (int frame = 0; frame < 500; frame++) {
+            AgentEntry.poll();
+            if (condition.getAsBoolean()) return;
+            Thread.sleep(10);
+        }
+        throw new AssertionError(message);
     }
 
     /** One status per module, settable; records what it was asked. */

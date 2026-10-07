@@ -254,7 +254,7 @@ public final class ApiHooks {
     static byte[] transform(String name, byte[] bytes, ClassLoader loader) {
         Site[] sites = SITES.get(name);
         if (sites == null) return null;
-        var cf = AgentEntry.classFile(loader);
+        var cf = GameHook.classFile(loader);
         var model = cf.parse(bytes);
         ClassDesc owner = model.thisClass().asSymbol();
         var parts = new LinkedHashMap<String, ClassTransform>();

@@ -20,7 +20,6 @@ public final class Inspector {
                 return inject(bytes, "bridgefixture.Inspector", "marker");
             }
         }, true);
-        if ("legacy".equals(options)) pztools.bridge.SaveBridge.install(value);
     }
     public static byte[] inject(byte[] bytes, String owner, String method) {
         var cf = ClassFile.of();
@@ -47,6 +46,7 @@ public final class Inspector {
             }
         };
         Instrumentation observer = instrumentation;
+        String diagnostics = "";
         try {
             var resident = Class.forName("pztools.bridge.AgentEntry");
             var field = resident.getDeclaredField("instrumentation");
@@ -55,19 +55,15 @@ public final class Inspector {
             // Keep the premain observer until the resident instrumentation is available.
             var candidate = (Instrumentation)field.get(null);
             if (candidate != null) observer = candidate;
-            calls.append(resident.getMethod("diagnostics").invoke(null)).append('\n');
+            diagnostics = (String)resident.getMethod("diagnostics").invoke(null);
+            calls.append(diagnostics).append('\n');
         } catch (ClassNotFoundException ignored) { }
         observer.addTransformer(reader, true);
         try { observer.retransformClasses(Class.forName("zombie.GameWindow")); }
         finally { observer.removeTransformer(reader); }
-        // Each Java agent has its own transformer chain. Our premain observer sees
-        // legacy hooks, but runs before the newly attached agent's chain. Read the
-        // bootstrap ownership separately when checking an active/new session.
-        try {
-            var callback = Class.forName("pztools.bridge.AgentEntry").getDeclaredField("callback");
-            callback.setAccessible(true);
-            if (callback.get(null) != null) calls.append("bridge-session-active\n");
-        } catch (ClassNotFoundException ignored) { }
+        // Each Java agent has its own transformer chain: our premain observer runs before the attached agent's. A
+        // request that holds the game thread is read from the bootstrap's own diagnostics.
+        if (diagnostics.contains("callbackActive=true")) calls.append("bridge-session-active\n");
         Path staging = output.resolveSibling(output.getFileName() + ".tmp");
         Files.writeString(staging, calls.toString());
         Files.move(staging, output, StandardCopyOption.REPLACE_EXISTING);

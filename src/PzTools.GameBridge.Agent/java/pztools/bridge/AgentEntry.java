@@ -1,57 +1,31 @@
 package pztools.bridge;
 
-import java.io.*;
-import pztools.extensions.api.SaveModules;
-import pztools.extensions.api.ExtensionApi;
-import pztools.extensions.api.internal.ClassArchive;
-import java.lang.classfile.*;
-import java.lang.constant.*;
 import java.lang.instrument.*;
-import java.lang.reflect.Method;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.security.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
-import java.util.zip.ZipInputStream;
 
-/** One bootstrap and idle dispatch hook per JVM; no save is performed by the control thread. */
+/**
+ * The bootstrap (docs/design/game-bridge.md#layers): loaded once per game process and never replaced, so it holds no
+ * feature of its own. It takes the agent's arguments, starts the control listener ({@link ControlServer}), keeps the
+ * game-loop hook ({@link GameHook}) and the payload ({@link Payload}), and in a game the startup loader started it
+ * starts the payload's startup work. The public methods are what a payload calls; no save is performed by the control
+ * thread.
+ */
 public final class AgentEntry {
     public static final String CONTROL_PROPERTY = "pztools.bridge.control.v1";
-    private static SaveModules extensionHost;
-    private static String extensionRuntimeDigest;
-    private static volatile boolean reloadRequested;
-    private static boolean dispatchPaused;
-    private static int dispatching;
-    private static Object owner;
-    private static volatile Runnable callback;
-    private static volatile Runnable observerCallback;
-    private static Object lifecycleOwner;
-    private static volatile Runnable lifecycleCallback;
-    private static final AtomicBoolean watchSession = new AtomicBoolean();
-    private static final AtomicBoolean extensionSession = new AtomicBoolean();
-    private static Method payloadWatch;
-    private static Method payloadExtensions;
-    // The startup loader's install folder, in a game it started; the resident controller of the payload last started.
-    private static volatile Path residentRoot;
-    // Whether the control endpoint is set; guarded by the class, as residentRoot's writes are.
-    private static boolean endpointPublished;
-    private static volatile Method payloadResident;
-    private static Method residentStarted;
-    private static final Object runtimeGate = new Object();
+    /** The bootstrap API: the helper and every payload jar must name this one. */
+    static final String API = "11";
     private static Instrumentation instrumentation;
-    private static Class<?> window;
-    private static ClassFileTransformer hook;
-    private static final AtomicBoolean session = new AtomicBoolean();
-    private static Path payload;
-    private static String payloadDigest;
-    private static Method payloadRun;
-    private static volatile long payloadLoads;
-    private static volatile long hookInstalls;
-    // Times the dispatch call could not be put back when GameWindow was retransformed after it was installed.
-    private static volatile long hookFailures;
-    private static volatile long sessions;
+    // In a game the startup loader started: the install's payload, <install folder>\bridge-<id>\<payload>.
+    private static volatile Path startupPayload;
+    // Whether the control endpoint is set; guarded by the class, as startupPayload's writes are.
+    private static boolean endpointPublished;
+
+    private AgentEntry() { }
 
     public static synchronized void agentmain(String options, Instrumentation value) throws Exception {
         String[] parts = options.split(":", -1);
@@ -62,24 +36,22 @@ public final class AgentEntry {
         if (!candidate.isAbsolute()) throw new IllegalArgumentException("Absolute payload path required");
         if (instrumentation != null) {
             // The app was open when the game started, and its helper attached before the startup loader ran. The game
-            // still becomes one the loader started, with its resident extensions and API, rather than refuse the loader.
-            if (!startup || residentRoot != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
+            // still becomes one the loader started, with its startup work, rather than refuse the loader.
+            if (!startup || startupPayload != null) throw new IllegalStateException("Bootstrap already loaded; reuse its control endpoint");
             becomeStartup(candidate.normalize());
             return;
         }
-        payload = candidate.normalize();
+        Payload.init(candidate.normalize());
         var server = new ServerSocket();
         server.bind(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 8);
         byte[] key = new byte[32];
         new SecureRandom().nextBytes(key);
         String secret = HexFormat.of().formatHex(key);
         instrumentation = value;
-        if (startup) becomeStartup(payload);
-        Thread control = new Thread(() -> controlLoop(server, secret), "PzTools-bridge-control");
-        control.setDaemon(true);
+        if (startup) becomeStartup(candidate.normalize());
         try {
-            control.start();
-            System.setProperty("pztools.bridge.bootstrap.api", "11");
+            ControlServer.start(server, secret, value);
+            System.setProperty("pztools.bridge.bootstrap.api", API);
             // Published only after the listener is bound. Never print this credential.
             String endpoint = "2:" + ProcessHandle.current().pid() + ":" + server.getLocalPort() + ":" + secret;
             publishAfterPropertyList(endpoint);
@@ -90,19 +62,18 @@ public final class AgentEntry {
     }
 
     /**
-     * Makes this a game the startup loader started: its install folder, the extension API's Lua hook (before the game's
-     * Lua loads), and, once the endpoint is set, the resident extensions.
+     * Makes this a game the startup loader started: its install, the extension API's Lua hook (before the game's Lua
+     * loads), and, once the endpoint is set, the payload's startup work.
      */
-    private static void becomeStartup(Path startupPayload) {
+    private static void becomeStartup(Path installPayload) {
         boolean ready;
         synchronized (AgentEntry.class) {
-            // The loader gives the payload in the install's bridge folder: <install folder>\bridge-<id>\<payload>.
-            residentRoot = startupPayload.getParent().getParent();
+            startupPayload = installPayload;
             ready = endpointPublished;
         }
         try { ApiHooks.install(instrumentation); }
         catch (Throwable failure) { System.err.println("[PzTools API] " + failure); }
-        if (ready) launchResident();
+        if (ready) launchStartup();
     }
 
     /**
@@ -134,334 +105,82 @@ public final class AgentEntry {
     }
 
     private static void publish(String endpoint) {
-        boolean resident;
+        boolean startup;
         synchronized (AgentEntry.class) {
             System.setProperty(CONTROL_PROPERTY, endpoint);
             endpointPublished = true;
-            resident = residentRoot != null;
+            startup = startupPayload != null;
         }
-        if (resident) launchResident();
+        if (startup) launchStartup();
     }
 
     /**
-     * Loads the payload and starts its resident extension controller, away from the class loading that calls this. A
-     * game started without the app runs its extensions this way; the controller waits for the game's first frames.
+     * Loads the payload and runs its startup work, away from the class loading that calls this. A game started without
+     * the app gets its extension API and resident extensions this way; they wait for the game's first frames.
      */
-    private static void launchResident() {
+    private static void launchStartup() {
         Thread starter = new Thread(() -> {
             for (int attempt = 0; attempt < 30; attempt++) {
                 try {
-                    Path requested;
-                    synchronized (runtimeGate) { requested = payload; }
-                    preparePayload(requested, "RESIDENT");
-                    startResident();
+                    Payload.prepare(Payload.path());
+                    Payload.startup(instrumentation);
                     return;
-                } catch (ReloadBusy busy) {
-                    // An app's connection is reloading the payload; it starts the controller itself.
-                } catch (Exception failure) {
-                    System.err.println("[PzTools resident extensions] " + failure);
+                } catch (Payload.Busy busy) {
+                    // An app's connection is replacing the payload; it starts the new one's startup itself.
+                } catch (Throwable failure) {
+                    System.err.println("[PzTools startup] " + failure);
                 }
                 try { Thread.sleep(1000); } catch (InterruptedException stopped) { break; }
-                synchronized (runtimeGate) { if (residentStarted != null) return; }
+                if (Payload.started()) return;
             }
             // No payload: the game's Lua stops waiting for the API.
             ApiHooks.set(null);
-        }, "PzTools-resident-start");
+        }, "PzTools-startup");
         starter.setDaemon(true);
         starter.start();
     }
 
-    /** Starts the resident controller of the payload loaded now, in a game the startup loader started, once per payload. */
-    private static void startResident() {
-        Method start;
-        synchronized (runtimeGate) {
-            if (residentRoot == null || payloadResident == null || residentStarted == payloadResident) return;
-            start = residentStarted = payloadResident;
-        }
-        try { start.invoke(null, residentRoot.toString(), instrumentation); }
-        catch (Throwable failure) { System.err.println("[PzTools resident extensions] " + failure); }
-    }
+    static Path startupPayload() { return startupPayload; }
 
-    /** The extension runtime, replaced when its jar changed (extension control, a provider save); WATCH stays connected. */
-    public static SaveModules extensions() throws Exception {
-        synchronized (runtimeGate) {
-            Path directory = payload.getParent().resolve("extensions");
-            var archive = ClassArchive.read(directory.resolve("pztools-extension-runtime.jar"));
-            archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
-            if (extensionHost == null || !archive.digest().equals(extensionRuntimeDigest)) {
-                var loader = archive.loader("pztools.extensions.runtime", AgentEntry.class.getClassLoader(), true);
-                var next = (SaveModules)loader.loadClass("pztools.extensions.runtime.ModuleHost")
-                    .getConstructor(Path.class).newInstance(directory);
-                try { if (extensionHost != null) extensionHost.close(); }
-                catch (Exception failedRetirement) { next.close(); throw failedRetirement; }
-                extensionHost = next; extensionRuntimeDigest = archive.digest();
-            } else extensionHost.relocate(directory);
-            return extensionHost;
-        }
-    }
-    public static boolean runtimeReloadRequested() { return reloadRequested; }
-    /** Whether this resident controller class belongs to the payload loaded now; a replaced one ends. Not locked: a
-     *  reload holds the gate while it waits for that controller to let go. */
-    public static boolean residentCurrent(Class<?> controller) {
-        Method current = payloadResident;
-        return current != null && current.getDeclaringClass() == controller;
-    }
+    // ---- what a payload calls ----
 
-    /** No callback is executed under runtimeGate or the admission monitor. */
-    private static Method preparePayload(Path requested, String kind) throws Exception {
-        synchronized (runtimeGate) {
-            var archive = ClassArchive.read(requested);
-            archive.require("PzTools-Bootstrap-Api", "11");
-            if (payloadRun != null && archive.digest().equals(payloadDigest)) {
-                if (!payload.equals(requested)) {
-                    synchronized (AgentEntry.class) {
-                        if (session.get() || callback != null) throw new ReloadBusy();
-                        payload = requested;
-                    }
-                }
-                return entry(kind);
-            }
-            synchronized (AgentEntry.class) {
-                if (session.get() || callback != null) throw new ReloadBusy();
-            }
-            // Stage and link before asking the old WATCH generation to finish.
-            var loader = archive.loader("pztools.bridge.runtime", AgentEntry.class.getClassLoader(), false);
-            Method next = loader.loadClass("pztools.bridge.runtime.BridgeSession").getMethod("run", String.class, Instrumentation.class);
-            Method nextWatch = loader.loadClass("pztools.bridge.runtime.RuntimeWatch").getMethod("run", String.class, Instrumentation.class);
-            Method nextExtensions = loader.loadClass("pztools.bridge.runtime.ExtensionControl").getMethod("run", String.class, Instrumentation.class);
-            Method nextResident = loader.loadClass("pztools.bridge.runtime.ResidentExtensions").getMethod("start", String.class, Instrumentation.class);
-            // The running resident controller lets go of the extensions when it sees this, and ends.
-            reloadRequested = true;
-            synchronized (AgentEntry.class) { dispatchPaused = true; }
-            try {
-                long deadline = System.nanoTime() + 3_000_000_000L;
-                while (true) {
-                    synchronized (AgentEntry.class) {
-                        if (!session.get() && !watchSession.get() && !extensionSession.get() && callback == null
-                                && observerCallback == null && lifecycleCallback == null && dispatching == 0) break;
-                    }
-                    if (System.nanoTime() >= deadline) throw new ReloadBusy();
-                    Thread.sleep(10); // Control thread only; never wait in game dispatch.
-                }
-                payloadRun = next; payloadWatch = nextWatch; payloadExtensions = nextExtensions; payloadResident = nextResident;
-                payloadDigest = archive.digest();
-                payload = requested; payloadLoads++;
-                return entry(kind);
-            } finally {
-                synchronized (AgentEntry.class) { dispatchPaused = false; }
-                reloadRequested = false;
-            }
-        }
-    }
-    private static Method entry(String kind) {
-        return switch (kind) {
-            case "WATCH" -> payloadWatch;
-            case "EXTENSIONS" -> payloadExtensions;
-            case "RESIDENT" -> payloadResident;
-            default -> payloadRun;
-        };
-    }
-    private static final class ReloadBusy extends Exception { }
+    /** The game's {@code GameWindow} class, once the game-loop hook is in it. */
+    public static Class<?> ensureGameHook() throws Exception { return GameHook.ensure(instrumentation); }
 
-    private static void controlLoop(ServerSocket server, String secret) {
-        while (!server.isClosed()) {
-            try (Socket socket = server.accept()) {
-                socket.setSoTimeout(2000);
-                var input = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                var output = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-                String line = readLimited(input);
-                String[] parts = line == null ? new String[0] : line.split("\\t", -1);
-                if ((parts.length != 4 && !(parts.length == 5 && (parts[4].equals("WATCH") || parts[4].equals("EXTENSIONS")))) || !MessageDigest.isEqual(secret.getBytes(StandardCharsets.US_ASCII),
-                        parts[0].getBytes(StandardCharsets.US_ASCII))) {
-                    output.println("REJECTED");
-                    continue;
-                }
-                int port = Integer.parseInt(parts[1]);
-                Path requestedPayload = Path.of(new String(Base64.getDecoder().decode(parts[3]), StandardCharsets.UTF_8));
-                if (port < 1 || port > 65535 || !parts[2].matches("[0-9a-f]{64}")
-                        || !requestedPayload.isAbsolute()) {
-                    output.println("RESTART_REQUIRED");
-                    continue;
-                }
-                // Saves, probes, profile and notice commands: one request each, handled by BridgeSession.
-                String kind = parts.length == 5 ? parts[4] : "REQUEST";
-                Method entry;
-                try { entry = preparePayload(requestedPayload.normalize(), kind); }
-                catch (ReloadBusy busy) { output.println("BUSY"); continue; }
-                catch (Exception incompatible) { output.println("PAYLOAD_UNAVAILABLE"); continue; }
-                // A payload loaded for this request brings its own resident controller, which this session pauses.
-                startResident();
-                AtomicBoolean slot = kind.equals("WATCH") ? watchSession : kind.equals("EXTENSIONS") ? extensionSession : session;
-                if (!slot.compareAndSet(false, true)) { output.println("BUSY"); continue; }
-                try {
-                    Thread worker = new Thread(() -> runSession(parts[1] + ":" + parts[2], kind, entry), "PzTools-" + kind.toLowerCase(Locale.ROOT));
-                    worker.setDaemon(true);
-                    worker.start();
-                    output.println("ACCEPTED");
-                } catch (Throwable failure) {
-                    slot.set(false);
-                    throw failure;
-                }
-            } catch (Exception failure) {
-                // Invalid/abandoned control clients cannot enqueue a save. No retry of an accepted request.
-                if (server.isClosed()) return;
-            }
-        }
-    }
+    /** The call at the start of {@code GameWindow.logic()}. */
+    public static void poll() { GameHook.poll(); }
 
-    private static void runSession(String options, String kind, Method invokeEntry) {
-        try {
-            if (kind.equals("REQUEST")) sessions++;
-            invokeEntry.invoke(null, options, instrumentation);
-        } catch (Throwable failure) {
-            System.err.println("[PzTools bridge session] " + failure);
-        } finally { (kind.equals("WATCH") ? watchSession : kind.equals("EXTENSIONS") ? extensionSession : session).set(false); }
-    }
-
-    /** Installs only the stable dispatch call, never a callback owned by a payload loader. */
-    public static synchronized Class<?> ensureGameHook() throws Exception {
-        if (hook != null) return window;
-        if (Runtime.version().feature() != 25 || !instrumentation.isRetransformClassesSupported())
-            throw new IllegalStateException("This bridge requires Java 25 with retransformation");
-        for (Class<?> type : instrumentation.getAllLoadedClasses()) {
-            if (type.getName().equals("zombie.GameWindow")) {
-                if (window != null && window != type) throw new IllegalStateException("Multiple GameWindow classes");
-                window = type;
-            }
-        }
-        if (window == null) throw new IllegalStateException("GameWindow has not loaded yet");
-        if (Class.forName(AgentEntry.class.getName(), false, window.getClassLoader()) != AgentEntry.class)
-            throw new IllegalStateException("Game cannot access the bootstrap");
-        Method logic = window.getDeclaredMethod("logic");
-        Method save = window.getMethod("save", boolean.class);
-        window.getField("gameThread");
-        if (!java.lang.reflect.Modifier.isStatic(logic.getModifiers()) || logic.getReturnType() != void.class
-                || !java.lang.reflect.Modifier.isStatic(save.getModifiers()) || save.getReturnType() != void.class)
-            throw new IllegalStateException("Unsupported game method signatures");
-        var transformed = new AtomicBoolean();
-        var failure = new AtomicReference<Throwable>();
-        // Stays registered: when another agent retransforms GameWindow later, the JVM runs this again on the original
-        // bytes, so the dispatch call survives their change and theirs survives ours. Should it fail then, the class
-        // goes on without it; that is counted for diagnostics rather than passed to the other agent.
-        ClassFileTransformer candidate = new ClassFileTransformer() {
-            @Override public byte[] transform(ClassLoader loader, String name, Class<?> type,
-                    ProtectionDomain domain, byte[] bytes) {
-                if (type != window) return null;
-                try {
-                    byte[] result = transformWindow(bytes, loader);
-                    transformed.set(true);
-                    return result;
-                } catch (Throwable exception) {
-                    failure.set(exception);
-                    if (hook != null) hookFailures++;
-                    return null;
-                }
-            }
-        };
-        instrumentation.addTransformer(candidate, true);
-        try {
-            instrumentation.retransformClasses(window);
-            if (!transformed.get()) throw new IllegalStateException("Could not install game hook", failure.get());
-            hook = candidate;
-            hookInstalls++;
-            return window;
-        } finally { if (hook == null) instrumentation.removeTransformer(candidate); }
-    }
+    /** A request's game-thread work, run each frame after the payload's frame router; one request at a time. */
+    public static boolean acquire(Object owner, Runnable poll) { return GameHook.acquire(owner, poll); }
+    public static void release(Object owner) { GameHook.release(owner); }
 
     /**
-     * New stack maps need the game's class hierarchy. It is read from the class files themselves: loading classes from
-     * inside a transformer, perhaps during another agent's retransformation, can fail or deadlock, and runs every
-     * agent's transformers on the classes it loads. Loading stays only as the last resort, for a class whose file
-     * cannot be read, as the hook was always installed before.
+     * The payload's frame router, run first each frame: true once it has the slot (again). Refused while a payload
+     * switch waits for the old payload to let go.
      */
-    static ClassFile classFile(ClassLoader loader) {
-        return ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(ClassHierarchyResolver.defaultResolver()
-            .orElse(ClassHierarchyResolver.ofResourceParsing(loader)).orElse(ClassHierarchyResolver.ofClassLoading(loader)).cached()));
-    }
+    public static boolean claimFrames(Runnable router) { return GameHook.claimFrames(router); }
+    public static void releaseFrames(Runnable router) { GameHook.releaseFrames(router); }
 
-    private static byte[] transformWindow(byte[] bytes, ClassLoader loader) {
-        var cf = classFile(loader);
-        var model = cf.parse(bytes);
-        if (model.methods().stream().filter(m -> m.methodName().equalsString("logic")
-                && m.methodType().equalsString("()V")).count() != 1)
-            throw new IllegalArgumentException("Expected exactly one GameWindow.logic()V");
-        return cf.transformClass(model, ClassTransform.transformingMethodBodies(
-            m -> m.methodName().equalsString("logic") && m.methodType().equalsString("()V"),
-            CodeTransform.ofStateful(() -> new CodeTransform() {
-                @Override public void atStart(CodeBuilder builder) {
-                    builder.invokestatic(ClassDesc.of("pztools.bridge.AgentEntry"), "poll", MethodTypeDesc.of(ConstantDescs.CD_void));
-                }
-                @Override public void accept(CodeBuilder builder, CodeElement element) { builder.with(element); }
-            })));
-    }
+    /** A payload switch waits: the payload's sessions and threads let go of what they hold, and end. */
+    public static boolean runtimeReloadRequested() { return Payload.reloadRequested(); }
 
-    public static synchronized boolean acquire(Object candidate, Runnable poll) {
-        if (owner != null) return false;
-        owner = candidate;
-        callback = poll;
-        return true;
-    }
-    public static synchronized void release(Object candidate) {
-        if (owner != candidate) return;
-        callback = null;
-        owner = null;
-    }
-    public static void observe(Runnable observer) { observerCallback = observer; }
+    /** Whether the class belongs to the payload loaded now; one a newer payload replaced ends. */
+    public static boolean payloadCurrent(Class<?> type) { return Payload.current(type); }
+
+    /** Where the payload loaded now was read from: the last connection's path for the same bytes. */
+    public static Path payloadPath() { return Payload.path(); }
+
     /**
-     * Sets the per-frame callback only if it is still {@code expected}: the profiler takes the free slot and gives
-     * back only its own, so it never overwrites the state observer's or clears it.
+     * What a payload keeps for the next one, by name (the extension runtime's host, which outlives a payload switch).
+     * A payload synchronizes on the map while it replaces an entry.
      */
-    public static boolean observeIf(Runnable expected, Runnable observer) {
-        synchronized (AgentEntry.class) {
-            if (observerCallback != expected) return false;
-            observerCallback = observer;
-            return true;
-        }
-    }
-    public static synchronized boolean acquireLifecycle(Object candidate, Runnable poll) {
-        if (lifecycleOwner != null) return false;
-        lifecycleOwner = candidate; lifecycleCallback = poll; return true;
-    }
-    public static synchronized void releaseLifecycle(Object candidate) {
-        if (lifecycleOwner == candidate) { lifecycleCallback = null; lifecycleOwner = null; }
-    }
-    public static void poll() {
-        Runnable observer, current, lifecycle;
-        synchronized (AgentEntry.class) {
-            if (dispatchPaused) return;
-            observer = observerCallback; current = callback; lifecycle = lifecycleCallback;
-            if (observer == null && current == null && lifecycle == null) return;
-            dispatching++;
-        }
-        try {
-            if (observer != null) {
-                try { observer.run(); }
-                catch (Throwable failure) {
-                    synchronized (AgentEntry.class) { if (observerCallback == observer) observerCallback = null; }
-                }
-            }
-            if (lifecycle != null) {
-                try { lifecycle.run(); }
-                catch (Throwable failure) {
-                    synchronized (AgentEntry.class) { if (lifecycleCallback == lifecycle) lifecycleCallback = null; }
-                }
-            }
-            if (current != null) current.run();
-        } finally { synchronized (AgentEntry.class) { dispatching--; } }
-    }
+    public static Map<String, Object> kept() { return Payload.kept(); }
+
     // Test/diagnostic counters: never include credentials or payload paths.
-    public static synchronized String diagnostics() {
+    public static String diagnostics() {
         // New counters go at the end: readers match the earlier fields as they have always been laid out.
-        return "hookInstalls=" + hookInstalls + ";payloadLoads=" + payloadLoads + ";sessions=" + sessions
-            + ";callbackActive=" + (callback != null) + ";observerActive=" + (observerCallback != null) + ";hookFailures=" + hookFailures;
-    }
-    private static String readLimited(Reader input) throws IOException {
-        var line = new StringBuilder();
-        for (int value; (value = input.read()) != -1;) {
-            if (value == '\n') return line.toString();
-            if (value != '\r') line.append((char)value);
-            if (line.length() > 32768) throw new IOException("Oversized control request");
-        }
-        return null;
+        return "hookInstalls=" + GameHook.installs() + ";payloadLoads=" + Payload.loads() + ";sessions=" + ControlServer.requests()
+            + ";callbackActive=" + GameHook.requestCallbackActive() + ";framesActive=" + GameHook.framesActive()
+            + ";hookFailures=" + GameHook.failures();
     }
 }

@@ -33,7 +33,9 @@ public final class AttachMain {
     }
 
     private static void run(String[] args) throws Exception {
-        if (args.length != 4 && !(args.length == 5 && (args[4].equals("WATCH") || args[4].equals("EXTENSIONS")))) throw new IllegalArgumentException("Expected pid, agent jar, port, token");
+        // The kind is the payload's to know (WATCH, EXTENSIONS): passed on as it is; none is a request.
+        if (args.length != 4 && !(args.length == 5 && args[4].matches("[A-Z]{1,16}")))
+            throw new IllegalArgumentException("Expected pid, agent jar, port, token and an optional session kind");
         long pid = Long.parseLong(args[0]);
         int port = Integer.parseInt(args[2]);
         if (pid <= 0 || port < 1 || port > 65535 || !args[3].matches("[0-9a-f]{64}"))
@@ -168,12 +170,15 @@ public final class AttachMain {
         return file;
     }
 
-    // The account the game reads as, then who this helper creates files as (the same when not elevated). Shared with
-    // StartupInstall, whose install folder follows the same rules.
+    // The account the game reads as, then who this helper creates files as (the same when not elevated).
     private static boolean trusted(UserPrincipal[] owners, UserPrincipal principal) {
         return owners[0].equals(principal) || owners[1].equals(principal);
     }
 
+    /**
+     * The account the game reads as, then who this process creates files as. With {@link #privateDirectory} and
+     * {@link #safe}, shared with StartupInstall, whose install folder follows the same rules as the copies here.
+     */
     static UserPrincipal[] principals() throws IOException {
         Path probe = Files.createTempFile("pztools-owner", ".tmp");
         UserPrincipal creator;

@@ -11,8 +11,8 @@ and its use in [Find a laggy mod](../guides/find-a-laggy-mod.md).
 
 | Part | Runs in | Job |
 | --- | --- | --- |
-| `ProfileControl` ([bridge runtime](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/)) | Game (bridge payload) | `PROFILE_*` commands, the app's leases, the per-frame relay slot |
-| `ProfileRecorder`, `ProfileFrames` | Game | JFR recordings, the Lua sampler, frame events, timer resolution; `ProfileFrames` is the per-frame relay and needs only `java.base` |
+| `ProfileControl` ([bridge runtime](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/)) | Game (bridge payload) | `PROFILE_*` commands, the app's leases, the frame router's profiler job |
+| `ProfileRecorder`, `ProfileFrames` | Game | JFR recordings, the Lua sampler, frame events, timer resolution; `ProfileFrames` is the game loop's only way to the recorder and needs only `java.base` |
 | `ProfileExport` | Bundled JRE (`runtime\bin\java.exe -Xmx512m`) | Converts a `.jfr` file to `.pzprof` |
 | [`PzTools.Profiler.Cli`](../../src/PzTools.Profiler.Cli/Program.cs) | Worker process | `record`, `roll-start`, `roll-save`, `roll-stop` |
 | [`ProfileRecordingService`](../../src/PzTools.App.Core/ProfileRecordingService.cs), [`VideoMemoryLog`](../../src/PzTools.App.Core/VideoMemoryLog.cs) | App | Starts workers, keeps the last minutes armed, reads video memory, names and lists files |
@@ -69,10 +69,11 @@ the 15.6 ms tick; it is undone when the last recording ends.
 
 ### Frames and allocations
 
-Frames come from the game-loop hook in `GameWindow.logic` (see [the game bridge](game-bridge.md)). The per-frame
-callback (the state observer's, or the profiler's own relay when nothing observes) calls `ProfileFrames.tick` every
-frame. While no recording runs and no note waits, that costs two field reads, and the recorder and JFR classes are not
-even loaded. During a recording, each tick commits a `pztools.Frame` event for the previous frame.
+Frames come from the game-loop hook in `GameWindow.logic` (see [the game bridge](game-bridge.md#the-game-loop-hook)).
+While a recording runs, the payload's frame router runs the profiler's job, `ProfileFrames.tick`, first each frame;
+`ProfileControl` holds the job from the start of a recording and gives it back when none runs. Without a recording
+nothing of the profiler runs, and the recorder and JFR classes are not even loaded. During a recording, each tick
+commits a `pztools.Frame` event for the previous frame.
 
 Allocations come from the JVM's per-thread counter (`ThreadMXBean.getThreadAllocatedBytes`) for the game thread, read
 by the Lua sampler at each tick. The bytes since the previous tick go to the Lua function found running, as the
@@ -93,12 +94,12 @@ without `jdk.management` gives a recording without allocations.
 ### Failure isolation
 
 - Whatever the frame mark throws detaches that recording's mark and logs once to the game's log (`[PzTools profiler]
-  Frame marks stopped`). The state observer that times backups shares the per-frame call and carries on.
+  Frame marks stopped`). The state observer that times backups is another job of the frame router and carries on.
 - A runtime without JFR refuses to start a recording and nothing else.
 - Other JFR users can record at the same time. JFR samples at the finest period any running recording asks for, so
   theirs get PZ Tools' rate while a PZ Tools recording runs.
-- A payload replacement (`runtimeReloadRequested`) closes every recording and releases the relay before the old class
-  loader goes.
+- A payload replacement (`runtimeReloadRequested`) closes every recording and gives back the profiler's job before
+  the old class loader goes.
 
 ## The recording asked for
 
@@ -180,8 +181,9 @@ A key answers with `MessageBeep` sounds and, optionally, a note over the player'
 `NOTICE <language> <item>...`, up to four items of `key` or `key:number`.
 [`GameNotices`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/GameNotices.java) builds the text only from
 the catalog compiled from [`notices.tsv`](../../src/PzTools.GameBridge.Agent/notices.tsv) and refuses unknown keys and
-mismatched numbers, so the app cannot put free text into the game. The note shows on the game thread through the
-per-frame relay; at the main menu the answer is `no-player`.
+mismatched numbers, so the app cannot put free text into the game. The note shows on the game thread, through the
+frame router's notes job, which `GameNotices` holds only while a note waits (at most 5 seconds) and gives back at once
+for a payload replacement; at the main menu the answer is `no-player`.
 
 ## The recording file
 

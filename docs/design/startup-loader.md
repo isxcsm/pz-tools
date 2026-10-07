@@ -6,9 +6,11 @@
 > ([`StartupInstall`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/StartupInstall.java),
 > [`StartupLoader`](../../src/PzTools.App.Core/StartupLoader.cs)), the entry in the game's folder
 > ([`BootProvider`](../../src/PzTools.GameBridge.Agent/java/pztools/startup/BootProvider.java)), the
-> delayed endpoint, a switch on the game extensions page and the
+> delayed endpoint, a switch on the game extensions page, the
 > [resident extensions](#resident-extensions)
-> ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java)).
+> ([`ResidentExtensions`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentExtensions.java))
+> and the extension API's own runner
+> ([`ResidentApi`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ResidentApi.java)).
 > It shows only with `[experimental] startup_loader = true` in the app's advanced settings
 > (`%LOCALAPPDATA%\PzTools\config\app\default.toml`); the shipped file does not list it. Not built:
 > extensions that declare they need the install.
@@ -50,9 +52,11 @@ is the path that exists today.
    ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)).
 4. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
    In installed mode it also adds the [extension API](extension-api.md)'s hooks, to `LuaManager.init()`
-   before the game loads its Lua and to the game's power and water questions, loads the payload once
-   the game loads `GameWindow`, and the payload's [resident controller](#resident-extensions) runs
-   the extensions the app last asked for, without waiting for the app.
+   before the game loads its Lua and to the game's power and water questions. Once the game loads
+   `GameWindow` it loads the payload and runs the payload's startup (`PayloadEntry`, kind `STARTUP`),
+   once per payload: the extension API starts (`ResidentApi`), and the payload's
+   [resident controller](#resident-extensions) runs the extensions the app last asked for, without
+   waiting for the app.
 5. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
    skips loading anything and connects. `AgentEntry` refuses a second load, so a reuse is the only
    path that can succeed.
@@ -181,8 +185,12 @@ The entry's `install.properties` holds the install folder's path. The app rewrit
 reports names the folder, so the app writes `resident.tsv` without working out the path itself.
 
 The app brings the copied bridge and the entry up to its own once per run, and only while no game
-runs: a game keeps running the extensions from the copy it started with, and a refresh removes older
-copies.
+runs; a refresh removes older copies (one a running game holds open stays until a later refresh). A
+game runs the extensions from the copy it started with, also after the app connects, as long as the
+app's `extensions` folder holds the same files, which it does when the app refreshed the copy before
+the game started. An app of another version connected to a running game brings its own extensions, and
+the game runs them from that app's folder while that folder lasts; once an update has deleted it, the
+game goes back to the copy (`ExtensionHost.directory`).
 
 ## Resident extensions
 
@@ -192,19 +200,22 @@ In installed mode, extensions stay in the game until it exits.
   changes: every two seconds it builds it from the extension settings, the deployed catalogue and
   the tuning files, the same way the app builds an `APPLY`, and writes it only when it differs. A
   module whose tuning file cannot be read is left out, so the game keeps what it runs.
-- **The resident controller.** The payload's `ResidentExtensions` holds the lifecycle slot when no
+- **The resident controller.** The payload's `ResidentExtensions` holds the extension lifecycle (the
+  frame router's lifecycle job, see [the game-loop hook](game-bridge.md#the-game-loop-hook)) when no
   app is connected. Once a second it reads `resident.tsv` and, in a loaded local world, asks for each
   module that is on and not already running at that revision in that world, and turns off each one
   that is off. It goes through the same `ExtensionControl.Session` as the app, so the game checks
   both alike. Its session has no lease.
-- **Handing over.** An app's connection pauses the resident controller and takes the slot. When that
-  connection ends, or its lease lapses, the modules keep running and the resident controller takes
-  the slot back. Neither side turns modules off on the hand-over. A payload reload asks the
+- **Handing over.** An app's connection pauses the resident controller and takes the lifecycle. When
+  that connection ends, or its lease lapses, the modules keep running and the resident controller
+  takes the lifecycle back. Neither side turns modules off on the hand-over. A payload reload asks the
   resident controller to let go too; the new payload starts its own.
 - **World changes.** Leaving a world withdraws the modules as today. In the next world the resident
   controller asks for them again.
 - **Faults.** A request the game refused, or a module it faulted, is not asked for again in the same
-  world at the same revision; a module that needs a restart is left alone. When the app connects, it
+  world at the same revision; a module that needs a restart is left alone. A pass of the controller
+  that fails in any way (an extension runtime whose classes do not link, say) lets go of the
+  lifecycle, and the next pass tries again: the controller does not stop while the game runs. When the app connects, it
   records the failure as it does now (`enabled: false` at that revision), which reaches
   `resident.tsv` in turn.
 - **Turning off.** An extension's switch while the app is connected turns it off at once. With the
@@ -213,6 +224,10 @@ In installed mode, extensions stay in the game until it exits.
 - **Revisions.** The resident request carries the settings revision the app uses, so a module the
   resident controller applied is already at the app's revision when the app connects, and the app's
   reconciliation finds nothing to do.
+- **The extension API.** It does not depend on the extensions: its own thread (`ResidentApi`) holds
+  the frame router's API job, which runs the API's per-frame work (setting the API into a Lua
+  environment the game made before the payload loaded, and the power and water networks), and writes
+  `api.tsv` once a second, with or without the app and whether or not any extension runs.
 - **Not installed.** Nothing changes: the lease and the revoke on disconnect stay.
 
 Whether resident becomes the rule for both modes is decided after the installed mode has been in

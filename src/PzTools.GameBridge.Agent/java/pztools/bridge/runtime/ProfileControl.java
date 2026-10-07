@@ -5,6 +5,9 @@ import java.nio.file.Path;
 import java.util.Base64;
 import pztools.bridge.AgentEntry;
 
+import static pztools.bridge.runtime.Replies.error;
+import static pztools.bridge.runtime.Replies.ok;
+
 /**
  * Short start/stop/status commands on the ordinary request channel. The recording itself runs
  * inside the JVM between two commands, so no connection stays open and saving is never blocked
@@ -19,7 +22,6 @@ final class ProfileControl {
     private static String rollingOwner;
     // The same for the recording asked for, which otherwise runs to its maximum (up to half an hour) after its app went.
     private static String recordOwner;
-    private static boolean ownsFrameHook;
     // Whether the rolling recording marks frames, said again with each save.
     private static String rollingFrames = "frames";
     private ProfileControl() { }
@@ -27,7 +29,6 @@ final class ProfileControl {
     static boolean handles(String command) { return command.startsWith("PROFILE_"); }
 
     static synchronized String handle(String[] command) {
-        releaseIdleNoticeHook();
         try {
             switch (command[0]) {
                 case "PROFILE_START" -> {
@@ -74,7 +75,7 @@ final class ProfileControl {
                     if (command.length != 1) return error("protocol", "Invalid rolling stop request");
                     String status = ProfileRecorder.stopRolling();
                     rollingOwner = null;
-                    if (!ProfileRecorder.active()) releaseFrameHook();
+                    releaseFramesIfIdle();
                     return ok(status);
                 }
                 case "PROFILE_STOP" -> {
@@ -82,7 +83,7 @@ final class ProfileControl {
                     recordOwner = null;
                     String status = ProfileRecorder.stop();
                     // A rolling recording may still mark frames.
-                    if (!ProfileRecorder.active()) releaseFrameHook();
+                    releaseFramesIfIdle();
                     return ok(status);
                 }
                 case "PROFILE_STATUS" -> {
@@ -92,8 +93,10 @@ final class ProfileControl {
                 default -> { return error("protocol", "Unknown profile request"); }
             }
         } catch (IllegalStateException state) {
+            releaseFramesIfIdle();
             return error(String.valueOf(state.getMessage()), "Profile recorder state: " + state.getMessage());
         } catch (Throwable failure) {
+            releaseFramesIfIdle();
             return error("profile-failed", failure.getClass().getSimpleName() + (failure.getMessage() == null ? "" : ": " + failure.getMessage()));
         }
     }
@@ -101,8 +104,8 @@ final class ProfileControl {
     private record Hook(ClassLoader game, String frames) { }
 
     /**
-     * Frame boundaries come from the game-loop hook. If it cannot be installed the recording still
-     * runs; it just has no frame graph.
+     * Frame boundaries come from the game-loop hook, through the frame router's profiler job, held while a recording
+     * runs. If it cannot be installed the recording still runs; it just has no frame graph.
      */
     private static Hook hookFrames() {
         String frames = "frames";
@@ -110,69 +113,21 @@ final class ProfileControl {
         try {
             Class<?> window = AgentEntry.ensureGameHook();
             game = window.getClassLoader();
-            // The free slot only: a state observer's calls the relay itself, and is never replaced.
-            if (!RuntimeObserver.running() && (ownsFrameHook || AgentEntry.observeIf(null, RELAY))) ownsFrameHook = true;
-            // The recording holds the relay now; a note's own claim on it ends with it.
-            noticeHook = false;
+            if (!Frames.add(Frames.Job.PROFILE, ProfileFrames.class, ProfileFrames::tick)) frames = "no-frames";
         } catch (Exception | LinkageError unavailable) { frames = "no-frames"; }
         return new Hook(game == null ? ClassLoader.getSystemClassLoader() : game, frames);
     }
 
     private static Path path(String encoded) { return Path.of(new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8)); }
 
-    // The relay this class puts in the per-frame slot; one instance, so it gives back only its own.
-    private static final Runnable RELAY = ProfileFrames::tick;
+    private static void releaseFrameHook() { Frames.remove(Frames.Job.PROFILE, ProfileFrames.class); }
 
-    /**
-     * RuntimeObserver gave up the per-frame slot, and with it whatever this class held: keep frame marks flowing if
-     * a recording marks them. Asks the relay, not the recorder, so stopping the observer never loads the flight
-     * recorder.
-     */
-    static synchronized void observerStopped() {
-        ownsFrameHook = false;
-        noticeHook = false;
-        if (ProfileFrames.attached() && AgentEntry.observeIf(null, RELAY)) ownsFrameHook = true;
-    }
-
-    private static void releaseFrameHook() {
-        // Only the relay itself: a state observer that took the slot since keeps it.
-        if (ownsFrameHook) AgentEntry.observeIf(RELAY, null);
-        ownsFrameHook = false;
-        noticeHook = false;
-    }
-
-    // The per-frame relay also shows the app's notes over the player. With no state observer to call it, a note
-    // installs it, and gives it back once the note had its time (unless a recording uses it), or at once when the
-    // payload is being replaced: the bootstrap waits for the slot to be free.
-    private static boolean noticeHook;
-    private static long noticeHookSince;
-    private static Thread noticeWatch;
-
-    static synchronized void hookForNotice() {
-        releaseIdleNoticeHook();
-        if (RuntimeObserver.running() || ownsFrameHook || !AgentEntry.observeIf(null, RELAY)) return;
-        ownsFrameHook = true;
-        noticeHook = true;
-        noticeHookSince = System.nanoTime();
-        if (noticeWatch != null) return;
-        noticeWatch = new Thread(() -> {
-            try {
-                while (true) {
-                    Thread.sleep(200);
-                    synchronized (ProfileControl.class) {
-                        if (noticeHook && AgentEntry.runtimeReloadRequested()) releaseFrameHook();
-                        releaseIdleNoticeHook();
-                        if (!noticeHook) { noticeWatch = null; return; }
-                    }
-                }
-            } catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
-        }, "PzTools-notice-relay");
-        noticeWatch.setDaemon(true);
-        noticeWatch.start();
-    }
-
-    private static void releaseIdleNoticeHook() {
-        if (noticeHook && !ProfileFrames.attached() && System.nanoTime() - noticeHookSince > 10_000_000_000L) releaseFrameHook();
+    /** Gives back the profiler job unless a recording runs: after a stop, or a start that failed. */
+    private static void releaseFramesIfIdle() {
+        boolean active;
+        try { active = ProfileRecorder.active(); }
+        catch (Throwable unavailable) { active = false; } // The recorder cannot even load: nothing records.
+        if (!active) releaseFrameHook();
     }
 
     // A replaced payload must not leave its recording, sampler or frame callback behind: the
@@ -206,7 +161,7 @@ final class ProfileControl {
                             try { ProfileRecorder.stop(); } catch (Exception ended) { }
                         }
                         if (!ProfileRecorder.active()) {
-                            if (!noticeHook) releaseFrameHook();
+                            releaseFrameHook();
                             monitor = null;
                             return;
                         }
@@ -221,11 +176,4 @@ final class ProfileControl {
         monitor.setDaemon(true);
         monitor.start();
     }
-
-
-    static String ok(String detail) { return "OK\t" + encode(detail); }
-    static String error(String code, String message) {
-        return "ERROR\t" + code.replace('\t', ' ') + "\t" + encode(message.length() > 400 ? message.substring(0, 400) : message);
-    }
-    private static String encode(String value) { return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
 }
