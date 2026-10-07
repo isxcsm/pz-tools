@@ -59,12 +59,12 @@ function Changes.setZone(panel, ids)
     panel.rooms = zone
     Networks.setZone(panel, before)
     -- The box forgets what it set for devices of rooms that left the zone: another box may take them, and an
-    -- exclusion of any network keeps a device off.
+    -- exclusion of any network keeps a device off (a fixture moved to another group is excluded from the first's).
     if zone then
         for _, utility in ipairs(BU.UTILITIES) do
             local data = panel[utility]
             local left = {}
-            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed" }) do
+            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
                 for key in pairs(data[field] or {}) do
                     if not data.included[key] then
                         local x, y, z = BU.parseThing(key)
@@ -117,7 +117,51 @@ function Changes.remove(panel)
     Sync.changed(panel.id)
 end
 
--- A panel or unit whose object is gone from its loaded square (destroyed, or taken by other means) is removed too.
+-- Whether the object a device key names is on its square; nil while the square is not loaded.
+local function present(key)
+    local x, y, z, sprite = BU.parseThing(key)
+    local square = x and getCell():getGridSquare(x, y, z)
+    if not square then return nil end
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if object:getSpriteName() == sprite or (object:getSprite() and object:getSprite():getName() == sprite) then
+            return true
+        end
+    end
+    return false
+end
+
+-- What a panel keeps about devices gone from their loaded squares (destroyed or picked up) goes, and their rules go
+-- from the networks: an object put there later is another device. One it connected outside goes with its line.
+local DEVICE_FIELDS = { "excluded", "included", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }
+local function forgetGone(panel)
+    local count = 0
+    for _, utility in ipairs(BU.UTILITIES) do
+        local data, gone = panel[utility], {}
+        for _, field in ipairs(DEVICE_FIELDS) do
+            for key in pairs(data[field] or {}) do
+                if gone[key] == nil then gone[key] = present(key) == false end
+            end
+        end
+        for key, isGone in pairs(gone) do
+            if isGone then
+                for _, field in ipairs(DEVICE_FIELDS) do
+                    if data[field] then data[field][key] = nil end
+                end
+                Networks.apply(panel, utility, key)
+                count = count + 1
+            end
+        end
+    end
+    if count > 0 then
+        BU.log(panel.id, "forgot", count, "devices that are gone")
+        Sync.changed(panel.id)
+    end
+end
+
+-- A panel or unit whose object is gone from its loaded square (destroyed, or taken by other means) is removed too;
+-- so are the panels' settings for devices that are gone.
 function Changes.checkObjects()
     for _, panel in ipairs(Store.list()) do
         local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
@@ -133,6 +177,7 @@ function Changes.checkObjects()
             Changes.removeUnit(unit)
         end
     end
+    for _, panel in ipairs(Store.list()) do forgetGone(panel) end
 end
 
 -- Units.
@@ -168,18 +213,18 @@ end
 function Changes.setExtraLoad(panel, part, load)
     panel.extraLoads = panel.extraLoads or {}
     panel.extraLoads[part] = load > 0 and load or nil
-    local total = 0
-    for _, each in pairs(panel.extraLoads) do total = total + each end
+    local total = Networks.extraLoad(panel)
     local state = Networks.state(panel, "power")
     if state and math.abs(total - (state.extraLoad or 0)) > 0.0005 then Networks.setExtraLoad(panel, total) end
 end
 
 -- A panel's units changed: its network has the units' source or not, and its line may be another. Without a bank
--- nothing charges it, and nothing is kept off for it.
+-- nothing charges it, nothing flows in or out of it, and nothing is kept off for it.
 function Changes.unitsChanged(panel)
     Networks.setProducers(panel, "power")
     Networks.applyLoss(panel)
     if not BU.Energy.bank(panel) then
+        panel.bankFlow = nil
         Changes.setExtraLoad(panel, "charging", 0)
         if panel.quietCut then
             panel.quietCut = nil
@@ -523,10 +568,11 @@ function Changes.applyTimers(panel)
     return changed
 end
 
--- Overload at a box that sheds: these devices off until there is room for them again.
-function Changes.shed(panel, keys)
+-- Overload at a box that sheds: these devices off until there is room for them again. Each is kept with what it
+-- drew (powers, by key), so that restoring them needs no look at the building's devices.
+function Changes.shed(panel, keys, powers)
     for _, key in ipairs(keys) do
-        panel.power.shed[key] = true
+        panel.power.shed[key] = powers and powers[key] or true
         Networks.apply(panel, "power", key)
     end
     Sync.changed(panel.id)
@@ -542,10 +588,13 @@ function Changes.restore(panel, keys)
     Sync.changed(panel.id)
 end
 
--- Sub-panels.
+-- Sub-panels. A sub-panel's water hangs from its main panel's and freezes with it: pipes frozen before it was linked
+-- thaw, and its cold or warm hours start again once it is a main panel again.
 
 function Changes.link(child, parent, paid)
     child.parent, child.parentPaid = parent.id, paid or {}
+    local water = child.water
+    water.frozen, water.coldHours, water.warmHours = nil, nil, nil
     Networks.link(child)
     Networks.applyLoss(child)
     Sync.changed(child.id)

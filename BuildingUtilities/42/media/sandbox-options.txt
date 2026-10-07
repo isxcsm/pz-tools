@@ -120,6 +120,18 @@ option BuildingUtilities.WearRate
     page = BuildingUtilities, translation = BuildingUtilities_WearRate,
 }
 
+option BuildingUtilities.BatteryColdLock
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_BatteryColdLock,
+}
+
+option BuildingUtilities.WornBatteryDrain
+{
+    type = boolean, default = true,
+    page = BuildingUtilities, translation = BuildingUtilities_WornBatteryDrain,
+}
+
 option BuildingUtilities.WaterFromAboveOnly
 {
     type = boolean, default = false,

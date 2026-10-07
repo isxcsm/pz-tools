@@ -29,11 +29,11 @@ Units.define("solar", {
         if (unit.snow or 0) < Energy.SNOW_TRACE then return text end
         return text .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(unit.snow * 100))
     end,
-    -- What it makes runs to the box while the source carries the load or a bank takes it.
+    -- What it makes runs to the box while the source carries the load or a bank takes it (bankFlow: nil without one).
     flow = function(unit, panel, state)
         if Energy.panelOutput(unit) <= 0 then return nil end
         local carrying = Energy.inUse(state) and state.supplied
-        if carrying or (Energy.bank(panel) and (panel.bankFlow or 0) > 0.0005) then return 1 end
+        if carrying or (panel.bankFlow or 0) > 0.0005 then return 1 end
         return nil
     end,
     options = function(unit)

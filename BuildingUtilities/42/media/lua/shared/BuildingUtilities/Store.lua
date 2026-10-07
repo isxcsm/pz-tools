@@ -15,8 +15,9 @@ local KEY = "BuildingUtilities"
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
 --   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
---   shed (a set, under overload), saving (a set, keeping a low battery bank), blackout (a set: its lights, off by
---   the player at the box) and timed (a set, by their timers).
+--   shed (under overload: BU.thingKey to what the device drew as it was shed, or true from an older version), saving
+--   (a set, keeping a low battery bank), blackout (a set: its lights, off by the player at the box) and timed (a set,
+--   by their timers).
 --   For water also groups (the player's water groups, BU.Water: a list of { id, name, reserve (the percent its
 --   tanks keep from sprinklers, or nil), overflow (the group its pumps fill once it is full, or nil) }, the first
 --   always there),
@@ -31,15 +32,19 @@ local KEY = "BuildingUtilities"
 --   power is off because the bank ran empty in quiet hours) and sourceOn (its units' source carried the load when last
 --   seen: a world loaded again defines the source off, and the server switches it back on). extraLoads: what the box
 --   adds to its devices' load, by part (BU.Changes.setExtraLoad).
+--   A main panel keeps stats, for its log (Server): since (the world age it began), carried (hours its units' source
+--   carried the load), saved (generator fuel that spared, litres), outage (the world age its power was last cut) and
+--   dark (minutes it has been without power, while it is).
 -- units = { [id] = unit }: the solar panels, battery racks, pumps, sprinklers and filters this mod put down (BU.Units).
 -- A unit:
 --   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
 --   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
---   100, revived: how often it was reconditioned }. A water unit may have group (the panel's water group it works
---   for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from a river or lake) and
---   running (it lifted water at the last minute); a sprinkler sprayedAt (the world age it last watered at); a filter
---   media (hours of use left in its charge).
+--   100 } (how often one was reconditioned is the item's own, BU.Rack.REVIVED). A water unit may have group (the
+--   panel's water group it works for; nil for the first); a pump has fluid ("Water" from a well, "TaintedWater" from
+--   a river or lake), running (it lifted water, or ran dry, at the last minute) and idle (why it lifted none:
+--   "noPower", "frozen", "noWater", "noTanks" or "full"); a sprinkler sprayedAt (the world age it last watered at); a
+--   filter media (hours of use left in its charge).
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
@@ -178,16 +183,37 @@ function Store.units() return Store.data().units end
 
 function Store.unit(id) return id and Store.units()[id] or nil end
 
+-- Every unit in the order they were made, kept until one is added or taken away, or the units are another table (a
+-- multiplayer client received the server's): the minute's work asks for them many times.
+local sorted, sortedOf = nil, nil
+
+local function sortedUnits()
+    local units = Store.units()
+    if sorted and sortedOf == units then return sorted end
+    local list, order = {}, {}
+    for id, unit in pairs(units) do
+        list[#list + 1] = unit
+        order[unit] = tonumber(id:sub(2)) or 0
+    end
+    table.sort(list, function(a, b) return order[a] < order[b] end)
+    sorted, sortedOf = list, units
+    return list
+end
+
 function Store.newUnit(kind, x, y, z, sprite)
     local data = Store.data()
     local id = "u" .. data.nextUnit
     data.nextUnit = data.nextUnit + 1
     local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
     data.units[id] = unit
+    sorted = nil
     return unit
 end
 
-function Store.removeUnit(id) Store.units()[id] = nil end
+function Store.removeUnit(id)
+    Store.units()[id] = nil
+    sorted = nil
+end
 
 function Store.unitAt(x, y, z)
     for _, unit in pairs(Store.units()) do
@@ -199,10 +225,9 @@ end
 -- All units, in the order they were made; of one kind, or wired to one panel, when given.
 function Store.unitList(kind, panelId)
     local result = {}
-    for _, unit in pairs(Store.units()) do
+    for _, unit in ipairs(sortedUnits()) do
         if (not kind or unit.kind == kind) and (not panelId or unit.panel == panelId) then result[#result + 1] = unit end
     end
-    table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
     return result
 end
 

@@ -41,9 +41,11 @@ end
 -- Whether a sprite is one of a spraying sprinkler's frames.
 function WaterUnits.isSprayFrame(name) return SPRAY_FRAME[name] == true end
 
--- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option): then only a filter
--- purifies a group's water.
-function WaterUnits.unpurifiedPipes() return BU.sandbox("RiskPlumbingUnpurified", false) == true end
+-- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option, in a game whose API can:
+-- BU.purifyAvailable): then only a filter purifies a group's water.
+function WaterUnits.unpurifiedPipes()
+    return BU.sandbox("RiskPlumbingUnpurified", false) == true and BU.purifyAvailable()
+end
 
 -- The group a unit works for: its own, while its panel still has it, else the first.
 function WaterUnits.group(unit)

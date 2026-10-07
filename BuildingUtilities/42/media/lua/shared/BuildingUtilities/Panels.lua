@@ -18,8 +18,8 @@ end
 
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
--- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }.
--- A building's rooms, kept a second: windows and the water layout ask for them often.
+-- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }, kept a second: windows and the
+-- water layout ask for them often.
 local roomsCache = {}
 function Panels.rooms(building)
     if not building then return {} end
@@ -54,14 +54,8 @@ function Panels.ofBuilding(key)
 end
 
 -- Zones. A box takes its whole building, or only some of its rooms (panel.rooms, a set of room ids), so that a
--- large building, an apartment block, can have a box per flat or floor. It needs an API that takes single rooms;
--- without one a building has one box, which takes it whole.
+-- large building, an apartment block, can have a box per flat or floor.
 Panels.LARGE_LEVELS, Panels.LARGE_ROOMS = 5, 30
-
-function Panels.zonesSupported()
-    local api = BU.api()
-    return api ~= nil and api.networks.addRoom ~= nil
-end
 
 function Panels.inZone(panel, roomId) return panel.rooms == nil or panel.rooms[roomId] == true end
 
@@ -87,7 +81,6 @@ end
 -- The zone a new box on a level of a building takes: nil (the whole building) in a small building without boxes;
 -- else the free rooms of its level.
 function Panels.defaultZone(building, level)
-    if not Panels.zonesSupported() then return nil end
     local rooms, boxes = Panels.rooms(building), Panels.ofBuilding(building.key)
     if #boxes == 0 and not Panels.isLarge(rooms) then return nil end
     local zone = {}
@@ -130,18 +123,15 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
--- Whether a box can go on a square: inside a building, in a room no other box's zone has (a building with a box
--- takes no other without zones). Returns the building, or nil and a reason.
+-- Whether a box can go on a square: inside a building, in a room no other box's zone has. Returns the building, or
+-- nil and a reason.
 function Panels.canInstall(square)
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     if not building then return nil, "notInBuilding" end
-    if #Panels.ofBuilding(building.key) > 0 then
-        if not Panels.zonesSupported() then return nil, "hasPanel" end
-        local owner = Panels.roomOwner(building.key, building.roomId)
-        if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
-    end
+    local owner = Panels.roomOwner(building.key, building.roomId)
+    if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
     return building
 end
 
@@ -368,7 +358,7 @@ end
 function Panels.sheds(panel) return BU.overloadEnabled() and (panel.tier or 1) >= BU.SMART_TIER end
 
 -- Which devices a box sheds to draw less by at least excess: connected and on, not essential, the largest first, so
--- that few go off. Nil when shedding all it may does not do.
+-- that few go off. Nil when shedding all it may does not do; else their keys, and what each draws by key.
 function Panels.shedPlan(panel, excess)
     local candidates = {}
     for _, device in ipairs(Panels.devices(panel, "power")) do
@@ -378,21 +368,30 @@ function Panels.shedPlan(panel, excess)
         end
     end
     table.sort(candidates, function(a, b) return a.power > b.power end)
-    local keys, total = {}, 0
+    local keys, powers, total = {}, {}, 0
     for _, candidate in ipairs(candidates) do
         if total >= excess - 1e-6 then break end
         keys[#keys + 1] = candidate.key
+        powers[candidate.key] = candidate.power
         total = total + candidate.power
     end
     if total < excess - 1e-6 then return nil end
-    return keys
+    return keys, powers
 end
 
--- Which shed devices fit again within room: the smallest first.
+-- Which shed devices fit again within room: the smallest first, by what each drew as it was shed (BU.Changes.shed).
+-- A device shed by an older version, kept without it, has the building's devices looked at.
 function Panels.restorePlan(panel, room)
     local candidates = {}
-    for _, device in ipairs(Panels.devices(panel, "power")) do
-        if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
+    for key, power in pairs(panel.power.shed) do
+        if type(power) ~= "number" then candidates = nil; break end
+        candidates[#candidates + 1] = { key = key, power = power }
+    end
+    if not candidates then
+        candidates = {}
+        for _, device in ipairs(Panels.devices(panel, "power")) do
+            if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
+        end
     end
     table.sort(candidates, function(a, b) return a.power < b.power end)
     local keys, total = {}, 0

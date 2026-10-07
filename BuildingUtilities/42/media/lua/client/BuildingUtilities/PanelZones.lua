@@ -81,7 +81,7 @@ function ISBUPanelWindow:updatePlan()
         zone[id] = { state = entry.state, owner = entry.owner and Panels.name(entry.owner) }
         if entry.state == "mine" then inZone = inZone + 1 end
     end
-    local editable = Panels.zonesSupported() and self.building ~= nil
+    local editable = self.building ~= nil
     if not editable then self.zoneEditing = false end
     -- The range, while the window shows it in the world.
     local ranges, tier = nil, panel.tier or 1
