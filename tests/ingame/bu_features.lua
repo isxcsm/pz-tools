@@ -140,12 +140,13 @@ check("controller on: has controller", Energy.hasController(panel), true)
 panel.tier = math.max(savedTier or 1, WaterUnits.TIER)
 
 -- Pumps off alone: stand still and draw nothing; on: run again (dry, with power).
-local waterUnits = #Units.of(panel.id, "water")
+-- Every pump of the panel goes from the list (another check may have left one of its own).
+local waterUnits, pumps = #Units.of(panel.id, "water"), #Store.unitList("pump", panel.id)
 set("EnablePumps", false)
 WaterRun.pumps(panel, 60)
 check("pumps off: running", pump.running, nil)
 check("pumps off: load", panel.extraLoads and panel.extraLoads.pumps, nil)
-check("pumps off: water units listed", #Units.of(panel.id, "water"), waterUnits - 1)
+check("pumps off: water units listed", #Units.of(panel.id, "water"), waterUnits - pumps)
 check("pumps off: install", select(2, Units.canInstall("pump", freeSquare())), "disabled")
 set("EnablePumps", true)
 WaterRun.pumps(panel, 60)
