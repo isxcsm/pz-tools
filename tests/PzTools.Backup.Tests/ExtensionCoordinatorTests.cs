@@ -289,13 +289,15 @@ public sealed partial class GameSaveClientTests
     /// <summary>
     /// A link to the game that cannot be made (here: no bridge in this build) is not the extension failing. The switch
     /// stays on and the scheduler keeps trying, each attempt later than the one before. A loaded world is enough to try,
-    /// whatever its mode: a multiplayer client's or one without saves is linked to as a single-player one is.
+    /// whatever its mode: a multiplayer client's or one without saves is linked to as a single-player one is. So is one
+    /// whose save is outside the configured saves root, which is Unsupported for saves only.
     /// </summary>
     [Theory]
-    [InlineData(RuntimeMode.LocalSinglePlayer)]
-    [InlineData(RuntimeMode.Networked)]
-    [InlineData(RuntimeMode.Unsupported)]
-    public async Task Coordinator_ALinkThatCannotBeMade_KeepsThePreference(RuntimeMode mode)
+    [InlineData(RuntimeMode.LocalSinglePlayer, false)]
+    [InlineData(RuntimeMode.Networked, false)]
+    [InlineData(RuntimeMode.Unsupported, false)]
+    [InlineData(RuntimeMode.LocalSinglePlayer, true)]
+    public async Task Coordinator_ALinkThatCannotBeMade_KeepsThePreference(RuntimeMode mode, bool outsideSaveRoot)
     {
         using var temp = new TempDirectory();
         var bridge = temp.GetPath("bridge");
@@ -310,9 +312,12 @@ public sealed partial class GameSaveClientTests
         {
             for (long sequence = 1; !stop.IsCancellationRequested; sequence++)
             {
-                observations.Publish(new RuntimeObservation(stream, RuntimeQuality.Fresh, new RuntimeSnapshot(process, stream, world,
+                var sample = new RuntimeSnapshot(process, stream, world,
                     1, 1, sequence, WorldPhase.Ready, GamePause.Running, mode, 1, sequence * 100, 0,
-                    temp.GetPath("Saves", "Sandbox", "World"))));
+                    temp.GetPath("Saves", "Sandbox", "World"));
+                observations.Publish(outsideSaveRoot
+                    ? new RuntimeObservation(stream, RuntimeQuality.Unsupported, sample, Reason: RuntimeObservation.OutsideSaveRootReason)
+                    : new RuntimeObservation(stream, RuntimeQuality.Fresh, sample));
                 try { await Task.Delay(100, stop.Token); } catch (OperationCanceledException) { }
             }
         });

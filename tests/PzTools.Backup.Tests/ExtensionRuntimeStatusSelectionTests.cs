@@ -72,6 +72,21 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         Assert.True(selected.ControlReady);
     }
 
+    /// <summary>
+    /// A save outside the configured saves root is Unsupported for saves, not for the extensions: a module running in it
+    /// is shown as running. Any other Unsupported observation grants nothing.
+    /// </summary>
+    [Fact]
+    public void ASaveOutsideTheSavesRootStillShowsARunningModule()
+    {
+        var status = new RuntimeExtensionStatus(RuntimeExtensionState.Active, ProcessSession: Process, WorldSession: World,
+            Generation: new string('d', 32), AppliedRevision: 3, ModuleVersion: "0.2.0", ModuleHash: new string('e', 64),
+            RequestedRevision: 3, ControlReady: true, AppliedConfiguration: new string('e', 64));
+        var outside = Observation(status) with { Quality = RuntimeQuality.Unsupported, Reason = RuntimeObservation.OutsideSaveRootReason };
+        Assert.Equal(RuntimeExtensionState.Active, ExtensionActivationView.SelectCurrentStatus(outside)!.State);
+        AssertUnavailable(ExtensionActivationView.SelectCurrentStatus(outside with { Reason = "another-reason" })!);
+    }
+
     [Fact]
     public void ExtensionFreshnessHasItsOwnBoundAndAgeDoesNotCreateViewChanges()
     {

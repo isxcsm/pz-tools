@@ -92,7 +92,7 @@ during the break is never counted. Game speed does not matter: the clock counts 
 | Character dead | `CharacterDead` | Reset to a full interval while dead ([death backups](runtime-character-death.md)) |
 | Before the first frame, loading, stale, `Unknown` phase | `Unknown` | Kept |
 | Several game processes | `Ambiguous` | Kept |
-| Multiplayer or a mode without saving | `Unsupported` | Kept |
+| Multiplayer, a mode without saving, or a save outside the configured saves root (`outside-configured-save-root`; the [game extensions](game-extensions.md#delivery) still run) | `Unsupported` | Kept |
 | Main menu or unloading | `NoWorld` | Reset to a full interval |
 | No game process | `GameOffline`, `NoWorld` | Reset, as the target is cleared (below) |
 | A different world than before | None | Reset to a full interval |

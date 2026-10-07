@@ -41,7 +41,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
 
         bool StaleButUnchanged(RuntimeObservation latest, string? process, string? world)
         {
-            if (latest.StreamEpoch != stream || latest.IsFresh) return false;
+            if (latest.StreamEpoch != stream || latest.IsExtensionFresh) return false;
             staleSince ??= DateTimeOffset.UtcNow;
             return DateTimeOffset.UtcNow - staleSince < TransientStaleGrace
                 && (latest.Snapshot is null || latest.Snapshot.ProcessSession == process && latest.Snapshot.WorldSession == world);
@@ -51,9 +51,9 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         {
             var latest = observations.Read();
             if (token.IsCancellationRequested || latest.StreamEpoch != stream) return false;
-            if (!latest.IsFresh) return StaleButUnchanged(latest, process, world);
+            if (!latest.IsExtensionFresh) return StaleButUnchanged(latest, process, world);
             staleSince = null;
-            return latest.Snapshot is { IsExtensionWorldReady: true } current
+            return latest.IsExtensionWorldReady && latest.Snapshot is { } current
                 && current.ProcessSession == process && current.WorldSession == world;
         }
 
@@ -114,7 +114,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     foreach (var module in modules) wanted[module.Id] = preferences[module.Id].Enabled;
                     var observation = observations.Read();
                     var snapshot = observation.Snapshot;
-                    bool ready = observation.StreamEpoch == stream && observation.IsFresh && snapshot?.IsExtensionWorldReady == true;
+                    bool ready = observation.StreamEpoch == stream && observation.IsExtensionWorldReady;
                     if (ready) staleSince = null;
                     if (!ready && client is not null && modules.Any(module => module.Session is not null)
                         && StaleButUnchanged(observation, boundProcess, boundWorld))

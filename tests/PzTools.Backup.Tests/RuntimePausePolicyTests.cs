@@ -59,6 +59,26 @@ public sealed class RuntimePausePolicyTests
         Assert.Null(state.AttemptId);
     }
 
+    /// <summary>
+    /// A save outside the configured saves root is no save PZ Tools may act on, so backups hold it unsupported. The
+    /// game extensions need no save and run in it.
+    /// </summary>
+    [Fact]
+    public void ASaveOutsideTheSavesRoot_RunsExtensions_ButIsNeverBackedUp()
+    {
+        var local = Sample();
+        var outside = local with { Quality = RuntimeQuality.Unsupported, Reason = RuntimeObservation.OutsideSaveRootReason };
+        Assert.True(outside.IsExtensionWorldReady);
+        Assert.False(outside.IsFresh);
+        Assert.Null(RuntimeSaveResolver.Resolve(outside.Snapshot!, @"C:\elsewhere\Saves"));
+        var state = Step(Step(new(1, 300_000, 300_000), local), outside);
+        Assert.True(state.Hold.HasFlag(ScheduleHold.Unsupported));
+        Assert.False(state.Anchored);
+        // Only that reason: any other Unsupported observation, or a stale one, is no world for the extensions either.
+        Assert.False((outside with { Reason = "another-reason" }).IsExtensionWorldReady);
+        Assert.False((outside with { AgeMilliseconds = 2001 }).IsExtensionWorldReady);
+    }
+
     [Fact]
     public void MissingObservationDoesNotAccrueTime_AndReconnectionReanchors()
     {

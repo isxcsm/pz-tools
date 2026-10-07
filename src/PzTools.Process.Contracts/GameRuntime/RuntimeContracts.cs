@@ -117,8 +117,19 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     public RuntimeExtensionStatus? ExtensionFor(string moduleId) =>
         Extensions is not null && Extensions.TryGetValue(moduleId, out var own) ? own : Extension;
     public string SemanticKey => $"{StreamEpoch}/{Quality}/{Snapshot?.SemanticKey}/{Reason}";
-    public bool IsFresh => Quality == RuntimeQuality.Fresh && AgeMilliseconds <= 2000
-        && Snapshot is { SampleAgeMilliseconds: <= 2000 };
+    public bool IsFresh => Quality == RuntimeQuality.Fresh && IsCurrentSample;
+    /// <summary>The game's save is outside the configured saves root: no save PZ Tools may act on.</summary>
+    public const string OutsideSaveRootReason = "outside-configured-save-root";
+    /// <summary>
+    /// A current sample the game extensions act on. They need no save, so a rule about saves does not stop them: a
+    /// sample that is <see cref="RuntimeQuality.Unsupported"/> only because its save is outside the configured saves
+    /// root counts as fresh here. Saves, backups and schedules keep <see cref="IsFresh"/>.
+    /// </summary>
+    public bool IsExtensionFresh => (Quality == RuntimeQuality.Fresh
+        || Quality == RuntimeQuality.Unsupported && Reason == OutsideSaveRootReason) && IsCurrentSample;
+    /// <summary>A current sample of a loaded world the game extensions run in, in any mode and with any save.</summary>
+    public bool IsExtensionWorldReady => IsExtensionFresh && Snapshot is { IsExtensionWorldReady: true };
+    private bool IsCurrentSample => AgeMilliseconds <= 2000 && Snapshot is { SampleAgeMilliseconds: <= 2000 };
     public static RuntimeObservation Unknown(string? reason = null) => new("", RuntimeQuality.Unknown, null, Reason: reason);
     /// <summary>
     /// The played character is dead. Periodic backups of a dead character only push the backups

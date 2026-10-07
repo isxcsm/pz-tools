@@ -110,7 +110,7 @@ internal sealed class RuntimeObservationCoordinator(StateDatabase state, Schedul
                         }
                         bool validPath = !snapshot.IsWorldReady || RuntimeSaveResolver.Resolve(snapshot, savesRoot) is not null;
                         received.Publish(validPath ? new(stream, RuntimeQuality.Fresh, snapshot)
-                            : new(stream, RuntimeQuality.Unsupported, snapshot, Reason: "outside-configured-save-root"));
+                            : new(stream, RuntimeQuality.Unsupported, snapshot, Reason: RuntimeObservation.OutsideSaveRootReason));
                     }
                 }
                 finally { await connection.CancelAsync(); try { await Task.WhenAll(exit, control); } catch (OperationCanceledException) { } }

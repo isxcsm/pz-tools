@@ -34,7 +34,7 @@ public sealed record ExtensionActivationView(bool IsOn, bool CanToggle, bool IsB
         if (status.ProcessSession.Length != 0 || status.WorldSession is not null)
         {
             var snapshot = observation.Snapshot;
-            if (!observation.IsFresh || snapshot is null || snapshot.ProcessSession != status.ProcessSession)
+            if (!observation.IsExtensionFresh || snapshot is null || snapshot.ProcessSession != status.ProcessSession)
                 return new(RuntimeExtensionState.Pending, "waiting-for-local-world");
             if (status.State == RuntimeExtensionState.RestartRequired)
                 return status with { WorldSession = snapshot.WorldSession, AgeMilliseconds = 0,

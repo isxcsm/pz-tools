@@ -140,9 +140,11 @@ it reads `settings.json` and the latest runtime snapshot.
 
 - **No world ready.** It closes the lease and publishes `Pending` (module wanted) or
   `Disabled`, both with reason `waiting-for-local-world`. A world is ready when it is loaded
-  (`RuntimeSnapshot.IsExtensionWorldReady`), in any mode and with or without a save: a
-  multiplayer client's world is untested, not refused. Saves keep their own, single-player
-  `IsWorldReady`.
+  (`RuntimeObservation.IsExtensionWorldReady`), in any mode and with or without a save: a
+  multiplayer client's world is untested, not refused. A save outside the configured saves root
+  makes the observation `Unsupported` (`outside-configured-save-root`) for saves, but
+  `IsExtensionFresh` still counts it as fresh. Saves keep their own, single-player `IsFresh`
+  and `IsWorldReady`.
 - **World ready.** It opens one [control lease](glossary.md#control-lease) for all continuous
   modules (`connect_timeout_seconds`, 20 by default), then handles each module in turn:
   - Wanted on: `GameExtensionReconciler` sends `APPLY` with the module id, the revision it
