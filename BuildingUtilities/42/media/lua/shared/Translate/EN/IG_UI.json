@@ -244,5 +244,18 @@
     "IGUI_BU_Menu_ZoneFloorRemove": "Remove this floor from the zone",
     "IGUI_BU_Menu_ZoneFloorOnly": "Only this floor",
     "IGUI_BU_Menu_ZoneWhole": "The whole building",
-    "IGUI_BU_Reason_wholeTaken": "This building's breaker box takes all of it: give that box a zone on its plan first."
+    "IGUI_BU_Reason_wholeTaken": "This building's breaker box takes all of it: give that box a zone on its plan first.",
+    "IGUI_BU_Choose": "Choose",
+    "IGUI_BU_ChooseDone": "Done",
+    "IGUI_BU_BatchText": "Connect %1 chosen: %2",
+    "IGUI_BU_BatchEmpty": "Click devices outside (here or on the plan) to choose them.",
+    "IGUI_BU_BatchHint": "Each one is connected where it stands: you walk to them in turn, the nearest first.",
+    "IGUI_BU_BatchConnect": "Connect",
+    "IGUI_BU_BatchAll": "All",
+    "IGUI_BU_BatchNone": "None",
+    "IGUI_BU_Legend_rangeOutside": "Outside device reach",
+    "IGUI_BU_Legend_rangeProducer": "Producer reach",
+    "IGUI_BU_Name_Unknown": "A device",
+    "IGUI_BU_Name_locationshopgas2go01": "Gas 2 Go sign",
+    "IGUI_BU_Name_PopsicleFreezer": "Popsicle Freezer"
 }

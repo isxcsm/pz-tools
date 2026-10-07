@@ -3,7 +3,8 @@
 -- sub-panels, and its devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away by the player at the place, as timed actions.
+-- away by the player at the place, as timed actions. Devices outside can be chosen several at a time (the Choose
+-- button on their group) and connected in one walk, with what they all take shown first.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISTabPanel"
@@ -27,6 +28,9 @@ local LIST_W, MIN_LIST, MIN_PLAN = 560, 470, 260
 local OPTION_W = 110
 local OUTSIDE = "outside"
 local ROOM_TICK_X = PAD + 14
+local CHOOSE_W = 90
+local BATCH_BUTTONS = { "Connect", "All", "None" }
+local BATCH_W = 70
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
@@ -121,6 +125,22 @@ local function smallButton(list, x, y, w, text, r, g, b)
     list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
 end
 
+-- The Choose button of the outside group, right of its title.
+local function chooseButtonX(row)
+    return ROOM_TICK_X + getTextManager():MeasureStringX(UIFont.Small, row.text) + 12
+end
+
+-- The buttons of the chosen row, from the right.
+local function batchButtonX(width, index)
+    return width - PAD - SCROLLBAR - (#BATCH_BUTTONS - index + 1) * (BATCH_W + 4)
+end
+
+-- A box for choosing a device: empty, or chosen.
+local function chooseBox(list, x, y, chosen)
+    list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, 0.4, 0.8, 1)
+    if chosen then list:drawTextCentre("v", x + (ROW - 6) / 2, y + (ROW - FONT_HGT_SMALL) / 2, 0.4, 0.8, 1, 1, UIFont.Small) end
+end
+
 -- A tick: "on", "off", or "some" for a room whose devices are partly connected.
 local function tick(list, x, y, state)
     list:drawRectBorder(x, y + 3, ROW - 6, ROW - 6, 1, 0.8, 0.8, 0.8)
@@ -156,7 +176,20 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             x = x + ROW + 4
         end
         self:drawText(row.text, x, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+        if row.choosable then
+            local on = row.choosing
+            self:drawRect(chooseButtonX(row), y + 2, CHOOSE_W, ROW - 4, on and 0.8 or 0, 0.15, 0.35, 0.5)
+            smallButton(self, chooseButtonX(row), y, CHOOSE_W, getText(on and "IGUI_BU_ChooseDone" or "IGUI_BU_Choose"), 0.6, 0.85, 1)
+        end
         if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.9, 0.85, 0.6, 1, UIFont.Small) end
+    elseif row.kind == "batch" then
+        self:drawRect(0, y, width, ROW, 0.25, 0.15, 0.35, 0.5)
+        self:drawText(row.text, PAD * 2, textY, row.affords and 0.7 or 1, row.affords and 0.9 or 0.55, row.affords and 1 or 0.5, 1, UIFont.Small)
+        for index, name in ipairs(BATCH_BUTTONS) do
+            local enabled = name ~= "Connect" or (row.count > 0 and row.affords)
+            smallButton(self, batchButtonX(width, index), y, BATCH_W, getText("IGUI_BU_Batch" .. name),
+                enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
+        end
     elseif row.kind == "note" or row.kind == "filter" then
         local shade = row.kind == "filter" and 1 or 0.7
         self:drawText(row.text, PAD * 2, textY, shade, shade, row.kind == "filter" and 0.6 or shade, 1, UIFont.Small)
@@ -173,7 +206,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         end
     elseif row.kind == "device" or row.kind == "all" then
         local indent = row.kind == "device" and PAD * 3 or PAD * 2
-        tick(self, indent, y, row.state == "on" and "on" or "off")
+        if row.choosable then chooseBox(self, indent, y, row.chosen) else tick(self, indent, y, row.state == "on" and "on" or "off") end
         local shade = row.state ~= "other" and 1 or 0.5
         self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
         local buttons, textRight = deviceButtons(width, row)
@@ -285,6 +318,8 @@ function ISBUPanelWindow:new(x, y, playerObj, panel)
     o.rangeObjects = {}
     o.planOutlined = {}
     o.views = {}
+    -- Devices outside being chosen to connect together, by utility.
+    o.choosing, o.chosen = {}, { power = {}, water = {} }
     o:setTitle(getText("IGUI_BU_WindowTitle"))
     return o
 end
@@ -651,6 +686,16 @@ function ISBUPanelWindow:fill(utility, state)
     end
     local devices, complete = Panels.devices(panel, utility)
     view.devices = devices
+    -- Devices outside chosen to connect: only those still not connected stay chosen.
+    local choosing = self.choosing[utility] == true
+    local chosen = self.chosen[utility]
+    local stillOff = {}
+    for _, device in ipairs(devices) do
+        if not device.inside and device.state == "off" then stillOff[device.key] = device end
+    end
+    for key in pairs(chosen) do
+        if not stillOff[key] then chosen[key] = nil end
+    end
     -- Switching on every device of the building that is off: what the load would be.
     local allTip, offPower = nil, 0
     for _, device in ipairs(devices) do
@@ -712,7 +757,16 @@ function ISBUPanelWindow:fill(utility, state)
                 roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
             end
             local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
-            add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey })
+            local choosable = group.id == OUTSIDE and group.off > 0
+            add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey,
+                choosable = choosable, choosing = choosable and choosing })
+            if choosable and choosing and not folded then
+                local count, cost = self:chosenCost(utility)
+                local affords = count > 0 and Costs.affords(playerObj, cost)
+                local text = count > 0 and getText("IGUI_BU_BatchText", count, self:costShort(cost)) or getText("IGUI_BU_BatchEmpty")
+                add({ kind = "batch", text = text, count = count, affords = affords, utility = utility },
+                    count > 0 and Costs.describe(playerObj, cost) or getText("IGUI_BU_BatchHint"))
+            end
             if not folded then
                 table.sort(group.devices, function(a, b)
                     if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
@@ -730,8 +784,10 @@ function ISBUPanelWindow:fill(utility, state)
                         tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
                             .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
                     end
+                    local choosableDevice = choosing and not device.inside and device.state == "off"
                     add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
-                        state = device.state, held = device.held, controls = controls, sheds = sheds }, tooltip)
+                        state = device.state, held = device.held, controls = controls, sheds = sheds,
+                        choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true }, tooltip)
                 end
             end
         end
@@ -808,9 +864,11 @@ function ISBUPanelWindow:updatePlan()
     local devices = {}
     for _, device in ipairs(view.devices) do
         local entry = device.entry
+        local choosable = self.choosing[utility] == true and not device.inside and device.state == "off"
         devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
             state = device.state, held = device.held, power = device.power, utility = utility,
-            name = view.names[device.key] or "", status = view.status[device.key] }
+            name = view.names[device.key] or "", status = view.status[device.key],
+            choosable = choosable, chosen = choosable and self.chosen[utility][device.key] == true }
     end
     local producers = {}
     if not panel.parent then
@@ -828,9 +886,106 @@ function ISBUPanelWindow:updatePlan()
     end
     local editable = Panels.zonesSupported() and self.building ~= nil
     if not editable then self.zoneEditing = false end
+    -- The range, while the window shows it in the world.
+    local ranges, tier = nil, panel.tier or 1
+    if self.rangeShown then
+        local exterior = BU.exteriorRange(tier)
+        ranges = { exterior = exterior > 0 and exterior or nil, producer = not panel.parent and BU.producerRange(tier) or nil }
+    end
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
         producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter,
-        zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone) })
+        zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
+        ranges = ranges, rangeKey = (self.building and self.building.key or "") .. "|" .. tier,
+        choosing = self.choosing[utility] == true })
+end
+
+-- Devices outside, chosen to connect in one go.
+
+-- What connecting the chosen devices takes together: how many, and one cost (tools once, items summed).
+function ISBUPanelWindow:chosenCost(utility)
+    local panel, count = self.panel, 0
+    local cost = { tools = {}, items = {} }
+    local tools, items = {}, {}
+    local view = self.views[utility]
+    for _, device in ipairs(view and view.devices or {}) do
+        if self.chosen[utility][device.key] then
+            local entry = device.entry
+            local one = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+            if one then
+                count = count + 1
+                for _, tool in ipairs(one.tools) do
+                    if not tools[tool] then tools[tool] = true; cost.tools[#cost.tools + 1] = tool end
+                end
+                for _, item in ipairs(one.items) do
+                    if not items[item[1]] then
+                        items[item[1]] = { item[1], 0 }
+                        cost.items[#cost.items + 1] = items[item[1]]
+                    end
+                    items[item[1]][2] = items[item[1]][2] + item[2]
+                end
+            end
+        end
+    end
+    return count, cost
+end
+
+-- A cost in a few words: "wire 4, electronics scrap 3".
+function ISBUPanelWindow:costShort(cost)
+    local parts = {}
+    for _, item in ipairs(cost.items) do parts[#parts + 1] = getItemNameFromFullType(item[1]) .. " " .. item[2] end
+    return table.concat(parts, ", ")
+end
+
+function ISBUPanelWindow:setChoosing(utility, on)
+    self.choosing[utility] = on or nil
+    if not on then self.chosen[utility] = {} end
+    self:refresh()
+end
+
+function ISBUPanelWindow:toggleChosen(key)
+    local utility = self:activeUtility()
+    local chosen = self.chosen[utility]
+    chosen[key] = (not chosen[key]) or nil
+    self:fill(utility, self.views[utility] and self.views[utility].state)
+    self:updatePlan()
+end
+
+function ISBUPanelWindow:chooseAll(utility, on)
+    local view = self.views[utility]
+    for _, device in ipairs(view and view.devices or {}) do
+        if not device.inside and device.state == "off" then self.chosen[utility][device.key] = on or nil end
+    end
+    self:fill(utility, view and view.state)
+    self:updatePlan()
+end
+
+-- The chosen devices connected: the player walks to each in turn, the nearest next, laying its line there.
+function ISBUPanelWindow:connectChosen(utility)
+    local playerObj, panel = self.playerObj, self.panel
+    local count, cost = self:chosenCost(utility)
+    if count == 0 then return end
+    if not Costs.affords(playerObj, cost) then
+        HaloTextHelper.addBadText(playerObj, getText("IGUI_BU_Reason_cantAfford"))
+        return
+    end
+    local left = {}
+    for _, device in ipairs(self.views[utility].devices) do
+        if self.chosen[utility][device.key] then left[#left + 1] = device end
+    end
+    local x, y = playerObj:getX(), playerObj:getY()
+    while #left > 0 do
+        local best, bestDistance
+        for index, device in ipairs(left) do
+            local dx, dy = device.entry.x - x, device.entry.y - y
+            local distance = dx * dx + dy * dy
+            if not bestDistance or distance < bestDistance then best, bestDistance = index, distance end
+        end
+        local entry = table.remove(left, best).entry
+        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
+            ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
+        x, y = entry.x, entry.y
+    end
+    self:setChoosing(utility, false)
 end
 
 -- Zones. The plan shows them, and while they are edited a click there takes a room in or out of this box's.
@@ -1041,6 +1196,15 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "filter" then
         self:filterRoom(nil)
+    elseif row.kind == "batch" then
+        for index, name in ipairs(BATCH_BUTTONS) do
+            local bx = batchButtonX(width, index)
+            if x >= bx and x <= bx + BATCH_W then
+                if name == "Connect" then self:connectChosen(utility) else self:chooseAll(utility, name == "All") end
+            end
+        end
+    elseif row.kind == "room" and row.choosable and x >= chooseButtonX(row) and x <= chooseButtonX(row) + CHOOSE_W then
+        self:setChoosing(utility, not row.choosing)
     elseif row.kind == "room" then
         if row.state and x >= ROOM_TICK_X and x <= ROOM_TICK_X + ROW then
             Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
@@ -1048,6 +1212,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
             self:fill(utility, self.views[utility] and self.views[utility].state)
         end
+    elseif row.kind == "device" and row.choosable then
+        self:toggleChosen(row.device.key)
     elseif row.kind == "device" and row.state ~= "other" then
         local device = row.device
         for _, button in ipairs((deviceButtons(width, row))) do
@@ -1075,6 +1241,11 @@ function ISBUPanelWindow:showRange(on)
     local panel = self.panel
     local rooms = Panels.rooms(Panels.building(panel))
     if #rooms == 0 then return end
+    -- Devices outside join by the rooms of their own floor, the ground here; producers by the whole outline.
+    local ground = {}
+    for _, room in ipairs(rooms) do
+        if room.level == 0 then ground[#ground + 1] = room end
+    end
     local minX, minY, maxX, maxY
     for _, room in ipairs(rooms) do
         for _, rect in ipairs(room.rects) do
@@ -1086,7 +1257,7 @@ function ISBUPanelWindow:showRange(on)
     local rings, reach = {}, 0
     local exterior, producers = BU.exteriorRange(panel.tier), BU.producerRange(panel.tier)
     if exterior > 0 then
-        rings[#rings + 1] = { steps = exterior, colour = ColorInfo.new(0.3, 0.6, 1, 1) }
+        rings[#rings + 1] = { steps = exterior, colour = ColorInfo.new(0.3, 0.6, 1, 1), ground = true }
         reach = exterior
     end
     if not panel.parent then
@@ -1099,8 +1270,9 @@ function ISBUPanelWindow:showRange(on)
             local square = getCell():getGridSquare(x, y, 0)
             if square then
                 local steps = Geometry.toBuilding(x, y, rooms)
+                local groundSteps = Geometry.toBuilding(x, y, ground)
                 for _, ring in ipairs(rings) do
-                    local floor = steps == ring.steps and square:getFloor()
+                    local floor = (ring.ground and groundSteps or steps) == ring.steps and square:getFloor()
                     if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
                 end
                 if not panel.parent and steps and steps > 0 and steps <= producers then
@@ -1115,6 +1287,7 @@ end
 function ISBUPanelWindow:onRange()
     self:showRange(not self.rangeShown)
     self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
+    self:updatePlan()
 end
 
 function ISBUPanelWindow:onRename()

@@ -244,5 +244,18 @@
     "IGUI_BU_Menu_ZoneFloorRemove": "이 층을 구역에서 빼기",
     "IGUI_BU_Menu_ZoneFloorOnly": "이 층만 구역으로",
     "IGUI_BU_Menu_ZoneWhole": "건물 전체를 구역으로",
-    "IGUI_BU_Reason_wholeTaken": "이 건물의 차단기함이 건물 전체를 맡고 있습니다. 먼저 그 차단기함의 평면도에서 구역을 정하세요."
+    "IGUI_BU_Reason_wholeTaken": "이 건물의 차단기함이 건물 전체를 맡고 있습니다. 먼저 그 차단기함의 평면도에서 구역을 정하세요.",
+    "IGUI_BU_Choose": "여러 개 선택",
+    "IGUI_BU_ChooseDone": "선택 끝",
+    "IGUI_BU_BatchText": "선택한 %1개 연결: %2",
+    "IGUI_BU_BatchEmpty": "바깥 기기를 눌러(여기나 평면도에서) 고르세요.",
+    "IGUI_BU_BatchHint": "하나씩 그 자리에서 연결합니다. 가까운 것부터 차례로 걸어갑니다.",
+    "IGUI_BU_BatchConnect": "연결",
+    "IGUI_BU_BatchAll": "전부",
+    "IGUI_BU_BatchNone": "해제",
+    "IGUI_BU_Legend_rangeOutside": "바깥 기기 범위",
+    "IGUI_BU_Legend_rangeProducer": "공급원 범위",
+    "IGUI_BU_Name_Unknown": "이름 없는 기기",
+    "IGUI_BU_Name_locationshopgas2go01": "Gas 2 Go 간판",
+    "IGUI_BU_Name_PopsicleFreezer": "아이스크림 냉동고"
 }

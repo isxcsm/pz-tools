@@ -160,14 +160,20 @@ local function translated(name)
     return getTextOrNull("IGUI_BU_Name_" .. name:gsub("%W", "")) or name
 end
 
+-- Without a moveable name: a name for its tileset ("location_shop_gas2go_01_15" by IGUI_BU_Name_locationshopgas2go01),
+-- else its object name unless that is only its Java class ("IsoObject"), else "a device".
 function BU.displayName(x, y, z, sprite)
     local object = BU.objectsWithSprite(x, y, z, sprite)[1]
     if object then
         local name = Translator.getMoveableDisplayName(object)
         if name and name ~= "" then return translated(name) end
-        if object:getObjectName() and object:getObjectName() ~= "" then return translated(object:getObjectName()) end
     end
-    return sprite
+    local tileset = sprite:match("^(.+)_%d+$")
+    local named = tileset and getTextOrNull("IGUI_BU_Name_" .. tileset:gsub("%W", ""))
+    if named then return named end
+    local objectName = object and object:getObjectName()
+    if objectName and objectName ~= "" and not objectName:match("^Iso%u") then return translated(objectName) end
+    return object and getText("IGUI_BU_Name_Unknown") or sprite
 end
 
 -- A level of a building as players count floors: 1F for the ground, B1 below it.

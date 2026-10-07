@@ -4,8 +4,11 @@
 -- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
 -- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
 -- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
--- takes a room in or out. Everything is laid out when the window refreshes or the plan is resized; a frame only
--- draws the rectangles laid out.
+-- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
+-- devices outside it is connected to. While the window shows the range, the plan does too: an outline where devices
+-- outside join (blue) and where producers do (yellow). While devices outside are chosen to connect, a click on one
+-- chooses it. Everything is laid out when the window refreshes or the plan is resized; a frame only draws the
+-- rectangles laid out.
 require "ISUI/ISPanel"
 local BU = BuildingUtilities
 
@@ -22,13 +25,16 @@ local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zo
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
+local WHITE = Texture.getWhite()
+
 function ISBUPlan:new(x, y, width, height, window)
     local o = ISPanel.new(self, x, y, width, height)
     o.window = window
     o.background = true
     o.backgroundColor = { r = 0, g = 0, b = 0, a = 0.55 }
     o.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
-    o.cells, o.labels, o.dots, o.squares, o.strip, o.legend = {}, {}, {}, {}, {}, {}
+    o.cells, o.labels, o.dots, o.squares, o.strip, o.legend, o.lines, o.edges = {}, {}, {}, {}, {}, {}, {}, {}
+    o.rangeCache = {}
     return o
 end
 
@@ -46,7 +52,8 @@ end
 local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
-    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 },
+    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 }, chosen = { 0.4, 0.8, 1 },
+    rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
 }
 
@@ -63,28 +70,120 @@ local function dotColour(device, supplied)
 end
 
 -- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text.
-local function legendEntries(utility, zones)
+local function legendEntries(utility, zones, ranges)
     local result = {}
-    local function add(name, square)
+    local function add(name, square, hollow)
         local colour = COLOURS[name]
-        result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square, text = getText("IGUI_BU_Legend_" .. name) }
+        result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square, hollow = hollow,
+            text = getText("IGUI_BU_Legend_" .. name) }
     end
     if zones then
         for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken" }) do add(name, true) end
     elseif utility == "power" then
-        for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "off", "other" }) do add(name) end
+        for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "other" }) do add(name) end
+        add("off", false, true)
         add("producer", true)
     else
-        for _, name in ipairs({ "using", "off", "other" }) do add(name) end
+        for _, name in ipairs({ "using", "other" }) do add(name) end
+        add("off", false, true)
         add("tank", true)
     end
     add("box", true)
+    if ranges and not zones then
+        if ranges.exterior then add("rangeOutside", "line") end
+        if ranges.producer then add("rangeProducer", "line") end
+    end
     return result
+end
+
+-- Where a range reaches around rectangles, as the edges between squares in it and out of it: { x, y, len, across }
+-- in squares (across: along x). A square is in range within so many steps of a rectangle, a diagonal step counting as
+-- one: the rectangles grown row by row, then column by column.
+local function rangeEdges(rects, range)
+    if #rects == 0 or range <= 0 then return {} end
+    local minX, minY, maxX, maxY
+    for _, rect in ipairs(rects) do
+        minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+        maxX, maxY = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1), math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+    end
+    minX, minY, maxX, maxY = minX - range, minY - range, maxX + range, maxY + range
+    local w, h = maxX - minX + 1, maxY - minY + 1
+    local base, rows, cells = {}, {}, {}
+    for _, rect in ipairs(rects) do
+        for y = rect.y, rect.y + rect.h - 1 do
+            for x = rect.x, rect.x + rect.w - 1 do base[(y - minY) * w + (x - minX)] = true end
+        end
+    end
+    for row = 0, h - 1 do
+        local last = -range - 1
+        for col = 0, w - 1 do
+            if base[row * w + col] then last = col end
+            if col - last <= range then rows[row * w + col] = true end
+        end
+        last = w + range
+        for col = w - 1, 0, -1 do
+            if base[row * w + col] then last = col end
+            if last - col <= range then rows[row * w + col] = true end
+        end
+    end
+    for col = 0, w - 1 do
+        local last = -range - 1
+        for row = 0, h - 1 do
+            if rows[row * w + col] then last = row end
+            if row - last <= range then cells[row * w + col] = true end
+        end
+        last = h + range
+        for row = h - 1, 0, -1 do
+            if rows[row * w + col] then last = row end
+            if last - row <= range then cells[row * w + col] = true end
+        end
+    end
+    local function at(col, row)
+        return col >= 0 and col < w and row >= 0 and row < h and cells[row * w + col] == true
+    end
+    local edges = {}
+    for row = 0, h do
+        local start
+        for col = 0, w do
+            local edge = col < w and at(col, row - 1) ~= at(col, row)
+            if edge and not start then start = col
+            elseif not edge and start then
+                edges[#edges + 1] = { x = minX + start, y = minY + row, len = col - start, across = true }
+                start = nil
+            end
+        end
+    end
+    for col = 0, w do
+        local start
+        for row = 0, h do
+            local edge = row < h and at(col - 1, row) ~= at(col, row)
+            if edge and not start then start = row
+            elseif not edge and start then
+                edges[#edges + 1] = { x = minX + col, y = minY + start, len = row - start, across = false }
+                start = nil
+            end
+        end
+    end
+    return edges
+end
+
+-- The point of the rectangles nearest a square's middle, in squares.
+local function nearestPoint(rects, x, y)
+    local best, bestX, bestY
+    for _, rect in ipairs(rects) do
+        local px = math.max(rect.x, math.min(x, rect.x + rect.w))
+        local py = math.max(rect.y, math.min(y, rect.y + rect.h))
+        local d = (px - x) * (px - x) + (py - y) * (py - y)
+        if not best or d < best then best, bestX, bestY = d, px, py end
+    end
+    return bestX, bestY
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, power, name, status } }, producers = { { x, y, z, inUse } }, box = { x, y, z }, filter = room id,
--- zone = room id to { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote }.
+-- zone = room id to { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote,
+-- ranges = { exterior = steps, producer = steps or nil } while the range is shown, rangeKey (the building and tier the
+-- ranges are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
 function ISBUPlan:setData(data)
     self.data = data
     local levels = {}
@@ -110,9 +209,30 @@ end
 
 function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end
 
+-- The range outlines of a floor, worked out once for a building, tier and floor.
+function ISBUPlan:ranges(floor)
+    local data = self.data
+    if not data.ranges then return nil end
+    if self.rangeKey ~= data.rangeKey then self.rangeCache, self.rangeKey = {}, data.rangeKey end
+    local cached = self.rangeCache[floor]
+    if cached then return cached end
+    local floorRects, allRects = {}, {}
+    for _, room in ipairs(data.rooms) do
+        for _, rect in ipairs(room.rects) do
+            allRects[#allRects + 1] = rect
+            if room.level == floor then floorRects[#floorRects + 1] = rect end
+        end
+    end
+    -- Devices outside join by the floor's own rooms (as the API finds them); producers by the whole outline.
+    cached = { exterior = rangeEdges(floorRects, data.ranges.exterior or 0),
+        producer = data.ranges.producer and rangeEdges(allRects, data.ranges.producer) or {} }
+    self.rangeCache[floor] = cached
+    return cached
+end
+
 function ISBUPlan:layout()
     local data = self.data
-    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend = {}, {}, {}, {}, {}, {}
+    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
@@ -127,12 +247,17 @@ function ISBUPlan:layout()
     for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
     cover(data.box.x, data.box.y, 1, 1)
     if not minX then return end
+    -- With the range shown, the plan takes in where devices outside and producers join.
+    local ranges = self:ranges(self.floor)
+    for _, edges in ipairs(ranges and { ranges.exterior, ranges.producer } or {}) do
+        for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
+    end
     local left = PAD + (#self.levels > 1 and STRIP_W or 0)
     local top = FONT_HGT_SMALL + PAD * 2
     -- The legend, in two columns at the bottom, above the status line.
     local legendH = 0
     if self:legendShown() then
-        local entries = legendEntries(data.utility, data.zoneEdit)
+        local entries = legendEntries(data.utility, data.zoneEdit, data.ranges)
         local rows = math.ceil(#entries / 2)
         legendH = rows * LEGEND_ROW + PAD
         local columnW = (self.width - left - PAD) / 2
@@ -150,6 +275,46 @@ function ISBUPlan:layout()
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
     self.scale = scale
+    -- The range outlines, cut to the map.
+    local mapLeft, mapTop, mapRight, mapBottom = left, top, left + availW, top + availH
+    local function addEdges(edges, colour)
+        for _, edge in ipairs(edges) do
+            local x1, y1 = sx(edge.x), sy(edge.y)
+            local x2 = edge.across and sx(edge.x + edge.len) or x1 + 1
+            local y2 = edge.across and y1 + 1 or sy(edge.y + edge.len)
+            x1, y1 = math.max(x1, mapLeft), math.max(y1, mapTop)
+            x2, y2 = math.min(x2, mapRight), math.min(y2, mapBottom)
+            if x2 > x1 and y2 > y1 then
+                self.edges[#self.edges + 1] = { x = x1, y = y1, w = x2 - x1, h = y2 - y1, r = colour[1], g = colour[2], b = colour[3] }
+            end
+        end
+    end
+    if ranges then
+        addEdges(ranges.producer, COLOURS.rangeProducer)
+        addEdges(ranges.exterior, COLOURS.rangeOutside)
+    end
+    -- The lines: from the building's outline (this floor's, else any) to each producer and device outside it takes.
+    local floorRects, allRects = {}, {}
+    for _, room in ipairs(data.rooms) do
+        for _, rect in ipairs(room.rects) do
+            allRects[#allRects + 1] = rect
+            if room.level == self.floor then floorRects[#floorRects + 1] = rect end
+        end
+    end
+    local function addLine(x, y, colour)
+        local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
+        if not px then return end
+        self.lines[#self.lines + 1] = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
+            x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
+    end
+    for _, device in ipairs(data.devices) do
+        if device.z == self.floor and not device.inside and device.state == "on" then addLine(device.x, device.y, COLOURS.idle) end
+    end
+    for _, producer in ipairs(data.producers) do
+        if producer.z == self.floor then
+            addLine(producer.x, producer.y, data.utility == "water" and COLOURS.tank or COLOURS.producer)
+        end
+    end
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
     for _, device in ipairs(data.devices) do
@@ -197,7 +362,8 @@ function ISBUPlan:layout()
             local r, g, b = dotColour(device, data.supplied)
             self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
                 x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
-                text = device.name .. "  " .. (device.status or "") }
+                text = device.name .. "  " .. (device.status or ""), hollow = device.state == "off",
+                chosen = device.chosen, choosable = device.choosable }
         end
     end
     for _, producer in ipairs(data.producers) do
@@ -278,14 +444,32 @@ function ISBUPlan:render()
     for _, label in ipairs(self.labels) do
         self:drawTextCentre(label.text, label.x, label.y, 1, 1, 1, label.dim and 0.4 or 0.85, UIFont.Small)
     end
+    for _, edge in ipairs(self.edges) do self:drawRect(edge.x, edge.y, edge.w, edge.h, 0.7, edge.r, edge.g, edge.b) end
+    for _, line in ipairs(self.lines) do
+        self:drawLine(WHITE, line.x1, line.y1, line.x2, line.y2, 1, 0.8, line.r, line.g, line.b)
+    end
     for _, square in ipairs(self.squares) do
         local size = square.size
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         if square.ring then self:drawRectBorder(square.x - 2, square.y - 2, size + 4, size + 4, 1, 1, 1, 1) end
     end
+    local choosing = self.data and self.data.choosing
     for _, dot in ipairs(self.dots) do
-        self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
-        if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 1, 1, 1, 1) end
+        if dot.hollow then
+            self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 0.6, 0, 0, 0)
+            self:drawRectBorder(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
+        else
+            self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
+        end
+        if dot.chosen then
+            local c = COLOURS.chosen
+            self:drawRectBorder(dot.x - DOT + 1, dot.y - DOT + 1, DOT * 2 - 2, DOT * 2 - 2, 1, c[1], c[2], c[3])
+            self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 1, c[1], c[2], c[3])
+        elseif choosing and dot.choosable then
+            local c = COLOURS.chosen
+            self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 0.5, c[1], c[2], c[3])
+        end
+        if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT - 1, dot.y - DOT - 1, DOT * 2 + 2, DOT * 2 + 2, 1, 1, 1, 1) end
     end
     for _, cell in ipairs(self.strip) do
         local current = cell.level == self.floor
@@ -296,8 +480,12 @@ function ISBUPlan:render()
     end
     for _, entry in ipairs(self.legend) do
         local middle = entry.y + LEGEND_ROW / 2
-        if entry.square then
+        if entry.square == "line" then
+            self:drawRect(entry.x, middle, 10, 1, 1, entry.r, entry.g, entry.b)
+        elseif entry.square then
             self:drawRect(entry.x, middle - 4, 8, 8, 1, entry.r, entry.g, entry.b)
+        elseif entry.hollow then
+            self:drawRectBorder(entry.x + 1, middle - DOT / 2, DOT, DOT, 1, entry.r, entry.g, entry.b)
         else
             self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, 1, entry.r, entry.g, entry.b)
         end
@@ -394,6 +582,8 @@ function ISBUPlan:onMouseDown(x, y)
     end
     if kind == "floor" then
         self:showFloor(thing.level)
+    elseif kind == "dot" and self.data.choosing and thing.choosable then
+        self.window:toggleChosen(thing.key)
     elseif kind == "dot" then
         self.window:showDevice(thing.key)
     elseif kind == "room" then
