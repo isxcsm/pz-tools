@@ -43,7 +43,6 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.False(activation.IsBusy);
         Assert.False(activation.CanToggle);
         Assert.False(activation.CanEditOptions);
-        Assert.Null(activation.AppliedVehicleOptions);
         Assert.Equal("unsupported-capability", activation.FailureReason);
     }
 
@@ -74,7 +73,7 @@ public sealed class ExtensionCapabilityClassificationTests
         var card = new ExtensionCardView(definition, true, "runtime-pending", 4);
         var runtime = Active() with { State = state, Reason = state == RuntimeExtensionState.FaultedPassThrough ? "vehicle-failed" : null };
         if (state == RuntimeExtensionState.FaultedPassThrough)
-            runtime = runtime with { ControlReady = false, AppliedVehicleOptions = null };
+            runtime = runtime with { ControlReady = false, AppliedConfiguration = null };
         var view = new GameExtensionsView([card], true, Statuses: new Dictionary<string, RuntimeExtensionStatus> { [ExtensionIds.VehicleDrivetrain] = runtime }, RuntimeWorldReady: true);
         var activation = view.ActivationFor(card);
         Assert.Equal(ExtensionActivationKind.Continuous, definition.ActivationKind);
@@ -83,7 +82,6 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.False(activation.IsBusy);
         Assert.True(activation.CanToggle);
         Assert.True(activation.CanEditOptions);
-        Assert.Null(activation.AppliedVehicleOptions);
         Assert.Null(activation.FailureReason);
     }
 
@@ -98,7 +96,9 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.True(activation.CanToggle);
         Assert.True(activation.CanEditOptions);
         Assert.False(activation.IsPerSave);
-        Assert.Equal(new VehicleDrivetrainPreference(true, false, true), activation.AppliedVehicleOptions);
+        Assert.False(activation.IsBusy);
+        // Its own evidence: saved off while the game still runs it, turning it off is in progress.
+        Assert.True(view.ActivationFor(card with { Enabled = false }).IsBusy);
     }
 
     [Fact]
@@ -114,7 +114,6 @@ public sealed class ExtensionCapabilityClassificationTests
         Assert.True(activation.CanToggle);
         Assert.True(activation.CanEditOptions);
         Assert.Null(activation.FailureReason);
-        Assert.Null(activation.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -149,5 +148,5 @@ public sealed class ExtensionCapabilityClassificationTests
     private static RuntimeExtensionStatus Active() => new(RuntimeExtensionState.Active,
         ProcessSession: new string('a', 32), WorldSession: new string('b', 32), Generation: new string('c', 32),
         AppliedRevision: 4, ModuleVersion: "0.2.0", ModuleHash: new string('d', 64), RequestedRevision: 4,
-        ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+        ControlReady: true, AppliedConfiguration: new string('e', 64));
 }

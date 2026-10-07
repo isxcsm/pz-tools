@@ -190,9 +190,13 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                             else
                             {
                                 module.DisabledRevision = -1;
-                                long requestRevision = revision;
+                                // The same settings a game the startup loader started runs with while the app is away
+                                // (ResidentExtensionRequest): the module's own options over its tuning files.
                                 actual = await module.Reconciliation!.ReconcileAsync(module.Session, process, world, revision,
-                                    module.Id, preference.ForceVersion, () => Configure(module, preference, requestRevision), token);
+                                    module.Id, preference.ForceVersion,
+                                    () => ContinuousConfiguration.For(module.Id, bridgeDirectory, runtimeRoot, preference), token);
+                                // What was sent for which revision: the evidence the game's acknowledgement is checked against.
+                                if (module.Reconciliation.Sent is { } sent) module.Activation.RecordRequest(sent.Revision, sent.Configuration);
                                 if (!IsCurrent(process, world)) { await CloseLeaseAsync(requestOff: true); break; }
                                 module.Activation.VerifyTarget(actual, revision);
                                 if (GameExtensionActivationState.IsDefinitiveFailure(actual, module.Reconciliation.RequestRejected))
@@ -204,7 +208,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                                     // state became unreadable), so the lease is renewed as a whole.
                                     await CloseLeaseAsync(requestOff: true);
                                     published.Publish(module.Id, actual with { WorldSession = world, RequestedRevision = revision,
-                                        ControlReady = false, AppliedVehicleOptions = null });
+                                        ControlReady = false, AppliedConfiguration = null });
                                     break;
                                 }
                                 else published.Publish(module.Id, module.Activation.Observe(actual, revision));
@@ -280,21 +284,6 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
     /// <summary>How long a game whose state has stopped arriving keeps its extensions before they are released.</summary>
     internal static readonly TimeSpan TransientStaleGrace = TimeSpan.FromSeconds(30);
 
-    /// <summary>What a module is asked to do, from its own saved options and its own tuning file.</summary>
-    private IReadOnlyDictionary<string, string> Configure(Module module, ExtensionPreference preference, long revision)
-    {
-        // The same settings a game the startup loader started runs with while the app is away (ResidentExtensionRequest).
-        var tuning = ContinuousConfiguration.For(module.Id, bridgeDirectory, runtimeRoot, preference);
-        if (module.Id == ExtensionIds.VehicleDrivetrain)
-        {
-            bool enabled = tuning["probe_only"] != "true";
-            module.Activation.RecordRequest(revision, new(enabled && tuning["torque_enabled"] == "true",
-                enabled && tuning["reverse_enabled"] == "true", enabled && tuning["steering_enabled"] == "true",
-                enabled && tuning["area_light_enabled"] == "true"));
-        }
-        return tuning;
-    }
-
     /// <summary>The modules the deployed catalogue runs continuously; the built-in list when that file cannot be read.</summary>
     private IReadOnlyList<string> ContinuousModules()
     {
@@ -312,6 +301,6 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
     private static bool Recoverable(Exception error, CancellationToken token) =>
         error is IOException or InvalidDataException or UnauthorizedAccessException or GameSaveException
             or InvalidOperationException or System.ComponentModel.Win32Exception or ArgumentException
-            or FormatException or OverflowException or Tomlyn.TomlException
+            or FormatException or OverflowException
         || error is OperationCanceledException && !token.IsCancellationRequested;
 }

@@ -60,12 +60,14 @@ public sealed partial class GameSaveClientTests
             // Switched on: active at the saved revision, with the options it was asked for.
             Assert.Equal(1, settings.SetEnabled(vehicle, true, 0).Revision);
             var driving = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 1, "vehicle active");
-            Assert.NotNull(driving.AppliedVehicleOptions);
+            Assert.NotNull(driving.AppliedConfiguration);
 
             // Its options change: applied to the running generation, not a new one.
             Assert.Equal(2, settings.SetPreference(vehicle, new(true, false, new VehicleDrivetrainPreference(TorqueEnabled: false)), 1).Revision);
             var retuned = await Until(vehicle, s => s.State == RuntimeExtensionState.Active && s.AppliedRevision == 2, "vehicle options applied");
             Assert.Equal(driving.Generation, retuned.Generation);
+            Assert.NotNull(retuned.AppliedConfiguration);
+            Assert.NotEqual(driving.AppliedConfiguration, retuned.AppliedConfiguration);
 
             // Its tuning file becomes invalid. The next request is rejected before it reaches the game:
             // the module is turned off, in the game and in the saved preferences, which keep its options.

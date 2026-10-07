@@ -129,7 +129,7 @@ it reads `settings.json` and the latest runtime snapshot.
   modules (`connect_timeout_seconds`, 20 by default), then handles each module in turn:
   - Wanted on: `GameExtensionReconciler` sends `APPLY` with the module id, the revision it
     believes is applied, the new revision, `forceVersion` and the module's flat configuration
-    (`Configure`). A revision it already sent gets a `PING` instead.
+    (`ContinuousConfiguration.For`). A revision it already sent gets a `PING` instead.
   - Wanted off: it sends `OFF` for that module until the game reports `Disabled`.
 - **Game briefly silent.** When snapshots go stale but the process and world are unchanged, it
   keeps the lease and every module and only pings, for up to 30 seconds
@@ -226,9 +226,12 @@ diagnostics sample in an unchanged state as `extension.runtime.sample`, at most 
 | `FaultedPassThrough` | The module faulted while running; the game's own code runs again ([pass-through](glossary.md#pass-through)) |
 | `RestartRequired` | A generation could not be retired cleanly, or (`bootstrap-update`) the app was updated in a way only a restart of the game takes up; nothing new loads until the game restarts ([restart required](glossary.md#restart-required)) |
 
-`GameExtensionActivationState` keeps the options requested at each revision. When the game
-reports `Active` at that revision, they become the applied options (`AppliedVehicleOptions`).
-A saved preference alone is never treated as applied.
+`GameExtensionActivationState` keeps, for each revision the scheduler sent, the SHA-256 of the
+configuration it sent with it (`ContinuousConfiguration.Digest`, taken from `GameExtensionReconciler.Sent`).
+When the game reports `Active` at such a revision, that digest becomes the status's
+`AppliedConfiguration`, and stays while the same generation runs that revision. The card treats a
+module as applied only with it, whatever the module. The game's `STATUS` does not carry it: it is
+the app's own record of what it asked for. A saved preference alone is never treated as applied.
 
 ## What the card shows
 
@@ -282,8 +285,6 @@ checked on next save · Experimental**, **Version override · Essential checks s
 6. **Options**, if any: a typed property on `ExtensionPreference`, values in
    `GameExtensionSetting`, a branch in `GameExtensionController.ApplyEdit`, rows and a header
    glyph in `ExtensionSettingsSection`.
-7. **Applied evidence.** The applied-options record (`RuntimeVehicleOptions`) is vehicle-specific.
-   A new continuous module needs its own, or the card never treats it as applied.
 
 Nothing in another module changes. `ModuleSlotsTest` runs two synthetic modules side by side,
 and `ContinuousExtensionTests.cs` shows how to add a test row and archive.

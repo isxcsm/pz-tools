@@ -19,7 +19,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(value.CanToggle);
         Assert.True(value.CanEditOptions);
         Assert.False(value.IsBusy);
-        Assert.Null(value.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -43,7 +42,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(value.IsBusy);
         Assert.True(value.CanToggle);
         Assert.True(value.CanEditOptions);
-        Assert.Null(value.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -56,8 +54,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(value.IsBusy);
         Assert.True(value.CanToggle);
         Assert.True(value.CanEditOptions);
-        Assert.Equal(new VehicleDrivetrainPreference(true, false, true), value.AppliedVehicleOptions);
-        Assert.NotEqual(desired.VehicleDrivetrain, value.AppliedVehicleOptions);
     }
 
     [Fact]
@@ -69,7 +65,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(initial.IsBusy);
         Assert.True(initial.CanToggle);
         Assert.True(initial.CanEditOptions);
-        Assert.Null(initial.AppliedVehicleOptions);
         var update = Project(Card(enabled: true), Active() with { RequestedRevision = 7, AppliedRevision = 7 });
         Assert.True(update.IsOn);
         Assert.True(update.IsBusy);
@@ -135,16 +130,17 @@ public sealed class ExtensionActivationViewTests
     }
 
     [Fact]
-    public void StaleOrUnavailableWorldDropsAppliedDiagnosticsWithoutHidingSavedOn()
+    public void StaleOrUnavailableWorldDropsAppliedEvidenceWithoutHidingSavedOn()
     {
-        foreach (var value in new[] { Project(Card(enabled: true), Active() with { AgeMilliseconds = 3001 }),
-            Project(Card(enabled: true), Active(), worldReady: false),
-            Project(Card(enabled: true), Active() with { AppliedVehicleOptions = null }) })
+        foreach (var (status, worldReady) in new[] { (Active() with { AgeMilliseconds = 3001 }, true), (Active(), false),
+            (Active() with { AppliedConfiguration = null }, true) })
         {
+            var value = Project(Card(enabled: true), status, worldReady);
             Assert.True(value.IsOn);
             Assert.True(value.CanToggle);
             Assert.True(value.CanEditOptions);
-            Assert.Null(value.AppliedVehicleOptions);
+            // Without current evidence that the game runs what was asked for, a saved OFF has nothing left to wait for.
+            Assert.False(Project(Card(), status, worldReady).IsBusy);
         }
     }
 
@@ -156,7 +152,6 @@ public sealed class ExtensionActivationViewTests
         Assert.True(stopping.IsBusy);
         Assert.True(stopping.CanToggle);
         Assert.True(stopping.CanEditOptions);
-        Assert.NotNull(stopping.AppliedVehicleOptions);
         var stopped = Project(Card(), new(RuntimeExtensionState.Disabled, "user-disabled",
             RequestedRevision: 8, ControlReady: true));
         Assert.False(stopped.IsOn);
@@ -166,13 +161,17 @@ public sealed class ExtensionActivationViewTests
     }
 
     [Fact]
-    public void ActiveCapabilityWithAllFeaturesOffRemainsAnActiveCapability()
+    public void AnyContinuousModuleTheGameRunsAsRequestedIsApplied_SoTurningItOffShowsProgress()
     {
-        var value = Project(Card(enabled: true), Active() with { AppliedVehicleOptions = new(false, false, false) });
-        Assert.True(value.IsOn);
-        Assert.True(value.CanToggle);
-        Assert.True(value.CanEditOptions);
-        Assert.Equal(new VehicleDrivetrainPreference(false, false, false), value.AppliedVehicleOptions);
+        // The evidence is the digest of what the app sent, the same for every module; nothing about it is the vehicle's.
+        var other = Card() with { Definition = Definition(ExtensionIds.VehicleDrivetrain) with { Id = "pztools.another-module" } };
+        var stopping = Project(other, Active());
+        Assert.False(stopping.IsOn);
+        Assert.True(stopping.IsBusy);
+        Assert.False(Project(other, Active() with { AppliedConfiguration = null }).IsBusy);
+        var running = Project(other with { Enabled = true }, Active());
+        Assert.True(running.IsOn);
+        Assert.False(running.IsBusy);
     }
 
     [Fact]
@@ -253,7 +252,6 @@ public sealed class ExtensionActivationViewTests
         var edited = await controller.SetVehicleDrivetrainPreferenceAsync(requested, card.SettingsRevision);
         card = edited.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
         Assert.Equal(requested, card.VehicleDrivetrain);
-        Assert.Equal(previous, edited.ActivationFor(card).AppliedVehicleOptions);
         Assert.True(edited.ActivationFor(card).CanToggle);
         var stopped = await controller.SetPreferenceAsync(card.Definition.Id, false, false, card.SettingsRevision);
         card = stopped.Cards.Single(x => x.Definition.Id == ExtensionIds.VehicleDrivetrain);
@@ -289,5 +287,5 @@ public sealed class ExtensionActivationViewTests
             [id == ExtensionIds.VehicleDrivetrain ? ExtensionCapabilities.VehicleDrivetrain : ExtensionCapabilities.SavePreparation]);
     private static RuntimeExtensionStatus Active() => new(RuntimeExtensionState.Active, null,
         Process, World, Generation, 8, "0.2.0", new string('a', 64), RequestedRevision: 8,
-        ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+        ControlReady: true, AppliedConfiguration: new string('e', 64));
 }

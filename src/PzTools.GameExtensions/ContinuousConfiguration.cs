@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PzTools.GameExtensions;
@@ -17,7 +18,17 @@ public static class ContinuousConfiguration
 
     /// <summary>The settings as the game reads them: <c>key\tvalue\n</c> lines in key order, UTF-8, base64.</summary>
     /// <exception cref="ArgumentException">A key or value the game would refuse, or more than the game reads.</exception>
-    public static string Encode(IReadOnlyDictionary<string, string> configuration)
+    public static string Encode(IReadOnlyDictionary<string, string> configuration) => Convert.ToBase64String(Bytes(configuration));
+
+    /// <summary>
+    /// The configuration's SHA-256 (lowercase hex) in the form the game reads: equal for equal configurations, whatever the
+    /// module. The scheduler keeps it per requested revision as the evidence of what the game applied.
+    /// </summary>
+    /// <exception cref="ArgumentException">A key or value the game would refuse, or more than the game reads.</exception>
+    public static string Digest(IReadOnlyDictionary<string, string> configuration) =>
+        Convert.ToHexStringLower(SHA256.HashData(Bytes(configuration)));
+
+    private static byte[] Bytes(IReadOnlyDictionary<string, string> configuration)
     {
         var text = new StringBuilder();
         foreach (var (key, value) in configuration.OrderBy(pair => pair.Key, StringComparer.Ordinal))
@@ -28,7 +39,7 @@ public static class ContinuousConfiguration
         }
         var bytes = Encoding.UTF8.GetBytes(text.ToString());
         if (bytes.Length > 65536) throw new ArgumentException("Oversized extension configuration.");
-        return Convert.ToBase64String(bytes);
+        return bytes;
     }
 }
 

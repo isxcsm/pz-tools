@@ -39,8 +39,6 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
     /// Queues only identity transitions. Supply the AppHost's existing inbox to share its configured
     /// recording level, retention and view cache; standalone callers use runtimeRoot/logs.db.
     /// </summary>
-    public void Observe(RuntimeExtensionStatus? status) => Observe(ExtensionIds.VehicleDrivetrain, status);
-
     public void Observe(string extensionId, RuntimeExtensionStatus? status)
     {
         try
@@ -126,13 +124,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             controlReady = status?.ControlReady ?? false,
             moduleVersion = status?.ModuleVersion,
             moduleHash = status?.ModuleHash,
-            appliedVehicleOptions = status?.AppliedVehicleOptions is { } options ? new
-            {
-                torqueEnabled = options.TorqueEnabled,
-                reverseEnabled = options.ReverseEnabled,
-                steeringEnabled = options.SteeringEnabled,
-                areaLightEnabled = options.AreaLightEnabled,
-            } : null,
+            appliedConfiguration = status?.AppliedConfiguration,
             diagnostics = status?.Diagnostics,
         });
         await sink.AppendAsync([new LogEntryView(

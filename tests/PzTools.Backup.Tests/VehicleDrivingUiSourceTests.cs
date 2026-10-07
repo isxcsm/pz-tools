@@ -93,7 +93,7 @@ public sealed class VehicleDrivingUiSourceTests
         Assert.Contains("GameExtensions.ApplyWhenSafe", section);
         Assert.Contains("row.Update(value, activation.CanEditOptions)", section);
         Assert.Contains("enabled.Update(activation.IsOn, activation.CanToggle, name)", section);
-        Assert.DoesNotContain("AppliedVehicleOptions", section);
+        Assert.DoesNotContain("AppliedConfiguration", section);
         Assert.Contains("ToggleSwitch Control { get; } = new()", section);
         Assert.DoesNotContain("Control.Header", section);
     }

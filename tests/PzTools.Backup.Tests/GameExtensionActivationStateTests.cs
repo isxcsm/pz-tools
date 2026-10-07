@@ -8,7 +8,7 @@ namespace PzTools.Backup.Tests;
 public sealed class GameExtensionActivationStateTests
 {
     private static readonly string Process = new('a', 32), World = new('b', 32), Generation = new('c', 32);
-    private static readonly RuntimeVehicleOptions First = new(true, false, true), Second = new(false, true, false);
+    private static readonly string First = new('1', 64), Second = new('2', 64);
     private static RuntimeExtensionStatus Active(long revision, string? reason = null) => new(RuntimeExtensionState.Active,
         reason, Process, World, Generation, revision, "0.1.0", new string('d', 64));
     private static RuntimeExtensionStatus Pending(long revision) => Active(revision) with { State = RuntimeExtensionState.Pending, Reason = "safe-boundary" };
@@ -23,13 +23,33 @@ public sealed class GameExtensionActivationStateTests
     public void RuntimeContractDefaultsDoNotClaimAppliedFeaturesAndMetadataRoundTrips()
     {
         var legacy = new RuntimeExtensionStatus(RuntimeExtensionState.Disabled).Validate();
-        Assert.False(legacy.ControlReady); Assert.Null(legacy.AppliedVehicleOptions); Assert.Equal(-1, legacy.RequestedRevision);
-        var applied = Active(4) with { RequestedRevision = 5, ControlReady = true, AppliedVehicleOptions = First };
+        Assert.False(legacy.ControlReady); Assert.Null(legacy.AppliedConfiguration); Assert.Equal(-1, legacy.RequestedRevision);
+        var applied = Active(4) with { RequestedRevision = 5, ControlReady = true, AppliedConfiguration = First };
         Assert.Equal(applied, JsonSerializer.Deserialize<RuntimeExtensionStatus>(JsonSerializer.Serialize(applied))!.Validate());
         Assert.Throws<InvalidDataException>(() => (legacy with { RequestedRevision = -2 }).Validate());
         Assert.Throws<InvalidDataException>(() => (legacy with { ControlReady = true }).Validate());
-        Assert.Throws<InvalidDataException>(() => (legacy with { AppliedVehicleOptions = First }).Validate());
+        Assert.Throws<InvalidDataException>(() => (legacy with { AppliedConfiguration = First }).Validate());
         Assert.Throws<InvalidDataException>(() => (applied with { State = RuntimeExtensionState.FaultedPassThrough }).Validate());
+        Assert.Throws<InvalidDataException>(() => (applied with { AppliedConfiguration = "not-a-digest" }).Validate());
+    }
+
+    [Fact]
+    public async Task ReconcilerKeepsTheDigestOfWhatItSent_AndNothingForAConfigurationTheGameWouldRefuse()
+    {
+        var session = new ReplySession(Pending(-1));
+        var configuration = new Dictionary<string, string> { ["fixture_value"] = "first" };
+        var sending = new GameExtensionReconciler(new(RuntimeExtensionState.Disabled));
+        Assert.Null(sending.Sent);
+        await sending.ReconcileAsync(session, Process, World, 1, "pztools.test-module", false, () => configuration, default);
+        Assert.Equal((1L, ContinuousConfiguration.Digest(configuration)), sending.Sent);
+        Assert.NotEqual(ContinuousConfiguration.Digest(configuration),
+            ContinuousConfiguration.Digest(new Dictionary<string, string> { ["fixture_value"] = "second" }));
+
+        var refused = new GameExtensionReconciler(new(RuntimeExtensionState.Disabled));
+        await refused.ReconcileAsync(session, Process, World, 1, "pztools.test-module", false,
+            () => new Dictionary<string, string> { ["not a key"] = "x" }, default);
+        Assert.True(refused.RequestRejected);
+        Assert.Null(refused.Sent);
     }
 
     [Fact]
@@ -37,7 +57,7 @@ public sealed class GameExtensionActivationStateTests
     {
         var state = Bound(); state.RecordRequest(1, First);
         var waiting = state.Observe(Pending(-1), 1);
-        Assert.True(waiting.ControlReady); Assert.Null(waiting.AppliedVehicleOptions);
+        Assert.True(waiting.ControlReady); Assert.Null(waiting.AppliedConfiguration);
         Assert.Equal(1, waiting.RequestedRevision);
         Assert.False(GameExtensionActivationState.IsDefinitiveFailure(waiting, requestRejected: false));
     }
@@ -47,13 +67,13 @@ public sealed class GameExtensionActivationStateTests
     {
         var state = Bound(); state.RecordRequest(1, First);
         var first = state.Observe(Active(1), 1);
-        Assert.Equal(First, first.AppliedVehicleOptions);
+        Assert.Equal(First, first.AppliedConfiguration);
         state.RecordRequest(2, Second);
         var waiting = state.Observe(Pending(1), 2);
-        Assert.Equal(First, waiting.AppliedVehicleOptions); Assert.Equal(1, waiting.AppliedRevision);
+        Assert.Equal(First, waiting.AppliedConfiguration); Assert.Equal(1, waiting.AppliedRevision);
         Assert.Equal(2, waiting.RequestedRevision);
         var applied = state.Observe(Active(2), 2);
-        Assert.Equal(Second, applied.AppliedVehicleOptions);
+        Assert.Equal(Second, applied.AppliedConfiguration);
     }
 
     [Fact]
@@ -62,7 +82,7 @@ public sealed class GameExtensionActivationStateTests
         var state = Bound(); state.RecordRequest(1, First); state.Observe(Active(1), 1);
         state.RecordRequest(2, Second);
         var rejected = state.Observe(Active(1, "update-rejected:preflight"), 2);
-        Assert.Equal(First, rejected.AppliedVehicleOptions);
+        Assert.Equal(First, rejected.AppliedConfiguration);
         Assert.True(GameExtensionActivationState.IsDefinitiveFailure(rejected, requestRejected: true));
     }
 
@@ -71,7 +91,7 @@ public sealed class GameExtensionActivationStateTests
     {
         var state = Bound(); state.RecordRequest(1, First); state.RecordRequest(2, Second);
         var earlier = state.Observe(Active(1), 2);
-        Assert.Equal(First, earlier.AppliedVehicleOptions);
+        Assert.Equal(First, earlier.AppliedConfiguration);
         Assert.Equal(2, earlier.RequestedRevision);
     }
 
@@ -79,9 +99,9 @@ public sealed class GameExtensionActivationStateTests
     public void GenerationChangeOrDisconnectDropsPreviousAppliedEvidence()
     {
         var state = Bound(); state.RecordRequest(1, First); state.Observe(Active(1), 1);
-        Assert.Null(state.Observe(Pending(1) with { Generation = new string('e', 32) }, 2).AppliedVehicleOptions);
+        Assert.Null(state.Observe(Pending(1) with { Generation = new string('e', 32) }, 2).AppliedConfiguration);
         state.Disconnect();
-        Assert.Null(state.Observe(Active(1), 2).AppliedVehicleOptions);
+        Assert.Null(state.Observe(Active(1), 2).AppliedConfiguration);
     }
 
     [Fact]
@@ -89,7 +109,7 @@ public sealed class GameExtensionActivationStateTests
     {
         var state = Bound(); state.RecordRequest(1, First); state.Observe(Active(1), 1);
         var disabled = state.Observe(new(RuntimeExtensionState.Disabled, "user-disabled", Process), 2);
-        Assert.True(disabled.ControlReady); Assert.Null(disabled.AppliedVehicleOptions);
+        Assert.True(disabled.ControlReady); Assert.Null(disabled.AppliedConfiguration);
         Assert.Equal(World, disabled.WorldSession); Assert.Equal(2, disabled.RequestedRevision);
     }
 
@@ -106,7 +126,7 @@ public sealed class GameExtensionActivationStateTests
         var committed = store.Read(); var preference = committed.Extensions[ExtensionIds.VehicleDrivetrain];
         Assert.False(preference.Enabled); Assert.True(preference.ForceVersion); Assert.Equal(options, preference.VehicleDrivetrain);
         var failure = state.Blocked(committed.Revision)!;
-        Assert.False(failure.ControlReady); Assert.Null(failure.AppliedVehicleOptions);
+        Assert.False(failure.ControlReady); Assert.Null(failure.AppliedConfiguration);
         Assert.Equal(requested.Revision, failure.RequestedRevision);
         Assert.Null(state.Blocked(committed.Revision + 1));
     }
@@ -158,7 +178,7 @@ public sealed class GameExtensionActivationStateTests
         state.FailClosed(Active(1) with { State = RuntimeExtensionState.FaultedPassThrough, Reason = "activation-failed" }, 2, () => true, _ => 3);
         state.Disconnect(); Assert.False(state.Bind(Process, World)); Assert.NotNull(state.Blocked(3));
         Assert.True(state.Bind(Process, new string('f', 32))); Assert.Null(state.Blocked(3)); Assert.Null(state.Failure);
-        Assert.Null(state.Observe(new(RuntimeExtensionState.Disabled, null, Process), 3).AppliedVehicleOptions);
+        Assert.Null(state.Observe(new(RuntimeExtensionState.Disabled, null, Process), 3).AppliedConfiguration);
     }
 
     [Fact]
@@ -176,7 +196,7 @@ public sealed class GameExtensionActivationStateTests
         var locked = state.Blocked(100)!;
         Assert.Equal(RuntimeExtensionState.RestartRequired, locked.State);
         Assert.Equal(Process, locked.ProcessSession); Assert.Equal(nextWorld, locked.WorldSession);
-        Assert.Equal(2, locked.RequestedRevision); Assert.False(locked.ControlReady); Assert.Null(locked.AppliedVehicleOptions);
+        Assert.Equal(2, locked.RequestedRevision); Assert.False(locked.ControlReady); Assert.Null(locked.AppliedConfiguration);
         Assert.Equal(locked, state.Observe(new(RuntimeExtensionState.Disabled, null, Process), 100));
     }
 
@@ -190,7 +210,7 @@ public sealed class GameExtensionActivationStateTests
         Assert.Null(state.Failure); Assert.Null(state.Blocked(3)); Assert.Null(state.Blocked(4));
         var ready = state.Observe(new(RuntimeExtensionState.Disabled, null, nextProcess), 4);
         Assert.True(ready.ControlReady); Assert.Equal(RuntimeExtensionState.Disabled, ready.State);
-        Assert.Null(ready.AppliedVehicleOptions);
+        Assert.Null(ready.AppliedConfiguration);
     }
 
     [Fact]
@@ -255,7 +275,7 @@ public sealed class GameExtensionActivationStateTests
         Assert.True(GameExtensionActivationState.IsDefinitiveFailure(actual, false));
         state.FailClosed(actual, 2, () => true, _ => 3);
         Assert.Equal(failureState, state.Failure!.State);
-        Assert.False(state.Failure.ControlReady); Assert.Null(state.Failure.AppliedVehicleOptions);
+        Assert.False(state.Failure.ControlReady); Assert.Null(state.Failure.AppliedConfiguration);
     }
 
     [Fact]
