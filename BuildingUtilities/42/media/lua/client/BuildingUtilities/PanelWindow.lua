@@ -902,6 +902,9 @@ end
 
 function PanelWindow.isOpen(panelId) return open[panelId] ~= nil end
 
+-- The window open for a panel, or nil.
+function PanelWindow.get(panelId) return open[panelId] end
+
 function PanelWindow.refreshAll()
     for _, window in pairs(open) do window:refresh() end
 end

@@ -28,6 +28,9 @@ function ISBUPanelWindow:updatePlan()
         local choosable = self.choosing[utility] == true and not device.inside and device.state == "off"
         devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
             state = device.state, held = device.held, power = device.power, utility = utility,
+            -- Out to a device outside while it takes something.
+            flow = not device.inside and device.state == "on" and not device.held and view.state and view.state.supplied
+                and (utility == "water" or (device.power or 0) > 0) and -1 or nil,
             name = view.names[device.key] or "", status = view.status[device.key],
             choosable = choosable, chosen = choosable and self.chosen[utility][device.key] == true,
             fresh = view.fresh[device.key] }
@@ -35,14 +38,23 @@ function ISBUPanelWindow:updatePlan()
     local producers = {}
     if not panel.parent then
         local state = view.state
+        local supplied = state and state.supplied
         for index, at in ipairs(panel[utility].producers) do
             local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
-            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, text = view.producerText[index] }
+            -- What runs to the box: the generator in use; for water, each tank with water in it.
+            local flow
+            if utility == "power" then flow = inUse and supplied and 1 or nil
+            else
+                local seen = PanelWindow.seenProducer(state, at)
+                flow = supplied and seen and (seen.amount or 0) > 0 and 1 or nil
+            end
+            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, flow = flow, text = view.producerText[index] }
         end
         if utility == "power" then
             local inUse = Energy.inUse(state)
             for _, unit in ipairs(Store.unitList(nil, panel.id)) do
                 producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse, unit = unit.kind,
+                    flow = state and Units.flow(unit, panel, state) or nil,
                     text = Units.name(unit) .. (view.sourceText and "  " .. view.sourceText or "") }
             end
         end

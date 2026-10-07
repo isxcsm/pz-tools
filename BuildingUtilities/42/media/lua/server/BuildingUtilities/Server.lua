@@ -117,7 +117,7 @@ local function checkLoad(panel)
     end
 end
 
--- What players hear: the generator in use changed, power or water ran out, fuel runs low.
+-- What players hear: the generator in use changed (and the relay's click), power or water ran out, fuel runs low.
 local lowFuel = {}
 
 local function checkFuel(panel)
@@ -236,6 +236,8 @@ local function onNetworkChange(id, what)
     if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
     if utility == "power" then checkLoad(panel) end
     if panel.parent or not state then return end
+    -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
+    if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "LightSwitch") end
     if what == "producer" and Energy.inUse(state) then
         Sync.notice(panel, "IGUI_BU_Notice_SolarOn", Panels.name(panel))
     elseif what == "producer" and state.producer then

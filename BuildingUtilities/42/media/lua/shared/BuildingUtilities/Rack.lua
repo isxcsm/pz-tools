@@ -5,7 +5,7 @@ require "BuildingUtilities/Units"
 require "BuildingUtilities/Energy"
 require "BuildingUtilities/Sync"
 local BU = BuildingUtilities
-local Units, Panels, Sync = BU.Units, BU.Panels, BU.Sync
+local Units, Panels, Sync, Energy = BU.Units, BU.Panels, BU.Sync, BU.Energy
 local Rack = {}
 BU.Rack = Rack
 
@@ -68,7 +68,7 @@ end
 function Rack.batteryText(record)
     return getText("IGUI_BU_BatteryLine", getItemNameFromFullType(record.type),
         getText("IGUI_VehicleType_" .. Rack.batteryKind(record.type)), BU.percent((record.charge or 0) * 100),
-        math.floor((record.condition or 0) + 0.5), string.format("%.1f", BU.Energy.batteryCapacity(record)))
+        math.floor((record.condition or 0) + 0.5), string.format("%.1f", Energy.batteryCapacity(record)))
 end
 
 -- A rack's charge as a share of what its batteries hold full, for its look; 0 without batteries.
@@ -176,6 +176,14 @@ Units.define("rack", {
         if object:getContainer() then Rack.container(object) end
     end,
     sync = Rack.sync,
+    -- Drawn: to the box; charged: from it.
+    flow = function(unit, panel, state)
+        if #(unit.batteries or {}) == 0 then return nil end
+        local flow = panel.bankFlow or 0
+        if flow < -0.0005 and Energy.inUse(state) and state.supplied then return 1 end
+        if flow > 0.0005 then return -1 end
+        return nil
+    end,
     title = function(unit, text)
         text = getText("IGUI_BU_RackTitle", text, #unit.batteries, Rack.SIZE)
         if #unit.batteries > 0 then text = text .. "  " .. BU.percent(Rack.charge(unit) * 100) end

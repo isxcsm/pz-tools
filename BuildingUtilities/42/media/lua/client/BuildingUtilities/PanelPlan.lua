@@ -5,7 +5,8 @@
 -- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
 -- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
 -- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
--- devices outside it is connected to. While the window shows the range, the plan does too: an outline where devices
+-- devices outside it is connected to; dots run along them the way power or water goes now, from the producers in
+-- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the window shows the range, the plan does too: an outline where devices
 -- outside join (blue) and where producers do (yellow). While devices outside are chosen to connect, a click on one
 -- chooses it. Ctrl and the wheel (or the wheel alone for one floor) zoom at the mouse, dragging moves the plan, Fit
 -- goes back. Everything is laid out when the window refreshes or the plan is resized; a frame only draws the
@@ -25,6 +26,8 @@ local TOGGLE_W = 18
 local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
 local FIT_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFit")) + 10
 local MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 8, 48, 4
+-- Flow dots: so far apart, so many pixels a second, so big.
+local FLOW_GAP, FLOW_SPEED, FLOW_DOT = 14, 24, 4
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -236,6 +239,7 @@ end
 function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
+    self.flows = {}
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
@@ -312,14 +316,35 @@ function ISBUPlan:layout()
             if room.level == self.floor then floorRects[#floorRects + 1] = rect end
         end
     end
-    local function addLine(x, y, colour)
+    -- A line, and with a flow the dots' path: from the thing to the building, on to the box when it is on this floor;
+    -- they run along it to the box (flow 1) or from it (-1).
+    local function addLine(x, y, colour, flow)
         local px, py = nearestPoint(#floorRects > 0 and floorRects or allRects, x + 0.5, y + 0.5)
         if not px then return end
-        self.lines[#self.lines + 1] = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
+        local line = { x1 = ox + (x + 0.5 - minX) * scale, y1 = oy + (y + 0.5 - minY) * scale,
             x2 = ox + (px - minX) * scale, y2 = oy + (py - minY) * scale, r = colour[1], g = colour[2], b = colour[3] }
+        self.lines[#self.lines + 1] = line
+        if not flow then return end
+        local points = { { line.x1, line.y1 }, { line.x2, line.y2 } }
+        if data.box.z == self.floor then
+            points[3] = { ox + (data.box.x + 0.5 - minX) * scale, oy + (data.box.y + 0.5 - minY) * scale }
+        end
+        local length, lengths = 0, {}
+        for index = 2, #points do
+            local a, b = points[index - 1], points[index]
+            local dx, dy = b[1] - a[1], b[2] - a[2]
+            lengths[index] = math.sqrt(dx * dx + dy * dy)
+            length = length + lengths[index]
+        end
+        if length < 1 then return end
+        -- Brighter than the line, so the dots show on it.
+        self.flows[#self.flows + 1] = { points = points, lengths = lengths, length = length, toBox = flow > 0,
+            r = math.min(1, colour[1] + 0.3), g = math.min(1, colour[2] + 0.3), b = math.min(1, colour[3] + 0.3) }
     end
     for _, device in ipairs(data.devices) do
-        if device.z == self.floor and not device.inside and device.state == "on" then addLine(device.x, device.y, COLOURS.idle) end
+        if device.z == self.floor and not device.inside and device.state == "on" then
+            addLine(device.x, device.y, COLOURS.idle, device.flow)
+        end
     end
     -- A producer's colour: a tank's, a generator's, or a unit's (its kind's, Units.define).
     local function producerColour(producer)
@@ -327,7 +352,7 @@ function ISBUPlan:layout()
         return data.utility == "water" and COLOURS.tank or COLOURS.producer
     end
     for _, producer in ipairs(data.producers) do
-        if producer.z == self.floor then addLine(producer.x, producer.y, producerColour(producer)) end
+        if producer.z == self.floor then addLine(producer.x, producer.y, producerColour(producer), producer.flow) end
     end
     -- Rooms on this floor, with what their devices do.
     local roomState = {}
@@ -501,6 +526,29 @@ function ISBUPlan:render()
         local size = square.size
         self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
         if square.ring then self:drawRectBorder(square.x - 2, square.y - 2, size + 4, size + 4, 1, 1, 1, 1) end
+    end
+    -- The flows: dots along each path, moving with the clock, over the squares they run between.
+    local moved = getTimestampMs() / 1000 * FLOW_SPEED
+    for _, flow in ipairs(self.flows) do
+        local points, lengths = flow.points, flow.lengths
+        -- A short path closer, so that it still shows a few.
+        local gap = math.max(5, math.min(FLOW_GAP, flow.length / 3))
+        local distance = BU.remainder(moved, gap)
+        while distance < flow.length do
+            local along = flow.toBox and distance or flow.length - distance
+            local index = 2
+            while index < #points and along > lengths[index] do
+                along = along - lengths[index]
+                index = index + 1
+            end
+            local a, b = points[index - 1], points[index]
+            local t = lengths[index] > 0 and math.min(1, along / lengths[index]) or 0
+            local x, y = a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t
+            -- A dark rim, so a dot shows on a square of its own colour too.
+            self:drawRect(x - FLOW_DOT / 2 - 1, y - FLOW_DOT / 2 - 1, FLOW_DOT + 2, FLOW_DOT + 2, 0.8, 0, 0, 0)
+            self:drawRect(x - FLOW_DOT / 2, y - FLOW_DOT / 2, FLOW_DOT, FLOW_DOT, 1, flow.r, flow.g, flow.b)
+            distance = distance + gap
+        end
     end
     local choosing = self.data and self.data.choosing
     for _, dot in ipairs(self.dots) do

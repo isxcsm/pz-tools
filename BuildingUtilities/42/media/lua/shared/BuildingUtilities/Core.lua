@@ -43,6 +43,10 @@ end
 
 -- A percentage as an argument of a text: "63%". The texts themselves hold no %, which the game's formatting takes
 -- for its own.
+-- What is left of value over whole sizes, from 0 up to size. Kahlua's % differs from Lua's on negative numbers and
+-- is wrong on the clock's milliseconds (getTimestampMs).
+function BU.remainder(value, size) return value - math.floor(value / size) * size end
+
 function BU.percent(value) return tostring(math.floor(value + 0.5)) .. "%" end
 
 function BU.sandbox(name, default)
