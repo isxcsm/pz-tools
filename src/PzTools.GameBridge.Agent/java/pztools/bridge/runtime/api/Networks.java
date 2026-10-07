@@ -62,7 +62,7 @@ final class Networks {
         this.meta = meta;
         this.owners = owners;
         members = new Members(game, buildings);
-        grid = new PowerGrid(loader, game, this, members, buildings);
+        grid = new PowerGrid(loader, game, this, members, buildings, lua);
         try { water = new WaterGrid(loader, game, this, members, buildings, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
         // The payload this one replaces writes its definitions to the mirror and hands over the rest it knows.
@@ -188,6 +188,7 @@ final class Networks {
             network.producers.clear();
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
+            network.standby.keySet().retainAll(producers);
             List<Position> squares = network.squares();
             network.settled.keySet().retainAll(squares);
             network.stored.keySet().retainAll(squares);
@@ -431,6 +432,8 @@ final class Networks {
                 lua.set(entry, "running", seen.activated());
                 lua.set(entry, "fuel", (double)seen.fuel());
                 lua.set(entry, "condition", (double)seen.condition());
+                // Off and not on standby: out of service, switched off by hand (fuel and condition tell one that cannot run).
+                if (!seen.activated() && network.standby.containsKey(producer)) lua.set(entry, "standby", true);
             }
             producers.add(entry);
         }
@@ -712,9 +715,9 @@ final class Networks {
     /**
      * Called by a newer payload as it takes over (see {@link #HANDOVER}), on the game's thread: writes the definitions
      * to the mirror, and gives what this payload knows of the networks beyond them, which the mirror does not keep: the
-     * producer in use and each producer as last seen, the supply, the load of consumers on squares that are not
-     * loaded, and the supply's history for food. A producer running on a square that is not loaded so goes on
-     * carrying its network.
+     * producer in use and each producer as last seen, with its standby mark, the supply, the load of consumers on
+     * squares that are not loaded, and the supply's history for food. A producer running on a square that is not loaded
+     * so goes on carrying its network, and one on standby there stays on standby.
      */
     private String handover() {
         try { write(); }
@@ -726,9 +729,13 @@ final class Networks {
             text.append("N\t").append(network.id).append('\t').append(network.supplied ? "1" : "").append('\t').append(network.suppliedAt)
                 .append('\t').append(network.load).append('\t').append(network.total).append('\t').append(network.loadComplete ? "1" : "")
                 .append('\t').append(key(network.inUse)).append('\n');
-            for (var seen : network.seen.entrySet())
+            for (var seen : network.seen.entrySet()) {
+                // Added later, at the end so that an earlier payload reads the line still: the standby mark, if any.
+                Integer standby = network.standby.get(seen.getKey());
                 text.append("E\t").append(key(seen.getKey())).append('\t').append(seen.getValue().activated() ? "1" : "").append('\t')
-                    .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition()).append('\n');
+                    .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition())
+                    .append(standby == null ? "" : "\t" + standby).append('\n');
+            }
             for (var settled : network.settled.entrySet())
                 text.append("T\t").append(settled.getKey()).append('\t').append(settled.getValue().lastHour()).append('\t')
                     .append(settled.getValue().fuel()).append('\t').append(settled.getValue().perHour()).append('\n');
@@ -800,8 +807,11 @@ final class Networks {
             switch (fields[0]) {
                 case "E" -> {
                     Producer producer = producer(fields[1]);
-                    if (network.producers.contains(producer))
-                        network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
+                    if (!network.producers.contains(producer)) continue;
+                    network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
+                    // From a payload before the standby marks, none: its generators that are off are out of service.
+                    if (fields.length > 5 && !fields[5].isEmpty())
+                        network.standby.put(producer, Integer.parseInt(fields[5]));
                 }
                 case "T" -> {
                     Position at = Position.parse(fields[1]);

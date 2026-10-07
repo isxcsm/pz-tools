@@ -97,6 +97,13 @@ final class Network {
     final Map<Position, Stored> stored = new HashMap<>();
     /** Each running producer before the game's last hourly update of it. */
     final Map<Position, Settled> settled = new HashMap<>();
+    /**
+     * The generators on standby, which the API may switch on when the one in use stops: switched off by the API, or
+     * stopped running for want of fuel or condition. Each by its {@code lastHour} when it was marked, which changes only
+     * while it runs (see PowerGrid.STANDBY). A generator that is off and not here is out of service: switched off by
+     * hand, or never switched on in the network.
+     */
+    final Map<Producer, Integer> standby = new HashMap<>();
     /** The producer that carries the load; null when the network has none running, and always for a child. */
     Producer inUse;
     /**

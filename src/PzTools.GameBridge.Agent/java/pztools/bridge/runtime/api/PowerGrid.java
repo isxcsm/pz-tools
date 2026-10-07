@@ -27,6 +27,13 @@ final class PowerGrid implements ApiHooks.Power {
     private static final ThreadLocal<boolean[]> PURE = ThreadLocal.withInitial(() -> new boolean[1]);
 
     static final String UTILITY = "power";
+    /**
+     * In the modData of a generator on standby (see Network.standby): its {@code lastHour} when it was marked. The world
+     * saves it with the generator, as it saves the generator's switch, and the game moves neither to the item a
+     * generator picked up becomes. The game changes {@code lastHour} only while the generator runs, so a mark whose
+     * hour is not the generator's is from before it ran again: the API did not switch it off since.
+     */
+    static final String STANDBY = "PZToolsStandby";
 
     private record Change(String id, String what, double hour) { }
 
@@ -120,12 +127,22 @@ final class PowerGrid implements ApiHooks.Power {
     private final Field itemsPowered, using, chunkRange, basePower;
     private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
     private final Method squarePowered, containerParent, containerSquare;
+    private final Kahlua lua;
+    // IsoObject.hasModData, which reads an object's modData without making it; null for a game without it.
+    private final Method modData, hasModData;
 
-    PowerGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings) throws ReflectiveOperationException {
+    PowerGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings, Kahlua lua)
+            throws ReflectiveOperationException {
         this.game = game;
         this.networks = networks;
         this.members = members;
         this.buildings = buildings;
+        this.lua = lua;
+        modData = game.objectType.getMethod("getModData");
+        Method has;
+        try { has = game.objectType.getMethod("hasModData"); }
+        catch (NoSuchMethodException none) { has = null; }
+        hasModData = has;
         Class<?> squareType = Game.type(loader, "zombie.iso.IsoGridSquare"), chunkType = Game.type(loader, "zombie.iso.IsoChunk");
         Class<?> generator = Game.type(loader, "zombie.iso.objects.IsoGenerator");
         Class<?> device = Game.type(loader, "zombie.radio.devices.DeviceData");
@@ -331,6 +348,8 @@ final class PowerGrid implements ApiHooks.Power {
             if (network == null || !(boolean)activated.invoke(generator)) return;
             // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
             network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator)));
+            // Running: no longer on standby, also when it is switched off again before the next frame.
+            if (!network.standby.isEmpty()) network.standby.remove(Producer.square(at));
             // Running before the API knew which producer was in use: the world was just loaded, or the player switched it on.
             if (network.inUse == null) network.adopted = Producer.square(at);
         } catch (ReflectiveOperationException failure) {
@@ -452,13 +471,17 @@ final class PowerGrid implements ApiHooks.Power {
 
     /**
      * Which producer carries the network under {@code "sequential"}: one runs at a time. The one the player switched on
-     * last carries it, and the API switches the others off. When the one in use runs out of fuel or breaks, the API
-     * switches on the first other producer, in order, that can run, from the hour the first stopped: the game then
-     * burns the hours since, as it does for a generator whose square was not loaded. Switched off by the player, the
-     * one in use stops the network. A producer whose square is not loaded counts as last seen, and the one in use as
-     * stopped once its fuel would have run out. A source is always as its mod last set it: switched on by the mod, it
-     * carries the load; no longer available, it stops at the hour the mod gave, and the next takes over from then. One
-     * taken out of the producers while in use stops now, and the next takes over.
+     * last carries it, and the API switches the others off, which puts them on standby. When the one in use runs out of
+     * fuel or breaks, the API switches on the first other producer, in order, that is on standby and can run, from the
+     * hour the first stopped: the game then burns the hours since, as it does for a generator whose square was not
+     * loaded. Switched off by the player, the one in use is out of service, and the next on standby takes over now; with
+     * none, the network stops. A generator out of service (switched off by hand, or off when the API first saw it
+     * without its standby mark) is never switched on by the API; switched on by hand, it carries the load and is in
+     * service again. A producer whose square is not loaded counts as last seen, and the one in use as stopped once its
+     * fuel would have run out. A source is always as its mod last set it: switched on by the mod, it carries the load;
+     * no longer available, it stops at the hour the mod gave, and the next takes over from then; switched off by its
+     * mod while available, it stops the network. One taken out of the producers while in use stops now, and the next
+     * takes over.
      */
     private void producers(Network network, Object cells, double hours, List<Change> changes) throws ReflectiveOperationException {
         var generators = new HashMap<Producer, Object>();
@@ -479,6 +502,11 @@ final class PowerGrid implements ApiHooks.Power {
             }
             loaded.add(producer);
             Seen last = network.seen.put(producer, now);
+            if (producer.source() == null) {
+                Object generator = generators.get(producer);
+                if (generator == null) network.standby.remove(producer);
+                else standby(network, producer, generator, now, last);
+            }
             // Switched on since last seen; a source only its mod switches, so one on at first sight was switched on too.
             if (now.activated() && (last == null ? producer.source() != null : !last.activated())) newcomers.add(producer);
         }
@@ -495,7 +523,9 @@ final class PowerGrid implements ApiHooks.Power {
             Settled settled = current.at() == null ? null : network.settled.get(current.at());
             if (loaded.contains(current)) {
                 if (!state.activated()) {
-                    if (state.canRun()) inUse = null;
+                    // Switched off while it can run: a generator by hand, out of service, and the next on standby takes
+                    // over now; a source by its mod, which stops the network.
+                    if (state.canRun()) inUse = current.source() != null ? null : next(network, current, generators);
                     else {
                         at = Math.min(hours, stoppedAt(network, current, settled, hours));
                         inUse = next(network, current, generators);
@@ -516,14 +546,21 @@ final class PowerGrid implements ApiHooks.Power {
         for (var entry : generators.entrySet()) {
             Producer producer = entry.getKey();
             Seen state = network.seen.get(producer);
+            Object generator = entry.getValue();
             if (producer.equals(inUse) && !state.activated()) {
                 // Started by the API, from the hour the last one stopped.
-                setActivated.invoke(entry.getValue(), true);
-                lastHour.setInt(entry.getValue(), (int)Math.floor(at));
+                setActivated.invoke(generator, true);
+                lastHour.setInt(generator, (int)Math.floor(at));
                 network.seen.put(producer, new Seen(true, state.fuel(), state.condition()));
+                network.standby.remove(producer);
+                mark(generator, null);
             } else if (!producer.equals(inUse) && state.activated()) {
-                setActivated.invoke(entry.getValue(), false);
+                // Switched off by the API: on standby.
+                setActivated.invoke(generator, false);
                 network.seen.put(producer, new Seen(false, state.fuel(), state.condition()));
+                int hour = lastHour.getInt(generator);
+                network.standby.put(producer, hour);
+                mark(generator, hour);
             }
         }
         // Sources are switched as generators are; the mod reads which is on in the state.
@@ -554,13 +591,46 @@ final class PowerGrid implements ApiHooks.Power {
 
     /**
      * The first producer of the network, in order, that can run, other than the one that stopped: a source its mod
-     * says is available, or a loaded generator.
+     * says is available, or a loaded generator on standby.
      */
     private static Producer next(Network network, Producer stopped, Map<Producer, Object> generators) {
         for (Producer producer : network.producers)
-            if (!producer.equals(stopped) && (producer.source() != null || generators.containsKey(producer))
+            if (!producer.equals(stopped) && (producer.source() != null || generators.containsKey(producer) && network.standby.containsKey(producer))
                     && network.seen.get(producer).canRun()) return producer;
         return null;
+    }
+
+    /**
+     * Whether a loaded generator is on standby now (see Network.standby), as it was seen last ({@code last}, null for
+     * the first time since the network was defined or the API took it over) and now; keeps the mark on the generator in
+     * step. Seen first, a generator that is off is on standby by its mark alone: one the player switched off, or never
+     * switched on, has none, and is never started by the API. One that stopped running since last seen and cannot run
+     * stopped for want of fuel or condition, not by hand: it stays in service, and takes over once it can run again.
+     * One that ran since it was marked is no longer on standby, whoever switched it off.
+     */
+    private void standby(Network network, Producer producer, Object generator, Seen now, Seen last) throws ReflectiveOperationException {
+        int hour = lastHour.getInt(generator);
+        Integer mark;
+        if (now.activated()) mark = null;
+        else if (last == null) mark = mark(generator);
+        else if (last.activated()) mark = now.canRun() ? null : hour;
+        else mark = network.standby.get(producer);
+        if (mark != null && mark != hour) mark = null;
+        if (mark == null) network.standby.remove(producer);
+        else network.standby.put(producer, mark);
+        mark(generator, mark);
+    }
+
+    /** The standby mark on a generator ({@link #STANDBY}), without making its modData; null for none. */
+    private Integer mark(Object generator) throws ReflectiveOperationException {
+        if (hasModData != null && !(boolean)hasModData.invoke(generator, Game.NONE)) return null;
+        return lua.get(modData.invoke(generator, Game.NONE), STANDBY) instanceof Double hour ? (int)hour.doubleValue() : null;
+    }
+
+    /** Sets the standby mark on a generator, or takes it off (null), when it differs. */
+    private void mark(Object generator, Integer hour) throws ReflectiveOperationException {
+        if (Objects.equals(mark(generator), hour)) return;
+        lua.set(modData.invoke(generator, Game.NONE), STANDBY, hour == null ? null : (double)hour);
     }
 
     /** When a producer that can no longer run stopped: a source at the hour its mod gave, a generator as it settled. */
@@ -615,7 +685,7 @@ final class PowerGrid implements ApiHooks.Power {
         for (Producer producer : root.producers) {
             if (producer.source() != null) continue;
             Seen state = root.seen.get(producer);
-            if (state != null && (producer.equals(root.inUse) || state.canRun())) fuel += state.fuel();
+            if (state != null && (producer.equals(root.inUse) || state.canRun() && root.standby.containsKey(producer))) fuel += state.fuel();
         }
         return fuel / perHour;
     }
