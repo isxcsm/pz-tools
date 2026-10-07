@@ -27,6 +27,7 @@ near the player and connects them to the test panel, once.
 - `bu_revive.lua`: a worn battery and the tools in the inventory with Electricity 4, and its context menu opened;
   `BUREVIVE_DONE=true` then running it again puts the level back.
 - The rest look at one thing (`bu_net`, `bu_rackdiag`, `bu_where`, `bu_flowdiag`) or check one game fact (`bu_plumb`,
-  `bu_rainbarrel`, `bu_handover`, `bu_relay`: the relay's click as a generator takes over).
+  `bu_rainbarrel`, `bu_handover`, `bu_relay`: the relay's click as a generator takes over; `bu_walllamp`: a lamp on an
+  outer wall listed as the building's).
 
 Files read with `getFileReader` lose non-ASCII letters: take Korean strings from `getText`.
