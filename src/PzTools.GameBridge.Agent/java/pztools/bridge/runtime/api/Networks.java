@@ -16,6 +16,8 @@ final class Networks {
     private static final int MAX_SPRITE = 256;
     // The key in the API's metatable, and the version of the text kept there.
     private static final String MIRROR = "networks", FORMAT = "pztools-networks 1";
+    // The most a load factor multiplies a load by.
+    private static final double MAX_LOAD_FACTOR = 100;
 
     /** The mod a handle belongs to, or null when the value is not one of the API's handles. */
     @FunctionalInterface interface Owners { String of(Object handle) throws ReflectiveOperationException; }
@@ -155,6 +157,17 @@ final class Networks {
             }
             return new Object[0];
         });
+        function(table, "setLoadFactor", (call, arguments) -> {
+            Network network = mine(arguments, call);
+            if (!PowerGrid.UTILITY.equals(network.utility))
+                throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + ", which has no load");
+            float factor = (float)Arguments.number(arguments, 2, call, "factor", 0, MAX_LOAD_FACTOR);
+            if (network.loadFactor != factor) {
+                network.loadFactor = factor;
+                saved();
+            }
+            return new Object[0];
+        });
         function(table, "addBuilding", (call, arguments) -> {
             Network network = mine(arguments, call);
             Position at = square(arguments, 2, call);
@@ -231,6 +244,7 @@ final class Networks {
     private void power(Object result, Network network) throws ReflectiveOperationException {
         lua.set(result, "load", (double)network.total);
         lua.set(result, "ownLoad", (double)network.load);
+        lua.set(result, "loadFactor", (double)network.loadFactor);
         lua.set(result, "complete", network.loadComplete);
         if (network.inUse != null) lua.set(result, "producer", square(network.inUse));
         Double hoursLeft = grid.hoursLeft(network);
@@ -371,7 +385,8 @@ final class Networks {
             text.append("N\t").append(network.id).append('\t').append(network.owner).append('\t')
                 .append(network.utility).append('\t').append(network.policy).append('\t')
                 .append(network.parent == null ? "" : network.parent).append('\t')
-                .append(network.enabled ? "" : "off").append('\n');
+                .append(network.enabled ? "" : "off").append('\t')
+                .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\n');
             for (Position at : network.producers) text.append("P\t").append(at).append('\n');
             for (Position at : network.buildings) text.append("B\t").append(at).append('\n');
             for (Thing thing : network.excluded) text.append("X\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
@@ -404,6 +419,7 @@ final class Networks {
                     if (fields.length > 5 && !fields[5].isEmpty()) network.parent = fields[5];
                     // Switched off when taken over: off before, as far as the API knows.
                     if (fields.length > 6 && "off".equals(fields[6])) network.enabled = network.enabledBefore = false;
+                    if (fields.length > 7 && !fields[7].isEmpty()) network.loadFactor = Float.parseFloat(fields[7]);
                 }
                 case "P" -> network.producers.add(Position.parse(fields[1]));
                 case "B" -> network.buildings.add(Position.parse(fields[1]));

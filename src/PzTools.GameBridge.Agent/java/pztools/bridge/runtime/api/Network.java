@@ -47,6 +47,8 @@ final class Network {
     final Set<Thing> excluded = new LinkedHashSet<>(), included = new LinkedHashSet<>();
     /** Switched off, it has no supply, nor have its children; its producer in use carries no load. */
     boolean enabled = true;
+    /** What its load, its children's included, is multiplied by on its way to the producer: 1 for none. */
+    float loadFactor = 1f;
     /**
      * The hours it was switched on (true) and off (false) since it was defined, kept for food as {@link #history} is;
      * {@code enabledBefore} is whether it was on before the first.
@@ -84,7 +86,7 @@ final class Network {
     Position adopted;
     /** Each consumer's consumption, as last seen loaded. */
     Map<Thing, Float> consumption = Map.of();
-    /** Its own consumers' load, and with its children's. */
+    /** Its own consumers' load; and with its children's, times its load factor. */
     float load, total;
     boolean loadComplete;
     long loadAt;

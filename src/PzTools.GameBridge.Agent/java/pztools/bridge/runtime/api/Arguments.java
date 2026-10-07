@@ -17,6 +17,13 @@ final class Arguments {
         return (int)number.doubleValue();
     }
 
+    static double number(Object[] arguments, int index, String call, String name, double min, double max) {
+        Object value = index < arguments.length ? arguments[index] : null;
+        if (!(value instanceof Number number) || !(number.doubleValue() >= min && number.doubleValue() <= max))
+            throw new IllegalArgumentException(call + ": " + name + " must be a number from " + min + " to " + max);
+        return number.doubleValue();
+    }
+
     static String string(Object[] arguments, int index, String call, String name) {
         Object value = index < arguments.length ? arguments[index] : null;
         if (!(value instanceof String text)) throw new IllegalArgumentException(call + ": " + name + " must be a string");

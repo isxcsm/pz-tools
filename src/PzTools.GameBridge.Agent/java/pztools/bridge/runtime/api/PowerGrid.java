@@ -546,13 +546,13 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     /**
-     * The load of the network and of its children that are switched on, theirs included: what it draws while it has
-     * supply. Networks form a tree of one utility (see Networks.setParent).
+     * The load of the network and of its children that are switched on, theirs included, times its load factor: what it
+     * draws while it has supply. Networks form a tree of one utility (see Networks.setParent).
      */
     private static float total(Network network, List<Network> networks) {
         float total = network.load;
         for (Network child : networks) if (network.id.equals(child.parent) && child.enabled) total += total(child, networks);
-        return total;
+        return total * network.loadFactor;
     }
 
     /**

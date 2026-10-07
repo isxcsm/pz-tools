@@ -44,10 +44,11 @@ public final class GameApiTest {
         sequence(api);
         children(api);
         switches(api);
+        loadFactors(api);
         water(api);
         food(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, ages food by their supply, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, ages food by their supply, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -591,6 +592,60 @@ public final class GameApiTest {
         food = aged(container, 2530);
         food.updateAge(false);
         check(near(food.age, 10 / 24.0), "Food aged chilled in a network a newer payload found switched off: " + food.age * 24);
+        call(networks, "remove", mod, "sub");
+        call(networks, "remove", mod, "main");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A load factor multiplies the load of a network and its children on its way to the producer: the state, the fuel
+     * burned and the hours left follow it, a child's factor counts inside its parent's, and a newer payload keeps it.
+     */
+    private static void loadFactors(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "main", "power", "sequential");
+        call(networks, "setProducers", mod, "main", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "main", 11.0, 11.0, 0.0);
+        call(networks, "define", mod, "sub", "power", "sequential");
+        call(networks, "addBuilding", mod, "sub", 20.0, 20.0, 0.0);
+        call(networks, "setParent", mod, "sub", "main");
+        generator.setActivated(true);
+        frame();
+        KahluaTable main = state(networks, "main");
+        double ownLoad = (Double)main.rawget("ownLoad"), subLoad = (Double)state(networks, "sub").rawget("load");
+        double hoursLeft = (Double)main.rawget("hoursLeft");
+        check(main.rawget("loadFactor").equals(1.0) && near((Double)main.rawget("load"), ownLoad + subLoad), "A network starts with a load factor");
+        LuaEventManager.raised.clear();
+        call(networks, "setLoadFactor", mod, "main", 1.5);
+        frame();
+        main = state(networks, "main");
+        double load = (ownLoad + subLoad) * 1.5;
+        check(main.rawget("loadFactor").equals(1.5) && near((Double)main.rawget("load"), load) && near((Double)main.rawget("ownLoad"), ownLoad)
+            && raised("main", "load", GameTime.getInstance().hours), "The load factor does not multiply the load");
+        check(near(generator.getTotalPowerUsing(), (0.02 + load) * 0.1), "The producer does not burn the multiplied load");
+        check((Double)main.rawget("hoursLeft") < hoursLeft, "The hours left do not follow the load factor");
+        // A child's factor counts inside its parent's.
+        call(networks, "setLoadFactor", mod, "sub", 2.0);
+        frame();
+        check(near((Double)state(networks, "sub").rawget("load"), subLoad * 2)
+            && near((Double)state(networks, "main").rawget("load"), (ownLoad + subLoad * 2) * 1.5), "A child's load factor does not count in its parent");
+        rejects(networks, "setLoadFactor", "factor must be a number from 0.0 to 100.0", mod, "main", -1.0);
+        rejects(networks, "setLoadFactor", "factor must be a number from 0.0 to 100.0", mod, "main", "more");
+        rejects(networks, "setLoadFactor", "factor must be a number from 0.0 to 100.0", mod, "main", 101.0);
+        Object other = call(api, "client", "other.mod").get(0);
+        rejects(networks, "setLoadFactor", "main belongs to another mod", other, "main", 1.0);
+        call(networks, "define", mod, "pipes", "water", "fullest");
+        rejects(networks, "setLoadFactor", "pipes carries water, which has no load", mod, "pipes", 1.0);
+        call(networks, "remove", mod, "pipes");
+        // A newer payload keeps the factors.
+        GameApi.register(LuaManager.class);
+        frame();
+        check(state(networks, "main").rawget("loadFactor").equals(1.5) && state(networks, "sub").rawget("loadFactor").equals(2.0),
+            "A newer payload lost the load factors");
         call(networks, "remove", mod, "sub");
         call(networks, "remove", mod, "main");
         frame();

@@ -144,7 +144,8 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
 | `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's that are switched on included; what it draws while it has supply, also while it is switched off) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
+| `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' alone, without the factor) and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
@@ -191,6 +192,7 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
   supply started and stopped (see Food below).
 - Switch: `setEnabled` switches a network off and on, for power and water.
+- Load factor: `setLoadFactor` multiplies a power network's load on its way to the producer.
 - Not yet: `"parallel"`.
 
 ### Power
@@ -201,8 +203,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   producer in use keeps running as the game runs it and burns its base consumption alone, and a child
   switched off adds nothing to its parent's load.
 - **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
-  constants on `IsoGenerator`) over its consumers and its children's, computed when a consumer is
-  added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
+  constants on `IsoGenerator`) over its consumers and its children's, each network's times its load
+  factor, computed when a consumer is added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
   loaded is the last value computed while they were.
 - **Range.** A producer in a network powers no square around it. It adds itself to no chunk
   (`IsoChunk.addGeneratorPos`), and its consumption is the network's load.
