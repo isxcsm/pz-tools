@@ -417,7 +417,7 @@ function ISBUPlan:layout()
         for _, edge in ipairs(edges) do cover(edge.x, edge.y, edge.across and edge.len or 0, edge.across and 0 or edge.len) end
     end
     local left = PAD + (#self.levels > 1 and STRIP_W or 0)
-    local top = FONT_HGT_SMALL + PAD * 2
+    local top = self.topH
     -- The legend, in two columns at the bottom, above the status line.
     local legendH = 0
     if self:legendShown() then
@@ -616,7 +616,7 @@ end
 function ISBUPlan:layoutStrip()
     self.strip = {}
     if #self.levels < 2 then return end
-    local top = FONT_HGT_SMALL + PAD * 2
+    local top = self.topH or FONT_HGT_SMALL + PAD * 2
     local rows = math.max(3, math.floor((self.height - top - PAD) / CELL_H))
     local downward = {}
     for index = #self.levels, 1, -1 do downward[#downward + 1] = self.levels[index] end
@@ -645,55 +645,89 @@ function ISBUPlan:layoutStrip()
 end
 
 -- The top bar, laid out with the rest: the floor shown with what its devices draw (with several floors, a click on
--- it lists them) and how far its name reaches either side of the middle; the switches, right to left: the legend,
--- the zone (where zones can be edited), the range, Fit (zoomed or moved), each { name, x, w, text }.
+-- it lists them) and the switches, right to left: the legend, the zone (where zones can be edited), the range, the
+-- supply lines, Fit (zoomed or moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
+-- switches that do not fit go to a row below, and the floor's name keeps the middle while it fits beside them, else
+-- moves into the room they leave, without the load where that is too narrow (the status line then has it all), and
+-- takes a row of its own above them when even its name does not fit. The bar's height is topH.
 function ISBUPlan:layoutTop()
     local data = self.data
+    local measure = getTextManager()
+    local function width(text) return measure:MeasureStringX(UIFont.Small, text) end
     local name = BU.floorName(self.floor or 0)
-    local text = name
+    local full = name
     if data and data.utility == "power" then
-        text = getText("IGUI_BU_FloorLoad", text, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
+        full = getText("IGUI_BU_FloorLoad", full, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
     end
-    if #(self.levels or {}) > 1 then text = text .. "  v" end
-    self.floorTitle, self.titleHalf = text, getTextManager():MeasureStringX(UIFont.Small, name) / 2 + 60
-    local toggles, right = {}, self.width - PAD
+    local more = #(self.levels or {}) > 1 and "  v" or ""
+    -- The switches, in rows from the top, right to left.
+    local toggles, row, right, rights = {}, 0, self.width - PAD, {}
     local function add(toggleName, w, label)
+        if right - w < PAD and #toggles > 0 then row, right = row + 1, self.width - PAD end
         right = right - w
-        toggles[#toggles + 1] = { name = toggleName, x = right, w = w, text = label }
+        toggles[#toggles + 1] = { name = toggleName, x = right, row = row, w = w, text = label }
         right = right - 4
+        rights[row] = right
     end
     add("legend", TOGGLE_W, "?")
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
     add("flow", FLOW_W, getText("IGUI_BU_PlanFlow_" .. ISBUPlan.flowState()))
     if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
+    -- The floor's name: beside the first row's switches, else a row of its own (cut short only if even that is too
+    -- narrow).
+    local text, roomRight = full .. more, rights[0]
+    if width(text) > roomRight - PAD then text = name .. more end
+    local own = width(text) > roomRight - PAD
+    if own then
+        roomRight = self.width - PAD
+        text = width(full .. more) <= roomRight - PAD and full .. more or name .. more
+        local cut = name
+        while width(text) > roomRight - PAD and #cut > 1 do
+            cut = cut:sub(1, -2)
+            text = cut .. "..." .. more
+        end
+        for _, toggle in ipairs(toggles) do toggle.row = toggle.row + 1 end
+        row = row + 1
+    end
+    local rowH = FONT_HGT_SMALL + 6
+    for _, toggle in ipairs(toggles) do toggle.y = PAD - 1 + toggle.row * rowH end
+    local titleW = width(text)
+    local titleX = math.floor((self.width - titleW) / 2)
+    if titleX < PAD or titleX + titleW > roomRight then titleX = math.floor(PAD + (roomRight - PAD - titleW) / 2) end
+    self.floorTitle, self.titleX, self.titleW = text, titleX, titleW
+    -- The whole title for the status line when the bar shows less.
+    self.titleFull = text ~= full .. more and full or nil
     self.toggles = toggles
+    self.topH = FONT_HGT_SMALL + PAD * 2 + row * rowH
 end
 
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
     if not self.floorTitle then self:layoutTop() end
-    self:drawTextCentre(self.floorTitle, self.width / 2, PAD, 1, 1, 1, 1, UIFont.Small)
+    self:drawText(self.floorTitle, self.titleX, PAD, 1, 1, 1, 1, UIFont.Small)
     local legend = self:legendShown()
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
             or toggle.name == "flow" and ISBUPlan.flowState() ~= "off"
-        if on then self:drawRect(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
-        self:drawRectBorder(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
+        if on then self:drawRect(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
+        self:drawRectBorder(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
         local lit = toggle.name ~= "legend" or legend
-        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, PAD, 1, lit and 0.9 or 0.6, lit and 0.5 or 0.6,
+        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, 1, lit and 0.9 or 0.6, lit and 0.5 or 0.6,
             toggle.name == "legend" and 1 or 0.9, UIFont.Small)
     end
 end
 
 -- Which part of the top bar is under the mouse: a switch's name, "title" (the floor's name) or nil.
 function ISBUPlan:toggleAt(x, y)
-    if y >= PAD + FONT_HGT_SMALL + 2 then return nil end
     if not self.floorTitle then self:layoutTop() end
+    if y >= self.topH - PAD + 2 then return nil end
     for _, toggle in ipairs(self.toggles) do
-        if x >= toggle.x and x < toggle.x + toggle.w then return toggle.name end
+        if x >= toggle.x and x < toggle.x + toggle.w and y >= toggle.y and y < toggle.y + FONT_HGT_SMALL + 2 then
+            return toggle.name
+        end
     end
-    if math.abs(x - self.width / 2) <= self.titleHalf then return "title" end
+    if x >= self.titleX - 4 and x <= self.titleX + self.titleW + 4 and y < PAD + FONT_HGT_SMALL + 2 then return "title" end
     return nil
 end
 
@@ -910,7 +944,9 @@ function ISBUPlan:onMouseMove(dx, dy)
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
         self.status = getText("IGUI_BU_PlanRangeHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and #(self.levels or {}) > 1 then
-        self.status = getText("IGUI_BU_FloorMenuHint")
+        self.status = (self.titleFull and self.titleFull .. "  " or "") .. getText("IGUI_BU_FloorMenuHint")
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and self.titleFull then
+        self.status = self.titleFull
     elseif self:inMap(self:getMouseX(), self:getMouseY()) then
         self.status = getText(#(self.levels or {}) > 1 and "IGUI_BU_PlanHint" or "IGUI_BU_PlanHintOne")
     else

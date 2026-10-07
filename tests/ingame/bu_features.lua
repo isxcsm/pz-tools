@@ -1,10 +1,10 @@
 -- The sandbox's features page (BU.enabled): each toggle turned off in SandboxVars at runtime, the world brought to it
 -- (Changes.applyFeatures, as the server's minute does) and the passes that use it run; what is off must do nothing
 -- and be hidden, and come back once it is on again. Then both utilities off together, the plan's supply lines'
--- switch (flow, lines, off, and a producer's line under the mouse) and its supply across floors (riser, badge, strip
--- mark). Puts a pump, a sprinkler and a filter down near the player, wired to the test panel (bu_setup.lua; tier 2 or
--- more), and takes them away; leaves the options, the switch and the panel as it found them. "[bufeat]" lines, each
--- check "ok" or "BAD".
+-- switch (flow, lines, off, and a producer's line under the mouse), its supply across floors (riser, badge, strip
+-- mark) and its top bar at the least width. Puts a pump, a sprinkler and a filter down near the player, wired to the
+-- test panel (bu_setup.lua; tier 2 or more), and takes them away; leaves the options, the switch and the panel as it
+-- found them. "[bufeat]" lines, each check "ok" or "BAD".
 RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Panels, Changes, Units, Energy, Water, WaterUnits, WaterRun, PanelLook, PanelWindow = BU.Store,
@@ -338,6 +338,44 @@ if badge then
         check("floors: a click on the riser goes to the box's floor", plan.floor, boxZ)
     end
 end
+-- The top bar at the plan's least width with all it can hold (every switch, Fit, a long floor name with the load,
+-- several floors): no two parts overlap, none leaves the bar, and the map starts below it.
+local savedWidth = plan.width
+local wide = {}
+for key, value in pairs(real) do wide[key] = value end
+wide.utility, wide.zoneEditable = "power", true
+plan:setData(wide)
+plan:setWidth(BU.PanelUi.MIN_PLAN)
+plan.zoom = 2
+plan:layout()
+plan.floor, plan.floorLoad, plan.levels = -12, { [-12] = 123.45 }, { -12, 0 }
+local height = getTextManager():getFontHeight(UIFont.Small) + 2
+for _, state in ipairs(ISBUPlan.FLOW_STATES) do
+    ISBUPlan.setFlowState(state)
+    plan:layoutTop()
+    local boxes = { { what = "title", x = plan.titleX, y = 7, w = plan.titleW, h = height } }
+    for _, toggle in ipairs(plan.toggles) do
+        boxes[#boxes + 1] = { what = toggle.name, x = toggle.x, y = toggle.y, w = toggle.w, h = height }
+    end
+    local clash
+    for index, a in ipairs(boxes) do
+        if a.x < 8 or a.x + a.w > plan.width - 8 or a.y + a.h > plan.topH then clash = a.what .. " outside" end
+        for other = index + 1, #boxes do
+            local b = boxes[other]
+            if a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h then
+                clash = a.what .. " on " .. b.what
+            end
+        end
+    end
+    say("top bar", plan.width, state, "title", plan.floorTitle, "full", plan.titleFull, "switches", #plan.toggles,
+        "height", plan.topH)
+    check("top bar " .. state .. ": nothing overlaps at the least width", clash, nil)
+    check("top bar " .. state .. ": every switch", #plan.toggles, 5)
+end
+plan:layout()
+check("top bar: the map below it", plan.map ~= nil and plan.map.top >= plan.topH, true)
+plan.zoom = 1
+plan:setWidth(savedWidth)
 plan:setData(real)
 plan:showFloor(boxZ)
 ISBUPlan.setFlowState(savedFlow)
