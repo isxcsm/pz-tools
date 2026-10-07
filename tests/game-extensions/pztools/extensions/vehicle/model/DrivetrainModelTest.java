@@ -66,7 +66,7 @@ public final class DrivetrainModelTest {
         reject(Map.of("unknown", "1"));
         reject(Map.of("low_mode", "yes"));
         reject(Map.of("upshift_rpm_fraction", "0.65", "downshift_rpm_fraction", "0.55"));
-        check(DrivetrainConfig.fromMap(Map.of("low_mode", "true")).lowMode, "factory alias");
+        check(DrivetrainConfig.parse(Map.of("low_mode", "true")).lowMode, "low mode flag");
         check(VehicleProfile.resolve("unknown", 4, 120) == null, "unknown engine falls through");
         check(VehicleProfile.resolve("generic", 8, 120) == null, "unvalidated gear count falls through");
         check(VehicleProfile.resolve("generic", 4, Double.NaN) == null, "invalid script speed rejected");

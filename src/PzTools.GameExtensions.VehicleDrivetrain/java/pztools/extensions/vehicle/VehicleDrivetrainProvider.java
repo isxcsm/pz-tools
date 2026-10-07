@@ -118,7 +118,6 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public Support initialize(Instrumentation instrumentation,ClassLoader loader) throws Exception {
         if(retired || disposed) return new Support(false,"module-retired");
-        if(initialized) return new Support(transformationFailure.get()==null,"game-code-changed");
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
         if(Class.forName(ControlPoints.class.getName(),false,loader)!=ControlPoints.class) return new Support(false,"unsupported-hook-loader");

@@ -74,7 +74,9 @@ public final class ModuleSlotsTest {
         check(host.deactivate("connection-ended").state().equals("Disabled"), "everything retires cleanly");
 
         check(apply(host, game, process, world, "pztools.unknown-module", -1, 8, Map.of()).state().equals("Unsupported"), "an uncatalogued module is refused");
-        check(host.status("pztools.unknown-module").state().equals("Unsupported") || host.status("pztools.never-applied").state().equals("Disabled"), "and asking about one is harmless");
+        // A refused request leaves no slot behind, so the module reads as never applied.
+        check(host.status("pztools.unknown-module").state().equals("Disabled"), "a refused module keeps no slot");
+        check(host.status("pztools.never-applied").state().equals("Disabled"), "and asking about one never applied is harmless");
         host.close();
         System.out.println("PASS module slots: two modules active together, shared-revision no-op, per-module update, fault and retirement, host-wide revocation");
     }

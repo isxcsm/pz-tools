@@ -36,7 +36,11 @@ New-Item -ItemType Directory -Force $fixtureClasses | Out-Null
 & $javac --release 25 -encoding UTF-8 -cp $runtimeJar -d $fixtureClasses (Join-Path $root 'tests/game-extensions-fixture/pztools/extensions/fixture/TestSaveProvider.java')
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture compilation failed.' }
 $env:PZTOOLS_EXTENSION_FIXTURE_JAR = Join-Path $output 'fixture-module.jar'
-[IO.File]::WriteAllText((Join-Path $output 'fixture-module.mf'), "Manifest-Version: 1.0`nPzTools-Extension-Api: 3`n`n", [Text.UTF8Encoding]::new($false))
+# Fixture archives declare the extension ABI the host was built with: ExtensionApi.HOST_ABI, as the build reads it.
+$apiSource = Join-Path $root 'src/PzTools.GameExtensions.Java/java/pztools/extensions/api/ExtensionApi.java'
+$hostAbi = [regex]::Match([IO.File]::ReadAllText($apiSource), '\bHOST_ABI\s*=\s*([0-9]+)\s*;').Groups[1].Value
+if (-not $hostAbi) { throw "ExtensionApi.HOST_ABI could not be read from $apiSource." }
+[IO.File]::WriteAllText((Join-Path $output 'fixture-module.mf'), "Manifest-Version: 1.0`nPzTools-Extension-Api: $hostAbi`n`n", [Text.UTF8Encoding]::new($false))
 & $jar --create --manifest (Join-Path $output 'fixture-module.mf') --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools/extensions/fixture
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.' }
 

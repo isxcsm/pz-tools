@@ -118,7 +118,6 @@ public final class DrivetrainConfig {
         if (values == null) throw new IllegalArgumentException("Drivetrain settings are required");
         return new DrivetrainConfig(values);
     }
-    public static DrivetrainConfig fromMap(Map<String, String> values) { return parse(values); }
 
     private static boolean flag(Map<String, String> values, String key, boolean fallback) {
         String value = values.getOrDefault(key, fallback ? "true" : "false");
