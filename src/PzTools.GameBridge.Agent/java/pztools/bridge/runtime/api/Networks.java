@@ -637,9 +637,13 @@ final class Networks {
     }
 
     /** Keeps the definitions where a newer payload finds them, when they changed since they were last kept. */
-    private void flush() throws ReflectiveOperationException {
-        if (!dirty) return;
-        dirty = false;
+    private void flush() throws ReflectiveOperationException { if (dirty) write(); }
+
+    /**
+     * Keeps the definitions where a newer payload finds them, as they are now: with the sources as the frames last
+     * switched them, which is no definition change.
+     */
+    private void write() throws ReflectiveOperationException {
         var text = new StringBuilder(FORMAT).append('\n');
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.owner).append('\t')
@@ -663,6 +667,7 @@ final class Networks {
             for (Thing thing : network.included) text.append("I\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
         }
         lua.set(meta, MIRROR, text.toString());
+        dirty = false;
     }
 
     /** The definitions an earlier payload kept, if any. */
@@ -712,7 +717,7 @@ final class Networks {
      * carrying its network.
      */
     private String handover() {
-        try { flush(); }
+        try { write(); }
         catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
         var text = new StringBuilder(STATE).append('\n');
         for (Network network : networks.values()) {
