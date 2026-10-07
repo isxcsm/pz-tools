@@ -191,7 +191,9 @@ In installed mode, extensions stay in the game until it exits.
 - **The request.** While installed, the app writes `resident.tsv` to the install folder whenever it
   changes: every two seconds it builds it from the extension settings, the deployed catalogue and
   the tuning files, the same way the app builds an `APPLY`, and writes it only when it differs. A
-  module whose tuning file cannot be read is left out, so the game keeps what it runs.
+  module whose configuration cannot be built (a tuning file unreadable or invalid) is written off,
+  as the app turns it off while connected
+  ([failure handling](game-extensions.md#failure-handling)); its saved switch stays as it is.
 - **The resident controller.** The payload's `ResidentExtensions` holds the lifecycle slot when no
   app is connected. Once a second it reads `resident.tsv` and, in a loaded local world, asks for each
   module that is on and not already running at that revision in that world, and turns off each one

@@ -67,15 +67,18 @@ public static class ResidentExtensionRequest
         foreach (var definition in catalogue.Where(definition => definition.ActivationKind == ExtensionActivationKind.Continuous))
         {
             var preference = settings.Extensions.GetValueOrDefault(definition.Id) ?? new();
+            bool on = preference.Enabled;
             string configuration = "";
-            if (preference.Enabled)
+            if (on)
             {
-                // A module whose tuning cannot be read is left as the game has it, as the app leaves it when connected.
+                // A module whose configuration cannot be built (a tuning file unreadable or invalid) is off, as the app
+                // turns it off while connected, where the request fails as configuration-rejected
+                // (docs/design/game-extensions.md, "Failure handling"): the game runs its own code.
                 try { configuration = ContinuousConfiguration.Encode(ContinuousConfiguration.For(definition.Id, bridgeDirectory, runtimeRoot, preference)); }
                 catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
-                    or FormatException or OverflowException or Tomlyn.TomlException) { continue; }
+                    or FormatException or OverflowException) { on = false; }
             }
-            text.Append("module\t").Append(definition.Id).Append('\t').Append(preference.Enabled ? "on" : "off").Append('\t')
+            text.Append("module\t").Append(definition.Id).Append('\t').Append(on ? "on" : "off").Append('\t')
                 .Append(preference.ForceVersion ? "force" : "normal").Append('\t').Append(configuration).Append('\n');
         }
         return text.ToString();

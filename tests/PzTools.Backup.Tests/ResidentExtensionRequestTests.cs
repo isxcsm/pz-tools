@@ -40,17 +40,22 @@ public sealed class ResidentExtensionRequestTests
     }
 
     [Fact]
-    public void Build_LeavesOutAModuleWhoseTuningCannotBeRead()
+    public void Build_TurnsOffAModuleWhoseConfigurationCannotBeBuilt()
     {
         using var temp = new TempDirectory();
         var (bridge, runtime) = Folders(temp);
         var store = new ExtensionSettingsStore(runtime);
-        store.SetEnabled(VehicleDrivetrainExtension.Id, true, store.Read().Revision);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(Enabled: true, ForceVersion: true), store.Read().Revision);
         var tuning = VehicleDrivetrainConfiguration.OverridePath(runtime);
         Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
         File.WriteAllText(tuning, "force_scale = 99");
-        // The game keeps what it runs, as the app does while connected when a tuning file is refused.
-        Assert.DoesNotContain("module\t", ResidentExtensionRequest.Build(bridge, runtime));
+        // Off, as the app turns it off while connected (configuration-rejected): the game runs its own code. The saved
+        // preference is the app's to change, not the request's.
+        Assert.Equal(["off", "force", ""], Fields(ResidentExtensionRequest.Build(bridge, runtime), VehicleDrivetrainExtension.Id)[2..]);
+        Assert.True(store.Read().Extensions[VehicleDrivetrainExtension.Id].Enabled);
+        // Once the file can be read again, the module is on again.
+        File.WriteAllText(tuning, "force_scale = 0.9");
+        Assert.Equal("on", Fields(ResidentExtensionRequest.Build(bridge, runtime), VehicleDrivetrainExtension.Id)[2]);
     }
 
     [Fact]

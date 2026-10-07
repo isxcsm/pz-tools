@@ -212,6 +212,10 @@ game.
 The lease and the other modules carry on. `RestartRequired` stays latched for the whole game
 process, across world changes, until the game restarts.
 
+The [resident request](startup-loader.md#resident-extensions) follows the same rule for a
+configuration it cannot build: the module is written `off`, so a game running without the app
+runs its own code too. It writes no settings; while the app is connected, the scheduler does.
+
 A link that cannot be made or breaks (the helper cannot attach, the bootstrap is busy with a payload
 reload, the connection ends or a command gets no answer) is not definitive: the game was not asked,
 or could not answer. Every wanted module is reported `FaultedPassThrough` / `connection-unavailable`,
