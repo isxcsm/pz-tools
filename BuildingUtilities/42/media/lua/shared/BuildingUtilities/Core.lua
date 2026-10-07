@@ -8,7 +8,7 @@ BU.UTILITIES = { "power", "water" }
 BU.POLICY = { power = "sequential", water = "fullest" }
 BU.API_VERSION = 1
 -- Breaker box tiers: an upgrade carries more load, reaches farther and can do more (below).
-BU.TIERS = 3
+BU.TIERS = 4
 
 function BU.log(...)
     local parts = {}
@@ -66,7 +66,7 @@ function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) e
 function BU.refundPercent() return math.max(0, math.min(100, BU.sandbox("RefundPercent", 50))) end
 
 -- A box carries so much power for its tier; past it, its breaker trips.
-local CAPACITY_DEFAULTS = { 0.3, 0.6, 1.5 }
+local CAPACITY_DEFAULTS = { 0.3, 0.6, 1.0, 1.5 }
 function BU.overloadEnabled() return BU.sandbox("OverloadEnabled", true) == true end
 function BU.capacity(tier)
     tier = math.max(1, math.min(BU.TIERS, tier or 1))
@@ -85,7 +85,7 @@ end
 -- not essential, the largest first, before its breaker trips.
 BU.TIMER_TIER = 2
 BU.LINK_TIER = 2
-BU.SMART_TIER = 3
+BU.SMART_TIER = 4
 
 -- Electricity experience for wiring: so much times the sandbox's multiplier (0: none).
 function BU.xpMultiplier() return math.max(0, BU.sandbox("ExperienceMultiplier", 1)) end

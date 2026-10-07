@@ -20,15 +20,17 @@ local KEY = "BuildingUtilities"
 -- changes it (BU.Changes).
 Store.KEY = KEY
 Store.LOG_SIZE = 30
-local VERSION = 2
+-- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there).
+local VERSION = 3
 
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, timed = {} }
 end
 
 -- A panel saved by an older version gets what this one keeps.
-local function migrate(panel)
+local function migrate(panel, from)
     panel.tier = panel.tier or 1
+    if from < 3 and panel.tier == 3 then panel.tier = 4 end
     panel.tripped = panel.tripped == true
     panel.log = panel.log or {}
     for _, utility in ipairs(BU.UTILITIES) do
@@ -46,7 +48,7 @@ function Store.data()
         data.next = 1
         data.panels = {}
     elseif data.version < VERSION then
-        for _, panel in pairs(data.panels) do migrate(panel) end
+        for _, panel in pairs(data.panels) do migrate(panel, data.version) end
         data.version = VERSION
     end
     return data

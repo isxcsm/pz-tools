@@ -39,6 +39,7 @@ end
 local UPGRADES = {
     [2] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 5 }, { Costs.PART, 5 } }, skill = 4 },
     [3] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 10 }, { Costs.PART, 10 }, { Costs.SHEET, 2 } }, skill = 6 },
+    [4] = { tools = { "screwdriver" }, items = { { Costs.WIRE, 15 }, { Costs.PART, 15 }, { Costs.SHEET, 4 } }, skill = 8 },
 }
 function Costs.upgrade(tier) return UPGRADES[tier] end
 

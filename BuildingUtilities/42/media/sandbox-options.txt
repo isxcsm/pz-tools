@@ -62,8 +62,14 @@ option BuildingUtilities.Capacity2
 
 option BuildingUtilities.Capacity3
 {
-    type = double, min = 0.05, max = 10.0, default = 1.5,
+    type = double, min = 0.05, max = 10.0, default = 1.0,
     page = BuildingUtilities, translation = BuildingUtilities_Capacity3,
+}
+
+option BuildingUtilities.Capacity4
+{
+    type = double, min = 0.05, max = 10.0, default = 1.5,
+    page = BuildingUtilities, translation = BuildingUtilities_Capacity4,
 }
 
 option BuildingUtilities.LossPerWire
