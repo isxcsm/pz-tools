@@ -34,13 +34,14 @@ public final class GameApi {
 
     /** In a game the startup loader started, once per payload: the game's Lua environments get the API from now on. */
     public static void start() {
+        // Before the handler is published: the game's Lua may start at once, and its start sets the API and clears this.
+        pending = true;
         try { ApiHooks.set(GameApi::luaStarted); }
         catch (LinkageError olderBootstrap) {
             // The game was started by an install from before the API: it comes with the next start.
+            pending = false;
             System.err.println("[PzTools API] Not in this game; restart it to use the API: " + olderBootstrap);
-            return;
         }
-        pending = true;
     }
 
     /**
@@ -63,7 +64,21 @@ public final class GameApi {
         catch (Throwable failure) { report(failure); }
     }
 
+    /**
+     * Sets the API into the game's Lua environment, taking over from an earlier payload. Should that fail, the game
+     * answers every power and water question alone: the earlier payload's networks no longer run, so they must not
+     * answer from what they last knew.
+     */
     static void register(Class<?> luaManager) throws ReflectiveOperationException {
+        try { install(luaManager); }
+        catch (Throwable failure) {
+            networks = null;
+            Networks.unhook();
+            throw failure;
+        }
+    }
+
+    private static void install(Class<?> luaManager) throws ReflectiveOperationException {
         var lua = new Kahlua(luaManager);
         Object env = lua.environment();
         if (env == null) return; // The game's Lua has not started; its start sets the API.

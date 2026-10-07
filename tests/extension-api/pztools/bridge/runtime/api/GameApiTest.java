@@ -58,6 +58,7 @@ public final class GameApiTest {
         loadFactors(api);
         memberRooms(api);
         sources(api);
+        failedTakeover(api);
         water(api);
         fluids(api);
         purify(api);
@@ -844,6 +845,36 @@ public final class GameApiTest {
         rejects(networks, "setProducers", "sources are for power", mod, "pipes", list(bank));
         call(networks, "remove", mod, "pipes");
         call(networks, "remove", mod, "solar");
+        frame();
+        generator.setActivated(false);
+    }
+
+    /**
+     * A newer payload that fails to take the API over leaves the game as vanilla: the earlier payload's networks no
+     * longer run, so they answer nothing. A later payload takes the definitions over.
+     */
+    private static void failedTakeover(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "held", "power", "sequential");
+        call(networks, "setProducers", mod, "held", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "held", 11.0, 11.0, 0.0);
+        generator.setActivated(true);
+        frame();
+        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "The network does not run");
+        // Here the payload cannot read the game's Lua at all.
+        try { GameApi.register(String.class); throw new AssertionError("A payload that cannot read the game's Lua took the API over"); }
+        catch (ReflectiveOperationException expected) { }
+        frame();
+        check(!square(11, 11, 0).haveElectricity(), "A failed takeover left the earlier payload's networks answering");
+        generator.setSurroundingElectricity();
+        check(square(32, 33, 0).haveElectricity(), "After a failed takeover the game does not power the generator's range");
+        GameApi.register(LuaManager.class);
+        frame();
+        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "A later payload did not take the networks over");
+        call(networks, "remove", mod, "held");
         frame();
         generator.setActivated(false);
     }
