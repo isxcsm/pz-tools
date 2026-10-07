@@ -32,6 +32,10 @@ look; `BU22_CLEAN()` takes them away.
   installs, recipes hidden), both utilities off together, then the plan's supply lines' switch in its three states and
   a producer's line under the mouse. Puts a pump, a sprinkler and a filter down and takes them away; each line "ok" or
   "BAD". Needs the test panel (`bu_setup.lua`) and tanks (`bu_water20.lua`) for the water and plan checks.
+- `bu_loot.lua`: solar panels as loot (`BU.Loot`): the chance by room and container, the fill hook through the game's
+  `OnFillContainer` event, nothing added with `SolarPanelLoot` at 0, Solar panels or Power off, or without room, then a
+  tool store's storeroom crate filled `BULOOT_N` times (default 4000) and the panels counted against the chance. Needs
+  no scene; each line "ok" or "BAD".
 - `bu_spray.lua`: a spraying sprinkler near the player, its frames read over a second and a half (the spray going
   round); `BUSPRAY_CLEAN()` takes it away. A new sprite sheet needs the game restarted, not only the save reloaded.
 - `bu_looks.lua`: the looks of the units and the box (sprites and overlays by state, an old save's box taking the
