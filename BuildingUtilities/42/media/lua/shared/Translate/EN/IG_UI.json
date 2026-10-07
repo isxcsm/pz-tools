@@ -939,5 +939,10 @@
     "IGUI_BU_PlanFlowOption": "Plan: supply lines",
     "IGUI_BU_PlanFlow_flow": "Flow",
     "IGUI_BU_PlanFlow_lines": "Lines",
-    "IGUI_BU_PlanFlow_off": "No lines"
+    "IGUI_BU_PlanFlow_off": "No lines",
+    "IGUI_BU_PlanArrive": "%1 %2: %3",
+    "IGUI_BU_PlanArriveTip": "Supply from %1: %2. Click to go there",
+    "IGUI_BU_PlanKindCount": "%1 x%2",
+    "IGUI_BU_PlanRiser": "%1 %2",
+    "IGUI_BU_PlanRiserTip": "The lines on this floor run on to the panel on %1. Click to go there"
 }

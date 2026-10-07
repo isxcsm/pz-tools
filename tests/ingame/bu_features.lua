@@ -1,9 +1,10 @@
 -- The sandbox's features page (BU.enabled): each toggle turned off in SandboxVars at runtime, the world brought to it
 -- (Changes.applyFeatures, as the server's minute does) and the passes that use it run; what is off must do nothing
--- and be hidden, and come back once it is on again. Then both utilities off together, and the plan's supply lines'
--- switch (flow, lines, off, and a producer's line under the mouse). Puts a pump, a sprinkler and a filter down near
--- the player, wired to the test panel (bu_setup.lua; tier 2 or more), and takes them away; leaves the options, the
--- switch and the panel as it found them. "[bufeat]" lines, each check "ok" or "BAD".
+-- and be hidden, and come back once it is on again. Then both utilities off together, the plan's supply lines'
+-- switch (flow, lines, off, and a producer's line under the mouse) and its supply across floors (riser, badge, strip
+-- mark). Puts a pump, a sprinkler and a filter down near the player, wired to the test panel (bu_setup.lua; tier 2 or
+-- more), and takes them away; leaves the options, the switch and the panel as it found them. "[bufeat]" lines, each
+-- check "ok" or "BAD".
 RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Panels, Changes, Units, Energy, Water, WaterUnits, WaterRun, PanelLook, PanelWindow = BU.Store,
@@ -276,6 +277,69 @@ for _, state in ipairs(ISBUPlan.FLOW_STATES) do
 end
 check("switch lines: as many lines as flow", counts.lines.lines, counts.flow.lines)
 check("switch off: fewer lines", counts.off.lines < counts.flow.lines or #plan.squares <= 1, true)
+
+-- Supply across floors: the plan's data with a pump and a tank on a floor of their own above the rest; on their floor
+-- the riser (their lines run on to it), on the box's floor a badge for them (count, what, a stub into the box and its
+-- dots as the switch has them), the strip's mark, and a click on the badge going to their floor.
+local real = plan.data
+local fake = {}
+for key, value in pairs(real) do fake[key] = value end
+local boxZ = real.box.z
+local top = boxZ
+for _, room in ipairs(real.rooms) do top = math.max(top, room.level) end
+for _, producer in ipairs(real.producers) do top = math.max(top, producer.z) end
+local level = top + 1
+fake.producers = {}
+for _, producer in ipairs(real.producers) do fake.producers[#fake.producers + 1] = producer end
+fake.producers[#fake.producers + 1] = { x = real.box.x + 2, y = real.box.y, z = level, inUse = true, text = "test pump",
+    unit = "pump", flow = 1 }
+fake.producers[#fake.producers + 1] = { x = real.box.x + 4, y = real.box.y, z = level, inUse = false, text = "test tank",
+    flow = 1 }
+ISBUPlan.setFlowState("flow")
+plan:setData(fake)
+plan:showFloor(level)
+check("floors: riser on the producers' floor", plan.riser ~= nil, true)
+check("floors: riser text", plan.riser and plan.riser.text, getText("IGUI_BU_PlanRiser", "v", BU.floorName(boxZ)))
+local onward = 0
+for _, square in ipairs(plan.squares) do if square.line and square.line.x3 then onward = onward + 1 end end
+check("floors: producers' lines run on to the riser", onward, 2)
+check("floors: no badge away from the box", #plan.badges, 0)
+local mark
+for _, cell in ipairs(plan.strip) do if cell.level == level then mark = cell.producer end end
+check("floors: strip marks the producers' floor", mark ~= nil, true)
+say("floors: strip mark colour", mark and table.concat(mark, ","), "(mixed: a pump and a tank)")
+for _, state in ipairs(ISBUPlan.FLOW_STATES) do
+    ISBUPlan.setFlowState(state)
+    plan:showFloor(boxZ)
+    plan:layout()
+    local badge = plan.badges[1]
+    check("floors " .. state .. ": one badge by the box", #plan.badges, 1)
+    if badge then
+        check("floors " .. state .. ": badge text", badge.text, getText("IGUI_BU_PlanArrive", "^", BU.floorName(level), 2))
+        local stub, dots = false, false
+        for _, line in ipairs(plan.lines) do if line.x1 == badge.x and line.y1 == badge.y + badge.h / 2 then stub = true end end
+        for _, flow in ipairs(plan.flows) do
+            if flow.points[1][1] == badge.x and flow.points[1][2] == badge.y + badge.h / 2 then dots = true end
+        end
+        check("floors " .. state .. ": stub", stub, state ~= "off")
+        check("floors " .. state .. ": dots into the box", dots, state == "flow")
+        hover(badge)
+        say("floors " .. state .. ": badge tip", plan.status)
+        check("floors " .. state .. ": badge tip", plan.status, badge.tip)
+        plan:onMouseMoveOutside(0, 0)
+    end
+end
+local badge = plan.badges[1]
+if badge then
+    plan:click(badge.x + 1, badge.y + 1)
+    check("floors: a click on the badge goes to its floor", plan.floor, level)
+    if plan.riser then
+        plan:click(plan.riser.x + 1, plan.riser.y + 1)
+        check("floors: a click on the riser goes to the box's floor", plan.floor, boxZ)
+    end
+end
+plan:setData(real)
+plan:showFloor(boxZ)
 ISBUPlan.setFlowState(savedFlow)
 plan:layout()
 check("switch restored", ISBUPlan.flowState(), savedFlow)

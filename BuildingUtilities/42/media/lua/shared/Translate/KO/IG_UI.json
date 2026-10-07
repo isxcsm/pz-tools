@@ -939,5 +939,10 @@
     "IGUI_BU_PlanFlowOption": "평면도: 공급선",
     "IGUI_BU_PlanFlow_flow": "흐름",
     "IGUI_BU_PlanFlow_lines": "선만",
-    "IGUI_BU_PlanFlow_off": "선 없음"
+    "IGUI_BU_PlanFlow_off": "선 없음",
+    "IGUI_BU_PlanArrive": "%1 %2: %3",
+    "IGUI_BU_PlanArriveTip": "%1에서 오는 공급: %2. 누르면 그 층으로 갑니다",
+    "IGUI_BU_PlanKindCount": "%1 %2개",
+    "IGUI_BU_PlanRiser": "%1 %2",
+    "IGUI_BU_PlanRiserTip": "이 층의 공급선은 %1의 제어반으로 이어집니다. 누르면 그 층으로 갑니다"
 }
