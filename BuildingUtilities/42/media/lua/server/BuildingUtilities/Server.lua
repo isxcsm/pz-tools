@@ -12,6 +12,7 @@ local function defineAll()
         return
     end
     Networks.defineAll()
+    for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
     BU.log("defined the networks of", #Store.list(), "panels")
 end
 
@@ -35,6 +36,22 @@ function commands.resetBreaker(player, panel, args)
     if panel.tripped then Changes.resetBreaker(panel) end
 end
 
+-- A power device of the panel that it connects (its building's, or one it wired outside).
+local function connectedDevice(panel, key)
+    local device = type(key) == "string" and Panels.device(panel, "power", key)
+    return device and device.state == "on" and device or nil
+end
+
+function commands.setEssential(player, panel, args)
+    if connectedDevice(panel, args.key) then Changes.setEssential(panel, args.key, args.on == true) end
+end
+
+function commands.setSchedule(player, panel, args)
+    local known = false
+    for _, schedule in ipairs(BU.SCHEDULES) do known = known or schedule == args.schedule end
+    if known and connectedDevice(panel, args.key) then Changes.setSchedule(panel, args.key, args.schedule) end
+end
+
 local function onClientCommand(module, command, player, args)
     if module ~= BU.MOD or not commands[command] or type(args) ~= "table" then return end
     if args.utility ~= nil and args.utility ~= "power" and args.utility ~= "water" then return end
@@ -42,11 +59,32 @@ local function onClientCommand(module, command, player, args)
     if panel then commands[command](player, panel, args) end
 end
 
--- Overload: a box whose power network draws more than it carries trips its breaker.
+-- Whether a set has anything in it. (Kahlua has no next.)
+local function any(set)
+    for _ in pairs(set) do return true end
+    return false
+end
+
+-- Overload: a box whose power network draws more than it carries trips its breaker; one that sheds first turns off
+-- devices that are not essential, if that is enough, and turns them on again when there is room.
 local function checkLoad(panel)
+    local shed = panel.power.shed
+    if not Panels.sheds(panel) and any(shed) then
+        local keys = {}
+        for key in pairs(shed) do keys[#keys + 1] = key end
+        Changes.restore(panel, keys)
+    end
     if not BU.overloadEnabled() or panel.tripped then return end
     local state = Networks.state(panel, "power")
-    if state and state.supplied and state.load and state.load > Panels.capacity(panel) + 1e-6 then Changes.trip(panel) end
+    if not (state and state.supplied and state.load) then return end
+    local capacity = Panels.capacity(panel)
+    if state.load > capacity + 1e-6 then
+        local keys = Panels.sheds(panel) and Panels.shedPlan(panel, state.load - capacity)
+        if keys then Changes.shed(panel, keys) else Changes.trip(panel) end
+    elseif any(shed) then
+        local keys = Panels.restorePlan(panel, capacity - state.load)
+        if #keys > 0 then Changes.restore(panel, keys) end
+    end
 end
 
 -- What players hear: the generator in use changed, power or water ran out, fuel runs low.
@@ -91,9 +129,16 @@ local function everyMinute()
     end
 end
 
+-- Timers turn with dusk and dawn; ten minutes is near enough.
+local function everyTenMinutes()
+    if not BU.api() then return end
+    Changes.checkObjects()
+    for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
+end
+
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnGameStart.Add(function() if not isClient() then defineAll() end end)
 if Events.OnServerStarted then Events.OnServerStarted.Add(defineAll) end
 Events.EveryOneMinute.Add(everyMinute)
-Events.EveryTenMinutes.Add(function() if BU.api() then Changes.checkObjects() end end)
+Events.EveryTenMinutes.Add(everyTenMinutes)
 if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end

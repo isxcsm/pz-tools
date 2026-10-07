@@ -19,5 +19,7 @@
     "Sandbox_BuildingUtilities_Capacity2": "Tier 2 load",
     "Sandbox_BuildingUtilities_Capacity3": "Tier 3 load",
     "Sandbox_BuildingUtilities_LowFuelHours": "Low fuel warning (hours)",
-    "Sandbox_BuildingUtilities_LowFuelHours_tooltip": "Players near a breaker box are told when its generators have fuel for fewer hours than this."
+    "Sandbox_BuildingUtilities_LowFuelHours_tooltip": "Players near a breaker box are told when its generators have fuel for fewer hours than this.",
+    "Sandbox_BuildingUtilities_ExperienceMultiplier": "Electricity experience",
+    "Sandbox_BuildingUtilities_ExperienceMultiplier_tooltip": "Multiplies the Electricity experience for putting up boxes, laying wire and upgrading boxes. 0 gives none."
 }

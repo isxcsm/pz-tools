@@ -1,7 +1,9 @@
--- The breaker box window: its name and supply, its load against what it carries, then a tab per utility with its
--- producers (or the main panel that supplies it), its sub-panels, and its devices by room, each with a tick. A row
--- under the mouse outlines its objects in the world. Free changes go to the server as commands; lines are laid and
--- taken away by the player at the place, as timed actions.
+-- The breaker box window: its name and supply, its load against what it carries and a banner when the breaker is
+-- down or devices are shed, then a tab per utility with its producers (or the main panel that supplies it), its
+-- sub-panels, and its devices by room, each with a tick, and a tab with what happened to the box. A row under the
+-- mouse outlines its objects in the world and tells what switching it would do to the load; the range button marks
+-- how far the box reaches. Free changes go to the server as commands; lines are laid and taken away by the player
+-- at the place, as timed actions.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISTabPanel"
@@ -9,23 +11,29 @@ require "ISUI/ISButton"
 require "ISUI/ISTextBox"
 require "BuildingUtilities/ContextMenu"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions, BU.Sync
+local Store, Panels, Networks, Costs, Actions, Sync, Geometry = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
+    BU.Sync, BU.Geometry
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
 local ROW = FONT_HGT_SMALL + 6
 local PAD = 8
 local REFRESH_MS = 5000
 local BAR_W = 220
+local SCROLLBAR = 16
+local LOG = "log"
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
 local open = {}
 
--- The objects a row stands for: a device's, or what is on a producer's square.
+local function load2(value) return string.format("%.2f", value) end
+
+-- The objects a row stands for: a device's, every part of it, or what is on a producer's square.
 local function rowObjects(row)
     if row.device then
         local entry = row.device.entry
-        return BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)
+        local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+        return object and BU.objectParts(object) or {}
     elseif row.at then
         local square = getCell():getGridSquare(row.at.x, row.at.y, row.at.z)
         local _, object = Panels.producerOn(square)
@@ -34,11 +42,30 @@ local function rowObjects(row)
     return {}
 end
 
+-- Outlines objects for a player, and takes the outlines away again.
+local function outline(playerNum, objects, colour, into)
+    for _, object in ipairs(objects) do
+        object:setHighlightColor(playerNum, colour)
+        object:setHighlighted(playerNum, true, false)
+        object:setOutlineHighlightCol(playerNum, colour)
+        object:setOutlineHighlight(playerNum, true)
+        into[#into + 1] = object
+    end
+end
+
+local function unoutline(playerNum, objects)
+    for _, object in ipairs(objects) do
+        object:setHighlighted(playerNum, false, false)
+        object:setOutlineHighlight(playerNum, false)
+    end
+end
+
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 
 local BUTTONS = { "Up", "Down", "Remove" }
 local BUTTON_W = 60
+local TIMER_W, ESSENTIAL_W = 64, 48
 
 function ISBUPanelList:new(x, y, width, height, window, utility)
     local o = ISScrollingListBox.new(self, x, y, width, height)
@@ -49,6 +76,27 @@ function ISBUPanelList:new(x, y, width, height, window, utility)
     o.drawBorder = true
     o.highlighted = {}
     return o
+end
+
+-- The buttons at the end of a power device's row, from the right: whether the box may shed it (where it sheds),
+-- and its timer. Also where the row's own text on the right ends.
+local function deviceButtons(width, row)
+    local right = width - PAD - SCROLLBAR
+    local result = {}
+    if not row.controls then return result, right end
+    if row.sheds then
+        right = right - ESSENTIAL_W
+        result[#result + 1] = { name = "essential", x = right, w = ESSENTIAL_W }
+        right = right - 4
+    end
+    right = right - TIMER_W
+    result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
+    return result, right - 8
+end
+
+local function smallButton(list, x, y, w, text, r, g, b)
+    list:drawRectBorder(x, y + 2, w, ROW - 4, 1, 0.6, 0.6, 0.6)
+    list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
 end
 
 local function tick(list, x, y, on)
@@ -69,20 +117,37 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawText(row.text, PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
     elseif row.kind == "note" then
         self:drawText(row.text, PAD * 2, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
+    elseif row.kind == "log" then
+        local r, g, b = 0.9, 0.9, 0.9
+        if row.bad then r, g, b = 1, 0.55, 0.5 elseif row.good then r, g, b = 0.6, 1, 0.6 end
+        self:drawText(row.text, PAD, textY, r, g, b, 1, UIFont.Small)
+        self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
     elseif row.kind == "producer" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
         for index, name in ipairs(BUTTONS) do
             local bx = width - (#BUTTONS - index + 1) * (BUTTON_W + 4) - PAD
-            self:drawRectBorder(bx, y + 2, BUTTON_W, ROW - 4, 1, 0.6, 0.6, 0.6)
-            self:drawTextCentre(getText("IGUI_BU_" .. name), bx + BUTTON_W / 2, textY, 1, 1, 1, 1, UIFont.Small)
+            smallButton(self, bx, y, BUTTON_W, getText("IGUI_BU_" .. name), 1, 1, 1)
         end
     elseif row.kind == "device" or row.kind == "all" then
         local enabled = row.state ~= "other"
         tick(self, PAD * 2, y, row.state == "on")
         local shade = enabled and 1 or 0.5
         self:drawText(row.text, PAD * 2 + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
+        local buttons, textRight = deviceButtons(width, row)
+        for _, button in ipairs(buttons) do
+            if button.name == "timer" then
+                local timed = row.device.schedule ~= "always"
+                smallButton(self, button.x, y, button.w, getText("IGUI_BU_Schedule_" .. row.device.schedule),
+                    timed and 0.6 or 0.8, timed and 0.8 or 0.8, timed and 1 or 0.8)
+            else
+                local on = row.device.essential
+                smallButton(self, button.x, y, button.w, getText("IGUI_BU_Essential"), on and 1 or 0.45, on and 0.85 or 0.45, on and 0.3 or 0.45)
+            end
+        end
         if row.right then
-            self:drawTextRight(row.right, width - PAD - 16, textY, 0.8, 0.8, 0.8, 1, UIFont.Small)
+            local r, g, b = 0.8, 0.8, 0.8
+            if row.held then r, g, b = 1, 0.65, 0.3 end
+            self:drawTextRight(row.right, textRight, textY, r, g, b, 1, UIFont.Small)
         end
     end
     return y + ROW
@@ -96,30 +161,21 @@ function ISBUPanelList:prerender()
     if index ~= self.hovered then
         self:unhighlight()
         self.hovered = index
-        if row then self:highlight(rowObjects(row)) end
+        if row then outline(self.window.playerObj:getPlayerNum(), rowObjects(row), getCore():getGoodHighlitedColor(), self.highlighted) end
     end
     ISScrollingListBox.prerender(self)
 end
 
-function ISBUPanelList:highlight(objects)
-    local playerNum = self.window.playerObj:getPlayerNum()
-    local colour = getCore():getGoodHighlitedColor()
-    for _, object in ipairs(objects) do
-        object:setHighlightColor(playerNum, colour)
-        object:setHighlighted(playerNum, true, false)
-        object:setOutlineHighlightCol(playerNum, colour)
-        object:setOutlineHighlight(playerNum, true)
-        self.highlighted[#self.highlighted + 1] = object
-    end
+function ISBUPanelList:unhighlight()
+    unoutline(self.window.playerObj:getPlayerNum(), self.highlighted)
+    self.highlighted = {}
 end
 
-function ISBUPanelList:unhighlight()
-    local playerNum = self.window.playerObj:getPlayerNum()
-    for _, object in ipairs(self.highlighted) do
-        object:setHighlighted(playerNum, false, false)
-        object:setOutlineHighlight(playerNum, false)
+function ISBUPanelList:hideTooltip()
+    if self.tooltipUI and self.tooltipUI:getIsVisible() then
+        self.tooltipUI:setVisible(false)
+        self.tooltipUI:removeFromUIManager()
     end
-    self.highlighted = {}
 end
 
 function ISBUPanelList:onMouseDown(x, y)
@@ -133,12 +189,13 @@ end
 ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 
 function ISBUPanelWindow:new(x, y, playerObj, panel)
-    local o = ISCollapsableWindow.new(self, x, y, 640, 580)
+    local o = ISCollapsableWindow.new(self, x, y, 680, 610)
     o.playerObj = playerObj
     o.panel = panel
     o.resizable = true
-    o.minimumWidth = 520
-    o.minimumHeight = 320
+    o.minimumWidth = 560
+    o.minimumHeight = 340
+    o.rangeObjects = {}
     o:setTitle(getText("IGUI_BU_WindowTitle"))
     return o
 end
@@ -155,7 +212,12 @@ function ISBUPanelWindow:createChildren()
     local top = self:titleBarHeight() + PAD
     self.summaryY = top
     self.loadY = top + FONT_HGT_SMALL + 4
-    local buttonsY = self.loadY + FONT_HGT_SMALL + PAD
+    self.bannerY = self.loadY + ROW + 4
+    local buttonsY = self.bannerY + ROW + 4
+    self.rangeButton = button(self, self.width - PAD - 130, self.loadY, 130, ISBUPanelWindow.onRange)
+    self.rangeButton:setAnchorLeft(false)
+    self.rangeButton:setAnchorRight(true)
+    self.rangeButton:setTooltip(getText("IGUI_BU_RangeNote"))
     self.renameButton = button(self, PAD, buttonsY, 100, ISBUPanelWindow.onRename)
     self.renameButton:setTitle(getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 200, ISBUPanelWindow.onMainPanel)
@@ -170,13 +232,16 @@ function ISBUPanelWindow:createChildren()
     self.tabs:setEqualTabWidth(false)
     self:addChild(self.tabs)
     self.lists = {}
-    for _, utility in ipairs(BU.UTILITIES) do
-        local list = ISBUPanelList:new(0, 0, self.width, self.tabs.height - self.tabs.tabHeight, self, utility)
+    local views = {}
+    for _, utility in ipairs(BU.UTILITIES) do views[#views + 1] = utility end
+    views[#views + 1] = LOG
+    for _, view in ipairs(views) do
+        local list = ISBUPanelList:new(0, 0, self.width, self.tabs.height - self.tabs.tabHeight, self, view)
         list:initialise()
         list:setAnchorRight(true)
         list:setAnchorBottom(true)
-        self.tabs:addView(getText("IGUI_BU_Tab_" .. utility), list)
-        self.lists[utility] = list
+        self.tabs:addView(getText("IGUI_BU_Tab_" .. view), list)
+        self.lists[view] = list
     end
     if PanelWindow.lastTab then self.tabs:activateView(PanelWindow.lastTab) end
     self:refresh()
@@ -191,13 +256,19 @@ function ISBUPanelWindow:render()
     ISCollapsableWindow.render(self)
     if self.summary then self:drawText(self.summary, PAD, self.summaryY, 1, 1, 1, 1, UIFont.Small) end
     if self.load then
+        local barY = self.loadY + (ROW - FONT_HGT_SMALL) / 2
         local share = math.min(1, self.load / math.max(self.capacity, 1e-6))
         local r, g = 0.3, 0.8
         if self.panel.tripped or self.load > self.capacity then r, g = 0.9, 0.2 elseif share > 0.8 then r, g = 0.9, 0.8 end
-        self:drawRect(PAD, self.loadY, BAR_W, FONT_HGT_SMALL, 0.6, 0.1, 0.1, 0.1)
-        self:drawRect(PAD, self.loadY, BAR_W * share, FONT_HGT_SMALL, 0.8, r, g, 0.2)
-        self:drawRectBorder(PAD, self.loadY, BAR_W, FONT_HGT_SMALL, 1, 0.6, 0.6, 0.6)
-        self:drawText(self.loadText, PAD + BAR_W + 8, self.loadY, 1, 1, 1, 1, UIFont.Small)
+        self:drawRect(PAD, barY, BAR_W, FONT_HGT_SMALL, 0.6, 0.1, 0.1, 0.1)
+        self:drawRect(PAD, barY, BAR_W * share, FONT_HGT_SMALL, 0.8, r, g, 0.2)
+        self:drawRectBorder(PAD, barY, BAR_W, FONT_HGT_SMALL, 1, 0.6, 0.6, 0.6)
+        self:drawText(self.loadText, PAD + BAR_W + 8, barY, 1, 1, 1, 1, UIFont.Small)
+    end
+    local banner = self.banner
+    if banner then
+        self:drawRect(PAD, self.bannerY, self.width - PAD * 2, ROW, 0.85, banner.r, banner.g, banner.b)
+        self:drawText(banner.text, PAD * 2, self.bannerY + (ROW - FONT_HGT_SMALL) / 2, 1, 1, 1, 1, UIFont.Small)
     end
 end
 
@@ -208,10 +279,20 @@ function ISBUPanelWindow:update()
 end
 
 function ISBUPanelWindow:close()
-    for _, list in pairs(self.lists or {}) do list:unhighlight() end
+    for _, list in pairs(self.lists or {}) do
+        list:unhighlight()
+        list:hideTooltip()
+    end
+    self:showRange(false)
     open[self.panel.id] = nil
     self:setVisible(false)
     self:removeFromUIManager()
+end
+
+local function count(set)
+    local n = 0
+    for _ in pairs(set or {}) do n = n + 1 end
+    return n
 end
 
 -- What the panel and its networks are now, as rows.
@@ -229,8 +310,20 @@ function ISBUPanelWindow:refresh()
     self.summary = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1) .. "   " .. powerText .. "   " .. waterText
     self.capacity = Panels.capacity(panel)
     self.load = power and power.load or nil
-    self.loadText = self.load and getText(panel.tripped and "IGUI_BU_LoadTripped" or "IGUI_BU_Load",
-        string.format("%.2f", self.load), string.format("%.2f", self.capacity)) or ""
+    self.loadText = self.load and getText(panel.tripped and "IGUI_BU_LoadTripped" or "IGUI_BU_Load", load2(self.load),
+        load2(self.capacity)) or ""
+    -- The banner: the breaker down, devices shed, or the load near what the box carries.
+    local shed = count(panel.power.shed)
+    if panel.tripped then
+        self.banner = { text = getText("IGUI_BU_BannerTripped", load2(self.capacity)), r = 0.6, g = 0.1, b = 0.1 }
+    elseif shed > 0 then
+        self.banner = { text = getText("IGUI_BU_BannerShed", shed), r = 0.6, g = 0.35, b = 0.05 }
+    elseif self.load and BU.overloadEnabled() and self.load > self.capacity * 0.8 then
+        self.banner = { text = getText("IGUI_BU_BannerNear", string.format("%.0f", self.load * 100 / self.capacity)), r = 0.45, g = 0.4, b = 0.05 }
+    else
+        self.banner = nil
+    end
+    self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
     local parent = Store.get(panel.parent)
     self.mainButton:setTitle(parent and getText("IGUI_BU_LeaveMain", Panels.name(parent)) or getText("IGUI_BU_JoinMain"))
     self.resetButton:setVisible(panel.tripped == true)
@@ -239,16 +332,35 @@ function ISBUPanelWindow:refresh()
     if tier < BU.TIERS then
         self.upgradeButton:setTitle(getText("ContextMenu_BU_Upgrade", tier + 1))
         local cost = Costs.upgrade(tier + 1)
-        self.upgradeButton:setTooltip(getText("IGUI_BU_UpgradeNote", string.format("%.2f", BU.capacity(tier + 1))) .. "\n"
-            .. Costs.describe(self.playerObj, cost, true))
+        local note = getText("IGUI_BU_UpgradeNote", load2(BU.capacity(tier + 1)))
+        if tier + 1 == BU.SMART_TIER then note = note .. "\n" .. getText("IGUI_BU_SmartNote") end
+        self.upgradeButton:setTooltip(note .. "\n" .. Costs.describe(self.playerObj, cost, true))
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
     for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
+    self:fillLog()
 end
 
 local function percent(value, most)
     if not value or not most or most <= 0 then return "-" end
     return string.format("%.0f%%", value * 100 / most)
+end
+
+-- What switching a power device would make of the load, for its row's tooltip; nil when it would not change it.
+function ISBUPanelWindow:preview(device)
+    local power = device.power or 0
+    if power <= 0 or not self.load or device.state == "other" or device.held then return nil end
+    local after, key
+    if device.state == "on" then
+        after, key = self.load - power, "IGUI_BU_PreviewOff"
+    else
+        after, key = self.load + power, device.inside and "IGUI_BU_PreviewOn" or "IGUI_BU_PreviewConnect"
+    end
+    local text = getText(key, load2(after), load2(self.capacity))
+    if device.state ~= "on" and BU.overloadEnabled() and after > self.capacity + 1e-6 then
+        text = text .. " <LINE> <RGB:1,0.4,0.4> " .. getText(Panels.sheds(self.panel) and "IGUI_BU_PreviewShed" or "IGUI_BU_PreviewTrip")
+    end
+    return text
 end
 
 function ISBUPanelWindow:fill(utility, state)
@@ -257,8 +369,8 @@ function ISBUPanelWindow:fill(utility, state)
     list:unhighlight()
     list.hovered = nil
     list:clear()
-    local panel = self.panel
-    local function add(row) list:addItem(row.text or "", row) end
+    local panel, playerObj = self.panel, self.playerObj
+    local function add(row, tooltip) list:addItem(row.text or "", row, tooltip) end
     local parent = Store.get(panel.parent)
     if parent then
         add({ kind = "header", text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)) })
@@ -289,13 +401,21 @@ function ISBUPanelWindow:fill(utility, state)
         add({ kind = "header", text = getText("IGUI_BU_SubPanels") })
         for _, child in ipairs(children) do
             local childState = Networks.state(child, utility)
-            local right = utility == "power" and childState and childState.load and string.format("%.2f", childState.load) or ""
+            local right = utility == "power" and childState and childState.load and load2(childState.load) or ""
             if child.tripped and utility == "power" then right = right .. "  " .. getText("IGUI_BU_Tripped") end
             add({ kind = "note", text = Panels.name(child) .. "   " .. right })
         end
     end
     local devices, complete = Panels.devices(panel, utility)
-    add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" })
+    -- Switching on every device of the building that is off: what the load would be.
+    local allTip, offPower = nil, 0
+    for _, device in ipairs(devices) do
+        if device.inside and device.state == "off" then offPower = offPower + (device.power or 0) end
+    end
+    if utility == "power" and self.load and offPower > 0 then
+        allTip = getText("IGUI_BU_PreviewAll", load2(self.load + offPower), load2(self.capacity))
+    end
+    add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" }, allTip)
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
     -- Rooms by name, devices in no room after them, then those outside.
     local OUTSIDE = {}
@@ -314,22 +434,64 @@ function ISBUPanelWindow:fill(utility, state)
         if rank(a) ~= rank(b) then return rank(a) < rank(b) end
         return title(a) < title(b)
     end)
+    local sheds = Panels.sheds(panel)
     for _, group in ipairs(order) do
         add({ kind = "header", text = title(group) })
         for _, device in ipairs(groups[group]) do
             local entry = device.entry
             local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
             if not device.inside then name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")" end
-            local right = utility == "power" and entry.power and string.format("%.3f", entry.power) or ""
+            local right = utility == "power" and device.power and string.format("%.3f", device.power) or ""
             if device.state == "other" then
                 local other = Store.inclusionOwner(utility, device.key)
                 right = getText("IGUI_BU_ConnectedTo", other and Panels.name(other) or "")
             elseif device.state == "on" then
                 local missing = self:missingOther(utility, device)
                 if missing then right = right .. "  " .. missing end
+                if device.held then right = right .. "  " .. getText(device.held == "shed" and "IGUI_BU_HeldShed" or "IGUI_BU_HeldTimer") end
             end
-            add({ kind = "device", text = name, right = right, device = device, state = device.state })
+            local tooltip = utility == "power" and self:preview(device) or nil
+            if not device.inside and device.state == "off" then
+                local cost = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+                if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
+            end
+            local controls = utility == "power" and device.state == "on"
+            if controls then
+                tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
+                    .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
+            end
+            add({ kind = "device", text = name, right = right, device = device, state = device.state, held = device.held,
+                controls = controls, sheds = sheds }, tooltip)
         end
+    end
+    list:setYScroll(scroll)
+end
+
+-- What happened to the box, newest first, with how long ago.
+local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
+    IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true }
+local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true }
+
+local function ago(hours)
+    if hours < 1 / 60 then return getText("IGUI_BU_AgoNow") end
+    if hours < 1 then return getText("IGUI_BU_AgoMinutes", math.floor(hours * 60)) end
+    if hours < 24 then return getText("IGUI_BU_AgoHours", math.floor(hours)) end
+    return getText("IGUI_BU_AgoDays", math.floor(hours / 24))
+end
+
+function ISBUPanelWindow:fillLog()
+    local list = self.lists[LOG]
+    local scroll = list:getYScroll()
+    list:clear()
+    local log = self.panel.log or {}
+    if #log == 0 then list:addItem("", { kind = "note", text = getText("IGUI_BU_LogEmpty") }) end
+    local now = getGameTime():getWorldAgeHours()
+    for index = #log, 1, -1 do
+        local entry = log[index]
+        local args = entry.args or {}
+        local text = getText(entry.key, args[1] ~= nil and tostring(args[1]) or "", args[2] ~= nil and tostring(args[2]) or "")
+        list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, now - (entry.hour or now))),
+            bad = BAD[entry.key], good = GOOD[entry.key] })
     end
     list:setYScroll(scroll)
 end
@@ -347,12 +509,22 @@ function ISBUPanelWindow:missingOther(utility, device)
     if not (entry.power and entry.water) then return nil end
     local other = utility == "power" and "water" or "power"
     local otherState = Networks.state(self.panel, other)
-    local excluded = device.inside and self.panel[other].excluded[device.key]
-    local included = not device.inside and self.panel[other].included[device.key]
+    local excluded, included = false, false
+    for _, key in ipairs(device.keys) do
+        excluded = excluded or device.inside and self.panel[other].excluded[key] ~= nil
+        included = included or not device.inside and self.panel[other].included[key] ~= nil
+    end
     if excluded or (not device.inside and not included) or not (otherState and otherState.supplied) then
         return getText("IGUI_BU_Missing_" .. other)
     end
     return nil
+end
+
+local function nextSchedule(schedule)
+    for index, name in ipairs(BU.SCHEDULES) do
+        if name == schedule then return BU.SCHEDULES[index % #BU.SCHEDULES + 1] end
+    end
+    return BU.SCHEDULES[1]
 end
 
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
@@ -374,6 +546,16 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "device" and row.state ~= "other" then
         local device, entry = row.device, row.device.entry
+        for _, button in ipairs((deviceButtons(width, row))) do
+            if x >= button.x and x <= button.x + button.w then
+                if button.name == "timer" then
+                    Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
+                else
+                    Sync.send(playerObj, "setEssential", { panel = panel.id, key = device.key, on = not device.essential })
+                end
+                return
+            end
+        end
         if device.inside then
             Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = device.key, on = row.state ~= "on" })
         elseif row.state == "on" then
@@ -389,6 +571,58 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
         end
     end
+end
+
+-- The range: on the ground around the building, where producers reach (yellow, for a main panel) and where devices
+-- outside reach (blue); producers within reach that are no panel's are outlined.
+function ISBUPanelWindow:showRange(on)
+    local playerNum = self.playerObj:getPlayerNum()
+    unoutline(playerNum, self.rangeObjects)
+    self.rangeObjects = {}
+    self.rangeShown = on
+    if not on then return end
+    local panel = self.panel
+    local rooms = Panels.rooms(Panels.building(panel))
+    if #rooms == 0 then return end
+    local minX, minY, maxX, maxY
+    for _, room in ipairs(rooms) do
+        for _, rect in ipairs(room.rects) do
+            minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+            maxX, maxY = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1), math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+        end
+    end
+    -- A range of 0 has no ring: devices outside do not join at all.
+    local rings, reach = {}, 0
+    if BU.exteriorRange() > 0 then
+        rings[#rings + 1] = { steps = BU.exteriorRange(), colour = ColorInfo.new(0.3, 0.6, 1, 1) }
+        reach = BU.exteriorRange()
+    end
+    if not panel.parent then
+        rings[#rings + 1] = { steps = BU.producerRange(), colour = ColorInfo.new(1, 0.85, 0.2, 1) }
+        reach = math.max(reach, BU.producerRange())
+    end
+    local producerColour = getCore():getGoodHighlitedColor()
+    for x = minX - reach, maxX + reach do
+        for y = minY - reach, maxY + reach do
+            local square = getCell():getGridSquare(x, y, 0)
+            if square then
+                local steps = Geometry.toBuilding(x, y, rooms)
+                for _, ring in ipairs(rings) do
+                    local floor = steps == ring.steps and square:getFloor()
+                    if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
+                end
+                if not panel.parent and steps and steps > 0 and steps <= BU.producerRange() then
+                    local utility, object = Panels.producerOn(square)
+                    if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
+                end
+            end
+        end
+    end
+end
+
+function ISBUPanelWindow:onRange()
+    self:showRange(not self.rangeShown)
+    self.rangeButton:setTitle(getText(self.rangeShown and "IGUI_BU_RangeHide" or "IGUI_BU_RangeShow"))
 end
 
 function ISBUPanelWindow:onRename()
@@ -448,7 +682,7 @@ end
 function PanelWindow.open(playerObj, panel)
     local window = open[panel.id]
     if window then window:bringToTop(); window:refresh(); return window end
-    window = ISBUPanelWindow:new(getCore():getScreenWidth() / 2 - 320, getCore():getScreenHeight() / 2 - 290, playerObj, panel)
+    window = ISBUPanelWindow:new(getCore():getScreenWidth() / 2 - 340, getCore():getScreenHeight() / 2 - 305, playerObj, panel)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)

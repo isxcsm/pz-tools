@@ -131,35 +131,126 @@ end
 -- Devices.
 
 -- The devices of a panel for one utility: those of its building (connected unless excluded) and those near it
--- outside any building (connected only when this panel added them; "other" when another panel did). Each is an
--- entry of buildings.objects or buildings.near with key, inside and state ("on", "off" or "other").
+-- outside any building (connected only when this panel added them; "other" when another panel did). An object that
+-- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
+-- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
+-- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
+-- schedule (BU.SCHEDULES) and held ("shed" or "timer" while the box keeps it off on its own, or nil).
+local function anyKey(set, keys)
+    for _, key in ipairs(keys) do
+        if set[key] then return set[key] end
+    end
+    return nil
+end
+
+local function inclusionOwner(utility, keys)
+    for _, key in ipairs(keys) do
+        local owner = Store.inclusionOwner(utility, key)
+        if owner then return owner end
+    end
+    return nil
+end
+
 function Panels.devices(panel, utility)
     local api = BU.api()
     local building = Panels.building(panel)
     local result = {}
     if not api or not building then return result, false end
+    local data = panel[utility]
+    -- The listed parts by object: each part's key leads to its object's group.
+    local groups, order, groupOf = {}, {}, {}
+    local function collect(list, inside)
+        for i = 1, list and #list or 0 do
+            local entry = list[i]
+            local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
+            local group = groupOf[key]
+            if not group then
+                local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+                local keys = object and BU.partKeys(object) or { key }
+                group = { keys = keys, entries = {}, inside = inside }
+                for _, part in ipairs(keys) do groupOf[part] = group end
+                groupOf[key] = group
+                order[#order + 1] = group
+            end
+            group.entries[#group.entries + 1] = { entry = entry, key = key }
+        end
+    end
     local inside, insideComplete = api.buildings.objects(building.key, utility)
     local outside, outsideComplete = api.buildings.near(building.key, BU.exteriorRange(), utility)
-    for i = 1, inside and #inside or 0 do
-        local entry = inside[i]
-        local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
-        result[#result + 1] = { entry = entry, key = key, inside = true,
-            state = panel[utility].excluded[key] and "off" or "on" }
-    end
-    for i = 1, outside and #outside or 0 do
-        local entry = outside[i]
-        local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
-        local owner = Store.inclusionOwner(utility, key)
-        local state = owner == panel and "on" or owner and "other" or "off"
-        result[#result + 1] = { entry = entry, key = key, inside = false, state = state }
+    collect(inside, true)
+    collect(outside, false)
+    for _, group in ipairs(order) do
+        table.sort(group.entries, function(a, b) return a.key < b.key end)
+        local first = group.entries[1]
+        local power
+        for _, part in ipairs(group.entries) do
+            if part.entry.power then power = (power or 0) + part.entry.power end
+        end
+        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside }
+        if group.inside then
+            device.state = anyKey(data.excluded, group.keys) and "off" or "on"
+        else
+            local owner = inclusionOwner(utility, group.keys)
+            device.state = owner == panel and "on" or owner and "other" or "off"
+        end
+        if utility == "power" and device.state == "on" then
+            device.essential = data.essential[device.key] == true
+            device.schedule = data.schedule[device.key] or "always"
+            device.held = data.shed[device.key] and "shed" or data.timed[device.key] and "timer" or nil
+        end
+        result[#result + 1] = device
     end
     return result, insideComplete and outsideComplete
 end
 
--- One device of a panel by its key, or nil.
+-- Overload.
+
+-- Whether a box sheds devices under overload before its breaker trips.
+function Panels.sheds(panel) return BU.overloadEnabled() and (panel.tier or 1) >= BU.SMART_TIER end
+
+-- Which devices a box sheds to draw less by at least excess: connected and on, not essential, the largest first, so
+-- that few go off. Nil when shedding all it may does not do.
+function Panels.shedPlan(panel, excess)
+    local candidates = {}
+    for _, device in ipairs(Panels.devices(panel, "power")) do
+        local power = device.power or 0
+        if device.state == "on" and not device.held and not device.essential and power > 0 then
+            candidates[#candidates + 1] = { key = device.key, power = power }
+        end
+    end
+    table.sort(candidates, function(a, b) return a.power > b.power end)
+    local keys, total = {}, 0
+    for _, candidate in ipairs(candidates) do
+        if total >= excess - 1e-6 then break end
+        keys[#keys + 1] = candidate.key
+        total = total + candidate.power
+    end
+    if total < excess - 1e-6 then return nil end
+    return keys
+end
+
+-- Which shed devices fit again within room: the smallest first.
+function Panels.restorePlan(panel, room)
+    local candidates = {}
+    for _, device in ipairs(Panels.devices(panel, "power")) do
+        if device.held == "shed" then candidates[#candidates + 1] = { key = device.key, power = device.power or 0 } end
+    end
+    table.sort(candidates, function(a, b) return a.power < b.power end)
+    local keys, total = {}, 0
+    for _, candidate in ipairs(candidates) do
+        if total + candidate.power > room + 1e-6 then break end
+        keys[#keys + 1] = candidate.key
+        total = total + candidate.power
+    end
+    return keys
+end
+
+-- One device of a panel by the key of any of its parts, or nil.
 function Panels.device(panel, utility, key)
     for _, device in ipairs(Panels.devices(panel, utility)) do
-        if device.key == key then return device end
+        for _, part in ipairs(device.keys) do
+            if part == key then return device end
+        end
     end
     return nil
 end

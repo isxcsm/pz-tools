@@ -66,6 +66,27 @@ function BU.capacity(tier)
 end
 function BU.lowFuelHours() return math.max(0, BU.sandbox("LowFuelHours", 6)) end
 
+-- A box of this tier sheds its devices that are not essential, the largest first, before its breaker trips.
+BU.SMART_TIER = 3
+
+-- Electricity experience for wiring: so much times the sandbox's multiplier (0: none).
+function BU.xpMultiplier() return math.max(0, BU.sandbox("ExperienceMultiplier", 1)) end
+function BU.giveXp(character, amount)
+    local multiplier = BU.xpMultiplier()
+    if multiplier > 0 and amount > 0 then addXp(character, Perks.Electricity, amount * multiplier) end
+end
+
+-- When a device on a timer is connected: "always" (no timer), "night" (from dusk to dawn) or "day". Dusk and dawn
+-- move with the season, as the game's own.
+BU.SCHEDULES = { "always", "night", "day" }
+function BU.scheduleOn(schedule)
+    if schedule ~= "night" and schedule ~= "day" then return true end
+    local season = getClimateManager():getSeason()
+    local hour = getGameTime():getTimeOfDay()
+    local night = hour >= season:getDusk() or hour < season:getDawn()
+    return (schedule == "night") == night
+end
+
 -- The breaker box: no vanilla tile is one, so a small electric terminal stands in for it, one sprite per facing.
 BU.PANEL_SPRITES = { "security_01_0", "security_01_1", "security_01_2", "security_01_3" }
 BU.PANEL_ITEM = "BuildingUtilities.BreakerBox"
@@ -91,6 +112,28 @@ function BU.objectsWithSprite(x, y, z, sprite)
         if name == sprite then result[#result + 1] = object end
     end
     return result
+end
+
+-- An object and, for one that covers several squares (a double fridge), its other parts.
+function BU.objectParts(object)
+    if not object:hasSpriteGrid() then return { object } end
+    local list = object:getSpriteGridObjectsIncludingSelf(ArrayList.new())
+    if list:size() == 0 then return { object } end
+    local result = {}
+    for i = 0, list:size() - 1 do result[#result + 1] = list:get(i) end
+    return result
+end
+
+-- The keys of an object's parts, sorted; one key for an object on one square.
+function BU.partKeys(object)
+    local keys = {}
+    for _, part in ipairs(BU.objectParts(object)) do
+        local square = part:getSquare()
+        local sprite = part:getSpriteName() or (part:getSprite() and part:getSprite():getName())
+        if square and sprite then keys[#keys + 1] = BU.thingKey(square:getX(), square:getY(), square:getZ(), sprite) end
+    end
+    table.sort(keys)
+    return keys
 end
 
 -- What players call an object: its moveable name, or its sprite name when the square is not loaded.

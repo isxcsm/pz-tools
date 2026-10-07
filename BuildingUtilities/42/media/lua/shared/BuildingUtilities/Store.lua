@@ -10,18 +10,43 @@ local KEY = "BuildingUtilities"
 -- { version, next, panels = { [id] = panel } }. A panel:
 --   id, x, y, z (the box's square), sprite, name (set by the player, or nil), tier (1 to BU.TIERS), tripped (its
 --   breaker is down), parent (a panel id, or nil) and parentPaid (what linking it cost),
+--   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
---   BU.thingKey) and included (BU.thingKey to what connecting it cost).
+--   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box
+--   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
+--   shed (a set, under overload) and timed (a set, by their timers).
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
 -- changes it (BU.Changes).
 Store.KEY = KEY
+Store.LOG_SIZE = 30
+local VERSION = 2
+
+local function utilityData()
+    return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, timed = {} }
+end
+
+-- A panel saved by an older version gets what this one keeps.
+local function migrate(panel)
+    panel.tier = panel.tier or 1
+    panel.tripped = panel.tripped == true
+    panel.log = panel.log or {}
+    for _, utility in ipairs(BU.UTILITIES) do
+        local data = panel[utility]
+        for name, empty in pairs(utilityData()) do
+            if data[name] == nil then data[name] = empty end
+        end
+    end
+end
 
 function Store.data()
     local data = ModData.getOrCreate(KEY)
     if not data.version then
-        data.version = 1
+        data.version = VERSION
         data.next = 1
         data.panels = {}
+    elseif data.version < VERSION then
+        for _, panel in pairs(data.panels) do migrate(panel) end
+        data.version = VERSION
     end
     return data
 end
@@ -34,10 +59,8 @@ function Store.newPanel(x, y, z, sprite)
     local data = Store.data()
     local id = "p" .. data.next
     data.next = data.next + 1
-    local panel = { id = id, x = x, y = y, z = z, sprite = sprite, tier = 1, tripped = false }
-    for _, utility in ipairs(BU.UTILITIES) do
-        panel[utility] = { producers = {}, excluded = {}, included = {} }
-    end
+    local panel = { id = id, x = x, y = y, z = z, sprite = sprite, tier = 1, tripped = false, log = {} }
+    for _, utility in ipairs(BU.UTILITIES) do panel[utility] = utilityData() end
     data.panels[id] = panel
     return panel
 end
@@ -86,6 +109,13 @@ function Store.children(id)
     end
     table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
     return result
+end
+
+-- Remembers what happened to a panel, for its window: a translation key and its arguments (strings or numbers).
+function Store.record(panel, key, args)
+    panel.log = panel.log or {}
+    table.insert(panel.log, { hour = getGameTime():getWorldAgeHours(), key = key, args = args or {} })
+    while #panel.log > Store.LOG_SIZE do table.remove(panel.log, 1) end
 end
 
 -- All panels, in the order they were made.

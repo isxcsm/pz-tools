@@ -97,42 +97,115 @@ end
 
 -- Devices.
 
--- A device of the panel's building connected (the default) or excluded: a switch at the box, free.
+-- A device of the panel's building connected (the default) or excluded: a switch at the box, free. Kept under its
+-- key; a part's key a save may have is cleared. Switched on by the player, the box no longer keeps it off for an
+-- overload (it sheds again if it must).
+local function setInside(panel, utility, device, connected)
+    local data = panel[utility]
+    for _, key in ipairs(device.keys) do
+        if key ~= device.key and data.excluded[key] then
+            data.excluded[key] = nil
+            Networks.apply(panel, utility, key)
+        end
+    end
+    data.excluded[device.key] = (not connected) or nil
+    if connected and data.shed then data.shed[device.key] = nil end
+    Networks.apply(panel, utility, device.key)
+end
+
 function Changes.setInside(panel, utility, device, connected)
-    local entry = device.entry
-    panel[utility].excluded[device.key] = (not connected) or nil
-    Networks.device(panel, utility, connected and "reset" or "exclude", entry.x, entry.y, entry.z, entry.sprite)
+    setInside(panel, utility, device, connected)
     Sync.changed(panel.id)
 end
 
 function Changes.setAllInside(panel, utility, connected)
     for _, device in ipairs(Panels.devices(panel, utility)) do
-        if device.inside and (device.state == "on") ~= connected then
-            local entry = device.entry
-            panel[utility].excluded[device.key] = (not connected) or nil
-            Networks.device(panel, utility, connected and "reset" or "exclude", entry.x, entry.y, entry.z, entry.sprite)
-        end
+        if device.inside and (device.state == "on") ~= connected then setInside(panel, utility, device, connected) end
     end
     Sync.changed(panel.id)
 end
 
 -- A device outside any building wired or piped to the panel.
 function Changes.includeOutside(panel, utility, device, paid)
-    local entry = device.entry
     panel[utility].included[device.key] = paid or {}
-    Networks.device(panel, utility, "include", entry.x, entry.y, entry.z, entry.sprite)
+    Networks.apply(panel, utility, device.key)
     Sync.changed(panel.id)
 end
 
--- Its line taken away; returns what it took, or nil when the panel had not connected it.
-function Changes.excludeOutside(panel, utility, key)
-    local paid = panel[utility].included[key]
+-- Its line taken away; returns what it took, or nil when the panel had not connected it. What the panel kept about
+-- it goes too, under any of its parts' keys: it is no device of the panel any longer.
+function Changes.excludeOutside(panel, utility, device)
+    local data = panel[utility]
+    local paid
+    for _, key in ipairs(device.keys) do
+        if data.included[key] then
+            paid = paid or data.included[key]
+            data.included[key] = nil
+            Networks.apply(panel, utility, key)
+        end
+    end
     if not paid then return nil end
-    panel[utility].included[key] = nil
-    local x, y, z, sprite = BU.parseThing(key)
-    Networks.device(panel, utility, "reset", x, y, z, sprite)
+    for _, name in ipairs({ "essential", "schedule", "shed", "timed" }) do
+        if data[name] then data[name][device.key] = nil end
+    end
+    Networks.apply(panel, utility, device.key)
     Sync.changed(panel.id)
     return type(paid) == "table" and paid or {}
+end
+
+-- A power device the box never sheds under overload, or one it may.
+function Changes.setEssential(panel, key, essential)
+    local data = panel.power
+    data.essential[key] = essential or nil
+    if essential and data.shed[key] then
+        data.shed[key] = nil
+        Networks.apply(panel, "power", key)
+    end
+    Sync.changed(panel.id)
+end
+
+-- A power device's timer (BU.SCHEDULES); applied at once.
+function Changes.setSchedule(panel, key, schedule)
+    panel.power.schedule[key] = schedule ~= "always" and schedule or nil
+    Changes.applyTimers(panel)
+    Sync.changed(panel.id)
+end
+
+-- Devices whose timer turned: off or on as their timer says now. Returns how many changed.
+function Changes.applyTimers(panel)
+    local data, changed = panel.power, 0
+    local keys = {}
+    for key in pairs(data.schedule) do keys[key] = true end
+    for key in pairs(data.timed) do keys[key] = true end
+    for key in pairs(keys) do
+        local off = not BU.scheduleOn(data.schedule[key])
+        if (data.timed[key] == true) ~= off then
+            data.timed[key] = off or nil
+            Networks.apply(panel, "power", key)
+            changed = changed + 1
+        end
+    end
+    if changed > 0 then Sync.changed(panel.id) end
+    return changed
+end
+
+-- Overload at a box that sheds: these devices off until there is room for them again.
+function Changes.shed(panel, keys)
+    for _, key in ipairs(keys) do
+        panel.power.shed[key] = true
+        Networks.apply(panel, "power", key)
+    end
+    Sync.changed(panel.id)
+    Sync.notice(panel, "IGUI_BU_Notice_Shed", Panels.name(panel), #keys)
+end
+
+function Changes.restore(panel, keys)
+    for _, key in ipairs(keys) do
+        panel.power.shed[key] = nil
+        Networks.apply(panel, "power", key)
+    end
+    Store.record(panel, "IGUI_BU_Log_Restored", { #keys })
+    Sync.changed(panel.id)
 end
 
 -- Sub-panels.
@@ -162,6 +235,7 @@ end
 
 function Changes.upgrade(panel)
     panel.tier = math.min(BU.TIERS, (panel.tier or 1) + 1)
+    Store.record(panel, "IGUI_BU_Log_Upgraded", { panel.tier })
     Sync.changed(panel.id)
 end
 
@@ -177,6 +251,7 @@ end
 function Changes.resetBreaker(panel)
     panel.tripped = false
     Networks.setEnabled(panel, true)
+    Store.record(panel, "IGUI_BU_Log_Reset")
     Sync.changed(panel.id)
 end
 

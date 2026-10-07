@@ -80,7 +80,8 @@ local function onInside(playerObj, panel, utility, device, connected)
 end
 
 local function addPanelOptions(context, playerObj, panel)
-    local option = context:addOptionOnTop(Panels.name(panel), nil, nil)
+    local name = panel.tripped and getText("IGUI_BU_NameTripped", Panels.name(panel)) or Panels.name(panel)
+    local option = context:addOptionOnTop(name, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     local open = sub:addOption(getText("ContextMenu_BU_Open"), playerObj, onOpen, panel)

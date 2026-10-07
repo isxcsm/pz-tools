@@ -21,11 +21,20 @@ local function positions(list)
     return result
 end
 
-local function eachThing(set, action)
-    for key in pairs(set) do
-        local x, y, z, sprite = BU.parseThing(key)
-        if x then action(x, y, z, sprite) end
-    end
+-- What the network does with one device of a panel: "exclude", "include" or "reset" (the building's rule). A
+-- device of the building is connected unless the player excluded it; one outside only when this panel connected it;
+-- either is off while the box sheds it or its timer has it off. A device the panel connected outside is in
+-- included; any other it names is of its building.
+function Networks.rule(panel, utility, key)
+    local data = panel[utility]
+    local off = data.shed and data.shed[key] or data.timed and data.timed[key]
+    if not data.included[key] then return (data.excluded[key] or off) and "exclude" or "reset" end
+    return off and "exclude" or "include"
+end
+
+local function apply(id, rule, key)
+    local x, y, z, sprite = BU.parseThing(key)
+    if x then change(rule, id, x, y, z, sprite) end
 end
 
 -- Defines both networks of a panel from the save. Its parent is set by Networks.link, once every panel exists.
@@ -35,8 +44,14 @@ function Networks.define(panel)
         change("define", id, utility, BU.POLICY[utility])
         if not panel.parent then change("setProducers", id, positions(panel[utility].producers)) end
         change("addBuilding", id, panel.x, panel.y, panel.z)
-        eachThing(panel[utility].excluded, function(x, y, z, sprite) change("exclude", id, x, y, z, sprite) end)
-        eachThing(panel[utility].included, function(x, y, z, sprite) change("include", id, x, y, z, sprite) end)
+        local data, keys = panel[utility], {}
+        for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.timed or {} }) do
+            for key in pairs(set) do keys[key] = true end
+        end
+        for key in pairs(keys) do
+            local rule = Networks.rule(panel, utility, key)
+            if rule ~= "reset" then apply(id, rule, key) end
+        end
     end
     if panel.tripped then Networks.setEnabled(panel, false) end
 end
@@ -68,9 +83,9 @@ function Networks.setProducers(panel, utility)
     change("setProducers", BU.networkId(panel.id, utility), positions(panel[utility].producers))
 end
 
--- "exclude", "include" or "reset" for one object.
-function Networks.device(panel, utility, how, x, y, z, sprite)
-    change(how, BU.networkId(panel.id, utility), x, y, z, sprite)
+-- One device as the panel's data has it now (Networks.rule).
+function Networks.apply(panel, utility, key)
+    apply(BU.networkId(panel.id, utility), Networks.rule(panel, utility, key), key)
 end
 
 function Networks.state(panel, utility)

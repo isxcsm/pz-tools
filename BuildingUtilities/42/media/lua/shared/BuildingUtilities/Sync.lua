@@ -15,10 +15,13 @@ function Sync.changed(panelId)
     end
 end
 
--- Something a player near the panel should hear: a translation key and its arguments (strings or numbers).
+-- Something a player near the panel should hear: a translation key and its arguments (strings or numbers). Its
+-- window's log keeps it too.
 function Sync.notice(panel, key, ...)
     local args = { ... }
+    BU.Store.record(panel, key, args)
     if isServer() then
+        ModData.transmit(BU.Store.KEY)
         sendServerCommand(BU.MOD, "notice", { panel = panel.id, key = key, args = args })
     elseif BU.onNotice then
         BU.onNotice(panel.id, key, args)

@@ -65,3 +65,9 @@ option BuildingUtilities.LowFuelHours
     type = integer, min = 0, max = 168, default = 6,
     page = BuildingUtilities, translation = BuildingUtilities_LowFuelHours,
 }
+
+option BuildingUtilities.ExperienceMultiplier
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = BuildingUtilities, translation = BuildingUtilities_ExperienceMultiplier,
+}

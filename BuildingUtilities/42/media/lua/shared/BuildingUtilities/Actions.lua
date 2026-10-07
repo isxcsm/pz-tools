@@ -84,6 +84,7 @@ function ISBUInstallPanel:complete()
         sendRemoveItemFromContainer(container, self.item)
     end
     Changes.install(self.square, BU.panelSpriteFacing(self.square, self.character))
+    BU.giveXp(self.character, 5)
     return true
 end
 
@@ -154,6 +155,8 @@ function ISBUConnect:complete()
     if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid)
     elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid)
     else Changes.link(panel, other, paid) end
+    -- Wiring teaches; plumbing has no skill of its own. Two for each piece of wire the line takes.
+    if self.kind == "link" or self.utility == "power" then BU.giveXp(self.character, 2 * Costs.count(cost, Costs.WIRE)) end
     return true
 end
 
@@ -178,7 +181,8 @@ function ISBUDisconnect:connected()
         local owner, utility = Store.producerOwner(self.x, self.y, self.z)
         return owner == panel and utility == self.utility
     elseif self.kind == "outside" then
-        return panel[self.utility].included[BU.thingKey(self.x, self.y, self.z, self.extra)] ~= nil
+        local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
+        return device ~= nil and not device.inside and device.state == "on"
     end
     return panel.parent ~= nil
 end
@@ -190,7 +194,8 @@ function ISBUDisconnect:complete()
     local panel = Store.get(self.panelId)
     local paid
     if self.kind == "producer" then paid = Changes.disconnectProducer(panel, self.utility, self.x, self.y, self.z)
-    elseif self.kind == "outside" then paid = Changes.excludeOutside(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
+    elseif self.kind == "outside" then
+        paid = Changes.excludeOutside(panel, self.utility, Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)))
     else paid = Changes.unlink(panel) end
     Costs.refund(self.character, paid)
     return true
@@ -225,7 +230,9 @@ function ISBUUpgradePanel:complete()
     local cost = self:cost()
     if not cost or not Costs.affords(self.character, cost) then return false end
     Costs.take(self.character, cost)
-    Changes.upgrade(Store.get(self.panelId))
+    local panel = Store.get(self.panelId)
+    Changes.upgrade(panel)
+    BU.giveXp(self.character, 15 * (panel.tier - 1))
     return true
 end
 

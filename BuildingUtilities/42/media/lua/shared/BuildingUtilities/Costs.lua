@@ -39,6 +39,14 @@ local UPGRADES = {
 }
 function Costs.upgrade(tier) return UPGRADES[tier] end
 
+-- How many of an item a cost takes.
+function Costs.count(cost, itemType)
+    for _, item in ipairs(cost.items) do
+        if item[1] == itemType then return item[2] end
+    end
+    return 0
+end
+
 local function notBroken(item) return not item:isBroken() end
 
 local function hasTool(inventory, tool)
@@ -79,12 +87,15 @@ function Costs.take(character, cost)
     return paid
 end
 
+-- The sandbox's share of a count, rounded: half of one piece gives it back.
+function Costs.refundCount(count) return math.floor(count * BU.refundPercent() / 100 + 0.5) end
+
 -- Gives back the sandbox's share of what a line took.
 function Costs.refund(character, paid)
     if type(paid) ~= "table" then return end
     local inventory = character:getInventory()
     for itemType, count in pairs(paid) do
-        for _ = 1, math.floor(count * BU.refundPercent() / 100) do
+        for _ = 1, Costs.refundCount(count) do
             local item = inventory:AddItem(itemType)
             if item then sendAddItemToContainer(inventory, item) end
         end
