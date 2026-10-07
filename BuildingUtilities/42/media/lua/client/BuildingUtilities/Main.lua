@@ -1,6 +1,7 @@
 -- Wiring: the networks from the save as the world starts, boxes that went missing, and windows that show changes.
 require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelWindow"
+require "BuildingUtilities/Moveables"
 local BU = BuildingUtilities
 
 local function onGameStart()

@@ -207,17 +207,26 @@ function ISBUPanelWindow:fill(utility, state)
     local devices, complete = Panels.devices(panel, utility)
     add({ kind = "all", text = getText("IGUI_BU_AllInside"), state = self:allInside(devices) and "on" or "off" })
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
-    local rooms, order = {}, {}
+    -- Rooms by name, devices in no room after them, then those outside.
+    local OUTSIDE = {}
+    local groups, order = {}, {}
     for _, device in ipairs(devices) do
-        local room = device.inside and (device.entry.room or "") or "\0outside"
-        if not rooms[room] then rooms[room] = {}; order[#order + 1] = room end
-        table.insert(rooms[room], device)
+        local group = device.inside and (device.entry.room or "") or OUTSIDE
+        if not groups[group] then groups[group] = {}; order[#order + 1] = group end
+        table.insert(groups[group], device)
     end
-    table.sort(order)
-    for _, room in ipairs(order) do
-        local title = room == "\0outside" and getText("IGUI_BU_Outside") or (room == "" and getText("IGUI_BU_NoRoom") or BU.roomName(room))
-        add({ kind = "header", text = title })
-        for _, device in ipairs(rooms[room]) do
+    local function title(group)
+        if group == OUTSIDE then return getText("IGUI_BU_Outside") end
+        return group == "" and getText("IGUI_BU_NoRoom") or BU.roomName(group)
+    end
+    local function rank(group) return group == OUTSIDE and 2 or group == "" and 1 or 0 end
+    table.sort(order, function(a, b)
+        if rank(a) ~= rank(b) then return rank(a) < rank(b) end
+        return title(a) < title(b)
+    end)
+    for _, group in ipairs(order) do
+        add({ kind = "header", text = title(group) })
+        for _, device in ipairs(groups[group]) do
             local entry = device.entry
             local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
             if not device.inside then name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")" end
@@ -276,8 +285,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
 end
 
 function ISBUPanelWindow:onRename()
-    local box = ISTextBox:new(0, 0, 280, 180, getText("IGUI_BU_RenamePrompt"), Panels.name(self.panel), self,
-        ISBUPanelWindow.onRenamed, self.playerObj:getPlayerNum())
+    -- Empty unless the player named it: confirming the automatic name must not fix it.
+    local box = ISTextBox:new(self:getAbsoluteX() + (self.width - 280) / 2, self:getAbsoluteY() + 40, 280, 180,
+        getText("IGUI_BU_RenamePrompt"), self.panel.name or "", self, ISBUPanelWindow.onRenamed, self.playerObj:getPlayerNum())
     box:initialise()
     box:addToUIManager()
 end

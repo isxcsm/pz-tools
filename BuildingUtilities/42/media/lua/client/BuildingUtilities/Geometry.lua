@@ -51,9 +51,13 @@ end
 function Geometry.direction(fromX, fromY, toX, toY)
     local dx, dy = toX - fromX, toY - fromY
     if dx == 0 and dy == 0 then return nil end
-    local angle = math.deg(math.atan2(dx, -dy)) % 360
+    -- No % on negative numbers: Kahlua's differs from Lua's there.
+    local angle = math.deg(math.atan2(dx, -dy))
+    if angle < 0 then angle = angle + 360 end
+    local index = math.floor((angle + 22.5) / 45)
+    if index >= 8 then index = index - 8 end
     local points = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" }
-    return points[math.floor((angle + 22.5) / 45) % 8 + 1]
+    return points[index + 1]
 end
 
 return Geometry
