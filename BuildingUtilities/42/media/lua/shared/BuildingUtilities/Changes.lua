@@ -6,8 +6,9 @@ require "BuildingUtilities/Energy"
 require "BuildingUtilities/Sync"
 require "BuildingUtilities/Solar"
 require "BuildingUtilities/Rack"
+require "BuildingUtilities/Networks"
 local BU = BuildingUtilities
-local Store, Networks, Panels, Units, Sync = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync
+local Store, Networks, Panels, Units, Sync, Water = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync, BU.Water
 local Changes = {}
 BU.Changes = Changes
 
@@ -346,12 +347,92 @@ function Changes.excludeOutside(panel, utility, device)
         end
     end
     if not paid then return nil end
-    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "blackout", "timed" }) do
+    for _, name in ipairs({ "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }) do
         if data[name] then data[name][device.key] = nil end
     end
     Networks.apply(panel, utility, device.key)
     Sync.changed(panel.id)
     return type(paid) == "table" and paid or {}
+end
+
+-- Water groups (BU.Water): made, named and taken away by the player at the box; each tank and fixture in one.
+
+local function groupName(name)
+    name = name and tostring(name):sub(1, 30) or nil
+    return name ~= "" and name or nil
+end
+
+-- A new group, named (nil for its number); none past Water.MAX_GROUPS, nor at a sub-panel.
+function Changes.addWaterGroup(panel, name)
+    local data = panel.water
+    if panel.parent or #data.groups >= Water.MAX_GROUPS then return nil end
+    local group = { id = data.nextGroup, name = groupName(name) }
+    data.nextGroup = data.nextGroup + 1
+    data.groups[#data.groups + 1] = group
+    Networks.defineWater(panel, {})
+    Sync.changed(panel.id)
+    return group
+end
+
+function Changes.renameWaterGroup(panel, id, name)
+    local group = Water.group(panel, id)
+    if not group then return end
+    group.name = groupName(name)
+    Sync.changed(panel.id)
+end
+
+-- A group taken away: its tanks and fixtures go back to the first. The first stays.
+function Changes.removeWaterGroup(panel, id)
+    local data = panel.water
+    if id == Water.FIRST then return end
+    for index, group in ipairs(data.groups) do
+        if group.id == id then
+            table.remove(data.groups, index)
+            for _, at in ipairs(data.producers) do
+                if at.group == id then at.group = nil end
+            end
+            local keys = {}
+            for key, group in pairs(data.groupOf) do
+                if group == id then data.groupOf[key] = nil; keys[key] = true end
+            end
+            data.levelLog[id] = nil
+            Networks.defineWater(panel, keys)
+            Sync.changed(panel.id)
+            return
+        end
+    end
+end
+
+-- A tank into a group.
+function Changes.setProducerGroup(panel, index, id)
+    local at = panel.water.producers[index]
+    if not at or not Water.group(panel, id) then return end
+    at.group = id ~= Water.FIRST and id or nil
+    Networks.defineWater(panel, {})
+    Sync.changed(panel.id)
+end
+
+-- A fixture into a group, kept under its key; a part's key a save may have is cleared.
+function Changes.setDeviceGroup(panel, device, id)
+    if not Water.group(panel, id) then return end
+    local groupOf = panel.water.groupOf
+    for _, key in ipairs(device.keys) do
+        if groupOf[key] then
+            groupOf[key] = nil
+            Networks.apply(panel, "water", key)
+        end
+    end
+    groupOf[device.key] = id ~= Water.FIRST and id or nil
+    Networks.apply(panel, "water", device.key)
+    Sync.changed(panel.id)
+end
+
+-- The panel's pipes frozen or thawed: its water stops or flows again.
+function Changes.setFrozen(panel, frozen)
+    if (panel.water.frozen == true) == frozen then return end
+    panel.water.frozen = frozen or nil
+    Networks.setWaterEnabled(panel, not frozen)
+    Sync.notice(panel, frozen and "IGUI_BU_Notice_Frozen" or "IGUI_BU_Notice_Thawed", Panels.name(panel))
 end
 
 -- A power device the box never sheds under overload, or one it may.

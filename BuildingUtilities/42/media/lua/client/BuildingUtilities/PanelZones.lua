@@ -48,7 +48,11 @@ function ISBUPanelWindow:updatePlan()
                 local seen = PanelWindow.seenProducer(state, at)
                 flow = supplied and seen and (seen.amount or 0) > 0 and 1 or nil
             end
-            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, flow = flow, text = view.producerText[index] }
+            -- A tank in its group's colour, with more than one group.
+            local colour = utility == "water" and #BU.Water.groups(panel) > 1
+                and PanelWindow.groupColour(panel, BU.Water.producerGroup(at)) or nil
+            producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, flow = flow, colour = colour,
+                text = view.producerText[index] }
         end
         if utility == "power" then
             local inUse = Energy.inUse(state)
@@ -244,56 +248,80 @@ end
 
 -- The range: on the ground around the building, where producers reach (yellow, for a main panel) and where devices
 -- outside reach (blue); producers within reach that are no panel's are outlined.
+-- Rows of the range's squares outlined each frame, until this many milliseconds went in it: the world shows the range
+-- over a few frames instead of stopping for it.
+local RANGE_BUDGET_MS = 8
+
 function ISBUPanelWindow:showRange(on)
     local playerNum = self.playerObj:getPlayerNum()
     unoutline(playerNum, self.rangeObjects)
     self.rangeObjects = {}
     self.rangeShown = on
+    self.rangeJob = nil
     if not on then return end
     local panel = self.panel
     local rooms = Panels.rooms(Panels.building(panel))
     if #rooms == 0 then return end
-    -- Devices outside join by the rooms of their own floor, the ground here; producers by the whole outline.
-    local ground = {}
-    for _, room in ipairs(rooms) do
-        if room.level == 0 then ground[#ground + 1] = room end
-    end
-    local minX, minY, maxX, maxY
+    -- Devices outside join by the rooms of their own floor, the ground here; producers by the whole outline. The
+    -- areas are the plan's (Geometry.reach): a ring is an area's edge.
+    local ground, all = {}, {}
     for _, room in ipairs(rooms) do
         for _, rect in ipairs(room.rects) do
-            minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
-            maxX, maxY = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1), math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+            all[#all + 1] = rect
+            if room.level == 0 then ground[#ground + 1] = rect end
         end
     end
+    local rings = {}
+    local exterior = BU.exteriorRange(panel.tier)
     -- A range of 0 has no ring: devices outside do not join at all.
-    local rings, reach = {}, 0
-    local exterior, producers = BU.exteriorRange(panel.tier), BU.producerRange(panel.tier)
-    if exterior > 0 then
-        rings[#rings + 1] = { steps = exterior, colour = ColorInfo.new(0.3, 0.6, 1, 1), ground = true }
-        reach = exterior
+    if exterior > 0 and #ground > 0 then
+        rings[#rings + 1] = { area = Geometry.reach(ground, exterior), colour = ColorInfo.new(0.3, 0.6, 1, 1) }
     end
-    if not panel.parent then
-        rings[#rings + 1] = { steps = producers, colour = ColorInfo.new(1, 0.85, 0.2, 1) }
-        reach = math.max(reach, producers)
+    local producers = not panel.parent and Geometry.reach(all, BU.producerRange(panel.tier)) or nil
+    if producers then rings[#rings + 1] = { area = producers, colour = ColorInfo.new(1, 0.85, 0.2, 1) } end
+    if #rings == 0 then return end
+    -- The squares to go over: the box around every ring's area.
+    local minX, minY, maxX, maxY
+    for _, ring in ipairs(rings) do
+        local area = ring.area
+        minX, minY = math.min(minX or area.minX, area.minX), math.min(minY or area.minY, area.minY)
+        maxX = math.max(maxX or area.minX + area.w - 1, area.minX + area.w - 1)
+        maxY = math.max(maxY or area.minY + area.h - 1, area.minY + area.h - 1)
     end
+    -- Producers inside the building are not looked for.
+    self.rangeJob = { rings = rings, producers = producers, inside = Geometry.reach(all, 0), minX = minX, maxX = maxX, y = minY, maxY = maxY }
+    self:stepRange()
+end
+
+-- Outlines the range's next rows, as many as the frame's budget allows (ISBUPanelWindow.prerender calls it): each
+-- ring's edge on the ground, and the producers not connected yet within the producers' reach.
+function ISBUPanelWindow:stepRange()
+    local job = self.rangeJob
+    local playerNum = self.playerObj:getPlayerNum()
     local producerColour = getCore():getGoodHighlitedColor()
-    for x = minX - reach, maxX + reach do
-        for y = minY - reach, maxY + reach do
-            local square = getCell():getGridSquare(x, y, 0)
+    local cell = getCell()
+    local started = getTimestampMs()
+    while job.y <= job.maxY and getTimestampMs() - started < RANGE_BUDGET_MS do
+        local y = job.y
+        job.y = y + 1
+        for x = job.minX, job.maxX do
+            local seekProducer = Geometry.reached(job.producers, x, y) and not Geometry.reached(job.inside, x, y)
+            local edges
+            for _, ring in ipairs(job.rings) do
+                if Geometry.onEdge(ring.area, x, y) then edges = edges or {}; edges[#edges + 1] = ring.colour end
+            end
+            local square = (edges or seekProducer) and cell:getGridSquare(x, y, 0)
             if square then
-                local steps = Geometry.toBuilding(x, y, rooms)
-                local groundSteps = Geometry.toBuilding(x, y, ground)
-                for _, ring in ipairs(rings) do
-                    local floor = (ring.ground and groundSteps or steps) == ring.steps and square:getFloor()
-                    if floor then outline(playerNum, { floor }, ring.colour, self.rangeObjects) end
-                end
-                if not panel.parent and steps and steps > 0 and steps <= producers then
+                local floor = edges and square:getFloor()
+                for _, colour in ipairs(floor and edges or {}) do outline(playerNum, { floor }, colour, self.rangeObjects) end
+                if seekProducer then
                     local utility, object = Panels.producerOn(square)
                     if utility and not Store.producerOwner(x, y, 0) then outline(playerNum, { object }, producerColour, self.rangeObjects) end
                 end
             end
         end
     end
+    if job.y > job.maxY then self.rangeJob = nil end
 end
 
 function ISBUPanelWindow:onRange()

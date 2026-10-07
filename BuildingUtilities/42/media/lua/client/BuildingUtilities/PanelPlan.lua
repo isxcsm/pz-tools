@@ -1,18 +1,23 @@
 -- The floor plan beside a breaker box window: the building's rooms on one floor from above, north up, coloured by
 -- what their devices do; the devices as dots, the producers as squares and the box itself. A strip on the left picks
--- the floor (or the mouse wheel), a legend at the bottom tells the colours. It shares hover and clicks with the
+-- the floor, a legend at the bottom tells the colours. It shares hover and clicks with the
 -- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
 -- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
 -- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
 -- takes a room in or out. Devices not connected are hollow; lines run from the building to the producers and the
 -- devices outside it is connected to; dots run along them the way power or water goes now, from the producers in
--- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the window shows the range, the plan does too: an outline where devices
--- outside join (blue) and where producers do (yellow). While devices outside are chosen to connect, a click on one
--- chooses it. Ctrl and the wheel (or the wheel alone for one floor) zoom at the mouse, dragging moves the plan, Fit
--- goes back. Everything is laid out when the window refreshes or the plan is resized; a frame only draws the
--- rectangles laid out, inside the map.
+-- use (or a bank charged from the box) through the building to the box, and out to devices outside. While the
+-- window shows the range, the plan does too: an outline where devices outside join (blue) and where producers do
+-- (yellow). While devices outside are chosen to connect, a click on one
+-- chooses it. The wheel zooms at the mouse, dragging moves the plan, Fit goes back. Over the floor strip the wheel
+-- scrolls the floors (arrows page them); the floor's name at the top lists every floor to jump to. A room is drawn as
+-- one shape, its outline only where it meets another room or the outside. The top bar also shows the range (as the
+-- window's range button would). Everything is laid out when the window refreshes or the plan is resized; a frame only
+-- draws the rectangles laid out, inside the map.
 require "ISUI/ISPanel"
+require "BuildingUtilities/Geometry"
 local BU = BuildingUtilities
+local Geometry = BU.Geometry
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
 local PAD = 8
@@ -25,7 +30,10 @@ local LEGEND_ROW = FONT_HGT_SMALL + 2
 local TOGGLE_W = 18
 local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
 local FIT_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFit")) + 10
-local MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 8, 48, 4
+local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
+local RANGE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanRange")) + 10
+-- Wheel notches over the floor strip scroll it by so many floors.
+local STRIP_SCROLL = 3
 -- Flow dots: so far apart, so many pixels a second, so big.
 local FLOW_GAP, FLOW_SPEED, FLOW_DOT = 14, 24, 4
 
@@ -102,48 +110,12 @@ local function legendEntries(utility, zones, ranges)
     return result
 end
 
--- Where a range reaches around rectangles, as the edges between squares in it and out of it: { x, y, len, across }
--- in squares (across: along x). A square is in range within so many steps of a rectangle, a diagonal step counting as
--- one: the rectangles grown row by row, then column by column.
+-- Where a range reaches around rectangles (Geometry.reach), as the edges between squares in it and out of it: { x,
+-- y, len, across } in squares (across: along x).
 local function rangeEdges(rects, range)
-    if #rects == 0 or range <= 0 then return {} end
-    local minX, minY, maxX, maxY
-    for _, rect in ipairs(rects) do
-        minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
-        maxX, maxY = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1), math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
-    end
-    minX, minY, maxX, maxY = minX - range, minY - range, maxX + range, maxY + range
-    local w, h = maxX - minX + 1, maxY - minY + 1
-    local base, rows, cells = {}, {}, {}
-    for _, rect in ipairs(rects) do
-        for y = rect.y, rect.y + rect.h - 1 do
-            for x = rect.x, rect.x + rect.w - 1 do base[(y - minY) * w + (x - minX)] = true end
-        end
-    end
-    for row = 0, h - 1 do
-        local last = -range - 1
-        for col = 0, w - 1 do
-            if base[row * w + col] then last = col end
-            if col - last <= range then rows[row * w + col] = true end
-        end
-        last = w + range
-        for col = w - 1, 0, -1 do
-            if base[row * w + col] then last = col end
-            if last - col <= range then rows[row * w + col] = true end
-        end
-    end
-    for col = 0, w - 1 do
-        local last = -range - 1
-        for row = 0, h - 1 do
-            if rows[row * w + col] then last = row end
-            if row - last <= range then cells[row * w + col] = true end
-        end
-        last = h + range
-        for row = h - 1, 0, -1 do
-            if rows[row * w + col] then last = row end
-            if last - row <= range then cells[row * w + col] = true end
-        end
-    end
+    local area = range > 0 and Geometry.reach(rects, range)
+    if not area then return {} end
+    local minX, minY, w, h, cells = area.minX, area.minY, area.w, area.h, area.cells
     local function at(col, row)
         return col >= 0 and col < w and row >= 0 and row < h and cells[row * w + col] == true
     end
@@ -186,10 +158,11 @@ local function nearestPoint(rects, x, y)
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit } }, box = { x, y, z }, filter = room id,
--- zone = room id to { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote,
--- ranges = { exterior = steps, producer = steps or nil } while the range is shown, rangeKey (the building and tier the
--- ranges are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
+-- state, held, power, name, status, flow } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
+-- or nil, flow } } (flow: 1 to the box, -1 from it, nil none), box = { x, y, z }, filter = room id, zone = room id to
+-- { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote, ranges = { exterior =
+-- steps, producer = steps or nil } while the range is shown, rangeKey (the building and tier the ranges are of),
+-- choosing (devices outside are being chosen) }. A device may be chosen and choosable.
 function ISBUPlan:setData(data)
     self.data = data
     local levels = {}
@@ -236,10 +209,62 @@ function ISBUPlan:ranges(floor)
     return cached
 end
 
+-- A room's outline in squares, as the edges where its squares meet a square of no room or another room: { x, y, len,
+-- across } (across: along x). The rectangles a room is made of meet without a line. Worked out once for the rooms the
+-- data has.
+function ISBUPlan:roomOutline(room)
+    if self.outlineRooms ~= self.data.rooms then self.outlineRooms, self.outlines = self.data.rooms, {} end
+    local cached = self.outlines[room.id]
+    if cached then return cached end
+    local inside = {}
+    local function key(x, y) return x * 65536 + y end
+    for _, rect in ipairs(room.rects) do
+        for y = rect.y, rect.y + rect.h - 1 do
+            for x = rect.x, rect.x + rect.w - 1 do inside[key(x, y)] = true end
+        end
+    end
+    -- The edges square by square, by the line they lie on, then joined where they run on.
+    local rows, cols = {}, {}
+    local function mark(lines, line, at)
+        lines[line] = lines[line] or {}
+        lines[line][#lines[line] + 1] = at
+    end
+    for _, rect in ipairs(room.rects) do
+        for y = rect.y, rect.y + rect.h - 1 do
+            for x = rect.x, rect.x + rect.w - 1 do
+                if not inside[key(x, y - 1)] then mark(rows, y, x) end
+                if not inside[key(x, y + 1)] then mark(rows, y + 1, x) end
+                if not inside[key(x - 1, y)] then mark(cols, x, y) end
+                if not inside[key(x + 1, y)] then mark(cols, x + 1, y) end
+            end
+        end
+    end
+    local edges = {}
+    local function join(lines, across)
+        for line, list in pairs(lines) do
+            table.sort(list)
+            local start, last = list[1], list[1]
+            for index = 2, #list + 1 do
+                local at = list[index]
+                if at ~= last + 1 then
+                    if across then edges[#edges + 1] = { x = start, y = line, len = last - start + 1, across = true }
+                    else edges[#edges + 1] = { x = line, y = start, len = last - start + 1, across = false } end
+                    start = at
+                end
+                last = at
+            end
+        end
+    end
+    join(rows, true)
+    join(cols, false)
+    self.outlines[room.id] = edges
+    return edges
+end
+
 function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
-    self.flows = {}
+    self.flows, self.walls = {}, {}
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
@@ -279,7 +304,6 @@ function ISBUPlan:layout()
     -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
     local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
     local zoom = self.zoom or 1
-    if zoom <= 1 then self.panX, self.panY = 0, 0 end
     local scale = math.min(fit * zoom, math.max(fit, MAX_ZOOM_SCALE))
     local baseX, baseY = (minX + maxX) / 2, (minY + maxY) / 2
     local centreX, centreY = baseX + (self.panX or 0), baseY + (self.panY or 0)
@@ -346,8 +370,9 @@ function ISBUPlan:layout()
             addLine(device.x, device.y, COLOURS.idle, device.flow)
         end
     end
-    -- A producer's colour: a tank's, a generator's, or a unit's (its kind's, Units.define).
+    -- A producer's colour: its own (a tank's group's), a unit's (its kind's, Units.define), a tank's or a generator's.
     local function producerColour(producer)
+        if producer.colour then return producer.colour end
         if producer.unit then return BU.Units.definition(producer.unit).colour end
         return data.utility == "water" and COLOURS.tank or COLOURS.producer
     end
@@ -389,6 +414,11 @@ function ISBUPlan:layout()
                 self.cells[#self.cells + 1] = cell
                 if not largest or cell.w * cell.h > largest.w * largest.h then largest = cell end
             end
+            for _, edge in ipairs(self:roomOutline(room)) do
+                local x1, y1 = sx(edge.x), sy(edge.y)
+                self.walls[#self.walls + 1] = { room = room.id, dim = dim, x = x1, y = y1,
+                    w = edge.across and sx(edge.x + edge.len) - x1 or 1, h = edge.across and 1 or sy(edge.y + edge.len) - y1 }
+            end
             if largest and getTextManager():MeasureStringX(UIFont.Small, room.title) < largest.w - 4
                     and largest.h > FONT_HGT_SMALL + 2 then
                 self.labels[#self.labels + 1] = { text = room.title, x = largest.x + largest.w / 2,
@@ -419,64 +449,84 @@ function ISBUPlan:layout()
     self:layoutStrip()
 end
 
--- The floor strip: the floors top down, as many as fit, the one shown among them.
+-- The floor strip: the floors top down, as many as fit, around the one shown or where the player scrolled it. With more
+-- than fit, an arrow at each end pages them.
 function ISBUPlan:layoutStrip()
     self.strip = {}
     if #self.levels < 2 then return end
     local top = FONT_HGT_SMALL + PAD * 2
-    local fit = math.max(1, math.floor((self.height - top - PAD) / CELL_H))
+    local rows = math.max(3, math.floor((self.height - top - PAD) / CELL_H))
     local downward = {}
     for index = #self.levels, 1, -1 do downward[#downward + 1] = self.levels[index] end
+    local overflow = #downward > rows
+    local fit = overflow and rows - 2 or rows
     local current = 1
     for index, level in ipairs(downward) do if level == self.floor then current = index end end
-    local first = math.max(1, math.min(current - math.floor(fit / 2), #downward - fit + 1))
+    local first = self.stripFirst or current - math.floor(fit / 2)
+    first = math.max(1, math.min(first, #downward - fit + 1))
+    self.stripFirst = first
+    local y = top
+    local function arrow(direction, enabled)
+        self.strip[#self.strip + 1] = { arrow = direction, page = fit, enabled = enabled, x = PAD, y = y, w = STRIP_W - 6,
+            h = CELL_H - 2, text = direction < 0 and "^" or "v" }
+        y = y + CELL_H
+    end
+    if overflow then arrow(-1, first > 1) end
     for index = first, math.min(#downward, first + fit - 1) do
         local level = downward[index]
-        self.strip[#self.strip + 1] = { level = level, x = PAD, y = top + (index - first) * CELL_H, w = STRIP_W - 6, h = CELL_H - 2,
-            text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0 }
+        self.strip[#self.strip + 1] = { level = level, x = PAD, y = y, w = STRIP_W - 6, h = CELL_H - 2,
+            text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0, box = self.data and self.data.box.z == level }
+        y = y + CELL_H
     end
+    if overflow then arrow(1, first + fit - 1 < #downward) end
+end
+
+-- The switches of the top bar, right to left: the legend, the zone (where zones can be edited), the range, Fit
+-- (zoomed or moved). Each { name, x, w, text }.
+function ISBUPlan:toggles()
+    local result, right = {}, self.width - PAD
+    local function add(name, w, text)
+        right = right - w
+        result[#result + 1] = { name = name, x = right, w = w, text = text }
+        right = right - 4
+    end
+    add("legend", TOGGLE_W, "?")
+    if self.data and self.data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
+    add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
+    if (self.zoom or 1) ~= 1 or (self.panX or 0) ~= 0 or (self.panY or 0) ~= 0 then add("fit", FIT_W, getText("IGUI_BU_PlanFit")) end
+    return result
 end
 
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
-    -- The floor shown, with what its devices draw; the legend's switch on the right.
+    -- The floor shown, with what its devices draw; with several floors, a click on it lists them.
     local text = BU.floorName(self.floor or 0)
     local data = self.data
     if data and data.utility == "power" then
         text = getText("IGUI_BU_FloorLoad", text, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
     end
+    if #(self.levels or {}) > 1 then text = text .. "  v" end
     self:drawTextCentre(text, self.width / 2, PAD, 1, 1, 1, 1, UIFont.Small)
-    local shown = self:legendShown()
-    self:drawRectBorder(self.width - PAD - TOGGLE_W, PAD - 1, TOGGLE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-    self:drawTextCentre("?", self.width - PAD - TOGGLE_W / 2, PAD, shown and 1 or 0.6, shown and 0.9 or 0.6, shown and 0.5 or 0.6, 1, UIFont.Small)
-    if data and data.zoneEditable then
-        local x, editing = self:zoneToggleX(), data.zoneEdit
-        if editing then self:drawRect(x, PAD - 1, ZONE_W, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
-        self:drawRectBorder(x, PAD - 1, ZONE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-        self:drawTextCentre(getText("IGUI_BU_Zone"), x + ZONE_W / 2, PAD, 1, 1, 1, editing and 1 or 0.75, UIFont.Small)
-    end
-    if (self.zoom or 1) > 1 then
-        local x = self:fitToggleX()
-        self:drawRectBorder(x, PAD - 1, FIT_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-        self:drawTextCentre(getText("IGUI_BU_PlanFit"), x + FIT_W / 2, PAD, 1, 1, 1, 0.9, UIFont.Small)
+    local on = { legend = self:legendShown(), zone = data and data.zoneEdit, range = self.window.rangeShown }
+    for _, toggle in ipairs(self:toggles()) do
+        if on[toggle.name] and toggle.name ~= "legend" then
+            self:drawRect(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6)
+        end
+        self:drawRectBorder(toggle.x, PAD - 1, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
+        local lit = toggle.name ~= "legend" or on.legend
+        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, PAD, 1, lit and 0.9 or 0.6, lit and 0.5 or 0.6,
+            toggle.name == "legend" and 1 or 0.9, UIFont.Small)
     end
 end
 
-function ISBUPlan:zoneToggleX() return self.width - PAD - TOGGLE_W - 4 - ZONE_W end
-
-function ISBUPlan:fitToggleX()
-    local right = self.data and self.data.zoneEditable and self:zoneToggleX() or self.width - PAD - TOGGLE_W
-    return right - 4 - FIT_W
-end
-
--- Which switch at the top is under the mouse: "legend", "zone", "fit" or nil.
+-- Which part of the top bar is under the mouse: a switch's name, "title" (the floor's name) or nil.
 function ISBUPlan:toggleAt(x, y)
     if y >= PAD + FONT_HGT_SMALL + 2 then return nil end
-    if x >= self.width - PAD - TOGGLE_W then return "legend" end
-    local zoneX = self:zoneToggleX()
-    if self.data and self.data.zoneEditable and x >= zoneX and x < zoneX + ZONE_W then return "zone" end
-    local fitX = self:fitToggleX()
-    if (self.zoom or 1) > 1 and x >= fitX and x < fitX + FIT_W then return "fit" end
+    for _, toggle in ipairs(self:toggles()) do
+        if x >= toggle.x and x < toggle.x + toggle.w then return toggle.name end
+    end
+    local half = getTextManager():MeasureStringX(UIFont.Small, BU.floorName(self.floor or 0)) / 2 + 60
+    if math.abs(x - self.width / 2) <= half then return "title" end
     return nil
 end
 
@@ -490,7 +540,7 @@ end
 function ISBUPlan:zoomAt(x, y, factor)
     local map = self.map
     if not map then return end
-    local zoom = math.max(1, math.min(MAX_ZOOM, (self.zoom or 1) * factor))
+    local zoom = math.max(MIN_ZOOM, math.min(MAX_ZOOM, (self.zoom or 1) * factor))
     local midX, midY = map.left + map.w / 2, map.top + map.h / 2
     local worldX = map.centreX + (x - midX) / map.scale
     local worldY = map.centreY + (y - midY) / map.scale
@@ -511,10 +561,19 @@ function ISBUPlan:render()
     if map then self:setStencilRect(map.left, map.top, map.w, map.h) end
     for _, cell in ipairs(self.cells) do
         local bright = cell.room == hoverRoom or cell.room == filter
-        local edge = bright and 1 or cell.dim and 0.3 or 0.55
         self:drawRect(cell.x, cell.y, cell.w, cell.h, bright and 0.85 or cell.dim and 0.4 or 0.6, cell.r, cell.g, cell.b)
-        self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, edge, edge, edge)
     end
+    -- The rooms' outlines; the room under the mouse or filtered drawn last, bright.
+    local brightWalls = {}
+    for _, wall in ipairs(self.walls) do
+        if wall.room == hoverRoom or wall.room == filter then
+            brightWalls[#brightWalls + 1] = wall
+        else
+            local edge = wall.dim and 0.3 or 0.55
+            self:drawRect(wall.x, wall.y, wall.w, wall.h, 1, edge, edge, edge)
+        end
+    end
+    for _, wall in ipairs(brightWalls) do self:drawRect(wall.x, wall.y, wall.w, wall.h, 1, 1, 1, 1) end
     for _, label in ipairs(self.labels) do
         self:drawTextCentre(label.text, label.x, label.y, 1, 1, 1, label.dim and 0.4 or 0.85, UIFont.Small)
     end
@@ -571,11 +630,14 @@ function ISBUPlan:render()
     end
     if map then self:clearStencilRect() end
     for _, cell in ipairs(self.strip) do
-        local current = cell.level == self.floor
+        local current = cell.level ~= nil and cell.level == self.floor
         self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
         self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, 0.5, 0.5, 0.5)
         if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
-        self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, current and 1 or 0.75, UIFont.Small)
+        -- The box's floor, so the player finds the way back.
+        if cell.box then self:drawRect(cell.x + cell.w - 5, cell.y + 2, 3, 3, 1, 1, 1, 1) end
+        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or 0.75
+        self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
     end
     for _, entry in ipairs(self.legend) do
         local middle = entry.y + LEGEND_ROW / 2
@@ -634,10 +696,16 @@ function ISBUPlan:onMouseMove(dx, dy)
         elseif zone and zone.state == "free" then
             self.status = self.status .. "  (" .. getText("IGUI_BU_Legend_zoneFree") .. ")"
         end
+    elseif kind == "floor" and thing.arrow then
+        self.status = getText("IGUI_BU_StripScroll")
     elseif kind == "floor" then
         self.status = BU.floorName(thing.level)
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
+        self.status = getText("IGUI_BU_PlanRangeHint")
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and #(self.levels or {}) > 1 then
+        self.status = getText("IGUI_BU_FloorMenuHint")
     elseif self:inMap(self:getMouseX(), self:getMouseY()) then
         self.status = getText(#(self.levels or {}) > 1 and "IGUI_BU_PlanHint" or "IGUI_BU_PlanHintOne")
     else
@@ -656,7 +724,7 @@ end
 function ISBUPlan:drag(dx, dy)
     if not self.pressed then return end
     self.moved = (self.moved or 0) + math.abs(dx) + math.abs(dy)
-    if self.moved < DRAG or (self.zoom or 1) <= 1 or not self.map then return end
+    if self.moved < DRAG or not self.map then return end
     self.dragged = true
     self.panX = (self.panX or 0) - dx / self.map.scale
     self.panY = (self.panY or 0) - dy / self.map.scale
@@ -666,21 +734,41 @@ end
 function ISBUPlan:showFloor(level)
     if level == nil or level == self.floor then return end
     self.floor = level
+    -- The strip centres on it again.
+    self.stripFirst = nil
     self:layout()
 end
 
+-- Over the floor strip the wheel scrolls the floors (up the wheel, up the building); elsewhere it zooms at the mouse
+-- (up the wheel, closer).
 function ISBUPlan:onMouseWheel(delta)
-    -- Ctrl (or a building of one floor): zoom; up the wheel, closer.
-    if isCtrlKeyDown() or #(self.levels or {}) < 2 then
-        self:zoomAt(self:getMouseX(), self:getMouseY(), delta < 0 and 1.25 or 0.8)
+    local x, y = self:getMouseX(), self:getMouseY()
+    if #self.strip > 0 and x < PAD + STRIP_W then
+        self:scrollStrip(delta * STRIP_SCROLL)
         return true
     end
-    local index = 1
-    for i, level in ipairs(self.levels) do if level == self.floor then index = i end end
-    -- Up the wheel, up the building.
-    index = math.max(1, math.min(#self.levels, index - delta))
-    self:showFloor(self.levels[index])
+    self:zoomAt(x, y, delta < 0 and 1.25 or 0.8)
     return true
+end
+
+-- The floors the strip shows moved by so many (down the building for more).
+function ISBUPlan:scrollStrip(by)
+    self.stripFirst = (self.stripFirst or 1) + by
+    self:layoutStrip()
+end
+
+-- Every floor in a menu at the mouse, top down, with how many devices are connected there; the one shown is not
+-- offered.
+function ISBUPlan:floorMenu()
+    local menu = ISContextMenu.get(self.window.playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    for index = #self.levels, 1, -1 do
+        local level = self.levels[index]
+        local text = BU.floorName(level)
+        if (self.floorOn[level] or 0) > 0 then text = text .. "  (" .. self.floorOn[level] .. ")" end
+        if self.data and self.data.box.z == level then text = text .. "  " .. getText("IGUI_BU_FloorBox") end
+        local option = menu:addOption(text, nil, function() self:showFloor(level) end)
+        if level == self.floor then option.notAvailable = true end
+    end
 end
 
 function ISBUPlan:onMouseDown(x, y)
@@ -693,8 +781,14 @@ function ISBUPlan:onMouseDown(x, y)
         self.window:setZoneEditing(not self.data.zoneEdit)
         return true
     elseif toggle == "fit" then
-        self.zoom = 1
+        self.zoom, self.panX, self.panY = 1, 0, 0
         self:layout()
+        return true
+    elseif toggle == "range" then
+        self.window:onRange()
+        return true
+    elseif toggle == "title" then
+        if #(self.levels or {}) > 1 then self:floorMenu() end
         return true
     end
     -- On the map, a click is known when the button comes up without the plan moved.
@@ -722,7 +816,9 @@ function ISBUPlan:click(x, y)
         if thing and thing.room then self.window:toggleZoneRoom(thing.room) end
         return true
     end
-    if kind == "floor" then
+    if kind == "floor" and thing.arrow then
+        self:scrollStrip(thing.arrow * thing.page)
+    elseif kind == "floor" then
         self:showFloor(thing.level)
     elseif kind == "dot" and self.data.choosing and thing.choosable then
         self.window:toggleChosen(thing.key)

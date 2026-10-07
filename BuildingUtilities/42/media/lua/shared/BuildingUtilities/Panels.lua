@@ -19,7 +19,13 @@ end
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
 -- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }.
+-- A building's rooms, kept a second: windows and the water layout ask for them often.
+local roomsCache = {}
 function Panels.rooms(building)
+    if not building then return {} end
+    local cached = roomsCache[building.key]
+    local now = getTimestampMs()
+    if cached and now - cached.at < 1000 then return cached.rooms end
     local api = BU.api()
     local list = api and building and api.buildings.rooms(building.key)
     local result = {}
@@ -33,6 +39,7 @@ function Panels.rooms(building)
         end
         result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects }
     end
+    roomsCache[building.key] = { at = now, rooms = result }
     return result
 end
 
@@ -324,6 +331,7 @@ function Panels.devices(panel, utility)
             local owner = inclusionOwner(utility, group.keys)
             device.state = owner == panel and "on" or owner and "other" or "off"
         end
+        if utility == "water" then device.group = BU.Water.deviceGroup(panel, group.keys) end
         if utility == "power" and device.state == "on" then
             device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"

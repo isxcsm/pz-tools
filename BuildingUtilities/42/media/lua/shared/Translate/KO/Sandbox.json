@@ -36,5 +36,9 @@
     "Sandbox_BuildingUtilities_ChargeEfficiency": "충전 효율(퍼센트)",
     "Sandbox_BuildingUtilities_ChargeEfficiency_tooltip": "배터리에 넣은 전기 중 남는 몫.",
     "Sandbox_BuildingUtilities_WearRate": "배터리 마모 배율",
-    "Sandbox_BuildingUtilities_WearRate_tooltip": "배터리가 쓰는 만큼 닳는 정도. 뱅크 하나 분량을 절반 위에서 쓰면 상태 1, 바닥까지 빼면 최대 6이 깎입니다. 0이면 닳지 않습니다."
+    "Sandbox_BuildingUtilities_WearRate_tooltip": "배터리가 쓰는 만큼 닳는 정도. 뱅크 하나 분량을 절반 위에서 쓰면 상태 1, 바닥까지 빼면 최대 6이 깎입니다. 0이면 닳지 않습니다.",
+    "Sandbox_BuildingUtilities_WaterFromAboveOnly": "위층 물만",
+    "Sandbox_BuildingUtilities_WaterFromAboveOnly_tooltip": "바닐라 배관처럼 시설은 자기보다 위층에 있는 통의 물만 씁니다. 끄면 같은 층 통의 물도 씁니다. 어느 쪽이든 아래층 통의 물은 쓰지 못합니다(펌프가 끌어올립니다).",
+    "Sandbox_BuildingUtilities_RiskPipesFreeze": "위험: 배관 동파",
+    "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "제어반 자리 기온이 -5도 아래로 6시간이면 물이 멈추고(난방된 건물은 덜 춥습니다), 0도 위로 2시간이면 다시 나옵니다. 기본은 꺼짐."
 }

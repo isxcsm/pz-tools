@@ -119,3 +119,15 @@ option BuildingUtilities.WearRate
     type = double, min = 0.0, max = 10.0, default = 1.0,
     page = BuildingUtilities, translation = BuildingUtilities_WearRate,
 }
+
+option BuildingUtilities.WaterFromAboveOnly
+{
+    type = boolean, default = false,
+    page = BuildingUtilities, translation = BuildingUtilities_WaterFromAboveOnly,
+}
+
+option BuildingUtilities.RiskPipesFreeze
+{
+    type = boolean, default = false,
+    page = BuildingUtilities, translation = BuildingUtilities_RiskPipesFreeze,
+}

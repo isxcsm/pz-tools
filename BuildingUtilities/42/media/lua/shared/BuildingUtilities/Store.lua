@@ -17,6 +17,11 @@ local KEY = "BuildingUtilities"
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
 --   shed (a set, under overload), saving (a set, keeping a low battery bank), blackout (a set: its lights, off by
 --   the player at the box) and timed (a set, by their timers).
+--   For water also groups (the player's water groups, BU.Water: a list of { id, name }, the first always there),
+--   nextGroup, groupOf (BU.thingKey to the group of a fixture not in the first) and levelLog (by group, what its
+--   tanks held hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour, amount, capacity }); a water producer
+--   may have group (nil for the first). With the freezing risk: frozen (its pipes are), coldHours and warmHours
+--   (how long it has been below freezing or above thawing at the box).
 --   energyLog: what the panel's power did hour by hour, oldest first, at most Store.ENERGY_HOURS: { hour (world age,
 --   whole), made (what its solar panels made, on average), used (the load supplied), charge (its bank's at the end,
 --   or nil) }; energyNow is the hour being summed { hour, made, used, n, charge }.
@@ -36,12 +41,20 @@ Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
 -- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units. 5: saving and
--- blackout.
-local VERSION = 5
+-- blackout. 6: water groups.
+local VERSION = 6
 
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, saving = {}, blackout = {},
         timed = {} }
+end
+
+-- What water keeps besides: one group, every tank and fixture in it.
+local function waterData(data)
+    data.groups = data.groups or { { id = 1 } }
+    data.nextGroup = data.nextGroup or 2
+    data.groupOf = data.groupOf or {}
+    data.levelLog = data.levelLog or {}
 end
 
 -- A panel saved by an older version gets what this one keeps.
@@ -56,6 +69,7 @@ local function migrate(panel, from)
             if data[name] == nil then data[name] = empty end
         end
     end
+    waterData(panel.water)
 end
 
 function Store.data()
@@ -85,6 +99,7 @@ function Store.newPanel(x, y, z, sprite)
     data.next = data.next + 1
     local panel = { id = id, x = x, y = y, z = z, sprite = sprite, tier = 1, tripped = false, log = {} }
     for _, utility in ipairs(BU.UTILITIES) do panel[utility] = utilityData() end
+    waterData(panel.water)
     data.panels[id] = panel
     return panel
 end
@@ -198,6 +213,21 @@ function Store.recordEnergy(panel, made, used, charge)
         panel.energyNow = now
     end
     now.made, now.used, now.n, now.charge = now.made + made, now.used + used, now.n + 1, charge
+end
+
+-- What a water group's tanks held this minute: kept as the hour's last, the hour into levelLog once it is over.
+function Store.recordWater(panel, group, amount, capacity)
+    local hour = math.floor(getGameTime():getWorldAgeHours())
+    local logs = panel.water.levelLog
+    local log = logs[group] or {}
+    logs[group] = log
+    local last = log[#log]
+    if last and last.hour == hour then
+        last.amount, last.capacity = amount, capacity
+    else
+        log[#log + 1] = { hour = hour, amount = amount, capacity = capacity }
+        while #log > Store.ENERGY_HOURS do table.remove(log, 1) end
+    end
 end
 
 return Store

@@ -12,6 +12,74 @@ function Geometry.toRect(x, y, rect)
     return math.max(dx, dy)
 end
 
+-- The squares within range steps of rectangles, a diagonal step counting as one (as Geometry.toRect): { minX, minY, w,
+-- h, cells (true by (y - minY) * w + (x - minX)) }, or nil without rectangles. The rectangles grown row by row, then
+-- column by column. Kept by the rectangles and the range: a building's do not change while its range is shown, and
+-- the plan and the world ask for the same.
+local areas, areaCount = {}, 0
+function Geometry.reach(rects, range)
+    if #rects == 0 then return nil end
+    local parts = { range }
+    for _, rect in ipairs(rects) do parts[#parts + 1] = rect.x .. "," .. rect.y .. "," .. rect.w .. "," .. rect.h end
+    local key = table.concat(parts, ";")
+    if areas[key] then return areas[key] end
+    local minX, minY, maxX, maxY
+    for _, rect in ipairs(rects) do
+        minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+        maxX, maxY = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1), math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+    end
+    minX, minY, maxX, maxY = minX - range, minY - range, maxX + range, maxY + range
+    local w, h = maxX - minX + 1, maxY - minY + 1
+    local base, rows, cells = {}, {}, {}
+    for _, rect in ipairs(rects) do
+        for y = rect.y, rect.y + rect.h - 1 do
+            for x = rect.x, rect.x + rect.w - 1 do base[(y - minY) * w + (x - minX)] = true end
+        end
+    end
+    for row = 0, h - 1 do
+        local last = -range - 1
+        for col = 0, w - 1 do
+            if base[row * w + col] then last = col end
+            if col - last <= range then rows[row * w + col] = true end
+        end
+        last = w + range
+        for col = w - 1, 0, -1 do
+            if base[row * w + col] then last = col end
+            if last - col <= range then rows[row * w + col] = true end
+        end
+    end
+    for col = 0, w - 1 do
+        local last = -range - 1
+        for row = 0, h - 1 do
+            if rows[row * w + col] then last = row end
+            if row - last <= range then cells[row * w + col] = true end
+        end
+        last = h + range
+        for row = h - 1, 0, -1 do
+            if rows[row * w + col] then last = row end
+            if last - row <= range then cells[row * w + col] = true end
+        end
+    end
+    if areaCount >= 16 then areas, areaCount = {}, 0 end
+    areas[key] = { minX = minX, minY = minY, w = w, h = h, cells = cells }
+    areaCount = areaCount + 1
+    return areas[key]
+end
+
+-- Whether a square is in an area of Geometry.reach.
+function Geometry.reached(area, x, y)
+    if not area then return false end
+    local col, row = x - area.minX, y - area.minY
+    return col >= 0 and row >= 0 and col < area.w and row < area.h and area.cells[row * area.w + col] == true
+end
+
+-- Whether a square of an area is on its edge: a neighbour across a side is out of it. These are the squares the
+-- range reaches exactly.
+function Geometry.onEdge(area, x, y)
+    return Geometry.reached(area, x, y) and not (Geometry.reached(area, x - 1, y) and Geometry.reached(area, x + 1, y)
+        and Geometry.reached(area, x, y - 1) and Geometry.reached(area, x, y + 1))
+end
+
 -- Steps from a square to a building's outline: its rooms on any level, as buildings.rooms lists them. 0 inside.
 function Geometry.toBuilding(x, y, rooms)
     local best

@@ -59,6 +59,20 @@ function commands.setController(player, panel, args)
     if Energy.validSettings(settings) then Changes.setController(panel, settings) end
 end
 
+-- Water groups: by their ids, checked by Changes; a fixture only while the panel connects it.
+function commands.addWaterGroup(player, panel, args) Changes.addWaterGroup(panel, args.name) end
+function commands.renameWaterGroup(player, panel, args) Changes.renameWaterGroup(panel, tonumber(args.group), args.name) end
+function commands.removeWaterGroup(player, panel, args) Changes.removeWaterGroup(panel, tonumber(args.group)) end
+
+function commands.setProducerGroup(player, panel, args)
+    Changes.setProducerGroup(panel, tonumber(args.index) or 0, tonumber(args.group))
+end
+
+function commands.setDeviceGroup(player, panel, args)
+    local device = type(args.key) == "string" and Panels.device(panel, "water", args.key)
+    if device and device.state == "on" then Changes.setDeviceGroup(panel, device, tonumber(args.group)) end
+end
+
 function commands.resetBreaker(player, panel, args)
     if panel.tripped then Changes.resetBreaker(panel) end
 end
@@ -229,9 +243,11 @@ local function updateUnits()
 end
 
 local function onNetworkChange(id, what)
-    local panel, utility = Networks.owner(id)
+    local panel, utility, group = Networks.owner(id)
     if not panel then return end
-    local state = Networks.state(panel, utility)
+    -- Water: a group's networks change together; its lowest tells for it.
+    if utility == "water" and id ~= BU.Water.lowestId(panel, group) then return end
+    local state = utility == "water" and Networks.groupState(panel, group) or Networks.state(panel, utility)
     -- Another producer carries it: its line is another length.
     if utility == "power" and what == "producer" and not panel.parent then Networks.applyLoss(panel) end
     if utility == "power" then checkLoad(panel) end
@@ -246,8 +262,14 @@ local function onNetworkChange(id, what)
                 Sync.notice(panel, "IGUI_BU_Notice_Switched", Panels.name(panel), index)
             end
         end
+    elseif what == "supply" and not state.supplied and state.enabled and utility == "power" then
+        Sync.notice(panel, "IGUI_BU_Notice_PowerLost", Panels.name(panel))
     elseif what == "supply" and not state.supplied and state.enabled then
-        Sync.notice(panel, utility == "power" and "IGUI_BU_Notice_PowerLost" or "IGUI_BU_Notice_WaterEmpty", Panels.name(panel))
+        if #BU.Water.groups(panel) > 1 then
+            Sync.notice(panel, "IGUI_BU_Notice_WaterEmptyGroup", Panels.name(panel), BU.Water.groupName(panel, group))
+        else
+            Sync.notice(panel, "IGUI_BU_Notice_WaterEmpty", Panels.name(panel))
+        end
     end
 end
 
@@ -287,6 +309,15 @@ local function recordStats(panel)
     end
 end
 
+-- What each water group's tanks held this minute, for its level graph.
+local function recordWater(panel)
+    if panel.parent then return end
+    for _, group in ipairs(BU.Water.groups(panel)) do
+        local state = Networks.groupState(panel, group.id)
+        if state then Store.recordWater(panel, group.id, state.amount or 0, state.capacity or 0) end
+    end
+end
+
 local function everyMinute()
     if not BU.api() then return end
     updateUnits()
@@ -296,16 +327,38 @@ local function everyMinute()
         checkFuel(panel)
         hourEnded = recordEnergy(panel) or hourEnded
         recordStats(panel)
+        recordWater(panel)
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end
+end
+
+-- Freezing pipes (a risk): a main panel's cold or warm hours at its box, counted every ten minutes; past the hours
+-- its water freezes or thaws. Without the risk, frozen pipes thaw.
+local function checkFreezing(panel)
+    if panel.parent then return end
+    local water = panel.water
+    if not BU.Water.freezeEnabled() then
+        water.coldHours, water.warmHours = nil, nil
+        if water.frozen then Changes.setFrozen(panel, false) end
+        return
+    end
+    local temperature = BU.Water.pipeTemperature(panel)
+    local step = 10 / 60
+    water.coldHours = temperature < BU.Water.FREEZE_BELOW and (water.coldHours or 0) + step or nil
+    water.warmHours = temperature > BU.Water.THAW_ABOVE and (water.warmHours or 0) + step or nil
+    if not water.frozen and (water.coldHours or 0) >= BU.Water.FREEZE_HOURS then Changes.setFrozen(panel, true) end
+    if water.frozen and (water.warmHours or 0) >= BU.Water.THAW_HOURS then Changes.setFrozen(panel, false) end
 end
 
 -- Timers turn with dusk and dawn; ten minutes is near enough.
 local function everyTenMinutes()
     if not BU.api() then return end
     Changes.checkObjects()
-    for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
+    for _, panel in ipairs(Store.list()) do
+        Changes.applyTimers(panel)
+        checkFreezing(panel)
+    end
 end
 
 -- A unit's square loaded: its kind catches up with what changed while it was not (a rack's batteries and look). This

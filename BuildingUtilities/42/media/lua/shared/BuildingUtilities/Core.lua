@@ -21,6 +21,8 @@ function BU.api()
     local api = PZToolsAPI
     if type(api) ~= "table" or not api.networks then return nil, "missing" end
     if api.version ~= BU.API_VERSION then return nil, "version" end
+    -- Water groups take a water network's own producers besides its parents' (API with draw and fill).
+    if not api.networks.draw then return nil, "version" end
     return api
 end
 

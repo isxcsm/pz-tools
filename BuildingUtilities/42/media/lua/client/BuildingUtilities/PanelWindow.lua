@@ -24,8 +24,7 @@ local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, LIST_W, MIN_LIST, MIN_PL
     ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.OPTION_W, Ui.SEEN, Ui.OUTSIDE,
     Ui.ROOM_TICK_X, Ui.CHOOSE_W, Ui.BATCH_BUTTONS, Ui.BATCH_W, Ui.load2, Ui.percent, Ui.count, Ui.nextSchedule
-local BUTTONS, BUTTON_W, deviceButtons, chooseButtonX, batchButtonX = Ui.BUTTONS, Ui.BUTTON_W, Ui.deviceButtons,
-    Ui.chooseButtonX, Ui.batchButtonX
+local deviceButtons, chooseButtonX, batchButtonX = Ui.deviceButtons, Ui.chooseButtonX, Ui.batchButtonX
 
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
@@ -93,6 +92,7 @@ function ISBUPanelWindow:createChildren()
     anchorRight(self.rangeButton)
     self.planButton = button(self, self.width - PAD - 130 - 4 - 110, self.loadY, 110, ROW, ISBUPanelWindow.onPlan)
     anchorRight(self.planButton)
+    self:placeTopButtons(self.planWanted)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     self.renameButton:setTitle(getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
@@ -225,8 +225,7 @@ function ISBUPanelWindow:setPlanShown(shown)
     self.minimumWidth = minimumWidth(shown)
     self.width = math.max(self.minimumWidth, math.min(windowWidth(listW, shown), getCore():getScreenWidth()))
     self.javaObject:setWidthSilent(self.width)
-    self.rangeButton:setX(self.width - PAD - 130)
-    self.planButton:setX(self.width - PAD - 130 - 4 - 110)
+    self:placeTopButtons(shown)
     self:layoutPanes()
     if shown then
         local overflow = self:getX() + self.width - getCore():getScreenWidth()
@@ -236,6 +235,14 @@ function ISBUPanelWindow:setPlanShown(shown)
         self:outlineDevice(nil)
     end
     self.planButton:setTitle(getText(shown and "IGUI_BU_PlanHide" or "IGUI_BU_PlanShow"))
+end
+
+-- The plan and range buttons at the right of the load bar. With the plan shown the range is a switch on it: only the
+-- plan button stays.
+function ISBUPanelWindow:placeTopButtons(planShown)
+    self.rangeButton:setVisible(not planShown)
+    self.rangeButton:setX(self.width - PAD - 130)
+    self.planButton:setX(planShown and self.width - PAD - 110 or self.width - PAD - 130 - 4 - 110)
 end
 
 function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()) end
@@ -265,6 +272,8 @@ function ISBUPanelWindow:prerender()
     if self.tabs and self.tabs.activeView then PanelWindow.lastTab = self.tabs.activeView.name end
     if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
     if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
+    -- The range is outlined a slice a frame: here, as update runs only a few times a second.
+    if self.rangeJob then self:stepRange() end
 end
 
 function ISBUPanelWindow:render()
@@ -509,6 +518,8 @@ function ISBUPanelWindow:fill(utility, state)
         add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
             getText("IGUI_BU_OpenTip"))
     else
+        -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
+        if utility == "water" then self:waterGroupRows(add, state, (Panels.devices(panel, "water"))) end
         add({ kind = "header", text = getText("IGUI_BU_Producers") })
         local producers = panel[utility].producers
         local source = utility == "power" and Energy.hasSource(panel)
@@ -534,7 +545,12 @@ function ISBUPanelWindow:fill(utility, state)
                     seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
             end
             view.producerText[index] = text
-            add({ kind = "producer", text = text, index = index, at = at, inUse = inUse })
+            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water" }
+            if utility == "water" and #BU.Water.groups(panel) > 1 then
+                row.group = BU.Water.producerGroup(at)
+                row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
+            end
+            add(row)
         end
     end
     local children = Store.children(panel.id)
@@ -667,10 +683,14 @@ function ISBUPanelWindow:fill(utility, state)
                             .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
                     end
                     local choosableDevice = choosing and not device.inside and device.state == "off"
+                    local groupText, groupColour
+                    if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
+                        groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
+                    end
                     add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
                         state = device.state, held = device.held, controls = controls, sheds = sheds,
                         choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
-                        fresh = view.fresh[device.key] }, tooltip)
+                        fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
                 end
             end
         end
@@ -680,8 +700,10 @@ end
 
 -- What happened to the box, newest first, with how long ago.
 local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IGUI_BU_Notice_WaterEmpty = true,
-    IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true }
-local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true }
+    IGUI_BU_Notice_WaterEmptyGroup = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
+    IGUI_BU_Notice_Frozen = true }
+local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
+    IGUI_BU_Notice_Thawed = true }
 
 local function ago(hours)
     if hours < 1 / 60 then return getText("IGUI_BU_AgoNow") end
@@ -773,17 +795,21 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
     if row.kind == "source" and row.settings then
         self:controllerMenu()
     elseif row.kind == "producer" then
-        for index, name in ipairs(BUTTONS) do
-            local bx = width - (#BUTTONS - index + 1) * (BUTTON_W + 4) - PAD
-            if x >= bx and x <= bx + BUTTON_W then
-                if name == "Remove" then
+        for _, button in ipairs(Ui.producerButtons(width, row)) do
+            if x >= button.x and x <= button.x + button.w then
+                if button.name == "Remove" then
                     BU.ContextMenu.queueAt(playerObj, row.at.x, row.at.y, row.at.z,
                         ISBUDisconnect:new(playerObj, "producer", panel, utility, row.at.x, row.at.y, row.at.z))
+                elseif button.name == "Group" then
+                    self:producerGroupMenu(row)
                 else
-                    Sync.send(playerObj, "moveProducer", { panel = panel.id, utility = utility, index = row.index, delta = name == "Up" and -1 or 1 })
+                    Sync.send(playerObj, "moveProducer", { panel = panel.id, utility = utility, index = row.index,
+                        delta = button.name == "Up" and -1 or 1 })
                 end
             end
         end
+    elseif row.kind == "waterGroup" or row.kind == "addGroup" then
+        self:onGroupRow(row, x, width)
     elseif row.kind == "link" then
         local target = Store.get(row.target)
         if target then PanelWindow.open(playerObj, target) end
@@ -815,7 +841,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         local device = row.device
         for _, button in ipairs((deviceButtons(width, row))) do
             if x >= button.x and x <= button.x + button.w then
-                if button.name == "timer" then
+                if button.name == "group" then
+                    self:deviceGroupMenu(device)
+                elseif button.name == "timer" then
                     Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 else
                     Sync.send(playerObj, "setEssential", { panel = panel.id, key = device.key, on = not device.essential })

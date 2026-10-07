@@ -137,6 +137,10 @@ end
 
 -- A main panel's water: { text, left, reason, level }.
 local function waterStatus(panel, state)
+    if panel.water.frozen then
+        return { text = getText("IGUI_BU_St_Frozen"), level = BAD,
+            reason = getText("IGUI_BU_Why_Frozen", BU.Water.THAW_ABOVE, BU.Water.THAW_HOURS) }
+    end
     if #panel.water.producers == 0 then
         return { text = getText("IGUI_BU_St_WaterNone"), reason = getText("IGUI_BU_Why_NoTanks"), level = BAD }
     end

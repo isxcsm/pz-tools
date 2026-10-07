@@ -9,7 +9,7 @@ local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 
 -- How far from a box's building, in squares, a player hears it; one with its window open always does.
 local NOTICE_RANGE = 40
-local GOOD = { IGUI_BU_Notice_Switched = true }
+local GOOD = { IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_Thawed = true }
 
 -- A tripped box blinks red in the world for the players here, until its breaker is reset.
 local marked = {}
