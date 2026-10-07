@@ -27,6 +27,8 @@ look; `BU22_CLEAN()` takes them away.
   units are then installed and wired from their context menus. `bu_combo2` prints what they do and opens the water
   tab; `bu_combo3` starts the generator, puts a well east of the pump, turns RiskPlumbingUnpurified on and wears the
   filter down for its Replace option. `BUCOMBO3_CLEAN()` and `BUCOMBO_CLEAN()` take their things away.
+- `bu_spray.lua`: a spraying sprinkler near the player, its frames read over a second and a half (the spray going
+  round); `BUSPRAY_CLEAN()` takes it away. A new sprite sheet needs the game restarted, not only the save reloaded.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
   test save and are kept as a record.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.

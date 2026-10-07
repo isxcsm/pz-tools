@@ -13,7 +13,11 @@ BU.WaterUnits = WaterUnits
 
 -- The pump stands beside the water, its suction on that side.
 WaterUnits.PUMP_SPRITES = { E = "bu_water_01_0", S = "bu_water_01_1", W = "bu_water_01_2", N = "bu_water_01_3" }
-WaterUnits.SPRINKLER_SPRITES = { idle = "bu_water_01_4", spraying = "bu_water_01_5" }
+-- A spraying sprinkler's head goes round: its frames in turn (client/BuildingUtilities/SprinklerSpray.lua).
+WaterUnits.SPRINKLER_SPRITES = { idle = "bu_water_01_4", spraying = { "bu_water_01_5", "bu_water_01_8", "bu_water_01_9",
+    "bu_water_01_10", "bu_water_01_11", "bu_water_01_12", "bu_water_01_13", "bu_water_01_14" } }
+local SPRAY_FRAME = {}
+for _, name in ipairs(WaterUnits.SPRINKLER_SPRITES.spraying) do SPRAY_FRAME[name] = true end
 -- The filter's pipe runs W-E or N-S.
 WaterUnits.FILTER_SPRITES = { across = "bu_water_01_6", along = "bu_water_01_7" }
 -- Litres a pump lifts an hour, and the load it puts on its panel's power while it runs.
@@ -28,6 +32,14 @@ WaterUnits.SPRAY_HOURS = 0.2
 WaterUnits.FILTER_HOURS = 24 * 30
 WaterUnits.MEDIA = { { type = "Base.Charcoal", count = 2 }, { type = "Base.RippedSheets", count = 1 } }
 WaterUnits.TIER = 2
+
+-- Whether a sprinkler sprays now: it watered within the last SPRAY_HOURS.
+function WaterUnits.spraying(unit)
+    return unit.sprayedAt ~= nil and getGameTime():getWorldAgeHours() - unit.sprayedAt < WaterUnits.SPRAY_HOURS
+end
+
+-- Whether a sprite is one of a spraying sprinkler's frames.
+function WaterUnits.isSprayFrame(name) return SPRAY_FRAME[name] == true end
 
 -- Whether the pipes leave water as its tanks hold it (the RiskPlumbingUnpurified option): then only a filter
 -- purifies a group's water.
@@ -88,9 +100,11 @@ Units.define("pump", {
     flow = function(unit) return unit.running and unit.fluid and 1 or nil end,
 })
 
+local sprinklerSprites = { WaterUnits.SPRINKLER_SPRITES.idle }
+for _, name in ipairs(WaterUnits.SPRINKLER_SPRITES.spraying) do sprinklerSprites[#sprinklerSprites + 1] = name end
 Units.define("sprinkler", {
     item = "BuildingUtilities.Sprinkler",
-    sprites = { WaterUnits.SPRINKLER_SPRITES.idle, WaterUnits.SPRINKLER_SPRITES.spraying },
+    sprites = sprinklerSprites,
     utility = "water",
     minTier = WaterUnits.TIER,
     tierReason = "waterUnitTier",
@@ -100,19 +114,16 @@ Units.define("sprinkler", {
         return true
     end,
     sprite = function() return WaterUnits.SPRINKLER_SPRITES.idle end,
-    -- It shows its spray for a while after it watered.
+    -- It shows its spray for a while after it watered: any of the frames the client turns it through.
     sync = function(unit, object)
-        local spraying = unit.sprayedAt and getGameTime():getWorldAgeHours() - unit.sprayedAt < WaterUnits.SPRAY_HOURS
-        local sprite = spraying and WaterUnits.SPRINKLER_SPRITES.spraying or WaterUnits.SPRINKLER_SPRITES.idle
-        if object:getSprite() and object:getSprite():getName() ~= sprite then
-            object:setSprite(getSprite(sprite))
-            if isServer() then object:transmitUpdatedSpriteToClients() end
-        end
+        local current = object:getSprite() and object:getSprite():getName()
+        if not current then return end
+        local spraying = WaterUnits.spraying(unit)
+        if spraying == WaterUnits.isSprayFrame(current) then return end
+        object:setSprite(getSprite(spraying and WaterUnits.SPRINKLER_SPRITES.spraying[1] or WaterUnits.SPRINKLER_SPRITES.idle))
+        if isServer() then object:transmitUpdatedSpriteToClients() end
     end,
-    flow = function(unit)
-        local recent = unit.sprayedAt and getGameTime():getWorldAgeHours() - unit.sprayedAt < WaterUnits.SPRAY_HOURS
-        return recent and -1 or nil
-    end,
+    flow = function(unit) return WaterUnits.spraying(unit) and -1 or nil end,
 })
 
 -- How much of its media a filter has left, 0 to 1.

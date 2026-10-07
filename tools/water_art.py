@@ -238,9 +238,21 @@ def pump(turns):
     return compose(s, ground=ground, seed=10 + turns)
 
 
-def sprinkler(spraying):
+# The frames of a spraying sprinkler: its head turned so far each, round once.
+SPRAY_FRAMES = 8
+
+
+def sprinkler(spraying, frame=0):
     """An impact sprinkler on a spike: a weighted base, the riser with the hose coupling, the brass head, its nozzle
-    looking up and out and the arm that knocks it round. Spraying, drops leave the nozzle in arcs."""
+    looking up and out and the arm that knocks it round. Spraying, drops leave the nozzle in arcs; each frame has the
+    head turned on by an eighth."""
+    angle = 2 * math.pi * frame / SPRAY_FRAMES
+    ca, sa = math.cos(angle), math.sin(angle)
+
+    def head(dx, dy, z):
+        """A point of the head, dx out along the nozzle and dy across it from the riser."""
+        return (0.5 + dx * ca - dy * sa, 0.5 + dx * sa + dy * ca, z)
+
     s = Scene()
     s.tube((0.5, 0.5, 0.0), (0.5, 0.5, 0.025), 0.1, (70, 72, 74), cap=(90, 92, 94))
     s.tube((0.5, 0.5, 0.025), (0.5, 0.5, 0.05), 0.06, (70, 72, 74))
@@ -252,27 +264,27 @@ def sprinkler(spraying):
     s.tube((0.5, 0.5, 0.42), (0.5, 0.5, 0.47), 0.045, BRASS, shine=0.6)
     s.tube((0.5, 0.5, 0.47), (0.5, 0.5, 0.5), 0.033, BRASS_DARK, shine=0.6)
     s.tube((0.5, 0.5, 0.5), (0.5, 0.5, 0.56), 0.028, BRASS, shine=0.6)
-    nozzle = (0.66, 0.5, 0.6)
+    nozzle = head(0.16, 0, 0.6)
     s.tube((0.5, 0.5, 0.54), nozzle, 0.016, BRASS, cap=BRASS_DARK, shine=0.6)
     # The arm with its spring and the deflector at its end.
     s.tube((0.5, 0.5, 0.62), (0.5, 0.5, 0.56), 0.008, STEEL)
-    s.tube((0.38, 0.5, 0.62), (0.66, 0.5, 0.64), 0.009, (150, 150, 154), shine=0.5)
-    s.box(0.64, 0.47, 0.6, 0.68, 0.53, 0.65, (150, 150, 154), shine=0.5)
-    s.tube((0.38, 0.5, 0.62), (0.38, 0.5, 0.58), 0.018, (150, 150, 154), shine=0.5)
+    s.tube(head(-0.12, 0, 0.62), head(0.16, 0, 0.64), 0.009, (150, 150, 154), shine=0.5)
+    s.tube(head(0.14, 0, 0.625), head(0.18, 0, 0.625), 0.03, (150, 150, 154), shine=0.5)
+    s.tube(head(-0.12, 0, 0.62), head(-0.12, 0, 0.58), 0.018, (150, 150, 154), shine=0.5)
     over = None
     if spraying:
         def over(big):
             layer = Image.new('RGBA', big.size, (0, 0, 0, 0))
             d = ImageDraw.Draw(layer)
             rnd = random.Random(7)
-            # The jets fan out away from the viewer and thin out in the air: the sprite keeps inside its tile.
+            # The jets fan out along the nozzle and thin out in the air: the sprite keeps inside its tile.
             for jet in range(7):
-                angle = -1.25 + jet * 0.14
+                direction = angle + (jet - 3) * 0.14
                 reach = 0.42 + rnd.random() * 0.1
                 for i in range(1, 19):
                     t = (i + rnd.random() * 0.5) / 18
-                    x = nozzle[0] + t * reach * math.cos(angle)
-                    y = nozzle[1] + t * reach * math.sin(angle)
+                    x = nozzle[0] + t * reach * math.cos(direction)
+                    y = nozzle[1] + t * reach * math.sin(direction)
                     z = nozzle[2] + t * 0.4 - t * t * 0.45
                     px, py = project(x, y, z)
                     r = (1.9 - 0.9 * t) * SS * (0.7 + rnd.random() * 0.6)
@@ -280,7 +292,7 @@ def sprinkler(spraying):
             layer = layer.filter(ImageFilter.GaussianBlur(SS * 0.25))
             big.alpha_composite(layer)
     ground = shadow((0.5, 0.5), 0.13, 0.13, 90)
-    return compose(s, ground=ground, over=over, seed=20 + (1 if spraying else 0))
+    return compose(s, ground=ground, over=over, seed=20 + (1 + frame if spraying else 0))
 
 
 def water_filter(turns):
@@ -313,18 +325,20 @@ def water_filter(turns):
 # The sheet: what each tile is, and its properties for the game.
 PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
+SPRINKLER = {'CustomName': 'Sprinkler', 'IsLow': ''}
 TILES = [
     # Pumps: the suction goes into the ground on the side they face.
     (lambda: pump(0), dict(PUMP, Facing='E')),
     (lambda: pump(1), dict(PUMP, Facing='S')),
     (lambda: pump(2), dict(PUMP, Facing='W')),
     (lambda: pump(3), dict(PUMP, Facing='N')),
-    (lambda: sprinkler(False), {'CustomName': 'Sprinkler', 'IsLow': ''}),
-    (lambda: sprinkler(True), {'CustomName': 'Sprinkler', 'IsLow': ''}),
+    # The sprinkler idle, then its first spraying frame; the others follow the filters.
+    (lambda: sprinkler(False), SPRINKLER),
+    (lambda: sprinkler(True, 0), SPRINKLER),
     # Filters: the pipe runs W-E, then N-S; the stand is behind.
     (lambda: water_filter(0), dict(FILTER, Facing='S')),
     (lambda: water_filter(3), dict(FILTER, Facing='E')),
-]
+] + [(lambda frame=frame: sprinkler(True, frame), SPRINKLER) for frame in range(1, SPRAY_FRAMES)]
 
 
 def write_tiles(path):

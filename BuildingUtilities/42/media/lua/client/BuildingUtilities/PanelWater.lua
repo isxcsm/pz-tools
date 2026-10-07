@@ -145,8 +145,7 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         if unit.running then return getText("IGUI_BU_Pump_running", WaterUnits.PUMP_RATE) end
         return getText("IGUI_BU_Pump_" .. (unit.idle or "noPower"))
     elseif unit.kind == "sprinkler" then
-        local recent = unit.sprayedAt and getGameTime():getWorldAgeHours() - unit.sprayedAt < WaterUnits.SPRAY_HOURS
-        return getText(recent and "IGUI_BU_Sprinkler_watering" or "IGUI_BU_Sprinkler_waiting")
+        return getText(WaterUnits.spraying(unit) and "IGUI_BU_Sprinkler_watering" or "IGUI_BU_Sprinkler_waiting")
     end
     local media = getText("IGUI_BU_FilterMedia", BU.percent(WaterUnits.mediaLeft(unit) * 100))
     if not WaterUnits.unpurifiedPipes() then return media .. ", " .. getText("IGUI_BU_Filter_resting") end
