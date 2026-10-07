@@ -34,11 +34,11 @@ public final class ContinuousRuntimeTest {
                 Thread.currentThread(), loader, new AtomicBoolean(true));
             var runtime = new ContinuousRuntime(root);
             check(runtime.apply(request(worldId, -1, 0, "one"), null, loader, "42.20").state().equals("Pending"), "Activation must wait for game boundary");
-            check(VehicleHooks.tryControl(null, 1, 0) == 0, "Pending activation affected physics");
+            check(ControlPoints.call("fixture", null, 1, 0) == 0, "Pending activation affected physics");
             runtime.tick(context);
             var active = runtime.status();
             check(active.state().equals("Active") && active.appliedRevision() == 0 && activations.get() == 1, "Activation did not commit");
-            check(VehicleHooks.tryControl(null, 1, 0) == 5, "Active provider not selected");
+            check(ControlPoints.call("fixture", null, 1, 0) == 5, "Active provider not selected");
             check(runtime.apply(request(worldId, -1, 1, "two"), null, loader, "42.20").reason().equals("revision-conflict"), "Stale configuration admitted");
             check(runtime.apply(request(worldId, 0, 1, "bad"), null, loader, "42.20").reason().startsWith("update-rejected"), "Bad configuration accepted");
             check(runtime.status().state().equals("Active") && activations.get() == 1, "Rejected update retired healthy generation");
@@ -57,18 +57,20 @@ public final class ContinuousRuntimeTest {
             check(runtime.status().state().equals("Disabled") && closures.get() == beforeHeldClose+1, "Retirement did not finish");
             runtime.apply(request(worldId, -1, 2, "three"), null, loader, "42.20"); runtime.tick(context);
             fail = true;
-            check(VehicleHooks.tryControl(null, 1, 0) == 0, "Callback exception escaped fallback");
-            check(runtime.status().state().equals("FaultedPassThrough"), "Callback fault not reported");
-            fail = false; check(VehicleHooks.tryControl(null, 1, 0) == 0, "Fault automatically retried");
+            check(ControlPoints.call("fixture", null, 1, 0) == 0, "Callback exception escaped fallback");
+            check(runtime.status().state().equals("FaultedPassThrough") && runtime.status().reason().equals("fixture-callback-failed"),
+                "Callback fault not reported by its control point: " + runtime.status());
+            fail = false; check(ControlPoints.call("fixture", null, 1, 0) == 0, "Fault automatically retried");
             runtime.deactivate("reset");
             runtime.apply(request(worldId, -1, 3, "four"), null, loader, "42.20"); runtime.tick(context);
             failHealth = true;
-            check(runtime.status().state().equals("FaultedPassThrough") && VehicleHooks.tryControl(null, 1, 0) == 0,
+            check(runtime.status().state().equals("FaultedPassThrough") && ControlPoints.call("fixture", null, 1, 0) == 0
+                && runtime.status().reason().equals("provider-failed:fixture-transformation-failed"),
                 "Provider-side retransformation failure remained Active without a callback");
             failHealth = false; runtime.deactivate("reset-health");
             runtime.apply(request(worldId, -1, 3, "four"), null, loader, "42.20"); runtime.tick(context);
             context.worldValid().set(false); runtime.tick(context);
-            check(VehicleHooks.tryControl(null, 1, 0) == 0 && runtime.status().state().equals("Disabled"), "World invalidation left effect active");
+            check(ControlPoints.call("fixture", null, 1, 0) == 0 && runtime.status().state().equals("Disabled"), "World invalidation left effect active");
             runtime.deactivate("world-ended"); runtime.close();
             check(runtime.apply(request(worldId, -1, 4, "five"), null, loader, "42.20").state().equals("Disabled"), "Closed host admitted activation");
             repeatedReplacement(root, first, world, worldId, loader);
@@ -115,10 +117,10 @@ public final class ContinuousRuntimeTest {
             ready=false;
             runtime.apply(request(worldId,12,13,"cancelled"),null,loader,"42.20"); runtime.tick(context);
             check(runtime.deactivate("off-before-safe-boundary").state().equals("Disabled")
-                && VehicleHooks.tryControl(null,1,0)==0,"OFF waited for an unsafe pending update to become ready");
+                && ControlPoints.call("fixture",null,1,0)==0,"OFF waited for an unsafe pending update to become ready");
             ready=true; runtime.tick(context);
             check(runtime.status().state().equals("Disabled") && appliedValue.equals("latest")
-                && VehicleHooks.tryControl(null,1,0)==0,"A cancelled pending revision was resurrected on resume");
+                && ControlPoints.call("fixture",null,1,0)==0,"A cancelled pending revision was resurrected on resume");
         } finally { ready=true; runtime.close(); }
     }
     private static void pendingDuringConfigApplication(Path root,Object world,String worldId,ClassLoader loader) throws Exception {
@@ -182,7 +184,7 @@ public final class ContinuousRuntimeTest {
             var after=runtime.status();
             check(active.generation().equals(after.generation()) && active.moduleSha256().equals(after.moduleSha256())
                 && after.appliedRevision()==active.appliedRevision() && activations.get()==initialActivations
-                && VehicleHooks.tryControl(null,1,0)==5,"Candidate handle/live-code rejection retired or changed healthy generation");
+                && ControlPoints.call("fixture",null,1,0)==5,"Candidate handle/live-code rejection retired or changed healthy generation");
         }
         preflightFailure=0; Files.write(root.resolve("fixture.jar"),original);
     }
@@ -204,7 +206,7 @@ public final class ContinuousRuntimeTest {
         Files.write(root.resolve("fixture.jar"),variant(original,43)); initializeFailure=true;
         try {
             var status=runtime.apply(request(worldId,0,1,"candidate"),null,loader,"42.20");
-            check(status.state().equals("Unsupported") && status.generation()==null && VehicleHooks.tryControl(null,1,0)==0,
+            check(status.state().equals("Unsupported") && status.generation()==null && ControlPoints.call("fixture",null,1,0)==0,
                 "A conflict discovered during actual install did not safely return to original control");
         } finally { initializeFailure=false; runtime.close(); Files.write(root.resolve("fixture.jar"),original); }
     }
@@ -217,28 +219,28 @@ public final class ContinuousRuntimeTest {
         for (int i = 0; i < 3; i++) {
             Files.write(root.resolve("fixture.jar"), variant(original,i));
             check(runtime.apply(request(worldId, i - 1, i, "replacement"), null, loader, "42.20").state().equals("Pending"), "Replacement not staged");
-            check(VehicleHooks.tryControl(null, 1, 0) == 0, "Retired generation survived replacement before activation");
+            check(ControlPoints.call("fixture", null, 1, 0) == 0, "Retired generation survived replacement before activation");
             runtime.tick(context);
             check(runtime.status().state().equals("Active") && generations.add(runtime.status().generation()), "Replacement reused a retired generation");
         }
         check(closures.get() == startedClosures + 2, "Replacement skipped a generation close");
         runtime.deactivate("off-without-another-tick");
         runtime.tick(context); // An already captured late game callback may not reactivate the retired generation.
-        check(VehicleHooks.tryControl(null, 1, 0) == 0 && runtime.status().state().equals("Disabled"), "OFF required a later game tick");
+        check(ControlPoints.call("fixture", null, 1, 0) == 0 && runtime.status().state().equals("Disabled"), "OFF required a later game tick");
         ready = false;
         runtime.apply(request(worldId, -1, 4, "pending"), null, loader, "42.20"); runtime.tick(context);
         runtime.deactivate("off-while-not-ready");
         ready = true; runtime.tick(context);
-        check(VehicleHooks.tryControl(null, 1, 0) == 0, "A pending activation survived OFF");
+        check(ControlPoints.call("fixture", null, 1, 0) == 0, "A pending activation survived OFF");
         runtime.close(); Files.write(root.resolve("fixture.jar"), original);
     }
     private static void heldRetirement(ContinuousRuntime runtime) throws Exception {
         hold = true; entered = new CountDownLatch(1); release = new CountDownLatch(1);
         var result = new AtomicInteger(); var retired = new AtomicReference<ContinuousModules.Status>();
-        Thread callback = new Thread(() -> result.set(VehicleHooks.tryControl(null, 1, 0)));
+        Thread callback = new Thread(() -> result.set(ControlPoints.call("fixture", null, 1, 0)));
         callback.start(); check(entered.await(2, TimeUnit.SECONDS), "Held callback did not enter");
         runtime.revoke("test-revoke");
-        check(VehicleHooks.tryControl(null, 1, 0) == 0, "Revoke did not immediately close admission");
+        check(ControlPoints.call("fixture", null, 1, 0) == 0, "Revoke did not immediately close admission");
         Thread closer = new Thread(() -> retired.set(runtime.deactivate("test"))); closer.start();
         check(retired.get() == null, "Close completed while callback owned generation");
         release.countDown(); callback.join(2000); closer.join(2000); hold = false;
@@ -252,7 +254,7 @@ public final class ContinuousRuntimeTest {
             import pztools.extensions.api.*; import pztools.extensions.runtime.ContinuousRuntimeTest;
             import java.util.*; import java.lang.instrument.Instrumentation;
             public final class Provider implements ContinuousProvider {
-              private VehicleHooks.Retirement retirement;
+              private Lease retirement;
               public String id(){return "fixture.vehicle";}
               public Support preflight(Instrumentation i,ClassLoader l,PreflightSource source)throws Exception{
                 if(ContinuousRuntimeTest.preflightFailure==1)return new Support(false,"controller-contract-changed");
@@ -262,14 +264,14 @@ public final class ContinuousRuntimeTest {
               public void validateConfig(Map<String,String> c){if(c.get("value").equals("bad"))throw new IllegalArgumentException("bad");}
               public boolean readyToActivate(Context c,Map<String,String> config){c.requireGameThread();return ContinuousRuntimeTest.ready;}
               public void activate(Context c,Map<String,String> config){c.requireGameThread();ContinuousRuntimeTest.activations.incrementAndGet();ContinuousRuntimeTest.appliedValue=config.get("value");
-                VehicleHooks.register(this,(controller,mode,speed)->{
+                ControlPoints.register("fixture",this,(controller,mode,speed)->{
                   if(ContinuousRuntimeTest.fail)throw new IllegalArgumentException("fixture-before-commit");
                   if(ContinuousRuntimeTest.hold){ContinuousRuntimeTest.entered.countDown();if(!ContinuousRuntimeTest.release.await(2,java.util.concurrent.TimeUnit.SECONDS))throw new IllegalStateException("held");}
-                  return VehicleHooks.APPLIED|VehicleHooks.OWN_OFFROAD;
+                  return 5;
                 });}
               public void updateConfig(Map<String,String> c)throws Exception{ContinuousRuntimeTest.applyConfiguration(c);}
               public String failureReason(){return ContinuousRuntimeTest.failHealth?"fixture-transformation-failed":null;}
-              public synchronized void deactivate(){if(retirement==null)retirement=VehicleHooks.unregister(this);}
+              public synchronized void deactivate(){if(retirement==null)retirement=ControlPoints.unregister("fixture",this);}
               public void close()throws Exception{deactivate();if(retirement!=null)retirement.await(5000);ContinuousRuntimeTest.closures.incrementAndGet();if(ContinuousRuntimeTest.failClose)throw new java.io.IOException("fixture-close");}
             }
             """);

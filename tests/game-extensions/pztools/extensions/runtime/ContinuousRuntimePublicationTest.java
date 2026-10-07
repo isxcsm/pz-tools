@@ -102,7 +102,7 @@ public final class ContinuousRuntimePublicationTest {
             runtime.tick(context); // A callback that already cleared pending must retain its acknowledgement.
             var active = runtime.status();
             check(active.state().equals("Active") && active.reason() == null && active.appliedRevision() == 30
-                && "published".equals(ContinuousRuntimeTest.appliedValue) && VehicleHooks.tryControl(null, 1, 0) == 5,
+                && "published".equals(ContinuousRuntimeTest.appliedValue) && ControlPoints.call("fixture", null, 1, 0) == 5,
                 "Initial Pending report overwrote completed activation: " + active);
             var next = runtime.apply(request(worldId, active.appliedRevision(), 31, "updated"), null, gameClasses, "42.20");
             check(next.state().equals("Pending") && "safe-boundary".equals(next.reason()),
@@ -112,7 +112,7 @@ public final class ContinuousRuntimePublicationTest {
                 && active.generation().equals(runtime.status().generation()) && "updated".equals(ContinuousRuntimeTest.appliedValue),
                 "Configuration update did not recover on the same generation");
             check(runtime.deactivate("publication-test-off").state().equals("Disabled")
-                && VehicleHooks.tryControl(null, 1, 0) == 0, "OFF did not retire the published generation");
+                && ControlPoints.call("fixture", null, 1, 0) == 0, "OFF did not retire the published generation");
         } finally {
             boundaryReleased.countDown(); controller.join(5000); runtime.close();
         }

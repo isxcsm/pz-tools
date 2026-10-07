@@ -177,6 +177,14 @@ public final class VehicleAdapterBehaviorTest {
             e.unregister(); e.register((c,m,s)->{throw new IllegalStateException("synthetic failure before commit");}); e.tick();
             near(e.nativeForce(),11,"fault fallback"); check(VehicleHooks.failure(e.owner)!=null,"fault visible");
         }
+        try(var e=new Env()) {
+            // An outcome the patched update() does not act on is the module's bug: it faults, and the game drives.
+            e.set(e.controller,"request",1); int[] calls={0};
+            e.register((c,m,s)->{ calls[0]++; return VehicleHooks.APPLIED|VehicleHooks.DIRECTION_HOLD; }); e.tick();
+            near(e.nativeForce(),11,"invalid outcome runs the original control"); near(e.number(e.controller,"forwardCalls"),1,"original propulsion ran once");
+            check(VehicleHooks.failure(e.owner)!=null,"invalid outcome faults the vehicle point");
+            e.tick(); near(calls[0],1,"a faulted point is not called again");
+        }
         groups++;
     }
     private static void originalIntervalsResetHighGear() throws Throwable {
@@ -963,8 +971,8 @@ public final class VehicleAdapterBehaviorTest {
             check(control.areaLightState().startsWith("failed:"),"fault is reported: "+control.areaLightState());
             e.set(cell,"rejectLights",false); control.gameFrame();
             near(e.number(cell,"added"),0,"no retry storm after a fault");
-            check(VehicleHooks.failure()==null,"the fault stays inside the light");
-            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0 && VehicleHooks.failure()==null,"driving assistance still applies");
+            check(VehicleHooks.failure(e.owner)==null,"the fault stays inside the light");
+            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0 && VehicleHooks.failure(e.owner)==null,"driving assistance still applies");
         }
         groups++;
     }

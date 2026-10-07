@@ -24,7 +24,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     private volatile boolean retired;
     private boolean initialized,registered,disposed;
-    private VehicleHooks.Retirement retirement;
+    private Lease retirement;
     private volatile VehicleControl control;
 
     @Override public String id() { return "pztools.vehicle-drivetrain"; }
@@ -52,7 +52,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     @Override public Support preflight(Instrumentation instrumentation,ClassLoader loader,PreflightSource activeSource) throws Exception {
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
+        if(Class.forName(ControlPoints.class.getName(),false,loader)!=ControlPoints.class) return new Support(false,"unsupported-hook-loader");
         // Reject missing/type-changed handles before asking the healthy active generation to retransform.
         new VehicleAccess(loader);
         Class<?> candidateTarget=Class.forName(VehicleBytecode.TARGET.replace('/','.'),false,loader);
@@ -121,7 +121,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
         if(initialized) return new Support(transformationFailure.get()==null,"game-code-changed");
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
+        if(Class.forName(ControlPoints.class.getName(),false,loader)!=ControlPoints.class) return new Support(false,"unsupported-hook-loader");
         access=new VehicleAccess(loader);
         target=Class.forName(VehicleBytecode.TARGET.replace('/','.'),false,loader);
         if(!instrumentation.isModifiableClass(target)) return new Support(false,"unmodifiable-controller");
@@ -189,7 +189,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public void close() throws Exception {
         deactivate();
-        VehicleHooks.Retirement wait;
+        Lease wait;
         synchronized(this) { if(disposed) return; wait=retirement; }
         if(wait!=null) wait.await(5000);
         synchronized(transformationGate) { retired=true; }

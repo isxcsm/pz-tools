@@ -6,8 +6,6 @@ import java.lang.instrument.Instrumentation;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.*;
 
 /**
@@ -42,25 +40,17 @@ final class ContinuousRuntime {
         volatile ContinuousProvider.Context context;
         volatile boolean activated, revoked;
         volatile long revision = -1;
-        int callbacks;
+        /** The game-thread lifecycle calls (activation, configuration, frame) that retirement waits for. */
+        final Lease callbacks = new Lease();
         Generation(ContinuousProvider provider, Definition definition, String digest,
                    ContinuousModules.Apply request, ClassLoader loader) {
             this.provider = provider; this.definition = definition; this.digest = digest;
             world = request.worldId(); this.loader = loader; pending = request;
         }
-        synchronized boolean acquire() { if (revoked) return false; callbacks++; return true; }
-        synchronized void release() { callbacks--; notifyAll(); }
         void revoke() {
+            callbacks.close();
             synchronized (this) { revoked = true; valid.set(false); pending = null; }
             provider.deactivate();
-        }
-        synchronized void await() throws InterruptedException, TimeoutException {
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-            while (callbacks != 0) {
-                long left = deadline - System.nanoTime();
-                if (left <= 0) throw new TimeoutException("Continuous lifecycle callback still in flight");
-                TimeUnit.NANOSECONDS.timedWait(this, left);
-            }
         }
         ContinuousModules.Status status(String state, String reason) {
             return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), world, id,
@@ -163,7 +153,7 @@ final class ContinuousRuntime {
                 || g.loader != context.gameClasses()) { revokeGeneration(g, "world-unavailable"); return; }
         String providerFailure = failureReason(g);
         if (providerFailure != null) { revokeFault(g, providerFailure); return; }
-        if (!g.acquire()) return;
+        if (!g.callbacks.acquire()) return;
         try {
             context.requireGameThread();
             var pending = g.pending;
@@ -190,15 +180,16 @@ final class ContinuousRuntime {
             }
             if (g.revoked) g.provider.deactivate();
         } catch (Throwable failure) { revokeFault(g, "activation-failed:" + failure.getClass().getSimpleName()); }
-        finally { g.release(); }
+        finally { g.callbacks.release(); }
     }
     private void revokeFault(Generation g, String reason) {
         try { g.revoke(); } catch (Throwable ignored) { g.valid.set(false); }
         if (current.get() == g) report = g.status("FaultedPassThrough", reason);
     }
     private static String failureReason(Generation g) {
-        // Only the module that owns the vehicle hook answers for a fault in it.
-        if (VehicleHooks.failure(g.provider) != null) return "vehicle-callback-failed";
+        // A handler the provider registered at a control point threw; the point already runs the game's code.
+        String point = ControlPoints.failed(g.provider);
+        if (point != null) return point + "-callback-failed";
         try {
             String value = g.provider.failureReason();
             return value == null ? null : "provider-failed:" + value.substring(0, Math.min(256, value.length()));
@@ -220,7 +211,7 @@ final class ContinuousRuntime {
         Generation g = current.getAndSet(null);
         if (g == null) return !poisoned;
         try {
-            g.revoke(); g.await();
+            g.revoke(); g.callbacks.await(5000);
             // Activation may have entered just before revoke; repeat after lifecycle drain.
             g.provider.deactivate(); g.provider.close();
             report = empty("Disabled", reason); return true;

@@ -299,6 +299,13 @@ The contract a module implements, such as `vehicle.drivetrain.v1`. It decides ho
 The class in a module that the host calls (`ContinuousProvider`): to validate and apply settings, on each game
 frame, and to close.
 
+<a id="control-point"></a>
+### Control point
+
+A named place in game code where a module may take a decision over (`ControlPoints`, part of the extension API).
+The module's own bytecode calls the point, and the module answers it while it is active; with no answer, or after
+the answer failed, the game's own code runs. See [game extensions](game-extensions.md#control-points).
+
 <a id="extension-runtime-host"></a>
 ### Extension runtime, host
 

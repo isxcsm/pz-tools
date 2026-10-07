@@ -522,7 +522,7 @@ public final class VehicleCompatibilityTest {
         valid(name+" transformed",transformed);
         long hooks=format.parse(transformed).methods().stream().filter(m->m.methodName().equalsString("update"))
             .flatMap(m->m.code().orElseThrow().elementStream()).filter(e->e instanceof InvokeInstruction i
-                && i.owner().asInternalName().equals("pztools/extensions/api/VehicleHooks") && i.name().equalsString("tryControl")).count();
+                && i.owner().asInternalName().equals(VehicleBytecode.POINTS_OWNER) && i.name().equalsString("call")).count();
         check(hooks==2,name+" must have exactly two dispatches");
     }
     private static void rejectedHelper(String name,byte[] source) {

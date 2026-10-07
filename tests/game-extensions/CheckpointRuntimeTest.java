@@ -76,7 +76,7 @@ public final class CheckpointRuntimeTest {
             diagnosticsAreFinalAndNotPerFrame(context);
             ModuleReloadTest.run();
             pztools.extensions.runtime.ContinuousRuntimeTest.run();
-            pztools.extensions.runtime.VehicleHooksTest.run();
+            pztools.extensions.api.ControlPointsTest.run();
             System.out.println("PASS: detached capture, writer ownership, failure and memory budget");
         } finally {
             Files.deleteIfExists(directory.resolve("saved.bin"));

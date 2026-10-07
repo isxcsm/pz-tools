@@ -181,6 +181,25 @@ in [Safe point](vehicle-drivetrain.md#safe-point-for-applying-changes).
 Turning a module off never waits for that point. `OFF` revokes the generation (no new calls),
 waits up to 5 seconds for calls in flight, then deactivates and closes the provider.
 
+### Control points
+
+A module that changes game code does it with its own bytecode, and that code calls a named control point
+(`ControlPoints`, in the resident extension API, so the game's class loader and every module generation see the
+same class). Two calls exist: `call(point, target, mode, argument)`, which returns an `int` outcome, and
+`observe(point, target, a, b, c)`, which only looks. What the mode and the outcome mean is the module's own
+contract with the code it generated; the API holds no game concept. While active, the module registers a handler
+for its point, with its provider as the owner.
+
+- **Fail open.** With no handler the call returns 0, which generated code must treat as "run the game's own code".
+- **One owner.** A second registration for the same point is refused.
+- **No re-entry.** A call on a thread that is already inside any point's handler returns 0.
+- **Fault latch.** A handler that throws is not called again and every later call returns 0. On its next tick the
+  host reports the owning module `FaultedPassThrough` with the reason `<point>-callback-failed` and revokes it.
+- **Drain.** `unregister` refuses new calls at once and returns a `Lease` to await the calls still in flight. The
+  same `Lease` class counts the host's own lifecycle calls into a generation.
+
+The vehicle module's point is `vehicle` ([how it attaches](vehicle-drivetrain.md#how-it-attaches-to-the-game)).
+
 ### Failure handling
 
 A failure is definitive when the game reports `Unsupported`, `FaultedPassThrough` or
@@ -299,7 +318,7 @@ C# tests are in `tests/PzTools.Backup.Tests`, Java tests under `tests/game-exten
 | Catalogue, versions, capabilities | `ExtensionVersionTests`, `ExtensionCapabilityClassificationTests`, `GameExtensionCatalogProjectionTests`, `VersionSupportTest` |
 | Preferences and card projection | `GameExtensionTests`, `GameExtensionEditTests`, `GameExtensionProjectionTests`, `ExtensionActivationViewTests`, `ExtensionRuntimeStatusSelectionTests` |
 | Scheduler | `GameExtensionReconciliationTests`, `GameExtensionActivationStateTests`, `ExtensionCoordinatorTests`, `RuntimeExtensionIntegrationTests` |
-| Host and control channel | `ModuleSlotsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
+| Host and control channel | `ModuleSlotsTest`, `ControlPointsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
 
 `scripts/test-game-extensions.ps1` runs the Java tests under `tests/game-extensions`.
 `scripts/test-game-bridge.ps1` runs it as its `extensions` suite, the control-channel tests as
