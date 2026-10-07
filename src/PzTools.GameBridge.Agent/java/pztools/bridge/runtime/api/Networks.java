@@ -14,7 +14,6 @@ import pztools.bridge.runtime.api.Network.Thing;
  */
 final class Networks {
     private static final String AREA = "PZToolsAPI.networks.";
-    private static final String NAME = "[A-Za-z0-9_.-]{1,64}";
     private static final int MAX_SPRITE = 256;
     // The key in the API's metatable, and the version of the text kept there.
     private static final String MIRROR = "networks", FORMAT = "pztools-networks 1";
@@ -456,11 +455,7 @@ final class Networks {
         return owner;
     }
 
-    private static String id(Object[] arguments, String call) {
-        String id = Arguments.string(arguments, 1, call, "id");
-        if (!id.matches(NAME)) throw new IllegalArgumentException(call + ": id must be 1 to 64 letters, digits, '_', '.' or '-'");
-        return id;
-    }
+    private static String id(Object[] arguments, String call) { return Arguments.name(arguments, 1, call, "id"); }
 
     private static void own(Network network, String owner, String call) {
         if (!network.owner.equals(owner)) throw new IllegalArgumentException(call + ": " + network.id + " belongs to another mod");
@@ -512,11 +507,10 @@ final class Networks {
     private Producer producer(Object item, Network network, String call, String name) throws ReflectiveOperationException {
         Object source = lua.isTable(item) ? lua.get(item, "source") : null;
         if (source == null) return Producer.square(position(item, call, name));
-        if (!(source instanceof String text) || !text.matches(NAME))
-            throw new IllegalArgumentException(call + ": " + name + ".source must be 1 to 64 letters, digits, '_', '.' or '-'");
+        if (!Arguments.isName(source)) throw new IllegalArgumentException(call + ": " + name + ".source must be " + Arguments.NAME_RULE);
         if (!PowerGrid.UTILITY.equals(network.utility))
             throw new IllegalArgumentException(call + ": " + network.id + " carries " + network.utility + "; sources are for power");
-        return Producer.source(text);
+        return Producer.source((String)source);
     }
 
     /** The network's consumers changed: its load is worked out again, without what was last seen of the object. */

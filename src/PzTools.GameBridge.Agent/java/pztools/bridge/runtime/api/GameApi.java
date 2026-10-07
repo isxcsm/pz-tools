@@ -22,7 +22,6 @@ public final class GameApi {
     // hold stay valid; and keeps the mods' handles.
     private static final String MARK = "pztools", HANDLES = "clients", HANDLE_METHODS = "clientMethods",
         HANDLE_META = "clientMeta";
-    private static final String NAME = "[A-Za-z0-9_.-]{1,64}";
     // Set when this payload's API has not reached the Lua environment the game has now.
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
@@ -144,9 +143,7 @@ public final class GameApi {
         }
         Object handleMetatable = handleMeta;
         lua.set(api, "client", lua.function(AREA + "client", arguments -> {
-            String name = Arguments.string(arguments, 0, AREA + "client", "name");
-            if (!name.matches(NAME))
-                throw new IllegalArgumentException(AREA + "client: name must be 1 to 64 letters, digits, '_', '.' or '-'");
+            String name = Arguments.name(arguments, 0, AREA + "client", "name");
             Object handle = lua.get(handles, name);
             if (handle == null) {
                 handle = lua.table();
