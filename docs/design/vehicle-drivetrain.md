@@ -79,7 +79,10 @@ Before it installs anything (`preflight`, then `initialize`):
 - The transformed class must pass the class-file verifier.
 
 Every later retransformation runs the same checks on the bytes it receives. If they fail, the
-transformer returns the input unchanged and the provider reports `controller-contract-changed`.
+transformer returns the input unchanged and the provider reports `controller-contract-changed:<code>`.
+The code is the check that failed, such as `unsupported-control-contract:control_Reverse` or
+`unsupported-call-count:zombie/core/physics/Bullet.controlVehicle(IFFF)V`. Preflight reports the same
+`controller-contract-changed:<code>`, and a failed installation `unsupported-controller-layout:<code>`.
 It never replaces another transformer's output with bytes read from disk. Preflight for a
 module update observes the existing transformer chain, but cannot see transformers registered
 later or changes made through JVMTI or JNI.

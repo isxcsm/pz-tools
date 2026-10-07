@@ -172,6 +172,11 @@ expected applied revision differs), catalogue row, version range, archive API ve
   the old generation is retired, and the new one is initialised. The reply is `Pending` /
   `safe-boundary`.
 
+A request that throws is answered `update-rejected:<exception class>`, and the exception itself is written to
+the game's standard error (`[PzTools extensions] Update rejected for <id>: …`), as is one thrown on the game
+thread (`activation-failed:<exception class>`). A reason the module gives (preflight, initialisation,
+`failureReason`) is passed on cut to 256 characters, with control characters replaced.
+
 `ExtensionControl` ticks the host on the game thread once per frame, and only while the game
 phase is `Ready`, the mode is local single-player and the game is not paused. On each tick a
 slot with a pending request asks the provider's `readyToActivate`. When it says yes, the slot

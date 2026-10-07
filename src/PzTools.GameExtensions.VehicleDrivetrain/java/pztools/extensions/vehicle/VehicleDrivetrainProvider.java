@@ -60,7 +60,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
         byte[] live=activeSource.capture(candidateTarget);
         if(live==null) live=captureUnownedInput(instrumentation,loader,candidateTarget);
         try { VehicleBytecode.transform(live,loader); }
-        catch(IllegalArgumentException rejected) { return new Support(false,"controller-contract-changed"); }
+        catch(IllegalArgumentException rejected) { return new Support(false,"controller-contract-changed:"+rejection(rejected)); }
         return new Support(true,null);
     }
     private static byte[] captureUnownedInput(Instrumentation instrumentation,ClassLoader loader,Class<?> target) throws Exception {
@@ -152,7 +152,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
             synchronized(transformationGate) { retired=true; }
             instrumentation.removeTransformer(transformer);
             instrumentation.retransformClasses(target);
-            return new Support(false,"unsupported-controller-layout");
+            return new Support(false,"unsupported-controller-layout:"+rejection(failure));
         }
     }
     @Override public void validateConfig(Map<String,String> config) { new VehicleControl.Settings(config); }
@@ -181,7 +181,10 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public void gameFrame() { var current=control; if(current!=null) current.gameFrame(); }
     @Override public String diagnostics() { var current=control; return current==null?"":current.diagnostics(); }
-    @Override public String failureReason() { return transformationFailure.get()==null?null:"controller-contract-changed"; }
+    @Override public String failureReason() {
+        Throwable failure=transformationFailure.get();
+        return failure==null?null:"controller-contract-changed:"+rejection(failure);
+    }
     @Override public synchronized void deactivate() {
         var current=control;
         if(current!=null) { current.stopKeys(); current.stopLight(); }
@@ -200,6 +203,21 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
             if(control!=null) control.clear(); control=null; access=null; target=null; transformer=null;
             instrumentation=null; initialized=false; disposed=true;
         }
+    }
+    /**
+     * Why the controller was refused, short enough for a status reason: the code VehicleBytecode or
+     * VehiclePatchContract gave (such as unsupported-control-contract:control_Reverse), else this module's own
+     * code along the way (such as controller-transform-rejected), else the exception's class. Free text from
+     * the JDK never gets through.
+     */
+    static String rejection(Throwable failure) {
+        for(Class<?> kind:List.of(IllegalArgumentException.class,IllegalStateException.class))
+            for(Throwable cause=failure;cause!=null;cause=cause.getCause()==cause?null:cause.getCause()) {
+                String code=cause.getMessage();
+                if(kind.isInstance(cause) && code!=null && code.length()<=160 && code.matches("[A-Za-z0-9_.:/()$;\\[-]+"))
+                    return code;
+            }
+        return failure.getClass().getSimpleName();
     }
     private static Exception checked(Throwable failure) {
         if(failure instanceof Exception exception) return exception;

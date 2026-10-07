@@ -171,7 +171,7 @@ public final class VerifyInstalledVehicleBytecode {
                                 byte[] bytes=provider.capturePreflightInput(type);
                                 return withConflictingControlCall(cf,bytes);
                             });
-                            if(rejected.supported() || !"controller-contract-changed".equals(rejected.reason()))
+                            if(rejected.supported() || !rejected.reason().startsWith("controller-contract-changed:"))
                                 throw new AssertionError("Candidate live-code incompatibility escaped preflight");
                         }
                         if(provider.failureReason()!=null || hooks(cf,observed.get(),"call")!=2

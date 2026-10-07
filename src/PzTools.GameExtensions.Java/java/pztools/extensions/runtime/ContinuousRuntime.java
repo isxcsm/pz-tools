@@ -15,6 +15,12 @@ import java.util.concurrent.atomic.*;
 final class ContinuousRuntime {
     private final Object operations = new Object();
     private final AtomicReference<Generation> current = new AtomicReference<>();
+    /**
+     * Taken only for a moment: by the game thread to report on a generation it saw, and by retirement to
+     * withdraw that generation. A report about a generation that is no longer current can then never
+     * overwrite the next generation's.
+     */
+    private final Object retirement = new Object();
     private volatile ContinuousModules.Status report = empty("Disabled", null);
     private boolean poisoned, closed;
     private Path directory;
@@ -91,14 +97,14 @@ final class ContinuousRuntime {
                     old == null ? type -> null : old.provider::capturePreflightInput);
                 if (!preflight.supported()) {
                     candidate.close(); candidate = null;
-                    return rejected("update-rejected:preflight:" + preflight.reason());
+                    return rejected("update-rejected:preflight:" + bounded(preflight.reason()));
                 }
                 // Preflight is a snapshot, not a lock over future transformers; installation must check again.
                 if (!retireCurrent("module-update")) { candidate.close(); return report; }
                 var support = candidate.initialize(instrumentation, loader);
                 if (!support.supported()) {
                     candidate.close(); candidate = null;
-                    report = empty("Unsupported", support.reason()); return report;
+                    report = empty("Unsupported", bounded(support.reason())); return report;
                 }
                 var next = new Generation(candidate, definition, archive.digest(), request, loader);
                 candidate = null;
@@ -107,11 +113,19 @@ final class ContinuousRuntime {
                 current.set(next);
                 return report;
             } catch (Exception | LinkageError failure) {
+                // The reply carries only the exception's class; the log keeps what it said.
+                System.err.println("[PzTools extensions] Update rejected for " + request.moduleId() + ": " + failure);
                 if (candidate != null) try { candidate.deactivate(); candidate.close(); }
                 catch (Exception | LinkageError cleanup) { poisoned = true; report = empty("RestartRequired", "candidate-retirement-failed"); }
                 return poisoned ? report : rejected("update-rejected:" + failure.getClass().getSimpleName());
             }
         }
+    }
+    /** A reason a module gave, as a status may carry it: one line, at most 256 characters. */
+    private static String bounded(String reason) {
+        if (reason == null) return "unspecified";
+        String line = reason.length() > 256 ? reason.substring(0, 256) : reason;
+        return line.chars().anyMatch(Character::isISOControl) ? line.replaceAll("\\p{Cntrl}", "?") : line;
     }
     private ContinuousModules.Status rejected(String reason) {
         var previous = report;
@@ -158,12 +172,19 @@ final class ContinuousRuntime {
                 }
             }
             if (g.revoked) g.provider.deactivate();
-        } catch (Throwable failure) { revokeFault(g, "activation-failed:" + failure.getClass().getSimpleName()); }
+        } catch (Throwable failure) {
+            System.err.println("[PzTools extensions] " + g.definition.id() + " failed on the game thread: " + failure);
+            revokeFault(g, "activation-failed:" + failure.getClass().getSimpleName());
+        }
         finally { g.callbacks.release(); }
     }
     private void revokeFault(Generation g, String reason) {
         try { g.revoke(); } catch (Throwable ignored) { g.valid.set(false); }
-        if (current.get() == g) report = g.status("FaultedPassThrough", reason);
+        publish(g, "FaultedPassThrough", reason);
+    }
+    /** Any thread: reports on g only while g is still this slot's generation. */
+    private void publish(Generation g, String state, String reason) {
+        synchronized (retirement) { if (current.get() == g) report = g.status(state, reason); }
     }
     private static String failureReason(Generation g) {
         // A handler the provider registered at a control point threw; the point already runs the game's code.
@@ -171,7 +192,7 @@ final class ContinuousRuntime {
         if (point != null) return point + "-callback-failed";
         try {
             String value = g.provider.failureReason();
-            return value == null ? null : "provider-failed:" + value.substring(0, Math.min(256, value.length()));
+            return value == null ? null : "provider-failed:" + bounded(value);
         } catch (Throwable failure) { return "provider-health-check-failed"; }
     }
     void revoke(String reason) {
@@ -180,14 +201,15 @@ final class ContinuousRuntime {
         revokeGeneration(g, reason);
     }
     private void revokeGeneration(Generation g, String reason) {
-        try { g.revoke(); if (current.get() == g) report = g.status("Disabled", reason); }
-        catch (Throwable failure) { if (current.get() == g) report = g.status("RestartRequired", "revoke-failed"); }
+        try { g.revoke(); publish(g, "Disabled", reason); }
+        catch (Throwable failure) { publish(g, "RestartRequired", "revoke-failed"); }
     }
     ContinuousModules.Status deactivate(String reason) {
         synchronized (operations) { retireCurrent(reason); return report; }
     }
     private boolean retireCurrent(String reason) {
-        Generation g = current.getAndSet(null);
+        Generation g;
+        synchronized (retirement) { g = current.getAndSet(null); }
         if (g == null) return !poisoned;
         try {
             g.revoke(); g.callbacks.await(5000);
