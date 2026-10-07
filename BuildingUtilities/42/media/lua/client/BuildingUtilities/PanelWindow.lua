@@ -820,8 +820,17 @@ end
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
     if row.kind == "source" then
-        local settings = row.settings and Ui.settingsButton(width, row)
-        if settings and x >= settings.x and x <= settings.x + settings.w then self:controllerMenu() end
+        for _, button in ipairs(Ui.sourceButtons(width, row)) do
+            if x >= button.x and x <= button.x + button.w then
+                if button.name == "Settings" then
+                    self:controllerMenu()
+                elseif row.useSourceReady then
+                    Sync.send(playerObj, "useSource", { panel = panel.id })
+                else
+                    HaloTextHelper.addBadText(playerObj, row.useSourceReason)
+                end
+            end
+        end
     elseif row.kind == "producer" and row.unit then
         self:onWaterUnitRow(row, x, width)
     elseif row.kind == "producer" then

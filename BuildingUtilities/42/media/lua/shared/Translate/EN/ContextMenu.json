@@ -5,6 +5,7 @@
     "ContextMenu_BU_ResetBreaker": "Reset Breaker",
     "ContextMenu_BU_SwitchOff": "Switch Power Off",
     "ContextMenu_BU_SwitchOn": "Switch Power On",
+    "ContextMenu_BU_UseSource": "Switch to Solar",
     "ContextMenu_BU_Upgrade": "Upgrade to Tier %1",
     "ContextMenu_BU_ConnectTo": "Connect to Utility Panel",
     "ContextMenu_BU_DisconnectFrom": "Disconnect from %1",

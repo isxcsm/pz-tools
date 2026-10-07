@@ -15,7 +15,7 @@ ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 
 local BUTTONS = { "Up", "Down", "Remove" }
 local BUTTON_W = 60
-local TIMER_W, ESSENTIAL_W, GROUP_W = 64, 48, 90
+local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
 local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
 
@@ -73,7 +73,7 @@ local function buttonsAtRight(width, row, names)
     if row.buttonsWidth == width then return row.buttons end
     local result, x = {}, width - PAD - SCROLLBAR
     for index = #names, 1, -1 do
-        local w = names[index] == "Group" and GROUP_W or BUTTON_W
+        local w = names[index] == "Group" and GROUP_W or names[index] == "UseSource" and SOURCE_W or BUTTON_W
         x = x - w - 4
         result[index] = { name = names[index], x = x, w = w }
     end
@@ -92,9 +92,12 @@ local function groupButtons(width, row)
     return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
 end
 
--- The Settings button of the bank's row (with a charge controller).
-local function settingsButton(width, row)
-    return buttonsAtRight(width, row, { "Settings" })[1]
+-- A source row's buttons, left to right: "Switch to solar" (while offered) and the charge controller's Settings.
+local function sourceButtons(width, row)
+    local names = {}
+    if row.useSource then names[#names + 1] = "UseSource" end
+    if row.settings then names[#names + 1] = "Settings" end
+    return buttonsAtRight(width, row, names)
 end
 
 local function smallButton(list, x, y, w, text, r, g, b)
@@ -241,9 +244,11 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
     elseif row.kind == "source" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
-        if row.settings then
-            local button = settingsButton(width, row)
-            smallButton(self, button.x, y, button.w, label("IGUI_BU_Settings"), 1, 1, 1)
+        for _, button in ipairs(sourceButtons(width, row)) do
+            -- Switching to solar before the source is ready is greyed (its tooltip says why).
+            local shade = (button.name ~= "UseSource" or row.useSourceReady) and 1 or 0.5
+            smallButton(self, button.x, y, button.w, label(button.name == "UseSource" and "IGUI_BU_UseSource" or "IGUI_BU_Settings"),
+                shade, shade, shade)
         end
     elseif row.kind == "producer" then
         -- In use in green, out of service (switched off by hand) in amber.
@@ -367,7 +372,7 @@ function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
 Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
 Ui.groupButtons = groupButtons
-Ui.settingsButton = settingsButton
+Ui.sourceButtons = sourceButtons
 Ui.GROUP_COLOURS = GROUP_COLOURS
 Ui.chooseButtonX = chooseButtonX
 Ui.batchButtonX = batchButtonX

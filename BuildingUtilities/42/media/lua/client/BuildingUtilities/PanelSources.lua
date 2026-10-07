@@ -94,6 +94,15 @@ function ISBUPanelWindow:sourceRows(state)
         if controller then tooltip = (tooltip and tooltip .. " <LINE> <LINE> " or "") .. self:controllerText() end
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
     end
+    -- "Switch to solar" on the first row, while something else carries the load (Energy.sourceOffer).
+    local offered, ready, rules = Energy.sourceOffer(panel, state)
+    if offered and rows[1] then
+        local first = rows[1]
+        first.row.useSource, first.row.useSourceReady = true, ready
+        first.row.useSourceReason = not ready and Energy.notReadyText(rules) or nil
+        local note = ready and getText("IGUI_BU_UseSourceTip") or first.row.useSourceReason
+        first.tooltip = (first.tooltip and first.tooltip .. " <LINE> <LINE> " or "") .. note
+    end
     return rows
 end
 

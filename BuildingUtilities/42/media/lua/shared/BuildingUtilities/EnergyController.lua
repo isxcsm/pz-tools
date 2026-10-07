@@ -1,5 +1,5 @@
 -- The charge controller of a panel's units (BU.Energy, from tier 3): its settings, quiet hours, and the rules the
--- source runs by each minute.
+-- source runs by each minute; when a player may switch to solar by hand (any tier).
 local BU = BuildingUtilities
 local Energy = BU.Energy
 
@@ -70,4 +70,23 @@ end
 -- the margin to start, or the bank holds more than its restart share. Its output and bank as Energy.run left them.
 function Energy.ready(rules, output, bank)
     return Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
+end
+
+-- "Switch to solar": whether a player may hand the load of a main panel from the generator in use to its source now
+-- (offered: the panel has a source, its power is on and something else supplies it), and whether the source is
+-- ready to carry it (Energy.ready), and the source's rules when offered. The API then switches the generator off, on
+-- standby: it takes over again when the source falls short. A charge controller does the same on its own once the
+-- source is ready.
+function Energy.sourceOffer(panel, state)
+    if not (Energy.hasSource(panel) and state and state.supplied and not Energy.inUse(state)
+            and BU.Networks.powerAllowed(panel)) then
+        return false, false, nil
+    end
+    local rules = Energy.rules(panel, state)
+    return true, Energy.ready(rules, Energy.output(panel), Energy.bank(panel)), rules
+end
+
+-- Why the source is not ready to take the load over, in words.
+function Energy.notReadyText(rules)
+    return getText("IGUI_BU_Reason_sourceNotReady", BU.percent(rules.restart * 100))
 end

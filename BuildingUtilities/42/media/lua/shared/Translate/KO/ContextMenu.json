@@ -5,6 +5,7 @@
     "ContextMenu_BU_ResetBreaker": "차단기 올리기",
     "ContextMenu_BU_SwitchOff": "전원 끄기",
     "ContextMenu_BU_SwitchOn": "전원 켜기",
+    "ContextMenu_BU_UseSource": "태양광으로 전환",
     "ContextMenu_BU_Upgrade": "%1단계로 업그레이드",
     "ContextMenu_BU_ConnectTo": "제어반에 연결",
     "ContextMenu_BU_DisconnectFrom": "%1에서 연결 해제",

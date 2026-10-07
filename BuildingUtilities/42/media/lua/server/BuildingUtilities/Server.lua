@@ -83,6 +83,13 @@ function commands.resetBreaker(player, panel, args)
     if panel.tripped then Changes.resetBreaker(panel) end
 end
 
+-- "Switch to solar" (Energy.sourceOffer): the source takes the load over from the generator in use, which the API
+-- switches off, on standby.
+function commands.useSource(player, panel, args)
+    local offered, ready = Energy.sourceOffer(panel, Networks.state(panel, "power"))
+    if offered and ready then Changes.useSource(panel) end
+end
+
 -- A power device of the panel that it connects (its building's, or one it wired outside).
 local function connectedDevice(panel, key)
     local device = type(key) == "string" and Panels.device(panel, "power", key)
@@ -191,8 +198,8 @@ end
 
 -- The units' source of a main panel over so many hours (Energy.run): available while its solar panels or its bank
 -- carry the load. The API hands the load to it, first in order, when the one in use stops and it is available; it is
--- switched on here when it can and the network has no supply. Below tier 3 a generator keeps running until the
--- player switches it off; a charge controller (tier 3) takes the load back from it once the bank is
+-- switched on here when it can and the network has no supply. Below tier 3 a generator keeps running until a player
+-- switches to solar (commands.useSource); a charge controller (tier 3) takes the load back from it once the bank is
 -- charged to its stop setting, charges the bank from it meanwhile, and in quiet hours switches the power off rather
 -- than let a generator start. What the bank and the solar panels came to this minute, by panel, for the energy
 -- record: { bank, output }.

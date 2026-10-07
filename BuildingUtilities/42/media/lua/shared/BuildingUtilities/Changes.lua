@@ -281,6 +281,14 @@ function Changes.setController(panel, settings)
     Sync.changed(panel.id)
 end
 
+-- "Switch to solar", checked by the caller (BU.Energy.sourceOffer): the units' source takes the load, and the API
+-- switches the generator in use off, on standby. The API tells the change ("producer"), and players hear of it.
+function Changes.useSource(panel)
+    Networks.setSource(panel, true, true)
+    panel.sourceOn = true
+    Sync.changed(panel.id)
+end
+
 -- Quiet hours with the bank empty: the panel's power off rather than a generator heard, and on again (unless its
 -- breaker or main switch keeps it off).
 function Changes.setQuietCut(panel, cut)
