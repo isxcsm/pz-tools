@@ -150,6 +150,12 @@ option BuildingUtilities.SnowOnPanels
     page = BuildingUtilities, translation = BuildingUtilities_SnowOnPanels,
 }
 
+option BuildingUtilities.SolarPanelLoot
+{
+    type = double, min = 0.0, max = 10.0, default = 1.0,
+    page = BuildingUtilities, translation = BuildingUtilities_SolarPanelLoot,
+}
+
 option BuildingUtilities.BatteryCapacity
 {
     type = double, min = 0.1, max = 50.0, default = 2.0,
