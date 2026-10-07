@@ -246,7 +246,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
             smallButton(self, button.x, y, button.w, label("IGUI_BU_Settings"), 1, 1, 1)
         end
     elseif row.kind == "producer" then
-        self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
+        -- In use in green, out of service (switched off by hand) in amber.
+        local r, g, b = 0.9, 0.9, 0.9
+        if row.inUse then r, g, b = 0.5, 1, 0.5 elseif row.out then r, g, b = 1, 0.65, 0.3 end
+        self:drawText(row.text, PAD * 2, textY, r, g, b, 1, UIFont.Small)
         for _, button in ipairs(producerButtons(width, row)) do
             if button.name == "Group" then
                 local c = row.groupColour

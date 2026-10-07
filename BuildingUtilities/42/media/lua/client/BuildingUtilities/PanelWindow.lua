@@ -1,6 +1,6 @@
 -- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load against what it carries and a banner when the breaker is
--- down or devices are shed, then a tab per utility (power's led by the box's main switch) with its producers
--- or the main panel that supplies it, its sub-panels, and its
+-- down or devices are shed, then a tab per utility (power's led by the box's main switch) with its producers (each
+-- generator running, on standby or out of service) or the main panel that supplies it, its sub-panels, and its
 -- devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
@@ -575,24 +575,27 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local seen = PanelWindow.seenProducer(state, at)
             local inUse = PanelWindow.producerInUse(state, at)
             local where = Panels.where(panel, at.x, at.y)
-            local text
+            local text, generatorState
             if utility == "power" then
                 local square = getCell():getGridSquare(at.x, at.y, at.z)
                 local generator = square and square:getGenerator()
                 local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
-                text = getText("IGUI_BU_GeneratorRow", index, where,
-                    getText(inUse and "IGUI_BU_Running" or "IGUI_BU_Standby"), fuel, seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
+                generatorState = PanelWindow.generatorState(state, at)
+                text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
+                    seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
             else
                 text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
                     seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
             end
             view.producerText[index] = text
-            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water" }
+            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water",
+                out = generatorState == "out" }
             if utility == "water" and #BU.Water.groups(panel) > 1 then
                 row.group = BU.Water.producerGroup(at)
                 row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
             end
-            add(row)
+            -- A generator's row tells how servicing one works: switched off by hand, the others take over.
+            add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
         end
         if utility == "water" then self:waterUnitRows(add) end
     end

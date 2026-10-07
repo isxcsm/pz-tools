@@ -42,14 +42,16 @@ end
 -- the bank takes to charge), charging (that), floor (the share of the bank it is not drawn below: the cutoff at
 -- tier 4; with a charge controller and a generator to hand over to, its start setting, but in quiet hours), restart
 -- (the share it needs to carry the load again: BANK_START over the floor, or the stop setting), quiet, generators (whether
--- a generator of the panel could take over: on a loaded square, as the API hands over only to those, with fuel and
--- not broken) and settings.
+-- a generator of the panel could take over: on a loaded square, as the API hands over only to those, with fuel, not
+-- broken, and running or on standby: one a player switched off is out of service, and the API starts it for nobody)
+-- and settings.
 function Energy.rules(panel, state)
     local settings = Energy.settings(panel)
     local tier = panel.tier or 1
     local generators = false
     for _, producer in ipairs(state.producers or {}) do
-        if not producer.source and getCell():getGridSquare(producer.x, producer.y, producer.z)
+        if not producer.source and (producer.running or producer.standby)
+                and getCell():getGridSquare(producer.x, producer.y, producer.z)
                 and (producer.fuel == nil or producer.fuel > 0) and (producer.condition == nil or producer.condition > 0) then
             generators = true
         end
