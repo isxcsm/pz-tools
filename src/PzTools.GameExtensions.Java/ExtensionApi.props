@@ -1,0 +1,10 @@
+<Project>
+  <!-- The extension ABI every archive declares in its manifest is ExtensionApi.HOST_ABI itself, read from the source. -->
+  <PropertyGroup>
+    <ExtensionApiSource>$(MSBuildThisFileDirectory)java\pztools\extensions\api\ExtensionApi.java</ExtensionApiSource>
+    <ExtensionHostAbi>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(ExtensionApiSource)')), '(?s)^.*\bHOST_ABI\s*=\s*([0-9]+)\s*;.*$', '$1'))</ExtensionHostAbi>
+  </PropertyGroup>
+  <Target Name="ValidateExtensionHostAbi">
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(ExtensionHostAbi)', '^[0-9]+$'))" Text="ExtensionApi.HOST_ABI could not be read from $(ExtensionApiSource)." />
+  </Target>
+</Project>

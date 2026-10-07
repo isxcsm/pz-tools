@@ -1,7 +1,7 @@
 package pztools.extensions.fixture;
 
 import pztools.extensions.api.SaveProvider;
-import pztools.extensions.runtime.CooperativeCapture;
+import pztools.extensions.runtime.spi.CooperativeCapture;
 import java.io.IOException;
 import java.nio.file.*;
 

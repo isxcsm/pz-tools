@@ -56,9 +56,10 @@ must carry the vehicle capability.
 
 Three readers use the deployed file: the UI controller on every card refresh, the scheduler
 when it starts (falling back to the embedded copy if the file cannot be read), and the host in
-the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name
-(`ModuleHost` when the host loads, `ContinuousRuntime` on every `APPLY`). It accepts only the
-continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.
+the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name, with
+one parser (`Catalogue`) that `ModuleHost` uses when the host loads and `ContinuousRuntime` on every
+`APPLY`. Besides `save.prepare.v1` it accepts the continuous capabilities in `Catalogue.CONTINUOUS`:
+`continuous.v1`, and `vehicle.drivetrain.v1`, the earlier name of the same contract.
 
 ### Version admission
 
@@ -157,6 +158,12 @@ it reads `settings.json` and the latest runtime snapshot.
 the resident [bootstrap](glossary.md#bootstrap), so a running game picks up changes to it on a
 [component update](module-reload.md).
 
+A module compiles against the runtime jar, and its class loader's parent is the runtime's. What it may use is
+the resident API (`pztools.extensions.api`), `pztools.extensions.runtime.spi` (`FrameListener` for per-frame
+work, `CooperativeCapture` for a save done in steps) and `pztools.extensions.runtime.input` (key timing). The
+host's own classes are package-private; only `ModuleHost`, which the bootstrap loads, and the contracts the
+bridge calls (`ModuleControl`, `CooperativeTask`) are public.
+
 ### In the game
 
 `ContinuousRuntime.apply` checks, in order: process id, revision (`revision-conflict` if the
@@ -171,6 +178,11 @@ expected applied revision differs), catalogue row, version range, archive API ve
   the old generation is retired, and the new one is initialised. The reply is `Pending` /
   `safe-boundary`.
 
+A request that throws is answered `update-rejected:<exception class>`, and the exception itself is written to
+the game's standard error (`[PzTools extensions] Update rejected for <id>: …`), as is one thrown on the game
+thread (`activation-failed:<exception class>`). A reason the module gives (preflight, initialisation,
+`failureReason`) is passed on cut to 256 characters, with control characters replaced.
+
 `ExtensionControl` ticks the host on the game thread once per frame, and only while the game
 phase is `Ready`, the mode is local single-player and the game is not paused. On each tick a
 slot with a pending request asks the provider's `readyToActivate`. When it says yes, the slot
@@ -180,6 +192,25 @@ in [Safe point](vehicle-drivetrain.md#safe-point-for-applying-changes).
 
 Turning a module off never waits for that point. `OFF` revokes the generation (no new calls),
 waits up to 5 seconds for calls in flight, then deactivates and closes the provider.
+
+### Control points
+
+A module that changes game code does it with its own bytecode, and that code calls a named control point
+(`ControlPoints`, in the resident extension API, so the game's class loader and every module generation see the
+same class). Two calls exist: `call(point, target, mode, argument)`, which returns an `int` outcome, and
+`observe(point, target, a, b, c)`, which only looks. What the mode and the outcome mean is the module's own
+contract with the code it generated; the API holds no game concept. While active, the module registers a handler
+for its point, with its provider as the owner.
+
+- **Fail open.** With no handler the call returns 0, which generated code must treat as "run the game's own code".
+- **One owner.** A second registration for the same point is refused.
+- **No re-entry.** A call on a thread that is already inside any point's handler returns 0.
+- **Fault latch.** A handler that throws is not called again and every later call returns 0. On its next tick the
+  host reports the owning module `FaultedPassThrough` with the reason `<point>-callback-failed` and revokes it.
+- **Drain.** `unregister` refuses new calls at once and returns a `Lease` to await the calls still in flight. The
+  same `Lease` class counts the host's own lifecycle calls into a generation.
+
+The vehicle module's point is `vehicle` ([how it attaches](vehicle-drivetrain.md#how-it-attaches-to-the-game)).
 
 ### Failure handling
 
@@ -274,7 +305,7 @@ checked on next save · Experimental**, **Version override · Essential checks s
 2. **Catalogue row** in `config/game-extensions/catalog.tsv`.
 3. **Capability.** An existing one can be reused. A new one must be added to
    `ExtensionCapabilities.Classify` and, for a continuous module, to
-   `ContinuousRuntime.CAPABILITIES`; otherwise both sides reject the whole catalogue.
+   `Catalogue.CONTINUOUS`; otherwise both sides reject the whole catalogue.
 4. **Texts.** `Extension.<Name>.Title` and `.Description` in every `Resources.resw` (see
    [localisation](../contributing/localization.md)).
 5. **Configuration.** Add a case to `RuntimeExtensionCoordinator.Configure`. Without one every
@@ -299,7 +330,7 @@ C# tests are in `tests/PzTools.Backup.Tests`, Java tests under `tests/game-exten
 | Catalogue, versions, capabilities | `ExtensionVersionTests`, `ExtensionCapabilityClassificationTests`, `GameExtensionCatalogProjectionTests`, `VersionSupportTest` |
 | Preferences and card projection | `GameExtensionTests`, `GameExtensionEditTests`, `GameExtensionProjectionTests`, `ExtensionActivationViewTests`, `ExtensionRuntimeStatusSelectionTests` |
 | Scheduler | `GameExtensionReconciliationTests`, `GameExtensionActivationStateTests`, `ExtensionCoordinatorTests`, `RuntimeExtensionIntegrationTests` |
-| Host and control channel | `ModuleSlotsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
+| Host and control channel | `ModuleSlotsTest`, `CatalogueTest`, `ControlPointsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
 
 `scripts/test-game-extensions.ps1` runs the Java tests under `tests/game-extensions`.
 `scripts/test-game-bridge.ps1` runs it as its `extensions` suite, the control-channel tests as

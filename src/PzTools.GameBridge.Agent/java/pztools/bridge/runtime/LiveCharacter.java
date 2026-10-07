@@ -62,12 +62,12 @@ final class LiveCharacter {
             return observe(worldId, null, "Unknown");
         }
     }
-    static void disconnect() { pztools.extensions.api.RuntimeCharacterIdentity.disconnect(); }
+    static void disconnect() { pztools.bridge.RuntimeCharacterIdentity.disconnect(); }
     static Facts observe(String worldId, Object player, String life) {
         return observe(worldId, player, life, "Unknown");
     }
     private static Facts observe(String worldId, Object player, String life, String sleep) {
-        var observed = pztools.extensions.api.RuntimeCharacterIdentity.observe(worldId, player, life);
+        var observed = pztools.bridge.RuntimeCharacterIdentity.observe(worldId, player, life);
         if (!facts.life().equals(observed.life()) || !java.util.Objects.equals(facts.character(), observed.character())
                 || !java.util.Objects.equals(facts.death(), observed.death()) || !facts.sleep().equals(sleep))
             facts = new Facts(observed.life(), observed.character(), observed.death(), sleep);

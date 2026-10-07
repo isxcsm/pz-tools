@@ -2,12 +2,10 @@ package pztools.extensions.runtime;
 
 import pztools.extensions.api.*;
 import pztools.extensions.api.internal.ClassArchive;
+import pztools.extensions.runtime.spi.FrameListener;
 import java.lang.instrument.Instrumentation;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.*;
 
 /**
@@ -16,11 +14,14 @@ import java.util.concurrent.atomic.*;
  * other. Independent of CheckpointRuntime. No lifecycle lock crosses a game callback.
  */
 final class ContinuousRuntime {
-    /** Capabilities that run for as long as they are on, as opposed to once per save. */
-    static final Set<String> CAPABILITIES = Set.of("vehicle.drivetrain.v1");
-    private record Definition(String id, String version, String namespace, String entry, String jar, VersionSupport support) { }
     private final Object operations = new Object();
     private final AtomicReference<Generation> current = new AtomicReference<>();
+    /**
+     * Taken only for a moment: by the game thread to report on a generation it saw, and by retirement to
+     * withdraw that generation. A report about a generation that is no longer current can then never
+     * overwrite the next generation's.
+     */
+    private final Object retirement = new Object();
     private volatile ContinuousModules.Status report = empty("Disabled", null);
     private boolean poisoned, closed;
     private Path directory;
@@ -32,7 +33,7 @@ final class ContinuousRuntime {
         return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), null, null, -1, null, null, "");
     }
     private static final class Generation {
-        final ContinuousProvider provider; final Definition definition; final String digest;
+        final ContinuousProvider provider; final Catalogue.Definition definition; final String digest;
         final String id = UUID.randomUUID().toString().replace("-", "");
         final AtomicBoolean valid = new AtomicBoolean(true);
         final String world; final ClassLoader loader;
@@ -42,29 +43,21 @@ final class ContinuousRuntime {
         volatile ContinuousProvider.Context context;
         volatile boolean activated, revoked;
         volatile long revision = -1;
-        int callbacks;
-        Generation(ContinuousProvider provider, Definition definition, String digest,
+        /** The game-thread lifecycle calls (activation, configuration, frame) that retirement waits for. */
+        final Lease callbacks = new Lease();
+        Generation(ContinuousProvider provider, Catalogue.Definition definition, String digest,
                    ContinuousModules.Apply request, ClassLoader loader) {
             this.provider = provider; this.definition = definition; this.digest = digest;
             world = request.worldId(); this.loader = loader; pending = request;
         }
-        synchronized boolean acquire() { if (revoked) return false; callbacks++; return true; }
-        synchronized void release() { callbacks--; notifyAll(); }
         void revoke() {
+            callbacks.close();
             synchronized (this) { revoked = true; valid.set(false); pending = null; }
             provider.deactivate();
         }
-        synchronized void await() throws InterruptedException, TimeoutException {
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-            while (callbacks != 0) {
-                long left = deadline - System.nanoTime();
-                if (left <= 0) throw new TimeoutException("Continuous lifecycle callback still in flight");
-                TimeUnit.NANOSECONDS.timedWait(this, left);
-            }
-        }
         ContinuousModules.Status status(String state, String reason) {
             return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), world, id,
-                revision, definition.version, digest, "");
+                revision, definition.version(), digest, "");
         }
     }
     ContinuousModules.Status apply(ContinuousModules.Apply request, Instrumentation instrumentation,
@@ -76,9 +69,9 @@ final class ContinuousRuntime {
                     || request.expectedRevision() != report.appliedRevision()) return rejected("revision-conflict");
             ContinuousProvider candidate = null;
             try {
-                Definition definition = definition(request.moduleId());
-                if (!request.forceVersion() && !definition.support.matches(version)) return rejected("version-mismatch");
-                var archive = ClassArchive.read(directory.resolve(definition.jar));
+                Catalogue.Definition definition = definition(request.moduleId());
+                if (!request.forceVersion() && !definition.support().matches(version)) return rejected("version-mismatch");
+                var archive = ClassArchive.read(directory.resolve(definition.jar()));
                 archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
                 Generation old = current.get();
                 if (old != null && !old.revoked && old.loader == loader && old.world.equals(request.worldId())
@@ -96,23 +89,23 @@ final class ContinuousRuntime {
                         old.pending = request; report = old.status("Pending", "safe-boundary"); return report;
                     }
                 }
-                var moduleLoader = archive.loader(definition.namespace, getClass().getClassLoader(), true);
-                candidate = (ContinuousProvider)moduleLoader.loadClass(definition.entry).getConstructor().newInstance();
-                if (!candidate.id().equals(definition.id)) throw new IllegalArgumentException("Module identity mismatch");
+                var moduleLoader = archive.loader(definition.namespace(), getClass().getClassLoader(), true);
+                candidate = (ContinuousProvider)moduleLoader.loadClass(definition.entry()).getConstructor().newInstance();
+                if (!candidate.id().equals(definition.id())) throw new IllegalArgumentException("Module identity mismatch");
                 candidate.validateConfig(request.config());
                 // Borrow only the old transformer's pre-hook input, never its module-owned callback implementation.
                 var preflight = candidate.preflight(instrumentation, loader,
                     old == null ? type -> null : old.provider::capturePreflightInput);
                 if (!preflight.supported()) {
                     candidate.close(); candidate = null;
-                    return rejected("update-rejected:preflight:" + preflight.reason());
+                    return rejected("update-rejected:preflight:" + bounded(preflight.reason()));
                 }
                 // Preflight is a snapshot, not a lock over future transformers; installation must check again.
                 if (!retireCurrent("module-update")) { candidate.close(); return report; }
                 var support = candidate.initialize(instrumentation, loader);
                 if (!support.supported()) {
                     candidate.close(); candidate = null;
-                    report = empty("Unsupported", support.reason()); return report;
+                    report = empty("Unsupported", bounded(support.reason())); return report;
                 }
                 var next = new Generation(candidate, definition, archive.digest(), request, loader);
                 candidate = null;
@@ -121,11 +114,19 @@ final class ContinuousRuntime {
                 current.set(next);
                 return report;
             } catch (Exception | LinkageError failure) {
+                // The reply carries only the exception's class; the log keeps what it said.
+                System.err.println("[PzTools extensions] Update rejected for " + request.moduleId() + ": " + failure);
                 if (candidate != null) try { candidate.deactivate(); candidate.close(); }
                 catch (Exception | LinkageError cleanup) { poisoned = true; report = empty("RestartRequired", "candidate-retirement-failed"); }
                 return poisoned ? report : rejected("update-rejected:" + failure.getClass().getSimpleName());
             }
         }
+    }
+    /** A reason a module gave, as a status may carry it: one line, at most 256 characters. */
+    private static String bounded(String reason) {
+        if (reason == null) return "unspecified";
+        String line = reason.length() > 256 ? reason.substring(0, 256) : reason;
+        return line.chars().anyMatch(Character::isISOControl) ? line.replaceAll("\\p{Cntrl}", "?") : line;
     }
     private ContinuousModules.Status rejected(String reason) {
         var previous = report;
@@ -133,28 +134,11 @@ final class ContinuousRuntime {
             previous.processId(), previous.worldId(), previous.generation(), previous.appliedRevision(),
             previous.moduleVersion(), previous.moduleSha256(), "");
     }
-    private Definition definition(String id) throws Exception {
-        byte[] bytes;
-        try (var stream = Files.newInputStream(directory.resolve("catalog.tsv"), LinkOption.NOFOLLOW_LINKS)) {
-            bytes = stream.readNBytes(65537);
-        }
-        if (bytes.length > 65536) throw new IllegalArgumentException("Oversized catalogue");
-        Definition selected = null; Set<String> ids = new HashSet<>();
-        for (String line : new String(bytes, StandardCharsets.UTF_8).split("\\R")) {
-            if (line.isBlank() || line.startsWith("#")) continue;
-            String[] p = line.split("\t", -1);
-            if ((p.length != 10 && p.length != 11) || !ids.add(p[0]) || ids.size() > 64)
-                throw new IllegalArgumentException("Invalid catalogue");
-            if (!p[0].equals(id)) continue;
-            if (p.length != 11 || !CAPABILITIES.contains(p[10])
-                    || !p[2].matches("pztools\\.extensions\\.[A-Za-z0-9_.]+")
-                    || !p[3].startsWith(p[2] + ".") || !p[3].matches("[A-Za-z0-9_.]+")
-                    || !p[4].matches("[a-z0-9-]+\\.jar")) throw new IllegalArgumentException("Unsupported continuous capability");
-            selected = new Definition(p[0], p[1], p[2], p[3], p[4],
-                new VersionSupport(p[5], p[6].equals("-") ? null : p[6], p[7].equals("-") ? null : p[7]));
-        }
-        if (selected == null) throw new IllegalArgumentException("Unknown continuous module");
-        return selected;
+    private Catalogue.Definition definition(String id) throws Exception {
+        Catalogue.Definition definition = Catalogue.read(directory).get(id);
+        if (definition == null) throw new IllegalArgumentException("Unknown continuous module");
+        if (!definition.continuous()) throw new IllegalArgumentException("Unsupported continuous capability");
+        return definition;
     }
     void tick(ContinuousProvider.Context context) {
         Generation g = current.get();
@@ -163,7 +147,7 @@ final class ContinuousRuntime {
                 || g.loader != context.gameClasses()) { revokeGeneration(g, "world-unavailable"); return; }
         String providerFailure = failureReason(g);
         if (providerFailure != null) { revokeFault(g, providerFailure); return; }
-        if (!g.acquire()) return;
+        if (!g.callbacks.acquire()) return;
         try {
             context.requireGameThread();
             var pending = g.pending;
@@ -189,19 +173,27 @@ final class ContinuousRuntime {
                 }
             }
             if (g.revoked) g.provider.deactivate();
-        } catch (Throwable failure) { revokeFault(g, "activation-failed:" + failure.getClass().getSimpleName()); }
-        finally { g.release(); }
+        } catch (Throwable failure) {
+            System.err.println("[PzTools extensions] " + g.definition.id() + " failed on the game thread: " + failure);
+            revokeFault(g, "activation-failed:" + failure.getClass().getSimpleName());
+        }
+        finally { g.callbacks.release(); }
     }
     private void revokeFault(Generation g, String reason) {
         try { g.revoke(); } catch (Throwable ignored) { g.valid.set(false); }
-        if (current.get() == g) report = g.status("FaultedPassThrough", reason);
+        publish(g, "FaultedPassThrough", reason);
+    }
+    /** Any thread: reports on g only while g is still this slot's generation. */
+    private void publish(Generation g, String state, String reason) {
+        synchronized (retirement) { if (current.get() == g) report = g.status(state, reason); }
     }
     private static String failureReason(Generation g) {
-        // Only the module that owns the vehicle hook answers for a fault in it.
-        if (VehicleHooks.failure(g.provider) != null) return "vehicle-callback-failed";
+        // A handler the provider registered at a control point threw; the point already runs the game's code.
+        String point = ControlPoints.failed(g.provider);
+        if (point != null) return point + "-callback-failed";
         try {
             String value = g.provider.failureReason();
-            return value == null ? null : "provider-failed:" + value.substring(0, Math.min(256, value.length()));
+            return value == null ? null : "provider-failed:" + bounded(value);
         } catch (Throwable failure) { return "provider-health-check-failed"; }
     }
     void revoke(String reason) {
@@ -210,17 +202,18 @@ final class ContinuousRuntime {
         revokeGeneration(g, reason);
     }
     private void revokeGeneration(Generation g, String reason) {
-        try { g.revoke(); if (current.get() == g) report = g.status("Disabled", reason); }
-        catch (Throwable failure) { if (current.get() == g) report = g.status("RestartRequired", "revoke-failed"); }
+        try { g.revoke(); publish(g, "Disabled", reason); }
+        catch (Throwable failure) { publish(g, "RestartRequired", "revoke-failed"); }
     }
     ContinuousModules.Status deactivate(String reason) {
         synchronized (operations) { retireCurrent(reason); return report; }
     }
     private boolean retireCurrent(String reason) {
-        Generation g = current.getAndSet(null);
+        Generation g;
+        synchronized (retirement) { g = current.getAndSet(null); }
         if (g == null) return !poisoned;
         try {
-            g.revoke(); g.await();
+            g.revoke(); g.callbacks.await(5000);
             // Activation may have entered just before revoke; repeat after lifecycle drain.
             g.provider.deactivate(); g.provider.close();
             report = empty("Disabled", reason); return true;

@@ -1,17 +1,15 @@
+package pztools.extensions.runtime;
+
 import pztools.extensions.api.*;
-import pztools.extensions.runtime.ModuleHost;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
 import java.util.jar.*;
 import javax.tools.ToolProvider;
 
 /** Real module host + independently compiled JAR generations; no game, GC deadline or source-text assertions. */
 public final class ModuleReloadTest {
     public static void run() throws Exception {
-        pairedObservation();
         Path root = Files.createTempDirectory("pztools-reload-");
         try {
             Files.writeString(root.resolve("catalog.tsv"), "fixture.save\t1.0.0\tpztools.extensions.fixture\tpztools.extensions.fixture.Provider\tfixture.jar\tAll\t-\t-\ttitle\tdescription\n");
@@ -109,16 +107,6 @@ public final class ModuleReloadTest {
             }
         }
         return bytes.toByteArray();
-    }
-    private static void pairedObservation() throws Exception {
-        var first=new AtomicInteger();var second=new AtomicInteger();String point="fixture.generation";
-        GameHooks.Observer old=new GameHooks.Observer(){public void exit(Throwable e){first.incrementAndGet();}};
-        GameHooks.Observer next=new GameHooks.Observer(){public void exit(Throwable e){second.incrementAndGet();}};
-        GameHooks.register(point,old);GameHooks.enter(point);var retired=GameHooks.unregister(point,old);
-        GameHooks.register(point,next);GameHooks.exit(point,null);retired.await(1000);
-        check(first.get()==1&&second.get()==0,"Late exit crossed observer generations");
-        GameHooks.enter(point);GameHooks.exit(point,null);GameHooks.unregister(point,next).await(1000);
-        check(second.get()==1,"New generation did not receive its own callback");
     }
     private static void waitFile(Path path)throws Exception{long end=System.nanoTime()+10_000_000_000L;while(!Files.exists(path)){if(System.nanoTime()>end)throw new AssertionError("Fixture did not start");Thread.sleep(1);}}
     private static void await(SaveTask task)throws Exception{long end=System.nanoTime()+10_000_000_000L;while(task.completed()==null){if(System.nanoTime()>end)throw new AssertionError("Fixture did not finish");Thread.sleep(1);}check(task.completed().failure()==null,"Save failed: "+task.completed().failure());}

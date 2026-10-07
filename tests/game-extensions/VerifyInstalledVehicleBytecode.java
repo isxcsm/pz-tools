@@ -160,8 +160,8 @@ public final class VerifyInstalledVehicleBytecode {
                     instrumentation.addTransformer(audit,true);
                     try {
                         instrumentation.retransformClasses(target);
-                        if(hooks(cf,observed.get(),"tryControl")!=2) throw new AssertionError("Installed generation must contain propulsion and steering dispatchers");
-                        if(hooks(cf,observed.get(),"observeNative")!=2) throw new AssertionError("Installed generation does not observe both native callsites");
+                        if(hooks(cf,observed.get(),"call")!=2) throw new AssertionError("Installed generation must contain propulsion and steering dispatchers");
+                        if(hooks(cf,observed.get(),"observe")!=2) throw new AssertionError("Installed generation does not observe both native callsites");
                         if(provider.failureReason()!=null) throw new AssertionError("Unexpected transformer failure");
                         // The old provider refreshes its own pre-hook input; a candidate must not mistake installed hooks for foreign code.
                         try(var candidate=new VehicleDrivetrainProvider()) {
@@ -171,11 +171,11 @@ public final class VerifyInstalledVehicleBytecode {
                                 byte[] bytes=provider.capturePreflightInput(type);
                                 return withConflictingControlCall(cf,bytes);
                             });
-                            if(rejected.supported() || !"controller-contract-changed".equals(rejected.reason()))
+                            if(rejected.supported() || !rejected.reason().startsWith("controller-contract-changed:"))
                                 throw new AssertionError("Candidate live-code incompatibility escaped preflight");
                         }
-                        if(provider.failureReason()!=null || hooks(cf,observed.get(),"tryControl")!=2
-                                || hooks(cf,observed.get(),"observeNative")!=2)
+                        if(provider.failureReason()!=null || hooks(cf,observed.get(),"call")!=2
+                                || hooks(cf,observed.get(),"observe")!=2)
                             throw new AssertionError("Rejected candidate damaged the old inert generation");
                         rejectLaterTransformer(instrumentation,loader,target,provider,cf);
                         provider.deactivate(); provider.close();
@@ -252,8 +252,8 @@ public final class VerifyInstalledVehicleBytecode {
             catch(IllegalStateException expected) { rejected="preflight-chain-output-changed".equals(expected.getMessage()); }
             if(!rejected) throw new AssertionError("A transformer registered after the active provider escaped preflight");
             if(laterFailure.get()!=null) throw new AssertionError("Later transformer fixture failed",laterFailure.get());
-            if(active.failureReason()!=null || hooks(cf,laterOutput.get(),"tryControl")!=2
-                    || hooks(cf,laterOutput.get(),"observeNative")!=2)
+            if(active.failureReason()!=null || hooks(cf,laterOutput.get(),"call")!=2
+                    || hooks(cf,laterOutput.get(),"observe")!=2)
                 throw new AssertionError("Later-transform rejection removed/faulted the old provider or its hooks");
         } finally {
             instrumentation.removeTransformer(later); instrumentation.retransformClasses(target);
@@ -266,7 +266,7 @@ public final class VerifyInstalledVehicleBytecode {
     private static long hooks(ClassFile cf,byte[] bytes,String method) {
         if(bytes==null) throw new AssertionError("Missing transformer audit");
         return cf.parse(bytes).methods().stream().flatMap(m->m.code().stream()).flatMap(c->c.elementStream())
-            .filter(e -> e instanceof InvokeInstruction call && call.owner().asInternalName().equals("pztools/extensions/api/VehicleHooks")
+            .filter(e -> e instanceof InvokeInstruction call && call.owner().asInternalName().equals(VehicleBytecode.POINTS_OWNER)
                 && (method==null || call.name().equalsString(method))).count();
     }
     private static long nopsInConstructors(ClassFile cf,byte[] bytes) {

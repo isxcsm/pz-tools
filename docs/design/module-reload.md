@@ -12,7 +12,7 @@ change is detected, and what survives the switch.
 | Layer | File in `game-bridge\` | Replaced while the game runs? |
 | --- | --- | --- |
 | Native attach bootstrap | `pztools-attach-bootstrap.dll` | No. Loaded on the first attach only. |
-| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ApiHooks` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
+| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ApiHooks`, `RuntimeCharacterIdentity` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
 | [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: save requests, WATCH, extension control, profiler, notices, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) | `extensions\pztools-extension-runtime.jar`: `ModuleHost`, `ContinuousRuntime` | Yes |
 | [Modules](glossary.md#extension-module) | `extensions\pztools-vehicle-drivetrain.jar`, listed in `extensions\catalog.tsv` | Yes, each in its own [slot](glossary.md#slot) |
@@ -33,9 +33,10 @@ The bootstrap owns everything that has to outlive a replacement
   power hooks in `IsoGridSquare`, `ItemContainer`, `IsoLightSwitch`, `DeviceData`, `LightingJNI`, `Food` and
   `IsoGenerator`, and the water hooks in `IsoObject`, added as those classes load. Each payload sets the handlers that answer them, replacing the
   last one's.
-- The extension API classes, including `RuntimeIdentity` (process and world ids) and `RuntimeCharacterIdentity`
-  (character and death ids). Payload and module archives are loaded with their own copies of these packages
-  skipped, so every generation sees the same classes.
+- `RuntimeCharacterIdentity` (character and death ids, for WATCH).
+- The extension API classes, including `RuntimeIdentity` (process and world ids) and `ControlPoints` (the
+  [control points](game-extensions.md#control-points) modules' bytecode calls). Payload and module archives are
+  loaded with their own copies of these packages skipped, so every generation sees the same classes.
 
 ## Compatibility checks
 
@@ -67,7 +68,7 @@ and 32 MiB of class data.
 | --- | --- |
 | Payload | Its digest differs from the loaded one |
 | Extension runtime | Its digest differs from the loaded one |
-| Continuous module | The digest or its catalogue definition (id, version, namespace, entry class, jar, supported game versions) differs, or the world, the game class loader or the generation is no longer the one loaded |
+| Continuous module | The digest or its catalogue definition (id, version, namespace, entry class, jar, supported game versions, capability) differs, or the world, the game class loader or the generation is no longer the one loaded |
 
 A module's title and description are not part of the definition; changing them reloads nothing. The same bytes
 at a new path are not a change ([app moved](#when-the-app-is-moved)).
@@ -194,10 +195,10 @@ extension's own save, which no shipped module performs. Continuous module replac
 | Payload, runtime and module replacement in a fake game | `GameBridgeReloadTests.CompatibleModuleReload_PreservesWatchAndOwnedSave_ThenReplacesPayloadWithoutRestart` (accepted save survives an archive change, epoch kept across a module reload and changed across a payload swap, identities kept, stale ticket refused, app moved, hook installed once) |
 | Repeated sessions and a legacy hook | `GameSaveClientTests.Bridge_RetiresLegacyHook_AndLoadsChangedPayloadWithoutRestartingTheGame`, `Bridge_RepeatedSessionsReuseBootstrapPayloadAndHook_AndSaveEveryTime` |
 | Older bootstrap | `GameProfileBridgeTests.AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing` |
-| Continuous modules | `ContinuousExtensionTests`, and the Java tests `ContinuousRuntimeTest`, `ModuleSlotsTest`, `ModuleReloadTest`, `VehicleHooksTest`, `ExtensionControlTest` |
+| Continuous modules | `ContinuousExtensionTests`, and the Java tests `ContinuousRuntimeTest`, `ModuleSlotsTest`, `ModuleReloadTest`, `ControlPointsTest`, `ExtensionControlTest` |
 
 The C# tests and `ExtensionControlTest` run through `scripts/test-game-bridge.ps1` (suites `dotnet` and
-`control`). The other Java tests run through `scripts/test-game-extensions.ps1` (suite `extensions`); `ContinuousRuntimeTest`, `ModuleReloadTest` and `VehicleHooksTest` run
+`control`). The other Java tests run through `scripts/test-game-extensions.ps1` (suite `extensions`); `ContinuousRuntimeTest`, `ModuleReloadTest` and `ControlPointsTest` run
 inside `CheckpointRuntimeTest`. The fixtures under `tests/game-extensions-fixture/` and
 `tests/game-extensions-continuous-fixture/` are synthetic modules. No test covers the 5-second drain timeout
 itself (failures are simulated with a throwing `close()`), a payload swap while extension control is active, or a

@@ -1,4 +1,4 @@
-package pztools.extensions.runtime;
+package pztools.extensions.runtime.spi;
 
 /**
  * Optional capability of an active continuous provider: one call per game-loop iteration, on the

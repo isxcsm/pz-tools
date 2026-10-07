@@ -6,12 +6,12 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Synthetic control/retirement provider. It never accesses game fields or alters physics. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.spi.FrameListener {
     private final String fixtureGeneration = UUID.randomUUID().toString().replace("-", "");
     private final AtomicInteger callbacks = new AtomicInteger(), frames = new AtomicInteger(), lateFrames = new AtomicInteger();
     private volatile boolean active;
     private volatile String setting = "";
-    private VehicleHooks.Retirement retirement;
+    private Lease retirement;
     public String id() { return "pztools.vehicle-drivetrain"; }
     public Support initialize(Instrumentation instrumentation, ClassLoader loader) { return new Support(true, null); }
     public void validateConfig(Map<String, String> config) {
@@ -19,8 +19,8 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     public synchronized void activate(Context context, Map<String, String> config) {
         context.requireGameThread(); setting = config.getOrDefault("fixture_value", "");
-        VehicleHooks.register(this, (controller, mode, speed) -> { callbacks.incrementAndGet(); return VehicleHooks.VANILLA; });
-        if (!context.worldValid().get()) { retirement = VehicleHooks.unregister(this); return; }
+        ControlPoints.register("vehicle", this, (target, mode, argument) -> { callbacks.incrementAndGet(); return 0; });
+        if (!context.worldValid().get()) { retirement = ControlPoints.unregister("vehicle", this); return; }
         active = true;
     }
     // Per-frame work is owed only to an active generation.
@@ -28,7 +28,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     public void updateConfig(Map<String, String> config) { setting = config.getOrDefault("fixture_value", ""); }
     public synchronized void deactivate() {
         active = false;
-        if (retirement == null) retirement = VehicleHooks.unregister(this);
+        if (retirement == null) retirement = ControlPoints.unregister("vehicle", this);
     }
     public void close() throws Exception { deactivate(); if (retirement != null) retirement.await(5000); }
     public String diagnostics() {

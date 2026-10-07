@@ -2,18 +2,21 @@ package pztools.extensions.runtime;
 
 import pztools.extensions.api.*;
 import pztools.extensions.api.internal.ClassArchive;
+import pztools.extensions.runtime.spi.CooperativeCapture;
 import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-/** Refreshes closed deployment snapshots BETWEEN saves. WATCH never owns a module generation. */
+/**
+ * The extension host: loads the modules the catalogue lists and keeps one slot per continuous module
+ * ({@link ContinuousRuntime}). Per-save providers are loaded between saves and run through
+ * {@link CheckpointRuntime}. WATCH never owns a module generation.
+ */
 public final class ModuleHost implements SaveModules, ContinuousModules, ModuleControl {
-    private record Definition(String id, String version, String jar, String namespace, String entry, VersionSupport support, String capability) { }
     private Path directory;
     private final Map<String, Loaded> loaded = new HashMap<>();
-    private record Rejected(Definition definition, String digest, String reason) { }
+    private record Rejected(Catalogue.Definition definition, String digest, String reason) { }
     private final Map<String, Rejected> rejected = new HashMap<>();
     private final CheckpointRuntime runtime = new CheckpointRuntime(64L * 1024 * 1024);
     // One slot per continuous module, created when the module is first applied. Slots share nothing
@@ -22,31 +25,8 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
     private final java.util.concurrent.ConcurrentHashMap<String, ContinuousRuntime> continuous = new java.util.concurrent.ConcurrentHashMap<>();
     private ClassLoader boundGameLoader;
     private volatile boolean closed, poisoned;
-    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); catalogue(); }
+    public ModuleHost(Path directory) throws Exception { this.directory = directory.toAbsolutePath().normalize(); Catalogue.read(this.directory); }
 
-    private Map<String, Definition> catalogue() throws IOException {
-        byte[] bytes;
-        try (var input = Files.newInputStream(directory.resolve("catalog.tsv"), LinkOption.NOFOLLOW_LINKS)) {
-            bytes = input.readNBytes(65537);
-        }
-        if (bytes.length > 65536) throw new IOException("Oversized extension catalogue");
-        var definitions = new HashMap<String, Definition>();
-        for (String line : new String(bytes, StandardCharsets.UTF_8).split("\\R")) {
-            if (line.isBlank() || line.startsWith("#")) continue;
-            String[] p = line.split("\t", -1);
-            if ((p.length != 10 && p.length != 11) || definitions.size() >= 64 || !p[0].matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+")
-                    || !p[1].matches("[0-9]+(?:[.][0-9]+){1,3}(?:[-+][A-Za-z0-9.-]+)?")
-                    || !p[2].matches("pztools\\.extensions\\.[A-Za-z0-9_.]+") || !p[3].startsWith(p[2] + ".")
-                    || !p[3].matches("[A-Za-z0-9_.]+") || !p[4].matches("[a-z0-9-]+\\.jar"))
-                throw new IOException("Invalid extension catalogue row");
-            var range = new VersionSupport(p[5], p[6].equals("-") ? null : p[6], p[7].equals("-") ? null : p[7]);
-            String capability = p.length == 10 ? "save.prepare.v1" : p[10];
-            if (!capability.equals("save.prepare.v1") && !ContinuousRuntime.CAPABILITIES.contains(capability)) throw new IOException("Unknown extension capability");
-            if (definitions.putIfAbsent(p[0], new Definition(p[0], p[1], p[4], p[2], p[3], range, capability)) != null)
-                throw new IOException("Duplicate module identity");
-        }
-        return definitions;
-    }
     @Override public synchronized void relocate(Path next) throws Exception {
         if (directory.equals(next.toAbsolutePath().normalize())) return;
         requireIdle();
@@ -65,21 +45,21 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
         Loaded previous = loaded.get(id);
         SaveProvider candidate = null;
         try {
-            Definition definition = catalogue().get(id);
+            Catalogue.Definition definition = Catalogue.read(directory).get(id);
             if (definition == null) { retire(id, previous); return new Resolution(null, "unknown-provider"); }
-            if (!definition.capability.equals("save.prepare.v1")) return new Resolution(null, "not-a-save-capability");
-            if (!forceVersion && !definition.support.matches(gameVersion))
+            if (!definition.capability().equals(Catalogue.SAVE)) return new Resolution(null, "not-a-save-capability");
+            if (!forceVersion && !definition.support().matches(gameVersion))
                 return new Resolution(null, gameVersion == null ? "version-unknown" : "version-mismatch");
             // Read once: hash, manifest and loaded classes refer to the SAME bounded archive bytes.
-            var archive = ClassArchive.read(directory.resolve(definition.jar));
+            var archive = ClassArchive.read(directory.resolve(definition.jar()));
             archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
             Rejected rejection = rejected.get(id);
             if (rejection != null && rejection.definition.equals(definition) && rejection.digest.equals(archive.digest()))
                 return new Resolution(null, rejection.reason);
             if (previous != null && previous.definition.equals(definition) && previous.digest.equals(archive.digest()))
                 return new Resolution(previous, null);
-            var loader = archive.loader(definition.namespace, ModuleHost.class.getClassLoader(), true);
-            candidate = (SaveProvider)loader.loadClass(definition.entry).getConstructor().newInstance();
+            var loader = archive.loader(definition.namespace(), ModuleHost.class.getClassLoader(), true);
+            candidate = (SaveProvider)loader.loadClass(definition.entry()).getConstructor().newInstance();
             if (!candidate.id().equals(id)) throw new IOException("Provider identity mismatch");
             if (previous != null && !previous.delegate.supportsReload())
                 return new Resolution(null, "module-restart-required");
@@ -141,7 +121,7 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
             synchronized (this) {
                 slot = continuous.get(request.moduleId());
                 if (slot == null) {
-                    if (continuous.size() >= MAXIMUM_SLOTS || !request.moduleId().matches("[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+"))
+                    if (continuous.size() >= MAXIMUM_SLOTS || !Catalogue.validId(request.moduleId()))
                         return new ContinuousModules.Status("Unsupported", "update-rejected:module-limit", RuntimeIdentity.processId(), null, null, -1, null, null, "");
                     slot = new ContinuousRuntime(directory);
                     continuous.put(request.moduleId(), slot);
@@ -193,17 +173,17 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
             state.worldId(), state.generation(), state.appliedRevision(), state.moduleVersion(), state.moduleSha256(), state.diagnostics());
     }
     private static final class Loaded implements SaveProvider {
-        final Definition definition;
+        final Catalogue.Definition definition;
         final String digest;
         final SaveProvider delegate;
         volatile boolean retired;
-        Loaded(Definition definition, String digest, SaveProvider delegate) {
+        Loaded(Catalogue.Definition definition, String digest, SaveProvider delegate) {
             this.definition = definition; this.digest = digest; this.delegate = delegate;
         }
-        public String id() { return definition.id; }
+        public String id() { return definition.id(); }
         public Support inspect(Context context) {
             if (retired) return new Support(false, "module-generation-retired");
-            if (!context.forceVersion() && !definition.support.matches(context.gameVersion()))
+            if (!context.forceVersion() && !definition.support().matches(context.gameVersion()))
                 return new Support(false, context.gameVersion() == null ? "version-unknown" : "version-mismatch");
             return delegate.inspect(context);
         }
@@ -219,7 +199,7 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
                 public void commit() throws Exception { plan.commit(); }
                 public Completion completion() { return plan.completion(); }
                 public String diagnostics() {
-                    return "moduleVersion=" + definition.version + "; moduleSha256=" + digest + "; " + plan.diagnostics();
+                    return "moduleVersion=" + definition.version() + "; moduleSha256=" + digest + "; " + plan.diagnostics();
                 }
                 public void close() throws Exception { plan.close(); }
             };
@@ -228,7 +208,7 @@ public final class ModuleHost implements SaveModules, ContinuousModules, ModuleC
                 public void commit() throws Exception { prepared.commit(); }
                 public Completion completion() { return prepared.completion(); }
                 public String diagnostics() {
-                    return "moduleVersion=" + definition.version + "; moduleSha256=" + digest + "; " + prepared.diagnostics();
+                    return "moduleVersion=" + definition.version() + "; moduleSha256=" + digest + "; " + prepared.diagnostics();
                 }
                 public void close() throws Exception { prepared.close(); }
             };

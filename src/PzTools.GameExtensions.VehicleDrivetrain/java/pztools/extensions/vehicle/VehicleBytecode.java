@@ -5,15 +5,20 @@ import java.lang.classfile.instruction.*;
 import java.lang.constant.*;
 import java.security.MessageDigest;
 import java.util.*;
+import pztools.extensions.api.ControlPoints;
+import static pztools.extensions.vehicle.VehicleHooks.*;
 
 /** A single resolved-mode dispatch; no game implementation is copied into this module. */
 public final class VehicleBytecode {
     public static final String TARGET = "zombie/core/physics/CarController";
-    private static final ClassDesc HOOKS = ClassDesc.of("pztools.extensions.api.VehicleHooks");
+    /** The class the generated calls go to: the resident control-point registry, shared by the game's class loader. */
+    public static final String POINTS_OWNER = ControlPoints.class.getName().replace('.', '/');
+    private static final ClassDesc POINTS = ClassDesc.ofInternalName(POINTS_OWNER);
     private static final ClassDesc CONTROL = ClassDesc.of(TARGET.replace('/', '.'));
     private static final ClassDesc STATE = ClassDesc.of(TARGET.replace('/', '.') + "$ControlState");
     private static final ClassDesc VEHICLE = ClassDesc.of("zombie.vehicles.BaseVehicle");
-    private static final MethodTypeDesc DISPATCH = MethodTypeDesc.ofDescriptor("(Ljava/lang/Object;IF)I");
+    private static final MethodTypeDesc CALL = MethodTypeDesc.ofDescriptor("(Ljava/lang/String;Ljava/lang/Object;IF)I");
+    private static final MethodTypeDesc OBSERVE = MethodTypeDesc.ofDescriptor("(Ljava/lang/String;Ljava/lang/Object;FFF)V");
     private static final Set<String> OWNED_CALLS = Set.of("control_NoControl", "control_ForwardNew", "control_Reverse");
     // Only code whose original execution we can skip is versioned. Surrounding classes,
     // unrelated controller methods, constant-pool layout and debug information are not pinned.
@@ -135,7 +140,7 @@ public final class VehicleBytecode {
         var code = methods.getFirst().code().orElseThrow();
         List<Instruction> instructions = code.elementStream().filter(Instruction.class::isInstance).map(Instruction.class::cast)
             .filter(i->i.opcode()!=Opcode.NOP).toList();
-        for (Instruction i : instructions) if (i instanceof InvokeInstruction call && call.owner().asInternalName().equals(HOOKS.descriptorString().substring(1, HOOKS.descriptorString().length()-1)))
+        for (Instruction i : instructions) if (i instanceof InvokeInstruction call && call.owner().asInternalName().equals(POINTS_OWNER))
             throw new IllegalArgumentException("controller-already-intercepted");
         Map<String,Integer> counts = new HashMap<>();
         for (Instruction i : instructions) if (i instanceof InvokeInstruction call)
@@ -197,18 +202,18 @@ public final class VehicleBytecode {
                     if(e instanceof Instruction instruction && instruction.opcode()!=Opcode.NOP) {
                         int index=instructionIndex++;
                         if(index==dispatchIndex) dispatch(b,stateLocal,speedLocal,flags);
-                        if(index==steeringEntryIndex) b.aload(0).iconst_5().fload(speedLocal).invokestatic(HOOKS,"tryControl",DISPATCH)
-                            .iconst_1().iand().ifne(originalSteeringEnd);
+                        if(index==steeringEntryIndex) b.loadConstant(POINT).aload(0).loadConstant(STEERING).fload(speedLocal)
+                            .invokestatic(POINTS,"call",CALL).loadConstant(APPLIED).iand().ifne(originalSteeringEnd);
                         if(index==steeringEndIndex) b.labelBinding(originalSteeringEnd);
                     }
                     if (e instanceof InvokeInstruction call && call.owner().asInternalName().equals(TARGET) && OWNED_CALLS.contains(call.name().stringValue())) {
                         Label original=b.newLabel(), end=b.newLabel();
-                        b.iload(flags).iconst_1().iand().ifeq(original);
+                        b.iload(flags).loadConstant(APPLIED).iand().ifeq(original);
                         if (call.name().equalsString("control_NoControl")) b.pop(); else b.pop2();
                         b.goto_(end).labelBinding(original).with(e).labelBinding(end);
                     } else if (e instanceof InvokeInstruction call && call.owner().asInternalName().equals("zombie/vehicles/BaseVehicle") && call.name().equalsString("isDoingOffroad")) {
                         b.with(e); Label end=b.newLabel();
-                        b.iload(flags).iconst_4().iand().ifeq(end).pop().iconst_0().labelBinding(end);
+                        b.iload(flags).loadConstant(OWN_OFFROAD).iand().ifeq(end).pop().iconst_0().labelBinding(end);
                     } else if (e instanceof InvokeInstruction call && call.owner().asInternalName().equals("zombie/core/physics/Bullet")
                             && call.name().equalsString("controlVehicle") && call.type().equalsString("(IFFF)V")) {
                         // Observe the exact native arguments, including the engine-off zero-force call.
@@ -216,31 +221,31 @@ public final class VehicleBytecode {
                         int steer=b.allocateLocal(TypeKind.FLOAT), brake=b.allocateLocal(TypeKind.FLOAT);
                         int force=b.allocateLocal(TypeKind.FLOAT), id=b.allocateLocal(TypeKind.INT);
                         b.fstore(steer).fstore(brake).fstore(force).istore(id);
-                        b.aload(0).fload(force).fload(brake).fload(steer)
-                            .invokestatic(HOOKS,"observeNative",MethodTypeDesc.ofDescriptor("(Ljava/lang/Object;FFF)V"));
+                        b.loadConstant(POINT).aload(0).fload(force).fload(brake).fload(steer).invokestatic(POINTS,"observe",OBSERVE);
                         b.iload(id).fload(force).fload(brake).fload(steer).with(e);
                     } else b.with(e);
                 }
             })));
         long dispatches=cf.parse(transformed).methods().stream().filter(m -> m.methodName().equalsString("update") && m.methodType().equalsString("()V"))
             .flatMap(m -> m.code().orElseThrow().elementStream())
-            .filter(e -> e instanceof InvokeInstruction call && call.owner().asInternalName().equals("pztools/extensions/api/VehicleHooks")
-                && call.name().equalsString("tryControl")).count();
+            .filter(e -> e instanceof InvokeInstruction call && call.owner().asInternalName().equals(POINTS_OWNER)
+                && call.name().equalsString("call")).count();
         if(dispatches!=2) throw new IllegalStateException("invalid-dispatch-count");
         if(!cf.verify(transformed).isEmpty()) throw new IllegalArgumentException("unsupported-controller-verification");
         return transformed;
     }
     private static void dispatch(CodeBuilder b, int state, int speed, int flags) {
         int mode=b.allocateLocal(TypeKind.INT);
-        b.iconst_4().istore(mode);
-        String[] names={"Forward","Reverse","Braking"};
-        for(int i=0;i<names.length;i++) {
+        b.loadConstant(NO_CONTROL).istore(mode);
+        String[] states={"Forward","Reverse","Braking"};
+        int[] modes={FORWARD,REVERSE,BRAKING};
+        for(int i=0;i<states.length;i++) {
             Label next=b.newLabel();
-            b.aload(state).getstatic(STATE,names[i],STATE).if_acmpne(next).loadConstant(i+1).istore(mode).labelBinding(next);
+            b.aload(state).getstatic(STATE,states[i],STATE).if_acmpne(next).loadConstant(modes[i]).istore(mode).labelBinding(next);
         }
-        b.aload(0).iload(mode).fload(speed).invokestatic(HOOKS,"tryControl",DISPATCH).istore(flags);
+        b.loadConstant(POINT).aload(0).iload(mode).fload(speed).invokestatic(POINTS,"call",CALL).istore(flags);
         Label done=b.newLabel();
-        b.iload(flags).iconst_2().iand().ifeq(done);
+        b.iload(flags).loadConstant(DIRECTION_HOLD).iand().ifeq(done);
         b.getstatic(STATE,"Braking",STATE).astore(state);
         b.aload(0).iconst_1().putfield(CONTROL,"isBreak",ConstantDescs.CD_boolean);
         b.aload(0).iconst_0().putfield(CONTROL,"isGas",ConstantDescs.CD_boolean);

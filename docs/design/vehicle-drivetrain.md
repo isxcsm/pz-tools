@@ -36,23 +36,26 @@ and engine sound, so those effects need live testing.
 `zombie.core.physics.CarController` and retransforms the loaded class. No file of the game
 installation is changed. `VehicleBytecode.transform` changes `update()` as follows:
 
-1. Once the game has resolved the control mode, it calls `VehicleHooks.tryControl(controller,
-   mode, speed)` with mode Forward, Reverse, Braking or other.
+1. Once the game has resolved the control mode, it calls the `vehicle`
+   [control point](game-extensions.md#control-points), `ControlPoints.call("vehicle", controller, mode,
+   speed)`, with mode Forward, Reverse, Braking or other. The mode codes and outcome bits are the module's
+   own (`VehicleHooks`); the extension API knows nothing of vehicles.
 2. The calls to `control_NoControl`, `control_ForwardNew` and `control_Reverse` are skipped only
    when the outcome has the `APPLIED` bit.
 3. `DIRECTION_HOLD` switches the mode to Braking, sets `isBreak`, clears `isGas` and `isGasR`
    and sets the throttle to 0, so the game's braking and signal code runs.
 4. `OWN_OFFROAD` makes the `isDoingOffroad()` read before the game's gear-dependent offroad
    penalty return false for that update.
-5. At the start of the steering block, a second `tryControl` with mode `STEERING`; `APPLIED`
+5. At the start of the steering block, a second call with mode `STEERING`; `APPLIED`
    skips the block. Angle limits, tyre processing, wheel display and native calls after it
    still run.
-6. Each `Bullet.controlVehicle` call passes its arguments to `observeNative` first, for
+6. Each `Bullet.controlVehicle` call passes its arguments to `ControlPoints.observe` first, for
    diagnostics only.
 
-`VehicleHooks` ignores a re-entrant call on the same thread. An exception or an invalid outcome marks
-the registration failed; every later call returns `VANILLA`, and the host's next tick reports
-`FaultedPassThrough`.
+A re-entrant call on the same thread returns 0, the game's code. An exception, or an outcome other than
+`VANILLA`, `APPLIED`, `DIRECTION_HOLD` or `APPLIED | OWN_OFFROAD` (checked by the module's `VehicleHooks`),
+latches the point as failed; every later call returns 0, and the host's next tick reports
+`FaultedPassThrough` with `vehicle-callback-failed`.
 
 ### Compatibility checks
 
@@ -76,7 +79,10 @@ Before it installs anything (`preflight`, then `initialize`):
 - The transformed class must pass the class-file verifier.
 
 Every later retransformation runs the same checks on the bytes it receives. If they fail, the
-transformer returns the input unchanged and the provider reports `controller-contract-changed`.
+transformer returns the input unchanged and the provider reports `controller-contract-changed:<code>`.
+The code is the check that failed, such as `unsupported-control-contract:control_Reverse` or
+`unsupported-call-count:zombie/core/physics/Bullet.controlVehicle(IFFF)V`. Preflight reports the same
+`controller-contract-changed:<code>`, and a failed installation `unsupported-controller-layout:<code>`.
 It never replaces another transformer's output with bytes read from disk. Preflight for a
 module update observes the existing transformer chain, but cannot see transformers registered
 later or changes made through JVMTI or JNI.
@@ -263,7 +269,8 @@ half updates equal one whole.
 - `KeyTimeline` (in the extension runtime, `pztools.extensions.runtime.input`) polls on its own
   daemon thread every 0.5 ms requested, about 1 ms in practice, and keeps running totals.
   `WindowsKeys` reads `GetAsyncKeyState` through the JDK's foreign-function interface with a
-  private high-resolution waitable timer. Keys count only while the game window is in front.
+  private high-resolution waitable timer. The functions are bound once; each timeline has its own
+  timer, closed when the timeline stops. Keys count only while the game window is in front.
   It installs no hook, injects no input and loads no native library of its own. The game's JVM
   already runs with `--enable-native-access=ALL-UNNAMED`, so no warning appears.
 - `SteeringKeys` matches the timeline to the game's current bindings and replaces it when they
@@ -409,7 +416,7 @@ code and are not a frame cost.
 
 ## Tests
 
-`DrivetrainModelTest`, `SteeringModelTest`, `KeyTimelineTest`, `VehicleHooksTest`,
+`DrivetrainModelTest`, `SteeringModelTest`, `KeyTimelineTest`, `ControlPointsTest`,
 `VehicleAdapterBehaviorTest`, `VehicleCompatibilityTest` (Java, against fixtures in
 `tests/vehicle-drivetrain-fixture/`), and `VehicleDrivetrainConfigurationTests` (C#). Game code
 is never copied into fixtures.

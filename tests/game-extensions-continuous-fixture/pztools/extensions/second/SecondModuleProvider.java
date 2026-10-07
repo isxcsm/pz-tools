@@ -1,7 +1,7 @@
 package pztools.extensions.second;
 
 import pztools.extensions.api.*;
-import pztools.extensions.runtime.FrameListener;
+import pztools.extensions.runtime.spi.FrameListener;
 import java.lang.instrument.Instrumentation;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
