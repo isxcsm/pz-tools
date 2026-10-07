@@ -1,6 +1,6 @@
--- The mod's rules, as questions: one breaker box per building; producers outside within a range of its outline; the
--- devices of its building connected unless excluded; devices near it, outside any building, connected only on their
--- own; another building's box as a sub-panel. Nothing here changes anything: BU.Changes does.
+-- The mod's rules, as questions: a breaker box per building, or per zone of one (a large building's); producers
+-- outside within a range of its outline; the devices of its building (or zone) connected unless excluded; devices
+-- near it, outside any building, connected only on their own; another box as a sub-panel. Nothing here changes anything: BU.Changes does.
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 local BU = BuildingUtilities
@@ -36,13 +36,73 @@ function Panels.rooms(building)
     return result
 end
 
--- The panel of a building, by its key, or nil.
+-- The panels of a building, by its key.
 function Panels.ofBuilding(key)
+    local result = {}
     for _, panel in ipairs(Store.list()) do
         local building = Panels.building(panel)
-        if building and building.key == key then return panel end
+        if building and building.key == key then result[#result + 1] = panel end
+    end
+    return result
+end
+
+-- Zones. A box takes its whole building, or only some of its rooms (panel.rooms, a set of room ids), so that a
+-- large building, an apartment block, can have a box per flat or floor. It needs an API that takes single rooms;
+-- without one a building has one box, which takes it whole.
+Panels.LARGE_LEVELS, Panels.LARGE_ROOMS = 5, 30
+
+function Panels.zonesSupported()
+    local api = BU.api()
+    return api ~= nil and api.networks.addRoom ~= nil
+end
+
+function Panels.inZone(panel, roomId) return panel.rooms == nil or panel.rooms[roomId] == true end
+
+-- The panel of the building whose zone has the room, other than one; nil when the room is free. boxes, the
+-- building's panels (Panels.ofBuilding), saves finding them again for each room.
+function Panels.roomOwner(key, roomId, except, boxes)
+    for _, panel in ipairs(boxes or Panels.ofBuilding(key)) do
+        if panel ~= except and Panels.inZone(panel, roomId) then return panel end
     end
     return nil
+end
+
+-- Many floors (more than a house with a cellar and an attic) or many rooms: a box there takes its own floor at
+-- first.
+function Panels.isLarge(rooms)
+    local levels, count = {}, 0
+    for _, room in ipairs(rooms) do
+        if not levels[room.level] then levels[room.level] = true; count = count + 1 end
+    end
+    return count >= Panels.LARGE_LEVELS or #rooms > Panels.LARGE_ROOMS
+end
+
+-- The zone a new box on a level of a building takes: nil (the whole building) in a small building without boxes;
+-- else the free rooms of its level.
+function Panels.defaultZone(building, level)
+    if not Panels.zonesSupported() then return nil end
+    local rooms, boxes = Panels.rooms(building), Panels.ofBuilding(building.key)
+    if #boxes == 0 and not Panels.isLarge(rooms) then return nil end
+    local zone = {}
+    for _, room in ipairs(rooms) do
+        if room.level == level and not Panels.roomOwner(building.key, room.id, nil, boxes) then zone[room.id] = true end
+    end
+    return zone
+end
+
+-- Each room of the panel's building to the plan: "mine", "free" or "taken", with the panel that has it.
+function Panels.zoneStates(panel, building, rooms)
+    local result = {}
+    local boxes = building and Panels.ofBuilding(building.key) or {}
+    for _, room in ipairs(rooms) do
+        if Panels.inZone(panel, room.id) then
+            result[room.id] = { state = "mine", owner = panel }
+        else
+            local owner = building and Panels.roomOwner(building.key, room.id, panel, boxes)
+            result[room.id] = { state = owner and "taken" or "free", owner = owner }
+        end
+    end
+    return result
 end
 
 -- The box object of a panel on its loaded square, or nil.
@@ -63,13 +123,18 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
--- Whether a box can go on a square: inside a building that has none. Returns the building, or nil and a reason.
+-- Whether a box can go on a square: inside a building, in a room no other box's zone has (a building with a box
+-- takes no other without zones). Returns the building, or nil and a reason.
 function Panels.canInstall(square)
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     if not building then return nil, "notInBuilding" end
-    if Panels.ofBuilding(building.key) then return nil, "hasPanel" end
+    if #Panels.ofBuilding(building.key) > 0 then
+        if not Panels.zonesSupported() then return nil, "hasPanel" end
+        local owner = Panels.roomOwner(building.key, building.roomId)
+        if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
+    end
     return building
 end
 
@@ -219,17 +284,20 @@ function Panels.devices(panel, utility)
     local function collect(list, inside)
         for i = 1, list and #list or 0 do
             local entry = list[i]
-            local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
-            local group = groupOf[key]
-            if not group then
-                local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
-                local keys = object and BU.partKeys(object) or { key }
-                group = { keys = keys, entries = {}, inside = inside }
-                for _, part in ipairs(keys) do groupOf[part] = group end
-                groupOf[key] = group
-                order[#order + 1] = group
+            -- Of the building, only the rooms of the panel's zone.
+            if not inside or Panels.inZone(panel, entry.roomId) then
+                local key = BU.thingKey(entry.x, entry.y, entry.z, entry.sprite)
+                local group = groupOf[key]
+                if not group then
+                    local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
+                    local keys = object and BU.partKeys(object) or { key }
+                    group = { keys = keys, entries = {}, inside = inside }
+                    for _, part in ipairs(keys) do groupOf[part] = group end
+                    groupOf[key] = group
+                    order[#order + 1] = group
+                end
+                group.entries[#group.entries + 1] = { entry = entry, key = key }
             end
-            group.entries[#group.entries + 1] = { entry = entry, key = key }
         end
     end
     local inside, insideComplete = api.buildings.objects(building.key, utility)
@@ -337,9 +405,9 @@ function Panels.linkSteps(child, parent)
     return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
 end
 
--- Whether a panel can take its supply from another: a main panel in another building, of a tier that gives supply
--- (BU.LINK_TIER) and whose sub-panel range reaches its own building, with no producers of its own, and not one of
--- its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
+-- Whether a panel can take its supply from another: a main panel in another building or another zone of its own,
+-- of a tier that gives supply (BU.LINK_TIER) and whose sub-panel range reaches its own building, with no producers
+-- of its own, and not one of its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
 function Panels.canLink(child, parent)
     if child == parent then return false, "self" end
     if child.parent then return false, "isSubPanel" end

@@ -2,8 +2,10 @@
 -- what their devices do; the devices as dots, the producers as squares and the box itself. A strip on the left picks
 -- the floor (or the mouse wheel), a legend at the bottom tells the colours. It shares hover and clicks with the
 -- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
--- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Everything is
--- laid out when the window refreshes or the plan is resized; a frame only draws the rectangles laid out.
+-- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
+-- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
+-- takes a room in or out. Everything is laid out when the window refreshes or the plan is resized; a frame only
+-- draws the rectangles laid out.
 require "ISUI/ISPanel"
 local BU = BuildingUtilities
 
@@ -16,6 +18,7 @@ local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
 local TOGGLE_W = 18
+local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -44,6 +47,7 @@ local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
     producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 },
+    zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
 }
 
 local function dotColour(device, supplied)
@@ -58,14 +62,16 @@ local function dotColour(device, supplied)
     return colour[1], colour[2], colour[3]
 end
 
--- What the legend lists for a utility: a colour, dot or square, and its text.
-local function legendEntries(utility)
+-- What the legend lists for a utility, or for the zones: a colour, dot or square, and its text.
+local function legendEntries(utility, zones)
     local result = {}
     local function add(name, square)
         local colour = COLOURS[name]
         result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square, text = getText("IGUI_BU_Legend_" .. name) }
     end
-    if utility == "power" then
+    if zones then
+        for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken" }) do add(name, true) end
+    elseif utility == "power" then
         for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "off", "other" }) do add(name) end
         add("producer", true)
     else
@@ -77,7 +83,8 @@ local function legendEntries(utility)
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, power, name, status } }, producers = { { x, y, z, inUse } }, box = { x, y, z }, filter = room id }.
+-- state, held, power, name, status } }, producers = { { x, y, z, inUse } }, box = { x, y, z }, filter = room id,
+-- zone = room id to { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote }.
 function ISBUPlan:setData(data)
     self.data = data
     local levels = {}
@@ -123,7 +130,7 @@ function ISBUPlan:layout()
     -- The legend, in two columns at the bottom, above the status line.
     local legendH = 0
     if self:legendShown() then
-        local entries = legendEntries(data.utility)
+        local entries = legendEntries(data.utility, data.zoneEdit)
         local rows = math.ceil(#entries / 2)
         legendH = rows * LEGEND_ROW + PAD
         local columnW = (self.width - left - PAD) / 2
@@ -155,10 +162,23 @@ function ISBUPlan:layout()
     end
     for _, room in ipairs(data.rooms) do
         if room.level == self.floor then
-            local r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0 }, data.supplied)
+            -- In the zone: what its devices do; out of it dim, or the zones' colours while they are edited.
+            local zone = data.zone and data.zone[room.id]
+            local state = zone and zone.state or "mine"
+            local r, g, b
+            if data.zoneEdit then
+                local colour = state == "mine" and COLOURS.zoneMine or state == "taken" and COLOURS.zoneTaken or COLOURS.zoneFree
+                r, g, b = colour[1], colour[2], colour[3]
+            elseif state == "mine" then
+                r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0 }, data.supplied)
+            else
+                local colour = state == "taken" and COLOURS.zoneTaken or COLOURS.zoneFree
+                r, g, b = colour[1] * 0.5, colour[2] * 0.5, colour[3] * 0.5
+            end
+            local dim = state ~= "mine" and not data.zoneEdit
             local largest
             for _, rect in ipairs(room.rects) do
-                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b }
+                local cell = { x = sx(rect.x), y = sy(rect.y), room = room.id, r = r, g = g, b = b, dim = dim }
                 cell.w, cell.h = sx(rect.x + rect.w) - cell.x, sy(rect.y + rect.h) - cell.y
                 self.cells[#self.cells + 1] = cell
                 if not largest or cell.w * cell.h > largest.w * largest.h then largest = cell end
@@ -166,7 +186,7 @@ function ISBUPlan:layout()
             if largest and getTextManager():MeasureStringX(UIFont.Small, room.title) < largest.w - 4
                     and largest.h > FONT_HGT_SMALL + 2 then
                 self.labels[#self.labels + 1] = { text = room.title, x = largest.x + largest.w / 2,
-                    y = largest.y + (largest.h - FONT_HGT_SMALL) / 2 }
+                    y = largest.y + (largest.h - FONT_HGT_SMALL) / 2, dim = dim }
             end
         end
     end
@@ -222,6 +242,23 @@ function ISBUPlan:prerender()
     local shown = self:legendShown()
     self:drawRectBorder(self.width - PAD - TOGGLE_W, PAD - 1, TOGGLE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
     self:drawTextCentre("?", self.width - PAD - TOGGLE_W / 2, PAD, shown and 1 or 0.6, shown and 0.9 or 0.6, shown and 0.5 or 0.6, 1, UIFont.Small)
+    if data and data.zoneEditable then
+        local x, editing = self:zoneToggleX(), data.zoneEdit
+        if editing then self:drawRect(x, PAD - 1, ZONE_W, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
+        self:drawRectBorder(x, PAD - 1, ZONE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
+        self:drawTextCentre(getText("IGUI_BU_Zone"), x + ZONE_W / 2, PAD, 1, 1, 1, editing and 1 or 0.75, UIFont.Small)
+    end
+end
+
+function ISBUPlan:zoneToggleX() return self.width - PAD - TOGGLE_W - 4 - ZONE_W end
+
+-- Which switch at the top is under the mouse: "legend", "zone" or nil.
+function ISBUPlan:toggleAt(x, y)
+    if y >= PAD + FONT_HGT_SMALL + 2 then return nil end
+    if x >= self.width - PAD - TOGGLE_W then return "legend" end
+    local zoneX = self:zoneToggleX()
+    if self.data and self.data.zoneEditable and x >= zoneX and x < zoneX + ZONE_W then return "zone" end
+    return nil
 end
 
 function ISBUPlan:render()
@@ -232,11 +269,12 @@ function ISBUPlan:render()
     local filter = self.data and self.data.filter
     for _, cell in ipairs(self.cells) do
         local bright = cell.room == hoverRoom or cell.room == filter
-        self:drawRect(cell.x, cell.y, cell.w, cell.h, bright and 0.85 or 0.6, cell.r, cell.g, cell.b)
-        self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, bright and 1 or 0.55, bright and 1 or 0.55, bright and 1 or 0.55)
+        local edge = bright and 1 or cell.dim and 0.3 or 0.55
+        self:drawRect(cell.x, cell.y, cell.w, cell.h, bright and 0.85 or cell.dim and 0.4 or 0.6, cell.r, cell.g, cell.b)
+        self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, edge, edge, edge)
     end
     for _, label in ipairs(self.labels) do
-        self:drawTextCentre(label.text, label.x, label.y, 1, 1, 1, 0.85, UIFont.Small)
+        self:drawTextCentre(label.text, label.x, label.y, 1, 1, 1, label.dim and 0.4 or 0.85, UIFont.Small)
     end
     for _, square in ipairs(self.squares) do
         local size = square.size
@@ -263,8 +301,9 @@ function ISBUPlan:render()
         end
         self:drawText(entry.text, entry.x + 14, entry.y + 1, 0.85, 0.85, 0.85, 1, UIFont.Small)
     end
-    if self.status then
-        self:drawText(self.status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small)
+    local status = self.status or (self.data and self.data.zoneEdit and getText("IGUI_BU_ZoneHint"))
+    if status then
+        self:drawText(status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small)
     end
 end
 
@@ -299,8 +338,16 @@ function ISBUPlan:onMouseMove(dx, dy)
         self.status = thing.text
     elseif kind == "room" then
         self.status = self.window:roomStatus(thing.room)
+        local zone = self.data and self.data.zone and self.data.zone[thing.room]
+        if zone and zone.state == "taken" then
+            self.status = self.status .. "  (" .. getText("IGUI_BU_ZoneTaken", zone.owner or "") .. ")"
+        elseif zone and zone.state == "free" then
+            self.status = self.status .. "  (" .. getText("IGUI_BU_Legend_zoneFree") .. ")"
+        end
     elseif kind == "floor" then
         self.status = BU.floorName(thing.level)
+    elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
+        self.status = self.data.zoneNote
     else
         self.status = nil
     end
@@ -328,12 +375,21 @@ function ISBUPlan:onMouseWheel(delta)
 end
 
 function ISBUPlan:onMouseDown(x, y)
-    if x >= self.width - PAD - TOGGLE_W and y < PAD + FONT_HGT_SMALL + 2 then
+    local toggle = self:toggleAt(x, y)
+    if toggle == "legend" then
         BU.PanelWindow.legendShown = not self:legendShown()
         self:layout()
         return true
+    elseif toggle == "zone" then
+        self.window:setZoneEditing(not self.data.zoneEdit)
+        return true
     end
     local kind, thing = self:hit(x, y)
+    if self.data and self.data.zoneEdit and kind ~= "floor" then
+        -- Editing the zone: a room, or the room of a dot, goes in or out.
+        if thing and thing.room then self.window:toggleZoneRoom(thing.room) end
+        return true
+    end
     if kind == "floor" then
         self:showFloor(thing.level)
     elseif kind == "dot" then
@@ -349,7 +405,9 @@ end
 -- A right click: what the list's row would offer, for a dot or a room.
 function ISBUPlan:onRightMouseDown(x, y)
     local kind, thing = self:hit(x, y)
-    if kind == "dot" then
+    if self.data and self.data.zoneEdit then
+        self.window:zoneMenu(self.floor)
+    elseif kind == "dot" then
         self.window:deviceMenu(thing.key)
     elseif kind == "room" then
         self.window:roomMenu(thing.room)

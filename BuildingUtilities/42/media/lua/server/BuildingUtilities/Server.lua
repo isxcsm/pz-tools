@@ -26,6 +26,17 @@ end
 
 function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
 
+-- The box's zone: a list of room ids, or the whole building.
+function commands.setZone(player, panel, args)
+    if args.whole == true then Changes.setZone(panel, nil); return end
+    if type(args.rooms) ~= "table" then return end
+    local ids = {}
+    for _, id in ipairs(args.rooms) do
+        if type(id) == "string" then ids[#ids + 1] = id end
+    end
+    Changes.setZone(panel, ids)
+end
+
 function commands.setRoomInside(player, panel, args)
     if type(args.room) == "string" then Changes.setRoomInside(panel, args.utility, args.room, args.on == true) end
 end

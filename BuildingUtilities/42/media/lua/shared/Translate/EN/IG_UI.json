@@ -229,5 +229,20 @@
     "IGUI_BU_Menu_RoomOn": "Connect the whole room",
     "IGUI_BU_Menu_RoomOff": "Disconnect the whole room",
     "IGUI_BU_Menu_OnlyRoom": "Only this room in the list",
-    "IGUI_BU_Menu_AllRooms": "All rooms in the list"
+    "IGUI_BU_Menu_AllRooms": "All rooms in the list",
+    "IGUI_BU_Reason_roomTaken": "This room is in another breaker box's zone.",
+    "IGUI_BU_Notice_Zoned": "%1 takes the %2 free rooms of its floor (a large building). Change it with Zone on the plan.",
+    "IGUI_BU_Zone": "Zone",
+    "IGUI_BU_ZoneHint": "Zone: click a room to add or remove it; right-click for floors.",
+    "IGUI_BU_ZoneNote": "Zone: %1 rooms of the building (Zone on the plan changes it)",
+    "IGUI_BU_ZoneEmpty": "A zone keeps one room at least.",
+    "IGUI_BU_ZoneTaken": "%1's zone",
+    "IGUI_BU_Legend_zoneMine": "This box",
+    "IGUI_BU_Legend_zoneFree": "Free",
+    "IGUI_BU_Legend_zoneTaken": "Another box",
+    "IGUI_BU_Menu_ZoneFloorAdd": "Add this floor to the zone",
+    "IGUI_BU_Menu_ZoneFloorRemove": "Remove this floor from the zone",
+    "IGUI_BU_Menu_ZoneFloorOnly": "Only this floor",
+    "IGUI_BU_Menu_ZoneWhole": "The whole building",
+    "IGUI_BU_Reason_wholeTaken": "This building's breaker box takes all of it: give that box a zone on its plan first."
 }

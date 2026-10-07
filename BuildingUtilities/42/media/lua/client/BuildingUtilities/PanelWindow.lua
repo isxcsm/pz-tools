@@ -550,6 +550,7 @@ function ISBUPanelWindow:refresh()
         self.upgradeButton:setEnable(Costs.affords(self.playerObj, cost))
     end
     local building = Panels.building(panel)
+    self.building = building
     self.rooms = Panels.rooms(building)
     self.titles = Panels.roomTitles(building)
     for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
@@ -819,8 +820,76 @@ function ISBUPanelWindow:updatePlan()
             producers[#producers + 1] = { x = at.x, y = at.y, z = at.z, inUse = inUse, text = view.producerText[index] }
         end
     end
+    -- The zones of the building: this box's, the free rooms and other boxes'.
+    local zone, inZone = {}, 0
+    for id, entry in pairs(Panels.zoneStates(panel, self.building, self.rooms or {})) do
+        zone[id] = { state = entry.state, owner = entry.owner and Panels.name(entry.owner) }
+        if entry.state == "mine" then inZone = inZone + 1 end
+    end
+    local editable = Panels.zonesSupported() and self.building ~= nil
+    if not editable then self.zoneEditing = false end
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
-        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter })
+        producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter,
+        zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone) })
+end
+
+-- Zones. The plan shows them, and while they are edited a click there takes a room in or out of this box's.
+function ISBUPanelWindow:setZoneEditing(on)
+    self.zoneEditing = on
+    if on then self.roomFilter = nil end
+    self:updatePlan()
+end
+
+-- The room ids of this box's zone now, as a set.
+function ISBUPanelWindow:zoneSet()
+    local result = {}
+    for _, room in ipairs(self.rooms or {}) do
+        if Panels.inZone(self.panel, room.id) then result[room.id] = true end
+    end
+    return result
+end
+
+-- The zone asked for, as a set of room ids; one empty is refused here as on the server.
+function ISBUPanelWindow:sendZone(set)
+    local ids = {}
+    for id in pairs(set) do ids[#ids + 1] = id end
+    if #ids == 0 then
+        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_ZoneEmpty"))
+        return
+    end
+    table.sort(ids)
+    Sync.send(self.playerObj, "setZone", { panel = self.panel.id, rooms = ids })
+end
+
+function ISBUPanelWindow:toggleZoneRoom(id)
+    local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
+    local entry = states[id]
+    if not entry or entry.state == "taken" then return end
+    local set = self:zoneSet()
+    set[id] = entry.state == "free" or nil
+    self:sendZone(set)
+end
+
+-- The zone's menu, for a floor: its free rooms in, its rooms out, only it, or the whole building.
+function ISBUPanelWindow:zoneMenu(level)
+    local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
+    local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    menu:addOption(BU.floorName(level), nil, nil).notAvailable = true
+    local function floorSet(keepOthers, take)
+        local set = keepOthers and self:zoneSet() or {}
+        for _, room in ipairs(self.rooms or {}) do
+            if room.level == level and states[room.id].state ~= "taken" then set[room.id] = take or nil end
+        end
+        return set
+    end
+    menu:addOption(getText("IGUI_BU_Menu_ZoneFloorAdd"), self, function(window) window:sendZone(floorSet(true, true)) end)
+    menu:addOption(getText("IGUI_BU_Menu_ZoneFloorRemove"), self, function(window) window:sendZone(floorSet(true, false)) end)
+    menu:addOption(getText("IGUI_BU_Menu_ZoneFloorOnly"), self, function(window) window:sendZone(floorSet(false, true)) end)
+    if self.building and #Panels.ofBuilding(self.building.key) == 1 and self.panel.rooms then
+        menu:addOption(getText("IGUI_BU_Menu_ZoneWhole"), self, function(window)
+            Sync.send(window.playerObj, "setZone", { panel = window.panel.id, whole = true })
+        end)
+    end
 end
 
 -- A room of the plan in words: its name and what its devices draw.

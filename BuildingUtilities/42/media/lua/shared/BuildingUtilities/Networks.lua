@@ -37,13 +37,56 @@ local function apply(id, rule, key)
     if x then change(rule, id, x, y, z, sprite) end
 end
 
+-- A room of the panel's building by its id, as Panels.rooms has it, or nil.
+local function roomOf(panel, roomId)
+    for _, room in ipairs(BU.Panels.rooms(BU.Panels.building(panel))) do
+        if room.id == roomId then return room end
+    end
+    return nil
+end
+
+-- Takes a room in or out of a network, named by a square of it.
+local function setRoom(id, room, on)
+    local rect = room and room.rects[1]
+    if rect then change(on and "addRoom" or "removeRoom", id, rect.x, rect.y, room.level) end
+end
+
+-- What the networks take of the building: all of it, or the rooms of the panel's zone.
+local function addMembers(panel, id)
+    if not panel.rooms then
+        change("addBuilding", id, panel.x, panel.y, panel.z)
+        return
+    end
+    for roomId in pairs(panel.rooms) do setRoom(id, roomOf(panel, roomId), true) end
+end
+
+-- The panel's zone changed from before (a set of room ids, or nil for the whole building) to what it has now.
+function Networks.setZone(panel, before)
+    local now = panel.rooms
+    for _, utility in ipairs(BU.UTILITIES) do
+        local id = BU.networkId(panel.id, utility)
+        if not before then change("removeBuilding", id, panel.x, panel.y, panel.z) end
+        if not now then
+            for roomId in pairs(before or {}) do setRoom(id, roomOf(panel, roomId), false) end
+            change("addBuilding", id, panel.x, panel.y, panel.z)
+        else
+            for roomId in pairs(before or {}) do
+                if not now[roomId] then setRoom(id, roomOf(panel, roomId), false) end
+            end
+            for roomId in pairs(now) do
+                if not (before and before[roomId]) then setRoom(id, roomOf(panel, roomId), true) end
+            end
+        end
+    end
+end
+
 -- Defines both networks of a panel from the save. Its parent is set by Networks.link, once every panel exists.
 function Networks.define(panel)
     for _, utility in ipairs(BU.UTILITIES) do
         local id = BU.networkId(panel.id, utility)
         change("define", id, utility, BU.POLICY[utility])
         if not panel.parent then change("setProducers", id, positions(panel[utility].producers)) end
-        change("addBuilding", id, panel.x, panel.y, panel.z)
+        addMembers(panel, id)
         local data, keys = panel[utility], {}
         for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.timed or {} }) do
             for key in pairs(set) do keys[key] = true end

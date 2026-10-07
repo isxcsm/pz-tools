@@ -8,17 +8,72 @@ local Store, Networks, Panels, Sync = BU.Store, BU.Networks, BU.Panels, BU.Sync
 local Changes = {}
 BU.Changes = Changes
 
--- Puts a box on the square and starts its networks.
+-- Puts a box on the square and starts its networks. In a large building, or one with boxes already, it takes the
+-- free rooms of its floor (Panels.defaultZone), and says so.
 function Changes.install(square, sprite)
+    local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
+    local zone = building and Panels.defaultZone(building, square:getZ())
     local object = IsoObject.new(square, sprite, nil, false)
     local panel = Store.newPanel(square:getX(), square:getY(), square:getZ(), sprite)
+    panel.rooms = zone
     object:getModData()[Panels.MODDATA] = panel.id
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
     Networks.define(panel)
     BU.log("installed", panel.id, "at", panel.x, panel.y, panel.z)
     Sync.changed(panel.id)
+    if zone then
+        local count = 0
+        for _ in pairs(zone) do count = count + 1 end
+        Sync.notice(panel, "IGUI_BU_Notice_Zoned", Panels.name(panel), count)
+    end
     return panel
+end
+
+-- The rooms a box takes: a list of room ids of its building, or nil for all of it (only for the building's one
+-- box). Rooms of another box's zone are left out; a zone keeps one room at least. Returns whether it changed.
+function Changes.setZone(panel, ids)
+    local building = Panels.building(panel)
+    if not building then return false end
+    local zone
+    if ids then
+        local known, boxes = {}, Panels.ofBuilding(building.key)
+        for _, room in ipairs(Panels.rooms(building)) do known[room.id] = true end
+        zone = {}
+        local any = false
+        for _, id in ipairs(ids) do
+            if known[id] and not Panels.roomOwner(building.key, id, panel, boxes) then zone[id] = true; any = true end
+        end
+        if not any then return false end
+    elseif #Panels.ofBuilding(building.key) > 1 then
+        return false
+    end
+    local before = panel.rooms
+    panel.rooms = zone
+    Networks.setZone(panel, before)
+    -- The box forgets what it set for devices of rooms that left the zone: another box may take them, and an
+    -- exclusion of any network keeps a device off.
+    if zone then
+        for _, utility in ipairs(BU.UTILITIES) do
+            local data = panel[utility]
+            local left = {}
+            for _, field in ipairs({ "excluded", "essential", "schedule", "shed", "timed" }) do
+                for key in pairs(data[field] or {}) do
+                    if not data.included[key] then
+                        local x, y, z = BU.parseThing(key)
+                        local at = x and Panels.buildingAt(x, y, z)
+                        if at and at.key == building.key and not zone[at.roomId] then
+                            data[field][key] = nil
+                            left[key] = true
+                        end
+                    end
+                end
+            end
+            for key in pairs(left) do Networks.apply(panel, utility, key) end
+        end
+    end
+    Sync.changed(panel.id)
+    return true
 end
 
 -- Everything a panel's lines took: its producers', its outside devices', its own link's and its sub-panels' links,
