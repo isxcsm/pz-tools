@@ -1,19 +1,11 @@
 -- The sprinkler's spray going round (client/BuildingUtilities/SprinklerSpray.lua): a sprinkler put down near the
 -- player and wired to the test panel, as if it had just watered; its sprite read over a second and a half.
 -- "[buspray]" lines. BUSPRAY_CLEAN() takes it away.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Changes, Units, WaterUnits = BU.Store, BU.Changes, BU.Units, BU.WaterUnits
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
-local p = getPlayer():getSquare()
-local square
-for r = 1, 6 do
-    for dy = -r, r do
-        for dx = -r, r do
-            local q = getCell():getGridSquare(p:getX() + dx, p:getY() + dy, 0)
-            if not square and q and q:isOutside() and q:getObjects():size() == 1 and q:isFree(false) then square = q end
-        end
-    end
-end
+local square = BUT.squareNear(1, 6, BUT.freeOutside)
 for _, name in ipairs(WaterUnits.SPRINKLER_SPRITES.spraying) do
     local sprite = getSprite(name)
     if not sprite or not sprite:getTextureForCurrentFrame(IsoDirections.N) then print("[buspray] missing", name) end

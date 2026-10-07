@@ -11,4 +11,4 @@ for i, flow in ipairs(plan.flows) do
     print("[buflow] flow", i, table.concat(parts, " "), "len", string.format("%.1f", flow.length), "rgb", flow.r, flow.g, flow.b)
 end
 for i, s in ipairs(plan.squares) do print("[buflow] square", i, s.x, s.y, s.size) end
-print("[buflow] moved", getTimestampMs() / 1000 * 24 % 14)
+print("[buflow] moved", BU.remainder(getTimestampMs() / 1000 * 24, 14))

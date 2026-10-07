@@ -3,15 +3,12 @@
 -- stand-in for the farming system's) and shows its spray; a filter wears and purifies only with the
 -- RiskPlumbingUnpurified option, runs out, and takes new media. "[bu21]" lines. Takes away what it put down and
 -- leaves the option as it found it.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Networks, Water, Changes, Units, WaterUnits, WaterRun = BU.Store, BU.Networks, BU.Water, BU.Changes,
     BU.Units, BU.WaterUnits, BU.WaterRun
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu21] " .. table.concat(parts, " "))
-end
-local function litres(value) return value and string.format("%.2f", value) or "-" end
+local say = BUT.say("bu21")
+local function litres(value) return BUT.litres(value, 2) end
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local player = getPlayer()
@@ -22,24 +19,18 @@ say("panel tier", panel.tier, "supplied", Networks.state(panel, "power") and Net
 -- Free outside squares near the player with free squares around them (for the well).
 local used = {}
 local function freeSquare()
-    local p = player:getSquare()
-    for r = 3, 14 do
-        for dx = -r, r do
-            for dy = -r, r do
-                local x, y = p:getX() + dx, p:getY() + dy
-                local key = x .. "," .. y
-                local q = getCell():getGridSquare(x, y, 0)
-                local east = getCell():getGridSquare(x + 1, y, 0)
-                if not used[key] and not used[(x + 1) .. "," .. y] and q and east and q:isOutside() and east:isOutside()
-                    and q:getObjects():size() == 1 and east:getObjects():size() == 1 and q:isFree(false) and east:isFree(false)
-                    and not WaterUnits.waterBeside(q) then
-                    used[key], used[(x + 1) .. "," .. y] = true, true
-                    for ex = -1, 2 do for ey = -1, 1 do used[(x + ex) .. "," .. (y + ey)] = true end end
-                    return q
-                end
-            end
-        end
+    local q = BUT.squareNear(3, 14, function(q)
+        local x, y = q:getX(), q:getY()
+        local east = getCell():getGridSquare(x + 1, y, 0)
+        return not used[x .. "," .. y] and not used[(x + 1) .. "," .. y] and east and q:isOutside() and east:isOutside()
+            and q:getObjects():size() == 1 and east:getObjects():size() == 1 and q:isFree(false) and east:isFree(false)
+            and not WaterUnits.waterBeside(q)
+    end)
+    if q then
+        local x, y = q:getX(), q:getY()
+        for ex = -1, 2 do for ey = -1, 1 do used[(x + ex) .. "," .. (y + ey)] = true end end
     end
+    return q
 end
 local function put(kind)
     local square = freeSquare()

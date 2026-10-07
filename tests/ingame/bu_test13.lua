@@ -1,14 +1,11 @@
 -- Batch 2: assets and units. Sprites and icons load; a solar panel and a rack go down, wire to a main panel, a
 -- battery goes in and out with its charge and condition, the rack's overlay follows, a battery is reconditioned,
 -- and everything is taken away again. "[bu13]" lines. Leaves nothing behind.
+RUN("bu_lib.lua")
 RUN("bu_rack.lua")
 local BU = BuildingUtilities
 local Store, Panels, Units, Changes, Actions = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Actions
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu13] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu13")
 local player = getPlayer()
 
 -- Assets.
@@ -28,26 +25,11 @@ end
 say("recipes", table.concat(found, ","))
 
 -- A main panel near the player, and an outside and an inside square near it.
-local panel
-for _, p in ipairs(Store.list()) do
-    if not p.parent and math.abs(p.x - player:getX()) + math.abs(p.y - player:getY()) < 60 then panel = p; break end
-end
+local panel = BUT.nearPanel()
 say("panel", panel and panel.id or "none", panel and panel.tier)
 if not panel then return end
-local cell = getCell()
-local outside, inside
-for r = 1, 12 do
-    for dx = -r, r do
-        for dy = -r, r do
-            local sq = cell:getGridSquare(panel.x + dx, panel.y + dy, 0)
-            if sq then
-                if not outside and sq:isOutside() and Units.canInstall("solar", sq) then outside = sq end
-                if not inside and panel.z == 0 and Units.canInstall("rack", sq) then inside = sq end
-            end
-        end
-    end
-    if outside and inside then break end
-end
+local outside = BUT.square(panel.x, panel.y, 0, 1, 12, function(sq) return sq:isOutside() and Units.canInstall("solar", sq) end)
+local inside = panel.z == 0 and BUT.square(panel.x, panel.y, 0, 1, 12, function(sq) return Units.canInstall("rack", sq) end) or nil
 say("squares", outside and (outside:getX() .. "," .. outside:getY()) or "none", inside and (inside:getX() .. "," .. inside:getY()) or "none")
 say("rules: rack outside", tostring(select(2, Units.canInstall("rack", outside))), "solar inside", tostring(select(2, Units.canInstall("solar", inside))))
 

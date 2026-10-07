@@ -1,12 +1,9 @@
 -- Batch 2 of the plan (DESIGN 12): flows on the plan, the status lights, the relay's click. "[bu19]" lines. Opens
 -- the test panel's window with the plan shown and leaves it open.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Units, Networks, PanelWindow = BU.Store, BU.Units, BU.Networks, BU.PanelWindow
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu19] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu19")
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
 local state = Networks.state(panel, "power")

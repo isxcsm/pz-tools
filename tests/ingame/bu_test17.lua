@@ -1,16 +1,10 @@
 -- Batch 6: blackout and the energy record. "[bu17]" lines. Leaves the panel as it was.
+RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Panels, Changes, Networks = BU.Store, BU.Panels, BU.Changes, BU.Networks
-local function say(...)
-    local parts = {}
-    for i = 1, select("#", ...) do parts[#parts + 1] = tostring(select(i, ...)) end
-    print("[bu17] " .. table.concat(parts, " "))
-end
+local say = BUT.say("bu17")
 local player = getPlayer()
-local panel
-for _, p in ipairs(Store.list()) do
-    if math.abs(p.x - player:getX()) + math.abs(p.y - player:getY()) < 60 then panel = p; break end
-end
+local panel = BUT.nearPanel(true)
 if not panel then say("no panel"); return end
 say("store version", Store.data().version, "panels fn ok", Store.panels() == Store.data().panels)
 
