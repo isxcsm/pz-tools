@@ -225,7 +225,10 @@ local function addUnitOptions(context, playerObj, unit)
     if (unit.snow or 0) >= BU.Energy.SNOW_TRACE then
         title = title .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(unit.snow * 100 + 0.5))
     end
-    if unit.kind == "rack" then title = getText("IGUI_BU_RackTitle", title, #unit.batteries, Units.RACK_SIZE) end
+    if unit.kind == "rack" then
+        title = getText("IGUI_BU_RackTitle", title, #unit.batteries, Units.RACK_SIZE)
+        if #unit.batteries > 0 then title = title .. "  " .. math.floor(Units.rackCharge(unit) * 100 + 0.5) .. "%" end
+    end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)

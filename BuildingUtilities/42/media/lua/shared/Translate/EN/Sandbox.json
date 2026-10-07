@@ -30,5 +30,11 @@
     "Sandbox_BuildingUtilities_SolarOutput": "Solar panel output",
     "Sandbox_BuildingUtilities_SolarOutput_tooltip": "What one clean panel makes at a clear noon, as load (a fridge draws 0.13). Less in weaker daylight, none at night.",
     "Sandbox_BuildingUtilities_SnowOnPanels": "Snow on panels",
-    "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "Snow settles on panels outside while it snows, covering them in two hours, and melts above 2 degrees C. Right-click \"Brush Off Snow\" clears it at once."
+    "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "Snow settles on panels outside while it snows, covering them in two hours, and melts above 2 degrees C. Right-click \"Brush Off Snow\" clears it at once.",
+    "Sandbox_BuildingUtilities_BatteryCapacity": "Battery capacity",
+    "Sandbox_BuildingUtilities_BatteryCapacity_tooltip": "What a full standard car battery holds, in load-hours (a fridge takes 3.1 a day). Heavy-duty ones hold 1.5 times as much, sports ones 0.75. Worn ones hold less, 30% at condition 0.",
+    "Sandbox_BuildingUtilities_ChargeEfficiency": "Charge efficiency (%)",
+    "Sandbox_BuildingUtilities_ChargeEfficiency_tooltip": "The share of the power going into batteries that they keep.",
+    "Sandbox_BuildingUtilities_WearRate": "Battery wear",
+    "Sandbox_BuildingUtilities_WearRate_tooltip": "How fast batteries wear as they are used. Drawing a whole bank above half charge takes 1 condition, down to empty up to 6. 0: no wear."
 }

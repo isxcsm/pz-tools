@@ -748,21 +748,45 @@ function PanelWindow.seenProducer(state, at)
     return nil
 end
 
--- The units' source: how many solar panels and what they make, whether it carries the load, snow on them.
-function ISBUPanelWindow:sourceRow(state)
-    local output, count, snow = Energy.output(self.panel)
+-- The units' source, a row each for { row, tooltip }: the solar panels (how many, what they make, whether they carry
+-- the load, snow on them) and the bank (its charge, charging or drawn, worn batteries, cold).
+function ISBUPanelWindow:sourceRows(state)
+    local panel, rows = self.panel, {}
+    local output, count, snow = Energy.output(panel)
     local seen = Energy.sourceState(state)
     local inUse = Energy.inUse(state)
-    local status
-    if inUse then status = getText("IGUI_BU_Running")
-    elseif seen and seen.available then status = getText("IGUI_BU_Standby")
-    elseif count > 0 and Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")
-    else status = getText("IGUI_BU_SolarShort") end
-    local text = getText("IGUI_BU_SolarRow", count, load2(output), status)
-    if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(snow * 100 + 0.5)) end
-    local tooltip = getText("IGUI_BU_SolarTip", load2(Energy.rated()), math.floor(Energy.sunlight() * 100 + 0.5),
-        load2(state and state.load or 0))
-    return { kind = "source", text = text, inUse = inUse }, tooltip
+    local bank = Energy.bank(panel)
+    if count > 0 then
+        local status
+        if inUse then status = getText("IGUI_BU_Running")
+        elseif seen and seen.available then status = getText("IGUI_BU_Standby")
+        elseif Energy.sunlight() <= 0 then status = getText("IGUI_BU_SolarNight")
+        else status = getText("IGUI_BU_SolarShort") end
+        local text = getText("IGUI_BU_SolarRow", count, load2(output), status)
+        if snow >= Energy.SNOW_TRACE then text = text .. "  " .. getText("IGUI_BU_SolarSnow", math.floor(snow * 100 + 0.5)) end
+        local tooltip = getText(bank and "IGUI_BU_SolarBankTip" or "IGUI_BU_SolarTip", load2(Energy.rated()),
+            math.floor(Energy.sunlight() * 100 + 0.5), load2(state and state.load or 0))
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and not bank }, tooltip = tooltip }
+    end
+    local racks = Store.unitList("rack", panel.id)
+    if #racks > 0 then
+        local text, tooltip
+        if bank then
+            local flow = panel.bankFlow or 0
+            local status = getText("IGUI_BU_Standby")
+            if flow > 0.0005 then status = getText("IGUI_BU_BankCharging", load2(flow))
+            elseif flow < -0.0005 then status = getText("IGUI_BU_BankDrawn", load2(-flow)) end
+            text = getText("IGUI_BU_BankRow", math.floor(bank.charge * 100 + 0.5), string.format("%.1f", bank.energy),
+                string.format("%.1f", bank.capacity), status)
+            if bank.weak > 0 then text = text .. "  " .. getText("IGUI_BU_BankWeak", bank.weak) end
+            if bank.cold > 0.005 then text = text .. "  " .. getText("IGUI_BU_BankCold", math.floor(bank.cold * 100 + 0.5)) end
+            tooltip = getText("IGUI_BU_BankTip", #bank.batteries, #racks, math.floor(Energy.efficiency() * 100 + 0.5))
+        else
+            text = getText("IGUI_BU_BankEmpty", #racks)
+        end
+        rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil }, tooltip = tooltip }
+    end
+    return rows
 end
 
 function ISBUPanelWindow:fill(utility, state)
@@ -786,9 +810,9 @@ function ISBUPanelWindow:fill(utility, state)
         local source = utility == "power" and Energy.hasSource(panel)
         if #producers == 0 and not source then add({ kind = "note", text = getText("IGUI_BU_NoProducers_" .. utility) }) end
         if source then
-            local row, tooltip = self:sourceRow(state)
-            view.sourceText = row.text
-            add(row, tooltip)
+            local rows = self:sourceRows(state)
+            view.sourceText = rows[1] and rows[1].row.text
+            for _, entry in ipairs(rows) do add(entry.row, entry.tooltip) end
         end
         for index, at in ipairs(producers) do
             local seen = PanelWindow.seenProducer(state, at)

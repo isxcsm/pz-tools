@@ -85,6 +85,8 @@ end
 -- not essential, the largest first, before its breaker trips.
 BU.TIMER_TIER = 2
 BU.LINK_TIER = 2
+-- Battery racks join from tier 2 (the bank: BU.Energy).
+BU.BANK_TIER = 2
 BU.SMART_TIER = 4
 
 -- Electricity experience for wiring: so much times the sandbox's multiplier (0: none).

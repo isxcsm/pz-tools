@@ -122,16 +122,18 @@ local function checkFuel(panel)
     end
 end
 
--- The units' source of a main panel: available while its solar panels carry the load (Energy.canCarry). It is
--- switched on when it can and the network has no supply: nothing ran, or the player switched the generator in use
--- off. A generator the player runs keeps running.
-local function checkSource(panel)
-    if not Energy.hasSource(panel) or panel.tripped then return end
+-- The units' source of a main panel over so many hours (Energy.run): available while its solar panels or its bank
+-- carry the load. It is switched on when it can and the network has no supply: nothing ran, or the player switched
+-- the generator in use off. A generator the player runs keeps running.
+local function checkSource(panel, hours)
+    if not Energy.hasSource(panel) then return end
     local state = Networks.state(panel, "power")
     if not state then return end
     local source = Energy.sourceState(state)
     local available = source ~= nil and source.available == true
-    local can = Energy.canCarry(Energy.output(panel), state.load, available)
+    local can = Energy.run(panel, state, hours, available)
+    for _, rack in ipairs(Store.unitList("rack", panel.id)) do Changes.showRack(rack) end
+    if panel.tripped then return end
     local switchOn = can and not state.supplied and state.enabled or nil
     if can ~= available or switchOn then Networks.setSource(panel, can, switchOn) end
 end
@@ -143,7 +145,7 @@ local function updateUnits()
     local hours = data.energyHour and math.max(0, math.min(1, now - data.energyHour)) or 0
     data.energyHour = now
     if Energy.weather(hours) then Sync.changed(nil) end
-    for _, panel in ipairs(Store.list()) do checkSource(panel) end
+    for _, panel in ipairs(Store.list()) do checkSource(panel, hours) end
 end
 
 local function onNetworkChange(id, what)

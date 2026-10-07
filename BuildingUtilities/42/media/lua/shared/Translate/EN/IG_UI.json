@@ -301,5 +301,15 @@
     "IGUI_BU_SolarShort": "below the load",
     "IGUI_BU_SolarSnow": "snow %1%",
     "IGUI_BU_SolarTip": "One panel makes %1 in clear daylight. Daylight now %2%; snow on a panel takes its share. Making at least the load (%3), the panels carry it instead of a generator; short of it, a generator takes over. A running generator keeps running; switch it off to go back to solar.",
-    "IGUI_BU_Notice_SolarOn": "%1: solar power took over"
+    "IGUI_BU_Notice_SolarOn": "%1: solar power took over",
+    "IGUI_BU_BankNote": "Battery racks join: spare power is stored.",
+    "IGUI_BU_Reason_rackTier": "Battery racks join utility panels of tier 2 and up.",
+    "IGUI_BU_BankRow": "Batteries %1% (%2/%3)  %4",
+    "IGUI_BU_BankCharging": "charging +%1",
+    "IGUI_BU_BankDrawn": "drawn -%1",
+    "IGUI_BU_BankWeak": "worn batteries: %1",
+    "IGUI_BU_BankCold": "cold -%1%",
+    "IGUI_BU_BankEmpty": "Battery racks: %1, without batteries",
+    "IGUI_BU_BankTip": "%1 batteries in %2 racks charge and give power together, keeping %3% of what goes in. Drawn deep they wear faster; each below condition 30 takes 2% of the bank a day; below freezing, the cold locks part of it. When they are empty a generator takes over.",
+    "IGUI_BU_SolarBankTip": "One panel makes %1 in clear daylight. Daylight now %2%; snow on a panel takes its share. What they make over the load (%3) charges the batteries; what they lack comes from them. While a generator runs, it all charges them."
 }

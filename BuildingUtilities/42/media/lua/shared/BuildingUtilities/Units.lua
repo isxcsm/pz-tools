@@ -71,10 +71,12 @@ end
 -- The main panels a unit could be wired to, as for a generator (Panels.producerCandidates).
 function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y, unit.z) end
 
--- Whether a unit can be wired to a panel. True, or false and a reason.
+-- Whether a unit can be wired to a panel. True, or false and a reason. A rack only to a panel of the tier that
+-- keeps a bank.
 function Units.canConnect(unit, panel)
     if panel.parent then return false, "isSubPanel" end
     if unit.panel then return false, "connectedElsewhere" end
+    if unit.kind == "rack" and (panel.tier or 1) < BU.BANK_TIER then return false, "rackTier" end
     for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
         if candidate.panel == panel then return true end
     end

@@ -176,6 +176,7 @@ function Panels.upgradeNote(tier, plain)
     end
     if tier == BU.TIMER_TIER then lines[#lines + 1] = getText("IGUI_BU_TimerNote") end
     if tier == BU.LINK_TIER then lines[#lines + 1] = getText("IGUI_BU_LinkNote") end
+    if tier == BU.BANK_TIER then lines[#lines + 1] = getText("IGUI_BU_BankNote") end
     if tier == BU.SMART_TIER then lines[#lines + 1] = getText("IGUI_BU_SmartNote") end
     return table.concat(lines, plain and "\n" or " <LINE> ")
 end

@@ -20,7 +20,8 @@ local KEY = "BuildingUtilities"
 --   id, kind ("solar" or "rack"), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries (a list of { type, charge 0 to 1, condition 0 to 100,
 --   revived: how often it was reconditioned }), in the order they went in.
--- energyHour: the world age the units were last worked out at (Server).
+-- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
+-- went into its batteries per hour at the last minute (out of them when below 0), for its window.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
 -- changes it (BU.Changes).
 Store.KEY = KEY
