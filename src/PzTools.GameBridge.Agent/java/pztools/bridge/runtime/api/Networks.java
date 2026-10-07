@@ -450,7 +450,7 @@ final class Networks {
                 Object entry = square(at);
                 // What draws and fills owe a producer whose square is not loaded counts already.
                 var stored = water == null ? above.stored.get(at) : water.withOwed(at, above.stored.get(at));
-                if (water != null) lua.set(entry, "pending", water.owed(at));
+                if (water != null) lua.set(entry, "pending", water.owed(at, above.stored.get(at)));
                 if (stored != null) {
                     lua.set(entry, "amount", (double)stored.amount());
                     lua.set(entry, "capacity", (double)stored.capacity());
@@ -720,6 +720,8 @@ final class Networks {
         try { write(); }
         catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
         var text = new StringBuilder(STATE).append('\n');
+        // The numbering of what is owed to water producers goes on from here, never back.
+        if (water != null) text.append("Q\t").append(water.nextSequence()).append('\n');
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.supplied ? "1" : "").append('\t').append(network.suppliedAt)
                 .append('\t').append(network.load).append('\t').append(network.total).append('\t').append(network.loadComplete ? "1" : "")
@@ -732,7 +734,7 @@ final class Networks {
                     .append(settled.getValue().fuel()).append('\t').append(settled.getValue().perHour()).append('\n');
             for (var stored : network.stored.entrySet()) {
                 text.append("W\t").append(stored.getKey()).append('\t').append(stored.getValue().amount()).append('\t')
-                    .append(stored.getValue().capacity());
+                    .append(stored.getValue().capacity()).append('\t').append(stored.getValue().taken());
                 for (var fluid : stored.getValue().fluids().entrySet()) text.append('\t').append(fluid.getKey()).append('\t').append(fluid.getValue());
                 text.append('\n');
             }
@@ -777,6 +779,10 @@ final class Networks {
         Network network = null;
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
+            if ("Q".equals(fields[0])) {
+                if (water != null) water.goOnFrom(Long.parseLong(fields[1]));
+                continue;
+            }
             if ("N".equals(fields[0])) {
                 network = networks.get(fields[1]);
                 if (network == null) continue;
@@ -805,9 +811,10 @@ final class Networks {
                 case "W" -> {
                     Position at = Position.parse(fields[1]);
                     var fluids = new HashMap<String, Float>();
-                    for (int field = 4; field + 1 < fields.length; field += 2) fluids.put(fields[field], Float.parseFloat(fields[field + 1]));
+                    for (int field = 5; field + 1 < fields.length; field += 2) fluids.put(fields[field], Float.parseFloat(fields[field + 1]));
                     if (network.producers.contains(Producer.square(at)))
-                        network.stored.put(at, new Stored(Float.parseFloat(fields[2]), Float.parseFloat(fields[3]), Map.copyOf(fluids)));
+                        network.stored.put(at, new Stored(Float.parseFloat(fields[2]), Float.parseFloat(fields[3]), Map.copyOf(fluids),
+                            Long.parseLong(fields[4])));
                 }
                 case "C" -> network.consumption.put(new Thing(Position.parse(fields[1]), fields[3]), Float.parseFloat(fields[2]));
                 case "H" -> {

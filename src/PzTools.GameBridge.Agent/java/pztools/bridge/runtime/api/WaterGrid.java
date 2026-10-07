@@ -61,6 +61,8 @@ final class WaterGrid implements ApiHooks.Water {
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
     private final Method removeFluid, addFluid, modData, sync;
+    // IsoObject.hasModData, which reads an object's modData without making it; null for a game without it.
+    private final Method hasModData;
     private final Field client;
 
     WaterGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings, Kahlua lua)
@@ -74,6 +76,10 @@ final class WaterGrid implements ApiHooks.Water {
         Class<?> object = game.objectType;
         fluidContainer = object.getMethod("getFluidContainer");
         modData = object.getMethod("getModData");
+        Method has;
+        try { has = object.getMethod("hasModData"); }
+        catch (NoSuchMethodException none) { has = null; }
+        hasModData = has;
         sync = object.getMethod("sync");
         Class<?> container = Game.type(loader, "zombie.entity.components.fluids.FluidContainer");
         Class<?> fluid = Game.type(loader, "zombie.entity.components.fluids.Fluid");
@@ -252,15 +258,29 @@ final class WaterGrid implements ApiHooks.Water {
         return result;
     }
 
+    /** The next sequence number of what is owed, for a newer payload; and where this one goes on from an earlier one's. */
+    long nextSequence() { return pending.next(); }
+
+    void goOnFrom(long sequence) { pending.numberPast(sequence - 1); }
+
     /** Reads what is owed again when the world's ModData changed: before a state is reported between two frames. */
     void refreshOwed() throws ReflectiveOperationException { if (authoritative()) pending.refresh(); }
 
-    /** The litres owed to a producer's square, all its changes added up: below 0 for draws. */
-    double owed(Position at) { return pending.total(at); }
+    /**
+     * The litres owed to a producer's square, all its changes added up (below 0 for draws), but those it took as last
+     * seen loaded (see {@link #withOwed}).
+     */
+    double owed(Position at, Stored stored) {
+        double result = 0;
+        for (Delta delta : pending.at(at)) if (stored == null || delta.sequence() > stored.taken()) result += delta.litres();
+        return result;
+    }
 
     /**
      * What a producer's square holds as last seen, with what it is owed added in order: a draw takes from every fluid
-     * in proportion, a fill adds as much as there is room for. Null when it was never seen loaded.
+     * in proportion, a fill adds as much as there is room for. Null when it was never seen loaded. A change the square
+     * had taken when it was last seen is not owed: a world loaded again after it stopped between saving the square and
+     * saving the ModData reads such changes back (see {@link #APPLIED}).
      */
     Stored withOwed(Position at, Stored stored) {
         List<Delta> owed = stored == null ? List.of() : pending.at(at);
@@ -268,6 +288,7 @@ final class WaterGrid implements ApiHooks.Water {
         var fluids = new HashMap<String, Float>(stored.fluids());
         double held = stored.amount();
         for (Delta delta : owed) {
+            if (delta.sequence() <= stored.taken()) continue;
             if (delta.litres() < 0) {
                 double left = Math.max(0, held + delta.litres());
                 float scale = held > 0 ? (float)(left / held) : 0;
@@ -280,7 +301,7 @@ final class WaterGrid implements ApiHooks.Water {
             }
         }
         fluids.values().removeIf(litres -> litres <= 0);
-        return new Stored((float)held, stored.capacity(), Map.copyOf(fluids));
+        return new Stored((float)held, stored.capacity(), Map.copyOf(fluids), stored.taken());
     }
 
     /**
@@ -453,8 +474,7 @@ final class WaterGrid implements ApiHooks.Water {
             return;
         }
         long applied = Long.MIN_VALUE;
-        for (Object object : objects)
-            if (lua.get(modData.invoke(object), APPLIED) instanceof Double sequence) applied = Math.max(applied, sequence.longValue());
+        for (Object object : objects) applied = Math.max(applied, taken(object));
         float[] before = new float[objects.size()];
         double[] held = new double[objects.size()], most = new double[objects.size()];
         for (int index = 0; index < before.length; index++) before[index] = (float)amount.invoke(containers.get(index));
@@ -501,9 +521,10 @@ final class WaterGrid implements ApiHooks.Water {
             }
     }
 
-    /** What the containers on a loaded square hold together. */
+    /** What the containers on a loaded square hold together, and the last change owed to the square that they took. */
     private Stored held(Object loaded) throws ReflectiveOperationException {
         float held = 0, most = 0;
+        long taken = Long.MIN_VALUE;
         var fluids = new HashMap<String, Float>();
         for (Object object : game.objectsOn(loaded)) {
             Stored stored = contents(object);
@@ -511,8 +532,17 @@ final class WaterGrid implements ApiHooks.Water {
             held += stored.amount();
             most += stored.capacity();
             stored.fluids().forEach((name, litres) -> fluids.merge(name, litres, Float::sum));
+            taken = Math.max(taken, taken(object));
         }
-        return new Stored(held, most, Map.copyOf(fluids));
+        // Later changes are numbered past it, also when the ModData read has older numbers.
+        if (taken != Long.MIN_VALUE) pending.numberPast(taken);
+        return new Stored(held, most, Map.copyOf(fluids), taken);
+    }
+
+    /** The last change owed to its square that the object took ({@link #APPLIED}), without making its modData. */
+    private long taken(Object object) throws ReflectiveOperationException {
+        if (hasModData != null && !(boolean)hasModData.invoke(object, Game.NONE)) return Long.MIN_VALUE;
+        return lua.get(modData.invoke(object, Game.NONE), APPLIED) instanceof Double sequence ? sequence.longValue() : Long.MIN_VALUE;
     }
 
     /** What the object's own fluid container holds, fluid by fluid; null when it has none. */
@@ -529,7 +559,7 @@ final class WaterGrid implements ApiHooks.Water {
                     (float)instanceAmount.invoke(sampleInstance.invoke(copy, index)), Float::sum);
         } finally { sampleRelease.invoke(copy); }
         fluids.values().removeIf(litres -> litres <= 0);
-        return new Stored((float)amount.invoke(container), most, Map.copyOf(fluids));
+        return new Stored((float)amount.invoke(container), most, Map.copyOf(fluids), Long.MIN_VALUE);
     }
 
     /**

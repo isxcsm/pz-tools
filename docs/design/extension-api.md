@@ -317,9 +317,12 @@ own, then its parents'), and nothing while the network or a parent above it is s
 - **Once only.** A chunk is saved as it unloads, the global ModData only when the world is saved, so a
   world that stopped between the two still owes a square changes it took. Each change has a sequence
   number, and the containers on a square record the last one they took in their own modData
-  (`PZToolsFluidsApplied`), which is saved with them; a square takes no change at or below it. The
-  numbers grow with the clock as well, so a change owed after such a world is reloaded is numbered past
-  the ones taken.
+  (`PZToolsFluidsApplied`), which is saved with them; a square takes no change at or below it, and once
+  seen loaded, `state` and the supply count none of them as owed while it is not loaded. A number is past
+  every one given, read or seen taken in the game, and a newer payload goes on from the last; it is past
+  the clock as well, so that a change owed in a game started again after such a world is numbered past
+  the ones taken. A square never seen loaded since the world loaded counts every change read as owed, as
+  only its containers know which it took.
 - **Multiplayer.** Only the server, or a single-player game, changes what producers hold: on a
   multiplayer client `draw` and `fill` are a Lua error.
 - The API does not simulate rain for producers that are not loaded. Whether the game fills a rain

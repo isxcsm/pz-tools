@@ -1219,15 +1219,17 @@ public final class GameApiTest {
         IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
         frame();
         check(tainted.fluidContainer.amount < 40, "A change owed after an older ModData was not taken");
-        // A fill owed after such a world does not add to a fill of the same fluid read from it, which the square took.
+        // Such a world again, the square not loaded: the changes read from the ModData that the square took, as it was
+        // last seen, are not owed. A fill owed then does not add to a fill of the same fluid read from it, and its
+        // number is past the ones the square took, however little time has passed.
         float held = tainted.fluidContainer.amount + clean.fluidContainer.amount;
         KahluaTable reloaded = LuaManager.platform.newTable();
         reloaded.rawset("deltas", before);
         ModData.tables.put(PendingFluids.KEY, reloaded);
         IsoWorld.instance.cell.squares.remove("31,34,0");
-        // Numbers grow with the clock, which moves on between two sessions of a world; here it has to pass the last
-        // number the square took.
-        Thread.sleep(5);
+        var taken = (KahluaTable)((KahluaTable)state(networks, "tanks").rawget("producers")).rawget(2.0);
+        check(near((Double)taken.rawget("pending"), 0) && near((Double)taken.rawget("amount"), tainted.fluidContainer.amount),
+            "A square not loaded is owed changes it took: " + taken.rawget("pending") + ", " + taken.rawget("amount"));
         call(networks, "fill", mod, "tanks", 10.0, "Water");
         check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 3, "A change was added to one the square took already");
         IsoWorld.instance.cell.squares.put("31,34,0", unloaded);

@@ -35,6 +35,7 @@ final class PendingFluids {
     private final Map<Position, List<Delta>> deltas = new LinkedHashMap<>();
     // The squares owed something, for the water hooks, which ask on the fixture's thread.
     private volatile Set<Position> squares = Set.of();
+    // The next sequence number: past every one given, read or seen taken in this game, never lower (see add).
     private long next;
     // The lowest sequence number given since the changes were read. One below it was read from the ModData, and its
     // square may have taken it already (a world that stopped before its ModData was saved): nothing adds to it.
@@ -59,9 +60,8 @@ final class PendingFluids {
         read = true;
         table = current;
         deltas.clear();
-        next = 0;
         if (current != null) {
-            if (lua.get(current, "next") instanceof Double number) next = number.longValue();
+            if (lua.get(current, "next") instanceof Double number) next = Math.max(next, number.longValue());
             Object list = lua.get(current, "deltas");
             for (int index = 1; lua.isTable(list); index++) {
                 Object item = lua.get(list, (double)index);
@@ -108,8 +108,9 @@ final class PendingFluids {
      */
     void add(Position at, double litres, String fluid) throws ReflectiveOperationException {
         refresh();
-        // With the clock too: a world loaded again after a crash may have kept an older next, but its squares the
-        // numbers of the changes they took (see WaterGrid.apply).
+        // Past every number given, read or seen taken in this game, whatever the ModData read says; and with the clock
+        // too, for a game started again: a world that stopped before its ModData was saved may have kept an older next,
+        // but its squares the numbers of the changes they took (see WaterGrid.apply).
         long sequence = Math.max(next, System.currentTimeMillis());
         next = sequence + 1;
         List<Delta> owed = deltas.computeIfAbsent(at, unused -> new ArrayList<>());
@@ -122,6 +123,12 @@ final class PendingFluids {
         else owed.add(delta);
         write(at, delta, adds);
     }
+
+    /** A square was seen to have taken the change of that number: later ones are numbered past it. */
+    void numberPast(long sequence) { next = Math.max(next, sequence + 1); }
+
+    /** The next sequence number, for a newer payload to go on from (see Networks.handover). */
+    long next() { return next; }
 
     /** The square took what it was owed, or can no longer. */
     void remove(Position at) throws ReflectiveOperationException {
