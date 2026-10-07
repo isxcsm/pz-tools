@@ -22,7 +22,8 @@ local REFRESH_MS = 5000
 local BAR_W = 220
 local SCROLLBAR = 16
 local LOG = "log"
-local LIST_W, PLAN_W = 680, 380
+-- The list's width alone; with the plan, the plan takes its share of the window beside it (at least so wide each).
+local LIST_W, MIN_LIST, MIN_PLAN = 560, 470, 260
 local OPTION_W = 110
 local OUTSIDE = "outside"
 local ROOM_TICK_X = PAD + 14
@@ -30,9 +31,11 @@ local ROOM_TICK_X = PAD + 14
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
 local open = {}
--- What the player chose, kept while the game runs: view options, folded rooms, the plan shown.
+-- What the player chose, kept while the game runs: view options, folded rooms, the plan shown, its share of the
+-- window and its legend.
 PanelWindow.options = { activeOnly = false, byLoad = false }
 PanelWindow.folded = {}
+PanelWindow.planShare = 0.5
 
 local function load2(value) return string.format("%.2f", value) end
 
@@ -136,6 +139,11 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     if (self.hovered == item.index and (row.device or row.at)) or self.selected == item.index and row.device then
         self:drawRect(0, y, width, ROW, 0.15, 1, 1, 1)
     end
+    -- What the mouse is over on the plan.
+    local window = self.window
+    local planned = row.device and row.device.key == window.planHoverKey
+        or row.kind == "room" and window.planHoverRoom ~= nil and row.id == window.planHoverRoom
+    if planned then self:drawRectBorder(1, y, width - SCROLLBAR - 2, ROW, 1, 1, 1, 0.6) end
     if row.kind == "header" then
         self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
         self:drawText(row.text, PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
@@ -222,21 +230,57 @@ function ISBUPanelList:onMouseDown(x, y)
     return true
 end
 
+-- The divider between the list and the plan: dragged, it moves the share of the window the plan takes.
+ISBUSplitter = ISPanel:derive("ISBUSplitter")
+
+function ISBUSplitter:new(x, y, width, height, window)
+    local o = ISPanel.new(self, x, y, width, height)
+    o.window = window
+    o.background = false
+    return o
+end
+
+function ISBUSplitter:render()
+    local shade = (self.dragging or self:isMouseOver()) and 0.9 or 0.45
+    local middle = self.height / 2
+    for i = -2, 2 do self:drawRect(self.width / 2 - 1, middle + i * 6, 2, 3, 1, shade, shade, shade) end
+end
+
+function ISBUSplitter:onMouseDown(x, y) self.dragging = true; return true end
+
+function ISBUSplitter:drag()
+    if self.dragging then self.window:dragDivider(self.window:getMouseX() - self.width / 2) end
+end
+
+function ISBUSplitter:onMouseMove(dx, dy) self:drag() end
+function ISBUSplitter:onMouseMoveOutside(dx, dy) self:drag() end
+function ISBUSplitter:onMouseUp(x, y) self.dragging = false; return true end
+function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
+
 -- The window.
 ISBUPanelWindow = ISCollapsableWindow:derive("ISBUPanelWindow")
 
 -- Shown at first on a screen wide enough for the window and the game beside it.
 local function planByDefault() return getCore():getScreenWidth() >= 1500 end
 
+-- The window's width for a list so wide, with the plan or without.
+local function windowWidth(listW, shown)
+    if not shown then return listW end
+    return math.floor(listW / (1 - PanelWindow.planShare)) + PAD
+end
+
+local function minimumWidth(shown) return MIN_LIST + (shown and PAD + MIN_PLAN or 0) end
+
 function ISBUPanelWindow:new(x, y, playerObj, panel)
     local shown = PanelWindow.planShown
     if shown == nil then shown = planByDefault() end
-    local o = ISCollapsableWindow.new(self, x, y, LIST_W + (shown and PLAN_W + PAD or 0), 610)
+    local width = math.min(windowWidth(LIST_W, shown), getCore():getScreenWidth())
+    local o = ISCollapsableWindow.new(self, x, y, math.max(width, minimumWidth(shown)), 610)
     o.playerObj = playerObj
     o.panel = panel
     o.planWanted = shown
     o.resizable = true
-    o.minimumWidth = 560 + (shown and PLAN_W + PAD or 0)
+    o.minimumWidth = minimumWidth(shown)
     o.minimumHeight = 340
     o.rangeObjects = {}
     o.planOutlined = {}
@@ -275,11 +319,11 @@ function ISBUPanelWindow:createChildren()
     self.resetButton:setTitle(getText("ContextMenu_BU_ResetBreaker"))
     self.upgradeButton = button(self, PAD + 428, buttonsY, 160, ROW, ISBUPanelWindow.onUpgrade)
     local tabsY = buttonsY + ROW + PAD
-    local listW = self.width - (self.planWanted and PLAN_W + PAD or 0)
+    local listW = self.width
     local height = self.height - tabsY - self:resizeWidgetHeight()
+    -- The list and the plan are placed by layoutPanes, not by anchors: across, only their heights follow the window.
     self.tabs = ISTabPanel:new(0, tabsY, listW, height)
     self.tabs:initialise()
-    self.tabs:setAnchorRight(true)
     self.tabs:setAnchorBottom(true)
     self.tabs:setEqualTabWidth(false)
     self:addChild(self.tabs)
@@ -290,7 +334,6 @@ function ISBUPanelWindow:createChildren()
     for _, view in ipairs(views) do
         local list = ISBUPanelList:new(0, 0, listW, self.tabs.height - self.tabs.tabHeight, self, view)
         list:initialise()
-        list:setAnchorRight(true)
         list:setAnchorBottom(true)
         self.tabs:addView(getText("IGUI_BU_Tab_" .. view), list)
         self.lists[view] = list
@@ -301,17 +344,53 @@ function ISBUPanelWindow:createChildren()
     self.activeButton:setTitle(getText("IGUI_BU_ActiveOnly"))
     self.loadSortButton = button(self, 0, tabsY, OPTION_W, optionH, ISBUPanelWindow.onByLoad)
     self.loadSortButton:setTitle(getText("IGUI_BU_ByLoad"))
-    anchorRight(self.activeButton)
-    anchorRight(self.loadSortButton)
-    self:placeOptions()
-    self.plan = ISBUPlan:new(listW, tabsY, PLAN_W, height, self)
+    -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
+    self.splitter = ISBUSplitter:new(listW, tabsY, PAD, height, self)
+    self.splitter:initialise()
+    self.splitter:setAnchorBottom(true)
+    self:addChild(self.splitter)
+    self.plan = ISBUPlan:new(listW, tabsY, MIN_PLAN, height, self)
     self.plan:initialise()
-    anchorRight(self.plan)
     self.plan:setAnchorBottom(true)
     self:addChild(self.plan)
     self.plan:setVisible(self.planWanted)
+    self.splitter:setVisible(self.planWanted)
+    self:layoutPanes()
     if PanelWindow.lastTab then self.tabs:activateView(PanelWindow.lastTab) end
     self:refresh()
+end
+
+-- The list and, beside it, the plan with its share of the window, each at least so wide; the divider between them.
+function ISBUPanelWindow:layoutPanes()
+    if not (self.tabs and self.plan) then return end
+    local shown = self.plan:getIsVisible()
+    local listW = self.width
+    if shown then
+        local planW = math.floor((self.width - PAD) * PanelWindow.planShare)
+        planW = math.max(MIN_PLAN, math.min(planW, self.width - PAD - MIN_LIST))
+        listW = self.width - PAD - planW
+        self.splitter:setX(listW)
+        self.plan:setX(listW + PAD)
+        if self.plan:getWidth() ~= planW then self.plan:setWidth(planW) end
+    end
+    if self.tabs:getWidth() ~= listW then
+        self.tabs:setWidth(listW)
+        for _, list in pairs(self.lists) do list:setWidth(listW) end
+    end
+    self:placeOptions()
+end
+
+-- The window resized by the player: the panes share the new width.
+function ISBUPanelWindow:onResize()
+    if ISCollapsableWindow.onResize then ISCollapsableWindow.onResize(self) end
+    self:layoutPanes()
+end
+
+-- The divider dragged: the plan's share of the window.
+function ISBUPanelWindow:dragDivider(x)
+    local listW = math.max(MIN_LIST, math.min(x, self.width - PAD - MIN_PLAN))
+    PanelWindow.planShare = (self.width - PAD - listW) / (self.width - PAD)
+    self:layoutPanes()
 end
 
 function ISBUPanelWindow:placeOptions()
@@ -332,15 +411,14 @@ function ISBUPanelWindow:setPlanShown(shown)
     PanelWindow.planShown = shown
     if self.plan:getIsVisible() == shown then return end
     local listW = self.tabs:getWidth()
-    local delta = PLAN_W + PAD
     self.plan:setVisible(shown)
-    self.minimumWidth = 560 + (shown and delta or 0)
-    self.width = listW + (shown and delta or 0)
+    self.splitter:setVisible(shown)
+    self.minimumWidth = minimumWidth(shown)
+    self.width = math.max(self.minimumWidth, math.min(windowWidth(listW, shown), getCore():getScreenWidth()))
     self.javaObject:setWidthSilent(self.width)
-    self.plan:setX(listW)
     self.rangeButton:setX(self.width - PAD - 130)
     self.planButton:setX(self.width - PAD - 130 - 4 - 110)
-    self:placeOptions()
+    self:layoutPanes()
     if shown then
         local overflow = self:getX() + self.width - getCore():getScreenWidth()
         if overflow > 0 then self:setX(math.max(0, self:getX() - overflow)) end
@@ -802,6 +880,79 @@ local function nextSchedule(schedule)
     return BU.SCHEDULES[1]
 end
 
+-- A device connected or not: a building's by a switch at the box, one outside by laying or taking away its line.
+function ISBUPanelWindow:switchDevice(utility, device)
+    local panel, playerObj, entry = self.panel, self.playerObj, device.entry
+    if device.state == "other" then return end
+    if device.inside then
+        Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = device.key, on = device.state ~= "on" })
+    elseif device.state == "on" then
+        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
+            ISBUDisconnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
+    else
+        local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        if not cost or not Costs.affords(playerObj, cost) then
+            HaloTextHelper.addBadText(playerObj, cost and getText("IGUI_BU_Reason_cantAfford") or getText("IGUI_BU_Reason_" .. reason))
+            return
+        end
+        BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
+            ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
+    end
+end
+
+-- The menu of a dot right-clicked on the plan: what its row offers.
+function ISBUPanelWindow:deviceMenu(key)
+    local utility = self:activeUtility()
+    local view = self.views[utility]
+    local device
+    for _, candidate in ipairs(view and view.devices or {}) do if candidate.key == key then device = candidate end end
+    if not device then return end
+    local panel, playerObj = self.panel, self.playerObj
+    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    menu:addOption(view.names[key] or "", nil, nil).notAvailable = true
+    if device.state == "other" then
+        menu:addOption(view.status[key] or "", nil, nil).notAvailable = true
+    else
+        local on = device.state == "on"
+        menu:addOption(getText(on and "IGUI_BU_Menu_Disconnect" or "IGUI_BU_Menu_Connect"), self, ISBUPanelWindow.switchDevice, utility, device)
+        if on and utility == "power" and (panel.tier or 1) >= BU.TIMER_TIER then
+            local timer = menu:addOption(getText("IGUI_BU_Menu_Timer"), nil, nil)
+            local sub = ISContextMenu:getNew(menu)
+            menu:addSubMenu(timer, sub)
+            for _, schedule in ipairs(BU.SCHEDULES) do
+                local option = sub:addOption(getText("IGUI_BU_Schedule_" .. schedule), playerObj, Sync.send, "setSchedule",
+                    { panel = panel.id, key = key, schedule = schedule })
+                if schedule == device.schedule then option.notAvailable = true end
+            end
+        end
+        if on and utility == "power" and Panels.sheds(panel) then
+            menu:addOption(getText(device.essential and "IGUI_BU_Menu_NotEssential" or "IGUI_BU_Menu_Essential"), playerObj, Sync.send,
+                "setEssential", { panel = panel.id, key = key, on = not device.essential })
+        end
+    end
+    menu:addOption(getText("IGUI_BU_Menu_ShowInList"), self, ISBUPanelWindow.showDevice, key)
+end
+
+-- The menu of a room right-clicked on the plan: all of it on or off, or only it in the list.
+function ISBUPanelWindow:roomMenu(id)
+    local utility = self:activeUtility()
+    local view = self.views[utility]
+    local totals = view and view.totals[id]
+    local playerObj = self.playerObj
+    local menu = ISContextMenu.get(playerObj:getPlayerNum(), getMouseX(), getMouseY())
+    menu:addOption(totals and totals.title or (self.titles[id] or ""), nil, nil).notAvailable = true
+    if totals and totals.count > 0 then
+        local send = function(on) Sync.send(playerObj, "setRoomInside", { panel = self.panel.id, utility = utility, room = id, on = on }) end
+        if totals.on < totals.count then menu:addOption(getText("IGUI_BU_Menu_RoomOn"), true, send) end
+        if totals.on > 0 then menu:addOption(getText("IGUI_BU_Menu_RoomOff"), false, send) end
+    end
+    if self.roomFilter == id then
+        menu:addOption(getText("IGUI_BU_Menu_AllRooms"), self, ISBUPanelWindow.filterRoom, nil)
+    else
+        menu:addOption(getText("IGUI_BU_Menu_OnlyRoom"), self, ISBUPanelWindow.filterRoom, id)
+    end
+end
+
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
@@ -829,7 +980,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             self:fill(utility, self.views[utility] and self.views[utility].state)
         end
     elseif row.kind == "device" and row.state ~= "other" then
-        local device, entry = row.device, row.device.entry
+        local device = row.device
         for _, button in ipairs((deviceButtons(width, row))) do
             if x >= button.x and x <= button.x + button.w then
                 if button.name == "timer" then
@@ -840,20 +991,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 return
             end
         end
-        if device.inside then
-            Sync.send(playerObj, "setInside", { panel = panel.id, utility = utility, key = device.key, on = row.state ~= "on" })
-        elseif row.state == "on" then
-            BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
-                ISBUDisconnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
-        else
-            local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
-            if not cost or not Costs.affords(playerObj, cost) then
-                HaloTextHelper.addBadText(playerObj, cost and getText("IGUI_BU_Reason_cantAfford") or getText("IGUI_BU_Reason_" .. reason))
-                return
-            end
-            BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
-                ISBUConnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
-        end
+        self:switchDevice(utility, device)
     end
 end
 

@@ -171,6 +171,12 @@ function BU.displayName(x, y, z, sprite)
 end
 
 -- A level of a building as players count floors: 1F for the ground, B1 below it.
+-- A floor in a few letters, for the plan's floor strip: "B1", "1", "2".
+function BU.floorShort(level)
+    if level < 0 then return "B" .. tostring(-level) end
+    return tostring(level + 1)
+end
+
 function BU.floorName(level)
     if level < 0 then return getText("IGUI_BU_Basement", -level) end
     return getText("IGUI_BU_Floor", level + 1)

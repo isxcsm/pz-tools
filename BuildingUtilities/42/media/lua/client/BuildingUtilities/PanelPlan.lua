@@ -1,8 +1,9 @@
 -- The floor plan beside a breaker box window: the building's rooms on one floor from above, north up, coloured by
--- what their devices do; the devices as dots, the producers as squares and the box itself. It shares hover and
--- clicks with the window's list: a row under the mouse marks its room or dot here, a room clicked here shows only
--- that room there, a dot clicked here finds its row. Everything is laid out when the window refreshes; a frame only
--- draws the rectangles laid out, a few dozen.
+-- what their devices do; the devices as dots, the producers as squares and the box itself. A strip on the left picks
+-- the floor (or the mouse wheel), a legend at the bottom tells the colours. It shares hover and clicks with the
+-- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
+-- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Everything is
+-- laid out when the window refreshes or the plan is resized; a frame only draws the rectangles laid out.
 require "ISUI/ISPanel"
 local BU = BuildingUtilities
 
@@ -11,6 +12,10 @@ local PAD = 8
 local MAX_SCALE = 14
 local DOT = 6
 local HIT = 5
+local STRIP_W = 34
+local CELL_H = FONT_HGT_SMALL + 4
+local LEGEND_ROW = FONT_HGT_SMALL + 2
+local TOGGLE_W = 18
 
 ISBUPlan = ISPanel:derive("ISBUPlan")
 
@@ -20,7 +25,7 @@ function ISBUPlan:new(x, y, width, height, window)
     o.background = true
     o.backgroundColor = { r = 0, g = 0, b = 0, a = 0.55 }
     o.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 1 }
-    o.cells, o.labels, o.dots, o.squares = {}, {}, {}, {}
+    o.cells, o.labels, o.dots, o.squares, o.strip, o.legend = {}, {}, {}, {}, {}, {}
     return o
 end
 
@@ -35,14 +40,40 @@ local function roomColour(room, supplied)
     return 0.22, 0.22, 0.22
 end
 
+local COLOURS = {
+    other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
+    unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
+    producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 },
+}
+
 local function dotColour(device, supplied)
-    if device.state == "other" then return 0.6, 0.4, 0.8 end
-    if device.state ~= "on" then return 0.45, 0.45, 0.45 end
-    if device.held == "shed" then return 1, 0.6, 0.2 end
-    if device.held == "timer" then return 0.4, 0.6, 1 end
-    if not supplied then return 0.6, 0.65, 0.75 end
-    if (device.power or 0) > 0 or device.utility == "water" then return 0.4, 1, 0.4 end
-    return 0.25, 0.6, 0.3
+    local colour
+    if device.state == "other" then colour = COLOURS.other
+    elseif device.state ~= "on" then colour = COLOURS.off
+    elseif device.held == "shed" then colour = COLOURS.shed
+    elseif device.held == "timer" then colour = COLOURS.timer
+    elseif not supplied then colour = COLOURS.unsupplied
+    elseif (device.power or 0) > 0 or device.utility == "water" then colour = COLOURS.using
+    else colour = COLOURS.idle end
+    return colour[1], colour[2], colour[3]
+end
+
+-- What the legend lists for a utility: a colour, dot or square, and its text.
+local function legendEntries(utility)
+    local result = {}
+    local function add(name, square)
+        local colour = COLOURS[name]
+        result[#result + 1] = { r = colour[1], g = colour[2], b = colour[3], square = square, text = getText("IGUI_BU_Legend_" .. name) }
+    end
+    if utility == "power" then
+        for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "off", "other" }) do add(name) end
+        add("producer", true)
+    else
+        for _, name in ipairs({ "using", "off", "other" }) do add(name) end
+        add("tank", true)
+    end
+    add("box", true)
+    return result
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
@@ -57,12 +88,22 @@ function ISBUPlan:setData(data)
     if not self.floor or not levels[self.floor] then
         self.floor = levels[data.box.z] and data.box.z or self.levels[1] or 0
     end
+    -- What each floor's connected devices do: how many, and what they draw.
+    self.floorOn, self.floorLoad = {}, {}
+    for _, device in ipairs(data.devices) do
+        if device.state == "on" then
+            self.floorOn[device.z] = (self.floorOn[device.z] or 0) + 1
+            if not device.held then self.floorLoad[device.z] = (self.floorLoad[device.z] or 0) + (device.power or 0) end
+        end
+    end
     self:layout()
 end
 
+function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end
+
 function ISBUPlan:layout()
     local data = self.data
-    self.cells, self.labels, self.dots, self.squares = {}, {}, {}, {}
+    self.cells, self.labels, self.dots, self.squares, self.strip, self.legend = {}, {}, {}, {}, {}, {}
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
     local minX, minY, maxX, maxY
@@ -77,10 +118,25 @@ function ISBUPlan:layout()
     for _, producer in ipairs(data.producers) do cover(producer.x, producer.y, 1, 1) end
     cover(data.box.x, data.box.y, 1, 1)
     if not minX then return end
+    local left = PAD + (#self.levels > 1 and STRIP_W or 0)
     local top = FONT_HGT_SMALL + PAD * 2
-    local availW, availH = self.width - PAD * 2, self.height - top - FONT_HGT_SMALL - PAD * 2
-    local scale = math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE)
-    local ox = PAD + (availW - (maxX - minX) * scale) / 2
+    -- The legend, in two columns at the bottom, above the status line.
+    local legendH = 0
+    if self:legendShown() then
+        local entries = legendEntries(data.utility)
+        local rows = math.ceil(#entries / 2)
+        legendH = rows * LEGEND_ROW + PAD
+        local columnW = (self.width - left - PAD) / 2
+        local legendY = self.height - FONT_HGT_SMALL - PAD * 2 - legendH + PAD
+        for index, entry in ipairs(entries) do
+            local column, row = (index - 1) % 2, math.floor((index - 1) / 2)
+            entry.x, entry.y = left + column * columnW, legendY + row * LEGEND_ROW
+            self.legend[#self.legend + 1] = entry
+        end
+    end
+    local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
+    local scale = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
+    local ox = left + (availW - (maxX - minX) * scale) / 2
     local oy = top + (availH - (maxY - minY) * scale) / 2
     local function sx(x) return math.floor(ox + (x - minX) * scale) end
     local function sy(y) return math.floor(oy + (y - minY) * scale) end
@@ -117,38 +173,55 @@ function ISBUPlan:layout()
     for _, device in ipairs(data.devices) do
         if device.z == self.floor then
             local r, g, b = dotColour(device, data.supplied)
-            self.dots[#self.dots + 1] = { key = device.key, room = device.roomId, x = math.floor(sx(device.x) + scale / 2),
-                y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b, text = device.name .. "  " .. (device.status or "") }
+            self.dots[#self.dots + 1] = { key = device.key, room = device.inside and device.roomId or nil,
+                x = math.floor(sx(device.x) + scale / 2), y = math.floor(sy(device.y) + scale / 2), r = r, g = g, b = b,
+                text = device.name .. "  " .. (device.status or "") }
         end
     end
     for _, producer in ipairs(data.producers) do
         if producer.z == self.floor then
-            local r, g, b = 1, 0.85, 0.2
-            if data.utility == "water" then r, g, b = 0.3, 0.6, 1 end
+            local colour = data.utility == "water" and COLOURS.tank or COLOURS.producer
             self.squares[#self.squares + 1] = { x = sx(producer.x), y = sy(producer.y), size = math.max(scale, 8),
-                r = r, g = g, b = b, ring = producer.inUse, text = producer.text }
+                r = colour[1], g = colour[2], b = colour[3], ring = producer.inUse, text = producer.text }
         end
     end
     if data.box.z == self.floor then
         self.squares[#self.squares + 1] = { x = sx(data.box.x), y = sy(data.box.y), size = math.max(scale, 8),
             r = 1, g = 1, b = 1, ring = false, text = data.boxText }
     end
+    self:layoutStrip()
 end
 
-function ISBUPlan:floorText()
-    return BU.floorName(self.floor or 0)
+-- The floor strip: the floors top down, as many as fit, the one shown among them.
+function ISBUPlan:layoutStrip()
+    self.strip = {}
+    if #self.levels < 2 then return end
+    local top = FONT_HGT_SMALL + PAD * 2
+    local fit = math.max(1, math.floor((self.height - top - PAD) / CELL_H))
+    local downward = {}
+    for index = #self.levels, 1, -1 do downward[#downward + 1] = self.levels[index] end
+    local current = 1
+    for index, level in ipairs(downward) do if level == self.floor then current = index end end
+    local first = math.max(1, math.min(current - math.floor(fit / 2), #downward - fit + 1))
+    for index = first, math.min(#downward, first + fit - 1) do
+        local level = downward[index]
+        self.strip[#self.strip + 1] = { level = level, x = PAD, y = top + (index - first) * CELL_H, w = STRIP_W - 6, h = CELL_H - 2,
+            text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0 }
+    end
 end
 
 function ISBUPlan:prerender()
     ISPanel.prerender(self)
-    -- The floor and arrows to the next ones, when there are.
-    local text = self:floorText()
-    local middle = self.width / 2
-    self:drawTextCentre(text, middle, PAD, 1, 1, 1, 1, UIFont.Small)
-    if #(self.levels or {}) > 1 then
-        self:drawTextCentre("<", PAD * 2, PAD, 0.9, 0.9, 0.9, 1, UIFont.Small)
-        self:drawTextCentre(">", self.width - PAD * 2, PAD, 0.9, 0.9, 0.9, 1, UIFont.Small)
+    -- The floor shown, with what its devices draw; the legend's switch on the right.
+    local text = BU.floorName(self.floor or 0)
+    local data = self.data
+    if data and data.utility == "power" then
+        text = getText("IGUI_BU_FloorLoad", text, string.format("%.2f", self.floorLoad and self.floorLoad[self.floor] or 0))
     end
+    self:drawTextCentre(text, self.width / 2, PAD, 1, 1, 1, 1, UIFont.Small)
+    local shown = self:legendShown()
+    self:drawRectBorder(self.width - PAD - TOGGLE_W, PAD - 1, TOGGLE_W, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
+    self:drawTextCentre("?", self.width - PAD - TOGGLE_W / 2, PAD, shown and 1 or 0.6, shown and 0.9 or 0.6, shown and 0.5 or 0.6, 1, UIFont.Small)
 end
 
 function ISBUPlan:render()
@@ -174,13 +247,32 @@ function ISBUPlan:render()
         self:drawRect(dot.x - DOT / 2, dot.y - DOT / 2, DOT, DOT, 1, dot.r, dot.g, dot.b)
         if dot.key == hoverKey then self:drawRectBorder(dot.x - DOT, dot.y - DOT, DOT * 2, DOT * 2, 1, 1, 1, 1) end
     end
+    for _, cell in ipairs(self.strip) do
+        local current = cell.level == self.floor
+        self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
+        self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, 0.5, 0.5, 0.5)
+        if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
+        self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, current and 1 or 0.75, UIFont.Small)
+    end
+    for _, entry in ipairs(self.legend) do
+        local middle = entry.y + LEGEND_ROW / 2
+        if entry.square then
+            self:drawRect(entry.x, middle - 4, 8, 8, 1, entry.r, entry.g, entry.b)
+        else
+            self:drawRect(entry.x + 1, middle - DOT / 2, DOT, DOT, 1, entry.r, entry.g, entry.b)
+        end
+        self:drawText(entry.text, entry.x + 14, entry.y + 1, 0.85, 0.85, 0.85, 1, UIFont.Small)
+    end
     if self.status then
         self:drawText(self.status, PAD, self.height - FONT_HGT_SMALL - PAD, 1, 1, 1, 1, UIFont.Small)
     end
 end
 
--- What is under the mouse: a dot, a square (producer or box) or a room.
+-- What is under the mouse: a floor of the strip, a dot, a square (producer or box) or a room.
 function ISBUPlan:hit(x, y)
+    for _, cell in ipairs(self.strip) do
+        if x >= cell.x and x <= cell.x + cell.w and y >= cell.y and y <= cell.y + cell.h then return "floor", cell end
+    end
     for _, dot in ipairs(self.dots) do
         if math.abs(x - dot.x) <= HIT and math.abs(y - dot.y) <= HIT then return "dot", dot end
     end
@@ -193,42 +285,74 @@ function ISBUPlan:hit(x, y)
     return nil
 end
 
-function ISBUPlan:onMouseMove(dx, dy)
-    local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
-    local key = kind == "dot" and thing.key or nil
-    local room = kind == "room" and thing.room or kind == "dot" and thing.room or nil
+-- The thing under the mouse, for the plan and for the list: its dot and room.
+function ISBUPlan:setHover(key, room)
     if key ~= self.hoverKey then self.window:outlineDevice(key) end
     self.hoverKey, self.hoverRoom = key, room
+    self.window.planHoverKey, self.window.planHoverRoom = key, room
+end
+
+function ISBUPlan:onMouseMove(dx, dy)
+    local kind, thing = self:hit(self:getMouseX(), self:getMouseY())
+    self:setHover(kind == "dot" and thing.key or nil, (kind == "room" or kind == "dot") and thing.room or nil)
     if kind == "dot" or kind == "square" then
         self.status = thing.text
     elseif kind == "room" then
         self.status = self.window:roomStatus(thing.room)
+    elseif kind == "floor" then
+        self.status = BU.floorName(thing.level)
     else
         self.status = nil
     end
 end
 
 function ISBUPlan:onMouseMoveOutside(dx, dy)
-    if self.hoverKey then self.window:outlineDevice(nil) end
-    self.hoverKey, self.hoverRoom, self.status = nil, nil, nil
+    if self.hoverKey or self.hoverRoom then self:setHover(nil, nil) end
+    self.status = nil
+end
+
+function ISBUPlan:showFloor(level)
+    if level == nil or level == self.floor then return end
+    self.floor = level
+    self:layout()
+end
+
+function ISBUPlan:onMouseWheel(delta)
+    if #(self.levels or {}) < 2 then return false end
+    local index = 1
+    for i, level in ipairs(self.levels) do if level == self.floor then index = i end end
+    -- Up the wheel, up the building.
+    index = math.max(1, math.min(#self.levels, index - delta))
+    self:showFloor(self.levels[index])
+    return true
 end
 
 function ISBUPlan:onMouseDown(x, y)
-    if y < PAD + FONT_HGT_SMALL + 4 and #(self.levels or {}) > 1 then
-        local index = 1
-        for i, level in ipairs(self.levels) do if level == self.floor then index = i end end
-        if x < PAD * 4 then index = math.max(1, index - 1) elseif x > self.width - PAD * 4 then index = math.min(#self.levels, index + 1) end
-        self.floor = self.levels[index]
+    if x >= self.width - PAD - TOGGLE_W and y < PAD + FONT_HGT_SMALL + 2 then
+        BU.PanelWindow.legendShown = not self:legendShown()
         self:layout()
         return true
     end
     local kind, thing = self:hit(x, y)
-    if kind == "dot" then
+    if kind == "floor" then
+        self:showFloor(thing.level)
+    elseif kind == "dot" then
         self.window:showDevice(thing.key)
     elseif kind == "room" then
         self.window:filterRoom(thing.room ~= (self.data and self.data.filter) and thing.room or nil)
     elseif kind == nil then
         self.window:filterRoom(nil)
+    end
+    return true
+end
+
+-- A right click: what the list's row would offer, for a dot or a room.
+function ISBUPlan:onRightMouseDown(x, y)
+    local kind, thing = self:hit(x, y)
+    if kind == "dot" then
+        self.window:deviceMenu(thing.key)
+    elseif kind == "room" then
+        self.window:roomMenu(thing.room)
     end
     return true
 end
