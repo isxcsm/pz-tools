@@ -6,7 +6,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Synthetic control/retirement provider. It never accesses game fields or alters physics. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.spi.FrameListener {
     private final String fixtureGeneration = UUID.randomUUID().toString().replace("-", "");
     private final AtomicInteger callbacks = new AtomicInteger(), frames = new AtomicInteger(), lateFrames = new AtomicInteger();
     private volatile boolean active;

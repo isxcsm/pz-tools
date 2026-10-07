@@ -1,9 +1,12 @@
-package pztools.extensions.api;
+package pztools.bridge;
 
 import java.lang.ref.WeakReference;
 import java.util.UUID;
 
-/** Process-resident weak identities survive a compatible bridge payload replacement. Game-thread only. */
+/**
+ * Character and death ids for WATCH. Part of the bootstrap, so they survive a payload replacement: a death
+ * the old payload saw is not reported again as a new one. Weak references only. Game-thread only.
+ */
 public final class RuntimeCharacterIdentity {
     public record Facts(String life, String character, String death) {
         static final Facts UNKNOWN = new Facts("Unknown", null, null);

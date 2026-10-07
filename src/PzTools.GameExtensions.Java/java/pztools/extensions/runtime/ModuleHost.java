@@ -2,6 +2,7 @@ package pztools.extensions.runtime;
 
 import pztools.extensions.api.*;
 import pztools.extensions.api.internal.ClassArchive;
+import pztools.extensions.runtime.spi.CooperativeCapture;
 import java.io.*;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.*;

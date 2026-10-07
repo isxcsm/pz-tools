@@ -1,4 +1,4 @@
-package pztools.extensions.runtime;
+package pztools.extensions.runtime.spi;
 
 import pztools.extensions.api.SaveProvider;
 

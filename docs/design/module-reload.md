@@ -12,7 +12,7 @@ change is detected, and what survives the switch.
 | Layer | File in `game-bridge\` | Replaced while the game runs? |
 | --- | --- | --- |
 | Native attach bootstrap | `pztools-attach-bootstrap.dll` | No. Loaded on the first attach only. |
-| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ApiHooks` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
+| [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ApiHooks`, `RuntimeCharacterIdentity` and the extension API classes (`pztools.extensions.api`) | No. Needs a game restart. |
 | [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: save requests, WATCH, extension control, profiler, notices, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) | `extensions\pztools-extension-runtime.jar`: `ModuleHost`, `ContinuousRuntime` | Yes |
 | [Modules](glossary.md#extension-module) | `extensions\pztools-vehicle-drivetrain.jar`, listed in `extensions\catalog.tsv` | Yes, each in its own [slot](glossary.md#slot) |
@@ -33,9 +33,10 @@ The bootstrap owns everything that has to outlive a replacement
   power hooks in `IsoGridSquare`, `ItemContainer`, `IsoLightSwitch`, `DeviceData`, `LightingJNI`, `Food` and
   `IsoGenerator`, and the water hooks in `IsoObject`, added as those classes load. Each payload sets the handlers that answer them, replacing the
   last one's.
-- The extension API classes, including `RuntimeIdentity` (process and world ids) and `RuntimeCharacterIdentity`
-  (character and death ids). Payload and module archives are loaded with their own copies of these packages
-  skipped, so every generation sees the same classes.
+- `RuntimeCharacterIdentity` (character and death ids, for WATCH).
+- The extension API classes, including `RuntimeIdentity` (process and world ids) and `ControlPoints` (the
+  [control points](game-extensions.md#control-points) modules' bytecode calls). Payload and module archives are
+  loaded with their own copies of these packages skipped, so every generation sees the same classes.
 
 ## Compatibility checks
 

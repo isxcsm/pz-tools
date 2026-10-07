@@ -1,5 +1,6 @@
+package pztools.extensions.runtime;
+
 import pztools.extensions.api.SaveProvider;
-import pztools.extensions.runtime.CheckpointRuntime;
 import java.nio.file.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -75,7 +76,7 @@ public final class CheckpointRuntimeTest {
             failedCaptureCleanupIsOwned(context);
             diagnosticsAreFinalAndNotPerFrame(context);
             ModuleReloadTest.run();
-            pztools.extensions.runtime.ContinuousRuntimeTest.run();
+            ContinuousRuntimeTest.run();
             pztools.extensions.api.ControlPointsTest.run();
             System.out.println("PASS: detached capture, writer ownership, failure and memory budget");
         } finally {
@@ -90,7 +91,7 @@ public final class CheckpointRuntimeTest {
                 public String id() { return "fixture.diagnostics"; }
                 public Support inspect(Context ctx) { return new Support(true, null); }
                 public PreparedSave capture(Context ctx, long budget) {
-                    return new pztools.extensions.runtime.CooperativeCapture() {
+                    return new pztools.extensions.runtime.spi.CooperativeCapture() {
                         int frames;
                         boolean closed;
                         public boolean advance(long nanos) { return ++frames == 8; }

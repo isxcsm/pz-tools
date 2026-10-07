@@ -1,6 +1,7 @@
 package pztools.extensions.runtime;
 
 import pztools.extensions.api.SaveProvider;
+import pztools.extensions.runtime.spi.CooperativeCapture;
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -11,7 +12,7 @@ import java.util.concurrent.atomic.*;
  * stays because the resident bootstrap declares its API and the bridge tests drive module loading,
  * reload and notices through a fixture provider.
  */
-public final class CheckpointRuntime implements AutoCloseable {
+final class CheckpointRuntime implements AutoCloseable {
     public enum Phase { CAPTURING, QUEUED, WRITING, COMMITTED, FAILED, CANCELLED }
     public record Result(String requestId, String sessionId, String worldId, Phase phase, Throwable error) { }
     private final long maximumBytes;
@@ -99,7 +100,7 @@ public final class CheckpointRuntime implements AutoCloseable {
     /** Stops admission. Submitted capture/cleanup drains without interruption. */
     @Override public void close() { if (closed.compareAndSet(false, true)) writer.shutdown(); }
 
-    public static final class Job implements CooperativeTask {
+    static final class Job implements CooperativeTask {
         private static final int MAXIMUM_DIAGNOSTIC_CHARS = 4096;
         private final SaveProvider.Context context;
         private final CountDownLatch captured = new CountDownLatch(1);

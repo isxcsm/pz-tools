@@ -2,6 +2,7 @@ package pztools.extensions.runtime;
 
 import pztools.extensions.api.*;
 import pztools.extensions.api.internal.ClassArchive;
+import pztools.extensions.runtime.spi.FrameListener;
 import java.lang.instrument.Instrumentation;
 import java.nio.file.*;
 import java.util.*;

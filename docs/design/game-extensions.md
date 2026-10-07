@@ -158,6 +158,12 @@ it reads `settings.json` and the latest runtime snapshot.
 the resident [bootstrap](glossary.md#bootstrap), so a running game picks up changes to it on a
 [component update](module-reload.md).
 
+A module compiles against the runtime jar, and its class loader's parent is the runtime's. What it may use is
+the resident API (`pztools.extensions.api`), `pztools.extensions.runtime.spi` (`FrameListener` for per-frame
+work, `CooperativeCapture` for a save done in steps) and `pztools.extensions.runtime.input` (key timing). The
+host's own classes are package-private; only `ModuleHost`, which the bootstrap loads, and the contracts the
+bridge calls (`ModuleControl`, `CooperativeTask`) are public.
+
 ### In the game
 
 `ContinuousRuntime.apply` checks, in order: process id, revision (`revision-conflict` if the

@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.*;
 import pztools.extensions.api.*;
 
 /** Explicitly activated local-SP module. Installation instruments only an inert stable hook. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.spi.FrameListener {
     private Instrumentation instrumentation;
     private Class<?> target;
     private ClassFileTransformer transformer;
