@@ -8,6 +8,7 @@ import pztools.bridge.runtime.api.Network.Position;
 import pztools.bridge.runtime.api.Network.Seen;
 import pztools.bridge.runtime.api.Network.Settled;
 import pztools.bridge.runtime.api.Network.Thing;
+import pztools.bridge.runtime.api.Members.Area;
 
 /**
  * Runs the power networks (docs/design/extension-api.md, "Power"): answers the game's power questions through the
@@ -19,45 +20,12 @@ final class PowerGrid implements ApiHooks.Power {
     private static final long REFRESH_NANOS = TimeUnit.SECONDS.toNanos(1);
     // A network whose consumers were not all loaded is worked out again this often, until they were.
     private static final long INCOMPLETE_LOAD_NANOS = TimeUnit.SECONDS.toNanos(5);
-    private static final Buildings.Filter POWER = new Buildings.Filter(true, false);
     // Set while the game's own answer is asked again for an excluded object: the networks then give no square power.
     private static final ThreadLocal<boolean[]> PURE = ThreadLocal.withInitial(() -> new boolean[1]);
 
-    /** The squares of a network's buildings: one bit per square, over the box around them. */
-    record Area(int minX, int minY, int minZ, int width, int height, int levels, long[] bits) {
-        boolean contains(int x, int y, int z) {
-            int dx = x - minX, dy = y - minY, dz = z - minZ;
-            if (dx < 0 || dy < 0 || dz < 0 || dx >= width || dy >= height || dz >= levels) return false;
-            int index = (dz * height + dy) * width + dx;
-            return (bits[index >>> 6] & 1L << index) != 0;
-        }
-
-        static Area of(List<Buildings.Building> found, Buildings buildings) throws ReflectiveOperationException {
-            if (found.isEmpty()) return null;
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-            for (var building : found) {
-                minX = Math.min(minX, building.minX()); minY = Math.min(minY, building.minY()); minZ = Math.min(minZ, building.minLevel());
-                maxX = Math.max(maxX, building.maxX()); maxY = Math.max(maxY, building.maxY()); maxZ = Math.max(maxZ, building.maxLevel());
-            }
-            int width = maxX - minX + 1, height = maxY - minY + 1, levels = maxZ - minZ + 1;
-            long[] bits = new long[(int)(((long)width * height * levels + 63) / 64)];
-            for (var building : found)
-                for (Object room : building.rooms()) {
-                    int dz = buildings.level(room) - minZ;
-                    for (var rect : buildings.rects(room))
-                        for (int y = rect.y(); y < rect.y() + rect.h(); y++)
-                            for (int x = rect.x(); x < rect.x() + rect.w(); x++) {
-                                int index = (dz * height + y - minY) * width + x - minX;
-                                bits[index >>> 6] |= 1L << index;
-                            }
-                }
-            return new Area(minX, minY, minZ, width, height, levels, bits);
-        }
-    }
-
     /** Raised to Lua mods when a network's supply, producer in use or load changes: its id, what, and the hour. */
     static final String EVENT = "OnPZToolsNetworkChange";
+    static final String UTILITY = "power";
 
     private record Change(String id, String what, double hour) { }
 
@@ -73,8 +41,8 @@ final class PowerGrid implements ApiHooks.Power {
         static final Snapshot EMPTY = new Snapshot(new Area[0], Set.of(), List.of(), Map.of(), Map.of());
     }
 
+    private final Members members;
     private final Buildings buildings;
-    private final Map<String, Network> networks;
     private volatile Snapshot snapshot = Snapshot.EMPTY;
     // Set by a definition change and by the hooks; the next frame works the networks out again.
     private volatile boolean changed = true;
@@ -84,40 +52,35 @@ final class PowerGrid implements ApiHooks.Power {
     private final Map<Network, Double> supplyHours = new HashMap<>();
     private long refreshedAt = Long.MIN_VALUE;
 
-    private final Method cell, getChunk, square, generatorOf, objectSquare, checkElectricity, hasGrid, gridObjects;
-    private final Field squareX, squareY, squareZ, squareChunk, chunkX, chunkY;
+    private final Method getChunk, generatorOf, objectSquare, checkElectricity;
+    private final Field squareChunk, chunkX, chunkY;
     private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
     private final Method gameTime, worldHours, addEvent, triggerEvent, optionValue;
     private final Field sandbox, fuelRate;
     private final Field lastHour;
     // The getter gives the consumption times the sandbox's fuel rate; the field is what setTotalPowerUsing set.
-    private final Field itemsPowered, using, chunkRange, basePower, worldInstance;
+    private final Field itemsPowered, using, chunkRange, basePower;
     private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
     private final Method squarePowered, containerParent, containerSquare;
     private final Field switchRoom;
     private final Class<?> objectType;
 
-    PowerGrid(ClassLoader loader, Buildings buildings, Map<String, Network> networks) throws ReflectiveOperationException {
-        this.buildings = buildings;
-        this.networks = networks;
-        Class<?> worldType = type(loader, "zombie.iso.IsoWorld"), cellType = type(loader, "zombie.iso.IsoCell");
+    PowerGrid(ClassLoader loader, Members members) throws ReflectiveOperationException {
+        this.members = members;
+        buildings = members.buildings();
+        Class<?> cellType = type(loader, "zombie.iso.IsoCell");
         Class<?> squareType = type(loader, "zombie.iso.IsoGridSquare"), chunkType = type(loader, "zombie.iso.IsoChunk");
         Class<?> generator = type(loader, "zombie.iso.objects.IsoGenerator");
         Class<?> lightSwitch = type(loader, "zombie.iso.objects.IsoLightSwitch");
         Class<?> device = type(loader, "zombie.radio.devices.DeviceData");
         objectType = type(loader, "zombie.iso.IsoObject");
-        cell = worldType.getMethod("getCell");
         getChunk = cellType.getMethod("getChunk", int.class, int.class);
-        square = cellType.getMethod("getGridSquare", int.class, int.class, int.class);
         generatorOf = squareType.getMethod("getGenerator");
-        squareX = squareType.getField("x"); squareY = squareType.getField("y"); squareZ = squareType.getField("z");
         squareChunk = squareType.getField("chunk");
         chunkX = chunkType.getField("wx"); chunkY = chunkType.getField("wy");
         removeGeneratorPos = chunkType.getMethod("removeGeneratorPos", int.class, int.class, int.class);
         objectSquare = objectType.getMethod("getSquare");
         checkElectricity = objectType.getMethod("checkHaveElectricity");
-        hasGrid = objectType.getMethod("hasSpriteGrid");
-        gridObjects = objectType.getMethod("getSpriteGridObjectsIncludingSelf", ArrayList.class);
         activated = generator.getMethod("isActivated");
         fuel = generator.getMethod("getFuel");
         condition = generator.getMethod("getCondition");
@@ -150,7 +113,6 @@ final class PowerGrid implements ApiHooks.Power {
         switchRoom = lightSwitch.getField("roomId");
         battery = device.getMethod("getIsBatteryPowered");
         deviceParent = device.getMethod("getParent");
-        worldInstance = worldType.getField("instance");
     }
 
     private static Class<?> type(ClassLoader loader, String name) throws ClassNotFoundException {
@@ -169,12 +131,6 @@ final class PowerGrid implements ApiHooks.Power {
     void changed() throws ReflectiveOperationException {
         snapshot = snapshot();
         changed = true;
-    }
-
-    /** The game's current cell, or null when no world is loaded. */
-    Object cell() throws ReflectiveOperationException {
-        Object world = worldInstance.get(null);
-        return world == null ? null : cell.invoke(world);
     }
 
     // The hooks.
@@ -201,8 +157,8 @@ final class PowerGrid implements ApiHooks.Power {
                 if (!objectType.isInstance(target)) return vanilla;
             }
             boolean excluded = false;
-            for (Object part : current.rules().isEmpty() ? List.of() : parts(target)) {
-                Thing thing = thing(part);
+            for (Object part : current.rules().isEmpty() ? List.of() : members.parts(target)) {
+                Thing thing = members.thing(part);
                 List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
                 if (rules == null) continue;
                 for (Rule rule : rules) {
@@ -237,12 +193,12 @@ final class PowerGrid implements ApiHooks.Power {
         Snapshot current = snapshot;
         if (current.producers().isEmpty()) return false;
         try {
-            Position at = position(objectSquare.invoke(generator));
+            Position at = members.at(generator);
             Network network = at == null ? null : current.producers().get(at);
             if (network == null) return false;
             // A generator in a network powers no square around it and lists nothing as powered.
             ((Map<?, ?>)itemsPowered.get(generator)).clear();
-            Object chunk = squareChunk.get(objectSquare.invoke(generator)), cells = cell();
+            Object chunk = squareChunk.get(objectSquare.invoke(generator)), cells = members.cell();
             if (chunk != null && cells != null) {
                 int range = chunkRange.getInt(null), wx = chunkX.getInt(chunk), wy = chunkY.getInt(chunk);
                 for (int dx = -range; dx <= range; dx++)
@@ -265,7 +221,8 @@ final class PowerGrid implements ApiHooks.Power {
         if (square == null) return;
         Snapshot current = snapshot;
         try {
-            int x = squareX.getInt(square), y = squareY.getInt(square), z = squareZ.getInt(square);
+            Position at = members.position(square);
+            int x = at.x(), y = at.y(), z = at.z();
             for (Network network : current.withArea()) {
                 // A light switch on a south or east wall stands on the square beyond its room.
                 Area area = network.area;
@@ -274,7 +231,7 @@ final class PowerGrid implements ApiHooks.Power {
                     for (int dy = -1; dy <= 1 && !near; dy++) near = area != null && area.contains(x + dx, y + dy, z);
                 if (near) { network.loadChanged = true; changed = true; }
             }
-            List<Rule> rules = current.rules().get(new Position(x, y, z));
+            List<Rule> rules = current.rules().get(at);
             if (rules != null) for (Rule rule : rules) if (rule.included()) { rule.network().loadChanged = true; changed = true; }
         } catch (IllegalAccessException failure) {
             throw new IllegalStateException(failure);
@@ -285,7 +242,7 @@ final class PowerGrid implements ApiHooks.Power {
         Snapshot current = snapshot;
         if (current.producers().isEmpty()) return;
         try {
-            Position at = position(objectSquare.invoke(generator));
+            Position at = members.at(generator);
             Network network = at == null ? null : current.producers().get(at);
             if (network == null || !(boolean)activated.invoke(generator)) return;
             // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
@@ -314,9 +271,10 @@ final class PowerGrid implements ApiHooks.Power {
         var fresh = new HashSet<Network>();
         supplyHours.clear();
         var totals = new HashMap<Network, Float>();
-        for (Network network : networks.values()) {
+        List<Network> networks = members.of(UTILITY);
+        for (Network network : networks) {
             totals.put(network, network.total);
-            resolve(network);
+            members.resolve(network);
             if (network.parent == null) producers(network, cells, hours, changes);
             else network.inUse = null;
             if (network.loadChanged || !network.loadComplete && now - network.loadAt >= INCOMPLETE_LOAD_NANOS) {
@@ -325,8 +283,8 @@ final class PowerGrid implements ApiHooks.Power {
             }
         }
         // A child has supply while its parent has, and its parent carries its load.
-        for (Network network : networks.values()) {
-            Network root = root(network);
+        for (Network network : networks) {
+            Network root = members.root(network);
             boolean supplied = root != null && root.inUse != null;
             if (supplied != network.supplied) {
                 network.supplied = supplied;
@@ -335,9 +293,9 @@ final class PowerGrid implements ApiHooks.Power {
                 network.suppliedAt = supplyHours.getOrDefault(root, hours);
                 changes.add(new Change(network.id, "supply", network.suppliedAt));
             }
-            network.total = total(network);
+            network.total = total(network, networks);
         }
-        for (Network network : networks.values())
+        for (Network network : networks)
             if (!fresh.contains(network) && Math.abs(network.total - totals.get(network)) > 1e-6f)
                 changes.add(new Change(network.id, "load", hours));
         snapshot = snapshot();
@@ -352,7 +310,7 @@ final class PowerGrid implements ApiHooks.Power {
             if (generator != null) surroundings.invoke(generator);
         }
         // The producer in use carries the load; the others only their own.
-        for (Network network : networks.values())
+        for (Network network : networks)
             for (Position producer : network.producers) {
                 Object generator = generatorAt(cells, producer);
                 float consumption = consumption(network, producer);
@@ -360,7 +318,7 @@ final class PowerGrid implements ApiHooks.Power {
             }
         // The objects that gained or lost power update what follows from it (a fridge's hum, a lamp's light).
         for (Network network : supplyChanged)
-            for (var consumer : consumers(network, new boolean[1])) checkElectricity.invoke(consumer.object());
+            for (var consumer : members.consumers(network, Members.POWER, new boolean[1])) checkElectricity.invoke(consumer.object());
         // Last, so that a mod that asks for the state then gets it.
         for (Change change : changes) triggerEvent.invoke(null, EVENT, change.id(), change.what(), change.hour());
     }
@@ -379,7 +337,7 @@ final class PowerGrid implements ApiHooks.Power {
         var newcomers = new ArrayList<Position>();
         for (Position producer : network.producers) {
             Object generator = generatorAt(cells, producer);
-            if (generator == null && square.invoke(cells, producer.x(), producer.y(), producer.z()) == null) continue;
+            if (generator == null && members.square(cells, producer) == null) continue;
             loaded.add(producer);
             // A loaded square without the generator: it was taken away.
             Seen now = generator == null ? new Seen(false, 0, 0)
@@ -447,19 +405,13 @@ final class PowerGrid implements ApiHooks.Power {
         return basePower.getFloat(null) + (producer.equals(network.inUse) ? network.total : 0f);
     }
 
-    /** The network at the top of a child's parents; null when a parent is missing. */
-    Network root(Network network) {
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (network.parent == null) return network;
-            network = networks.get(network.parent);
-        }
-        return null;
-    }
-
-    /** The load of the network and of its children, theirs included. Networks form a tree (see Networks.setParent). */
-    private float total(Network network) {
+    /**
+     * The load of the network and of its children, theirs included. Networks form a tree of one utility (see
+     * Networks.setParent).
+     */
+    private static float total(Network network, List<Network> networks) {
         float total = network.load;
-        for (Network child : networks.values()) if (network.id.equals(child.parent)) total += total(child);
+        for (Network child : networks) if (network.id.equals(child.parent)) total += total(child, networks);
         return total;
     }
 
@@ -468,7 +420,7 @@ final class PowerGrid implements ApiHooks.Power {
      * over, as last seen, over what the one in use would burn an hour. Null without supply or without consumption.
      */
     Double hoursLeft(Network network) throws ReflectiveOperationException {
-        Network root = root(network);
+        Network root = members.root(network);
         if (root == null || root.inUse == null) return null;
         double perHour = (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
         if (perHour <= 0) return null;
@@ -480,23 +432,6 @@ final class PowerGrid implements ApiHooks.Power {
         return fuel / perHour;
     }
 
-    /** The member buildings as the map data has them now; a player-built one is made again when its walls change. */
-    private void resolve(Network network) throws ReflectiveOperationException {
-        var found = new ArrayList<Buildings.Building>();
-        for (Position at : network.buildings) {
-            var building = buildings.buildingAt(at.x(), at.y(), at.z());
-            if (building != null && found.stream().noneMatch(other -> other.def() == building.def())) found.add(building);
-        }
-        boolean same = found.size() == network.resolved.size();
-        for (int index = 0; same && index < found.size(); index++)
-            same = found.get(index).def() == network.resolved.get(index).def()
-                && found.get(index).rooms().equals(network.resolved.get(index).rooms());
-        if (same) return;
-        network.resolved = List.copyOf(found);
-        network.area = Area.of(found, buildings);
-        network.loadChanged = true;
-    }
-
     /**
      * The network's load: what its consumers use, the ones on squares that are not loaded as they used it when last
      * seen loaded.
@@ -504,12 +439,12 @@ final class PowerGrid implements ApiHooks.Power {
     private void load(Network network, Object cells, long now) throws ReflectiveOperationException {
         boolean[] complete = { true };
         var next = new LinkedHashMap<Thing, Float>();
-        for (var consumer : consumers(network, complete))
+        for (var consumer : members.consumers(network, Members.POWER, complete))
             next.put(new Thing(new Position(consumer.x(), consumer.y(), consumer.z()), buildings.sprite(consumer.object())),
                 buildings.consumption(consumer.object()));
         for (var last : network.consumption.entrySet()) {
             Position at = last.getKey().at();
-            if (!next.containsKey(last.getKey()) && square.invoke(cells, at.x(), at.y(), at.z()) == null) next.put(last.getKey(), last.getValue());
+            if (!next.containsKey(last.getKey()) && members.square(cells, at) == null) next.put(last.getKey(), last.getValue());
         }
         float load = 0;
         for (float value : next.values()) load += value;
@@ -518,39 +453,6 @@ final class PowerGrid implements ApiHooks.Power {
         network.loadComplete = complete[0];
         network.loadAt = now;
         network.loadChanged = false;
-    }
-
-    /**
-     * The network's consumers on loaded squares: the objects of its buildings that the game could power from a
-     * generator, but those excluded, and the objects added on their own.
-     */
-    List<Buildings.Found> consumers(Network network, boolean[] complete) throws ReflectiveOperationException {
-        var result = new ArrayList<Buildings.Found>();
-        var seen = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
-        for (var building : network.resolved)
-            for (var found : buildings.scan(building, POWER, complete))
-                if (!excluded(network, found.object()) && seen.add(found.object())) result.add(found);
-        Object cells = cell();
-        for (Thing thing : network.included) {
-            Object loaded = cells == null ? null : square.invoke(cells, thing.at().x(), thing.at().y(), thing.at().z());
-            if (loaded == null) { complete[0] = false; continue; }
-            for (Object object : buildings.objectsOn(loaded)) {
-                if (!thing.sprite().equals(buildings.sprite(object))) continue;
-                var found = buildings.classify(object, POWER, thing.at().x(), thing.at().y(), thing.at().z(), null);
-                if (found != null && seen.add(object)) result.add(found);
-            }
-        }
-        return result;
-    }
-
-    /** Whether the network excludes the object: one of its squares, for an object that covers several. */
-    private boolean excluded(Network network, Object object) throws ReflectiveOperationException {
-        if (network.excluded.isEmpty()) return false;
-        for (Object part : parts(object)) {
-            Thing thing = thing(part);
-            if (thing != null && network.excluded.contains(thing)) return true;
-        }
-        return false;
     }
 
     private boolean squarePowered(Object square) throws ReflectiveOperationException {
@@ -563,7 +465,7 @@ final class PowerGrid implements ApiHooks.Power {
         var withArea = new ArrayList<Network>();
         var producers = new HashMap<Position, Network>();
         var rules = new HashMap<Position, List<Rule>>();
-        for (Network network : networks.values()) {
+        for (Network network : members.of(UTILITY)) {
             boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
@@ -576,25 +478,7 @@ final class PowerGrid implements ApiHooks.Power {
     }
 
     private Object generatorAt(Object cells, Position at) throws ReflectiveOperationException {
-        Object loaded = cells == null ? null : square.invoke(cells, at.x(), at.y(), at.z());
+        Object loaded = members.square(cells, at);
         return loaded == null ? null : generatorOf.invoke(loaded);
-    }
-
-    /** The object and, for one that covers several squares, its other parts. */
-    private List<Object> parts(Object object) throws ReflectiveOperationException {
-        if (!(boolean)hasGrid.invoke(object)) return List.of(object);
-        @SuppressWarnings("unchecked")
-        var parts = (List<Object>)gridObjects.invoke(object, new ArrayList<>());
-        return parts.isEmpty() ? List.of(object) : parts;
-    }
-
-    private Thing thing(Object object) throws ReflectiveOperationException {
-        Position at = position(objectSquare.invoke(object));
-        String sprite = at == null ? null : buildings.sprite(object);
-        return sprite == null ? null : new Thing(at, sprite);
-    }
-
-    private Position position(Object loaded) throws IllegalAccessException {
-        return loaded == null ? null : new Position(squareX.getInt(loaded), squareY.getInt(loaded), squareZ.getInt(loaded));
     }
 }

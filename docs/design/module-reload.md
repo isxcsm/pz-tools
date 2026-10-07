@@ -31,7 +31,7 @@ The bootstrap owns everything that has to outlive a replacement
 - In a game the [startup loader](startup-loader.md) started, the [extension API](extension-api.md)'s hooks: a
   call to `ApiHooks.luaStarted` added at the end of `LuaManager.init()` before the game loads its Lua, and the
   power hooks in `IsoGridSquare`, `ItemContainer`, `IsoLightSwitch`, `DeviceData`, `LightingJNI`, `Food` and
-  `IsoGenerator`, added as those classes load. Each payload sets the handlers that answer them, replacing the
+  `IsoGenerator`, and the water hooks in `IsoObject`, added as those classes load. Each payload sets the handlers that answer them, replacing the
   last one's.
 - The extension API classes, including `RuntimeIdentity` (process and world ids) and `RuntimeCharacterIdentity`
   (character and death ids). Payload and module archives are loaded with their own copies of these packages

@@ -1,11 +1,13 @@
 package pztools.bridge.runtime.api;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import pztools.bridge.ApiHooks;
 import se.krka.kahlua.vm.*;
 import zombie.GameTime;
 import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
+import zombie.entity.components.fluids.FluidContainer;
 import zombie.inventory.ItemContainer;
 import zombie.inventory.types.Food;
 import zombie.iso.*;
@@ -17,7 +19,7 @@ import zombie.iso.sprite.IsoSprite;
 
 /**
  * The extension API as a Lua mod sees it, against the synthetic game of the startup loader test: the table, the facts
- * about buildings, the mods' handles, the power networks, and a newer payload taking the table over. The API's hooks
+ * about buildings, the mods' handles, the power and water networks, and a newer payload taking the table over. The API's hooks
  * are in the game's classes, put there by {@link pztools.bridge.ApiTestAgent} as the startup loader's bootstrap does.
  */
 public final class GameApiTest {
@@ -40,8 +42,9 @@ public final class GameApiTest {
         networks(api);
         sequence(api);
         children(api);
+        water(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power networks, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, and a newer payload takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -335,8 +338,9 @@ public final class GameApiTest {
         rejects(networks, "addBuilding", "grid belongs to another mod", other, "grid", 1.0, 1.0, 0.0);
         call(networks, "define", other, "second", "power", "sequential");
         rejects(networks, "setProducers", "31,30,0 is a producer of the network grid", other, "second", list(at(31, 30, 0)));
-        rejects(networks, "define", "utility must be \"power\"", mod, "water", "water", "fullest");
-        rejects(networks, "define", "policy must be \"sequential\"", mod, "x", "power", "parallel");
+        rejects(networks, "define", "utility must be \"power\" or \"water\"", mod, "x", "gas", "sequential");
+        rejects(networks, "define", "policy for power must be \"sequential\"", mod, "x", "power", "parallel");
+        rejects(networks, "define", "policy for water must be \"fullest\"", mod, "x", "water", "sequential");
         rejects(networks, "define", "id must be 1 to 64", mod, "no spaces", "power", "sequential");
         rejects(networks, "define", "the first argument must be a handle", "power.mod", "x", "power", "sequential");
         rejects(networks, "exclude", "sprite must be a sprite name", mod, "grid", 1.0, 1.0, 0.0, "");
@@ -510,6 +514,90 @@ public final class GameApiTest {
         call(networks, "remove", other, "foreign");
         frame();
         generator.setActivated(false);
+    }
+
+    /**
+     * A water network over the house, with two barrels outside it. Its sink takes water from the fullest barrel that
+     * holds some; the barrels answer for themselves, and what the world saves is the game's own flag.
+     */
+    private static void water(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        double hours = GameTime.getInstance().hours;
+        IsoObject sink = square(12, 11, 0).objects.get(0);
+        IsoObject low = place(30, 32, 0, barrel(20)), high = place(31, 32, 0, barrel(60));
+        check(!sink.getUsesExternalWaterSource() && sink.getFluidAmount() == 0, "The sink has water without a network");
+        call(networks, "define", mod, "pipes", "water", "fullest");
+        call(networks, "setProducers", mod, "pipes", list(at(30, 32, 0), at(31, 32, 0)));
+        call(networks, "addBuilding", mod, "pipes", 11.0, 11.0, 0.0);
+        LuaEventManager.raised.clear();
+        frame();
+        KahluaTable pipes = state(networks, "pipes");
+        var first = (KahluaTable)((KahluaTable)pipes.rawget("producers")).rawget(1.0);
+        check(pipes.rawget("supplied").equals(true) && pipes.rawget("amount").equals(80.0) && pipes.rawget("capacity").equals(200.0)
+            && first.rawget("amount").equals(20.0) && first.rawget("capacity").equals(100.0) && pipes.rawget("load") == null
+            && raised("pipes", "supply", hours), "The water network's state is wrong");
+        check(sink.getUsesExternalWaterSource() && sink.getFluidAmount() == 60 && sink.getFluidCapacity() == 100,
+            "The sink does not take from the fullest barrel: " + sink.getFluidAmount());
+        check(sink.useFluid(45) == 45 && high.fluidContainer.amount == 15 && sink.getFluidAmount() == 20,
+            "The sink did not draw from the fullest barrel, then move to the other");
+        check(!low.getUsesExternalWaterSource() && low.getFluidAmount() == 20, "A barrel takes water from the network");
+        var saved = ByteBuffer.allocate(1);
+        sink.save(saved, false);
+        check(saved.get(0) == 0, "The network changed the flag the world saves");
+        check(!square(12, 11, 0).haveElectricity(), "A water network powers its building");
+        check(sprites(call(networks, "consumers", "pipes").get(0)).equals(Set.of("sink")), "Wrong water consumers");
+        // Excluded: the game's own answer. Added on its own: a fixture outside the house, but only one that takes pipes.
+        call(networks, "exclude", mod, "pipes", 12.0, 11.0, 0.0, "sink");
+        check(!sink.getUsesExternalWaterSource() && sink.getFluidAmount() == 0, "An excluded sink has water");
+        call(networks, "reset", mod, "pipes", 12.0, 11.0, 0.0, "sink");
+        var outside = place(15, 13, 0, new IsoObject(new IsoSprite("outside sink")));
+        var crate = place(16, 13, 0, new IsoObject(new IsoSprite("crate")));
+        outside.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        check(!outside.getUsesExternalWaterSource(), "A fixture outside the house has water before it was added");
+        call(networks, "include", mod, "pipes", 15.0, 13.0, 0.0, "outside sink");
+        call(networks, "include", mod, "pipes", 16.0, 13.0, 0.0, "crate");
+        check(outside.getUsesExternalWaterSource() && outside.getFluidAmount() == 20 && !crate.getUsesExternalWaterSource()
+            && sink.getFluidAmount() == 20, "Adding objects on their own went wrong");
+        // A child: water from the barrels of the network at the top of its parents.
+        var shed = place(21, 21, 0, new IsoObject(new IsoSprite("shed sink")));
+        shed.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        call(networks, "define", mod, "annex", "water", "fullest");
+        call(networks, "addBuilding", mod, "annex", 20.0, 20.0, 0.0);
+        call(networks, "setParent", mod, "annex", "pipes");
+        frame();
+        KahluaTable annex = state(networks, "annex");
+        check(annex.rawget("supplied").equals(true) && annex.rawget("amount").equals(35.0) && ((KahluaTable)annex.rawget("producers")).len() == 0
+            && shed.getFluidAmount() == 20, "The child has no water from its parent");
+        call(networks, "define", mod, "lights", "power", "sequential");
+        rejects(networks, "setParent", "pipes carries water, not power", mod, "lights", "pipes");
+        // Dry: no supply, and the fixtures are the game's again.
+        low.fluidContainer.amount = 0;
+        high.fluidContainer.amount = 0;
+        LuaEventManager.raised.clear();
+        frame();
+        check(state(networks, "pipes").rawget("supplied").equals(false) && !sink.getUsesExternalWaterSource()
+            && raised("pipes", "supply", hours) && raised("annex", "supply", hours), "A dry network supplies water");
+        // A failing hook gives the game's answers; a newer payload takes the networks over.
+        high.fluidContainer.amount = 50;
+        frame();
+        ApiHooks.setWater(new ApiHooks.Water() {
+            @Override public boolean plumbed(boolean vanilla, Object fixture) { throw new IllegalStateException("broken"); }
+            @Override public Object source(Object vanilla, Object fixture) { throw new IllegalStateException("broken"); }
+        });
+        check(!sink.getUsesExternalWaterSource() && sink.getFluidAmount() == 0, "A failing hook did not give the game's answer");
+        GameApi.register(LuaManager.class);
+        frame();
+        check(sink.getFluidAmount() == 50 && shed.getFluidAmount() == 50, "A newer payload did not take the water networks over");
+        for (String id : List.of("annex", "pipes", "lights")) call(networks, "remove", mod, id);
+        frame();
+        check(!sink.getUsesExternalWaterSource() && !outside.getUsesExternalWaterSource(), "A removed network still supplies water");
+    }
+
+    private static IsoObject barrel(float amount) {
+        var barrel = new IsoObject(new IsoSprite("barrel"));
+        barrel.fluidContainer = new FluidContainer(100, amount);
+        return barrel;
     }
 
     private static KahluaTable state(KahluaTable networks, String id) { return (KahluaTable)call(networks, "state", id).get(0); }

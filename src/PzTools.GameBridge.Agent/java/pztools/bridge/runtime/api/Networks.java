@@ -1,6 +1,7 @@
 package pztools.bridge.runtime.api;
 
 import java.util.*;
+import pztools.bridge.ApiHooks;
 import pztools.bridge.runtime.api.Network.Position;
 import pztools.bridge.runtime.api.Network.Thing;
 
@@ -24,7 +25,10 @@ final class Networks {
     private final Object meta;
     private final Owners owners;
     private final Map<String, Network> networks = new LinkedHashMap<>();
+    private final Members members;
     private final PowerGrid grid;
+    // Null in a game whose bootstrap has no water hooks: started by an install from before them.
+    private WaterGrid water;
     // The game's cell when the last frame ran: a world was left when it goes.
     private Object world;
     private boolean reported;
@@ -34,13 +38,32 @@ final class Networks {
         this.buildings = buildings;
         this.meta = meta;
         this.owners = owners;
-        grid = new PowerGrid(game, buildings, networks);
+        members = new Members(game, buildings, networks);
+        grid = new PowerGrid(game, members);
+        try { water = new WaterGrid(game, members); }
+        catch (LinkageError olderBootstrap) { water = null; }
         load(lua.get(meta, MIRROR));
-        grid.changed();
+        changed();
     }
 
-    /** The hooks' handler. */
-    PowerGrid grid() { return grid; }
+    /**
+     * Gives the game's power and water questions to these networks. Throws a LinkageError in a game whose bootstrap
+     * has no network hooks; one with power hooks alone gets no water networks.
+     */
+    void hook() {
+        ApiHooks.setPower(grid);
+        if (water != null) {
+            try { water.hook(); }
+            catch (LinkageError olderBootstrap) { water = null; }
+        }
+        if (water == null) System.err.println("[PzTools API] Water networks are not in this game; restart it to use them");
+    }
+
+    /** Gives every power and water question back to the game alone. */
+    static void unhook() {
+        try { ApiHooks.setPower(null); } catch (LinkageError olderBootstrap) { }
+        try { ApiHooks.setWater(null); } catch (LinkageError olderBootstrap) { }
+    }
 
     /** Sets this area's functions into its table, replacing those of an earlier payload. */
     void register(Object table) throws ReflectiveOperationException {
@@ -48,11 +71,21 @@ final class Networks {
         function(table, "define", (call, arguments) -> {
             String owner = owner(arguments, call), id = id(arguments, call);
             String utility = Arguments.string(arguments, 2, call, "utility"), policy = Arguments.string(arguments, 3, call, "policy");
-            // Water and the other policies come later; a mod written for them gets a clear error now.
-            if (!"power".equals(utility)) throw new IllegalArgumentException(call + ": utility must be \"power\"");
-            if (!"sequential".equals(policy)) throw new IllegalArgumentException(call + ": policy must be \"sequential\"");
+            // The policies that are not built yet ("parallel") give a clear error now.
+            String only = switch (utility) {
+                case PowerGrid.UTILITY -> "sequential";
+                case WaterGrid.UTILITY -> "fullest";
+                default -> throw new IllegalArgumentException(call + ": utility must be \"power\" or \"water\"");
+            };
+            if (!only.equals(policy)) throw new IllegalArgumentException(call + ": policy for " + utility + " must be \"" + only + "\"");
+            if (WaterGrid.UTILITY.equals(utility) && water == null)
+                throw new IllegalArgumentException(call + ": water networks are not in this game; restart it to use them");
             Network existing = networks.get(id);
-            if (existing != null) own(existing, owner, call);
+            if (existing != null) {
+                own(existing, owner, call);
+                // Children of another utility have no supply until they get another parent.
+                if (!existing.utility.equals(utility)) detachChildren(id);
+            }
             networks.put(id, new Network(id, owner, utility, policy));
             saved();
             return new Object[0];
@@ -64,7 +97,7 @@ final class Networks {
             own(existing, owner, call);
             networks.remove(id);
             // Its children have no supply until they get another parent.
-            for (Network child : networks.values()) if (id.equals(child.parent)) child.parent = null;
+            detachChildren(id);
             saved();
             return new Object[] { true };
         });
@@ -89,6 +122,7 @@ final class Networks {
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
             network.settled.keySet().retainAll(producers);
+            network.stored.keySet().retainAll(producers);
             saved();
             return new Object[0];
         });
@@ -165,35 +199,66 @@ final class Networks {
             lua.set(result, "utility", network.utility);
             lua.set(result, "policy", network.policy);
             lua.set(result, "supplied", network.supplied);
-            lua.set(result, "load", (double)network.total);
-            lua.set(result, "ownLoad", (double)network.load);
-            lua.set(result, "complete", network.loadComplete);
             if (network.parent != null) lua.set(result, "parent", network.parent);
-            if (network.inUse != null) lua.set(result, "producer", square(network.inUse));
-            Double hoursLeft = grid.hoursLeft(network);
-            if (hoursLeft != null) lua.set(result, "hoursLeft", hoursLeft);
-            var producers = new ArrayList<Object>();
-            for (Position at : network.producers) {
-                Object entry = square(at);
-                var seen = network.seen.get(at);
-                if (seen != null) {
-                    lua.set(entry, "running", seen.activated());
-                    lua.set(entry, "fuel", (double)seen.fuel());
-                    lua.set(entry, "condition", (double)seen.condition());
-                }
-                producers.add(entry);
-            }
-            lua.set(result, "producers", lua.list(producers));
+            if (WaterGrid.UTILITY.equals(network.utility)) water(result, network);
+            else power(result, network);
             return new Object[] { result };
         });
         function(table, "consumers", (call, arguments) -> {
             Network network = networks.get(Arguments.string(arguments, 0, call, "id"));
-            if (network == null || grid.cell() == null) return new Object[] { null, false };
+            if (network == null || members.cell() == null) return new Object[] { null, false };
             boolean[] complete = { true };
             var result = new ArrayList<Object>();
-            for (var consumer : grid.consumers(network, complete)) result.add(buildings.entry(consumer));
+            var filter = WaterGrid.UTILITY.equals(network.utility) ? Members.WATER : Members.POWER;
+            for (var consumer : members.consumers(network, filter, complete)) result.add(buildings.entry(consumer));
             return new Object[] { lua.list(result), complete[0] };
         });
+    }
+
+    /** A power network's state: its load, how long its fuel lasts, and its producers as last seen. */
+    private void power(Object result, Network network) throws ReflectiveOperationException {
+        lua.set(result, "load", (double)network.total);
+        lua.set(result, "ownLoad", (double)network.load);
+        lua.set(result, "complete", network.loadComplete);
+        if (network.inUse != null) lua.set(result, "producer", square(network.inUse));
+        Double hoursLeft = grid.hoursLeft(network);
+        if (hoursLeft != null) lua.set(result, "hoursLeft", hoursLeft);
+        var producers = new ArrayList<Object>();
+        for (Position at : network.producers) {
+            Object entry = square(at);
+            var seen = network.seen.get(at);
+            if (seen != null) {
+                lua.set(entry, "running", seen.activated());
+                lua.set(entry, "fuel", (double)seen.fuel());
+                lua.set(entry, "condition", (double)seen.condition());
+            }
+            producers.add(entry);
+        }
+        lua.set(result, "producers", lua.list(producers));
+    }
+
+    /**
+     * A water network's state: what its producers hold, as last seen; for a child, those of the network at the top of
+     * its parents.
+     */
+    private void water(Object result, Network network) throws ReflectiveOperationException {
+        Network root = members.root(network);
+        double held = 0, most = 0;
+        var producers = new ArrayList<Object>();
+        for (Position at : root == null ? List.<Position>of() : root.producers) {
+            Object entry = square(at);
+            var stored = root.stored.get(at);
+            if (stored != null) {
+                lua.set(entry, "amount", (double)stored.amount());
+                lua.set(entry, "capacity", (double)stored.capacity());
+                held += stored.amount();
+                most += stored.capacity();
+            }
+            if (network == root) producers.add(entry);
+        }
+        lua.set(result, "amount", held);
+        lua.set(result, "capacity", most);
+        lua.set(result, "producers", lua.list(producers));
     }
 
     /** {@code handle:clear()}: removes everything the mod defined. */
@@ -201,14 +266,20 @@ final class Networks {
         if (networks.values().removeIf(network -> network.owner.equals(owner))) saved();
     }
 
+    private void detachChildren(String id) {
+        for (Network child : networks.values()) if (id.equals(child.parent)) child.parent = null;
+    }
+
     /** Each frame, on the game's thread. */
     void frame() {
         try {
-            Object cell = grid.cell();
+            Object cell = members.cell();
             // The world the networks were defined in was left; the mods define them again in the next one.
             if (world != null && cell != world && !networks.isEmpty()) { networks.clear(); saved(); }
             world = cell;
-            if (cell != null) grid.frame(cell);
+            if (cell == null) return;
+            grid.frame(cell);
+            if (water != null) water.frame(cell);
         } catch (Throwable failure) {
             // Once: a fault that recurs each frame must not flood the game's log. The hooks keep answering.
             if (!reported) System.err.println("[PzTools API] networks: " + failure);
@@ -294,7 +365,13 @@ final class Networks {
             for (Thing thing : network.included) text.append("I\t").append(thing.at()).append('\t').append(thing.sprite()).append('\n');
         }
         lua.set(meta, MIRROR, text.toString());
+        changed();
+    }
+
+    /** Works the networks out again: the hooks know the definitions at once, the next frame the rest. */
+    private void changed() throws ReflectiveOperationException {
         grid.changed();
+        if (water != null) water.changed();
     }
 
     /** The definitions an earlier payload kept, if any. */

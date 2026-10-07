@@ -3,9 +3,9 @@
 [Documentation index](../README.md)
 
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
-> [buildings](#buildings-facts) area, and power [networks](#networks-mechanism) under
-> `"sequential"`, with children ([built so far](#built-so-far)). Planned: water, food across supply
-> changes, `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
+> [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
+> water networks under `"fullest"`, with children ([built so far](#built-so-far)). Planned: food
+> across supply changes, `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -127,7 +127,7 @@ A network carries one utility, power or water, from producers to consumers.
 | --- | --- |
 | Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
 | Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
-| Children | Networks whose load this network carries, and which have supply while it has. A child has no producers of its own. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
+| Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A child has no producers of its own. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
 | Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
 
 A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
@@ -136,19 +136,19 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 
 | Call | Effect |
 | --- | --- |
-| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now only `"power"` and `"sequential"`. |
+| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"`. Defined again with another utility, it detaches its children. |
 | `networks.remove(handle, id)` | Removes it, giving its producers back to vanilla; `true` when there was one. |
 | `networks.setProducers(handle, id, list)` | Producer squares (tables with `x`, `y`, `z`), in order. A square is a producer of one network at most. |
 | `networks.addBuilding(handle, id, x, y, z)` | A building as a consumer, named by one of its squares; `true` when the square is in a building now. |
 | `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's included) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. Planned: for water the amount and capacity. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`; `parent` for a child; `producer` (the square of the producer in use; absent without one running); `load` (its children's included) and `ownLoad`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
 change, never per frame. `what` is `"supply"` (it started or stopped), `"producer"` (another producer
-carries it) or `"load"`; `hour` is the world age in hours when it happened, which is in the past when
+carries it) or `"load"` (power only); `hour` is the world age in hours when it happened, which is in the past when
 a producer ran out while its square was not loaded. A mod reads the rest with `networks.state(id)`.
 
 ### Built so far
@@ -181,7 +181,13 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - Events: `OnPZToolsNetworkChange` for supply, the producer in use and the load.
 - Children: a child has supply while its parent has (its supply events carry the parent's hour), and
   the parent's producer burns both loads.
-- Not yet: food aged across supply changes, water and `"parallel"`.
+- Water networks under `"fullest"`: a fixture the game can pipe water to (`waterPiped`), in a member
+  building or added on its own and not excluded, takes its water from the network while one of its
+  producers holds some: from the fullest of them by share of its capacity, at each question. A child's
+  fixtures draw from the producers of the network at the top of its parents. A producer's square has
+  no consumers. The producers are read once a second; a `"supply"` event says when the network got or
+  lost water.
+- Not yet: food aged across supply changes and `"parallel"`.
 
 ### Power
 
@@ -214,9 +220,13 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 
 ### Water
 
+- **Supply.** A network has water while one of its producers holds some, as last seen loaded. A
+  child has water when the network at the top of its parents has. Without water, its fixtures are the
+  game's again.
 - **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
   gives each draw. Levels converge as water is used, and space opens first in the containers that
-  are fullest, so rain is lost only when all are full. No water is moved between containers.
+  are fullest, so rain is lost only when all are full. No water is moved between containers. A
+  producer is the fluid container on a producer square; one whose square is not loaded gives no draw.
 - **Fluids.** Vanilla decides amount, draw and taint from the container the draw comes from, as it
   does for a fixture plumbed to a barrel.
 - **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
@@ -231,14 +241,17 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 | Does this light switch's room have power? | `IsoLightSwitch.hasElectricityAround()` | Same rule; lights are switched per room, not per bulb |
 | Is this room's light on, and this switch's lamps? | `LightingJNI.checkLights()`: a room light asks its switches' squares (`haveElectricity()`); a lamp with switches asks its first switch (`canSwitchLight()`, which asks `hasElectricityAround()`) | A switch of the room that the network supplies (its room's building is a member), not excluded |
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
-| Where does this fixture's water come from? | `IsoObject.getUsesExternalWaterSource()`, `checkExternalFluidSource()` | For a consumer, the network's producer that gives the next draw |
+| Does this fixture take water from another object? | Each water question of `IsoObject` (`getFluidAmount`, `useFluid`, `hasWater`, `getUsesExternalWaterSource` and the others) reads its field `usesExternalWaterSource` | Vanilla, or it is a consumer of a network that has water |
+| Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the network's fullest producer; vanilla when none holds water |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
 | How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`) | The container's object, by the appliance rule. Planned: split at the network's supply changes |
 
 The bootstrap ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java))
 puts the hooks in as the classes load. Each return of the square and object questions passes the
 game's answer to the API, which can only add to it; `setSurroundingElectricity()` and
-`updateGenerator()` ask the API first. A method that is not shaped as expected gets no hook, which
+`updateGenerator()` ask the API first. Each read of `usesExternalWaterSource` in the water questions
+passes the field and the object to the API; `save` keeps the game's own field, so the world saves
+what vanilla would. A method that is not shaped as expected gets no hook, which
 the game's log reports, and that question gets the game's answer.
 
 The answers come from a snapshot the API makes again when something changes
@@ -247,7 +260,10 @@ for each supplied network, one bit per square over the box around its buildings,
 object rules by square. `haveElectricity()` is called very often (lighting, food, sounds), so it
 costs a box test and a bit per network, never a walk over buildings. An object question looks at the
 object only when some network has a rule for an object. For an excluded object the API asks the game
-again with the networks silenced on that thread.
+again with the networks silenced on that thread. The water questions have their own snapshot
+([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/WaterGrid.java)):
+the areas of the networks that have water, and their object rules. A question about an object outside
+those areas, or with no water network, costs a lookup of the object's square.
 
 ## What vanilla does that mods need to know
 
@@ -264,6 +280,10 @@ again with the networks silenced on that thread.
   single object added to a network is not subject to it.
 - A generator burns fuel hour by hour in `update()`: on the first update after its square loads, it
   burns every hour since `lastHour` at its current consumption, until its fuel or condition runs out.
+- A fixture that takes water from another object takes no water from the mains, even before the
+  water shut-off (`IsoObject.isWaterInfinite()` asks `getUsesExternalWaterSource()`). So a consumer of
+  a water network that has water draws from its producers from the start; without water it has the
+  mains while they run, and its own reserve after.
 - Rain collectors are kept by a Lua global object system (`SRainBarrelSystem`) that adds rain every
   ten minutes while it rains, whether or not the collector's square is loaded, and writes the amount
   into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while

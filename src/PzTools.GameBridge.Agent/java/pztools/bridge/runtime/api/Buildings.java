@@ -248,11 +248,15 @@ final class Buildings {
 
     /** The object when it uses what the filter asks for, or null. */
     Found classify(Object object, Filter filter, int x, int y, int z, Object room) throws ReflectiveOperationException {
-        boolean power = (boolean)couldBePowered.invoke(object);
+        boolean power = (boolean)couldBePowered.invoke(object), water = piped(object);
+        return power && filter.power() || water && filter.water() ? new Found(object, x, y, z, room, power, water) : null;
+    }
+
+    /** Whether the game can pipe water to the object: its sprite has the {@code waterPiped} flag. */
+    boolean piped(Object object) throws ReflectiveOperationException {
         Object sprite = objectSprite.invoke(object);
         Object flags = sprite == null ? null : properties.invoke(sprite);
-        boolean water = flags != null && (boolean)has.invoke(flags, waterPiped);
-        return power && filter.power() || water && filter.water() ? new Found(object, x, y, z, room, power, water) : null;
+        return flags != null && (boolean)has.invoke(flags, waterPiped);
     }
 
     /** The object as a Lua table, with the consumption the game gives for it now. */

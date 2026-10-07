@@ -4,7 +4,8 @@ import java.util.*;
 
 /**
  * One network as its mod defined it, and what the API last worked out about it. The definition changes only through
- * {@link Networks}; the rest is kept by {@link PowerGrid}. Both run on the game's thread.
+ * {@link Networks}; the rest is kept by {@link PowerGrid} or {@link WaterGrid}, by its utility. Both run on the game's
+ * thread.
  */
 final class Network {
     /** A square. */
@@ -33,6 +34,9 @@ final class Network {
         double end() { return perHour > 0 ? lastHour + Math.ceil(fuel / perHour) : Double.POSITIVE_INFINITY; }
     }
 
+    /** What a water producer's square holds, as last seen loaded: the amounts and capacities of its fluid containers. */
+    record Stored(float amount, float capacity) { }
+
     final String id, owner, utility, policy;
     /** The network whose producers supply this one, which then has none of its own; null for a network with its own. */
     String parent;
@@ -42,17 +46,22 @@ final class Network {
     final List<Position> buildings = new ArrayList<>();
     final Set<Thing> excluded = new LinkedHashSet<>(), included = new LinkedHashSet<>();
 
-    // Worked out by PowerGrid.
+    // Worked out by the grid of its utility.
     /** The member buildings as last resolved, by their BuildingDef's identity. */
     List<Buildings.Building> resolved = List.of();
-    PowerGrid.Area area;
-    /** Each producer as last seen loaded. */
+    Members.Area area;
+    /** Each power producer as last seen loaded. */
     final Map<Position, Seen> seen = new HashMap<>();
+    /** Each water producer as last seen loaded. */
+    final Map<Position, Stored> stored = new HashMap<>();
     /** Each running producer before the game's last hourly update of it. */
     final Map<Position, Settled> settled = new HashMap<>();
     /** The producer that carries the load; null when the network has none running, and always for a child. */
     Position inUse;
-    /** Whether it has supply: its producer in use runs, or a child's parent has supply. */
+    /**
+     * Whether it has supply: for power, its producer in use runs; for water, one of its producers holds some; for a
+     * child, its parent has supply.
+     */
     boolean supplied;
     /** The hour its supply last started or stopped. */
     double suppliedAt;

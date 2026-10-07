@@ -78,20 +78,20 @@ public final class GameApi {
     /**
      * {@code PZToolsAPI.networks}, with the definitions an earlier payload kept in this environment. Without it (a game
      * started by an install from before the networks, or a game this payload cannot read), mods find no
-     * {@code networks} and the game answers every power question alone.
+     * {@code networks} and the game answers every power and water question alone.
      */
     private static void networks(Kahlua lua, Object api, Object meta, Object handles, Buildings buildings, ClassLoader game)
             throws ReflectiveOperationException {
         Networks next;
         try {
             next = new Networks(lua, buildings, game, meta, handle -> owner(lua, handles, handle));
-            ApiHooks.setPower(next.grid());
+            next.hook();
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PzTools API] Networks are not in this game; restart it to use them: " + olderBootstrap);
             next = null;
         } catch (ReflectiveOperationException | RuntimeException unreadable) {
             report(unreadable);
-            try { ApiHooks.setPower(null); } catch (LinkageError olderBootstrap) { }
+            Networks.unhook();
             next = null;
         }
         networks = next;

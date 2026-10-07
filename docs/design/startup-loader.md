@@ -41,7 +41,7 @@ today.
    ([`AttachMain`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/AttachMain.java)).
 3. **The bootstrap** (`AgentEntry.agentmain`) gets its `Instrumentation` exactly as after an attach.
    In installed mode it also adds the [extension API](extension-api.md)'s hooks, to `LuaManager.init()`
-   before the game loads its Lua and to the game's power questions, loads the payload once the game loads `GameWindow`, and the payload's
+   before the game loads its Lua and to the game's power and water questions, loads the payload once the game loads `GameWindow`, and the payload's
    [resident controller](#resident-extensions) runs the extensions the app last asked for, without
    waiting for the app.
 4. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,

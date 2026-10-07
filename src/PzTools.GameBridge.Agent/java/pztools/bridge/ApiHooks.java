@@ -55,6 +55,18 @@ public final class ApiHooks {
         default void generatorUpdate(Object generator) { }
     }
 
+    /** Set by the payload: the water networks. Asked on the thread that uses the fixture. */
+    public interface Water {
+        /**
+         * Whether a fixture takes its water from another object ({@code IsoObject.usesExternalWaterSource}, as the game's
+         * water questions read it): {@code vanilla}, or a water network supplies the fixture now.
+         */
+        boolean plumbed(boolean vanilla, Object fixture);
+
+        /** The object the fixture takes its water from ({@code IsoObject.checkExternalFluidSource()}): {@code vanilla}, or the network's. */
+        Object source(Object vanilla, Object fixture);
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -65,8 +77,12 @@ public final class ApiHooks {
     // A game the startup loader started, whose payload has not set the handler yet.
     private static boolean expected;
     private static volatile Power power;
+    private static volatile Water water;
+    // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
+    // game's own source (whose return the network's source replaces).
+    private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
     // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[5];
+    private static final boolean[] reported = new boolean[7];
 
     private ApiHooks() { }
 
@@ -105,6 +121,14 @@ public final class ApiHooks {
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
                 && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
                 && invoke.name().equalsString("getSourceGrid"), FOOD) },
+        "zombie/iso/IsoObject", new Site[] {
+            // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
+            Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "waterSource", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                    ConstantDescs.CD_Object));
+                code.checkcast(owner);
+            }) },
         "zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
                 Label vanilla = code.newLabel();
@@ -181,6 +205,7 @@ public final class ApiHooks {
             }
             transform = transform.andThen(ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
         }
+        if ("zombie/iso/IsoObject".equals(name)) transform = transform.andThen(plumbing(model, owner));
         if ("zombie/iso/IsoGridSquare".equals(name))
             for (String axis : new String[] { "x", "y", "z" })
                 if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(axis)
@@ -275,9 +300,31 @@ public final class ApiHooks {
         }
     }
 
+    /**
+     * Every read of {@code usesExternalWaterSource} in the object's water questions passes the flag and the object to
+     * {@link #waterPlumbed}. Saving the object keeps the game's own flag.
+     */
+    private static ClassTransform plumbing(ClassModel model, ClassDesc owner) {
+        Predicate<CodeElement> read = element -> element instanceof FieldInstruction field && field.opcode() == Opcode.GETFIELD
+            && field.owner().asSymbol().equals(owner) && field.name().equalsString("usesExternalWaterSource");
+        Predicate<MethodModel> asks = method -> !PLUMBING_KEPT.contains(method.methodName().stringValue());
+        long reads = model.methods().stream().filter(asks).flatMap(method -> method.code().stream())
+            .flatMap(code -> code.elementStream()).filter(read).count();
+        if (reads == 0) throw new IllegalArgumentException("Expected the water questions to read IsoObject.usesExternalWaterSource");
+        return ClassTransform.transformingMethodBodies(asks, (builder, element) -> {
+            if (!read.test(element)) { builder.with(element); return; }
+            // object -> object, object -> object, flag -> flag, object -> hook
+            builder.dup();
+            builder.with(element);
+            builder.swap();
+            builder.invokestatic(HOOKS, "waterPlumbed", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
+                ConstantDescs.CD_Object));
+        });
+    }
+
     /** Sets the power networks, replacing an earlier payload's; null gives every power question to the game alone. */
     public static void setPower(Power next) {
-        synchronized (reported) { Arrays.fill(reported, false); }
+        synchronized (reported) { Arrays.fill(reported, 0, 5, false); }
         power = next;
     }
 
@@ -297,6 +344,29 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.luaStarted(luaManager); }
         catch (Throwable problem) { report("luaStarted", problem); }
+    }
+
+    /** Sets the water networks, replacing an earlier payload's; null gives every water question to the game alone. */
+    public static void setWater(Water next) {
+        synchronized (reported) { reported[5] = false; reported[6] = false; }
+        water = next;
+    }
+
+    /** Put after each read of {@code IsoObject.usesExternalWaterSource} in the object's water questions. */
+    public static boolean waterPlumbed(boolean vanilla, Object fixture) {
+        if (vanilla) return true;
+        Water current = water;
+        if (current == null) return false;
+        try { return current.plumbed(false, fixture); }
+        catch (Throwable problem) { reportOnce(5, "waterPlumbed", problem); return false; }
+    }
+
+    /** Put before each return of {@code IsoObject.checkExternalFluidSource()}. */
+    public static Object waterSource(Object vanilla, Object fixture) {
+        Water current = water;
+        if (current == null) return vanilla;
+        try { return current.source(vanilla, fixture); }
+        catch (Throwable problem) { reportOnce(6, "waterSource", problem); return vanilla; }
     }
 
     /** Put before each return of {@code IsoGridSquare.haveElectricity()}. */
