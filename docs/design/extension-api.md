@@ -351,6 +351,18 @@ generator outside it as its producer.
 | The first refuelled and switched on while the second ran | `producer` at 7.41; the second was switched off. |
 | The first switched off | `supply` at 7.43; the building went dark and the second stayed off. |
 
+On 7 October 2026 stage 3 was checked in the same game, started again with the new bootstrap, by a
+throwaway Lua script loaded from the debug console. No `[PzTools API]` report: the water hooks found
+`IsoObject`'s flag reads and `checkExternalFluidSource`, and the food hook its place in `Food.updateAge`.
+
+| Check | Result |
+| --- | --- |
+| `state` of the gas station's network, one generator with 9.915 fuel | Load 0.654; `hoursLeft` 147.1, its fuel over (0.02 + 0.654) times the sandbox fuel rate 0.1; the producer `running`, with its fuel and condition. |
+| The shack as a child | Supplied with its parent, `parent` set, the same `hoursLeft`; the parent's load is its own plus the child's. |
+| A rain barrel (made as the game makes a map's) outside the gas station, filled to 400, as the producer of a water network over the gas station | Supplied, amount 400 of 400. All 13 fixtures (sinks, toilets, a washer) took their water from the barrel; a draw of 2 from a sink left 398 in the barrel. The network removed, the sink had its own 20 again. |
+| A steak in the gas station's fridge, the generator off for an hour (13.24 to 14.24) and on for half of one | Aged from 14.24: 0.0042; aged from 13.24: 0.0458. The difference is the hour off unchilled; the fridge factor seen is 0.2, the sandbox's (vanilla would give 1). |
+| Found on the way | A milk carton is a fluid container in Build 42, not food: it does not age. |
+
 ## Costs and risks
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
