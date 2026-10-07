@@ -273,7 +273,9 @@ game with `-StopGame`), starts `artifacts/<Build>/PzTools.App.exe` and answers. 
 a folder directly under the artifacts root that was given at registration. To close the app it runs
 the new build with `--exit`, which asks the running app to close as its Exit button does, without
 the confirmation: work in progress stops and records how. An app that has not closed after a minute,
-or a build too old to listen, is ended by force. The task runs the copy, so after a change to
+or a build too old to listen, is ended by force, and its remaining workers with it; what an app that
+closed itself left running on purpose (the cleanup pass that waits for the game to close) is left
+alone. The task runs the copy, so after a change to
 `elevated-launcher.ps1` run the register script again.
 
 The task lets anything running as your user start an executable from your artifacts folder with
