@@ -54,14 +54,8 @@ function Panels.ofBuilding(key)
 end
 
 -- Zones. A box takes its whole building, or only some of its rooms (panel.rooms, a set of room ids), so that a
--- large building, an apartment block, can have a box per flat or floor. It needs an API that takes single rooms;
--- without one a building has one box, which takes it whole.
+-- large building, an apartment block, can have a box per flat or floor.
 Panels.LARGE_LEVELS, Panels.LARGE_ROOMS = 5, 30
-
-function Panels.zonesSupported()
-    local api = BU.api()
-    return api ~= nil and api.networks.addRoom ~= nil
-end
 
 function Panels.inZone(panel, roomId) return panel.rooms == nil or panel.rooms[roomId] == true end
 
@@ -87,7 +81,6 @@ end
 -- The zone a new box on a level of a building takes: nil (the whole building) in a small building without boxes;
 -- else the free rooms of its level.
 function Panels.defaultZone(building, level)
-    if not Panels.zonesSupported() then return nil end
     local rooms, boxes = Panels.rooms(building), Panels.ofBuilding(building.key)
     if #boxes == 0 and not Panels.isLarge(rooms) then return nil end
     local zone = {}
@@ -130,18 +123,15 @@ function Panels.ofObject(object)
     return id and Store.get(id) or nil
 end
 
--- Whether a box can go on a square: inside a building, in a room no other box's zone has (a building with a box
--- takes no other without zones). Returns the building, or nil and a reason.
+-- Whether a box can go on a square: inside a building, in a room no other box's zone has. Returns the building, or
+-- nil and a reason.
 function Panels.canInstall(square)
     if not square then return nil, "noSquare" end
     if not BU.api() then return nil, "noApi" end
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
     if not building then return nil, "notInBuilding" end
-    if #Panels.ofBuilding(building.key) > 0 then
-        if not Panels.zonesSupported() then return nil, "hasPanel" end
-        local owner = Panels.roomOwner(building.key, building.roomId)
-        if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
-    end
+    local owner = Panels.roomOwner(building.key, building.roomId)
+    if owner then return nil, owner.rooms and "roomTaken" or "wholeTaken" end
     return building
 end
 

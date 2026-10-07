@@ -59,7 +59,6 @@
     "IGUI_BU_Reason_noSquare": "There is nothing to put it on.",
     "IGUI_BU_Reason_noApi": "PZ Tools is not running.",
     "IGUI_BU_Reason_notInBuilding": "It goes inside a building.",
-    "IGUI_BU_Reason_hasPanel": "This building already has a utility panel.",
     "IGUI_BU_Reason_isSubPanel": "A sub-panel takes its supply from its main panel.",
     "IGUI_BU_Reason_connectedElsewhere": "It is connected to another utility panel.",
     "IGUI_BU_Reason_self": "A utility panel cannot supply itself.",

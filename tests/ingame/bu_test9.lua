@@ -69,7 +69,6 @@ else
         pause(60)
     end
     steps[#steps + 1] = function()
-        say("zones supported", BU.Panels.zonesSupported())
         -- isLarge, from made-up rooms.
         local made = {}
         for level = 0, 3 do made[#made + 1] = { id = "m" .. level, level = level, rects = {} } end

@@ -59,7 +59,6 @@
     "IGUI_BU_Reason_noSquare": "놓을 곳이 없습니다.",
     "IGUI_BU_Reason_noApi": "PZ Tools가 실행 중이 아닙니다.",
     "IGUI_BU_Reason_notInBuilding": "건물 안에만 설치할 수 있습니다.",
-    "IGUI_BU_Reason_hasPanel": "이 건물에는 이미 제어반이 있습니다.",
     "IGUI_BU_Reason_isSubPanel": "보조 제어반은 주 제어반에서 공급받습니다.",
     "IGUI_BU_Reason_connectedElsewhere": "다른 제어반에 연결되어 있습니다.",
     "IGUI_BU_Reason_self": "자기 자신에게서 공급받을 수 없습니다.",
