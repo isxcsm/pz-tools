@@ -65,3 +65,9 @@ function Energy.rules(panel, state)
     return { load = math.max(0, (state.load or 0) - charging * (state.loadFactor or 1)), charging = charging,
         floor = floor, restart = restart, quiet = quiet, generators = generators, settings = settings }
 end
+
+-- Whether the source is ready to take the load over from a generator, by its rules: the solar panels make it with
+-- the margin to start, or the bank holds more than its restart share. Its output and bank as Energy.run left them.
+function Energy.ready(rules, output, bank)
+    return Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
+end

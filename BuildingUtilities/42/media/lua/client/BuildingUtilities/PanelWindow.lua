@@ -553,7 +553,7 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     if utility == "power" then
         local off = panel.switchedOff == true
         add({ kind = "mainSwitch", text = getText(off and "IGUI_BU_MainSwitchOff" or "IGUI_BU_MainSwitchOn"),
-            state = off and "off" or "on" }, getText("IGUI_BU_MainSwitchTip"))
+            state = off and "off" or "on" }, getText(panel.parent and "IGUI_BU_MainSwitchTipSub" or "IGUI_BU_MainSwitchTip"))
     end
     local parent = Store.get(panel.parent)
     if parent then

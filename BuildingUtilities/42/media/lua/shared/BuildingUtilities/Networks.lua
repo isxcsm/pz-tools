@@ -231,7 +231,7 @@ end
 -- Defines a panel's networks from the save. A power sub-panel's parent is set by Networks.link, once every panel
 -- exists; its water hangs from its main panel's on its own. The network gets the extra load the box had (charging,
 -- pumps) at once, as the charge controller reads its load with it, until the first minute works it out again; none
--- while the breaker is down.
+-- while the box keeps its power off.
 function Networks.define(panel)
     local id = powerId(panel)
     change("define", id, "power", BU.POLICY.power)
@@ -241,7 +241,7 @@ function Networks.define(panel)
     -- A network is defined switched on.
     if not Networks.powerAllowed(panel) then Networks.applyEnabled(panel) end
     Networks.applyLoss(panel)
-    local extra = panel.tripped and 0 or Networks.extraLoad(panel)
+    local extra = Networks.powerAllowed(panel) and Networks.extraLoad(panel) or 0
     if extra > 0 then Networks.setExtraLoad(panel, extra) end
     if not panel.parent then Networks.defineWater(panel) end
 end

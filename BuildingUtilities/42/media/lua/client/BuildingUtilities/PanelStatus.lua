@@ -165,7 +165,10 @@ end
 function PanelWindow.status(panel, utility)
     local parent = Store.get(panel.parent)
     if parent and utility == "power" and panel.tripped then return trippedStatus(panel) end
-    if parent and utility == "power" and panel.switchedOff then return switchedOffStatus() end
+    -- As for a main panel, the grid tells first while it runs.
+    if parent and utility == "power" and panel.switchedOff and not getWorld():isHydroPowerOn() then
+        return switchedOffStatus()
+    end
     if parent then
         local result = PanelWindow.status(parent, utility)
         result.text = getText("IGUI_BU_St_Sub", Panels.name(parent), result.text)
