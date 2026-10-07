@@ -62,7 +62,7 @@ final class Networks {
         this.meta = meta;
         this.owners = owners;
         members = new Members(game, buildings);
-        grid = new PowerGrid(loader, game, this, members, buildings);
+        grid = new PowerGrid(loader, game, this, members, buildings, lua);
         try { water = new WaterGrid(loader, game, this, members, buildings, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
         // The payload this one replaces writes its definitions to the mirror and hands over the rest it knows.
@@ -148,6 +148,7 @@ final class Networks {
                 own(existing, owner, call);
                 // Children of another utility have no supply until they get another parent.
                 if (!existing.utility.equals(utility)) detachChildren(id);
+                left(existing, List.of());
             }
             networks.put(id, new Network(id, owner, utility, policy));
             changed();
@@ -159,6 +160,7 @@ final class Networks {
             if (existing == null) return new Object[] { false };
             own(existing, owner, call);
             networks.remove(id);
+            left(existing, List.of());
             // Its children have no supply until they get another parent.
             detachChildren(id);
             changed();
@@ -185,10 +187,15 @@ final class Networks {
                 producers.add(producer);
             }
             if (producers.equals(network.producers)) return new Object[0];
+            left(network, producers);
             network.producers.clear();
             network.producers.addAll(producers);
             network.seen.keySet().retainAll(producers);
+            network.outOfService.retainAll(producers);
+            if (!producers.contains(network.resume)) network.resume = null;
+            network.recheck.retainAll(producers);
             List<Position> squares = network.squares();
+            network.ran.retainAll(squares);
             network.settled.keySet().retainAll(squares);
             network.stored.keySet().retainAll(squares);
             var names = new HashSet<String>();
@@ -431,6 +438,8 @@ final class Networks {
                 lua.set(entry, "running", seen.activated());
                 lua.set(entry, "fuel", (double)seen.fuel());
                 lua.set(entry, "condition", (double)seen.condition());
+                // Switched off by hand: the API never switches it on. Absent, one that is off is on standby.
+                if (!seen.activated() && network.outOfService.contains(producer)) lua.set(entry, "outOfService", true);
             }
             producers.add(entry);
         }
@@ -468,7 +477,16 @@ final class Networks {
     /** {@code handle:clear()}: removes everything the mod defined. */
     void clear(String owner, String call) throws ReflectiveOperationException {
         current(call);
+        for (Network network : networks.values()) if (network.owner.equals(owner)) left(network, List.of());
         if (networks.values().removeIf(network -> network.owner.equals(owner))) changed();
+    }
+
+    /** The generators of a power network that are not among {@code staying} leave it: their marks go (PowerGrid.left). */
+    private void left(Network network, List<Producer> staying) {
+        if (!PowerGrid.UTILITY.equals(network.utility)) return;
+        var squares = new ArrayList<Position>();
+        for (Producer producer : network.producers) if (producer.at() != null && !staying.contains(producer)) squares.add(producer.at());
+        if (!squares.isEmpty()) grid.left(squares);
     }
 
     private void detachChildren(String id) {
@@ -480,7 +498,10 @@ final class Networks {
         try {
             Object cell = game.cell();
             // The world the networks were defined in was left; the mods define them again in the next one.
-            if (world != null && cell != world && !networks.isEmpty()) { networks.clear(); changed(); }
+            if (world != null && cell != world) {
+                grid.forget();
+                if (!networks.isEmpty()) { networks.clear(); changed(); }
+            }
             world = cell;
             if (cell != null) {
                 grid.frame(cell);
@@ -712,9 +733,9 @@ final class Networks {
     /**
      * Called by a newer payload as it takes over (see {@link #HANDOVER}), on the game's thread: writes the definitions
      * to the mirror, and gives what this payload knows of the networks beyond them, which the mirror does not keep: the
-     * producer in use and each producer as last seen, the supply, the load of consumers on squares that are not
-     * loaded, and the supply's history for food. A producer running on a square that is not loaded so goes on
-     * carrying its network.
+     * producer in use and each producer as last seen, out of service or not, the supply, the load of consumers on
+     * squares that are not loaded, and the supply's history for food. A producer running on a square that is not loaded
+     * so goes on carrying its network, and one out of service there stays out of service.
      */
     private String handover() {
         try { write(); }
@@ -725,10 +746,15 @@ final class Networks {
         for (Network network : networks.values()) {
             text.append("N\t").append(network.id).append('\t').append(network.supplied ? "1" : "").append('\t').append(network.suppliedAt)
                 .append('\t').append(network.load).append('\t').append(network.total).append('\t').append(network.loadComplete ? "1" : "")
-                .append('\t').append(key(network.inUse)).append('\n');
-            for (var seen : network.seen.entrySet())
+                .append('\t').append(key(network.inUse))
+                // Added later: whether the API stopped its producers as it was switched off, and the one to start first.
+                .append('\t').append(network.stopped ? "1" : "").append('\t').append(key(network.resume)).append('\n');
+            for (var seen : network.seen.entrySet()) {
+                // Added later, at the end so that an earlier payload reads the line still: out of service, or empty.
                 text.append("E\t").append(key(seen.getKey())).append('\t').append(seen.getValue().activated() ? "1" : "").append('\t')
-                    .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition()).append('\n');
+                    .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition()).append('\t')
+                    .append(network.outOfService.contains(seen.getKey()) ? "out" : "").append('\n');
+            }
             for (var settled : network.settled.entrySet())
                 text.append("T\t").append(settled.getKey()).append('\t').append(settled.getValue().lastHour()).append('\t')
                     .append(settled.getValue().fuel()).append('\t').append(settled.getValue().perHour()).append('\n');
@@ -793,6 +819,13 @@ final class Networks {
                 network.loadComplete = "1".equals(fields[6]);
                 Producer inUse = producer(fields[7]);
                 network.inUse = network.producers.contains(inUse) ? inUse : null;
+                // From a payload before them, none: a network it left switched off with its producer running is stopped
+                // at the next frame, which starts that producer first when the network is switched on again.
+                if (fields.length > 9) {
+                    network.stopped = "1".equals(fields[8]);
+                    Producer resume = producer(fields[9]);
+                    network.resume = network.producers.contains(resume) ? resume : null;
+                }
                 network.consumption = new LinkedHashMap<>();
                 continue;
             }
@@ -800,8 +833,11 @@ final class Networks {
             switch (fields[0]) {
                 case "E" -> {
                     Producer producer = producer(fields[1]);
-                    if (network.producers.contains(producer))
-                        network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
+                    if (!network.producers.contains(producer)) continue;
+                    network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
+                    // From a payload before the marks, which it did not keep: the next frame reads them as at first sight.
+                    if (fields.length < 6) network.recheck.add(producer);
+                    else if ("out".equals(fields[5])) network.outOfService.add(producer);
                 }
                 case "T" -> {
                     Position at = Position.parse(fields[1]);
