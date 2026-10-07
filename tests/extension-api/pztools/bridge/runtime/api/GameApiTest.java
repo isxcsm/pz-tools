@@ -59,6 +59,7 @@ public final class GameApiTest {
         switches(api);
         loadFactors(api);
         memberRooms(api);
+        farApart(api);
         sources(api);
         failedTakeover(api);
         water(api);
@@ -759,6 +760,41 @@ public final class GameApiTest {
         call(networks, "remove", mod, "flat");
         frame();
         generator.setActivated(false);
+    }
+
+    /**
+     * A network's buildings can be any distance apart: one a million squares west and south of the house, on two levels,
+     * is powered with it, and the squares between are not.
+     */
+    private static void farApart(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var grid = IsoWorld.instance.metaGrid;
+        var far = new BuildingDef(false);
+        var hall = new RoomDef(500, "hall", 0, far);
+        var loft = new RoomDef(501, "loft", 1, far);
+        room(grid, hall, -1_000_003, 1_000_005, 9, 3);
+        room(grid, loft, -1_000_003, 1_000_005, 2, 2);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "far", "power", "sequential");
+        call(networks, "setProducers", mod, "far", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "far", 11.0, 11.0, 0.0);
+        check(call(networks, "addBuilding", mod, "far", -1_000_000.0, 1_000_006.0, 0.0).get(0).equals(true), "The far building was not found");
+        generator.setActivated(true);
+        frame();
+        check(state(networks, "far").rawget("supplied").equals(true), "The network with a far building has no supply");
+        check(square(11, 11, 0).haveElectricity() && new IsoGridSquare(-1_000_003, 1_000_005, 0).haveElectricity()
+            && new IsoGridSquare(-999_995, 1_000_007, 0).haveElectricity() && new IsoGridSquare(-1_000_002, 1_000_006, 1).haveElectricity(),
+            "A square of one of the buildings has no power");
+        check(!new IsoGridSquare(-1_000_004, 1_000_005, 0).haveElectricity() && !new IsoGridSquare(-999_994, 1_000_007, 0).haveElectricity()
+            && !new IsoGridSquare(-1_000_001, 1_000_006, 1).haveElectricity() && !new IsoGridSquare(-500_000, 500_000, 0).haveElectricity()
+            && !new IsoGridSquare(-1_000_000, 1_000_006, 2).haveElectricity(), "A square outside the buildings has power");
+        call(networks, "remove", mod, "far");
+        frame();
+        generator.setActivated(false);
+        grid.rooms.remove(hall);
+        grid.rooms.remove(loft);
     }
 
     /**

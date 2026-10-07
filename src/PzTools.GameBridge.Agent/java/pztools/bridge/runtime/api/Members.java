@@ -10,38 +10,30 @@ import pztools.bridge.runtime.api.Network.Thing;
  * use its utility, but those excluded, and the objects added on their own. Shared by the power and the water networks.
  */
 final class Members {
-    /** The squares of a network's buildings: one bit per square, over the box around them. */
-    record Area(int minX, int minY, int minZ, int width, int height, int levels, long[] bits) {
+    /**
+     * The squares of a network's buildings: one bit per square, in blocks of 8 by 8 squares of one level, kept only for
+     * the blocks a room reaches. Its memory follows the buildings' size, not how far apart they are.
+     */
+    record Area(SquareMap blocks) {
         boolean contains(int x, int y, int z) {
-            int dx = x - minX, dy = y - minY, dz = z - minZ;
-            if (dx < 0 || dy < 0 || dz < 0 || dx >= width || dy >= height || dz >= levels) return false;
-            int index = (dz * height + dy) * width + dx;
-            return (bits[index >>> 6] & 1L << index) != 0;
+            long block = blocks.get(x >> 3, y >> 3, z, 0);
+            return (block >>> ((y & 7) << 3 | x & 7) & 1) != 0;
         }
 
         boolean contains(Position at) { return contains(at.x(), at.y(), at.z()); }
 
         static Area of(List<Buildings.Building> found, Buildings buildings) throws ReflectiveOperationException {
             if (found.isEmpty()) return null;
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-            for (var building : found) {
-                minX = Math.min(minX, building.minX()); minY = Math.min(minY, building.minY()); minZ = Math.min(minZ, building.minLevel());
-                maxX = Math.max(maxX, building.maxX()); maxY = Math.max(maxY, building.maxY()); maxZ = Math.max(maxZ, building.maxLevel());
-            }
-            int width = maxX - minX + 1, height = maxY - minY + 1, levels = maxZ - minZ + 1;
-            long[] bits = new long[(int)(((long)width * height * levels + 63) / 64)];
+            var blocks = new HashMap<Position, Long>();
             for (var building : found)
                 for (Object room : building.rooms()) {
-                    int dz = buildings.level(room) - minZ;
+                    int z = buildings.level(room);
                     for (var rect : buildings.rects(room))
                         for (int y = rect.y(); y < rect.y() + rect.h(); y++)
-                            for (int x = rect.x(); x < rect.x() + rect.w(); x++) {
-                                int index = (dz * height + y - minY) * width + x - minX;
-                                bits[index >>> 6] |= 1L << index;
-                            }
+                            for (int x = rect.x(); x < rect.x() + rect.w(); x++)
+                                blocks.merge(new Position(x >> 3, y >> 3, z), 1L << ((y & 7) << 3 | x & 7), (a, b) -> a | b);
                 }
-            return new Area(minX, minY, minZ, width, height, levels, bits);
+            return new Area(new SquareMap(blocks));
         }
     }
 

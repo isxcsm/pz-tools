@@ -344,9 +344,10 @@ writes it to the install folder for the app, which says so on the startup loader
 
 The answers come from a snapshot the API makes again when something changes
 ([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):
-for each supplied network, one bit per square over the box around its buildings, and the networks'
-object rules by square. `haveElectricity()` is called very often (lighting, food, sounds), so it
-costs a box test and a bit per network, never a walk over buildings. An object question looks at the
+for each supplied network, one bit per square of its buildings, kept in blocks of 8 by 8 squares of a
+level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
+and the networks' object rules by square. `haveElectricity()` is called very often (lighting, food,
+sounds), so it costs a box test and a hash lookup per supplied network, never a walk over buildings. An object question looks at the
 object only when some network has a rule for an object. For an excluded object the API asks the game
 again with the networks silenced on that thread. The water questions have their own snapshot
 ([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/WaterGrid.java)):
