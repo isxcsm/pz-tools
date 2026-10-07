@@ -2,10 +2,9 @@
 -- settings.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
-    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
+local Store, Sync, Energy = BU.Store, BU.Sync, BU.Energy
 local Ui = BU.PanelUi
-local load2, count = Ui.load2, Ui.count
+local load2 = Ui.load2
 local PanelWindow = BU.PanelWindow
 
 -- A producer square as the network's state last saw it, or nil.
@@ -14,6 +13,12 @@ function PanelWindow.seenProducer(state, at)
         if producer.x == at.x and producer.y == at.y and producer.z == at.z then return producer end
     end
     return nil
+end
+
+-- Whether a producer square is the one the network uses now (state.producer).
+function PanelWindow.producerInUse(state, at)
+    local using = state and state.producer
+    return using ~= nil and not using.source and using.x == at.x and using.y == at.y and using.z == at.z
 end
 
 -- The units' source, a row each for { row, tooltip }: the solar panels (how many, what they make, whether they carry

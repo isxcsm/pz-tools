@@ -17,8 +17,8 @@ require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
-    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
+local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
+    BU.Sync, BU.Energy
 local Ui = BU.PanelUi
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, LIST_W, MIN_LIST, MIN_PLAN, OPTION_W, SEEN, OUTSIDE,
     ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
@@ -29,6 +29,9 @@ local deviceButtons, chooseButtonX, batchButtonX = Ui.deviceButtons, Ui.chooseBu
 local PanelWindow = {}
 BU.PanelWindow = PanelWindow
 local open = {}
+-- A change told (BU.onChanged, a notice, a network event) refreshes the window once it settles: one action often
+-- tells it twice within a few frames.
+local SETTLE_MS = 100
 -- What the player chose, kept while the game runs: view options, folded rooms, the plan shown, its share of the
 -- window and its legend.
 PanelWindow.options = { activeOnly = false, byLoad = false }
@@ -63,6 +66,8 @@ function ISBUPanelWindow:new(x, y, playerObj, panel)
     o.rangeObjects = {}
     o.planOutlined = {}
     o.views = {}
+    -- The networks' states the last refresh read, by utility; the tabs not shown since then, filled as they open.
+    o.states, o.pending = {}, {}
     -- Devices outside being chosen to connect together, by utility.
     o.choosing, o.chosen = {}, { power = {}, water = {} }
     o:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
@@ -133,6 +138,7 @@ function ISBUPanelWindow:createChildren()
     self.search.onTextChangeFunction = ISBUPanelWindow.onSearch
     self.search.target = self
     self:addChild(self.search)
+    self.searchHint = getText("IGUI_BU_Search")
     -- Over the status line: both utilities in full, as a tooltip.
     self.statusArea = ISButton:new(PAD, self.statusY, self.width - PAD * 2, FONT_HGT_SMALL, "", self, nil)
     self.statusArea:initialise()
@@ -250,13 +256,13 @@ function ISBUPanelWindow:onPlan() self:setPlanShown(not self.plan:getIsVisible()
 function ISBUPanelWindow:onActiveOnly()
     PanelWindow.options.activeOnly = not PanelWindow.options.activeOnly
     self:placeOptions()
-    self:refresh()
+    self:redraw()
 end
 
 function ISBUPanelWindow:onByLoad()
     PanelWindow.options.byLoad = not PanelWindow.options.byLoad
     self:placeOptions()
-    self:refresh()
+    self:redraw()
 end
 
 -- The utility the list shows now: the plan follows it (power while the log is shown).
@@ -270,6 +276,8 @@ end
 function ISBUPanelWindow:prerender()
     ISCollapsableWindow.prerender(self)
     if self.tabs and self.tabs.activeView then PanelWindow.lastTab = self.tabs.activeView.name end
+    -- A tab opened that the last refresh left: its rows, before the plan shows its devices.
+    if self.pending[self:activeUtility()] then self:refill(self:activeUtility()) end
     if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
     if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
     -- The range is outlined a slice a frame: here, as update runs only a few times a second.
@@ -282,14 +290,9 @@ function ISBUPanelWindow:render()
     if status then
         local c, dot = status.colour, FONT_HGT_SMALL - 6
         self:drawRect(PAD, self.statusY + 3, dot, dot, 1, c[1], c[2], c[3])
-        local x = PAD + dot + 6
-        self:drawText(status.text, x, self.statusY, c[1], c[2], c[3], 1, UIFont.Small)
-        if status.reason then
-            local reasonX = x + getTextManager():MeasureStringX(UIFont.Small, status.text) + 12
-            local reason = "- " .. status.reason
-            if reasonX + getTextManager():MeasureStringX(UIFont.Small, reason) <= self.width - PAD then
-                self:drawText(reason, reasonX, self.statusY, 0.65, 0.65, 0.65, 1, UIFont.Small)
-            end
+        self:drawText(status.text, status.textX, self.statusY, c[1], c[2], c[3], 1, UIFont.Small)
+        if status.reason and status.reasonEnd <= self.width - PAD then
+            self:drawText(status.reason, status.reasonX, self.statusY, 0.65, 0.65, 0.65, 1, UIFont.Small)
         end
     end
     if self.load then
@@ -304,7 +307,7 @@ function ISBUPanelWindow:render()
     end
     local search = self.search
     if search and search:getIsVisible() and search:getText() == "" and not search:isFocused() then
-        self:drawText(getText("IGUI_BU_Search"), search:getX() + 6, search:getY() + (search:getHeight() - FONT_HGT_SMALL) / 2,
+        self:drawText(self.searchHint, search:getX() + 6, search:getY() + (search:getHeight() - FONT_HGT_SMALL) / 2,
             0.5, 0.5, 0.5, 1, UIFont.Small)
     end
     local banner = self.banner
@@ -317,16 +320,22 @@ end
 function ISBUPanelWindow:update()
     ISCollapsableWindow.update(self)
     if not Store.get(self.panel.id) then self:close(); return end
-    if getTimestampMs() - (self.refreshedAt or 0) > REFRESH_MS then self:refresh() end
+    local now = getTimestampMs()
+    if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > REFRESH_MS then self:refresh() end
 end
 
+-- Something the window shows changed: it refreshes once that settles (SETTLE_MS).
+function ISBUPanelWindow:changed() self.changedAt = self.changedAt or getTimestampMs() end
+
 function ISBUPanelWindow:close()
-    -- What the window listed is no longer new.
-    local store = ModData.getOrCreate(SEEN)
-    for utility, view in pairs(self.views or {}) do
-        local set = {}
-        for _, device in ipairs(view.devices or {}) do set[device.key] = true end
-        store[self.panel.id .. "|" .. utility] = set
+    -- What the window listed is no longer new; for a box taken down nothing is kept.
+    if Store.get(self.panel.id) then
+        local store = ModData.getOrCreate(SEEN)
+        for utility, view in pairs(self.views or {}) do
+            local set = {}
+            for _, device in ipairs(view.devices or {}) do set[device.key] = true end
+            store[self.panel.id .. "|" .. utility] = set
+        end
     end
     for _, list in pairs(self.lists or {}) do
         list:unhighlight()
@@ -339,14 +348,16 @@ function ISBUPanelWindow:close()
     self:removeFromUIManager()
 end
 
--- What the panel and its networks are now, as rows, and the plan.
+-- What the panel and its networks are now, as rows, and the plan. The tab shown is filled now (and power's, which
+-- the load bar's tooltip tells), the other as it opens.
 function ISBUPanelWindow:refresh()
-    self.refreshedAt = getTimestampMs()
+    self.refreshedAt, self.changedAt = getTimestampMs(), nil
     -- On a client in multiplayer the data is received anew: the panel by its id.
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
+    self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     self:updateStatus()
     self.capacity = Panels.capacity(panel)
@@ -400,7 +411,12 @@ function ISBUPanelWindow:refresh()
     self.building = building
     self.rooms = Panels.rooms(building)
     self.titles = Panels.roomTitles(building)
-    for _, utility in ipairs(BU.UTILITIES) do self:fill(utility, utility == "power" and power or water) end
+    self.pending = {}
+    local active = self:activeUtility()
+    for _, utility in ipairs(BU.UTILITIES) do
+        if utility == active or utility == "power" and self.load then self:fill(utility, self.states[utility])
+        else self.pending[utility] = { state = self.states[utility] } end
+    end
     self:fillLog()
     self.loadArea:setTooltip(self:loadBreakdown())
     self:checkRange()
@@ -438,11 +454,32 @@ function ISBUPanelWindow:loadBreakdown()
     return table.concat(lines, "\n")
 end
 
+-- One tab's rows again from what the last refresh read (a fold, a choice): the API is not asked again.
+function ISBUPanelWindow:refill(utility)
+    local pending, view = self.pending[utility], self.views[utility]
+    self.pending[utility] = nil
+    if pending then return self:fill(utility, pending.state, pending.devices, pending.complete) end
+    if view then self:fill(utility, view.state, view.devices, view.complete) end
+end
+
+-- Every tab's rows again so (a search, a view option, a room filtered): the one shown now, the other as it opens.
+function ISBUPanelWindow:redraw()
+    local active = self:activeUtility()
+    for _, utility in ipairs(BU.UTILITIES) do
+        local view = self.views[utility]
+        if utility == active then
+            self:refill(utility)
+        elseif view and not self.pending[utility] then
+            self.pending[utility] = { state = view.state, devices = view.devices, complete = view.complete }
+        end
+    end
+end
+
 -- Search.
 function ISBUPanelWindow:onSearch()
     local text = self.search:getText() or ""
     self.query = text:lower():gsub("^%s+", ""):gsub("%s+$", "")
-    self:refresh()
+    self:redraw()
 end
 
 -- The devices of a window's list the player has not seen: those not listed when its window last closed. The first
@@ -497,13 +534,15 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         end
     end
     if device.state == "on" then
-        local missing = self:missingOther(utility, device)
-        if missing then text = (text ~= "" and text .. "  " or "") .. missing end
+        local missing = Panels.missingOther(self.panel, utility, device, self.states[utility == "power" and "water" or "power"])
+        if missing then text = (text ~= "" and text .. "  " or "") .. getText("IGUI_BU_Missing_" .. missing) end
     end
     return text, dim
 end
 
-function ISBUPanelWindow:fill(utility, state)
+-- A tab's rows, from the panel's devices as the API has them now, or as given (devices and whether they are
+-- complete, from the last refresh).
+function ISBUPanelWindow:fill(utility, state, devices, complete)
     local list = self.lists[utility]
     local scroll = list:getYScroll()
     list:unhighlight()
@@ -512,7 +551,9 @@ function ISBUPanelWindow:fill(utility, state)
     list:clear()
     local panel, playerObj = self.panel, self.playerObj
     local function add(row, tooltip) list:addItem(row.text or "", row, tooltip) end
-    local view = { state = state, devices = {}, names = {}, status = {}, totals = {}, producerText = {}, fresh = {} }
+    if not devices then devices, complete = Panels.devices(panel, utility) end
+    local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
+        producerText = {}, fresh = {} }
     self.views[utility] = view
     local parent = Store.get(panel.parent)
     if parent then
@@ -520,7 +561,7 @@ function ISBUPanelWindow:fill(utility, state)
             getText("IGUI_BU_OpenTip"))
     else
         -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
-        if utility == "water" then self:waterGroupRows(add, state, (Panels.devices(panel, "water"))) end
+        if utility == "water" then self:waterGroupRows(add, state, devices) end
         add({ kind = "header", text = getText("IGUI_BU_Producers") })
         local producers = panel[utility].producers
         local source = utility == "power" and Energy.hasSource(panel)
@@ -532,7 +573,7 @@ function ISBUPanelWindow:fill(utility, state)
         end
         for index, at in ipairs(producers) do
             local seen = PanelWindow.seenProducer(state, at)
-            local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
+            local inUse = PanelWindow.producerInUse(state, at)
             local where = Panels.where(panel, at.x, at.y)
             local text
             if utility == "power" then
@@ -565,8 +606,6 @@ function ISBUPanelWindow:fill(utility, state)
             add({ kind = "link", text = Panels.name(child) .. "   " .. right, target = child.id }, getText("IGUI_BU_OpenTip"))
         end
     end
-    local devices, complete = Panels.devices(panel, utility)
-    view.devices = devices
     local seen = self:seenSet(utility, devices)
     for _, device in ipairs(devices) do
         if not seen[device.key] then view.fresh[device.key] = true end
@@ -673,10 +712,10 @@ function ISBUPanelWindow:fill(utility, state)
                     return a.name < b.name
                 end)
                 for _, shown in ipairs(group.devices) do
-                    local device, entry = shown.device, shown.device.entry
+                    local device = shown.device
                     local tooltip = utility == "power" and self:preview(device) or nil
                     if not device.inside and device.state == "off" then
-                        local cost = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+                        local cost = Actions.outsideCost(panel, utility, device)
                         if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
                     end
                     local controls = timers and utility == "power" and device.state == "on"
@@ -754,23 +793,6 @@ function ISBUPanelWindow:allInside(devices)
     return true
 end
 
--- For a device that uses both power and water: what it lacks of the other.
-function ISBUPanelWindow:missingOther(utility, device)
-    local entry = device.entry
-    if not (entry.power and entry.water) then return nil end
-    local other = utility == "power" and "water" or "power"
-    local otherState = Networks.state(self.panel, other)
-    local excluded, included = false, false
-    for _, key in ipairs(device.keys) do
-        excluded = excluded or device.inside and self.panel[other].excluded[key] ~= nil
-        included = included or not device.inside and self.panel[other].included[key] ~= nil
-    end
-    if excluded or (not device.inside and not included) or not (otherState and otherState.supplied) then
-        return getText("IGUI_BU_Missing_" .. other)
-    end
-    return nil
-end
-
 -- A device connected or not: a building's by a switch at the box, one outside by laying or taking away its line.
 function ISBUPanelWindow:switchDevice(utility, device)
     local panel, playerObj, entry = self.panel, self.playerObj, device.entry
@@ -781,7 +803,7 @@ function ISBUPanelWindow:switchDevice(utility, device)
         BU.ContextMenu.queueAt(playerObj, entry.x, entry.y, entry.z,
             ISBUDisconnect:new(playerObj, "outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite))
     else
-        local cost, reason = Actions.lineCost("outside", panel, utility, entry.x, entry.y, entry.z, entry.sprite)
+        local cost, reason = Actions.outsideCost(panel, utility, device)
         if not cost or not Costs.affords(playerObj, cost) then
             HaloTextHelper.addBadText(playerObj, cost and getText("IGUI_BU_Reason_cantAfford") or getText("IGUI_BU_Reason_" .. reason))
             return
@@ -794,8 +816,9 @@ end
 -- A click on a row: free changes as commands; lines laid or taken away by walking there.
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
-    if row.kind == "source" and row.settings then
-        self:controllerMenu()
+    if row.kind == "source" then
+        local settings = row.settings and Ui.settingsButton(width, row)
+        if settings and x >= settings.x and x <= settings.x + settings.w then self:controllerMenu() end
     elseif row.kind == "producer" and row.unit then
         self:onWaterUnitRow(row, x, width)
     elseif row.kind == "producer" then
@@ -837,7 +860,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             Sync.send(playerObj, "setRoomInside", { panel = panel.id, utility = utility, room = row.id, on = row.state ~= "on" })
         else
             PanelWindow.folded[row.foldKey] = (not row.folded) or nil
-            self:fill(utility, self.views[utility] and self.views[utility].state)
+            self:refill(utility)
         end
     elseif row.kind == "device" and row.choosable then
         self:toggleChosen(row.device.key)
@@ -937,16 +960,29 @@ function PanelWindow.isOpen(panelId) return open[panelId] ~= nil end
 -- The window open for a panel, or nil.
 function PanelWindow.get(panelId) return open[panelId] end
 
+-- The data changed: every window refreshes once that settles, as a box's change can show in another's window too
+-- (its name, a device connected to it, a sub-panel's supply).
 function PanelWindow.refreshAll()
-    for _, window in pairs(open) do window:refresh() end
+    for _, window in pairs(open) do window:changed() end
 end
 
 -- The API says a network changed: its panel's window, and its main panel's, show it.
 function PanelWindow.onNetworkChange(id)
     local panel = Networks.owner(id)
     if not panel then return end
-    if open[panel.id] then open[panel.id]:refresh() end
-    if panel.parent and open[panel.parent] then open[panel.parent]:refresh() end
+    if open[panel.id] then open[panel.id]:changed() end
+    if panel.parent and open[panel.parent] then open[panel.parent]:changed() end
+end
+
+-- What the windows marked as seen, forgotten for the boxes that are gone: an id is never given again.
+function PanelWindow.forgetRemoved()
+    local store = ModData.getOrCreate(SEEN)
+    local gone = {}
+    for key in pairs(store) do
+        local id = tostring(key):match("^(.-)|")
+        if not (id and Store.get(id)) then gone[#gone + 1] = key end
+    end
+    for _, key in ipairs(gone) do store[key] = nil end
 end
 
 return PanelWindow

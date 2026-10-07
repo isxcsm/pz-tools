@@ -2,8 +2,8 @@
 -- the ground.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
-    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
+local Store, Panels, Networks, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Sync, BU.Geometry,
+    BU.Energy, BU.Units
 local Ui = BU.PanelUi
 local OUTSIDE, load2, deviceObjects, outline, unoutline = Ui.OUTSIDE, Ui.load2, Ui.deviceObjects, Ui.outline,
     Ui.unoutline
@@ -49,7 +49,7 @@ function ISBUPanelWindow:updatePlan()
         local state = view.state
         local supplied = state and state.supplied
         for index, at in ipairs(panel[utility].producers) do
-            local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y and state.producer.z == at.z
+            local inUse = PanelWindow.producerInUse(state, at)
             -- What runs to the box: the generator in use; for water, each tank with water in it.
             local flow
             if utility == "power" then flow = inUse and supplied and 1 or nil
@@ -194,7 +194,7 @@ function ISBUPanelWindow:showDevice(key)
     PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil
     if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
     if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
-    self:refresh()
+    self:redraw()
     local list = self.lists[utility]
     for index, item in ipairs(list.items) do
         if item.item.device and item.item.device.key == key then
@@ -207,7 +207,8 @@ end
 -- A room clicked on the plan: the list shows only it; nil shows them all again.
 function ISBUPanelWindow:filterRoom(id)
     self.roomFilter = id
-    self:refresh()
+    self:redraw()
+    self:updatePlan()
 end
 
 -- The menu of a dot right-clicked on the plan: what its row offers.
@@ -271,8 +272,7 @@ function ISBUPanelWindow:generatorNoises()
     if panel.parent then return result end
     local state = Networks.state(panel, "power")
     for _, at in ipairs(panel.power.producers) do
-        local inUse = state and state.producer and state.producer.x == at.x and state.producer.y == at.y
-            and state.producer.z == at.z
+        local inUse = PanelWindow.producerInUse(state, at)
         local radius, running = Panels.generatorNoise(at.x, at.y, at.z, inUse)
         result[#result + 1] = { x = at.x, y = at.y, z = at.z, radius = radius, running = running }
     end
@@ -300,13 +300,7 @@ function ISBUPanelWindow:showRange(on)
     if #rooms == 0 then return end
     -- Devices outside join by the rooms of their own floor, the ground here; producers by the whole outline. The
     -- areas are the plan's (Geometry.reach): a ring is an area's edge.
-    local ground, all = {}, {}
-    for _, room in ipairs(rooms) do
-        for _, rect in ipairs(room.rects) do
-            all[#all + 1] = rect
-            if room.level == 0 then ground[#ground + 1] = rect end
-        end
-    end
+    local ground, all = Geometry.roomRects(rooms, 0)
     local rings = {}
     local exterior = BU.exteriorRange(panel.tier)
     -- A range of 0 has no ring: devices outside do not join at all.

@@ -5,7 +5,7 @@ require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Energy = BU.Store, BU.Panels, BU.Networks, BU.Energy
 local Ui = BU.PanelUi
-local load2, duration, count = Ui.load2, Ui.duration, Ui.count
+local FONT_HGT_SMALL, PAD, load2, duration, count = Ui.FONT_HGT_SMALL, Ui.PAD, Ui.load2, Ui.duration, Ui.count
 local PanelWindow = BU.PanelWindow
 
 local OK, WARN, BAD = "ok", "warn", "bad"
@@ -15,10 +15,8 @@ local SOON = 12
 
 -- The power producer square the network uses now, as its place in the panel's order, or nil.
 local function producerIndex(panel, state)
-    local at = state and state.producer
-    if not at or at.source then return nil end
     for index, producer in ipairs(panel.power.producers) do
-        if producer.x == at.x and producer.y == at.y and producer.z == at.z then return index end
+        if PanelWindow.producerInUse(state, producer) then return index end
     end
     return nil
 end
@@ -49,7 +47,7 @@ local function bankLeft(panel, bank, rules, flow)
     local charge = BU.percent(bank.charge * 100)
     flow = flow or panel.bankFlow or 0
     if flow < -0.0005 then
-        local hours = math.max(0, bank.usable - bank.capacity * rules.floor) / -flow
+        local hours = Energy.bankHoursLeft(bank, rules.floor, flow)
         return getText("IGUI_BU_Left_Bank", charge, duration(hours)), hours
     end
     if flow > 0.0005 and bank.energy < bank.capacity then
@@ -169,13 +167,20 @@ function PanelWindow.status(panel, utility)
     return powerStatus(panel, state)
 end
 
--- The status line as drawn: the text and what is left on it; the reason after it in grey when it fits, else only in
--- the tooltip, which has both utilities in full.
+-- The status line as drawn: the text and what is left on it after the dot; the reason after it in grey when it fits
+-- (it ends at reasonEnd), else only in the tooltip, which has both utilities in full. Measured here, not each frame.
 function ISBUPanelWindow:updateStatus()
     self.statusUtility = self:activeUtility()
     local status = PanelWindow.status(self.panel, self.statusUtility)
     local text = status.left and status.text .. ", " .. status.left or status.text
-    self.status = { text = text, reason = status.reason, colour = PanelWindow.STATUS_COLOURS[status.level] }
+    local textX = PAD + FONT_HGT_SMALL
+    self.status = { text = text, textX = textX, colour = PanelWindow.STATUS_COLOURS[status.level] }
+    if status.reason then
+        local measure = getTextManager()
+        self.status.reason = "- " .. status.reason
+        self.status.reasonX = textX + measure:MeasureStringX(UIFont.Small, text) + 12
+        self.status.reasonEnd = self.status.reasonX + measure:MeasureStringX(UIFont.Small, self.status.reason)
+    end
     local lines = {}
     for _, utility in ipairs(BU.UTILITIES) do
         local each = PanelWindow.status(self.panel, utility)

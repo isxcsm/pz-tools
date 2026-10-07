@@ -1,10 +1,10 @@
 -- The breaker box window's list (one per tab) and the divider between the list and the plan. Each row is a table
--- with a kind; the list draws it and passes clicks on to the window (ISBUPanelWindow:onRow).
+-- with a kind; the list draws it and passes clicks on to the window (ISBUPanelWindow:onRow). A frame draws only the
+-- rows in view, with their buttons placed and their words measured once for the row.
 require "ISUI/ISScrollingListBox"
 require "BuildingUtilities/PanelUi"
 local BU = BuildingUtilities
-local Store, Panels, Networks, Costs, Actions, Sync, Geometry, Energy, Units = BU.Store, BU.Panels, BU.Networks, BU.Costs,
-    BU.Actions, BU.Sync, BU.Geometry, BU.Energy, BU.Units
+local Store = BU.Store
 local Ui = BU.PanelUi
 local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, rowObjects, outline,
     unoutline = Ui.FONT_HGT_SMALL, Ui.ROW, Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.CHOOSE_W, Ui.BATCH_BUTTONS,
@@ -19,6 +19,17 @@ local TIMER_W, ESSENTIAL_W, GROUP_W = 64, 48, 90
 -- Water groups' colours, by their place in the panel's list.
 local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
 
+-- The texts of the rows' buttons and marks, looked up once.
+local labels = {}
+local function label(key)
+    local text = labels[key]
+    if not text then
+        text = getText(key)
+        labels[key] = text
+    end
+    return text
+end
+
 function ISBUPanelList:new(x, y, width, height, window, utility)
     local o = ISScrollingListBox.new(self, x, y, width, height)
     o.window = window
@@ -31,8 +42,10 @@ function ISBUPanelList:new(x, y, width, height, window, utility)
 end
 
 -- The buttons at the end of a device's row, from the right: a water fixture's group (with more than one); for power,
--- whether the box may shed it (where it sheds), and its timer. Also where the row's own text on the right ends.
+-- whether the box may shed it (where it sheds), and its timer. Also where the row's own text on the right ends. Kept
+-- on the row for the list's width.
 local function deviceButtons(width, row)
+    if row.buttonsWidth == width then return row.buttons, row.textRight end
     local right = width - PAD - SCROLLBAR
     local result = {}
     if row.groupText then
@@ -40,39 +53,48 @@ local function deviceButtons(width, row)
         result[#result + 1] = { name = "group", x = right, w = GROUP_W }
         right = right - 4
     end
-    if not row.controls then return result, right end
-    if row.sheds then
-        right = right - ESSENTIAL_W
-        result[#result + 1] = { name = "essential", x = right, w = ESSENTIAL_W }
-        right = right - 4
+    if row.controls then
+        if row.sheds then
+            right = right - ESSENTIAL_W
+            result[#result + 1] = { name = "essential", x = right, w = ESSENTIAL_W }
+            right = right - 4
+        end
+        right = right - TIMER_W
+        result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
+        right = right - 8
     end
-    right = right - TIMER_W
-    result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
-    return result, right - 8
+    row.buttons, row.textRight, row.buttonsWidth = result, right, width
+    return result, right
 end
 
--- The buttons at the end of a producer's row, left to right: for power Up, Down and Remove; for water the tank's
--- group (with more than one) and Remove.
-local function producerButtons(width, row)
-    local names = not row.water and BUTTONS or row.groupText and { "Group", "Remove" } or { "Remove" }
-    local result, x = {}, width - PAD
+-- Buttons of the given names, left to right, ending at the right of the list (clear of its scrollbar); kept on the
+-- row for the list's width.
+local function buttonsAtRight(width, row, names)
+    if row.buttonsWidth == width then return row.buttons end
+    local result, x = {}, width - PAD - SCROLLBAR
     for index = #names, 1, -1 do
         local w = names[index] == "Group" and GROUP_W or BUTTON_W
         x = x - w - 4
         result[index] = { name = names[index], x = x, w = w }
     end
+    row.buttons, row.buttonsWidth = result, width
     return result
+end
+
+-- The buttons at the end of a producer's row, left to right: for power Up, Down and Remove; for water the tank's
+-- group (with more than one) and Remove.
+local function producerButtons(width, row)
+    return buttonsAtRight(width, row, not row.water and BUTTONS or row.groupText and { "Group", "Remove" } or { "Remove" })
 end
 
 -- A water group's row's buttons, left to right: Settings, Rename, and Remove but for the first group.
 local function groupButtons(width, row)
-    local names = row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" }
-    local result, x = {}, width - PAD - SCROLLBAR
-    for index = #names, 1, -1 do
-        x = x - BUTTON_W - 4
-        result[index] = { name = names[index], x = x, w = BUTTON_W }
-    end
-    return result
+    return buttonsAtRight(width, row, row.removable and { "Settings", "Rename", "Remove" } or { "Settings", "Rename" })
+end
+
+-- The Settings button of the bank's row (with a charge controller).
+local function settingsButton(width, row)
+    return buttonsAtRight(width, row, { "Settings" })[1]
 end
 
 local function smallButton(list, x, y, w, text, r, g, b)
@@ -80,9 +102,10 @@ local function smallButton(list, x, y, w, text, r, g, b)
     list:drawTextCentre(text, x + w / 2, y + (ROW - FONT_HGT_SMALL) / 2, r, g, b, 1, UIFont.Small)
 end
 
--- The Choose button of the outside group, right of its title.
+-- The Choose button of the outside group, right of its title; measured once for the row.
 local function chooseButtonX(row)
-    return ROOM_TICK_X + getTextManager():MeasureStringX(UIFont.Small, row.text) + 12
+    if not row.chooseX then row.chooseX = ROOM_TICK_X + getTextManager():MeasureStringX(UIFont.Small, row.text) + 12 end
+    return row.chooseX
 end
 
 -- The buttons of the chosen row, from the right.
@@ -158,12 +181,14 @@ end
 
 function ISBUPanelList:doDrawItem(y, item, alt)
     local row = item.item
+    item.height = (row.kind == "graph" or row.kind == "levels") and GRAPH_H or ROW
+    -- Out of view: only its place, as the game's list does.
+    local top = y + self:getYScroll()
+    if top + item.height < 0 or top >= self:getHeight() then return y + item.height end
     if row.kind == "graph" or row.kind == "levels" then
-        item.height = GRAPH_H
         if row.kind == "graph" then drawGraph(self, y, self:getWidth(), row) else drawLevels(self, y, self:getWidth(), row) end
         return y + GRAPH_H
     end
-    item.height = ROW
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
     if (self.hovered == item.index and (row.device or row.at or row.kind == "link")) or self.selected == item.index and row.device then
@@ -189,7 +214,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         if row.choosable then
             local on = row.choosing
             self:drawRect(chooseButtonX(row), y + 2, CHOOSE_W, ROW - 4, on and 0.8 or 0, 0.15, 0.35, 0.5)
-            smallButton(self, chooseButtonX(row), y, CHOOSE_W, getText(on and "IGUI_BU_ChooseDone" or "IGUI_BU_Choose"), 0.6, 0.85, 1)
+            smallButton(self, chooseButtonX(row), y, CHOOSE_W, label(on and "IGUI_BU_ChooseDone" or "IGUI_BU_Choose"), 0.6, 0.85, 1)
         end
         if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.9, 0.85, 0.6, 1, UIFont.Small) end
     elseif row.kind == "batch" then
@@ -197,7 +222,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawText(row.text, PAD * 2, textY, row.affords and 0.7 or 1, row.affords and 0.9 or 0.55, row.affords and 1 or 0.5, 1, UIFont.Small)
         for index, name in ipairs(BATCH_BUTTONS) do
             local enabled = name ~= "Connect" or (row.count > 0 and row.affords)
-            smallButton(self, batchButtonX(width, index), y, BATCH_W, getText("IGUI_BU_Batch" .. name),
+            smallButton(self, batchButtonX(width, index), y, BATCH_W, label("IGUI_BU_Batch" .. name),
                 enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
         end
     elseif row.kind == "link" then
@@ -205,7 +230,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         local r, g, b = 0.75, 0.85, 1
         if row.header then r, g, b = 1, 0.85, 0.5 end
         self:drawText(row.text, row.header and PAD or PAD * 2, textY, r, g, b, 1, UIFont.Small)
-        self:drawTextRight(getText("IGUI_BU_Open"), width - PAD - SCROLLBAR, textY, 0.5, 0.75, 1, 1, UIFont.Small)
+        self:drawTextRight(label("IGUI_BU_Open"), width - PAD - SCROLLBAR, textY, 0.5, 0.75, 1, 1, UIFont.Small)
     elseif row.kind == "note" or row.kind == "filter" then
         local shade = row.kind == "filter" and 1 or 0.7
         self:drawText(row.text, PAD * 2, textY, shade, shade, row.kind == "filter" and 0.6 or shade, 1, UIFont.Small)
@@ -216,7 +241,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.7, 0.7, 0.7, 1, UIFont.Small)
     elseif row.kind == "source" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
-        if row.settings then smallButton(self, width - (BUTTON_W + 4) - PAD, y, BUTTON_W, getText("IGUI_BU_Settings"), 1, 1, 1) end
+        if row.settings then
+            local button = settingsButton(width, row)
+            smallButton(self, button.x, y, button.w, label("IGUI_BU_Settings"), 1, 1, 1)
+        end
     elseif row.kind == "producer" then
         self:drawText(row.text, PAD * 2, textY, row.inUse and 0.5 or 0.9, row.inUse and 1 or 0.9, row.inUse and 0.5 or 0.9, 1, UIFont.Small)
         for _, button in ipairs(producerButtons(width, row)) do
@@ -224,7 +252,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
                 local c = row.groupColour
                 smallButton(self, button.x, y, button.w, row.groupText, c[1], c[2], c[3])
             else
-                smallButton(self, button.x, y, button.w, getText("IGUI_BU_" .. button.name), 1, 1, 1)
+                smallButton(self, button.x, y, button.w, label("IGUI_BU_" .. button.name), 1, 1, 1)
             end
         end
     elseif row.kind == "waterGroup" then
@@ -233,7 +261,7 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         self:drawText(row.text, PAD * 2 + ROW - 6, textY, 1, 1, 1, 1, UIFont.Small)
         local buttons = groupButtons(width, row)
         for _, button in ipairs(buttons) do
-            smallButton(self, button.x, y, button.w, getText("IGUI_BU_" .. button.name), 1, 1, 1)
+            smallButton(self, button.x, y, button.w, label("IGUI_BU_" .. button.name), 1, 1, 1)
         end
         if row.right then self:drawTextRight(row.right, buttons[1].x - 8, textY, 0.8, 0.85, 1, 1, UIFont.Small) end
     elseif row.kind == "addGroup" then
@@ -244,8 +272,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
         local shade = row.state ~= "other" and 1 or 0.5
         self:drawText(row.text, indent + ROW + 4, textY, shade, shade, shade, 1, UIFont.Small)
         if row.fresh then
-            local x = indent + ROW + 4 + getTextManager():MeasureStringX(UIFont.Small, row.text) + 6
-            self:drawText(getText("IGUI_BU_New"), x, textY, 0.3, 0.9, 1, 1, UIFont.Small)
+            if not row.freshX then row.freshX = indent + ROW + 4 + getTextManager():MeasureStringX(UIFont.Small, row.text) + 6 end
+            self:drawText(label("IGUI_BU_New"), row.freshX, textY, 0.3, 0.9, 1, 1, UIFont.Small)
         end
         local buttons, textRight = deviceButtons(width, row)
         for _, button in ipairs(buttons) do
@@ -254,11 +282,11 @@ function ISBUPanelList:doDrawItem(y, item, alt)
                 smallButton(self, button.x, y, button.w, row.groupText, c[1], c[2], c[3])
             elseif button.name == "timer" then
                 local timed = row.device.schedule ~= "always"
-                smallButton(self, button.x, y, button.w, getText("IGUI_BU_Schedule_" .. row.device.schedule),
+                smallButton(self, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
                     timed and 0.6 or 0.8, timed and 0.8 or 0.8, timed and 1 or 0.8)
             else
                 local on = row.device.essential
-                smallButton(self, button.x, y, button.w, getText("IGUI_BU_Essential"), on and 1 or 0.45, on and 0.85 or 0.45, on and 0.3 or 0.45)
+                smallButton(self, button.x, y, button.w, label("IGUI_BU_Essential"), on and 1 or 0.45, on and 0.85 or 0.45, on and 0.3 or 0.45)
             end
         end
         if row.right then
@@ -336,6 +364,7 @@ function ISBUSplitter:onMouseUpOutside(x, y) self.dragging = false end
 Ui.deviceButtons = deviceButtons
 Ui.producerButtons = producerButtons
 Ui.groupButtons = groupButtons
+Ui.settingsButton = settingsButton
 Ui.GROUP_COLOURS = GROUP_COLOURS
 Ui.chooseButtonX = chooseButtonX
 Ui.batchButtonX = batchButtonX
