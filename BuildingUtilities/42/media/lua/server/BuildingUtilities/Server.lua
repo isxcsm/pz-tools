@@ -43,7 +43,7 @@ function commands.setBlackout(player, panel, args) Changes.setBlackout(panel, ar
 
 -- The charge controller's settings, from its choices (Energy.CHOICES).
 function commands.setController(player, panel, args)
-    if (panel.tier or 1) < BU.CONTROLLER_TIER then return end
+    if not Energy.hasController(panel) then return end
     local settings = Energy.settings(panel)
     for name in pairs(Energy.DEFAULTS) do
         if type(args[name]) == "number" then settings[name] = args[name] end
