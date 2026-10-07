@@ -81,11 +81,6 @@ local function button(window, x, y, width, height, onclick)
     return b
 end
 
-local function anchorRight(element)
-    element:setAnchorLeft(false)
-    element:setAnchorRight(true)
-end
-
 function ISBUPanelWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local top = self:titleBarHeight() + PAD
@@ -93,11 +88,9 @@ function ISBUPanelWindow:createChildren()
     self.loadY = top + FONT_HGT_SMALL + 4
     self.bannerY = self.loadY + ROW + 4
     local buttonsY = self.bannerY + ROW + 4
+    -- Placed by layoutPanes at the right, as the window's width changes.
     self.rangeButton = button(self, self.width - PAD - 130, self.loadY, 130, ROW, ISBUPanelWindow.onRange)
-    anchorRight(self.rangeButton)
     self.planButton = button(self, self.width - PAD - 130 - 4 - 110, self.loadY, 110, ROW, ISBUPanelWindow.onPlan)
-    anchorRight(self.planButton)
-    self:placeTopButtons(self.planWanted)
     self.renameButton = button(self, PAD, buttonsY, 100, ROW, ISBUPanelWindow.onRename)
     self.renameButton:setTitle(getText("IGUI_BU_Rename"))
     self.mainButton = button(self, PAD + 106, buttonsY, 170, ROW, ISBUPanelWindow.onMainPanel)
@@ -168,10 +161,12 @@ function ISBUPanelWindow:createChildren()
     self:refresh()
 end
 
--- The list and, beside it, the plan with its share of the window, each at least so wide; the divider between them.
+-- The list and, beside it, the plan with its share of the window, each at least so wide; the divider between them;
+-- the buttons at the right of the load bar.
 function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
     local shown = self.plan:getIsVisible()
+    self:placeTopButtons(shown)
     local listW = self.width
     if shown then
         local planW = math.floor((self.width - PAD) * PanelWindow.planShare)
@@ -219,9 +214,9 @@ function ISBUPanelWindow:placeOptions()
     mark(self.loadSortButton, PanelWindow.options.byLoad)
 end
 
--- The plan beside the list, or not: the window grows or shrinks by it and the list keeps its width. The window's
--- width is set silently: a resize moves anchored children by the difference a frame later, over where they are put
--- here.
+-- The plan beside the list, or not: the window grows or shrinks by it and the list keeps its width. A frame later
+-- the game moves the window's anchored children (its title bar's buttons, the resize grips, the status line) by the
+-- difference and calls onResize, which lays the panes out again as here: what layoutPanes places has no anchor across.
 function ISBUPanelWindow:setPlanShown(shown)
     PanelWindow.planShown = shown
     if self.plan:getIsVisible() == shown then return end
@@ -229,9 +224,7 @@ function ISBUPanelWindow:setPlanShown(shown)
     self.plan:setVisible(shown)
     self.splitter:setVisible(shown)
     self.minimumWidth = minimumWidth(shown)
-    self.width = math.max(self.minimumWidth, math.min(windowWidth(listW, shown), getCore():getScreenWidth()))
-    self.javaObject:setWidthSilent(self.width)
-    self:placeTopButtons(shown)
+    self:setWidth(math.max(self.minimumWidth, math.min(windowWidth(listW, shown), getCore():getScreenWidth())))
     self:layoutPanes()
     if shown then
         local overflow = self:getX() + self.width - getCore():getScreenWidth()
