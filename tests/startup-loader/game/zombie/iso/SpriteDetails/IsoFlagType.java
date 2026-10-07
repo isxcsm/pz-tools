@@ -1,4 +1,4 @@
 package zombie.iso.SpriteDetails;
 
 /** Synthetic. */
-public enum IsoFlagType { exterior, waterPiped }
+public enum IsoFlagType { exterior, waterPiped, attachedN, attachedS, attachedE, attachedW }

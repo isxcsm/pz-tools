@@ -202,9 +202,10 @@ final class WaterGrid implements ApiHooks.Water {
             }
         }
         Supplier found = included;
+        Position home = found != null ? at : buildings.home(fixture, at);
         for (int index = 0; found == null && index < current.suppliers().size(); index++) {
             Supplier supplier = current.suppliers().get(index);
-            if (supplier.area() != null && supplier.area().contains(at) && !excluded.contains(supplier.network())) found = supplier;
+            if (supplier.area() != null && supplier.area().contains(home) && !excluded.contains(supplier.network())) found = supplier;
         }
         return found != null && buildings.piped(fixture) ? found : null;
     }

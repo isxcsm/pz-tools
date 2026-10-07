@@ -109,8 +109,11 @@ for loaded and unloaded squares alike. A square belongs to it when one of its ro
 
 A light switch belongs to the room it lights (`IsoLightSwitch.roomId`). One on a south or east wall
 stands on the square beyond the wall, outside its room: `objects` reads one square around the
-building for those, and `near` leaves out every switch that lights a room. Objects exist only on
-loaded squares; the second result says whether some were missing.
+building for those, and `near` leaves out every switch that lights a room. So with anything else
+that hangs on a wall (its sprite is `attachedN`, `attachedS`, `attachedE` or `attachedW`) and stands
+on a square of no room: it belongs to the room across that wall, as a lamp on a building's outer
+wall does. A network supplies such an object with that room, as power and water to its square
+would. Objects exist only on loaded squares; the second result says whether some were missing.
 
 A key is the position `"x,y,z"` of the corner of the building's lowest level that is furthest north,
 then west: a square of that building, so no two buildings share it. A key that no longer names a

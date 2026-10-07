@@ -41,6 +41,7 @@ public final class GameApiTest {
         rooms(buildings);
         objects(buildings);
         near(buildings);
+        wallLamps(api, buildings);
         callerErrors(buildings);
         clients(api);
         networks(api);
@@ -179,6 +180,44 @@ public final class GameApiTest {
         int count = 0;
         for (boolean value : ring) if (value) count++;
         check(count == 9 && ring[6] && ring[18] && !ring[0], "Dilation is not a square");
+    }
+
+    /**
+     * A lamp on the house's outer wall stands outside, on the square beyond the wall, but is the house's: listed with
+     * it, not near it, and powered with it. One standing there on no wall stays outside.
+     */
+    private static void wallLamps(KahluaTable api, KahluaTable buildings) throws Exception {
+        // On the kitchen's east wall, which is the west edge of the square beyond.
+        var lamp = powered("wall lamp", 0.004f);
+        lamp.sprite.properties.flags.add(IsoFlagType.attachedW);
+        place(14, 11, 0, lamp);
+        var standing = place(14, 12, 0, powered("standing lamp", 0.004f));
+        KahluaTable listed = find(call(buildings, "objects", KEY, "power").get(0), "wall lamp");
+        check(listed != null && listed.rawget("room").equals("kitchen") && listed.rawget("x").equals(14.0),
+            "A lamp on the outer wall is not the house's");
+        var around = sprites(call(buildings, "near", KEY, 1.0).get(0));
+        check(around.equals(Set.of("standing lamp")), "Wrong objects around the house: " + around);
+
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "lamp.mod").get(0);
+        var generator = place(7, 33, 0, new IsoGenerator(new IsoSprite("generator")));
+        call(networks, "define", mod, "lamps", "power", "sequential");
+        call(networks, "setProducers", mod, "lamps", list(at(7, 33, 0)));
+        call(networks, "addBuilding", mod, "lamps", 11.0, 11.0, 0.0);
+        generator.setActivated(true);
+        frame();
+        check(ItemContainer.isObjectPowered(lamp, true) && !ItemContainer.isObjectPowered(lamp, false)
+            && !ItemContainer.isObjectPowered(standing, true), "The lamp on the outer wall has no power, or the one beside it has");
+        check(sprites(call(networks, "consumers", "lamps").get(0)).contains("wall lamp"), "The lamp on the outer wall is no consumer");
+        call(networks, "exclude", mod, "lamps", 14.0, 11.0, 0.0, "wall lamp");
+        frame();
+        check(!ItemContainer.isObjectPowered(lamp, true), "An excluded lamp on the outer wall has power");
+        call(networks, "remove", mod, "lamps");
+        generator.setActivated(false);
+        frame();
+        square(14, 11, 0).objects.clear();
+        square(14, 12, 0).objects.clear();
+        square(7, 33, 0).objects.clear();
     }
 
     private static void callerErrors(KahluaTable buildings) {

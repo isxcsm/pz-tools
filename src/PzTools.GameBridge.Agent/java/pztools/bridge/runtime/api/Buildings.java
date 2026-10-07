@@ -2,6 +2,8 @@ package pztools.bridge.runtime.api;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import pztools.bridge.runtime.api.Network.Position;
 
 /**
  * {@code PZToolsAPI.buildings}: buildings as the game's map data (the meta grid) describes them now, and the objects in
@@ -21,6 +23,11 @@ final class Buildings {
     private final Method rectX, rectY, rectW, rectH;
     private final Method objectSprite, spriteName, spriteNameOf, properties, has, couldBePowered, consumption;
     private final Object waterPiped;
+    // The walls a sprite hangs on, as steps to the square across: { dx, dy }, or none. Sprites are few and shared.
+    private final Object[] attached;
+    private static final int[][] ACROSS = { { 0, -1 }, { 0, 1 }, { 1, 0 }, { -1, 0 } };
+    private static final int[] NONE = {};
+    private final Map<Object, int[]> across = new ConcurrentHashMap<>();
 
     Buildings(Kahlua lua, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
@@ -55,6 +62,8 @@ final class Buildings {
         couldBePowered = object.getMethod("couldBePoweredByGenerator");
         consumption = object.getMethod("getGeneratorPowerConsumption");
         waterPiped = flag.getField("waterPiped").get(null);
+        attached = new Object[] { flag.getField("attachedN").get(null), flag.getField("attachedS").get(null),
+            flag.getField("attachedE").get(null), flag.getField("attachedW").get(null) };
         lightSwitch = type(loader, "zombie.iso.objects.IsoLightSwitch");
         switchRoom = lightSwitch.getField("roomId");
     }
@@ -167,7 +176,7 @@ final class Buildings {
                     Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
                     if (loaded == null) { if (inside) complete[0] = false; continue; }
                     for (Object object : objectsOn(loaded)) {
-                        Object owner = owner(object, room);
+                        Object owner = owner(object, room, x, y, z);
                         if (owner == null || !rooms.contains(owner)) continue;
                         Found thing = classify(object, filter, x, y, z, owner);
                         if (thing != null) result.add(thing);
@@ -207,7 +216,7 @@ final class Buildings {
                     Object loaded = cells == null ? null : square.invoke(cells, wx, wy, z);
                     if (loaded == null) { complete = false; continue; }
                     for (Object object : objectsOn(loaded)) {
-                        if (owner(object, null) != null) continue;
+                        if (owner(object, null, wx, wy, z) != null) continue;
                         Found thing = classify(object, filter, wx, wy, z, null);
                         if (thing != null) result.add(entry(thing));
                     }
@@ -238,8 +247,11 @@ final class Buildings {
         return result;
     }
 
-    /** The room an object belongs to: a light switch's lit room, or else its square's room. */
-    private Object owner(Object object, Object squareRoom) throws ReflectiveOperationException {
+    /**
+     * The room an object belongs to: a light switch's lit room, or else its square's room, or else, for one hanging on a
+     * wall outside (a lamp on a building's outer wall), the room across that wall (see {@link #home}).
+     */
+    private Object owner(Object object, Object squareRoom, int x, int y, int z) throws ReflectiveOperationException {
         if (lightSwitch.isInstance(object)) {
             long lit = switchRoom.getLong(object);
             if (lit != -1) {
@@ -248,7 +260,36 @@ final class Buildings {
                 if (room != null) return room;
             }
         }
-        return squareRoom;
+        if (squareRoom != null) return squareRoom;
+        int[] step = across(object);
+        return step.length == 0 ? null : roomAt(x + step[0], y + step[1], z);
+    }
+
+    /**
+     * The square an object counts as standing in: its own, or, for one on a square of no room that hangs on a wall
+     * (its sprite is attached north, south, east or west) with a room across it, the square across. A lamp on a
+     * building's outer wall stands outside, on the square beyond the wall, but is the building's.
+     */
+    Position home(Object object, Position at) throws ReflectiveOperationException {
+        if (at == null) return null;
+        int[] step = across(object);
+        if (step.length == 0 || roomAt(at.x(), at.y(), at.z()) != null) return at;
+        Position beyond = new Position(at.x() + step[0], at.y() + step[1], at.z());
+        return roomAt(beyond.x(), beyond.y(), beyond.z()) != null ? beyond : at;
+    }
+
+    /** The step to the square across the wall the object's sprite hangs on, or none. */
+    private int[] across(Object object) throws ReflectiveOperationException {
+        Object sprite = objectSprite.invoke(object);
+        if (sprite == null) return NONE;
+        int[] known = across.get(sprite);
+        if (known != null) return known;
+        Object flags = properties.invoke(sprite);
+        int[] result = NONE;
+        for (int side = 0; flags != null && side < attached.length; side++)
+            if ((boolean)has.invoke(flags, attached[side])) { result = ACROSS[side]; break; }
+        across.put(sprite, result);
+        return result;
     }
 
     /** The object when it uses what the filter asks for, or null. */

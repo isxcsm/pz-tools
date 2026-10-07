@@ -217,7 +217,8 @@ final class PowerGrid implements ApiHooks.Power {
     @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) {
         if (!generators || object == null) return vanilla;
         Snapshot current = snapshot;
-        if (current.rules().isEmpty() && (kind != ApiHooks.ROOM_LIGHT || current.rooms().isEmpty())) return vanilla;
+        boolean outside = !vanilla && current.supplied().length > 0;
+        if (current.rules().isEmpty() && !outside && (kind != ApiHooks.ROOM_LIGHT || current.rooms().isEmpty())) return vanilla;
         boolean[] pure = PURE.get();
         if (pure[0]) return vanilla;
         try {
@@ -243,7 +244,8 @@ final class PowerGrid implements ApiHooks.Power {
             }
             // A switch powers its room's light when a network supplies that room, wherever the switch stands: one on a
             // south or east wall stands on the square beyond, outside the building.
-            if (!excluded) return vanilla || kind == ApiHooks.ROOM_LIGHT && current.rooms().contains(switchRoom.getLong(object));
+            if (!excluded) return vanilla || kind == ApiHooks.ROOM_LIGHT && current.rooms().contains(switchRoom.getLong(object))
+                || outside && onSuppliedWall(current, target);
             if (!vanilla) return false;
             // The game said yes, perhaps because a network powers the square: ask it again without the networks.
             pure[0] = true;
@@ -261,6 +263,14 @@ final class PowerGrid implements ApiHooks.Power {
         } catch (ReflectiveOperationException failure) {
             throw new IllegalStateException(failure);
         }
+    }
+
+    /** Whether the object hangs on a wall outside a supplied building (see Buildings.home). */
+    private boolean onSuppliedWall(Snapshot current, Object target) throws ReflectiveOperationException {
+        Position at = members.at(target), home = buildings.home(target, at);
+        if (home == null || home.equals(at)) return false;
+        for (Area area : current.supplied()) if (area.contains(home)) return true;
+        return false;
     }
 
     @Override public boolean generator(Object generator) {
@@ -378,7 +388,7 @@ final class PowerGrid implements ApiHooks.Power {
                 excluded.add(rule.network());
             }
         }
-        Position at = members.at(object);
+        Position at = buildings.home(object, members.at(object));
         if (at == null) return null;
         for (Network network : current.withArea()) {
             Area area = network.area;
