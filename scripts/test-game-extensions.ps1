@@ -78,6 +78,7 @@ function Invoke-JavaTest([string] $name, [string[]] $arguments) {
 }
 Invoke-JavaTest 'override archive validation' @('OverrideArchiveValidationTest', (Join-Path $output 'override-archive-validation'))
 Invoke-JavaTest 'extension checkpoint behavior' @('CheckpointRuntimeTest')
+Invoke-JavaTest 'extension catalogue' @('pztools.extensions.runtime.CatalogueTest')
 Invoke-JavaTest 'shared extension version rules' @('VersionSupportTest', (Join-Path $root 'tests/game-extensions/version-support.tsv'), (Join-Path $root 'config/game-extensions/catalog.tsv'))
 Invoke-JavaTest 'vehicle drivetrain model' @('pztools.extensions.vehicle.model.DrivetrainModelTest')
 Invoke-JavaTest 'keyboard steering model' @('pztools.extensions.vehicle.model.SteeringModelTest')

@@ -56,9 +56,10 @@ must carry the vehicle capability.
 
 Three readers use the deployed file: the UI controller on every card refresh, the scheduler
 when it starts (falling back to the embedded copy if the file cannot be read), and the host in
-the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name
-(`ModuleHost` when the host loads, `ContinuousRuntime` on every `APPLY`). It accepts only the
-continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.
+the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name, with
+one parser (`Catalogue`) that `ModuleHost` uses when the host loads and `ContinuousRuntime` on every
+`APPLY`. Besides `save.prepare.v1` it accepts the continuous capabilities in `Catalogue.CONTINUOUS`:
+`continuous.v1`, and `vehicle.drivetrain.v1`, the earlier name of the same contract.
 
 ### Version admission
 
@@ -293,7 +294,7 @@ checked on next save · Experimental**, **Version override · Essential checks s
 2. **Catalogue row** in `config/game-extensions/catalog.tsv`.
 3. **Capability.** An existing one can be reused. A new one must be added to
    `ExtensionCapabilities.Classify` and, for a continuous module, to
-   `ContinuousRuntime.CAPABILITIES`; otherwise both sides reject the whole catalogue.
+   `Catalogue.CONTINUOUS`; otherwise both sides reject the whole catalogue.
 4. **Texts.** `Extension.<Name>.Title` and `.Description` in every `Resources.resw` (see
    [localisation](../contributing/localization.md)).
 5. **Configuration.** Add a case to `RuntimeExtensionCoordinator.Configure`. Without one every
@@ -318,7 +319,7 @@ C# tests are in `tests/PzTools.Backup.Tests`, Java tests under `tests/game-exten
 | Catalogue, versions, capabilities | `ExtensionVersionTests`, `ExtensionCapabilityClassificationTests`, `GameExtensionCatalogProjectionTests`, `VersionSupportTest` |
 | Preferences and card projection | `GameExtensionTests`, `GameExtensionEditTests`, `GameExtensionProjectionTests`, `ExtensionActivationViewTests`, `ExtensionRuntimeStatusSelectionTests` |
 | Scheduler | `GameExtensionReconciliationTests`, `GameExtensionActivationStateTests`, `ExtensionCoordinatorTests`, `RuntimeExtensionIntegrationTests` |
-| Host and control channel | `ModuleSlotsTest`, `ControlPointsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
+| Host and control channel | `ModuleSlotsTest`, `CatalogueTest`, `ControlPointsTest`, `ExtensionControlTest`, `ExtensionControlConcurrencyTest` |
 
 `scripts/test-game-extensions.ps1` runs the Java tests under `tests/game-extensions`.
 `scripts/test-game-bridge.ps1` runs it as its `extensions` suite, the control-channel tests as

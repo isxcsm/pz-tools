@@ -3,7 +3,6 @@ package pztools.extensions.runtime;
 import pztools.extensions.api.*;
 import pztools.extensions.api.internal.ClassArchive;
 import java.lang.instrument.Instrumentation;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
@@ -14,9 +13,6 @@ import java.util.concurrent.atomic.*;
  * other. Independent of CheckpointRuntime. No lifecycle lock crosses a game callback.
  */
 final class ContinuousRuntime {
-    /** Capabilities that run for as long as they are on, as opposed to once per save. */
-    static final Set<String> CAPABILITIES = Set.of("vehicle.drivetrain.v1");
-    private record Definition(String id, String version, String namespace, String entry, String jar, VersionSupport support) { }
     private final Object operations = new Object();
     private final AtomicReference<Generation> current = new AtomicReference<>();
     private volatile ContinuousModules.Status report = empty("Disabled", null);
@@ -30,7 +26,7 @@ final class ContinuousRuntime {
         return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), null, null, -1, null, null, "");
     }
     private static final class Generation {
-        final ContinuousProvider provider; final Definition definition; final String digest;
+        final ContinuousProvider provider; final Catalogue.Definition definition; final String digest;
         final String id = UUID.randomUUID().toString().replace("-", "");
         final AtomicBoolean valid = new AtomicBoolean(true);
         final String world; final ClassLoader loader;
@@ -42,7 +38,7 @@ final class ContinuousRuntime {
         volatile long revision = -1;
         /** The game-thread lifecycle calls (activation, configuration, frame) that retirement waits for. */
         final Lease callbacks = new Lease();
-        Generation(ContinuousProvider provider, Definition definition, String digest,
+        Generation(ContinuousProvider provider, Catalogue.Definition definition, String digest,
                    ContinuousModules.Apply request, ClassLoader loader) {
             this.provider = provider; this.definition = definition; this.digest = digest;
             world = request.worldId(); this.loader = loader; pending = request;
@@ -54,7 +50,7 @@ final class ContinuousRuntime {
         }
         ContinuousModules.Status status(String state, String reason) {
             return new ContinuousModules.Status(state, reason, RuntimeIdentity.processId(), world, id,
-                revision, definition.version, digest, "");
+                revision, definition.version(), digest, "");
         }
     }
     ContinuousModules.Status apply(ContinuousModules.Apply request, Instrumentation instrumentation,
@@ -66,9 +62,9 @@ final class ContinuousRuntime {
                     || request.expectedRevision() != report.appliedRevision()) return rejected("revision-conflict");
             ContinuousProvider candidate = null;
             try {
-                Definition definition = definition(request.moduleId());
-                if (!request.forceVersion() && !definition.support.matches(version)) return rejected("version-mismatch");
-                var archive = ClassArchive.read(directory.resolve(definition.jar));
+                Catalogue.Definition definition = definition(request.moduleId());
+                if (!request.forceVersion() && !definition.support().matches(version)) return rejected("version-mismatch");
+                var archive = ClassArchive.read(directory.resolve(definition.jar()));
                 archive.require("PzTools-Extension-Api", Integer.toString(ExtensionApi.HOST_ABI));
                 Generation old = current.get();
                 if (old != null && !old.revoked && old.loader == loader && old.world.equals(request.worldId())
@@ -86,9 +82,9 @@ final class ContinuousRuntime {
                         old.pending = request; report = old.status("Pending", "safe-boundary"); return report;
                     }
                 }
-                var moduleLoader = archive.loader(definition.namespace, getClass().getClassLoader(), true);
-                candidate = (ContinuousProvider)moduleLoader.loadClass(definition.entry).getConstructor().newInstance();
-                if (!candidate.id().equals(definition.id)) throw new IllegalArgumentException("Module identity mismatch");
+                var moduleLoader = archive.loader(definition.namespace(), getClass().getClassLoader(), true);
+                candidate = (ContinuousProvider)moduleLoader.loadClass(definition.entry()).getConstructor().newInstance();
+                if (!candidate.id().equals(definition.id())) throw new IllegalArgumentException("Module identity mismatch");
                 candidate.validateConfig(request.config());
                 // Borrow only the old transformer's pre-hook input, never its module-owned callback implementation.
                 var preflight = candidate.preflight(instrumentation, loader,
@@ -123,28 +119,11 @@ final class ContinuousRuntime {
             previous.processId(), previous.worldId(), previous.generation(), previous.appliedRevision(),
             previous.moduleVersion(), previous.moduleSha256(), "");
     }
-    private Definition definition(String id) throws Exception {
-        byte[] bytes;
-        try (var stream = Files.newInputStream(directory.resolve("catalog.tsv"), LinkOption.NOFOLLOW_LINKS)) {
-            bytes = stream.readNBytes(65537);
-        }
-        if (bytes.length > 65536) throw new IllegalArgumentException("Oversized catalogue");
-        Definition selected = null; Set<String> ids = new HashSet<>();
-        for (String line : new String(bytes, StandardCharsets.UTF_8).split("\\R")) {
-            if (line.isBlank() || line.startsWith("#")) continue;
-            String[] p = line.split("\t", -1);
-            if ((p.length != 10 && p.length != 11) || !ids.add(p[0]) || ids.size() > 64)
-                throw new IllegalArgumentException("Invalid catalogue");
-            if (!p[0].equals(id)) continue;
-            if (p.length != 11 || !CAPABILITIES.contains(p[10])
-                    || !p[2].matches("pztools\\.extensions\\.[A-Za-z0-9_.]+")
-                    || !p[3].startsWith(p[2] + ".") || !p[3].matches("[A-Za-z0-9_.]+")
-                    || !p[4].matches("[a-z0-9-]+\\.jar")) throw new IllegalArgumentException("Unsupported continuous capability");
-            selected = new Definition(p[0], p[1], p[2], p[3], p[4],
-                new VersionSupport(p[5], p[6].equals("-") ? null : p[6], p[7].equals("-") ? null : p[7]));
-        }
-        if (selected == null) throw new IllegalArgumentException("Unknown continuous module");
-        return selected;
+    private Catalogue.Definition definition(String id) throws Exception {
+        Catalogue.Definition definition = Catalogue.read(directory).get(id);
+        if (definition == null) throw new IllegalArgumentException("Unknown continuous module");
+        if (!definition.continuous()) throw new IllegalArgumentException("Unsupported continuous capability");
+        return definition;
     }
     void tick(ContinuousProvider.Context context) {
         Generation g = current.get();

@@ -67,7 +67,7 @@ and 32 MiB of class data.
 | --- | --- |
 | Payload | Its digest differs from the loaded one |
 | Extension runtime | Its digest differs from the loaded one |
-| Continuous module | The digest or its catalogue definition (id, version, namespace, entry class, jar, supported game versions) differs, or the world, the game class loader or the generation is no longer the one loaded |
+| Continuous module | The digest or its catalogue definition (id, version, namespace, entry class, jar, supported game versions, capability) differs, or the world, the game class loader or the generation is no longer the one loaded |
 
 A module's title and description are not part of the definition; changing them reloads nothing. The same bytes
 at a new path are not a change ([app moved](#when-the-app-is-moved)).

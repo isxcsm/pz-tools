@@ -292,7 +292,8 @@ its version, Java namespace and entry class, jar, supported game versions and ca
 
 ### Capability
 
-The contract a module implements, such as `vehicle.drivetrain.v1`. It decides how the module is run.
+The contract a module implements, such as `continuous.v1` (run every frame while on; `vehicle.drivetrain.v1` is
+its earlier name). It decides how the module is run.
 
 ### Provider
 

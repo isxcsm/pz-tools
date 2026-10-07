@@ -25,7 +25,7 @@ public final class ContinuousRuntimeTest {
         Path base = Files.createDirectories(Path.of("artifacts/vehicle-shared-tests").toAbsolutePath());
         Path root = Files.createTempDirectory(base, "pztools-continuous-");
         try {
-            Files.writeString(root.resolve("catalog.tsv"), "fixture.vehicle\t1.0.0\tpztools.extensions.fixture\tpztools.extensions.fixture.Provider\tfixture.jar\tAll\t-\t-\ttitle\tdescription\tvehicle.drivetrain.v1\n");
+            Files.writeString(root.resolve("catalog.tsv"), "fixture.vehicle\t1.0.0\tpztools.extensions.fixture\tpztools.extensions.fixture.Provider\tfixture.jar\tAll\t-\t-\ttitle\tdescription\tcontinuous.v1\n");
             byte[] first = archive(root);
             Files.write(root.resolve("fixture.jar"), first);
             ClassLoader loader = ContinuousRuntimeTest.class.getClassLoader();

@@ -14,6 +14,8 @@ import java.util.concurrent.atomic.*;
 /** Force publication interleavings in an isolated copy of the real runtime, without production hooks. */
 public final class ContinuousRuntimePublicationTest {
     private static final String RUNTIME = "pztools.extensions.runtime.ContinuousRuntime";
+    // Package-private classes the runtime uses must share its isolated runtime package.
+    private static final String CATALOGUE = "pztools.extensions.runtime.Catalogue";
     private static CountDownLatch boundaryEntered, boundaryReleased;
 
     static void run(Path root, Object world, String worldId, ClassLoader gameClasses) throws Exception {
@@ -21,7 +23,7 @@ public final class ContinuousRuntimePublicationTest {
         for (boolean afterPublication : new boolean[] { true, false }) {
             ClassLoader isolated = new ClassLoader(ContinuousRuntimePublicationTest.class.getClassLoader()) {
                 @Override protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-                    if (!name.equals(RUNTIME) && !name.startsWith(RUNTIME + "$")
+                    if (!name.equals(RUNTIME) && !name.startsWith(RUNTIME + "$") && !name.equals(CATALOGUE) && !name.startsWith(CATALOGUE + "$")
                             && !name.equals(ContinuousRuntimePublicationTest.class.getName()))
                         return super.loadClass(name, resolve);
                     synchronized (getClassLoadingLock(name)) {
