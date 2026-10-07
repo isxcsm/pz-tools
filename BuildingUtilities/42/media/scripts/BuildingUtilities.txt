@@ -10,7 +10,7 @@ module BuildingUtilities
         DisplayCategory = Electronics,
         ItemType = base:normal,
         Weight = 3.0,
-        Icon = Receiver,
+        Icon = BUBreakerBox,
     }
 
     item SolarPanel
