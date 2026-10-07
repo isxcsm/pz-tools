@@ -22,6 +22,8 @@ Then `RUN("bu_all.lua")` runs the logic checks of the solar and battery batches 
   test save and are kept as a record.
 - `bu_setup.lua`, `bu_visual.lua`, `bu_noon.lua`: the test panel and its solar and battery scene.
 - `bu_rack.lua`: helpers that put batteries in a rack's container and take them out.
+- `bu_revive.lua`: a worn battery and the tools in the inventory with Electricity 4, and its context menu opened;
+  `BUREVIVE_DONE=true` then running it again puts the level back.
 - The rest look at one thing (`bu_net`, `bu_rackdiag`, `bu_where`) or check one game fact (`bu_plumb`,
   `bu_rainbarrel`, `bu_handover`).
 
