@@ -189,7 +189,6 @@ local function checkSource(panel, hours)
         if can or rules.generators then Networks.setSource(panel, true, true) else panel.sourceOn = nil end
         return
     end
-    panel.sourceOn = inUse or nil
     -- Charging from a generator (tier 3): what the bank lacks, at most CHARGE_RATE a battery, and within what the box
     -- carries over its devices' load, since charging counts toward overload.
     local charging = 0
@@ -206,6 +205,9 @@ local function checkSource(panel, hours)
         Sync.notice(panel, rules.generators and "IGUI_BU_Notice_BankLow" or "IGUI_BU_Notice_BankEmpty", Panels.name(panel))
     end
     if can ~= available or switchOn then Networks.setSource(panel, can, switchOn) end
+    -- Carrying the load as it goes on: taken off because it cannot, it was not lost, and comes back only by its
+    -- rules (rules.restart), not as after a load.
+    panel.sourceOn = (inUse or switchOn) and can or nil
     checkSaving(panel, state, bank, output, rules)
 end
 
@@ -260,6 +262,29 @@ local function recordEnergy(panel)
     return hour ~= panel.energyNow.hour
 end
 
+-- What each main panel did for its player, for the log: hours its units' source carried the load, the generator fuel
+-- that spared (litres, from the API's fuelPerHour at the load; an older API has none), and when its power was last cut
+-- (not for quiet hours, nor while the grid runs; a cut of a minute is the source handed on as the world loads).
+local function recordStats(panel)
+    if panel.parent then return end
+    local state = Networks.state(panel, "power")
+    if not state then return end
+    local now = getGameTime():getWorldAgeHours()
+    local stats = panel.stats or { since = now }
+    panel.stats = stats
+    if state.supplied and Energy.inUse(state) then
+        stats.carried = (stats.carried or 0) + 1 / 60
+        if state.fuelPerHour then stats.saved = (stats.saved or 0) + state.fuelPerHour / 60 end
+    end
+    local wanted = #panel.power.producers > 0 or Energy.hasSource(panel)
+    if wanted and not state.supplied and not panel.quietCut and not getWorld():isHydroPowerOn() then
+        stats.dark = (stats.dark or 0) + 1
+        if stats.dark >= 2 then stats.outage = now end
+    else
+        stats.dark = nil
+    end
+end
+
 local function everyMinute()
     if not BU.api() then return end
     updateUnits()
@@ -268,6 +293,7 @@ local function everyMinute()
         checkLoad(panel)
         checkFuel(panel)
         hourEnded = recordEnergy(panel) or hourEnded
+        recordStats(panel)
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).
     if hourEnded and isServer() then ModData.transmit(Store.KEY) end

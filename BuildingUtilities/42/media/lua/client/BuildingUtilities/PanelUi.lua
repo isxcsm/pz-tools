@@ -67,6 +67,13 @@ local function unoutline(playerNum, objects)
     end
 end
 
+-- A time left, one way for a battery and for fuel: under an hour, hours up to two days, then days.
+local function duration(hours)
+    if hours < 1 then return getText("IGUI_BU_DurLessHour") end
+    if hours < 48 then return getText("IGUI_BU_DurHours", math.floor(hours + 0.5)) end
+    return getText("IGUI_BU_DurDays", math.floor(hours / 24 + 0.5))
+end
+
 local function count(set)
     local n = 0
     for _ in pairs(set or {}) do n = n + 1 end
@@ -104,6 +111,7 @@ Ui.rowObjects = rowObjects
 Ui.outline = outline
 Ui.unoutline = unoutline
 Ui.count = count
+Ui.duration = duration
 Ui.nextSchedule = nextSchedule
 
 return Ui

@@ -41,7 +41,7 @@ end
 -- How the source runs for a panel this minute, by its tier and settings: load (what its devices draw, without what
 -- the bank takes to charge), charging (that), floor (the share of the bank it is not drawn below: the cutoff at
 -- tier 4; with a charge controller and a generator to hand over to, its start setting, but in quiet hours), restart
--- (the share it needs to carry the load again: 2% over the floor, or the stop setting), quiet, generators (whether
+-- (the share it needs to carry the load again: BANK_START over the floor, or the stop setting), quiet, generators (whether
 -- a generator of the panel could take over: on a loaded square, as the API hands over only to those, with fuel and
 -- not broken) and settings.
 function Energy.rules(panel, state)

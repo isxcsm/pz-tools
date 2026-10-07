@@ -1,4 +1,4 @@
--- The breaker box window: its name and supply, its load against what it carries and a banner when the breaker is
+-- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load against what it carries and a banner when the breaker is
 -- down or devices are shed, then a tab per utility with its producers (or the main panel that supplies it), its
 -- sub-panels, and its devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
@@ -66,7 +66,7 @@ function ISBUPanelWindow:new(x, y, playerObj, panel)
     o.views = {}
     -- Devices outside being chosen to connect together, by utility.
     o.choosing, o.chosen = {}, { power = {}, water = {} }
-    o:setTitle(getText("IGUI_BU_WindowTitle"))
+    o:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     return o
 end
 
@@ -85,7 +85,7 @@ end
 function ISBUPanelWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local top = self:titleBarHeight() + PAD
-    self.summaryY = top
+    self.statusY = top
     self.loadY = top + FONT_HGT_SMALL + 4
     self.bannerY = self.loadY + ROW + 4
     local buttonsY = self.bannerY + ROW + 4
@@ -133,6 +133,13 @@ function ISBUPanelWindow:createChildren()
     self.search.onTextChangeFunction = ISBUPanelWindow.onSearch
     self.search.target = self
     self:addChild(self.search)
+    -- Over the status line: both utilities in full, as a tooltip.
+    self.statusArea = ISButton:new(PAD, self.statusY, self.width - PAD * 2, FONT_HGT_SMALL, "", self, nil)
+    self.statusArea:initialise()
+    self.statusArea.displayBackground = false
+    self.statusArea.borderColor = { r = 0, g = 0, b = 0, a = 0 }
+    self.statusArea:setAnchorRight(true)
+    self:addChild(self.statusArea)
     -- Over the load bar and its text: what makes the load, as a tooltip.
     self.loadArea = ISButton:new(PAD, self.loadY, BAR_W, ROW, "", self, nil)
     self.loadArea:initialise()
@@ -257,11 +264,25 @@ function ISBUPanelWindow:prerender()
     ISCollapsableWindow.prerender(self)
     if self.tabs and self.tabs.activeView then PanelWindow.lastTab = self.tabs.activeView.name end
     if self.plan and self.plan:getIsVisible() and self.planUtility ~= self:activeUtility() then self:updatePlan() end
+    if self.statusUtility ~= self:activeUtility() then self:updateStatus() end
 end
 
 function ISBUPanelWindow:render()
     ISCollapsableWindow.render(self)
-    if self.summary then self:drawText(self.summary, PAD, self.summaryY, 1, 1, 1, 1, UIFont.Small) end
+    local status = self.status
+    if status then
+        local c, dot = status.colour, FONT_HGT_SMALL - 6
+        self:drawRect(PAD, self.statusY + 3, dot, dot, 1, c[1], c[2], c[3])
+        local x = PAD + dot + 6
+        self:drawText(status.text, x, self.statusY, c[1], c[2], c[3], 1, UIFont.Small)
+        if status.reason then
+            local reasonX = x + getTextManager():MeasureStringX(UIFont.Small, status.text) + 12
+            local reason = "- " .. status.reason
+            if reasonX + getTextManager():MeasureStringX(UIFont.Small, reason) <= self.width - PAD then
+                self:drawText(reason, reasonX, self.statusY, 0.65, 0.65, 0.65, 1, UIFont.Small)
+            end
+        end
+    end
     if self.load then
         local barY = self.loadY + (ROW - FONT_HGT_SMALL) / 2
         local share = math.min(1, self.load / math.max(self.capacity, 1e-6))
@@ -317,11 +338,8 @@ function ISBUPanelWindow:refresh()
     if not panel then return end
     self.panel = panel
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
-    local powerText = getText("IGUI_BU_SummaryPower", power and power.supplied and "*" or "-",
-        power and power.hoursLeft and string.format("%.0f", power.hoursLeft) or "-")
-    local waterText = getText("IGUI_BU_SummaryWater", water and water.supplied and "*" or "-",
-        water and string.format("%.0f", water.amount or 0) or "-", water and string.format("%.0f", water.capacity or 0) or "-")
-    self.summary = getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1) .. "   " .. powerText .. "   " .. waterText
+    self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
+    self:updateStatus()
     self.capacity = Panels.capacity(panel)
     self.load = power and power.load or nil
     self.loadFactor = power and power.loadFactor or 1
@@ -561,6 +579,7 @@ function ISBUPanelWindow:fill(utility, state)
             state = dark > 0 and "on" or "off" }, getText(dark > 0 and "IGUI_BU_BlackoutEndTip" or "IGUI_BU_BlackoutTip"))
     end
     if not complete then add({ kind = "note", text = getText("IGUI_BU_NotAllLoaded") }) end
+    if #devices == 0 then add({ kind = "note", text = getText("IGUI_BU_NoDevices_" .. utility) }) end
     -- Rooms by their id (rooms of one name stay apart), devices in no room after them, then those outside.
     local options = PanelWindow.options
     local groups, order = {}, {}
@@ -681,6 +700,17 @@ function ISBUPanelWindow:fillLog()
     local now = self.panel.energyNow
     if now and now.n > 0 then hours[#hours + 1] = { made = now.made / now.n, used = now.used / now.n, charge = now.charge } end
     if #hours > 0 then list:addItem("", { kind = "graph", hours = hours }) end
+    -- What the box has done for the player: how long its solar side carried the load, how long since power was cut.
+    local stats = self.panel.stats
+    if stats then
+        local worldNow = getGameTime():getWorldAgeHours()
+        if (stats.carried or 0) > 0 then
+            local text = getText("IGUI_BU_StatsCarried", Ui.duration(stats.carried))
+            if (stats.saved or 0) >= 0.1 then text = text .. "  " .. getText("IGUI_BU_StatsSaved", string.format("%.1f", stats.saved)) end
+            list:addItem("", { kind = "note", text = text })
+        end
+        list:addItem("", { kind = "note", text = getText("IGUI_BU_StatsNoOutage", Ui.duration(worldNow - (stats.outage or stats.since))) })
+    end
     if #log == 0 then list:addItem("", { kind = "note", text = getText("IGUI_BU_LogEmpty") }) end
     local worldHours = getGameTime():getWorldAgeHours()
     for index = #log, 1, -1 do

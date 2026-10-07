@@ -12,9 +12,10 @@ Energy.KIND_SHARE = { 1, 1.5, 0.75 }
 -- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST.
 Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
 Energy.COLD_PER_DEGREE, Energy.COLD_MOST = 0.015, 0.3
--- The bank starts carrying the load again with this share of it usable. At tier 4 it is never drawn below CUTOFF.
+-- The bank starts carrying the load again with this share of it usable, so that an empty bank charging from a weak
+-- sun does not switch the power on and off every minute. At tier 4 it is never drawn below CUTOFF.
 -- A charge controller charges it from a generator at most CHARGE_RATE an hour a battery.
-Energy.BANK_START, Energy.CUTOFF, Energy.CHARGE_RATE = 0.02, 0.05, 0.1
+Energy.BANK_START, Energy.CUTOFF, Energy.CHARGE_RATE = 0.10, 0.05, 0.1
 
 function Energy.efficiency() return math.max(0, math.min(100, BU.sandbox("ChargeEfficiency", 85))) / 100 end
 function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
