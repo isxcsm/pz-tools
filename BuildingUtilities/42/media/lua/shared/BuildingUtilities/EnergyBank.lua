@@ -9,7 +9,7 @@ local Energy = BU.Energy
 -- holds them alike; this mod tells them apart.
 Energy.KIND_SHARE = { 1, 1.5, 0.75 }
 -- Wear: condition lost per full bank drawn, by the charge it is drawn at; a worn battery (below WEAK) takes so much
--- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST.
+-- of the bank a day; cold below 0 degrees locks so much of it per degree, at most COLD_MOST (these two by options).
 Energy.WEAK, Energy.WEAK_PER_DAY = 30, 0.02
 Energy.COLD_PER_DEGREE, Energy.COLD_MOST = 0.015, 0.3
 -- The bank starts carrying the load again with this share of it usable, so that an empty bank charging from a weak
@@ -19,6 +19,9 @@ Energy.BANK_START, Energy.CUTOFF, Energy.CHARGE_RATE = 0.10, 0.05, 0.1
 
 function Energy.efficiency() return math.max(0, math.min(100, BU.sandbox("ChargeEfficiency", 85))) / 100 end
 function Energy.wearRate() return math.max(0, BU.sandbox("WearRate", 1)) end
+-- Cold locking part of the bank, and worn batteries draining it: each a sandbox option, on by default.
+function Energy.coldLockEnabled() return BU.sandbox("BatteryColdLock", true) == true end
+function Energy.weakDrainEnabled() return BU.sandbox("WornBatteryDrain", true) == true end
 
 -- What a battery holds full, in load-hours: its kind's share of BatteryCapacity, less as it wears.
 function Energy.batteryCapacity(record)
@@ -33,8 +36,10 @@ function Energy.wearAt(charge)
     return 2 + 4 * (0.2 - math.max(0, charge)) / 0.2
 end
 
--- The share of a bank cold locks at its racks: the coldest of them that is loaded, else the air outside.
+-- The share of a bank cold locks at its racks: the coldest of them that is loaded, else the air outside. None
+-- without the option.
 function Energy.coldShare(racks)
+    if not Energy.coldLockEnabled() then return 0 end
     local climate, coldest = getClimateManager(), nil
     for _, rack in ipairs(racks) do
         local square = getCell():getGridSquare(rack.x, rack.y, rack.z)
@@ -84,7 +89,8 @@ end
 
 -- The panel's units over so many hours, as its network is now (state) and by its rules (Energy.rules): the bank
 -- takes what the solar panels make over the load while the source carries it, or all of it and what the controller
--- charges while another producer does, and gives what they lack down to the floor; worn batteries drain it. bankFlow
+-- charges while another producer does, and gives what they lack down to the floor; worn batteries drain it (an
+-- option). bankFlow
 -- is what went in or out an hour: what it took, full at its capacity, or gave, empty at its floor.
 -- Returns whether the source can carry the load now (available is whether it could), the bank and the output.
 function Energy.run(panel, state, hours, available, rules)
@@ -114,7 +120,9 @@ function Energy.run(panel, state, hours, available, rules)
         wear(bank, -rate * hours)
     end
     energy = energy + rate * hours
-    energy = energy - bank.weak * Energy.WEAK_PER_DAY * bank.capacity * hours / 24
+    if Energy.weakDrainEnabled() then
+        energy = energy - bank.weak * Energy.WEAK_PER_DAY * bank.capacity * hours / 24
+    end
     setEnergy(bank, energy)
     panel.bankFlow = rate
     if Energy.canCarry(output, rules.load, available) then return true, bank, output end
