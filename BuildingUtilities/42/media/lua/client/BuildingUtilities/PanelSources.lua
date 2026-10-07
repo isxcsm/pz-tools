@@ -21,19 +21,19 @@ function PanelWindow.producerInUse(state, at)
     return using ~= nil and not using.source and using.x == at.x and using.y == at.y and using.z == at.z
 end
 
--- What a generator of the panel does, as the network's state last saw it: "running" (it carries the load), "cannot"
--- (off, without fuel or broken), "standby" (the API switched it off and starts it when the one in use stops), "out"
--- (out of service: a player switched it off, and the API leaves it off until a player switches it on), or nil while
--- the API has not seen it.
+-- What a generator of the panel does, as the network's state last saw it: "running" (it carries the load), "out"
+-- (out of service: a player switched it off by hand, and the API leaves it off until a player switches it on),
+-- "cannot" (off, without fuel or broken), "standby" (off, and the API starts it when the one in use stops, or as its
+-- network is switched on again), or nil while the API has not seen it.
 function PanelWindow.generatorState(state, at)
     if PanelWindow.producerInUse(state, at) then return "running" end
     local seen = PanelWindow.seenProducer(state, at)
     if not seen then return nil end
     if seen.running then return "running" end
-    if (seen.fuel ~= nil and seen.fuel <= 0) or (seen.condition ~= nil and seen.condition <= 0) then return "cannot" end
-    if seen.standby then return "standby" end
+    if seen.outOfService then return "out" end
     if seen.running == nil then return nil end
-    return "out"
+    if (seen.fuel ~= nil and seen.fuel <= 0) or (seen.condition ~= nil and seen.condition <= 0) then return "cannot" end
+    return "standby"
 end
 
 -- A generator's state in words, for its row ("-" while unknown).

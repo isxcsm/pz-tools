@@ -221,7 +221,9 @@ function Networks.powerAllowed(panel)
     return not panel.tripped and not panel.switchedOff and not panel.quietCut
 end
 
--- The power network on or off as the box has it (Networks.powerAllowed).
+-- The power network on or off as the box has it (Networks.powerAllowed). Switched off, the API stops its generators
+-- (on standby, burning nothing); switched on, it starts the one in use before, or else the first on standby that can
+-- run.
 function Networks.applyEnabled(panel)
     change("setEnabled", powerId(panel), Networks.powerAllowed(panel))
 end

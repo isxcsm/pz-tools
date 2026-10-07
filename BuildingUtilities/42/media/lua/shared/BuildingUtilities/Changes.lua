@@ -646,8 +646,9 @@ function Changes.resetBreaker(panel)
     Sync.sound(panel, "LightSwitch")
 end
 
--- The main switch: all the box's power off or on, by a player at the box. Off, nothing switches it on again (quiet
--- hours, the charge controller); either way a tripped breaker stays down until it is reset.
+-- The main switch: all the box's power off or on, by a player at the box. Off, its generators stop until it is on
+-- again, and nothing switches it on (quiet hours, the charge controller); either way a tripped breaker stays down
+-- until it is reset.
 function Changes.setSwitchedOff(panel, off)
     if (panel.switchedOff == true) == off then return end
     panel.switchedOff = off or nil

@@ -1,9 +1,10 @@
 -- The box's main switch, at the test panel: switched off and on by its timed action (valid, then complete, as when the
 -- player's walk ends at the box), with the network, the status line, the look, the log and the window's row read each
--- time; quiet hours, a change of units, the breaker's reset and two game minutes of the server's rules leave it off;
+-- time; quiet hours, a change of units, the breaker's reset and two game minutes of the server's rules leave it off,
+-- with no producer running; a minute after it is on, the producer that carried the power before carries it again;
 -- a trip and the switch together. Then the generators' rows for a faked network state (running, standby, out of
 -- service, cannot run, not seen) and whether the charge controller counts each as one that could take over.
--- "[buswitch]" lines, each "ok" or "BAD"; the rest prints a game minute or two later, ending with "done". The panel's
+-- "[buswitch]" lines, each "ok" or "BAD"; the rest prints three game minutes later, ending with "done". The panel's
 -- breaker, switch and quiet cut are put back as they were. Needs the test panel (bu_setup.lua).
 local BU = BuildingUtilities
 local Store, Networks, Changes, Panels, PanelLook, PanelWindow, Energy = BU.Store, BU.Networks, BU.Changes, BU.Panels,
@@ -63,6 +64,14 @@ if panel.tripped then Changes.resetBreaker(panel) end
 if panel.switchedOff then Changes.setSwitchedOff(panel, false) end
 if panel.quietCut then Changes.setQuietCut(panel, false) end
 check("start: enabled", enabled(), true)
+-- What carries the power now: once the switch is on again the same carries it (the API starts it again).
+local function carrier()
+    local state = Networks.state(panel, "power")
+    local producer = state and state.producer
+    return producer and (producer.source or (producer.x .. "," .. producer.y .. "," .. producer.z)) or "none"
+end
+local before = carrier()
+say("carried by", before)
 
 -- Off.
 throw(true)
@@ -104,10 +113,10 @@ local function generatorChecks()
     end
     local list = {
         producer(1, { running = true, fuel = 5, condition = 90 }),
-        producer(2, { running = false, standby = true, fuel = 5, condition = 90 }),
-        producer(3, { running = false, fuel = 5, condition = 90 }),
+        producer(2, { running = false, fuel = 5, condition = 90 }),
+        producer(3, { running = false, outOfService = true, fuel = 5, condition = 90 }),
         producer(4, { running = false, fuel = 0, condition = 90 }),
-        producer(5, { running = false, standby = true, fuel = 5, condition = 0 }),
+        producer(5, { running = false, fuel = 5, condition = 0 }),
         producer(6, {}),
     }
     local fake = { supplied = true, enabled = true, load = 0.2, loadFactor = 1, producer = { x = at[1].x, y = at[1].y, z = at[1].z },
@@ -135,14 +144,15 @@ local function generatorChecks()
             check("row " .. row.index .. " tooltip", item.tooltip, getText("IGUI_BU_GeneratorTip"))
         end
     end
-    -- The charge controller counts only those that could take over: running or on standby, with fuel, not broken.
+    -- The charge controller counts only those that could take over: not out of service, with fuel, not broken.
     local function counts(i) return Energy.rules(panel, { load = 0.2, loadFactor = 1, producers = { list[i] } }).generators end
     check("controller counts the running one", counts(1), true)
     check("controller counts the one on standby", counts(2), true)
     check("controller does not count the one out of service", counts(3), false)
     check("controller does not count the one without fuel", counts(4), false)
-    check("controller does not count the broken one on standby", counts(5), false)
-    check("controller does not count the one not seen", counts(6), false)
+    check("controller does not count the broken one", counts(5), false)
+    -- One not seen loaded counts as before (fuel and condition unknown), if its square is loaded now.
+    check("controller counts the one not seen, on a loaded square", counts(6), true)
     window:refresh()
 end
 
@@ -177,26 +187,37 @@ local function finish()
     say("done")
 end
 
--- Two game minutes of the server's rules (the source, quiet hours, the controller) with the switch off; then on.
+-- Two game minutes of the server's rules (the source, quiet hours, the controller) with the switch off, nothing
+-- running; then on, and a minute later the same producer carries the power again.
 local minutes = 0
 local function onMinute()
     minutes = minutes + 1
-    if minutes < 2 then return end
+    if minutes == 2 then
+        check("two minutes later: enabled", enabled(), false)
+        check("two minutes later: switchedOff", panel.switchedOff, true)
+        check("two minutes later: box sprite", sprite(), spriteFor("off"))
+        check("two minutes later: nothing carries it", carrier(), "none")
+        local state, running = Networks.state(panel, "power"), 0
+        for _, producer in ipairs(state and state.producers or {}) do
+            if producer.running then running = running + 1 end
+        end
+        check("two minutes later: producers running", running, 0)
+        throw(false)
+        check("on: switchedOff", panel.switchedOff, nil)
+        check("on: network enabled", enabled(), true)
+        check("on: log", lastLog(), "IGUI_BU_Notice_SwitchedOn")
+        local onRow = switchRow()
+        check("on: row state", onRow and onRow.state, "on")
+        check("on: row text", onRow and onRow.text, getText("IGUI_BU_MainSwitchOn"))
+        return
+    end
+    if minutes < 3 then return end
     Events.EveryOneMinute.Remove(onMinute)
-    check("two minutes later: enabled", enabled(), false)
-    check("two minutes later: switchedOff", panel.switchedOff, true)
-    check("two minutes later: box sprite", sprite(), spriteFor("off"))
-    throw(false)
-    check("on: switchedOff", panel.switchedOff, nil)
-    check("on: network enabled", enabled(), true)
-    check("on: look as its power", sprite(), spriteFor(PanelLook.wanted(panel)))
-    check("on: log", lastLog(), "IGUI_BU_Notice_SwitchedOn")
-    local onRow = switchRow()
-    check("on: row state", onRow and onRow.state, "on")
-    check("on: row text", onRow and onRow.text, getText("IGUI_BU_MainSwitchOn"))
+    check("a minute after on: carried by the same", carrier(), before)
+    check("a minute after on: look as its power", sprite(), spriteFor(PanelLook.wanted(panel)))
     tripChecks()
     generatorChecks()
     finish()
 end
 Events.EveryOneMinute.Add(onMinute)
-say("waiting two game minutes with the switch off")
+say("waiting three game minutes: two with the switch off, one on")

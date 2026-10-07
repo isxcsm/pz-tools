@@ -147,6 +147,8 @@ local function checkLoad(panel)
 end
 
 -- What players hear: the generator in use changed (and the relay's click), power or water ran out, fuel runs low.
+-- While a network is switched off (breaker, main switch, quiet cut) its generators stop: what was told about it
+-- stands until it is on again, so the low fuel is not told again as it restarts.
 local lowFuel = {}
 
 local function checkFuel(panel)
@@ -158,7 +160,7 @@ local function checkFuel(panel)
             lowFuel[panel.id] = true
             Sync.notice(panel, "IGUI_BU_Notice_LowFuel", Panels.name(panel), math.floor(hours + 0.5))
         end
-    elseif not hours or hours > BU.lowFuelHours() + 1 then
+    elseif state and state.enabled and (not hours or hours > BU.lowFuelHours() + 1) then
         lowFuel[panel.id] = nil
     end
 end
@@ -191,8 +193,9 @@ end
 -- carry the load. It is switched on when it can and the network has no supply: nothing ran, or the player switched
 -- the generator in use off. Below tier 3 a generator the player runs keeps running; a charge controller (tier 3)
 -- takes the load back from it once the bank is charged to its stop setting, charges the bank from it meanwhile, and
--- in quiet hours switches the power off rather than let a generator start. What the bank and the solar panels came to
--- this minute, by panel, for the energy record: { bank, output }.
+-- in quiet hours switches the power off rather than let a generator start (switched off, the network runs no
+-- producer; switched on, the API starts the one in use before, or the first on standby). What the bank and the solar
+-- panels came to this minute, by panel, for the energy record: { bank, output }.
 local thisMinute = {}
 
 local function checkSource(panel, hours)
@@ -201,9 +204,11 @@ local function checkSource(panel, hours)
     if not state then return end
     local source = Energy.sourceState(state)
     local inUse = Energy.inUse(state)
-    -- The source carried the load when last seen and nothing does now: the world was loaded again (the source is
-    -- defined off), or a quiet cut ended. It counts as available, and goes on again below; if it cannot carry the
-    -- load, it is switched on for this minute so that the API hands over to a generator in the next.
+    -- The source carried the load when last seen and nothing does now, the network switched on: the world was loaded
+    -- again (the source is defined off). It counts as available, and goes on again below; if it cannot carry the
+    -- load, it is switched on for this minute so that the API hands over to a generator in the next. (A network
+    -- switched off and on again, by the breaker, the main switch or a quiet cut, starts the source itself, if it is
+    -- available: the API starts the producer in use before.)
     local lost = panel.sourceOn and not inUse and not state.supplied and state.enabled and not panel.tripped
     local available = source ~= nil and source.available == true or lost == true
     local rules = Energy.rules(panel, state)
@@ -271,6 +276,16 @@ local function updateUnits()
     return hours
 end
 
+-- What carried each main panel's power at the last change, by a key (the source's name, or the square): a network
+-- switched off stops its generators, and as it is switched on again the one that carried it before starts again,
+-- which is no news. Not saved: after a load, the first change is told.
+local carrying = {}
+
+local function producerKey(producer)
+    if not producer then return nil end
+    return producer.source or (producer.x .. "," .. producer.y .. "," .. producer.z)
+end
+
 local function onNetworkChange(id, what)
     local panel, utility, group = Networks.owner(id)
     if not panel then return end
@@ -286,9 +301,15 @@ local function onNetworkChange(id, what)
     if panel.parent or not state then return end
     -- The relay clicks over to another producer, or as power comes or goes: heard at the box.
     if (what == "producer" or what == "supply") and utility == "power" then Sync.sound(panel, "LightSwitch") end
-    if what == "producer" and Energy.inUse(state) then
+    local news = true
+    if utility == "power" then
+        local key = producerKey(state.producer)
+        news = key ~= carrying[panel.id]
+        if key then carrying[panel.id] = key end
+    end
+    if what == "producer" and news and Energy.inUse(state) then
         Sync.notice(panel, "IGUI_BU_Notice_SolarOn", Panels.name(panel))
-    elseif what == "producer" and state.producer then
+    elseif what == "producer" and news and state.producer then
         for index, at in ipairs(panel.power.producers) do
             if at.x == state.producer.x and at.y == state.producer.y and at.z == state.producer.z then
                 Sync.notice(panel, "IGUI_BU_Notice_Switched", Panels.name(panel), index)

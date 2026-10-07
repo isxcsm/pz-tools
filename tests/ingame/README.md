@@ -33,8 +33,9 @@ look; `BU22_CLEAN()` takes them away.
   console, the tripped lamp's blink frames), each line "ok" or "BAD"; `BULOOKS_CLEAN()` takes its units away. Needs the
   test panel (`bu_setup.lua`) and the game restarted after the sheet changed.
 - `bu_switch.lua`: the box's main switch (off and on by its action, quiet hours, the controller's minutes and the
-  breaker reset leaving it off, a trip together with it) and the generators' rows and the controller's count for a
-  faked state (running, standby, out of service, cannot run), each line "ok" or "BAD"; it waits two game minutes and
+  breaker reset leaving it off with nothing running, the same producer carrying again once it is on, a trip together
+  with it) and the generators' rows and the controller's count for a faked state (running, standby, out of service,
+  cannot run), each line "ok" or "BAD"; it waits three game minutes and
   ends with "done", putting the box back as it was. Needs the test panel (`bu_setup.lua`); not in `bu_all.lua`, as
   it waits.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in the
