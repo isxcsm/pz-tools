@@ -226,19 +226,33 @@ function Networks.extraLoad(panel)
     return total
 end
 
+-- Whether a box lets its power through: its breaker up, its main switch on and no quiet-hours cut. Its power network
+-- is switched on exactly then (Networks.applyEnabled).
+function Networks.powerAllowed(panel)
+    return not panel.tripped and not panel.switchedOff and not panel.quietCut
+end
+
+-- The power network on or off as the box has it (Networks.powerAllowed). Switched off, the API stops its generators
+-- (on standby, burning nothing); switched on, it starts the one in use before, or else the first on standby that can
+-- run.
+function Networks.applyEnabled(panel)
+    change("setEnabled", powerId(panel), Networks.powerAllowed(panel))
+end
+
 -- Defines a panel's networks from the save. A power sub-panel's parent is set by Networks.link, once every panel
 -- exists; its water hangs from its main panel's on its own. The network gets the extra load the box had (charging,
 -- pumps) at once, as the charge controller reads its load with it, until the first minute works it out again; none
--- while the breaker is down.
+-- while the box keeps its power off.
 function Networks.define(panel)
     local id = powerId(panel)
     change("define", id, "power", BU.POLICY.power)
     if not panel.parent then change("setProducers", id, powerProducers(panel)) end
     addPowerMembers(panel)
     applyPowerRules(panel)
-    if panel.tripped or panel.quietCut then Networks.setEnabled(panel, false) end
+    -- A network is defined switched on.
+    if not Networks.powerAllowed(panel) then Networks.applyEnabled(panel) end
     Networks.applyLoss(panel)
-    local extra = panel.tripped and 0 or Networks.extraLoad(panel)
+    local extra = Networks.powerAllowed(panel) and Networks.extraLoad(panel) or 0
     if extra > 0 then Networks.setExtraLoad(panel, extra) end
     if not panel.parent then Networks.defineWater(panel) end
 end
@@ -266,11 +280,6 @@ function Networks.applyLoss(panel)
     if not BU.api() or not BU.enabled("power") then return end
     local _, percent = BU.Panels.powerLine(panel, Networks.state(panel, "power"))
     change("setLoadFactor", powerId(panel), 1 + (percent or 0) / 100)
-end
-
--- The power network on or off: a box's breaker.
-function Networks.setEnabled(panel, on)
-    change("setEnabled", powerId(panel), on)
 end
 
 -- A panel joined or left a main panel: its power network's parent, and its water anew (as a sub-panel it has the

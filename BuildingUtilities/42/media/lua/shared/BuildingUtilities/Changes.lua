@@ -228,7 +228,7 @@ function Changes.unitsChanged(panel)
         Changes.setExtraLoad(panel, "charging", 0)
         if panel.quietCut then
             panel.quietCut = nil
-            Networks.setEnabled(panel, not panel.tripped)
+            Networks.applyEnabled(panel)
         end
         Changes.unsave(panel)
     end
@@ -281,10 +281,19 @@ function Changes.setController(panel, settings)
     Sync.changed(panel.id)
 end
 
--- Quiet hours with the bank empty: the panel's power off rather than a generator heard, and on again.
+-- "Switch to solar", checked by the caller (BU.Energy.sourceOffer): the units' source takes the load, and the API
+-- switches the generator in use off, on standby. The API tells the change ("producer"), and players hear of it.
+function Changes.useSource(panel)
+    Networks.setSource(panel, true, true)
+    panel.sourceOn = true
+    Sync.changed(panel.id)
+end
+
+-- Quiet hours with the bank empty: the panel's power off rather than a generator heard, and on again (unless its
+-- breaker or main switch keeps it off).
 function Changes.setQuietCut(panel, cut)
     panel.quietCut = cut or nil
-    Networks.setEnabled(panel, not cut and not panel.tripped)
+    Networks.applyEnabled(panel)
     Sync.changed(panel.id)
     if cut then Sync.notice(panel, "IGUI_BU_Notice_QuietCut", Panels.name(panel)) end
 end
@@ -654,10 +663,11 @@ function Changes.upgrade(panel)
     Sync.changed(panel.id)
 end
 
--- The breaker: down by overload, up by a player at the box.
+-- The breaker: down by overload, up by a player at the box. Reset, it lets the power through unless the main switch
+-- or a quiet-hours cut keeps it off.
 function Changes.trip(panel)
     panel.tripped = true
-    Networks.setEnabled(panel, false)
+    Networks.applyEnabled(panel)
     BU.log("tripped", panel.id)
     Sync.changed(panel.id)
     Sync.sound(panel, "GeneratorStopping")
@@ -666,10 +676,23 @@ end
 
 function Changes.resetBreaker(panel)
     panel.tripped = false
-    Networks.setEnabled(panel, not panel.quietCut)
+    Networks.applyEnabled(panel)
     Store.record(panel, "IGUI_BU_Log_Reset")
     Sync.changed(panel.id)
     Sync.sound(panel, "LightSwitch")
+end
+
+-- The main switch: all the box's power off or on, by a player at the box. Off, its generators stop until it is on
+-- again, and nothing switches it on (quiet hours, the charge controller); either way a tripped breaker stays down
+-- until it is reset.
+function Changes.setSwitchedOff(panel, off)
+    if (panel.switchedOff == true) == off then return end
+    panel.switchedOff = off or nil
+    Networks.applyEnabled(panel)
+    BU.log(off and "switched off" or "switched on", panel.id)
+    Sync.changed(panel.id)
+    Sync.sound(panel, "LightSwitch")
+    Sync.notice(panel, off and "IGUI_BU_Notice_SwitchedOff" or "IGUI_BU_Notice_SwitchedOn", Panels.name(panel))
 end
 
 return Changes

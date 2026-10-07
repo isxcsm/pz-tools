@@ -1,10 +1,11 @@
 -- The breaker box window: its name and tier as its title, a status line (BuildingUtilities/PanelStatus), its load against what it carries and a banner when the breaker is
--- down or devices are shed, then a tab per utility with its producers (or the main panel that supplies it), its
--- sub-panels, and its devices room by room, and a tab with what happened to the box; beside them the floor plan
+-- down or devices are shed, then a tab per utility (power's led by the box's main switch) with its producers (each
+-- generator running, on standby or out of service) or the main panel that supplies it, its sub-panels, and its
+-- devices room by room, and a tab with what happened to the box; beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes go to the server as commands; lines are laid and taken
--- away by the player at the place, as timed actions. Devices outside can be chosen several at a time (the Choose
--- button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
+-- away, and the main switch thrown, by the player at the place, as timed actions. Devices outside can be chosen
+-- several at a time (the Choose button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
 -- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
 -- tells what makes the load; a main or sub-panel row opens that box's window.
 require "ISUI/ISCollapsableWindow"
@@ -561,6 +562,12 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
+    -- The box's main switch first: all its power, thrown at the box.
+    if utility == "power" then
+        local off = panel.switchedOff == true
+        add({ kind = "mainSwitch", text = getText(off and "IGUI_BU_MainSwitchOff" or "IGUI_BU_MainSwitchOn"),
+            state = off and "off" or "on" }, getText(panel.parent and "IGUI_BU_MainSwitchTipSub" or "IGUI_BU_MainSwitchTip"))
+    end
     local parent = Store.get(panel.parent)
     if parent then
         add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
@@ -581,24 +588,27 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local seen = PanelWindow.seenProducer(state, at)
             local inUse = PanelWindow.producerInUse(state, at)
             local where = Panels.where(panel, at.x, at.y)
-            local text
+            local text, generatorState
             if utility == "power" then
                 local square = getCell():getGridSquare(at.x, at.y, at.z)
                 local generator = square and square:getGenerator()
                 local fuel = seen and seen.fuel and (generator and percent(seen.fuel, generator:getMaxFuel()) or string.format("%.1f", seen.fuel)) or "-"
-                text = getText("IGUI_BU_GeneratorRow", index, where,
-                    getText(inUse and "IGUI_BU_Running" or "IGUI_BU_Standby"), fuel, seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
+                generatorState = PanelWindow.generatorState(state, at)
+                text = getText("IGUI_BU_GeneratorRow", index, where, PanelWindow.generatorStateText(generatorState), fuel,
+                    seen and seen.condition and string.format("%.0f%%", seen.condition) or "-")
             else
                 text = getText("IGUI_BU_TankRow", index, where, seen and seen.amount and string.format("%.0f", seen.amount) or "-",
                     seen and seen.capacity and string.format("%.0f", seen.capacity) or "-")
             end
             view.producerText[index] = text
-            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water" }
+            local row = { kind = "producer", text = text, index = index, at = at, inUse = inUse, water = utility == "water",
+                out = generatorState == "out" }
             if utility == "water" and #BU.Water.groups(panel) > 1 then
                 row.group = BU.Water.producerGroup(at)
                 row.groupText, row.groupColour = BU.Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)
             end
-            add(row)
+            -- A generator's row tells how servicing one works: switched off by hand, the others take over.
+            add(row, utility == "power" and getText("IGUI_BU_GeneratorTip") or nil)
         end
         if utility == "water" then self:waterUnitRows(add) end
     end
@@ -750,7 +760,7 @@ local BAD = { IGUI_BU_Notice_Tripped = true, IGUI_BU_Notice_PowerLost = true, IG
     IGUI_BU_Notice_WaterEmptyGroup = true, IGUI_BU_Notice_LowFuel = true, IGUI_BU_Notice_Shed = true,
     IGUI_BU_Notice_Frozen = true, IGUI_BU_Notice_FilterSpent = true }
 local GOOD = { IGUI_BU_Log_Reset = true, IGUI_BU_Log_Restored = true, IGUI_BU_Log_Upgraded = true,
-    IGUI_BU_Notice_Thawed = true }
+    IGUI_BU_Notice_Thawed = true, IGUI_BU_Notice_SwitchedOn = true }
 
 local function ago(hours)
     if hours < 1 / 60 then return getText("IGUI_BU_AgoNow") end
@@ -823,8 +833,17 @@ end
 function ISBUPanelWindow:onRow(utility, row, x, width)
     local panel, playerObj = self.panel, self.playerObj
     if row.kind == "source" then
-        local settings = row.settings and Ui.settingsButton(width, row)
-        if settings and x >= settings.x and x <= settings.x + settings.w then self:controllerMenu() end
+        for _, button in ipairs(Ui.sourceButtons(width, row)) do
+            if x >= button.x and x <= button.x + button.w then
+                if button.name == "Settings" then
+                    self:controllerMenu()
+                elseif row.useSourceReady then
+                    Sync.send(playerObj, "useSource", { panel = panel.id })
+                else
+                    HaloTextHelper.addBadText(playerObj, row.useSourceReason)
+                end
+            end
+        end
     elseif row.kind == "producer" and row.unit then
         self:onWaterUnitRow(row, x, width)
     elseif row.kind == "producer" then
@@ -850,6 +869,8 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "blackout" then
         Sync.send(playerObj, "setBlackout", { panel = panel.id, on = row.state ~= "on" })
+    elseif row.kind == "mainSwitch" then
+        BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, row.state == "on"))
     elseif row.kind == "filter" then
         self:filterRoom(nil)
     elseif row.kind == "batch" then

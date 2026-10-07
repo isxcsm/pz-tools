@@ -20,9 +20,9 @@ local function rest(units, field)
     return changed
 end
 
--- Whether a panel's power is on for its units: supplied, its breaker up.
+-- Whether a panel's power is on for its units: the box lets it through (Networks.powerAllowed) and it is supplied.
 local function powered(panel)
-    if panel.tripped then return false end
+    if not Networks.powerAllowed(panel) then return false end
     local state = Networks.state(panel, "power")
     return state ~= nil and state.supplied == true
 end

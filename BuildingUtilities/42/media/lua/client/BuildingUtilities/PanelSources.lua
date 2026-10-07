@@ -1,5 +1,5 @@
 -- The breaker box window's rows for the units' source (solar panels, the bank) and the charge controller's
--- settings.
+-- settings, and what each generator does.
 require "BuildingUtilities/PanelWindow"
 local BU = BuildingUtilities
 local Store, Sync, Energy = BU.Store, BU.Sync, BU.Energy
@@ -19,6 +19,28 @@ end
 function PanelWindow.producerInUse(state, at)
     local using = state and state.producer
     return using ~= nil and not using.source and using.x == at.x and using.y == at.y and using.z == at.z
+end
+
+-- What a generator of the panel does, as the network's state last saw it: "running" (it carries the load), "out"
+-- (out of service: a player switched it off by hand, and the API leaves it off until a player switches it on),
+-- "cannot" (off, without fuel or broken), "standby" (off, and the API starts it when the one in use stops, or as its
+-- network is switched on again), or nil while the API has not seen it.
+function PanelWindow.generatorState(state, at)
+    if PanelWindow.producerInUse(state, at) then return "running" end
+    local seen = PanelWindow.seenProducer(state, at)
+    if not seen then return nil end
+    if seen.running then return "running" end
+    if seen.outOfService then return "out" end
+    if seen.running == nil then return nil end
+    if (seen.fuel ~= nil and seen.fuel <= 0) or (seen.condition ~= nil and seen.condition <= 0) then return "cannot" end
+    return "standby"
+end
+
+-- A generator's state in words, for its row ("-" while unknown).
+local GENERATOR_STATE_TEXT = { running = "IGUI_BU_Running", standby = "IGUI_BU_Standby", out = "IGUI_BU_OutOfService",
+    cannot = "IGUI_BU_CannotRun" }
+function PanelWindow.generatorStateText(state)
+    return state and getText(GENERATOR_STATE_TEXT[state]) or "-"
 end
 
 -- The units' source, a row each for { row, tooltip }: the solar panels (how many, what they make, whether they carry
@@ -71,6 +93,15 @@ function ISBUPanelWindow:sourceRows(state)
         local controller = Energy.hasController(panel)
         if controller then tooltip = (tooltip and tooltip .. " <LINE> <LINE> " or "") .. self:controllerText() end
         rows[#rows + 1] = { row = { kind = "source", text = text, inUse = inUse and bank ~= nil, settings = controller }, tooltip = tooltip }
+    end
+    -- "Switch to solar" on the first row, while something else carries the load (Energy.sourceOffer).
+    local offered, ready, rules = Energy.sourceOffer(panel, state)
+    if offered and rows[1] then
+        local first = rows[1]
+        first.row.useSource, first.row.useSourceReady = true, ready
+        first.row.useSourceReason = not ready and Energy.notReadyText(rules) or nil
+        local note = ready and getText("IGUI_BU_UseSourceTip") or first.row.useSourceReason
+        first.tooltip = (first.tooltip and first.tooltip .. " <LINE> <LINE> " or "") .. note
     end
     return rows
 end

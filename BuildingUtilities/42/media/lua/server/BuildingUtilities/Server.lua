@@ -83,6 +83,13 @@ function commands.resetBreaker(player, panel, args)
     if panel.tripped then Changes.resetBreaker(panel) end
 end
 
+-- "Switch to solar" (Energy.sourceOffer): the source takes the load over from the generator in use, which the API
+-- switches off, on standby.
+function commands.useSource(player, panel, args)
+    local offered, ready = Energy.sourceOffer(panel, Networks.state(panel, "power"))
+    if offered and ready then Changes.useSource(panel) end
+end
+
 -- A power device of the panel that it connects (its building's, or one it wired outside).
 local function connectedDevice(panel, key)
     local device = type(key) == "string" and Panels.device(panel, "power", key)
@@ -155,6 +162,8 @@ local function checkLoad(panel)
 end
 
 -- What players hear: the generator in use changed (and the relay's click), power or water ran out, fuel runs low.
+-- While a network is switched off (breaker, main switch, quiet cut) its generators stop: what was told about it
+-- stands until it is on again, so the low fuel is not told again as it restarts.
 local lowFuel = {}
 
 local function checkFuel(panel)
@@ -166,7 +175,7 @@ local function checkFuel(panel)
             lowFuel[panel.id] = true
             Sync.notice(panel, "IGUI_BU_Notice_LowFuel", Panels.name(panel), math.floor(hours + 0.5))
         end
-    elseif not hours or hours > BU.lowFuelHours() + 1 then
+    elseif state and state.enabled and (not hours or hours > BU.lowFuelHours() + 1) then
         lowFuel[panel.id] = nil
     end
 end
@@ -197,11 +206,12 @@ local function checkSaving(panel, state, bank, output, rules)
 end
 
 -- The units' source of a main panel over so many hours (Energy.run): available while its solar panels or its bank
--- carry the load. It is switched on when it can and the network has no supply: nothing ran, or the player switched
--- the generator in use off. Below tier 3 a generator the player runs keeps running; a charge controller (tier 3)
--- takes the load back from it once the bank is charged to its stop setting, charges the bank from it meanwhile, and
--- in quiet hours switches the power off rather than let a generator start. What the bank and the solar panels came to
--- this minute, by panel, for the energy record: { bank, output }.
+-- carry the load. The API hands the load to it, first in order, when the one in use stops and it is available; it is
+-- switched on here when it can and the network has no supply. Below tier 3 a generator keeps running until a player
+-- switches to solar (commands.useSource); a charge controller (tier 3) takes the load back from it once the bank is
+-- charged to its stop setting, charges the bank from it meanwhile, and in quiet hours switches the power off rather
+-- than let a generator start. What the bank and the solar panels came to this minute, by panel, for the energy
+-- record: { bank, output }.
 local thisMinute = {}
 
 local function checkSource(panel, hours)
@@ -210,23 +220,29 @@ local function checkSource(panel, hours)
     if not state then return end
     local source = Energy.sourceState(state)
     local inUse = Energy.inUse(state)
-    -- The source carried the load when last seen and nothing does now: the world was loaded again (the source is
-    -- defined off), or a quiet cut ended. It counts as available, and goes on again below; if it cannot carry the
+    -- The source carried the load when last seen and nothing does now, the network switched on: the world was loaded
+    -- again (the source is defined off). It counts as available, and goes on again below; if it cannot carry the
     -- load, it is switched on for this minute so that the API hands over to a generator in the next.
-    local lost = panel.sourceOn and not inUse and not state.supplied and state.enabled and not panel.tripped
-    local available = source ~= nil and source.available == true or lost == true
+    local lost = panel.sourceOn and not inUse and not state.supplied and state.enabled
+    -- While the box keeps its power off (breaker, main switch, quiet cut) the network runs no producer, and the source
+    -- counts as available if it carried the load before.
+    local held = not Networks.powerAllowed(panel)
+    local available = source ~= nil and source.available == true or (lost or held and panel.sourceOn) == true
     local rules = Energy.rules(panel, state)
     local can, bank, output = Energy.run(panel, state, hours, available, rules)
     thisMinute[panel.id] = { bank = bank, output = output }
-    if panel.tripped then
-        -- Charging would count in the load the breaker carries: none while it is down.
-        Changes.setExtraLoad(panel, "charging", 0)
-        return
-    end
     local controller = Energy.hasController(panel)
-    local ready = Energy.canCarry(output, rules.load, false) or (bank ~= nil and bank.usable > bank.capacity * rules.restart)
-    if panel.quietCut then
-        if not rules.quiet or ready then Changes.setQuietCut(panel, false) end
+    local ready = Energy.ready(rules, output, bank)
+    if held then
+        -- Charging would count in the load the breaker carries: none while the power is off. Whether the source can
+        -- carry the load goes on being told, so that as the network is switched on the API starts the right producer
+        -- by its own order: a generator switched on by hand meanwhile, or the one in use before; else the source, if
+        -- it can; else the first on standby. Quiet hours end as ever, also while the breaker or the switch keeps the
+        -- power off.
+        Changes.setExtraLoad(panel, "charging", 0)
+        if source and can ~= (source.available == true) then Networks.setSource(panel, can, nil) end
+        if not can then panel.sourceOn = nil end
+        if panel.quietCut and (not rules.quiet or ready) then Changes.setQuietCut(panel, false) end
         return
     end
     if controller and rules.quiet and rules.generators and inUse and state.supplied and not can then
@@ -332,7 +348,8 @@ end
 
 -- What each main panel did for its player over so many hours, for the log: hours its units' source carried the load,
 -- the generator fuel that spared (litres, from the API's fuelPerHour at the load), and when its power was last cut
--- (not for quiet hours, nor while the grid runs; a cut of a minute is the source handed on as the world loads).
+-- (not for quiet hours or the main switch, nor while the grid runs; a cut of a minute is the source handed on as the
+-- world loads).
 local function recordStats(panel, hours)
     if panel.parent then return end
     local state = Networks.state(panel, "power")
@@ -345,7 +362,7 @@ local function recordStats(panel, hours)
         stats.saved = (stats.saved or 0) + (state.fuelPerHour or 0) * hours
     end
     local wanted = #panel.power.producers > 0 or Energy.hasSource(panel)
-    if wanted and not state.supplied and not panel.quietCut and not getWorld():isHydroPowerOn() then
+    if wanted and not state.supplied and not panel.quietCut and not panel.switchedOff and not getWorld():isHydroPowerOn() then
         stats.dark = (stats.dark or 0) + 1
         if stats.dark >= 2 then stats.outage = now end
     else
@@ -363,6 +380,23 @@ local function recordWater(panel)
     end
 end
 
+-- A network switched on again (breaker reset, main switch, quiet cut over) with nothing that can run raises no event:
+-- the power stays out without a word. Told once it has had a minute to start: by panel, "held" while the box keeps
+-- its power off, then "resumed" for the minute after.
+local resuming = {}
+
+local function checkResumed(panel)
+    if panel.parent then return end
+    local held, was = not Networks.powerAllowed(panel), resuming[panel.id]
+    resuming[panel.id] = held and "held" or was == "held" and "resumed" or nil
+    if was ~= "resumed" or held then return end
+    local state = Networks.state(panel, "power")
+    local wanted = #panel.power.producers > 0 or Energy.hasSource(panel)
+    if wanted and state and state.enabled and not state.supplied then
+        Sync.notice(panel, "IGUI_BU_Notice_PowerLost", Panels.name(panel))
+    end
+end
+
 -- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute), after
 -- what the sandbox turned on or off (Changes.applyFeatures). Power's checks and records only while it is on.
 local function everyMinute()
@@ -375,6 +409,7 @@ local function everyMinute()
         if power then
             checkLoad(panel)
             checkFuel(panel)
+            checkResumed(panel)
             hourEnded = recordEnergy(panel) or hourEnded
             recordStats(panel, hours)
         end
