@@ -102,6 +102,15 @@ public final class StartupInstallTest {
                 expect(start(java, game), "STARTUP-FIXTURE\t11\tfalse\ttrue\ttrue\t1.0");
                 expect(run(root, "uninstall", game), "uninstalled");
             }
+            // An earlier patch whose saved copy of the game's jar has gone: a refresh says so, rather than call itself done
+            // and leave the patch in place. Steam's file check puts the game's jar back; then it uninstalls as usual.
+            earlierInstall(root, game, bridge, vanilla);
+            Files.delete(root.resolve(StartupInstall.ORIGINAL));
+            try { run(root, "refresh", bridge); throw new AssertionError("refreshed without the game's own jar"); }
+            catch (StartupInstall.Refused refused) { assert refused.code.equals("original-missing") : refused.code; }
+            assert !Files.exists(game.resolve(StartupInstall.LOADER_ENTRY)) : "the entry was written over the patched jar";
+            Files.copy(vanilla, jar, StandardCopyOption.REPLACE_EXISTING);
+            expect(run(root, "uninstall", game), "uninstalled");
             // An earlier patch a game update has since replaced: uninstall leaves the new jar alone.
             earlierInstall(root, game, bridge, vanilla);
             Files.copy(vanilla, jar, StandardCopyOption.REPLACE_EXISTING);
