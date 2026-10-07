@@ -11,36 +11,17 @@ local Store, Panels, PanelWindow = BU.Store, BU.Panels, BU.PanelWindow
 local NOTICE_RANGE = 40
 local GOOD = { IGUI_BU_Notice_Switched = true, IGUI_BU_Notice_Thawed = true }
 
--- A tripped box blinks red in the world for the players here, until its breaker is reset.
-local marked = {}
-local RED = ColorInfo.new(1, 0.2, 0.2, 1)
-
-local function markTripped()
-    for _, object in ipairs(marked) do
-        for index = 0, getNumActivePlayers() - 1 do
-            object:setHighlighted(index, false, false)
-            object:setBlink(index, false)
-        end
-    end
-    marked = {}
+-- Boxes from before the summary existed get it as they come into view. (A tripped box shows it on its own lamps:
+-- BU.PanelLook.)
+local function giveSummaries()
     for _, panel in ipairs(Store.list()) do
-        -- Boxes from before the summary existed get it as they come into view.
         local box = Panels.object(panel)
         if box and not box:haveSpecialTooltip() then box:setSpecialTooltip(true) end
-        local object = panel.tripped and box
-        if object then
-            for index = 0, getNumActivePlayers() - 1 do
-                object:setHighlightColor(index, RED)
-                object:setHighlighted(index, true, false)
-                object:setBlink(index, true)
-            end
-            marked[#marked + 1] = object
-        end
     end
 end
 
 function BU.onChanged()
-    markTripped()
+    giveSummaries()
     PanelWindow.refreshAll()
 end
 
@@ -139,7 +120,7 @@ end
 
 local function onGameStart()
     if isClient() then ModData.request(Store.KEY) end
-    markTripped()
+    giveSummaries()
 end
 
 -- A network the API runs here changed: the windows that show it.
@@ -150,5 +131,5 @@ Events.OnReceiveGlobalModData.Add(onReceiveGlobalModData)
 Events.OnGameStart.Add(onGameStart)
 Events.DoSpecialTooltip.Add(onSpecialTooltip)
 -- Boxes come into view as squares load.
-Events.EveryOneMinute.Add(markTripped)
+Events.EveryOneMinute.Add(giveSummaries)
 if Events.OnPZToolsNetworkChange then Events.OnPZToolsNetworkChange.Add(onNetworkChange) end
