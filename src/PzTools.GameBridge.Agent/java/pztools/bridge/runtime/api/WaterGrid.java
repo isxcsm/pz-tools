@@ -2,12 +2,10 @@ package pztools.bridge.runtime.api;
 
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import pztools.bridge.ApiHooks;
 import pztools.bridge.runtime.api.Members.Area;
 import pztools.bridge.runtime.api.Network.Position;
 import pztools.bridge.runtime.api.Network.Stored;
-import pztools.bridge.runtime.api.Network.Thing;
 import pztools.bridge.runtime.api.PendingFluids.Delta;
 
 /**
@@ -25,7 +23,6 @@ final class WaterGrid implements ApiHooks.Water {
      * between the two owes them changes they took already.
      */
     static final String APPLIED = "PZToolsFluidsApplied";
-    private static final long REFRESH_NANOS = TimeUnit.SECONDS.toNanos(1);
     // Raised by the game when an object's fluid changes, so that what keeps its own record of it (rain collectors) follows.
     private static final String AMOUNT_CHANGE = "OnWaterAmountChange";
 
@@ -35,12 +32,12 @@ final class WaterGrid implements ApiHooks.Water {
      */
     private record Supplier(Network network, Area area, List<Position> producers, boolean purify) { }
 
-    /** An object rule of a network at one square; {@code supplier} is null while the network has no water. */
-    private record Rule(String sprite, boolean included, Network network, Supplier supplier) { }
-
-    /** {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. */
-    private record Snapshot(List<Supplier> suppliers, Map<Position, List<Rule>> rules, Set<Position> producers, boolean unpurified) {
-        static final Snapshot EMPTY = new Snapshot(List.of(), Map.of(), Set.of(), false);
+    /**
+     * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
+     * object rule carries its network's supplier, null while the network has no water.
+     */
+    private record Snapshot(List<Supplier> suppliers, Rules<Supplier> rules, SquareMap producers, boolean unpurified) {
+        static final Snapshot EMPTY = new Snapshot(List.of(), Rules.none(), SquareMap.EMPTY, false);
     }
 
     /**
@@ -49,33 +46,35 @@ final class WaterGrid implements ApiHooks.Water {
      */
     private record Unit(Position at, Object object, Object container, Stored stored) { }
 
+    private final Game game;
+    private final Networks networks;
     private final Members members;
     private final Buildings buildings;
     private final Kahlua lua;
     private final PendingFluids pending;
+    private final Cadence cadence = new Cadence();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
-    // Set by a definition change; the next frame works the networks out again.
-    private volatile boolean changed = true;
-    // Due at the first frame. (Long.MIN_VALUE would overflow the difference: never due.)
-    private long refreshedAt = System.nanoTime() - REFRESH_NANOS;
-    private final Method fluidContainer, amount, capacity, gameTime, worldHours, triggerEvent;
+    private final Method fluidContainer, amount, capacity;
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
-    private final Method removeFluid, addFluid, modData, sync, amountChanged;
+    private final Method removeFluid, addFluid, modData, sync;
     private final Field client;
 
-    WaterGrid(ClassLoader loader, Members members, Kahlua lua) throws ReflectiveOperationException {
+    WaterGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings, Kahlua lua)
+            throws ReflectiveOperationException {
+        this.game = game;
+        this.networks = networks;
         this.members = members;
+        this.buildings = buildings;
         this.lua = lua;
-        buildings = members.buildings();
         pending = new PendingFluids(loader, lua);
-        Class<?> object = Class.forName("zombie.iso.IsoObject", false, loader);
+        Class<?> object = game.objectType;
         fluidContainer = object.getMethod("getFluidContainer");
         modData = object.getMethod("getModData");
         sync = object.getMethod("sync");
-        Class<?> container = Class.forName("zombie.entity.components.fluids.FluidContainer", false, loader);
-        Class<?> fluid = Class.forName("zombie.entity.components.fluids.Fluid", false, loader);
-        Class<?> fluidSample = Class.forName("zombie.entity.components.fluids.FluidSample", false, loader);
+        Class<?> container = Game.type(loader, "zombie.entity.components.fluids.FluidContainer");
+        Class<?> fluid = Game.type(loader, "zombie.entity.components.fluids.Fluid");
+        Class<?> fluidSample = Game.type(loader, "zombie.entity.components.fluids.FluidSample");
         amount = container.getMethod("getAmount");
         capacity = container.getMethod("getCapacity");
         sample = container.getMethod("createFluidSample");
@@ -88,16 +87,10 @@ final class WaterGrid implements ApiHooks.Water {
         sampleFluid = fluidSample.getMethod("getFluid", int.class);
         sampleInstance = fluidSample.getMethod("getFluidInstance", int.class);
         sampleRelease = fluidSample.getMethod("release");
-        instanceAmount = Class.forName("zombie.entity.components.fluids.FluidInstance", false, loader).getMethod("getAmount");
+        instanceAmount = Game.type(loader, "zombie.entity.components.fluids.FluidInstance").getMethod("getAmount");
         fluidName = fluid.getMethod("getFluidTypeString");
         fluidNamed = fluid.getMethod("Get", String.class);
-        Class<?> time = Class.forName("zombie.GameTime", false, loader);
-        gameTime = time.getMethod("getInstance");
-        worldHours = time.getMethod("getWorldAgeHours");
-        Class<?> events = Class.forName("zombie.Lua.LuaEventManager", false, loader);
-        triggerEvent = events.getMethod("triggerEvent", String.class, Object.class, Object.class, Object.class);
-        amountChanged = events.getMethod("triggerEvent", String.class, Object.class, Object.class);
-        client = Class.forName("zombie.network.GameClient", false, loader).getField("client");
+        client = Game.type(loader, "zombie.network.GameClient").getField("client");
     }
 
     /**
@@ -107,27 +100,25 @@ final class WaterGrid implements ApiHooks.Water {
     void hook() { ApiHooks.setWater(this); }
 
     /** A definition changed: the next frame works the networks out again. */
-    void changed() throws ReflectiveOperationException {
-        snapshot = snapshot(members.of(UTILITY));
-        changed = true;
+    void changed() {
+        snapshot = snapshot(networks.of(UTILITY));
+        cadence.changed();
     }
 
     // The hooks.
 
     @Override public boolean plumbed(boolean vanilla, Object fixture) {
         try { return vanilla || supplier(fixture) != null; }
-        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
-        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+        catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
 
     @Override public Object source(Object vanilla, Object fixture) {
         try {
             Supplier supplier = supplier(fixture);
-            Object fullest = supplier == null ? null : fullest(supplier.producers(), members.cell());
+            Object fullest = supplier == null ? null : fullest(supplier.producers(), game.cell());
             return fullest != null ? fullest : vanilla;
         }
-        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
-        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+        catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
 
     /**
@@ -140,8 +131,7 @@ final class WaterGrid implements ApiHooks.Water {
             Object from = unpurifiedSource(fixture);
             return from != null && fluidContainer.invoke(from) == source ? unpurified(source, amount) : null;
         }
-        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
-        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+        catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
 
     /** {@code vanilla}, or the fixture's network does not purify its water and its source holds tainted water. */
@@ -152,14 +142,13 @@ final class WaterGrid implements ApiHooks.Water {
             Object container = from == null ? null : fluidContainer.invoke(from);
             return container != null && (boolean)isTainted.invoke(container);
         }
-        catch (InvocationTargetException failure) { throw new IllegalStateException(failure.getCause()); }
-        catch (ReflectiveOperationException failure) { throw new IllegalStateException(failure); }
+        catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
 
     /** The producer a fixture takes its water from, when its network does not purify it; null otherwise. */
     private Object unpurifiedSource(Object fixture) throws ReflectiveOperationException {
         Supplier supplier = supplier(fixture);
-        return supplier == null || supplier.purify() ? null : fullest(supplier.producers(), members.cell());
+        return supplier == null || supplier.purify() ? null : fullest(supplier.producers(), game.cell());
     }
 
     /** As {@code IsoObject.createSampleAndPurifyWater} makes the sample, each fluid as it is. */
@@ -183,31 +172,27 @@ final class WaterGrid implements ApiHooks.Water {
     /**
      * The network with water that supplies the fixture, for a fixture the game can pipe water to: one that added it on
      * its own, or one whose buildings it stands in and that did not exclude it. A producer's square has no consumers.
+     * The game asks about every object it shows: one that takes no pipes costs a look at its sprite, and one that no
+     * rule names allocates nothing.
      */
     private Supplier supplier(Object fixture) throws ReflectiveOperationException {
         Snapshot current = snapshot;
-        if (current.suppliers().isEmpty() || fixture == null) return null;
-        Position at = members.at(fixture);
-        if (at == null || current.producers().contains(at)) return null;
-        Supplier included = null;
-        var excluded = new ArrayList<Network>();
-        for (Object part : current.rules().isEmpty() ? List.of() : members.parts(fixture)) {
-            Thing thing = members.thing(part);
-            List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
-            if (rules == null) continue;
-            for (Rule rule : rules) {
-                if (!rule.sprite().equals(thing.sprite())) continue;
-                if (!rule.included()) excluded.add(rule.network());
-                else if (included == null) included = rule.supplier();
-            }
-        }
-        Supplier found = included;
-        Position home = found != null ? at : buildings.home(fixture, at);
-        for (int index = 0; found == null && index < current.suppliers().size(); index++) {
+        if (current.suppliers().isEmpty() || fixture == null || !buildings.piped(fixture)) return null;
+        Object square = game.squareOf(fixture);
+        if (square == null) return null;
+        int x = game.x(square), y = game.y(square), z = game.z(square);
+        if (current.producers().contains(x, y, z)) return null;
+        // Read by index: an iterator would allocate.
+        var rules = current.rules().naming(fixture, game, buildings);
+        for (int index = 0; index < rules.size(); index++)
+            if (rules.get(index).included() && rules.get(index).data() != null) return rules.get(index).data();
+        int[] step = buildings.homeStep(fixture, x, y, z);
+        if (step != null) { x += step[0]; y += step[1]; }
+        for (int index = 0; index < current.suppliers().size(); index++) {
             Supplier supplier = current.suppliers().get(index);
-            if (supplier.area() != null && supplier.area().contains(home) && !excluded.contains(supplier.network())) found = supplier;
+            if (supplier.area() != null && supplier.area().contains(x, y, z) && !Rules.excludes(rules, supplier.network())) return supplier;
         }
-        return found != null && buildings.piped(fixture) ? found : null;
+        return null;
     }
 
     /**
@@ -218,9 +203,9 @@ final class WaterGrid implements ApiHooks.Water {
         Object best = null;
         double bestShare = 0;
         for (Position at : producers) {
-            Object loaded = pending.owed(at) ? null : members.square(cells, at);
+            Object loaded = pending.owed(at) ? null : game.square(cells, at);
             if (loaded == null) continue;
-            for (Object object : buildings.objectsOn(loaded)) {
+            for (Object object : game.objectsOn(loaded)) {
                 Object container = fluidContainer.invoke(object);
                 if (container == null) continue;
                 float held = (float)amount.invoke(container), most = (float)capacity.invoke(container);
@@ -246,8 +231,8 @@ final class WaterGrid implements ApiHooks.Water {
      */
     List<Position> producers(Network network) {
         var result = new ArrayList<Position>();
-        if (members.root(network) == null) return result;
-        for (Network above : members.chain(network)) result.addAll(above.squares());
+        if (networks.root(network) == null) return result;
+        for (Network above : networks.chain(network)) result.addAll(above.squares());
         return result;
     }
 
@@ -289,7 +274,7 @@ final class WaterGrid implements ApiHooks.Water {
      * parent above it, is switched off. The litres drawn.
      */
     double draw(Network network, double litres, Map<String, Double> mix) throws ReflectiveOperationException {
-        Object cells = members.cell();
+        Object cells = game.cell();
         applyOwed(cells);
         List<Unit> units = units(network, cells);
         double[] held = new double[units.size()], most = new double[units.size()];
@@ -320,7 +305,7 @@ final class WaterGrid implements ApiHooks.Water {
             drawn += taken;
         }
         seen(touched, cells);
-        changed = true;
+        cadence.changed();
         return drawn;
     }
 
@@ -331,7 +316,7 @@ final class WaterGrid implements ApiHooks.Water {
      * above it, is switched off. The litres filled.
      */
     double fill(Network network, double litres, String fluid) throws ReflectiveOperationException {
-        Object cells = members.cell();
+        Object cells = game.cell();
         applyOwed(cells);
         Object kind = fluidNamed.invoke(null, fluid);
         List<Unit> units = units(network, cells);
@@ -360,7 +345,7 @@ final class WaterGrid implements ApiHooks.Water {
             }
         }
         seen(touched, cells);
-        changed = true;
+        cadence.changed();
         return filled;
     }
 
@@ -399,16 +384,16 @@ final class WaterGrid implements ApiHooks.Water {
      */
     private List<Unit> units(Network network, Object cells) throws ReflectiveOperationException {
         var result = new ArrayList<Unit>();
-        if (members.root(network) == null || !members.switchedOn(network)) return result;
-        for (Network above : members.chain(network))
+        if (networks.root(network) == null || !networks.switchedOn(network)) return result;
+        for (Network above : networks.chain(network))
             for (Position at : above.squares()) {
-                Object loaded = members.square(cells, at);
+                Object loaded = game.square(cells, at);
                 if (loaded == null) {
                     Stored stored = withOwed(at, above.stored.get(at));
                     if (stored != null && stored.capacity() > 0) result.add(new Unit(at, null, null, stored));
                     continue;
                 }
-                for (Object object : buildings.objectsOn(loaded)) {
+                for (Object object : game.objectsOn(loaded)) {
                     Stored stored = contents(object);
                     if (stored != null) result.add(new Unit(at, object, fluidContainer.invoke(object), stored));
                 }
@@ -428,20 +413,20 @@ final class WaterGrid implements ApiHooks.Water {
         if (pending.isEmpty() || cells == null) return;
         var taken = new ArrayList<Position>();
         for (Position at : pending.squares()) {
-            Object loaded = members.square(cells, at);
+            Object loaded = game.square(cells, at);
             if (loaded == null) continue;
             apply(at, loaded);
             taken.add(at);
         }
         if (taken.isEmpty()) return;
         seen(taken, cells);
-        changed = true;
+        cadence.changed();
     }
 
     private void apply(Position at, Object loaded) throws ReflectiveOperationException {
         var objects = new ArrayList<Object>();
         var containers = new ArrayList<Object>();
-        for (Object object : buildings.objectsOn(loaded)) {
+        for (Object object : game.objectsOn(loaded)) {
             Object container = fluidContainer.invoke(object);
             if (container != null && (float)capacity.invoke(container) > 0) { objects.add(object); containers.add(container); }
         }
@@ -487,15 +472,15 @@ final class WaterGrid implements ApiHooks.Water {
     /** As the game does after it changes an object's fluid: the object goes to multiplayer clients, and the event is raised. */
     private void amountChanged(Object object, float before) throws ReflectiveOperationException {
         sync.invoke(object);
-        amountChanged.invoke(null, AMOUNT_CHANGE, object, before);
+        game.raise(AMOUNT_CHANGE, object, before);
     }
 
     /** Reads again what loaded producers' squares hold, after they changed. */
     private void seen(Collection<Position> squares, Object cells) throws ReflectiveOperationException {
         if (squares.isEmpty()) return;
-        for (Network network : members.of(UTILITY))
+        for (Network network : networks.of(UTILITY))
             for (Position at : network.squares()) {
-                Object loaded = squares.contains(at) ? members.square(cells, at) : null;
+                Object loaded = squares.contains(at) ? game.square(cells, at) : null;
                 if (loaded != null) network.stored.put(at, held(loaded));
             }
     }
@@ -504,7 +489,7 @@ final class WaterGrid implements ApiHooks.Water {
     private Stored held(Object loaded) throws ReflectiveOperationException {
         float held = 0, most = 0;
         var fluids = new HashMap<String, Float>();
-        for (Object object : buildings.objectsOn(loaded)) {
+        for (Object object : game.objectsOn(loaded)) {
             Stored stored = contents(object);
             if (stored == null) continue;
             held += stored.amount();
@@ -539,62 +524,49 @@ final class WaterGrid implements ApiHooks.Water {
      */
     void frame(Object cells) throws ReflectiveOperationException {
         applyOwed(cells);
-        long now = System.nanoTime();
-        boolean due = now - refreshedAt >= REFRESH_NANOS;
-        if (!due && !changed) return;
-        changed = false;
-        if (due) refreshedAt = now;
-        List<Network> networks = members.of(UTILITY);
-        for (Network network : networks) {
+        if (!cadence.due(System.nanoTime())) return;
+        List<Network> watered = networks.of(UTILITY);
+        for (Network network : watered) {
             members.resolve(network);
             for (Position at : network.squares()) {
-                Object loaded = members.square(cells, at);
+                Object loaded = game.square(cells, at);
                 if (loaded != null) network.stored.put(at, held(loaded));
             }
         }
-        double hours = (double)worldHours.invoke(gameTime.invoke(null));
+        double hours = game.hours();
         var supplyChanged = new ArrayList<Network>();
-        for (Network network : networks) {
-            boolean supplied = members.root(network) != null && members.switchedOn(network) && holds(network);
+        for (Network network : watered) {
+            boolean supplied = networks.root(network) != null && networks.switchedOn(network) && holds(network);
             if (supplied == network.supplied) continue;
             network.supplied = supplied;
             network.suppliedAt = hours;
             supplyChanged.add(network);
         }
-        snapshot = snapshot(networks);
+        snapshot = snapshot(watered);
         // Last, so that a mod that asks for the state then gets it.
-        for (Network network : supplyChanged) triggerEvent.invoke(null, PowerGrid.EVENT, network.id, "supply", hours);
+        for (Network network : supplyChanged) networks.raise(network.id, "supply", hours);
     }
 
     /** Whether one of the producers the network draws from holds some, as last seen with what it is owed. */
     private boolean holds(Network network) {
-        for (Network above : members.chain(network))
+        for (Network above : networks.chain(network))
             for (var entry : above.stored.entrySet())
                 if (withOwed(entry.getKey(), entry.getValue()).amount() > 0) return true;
         return false;
     }
 
-    private Snapshot snapshot(List<Network> networks) {
+    private Snapshot snapshot(List<Network> watered) {
         var suppliers = new ArrayList<Supplier>();
         var byNetwork = new HashMap<Network, Supplier>();
-        var producers = new HashSet<Position>();
-        for (Network network : networks) {
-            producers.addAll(network.squares());
-            if (!network.supplied || members.root(network) == null) continue;
+        var producers = new HashMap<Position, Long>();
+        for (Network network : watered) {
+            for (Position at : network.squares()) producers.put(at, 1L);
+            if (!network.supplied || networks.root(network) == null) continue;
             var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), network.purify);
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }
-        var rules = new HashMap<Position, List<Rule>>();
-        for (Network network : networks) {
-            Supplier supplier = byNetwork.get(network);
-            for (Thing thing : network.excluded)
-                rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), false, network, supplier));
-            for (Thing thing : network.included)
-                rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, network, supplier));
-        }
-        rules.replaceAll((at, list) -> List.copyOf(list));
-        return new Snapshot(List.copyOf(suppliers), Map.copyOf(rules), Set.copyOf(producers),
+        return new Snapshot(List.copyOf(suppliers), Rules.of(watered, byNetwork::get), new SquareMap(producers),
             suppliers.stream().anyMatch(supplier -> !supplier.purify()));
     }
 }

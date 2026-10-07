@@ -347,12 +347,19 @@ The answers come from a snapshot the API makes again when something changes
 for each supplied network, one bit per square of its buildings, kept in blocks of 8 by 8 squares of a
 level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
 and the networks' object rules by square. `haveElectricity()` is called very often (lighting, food,
-sounds), so it costs a box test and a hash lookup per supplied network, never a walk over buildings. An object question looks at the
-object only when some network has a rule for an object. For an excluded object the API asks the game
-again with the networks silenced on that thread. The water questions have their own snapshot
+sounds), so it costs a box test and a hash lookup per supplied network, never a walk over buildings.
+An object question the game answers yes ends at once while no network has a rule for an object. With
+rules, the object's square, and those of its other parts for one that covers several, are looked up
+among the squares that have rules, and its sprite is read only on such a square. One the game answers
+no while a network has supply is asked also whether a supplied network lights its room (a light
+switch: a search of the supplied rooms' sorted ids) and whether it hangs on a wall of a supplied
+building, which its sprite says (kept per sprite). For an object that no rule names, none of this
+allocates. For an excluded object the API asks the game again with the networks silenced on that
+thread. The water questions have their own snapshot
 ([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/WaterGrid.java)):
-the areas of the networks that have water, and their object rules. A question about an object outside
-those areas, or with no water network, costs a lookup of the object's square.
+the areas of the networks that have water, their producers' squares and their object rules. A question
+about an object that takes no pipes, which its sprite says, ends there; one about a fixture costs the
+lookups of an object question.
 
 ## What vanilla does that mods need to know
 

@@ -13,6 +13,8 @@ import pztools.bridge.runtime.api.Network.Thing;
  * so that a newer payload takes them over, and are gone with the world they were made in.
  */
 final class Networks {
+    /** Raised to Lua mods when a network's supply, producer in use or load changes: its id, what, and the hour. */
+    static final String EVENT = "OnPZToolsNetworkChange";
     private static final String AREA = "PZToolsAPI.networks.";
     private static final int MAX_SPRITE = 256;
     // The key in the API's metatable, and the version of the text kept there.
@@ -26,6 +28,7 @@ final class Networks {
     @FunctionalInterface interface Owners { String of(Object handle) throws ReflectiveOperationException; }
 
     private final Kahlua lua;
+    private final Game game;
     private final Buildings buildings;
     private final Object meta;
     private final Owners owners;
@@ -38,14 +41,15 @@ final class Networks {
     private Object world;
     private boolean reported;
 
-    Networks(Kahlua lua, Buildings buildings, ClassLoader game, Object meta, Owners owners) throws ReflectiveOperationException {
+    Networks(Kahlua lua, Game game, Buildings buildings, ClassLoader loader, Object meta, Owners owners) throws ReflectiveOperationException {
         this.lua = lua;
+        this.game = game;
         this.buildings = buildings;
         this.meta = meta;
         this.owners = owners;
-        members = new Members(game, buildings, networks);
-        grid = new PowerGrid(game, members);
-        try { water = new WaterGrid(game, members, lua); }
+        members = new Members(game, buildings);
+        grid = new PowerGrid(loader, game, this, members, buildings);
+        try { water = new WaterGrid(loader, game, this, members, buildings, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
         load(lua.get(meta, MIRROR));
         changed();
@@ -72,7 +76,8 @@ final class Networks {
 
     /** Sets this area's functions into its table, replacing those of an earlier payload. */
     void register(Object table) throws ReflectiveOperationException {
-        grid.addEvent();
+        // Once per game; a Lua environment made later knows it too.
+        game.addEvent(EVENT);
         function(table, "define", (call, arguments) -> {
             String owner = owner(arguments, call), id = id(arguments, call);
             String utility = Arguments.string(arguments, 2, call, "utility"), policy = Arguments.string(arguments, 3, call, "policy");
@@ -315,7 +320,7 @@ final class Networks {
         });
         function(table, "consumers", (call, arguments) -> {
             Network network = networks.get(Arguments.string(arguments, 0, call, "id"));
-            if (network == null || members.cell() == null) return new Object[] { null, false };
+            if (network == null || game.cell() == null) return new Object[] { null, false };
             boolean[] complete = { true };
             var result = new ArrayList<Object>();
             var filter = WaterGrid.UTILITY.equals(network.utility) ? Members.WATER : Members.POWER;
@@ -396,7 +401,7 @@ final class Networks {
         double held = 0, most = 0;
         var producers = new ArrayList<Object>();
         if (water != null) water.refreshOwed();
-        for (Network above : members.root(network) == null ? List.<Network>of() : members.chain(network))
+        for (Network above : root(network) == null ? List.<Network>of() : chain(network))
             for (Position at : above.squares()) {
                 Object entry = square(at);
                 // What draws and fills owe a producer whose square is not loaded counts already.
@@ -428,7 +433,7 @@ final class Networks {
     /** Each frame, on the game's thread. */
     void frame() {
         try {
-            Object cell = members.cell();
+            Object cell = game.cell();
             // The world the networks were defined in was left; the mods define them again in the next one.
             if (world != null && cell != world && !networks.isEmpty()) { networks.clear(); saved(); }
             world = cell;
@@ -441,6 +446,47 @@ final class Networks {
             reported = true;
         }
     }
+
+    // The networks as the grids see them: trees of one mod's networks of one utility (see setParent).
+
+    /** The networks of one utility, in the order they were defined. */
+    List<Network> of(String utility) {
+        var result = new ArrayList<Network>();
+        for (Network network : networks.values()) if (network.utility.equals(utility)) result.add(network);
+        return result;
+    }
+
+    /** The network at the top of a child's parents; null when a parent is missing. */
+    Network root(Network network) {
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            if (network.parent == null) return network;
+            network = networks.get(network.parent);
+        }
+        return null;
+    }
+
+    /** Whether the network and every parent above it are switched on. */
+    boolean switchedOn(Network network) {
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            if (!network.enabled) return false;
+            if (network.parent == null) return true;
+            network = networks.get(network.parent);
+        }
+        return false;
+    }
+
+    /** The network and its parents, up to the one at the top. */
+    List<Network> chain(Network network) {
+        var result = new ArrayList<Network>();
+        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
+            result.add(network);
+            network = network.parent == null ? null : networks.get(network.parent);
+        }
+        return result;
+    }
+
+    /** Raises {@link #EVENT}, after a change the grids worked out: the network's id, what changed, and the hour it did. */
+    void raise(String id, String what, double hour) throws ReflectiveOperationException { game.raise(EVENT, id, what, hour); }
 
     @FunctionalInterface private interface Body { Object[] call(String call, Object[] arguments) throws Exception; }
 

@@ -96,9 +96,10 @@ public final class GameApi {
             return new Object[] { table };
         }));
         Object handles = clients(lua, api, meta);
-        var buildings = new Buildings(lua, luaManager.getClassLoader());
+        var game = new Game(luaManager.getClassLoader());
+        var buildings = new Buildings(lua, game, luaManager.getClassLoader());
         buildings.register(table(lua, api, "buildings"));
-        networks(lua, api, meta, handles, buildings, luaManager.getClassLoader());
+        networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
         lua.set(env, GLOBAL, api);
     }
 
@@ -107,11 +108,11 @@ public final class GameApi {
      * started by an install from before the networks, or a game this payload cannot read), mods find no
      * {@code networks} and the game answers every power and water question alone.
      */
-    private static void networks(Kahlua lua, Object api, Object meta, Object handles, Buildings buildings, ClassLoader game)
-            throws ReflectiveOperationException {
+    private static void networks(Kahlua lua, Object api, Object meta, Object handles, Game game, Buildings buildings,
+            ClassLoader loader) throws ReflectiveOperationException {
         Networks next;
         try {
-            next = new Networks(lua, buildings, game, meta, handle -> owner(lua, handles, handle));
+            next = new Networks(lua, game, buildings, loader, meta, handle -> owner(lua, handles, handle));
             next.hook();
         } catch (LinkageError olderBootstrap) {
             System.err.println("[PzTools API] Networks are not in this game; restart it to use them: " + olderBootstrap);

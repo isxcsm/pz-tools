@@ -16,35 +16,34 @@ final class Buildings {
     private static final String AREA = "PZToolsAPI.buildings.";
 
     private final Kahlua lua;
-    private final Field world, switchRoom;
-    private final Class<?> lightSwitch;
-    private final Method metaGrid, cell, roomAt, roomById, square, objects;
+    private final Game game;
+    private final Method roomAt, roomById;
     private final Method building, roomName, roomLevel, roomRects, roomId, rooms, userDefined;
     private final Method rectX, rectY, rectW, rectH;
     private final Method objectSprite, spriteName, spriteNameOf, properties, has, couldBePowered, consumption;
     private final Object waterPiped;
-    // The walls a sprite hangs on, as steps to the square across: { dx, dy }, or none. Sprites are few and shared.
     private final Object[] attached;
     private static final int[][] ACROSS = { { 0, -1 }, { 0, 1 }, { 1, 0 }, { -1, 0 } };
     private static final int[] NONE = {};
-    private final Map<Object, int[]> across = new ConcurrentHashMap<>();
 
-    Buildings(Kahlua lua, ClassLoader loader) throws ReflectiveOperationException {
+    /**
+     * What a sprite says of the objects that have it: the wall it hangs on, as the step to the square across ({ dx, dy },
+     * or none), and whether the game can pipe water to it. Sprites are few and shared, and the hooks ask often.
+     */
+    private record Facts(int[] across, boolean piped) { }
+    private final Map<Object, Facts> facts = new ConcurrentHashMap<>();
+
+    Buildings(Kahlua lua, Game game, ClassLoader loader) throws ReflectiveOperationException {
         this.lua = lua;
-        Class<?> worldType = type(loader, "zombie.iso.IsoWorld"), grid = type(loader, "zombie.iso.IsoMetaGrid");
-        Class<?> room = type(loader, "zombie.iso.RoomDef"), rect = type(loader, "zombie.iso.RoomDef$RoomRect");
-        Class<?> def = type(loader, "zombie.iso.BuildingDef"), cellType = type(loader, "zombie.iso.IsoCell");
-        Class<?> squareType = type(loader, "zombie.iso.IsoGridSquare"), object = type(loader, "zombie.iso.IsoObject");
-        Class<?> sprite = type(loader, "zombie.iso.sprite.IsoSprite");
-        Class<?> container = type(loader, "zombie.core.properties.PropertyContainer");
-        Class<?> flag = type(loader, "zombie.iso.SpriteDetails.IsoFlagType");
-        world = worldType.getField("instance");
-        metaGrid = worldType.getMethod("getMetaGrid");
-        cell = worldType.getMethod("getCell");
+        this.game = game;
+        Class<?> grid = Game.type(loader, "zombie.iso.IsoMetaGrid");
+        Class<?> room = Game.type(loader, "zombie.iso.RoomDef"), rect = Game.type(loader, "zombie.iso.RoomDef$RoomRect");
+        Class<?> def = Game.type(loader, "zombie.iso.BuildingDef"), object = game.objectType;
+        Class<?> sprite = Game.type(loader, "zombie.iso.sprite.IsoSprite");
+        Class<?> container = Game.type(loader, "zombie.core.properties.PropertyContainer");
+        Class<?> flag = Game.type(loader, "zombie.iso.SpriteDetails.IsoFlagType");
         roomAt = grid.getMethod("getRoomAt", int.class, int.class, int.class);
         roomById = grid.getMethod("getRoomDefByID", long.class);
-        square = cellType.getMethod("getGridSquare", int.class, int.class, int.class);
-        objects = squareType.getMethod("getObjects");
         building = room.getMethod("getBuilding");
         roomName = room.getMethod("getName");
         roomLevel = room.getMethod("getZ");
@@ -64,12 +63,6 @@ final class Buildings {
         waterPiped = flag.getField("waterPiped").get(null);
         attached = new Object[] { flag.getField("attachedN").get(null), flag.getField("attachedS").get(null),
             flag.getField("attachedE").get(null), flag.getField("attachedW").get(null) };
-        lightSwitch = type(loader, "zombie.iso.objects.IsoLightSwitch");
-        switchRoom = lightSwitch.getField("roomId");
-    }
-
-    private static Class<?> type(ClassLoader loader, String name) throws ClassNotFoundException {
-        return Class.forName(name, false, loader);
     }
 
     /** Sets this area's functions into its table, replacing those of an earlier payload. */
@@ -164,7 +157,7 @@ final class Buildings {
      * to (see Members.resolve). {@code complete[0]} is cleared when some were missing.
      */
     List<Found> scan(Building found, Filter filter, boolean[] complete) throws ReflectiveOperationException {
-        Object cells = cell(), grid = grid();
+        Object cells = game.cell(), grid = game.metaGrid();
         var result = new ArrayList<Found>();
         var rooms = Collections.newSetFromMap(new IdentityHashMap<Object, Boolean>());
         rooms.addAll(found.rooms());
@@ -173,9 +166,9 @@ final class Buildings {
                 for (int x = found.minX() - 1; x <= found.maxX() + 1; x++) {
                     Object room = roomAt(grid, x, y, z);
                     boolean inside = room != null && rooms.contains(room);
-                    Object loaded = cells == null ? null : square.invoke(cells, x, y, z);
+                    Object loaded = game.square(cells, x, y, z);
                     if (loaded == null) { if (inside) complete[0] = false; continue; }
-                    for (Object object : objectsOn(loaded)) {
+                    for (Object object : game.objectsOn(loaded)) {
                         Object owner = owner(grid, object, room, x, y, z);
                         if (owner == null || !rooms.contains(owner)) continue;
                         Found thing = classify(object, filter, x, y, z, owner);
@@ -192,7 +185,7 @@ final class Buildings {
     private Object[] near(String key, int tiles, Filter filter) throws ReflectiveOperationException {
         Building found = resolve(key);
         if (found == null) return new Object[] { null, false };
-        Object cells = cell(), grid = grid();
+        Object cells = game.cell(), grid = game.metaGrid();
         int left = found.minX() - tiles, top = found.minY() - tiles;
         int width = found.maxX() - found.minX() + 1 + 2 * tiles, height = found.maxY() - found.minY() + 1 + 2 * tiles;
         var result = new ArrayList<Object>();
@@ -213,9 +206,9 @@ final class Buildings {
                     if (!ring[y * width + x] || inside[y * width + x]) continue;
                     int wx = left + x, wy = top + y;
                     if (roomAt(grid, wx, wy, z) != null) continue;
-                    Object loaded = cells == null ? null : square.invoke(cells, wx, wy, z);
+                    Object loaded = game.square(cells, wx, wy, z);
                     if (loaded == null) { complete = false; continue; }
-                    for (Object object : objectsOn(loaded)) {
+                    for (Object object : game.objectsOn(loaded)) {
                         if (owner(grid, object, null, wx, wy, z) != null) continue;
                         Found thing = classify(object, filter, wx, wy, z, null);
                         if (thing != null) result.add(entry(thing));
@@ -239,21 +232,13 @@ final class Buildings {
         return result;
     }
 
-    /** A square's objects. The game's list (PZArrayList) is read by index: it has no iterator. */
-    List<Object> objectsOn(Object loaded) throws ReflectiveOperationException {
-        var list = (List<?>)objects.invoke(loaded);
-        var result = new ArrayList<Object>(list.size());
-        for (int index = 0; index < list.size(); index++) result.add(list.get(index));
-        return result;
-    }
-
     /**
      * The room an object belongs to: a light switch's lit room, or else its square's room, or else, for one hanging on a
      * wall outside (a lamp on a building's outer wall), the room across that wall (see {@link #home}).
      */
     private Object owner(Object grid, Object object, Object squareRoom, int x, int y, int z) throws ReflectiveOperationException {
-        if (lightSwitch.isInstance(object)) {
-            long lit = switchRoom.getLong(object);
+        if (game.lightSwitch.isInstance(object)) {
+            long lit = game.switchRoom(object);
             Object room = lit == -1 || grid == null ? null : roomById.invoke(grid, lit);
             if (room != null) return room;
         }
@@ -269,26 +254,39 @@ final class Buildings {
      */
     Position home(Object object, Position at) throws ReflectiveOperationException {
         if (at == null) return null;
+        int[] step = homeStep(object, at.x(), at.y(), at.z());
+        return step == null ? at : new Position(at.x() + step[0], at.y() + step[1], at.z());
+    }
+
+    /**
+     * {@link #home} without allocating: the step to the square across the wall the object hangs on, when it counts as
+     * standing there; null for its own square. An object that hangs on no wall, as most do, costs a look at its sprite.
+     */
+    int[] homeStep(Object object, int x, int y, int z) throws ReflectiveOperationException {
         int[] step = across(object);
-        if (step.length == 0) return at;
-        Object grid = grid();
-        if (roomAt(grid, at.x(), at.y(), at.z()) != null) return at;
-        Position beyond = new Position(at.x() + step[0], at.y() + step[1], at.z());
-        return roomAt(grid, beyond.x(), beyond.y(), beyond.z()) != null ? beyond : at;
+        if (step.length == 0) return null;
+        Object grid = game.metaGrid();
+        return roomAt(grid, x, y, z) == null && roomAt(grid, x + step[0], y + step[1], z) != null ? step : null;
     }
 
     /** The step to the square across the wall the object's sprite hangs on, or none. */
     private int[] across(Object object) throws ReflectiveOperationException {
-        Object sprite = objectSprite.invoke(object);
-        if (sprite == null) return NONE;
-        int[] known = across.get(sprite);
+        Facts known = facts(object);
+        return known == null ? NONE : known.across();
+    }
+
+    private Facts facts(Object object) throws ReflectiveOperationException {
+        Object sprite = objectSprite.invoke(object, Game.NONE);
+        if (sprite == null) return null;
+        Facts known = facts.get(sprite);
         if (known != null) return known;
         Object flags = properties.invoke(sprite);
-        int[] result = NONE;
+        int[] step = NONE;
         for (int side = 0; flags != null && side < attached.length; side++)
-            if ((boolean)has.invoke(flags, attached[side])) { result = ACROSS[side]; break; }
-        across.put(sprite, result);
-        return result;
+            if ((boolean)has.invoke(flags, attached[side])) { step = ACROSS[side]; break; }
+        known = new Facts(step, flags != null && (boolean)has.invoke(flags, waterPiped));
+        facts.put(sprite, known);
+        return known;
     }
 
     /** The object when it uses what the filter asks for, or null. */
@@ -299,9 +297,8 @@ final class Buildings {
 
     /** Whether the game can pipe water to the object: its sprite has the {@code waterPiped} flag. */
     boolean piped(Object object) throws ReflectiveOperationException {
-        Object sprite = objectSprite.invoke(object);
-        Object flags = sprite == null ? null : properties.invoke(sprite);
-        return flags != null && (boolean)has.invoke(flags, waterPiped);
+        Facts known = facts(object);
+        return known != null && known.piped();
     }
 
     /** The object as a Lua table, with the consumption the game gives for it now. */
@@ -398,20 +395,10 @@ final class Buildings {
         return result;
     }
 
-    private Object roomAt(int x, int y, int z) throws ReflectiveOperationException { return roomAt(grid(), x, y, z); }
+    private Object roomAt(int x, int y, int z) throws ReflectiveOperationException { return roomAt(game.metaGrid(), x, y, z); }
 
     /** The room at the square, from the meta grid a caller that asks about many squares got once. */
     private Object roomAt(Object grid, int x, int y, int z) throws ReflectiveOperationException {
         return grid == null ? null : roomAt.invoke(grid, x, y, z);
-    }
-
-    private Object grid() throws ReflectiveOperationException {
-        Object current = world.get(null);
-        return current == null ? null : metaGrid.invoke(current);
-    }
-
-    Object cell() throws ReflectiveOperationException {
-        Object current = world.get(null);
-        return current == null ? null : cell.invoke(current);
     }
 }

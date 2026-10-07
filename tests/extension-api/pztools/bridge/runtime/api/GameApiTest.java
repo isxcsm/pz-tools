@@ -60,6 +60,7 @@ public final class GameApiTest {
         loadFactors(api);
         memberRooms(api);
         farApart(api);
+        cheapHooks(api);
         sources(api);
         failedTakeover(api);
         water(api);
@@ -795,6 +796,52 @@ public final class GameApiTest {
         generator.setActivated(false);
         grid.rooms.remove(hall);
         grid.rooms.remove(loft);
+    }
+
+    /**
+     * The questions the game asks tens of thousands of times a second allocate nothing, with networks supplied and
+     * rules in place: a square's, an object's that no rule names and that hangs on no wall, and a water question about
+     * an object that takes no pipes.
+     */
+    private static void cheapHooks(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "power.mod").get(0);
+        var generator = (IsoGenerator)square(34, 33, 0).objects.get(0);
+        generator.fuel = 6;
+        call(networks, "define", mod, "hot", "power", "sequential");
+        call(networks, "setProducers", mod, "hot", list(at(34, 33, 0)));
+        call(networks, "addBuilding", mod, "hot", 11.0, 11.0, 0.0);
+        call(networks, "exclude", mod, "hot", 11.0, 11.0, 0.0, "fridge");
+        call(networks, "define", mod, "hotWater", "water", "fullest");
+        place(30, 38, 0, barrel(50));
+        call(networks, "setProducers", mod, "hotWater", list(at(30, 38, 0)));
+        call(networks, "addBuilding", mod, "hotWater", 11.0, 11.0, 0.0);
+        call(networks, "exclude", mod, "hotWater", 12.0, 11.0, 0.0, "sink");
+        generator.setActivated(true);
+        frame();
+        IsoObject chair = square(10, 10, 0).objects.get(0);
+        check(ApiHooks.squarePowered(false, 11, 11, 0) && !ApiHooks.squarePowered(false, 40, 40, 0)
+            && !ApiHooks.objectPowered(false, chair, ApiHooks.APPLIANCE, true) && ApiHooks.objectPowered(true, chair, ApiHooks.APPLIANCE, true)
+            && !ApiHooks.waterPlumbed(false, chair) && state(networks, "hotWater").rawget("supplied").equals(true), "The networks do not run");
+        var threads = (com.sun.management.ThreadMXBean)java.lang.management.ManagementFactory.getThreadMXBean();
+        long allocated = 0;
+        for (int round = 0; round < 3; round++) {
+            long before = threads.getCurrentThreadAllocatedBytes();
+            for (int index = 0; index < 10_000; index++) {
+                ApiHooks.squarePowered(false, 11, 11, 0);
+                ApiHooks.squarePowered(false, 40, 40, 0);
+                ApiHooks.objectPowered(false, chair, ApiHooks.APPLIANCE, true);
+                ApiHooks.objectPowered(true, chair, ApiHooks.APPLIANCE, true);
+                ApiHooks.waterPlumbed(false, chair);
+            }
+            allocated = threads.getCurrentThreadAllocatedBytes() - before;
+        }
+        check(allocated < 10_000, "50,000 hot questions allocated " + allocated + " bytes");
+        call(networks, "remove", mod, "hot");
+        call(networks, "remove", mod, "hotWater");
+        frame();
+        generator.setActivated(false);
+        square(30, 38, 0).objects.clear();
     }
 
     /**

@@ -19,7 +19,6 @@ import pztools.bridge.runtime.api.Members.Area;
  * the game's thread, once a second or when something changed.
  */
 final class PowerGrid implements ApiHooks.Power {
-    private static final long REFRESH_NANOS = TimeUnit.SECONDS.toNanos(1);
     // A network whose consumers were not all loaded is worked out again this often, until they were.
     private static final long INCOMPLETE_LOAD_NANOS = TimeUnit.SECONDS.toNanos(5);
     // The supply changes a network keeps for food: a bound on memory, far more than a fridge sees between two ageings.
@@ -27,14 +26,9 @@ final class PowerGrid implements ApiHooks.Power {
     // Set while the game's own answer is asked again for an excluded object: the networks then give no square power.
     private static final ThreadLocal<boolean[]> PURE = ThreadLocal.withInitial(() -> new boolean[1]);
 
-    /** Raised to Lua mods when a network's supply, producer in use or load changes: its id, what, and the hour. */
-    static final String EVENT = "OnPZToolsNetworkChange";
     static final String UTILITY = "power";
 
     private record Change(String id, String what, double hour) { }
-
-    /** An object rule of a network at one square. */
-    private record Rule(String sprite, boolean included, boolean supplied, Network network) { }
 
     /** Changes of one yes-or-no over the hours: when it became true or false, and what it was before the first. */
     record Track(double[] hours, boolean[] values, boolean before) {
@@ -91,29 +85,31 @@ final class PowerGrid implements ApiHooks.Power {
 
     /**
      * What the hooks read. {@code supplied} holds the areas of the networks that have supply now, {@code rooms} the
-     * ids of their buildings' rooms.
+     * ids of their buildings' rooms, sorted; each object rule says whether its network has supply.
      */
-    private record Snapshot(Area[] supplied, Set<Long> rooms, List<Network> withArea, Map<Position, Network> producers,
-            Map<Position, List<Rule>> rules, Map<Network, History> histories) {
-        static final Snapshot EMPTY = new Snapshot(new Area[0], Set.of(), List.of(), Map.of(), Map.of(), Map.of());
+    private record Snapshot(Area[] supplied, long[] rooms, List<Network> withArea, Map<Position, Network> producers,
+            Rules<Boolean> rules, Map<Network, History> histories) {
+        static final Snapshot EMPTY = new Snapshot(new Area[0], new long[0], List.of(), Map.of(), Rules.none(), Map.of());
+
+        /** Whether a supplied network takes the room of that id. */
+        boolean lit(long room) { return Arrays.binarySearch(rooms, room) >= 0; }
     }
 
+    private final Game game;
+    private final Networks networks;
     private final Members members;
     private final Buildings buildings;
+    private final Cadence cadence = new Cadence();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
-    // Set by a definition change and by the hooks; the next frame works the networks out again.
-    private volatile boolean changed = true;
     // The producers the last frame left in networks: one that joins or leaves gets its surroundings worked out again.
     private Set<Position> grouped = Set.of();
     // In a frame: the hour each network's producer in use started or stopped, when it did.
     private final Map<Network, Double> supplyHours = new HashMap<>();
-    // Due at the first frame. (Long.MIN_VALUE would overflow the difference: never due.)
-    private long refreshedAt = System.nanoTime() - REFRESH_NANOS;
 
-    private final Method getChunk, generatorOf, objectSquare, checkElectricity;
+    private final Method getChunk, generatorOf, checkElectricity;
     private final Field squareChunk, chunkX, chunkY;
     private final Method removeGeneratorPos, activated, fuel, condition, setUsing, surroundings, perHour, setActivated;
-    private final Method gameTime, worldHours, addEvent, triggerEvent, optionValue, elecShut;
+    private final Method optionValue, elecShut;
     private final Method outermost, frozen, fridgeFactor, lastAged, isFridge, isFreezer;
     private final Field sandbox, fuelRate;
     private final Field lastHour;
@@ -121,75 +117,55 @@ final class PowerGrid implements ApiHooks.Power {
     private final Field itemsPowered, using, chunkRange, basePower;
     private final Method containerPowered, switchPowered, devicePowered, battery, deviceParent;
     private final Method squarePowered, containerParent, containerSquare;
-    private final Field switchRoom;
-    private final Class<?> objectType;
 
-    PowerGrid(ClassLoader loader, Members members) throws ReflectiveOperationException {
+    PowerGrid(ClassLoader loader, Game game, Networks networks, Members members, Buildings buildings) throws ReflectiveOperationException {
+        this.game = game;
+        this.networks = networks;
         this.members = members;
-        buildings = members.buildings();
-        Class<?> cellType = type(loader, "zombie.iso.IsoCell");
-        Class<?> squareType = type(loader, "zombie.iso.IsoGridSquare"), chunkType = type(loader, "zombie.iso.IsoChunk");
-        Class<?> generator = type(loader, "zombie.iso.objects.IsoGenerator");
-        Class<?> lightSwitch = type(loader, "zombie.iso.objects.IsoLightSwitch");
-        Class<?> device = type(loader, "zombie.radio.devices.DeviceData");
-        objectType = type(loader, "zombie.iso.IsoObject");
-        getChunk = cellType.getMethod("getChunk", int.class, int.class);
+        this.buildings = buildings;
+        Class<?> squareType = Game.type(loader, "zombie.iso.IsoGridSquare"), chunkType = Game.type(loader, "zombie.iso.IsoChunk");
+        Class<?> generator = Game.type(loader, "zombie.iso.objects.IsoGenerator");
+        Class<?> device = Game.type(loader, "zombie.radio.devices.DeviceData");
+        Class<?> container = game.container;
+        getChunk = Game.type(loader, "zombie.iso.IsoCell").getMethod("getChunk", int.class, int.class);
         generatorOf = squareType.getMethod("getGenerator");
         squareChunk = squareType.getField("chunk");
         chunkX = chunkType.getField("wx"); chunkY = chunkType.getField("wy");
         removeGeneratorPos = chunkType.getMethod("removeGeneratorPos", int.class, int.class, int.class);
-        objectSquare = objectType.getMethod("getSquare");
-        checkElectricity = objectType.getMethod("checkHaveElectricity");
+        checkElectricity = game.objectType.getMethod("checkHaveElectricity");
         activated = generator.getMethod("isActivated");
         fuel = generator.getMethod("getFuel");
         condition = generator.getMethod("getCondition");
         setUsing = generator.getMethod("setTotalPowerUsing", float.class);
-        using = accessible(generator.getDeclaredField("totalPowerUsing"));
+        using = Game.accessible(generator.getDeclaredField("totalPowerUsing"));
         surroundings = generator.getMethod("setSurroundingElectricity");
         perHour = generator.getMethod("getTotalPowerUsing");
         setActivated = generator.getMethod("setActivated", boolean.class);
-        lastHour = accessible(generator.getDeclaredField("lastHour"));
-        Class<?> time = type(loader, "zombie.GameTime");
-        gameTime = time.getMethod("getInstance");
-        worldHours = time.getMethod("getWorldAgeHours");
-        Class<?> options = type(loader, "zombie.SandboxOptions");
+        lastHour = Game.accessible(generator.getDeclaredField("lastHour"));
+        Class<?> options = Game.type(loader, "zombie.SandboxOptions");
         sandbox = options.getField("instance");
         fuelRate = options.getField("generatorFuelConsumption");
         optionValue = fuelRate.getType().getMethod("getValue");
         elecShut = options.getMethod("getElecShutModifier");
-        Class<?> food = type(loader, "zombie.inventory.types.Food");
+        Class<?> food = Game.type(loader, "zombie.inventory.types.Food");
         outermost = food.getMethod("getOutermostContainer");
         frozen = food.getMethod("isFrozen");
-        fridgeFactor = accessible(food.getDeclaredMethod("getFridgeFactor"));
+        fridgeFactor = Game.accessible(food.getDeclaredMethod("getFridgeFactor"));
         lastAged = food.getMethod("getLastAged");
-        Class<?> events = type(loader, "zombie.Lua.LuaEventManager");
-        addEvent = events.getMethod("AddEvent", String.class);
-        triggerEvent = events.getMethod("triggerEvent", String.class, Object.class, Object.class, Object.class);
-        itemsPowered = accessible(generator.getDeclaredField("itemsPowered"));
-        chunkRange = accessible(generator.getDeclaredField("generatorChunkRange"));
-        basePower = accessible(generator.getDeclaredField("GeneratorBasePowerConsumption"));
-        containerPowered = type(loader, "zombie.inventory.ItemContainer").getMethod("isObjectPowered", objectType, boolean.class);
-        switchPowered = accessible(lightSwitch.getDeclaredMethod("hasElectricityAround"));
+        itemsPowered = Game.accessible(generator.getDeclaredField("itemsPowered"));
+        chunkRange = Game.accessible(generator.getDeclaredField("generatorChunkRange"));
+        basePower = Game.accessible(generator.getDeclaredField("GeneratorBasePowerConsumption"));
+        containerPowered = container.getMethod("isObjectPowered", game.objectType, boolean.class);
+        switchPowered = Game.accessible(game.lightSwitch.getDeclaredMethod("hasElectricityAround"));
         devicePowered = device.getMethod("canBePoweredHere");
         squarePowered = squareType.getMethod("haveElectricity");
-        Class<?> container = type(loader, "zombie.inventory.ItemContainer");
         containerParent = container.getMethod("getParent");
         containerSquare = container.getMethod("getSourceGrid");
         isFridge = container.getMethod("isFridge");
         isFreezer = container.getMethod("isFreezer");
-        switchRoom = lightSwitch.getField("roomId");
         battery = device.getMethod("getIsBatteryPowered");
         deviceParent = device.getMethod("getParent");
     }
-
-    private static Class<?> type(ClassLoader loader, String name) throws ClassNotFoundException {
-        return Class.forName(name, false, loader);
-    }
-
-    private static <T extends AccessibleObject> T accessible(T member) { member.setAccessible(true); return member; }
-
-    /** Makes the networks' event known to the game's Lua (once per game; a Lua environment made later gets it too). */
-    void addEvent() throws ReflectiveOperationException { addEvent.invoke(null, EVENT); }
 
     /**
      * A definition changed: the hooks know the producers at once (a world's generators make up for the hours the world
@@ -197,12 +173,12 @@ final class PowerGrid implements ApiHooks.Power {
      */
     void changed() throws ReflectiveOperationException {
         snapshot = snapshot();
-        changed = true;
+        cadence.changed();
     }
 
     /** The mod switched the network on or off: remembered for food, and worked out again in the next frame. */
     void switched(Network network) throws ReflectiveOperationException {
-        network.switches.put((double)worldHours.invoke(gameTime.invoke(null)), network.enabled);
+        network.switches.put(game.hours(), network.enabled);
         while (network.switches.size() > MAX_HISTORY) network.enabledBefore = network.switches.pollFirstEntry().getValue();
         network.loadChanged = true;
     }
@@ -217,59 +193,69 @@ final class PowerGrid implements ApiHooks.Power {
     @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) {
         if (!generators || object == null) return vanilla;
         Snapshot current = snapshot;
-        boolean outside = !vanilla && current.supplied().length > 0;
-        if (current.rules().isEmpty() && !outside && (kind != ApiHooks.ROOM_LIGHT || current.rooms().isEmpty())) return vanilla;
-        boolean[] pure = PURE.get();
-        if (pure[0]) return vanilla;
+        // The game said no while a network has supply: a network may add to it. Its yes stands but for an exclusion.
+        boolean asked = !vanilla && current.supplied().length > 0;
+        if (!asked && current.rules().isEmpty()) return vanilla;
         try {
-            Object target = object;
-            if (kind == ApiHooks.DEVICE) {
-                if ((boolean)battery.invoke(object)) return vanilla;
-                target = deviceParent.invoke(object);
-                if (!objectType.isInstance(target)) return vanilla;
-            } else if (kind == ApiHooks.FOOD) {
-                target = containerParent.invoke(object);
-                if (!objectType.isInstance(target)) return vanilla;
-            }
+            Object target = target(object, kind);
+            if (target == null) return vanilla;
+            // Read by index: an iterator would allocate, and nearly every object has no rule.
+            var rules = current.rules().naming(target, game, buildings);
             boolean excluded = false;
-            for (Object part : current.rules().isEmpty() ? List.of() : members.parts(target)) {
-                Thing thing = members.thing(part);
-                List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
-                if (rules == null) continue;
-                for (Rule rule : rules) {
-                    if (!rule.sprite().equals(thing.sprite())) continue;
-                    if (rule.included() && rule.supplied()) return true;
-                    if (!rule.included()) excluded = true;
-                }
+            for (int index = 0; index < rules.size(); index++) {
+                var rule = rules.get(index);
+                if (!rule.included()) excluded = true;
+                else if (rule.data()) return vanilla || !pure();
             }
-            // A switch powers its room's light when a network supplies that room, wherever the switch stands: one on a
-            // south or east wall stands on the square beyond, outside the building.
-            if (!excluded) return vanilla || kind == ApiHooks.ROOM_LIGHT && current.rooms().contains(switchRoom.getLong(object))
-                || outside && onSuppliedWall(current, target);
+            if (!excluded) {
+                if (!asked) return vanilla;
+                // A switch powers its room's light when a network supplies that room, wherever the switch stands: one on
+                // a south or east wall stands on the square beyond, outside the building.
+                return (kind == ApiHooks.ROOM_LIGHT && current.lit(game.switchRoom(object)) || onSuppliedWall(current, target)) && !pure();
+            }
             if (!vanilla) return false;
             // The game said yes, perhaps because a network powers the square: ask it again without the networks.
+            boolean[] pure = PURE.get();
+            if (pure[0]) return vanilla;
             pure[0] = true;
             try {
                 return switch (kind) {
                     case ApiHooks.APPLIANCE -> (boolean)containerPowered.invoke(null, object, true);
                     case ApiHooks.LIGHT_SWITCH -> (boolean)switchPowered.invoke(object);
                     case ApiHooks.DEVICE -> (boolean)devicePowered.invoke(object);
-                    case ApiHooks.ROOM_LIGHT -> squarePowered(objectSquare.invoke(object));
+                    case ApiHooks.ROOM_LIGHT -> squarePowered(game.squareOf(object));
                     default -> squarePowered(containerSquare.invoke(object));
                 };
             } finally { pure[0] = false; }
-        } catch (InvocationTargetException failure) {
-            throw new IllegalStateException(failure.getCause());
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException(failure);
+            throw Game.failed(failure);
         }
+    }
+
+    /** Whether the game's own answer is being asked again on this thread, which the networks then leave alone. */
+    private static boolean pure() { return PURE.get()[0]; }
+
+    /**
+     * The object a question is about: a radio's or television's object (null, the game's answer, for one on batteries),
+     * or the object a food container belongs to; null when it is no object of the world.
+     */
+    private Object target(Object object, int kind) throws ReflectiveOperationException {
+        Object target = switch (kind) {
+            case ApiHooks.DEVICE -> (boolean)battery.invoke(object, Game.NONE) ? null : deviceParent.invoke(object, Game.NONE);
+            case ApiHooks.FOOD -> containerParent.invoke(object, Game.NONE);
+            default -> object;
+        };
+        return game.objectType.isInstance(target) ? target : null;
     }
 
     /** Whether the object hangs on a wall outside a supplied building (see Buildings.home). */
     private boolean onSuppliedWall(Snapshot current, Object target) throws ReflectiveOperationException {
-        Position at = members.at(target), home = buildings.home(target, at);
-        if (home == null || home.equals(at)) return false;
-        for (Area area : current.supplied()) if (area.contains(home)) return true;
+        Object square = game.squareOf(target);
+        if (square == null) return false;
+        int x = game.x(square), y = game.y(square), z = game.z(square);
+        int[] step = buildings.homeStep(target, x, y, z);
+        if (step == null) return false;
+        for (Area area : current.supplied()) if (area.contains(x + step[0], y + step[1], z)) return true;
         return false;
     }
 
@@ -277,12 +263,12 @@ final class PowerGrid implements ApiHooks.Power {
         Snapshot current = snapshot;
         if (current.producers().isEmpty()) return false;
         try {
-            Position at = members.at(generator);
+            Position at = game.at(generator);
             Network network = at == null ? null : current.producers().get(at);
             if (network == null) return false;
             // A generator in a network powers no square around it and lists nothing as powered.
             ((Map<?, ?>)itemsPowered.get(generator)).clear();
-            Object chunk = squareChunk.get(objectSquare.invoke(generator)), cells = members.cell();
+            Object chunk = squareChunk.get(game.squareOf(generator)), cells = game.cell();
             if (chunk != null && cells != null) {
                 int range = chunkRange.getInt(null), wx = chunkX.getInt(chunk), wy = chunkY.getInt(chunk);
                 for (int dx = -range; dx <= range; dx++)
@@ -292,12 +278,10 @@ final class PowerGrid implements ApiHooks.Power {
                     }
             }
             setUsing.invoke(generator, consumption(network, Producer.square(at)));
-            changed = true;
+            cadence.changed();
             return true;
-        } catch (InvocationTargetException failure) {
-            throw new IllegalStateException(failure.getCause());
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException(failure);
+            throw Game.failed(failure);
         }
     }
 
@@ -305,20 +289,18 @@ final class PowerGrid implements ApiHooks.Power {
         if (square == null) return;
         Snapshot current = snapshot;
         try {
-            Position at = members.position(square);
-            int x = at.x(), y = at.y(), z = at.z();
+            int x = game.x(square), y = game.y(square), z = game.z(square);
             for (Network network : current.withArea()) {
                 // A light switch on a south or east wall stands on the square beyond its room.
                 Area area = network.area;
                 boolean near = false;
                 for (int dx = -1; dx <= 1 && !near; dx++)
                     for (int dy = -1; dy <= 1 && !near; dy++) near = area != null && area.contains(x + dx, y + dy, z);
-                if (near) { network.loadChanged = true; changed = true; }
+                if (near) { network.loadChanged = true; cadence.changed(); }
             }
-            List<Rule> rules = current.rules().get(at);
-            if (rules != null) for (Rule rule : rules) if (rule.included()) { rule.network().loadChanged = true; changed = true; }
+            for (var rule : current.rules().at(x, y, z)) if (rule.included()) { rule.network().loadChanged = true; cadence.changed(); }
         } catch (IllegalAccessException failure) {
-            throw new IllegalStateException(failure);
+            throw Game.failed(failure);
         }
     }
 
@@ -326,17 +308,15 @@ final class PowerGrid implements ApiHooks.Power {
         Snapshot current = snapshot;
         if (current.producers().isEmpty()) return;
         try {
-            Position at = members.at(generator);
+            Position at = game.at(generator);
             Network network = at == null ? null : current.producers().get(at);
             if (network == null || !(boolean)activated.invoke(generator)) return;
             // The getter gives what it burns an hour: its consumption times the sandbox's fuel rate.
             network.settled.put(at, new Settled(lastHour.getInt(generator), (float)fuel.invoke(generator), (float)perHour.invoke(generator)));
             // Running before the API knew which producer was in use: the world was just loaded, or the player switched it on.
             if (network.inUse == null) network.adopted = Producer.square(at);
-        } catch (InvocationTargetException failure) {
-            throw new IllegalStateException(failure.getCause());
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException(failure);
+            throw Game.failed(failure);
         }
     }
 
@@ -347,28 +327,27 @@ final class PowerGrid implements ApiHooks.Power {
      */
     @Override public double foodHours(double vanilla, Object food) {
         Snapshot current = snapshot;
+        if (current.histories().isEmpty() || food == null) return vanilla;
         boolean[] pure = PURE.get();
-        if (current.histories().isEmpty() || food == null || pure[0]) return vanilla;
+        if (pure[0]) return vanilla;
         try {
             Object container = outermost.invoke(food);
             if (container == null || (boolean)frozen.invoke(food) || !(boolean)isFridge.invoke(container) && !(boolean)isFreezer.invoke(container))
                 return vanilla;
             Object object = containerParent.invoke(container);
-            Network network = objectType.isInstance(object) ? consumerOf(current, object) : null;
+            Network network = game.objectType.isInstance(object) ? consumerOf(current, object) : null;
             History history = network == null ? null : current.histories().get(network);
             if (history == null) return vanilla;
             // The game's own power now (the grid, a generator in range) chills all the hours, as in vanilla.
             pure[0] = true;
             try { if (squarePowered(containerSquare.invoke(container))) return vanilla; }
             finally { pure[0] = false; }
-            float now = (float)(double)worldHours.invoke(gameTime.invoke(null)), last = (float)lastAged.invoke(food);
+            float now = (float)game.hours(), last = (float)lastAged.invoke(food);
             int shut = (int)elecShut.invoke(sandbox.get(null));
             double chilled = history.chilled(last, now, shut > -1 ? shut * 24.0 : Double.NEGATIVE_INFINITY);
             return chilled * (float)fridgeFactor.invoke(food) + (now - last - chilled);
-        } catch (InvocationTargetException failure) {
-            throw new IllegalStateException(failure.getCause());
         } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException(failure);
+            throw Game.failed(failure);
         }
     }
 
@@ -377,22 +356,13 @@ final class PowerGrid implements ApiHooks.Power {
      * buildings it stands in that did not exclude it.
      */
     private Network consumerOf(Snapshot current, Object object) throws ReflectiveOperationException {
-        var excluded = new ArrayList<Network>();
-        for (Object part : current.rules().isEmpty() ? List.of() : members.parts(object)) {
-            Thing thing = members.thing(part);
-            List<Rule> rules = thing == null ? null : current.rules().get(thing.at());
-            if (rules == null) continue;
-            for (Rule rule : rules) {
-                if (!rule.sprite().equals(thing.sprite())) continue;
-                if (rule.included()) return rule.network();
-                excluded.add(rule.network());
-            }
-        }
-        Position at = buildings.home(object, members.at(object));
+        var rules = current.rules().naming(object, game, buildings);
+        for (var rule : rules) if (rule.included()) return rule.network();
+        Position at = buildings.home(object, game.at(object));
         if (at == null) return null;
         for (Network network : current.withArea()) {
             Area area = network.area;
-            if (area != null && area.contains(at) && !excluded.contains(network)) return network;
+            if (area != null && area.contains(at) && !Rules.excludes(rules, network)) return network;
         }
         return null;
     }
@@ -402,18 +372,15 @@ final class PowerGrid implements ApiHooks.Power {
     /** Once a frame: works the networks out again once a second, or when something changed. */
     void frame(Object cells) throws ReflectiveOperationException {
         long now = System.nanoTime();
-        boolean due = now - refreshedAt >= REFRESH_NANOS;
-        if (!due && !changed) return;
-        changed = false;
-        if (due) refreshedAt = now;
+        if (!cadence.due(now)) return;
         var supplyChanged = new ArrayList<Network>();
         var changes = new ArrayList<Change>();
-        double hours = (double)worldHours.invoke(gameTime.invoke(null));
+        double hours = game.hours();
         var fresh = new HashSet<Network>();
         supplyHours.clear();
         var totals = new HashMap<Network, Float>();
-        List<Network> networks = members.of(UTILITY);
-        for (Network network : networks) {
+        List<Network> powered = networks.of(UTILITY);
+        for (Network network : powered) {
             totals.put(network, network.total);
             members.resolve(network);
             if (network.parent == null) producers(network, cells, hours, changes);
@@ -424,9 +391,9 @@ final class PowerGrid implements ApiHooks.Power {
             }
         }
         // A child has supply while its parent has, and its parent carries its load; switched off, neither.
-        for (Network network : networks) {
-            Network root = members.root(network);
-            boolean supplied = root != null && root.inUse != null && members.switchedOn(network);
+        for (Network network : powered) {
+            Network root = networks.root(network);
+            boolean supplied = root != null && root.inUse != null && networks.switchedOn(network);
             if (supplied != network.supplied) {
                 network.supplied = supplied;
                 supplyChanged.add(network);
@@ -434,9 +401,9 @@ final class PowerGrid implements ApiHooks.Power {
                 network.suppliedAt = supplyHours.getOrDefault(root, hours);
                 changes.add(new Change(network.id, "supply", network.suppliedAt));
             }
-            network.total = total(network, networks);
+            network.total = total(network, powered);
         }
-        for (Network network : networks)
+        for (Network network : powered)
             if (!fresh.contains(network) && Math.abs(network.total - totals.get(network)) > 1e-6f)
                 changes.add(new Change(network.id, "load", hours));
         snapshot = snapshot();
@@ -451,7 +418,7 @@ final class PowerGrid implements ApiHooks.Power {
             if (generator != null) surroundings.invoke(generator);
         }
         // The producer in use carries the load; the others only their own.
-        for (Network network : networks)
+        for (Network network : powered)
             for (Position producer : network.squares()) {
                 Object generator = generatorAt(cells, producer);
                 float consumption = consumption(network, Producer.square(producer));
@@ -461,7 +428,7 @@ final class PowerGrid implements ApiHooks.Power {
         for (Network network : supplyChanged)
             for (var consumer : members.consumers(network, Members.POWER, new boolean[1])) checkElectricity.invoke(consumer.object());
         // Last, so that a mod that asks for the state then gets it.
-        for (Change change : changes) triggerEvent.invoke(null, EVENT, change.id(), change.what(), change.hour());
+        for (Change change : changes) networks.raise(change.id(), change.what(), change.hour());
     }
 
     /**
@@ -485,7 +452,7 @@ final class PowerGrid implements ApiHooks.Power {
                 now = new Seen(source.on, source.available ? 1 : 0, source.available ? 1 : 0);
             } else {
                 Object generator = generatorAt(cells, producer.at());
-                if (generator == null && members.square(cells, producer.at()) == null) continue;
+                if (generator == null && game.square(cells, producer.at()) == null) continue;
                 // A loaded square without the generator: it was taken away.
                 now = generator == null ? new Seen(false, 0, 0)
                     : new Seen((boolean)activated.invoke(generator), (float)fuel.invoke(generator), (int)condition.invoke(generator));
@@ -598,9 +565,9 @@ final class PowerGrid implements ApiHooks.Power {
      * The load of the network and of its children that are switched on, theirs included, times its load factor: what it
      * draws while it has supply. Networks form a tree of one utility (see Networks.setParent).
      */
-    private static float total(Network network, List<Network> networks) {
+    private static float total(Network network, List<Network> powered) {
         float total = network.load;
-        for (Network child : networks) if (network.id.equals(child.parent) && child.enabled) total += total(child, networks);
+        for (Network child : powered) if (network.id.equals(child.parent) && child.enabled) total += total(child, powered);
         return total * network.loadFactor;
     }
 
@@ -610,7 +577,7 @@ final class PowerGrid implements ApiHooks.Power {
      * nothing in use; null when a parent is missing.
      */
     Double fuelPerHour(Network network) throws ReflectiveOperationException {
-        Network root = members.root(network);
+        Network root = networks.root(network);
         if (root == null) return null;
         return (basePower.getFloat(null) + root.total) * (double)optionValue.invoke(fuelRate.get(sandbox.get(null)));
     }
@@ -621,8 +588,8 @@ final class PowerGrid implements ApiHooks.Power {
      * while a source carries it (its mod knows what it holds).
      */
     Double hoursLeft(Network network) throws ReflectiveOperationException {
-        Network root = members.root(network);
-        if (root == null || root.inUse == null || root.inUse.source() != null || !members.switchedOn(network)) return null;
+        Network root = networks.root(network);
+        if (root == null || root.inUse == null || root.inUse.source() != null || !networks.switchedOn(network)) return null;
         double perHour = fuelPerHour(network);
         if (perHour <= 0) return null;
         double fuel = 0;
@@ -646,7 +613,7 @@ final class PowerGrid implements ApiHooks.Power {
                 buildings.consumption(consumer.object()));
         for (var last : network.consumption.entrySet()) {
             Position at = last.getKey().at();
-            if (!next.containsKey(last.getKey()) && members.square(cells, at) == null) next.put(last.getKey(), last.getValue());
+            if (!next.containsKey(last.getKey()) && game.square(cells, at) == null) next.put(last.getKey(), last.getValue());
         }
         float load = network.extraLoad;
         for (float value : next.values()) load += value;
@@ -663,28 +630,25 @@ final class PowerGrid implements ApiHooks.Power {
 
     private Snapshot snapshot() throws ReflectiveOperationException {
         var supplied = new ArrayList<Area>();
-        var rooms = new HashSet<Long>();
+        var rooms = new TreeSet<Long>();
         var withArea = new ArrayList<Network>();
         var producers = new HashMap<Position, Network>();
-        var rules = new HashMap<Position, List<Rule>>();
         var histories = new HashMap<Network, History>();
-        for (Network network : members.of(UTILITY)) {
-            Network root = members.root(network);
-            if (root != null && root.history != null) histories.put(network, History.of(root, members.chain(network)));
+        List<Network> powered = networks.of(UTILITY);
+        for (Network network : powered) {
+            Network root = networks.root(network);
+            if (root != null && root.history != null) histories.put(network, History.of(root, networks.chain(network)));
             boolean on = network.supplied;
             if (network.area != null) { withArea.add(network); if (on) supplied.add(network.area); }
             if (on) for (var building : network.resolved) for (Object room : building.rooms()) rooms.add(buildings.roomId(room));
             for (Position producer : network.squares()) producers.put(producer, network);
-            for (Thing thing : network.excluded) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), false, on, network));
-            for (Thing thing : network.included) rules.computeIfAbsent(thing.at(), at -> new ArrayList<>()).add(new Rule(thing.sprite(), true, on, network));
         }
-        rules.replaceAll((at, list) -> List.copyOf(list));
-        return new Snapshot(supplied.toArray(Area[]::new), Set.copyOf(rooms), List.copyOf(withArea), Map.copyOf(producers),
-            Map.copyOf(rules), Map.copyOf(histories));
+        return new Snapshot(supplied.toArray(Area[]::new), rooms.stream().mapToLong(Long::longValue).toArray(), List.copyOf(withArea),
+            Map.copyOf(producers), Rules.of(powered, network -> network.supplied), Map.copyOf(histories));
     }
 
     private Object generatorAt(Object cells, Position at) throws ReflectiveOperationException {
-        Object loaded = members.square(cells, at);
+        Object loaded = game.square(cells, at);
         return loaded == null ? null : generatorOf.invoke(loaded);
     }
 }

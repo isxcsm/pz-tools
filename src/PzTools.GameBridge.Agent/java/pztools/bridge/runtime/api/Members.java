@@ -1,6 +1,5 @@
 package pztools.bridge.runtime.api;
 
-import java.lang.reflect.*;
 import java.util.*;
 import pztools.bridge.runtime.api.Network.Position;
 import pztools.bridge.runtime.api.Network.Thing;
@@ -39,67 +38,12 @@ final class Members {
 
     static final Buildings.Filter POWER = new Buildings.Filter(true, false), WATER = new Buildings.Filter(false, true);
 
+    private final Game game;
     private final Buildings buildings;
-    private final Map<String, Network> networks;
-    private final Method square, objectSquare, hasGrid, gridObjects;
-    private final Field squareX, squareY, squareZ;
 
-    Members(ClassLoader loader, Buildings buildings, Map<String, Network> networks) throws ReflectiveOperationException {
+    Members(Game game, Buildings buildings) {
+        this.game = game;
         this.buildings = buildings;
-        this.networks = networks;
-        Class<?> squareType = Class.forName("zombie.iso.IsoGridSquare", false, loader);
-        Class<?> objectType = Class.forName("zombie.iso.IsoObject", false, loader);
-        square = Class.forName("zombie.iso.IsoCell", false, loader).getMethod("getGridSquare", int.class, int.class, int.class);
-        squareX = squareType.getField("x"); squareY = squareType.getField("y"); squareZ = squareType.getField("z");
-        objectSquare = objectType.getMethod("getSquare");
-        hasGrid = objectType.getMethod("hasSpriteGrid");
-        gridObjects = objectType.getMethod("getSpriteGridObjectsIncludingSelf", ArrayList.class);
-    }
-
-    Buildings buildings() { return buildings; }
-
-    /** The networks of one utility, in the order they were defined. */
-    List<Network> of(String utility) {
-        var result = new ArrayList<Network>();
-        for (Network network : networks.values()) if (network.utility.equals(utility)) result.add(network);
-        return result;
-    }
-
-    /** The network at the top of a child's parents; null when a parent is missing. */
-    Network root(Network network) {
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (network.parent == null) return network;
-            network = networks.get(network.parent);
-        }
-        return null;
-    }
-
-    /** Whether the network and every parent above it are switched on. */
-    boolean switchedOn(Network network) {
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            if (!network.enabled) return false;
-            if (network.parent == null) return true;
-            network = networks.get(network.parent);
-        }
-        return false;
-    }
-
-    /** The network and its parents, up to the one at the top. */
-    List<Network> chain(Network network) {
-        var result = new ArrayList<Network>();
-        for (int depth = 0; network != null && depth <= networks.size(); depth++) {
-            result.add(network);
-            network = network.parent == null ? null : networks.get(network.parent);
-        }
-        return result;
-    }
-
-    /** The game's current cell, or null when no world is loaded. */
-    Object cell() throws ReflectiveOperationException { return buildings.cell(); }
-
-    /** The loaded square, or null. */
-    Object square(Object cells, Position at) throws ReflectiveOperationException {
-        return cells == null ? null : square.invoke(cells, at.x(), at.y(), at.z());
     }
 
     /**
@@ -145,11 +89,11 @@ final class Members {
         for (var building : network.resolved)
             for (var found : buildings.scan(building, filter, complete))
                 if (!excluded(network, found.object()) && seen.add(found.object())) result.add(found);
-        Object cells = cell();
+        Object cells = game.cell();
         for (Thing thing : network.included) {
-            Object loaded = square(cells, thing.at());
+            Object loaded = game.square(cells, thing.at());
             if (loaded == null) { complete[0] = false; continue; }
-            for (Object object : buildings.objectsOn(loaded)) {
+            for (Object object : game.objectsOn(loaded)) {
                 if (!thing.sprite().equals(buildings.sprite(object))) continue;
                 var found = buildings.classify(object, filter, thing.at().x(), thing.at().y(), thing.at().z(), null);
                 if (found != null && seen.add(object)) result.add(found);
@@ -159,34 +103,13 @@ final class Members {
     }
 
     /** Whether the network excludes the object: one of its squares, for an object that covers several. */
-    boolean excluded(Network network, Object object) throws ReflectiveOperationException {
+    private boolean excluded(Network network, Object object) throws ReflectiveOperationException {
         if (network.excluded.isEmpty()) return false;
-        for (Object part : parts(object)) {
-            Thing thing = thing(part);
-            if (thing != null && network.excluded.contains(thing)) return true;
+        for (Object part : game.parts(object)) {
+            Position at = game.at(part);
+            String sprite = at == null ? null : buildings.sprite(part);
+            if (sprite != null && network.excluded.contains(new Thing(at, sprite))) return true;
         }
         return false;
-    }
-
-    /** The object and, for one that covers several squares, its other parts. */
-    List<Object> parts(Object object) throws ReflectiveOperationException {
-        if (!(boolean)hasGrid.invoke(object)) return List.of(object);
-        @SuppressWarnings("unchecked")
-        var parts = (List<Object>)gridObjects.invoke(object, new ArrayList<>());
-        return parts.isEmpty() ? List.of(object) : parts;
-    }
-
-    /** The object as its square and sprite, or null when it is on no square or has no sprite. */
-    Thing thing(Object object) throws ReflectiveOperationException {
-        Position at = at(object);
-        String sprite = at == null ? null : buildings.sprite(object);
-        return sprite == null ? null : new Thing(at, sprite);
-    }
-
-    /** The object's square, or null when it is on none. */
-    Position at(Object object) throws ReflectiveOperationException { return position(objectSquare.invoke(object)); }
-
-    Position position(Object loaded) throws IllegalAccessException {
-        return loaded == null ? null : new Position(squareX.getInt(loaded), squareY.getInt(loaded), squareZ.getInt(loaded));
     }
 }
