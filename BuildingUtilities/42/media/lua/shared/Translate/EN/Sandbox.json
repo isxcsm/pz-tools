@@ -34,6 +34,8 @@
     "Sandbox_BuildingUtilities_SolarOutput_tooltip": "What one clean panel makes at a clear noon, as load (a fridge draws 0.13). Less in weaker daylight, none at night.",
     "Sandbox_BuildingUtilities_SnowOnPanels": "Snow on panels",
     "Sandbox_BuildingUtilities_SnowOnPanels_tooltip": "Snow settles on panels outside while it snows, covering them in two hours, and melts above 2 degrees C. Right-click \"Brush Off Snow\" clears it at once. On by default.",
+    "Sandbox_BuildingUtilities_SolarPanelLoot": "Solar panels as loot",
+    "Sandbox_BuildingUtilities_SolarPanelLoot_tooltip": "How often finished solar panels turn up in crates, cardboard boxes and metal shelves: most in the storerooms of tool, electronics and outdoor supply stores, less in those stores, in farm storage and in warehouses. 1 (the default): a rare find. 2: twice as often. 0: none. The game's loot rarity for Other applies on top. Containers that already have their loot keep it. Needs Solar panels.",
     "Sandbox_BuildingUtilities_BatteryCapacity": "Battery capacity",
     "Sandbox_BuildingUtilities_BatteryCapacity_tooltip": "What a full standard car battery holds, in load-hours (a fridge takes 3.1 a day). Heavy-duty ones hold 1.5 times as much, sports ones 0.75. Worn ones hold less, 30 percent at condition 0.",
     "Sandbox_BuildingUtilities_ChargeEfficiency": "Charge efficiency (percent)",
