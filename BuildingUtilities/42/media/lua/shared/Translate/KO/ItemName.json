@@ -1,3 +1,5 @@
 {
-    "BuildingUtilities.BreakerBox": "설비 제어반"
+    "BuildingUtilities.BreakerBox": "설비 제어반",
+    "BuildingUtilities.SolarPanel": "태양광 패널",
+    "BuildingUtilities.BatteryRack": "배터리 랙"
 }

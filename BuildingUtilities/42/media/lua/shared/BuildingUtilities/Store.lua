@@ -16,12 +16,16 @@ local KEY = "BuildingUtilities"
 --   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
 --   shed (a set, under overload) and timed (a set, by their timers).
+-- units = { [id] = unit }: the solar panels and battery racks this mod put down (BU.Units). A unit:
+--   id, kind ("solar" or "rack"), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
+--   paid (what that line took); a rack also batteries (a list of { type, charge 0 to 1, condition 0 to 100,
+--   revived: how often it was reconditioned }), in the order they went in.
 -- "paid" is { [item type] = count }. On a client in multiplayer this is the server's, received; only the server
 -- changes it (BU.Changes).
 Store.KEY = KEY
 Store.LOG_SIZE = 30
--- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there).
-local VERSION = 3
+-- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units.
+local VERSION = 4
 
 local function utilityData()
     return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, timed = {} }
@@ -51,10 +55,49 @@ function Store.data()
         for _, panel in pairs(data.panels) do migrate(panel, data.version) end
         data.version = VERSION
     end
+    if not data.units then
+        data.units = {}
+        data.nextUnit = 1
+    end
     return data
 end
 
-function Store.panels() return Store.data().panels end
+function Store.panels() -- Units.
+
+function Store.units() return Store.data().units end
+
+function Store.unit(id) return id and Store.units()[id] or nil end
+
+function Store.newUnit(kind, x, y, z, sprite)
+    local data = Store.data()
+    local id = "u" .. data.nextUnit
+    data.nextUnit = data.nextUnit + 1
+    local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
+    if kind == "rack" then unit.batteries = {} end
+    data.units[id] = unit
+    return unit
+end
+
+function Store.removeUnit(id) Store.units()[id] = nil end
+
+function Store.unitAt(x, y, z)
+    for _, unit in pairs(Store.units()) do
+        if unit.x == x and unit.y == y and unit.z == z then return unit end
+    end
+    return nil
+end
+
+-- All units, in the order they were made; of one kind, or wired to one panel, when given.
+function Store.unitList(kind, panelId)
+    local result = {}
+    for _, unit in pairs(Store.units()) do
+        if (not kind or unit.kind == kind) and (not panelId or unit.panel == panelId) then result[#result + 1] = unit end
+    end
+    table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
+    return result
+end
+
+return Store.data().panels end
 
 function Store.get(id) return id and Store.panels()[id] or nil end
 
@@ -125,6 +168,41 @@ end
 function Store.list()
     local result = {}
     for _, panel in pairs(Store.panels()) do result[#result + 1] = panel end
+    table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
+    return result
+end
+
+-- Units.
+
+function Store.units() return Store.data().units end
+
+function Store.unit(id) return id and Store.units()[id] or nil end
+
+function Store.newUnit(kind, x, y, z, sprite)
+    local data = Store.data()
+    local id = "u" .. data.nextUnit
+    data.nextUnit = data.nextUnit + 1
+    local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
+    if kind == "rack" then unit.batteries = {} end
+    data.units[id] = unit
+    return unit
+end
+
+function Store.removeUnit(id) Store.units()[id] = nil end
+
+function Store.unitAt(x, y, z)
+    for _, unit in pairs(Store.units()) do
+        if unit.x == x and unit.y == y and unit.z == z then return unit end
+    end
+    return nil
+end
+
+-- All units, in the order they were made; of one kind, or wired to one panel, when given.
+function Store.unitList(kind, panelId)
+    local result = {}
+    for _, unit in pairs(Store.units()) do
+        if (not kind or unit.kind == kind) and (not panelId or unit.panel == panelId) then result[#result + 1] = unit end
+    end
     table.sort(result, function(a, b) return tonumber(a.id:sub(2)) < tonumber(b.id:sub(2)) end)
     return result
 end

@@ -1,3 +1,5 @@
 {
-    "MakeBreakerBox": "설비 제어반 만들기"
+    "MakeBreakerBox": "설비 제어반 만들기",
+    "MakeSolarPanel": "태양광 패널 만들기",
+    "MakeBatteryRack": "배터리 랙 만들기"
 }

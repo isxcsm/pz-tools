@@ -1,6 +1,8 @@
 name=Building Utilities
 id=BuildingUtilities
 author=PZ Tools
-description=One breaker box powers and waters a whole building, from generators and water tanks outside it. Needs PZ Tools installed (its startup loader). Single player only.
+description=A utility panel powers and waters a whole building from generators, water tanks and solar panels outside it, with battery racks to store power. Needs PZ Tools installed (its startup loader). Single player only.
 modversion=0.1.0
 versionMin=42.0.0
+pack=BuildingUtilitiesSolar
+tiledef=bu_solar 5432

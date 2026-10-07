@@ -407,13 +407,14 @@ end
 
 -- Whether a panel can take its supply from another: a main panel in another building or another zone of its own,
 -- of a tier that gives supply (BU.LINK_TIER) and whose sub-panel range reaches its own building, with no producers
--- of its own, and not one of its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
+-- or units of its own, and not one of its own sub-panels. Returns true, or false and a reason; for "lowTier" also the distance and the tier needed.
 function Panels.canLink(child, parent)
     if child == parent then return false, "self" end
     if child.parent then return false, "isSubPanel" end
     for _, utility in ipairs(BU.UTILITIES) do
         if #child[utility].producers > 0 then return false, "hasProducers" end
     end
+    if #Store.unitList(nil, child.id) > 0 then return false, "hasProducers" end
     local above = parent
     while above do
         if above == child then return false, "cycle" end

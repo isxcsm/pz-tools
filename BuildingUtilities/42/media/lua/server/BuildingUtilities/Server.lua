@@ -156,6 +156,12 @@ local function everyTenMinutes()
     for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
 end
 
+-- A rack's look follows its batteries (Changes.showRack), also for those that changed while it was not loaded.
+MapObjects.OnLoadWithSprite(BU.Units.SPRITES.rack, function(object)
+    local unit = BU.Units.ofObject(object)
+    if unit then Changes.showRack(unit, object) end
+end, 5)
+
 Events.OnClientCommand.Add(onClientCommand)
 Events.OnGameStart.Add(function() if not isClient() then defineAll() end end)
 if Events.OnServerStarted then Events.OnServerStarted.Add(defineAll) end

@@ -2,9 +2,10 @@
 -- command handler and from the timed actions' complete, which run there. Each goes to the save, then to the API,
 -- then to the players (BU.Sync). Callers have checked the rules (BU.Panels) and taken the costs (BU.Costs).
 require "BuildingUtilities/Panels"
+require "BuildingUtilities/Units"
 require "BuildingUtilities/Sync"
 local BU = BuildingUtilities
-local Store, Networks, Panels, Sync = BU.Store, BU.Networks, BU.Panels, BU.Sync
+local Store, Networks, Panels, Units, Sync = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync
 local Changes = {}
 BU.Changes = Changes
 
@@ -78,8 +79,8 @@ function Changes.setZone(panel, ids)
     return true
 end
 
--- Everything a panel's lines took: its producers', its outside devices', its own link's and its sub-panels' links,
--- which go with it. For giving back a share when it is taken down.
+-- Everything a panel's lines took: its producers', its units', its outside devices', its own link's and its
+-- sub-panels' links, which go with it. For giving back a share when it is taken down.
 function Changes.paidFor(panel)
     local total = {}
     local function add(paid)
@@ -90,16 +91,19 @@ function Changes.paidFor(panel)
         for _, producer in ipairs(panel[utility].producers) do add(producer.paid) end
         for _, paid in pairs(panel[utility].included) do add(paid) end
     end
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do add(unit.paid) end
     add(panel.parentPaid)
     for _, child in ipairs(Store.children(panel.id)) do add(child.parentPaid) end
     return total
 end
 
--- Takes a panel away: its networks go, its producers are the game's again, its sub-panels become main panels.
+-- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing, its
+-- sub-panels become main panels.
 function Changes.remove(panel)
     local object = Panels.object(panel)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
     Networks.remove(panel)
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do unit.panel, unit.paid = nil, nil end
     for _, child in ipairs(Store.children(panel.id)) do
         child.parent, child.parentPaid = nil, nil
         Networks.link(child)
@@ -109,7 +113,7 @@ function Changes.remove(panel)
     Sync.changed(panel.id)
 end
 
--- A panel whose box is gone from its loaded square (destroyed, or taken by other means) is removed too.
+-- A panel or unit whose object is gone from its loaded square (destroyed, or taken by other means) is removed too.
 function Changes.checkObjects()
     for _, panel in ipairs(Store.list()) do
         local square = getCell():getGridSquare(panel.x, panel.y, panel.z)
@@ -118,6 +122,76 @@ function Changes.checkObjects()
             Changes.remove(panel)
         end
     end
+    for _, unit in ipairs(Store.unitList()) do
+        local square = getCell():getGridSquare(unit.x, unit.y, unit.z)
+        if square and not Units.object(unit) then
+            BU.log("unit", unit.id, "is gone")
+            Changes.removeUnit(unit)
+        end
+    end
+end
+
+-- Units.
+
+-- A rack shows its batteries and their charge (Units.rackOverlay) while its square is loaded.
+function Changes.showRack(unit, object)
+    object = object or Units.object(unit)
+    if not object or unit.kind ~= "rack" then return end
+    local overlay = Units.rackOverlay(unit)
+    local current = object:getOverlaySprite() and object:getOverlaySprite():getName() or nil
+    if current ~= overlay then
+        object:setOverlaySprite(overlay or "", isServer())
+    end
+end
+
+function Changes.installUnit(kind, square, sprite)
+    local object = IsoObject.new(square, sprite, nil, false)
+    local unit = Store.newUnit(kind, square:getX(), square:getY(), square:getZ(), sprite)
+    object:getModData()[Units.MODDATA] = unit.id
+    square:AddTileObject(object)
+    if isServer() then object:transmitCompleteItemToClients() end
+    BU.log("installed", kind, unit.id, "at", unit.x, unit.y, unit.z)
+    Sync.changed(nil)
+    return unit
+end
+
+-- Takes a unit away; returns what its line took (nil when it was wired to nothing). Players empty a rack first;
+-- one destroyed takes its batteries with it.
+function Changes.removeUnit(unit)
+    local object = Units.object(unit)
+    if object then object:getSquare():transmitRemoveItemFromSquare(object) end
+    local panelId, paid = unit.panel, unit.paid
+    Store.removeUnit(unit.id)
+    BU.log("removed", unit.kind, unit.id)
+    Sync.changed(panelId)
+    return paid
+end
+
+function Changes.connectUnit(unit, panel, paid)
+    unit.panel, unit.paid = panel.id, paid or {}
+    Sync.changed(panel.id)
+end
+
+-- Its line taken away; returns what it took.
+function Changes.disconnectUnit(unit)
+    local panelId, paid = unit.panel, unit.paid or {}
+    unit.panel, unit.paid = nil, nil
+    Sync.changed(panelId)
+    return paid
+end
+
+-- A battery into a rack (a record of Units.batteryRecord), or the one at an index out of it (returned).
+function Changes.addBattery(unit, record)
+    table.insert(unit.batteries, record)
+    Changes.showRack(unit)
+    Sync.changed(unit.panel)
+end
+
+function Changes.takeBattery(unit, index)
+    local record = table.remove(unit.batteries, index)
+    Changes.showRack(unit)
+    Sync.changed(unit.panel)
+    return record
 end
 
 -- Producers. A new one is used after those connected before.

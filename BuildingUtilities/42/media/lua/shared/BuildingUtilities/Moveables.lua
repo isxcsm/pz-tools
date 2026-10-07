@@ -1,13 +1,13 @@
 -- A breaker box is a terminal tile the vanilla moveables code could pick up or disassemble, which would lose the
--- box item. It is taken down with this mod's action only, which gives the item back.
+-- box item. It is taken down with this mod's action only, which gives the item back. So are units (BU.Units).
 require "Moveables/ISMoveableSpriteProps"
-require "BuildingUtilities/Panels"
+require "BuildingUtilities/Units"
 local BU = BuildingUtilities
 
 local fromObject = ISMoveableSpriteProps.fromObject
 function ISMoveableSpriteProps.fromObject(object)
     local props = fromObject(object)
-    if props and object and BU.Panels.ofObject(object) then
+    if props and object and (BU.Panels.ofObject(object) or BU.Units.ofObject(object)) then
         props.isMoveable = false
         props.canScrap = false
     end

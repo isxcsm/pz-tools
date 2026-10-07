@@ -1,0 +1,18 @@
+# List of contributors
+
+## Programming
+RadX5: original creator
+Poltergeist: full mod rework
+
+## Other Contributors
+kattiko: development in initial stages
+deacon: recipes
+CarlosRojasCu: testing
+
+## Translators
+Kev1931: Italian
+Wailwolf: French
+gusperroni: PTBR
+Danixu: Spanish
+vs863129: Chinese
+Blanc Bunny Bandit: Thai

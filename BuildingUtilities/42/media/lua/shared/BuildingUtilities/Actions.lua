@@ -1,10 +1,11 @@
--- Timed actions: putting a box down and taking it up, laying and taking away lines, upgrading a box. Each names
+-- Timed actions: putting a box or a unit down and taking it up, laying and taking away lines, upgrading a box,
+-- putting batteries into a rack and taking them out, reconditioning a battery. Each names
 -- panels and squares, not objects, and checks again as it completes, where the world is decided (BU.Changes).
 require "TimedActions/ISBaseTimedAction"
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/Costs"
 local BU = BuildingUtilities
-local Store, Panels, Changes, Costs = BU.Store, BU.Panels, BU.Changes, BU.Costs
+local Store, Panels, Units, Changes, Costs = BU.Store, BU.Panels, BU.Units, BU.Changes, BU.Costs
 local Actions = {}
 BU.Actions = Actions
 
@@ -24,7 +25,8 @@ local function giveItem(character, itemType)
 end
 
 -- What a line costs, or nil with a reason when it cannot be laid. kind: "producer" (a square of the panel's
--- utility), "outside" (a device, x, y, z and its sprite), "link" (the panel as a sub-panel of the one named by extra).
+-- utility), "outside" (a device, x, y, z and its sprite), "link" (the panel as a sub-panel of the one named by extra),
+-- "unit" (a solar panel or rack at x, y, z, its id extra; power, priced as a generator's line).
 function Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if not panel then return nil, "noPanel" end
     if kind == "producer" then
@@ -43,6 +45,12 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         local ok, reason = Panels.canLink(panel, parent)
         if not ok then return nil, reason end
         return Costs.link(Panels.linkSteps(panel, parent)), parent
+    elseif kind == "unit" then
+        local unit = Store.unit(extra)
+        if not unit then return nil, "noUnit" end
+        local ok, reason = Units.canConnect(unit, panel)
+        if not ok then return nil, reason end
+        return Costs.producer("power", Panels.steps(panel, x, y)), unit
     end
     return nil, "noPanel"
 end
@@ -144,6 +152,10 @@ function ISBUConnect:isValid()
     if not panel or not self.costNow or not Costs.affords(self.character, self.costNow) then return false end
     if self.kind == "producer" then return Store.producerOwner(self.x, self.y, self.z) == nil end
     if self.kind == "outside" then return Store.inclusionOwner(self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)) == nil end
+    if self.kind == "unit" then
+        local unit = Store.unit(self.extra)
+        return unit ~= nil and unit.panel == nil
+    end
     return panel.parent == nil and Store.get(self.extra) ~= nil
 end
 
@@ -154,6 +166,7 @@ function ISBUConnect:complete()
     local paid = Costs.take(self.character, cost)
     if self.kind == "producer" then Changes.connectProducer(panel, self.utility, self.x, self.y, self.z, paid)
     elseif self.kind == "outside" then Changes.includeOutside(panel, self.utility, other, paid)
+    elseif self.kind == "unit" then Changes.connectUnit(other, panel, paid)
     else Changes.link(panel, other, paid) end
     -- Wiring teaches; plumbing has no skill of its own. Two for each piece of wire the line takes.
     if self.kind == "link" or self.utility == "power" then BU.giveXp(self.character, 2 * Costs.count(cost, Costs.WIRE)) end
@@ -183,6 +196,9 @@ function ISBUDisconnect:connected()
     elseif self.kind == "outside" then
         local device = Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra))
         return device ~= nil and not device.inside and device.state == "on"
+    elseif self.kind == "unit" then
+        local unit = Store.unit(self.extra)
+        return unit ~= nil and unit.panel == panel.id
     end
     return panel.parent ~= nil
 end
@@ -196,6 +212,7 @@ function ISBUDisconnect:complete()
     if self.kind == "producer" then paid = Changes.disconnectProducer(panel, self.utility, self.x, self.y, self.z)
     elseif self.kind == "outside" then
         paid = Changes.excludeOutside(panel, self.utility, Panels.device(panel, self.utility, BU.thingKey(self.x, self.y, self.z, self.extra)))
+    elseif self.kind == "unit" then paid = Changes.disconnectUnit(Store.unit(self.extra))
     else paid = Changes.unlink(panel) end
     Costs.refund(self.character, paid)
     return true
@@ -244,6 +261,156 @@ end
 function ISBUUpgradePanel:new(character, panel)
     local o = ISBaseTimedAction.new(self, character)
     o.panelId, o.x, o.y = panel.id, panel.x, panel.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Putting a unit down: a solar panel or a battery rack (Units.canInstall).
+ISBUInstallUnit = base("ISBUInstallUnit")
+
+function ISBUInstallUnit:isValid()
+    return self.character:getInventory():contains(self.item) and Units.canInstall(self.kind, self.square) ~= nil
+end
+
+function ISBUInstallUnit:complete()
+    if not Units.canInstall(self.kind, self.square) then return false end
+    local container = self.item:getContainer()
+    if container then
+        container:DoRemoveItem(self.item)
+        sendRemoveItemFromContainer(container, self.item)
+    end
+    Changes.installUnit(self.kind, self.square, Units.spriteFor(self.kind, self.square, self.character))
+    BU.giveXp(self.character, 5)
+    return true
+end
+
+function ISBUInstallUnit:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 250
+end
+
+function ISBUInstallUnit:new(character, kind, square, item)
+    local o = ISBaseTimedAction.new(self, character)
+    o.kind, o.square, o.item = kind, square, item
+    o.x, o.y = square:getX(), square:getY()
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Taking a unit down: the unit back, and a share of what its line took. A rack is emptied first.
+ISBURemoveUnit = base("ISBURemoveUnit")
+
+function ISBURemoveUnit:isValid()
+    local unit = Store.unit(self.unitId)
+    return unit ~= nil and #(unit.batteries or {}) == 0 and Units.object(unit) ~= nil
+end
+
+function ISBURemoveUnit:complete()
+    local unit = Store.unit(self.unitId)
+    if not unit or #(unit.batteries or {}) > 0 then return false end
+    local kind = unit.kind
+    Costs.refund(self.character, Changes.removeUnit(unit))
+    giveItem(self.character, Units.ITEMS[kind])
+    return true
+end
+
+function ISBURemoveUnit:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 200
+end
+
+function ISBURemoveUnit:new(character, unit)
+    local o = ISBaseTimedAction.new(self, character)
+    o.unitId, o.x, o.y = unit.id, unit.x, unit.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- A battery into a rack (item), or the one at an index out of it, with its charge and condition.
+ISBURackBattery = base("ISBURackBattery")
+
+function ISBURackBattery:isValid()
+    local unit = Store.unit(self.unitId)
+    if not unit or not unit.batteries then return false end
+    if self.item then
+        return #unit.batteries < Units.RACK_SIZE and self.character:getInventory():contains(self.item)
+    end
+    return unit.batteries[self.index] ~= nil
+end
+
+function ISBURackBattery:complete()
+    local unit = Store.unit(self.unitId)
+    if not unit or not unit.batteries then return false end
+    if self.item then
+        if #unit.batteries >= Units.RACK_SIZE then return false end
+        local container = self.item:getContainer()
+        if not container then return false end
+        local record = Units.batteryRecord(self.item)
+        container:DoRemoveItem(self.item)
+        sendRemoveItemFromContainer(container, self.item)
+        Changes.addBattery(unit, record)
+        return true
+    end
+    if not unit.batteries[self.index] then return false end
+    local item = Units.batteryItem(Changes.takeBattery(unit, self.index))
+    if item then
+        local inventory = self.character:getInventory()
+        inventory:AddItem(item)
+        sendAddItemToContainer(inventory, item)
+    end
+    return true
+end
+
+function ISBURackBattery:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 60
+end
+
+function ISBURackBattery:new(character, unit, item, index)
+    local o = ISBaseTimedAction.new(self, character)
+    o.unitId, o.item, o.index, o.x, o.y = unit.id, item, index, unit.x, unit.y
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Reconditioning a worn battery with baking soda (Units.canRevive): better by Units.REVIVE_GAIN, a few times.
+ISBUReviveBattery = ISBaseTimedAction:derive("ISBUReviveBattery")
+
+-- The baking soda it takes: two uses of a box.
+local SODA_USES = 2
+
+function ISBUReviveBattery:isValid()
+    return self.character:getInventory():contains(self.item) and Units.canRevive(self.character, self.item)
+end
+
+function ISBUReviveBattery:start()
+    self:setActionAnim(CharacterActionAnims.Craft)
+end
+
+function ISBUReviveBattery:perform() ISBaseTimedAction.perform(self) end
+
+function ISBUReviveBattery:complete()
+    if not Units.canRevive(self.character, self.item) then return false end
+    local soda = self.character:getInventory():getFirstTypeRecurse("Base.BakingSoda")
+    for _ = 1, SODA_USES do
+        if soda and soda:getCurrentUsesFloat() > 0 then soda:UseAndSync() end
+    end
+    local item = self.item
+    item:setCondition(math.min(item:getConditionMax(), item:getCondition() + Units.REVIVE_GAIN))
+    item:getModData()[Units.REVIVED] = (item:getModData()[Units.REVIVED] or 0) + 1
+    item:syncItemFields()
+    BU.giveXp(self.character, 10)
+    return true
+end
+
+function ISBUReviveBattery:getDuration()
+    if self.character:isTimedActionInstant() then return 1 end
+    return 400
+end
+
+function ISBUReviveBattery:new(character, item)
+    local o = ISBaseTimedAction.new(self, character)
+    o.item = item
     o.maxTime = o:getDuration()
     return o
 end
