@@ -20,7 +20,6 @@ public final class Inspector {
                 return inject(bytes, "bridgefixture.Inspector", "marker");
             }
         }, true);
-        if ("legacy".equals(options)) pztools.bridge.SaveBridge.install(value);
     }
     public static byte[] inject(byte[] bytes, String owner, String method) {
         var cf = ClassFile.of();
@@ -60,9 +59,8 @@ public final class Inspector {
         observer.addTransformer(reader, true);
         try { observer.retransformClasses(Class.forName("zombie.GameWindow")); }
         finally { observer.removeTransformer(reader); }
-        // Each Java agent has its own transformer chain. Our premain observer sees
-        // legacy hooks, but runs before the newly attached agent's chain. Read the
-        // bootstrap ownership separately when checking an active/new session.
+        // Each Java agent has its own transformer chain: our premain observer runs before
+        // the attached agent's. Read the bootstrap ownership separately.
         try {
             var callback = Class.forName("pztools.bridge.AgentEntry").getDeclaredField("callback");
             callback.setAccessible(true);

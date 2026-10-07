@@ -192,7 +192,7 @@ extension's own save, which no shipped module performs. Continuous module replac
 | Area | Tests |
 | --- | --- |
 | Payload, runtime and module replacement in a fake game | `GameBridgeReloadTests.CompatibleModuleReload_PreservesWatchAndOwnedSave_ThenReplacesPayloadWithoutRestart` (accepted save survives an archive change, epoch kept across a module reload and changed across a payload swap, identities kept, stale ticket refused, app moved, hook installed once) |
-| Repeated sessions and a legacy hook | `GameSaveClientTests.Bridge_RetiresLegacyHook_AndLoadsChangedPayloadWithoutRestartingTheGame`, `Bridge_RepeatedSessionsReuseBootstrapPayloadAndHook_AndSaveEveryTime` |
+| Repeated sessions and a changed payload | `GameSaveClientTests.Bridge_LoadsChangedPayloadWithoutRestartingTheGame`, `Bridge_RepeatedSessionsReuseBootstrapPayloadAndHook_AndSaveEveryTime` |
 | Older bootstrap | `GameProfileBridgeTests.AGameWithAnOlderBootstrap_IsAskedToRestart_AndIsSentNothing` |
 | Continuous modules | `ContinuousExtensionTests`, and the Java tests `ContinuousRuntimeTest`, `ModuleSlotsTest`, `ModuleReloadTest`, `VehicleHooksTest`, `ExtensionControlTest` |
 

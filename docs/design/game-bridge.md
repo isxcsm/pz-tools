@@ -135,10 +135,6 @@ notice) is running. Otherwise it links the new jar, asks WATCH and extension con
 and waits up to 3 seconds for every session and callback to finish before switching. If they do not,
 it answers `BUSY` and keeps the old payload. See [component updates](module-reload.md).
 
-On its first save request the payload also disarms any `pztools.bridge.SaveBridge` classes left in the game by
-versions older than the bootstrap design (`LegacyBridgeRetirement`). If that old code still has a request
-pending, the new request is refused as `busy`.
-
 ### What changes in the game, and what does not
 
 Changed, in memory only, until the game exits:

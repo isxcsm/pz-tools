@@ -30,7 +30,6 @@ public final class BridgeSession {
     private static Field worldInstance, worldCell;
     private static final String JVM_SESSION = RuntimeIdentity.processId();
     private static ClassLoader gameLoader;
-    private static boolean legacyRetired;
     private static final Object owner = new Object();
     private static boolean acquired;
 
@@ -89,11 +88,6 @@ public final class BridgeSession {
                 if (!AgentEntry.acquire(owner, BridgeSession::poll))
                     throw new BridgeFailure("busy", "Another bridge session is still active");
                 acquired = true;
-                if (!legacyRetired) {
-                    if (!LegacyBridgeRetirement.retire(instrumentation))
-                        throw new BridgeFailure("busy", "An older bridge request is still running");
-                    legacyRetired = true;
-                }
                 install(instrumentation);
                 if (ticket != null) RuntimeObserver.reserve(ticket);
                 SaveModules resolvedModules = null;

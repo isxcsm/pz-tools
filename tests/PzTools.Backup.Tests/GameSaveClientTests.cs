@@ -88,10 +88,10 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
     }
 
     [BridgeFact]
-    public async Task Bridge_RetiresLegacyHook_AndLoadsChangedPayloadWithoutRestartingTheGame()
+    public async Task Bridge_LoadsChangedPayloadWithoutRestartingTheGame()
     {
         using var temp = new TempDirectory();
-        await using var game = await FakeGame.StartAsync(temp.Path, "normal", legacy: true);
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
         var bridge = temp.GetPath("bridge");
         Directory.CreateDirectory(bridge);
         var original = Environment.GetEnvironmentVariable("PZTOOLS_GAME_BRIDGE_DIR")!;
@@ -146,7 +146,6 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         var calls = await ReadHookAsync(temp);
         Assert.Contains("bridgefixture/Inspector.marker", calls);
         Assert.Equal(1, calls.Split('\n').Count(line => line == "pztools/bridge/AgentEntry.poll"));
-        Assert.DoesNotContain("pztools/bridge/SaveBridge.poll", calls);
         Assert.Contains("hookInstalls=1", calls);
         Assert.Contains("callbackActive=false", calls);
         Assert.DoesNotContain("bridge-session-active", calls);
@@ -532,7 +531,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
         }
         /// <param name="properties">System properties the game starts with, as name=value: what a bootstrap attached
         /// earlier would have left behind.</param>
-        public static async Task<FakeGame> StartAsync(string path, string mode, bool legacy = false, IEnumerable<string>? properties = null)
+        public static async Task<FakeGame> StartAsync(string path, string mode, IEnumerable<string>? properties = null)
         {
             var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_JAVA")!)
             {
@@ -541,8 +540,7 @@ public sealed partial class GameSaveClientTests(Xunit.Abstractions.ITestOutputHe
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
-            start.ArgumentList.Add("-javaagent:" + Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_CLASSES")!, "inspector.jar")
-                + (legacy ? "=legacy" : ""));
+            start.ArgumentList.Add("-javaagent:" + Path.Combine(Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_CLASSES")!, "inspector.jar"));
             foreach (var property in properties ?? []) start.ArgumentList.Add("-D" + property);
             foreach (var arg in new[] { "-XX:+EnableDynamicAgentLoading", "-cp",
                 Environment.GetEnvironmentVariable("PZTOOLS_BRIDGE_TEST_CLASSES")!, "zombie.GameWindow", path, mode })
