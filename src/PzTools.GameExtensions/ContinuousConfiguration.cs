@@ -84,6 +84,42 @@ public static class ResidentExtensionRequest
         return text.ToString();
     }
 
+    /// <summary>
+    /// The time and length of every file <see cref="Build"/> reads: the settings, the deployed catalogue, and each known
+    /// extension's configuration inputs (<see cref="IContinuousConfiguration.Inputs"/>). Equal stamps mean an equal
+    /// request, so a caller can skip the build; null when a file could not be looked at.
+    /// </summary>
+    public static string? InputStamp(string bridgeDirectory, string runtimeRoot)
+    {
+        var files = new List<string>
+        {
+            new ExtensionSettingsStore(runtimeRoot).FilePath,
+            Path.Combine(bridgeDirectory, "extensions", "catalog.tsv"),
+        };
+        foreach (var descriptor in ExtensionDescriptors.All)
+            if (descriptor.Configuration is { } configuration) files.AddRange(configuration.Inputs(bridgeDirectory, runtimeRoot));
+        var text = new StringBuilder();
+        foreach (var file in files)
+        {
+            if (Stamp(file) is not { } stamp) return null;
+            text.Append(file).Append('\t').Append(stamp).Append('\n');
+        }
+        return text.ToString();
+    }
+
+    /// <summary>A file's last write time and length, <c>-</c> when there is none; null when it could not be looked at.</summary>
+    public static string? Stamp(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            return file.Exists
+                ? file.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture) + "/" + file.Length.ToString(CultureInfo.InvariantCulture)
+                : "-";
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException) { return null; }
+    }
+
     /// <summary>Writes the request to the install folder unless it already says this; true when it was written.</summary>
     public static bool Write(string installFolder, string text)
     {

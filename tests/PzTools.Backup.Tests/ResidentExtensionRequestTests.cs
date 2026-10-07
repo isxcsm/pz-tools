@@ -96,4 +96,52 @@ public sealed class ResidentExtensionRequestTests
         Assert.Equal(ResidentExtensionRequest.Build(bridge, runtime),
             File.ReadAllText(Path.Combine(install, ResidentExtensionRequest.FileName)));
     }
+
+    [Fact]
+    public async Task TheLoader_BuildsTheRequestAgain_OnlyWhenAFileItIsBuiltFromChanged()
+    {
+        using var temp = new TempDirectory();
+        var (bridge, runtime) = Folders(temp);
+        var install = temp.GetPath("install");
+        Directory.CreateDirectory(install);
+        var loader = new StartupLoader(bridge, () => @"C:\Game", () => [],
+            (_, _) => Task.FromResult((0, $"PZTOOLS-STARTUP\tinstalled\tabc\t{install}")));
+        await loader.RefreshAsync();
+        var target = Path.Combine(install, ResidentExtensionRequest.FileName);
+        Assert.True(await loader.UpdateResidentExtensionsAsync(runtime));
+        var written = File.ReadAllText(target);
+
+        // A request file changed in place but keeping its time and length: the inputs did not move, so it is not built
+        // again (and so not compared). This is how the skip shows.
+        var time = File.GetLastWriteTimeUtc(target);
+        File.WriteAllText(target, written.Replace("PZTOOLS-RESIDENT", "PZTOOLS-RESIDENX"));
+        File.SetLastWriteTimeUtc(target, time);
+        Assert.False(await loader.UpdateResidentExtensionsAsync(runtime));
+        Assert.StartsWith("PZTOOLS-RESIDENX", File.ReadAllText(target));
+
+        // The request file's own time moved: built and written again.
+        File.SetLastWriteTimeUtc(target, time.AddSeconds(-5));
+        Assert.True(await loader.UpdateResidentExtensionsAsync(runtime));
+        Assert.Equal(written, File.ReadAllText(target));
+
+        // A saved setting changed.
+        var store = new ExtensionSettingsStore(runtime);
+        store.SetPreference(VehicleDrivetrainExtension.Id, new(Enabled: true, ForceVersion: false), store.Read().Revision);
+        Assert.True(await loader.UpdateResidentExtensionsAsync(runtime));
+        Assert.Equal(ResidentExtensionRequest.Build(bridge, runtime), File.ReadAllText(target));
+        Assert.False(await loader.UpdateResidentExtensionsAsync(runtime));
+
+        // A tuning file the extension's configuration names appeared.
+        var tuning = VehicleDrivetrainConfiguration.OverridePath(runtime);
+        Directory.CreateDirectory(Path.GetDirectoryName(tuning)!);
+        File.WriteAllText(tuning, "force_scale = 0.75\n");
+        Assert.True(await loader.UpdateResidentExtensionsAsync(runtime));
+        Assert.Contains("force_scale\t0.75\n", Encoding.UTF8.GetString(Convert.FromBase64String(
+            Fields(File.ReadAllText(target), VehicleDrivetrainExtension.Id)[4])));
+
+        // The request file is gone.
+        File.Delete(target);
+        Assert.True(await loader.UpdateResidentExtensionsAsync(runtime));
+        Assert.True(File.Exists(target));
+    }
 }

@@ -58,7 +58,7 @@ Other limits: at most 64 rows, 64 KiB, 200 characters per field.
 Four readers use the deployed file: the UI controller when the file changed (`GameExtensionController`
 keeps it with the file's time and length), the scheduler when it starts (falling back to the
 embedded copy if the file cannot be read), the [resident request](startup-loader.md#resident-extensions)
-while the startup loader is installed (`ResidentExtensionRequest`, every two seconds), and the
+while the startup loader is installed (`ResidentExtensionRequest`, when a file it is built from changed), and the
 host in the game on every `APPLY`. Only the Java side checks the namespace, entry class and jar name
 (`ModuleHost` when the host loads, `ContinuousRuntime` on every `APPLY`). It accepts only the
 continuous capabilities listed in `ContinuousRuntime.CAPABILITIES`.

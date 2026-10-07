@@ -91,7 +91,8 @@ public sealed class StartupLoader
     private readonly Func<IReadOnlyList<RunningGame>> games;
     private readonly Tool tool;
     private readonly SemaphoreSlim gate = new(1, 1);
-    private StartupLoaderState state = new(StartupLoaderStatus.Unknown);
+    // Written on the thread pool, read from any thread.
+    private volatile StartupLoaderState state = new(StartupLoaderStatus.Unknown);
 
     /// <param name="bridgeDirectory">The app's <c>game-bridge</c> folder: the runtime, the tool, and the files copied
     /// to the install.</param>
@@ -128,13 +129,16 @@ public sealed class StartupLoader
         return result;
     }
 
-    /// <summary>Raised after the state changed, on whichever thread changed it.</summary>
+    /// <summary>Raised after the state changed, on a thread-pool thread: a UI subscriber moves to its own thread.</summary>
     public event Action? Changed;
 
     public StartupLoaderState State => state;
 
+    // Every public method does its work on the thread pool, whichever thread calls it: each one may start the install
+    // tool, look for the game's processes or read files, and the app calls them from its UI thread.
+
     /// <summary>Looks at the game's folder again. A look that fails leaves what was known.</summary>
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
@@ -152,7 +156,7 @@ public sealed class StartupLoader
             catch (StartupLoaderException) { if (state.Status == StartupLoaderStatus.Unknown) Publish(new(StartupLoaderStatus.Unknown, folder)); }
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
     /// <summary>Adds the loader to the game's folder; installing again over an install only brings it up to date.</summary>
     /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
@@ -171,7 +175,7 @@ public sealed class StartupLoader
     /// Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
     /// extensions it runs from there, stay until it ends. False when it did not run for that.
     /// </summary>
-    public async Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default)
+    public Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
@@ -181,27 +185,36 @@ public sealed class StartupLoader
             return true;
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
     /// <summary>
     /// Writes what a game started by the loader runs without the app (<see cref="ResidentExtensionRequest"/>) to the
-    /// install folder, when it changed. Nothing happens unless installed. True when it was written.
+    /// install folder, when it changed. Nothing happens unless installed. True when it was written. While the files the
+    /// request is built from, and the request's own file, keep their time and length, it is not built again.
     /// </summary>
     /// <param name="runtimeRoot">The app's data folder: the extension settings and the tuning files.</param>
-    public async Task<bool> UpdateResidentExtensionsAsync(string runtimeRoot, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateResidentExtensionsAsync(string runtimeRoot, CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
             // Under the gate: an uninstall removes the folder, and must not find a file being written into it.
             if (state is not { Status: StartupLoaderStatus.Installed, InstallFolder: { } folder }) return false;
-            return await Task.Run(() => ResidentExtensionRequest.Write(folder, ResidentExtensionRequest.Build(bridgeDirectory, runtimeRoot)),
-                cancellationToken);
+            var target = Path.Combine(folder, ResidentExtensionRequest.FileName);
+            // Taken before the build: a file that changes while it is read differs from this the next time.
+            var inputs = ResidentExtensionRequest.InputStamp(bridgeDirectory, runtimeRoot);
+            if (inputs is not null && residentWritten is { } last && last == (folder, inputs, ResidentExtensionRequest.Stamp(target))) return false;
+            var written = ResidentExtensionRequest.Write(folder, ResidentExtensionRequest.Build(bridgeDirectory, runtimeRoot));
+            residentWritten = inputs is null ? null : (folder, inputs, ResidentExtensionRequest.Stamp(target));
+            return written;
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
-    private async Task ChangeAsync(Func<string, string[]> arguments, CancellationToken cancellationToken)
+    // Where the resident request was last written, the stamp of what it was built from, and its own file's stamp after.
+    private (string Folder, string Inputs, string? Request)? residentWritten;
+
+    private Task ChangeAsync(Func<string, string[]> arguments, CancellationToken cancellationToken) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
@@ -217,7 +230,7 @@ public sealed class StartupLoader
             }
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
     private void Publish(StartupLoaderState next)
     {
