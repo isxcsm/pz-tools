@@ -6,3 +6,5 @@ modversion=0.1.0
 versionMin=42.0.0
 pack=BuildingUtilitiesSolar
 tiledef=bu_solar 5432
+pack=BuildingUtilitiesWater
+tiledef=bu_water 5433
