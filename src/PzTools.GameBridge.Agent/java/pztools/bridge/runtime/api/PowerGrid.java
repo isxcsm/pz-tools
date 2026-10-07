@@ -105,7 +105,8 @@ final class PowerGrid implements ApiHooks.Power {
     private Set<Position> grouped = Set.of();
     // In a frame: the hour each network's producer in use started or stopped, when it did.
     private final Map<Network, Double> supplyHours = new HashMap<>();
-    private long refreshedAt = Long.MIN_VALUE;
+    // Due at the first frame. (Long.MIN_VALUE would overflow the difference: never due.)
+    private long refreshedAt = System.nanoTime() - REFRESH_NANOS;
 
     private final Method getChunk, generatorOf, objectSquare, checkElectricity;
     private final Field squareChunk, chunkX, chunkY;

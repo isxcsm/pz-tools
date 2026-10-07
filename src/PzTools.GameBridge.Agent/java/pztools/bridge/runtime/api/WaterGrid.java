@@ -33,7 +33,8 @@ final class WaterGrid implements ApiHooks.Water {
     private volatile Snapshot snapshot = Snapshot.EMPTY;
     // Set by a definition change; the next frame works the networks out again.
     private volatile boolean changed = true;
-    private long refreshedAt = Long.MIN_VALUE;
+    // Due at the first frame. (Long.MIN_VALUE would overflow the difference: never due.)
+    private long refreshedAt = System.nanoTime() - REFRESH_NANOS;
     private final Method fluidContainer, amount, capacity, gameTime, worldHours, triggerEvent;
 
     WaterGrid(ClassLoader loader, Members members) throws ReflectiveOperationException {

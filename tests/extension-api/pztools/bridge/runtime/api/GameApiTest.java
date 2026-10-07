@@ -495,6 +495,12 @@ public final class GameApiTest {
         var producer = (KahluaTable)((KahluaTable)main.rawget("producers")).rawget(1.0);
         check(producer.rawget("x").equals(34.0) && producer.rawget("running").equals(true) && producer.rawget("fuel").equals(6.0)
             && producer.rawget("condition").equals(100.0), "A producer's state is wrong");
+        // Nothing the API hears of changed: the networks are still worked out again once a second.
+        generator.fuel = 3;
+        Thread.sleep(1100);
+        frame();
+        producer = (KahluaTable)((KahluaTable)state(networks, "main").rawget("producers")).rawget(1.0);
+        check(producer.rawget("fuel").equals(3.0), "The state was not worked out again after a second: " + producer.rawget("fuel"));
         // A tree of the mod's own networks of one utility; a child has no producers of its own.
         call(networks, "define", mod, "leaf", "power", "sequential");
         call(networks, "setParent", mod, "leaf", "sub");
