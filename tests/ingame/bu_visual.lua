@@ -14,9 +14,9 @@ for r = 1, 12 do
             local sq = cell:getGridSquare(panel.x + dx, panel.y + dy, 0)
             if sq then
                 if #solar < 2 and Units.canInstall("solar", sq) then
-                    solar[#solar + 1] = Changes.installUnit("solar", sq, #solar == 0 and Units.SPRITES.W or Units.SPRITES.N)
+                    solar[#solar + 1] = Changes.installUnit("solar", sq, #solar == 0 and BU.Solar.SPRITES.W or BU.Solar.SPRITES.N)
                 elseif not rack and Units.canInstall("rack", sq) and (math.abs(dx) + math.abs(dy)) > 1 then
-                    rack = Changes.installUnit("rack", sq, Units.SPRITES.rack)
+                    rack = Changes.installUnit("rack", sq, BU.Rack.SPRITE)
                 end
             end
         end

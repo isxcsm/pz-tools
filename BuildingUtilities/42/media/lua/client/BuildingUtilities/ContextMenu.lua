@@ -5,7 +5,8 @@
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
 local BU = BuildingUtilities
-local Store, Panels, Units, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Costs, BU.Actions, BU.Sync
+local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
+    BU.Sync
 local ContextMenu = {}
 BU.ContextMenu = ContextMenu
 
@@ -157,23 +158,22 @@ end
 
 local function onRemoveUnit(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBURemoveUnit:new(playerObj, unit)) end
 
-local function onClearSnow(playerObj, unit) queueAt(playerObj, unit.x, unit.y, unit.z, ISBUClearSnow:new(playerObj, unit)) end
+local function onUnitAction(playerObj, unit, action) queueAt(playerObj, unit.x, unit.y, unit.z, action(playerObj, unit)) end
 
+-- A unit's line and its submenu: what its kind offers (Units.define), its line to a panel, taking it down.
 local function addUnitOptions(context, playerObj, unit)
+    local definition = Units.definition(unit.kind)
     local panel = Store.get(unit.panel)
     local title = Units.name(unit)
-    if (unit.snow or 0) >= BU.Energy.SNOW_TRACE then
-        title = title .. "  " .. getText("IGUI_BU_SolarSnow", BU.percent(unit.snow * 100))
-    end
-    if unit.kind == "rack" then
-        title = getText("IGUI_BU_RackTitle", title, #unit.batteries, Units.RACK_SIZE)
-        if #unit.batteries > 0 then title = title .. "  " .. BU.percent(Units.rackCharge(unit) * 100) end
-    end
+    if definition.title then title = definition.title(unit, title) end
     title = panel and getText("IGUI_BU_UnitWired", title, Panels.name(panel)) or title
     local option = context:addOptionOnTop(title, nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    if (unit.snow or 0) > 0 then sub:addOption(getText("ContextMenu_BU_ClearSnow"), playerObj, onClearSnow, unit) end
+    for _, entry in ipairs(definition.options and definition.options(unit) or {}) do
+        local choice = sub:addOption(entry.text, playerObj, onUnitAction, unit, entry.action)
+        if entry.reason then unavailable(choice, entry.reason) end
+    end
     if BU.api() then
         if panel then
             local disconnect = sub:addOption(getText("ContextMenu_BU_DisconnectFrom", Panels.name(panel)), playerObj, onDisconnect,
@@ -185,7 +185,7 @@ local function addUnitOptions(context, playerObj, unit)
     end
     local remove = sub:addOption(getText("ContextMenu_BU_Remove"), playerObj, onRemoveUnit, unit)
     if not Units.isEmpty(unit) then
-        unavailable(remove, getText("IGUI_BU_Reason_rackNotEmpty"))
+        unavailable(remove, getText(definition.notEmptyReason))
     elseif refundNote() and unit.paid then
         tooltip(remove, refundNote())
     end
@@ -193,7 +193,7 @@ end
 
 local function addInstallUnitOptions(context, playerObj, square)
     for _, kind in ipairs(Units.KINDS) do
-        local item = playerObj:getInventory():getFirstTypeRecurse(Units.ITEMS[kind])
+        local item = playerObj:getInventory():getFirstTypeRecurse(Units.definition(kind).item)
         if item then
             local option = context:addOption(getText("ContextMenu_BU_Install_" .. kind), playerObj, onInstallUnit, kind, square, item)
             local ok, reason = Units.canInstall(kind, square)
@@ -265,11 +265,11 @@ end
 
 Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 
--- Reconditioning a car battery (Units.canRevive), from the inventory.
+-- Reconditioning a car battery (Rack.canRevive), from the inventory.
 local function reviveReason(reason)
-    if reason == "revivedOut" then return getText("IGUI_BU_Reason_revivedOut", Units.REVIVE_TIMES) end
-    if reason == "notWorn" then return getText("IGUI_BU_Reason_notWorn", Units.REVIVE_BELOW) end
-    if reason == "skill" then return getText("IGUI_BU_Reason_skill", Units.REVIVE_SKILL) end
+    if reason == "revivedOut" then return getText("IGUI_BU_Reason_revivedOut", Rack.REVIVE_TIMES) end
+    if reason == "notWorn" then return getText("IGUI_BU_Reason_notWorn", Rack.REVIVE_BELOW) end
+    if reason == "skill" then return getText("IGUI_BU_Reason_skill", Rack.REVIVE_SKILL) end
     return getText("IGUI_BU_Reason_" .. reason)
 end
 
@@ -283,12 +283,12 @@ function ContextMenu.fillInventory(player, context, items)
     if not playerObj or #items ~= 1 then return end
     local item = items[1]
     if not instanceof(item, "InventoryItem") then item = item.items and item.items[1] end
-    if not Units.isBattery(item) then return end
+    if not Rack.isBattery(item) then return end
     local option = context:addOption(getText("ContextMenu_BU_ReviveBattery"), playerObj, onRevive, item)
-    local ok, reason = Units.canRevive(playerObj, item)
+    local ok, reason = Rack.canRevive(playerObj, item)
     if ok then
-        local left = Units.REVIVE_TIMES - (item:getModData()[Units.REVIVED] or 0)
-        tooltip(option, getText("IGUI_BU_ReviveNote", Units.REVIVE_GAIN, left))
+        local left = Rack.REVIVE_TIMES - (item:getModData()[Rack.REVIVED] or 0)
+        tooltip(option, getText("IGUI_BU_ReviveNote", Rack.REVIVE_GAIN, left))
     else
         unavailable(option, reviveReason(reason))
     end

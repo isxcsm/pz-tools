@@ -310,7 +310,7 @@ function ISBURemoveUnit:complete()
     if not unit or not Units.isEmpty(unit) then return false end
     local kind = unit.kind
     Costs.refund(self.character, Changes.removeUnit(unit))
-    giveItem(self.character, Units.ITEMS[kind])
+    giveItem(self.character, Units.definition(kind).item)
     return true
 end
 
@@ -352,14 +352,14 @@ function ISBUClearSnow:new(character, unit)
     return o
 end
 
--- Reconditioning a worn battery with baking soda (Units.canRevive): better by Units.REVIVE_GAIN, a few times.
+-- Reconditioning a worn battery with baking soda (Rack.canRevive): better by Rack.REVIVE_GAIN, a few times.
 ISBUReviveBattery = ISBaseTimedAction:derive("ISBUReviveBattery")
 
 -- The baking soda it takes: two uses of a box.
 local SODA_USES = 2
 
 function ISBUReviveBattery:isValid()
-    return self.character:getInventory():contains(self.item) and Units.canRevive(self.character, self.item)
+    return self.character:getInventory():contains(self.item) and BU.Rack.canRevive(self.character, self.item)
 end
 
 function ISBUReviveBattery:start()
@@ -369,14 +369,14 @@ end
 function ISBUReviveBattery:perform() ISBaseTimedAction.perform(self) end
 
 function ISBUReviveBattery:complete()
-    if not Units.canRevive(self.character, self.item) then return false end
+    if not BU.Rack.canRevive(self.character, self.item) then return false end
     local soda = self.character:getInventory():getFirstTypeRecurse("Base.BakingSoda")
     for _ = 1, SODA_USES do
         if soda and soda:getCurrentUsesFloat() > 0 then soda:UseAndSync() end
     end
     local item = self.item
-    item:setCondition(math.min(item:getConditionMax(), item:getCondition() + Units.REVIVE_GAIN))
-    item:getModData()[Units.REVIVED] = (item:getModData()[Units.REVIVED] or 0) + 1
+    item:setCondition(math.min(item:getConditionMax(), item:getCondition() + BU.Rack.REVIVE_GAIN))
+    item:getModData()[BU.Rack.REVIVED] = (item:getModData()[BU.Rack.REVIVED] or 0) + 1
     item:syncItemFields()
     BU.giveXp(self.character, 10)
     return true

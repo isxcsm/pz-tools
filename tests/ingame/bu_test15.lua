@@ -37,7 +37,7 @@ for r = 1, 12 do
     end
     if square then break end
 end
-local rack = Changes.installUnit("rack", square, Units.SPRITES.rack)
+local rack = Changes.installUnit("rack", square, BU.Rack.SPRITE)
 say("tier 1 rack", tostring(select(2, Units.canConnect(rack, panel))))
 panel.tier = 2
 say("tier 2 rack", tostring(Units.canConnect(rack, panel)))
@@ -57,7 +57,7 @@ say("after 2h of 0.5: energy", f(bank.energy), "charge", f(bank.charge), "flow",
 -- Drawn down to nothing: no longer available.
 can = Energy.run(panel, { load = 5, supplied = true, producer = { source = Energy.SOURCE } }, 10, true)
 bank = Energy.bank(panel)
-say("drained: energy", f(bank.energy), "can", can, "condition", f(rack.batteries[2].condition), "overlay", Units.rackOverlay(rack))
+say("drained: energy", f(bank.energy), "can", can, "condition", f(rack.batteries[2].condition), "overlay", BU.Rack.overlay(rack))
 -- Not available, a little charge: does not start until 2%.
 for _, battery in ipairs(rack.batteries) do battery.charge = 0.01 end
 say("1% start", Energy.run(panel, { load = 0.1, supplied = false }, 0, false), "available stays", Energy.run(panel, { load = 0.1, supplied = false }, 0, true))

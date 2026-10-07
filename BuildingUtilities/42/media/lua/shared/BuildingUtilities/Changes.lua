@@ -4,6 +4,8 @@
 require "BuildingUtilities/Panels"
 require "BuildingUtilities/Energy"
 require "BuildingUtilities/Sync"
+require "BuildingUtilities/Solar"
+require "BuildingUtilities/Rack"
 local BU = BuildingUtilities
 local Store, Networks, Panels, Units, Sync = BU.Store, BU.Networks, BU.Panels, BU.Units, BU.Sync
 local Changes = {}
@@ -133,51 +135,12 @@ end
 
 -- Units.
 
--- A rack shows its batteries and their charge (Units.rackOverlay) while its square is loaded.
-function Changes.showRack(unit, object)
-    object = object or Units.object(unit)
-    if not object or unit.kind ~= "rack" then return end
-    local overlay = Units.rackOverlay(unit)
-    local current = object:getOverlaySprite() and object:getOverlaySprite():getName() or nil
-    if current ~= overlay then
-        object:setOverlaySprite(overlay or "", isServer())
-    end
-end
-
--- A rack's records follow the batteries in its container: one put in gets a record from the item, one taken out
--- loses its record, and the others' items take what the bank made of their records (Units.writeBattery), so a
--- battery taken out has the charge and condition it had in the rack.
-function Changes.syncRack(unit, object)
-    object = object or Units.object(unit)
-    if not object or unit.kind ~= "rack" then return end
-    local items = Units.rackContainer(object):getAllTag(ItemTag.CAR_BATTERY, ArrayList.new())
-    local known = {}
-    for _, record in ipairs(unit.batteries) do
-        if record.id then known[record.id] = record end
-    end
-    local batteries, changed = {}, #unit.batteries ~= items:size()
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        local record = known[item:getID()]
-        if record then
-            record.revived = item:getModData()[Units.REVIVED] or 0
-            Units.writeBattery(item, record)
-        else
-            record = Units.batteryRecord(item)
-            changed = true
-        end
-        batteries[#batteries + 1] = record
-    end
-    unit.batteries = batteries
-    Changes.showRack(unit, object)
-    if changed then Sync.changed(unit.panel) end
-end
-
 function Changes.installUnit(kind, square, sprite)
     local object = IsoObject.new(square, sprite, nil, false)
     local unit = Store.newUnit(kind, square:getX(), square:getY(), square:getZ(), sprite)
     object:getModData()[Units.MODDATA] = unit.id
-    if kind == "rack" then Units.rackContainer(object) end
+    local definition = Units.definition(kind)
+    if definition.create then definition.create(unit, object) end
     square:AddTileObject(object)
     if isServer() then object:transmitCompleteItemToClients() end
     BU.log("installed", kind, unit.id, "at", unit.x, unit.y, unit.z)

@@ -209,9 +209,9 @@ local function checkSource(panel, hours)
     checkSaving(panel, state, bank, output, rules)
 end
 
--- The units over the time since they were last worked out: snow on the panels, then each panel's source; then the
--- loaded racks' batteries follow what it made of them, and their records the batteries put in or taken out (the bank
--- counts those from the next minute).
+-- The units over the time since they were last worked out: snow on the panels, then each panel's source; then each
+-- loaded unit whose kind keeps something in step with its object (a rack's batteries: the bank counts those put in
+-- from the next minute).
 local function updateUnits()
     local data = Store.data()
     local now = getGameTime():getWorldAgeHours()
@@ -219,7 +219,11 @@ local function updateUnits()
     data.energyHour = now
     if Energy.weather(hours) then Sync.changed(nil) end
     for _, panel in ipairs(Store.list()) do checkSource(panel, hours) end
-    for _, rack in ipairs(Store.unitList("rack")) do Changes.syncRack(rack) end
+    for _, unit in ipairs(Store.unitList()) do
+        local sync = BU.Units.definition(unit.kind).sync
+        local object = sync and BU.Units.object(unit)
+        if object then sync(unit, object) end
+    end
 end
 
 local function onNetworkChange(id, what)
@@ -276,17 +280,19 @@ local function everyTenMinutes()
     for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
 end
 
--- A rack loaded: its container takes car batteries only again, and its batteries and look take what the bank made of
--- them while it was not loaded (Changes.syncRack). A client only sets what the container takes.
-MapObjects.OnLoadWithSprite(BU.Units.SPRITES.rack, function(object)
-    local unit = BU.Units.ofObject(object)
-    if not unit then return end
-    if isClient() then
-        if object:getContainer() then BU.Units.rackContainer(object) end
-        return
+-- A unit's square loaded: its kind catches up with what changed while it was not (a rack's batteries and look). This
+-- runs on a multiplayer client too.
+for _, kind in ipairs(BU.Units.KINDS) do
+    local definition = BU.Units.definition(kind)
+    if definition.onLoad then
+        for _, sprite in ipairs(definition.sprites) do
+            MapObjects.OnLoadWithSprite(sprite, function(object)
+                local unit = BU.Units.ofObject(object)
+                if unit then definition.onLoad(unit, object) end
+            end, 5)
+        end
     end
-    Changes.syncRack(unit, object)
-end, 5)
+end
 
 -- A multiplayer client loads this file too; the world is not decided there.
 if isClient() then return end

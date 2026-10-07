@@ -17,8 +17,8 @@ for _, name in ipairs({ "bu_solar_01_0", "bu_solar_01_8", "bu_solar_01_9", "bu_s
     say("sprite", name, sprite ~= nil, sprite and sprite:getProperties():has("Facing") and sprite:getProperties():get("Facing") or "-")
 end
 say("icons", getTexture("Item_BUSolarPanel") ~= nil, getTexture("Item_BUBatteryRack") ~= nil)
-say("items", getItemNameFromFullType(Units.ITEMS.solar), getItemNameFromFullType(Units.ITEMS.rack),
-    instanceItem(Units.ITEMS.solar) ~= nil, instanceItem(Units.ITEMS.rack) ~= nil)
+say("items", getItemNameFromFullType(Units.definition("solar").item), getItemNameFromFullType(Units.definition("rack").item),
+    instanceItem(Units.definition("solar").item) ~= nil, instanceItem(Units.definition("rack").item) ~= nil)
 local recipes = getScriptManager():getAllCraftRecipes()
 local found = {}
 for i = 0, recipes:size() - 1 do
@@ -65,13 +65,13 @@ say("wired", #Store.unitList(nil, panel.id), "again", tostring(select(2, Actions
 local battery = instanceItem("Base.CarBattery2")
 battery:setUsedDelta(0.62)
 battery:setCondition(41)
-local record = Units.batteryRecord(battery)
-say("record", record.type, string.format("%.2f", record.charge), record.condition, record.revived, Units.batteryText(record))
+local record = BU.Rack.batteryRecord(battery)
+say("record", record.type, string.format("%.2f", record.charge), record.condition, record.revived, BU.Rack.batteryText(record))
 for i = 1, 6 do BURACK.put(rack, { type = "Base.CarBattery2", charge = 0.62, condition = 41 }) end
 local object = Units.object(rack)
 local box = object:getContainer()
 say("rack", #rack.batteries, "container", box:getType(), box:getCapacity(), "ids", rack.batteries[1].id ~= nil,
-    "overlay", Units.rackOverlay(rack), object:getOverlaySprite() and object:getOverlaySprite():getName())
+    "overlay", BU.Rack.overlay(rack), object:getOverlaySprite() and object:getOverlaySprite():getName())
 say("takes battery", box:isItemAllowed(instanceItem("Base.CarBattery1")), "plank", box:isItemAllowed(instanceItem("Base.Plank")))
 -- The bank's change goes to the items; a battery taken out keeps it.
 rack.batteries[1].charge, rack.batteries[1].condition = 0.3, 37.6
@@ -84,13 +84,13 @@ say("emptied", #rack.batteries, "removable", Units.isEmpty(rack))
 say("empty overlay", object:getOverlaySprite() and object:getOverlaySprite():getName() or "none")
 
 -- Reconditioning, done by hand as the action would.
-say("revive", tostring(select(2, Units.canRevive(player, back))))
+say("revive", tostring(select(2, BU.Rack.canRevive(player, back))))
 local before = back:getCondition()
-back:getModData()[Units.REVIVED] = 3
-say("revived out", tostring(select(2, Units.canRevive(player, back))))
-back:getModData()[Units.REVIVED] = nil
+back:getModData()[BU.Rack.REVIVED] = 3
+say("revived out", tostring(select(2, BU.Rack.canRevive(player, back))))
+back:getModData()[BU.Rack.REVIVED] = nil
 back:setCondition(80)
-say("not worn", tostring(select(2, Units.canRevive(player, back))), "was", before)
+say("not worn", tostring(select(2, BU.Rack.canRevive(player, back))), "was", before)
 
 -- A sub-panel cannot be made of a panel with units; then everything goes.
 local another

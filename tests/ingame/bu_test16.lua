@@ -55,7 +55,7 @@ for r = 1, 12 do
     end
     if square then break end
 end
-local rack = Changes.installUnit("rack", square, Units.SPRITES.rack)
+local rack = Changes.installUnit("rack", square, BU.Rack.SPRITE)
 Changes.connectUnit(rack, panel, {})
 for i = 1, 2 do BURACK.put(rack, { type = "Base.CarBattery1", charge = 0.25, condition = 100 }) end
 local onBank = { load = 0.3, supplied = true, producer = { source = Energy.SOURCE }, producers = withGenerator.producers }

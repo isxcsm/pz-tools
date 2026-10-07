@@ -56,7 +56,6 @@ local COLOURS = {
     other = { 0.6, 0.4, 0.8 }, off = { 0.45, 0.45, 0.45 }, shed = { 1, 0.6, 0.2 }, timer = { 0.4, 0.6, 1 },
     unsupplied = { 0.6, 0.65, 0.75 }, using = { 0.4, 1, 0.4 }, idle = { 0.25, 0.6, 0.3 },
     producer = { 1, 0.85, 0.2 }, tank = { 0.3, 0.6, 1 }, box = { 1, 1, 1 }, chosen = { 0.4, 0.8, 1 },
-    solar = { 1, 1, 0.55 }, rack = { 0.35, 0.85, 0.45 },
     rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
 }
@@ -184,7 +183,7 @@ local function nearestPoint(rects, x, y)
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = "solar" or "rack" for a unit } }, box = { x, y, z }, filter = room id,
+-- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit } }, box = { x, y, z }, filter = room id,
 -- zone = room id to { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote,
 -- ranges = { exterior = steps, producer = steps or nil } while the range is shown, rangeKey (the building and tier the
 -- ranges are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
@@ -322,9 +321,9 @@ function ISBUPlan:layout()
     for _, device in ipairs(data.devices) do
         if device.z == self.floor and not device.inside and device.state == "on" then addLine(device.x, device.y, COLOURS.idle) end
     end
-    -- A producer's colour: a tank's, a generator's, or a unit's (a solar panel, a battery rack).
+    -- A producer's colour: a tank's, a generator's, or a unit's (its kind's, Units.define).
     local function producerColour(producer)
-        if producer.unit then return COLOURS[producer.unit] end
+        if producer.unit then return BU.Units.definition(producer.unit).colour end
         return data.utility == "water" and COLOURS.tank or COLOURS.producer
     end
     for _, producer in ipairs(data.producers) do

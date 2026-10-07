@@ -24,9 +24,9 @@ local KEY = "BuildingUtilities"
 --   power is off because the bank ran empty in quiet hours) and sourceOn (its units' source carried the load when last
 --   seen: a world loaded again defines the source off, and the server switches it back on).
 -- units = { [id] = unit }: the solar panels and battery racks this mod put down (BU.Units). A unit:
---   id, kind ("solar" or "rack"), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
+--   id, kind (BU.Units.KINDS), x, y, z (its square), sprite, panel (the main panel it is wired to, or nil) and
 --   paid (what that line took); a solar panel also snow (0 to 1, nil for none); a rack also batteries, a record of
---   each car battery in its container (Changes.syncRack): { id (the item's), type, charge 0 to 1, condition 0 to
+--   each car battery in its container (BU.Rack.sync): { id (the item's), type, charge 0 to 1, condition 0 to
 --   100, revived: how often it was reconditioned }.
 -- energyHour: the world age the units were last worked out at (Server). A panel with a bank keeps bankFlow, what
 -- went into its batteries per hour at the last minute (out of them when below 0), for its window.
@@ -161,7 +161,6 @@ function Store.newUnit(kind, x, y, z, sprite)
     local id = "u" .. data.nextUnit
     data.nextUnit = data.nextUnit + 1
     local unit = { id = id, kind = kind, x = x, y = y, z = z, sprite = sprite }
-    if kind == "rack" then unit.batteries = {} end
     data.units[id] = unit
     return unit
 end
