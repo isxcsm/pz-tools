@@ -167,10 +167,20 @@ function Value.appraiseLine(info, count, ctx, taken)
             line.trust = def.trust * count * (ctx.trustAccel or 1.0)
         end
         line.own = info.own
+        if info.own == "MeteorFragment" then
+            line.marks.fragment = true
+            line.note = Value.FRAGMENT_NOTE()
+        end
         return line
     end
-    local cat = Categories.of(info)
-    if not cat then return line end
+    local cat, why = Categories.of(info)
+    if not cat then
+        if why == "Meteor" then
+            line.marks.bigMeteorite = true
+            line.note = Value.BIG_METEORITE_NOTE()
+        end
+        return line
+    end
     line.category = cat
     local w = math.max(info.weight or 0, 0)
     line.weight = w * count
@@ -217,9 +227,43 @@ function Value.appraiseLine(info, count, ctx, taken)
     return line
 end
 
+-- The receipt notes of the two meteorite goods: the story part's words when it is there, else this part's own.
+-- A line carries the key as `note`, and as a mark so that the trade part's receipt shows it after the item.
+function Value.BIG_METEORITE_NOTE()
+    return OA.Story and OA.Story.BIG_METEORITE_RECEIPT or "IGUI_OA_Econ_Receipt_BigMeteorite"
+end
+function Value.FRAGMENT_NOTE()
+    return OA.Story and OA.Story.FRAGMENT_RECEIPT or "IGUI_OA_Econ_Receipt_Fragment"
+end
+function Value.BIG_METEORITE_RADIO()
+    return OA.Story and OA.Story.BIG_METEORITE_RADIO or "IGUI_OA_Econ_Radio_BigMeteorite"
+end
+
+-- Whether an info is the vanilla big meteorite (which the team never takes).
+function Value.isBigMeteorite(info)
+    if info.own or info.cash then return false end
+    local _, why = Categories.of(info)
+    return why == "Meteor"
+end
+
+-- Called when a big meteorite is turned away (at sealing, or found in a box at the settlement): the radio says why,
+-- once a game day per record. Returns true if the item was the big meteorite.
+function Value.noteRefusal(record, info)
+    if not Value.isBigMeteorite(info) then return false end
+    local codex = OA.Store.section(record, "codex")
+    local day = OA.day()
+    if codex.meteorRadio ~= day then
+        codex.meteorRadio = day
+        OA.Market.radioTo(record, Value.BIG_METEORITE_RADIO())
+    end
+    return true
+end
+
 -- The translation keys of the marks an item shows in a tooltip or the estimate window, in the order to show them.
 function Value.markKeys(marks)
     local keys = {}
+    if marks.bigMeteorite then table.insert(keys, Value.BIG_METEORITE_NOTE()) end
+    if marks.fragment then table.insert(keys, Value.FRAGMENT_NOTE()) end
     if marks.refused then table.insert(keys, "IGUI_OA_Econ_Mark_Refused") end
     if marks.request then table.insert(keys, "IGUI_OA_Econ_Mark_Request") end
     if marks.newRegion then table.insert(keys, "IGUI_OA_Econ_Mark_NewRegion") end
@@ -289,6 +333,7 @@ function Value.settle(record, entries)
     for _, entry in ipairs(entries) do
         local line = Value.appraiseLine(entry.info, entry.count or 1, ctx, taken)
         table.insert(lines, line)
+        if line.marks.bigMeteorite then Value.noteRefusal(record, entry.info) end
         credits = credits + line.credits
         trust = trust + line.trust
         cashTrust = cashTrust + line.cashTrust
