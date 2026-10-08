@@ -194,7 +194,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     end
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
-    if (self.hovered == item.index and (row.device or row.at or row.kind == "link")) or self.selected == item.index and row.device then
+    if (self.hovered == item.index and (row.device or row.at or row.kind == "link" or row.kind == "floor"))
+        or self.selected == item.index and row.device then
         self:drawRect(0, y, width, ROW, 0.15, 1, 1, 1)
     end
     -- What the mouse is over on the plan.
@@ -205,6 +206,12 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     if row.kind == "header" then
         self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
         self:drawText(row.text, PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)
+    elseif row.kind == "floor" then
+        self:drawRect(0, y, width, ROW, 0.5, 0.12, 0.2, 0.3)
+        self:drawRect(0, y + ROW - 1, width, 1, 0.6, 0.35, 0.5, 0.65)
+        self:drawText(row.folded and "+" or "-", PAD, textY, 0.7, 0.85, 1, 1, UIFont.Small)
+        self:drawText(row.text, PAD * 3, textY, 0.75, 0.9, 1, 1, UIFont.Small)
+        if row.right then self:drawTextRight(row.right, width - PAD - SCROLLBAR, textY, 0.75, 0.9, 1, 1, UIFont.Small) end
     elseif row.kind == "room" then
         self:drawRect(0, y, width, ROW, 0.3, 0.3, 0.3, 0.3)
         self:drawText(row.folded and "+" or "-", PAD, textY, 1, 0.85, 0.5, 1, UIFont.Small)

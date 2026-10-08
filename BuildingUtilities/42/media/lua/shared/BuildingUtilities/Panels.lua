@@ -78,19 +78,97 @@ function Panels.isLarge(rooms)
     return count >= Panels.LARGE_LEVELS or #rooms > Panels.LARGE_ROOMS
 end
 
--- The zone a new box on a level of a building takes: nil (the whole building) in a small building without boxes;
+-- The floors a box of a tier on a level takes rooms of (BU.floorReach): the lowest and the highest, or nil for all.
+function Panels.floorsReached(level, tier)
+    local reach = BU.floorReach(tier)
+    if not reach then return nil end
+    return level - reach, level + reach
+end
+
+-- The floors of a building a box reaches, as players see them: the lowest and the highest of its levels the box's
+-- zone can take rooms of.
+function Panels.floorsInReach(panel, building)
+    local low, high = Panels.floorsReached(panel.z, panel.tier)
+    return math.max(low or building.minLevel, building.minLevel), math.min(high or building.maxLevel, building.maxLevel)
+end
+
+-- The lowest and the highest floor of a box's zone, or nil for the whole building or when the building is not known
+-- now.
+function Panels.zoneFloors(panel)
+    local building = panel.rooms and Panels.building(panel)
+    if not building then return nil end
+    local low, high
+    for _, room in ipairs(Panels.rooms(building)) do
+        if panel.rooms[room.id] then low, high = math.min(low or room.level, room.level), math.max(high or room.level, room.level) end
+    end
+    return low, high
+end
+
+-- Whether a box's zone can take rooms of a level.
+function Panels.reachesLevel(panel, level)
+    local low, high = Panels.floorsReached(panel.z, panel.tier)
+    return not low or level >= low and level <= high
+end
+
+-- Whether a box on a level, of a tier, reaches every floor of rooms.
+local function reachesAll(rooms, level, tier)
+    local low, high = Panels.floorsReached(level, tier)
+    if not low then return true end
+    for _, room in ipairs(rooms) do
+        if room.level < low or room.level > high then return false end
+    end
+    return true
+end
+
+-- The zone a new box (tier 1) on a level of a building takes: nil (the whole building) in a small building without
+-- boxes whose floors it all reaches, the rooms of the floors it reaches in one it does not (and true for that);
 -- else the free rooms of its level.
 function Panels.defaultZone(building, level)
     local rooms, boxes = Panels.rooms(building), Panels.ofBuilding(building.key)
-    if #boxes == 0 and not Panels.isLarge(rooms) then return nil end
+    local low, high = Panels.floorsReached(level, 1)
+    local small = #boxes == 0 and not Panels.isLarge(rooms)
+    if small and reachesAll(rooms, level, 1) then return nil end
     local zone = {}
     for _, room in ipairs(rooms) do
-        if room.level == level and not Panels.roomOwner(building.key, room.id, nil, boxes) then zone[room.id] = true end
+        local take = small and room.level >= low and room.level <= high or room.level == level
+        if take and not Panels.roomOwner(building.key, room.id, nil, boxes) then zone[room.id] = true end
     end
-    return zone
+    return zone, small
 end
 
--- Each room of the panel's building to the plan: "mine", "free" or "taken", with the panel that has it.
+-- Whether a box can take its whole building as its zone: the building's one box, reaching all its floors.
+function Panels.canTakeWhole(panel, building)
+    return building ~= nil and #Panels.ofBuilding(building.key) == 1
+        and reachesAll(Panels.rooms(building), panel.z, panel.tier)
+end
+
+-- The zone a box keeps within the floors it reaches (Panels.reachesLevel): its rooms on those floors (for the whole
+-- building, every room there), or the free rooms of its own level if none is left. Returns the zone and whether it
+-- differs; the zone it has when the building is not known now.
+function Panels.zoneInReach(panel)
+    local building = Panels.building(panel)
+    if not building or not BU.floorReach(panel.tier) then return panel.rooms, false end
+    local rooms = Panels.rooms(building)
+    if not panel.rooms and reachesAll(rooms, panel.z, panel.tier) then return nil, false end
+    local zone, changed, any = {}, panel.rooms == nil, false
+    for _, room in ipairs(rooms) do
+        if Panels.inZone(panel, room.id) then
+            if Panels.reachesLevel(panel, room.level) then zone[room.id] = true; any = true else changed = true end
+        end
+    end
+    if not any then
+        local boxes = Panels.ofBuilding(building.key)
+        for _, room in ipairs(rooms) do
+            if room.level == panel.z and not Panels.roomOwner(building.key, room.id, panel, boxes) then
+                zone[room.id], changed = true, true
+            end
+        end
+    end
+    return zone, changed
+end
+
+-- Each room of the panel's building to the plan: "mine", "free", "far" (free, on a floor the box does not reach) or
+-- "taken", with the panel that has it.
 function Panels.zoneStates(panel, building, rooms)
     local result = {}
     local boxes = building and Panels.ofBuilding(building.key) or {}
@@ -99,7 +177,8 @@ function Panels.zoneStates(panel, building, rooms)
             result[room.id] = { state = "mine", owner = panel }
         else
             local owner = building and Panels.roomOwner(building.key, room.id, panel, boxes)
-            result[room.id] = { state = owner and "taken" or "free", owner = owner }
+            local state = owner and "taken" or Panels.reachesLevel(panel, room.level) and "free" or "far"
+            result[room.id] = { state = state, owner = owner }
         end
     end
     return result
@@ -145,11 +224,17 @@ function Panels.powerLine(panel, state)
     local steps
     if panel.parent then
         local parent = Store.get(panel.parent)
-        steps = parent and Panels.linkSteps(panel, parent)
+        steps = parent and Panels.linkWire(panel, parent)
     else
         local at = state and state.producer or panel.power.producers[1]
         if at and at.source then steps = BU.Energy.lineSteps(panel)
-        elseif at then steps = Panels.steps(panel, at.x, at.y)
+        elseif at then
+            -- The state's producer is the API's: the save's says which sub-panel its line runs through.
+            local via
+            for _, own in ipairs(panel.power.producers) do
+                if own.x == at.x and own.y == at.y and own.z == at.z then via = own.via end
+            end
+            steps = Panels.routeWire(panel, at.x, at.y, at.z, via)
         else steps = BU.Energy.lineSteps(panel) end
     end
     if not steps then return nil end
@@ -159,7 +244,10 @@ end
 
 -- How far a box of a tier reaches, for the player: producers, outside devices, sub-panels.
 function Panels.rangesText(tier)
-    return getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
+    local text = getText("IGUI_BU_Ranges", BU.producerRange(tier), BU.exteriorRange(tier), BU.subPanelRange(tier))
+    local floors = BU.floorReach(tier)
+    if floors then text = text .. " " .. getText("IGUI_BU_FloorReach", floors) end
+    return text
 end
 
 -- What upgrading to a tier gives, one line each: the load it carries, the ranges when they grow, what it can do; only
@@ -225,6 +313,62 @@ function Panels.steps(panel, x, y)
     return building and Geometry.toBuilding(x, y, Panels.rooms(building)) or nil
 end
 
+-- The length of a line from a square to a panel's box: the steps to its building's outline, and BU.tilesPerFloor a
+-- floor up or down; nil when the building is not known now.
+function Panels.wire(panel, x, y, z)
+    local steps = Panels.steps(panel, x, y)
+    return steps and steps + math.abs((z or panel.z) - panel.z) * BU.tilesPerFloor() or nil
+end
+
+-- The main panel a panel takes its supply from at last, up its links: itself for a main panel.
+function Panels.root(panel)
+    local seen = {}
+    while panel.parent and not seen[panel.id] do
+        seen[panel.id] = true
+        local parent = Store.get(panel.parent)
+        if not parent then break end
+        panel = parent
+    end
+    return panel
+end
+
+-- Whether the panel named by an id is a panel, or one of its sub-panels at any depth.
+function Panels.passesThrough(id, panel)
+    local at, seen = Store.get(id), {}
+    while at and not seen[at.id] do
+        if at == panel then return true end
+        seen[at.id] = true
+        at = Store.get(at.parent)
+    end
+    return false
+end
+
+-- The length of the links from a panel up to its main panel (Panels.linkWire each): 0 for a main panel, nil when a
+-- building on the way is not known now.
+function Panels.feedWire(panel)
+    local total, seen = 0, {}
+    while panel.parent and not seen[panel.id] do
+        seen[panel.id] = true
+        local parent = Store.get(panel.parent)
+        if not parent then break end
+        local wire = Panels.linkWire(panel, parent)
+        if not wire then return nil end
+        total, panel = total + wire, parent
+    end
+    return total
+end
+
+-- The length of a producer's or a unit's line into its main panel: through the sub-panel it is wired to (via, its
+-- id) and up that one's links, or straight to the box.
+function Panels.routeWire(panel, x, y, z, via)
+    local through = via and Store.get(via)
+    if through and through ~= panel and Panels.root(through) == panel then
+        local wire, feed = Panels.wire(through, x, y, z), Panels.feedWire(through)
+        return wire and feed and wire + feed or nil
+    end
+    return Panels.wire(panel, x, y, z)
+end
+
 -- The lowest tier whose range (BU.producerRange and the like) reaches so many squares; nil when none does.
 function Panels.tierReaching(range, steps)
     for tier = 1, BU.TIERS do
@@ -233,25 +377,27 @@ function Panels.tierReaching(range, steps)
     return nil
 end
 
--- The main panels a producer square could be connected to: on a level of their building or on the ground, within
--- the producer range of the top tier from its outline. Each with its distance and the tier that reaches it; nearest
--- first.
+-- The panels a producer square could be connected to: on a level of their building or on the ground, within the
+-- producer range of the top tier from its outline. Each with its distance, its line's length (Panels.wire) and the
+-- tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root), whose producer it is: a producer near a
+-- sub-panel, up a tall building or by another building, needs no line of its own all the way to the main box.
 function Panels.producerCandidates(x, y, z)
     local result = {}
     for _, panel in ipairs(Store.list()) do
-        if not panel.parent then
-            local building = Panels.building(panel)
-            if building and (z == 0 or z >= building.minLevel and z <= building.maxLevel) then
-                local steps = Geometry.toBuilding(x, y, Panels.rooms(building))
-                local tier = steps and Panels.tierReaching(BU.producerRange, steps)
-                if tier then
-                    result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
-                        inRange = tier <= (panel.tier or 1) }
-                end
+        local building = Panels.building(panel)
+        if building and (z == 0 or z >= building.minLevel and z <= building.maxLevel) then
+            local steps = Geometry.toBuilding(x, y, Panels.rooms(building))
+            local tier = steps and Panels.tierReaching(BU.producerRange, steps)
+            if tier then
+                result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
+                    inRange = tier <= (panel.tier or 1), wire = Panels.wire(panel, x, y, z) or steps }
             end
         end
     end
-    table.sort(result, function(a, b) return a.steps < b.steps end)
+    table.sort(result, function(a, b)
+        if a.wire ~= b.wire then return a.wire < b.wire end
+        return a.steps < b.steps
+    end)
     return result
 end
 
@@ -267,7 +413,6 @@ end
 -- Whether a producer can be connected to a panel. True, or false and a reason.
 function Panels.canConnectProducer(panel, utility, x, y, z)
     if not BU.enabled(utility) then return false, "disabled" end
-    if panel.parent then return false, "isSubPanel" end
     if Store.producerOwner(x, y, z) then return false, "connectedElsewhere" end
     local square = getCell():getGridSquare(x, y, z)
     if square and Panels.producerOn(square) ~= utility then return false, "noProducer" end
@@ -492,7 +637,15 @@ end
 function Panels.linkSteps(child, parent)
     local childBuilding, parentBuilding = Panels.building(child), Panels.building(parent)
     if not childBuilding or not parentBuilding then return nil end
+    if childBuilding.key == parentBuilding.key then return 0 end
     return Geometry.betweenBuildings(Panels.rooms(childBuilding), Panels.rooms(parentBuilding))
+end
+
+-- The length of the line between two panels: the steps between their buildings, and BU.tilesPerFloor a floor up or
+-- down between their boxes (a sub-panel on another floor of the same building); nil when one is not known now.
+function Panels.linkWire(child, parent)
+    local steps = Panels.linkSteps(child, parent)
+    return steps and steps + math.abs(child.z - parent.z) * BU.tilesPerFloor() or nil
 end
 
 -- The lights a blackout switches off: the panel's connected power devices that are light switches or lamps on
@@ -534,17 +687,18 @@ function Panels.canLink(child, parent)
     return true
 end
 
--- The panels a panel could take its supply from, nearest first, with their distances: those it can now, and those
--- it could once they are of a higher tier (with the tier needed), for the player to see what an upgrade gives.
+-- The panels a panel could take its supply from, nearest first, with their distances and their lines' lengths
+-- (Panels.linkWire): those it can now, and those it could once they are of a higher tier (with the tier needed), for
+-- the player to see what an upgrade gives.
 function Panels.linkCandidates(child)
     local result = {}
     for _, panel in ipairs(Store.list()) do
         if panel ~= child then
             local ok, reason, steps, tier = Panels.canLink(child, panel)
             if ok then
-                result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel) }
+                result[#result + 1] = { panel = panel, steps = Panels.linkSteps(child, panel), wire = Panels.linkWire(child, panel) }
             elseif reason == "lowTier" then
-                result[#result + 1] = { panel = panel, steps = steps, tier = tier }
+                result[#result + 1] = { panel = panel, steps = steps, wire = Panels.linkWire(child, panel), tier = tier }
             end
         end
     end

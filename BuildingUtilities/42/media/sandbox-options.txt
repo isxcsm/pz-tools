@@ -72,6 +72,12 @@ option BuildingUtilities.RangePerTier
     page = BuildingUtilities, translation = BuildingUtilities_RangePerTier,
 }
 
+option BuildingUtilities.FloorReach
+{
+    type = integer, min = 0, max = 50, default = 2,
+    page = BuildingUtilities, translation = BuildingUtilities_FloorReach,
+}
+
 option BuildingUtilities.CostsEnabled
 {
     type = boolean, default = true,
@@ -82,6 +88,12 @@ option BuildingUtilities.TilesPerPiece
 {
     type = integer, min = 1, max = 50, default = 5,
     page = BuildingUtilities, translation = BuildingUtilities_TilesPerPiece,
+}
+
+option BuildingUtilities.TilesPerFloor
+{
+    type = integer, min = 0, max = 20, default = 3,
+    page = BuildingUtilities, translation = BuildingUtilities_TilesPerFloor,
 }
 
 option BuildingUtilities.RefundPercent

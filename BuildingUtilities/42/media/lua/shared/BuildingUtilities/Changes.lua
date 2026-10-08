@@ -14,10 +14,12 @@ local Changes = {}
 BU.Changes = Changes
 
 -- Puts a box on the square and starts its networks. In a large building, or one with boxes already, it takes the
--- free rooms of its floor (Panels.defaultZone), and says so.
+-- free rooms of its floor, in a small one with more floors than it reaches those it reaches (Panels.defaultZone), and
+-- says so.
 function Changes.install(square, sprite)
     local building = Panels.buildingAt(square:getX(), square:getY(), square:getZ())
-    local zone = building and Panels.defaultZone(building, square:getZ())
+    local zone, reach
+    if building then zone, reach = Panels.defaultZone(building, square:getZ()) end
     local object = IsoObject.new(square, sprite, nil, false)
     -- The mouse over it shows a summary (client/BuildingUtilities/Main.lua).
     object:setSpecialTooltip(true)
@@ -32,20 +34,29 @@ function Changes.install(square, sprite)
     if zone then
         local count = 0
         for _ in pairs(zone) do count = count + 1 end
-        Sync.notice(panel, "IGUI_BU_Notice_Zoned", Panels.name(panel), count)
+        if reach then
+            local low, high = Panels.floorsInReach(panel, building)
+            Sync.notice(panel, "IGUI_BU_Notice_ZonedReach", Panels.name(panel), count, BU.floorName(low), BU.floorName(high))
+        else
+            Sync.notice(panel, "IGUI_BU_Notice_Zoned", Panels.name(panel), count)
+        end
     end
     return panel
 end
 
 -- The rooms a box takes: a list of room ids of its building, or nil for all of it (only for the building's one
--- box). Rooms of another box's zone are left out; a zone keeps one room at least. Returns whether it changed.
+-- box; the rooms of the floors it reaches where it does not reach them all). Rooms of another box's zone and of
+-- floors it does not reach (Panels.reachesLevel) are left out; a zone keeps one room at least. Returns whether it
+-- changed.
 function Changes.setZone(panel, ids)
     local building = Panels.building(panel)
     if not building then return false end
     local zone
     if ids then
         local known, boxes = {}, Panels.ofBuilding(building.key)
-        for _, room in ipairs(Panels.rooms(building)) do known[room.id] = true end
+        for _, room in ipairs(Panels.rooms(building)) do
+            if Panels.reachesLevel(panel, room.level) then known[room.id] = true end
+        end
         zone = {}
         local any = false
         for _, id in ipairs(ids) do
@@ -54,7 +65,17 @@ function Changes.setZone(panel, ids)
         if not any then return false end
     elseif #Panels.ofBuilding(building.key) > 1 then
         return false
+    elseif not Panels.canTakeWhole(panel, building) then
+        zone = {}
+        for _, room in ipairs(Panels.rooms(building)) do
+            if Panels.reachesLevel(panel, room.level) then zone[room.id] = true end
+        end
     end
+    return Changes.applyZone(panel, building, zone)
+end
+
+-- A zone checked as Changes.setZone does, to the save, the API and the players.
+function Changes.applyZone(panel, building, zone)
     local before = panel.rooms
     panel.rooms = zone
     Networks.setZone(panel, before)
@@ -83,31 +104,104 @@ function Changes.setZone(panel, ids)
     return true
 end
 
--- Everything a panel's lines took: its producers', its units', its outside devices', its own link's and its
--- sub-panels' links, which go with it. For giving back a share when it is taken down.
+-- Each box's zone kept to the floors it reaches (Panels.zoneInReach), as the world starts: one saved before the limit,
+-- or with a smaller one in the sandbox, loses the rooms beyond and says so.
+function Changes.fitZones()
+    for _, panel in ipairs(Store.list()) do
+        local zone, changed = Panels.zoneInReach(panel)
+        if changed then
+            local building = Panels.building(panel)
+            Changes.applyZone(panel, building, zone)
+            local low, high = Panels.floorsInReach(panel, building)
+            BU.log("zone of", panel.id, "kept to the floors it reaches")
+            Sync.notice(panel, "IGUI_BU_Notice_ZoneReach", Panels.name(panel), BU.floorName(low), BU.floorName(high))
+        end
+    end
+end
+
+-- What lines took, added to a total.
+local function addPaid(total, paid)
+    if type(paid) ~= "table" then return end
+    for itemType, count in pairs(paid) do total[itemType] = (total[itemType] or 0) + count end
+end
+
+-- The producers and units of other panels wired through a sub-panel (Panels.passesThrough): each { owner, utility,
+-- producer } or { owner, unit }.
+local function routesThrough(panel)
+    local result = {}
+    for _, owner in ipairs(Store.list()) do
+        if owner ~= panel then
+            for _, utility in ipairs(BU.UTILITIES) do
+                for _, producer in ipairs(owner[utility].producers) do
+                    if producer.via and Panels.passesThrough(producer.via, panel) then
+                        result[#result + 1] = { owner = owner, utility = utility, producer = producer }
+                    end
+                end
+            end
+            for _, unit in ipairs(Store.unitList(nil, owner.id)) do
+                if unit.via and Panels.passesThrough(unit.via, panel) then result[#result + 1] = { owner = owner, unit = unit } end
+            end
+        end
+    end
+    return result
+end
+
+-- Takes away the lines wired through a sub-panel that leaves its main panel: they no longer reach it. Returns what
+-- they took.
+local function cutRoutes(panel)
+    local paid, owners = {}, {}
+    local routes = routesThrough(panel)
+    for _, route in ipairs(routes) do
+        local owner = route.owner
+        owners[owner] = owners[owner] or {}
+        if route.unit then
+            addPaid(paid, route.unit.paid)
+            route.unit.panel, route.unit.paid, route.unit.via = nil, nil, nil
+            owners[owner].units = true
+        else
+            addPaid(paid, route.producer.paid)
+            local list = owner[route.utility].producers
+            for index = #list, 1, -1 do
+                if list[index] == route.producer then table.remove(list, index) end
+            end
+            owners[owner][route.utility] = true
+        end
+    end
+    for owner, changed in pairs(owners) do
+        for _, utility in ipairs(BU.UTILITIES) do
+            if changed[utility] then Networks.setProducers(owner, utility) end
+        end
+        if changed.units then Changes.unitsChanged(owner) end
+        Networks.applyLoss(owner)
+        Sync.changed(owner.id)
+    end
+    if #routes > 0 then Sync.notice(panel, "IGUI_BU_Notice_RoutesCut", Panels.name(panel), #routes) end
+    return paid
+end
+
+-- Everything a panel's lines took: its producers', its units', its outside devices', its own link's, its
+-- sub-panels' links and the lines wired through it, which go with it. For giving back a share when it is taken down.
 function Changes.paidFor(panel)
     local total = {}
-    local function add(paid)
-        if type(paid) ~= "table" then return end
-        for itemType, count in pairs(paid) do total[itemType] = (total[itemType] or 0) + count end
-    end
     for _, utility in ipairs(BU.UTILITIES) do
-        for _, producer in ipairs(panel[utility].producers) do add(producer.paid) end
-        for _, paid in pairs(panel[utility].included) do add(paid) end
+        for _, producer in ipairs(panel[utility].producers) do addPaid(total, producer.paid) end
+        for _, paid in pairs(panel[utility].included) do addPaid(total, paid) end
     end
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do add(unit.paid) end
-    add(panel.parentPaid)
-    for _, child in ipairs(Store.children(panel.id)) do add(child.parentPaid) end
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do addPaid(total, unit.paid) end
+    addPaid(total, panel.parentPaid)
+    for _, child in ipairs(Store.children(panel.id)) do addPaid(total, child.parentPaid) end
+    for _, route in ipairs(routesThrough(panel)) do addPaid(total, (route.unit or route.producer).paid) end
     return total
 end
 
--- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing, its
--- sub-panels become main panels.
+-- Takes a panel away: its networks go, its producers are the game's again, its units are wired to nothing, the lines
+-- wired through it go (Changes.paidFor gave them back), its sub-panels become main panels.
 function Changes.remove(panel)
     local object = Panels.object(panel)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
+    cutRoutes(panel)
     Networks.remove(panel)
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do unit.panel, unit.paid = nil, nil end
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do unit.panel, unit.paid, unit.via = nil, nil, nil end
     for _, child in ipairs(Store.children(panel.id)) do
         child.parent, child.parentPaid = nil, nil
         Networks.link(child)
@@ -298,16 +392,18 @@ function Changes.setQuietCut(panel, cut)
     if cut then Sync.notice(panel, "IGUI_BU_Notice_QuietCut", Panels.name(panel)) end
 end
 
+-- Wired to a panel; to a sub-panel, it is its main panel's (Panels.root) through that one.
 function Changes.connectUnit(unit, panel, paid)
-    unit.panel, unit.paid = panel.id, paid or {}
-    Changes.unitsChanged(panel)
-    Sync.changed(panel.id)
+    local root = Panels.root(panel)
+    unit.panel, unit.paid, unit.via = root.id, paid or {}, root ~= panel and panel.id or nil
+    Changes.unitsChanged(root)
+    Sync.changed(root.id)
 end
 
 -- Its line taken away; returns what it took.
 function Changes.disconnectUnit(unit)
     local panel, paid = Store.get(unit.panel), unit.paid or {}
-    unit.panel, unit.paid = nil, nil
+    unit.panel, unit.paid, unit.via = nil, nil, nil
     if panel then Changes.unitsChanged(panel) end
     Sync.changed(panel and panel.id)
     return paid
@@ -318,13 +414,15 @@ function Changes.clearSnow(unit)
     Sync.changed(unit.panel)
 end
 
--- Producers. A new one is used after those connected before.
+-- Producers. A new one is used after those connected before. One connected to a sub-panel is its main panel's
+-- (Panels.root), wired through the sub-panel (via, its id).
 
 function Changes.connectProducer(panel, utility, x, y, z, paid)
-    table.insert(panel[utility].producers, { x = x, y = y, z = z, paid = paid })
-    Networks.setProducers(panel, utility)
-    Networks.applyLoss(panel)
-    Sync.changed(panel.id)
+    local root = Panels.root(panel)
+    table.insert(root[utility].producers, { x = x, y = y, z = z, paid = paid, via = root ~= panel and panel.id or nil })
+    Networks.setProducers(root, utility)
+    Networks.applyLoss(root)
+    Sync.changed(root.id)
 end
 
 -- Disconnects the producer on a square; returns what its line took, or nil when it was none of the panel's.
@@ -609,9 +707,11 @@ function Changes.link(child, parent, paid)
     Sync.changed(child.id)
 end
 
--- Its lines to the main panel taken away; returns what they took.
+-- Its lines to the main panel taken away, and those wired through it; returns what they took.
 function Changes.unlink(child)
-    local paid = child.parentPaid or {}
+    local paid = {}
+    addPaid(paid, child.parentPaid)
+    addPaid(paid, cutRoutes(child))
     child.parent, child.parentPaid = nil, nil
     Networks.link(child)
     Networks.applyLoss(child)

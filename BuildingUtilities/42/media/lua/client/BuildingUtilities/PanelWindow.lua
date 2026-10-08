@@ -7,7 +7,12 @@
 -- away, and the main switch thrown, by the player at the place, as timed actions. Devices outside can be chosen
 -- several at a time (the Choose button on their group) and connected in one walk, with what they all take shown first. The search box keeps the
 -- rows whose device or room has the words; devices new since the window was last closed are marked. The load bar
--- tells what makes the load; a main or sub-panel row opens that box's window.
+-- tells what makes the load. With sub-panels, a tab per box of the supply tree (the main panel, then each sub-panel
+-- after the one it hangs from) shows that box in the same window, as a main or sub-panel row does. The window is the
+-- player's at the box
+-- they opened it at (its anchor; a window opened from another's row keeps that one's): it closes once they are far
+-- from it (PanelWindow.CLOSE_RANGE), die or another character takes their place.
+require "TimedActions/ISBaseTimedAction"
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISScrollingListBox"
 require "ISUI/ISTabPanel"
@@ -20,7 +25,7 @@ require "BuildingUtilities/PanelList"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
-local Ui = BU.PanelUi
+local Units, Ui = BU.Units, BU.PanelUi
 local FONT_HGT_SMALL, ROW, PAD, REFRESH_MS, BAR_W, LOG, LIST_W, MIN_LIST, MIN_PLAN, OPTION_W, SEEN, OUTSIDE,
     ROOM_TICK_X, CHOOSE_W, BATCH_BUTTONS, BATCH_W, load2, percent, count, nextSchedule = Ui.FONT_HGT_SMALL, Ui.ROW,
     Ui.PAD, Ui.REFRESH_MS, Ui.BAR_W, Ui.LOG, Ui.LIST_W, Ui.MIN_LIST, Ui.MIN_PLAN, Ui.OPTION_W, Ui.SEEN, Ui.OUTSIDE,
@@ -53,17 +58,50 @@ end
 
 local function minimumWidth(shown) return MIN_LIST + (shown and PAD + MIN_PLAN or 0) end
 
-function ISBUPanelWindow:new(x, y, playerObj, panel)
+-- The boxes of a box's supply tree: its main panel (Panels.root) first, then each sub-panel after the one it hangs
+-- from, each { panel, depth }.
+function PanelWindow.tree(panel)
+    local result, seen = {}, {}
+    local function walk(box, depth)
+        if seen[box.id] then return end
+        seen[box.id] = true
+        result[#result + 1] = { panel = box, depth = depth }
+        for _, child in ipairs(Store.children(box.id)) do walk(child, depth + 1) end
+    end
+    walk(Panels.root(panel), 0)
+    return result
+end
+
+local function treeKey(tree)
+    local ids = {}
+    for _, entry in ipairs(tree) do ids[#ids + 1] = entry.panel.id end
+    return table.concat(ids, ",")
+end
+
+-- A box's tab: its name, the floors its zone takes (Panels.zoneFloors) and, below the first sub-panels, a mark a
+-- level down.
+local function tabTitle(entry)
+    local name, low, high = Panels.name(entry.panel), Panels.zoneFloors(entry.panel)
+    if low and low ~= high then name = getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high))
+    elseif low then name = getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
+    if entry.depth > 1 then name = string.rep(">", entry.depth - 1) .. " " .. name end
+    return name
+end
+
+function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
     local shown = PanelWindow.planShown
     if shown == nil then shown = planByDefault() end
     local width = math.min(windowWidth(LIST_W, shown), getCore():getScreenWidth())
     local o = ISCollapsableWindow.new(self, x, y, math.max(width, minimumWidth(shown)), 610)
     o.playerObj = playerObj
     o.panel = panel
+    o.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z }
+    o.tree = PanelWindow.tree(panel)
+    o.treeKey = treeKey(o.tree)
     o.planWanted = shown
     o.resizable = true
     o.minimumWidth = minimumWidth(shown)
-    o.minimumHeight = 340
+    o.minimumHeight = 340 + (#o.tree > 1 and ROW + PAD or 0)
     o.rangeObjects = {}
     o.planOutlined = {}
     o.views = {}
@@ -85,6 +123,16 @@ end
 function ISBUPanelWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local top = self:titleBarHeight() + PAD
+    -- The supply tree's boxes as tabs, when it has more than this one (placed by placePanelTabs).
+    self.panelTabs = {}
+    if #self.tree > 1 then
+        for _, entry in ipairs(self.tree) do
+            local tab = button(self, PAD, top, 60, ROW, ISBUPanelWindow.onPanelTab)
+            tab.internal = entry.panel.id
+            self.panelTabs[#self.panelTabs + 1] = tab
+        end
+        top = top + ROW + PAD
+    end
     self.statusY = top
     self.loadY = top + FONT_HGT_SMALL + 4
     self.bannerY = self.loadY + ROW + 4
@@ -171,6 +219,7 @@ function ISBUPanelWindow:layoutPanes()
     if not (self.tabs and self.plan) then return end
     local shown = self.plan:getIsVisible()
     self:placeTopButtons(shown)
+    self:placePanelTabs()
     local listW = self.width
     if shown then
         local planW = math.floor((self.width - PAD) * PanelWindow.planShare)
@@ -185,6 +234,58 @@ function ISBUPanelWindow:layoutPanes()
         for _, list in pairs(self.lists) do list:setWidth(listW) end
     end
     self:placeOptions()
+end
+
+-- The boxes' tabs across the top: each as wide as its title; where they do not all fit, each an equal share with its
+-- title cut (the whole one its tooltip). This box's lit.
+function ISBUPanelWindow:placePanelTabs()
+    local tabs = self.panelTabs or {}
+    if #tabs == 0 then return end
+    local measure = getTextManager()
+    local function width(text) return measure:MeasureStringX(UIFont.Small, text) end
+    local titles, total = {}, 0
+    for index, entry in ipairs(self.tree) do
+        titles[index] = tabTitle(entry)
+        total = total + width(titles[index]) + 16
+    end
+    local room = self.width - PAD * 2 - (#tabs - 1) * 4
+    local share = total > room and math.floor(room / #tabs) or nil
+    local x = PAD
+    for index, tab in ipairs(tabs) do
+        local title, w = titles[index], width(titles[index]) + 16
+        if share then
+            w = share
+            local cut = title
+            while width(cut .. "...") > w - 10 and #cut > 1 do cut = cut:sub(1, -2) end
+            if cut ~= title then title = cut .. "..." end
+        end
+        tab:setX(x)
+        tab:setWidth(w)
+        tab:setTitle(title)
+        tab:setTooltip(titles[index])
+        local lit = tab.internal == self.panel.id
+        tab.backgroundColor = lit and { r = 0.15, g = 0.4, b = 0.55, a = 1 } or { r = 0, g = 0, b = 0, a = 0.8 }
+        tab.borderColor = lit and { r = 0.5, g = 0.75, b = 0.9, a = 1 } or { r = 0.4, g = 0.4, b = 0.4, a = 1 }
+        x = x + w + 4
+    end
+end
+
+function ISBUPanelWindow:onPanelTab(tab)
+    local target = Store.get(tab.internal)
+    if target then self:switchTo(target) end
+end
+
+-- Another box of the supply tree shown in this window's place (its own window, where it has one, moved here).
+function ISBUPanelWindow:switchTo(target)
+    if target.id == self.panel.id then return end
+    local x, y, w, h = self:getX(), self:getY(), self:getWidth(), self:getHeight()
+    local anchor = self.anchor
+    self:close()
+    local window = PanelWindow.open(self.playerObj, target, anchor)
+    window:setX(x)
+    window:setY(y)
+    window:setWidth(math.max(w, window.minimumWidth))
+    window:setHeight(math.max(h, window.minimumHeight))
 end
 
 -- The window resized by the player: the panes share the new width.
@@ -317,6 +418,13 @@ end
 function ISBUPanelWindow:update()
     ISCollapsableWindow.update(self)
     if not Store.get(self.panel.id) then self:close(); return end
+    -- Its character dead, or another in its place (a new one after death), or far from the box: the window was theirs
+    -- there.
+    local player, anchor = self.playerObj, self.anchor
+    if player:isDead() or getSpecificPlayer(player:getPlayerNum()) ~= player then self:close(); return end
+    local away = math.max(math.abs(player:getX() - anchor.x - 0.5), math.abs(player:getY() - anchor.y - 0.5))
+        + math.abs(player:getZ() - anchor.z) * PanelWindow.TILES_PER_FLOOR
+    if away > PanelWindow.CLOSE_RANGE then self:close(); return end
     local now = getTimestampMs()
     if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > REFRESH_MS then self:refresh() end
 end
@@ -353,19 +461,23 @@ function ISBUPanelWindow:refresh()
     local panel = Store.get(self.panel.id)
     if not panel then return end
     self.panel = panel
-    -- A utility turned on or off in the sandbox: the window opens anew where it is, with its tabs.
-    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey then
-        local x, y = self:getX(), self:getY()
+    -- A utility turned on or off in the sandbox, or a box joined or left the supply tree: the window opens anew where
+    -- it is, with its tabs.
+    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey or treeKey(PanelWindow.tree(panel)) ~= self.treeKey then
+        local x, y, w, h = self:getX(), self:getY(), self:getWidth(), self:getHeight()
         self:close()
-        local window = PanelWindow.open(self.playerObj, panel)
+        local window = PanelWindow.open(self.playerObj, panel, self.anchor)
         window:setX(x)
         window:setY(y)
+        window:setWidth(math.max(w, window.minimumWidth))
+        window:setHeight(math.max(h, window.minimumHeight))
         return
     end
     local powerOn = BU.enabled("power")
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
     self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
+    self:placePanelTabs()
     self:updateStatus()
     self.capacity = Panels.capacity(panel)
     self.load = power and power.load or nil
@@ -572,6 +684,18 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     if parent then
         add({ kind = "link", header = true, text = getText("IGUI_BU_SuppliedBy", Panels.name(parent)), target = parent.id },
             getText("IGUI_BU_OpenTip"))
+        -- What is wired through it on to its main panel, which lists them.
+        local root, routed = Panels.root(panel), 0
+        for _, at in ipairs(root[utility].producers) do
+            if at.via == panel.id then routed = routed + 1 end
+        end
+        for _, unit in ipairs(Units.of(root.id, utility)) do
+            if unit.via == panel.id then routed = routed + 1 end
+        end
+        if routed > 0 then
+            add({ kind = "link", text = getText("IGUI_BU_RoutedHere", routed, Panels.name(root)), target = root.id },
+                getText("IGUI_BU_OpenTip"))
+        end
     else
         -- Water groups first: the tanks' and fixtures' rows name theirs (with more than one).
         if utility == "water" then self:waterGroupRows(add, state, devices) end
@@ -588,6 +712,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local seen = PanelWindow.seenProducer(state, at)
             local inUse = PanelWindow.producerInUse(state, at)
             local where = Panels.where(panel, at.x, at.y)
+            local via = at.via and Store.get(at.via)
+            if via then where = getText("IGUI_BU_WhereVia", where, Panels.name(via)) end
             local text, generatorState
             if utility == "power" then
                 local square = getCell():getGridSquare(at.x, at.y, at.z)
@@ -619,7 +745,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local childState = Networks.state(child, utility)
             local right = utility == "power" and childState and childState.load and load2(childState.load) or ""
             if child.tripped and utility == "power" then right = right .. "  " .. getText("IGUI_BU_Tripped") end
-            add({ kind = "link", text = Panels.name(child) .. "   " .. right, target = child.id }, getText("IGUI_BU_OpenTip"))
+            -- The floors its zone takes, so that the sub-panels of a tall building tell apart.
+            local name, low, high = Panels.name(child), Panels.zoneFloors(child)
+            if low and low ~= high then name = getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high))
+            elseif low then name = getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
+            add({ kind = "link", text = name .. "   " .. right, target = child.id }, getText("IGUI_BU_OpenTip"))
         end
     end
     local seen = self:seenSet(utility, devices)
@@ -704,55 +834,115 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             end
             group.devices = kept
         end
-        if #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) then
-            local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
-            local folded = PanelWindow.folded[foldKey] == true and query == ""
-            local roomState
-            if group.id ~= OUTSIDE then
-                roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
-            end
-            local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
-            local choosable = group.id == OUTSIDE and group.off > 0
-            add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey,
-                choosable = choosable, choosing = choosable and choosing })
-            if choosable and choosing and not folded then
-                local count, cost = self:chosenCost(utility)
-                local affords = count > 0 and Costs.affords(playerObj, cost)
-                local text = count > 0 and getText("IGUI_BU_BatchText", count, self:costShort(cost)) or getText("IGUI_BU_BatchEmpty")
-                add({ kind = "batch", text = text, count = count, affords = affords, utility = utility },
-                    count > 0 and Costs.describe(playerObj, cost) or getText("IGUI_BU_BatchHint"))
-            end
-            if not folded then
-                table.sort(group.devices, function(a, b)
-                    if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
-                    return a.name < b.name
-                end)
-                for _, shown in ipairs(group.devices) do
-                    local device = shown.device
-                    local tooltip = utility == "power" and self:preview(device) or nil
-                    if not device.inside and device.state == "off" then
-                        local cost = Actions.outsideCost(panel, utility, device)
-                        if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
-                    end
-                    local controls = timers and utility == "power" and device.state == "on"
-                    if controls then
-                        tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
-                            .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
-                    end
-                    local choosableDevice = choosing and not device.inside and device.state == "off"
-                    local groupText, groupColour
-                    if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
-                        groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
-                    end
-                    add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
-                        state = device.state, held = device.held, controls = controls, sheds = sheds,
-                        choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
-                        fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
+    end
+    local function visible(group) return #group.devices > 0 and (not self.roomFilter or self.roomFilter == group.id) end
+    -- A room's header and its devices.
+    local function emit(group)
+        local foldKey = panel.id .. "|" .. utility .. "|" .. group.id
+        local folded = PanelWindow.folded[foldKey] == true and query == ""
+        local roomState
+        if group.id ~= OUTSIDE then
+            roomState = group.off == 0 and "on" or group.on == 0 and "off" or "some"
+        end
+        local right = utility == "power" and load2(group.total) or (group.on .. " / " .. (group.on + group.off))
+        local choosable = group.id == OUTSIDE and group.off > 0
+        add({ kind = "room", id = group.id, text = title(group.id), right = right, state = roomState, folded = folded, foldKey = foldKey,
+            choosable = choosable, choosing = choosable and choosing })
+        if choosable and choosing and not folded then
+            local count, cost = self:chosenCost(utility)
+            local affords = count > 0 and Costs.affords(playerObj, cost)
+            local text = count > 0 and getText("IGUI_BU_BatchText", count, self:costShort(cost)) or getText("IGUI_BU_BatchEmpty")
+            add({ kind = "batch", text = text, count = count, affords = affords, utility = utility },
+                count > 0 and Costs.describe(playerObj, cost) or getText("IGUI_BU_BatchHint"))
+        end
+        if not folded then
+            table.sort(group.devices, function(a, b)
+                if options.byLoad and (a.device.power or 0) ~= (b.device.power or 0) then return (a.device.power or 0) > (b.device.power or 0) end
+                return a.name < b.name
+            end)
+            for _, shown in ipairs(group.devices) do
+                local device = shown.device
+                local tooltip = utility == "power" and self:preview(device) or nil
+                if not device.inside and device.state == "off" then
+                    local cost = Actions.outsideCost(panel, utility, device)
+                    if cost then tooltip = (tooltip and tooltip .. " <LINE> " or "") .. Costs.describe(playerObj, cost) end
                 end
+                local controls = timers and utility == "power" and device.state == "on"
+                if controls then
+                    tooltip = (tooltip and tooltip .. " <LINE> " or "") .. " <RGB:0.7,0.7,0.7> "
+                        .. getText(sheds and "IGUI_BU_ControlsNoteSmart" or "IGUI_BU_ControlsNote")
+                end
+                local choosableDevice = choosing and not device.inside and device.state == "off"
+                local groupText, groupColour
+                if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
+                    groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
+                end
+                add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
+                    state = device.state, held = device.held, controls = controls, sheds = sheds,
+                    choosable = choosableDevice, chosen = choosableDevice and chosen[device.key] == true,
+                    fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
     end
+    -- Rooms on more than one floor: a header per floor, lowest first, with its rooms under it; a floor folded shows
+    -- the header alone (ISBUPanelWindow:floorFolded). Devices in no room and outside after the floors.
+    local floorOf = {}
+    for _, room in ipairs(self.rooms or {}) do floorOf[room.id] = room.level end
+    local floors, levels = {}, {}
+    for _, group in ipairs(order) do
+        local level = group.id ~= OUTSIDE and floorOf[group.id] or nil
+        if level ~= nil then
+            if not floors[level] then
+                floors[level] = { groups = {}, total = 0, on = 0, off = 0 }
+                levels[#levels + 1] = level
+            end
+            local floor = floors[level]
+            floor.groups[#floor.groups + 1] = group
+            floor.total, floor.on, floor.off = floor.total + group.total, floor.on + group.on, floor.off + group.off
+        end
+    end
+    if #levels < 2 then
+        for _, group in ipairs(order) do
+            if visible(group) then emit(group) end
+        end
+    else
+        table.sort(levels)
+        for _, level in ipairs(levels) do
+            local floor, any = floors[level], false
+            for _, group in ipairs(floor.groups) do any = any or visible(group) end
+            if any then
+                local foldKey = panel.id .. "|" .. utility .. "|floor|" .. level
+                local folded = query == "" and not self.roomFilter and self:floorFolded(foldKey, level)
+                local right = utility == "power" and load2(floor.total) or (floor.on .. " / " .. (floor.on + floor.off))
+                add({ kind = "floor", level = level, text = BU.floorName(level), right = right, folded = folded, foldKey = foldKey },
+                    getText(folded and "IGUI_BU_FloorRowOpen" or "IGUI_BU_FloorRowFold"))
+                if not folded then
+                    for _, group in ipairs(floor.groups) do
+                        if visible(group) then emit(group) end
+                    end
+                end
+            end
+        end
+        for _, group in ipairs(order) do
+            if floorOf[group.id] == nil and visible(group) then emit(group) end
+        end
+    end
     list:setYScroll(scroll)
+end
+
+-- Whether a floor's header in the list is folded: as the player left it (PanelWindow.folded), else open only for the
+-- floor the plan shows (the box's before it shows one), so a tall zone lists one floor at a time.
+function ISBUPanelWindow:floorFolded(foldKey, level)
+    local chosen = PanelWindow.folded[foldKey]
+    if chosen ~= nil then return chosen end
+    local shown = self.plan and self.plan.floor
+    if shown == nil then shown = self.panel.z end
+    return level ~= shown
+end
+
+-- The plan shows another floor: the list opens its floor's rooms (where the player has not folded it).
+function ISBUPanelWindow:planFloorChanged(level)
+    if self.views[self:activeUtility()] then self:refill(self:activeUtility()) end
 end
 
 -- What happened to the box, newest first, with how long ago.
@@ -794,8 +984,7 @@ function ISBUPanelWindow:fillLog()
     local worldHours = getGameTime():getWorldAgeHours()
     for index = #log, 1, -1 do
         local entry = log[index]
-        local args = entry.args or {}
-        local text = getText(entry.key, args[1] ~= nil and tostring(args[1]) or "", args[2] ~= nil and tostring(args[2]) or "")
+        local text = BU.noticeText(entry.key, entry.args)
         list:addItem(text, { kind = "log", text = text, right = ago(math.max(0, worldHours - (entry.hour or worldHours))),
             bad = BAD[entry.key], good = GOOD[entry.key] })
     end
@@ -864,7 +1053,7 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         self:onGroupRow(row, x, width)
     elseif row.kind == "link" then
         local target = Store.get(row.target)
-        if target then PanelWindow.open(playerObj, target) end
+        if target then self:switchTo(target) end
     elseif row.kind == "all" then
         Sync.send(playerObj, "setAllInside", { panel = panel.id, utility = utility, on = row.state ~= "on" })
     elseif row.kind == "blackout" then
@@ -880,6 +1069,10 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
                 if name == "Connect" then self:connectChosen(utility) else self:chooseAll(utility, name == "All") end
             end
         end
+    elseif row.kind == "floor" then
+        PanelWindow.folded[row.foldKey] = not row.folded
+        if row.folded and self.plan then self.plan:showFloor(row.level) end
+        self:refill(utility)
     elseif row.kind == "room" and row.choosable and x >= chooseButtonX(row) and x <= chooseButtonX(row) + CHOOSE_W then
         self:setChoosing(utility, not row.choosing)
     elseif row.kind == "room" then
@@ -948,7 +1141,7 @@ function ISBUPanelWindow:onMainPanel()
     for _, candidate in ipairs(candidates) do
         local option = menu:addOption(getText("IGUI_BU_PanelChoice", Panels.name(candidate.panel), getText("IGUI_BU_Steps", candidate.steps)),
             self, ISBUPanelWindow.onLink, candidate.panel)
-        local cost = Costs.link(candidate.steps)
+        local cost = Costs.link(candidate.wire)
         local tip = ISToolTip:new()
         tip:initialise()
         tip:setVisible(false)
@@ -969,10 +1162,19 @@ function ISBUPanelWindow:onLink(parent)
     BU.ContextMenu.queueAt(playerObj, panel.x, panel.y, panel.z, ISBUConnect:new(playerObj, "link", panel, nil, panel.x, panel.y, panel.z, parent.id))
 end
 
-function PanelWindow.open(playerObj, panel)
+-- How far from the box it was opened at, in tiles (a floor up or down counting as TILES_PER_FLOOR), a window stays open.
+PanelWindow.CLOSE_RANGE, PanelWindow.TILES_PER_FLOOR = 12, 3
+
+-- A box's window, opened at a box (anchor, { x, y, z }: the panel's own when not given).
+function PanelWindow.open(playerObj, panel, anchor)
     local window = open[panel.id]
-    if window then window:bringToTop(); window:refresh(); return window end
-    window = ISBUPanelWindow:new(0, 0, playerObj, panel)
+    if window then
+        if anchor or not window.anchor then window.anchor = anchor or { x = panel.x, y = panel.y, z = panel.z } end
+        window:bringToTop()
+        window:refresh()
+        return window
+    end
+    window = ISBUPanelWindow:new(0, 0, playerObj, panel, anchor)
     window:setX(math.max(0, (getCore():getScreenWidth() - window.width) / 2))
     window:setY(math.max(0, (getCore():getScreenHeight() - window.height) / 2))
     window:initialise()
@@ -1010,6 +1212,24 @@ function PanelWindow.forgetRemoved()
         if not (id and Store.get(id)) then gone[#gone + 1] = key end
     end
     for _, key in ipairs(gone) do store[key] = nil end
+end
+
+-- Opening a box's window: the player walks to the box first (BU.ContextMenu.queueAt), as to a generator's info.
+ISBUOpenPanel = ISBaseTimedAction:derive("ISBUOpenPanel")
+
+function ISBUOpenPanel:isValid() return Store.get(self.panelId) ~= nil end
+
+function ISBUOpenPanel:perform()
+    local panel = Store.get(self.panelId)
+    if panel then PanelWindow.open(self.character, panel) end
+    ISBaseTimedAction.perform(self)
+end
+
+function ISBUOpenPanel:new(character, panel)
+    local o = ISBaseTimedAction.new(self, character)
+    o.panelId = panel.id
+    o.maxTime = 0
+    return o
 end
 
 return PanelWindow

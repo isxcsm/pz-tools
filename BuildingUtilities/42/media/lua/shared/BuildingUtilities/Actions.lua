@@ -33,7 +33,7 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
     if kind == "producer" then
         local ok, reason = Panels.canConnectProducer(panel, utility, x, y, z)
         if not ok then return nil, reason end
-        return Costs.producer(utility, Panels.steps(panel, x, y))
+        return Costs.producer(utility, Panels.wire(panel, x, y, z))
     elseif kind == "outside" then
         return Actions.outsideCost(panel, utility, Panels.device(panel, utility, BU.thingKey(x, y, z, extra)))
     elseif kind == "link" then
@@ -41,13 +41,13 @@ function Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not parent then return nil, "noPanel" end
         local ok, reason = Panels.canLink(panel, parent)
         if not ok then return nil, reason end
-        return Costs.link(Panels.linkSteps(panel, parent)), parent
+        return Costs.link(Panels.linkWire(panel, parent)), parent
     elseif kind == "unit" then
         local unit = Store.unit(extra)
         if not unit then return nil, "noUnit" end
         local ok, reason = Units.canConnect(unit, panel)
         if not ok then return nil, reason end
-        return Costs.producer(Units.utility(unit), Panels.steps(panel, x, y)), unit
+        return Costs.producer(Units.utility(unit), Panels.wire(panel, x, y, z)), unit
     end
     return nil, "noPanel"
 end
@@ -58,7 +58,7 @@ function Actions.outsideCost(panel, utility, device)
     if not device or device.inside then return nil, "noDevice" end
     if device.state == "other" then return nil, "connectedElsewhere" end
     if device.state == "on" then return nil, "connected" end
-    return Costs.outside(utility, Panels.steps(panel, device.entry.x, device.entry.y)), device
+    return Costs.outside(utility, Panels.wire(panel, device.entry.x, device.entry.y, device.entry.z)), device
 end
 
 -- How long laying a line takes: longer the farther it goes.
@@ -184,7 +184,7 @@ function ISBUConnect:getDuration() return lineDuration(self.character, self.step
 function ISBUConnect:new(character, kind, panel, utility, x, y, z, extra)
     local o = ISBaseTimedAction.new(self, character)
     o.kind, o.panelId, o.utility, o.x, o.y, o.z, o.extra = kind, panel.id, utility, x, y, z, extra
-    o.steps = kind == "link" and Panels.linkSteps(panel, Store.get(extra)) or Panels.steps(panel, x, y)
+    o.steps = kind == "link" and Panels.linkWire(panel, Store.get(extra)) or Panels.wire(panel, x, y, z)
     o.costNow = o:cost()
     o.maxTime = o:getDuration()
     return o

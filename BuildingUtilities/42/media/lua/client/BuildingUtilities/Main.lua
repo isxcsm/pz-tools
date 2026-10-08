@@ -42,8 +42,7 @@ end
 function BU.onNotice(panelId, key, args)
     local panel = Store.get(panelId)
     if not panel then return end
-    args = args or {}
-    local text = getText(key, args[1] ~= nil and tostring(args[1]) or "", args[2] ~= nil and tostring(args[2]) or "")
+    local text = BU.noticeText(key, args)
     for index = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(index)
         if player and not player:isDead() then

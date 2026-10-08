@@ -172,6 +172,14 @@ function PanelWindow.status(panel, utility)
     if parent then
         local result = PanelWindow.status(parent, utility)
         result.text = getText("IGUI_BU_St_Sub", Panels.name(parent), result.text)
+        -- Water runs down only: the floors above every tank of the main panel have none.
+        local low, high = nil, nil
+        if utility == "water" then low, high = BU.Water.dryFloors(panel) end
+        if low then
+            local floors = low == high and BU.floorName(low) or getText("IGUI_BU_FloorSpan", BU.floorName(low), BU.floorName(high))
+            result.reason = getText("IGUI_BU_Why_AboveTanks", floors)
+            if result.level ~= BAD then result.level = WARN end
+        end
         return result
     end
     local state = Networks.state(panel, utility)

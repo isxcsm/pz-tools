@@ -190,6 +190,16 @@ function BU.exteriorRange(tier) return math.max(0, math.min(32, reach("ExteriorR
 function BU.producerRange(tier) return math.max(1, reach("ProducerRange", 20, tier)) end
 function BU.subPanelRange(tier) return math.max(1, reach("SubPanelRange", 50, tier)) end
 
+-- How many floors above and below its own a box's zone takes, the sandbox's at tier 1 and more by RangePerTier as
+-- the ranges; nil without a limit (FloorReach 0). A tall building takes more boxes, sub-panels of one.
+function BU.floorReach(tier)
+    if BU.sandbox("FloorReach", 2) <= 0 then return nil end
+    return math.max(1, reach("FloorReach", 2, tier))
+end
+
+-- Tiles of line a floor up or down adds to a line's length (the ranges are measured on the ground).
+function BU.tilesPerFloor() return math.max(0, BU.sandbox("TilesPerFloor", 3)) end
+
 -- Connections cost wire or pipe by length; taken away, they give back a share.
 function BU.costsEnabled() return BU.sandbox("CostsEnabled", true) == true end
 function BU.tilesPerPiece() return math.max(1, BU.sandbox("TilesPerPiece", 5)) end
@@ -309,6 +319,14 @@ function BU.displayName(x, y, z, sprite)
     local objectName = object and object:getObjectName()
     if objectName and objectName ~= "" and not objectName:match("^Iso%u") then return translated(objectName) end
     return object and getText("IGUI_BU_Name_Unknown") or sprite
+end
+
+-- A notice's text (BU.Sync.notice, the box's log): its key with its arguments, at most four, each as text.
+function BU.noticeText(key, args)
+    args = args or {}
+    local parts = {}
+    for index = 1, 4 do parts[index] = args[index] ~= nil and tostring(args[index]) or "" end
+    return getText(key, parts[1], parts[2], parts[3], parts[4])
 end
 
 -- A floor in a few letters, for the plan's floor strip: "B1", "1", "2".

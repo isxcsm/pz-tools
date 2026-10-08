@@ -97,6 +97,8 @@ function ISBUPanelWindow:updatePlan()
     self.plan:setData({ utility = utility, supplied = view.state and view.state.supplied, rooms = rooms, devices = devices,
         producers = producers, box = { x = panel.x, y = panel.y, z = panel.z }, boxText = Panels.name(panel), filter = self.roomFilter,
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
+        farNote = self.building and self:farNote() or nil,
+        reached = self.building and { Panels.floorsInReach(panel, self.building) } or nil,
         ranges = ranges, rangeKey = rangeKey,
         choosing = self.choosing[utility] == true })
 end
@@ -129,16 +131,27 @@ function ISBUPanelWindow:sendZone(set)
     Sync.send(self.playerObj, "setZone", { panel = self.panel.id, rooms = ids })
 end
 
+-- Why a floor is not one this box's zone can take: the floors it can, that an upgrade reaches more (below the top
+-- tier), and that a box on another floor takes the rest.
+function ISBUPanelWindow:farNote()
+    local low, high = Panels.floorsInReach(self.panel, self.building)
+    local text = getText("IGUI_BU_ZoneFar", BU.floorName(low), BU.floorName(high))
+    if (self.panel.tier or 1) < BU.TIERS then text = text .. " " .. getText("IGUI_BU_ZoneFarUpgrade") end
+    return text .. " " .. getText("IGUI_BU_ZoneFarSub")
+end
+
 function ISBUPanelWindow:toggleZoneRoom(id)
     local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
     local entry = states[id]
-    if not entry or entry.state == "taken" then return end
+    if entry and entry.state == "far" then HaloTextHelper.addBadText(self.playerObj, self:farNote()) end
+    if not entry or entry.state == "taken" or entry.state == "far" then return end
     local set = self:zoneSet()
     set[id] = entry.state == "free" or nil
     self:sendZone(set)
 end
 
--- The zone's menu, for a floor: its free rooms in, its rooms out, only it, or the whole building.
+-- The zone's menu, for a floor: its free rooms in, its rooms out, only it; the free rooms of every floor the box
+-- reaches, where it does not reach them all; or the whole building. A floor it does not reach says so.
 function ISBUPanelWindow:zoneMenu(level)
     local states = Panels.zoneStates(self.panel, self.building, self.rooms or {})
     local menu = ISContextMenu.get(self.playerObj:getPlayerNum(), getMouseX(), getMouseY())
@@ -146,14 +159,35 @@ function ISBUPanelWindow:zoneMenu(level)
     local function floorSet(keepOthers, take)
         local set = keepOthers and self:zoneSet() or {}
         for _, room in ipairs(self.rooms or {}) do
-            if room.level == level and states[room.id].state ~= "taken" then set[room.id] = take or nil end
+            local state = states[room.id].state
+            if room.level == level and state ~= "taken" and state ~= "far" then set[room.id] = take or nil end
         end
         return set
     end
-    menu:addOption(getText("IGUI_BU_Menu_ZoneFloorAdd"), self, function(window) window:sendZone(floorSet(true, true)) end)
+    local far = not Panels.reachesLevel(self.panel, level)
+    local function taking(option)
+        if not far then return end
+        option.notAvailable = true
+        local tip = ISToolTip:new()
+        tip:initialise()
+        tip:setVisible(false)
+        tip.description = self:farNote()
+        option.toolTip = tip
+    end
+    taking(menu:addOption(getText("IGUI_BU_Menu_ZoneFloorAdd"), self, function(window) window:sendZone(floorSet(true, true)) end))
     menu:addOption(getText("IGUI_BU_Menu_ZoneFloorRemove"), self, function(window) window:sendZone(floorSet(true, false)) end)
-    menu:addOption(getText("IGUI_BU_Menu_ZoneFloorOnly"), self, function(window) window:sendZone(floorSet(false, true)) end)
-    if self.building and #Panels.ofBuilding(self.building.key) == 1 and self.panel.rooms then
+    taking(menu:addOption(getText("IGUI_BU_Menu_ZoneFloorOnly"), self, function(window) window:sendZone(floorSet(false, true)) end))
+    if not self.building then return end
+    local low, high = Panels.floorsInReach(self.panel, self.building)
+    if low > self.building.minLevel or high < self.building.maxLevel then
+        menu:addOption(getText("IGUI_BU_Menu_ZoneReach", BU.floorName(low), BU.floorName(high)), self, function(window)
+            local set = window:zoneSet()
+            for _, room in ipairs(window.rooms or {}) do
+                if states[room.id].state == "free" then set[room.id] = true end
+            end
+            window:sendZone(set)
+        end)
+    elseif self.panel.rooms and Panels.canTakeWhole(self.panel, self.building) then
         menu:addOption(getText("IGUI_BU_Menu_ZoneWhole"), self, function(window)
             Sync.send(window.playerObj, "setZone", { panel = window.panel.id, whole = true })
         end)
@@ -186,12 +220,13 @@ end
 function ISBUPanelWindow:showDevice(key)
     local utility = self:activeUtility()
     local view = self.views[utility]
-    local roomId
+    local roomId, level
     for _, device in ipairs(view and view.devices or {}) do
-        if device.key == key then roomId = device.inside and device.roomId or OUTSIDE end
+        if device.key == key then roomId, level = device.inside and device.roomId or OUTSIDE, device.entry.z end
     end
     if not roomId then return end
     PanelWindow.folded[self.panel.id .. "|" .. utility .. "|" .. roomId] = nil
+    PanelWindow.folded[self.panel.id .. "|" .. utility .. "|floor|" .. level] = false
     if self.roomFilter and self.roomFilter ~= roomId then self.roomFilter = nil end
     if PanelWindow.options.activeOnly then PanelWindow.options.activeOnly = false; self:placeOptions() end
     self:redraw()

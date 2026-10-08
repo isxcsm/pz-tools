@@ -339,8 +339,9 @@ if badge then
         check("floors: a click on the riser goes to the box's floor", plan.floor, boxZ)
     end
 end
--- The top bar at the plan's least width with all it can hold (every switch, Fit, a long floor name with the load,
--- several floors): no two parts overlap, none leaves the bar, and the map starts below it.
+-- The top bar at the plan's least width with all it can hold (the four switches: zone, range, supply lines and Fit; a
+-- long floor name with the load; several floors): no two parts overlap, none leaves the bar, and the map starts below
+-- it. The legend is no switch there: its own box folds it.
 local savedWidth = plan.width
 local wide = {}
 for key, value in pairs(real) do wide[key] = value end
@@ -371,7 +372,7 @@ for _, state in ipairs(ISBUPlan.FLOW_STATES) do
     say("top bar", plan.width, state, "title", plan.floorTitle, "full", plan.titleFull, "switches", #plan.toggles,
         "height", plan.topH)
     check("top bar " .. state .. ": nothing overlaps at the least width", clash, nil)
-    check("top bar " .. state .. ": every switch", #plan.toggles, 5)
+    check("top bar " .. state .. ": every switch", #plan.toggles, 4)
 end
 plan:layout()
 check("top bar: the map below it", plan.map ~= nil and plan.map.top >= plan.topH, true)

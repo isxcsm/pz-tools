@@ -67,6 +67,10 @@ end
 
 -- The networks the panel's water takes now: { id, group, level, parent (an id or nil), producers (a list of
 -- { x, y, z }), rooms (the zone's rooms of that floor, in the first group) }, and by group the floors lowest first.
+-- A main panel's floors hang each from the one above, so a fixture uses the tanks at its height and above. A
+-- sub-panel has no tanks of its own (those wired through it are its main panel's): each of its floors hangs from its
+-- main panel's first group at that height or the nearest above (Water.networkAbove), in whichever building; a floor
+-- above all of them hangs from none and has no water (Water.dryFloors).
 function Water.layout(panel)
     -- Looked up here: BU.Panels requires the networks, which require this.
     local Panels = BU.Panels
@@ -102,12 +106,13 @@ function Water.layout(panel)
         end
         table.sort(levels)
         floors[group.id] = levels
+        local main = panel.parent and Panels.root(panel)
+        local mainFloors = main and main ~= panel and select(2, Water.layout(main)) or nil
         for index, level in ipairs(levels) do
             local above = levels[index + 1]
             local parent = above and Water.networkId(panel, group.id, above) or nil
-            if not above and panel.parent then
-                local main = Store.get(panel.parent)
-                if main then parent = Water.lowestId(main, Water.FIRST) end
+            if panel.parent then
+                parent = mainFloors and Water.networkAbove(main, Water.FIRST, level, mainFloors) or nil
             end
             result[#result + 1] = { id = Water.networkId(panel, group.id, level), group = group.id, level = level,
                 parent = parent, producers = producersByLevel[level] or {},
@@ -127,6 +132,32 @@ end
 function Water.lowestId(panel, group, floors)
     local levels = Water.levels(panel, group, floors)
     return levels[1] and Water.networkId(panel, group, levels[1]) or nil
+end
+
+-- The network of a group at a height or the nearest above: its tree has the tanks at that height and above. Nil
+-- when the group has no floor that high.
+function Water.networkAbove(panel, group, z, floors)
+    for _, level in ipairs(Water.levels(panel, group, floors)) do
+        if level >= z then return Water.networkId(panel, group, level) end
+    end
+end
+
+-- A sub-panel's floors with no tank of its main panel at their height or above, so no water: the lowest and highest,
+-- or nil when there are none (or the panel is a main panel).
+function Water.dryFloors(panel)
+    if not panel.parent then return nil end
+    local main = BU.Panels.root(panel)
+    if main == panel then return nil end
+    local mainLevels = Water.levels(main, Water.FIRST)
+    local top = mainLevels[#mainLevels]
+    local low, high
+    for _, level in ipairs(Water.levels(panel, Water.FIRST)) do
+        if not top or level > top then
+            low = low or level
+            high = level
+        end
+    end
+    return low, high
 end
 
 -- The network of a group a fixture on a floor joins: that floor's, else the nearest below, else the lowest.

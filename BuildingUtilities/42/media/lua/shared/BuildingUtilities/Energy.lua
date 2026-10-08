@@ -65,11 +65,11 @@ function Energy.inUse(state)
     return state ~= nil and state.producer ~= nil and state.producer.source == Energy.SOURCE
 end
 
--- Steps of the source's line: from its nearest unit to the building, or nil.
+-- The length of the source's line: from its nearest unit to the box (Panels.routeWire), or nil.
 function Energy.lineSteps(panel)
     local best
     for _, unit in ipairs(Units.of(panel.id, "power")) do
-        local steps = Panels.steps(panel, unit.x, unit.y)
+        local steps = Panels.routeWire(panel, unit.x, unit.y, unit.z, unit.via)
         if steps and (not best or steps < best) then best = steps end
     end
     return best

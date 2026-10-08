@@ -48,6 +48,12 @@ look; `BU22_CLEAN()` takes them away.
   generator switched on by hand while off carrying after it, the source falling short while off giving way to the
   generator on standby). Each line "ok" or "BAD"; a step a game minute, about fourteen, ending with "done". Needs the
   test panel (`bu_setup.lua`) and a free square outside near the player; not in `bu_all.lua`, as it waits.
+- `bu_floors.lua`: floors in a tall building: how many floors a tier's zone reaches, a zone saved whole kept to them as
+  the world starts, far rooms refused; a sub-panel on the 13th floor linked with a line three tiles longer a floor,
+  and a generator and a solar panel wired through it (offered first, one wire, the main panel's, its line as long as
+  both), then the link and the sub-panel taken away with the lines through them. Each line "ok" or "BAD", ending with
+  "done". Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors or more, its id in
+  `ModData.getOrCreate("BUTOWER").panel`.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in a
   test save that is gone; they are in the history (removed 2026-10-08).
 - `bu_lib.lua`: helpers the checks share (`BUT`: a tagged `say`, number formats, the main panel near the player, the

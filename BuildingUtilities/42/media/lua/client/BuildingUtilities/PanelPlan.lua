@@ -1,6 +1,6 @@
 -- The floor plan beside a breaker box window: the building's rooms on one floor from above, north up, coloured by
 -- what their devices do; the devices as dots, the producers as squares and the box itself. A strip on the left picks
--- the floor, a legend at the bottom tells the colours. It shares hover and clicks with the
+-- the floor, a legend in a box at the bottom tells the colours (its header folds it). It shares hover and clicks with the
 -- window's list: a row under the mouse marks its room or dot here and the other way round, a room clicked here shows
 -- only that room there, a dot clicked here finds its row, and a right click offers what the row would. Rooms of the
 -- building outside the box's zone are dim; the Zone switch at the top shows the zones instead, and a click there
@@ -33,7 +33,6 @@ local HIT = 5
 local STRIP_W = 34
 local CELL_H = FONT_HGT_SMALL + 4
 local LEGEND_ROW = FONT_HGT_SMALL + 2
-local TOGGLE_W = 18
 local ZONE_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_Zone")) + 10
 local FIT_W = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_BU_PlanFit")) + 10
 local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
@@ -120,6 +119,7 @@ local COLOURS = {
     rangeOutside = { 0.3, 0.6, 1 }, rangeProducer = { 1, 0.85, 0.2 }, rangeNoise = { 1, 0.35, 0.3 },
     rangeNoiseIdle = { 0.6, 0.3, 0.3 },
     zoneMine = { 0.2, 0.5, 0.6 }, zoneFree = { 0.25, 0.25, 0.25 }, zoneTaken = { 0.5, 0.3, 0.6 },
+    zoneFar = { 0.12, 0.12, 0.12 },
     mixed = { 0.8, 0.8, 0.8 },
 }
 
@@ -163,7 +163,7 @@ local function legendEntries(utility, zones, ranges)
             text = getText("IGUI_BU_Legend_" .. name) }
     end
     if zones then
-        for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken" }) do add(name, true) end
+        for _, name in ipairs({ "zoneMine", "zoneFree", "zoneTaken", "zoneFar" }) do add(name, true) end
     elseif utility == "power" then
         for _, name in ipairs({ "using", "idle", "shed", "timer", "unsupplied", "other" }) do add(name) end
         add("off", false, true)
@@ -316,6 +316,38 @@ end
 
 function ISBUPlan:legendShown() return BU.PanelWindow.legendShown ~= false end
 
+-- The legend's box from x: its header (the fold), and while it is open its entries in columns. Returns the height
+-- it takes above the status line, with the gap over it.
+function ISBUPlan:layoutLegend(x, entries)
+    local measure = getTextManager()
+    local shown = self:legendShown()
+    local header = getText("IGUI_BU_LegendTitle") .. (shown and "  v" or "  >")
+    local columnW = 0
+    for _, entry in ipairs(entries) do columnW = math.max(columnW, measure:MeasureStringX(UIFont.Small, entry.text) + 14 + PAD * 2) end
+    local maxW = math.max(40, self.width - x - PAD)
+    local columns = math.max(1, math.min(3, #entries, math.floor((maxW - PAD * 2) / math.max(1, columnW))))
+    local rows = shown and math.ceil(#entries / columns) or 0
+    local headerW = measure:MeasureStringX(UIFont.Small, header) + PAD * 2
+    local w = math.min(maxW, math.max(headerW, shown and columns * columnW + PAD * 2 - PAD or headerW))
+    local h = LEGEND_ROW + 4 + (rows > 0 and rows * LEGEND_ROW + 4 or 0)
+    local y = self.height - FONT_HGT_SMALL - PAD * 2 - h
+    self.legendBox = { x = x, y = y, w = w, h = h, header = header, headerH = LEGEND_ROW + 4, shown = shown }
+    if shown then
+        for index, entry in ipairs(entries) do
+            local column, row = (index - 1) % columns, math.floor((index - 1) / columns)
+            entry.x, entry.y = x + PAD + column * columnW, y + LEGEND_ROW + 4 + row * LEGEND_ROW
+            self.legend[#self.legend + 1] = entry
+        end
+    end
+    return h + PAD
+end
+
+-- Whether a point is on the legend's header, which folds it.
+function ISBUPlan:onLegendHeader(x, y)
+    local box = self.legendBox
+    return box ~= nil and x >= box.x and x < box.x + box.w and y >= box.y and y < box.y + box.headerH
+end
+
 -- The range outlines of a floor, worked out once for a building, tier and floor.
 function ISBUPlan:ranges(floor)
     local data = self.data
@@ -393,7 +425,7 @@ end
 function ISBUPlan:layout()
     local data = self.data
     self.cells, self.labels, self.dots, self.squares, self.strip, self.legend, self.lines, self.edges = {}, {}, {}, {}, {}, {}, {}, {}
-    self.flows, self.walls, self.hoverLine, self.badges, self.riser = {}, {}, nil, {}, nil
+    self.flows, self.walls, self.hoverLine, self.badges, self.riser, self.legendBox = {}, {}, nil, {}, nil, nil
     self:layoutTop()
     if not data then return end
     -- One scale for every floor: the building and all that is connected around it.
@@ -418,20 +450,9 @@ function ISBUPlan:layout()
     end
     local left = PAD + (#self.levels > 1 and STRIP_W or 0)
     local top = self.topH
-    -- The legend, in two columns at the bottom, above the status line.
-    local legendH = 0
-    if self:legendShown() then
-        local entries = legendEntries(data.utility, data.zoneEdit, data.ranges)
-        local rows = math.ceil(#entries / 2)
-        legendH = rows * LEGEND_ROW + PAD
-        local columnW = (self.width - left - PAD) / 2
-        local legendY = self.height - FONT_HGT_SMALL - PAD * 2 - legendH + PAD
-        for index, entry in ipairs(entries) do
-            local column, row = (index - 1) % 2, math.floor((index - 1) / 2)
-            entry.x, entry.y = left + column * columnW, legendY + row * LEGEND_ROW
-            self.legend[#self.legend + 1] = entry
-        end
-    end
+    -- The legend: a box above the status line, a gap from the floor strip, under a header that folds it. Its entries
+    -- in as many columns (up to three) of the widest one as fit.
+    local legendH = self:layoutLegend(left + PAD, legendEntries(data.utility, data.zoneEdit, data.ranges))
     local availW, availH = self.width - left - PAD, self.height - top - FONT_HGT_SMALL - PAD * 2 - legendH
     -- The whole fits at zoom 1; zoomed, the plan centres on the place the player moved it to.
     local fit = math.max(1, math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE))
@@ -559,12 +580,13 @@ function ISBUPlan:layout()
             local state = zone and zone.state or "mine"
             local r, g, b
             if data.zoneEdit then
-                local colour = state == "mine" and COLOURS.zoneMine or state == "taken" and COLOURS.zoneTaken or COLOURS.zoneFree
+                local colour = state == "mine" and COLOURS.zoneMine or state == "taken" and COLOURS.zoneTaken
+                    or state == "far" and COLOURS.zoneFar or COLOURS.zoneFree
                 r, g, b = colour[1], colour[2], colour[3]
             elseif state == "mine" then
                 r, g, b = roomColour(roomState[room.id] or { on = 0, held = 0 }, data.supplied)
             else
-                local colour = state == "taken" and COLOURS.zoneTaken or COLOURS.zoneFree
+                local colour = state == "taken" and COLOURS.zoneTaken or state == "far" and COLOURS.zoneFar or COLOURS.zoneFree
                 r, g, b = colour[1] * 0.5, colour[2] * 0.5, colour[3] * 0.5
             end
             local dim = state ~= "mine" and not data.zoneEdit
@@ -611,6 +633,12 @@ function ISBUPlan:layout()
     self:layoutStrip()
 end
 
+-- Whether a floor is beyond what the box's zone can take (data.reached: the lowest and the highest it can).
+function ISBUPlan:farFloor(level)
+    local reached = self.data and self.data.reached
+    return reached ~= nil and (level < reached[1] or level > reached[2])
+end
+
 -- The floor strip: the floors top down, as many as fit, around the one shown or where the player scrolled it. With more
 -- than fit, an arrow at each end pages them.
 function ISBUPlan:layoutStrip()
@@ -638,7 +666,7 @@ function ISBUPlan:layoutStrip()
         local level = downward[index]
         self.strip[#self.strip + 1] = { level = level, x = PAD, y = y, w = STRIP_W - 6, h = CELL_H - 2,
             text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0, box = self.data and self.data.box.z == level,
-            producer = self.floorProducers and self.floorProducers[level] }
+            producer = self.floorProducers and self.floorProducers[level], far = self:farFloor(level) }
         y = y + CELL_H
     end
     if overflow then arrow(1, first + fit - 1 < #downward) end
@@ -669,7 +697,6 @@ function ISBUPlan:layoutTop()
         right = right - 4
         rights[row] = right
     end
-    add("legend", TOGGLE_W, "?")
     if data and data.zoneEditable then add("zone", ZONE_W, getText("IGUI_BU_Zone")) end
     add("range", RANGE_W, getText("IGUI_BU_PlanRange"))
     add("flow", FLOW_W, getText("IGUI_BU_PlanFlow_" .. ISBUPlan.flowState()))
@@ -706,15 +733,12 @@ function ISBUPlan:prerender()
     ISPanel.prerender(self)
     if not self.floorTitle then self:layoutTop() end
     self:drawText(self.floorTitle, self.titleX, PAD, 1, 1, 1, 1, UIFont.Small)
-    local legend = self:legendShown()
     for _, toggle in ipairs(self.toggles) do
         local on = toggle.name == "zone" and self.data.zoneEdit or toggle.name == "range" and self.window.rangeShown
             or toggle.name == "flow" and ISBUPlan.flowState() ~= "off"
         if on then self:drawRect(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 0.8, 0.2, 0.5, 0.6) end
         self:drawRectBorder(toggle.x, toggle.y, toggle.w, FONT_HGT_SMALL + 2, 1, 0.6, 0.6, 0.6)
-        local lit = toggle.name ~= "legend" or legend
-        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, 1, lit and 0.9 or 0.6, lit and 0.5 or 0.6,
-            toggle.name == "legend" and 1 or 0.9, UIFont.Small)
+        self:drawTextCentre(toggle.text, toggle.x + toggle.w / 2, toggle.y + 1, 1, 0.9, 0.5, 0.9, UIFont.Small)
     end
 end
 
@@ -862,8 +886,15 @@ function ISBUPlan:render()
         -- Its producers, in their colour.
         local producer = cell.producer
         if producer then self:drawRect(cell.x + cell.w - 5, cell.y + cell.h - 5, 3, 3, 1, producer[1], producer[2], producer[3]) end
-        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or 0.75
+        local shade = cell.arrow and (cell.enabled and 1 or 0.35) or current and 1 or cell.far and 0.4 or 0.75
         self:drawTextCentre(cell.text, cell.x + cell.w / 2, cell.y + 1, 1, 1, 1, shade, UIFont.Small)
+    end
+    local box = self.legendBox
+    if box then
+        self:drawRect(box.x, box.y, box.w, box.h, 0.6, 0.06, 0.06, 0.06)
+        self:drawRectBorder(box.x, box.y, box.w, box.h, 0.8, 0.4, 0.4, 0.4)
+        if box.shown then self:drawRect(box.x + 1, box.y + box.headerH - 1, box.w - 2, 1, 0.6, 0.4, 0.4, 0.4) end
+        self:drawText(box.header, box.x + PAD, box.y + 2, 0.9, 0.85, 0.6, 1, UIFont.Small)
     end
     for _, entry in ipairs(self.legend) do
         local middle = entry.y + LEGEND_ROW / 2
@@ -932,17 +963,22 @@ function ISBUPlan:onMouseMove(dx, dy)
             self.status = self.status .. "  (" .. getText("IGUI_BU_ZoneTaken", zone.owner or "") .. ")"
         elseif zone and zone.state == "free" then
             self.status = self.status .. "  (" .. getText("IGUI_BU_Legend_zoneFree") .. ")"
+        elseif zone and zone.state == "far" then
+            self.status = self.status .. "  (" .. (self.data.farNote or getText("IGUI_BU_Legend_zoneFar")) .. ")"
         end
     elseif kind == "floor" and thing.arrow then
         self.status = getText("IGUI_BU_StripScroll")
     elseif kind == "floor" then
         self.status = BU.floorName(thing.level)
+        if thing.far and self.data.farNote then self.status = self.status .. "  (" .. self.data.farNote .. ")" end
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "flow" then
         self.status = getText("IGUI_BU_PlanFlowHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "range" then
         self.status = getText("IGUI_BU_PlanRangeHint")
+    elseif self:onLegendHeader(self:getMouseX(), self:getMouseY()) then
+        self.status = getText(self:legendShown() and "IGUI_BU_LegendFold" or "IGUI_BU_LegendUnfold")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and #(self.levels or {}) > 1 then
         self.status = (self.titleFull and self.titleFull .. "  " or "") .. getText("IGUI_BU_FloorMenuHint")
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "title" and self.titleFull then
@@ -979,6 +1015,7 @@ function ISBUPlan:showFloor(level)
     -- The strip centres on it again.
     self.stripFirst = nil
     self:layout()
+    if self.window.planFloorChanged then self.window:planFloorChanged(level) end
 end
 
 -- Over the floor strip the wheel scrolls the floors (up the wheel, up the building); elsewhere it zooms at the mouse
@@ -1015,7 +1052,7 @@ end
 
 function ISBUPlan:onMouseDown(x, y)
     local toggle = self:toggleAt(x, y)
-    if toggle == "legend" then
+    if self:onLegendHeader(x, y) then
         BU.PanelWindow.legendShown = not self:legendShown()
         self:layout()
         return true

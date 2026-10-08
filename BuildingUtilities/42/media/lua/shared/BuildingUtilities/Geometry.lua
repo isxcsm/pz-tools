@@ -106,6 +106,7 @@ function Geometry.toBuilding(x, y, rooms)
         for _, rect in ipairs(room.rects) do
             local steps = Geometry.toRect(x, y, rect)
             if not best or steps < best then best = steps end
+            if best == 0 then return 0 end
         end
     end
     return best
@@ -123,19 +124,29 @@ function Geometry.roomRects(rooms, level)
     return onLevel, all
 end
 
--- Steps between two buildings' outlines.
+-- The rectangles of rooms, each once: a tall building repeats its floors' rooms on every level.
+local function outlineRects(rooms)
+    local seen, result = {}, {}
+    for _, room in ipairs(rooms) do
+        for _, rect in ipairs(room.rects) do
+            local key = rect.x .. "," .. rect.y .. "," .. rect.w .. "," .. rect.h
+            if not seen[key] then seen[key] = true; result[#result + 1] = rect end
+        end
+    end
+    return result
+end
+
+-- Steps between two buildings' outlines; 0 as soon as they touch.
 function Geometry.betweenBuildings(roomsA, roomsB)
     local best
-    for _, a in ipairs(roomsA) do
-        for _, ra in ipairs(a.rects) do
-            for _, b in ipairs(roomsB) do
-                for _, rb in ipairs(b.rects) do
-                    local dx = math.max(0, ra.x - (rb.x + rb.w - 1), rb.x - (ra.x + ra.w - 1))
-                    local dy = math.max(0, ra.y - (rb.y + rb.h - 1), rb.y - (ra.y + ra.h - 1))
-                    local steps = math.max(dx, dy)
-                    if not best or steps < best then best = steps end
-                end
-            end
+    local rectsB = outlineRects(roomsB)
+    for _, ra in ipairs(outlineRects(roomsA)) do
+        for _, rb in ipairs(rectsB) do
+            local dx = math.max(0, ra.x - (rb.x + rb.w - 1), rb.x - (ra.x + ra.w - 1))
+            local dy = math.max(0, ra.y - (rb.y + rb.h - 1), rb.y - (ra.y + ra.h - 1))
+            local steps = math.max(dx, dy)
+            if not best or steps < best then best = steps end
+            if best == 0 then return 0 end
         end
     end
     return best

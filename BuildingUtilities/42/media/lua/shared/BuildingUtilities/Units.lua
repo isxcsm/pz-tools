@@ -154,16 +154,16 @@ end
 -- The sprite for a unit put on a square by a character.
 function Units.spriteFor(kind, square, character) return definitions[kind].sprite(square, character) end
 
--- The main panels a unit could be wired to, as for a generator (Panels.producerCandidates).
+-- The panels a unit could be wired to, as for a generator (Panels.producerCandidates).
 function Units.candidates(unit) return Panels.producerCandidates(unit.x, unit.y, unit.z) end
 
--- Whether a unit can be wired to a panel. True, or false and a reason.
+-- Whether a unit can be wired to a panel (a sub-panel takes it on to its main panel, whose tier counts). True, or
+-- false and a reason.
 function Units.canConnect(unit, panel)
     if not BU.enabled(unit.kind) then return false, "disabled" end
-    if panel.parent then return false, "isSubPanel" end
     if unit.panel then return false, "connectedElsewhere" end
     local definition = definitions[unit.kind]
-    if (panel.tier or 1) < (definition.minTier or 1) then return false, definition.tierReason end
+    if (Panels.root(panel).tier or 1) < (definition.minTier or 1) then return false, definition.tierReason end
     for _, candidate in ipairs(Panels.inProducerRange(unit.x, unit.y, unit.z)) do
         if candidate.panel == panel then return true end
     end

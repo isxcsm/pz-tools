@@ -68,7 +68,7 @@ end
 
 local function onRemove(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBURemovePanel:new(playerObj, panel)) end
 local function onUpgrade(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUUpgradePanel:new(playerObj, panel)) end
-local function onOpen(playerObj, panel) BU.PanelWindow.open(playerObj, panel) end
+local function onOpen(playerObj, panel) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUOpenPanel:new(playerObj, panel)) end
 local function onReset(playerObj, panel) Sync.send(playerObj, "resetBreaker", { panel = panel.id }) end
 local function onSwitch(playerObj, panel, off) queueAt(playerObj, panel.x, panel.y, panel.z, ISBUMainSwitch:new(playerObj, panel, off)) end
 local function onUseSource(playerObj, panel) Sync.send(playerObj, "useSource", { panel = panel.id }) end
@@ -124,8 +124,9 @@ local function addInstallOption(context, playerObj, square)
     end
 end
 
--- "Connect to a panel": the main panels in reach of the top tier (Panels.producerCandidates), each with what its
--- line costs, or why not. A producer's line (kind "producer") or a unit's ("unit", extra its id).
+-- "Connect to a panel": the panels in reach of the top tier (Panels.producerCandidates), each with what its line
+-- costs, or why not; a sub-panel named with the main panel it takes the line on to. A producer's line (kind
+-- "producer") or a unit's ("unit", extra its id).
 local function addConnectOption(context, playerObj, kind, utility, x, y, z, extra)
     local option = context:addOption(getText("ContextMenu_BU_ConnectTo"), nil, nil)
     local candidates = Panels.producerCandidates(x, y, z)
@@ -137,7 +138,9 @@ local function addConnectOption(context, playerObj, kind, utility, x, y, z, extr
     context:addSubMenu(option, sub)
     for _, candidate in ipairs(candidates) do
         local panel = candidate.panel
-        local choice = sub:addOption(getText("IGUI_BU_PanelChoice", Panels.name(panel), Panels.where(panel, x, y)),
+        local root = Panels.root(panel)
+        local name = root ~= panel and getText("IGUI_BU_PanelVia", Panels.name(panel), Panels.name(root)) or Panels.name(panel)
+        local choice = sub:addOption(getText("IGUI_BU_PanelChoice", name, Panels.where(panel, x, y)),
             playerObj, onConnect, kind, panel, utility, x, y, z, extra)
         local cost, reason = Actions.lineCost(kind, panel, utility, x, y, z, extra)
         if not candidate.inRange then

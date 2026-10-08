@@ -146,7 +146,8 @@ end
 -- Brings the API's water networks of a panel to its data now: networks no longer wanted go, new ones are defined,
 -- each gets its parent, producers and rooms, and the devices' rules: every device's where a network came or went (a
 -- device may map to another floor's network now), else the keys given (all when none are). Networks that stay keep
--- what the API saw of their tanks. Sub-panels hang from the first group's lowest network, so theirs follow too.
+-- what the API saw of their tanks. A main panel's sub-panels, all down its tree, hang from its first group's
+-- networks by height (Water.layout), so theirs follow too.
 function Networks.defineWater(panel, keys)
     if not waterOn() then return end
     local layout, floors = Water.layout(panel)
@@ -202,9 +203,17 @@ function Networks.defineWater(panel, keys)
     defined[panel.id] = now
     for key in pairs((floorsChanged or not keys) and waterKeys(panel) or keys) do applyWaterRule(panel, key, floors) end
     if panel.parent == nil then
-        for _, child in ipairs(Store.children(panel.id)) do
-            if defined[child.id] then Networks.defineWater(child, {}) end
+        local seen = { [panel.id] = true }
+        local function follow(box)
+            for _, child in ipairs(Store.children(box.id)) do
+                if not seen[child.id] then
+                    seen[child.id] = true
+                    if defined[child.id] then Networks.defineWater(child, {}) end
+                    follow(child)
+                end
+            end
         end
+        follow(panel)
     end
 end
 

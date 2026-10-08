@@ -497,6 +497,7 @@ local function defineAll()
         BU.log("water that keeps its taint is not in this game - the pipes purify:", notPurify)
     end
     Networks.defineAll()
+    Changes.fitZones()
     Changes.applyFeatures(true)
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
