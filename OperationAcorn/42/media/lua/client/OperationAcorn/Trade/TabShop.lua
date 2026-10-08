@@ -11,8 +11,8 @@ OATabShop = OATab:derive("OATabShop")
 
 -- The kinds of kit that are for a bag; the others are for a vehicle.
 local BAG_KITS = { bagCapacity = true, bagWeight = true }
--- How far (squares) from the character a vehicle may be to be chosen for a kit.
-local VEHICLE_REACH = 40
+-- How far (squares) a vehicle may be to be chosen for a kit (NUMBERS 7: 30 around the terminal; the character is at it).
+local VEHICLE_REACH = 30
 
 -- A kit is ordered for one bag or one vehicle: the target is the id of that bag (its item id) or of that vehicle
 -- (OA_TargetId in its parts' modData, given when first chosen), and the price counts the kits of that one. The ids
