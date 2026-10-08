@@ -1,7 +1,7 @@
--- What the water units (BU.WaterUnits) do, on the server: each minute a main panel's pumps lift water into their
--- groups while its power is on, its boosters lift its water up the floors, and its filters wear while they purify; each ten minutes its sprinklers water the
--- crops around them. Server.lua calls these. Each works the panel's water layout out once (floors, Water.layout's
--- second result) and passes it on.
+-- What the water units (BU.WaterUnits) do, on the server: each minute a main panel's boosters lift its water up the
+-- floors, its pumps lift water into their groups while its power is on, and its filters wear while they purify; each
+-- ten minutes its sprinklers water the crops around them. Server.lua calls these, with the panel's water layout
+-- worked out once a minute (floors, Water.layout's second result) after the boosters, which may change it.
 require "BuildingUtilities/Changes"
 require "BuildingUtilities/WaterUnits"
 local BU = BuildingUtilities
@@ -55,7 +55,7 @@ end
 -- they add to its load (BU.Changes.setExtraLoad). Its frozen pipes stop them ("frozen"). A pump with no water beside
 -- it cannot tell: it runs dry whenever it has power, drawing it and lifting nothing ("noWater"). While its square is
 -- loaded the water beside it is looked at again. Pumps that are off (BU.enabled) stand still and draw nothing.
-function WaterRun.pumps(panel, minutes)
+function WaterRun.pumps(panel, minutes, floors)
     local pumps = Store.unitList("pump", panel.id)
     if #pumps == 0 and not (panel.extraLoads and panel.extraLoads.pumps) then return end
     if not BU.enabled("pump") then
@@ -66,7 +66,7 @@ function WaterRun.pumps(panel, minutes)
     local on = powered(panel)
     local running, changed = 0, false
     local cell = getCell()
-    local floors = #pumps > 0 and select(2, Water.layout(panel)) or nil
+    floors = floors or #pumps > 0 and select(2, Water.layout(panel)) or nil
     for _, unit in ipairs(pumps) do
         local square = cell and cell:getGridSquare(unit.x, unit.y, unit.z)
         if square then
@@ -89,17 +89,14 @@ function WaterRun.pumps(panel, minutes)
     if changed then Sync.changed(panel.id) end
 end
 
--- The running boosters of each main panel as last worked out (ids, floors and groups): when they change, its water
--- networks take the floors they lift. Not saved: the world defines the networks from the saved state as it starts.
-local boosting = {}
-
 -- Each minute: a main panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
--- where water reaches its floor ("noWater" else); running, they add to its load. When which run changes, its water
--- networks (its sub-panels' too) are defined again (Networks.defineWater). Boosters that are off (BU.enabled) stand
+-- where water reaches its floor ("noWater" else); running, they add to its load. When what runs differs from what its
+-- water networks were defined with (Networks.boostDefined: also after a booster was wired or taken away, or as the
+-- world loaded), they follow (Networks.boostChanged, its sub-panels' too). Boosters that are off (BU.enabled) stand
 -- still and draw nothing.
 function WaterRun.boosters(panel)
     local boosters = Store.unitList("booster", panel.id)
-    if #boosters == 0 and (boosting[panel.id] or "") == "" and not (panel.extraLoads and panel.extraLoads.boosters) then
+    if #boosters == 0 and (Networks.boostDefined(panel) or "") == "" and not (panel.extraLoads and panel.extraLoads.boosters) then
         return
     end
     local enabled = BU.enabled("booster")
@@ -112,25 +109,15 @@ function WaterRun.boosters(panel)
             for id, state in pairs(each) do states[id] = state end
         end
     end
-    local running, changed, key = 0, false, {}
+    local running, changed = 0, false
     for _, unit in ipairs(boosters) do
         local now = states[unit.id] == "running" or nil
         local why = nil
         if enabled and not now then why = (not on and "noPower") or (frozen and "frozen") or "noWater" end
         if now ~= unit.boosting or why ~= unit.idle then unit.boosting, unit.idle, changed = now, why, true end
-        if now then
-            running = running + 1
-            key[#key + 1] = tostring(unit.id) .. "@" .. unit.z .. "g" .. tostring(unit.group or Water.FIRST)
-        end
+        if now then running = running + 1 end
     end
-    table.sort(key)
-    key = table.concat(key, ",")
-    if boosting[panel.id] == nil then
-        boosting[panel.id] = key
-    elseif boosting[panel.id] ~= key then
-        boosting[panel.id] = key
-        Networks.defineWater(panel)
-    end
+    if Water.boostKey(panel) ~= (Networks.boostDefined(panel) or "") then Networks.boostChanged(panel) end
     Changes.setExtraLoad(panel, "boosters", running * WaterUnits.BOOSTER_LOAD)
     if changed then Sync.changed(panel.id) end
 end
@@ -212,12 +199,22 @@ function WaterRun.filters(panel, minutes)
             if unit.media <= 0 then Sync.notice(panel, "IGUI_BU_Notice_FilterSpent", BU.Water.groupName(panel, group)) end
         end
     end
-    local floors = select(2, Water.layout(panel))
     for _, group in ipairs(Water.groups(panel)) do
         local on = not unpurified or filtering[group.id] == true
-        Networks.setGroupPurify(panel, group.id, on, floors)
+        Networks.setGroupPurify(panel, group.id, on)
+        -- Its sub-panels, all down its tree, take the first group's water.
         if group.id == Water.FIRST then
-            for _, child in ipairs(Store.children(panel.id)) do Networks.setGroupPurify(child, Water.FIRST, on) end
+            local seen = { [panel.id] = true }
+            local function follow(box)
+                for _, child in ipairs(Store.children(box.id)) do
+                    if not seen[child.id] then
+                        seen[child.id] = true
+                        Networks.setGroupPurify(child, Water.FIRST, on)
+                        follow(child)
+                    end
+                end
+            end
+            follow(panel)
         end
     end
     if changed then Sync.changed(panel.id) end

@@ -71,7 +71,7 @@ function ISBUPanelWindow:updatePlan()
             if utility == "water" then text = text .. "  " .. self:waterUnitStatus(unit) end
             local colour = utility == "water" and #BU.Water.groups(panel) > 1
                 and PanelWindow.groupColour(panel, BU.WaterUnits.group(unit)) or nil
-            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true,
+            producers[#producers + 1] = { x = unit.x, y = unit.y, z = unit.z, inUse = inUse or unit.running == true or unit.boosting == true,
                 unit = unit.kind, colour = colour, flow = state and Units.flow(unit, panel, state) or nil, text = text }
         end
     end
@@ -99,7 +99,7 @@ function ISBUPanelWindow:updatePlan()
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farNote = self.building and self:farNote() or nil,
         reached = self.building and { Panels.floorsInReach(panel, self.building) } or nil,
-        waterSupply = utility == "water" and select(3, BU.Water.floorSupply(panel, self:waterLevels() or {})) or nil,
+        waterSupply = utility == "water" and self.waterSupply and self.waterSupply.byLevel or nil,
         ranges = ranges, rangeKey = rangeKey,
         choosing = self.choosing[utility] == true })
 end

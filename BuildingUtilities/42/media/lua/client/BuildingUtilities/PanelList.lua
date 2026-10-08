@@ -194,8 +194,10 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     end
     local width = self:getWidth()
     local textY = y + (ROW - FONT_HGT_SMALL) / 2
-    if (self.hovered == item.index and (row.device or row.at or row.kind == "link" or row.kind == "floor"))
-        or self.selected == item.index and row.device then
+    -- The row under the mouse: a device's or producer's (outlined in the world, hovered), a link's or a floor's.
+    local over = self.hovered == item.index and (row.device or row.at)
+        or (row.kind == "link" or row.kind == "floor") and self.mouseoverselected == item.index and self:isMouseOver()
+    if over or self.selected == item.index and row.device then
         self:drawRect(0, y, width, ROW, 0.15, 1, 1, 1)
     end
     -- What the mouse is over on the plan.

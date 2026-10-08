@@ -145,8 +145,11 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         if unit.running then return getText("IGUI_BU_Pump_running", WaterUnits.PUMP_RATE) end
         return getText("IGUI_BU_Pump_" .. (unit.idle or "noPower"))
     elseif unit.kind == "booster" then
+        -- The floors it lifts to, up to the highest of the supply tree's buildings.
         if unit.boosting then
-            return getText("IGUI_BU_Booster_running", BU.floorName(unit.z + 1), BU.floorName(unit.z + Water.boostFloors()))
+            local top = math.min(unit.z + Water.boostFloors(), self.treeTop or unit.z + Water.boostFloors())
+            if top <= unit.z + 1 then return getText("IGUI_BU_Booster_runningOne", BU.floorName(unit.z + 1)) end
+            return getText("IGUI_BU_Booster_running", BU.floorName(unit.z + 1), BU.floorName(top))
         end
         return getText("IGUI_BU_Booster_" .. (unit.idle or "noPower"))
     elseif unit.kind == "sprinkler" then
@@ -169,7 +172,8 @@ function ISBUPanelWindow:waterUnitRows(add)
     for _, unit in ipairs(Units.of(panel.id, "water")) do
         local text = getText("IGUI_BU_WaterUnitRow", Units.name(unit), Panels.where(panel, unit.x, unit.y),
             self:waterUnitStatus(unit))
-        local row = { kind = "producer", unit = unit, text = text, water = true, inUse = unit.running == true }
+        local row = { kind = "producer", unit = unit, text = text, water = true,
+            inUse = unit.running == true or unit.boosting == true }
         if groups then
             row.group = WaterUnits.group(unit)
             row.groupText, row.groupColour = Water.groupName(panel, row.group), PanelWindow.groupColour(panel, row.group)

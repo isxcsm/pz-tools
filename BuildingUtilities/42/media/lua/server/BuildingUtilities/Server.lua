@@ -300,7 +300,8 @@ local function onNetworkChange(id, what)
     if not panel then return end
     -- A device switched on or off: the saving looks at the devices again.
     if utility == "power" and what == "load" then savingLooked[panel.id] = nil end
-    -- Water: a group's networks change together; its lowest tells for it.
+    -- Water: a group's networks change together; its lowest tells for it. A sub-panel's water tells nothing of its own.
+    if utility == "water" and panel.parent then return end
     local floors = utility == "water" and select(2, BU.Water.layout(panel)) or nil
     if utility == "water" and id ~= BU.Water.lowestId(panel, group, floors) then return end
     local state = utility == "water" and Networks.groupState(panel, group, floors) or Networks.state(panel, utility)
@@ -371,9 +372,8 @@ local function recordStats(panel, hours)
 end
 
 -- What each water group's tanks held this minute, for its level graph.
-local function recordWater(panel)
+local function recordWater(panel, floors)
     if panel.parent or not BU.enabled("water") or not BU.waterAvailable() then return end
-    local floors = select(2, BU.Water.layout(panel))
     for _, group in ipairs(BU.Water.groups(panel)) do
         local state = Networks.groupState(panel, group.id, floors)
         if state then Store.recordWater(panel, group.id, state.amount or 0, state.capacity or 0) end
@@ -413,11 +413,15 @@ local function everyMinute()
             hourEnded = recordEnergy(panel) or hourEnded
             recordStats(panel, hours)
         end
-        recordWater(panel)
-        if not panel.parent and hours > 0 then
-            BU.WaterRun.pumps(panel, hours * 60)
-            BU.WaterRun.boosters(panel)
-            BU.WaterRun.filters(panel, hours * 60)
+        -- A main panel's water layout once a minute, after its boosters (which may change it), for the rest.
+        if not panel.parent then
+            if hours > 0 then BU.WaterRun.boosters(panel) end
+            local floors = BU.enabled("water") and BU.waterAvailable() and select(2, BU.Water.layout(panel)) or nil
+            recordWater(panel, floors)
+            if hours > 0 then
+                BU.WaterRun.pumps(panel, hours * 60, floors)
+                BU.WaterRun.filters(panel, hours * 60)
+            end
         end
     end
     -- The bank and the energy record change every minute; clients get them hourly (alone, the window reads them).

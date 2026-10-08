@@ -924,7 +924,7 @@
     "IGUI_BU_WaterGroups": "급수 그룹",
     "IGUI_BU_WaterGroupTip": "물 저장소 %1개, 시설 %2개. 시설은 그룹의 물 저장소 중 자기 층과 그 위층에 있는 것의 물을 씁니다(가압 펌프가 올려 주는 층은 펌프 층의 물도).",
     "IGUI_BU_AddGroup": "+ 급수 그룹 추가",
-    "IGUI_BU_AddGroupTip": "통과 시설을 물을 나눠 쓰지 않는 그룹으로 나눕니다(최대 4개). 통이나 시설 줄의 그룹 버튼으로 옮깁니다.",
+    "IGUI_BU_AddGroupTip": "물 저장소와 시설을 물을 나눠 쓰지 않는 그룹으로 나눕니다(최대 4개). 물 저장소나 시설 줄의 그룹 버튼으로 옮깁니다.",
     "IGUI_BU_GroupNamePrompt": "이 급수 그룹의 이름 (비우면 번호):",
     "IGUI_BU_LevelTitle": "지난 %1시간 수위",
     "IGUI_BU_St_Frozen": "배관이 얼었음",
@@ -983,11 +983,12 @@
     "IGUI_BU_PlanRiserTip": "이 층의 공급선은 %1의 제어반으로 이어집니다. 누르면 그 층으로 갑니다",
     "IGUI_BU_Unit_booster": "가압 펌프",
     "IGUI_BU_UnitTip_booster": "제어반에 전기가 있는 동안 자기 그룹의 물을 놓인 층에서 그 위 샌드박스에서 정한 층 수(기본 10개 층)까지 올립니다(도는 동안 부하 0.25). 그 층들의 시설은 펌프 층 높이 이상의 물 저장소 물을 펌프 층에 있는 것처럼 씁니다. 펌프 층까지 물이 와야 돕니다: 그 높이 이상의 물 저장소나, 그 층까지 올려 주는 아래 가압 펌프. 가압 펌프는 이어집니다: 다른 펌프가 올려 주는 층에 놓은 펌프는 거기서 다시 올립니다.",
-    "IGUI_BU_Booster_running": "%1~%2로 물을 올리는 중",
+    "IGUI_BU_Booster_running": "%1~%2까지 물을 올리는 중",
+    "IGUI_BU_Booster_runningOne": "%1까지 물을 올리는 중",
     "IGUI_BU_Booster_noPower": "멈춤: 전기 없음",
     "IGUI_BU_Booster_frozen": "멈춤: 배관이 얼었음",
     "IGUI_BU_Booster_noWater": "대기: 이 층까지 물이 오지 않음",
-    "IGUI_BU_Why_Boosted": "%1은 가압 펌프로 물을 받음",
+    "IGUI_BU_Why_Boosted": "가압 펌프로 물을 받는 층: %1",
     "IGUI_BU_FloorWater_boosted": "가압 펌프로 물을 받음",
     "IGUI_BU_FloorWater_dry": "물이 오지 않음"
 }

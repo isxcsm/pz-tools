@@ -78,12 +78,17 @@ local function treeKey(tree)
     return table.concat(ids, ",")
 end
 
--- A box's tab: its name, the floors its zone takes (Panels.zoneFloors) and, below the first sub-panels, a mark a
--- level down.
+-- A box's name with the floors its zone takes (Panels.zoneFloors): the boxes of a tall building tell apart.
+function PanelWindow.boxTitle(panel)
+    local name, low, high = Panels.name(panel), Panels.zoneFloors(panel)
+    if low and low ~= high then return getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high)) end
+    if low then return getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
+    return name
+end
+
+-- A box's tab: its title and, below the first sub-panels, a mark a level down.
 local function tabTitle(entry)
-    local name, low, high = Panels.name(entry.panel), Panels.zoneFloors(entry.panel)
-    if low and low ~= high then name = getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high))
-    elseif low then name = getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
+    local name = PanelWindow.boxTitle(entry.panel)
     if entry.depth > 1 then name = string.rep(">", entry.depth - 1) .. " " .. name end
     return name
 end
@@ -236,23 +241,33 @@ function ISBUPanelWindow:layoutPanes()
     self:placeOptions()
 end
 
+-- The boxes' tabs' titles and their widths, measured once a refresh (not each time the window is laid out).
+function ISBUPanelWindow:measurePanelTabs()
+    local measure = getTextManager()
+    self.tabTitles, self.tabWidths = {}, {}
+    for index, entry in ipairs(self.tree) do
+        self.tabTitles[index] = tabTitle(entry)
+        self.tabWidths[index] = measure:MeasureStringX(UIFont.Small, self.tabTitles[index]) + 16
+    end
+end
+
 -- The boxes' tabs across the top: each as wide as its title; where they do not all fit, each an equal share with its
--- title cut (the whole one its tooltip). This box's lit.
-function ISBUPanelWindow:placePanelTabs()
+-- title cut (the whole one its tooltip). This box's lit. Laid out again only when the window's width changed (a
+-- divider dragged does not), or when asked (a refresh).
+function ISBUPanelWindow:placePanelTabs(force)
     local tabs = self.panelTabs or {}
-    if #tabs == 0 then return end
+    if #tabs == 0 or not force and self.tabsPlacedAt == self.width then return end
+    if not self.tabTitles then self:measurePanelTabs() end
+    self.tabsPlacedAt = self.width
     local measure = getTextManager()
     local function width(text) return measure:MeasureStringX(UIFont.Small, text) end
-    local titles, total = {}, 0
-    for index, entry in ipairs(self.tree) do
-        titles[index] = tabTitle(entry)
-        total = total + width(titles[index]) + 16
-    end
+    local titles, total = self.tabTitles, 0
+    for index = 1, #tabs do total = total + (self.tabWidths[index] or 0) end
     local room = self.width - PAD * 2 - (#tabs - 1) * 4
     local share = total > room and math.floor(room / #tabs) or nil
     local x = PAD
     for index, tab in ipairs(tabs) do
-        local title, w = titles[index], width(titles[index]) + 16
+        local title, w = titles[index] or "", self.tabWidths[index] or 16
         if share then
             w = share
             local cut = title
@@ -418,15 +433,31 @@ end
 function ISBUPanelWindow:update()
     ISCollapsableWindow.update(self)
     if not Store.get(self.panel.id) then self:close(); return end
-    -- Its character dead, or another in its place (a new one after death), or far from the box: the window was theirs
-    -- there.
-    local player, anchor = self.playerObj, self.anchor
+    -- Its character dead, or another in its place (a new one after death), or far from the box it was opened at and
+    -- from every box of the supply tree it shows: the window was theirs there. Not while an action walks them (one of
+    -- the window's own, to a generator or another box): it closes if they stay away once it is done.
+    local player = self.playerObj
     if player:isDead() or getSpecificPlayer(player:getPlayerNum()) ~= player then self:close(); return end
-    local away = math.max(math.abs(player:getX() - anchor.x - 0.5), math.abs(player:getY() - anchor.y - 0.5))
-        + math.abs(player:getZ() - anchor.z) * PanelWindow.TILES_PER_FLOOR
-    if away > PanelWindow.CLOSE_RANGE then self:close(); return end
+    if self:away() > PanelWindow.CLOSE_RANGE and not ISTimedActionQueue.isPlayerDoingAction(player) then
+        self:close()
+        return
+    end
     local now = getTimestampMs()
     if self.changedAt and now - self.changedAt >= SETTLE_MS or now - (self.refreshedAt or 0) > REFRESH_MS then self:refresh() end
+end
+
+-- How far the player is from the nearest of the box it was opened at and the boxes of its supply tree: the larger of
+-- the steps across, and TILES_PER_FLOOR a floor up or down.
+function ISBUPanelWindow:away()
+    local player = self.playerObj
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local function from(box)
+        return math.max(math.abs(px - box.x - 0.5), math.abs(py - box.y - 0.5))
+            + math.abs(pz - box.z) * PanelWindow.TILES_PER_FLOOR
+    end
+    local nearest = from(self.anchor)
+    for _, entry in ipairs(self.tree) do nearest = math.min(nearest, from(entry.panel)) end
+    return nearest
 end
 
 -- Something the window shows changed: it refreshes once that settles (SETTLE_MS).
@@ -462,23 +493,26 @@ function ISBUPanelWindow:refresh()
     if not panel then return end
     self.panel = panel
     -- A utility turned on or off in the sandbox, or a box joined or left the supply tree: the window opens anew where
-    -- it is, with its tabs.
-    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey or treeKey(PanelWindow.tree(panel)) ~= self.treeKey then
-        local x, y, w, h = self:getX(), self:getY(), self:getWidth(), self:getHeight()
-        self:close()
-        local window = PanelWindow.open(self.playerObj, panel, self.anchor)
-        window:setX(x)
-        window:setY(y)
-        window:setWidth(math.max(w, window.minimumWidth))
-        window:setHeight(math.max(h, window.minimumHeight))
+    -- it is, with its tabs (reopen).
+    local tree = PanelWindow.tree(panel)
+    if table.concat(BU.utilities(), ",") ~= self.utilitiesKey or treeKey(tree) ~= self.treeKey then
+        self:reopen()
         return
+    end
+    -- The same boxes, as the data has them now (renamed, rezoned): the tabs' titles, measured here, not as they are
+    -- laid out; and the highest floor of their buildings, for the boosters' rows.
+    self.tree = tree
+    self:measurePanelTabs()
+    self.treeTop = nil
+    for _, entry in ipairs(tree) do
+        local building = Panels.building(entry.panel)
+        if building and (not self.treeTop or building.maxLevel > self.treeTop) then self.treeTop = building.maxLevel end
     end
     local powerOn = BU.enabled("power")
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
     self.states = { power = power, water = water }
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
-    self:placePanelTabs()
-    self:updateStatus()
+    self:placePanelTabs(true)
     self.capacity = Panels.capacity(panel)
     self.load = power and power.load or nil
     self.loadFactor = power and power.loadFactor or 1
@@ -537,9 +571,33 @@ function ISBUPanelWindow:refresh()
         else self.pending[utility] = { state = self.states[utility] } end
     end
     self:fillLog()
+    -- How water reaches the floors with fixtures, from the rows just filled: the status line and the plan both tell.
+    self.waterSupply = self:workOutWaterSupply()
+    self:updateStatus()
     self.loadArea:setTooltip(self:loadBreakdown())
     self:checkRange()
     self:updatePlan()
+end
+
+-- The window opens anew in its place, as large, with what the player had set here: the search, the room shown, the
+-- zone editing, the devices outside being chosen, the plan's floor, zoom and pan, and the range shown.
+function ISBUPanelWindow:reopen()
+    local kept = { x = self:getX(), y = self:getY(), w = self:getWidth(), h = self:getHeight(),
+        text = self.search:getText(), query = self.query, roomFilter = self.roomFilter, zoneEditing = self.zoneEditing,
+        choosing = self.choosing, chosen = self.chosen, range = self.rangeShown,
+        floor = self.plan.floor, zoom = self.plan.zoom, panX = self.plan.panX, panY = self.plan.panY }
+    self:close()
+    local window = PanelWindow.open(self.playerObj, self.panel, self.anchor)
+    window:setX(kept.x)
+    window:setY(kept.y)
+    window:setWidth(math.max(kept.w, window.minimumWidth))
+    window:setHeight(math.max(kept.h, window.minimumHeight))
+    if kept.text and kept.text ~= "" then window.search:setText(kept.text) end
+    window.query, window.roomFilter, window.zoneEditing = kept.query, kept.roomFilter, kept.zoneEditing
+    window.choosing, window.chosen = kept.choosing, kept.chosen
+    window.plan.floor, window.plan.zoom, window.plan.panX, window.plan.panY = kept.floor, kept.zoom, kept.panX, kept.panY
+    if kept.range then window:showRange(true) end
+    window:refresh()
 end
 
 -- What makes the load, for the load bar's tooltip: the rooms that draw most, devices outside, sub-panels, what
@@ -745,11 +803,8 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
             local childState = Networks.state(child, utility)
             local right = utility == "power" and childState and childState.load and load2(childState.load) or ""
             if child.tripped and utility == "power" then right = right .. "  " .. getText("IGUI_BU_Tripped") end
-            -- The floors its zone takes, so that the sub-panels of a tall building tell apart.
-            local name, low, high = Panels.name(child), Panels.zoneFloors(child)
-            if low and low ~= high then name = getText("IGUI_BU_SubPanelFloors", name, BU.floorName(low), BU.floorName(high))
-            elseif low then name = getText("IGUI_BU_SubPanelFloor", name, BU.floorName(low)) end
-            add({ kind = "link", text = name .. "   " .. right, target = child.id }, getText("IGUI_BU_OpenTip"))
+            add({ kind = "link", text = PanelWindow.boxTitle(child) .. "   " .. right, target = child.id },
+                getText("IGUI_BU_OpenTip"))
         end
     end
     local seen = self:seenSet(utility, devices)
@@ -1071,8 +1126,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
         end
     elseif row.kind == "floor" then
         PanelWindow.folded[row.foldKey] = not row.folded
-        if row.folded and self.plan then self.plan:showFloor(row.level) end
-        self:refill(utility)
+        -- Unfolded, the plan shows that floor (which fills the list again, planFloorChanged); else the list alone.
+        if row.folded and self.plan and self.plan.floor ~= row.level then self.plan:showFloor(row.level)
+        else self:refill(utility) end
     elseif row.kind == "room" and row.choosable and x >= chooseButtonX(row) and x <= chooseButtonX(row) + CHOOSE_W then
         self:setChoosing(utility, not row.choosing)
     elseif row.kind == "room" then
@@ -1221,7 +1277,7 @@ function ISBUOpenPanel:isValid() return Store.get(self.panelId) ~= nil end
 
 function ISBUOpenPanel:perform()
     local panel = Store.get(self.panelId)
-    if panel then PanelWindow.open(self.character, panel) end
+    if panel then PanelWindow.open(self.character, panel, { x = panel.x, y = panel.y, z = panel.z }) end
     ISBaseTimedAction.perform(self)
 end
 

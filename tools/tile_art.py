@@ -562,10 +562,11 @@ def booster(turns, look='stopped'):
     s.tube((0.27, 0.76, 0.66), (0.37, 0.7, 0.74), 0.011, RUBBER, segments=12)
     over = None
     if frozen:
-        for x, length in ((0.3, 0.06), (0.52, 0.05), (0.68, 0.07), (0.9, 0.045)):
+        # Icicles under the header where nothing is fitted on it, and under the branch to the vessel (not inside it).
+        for x, length in ((0.27, 0.06), (0.57, 0.05), (0.71, 0.07), (0.86, 0.045)):
             s.tube((x, hy, hz - 0.035), (x, hy, hz - 0.035 - length), 0.007, ICE, shine=0.8, segments=12)
-        for x, length in ((0.66, 0.05), (0.82, 0.06)):
-            s.tube((x, vy, 0.12), (x, vy, 0.12 - length), 0.006, ICE, shine=0.8, segments=12)
+        for y, length in ((0.53, 0.05), (0.5, 0.04)):
+            s.tube((vx, y, hz - 0.02), (vx, y, hz - 0.02 - length), 0.006, ICE, shine=0.8, segments=12)
         over = rime(41 + turns)
     ground = shadow(s.turn((0.5, 0.52, 0))[:2], 0.44, 0.34)
     return compose(s, ground=ground, over=over, seed=60 + turns, glows=glows)

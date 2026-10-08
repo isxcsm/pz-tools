@@ -150,7 +150,7 @@ function Panels.zoneInReach(panel)
     if not building or not BU.floorReach(panel.tier) then return panel.rooms, false end
     local rooms = Panels.rooms(building)
     if not panel.rooms and reachesAll(rooms, panel.z, panel.tier) then return nil, false end
-    local zone, changed, any = {}, panel.rooms == nil, false
+    local zone, changed, any, kept = {}, panel.rooms == nil, false, false
     for _, room in ipairs(rooms) do
         if Panels.inZone(panel, room.id) then
             if Panels.reachesLevel(panel, room.level) then zone[room.id] = true; any = true else changed = true end
@@ -160,9 +160,11 @@ function Panels.zoneInReach(panel)
         local boxes = Panels.ofBuilding(building.key)
         for _, room in ipairs(rooms) do
             if room.level == panel.z and not Panels.roomOwner(building.key, room.id, panel, boxes) then
-                zone[room.id], changed = true, true
+                zone[room.id], changed, kept = true, true, true
             end
         end
+        -- Nothing it can take: its zone stays as it is rather than none (a zone has a room at least).
+        if not kept then return panel.rooms, false end
     end
     return zone, changed
 end
@@ -219,7 +221,8 @@ end
 function Panels.capacity(panel) return BU.capacity(panel.tier) end
 
 -- The power line into a box: a main panel's from its producer in use (state.producer; else its first; for the
--- units' source, the nearest unit), a sub-panel's from its main panel. The pieces of wire it took and the percent of the load it loses; nil without one.
+-- units' source, the nearest unit), a sub-panel's from its main panel. The pieces of wire it took and the percent of
+-- the load it loses; nil without one.
 function Panels.powerLine(panel, state)
     local steps
     if panel.parent then
@@ -379,8 +382,9 @@ end
 
 -- The panels a producer square could be connected to: on a level of their building or on the ground, within the
 -- producer range of the top tier from its outline. Each with its distance, its line's length (Panels.wire) and the
--- tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root), whose producer it is: a producer near a
--- sub-panel, up a tall building or by another building, needs no line of its own all the way to the main box.
+-- tier that reaches it; the shortest line first. A sub-panel takes the line on to its main panel (Panels.root), whose
+-- producer it is: a producer near a sub-panel, up a tall building or by another building, needs no line of its own
+-- all the way to the main box.
 function Panels.producerCandidates(x, y, z)
     local result = {}
     for _, panel in ipairs(Store.list()) do
@@ -390,7 +394,7 @@ function Panels.producerCandidates(x, y, z)
             local tier = steps and Panels.tierReaching(BU.producerRange, steps)
             if tier then
                 result[#result + 1] = { panel = panel, steps = steps, building = building, tier = tier,
-                    inRange = tier <= (panel.tier or 1), wire = Panels.wire(panel, x, y, z) or steps }
+                    inRange = tier <= (panel.tier or 1), wire = steps + math.abs(z - panel.z) * BU.tilesPerFloor() }
             end
         end
     end
@@ -702,7 +706,11 @@ function Panels.linkCandidates(child)
             end
         end
     end
-    table.sort(result, function(a, b) return a.steps < b.steps end)
+    -- The shortest line first: in one building the steps are none, the floors tell.
+    table.sort(result, function(a, b)
+        if (a.wire or a.steps) ~= (b.wire or b.steps) then return (a.wire or a.steps) < (b.wire or b.steps) end
+        return a.steps < b.steps
+    end)
     return result
 end
 

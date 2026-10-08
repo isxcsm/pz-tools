@@ -236,10 +236,11 @@ end
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
 -- state, held, power, name, status, flow } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
 -- or nil, flow } } (flow: 1 to the box, -1 from it, nil none), box = { x, y, z }, filter = room id, zone = room id to
--- { state = "mine", "free" or "taken", owner = a name }, zoneEditable, zoneEdit, zoneNote, ranges = { exterior =
--- steps, producer = steps or nil, noise = for power { { x, y, z, radius, running } } } while the range is shown,
--- rangeKey (the building, tier and generators' noise the ranges are of),
--- choosing (devices outside are being chosen) }. A device may be chosen and choosable.
+-- { state = "mine", "free", "taken" or "far", owner = a name }, zoneEditable, zoneEdit, zoneNote, farNote (why a far
+-- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
+-- "dry" or "boosted", for water), ranges = { exterior = steps, producer = steps or nil, noise = for power { { x, y,
+-- z, radius, running } } } while the range is shown, rangeKey (the building, tier and generators' noise the ranges
+-- are of), choosing (devices outside are being chosen) }. A device may be chosen and choosable.
 function ISBUPlan:setData(data)
     self.data = data
     local levels = {}
@@ -674,8 +675,8 @@ function ISBUPlan:layoutStrip()
 end
 
 -- The top bar, laid out with the rest: the floor shown with what its devices draw (with several floors, a click on
--- it lists them) and the switches, right to left: the legend, the zone (where zones can be edited), the range, the
--- supply lines, Fit (zoomed or moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
+-- it lists them) and the switches, right to left: the zone (where zones can be edited), the range, the supply
+-- lines, Fit (zoomed or moved), each { name, x, y, w, text }. Nothing overlaps at any width or font size: the
 -- switches that do not fit go to a row below, and the floor's name keeps the middle while it fits beside them, else
 -- moves into the room they leave, without the load where that is too narrow (the status line then has it all), and
 -- takes a row of its own above them when even its name does not fit. The bar's height is topH.

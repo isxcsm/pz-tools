@@ -95,6 +95,12 @@ local function waterOn() return BU.enabled("water") and BU.waterAvailable() end
 -- The water networks defined for each panel now, by id: { parent, producers, rooms (a set of room ids) }. Not saved:
 -- the networks are defined anew as a world loads.
 local defined = {}
+-- What each main panel's water networks were last defined with: their floors (Water.layout's second result) and its
+-- running boosters (Water.boostKey), for Networks.boostChanged. Not saved, as defined.
+local definedFloors, definedBoost = {}, {}
+-- The purify switch last set on each water network (nil: as the API defines one, purifying). Not saved: the
+-- networks are defined anew as a world loads, which purifies them.
+local purified = {}
 -- Whether every panel's power networks, and water networks, are defined now: as the features were when the world
 -- started or Networks.applyFeatures last ran.
 local powerDefined, waterDefined = false, false
@@ -142,6 +148,7 @@ local waterPolicy = BU.POLICY.water
 -- Defines a water network. A game whose API cannot take water networks refuses it (an API that predates hooks()
 -- does not tell before): water is then off for this world (BU.waterAvailable), and nothing else is tried.
 local function defineWaterNetwork(id)
+    purified[id] = nil
     local define = BU.api().networks.define
     local ok, failure = pcall(define, BU.handle(), id, "water", waterPolicy)
     if not ok and waterPolicy ~= BU.POLICY.waterFallback and tostring(failure):find("policy for water", 1, true) then
@@ -216,9 +223,11 @@ function Networks.defineWater(panel, keys)
         for roomId, room in pairs(rooms) do
             if not (old and old.rooms[roomId]) then setRoom(network.id, room, true) end
         end
-        now[network.id] = { parent = network.parent, rooms = rooms, tanks = tanks[network.id] }
+        now[network.id] = { parent = network.parent, rooms = rooms, tanks = tanks[network.id], group = network.group,
+            level = network.level }
     end
     defined[panel.id] = now
+    if not panel.parent then definedFloors[panel.id], definedBoost[panel.id] = floors, Water.boostKey(panel) end
     for key in pairs((floorsChanged or not keys) and waterKeys(panel) or keys) do applyWaterRule(panel, key, floors) end
     if panel.parent == nil then
         local seen = { [panel.id] = true }
@@ -233,6 +242,30 @@ function Networks.defineWater(panel, keys)
         end
         follow(panel)
     end
+end
+
+-- The running boosters a main panel's water networks were last defined with (Water.boostKey), or nil before.
+function Networks.boostDefined(panel) return definedBoost[panel.id] end
+
+-- A main panel's running boosters changed (Water.boostKey differs from Networks.boostDefined): its networks follow
+-- (the lifted floors' rooms move, its sub-panels hang anew), and the rules of the water devices whose network changed
+-- with them, not every device's.
+function Networks.boostChanged(panel)
+    local old = definedFloors[panel.id]
+    local floors = select(2, Water.layout(panel))
+    local keys = {}
+    for key in pairs(waterKeys(panel)) do
+        local _, _, z = BU.parseThing(key)
+        if z then
+            for _, group in ipairs(Water.groups(panel)) do
+                if not old or Water.networkFor(panel, group.id, z, old) ~= Water.networkFor(panel, group.id, z, floors) then
+                    keys[key] = true
+                    break
+                end
+            end
+        end
+    end
+    Networks.defineWater(panel, keys)
 end
 
 -- A panel's water on or off: its pipes thawed or frozen. Its sub-panels' hang from its networks and go with them.
@@ -315,13 +348,16 @@ function Networks.link(panel)
     change("setParent", powerId(panel), panel.parent and BU.networkId(panel.parent, "power") or nil)
     removeWater(panel)
     Networks.defineWater(panel)
+    -- Its own sub-panels hang from its new main panel's networks now: defined anew down the whole tree. (Unlinked, it
+    -- is a main panel, and defining it took its sub-panels along.)
+    if panel.parent then Networks.defineWater(BU.Panels.root(panel), {}) end
 end
 
 -- Every panel of the save, as the world starts: main panels first, so that sub-panels' water hangs from theirs. Only
 -- the utilities that are on (BU.enabled).
 function Networks.defineAll()
     if not BU.api() then return end
-    defined = {}
+    defined, definedFloors, definedBoost, purified = {}, {}, {}, {}
     powerDefined, waterDefined = BU.enabled("power"), waterOn()
     local panels = Store.list()
     for _, panel in ipairs(panels) do Networks.define(panel) end
@@ -418,17 +454,18 @@ function Networks.draw(panel, group, z, litres, floors)
 end
 
 -- A group's water purified as its fixtures take it (as the game's pipes do, and the API by default), or left as its
--- tanks hold it. Each of its floors' networks; only those that differ are changed. A game without the hooks that
--- keep the taint refuses false: the pipes purify then (BU.purifyAvailable), and the callers stop asking.
-function Networks.setGroupPurify(panel, group, on, floors)
+-- tanks hold it. Each of its floors' networks as defined now; only those whose switch differs from what was last set
+-- are changed (asked each minute: no layout, no API state). A game without the hooks that keep the taint refuses
+-- false: the pipes purify then (BU.purifyAvailable), and the callers stop asking.
+function Networks.setGroupPurify(panel, group, on)
     if not waterOn() then return end
-    for _, level in ipairs(Water.levels(panel, group, floors)) do
-        local id = Water.networkId(panel, group, level)
-        local state = stateOf(id)
-        if state and state.purify ~= on then
+    for id, network in pairs(defined[panel.id] or {}) do
+        local current = purified[id]
+        if current == nil then current = true end
+        if network.group == group and current ~= on then
             local ok, failure = pcall(BU.api().networks.setPurify, BU.handle(), id, on)
             if not ok and not on then BU.hookFault("purify", failure); return end
-            if not ok then BU.log("networks.setPurify failed:", failure) end
+            if ok then purified[id] = on else BU.log("networks.setPurify failed:", failure) end
         end
     end
 end

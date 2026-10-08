@@ -55,7 +55,7 @@ for tier, want in ipairs({ 2, 3, 4, 5 }) do check("reach at tier " .. tier, BU.f
 page.FloorReach = 0
 check("no limit at 0", BU.floorReach(4), nil)
 page.FloorReach = 2
-check("ranges text tells the floors", Panels.rangesText(4):find("5", 1, true) ~= nil, true)
+check("ranges text tells the floors", Panels.rangesText(4):find(getText("IGUI_BU_FloorReach", BU.floorReach(4)), 1, true) ~= nil, true)
 
 -- A zone saved whole (before the limit) kept to the floors it reaches.
 local before = main.rooms

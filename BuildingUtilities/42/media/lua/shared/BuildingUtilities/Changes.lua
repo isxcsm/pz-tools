@@ -156,7 +156,7 @@ local function cutRoutes(panel)
         owners[owner] = owners[owner] or {}
         if route.unit then
             addPaid(paid, route.unit.paid)
-            route.unit.panel, route.unit.paid, route.unit.via = nil, nil, nil
+            Changes.unwire(route.unit)
             owners[owner].units = true
         else
             addPaid(paid, route.producer.paid)
@@ -201,7 +201,7 @@ function Changes.remove(panel)
     if object then object:getSquare():transmitRemoveItemFromSquare(object) end
     cutRoutes(panel)
     Networks.remove(panel)
-    for _, unit in ipairs(Store.unitList(nil, panel.id)) do unit.panel, unit.paid, unit.via = nil, nil, nil end
+    for _, unit in ipairs(Store.unitList(nil, panel.id)) do Changes.unwire(unit) end
     for _, child in ipairs(Store.children(panel.id)) do
         child.parent, child.parentPaid = nil, nil
         Networks.link(child)
@@ -304,6 +304,13 @@ end
 
 -- A part of the load the box adds to its devices' (the API's extra load): "charging" its bank from a generator,
 -- "pumps" its water pumps running. The network gets their sum when that differs from what it has.
+-- A unit wired to nothing now: no panel, nothing paid, no route, and nothing of how it last ran (a pump's running, a
+-- booster's boosting, why it idled), so that its look and a later panel start from stopped.
+function Changes.unwire(unit)
+    unit.panel, unit.paid, unit.via = nil, nil, nil
+    unit.running, unit.boosting, unit.idle = nil, nil, nil
+end
+
 function Changes.setExtraLoad(panel, part, load)
     panel.extraLoads = panel.extraLoads or {}
     panel.extraLoads[part] = load > 0 and load or nil
@@ -403,7 +410,7 @@ end
 -- Its line taken away; returns what it took.
 function Changes.disconnectUnit(unit)
     local panel, paid = Store.get(unit.panel), unit.paid or {}
-    unit.panel, unit.paid, unit.via = nil, nil, nil
+    Changes.unwire(unit)
     if panel then Changes.unitsChanged(panel) end
     Sync.changed(panel and panel.id)
     return paid

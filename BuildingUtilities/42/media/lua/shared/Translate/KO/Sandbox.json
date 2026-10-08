@@ -60,7 +60,7 @@
     "Sandbox_BuildingUtilities_EnablePower": "전기",
     "Sandbox_BuildingUtilities_EnablePower_tooltip": "제어반이 연결된 발전기, 태양광 패널, 배터리 랙으로 건물에 전기를 댑니다. 차단기, 선 손실, 타이머 등 전기 쪽 전부가 여기에 들어갑니다. 기본은 켜짐. 끄면 제어반이 전기를 대지 않고 전기 쪽 물건은 만들거나 연결할 수 없으며, 발전기와 기기는 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남고, 다시 켜면 다시 동작합니다.",
     "Sandbox_BuildingUtilities_EnableWater": "물",
-    "Sandbox_BuildingUtilities_EnableWater_tooltip": "제어반이 연결된 물 저장소로 건물에 물을 댑니다. 물 그룹, 펌프, 스프링클러, 필터, 가압 펌프가 여기에 들어갑니다. 기본은 켜짐. 끄면 제어반이 물을 대지 않고 물 쪽 물건은 만들거나 연결할 수 없으며, 빗물받이 통과 시설은 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남고, 다시 켜면 다시 동작합니다.",
+    "Sandbox_BuildingUtilities_EnableWater_tooltip": "제어반이 연결된 물 저장소로 건물에 물을 댑니다. 물 그룹, 펌프, 스프링클러, 필터, 가압 펌프가 여기에 들어갑니다. 기본은 켜짐. 끄면 제어반이 물을 대지 않고 물 쪽 물건은 만들거나 연결할 수 없으며, 빗물받이와 시설은 이 모드가 없을 때처럼 동작합니다. 연결해 둔 것은 그대로 남고, 다시 켜면 다시 동작합니다.",
     "Sandbox_BuildingUtilities_EnableSolar": "태양광 패널",
     "Sandbox_BuildingUtilities_EnableSolar_tooltip": "태양광 패널을 만들어 놓을 수 있고, 낮에 제어반에 전기를 댑니다. 전기가 켜져 있어야 합니다. 기본은 켜짐. 끄면 만들 수 없고, 놓여 있는 패널은 전기를 내지 않으며 떼어낼 수는 있습니다.",
     "Sandbox_BuildingUtilities_EnableBatteries": "배터리 랙",

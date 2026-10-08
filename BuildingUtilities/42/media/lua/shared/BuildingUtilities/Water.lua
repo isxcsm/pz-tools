@@ -45,8 +45,8 @@ local function topTank(panel, group)
     return top
 end
 
--- What a main panel's booster pumps of a group do: may(unit) tells whether one may run now (its power on, its pipes not
--- frozen). Lowest first, each that may runs where water reaches its floor (a tank of the group at its height or above,
+-- What a main panel's booster pumps of a group do: may(unit) tells whether one may run (the server asks whether it
+-- may now, the layout whether it runs: unit.boosting). Lowest first, each that may runs where water reaches its floor (a tank of the group at its height or above,
 -- or a lower booster lifting to it) and lifts that water the Water.boostFloors floors above its own. By floor, the
 -- lowest height whose tanks reach it (only the floors a booster lifts to); by unit id, "running" or "dry" (it may run
 -- but no water reaches it). Boosters that are off (BU.enabled) do nothing.
@@ -78,6 +78,22 @@ function Water.boostPlan(panel, group, may)
         end
     end
     return sources, states
+end
+
+-- What a main panel's water networks take of its boosters: the running ones (unit.boosting) with their floors and
+-- groups, and how far they lift, as one text; "" with none running.
+function Water.boostKey(panel)
+    local parts = {}
+    if BU.enabled("booster") then
+        for _, unit in ipairs(Store.unitList("booster", panel.id)) do
+            if unit.boosting then
+                parts[#parts + 1] = tostring(unit.id) .. "@" .. unit.z .. "g" .. tostring(unit.group or Water.FIRST)
+            end
+        end
+    end
+    if #parts == 0 then return "" end
+    table.sort(parts)
+    return table.concat(parts, ",") .. "+" .. Water.boostFloors()
 end
 
 -- The lowest of the levels at a height or above, or nil.
@@ -130,8 +146,9 @@ end
 -- sub-panel has no tanks of its own (those wired through it are its main panel's): each of its floors hangs from its
 -- main panel's first group at the height its water comes from or the nearest above (Water.networkAbove), in whichever
 -- building; a floor above all of them hangs from none and has no water (Water.floorSupply). The floors' second
--- result also has, by group, its boosters' heights by floor (boost).
-function Water.layout(panel)
+-- result also has, by group, its boosters' heights by floor (boost). mainFloors: a sub-panel's main panel's floors
+-- when the caller has them (else worked out here); the third result is those used.
+function Water.layout(panel, mainFloors)
     -- Looked up here: BU.Panels requires the networks, which require this.
     local Panels = BU.Panels
     local building = Panels.building(panel)
@@ -147,6 +164,11 @@ function Water.layout(panel)
     for level in pairs(roomsByLevel) do base[#base + 1] = level end
     if #base == 0 then base[1] = panel.z end
     local result, floors = {}, { boost = {} }
+    -- A sub-panel's floors hang from its main panel's.
+    local main = panel.parent and Panels.root(panel)
+    if main == panel then main = nil end
+    if main and not mainFloors then mainFloors = select(2, Water.layout(main)) end
+    local mainSources = mainFloors and mainFloors.boost[Water.FIRST] or {}
     for _, group in ipairs(Water.groups(panel)) do
         local seen, levels = {}, {}
         local function addLevel(level)
@@ -182,20 +204,17 @@ function Water.layout(panel)
                 for _, room in ipairs(rooms) do table.insert(roomsAt[at], room) end
             end
         end
-        local main = panel.parent and Panels.root(panel)
-        local mainFloors = main and main ~= panel and select(2, Water.layout(main)) or nil
-        local mainSources = mainFloors and mainFloors.boost[Water.FIRST] or {}
         for index, level in ipairs(levels) do
             local above = levels[index + 1]
             local parent = above and Water.networkId(panel, group.id, above) or nil
             if panel.parent then
-                parent = mainFloors and Water.networkAbove(main, Water.FIRST, mainSources[level] or level, mainFloors) or nil
+                parent = main and Water.networkAbove(main, Water.FIRST, mainSources[level] or level, mainFloors) or nil
             end
             result[#result + 1] = { id = Water.networkId(panel, group.id, level), group = group.id, level = level,
                 parent = parent, producers = producersByLevel[level] or {}, rooms = roomsAt[level] or {} }
         end
     end
-    return result, floors
+    return result, floors, mainFloors
 end
 
 -- The floors of a group's tree, lowest first; floors is Water.layout's second result when the caller has it.
@@ -221,10 +240,12 @@ end
 -- How water reaches a panel's floors (its first group's; a sub-panel's from its main panel's first group): those no
 -- tank reaches (dry: none at their height or above, and no booster lifting to them) and those boosters lift to, each
 -- as ranges { low, high } of floors next to each other, then the same by floor ("dry" or "boosted"). only: a set of
--- floors to tell of (the others are left out); all of them when nil.
+-- floors to tell of (the others are left out); all of them when nil. One layout of the panel (and of its main panel
+-- for a sub-panel's).
 function Water.floorSupply(panel, only)
     local main = BU.Panels.root(panel)
-    local mainFloors = select(2, Water.layout(main))
+    local _, floors, mainFloors = Water.layout(panel)
+    mainFloors = mainFloors or floors
     local sources = mainFloors.boost[Water.FIRST] or {}
     local top = topTank(main, Water.FIRST)
     local dry, boosted, byLevel = {}, {}, {}
@@ -232,7 +253,7 @@ function Water.floorSupply(panel, only)
         local last = ranges[#ranges]
         if last and last[2] == level - 1 then last[2] = level else ranges[#ranges + 1] = { level, level } end
     end
-    for _, level in ipairs(Water.levels(panel, Water.FIRST)) do
+    for _, level in ipairs(Water.levels(panel, Water.FIRST, floors)) do
         if not only or only[level] then
             local from = sources[level] or level
             if not top or from > top then
