@@ -5,7 +5,9 @@
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
-> ([built so far](#built-so-far)). Planned: `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
+> ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points so far). Planned:
+> `"parallel"`, the rest of the formula points. The first areas serve a separate power and water mod, the formulas the
+> talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
 
@@ -52,7 +54,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
+| `buildings`, `networks`, `formulas` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
 
 Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -231,6 +233,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   whose squares are not loaded, which take the change as they load ([draw and fill](#draw-and-fill)).
 - Purification: `setPurify(false)` lets a water network's fixtures give their producer's taint
   instead of vanilla's purified water.
+- Formulas: the body points ([formulas](#formulas-mechanism)), declared through a mod's handle and read by hooks in the
+  game's character and stats methods.
 - Not yet: `"parallel"`.
 
 ### Power
@@ -382,6 +386,65 @@ own, then its parents'), and nothing while the network or a parent above it is s
   multiplayer client `draw` and `fill` are a Lua error.
 - The API does not simulate rain for producers that are not loaded. Whether the game fills a rain
   collector for the time its square was not loaded is not verified.
+
+## Formulas (mechanism)
+
+A formula is a value a mod declares for a named hook point: how much of a penalty to take away, a multiplier, an
+amount to add. The hooks in the game's methods read the combined values from plain fields, so a question the game asks
+many times a frame costs one volatile read, calls no Lua and allocates nothing. Without a declaration the game answers
+as in vanilla; a declared value may give more or less than vanilla (halve a penalty, double a drain). The API knows
+no mod's concept: a point is a place in a game method, named in the game's terms.
+
+| Call | Effect |
+| --- | --- |
+| `formulas.set(handle, point, value)` | Declares the mod's value for the point (a `value` of `nil` takes it back). A point the API does not have, or a value of the wrong shape or outside its range, is a Lua error that names the point. A point that is `"planned"` (below) takes a number, boolean, string or table and keeps nothing. |
+| `formulas.get(point)` | The value all mods' declarations make together, in the point's shape, or `nil` when no mod declared it. |
+| `formulas.declared(handle, point)` | The mod's own value, or `nil`. |
+| `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"planned"` when the point has no hook yet. A mod shows the player what is not applied. |
+
+`handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
+loads (`OnGameStart`), as it defines its networks: they belong to the world they were made in, and are gone when the player
+leaves it. A newer API takes them over, as it takes over the networks; a function a mod copied out of the table says
+the API was updated (see [reaching the API](#reaching-the-api-from-lua)). Several mods may declare one point; each point
+combines their values by its own rule, below.
+
+Only the local player's character is changed: a player of this machine (`IsoPlayer.players`, the one or up to four of
+split screen). A zombie, a corpse, an animal and a remote player get the game's answers. A hook that cannot answer, or
+whose point has no declaration, gives the game's answer, and the API goes on.
+
+### Points
+
+Values are plain numbers and tables. "Multiply" means the values of several mods multiply; "reductions" combine as
+`1 - (1 - a)(1 - b)`, the part of a penalty that is left multiplying; "add" sums them.
+
+| Point | Value | Combined | Meaning |
+| --- | --- | --- | --- |
+| `body.discomfortMultiplier` | 0 to 100 | multiply | Times the clothing discomfort the game works out (`getClothingDiscomfortModifier`, which `BodyDamage.UpdateDiscomfort` reads). |
+| `body.stiffnessMultiplier` | 0 to 100 | multiply | Times the muscle strain a body part gets (`addStiffness`). What the muscles recover (a negative amount) is not scaled. |
+| `body.fatigueMultiplier` | 0 to 100 | multiply | Times the fatigue an awake character gains (`getFatiqueMultiplier`, read by `updateStats_Awake`). |
+| `body.enduranceDrainMultiplier` | 0 to 100 | multiply | Times every drop of the endurance stat (`Stats.add` of a negative amount, which `Stats.remove` is). What recovers it is not scaled. |
+| `body.poisonMultiplier` | 0 to 100 | multiply | Times every rise of the poison stat (`Stats.add` of a positive amount). What lowers it is not scaled. |
+
+Planned points, accepted and without effect until their hooks are built: `body.coldMultiplier`,
+`body.corpseCountMultiplier`, `body.corpseSicknessMultiplier`, `body.holeChance`, `carry.categoryEfficiency`,
+`carry.itemEfficiency`, `capacity.maxWeightAdd`, `capacity.effectiveMultiplier`, `capacity.characterLimitAdd`,
+`overload.compress`, `move.runPenaltyReduction`, `move.combatPenaltyReduction`, `move.walkMultiplier`,
+`move.treeSlowMultiplier`, `move.treeScratchChance`, `infection.woundChance`, `infection.biteShield`,
+`fall.landingRemap`, `fall.impactMultiplier`, `loot.spawnMultiplier`, `loot.ammoMultiplier`, `vision.darknessRestore`,
+`vision.coneAdd` and `vision.hiddenZombieFix`.
+
+### Hook sites
+
+The hooks are found by the signature of the method and the shape of its call sites, never by position or hash: every
+return of a method (or the one place a value is read) is hooked, and a method that is not shaped as expected loses its own
+hook only. `PZToolsAPI.hooks()` names each by game class and method.
+
+| Hook | Where | What it does |
+| --- | --- | --- |
+| `IsoGameCharacter.getClothingDiscomfortModifier` | each return | Times `body.discomfortMultiplier`, for the local player. |
+| `IsoGameCharacter.addStiffness` | the start | Times `body.stiffnessMultiplier` on the amount, which is the method's own argument, when it is above 0. |
+| `IsoGameCharacter.getFatiqueMultiplier` | each return | Times `body.fatigueMultiplier`. |
+| `Stats.add` | the start | Times `body.enduranceDrainMultiplier` or `body.poisonMultiplier` on the amount (the argument) for the endurance or poison stat of a local player's `Stats`. `remove` calls `add`, so it is covered. |
 
 ## How the game is answered
 

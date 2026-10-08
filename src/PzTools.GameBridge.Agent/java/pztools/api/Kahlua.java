@@ -15,6 +15,7 @@ final class Kahlua {
     private final Method newTable, rawset, rawget, setMetatable, getMetatable;
     private final Class<?> functionType;
     private final Method argument, push, pushNil;
+    private final Method iterator, advance, key, value;
 
     Kahlua(Class<?> luaManager) throws ReflectiveOperationException {
         ClassLoader loader = luaManager.getClassLoader();
@@ -31,6 +32,11 @@ final class Kahlua {
         argument = frame.getMethod("get", int.class);
         push = frame.getMethod("push", Object.class);
         pushNil = frame.getMethod("pushNil");
+        iterator = table.getMethod("iterator");
+        Class<?> walker = Class.forName("se.krka.kahlua.vm.KahluaTableIterator", false, loader);
+        advance = walker.getMethod("advance");
+        key = walker.getMethod("getKey");
+        value = walker.getMethod("getValue");
     }
 
     /** The global table, or null before the game made one. */
@@ -47,6 +53,14 @@ final class Kahlua {
     Object metatable(Object table) throws ReflectiveOperationException { return getMetatable.invoke(table); }
 
     void setMetatable(Object table, Object metatable) throws ReflectiveOperationException { setMetatable.invoke(table, metatable); }
+
+    /** A table's entries (keys as Lua gives them: numbers are {@code Double}), in the table's own order. */
+    java.util.List<java.util.Map.Entry<Object, Object>> entries(Object table) throws ReflectiveOperationException {
+        var result = new java.util.ArrayList<java.util.Map.Entry<Object, Object>>();
+        Object walk = iterator.invoke(table);
+        while ((boolean)advance.invoke(walk)) result.add(java.util.Map.entry(key.invoke(walk), value.invoke(walk)));
+        return result;
+    }
 
     /** A Lua array (keys 1..n). */
     Object list(java.util.List<?> values) throws ReflectiveOperationException {

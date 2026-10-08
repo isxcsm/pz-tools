@@ -84,6 +84,26 @@ public final class ApiHooks {
         default boolean tainted(boolean vanilla, Object fixture) { return vanilla; }
     }
 
+    /**
+     * Set by the payload: the formulas mods declare (docs/design/extension-api.md, "Formulas"). Every call is for one
+     * hook site of a game method and gets the game's own answer; what it returns replaces the answer. Only the local
+     * player's character is changed, and a call that has nothing declared returns the game's answer at once. The calls
+     * come on the game's thread, some of them many times a frame; none allocates.
+     */
+    public interface Formulas {
+        /** {@code IsoGameCharacter.getClothingDiscomfortModifier()}. */
+        default float discomfort(float vanilla, Object character) { return vanilla; }
+
+        /** {@code IsoGameCharacter.addStiffness(part, amount)}: the amount added. */
+        default float stiffness(float amount, Object character) { return amount; }
+
+        /** {@code IsoGameCharacter.getFatiqueMultiplier()}. */
+        default double fatigue(double vanilla, Object character) { return vanilla; }
+
+        /** {@code Stats.add(stat, delta)} (also {@code remove}): the change to the stat. */
+        default float statDelta(float delta, Object stats, Object stat) { return delta; }
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -95,21 +115,27 @@ public final class ApiHooks {
     private static boolean expected;
     private static volatile Power power;
     private static volatile Water water;
+    private static volatile Formulas formulas;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
     /** The handlers' calls, each reported once; a newer handler of its kind may report again. */
     private enum Call {
-        SQUARE("square"), OBJECT("object"), GENERATOR("generator"), CONSUMER_CHANGED("consumerChanged"),
-        GENERATOR_UPDATE("generatorUpdate"), FOOD_HOURS("foodHours"), WATER_PLUMBED("waterPlumbed", true),
-        WATER_SOURCE("waterSource", true), WATER_SAMPLE("waterSample", true), WATER_TAINTED("waterTainted", true);
+        SQUARE("square", Group.POWER), OBJECT("object", Group.POWER), GENERATOR("generator", Group.POWER),
+        CONSUMER_CHANGED("consumerChanged", Group.POWER), GENERATOR_UPDATE("generatorUpdate", Group.POWER),
+        FOOD_HOURS("foodHours", Group.POWER), WATER_PLUMBED("waterPlumbed", Group.WATER),
+        WATER_SOURCE("waterSource", Group.WATER), WATER_SAMPLE("waterSample", Group.WATER),
+        WATER_TAINTED("waterTainted", Group.WATER), DISCOMFORT("discomfort", Group.FORMULAS),
+        STIFFNESS("stiffness", Group.FORMULAS), FATIGUE("fatigue", Group.FORMULAS), STAT_DELTA("statDelta", Group.FORMULAS);
 
         final String label;
-        final boolean water;
+        final Group group;
 
-        Call(String label) { this(label, false); }
-        Call(String label, boolean water) { this.label = label; this.water = water; }
+        Call(String label, Group group) { this.label = label; this.group = group; }
     }
+
+    /** The handler a call belongs to: a newer one of that handler reports its faults again. */
+    private enum Group { POWER, WATER, FORMULAS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -120,36 +146,36 @@ public final class ApiHooks {
     private ApiHooks() { }
 
     /** The game classes the hooks go into, and what goes in. */
-    private static final Map<String, Site[]> SITES = Map.of(
-        "zombie/Lua/LuaManager", new Site[] {
+    private static final Map<String, Site[]> SITES = Map.ofEntries(
+        Map.entry("zombie/Lua/LuaManager", new Site[] {
             Site.atReturns("init", "()V", 0, (code, owner) -> {
                 code.ldc(owner);
                 code.invokestatic(HOOKS, "luaStarted", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Class));
-            }) },
-        "zombie/iso/IsoGridSquare", new Site[] {
+            }) }),
+        Map.entry("zombie/iso/IsoGridSquare", new Site[] {
             Site.atReturns("haveElectricity", "()Z", 1, (code, owner) -> {
                 for (String axis : new String[] { "x", "y", "z" }) { code.aload(0); code.getfield(owner, axis, ConstantDescs.CD_int); }
                 code.invokestatic(HOOKS, "squarePowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
                     ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int));
-            }).reading("x", "y", "z") },
-        "zombie/inventory/ItemContainer", new Site[] {
+            }).reading("x", "y", "z") }),
+        Map.entry("zombie/inventory/ItemContainer", new Site[] {
             Site.atReturns("isObjectPowered", "(Lzombie/iso/IsoObject;Z)Z", 2, (code, owner) -> {
                 code.aload(0); code.iconst_0(); code.iload(1); objectPowered(code);
-            }) },
-        "zombie/iso/objects/IsoLightSwitch", new Site[] {
+            }) }),
+        Map.entry("zombie/iso/objects/IsoLightSwitch", new Site[] {
             Site.atReturns("hasElectricityAround", "()Z", 1, (code, owner) -> {
                 code.aload(0); code.iconst_1(); code.iconst_1(); objectPowered(code);
-            }) },
-        "zombie/radio/devices/DeviceData", new Site[] {
+            }) }),
+        Map.entry("zombie/radio/devices/DeviceData", new Site[] {
             Site.atReturns("canBePoweredHere", "()Z", 1, (code, owner) -> {
                 code.aload(0); code.iconst_2(); code.iconst_1(); objectPowered(code);
-            }) },
-        "zombie/iso/LightingJNI", new Site[] {
+            }) }),
+        Map.entry("zombie/iso/LightingJNI", new Site[] {
             // switch.square.haveElectricity(), for each switch of a room whose light is checked.
             Site.square("checkLights", "()V", element -> element instanceof FieldInstruction field
                 && field.opcode() == Opcode.GETFIELD && field.owner().asInternalName().equals("zombie/iso/objects/IsoLightSwitch")
-                && field.name().equalsString("square"), ROOM_LIGHT) },
-        "zombie/inventory/types/Food", new Site[] {
+                && field.name().equalsString("square"), ROOM_LIGHT) }),
+        Map.entry("zombie/inventory/types/Food", new Site[] {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
                 && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
@@ -164,8 +190,8 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "foodHours", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double,
                         ConstantDescs.CD_Object));
                     code.aload(0);
-                }).named("hours") },
-        "zombie/iso/IsoObject", new Site[] {
+                }).named("hours") }),
+        Map.entry("zombie/iso/IsoObject", new Site[] {
             // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
             Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
                 code.aload(0);
@@ -191,8 +217,8 @@ public final class ApiHooks {
                 code.aload(0);
                 code.invokestatic(HOOKS, "waterTainted", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
                     ConstantDescs.CD_Object));
-            }) },
-        "zombie/iso/objects/IsoGenerator", new Site[] {
+            }) }),
+        Map.entry("zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
                 Label vanilla = code.newLabel();
                 code.aload(0);
@@ -208,7 +234,35 @@ public final class ApiHooks {
             Site.atStart("update", "()V", (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "generatorUpdate", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
-            }) });
+            }) }),
+        // The formulas (docs/design/extension-api.md, "Formulas"): each hook changes the game's own answer for the
+        // local player's character when a mod declared a formula for it.
+        Map.entry("zombie/characters/IsoGameCharacter", new Site[] {
+            Site.atReturns("getClothingDiscomfortModifier", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "discomfort", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }),
+            // The amount is the method's own argument: the hook replaces it before the method uses it.
+            Site.atStart("addStiffness", "(Lzombie/characters/BodyDamage/BodyPartType;F)V", (code, owner) -> {
+                code.fload(2);
+                code.aload(0);
+                code.invokestatic(HOOKS, "stiffness", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                code.fstore(2);
+            }),
+            Site.atReturns("getFatiqueMultiplier", "()D", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "fatigue", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double, ConstantDescs.CD_Object));
+            }) }),
+        Map.entry("zombie/characters/Stats", new Site[] {
+            // add(stat, delta); remove(stat, amount) is add(stat, -amount).
+            Site.atStart("add", "(Lzombie/characters/CharacterStat;F)Z", (code, owner) -> {
+                code.aload(0);
+                code.aload(1);
+                code.fload(2);
+                code.invokestatic(HOOKS, "statDelta", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                    ConstantDescs.CD_float));
+                code.fstore(2);
+            }) }));
 
     private static void objectPowered(CodeBuilder code) {
         code.invokestatic(HOOKS, "objectPowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
@@ -503,7 +557,7 @@ public final class ApiHooks {
 
     /** Sets the power networks, replacing an earlier payload's; null gives every power question to the game alone. */
     public static void setPower(Power next) {
-        synchronized (reported) { reported.removeIf(call -> !call.water); }
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.POWER); }
         power = next;
     }
 
@@ -527,7 +581,7 @@ public final class ApiHooks {
 
     /** Sets the water networks, replacing an earlier payload's; null gives every water question to the game alone. */
     public static void setWater(Water next) {
-        synchronized (reported) { reported.removeIf(call -> call.water); }
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.WATER); }
         water = next;
     }
 
@@ -599,6 +653,44 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.consumerChanged(square); }
         catch (Throwable problem) { reportOnce(Call.CONSUMER_CHANGED, problem); }
+    }
+
+    /** Sets the formulas, replacing an earlier payload's; null gives every formula question to the game alone. */
+    public static void setFormulas(Formulas next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.FORMULAS); }
+        formulas = next;
+    }
+
+    /** Put before each return of {@code IsoGameCharacter.getClothingDiscomfortModifier()}. */
+    public static float discomfort(float vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.discomfort(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.DISCOMFORT, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code IsoGameCharacter.addStiffness(part, amount)}: the amount to add instead. */
+    public static float stiffness(float amount, Object character) {
+        Formulas current = formulas;
+        if (current == null) return amount;
+        try { return current.stiffness(amount, character); }
+        catch (Throwable problem) { reportOnce(Call.STIFFNESS, problem); return amount; }
+    }
+
+    /** Put before each return of {@code IsoGameCharacter.getFatiqueMultiplier()}. */
+    public static double fatigue(double vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.fatigue(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.FATIGUE, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code Stats.add(stat, delta)}: the change to make instead. */
+    public static float statDelta(Object stats, Object stat, float delta) {
+        Formulas current = formulas;
+        if (current == null) return delta;
+        try { return current.statDelta(delta, stats, stat); }
+        catch (Throwable problem) { reportOnce(Call.STAT_DELTA, problem); return delta; }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */

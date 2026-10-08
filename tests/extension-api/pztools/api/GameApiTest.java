@@ -72,6 +72,7 @@ public final class GameApiTest {
         fluids(api);
         purify(api);
         food(api);
+        FormulasTest.run(api);
         hooks(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer API takes it over");
@@ -1997,9 +1998,10 @@ public final class GameApiTest {
                 "IsoObject.checkExternalFluidSource", "IsoObject.createSampleAndPurifyWater", "IsoObject.isTaintedWater",
                 "IsoObject.waterQuestions", "Food.updateAge:power", "Food.updateAge:hours", "IsoGenerator.setSurroundingElectricity",
                 "IsoGenerator.updateGenerator", "IsoGenerator.update", "IsoLightSwitch.hasElectricityAround",
-                "DeviceData.canBePoweredHere", "LightingJNI.checkLights" })
+                "DeviceData.canBePoweredHere", "LightingJNI.checkLights", "IsoGameCharacter.getClothingDiscomfortModifier",
+                "IsoGameCharacter.addStiffness", "IsoGameCharacter.getFatiqueMultiplier", "Stats.add" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 15, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 19, "The hooks are " + ApiHooks.hookStatus().keySet());
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
         transform.setAccessible(true);

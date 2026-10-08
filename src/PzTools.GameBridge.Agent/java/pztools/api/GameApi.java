@@ -26,6 +26,8 @@ public final class GameApi {
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Networks networks;
+    // The formulas of the Lua environment the game has now; null without one, or when the game cannot run them.
+    private static volatile Formulas formulas;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -58,6 +60,8 @@ public final class GameApi {
         }
         Networks current = networks;
         if (current != null) current.frame();
+        Formulas declared = formulas;
+        if (declared != null) declared.frame();
     }
 
     private static void luaStarted(Class<?> luaManager) {
@@ -75,7 +79,9 @@ public final class GameApi {
         try { install(luaManager); }
         catch (Throwable failure) {
             networks = null;
+            formulas = null;
             Networks.unhook();
+            Formulas.unhook();
             throw failure;
         }
     }
@@ -104,10 +110,12 @@ public final class GameApi {
             var buildings = new Buildings(lua, game, luaManager.getClassLoader());
             buildings.register(table(lua, api, "buildings"));
             networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
+            formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
-            // The functions mods kept refuse to be called rather than change networks that no longer run.
+            // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
             Networks.retire(lua, meta);
+            Formulas.retire(lua, meta);
             throw failure;
         }
     }
@@ -136,6 +144,33 @@ public final class GameApi {
         else {
             Networks.retire(lua, meta);
             lua.set(api, "networks", null);
+        }
+    }
+
+    /**
+     * {@code PZToolsAPI.formulas}, with the declarations an earlier API kept in this environment. Without it (a game
+     * started by an install from before the formulas, or a game this API cannot read), mods find no {@code formulas}
+     * and the game answers every formula question alone.
+     */
+    private static void formulas(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
+            throws ReflectiveOperationException {
+        Formulas next;
+        try {
+            next = new Formulas(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            next.hook();
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PzTools API] Formulas are not in this game; restart it to use them: " + olderBootstrap);
+            next = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            Formulas.unhook();
+            next = null;
+        }
+        formulas = next;
+        if (next != null) next.register(table(lua, api, "formulas"));
+        else {
+            Formulas.retire(lua, meta);
+            lua.set(api, "formulas", null);
         }
     }
 
@@ -171,6 +206,8 @@ public final class GameApi {
             if (name == null) throw new IllegalArgumentException(AREA + "client:clear: call it on a handle, with a colon");
             Networks current = networks;
             if (current != null) current.clear(name, AREA + "client:clear");
+            Formulas declared = formulas;
+            if (declared != null) declared.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;
