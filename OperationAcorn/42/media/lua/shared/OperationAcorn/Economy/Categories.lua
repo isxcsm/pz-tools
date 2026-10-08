@@ -30,7 +30,8 @@ Categories.BY_DISPLAY = {}
 local D = Categories.BY_DISPLAY
 fill(D, "A", "Food")
 fill(D, "B", "Clothing,Accessory,ProtectiveGear,Ears")
-fill(D, "C", "Bag,Container,WaterContainer")
+-- "Water" is only the plastic water bottle (and a test mug): a container like the rest.
+fill(D, "C", "Bag,Container,WaterContainer,Water")
 fill(D, "D", "Literature,SkillBook,RecipeResource,Cartography,Entertainment")
 fill(D, "E", "Junk,Memento,Bug,Teddy Bear,Fox,Bunny,Duck,Frog,Raccoon,Bear,Badger,Squirrel,Beaver,Mole,Hedgehog,"
     .. "Dog,Goblin,Spider,Eye,Sports,Instrument,InstrumentWeapon,JunkWeapon")
@@ -46,7 +47,7 @@ fill(D, "K", "Material,MaterialWeapon,Paint")
 Categories.REJECT_DISPLAY = {
     Ammo = "Ammo", Explosives = "Explosive",
     ZedDmg = "Body", Wound = "Body", Bandage = "Body", MaleBody = "Body", Tail = "Body", Hidden = "Body",
-    Corpse = "Body", Water = "Body", Animal = "Body", Generic = "Body",
+    Corpse = "Body", Animal = "Body", Generic = "Body",
     AnimalPart = "AnimalPart", AnimalPartWeapon = "AnimalPart",
 }
 

@@ -57,7 +57,7 @@
 | 폭발물 (Explosives 33종) | 실어 보낼 물건이 아니다 |
 | 가구: `ItemType = base:moveable` 전부 (Furniture 339종과 다른 분류에 섞인 31종) | 타일에서 끝없이 나온다 |
 | 자연 자재: 통나무, 판자, 나뭇가지, 돌, 흙, 모래, 자갈 | 다시 난다 |
-| 몸·덧그림: ZedDmg, Wound, Bandage, MaleBody, Tail, Hidden, Corpse, Water, Animal, Generic | 루팅하는 물건이 아니다 |
+| 몸·덧그림: ZedDmg, Wound, Bandage, MaleBody, Tail, Hidden, Corpse, Animal, Generic | 루팅하는 물건이 아니다 |
 | AnimalPart 69종, AnimalPartWeapon 전부, 동물 분변 `Dung_*` | 도축과 가축에서 계속 나온다 |
 | 상점에서 산 물건 | 되팔기를 막는다 (DESIGN 9장) |
 | 바닐라 큰 운석 `Base.LargeMeteorite` | 설정집 7장: "출처 불명, 대조 불가" |
@@ -484,7 +484,7 @@
 | --- | --- | --- | --- | --- |
 | A 식품 | Food | 707 | 316 | 0.2 |
 | B 의류·장신구 | Clothing, Accessory, ProtectiveGear, Ears | 1,129 | 385 | 1.0 |
-| C 가방·용기 | Bag, Container, WaterContainer | 300 | 129 | 1.0 |
+| C 가방·용기 | Bag, Container, WaterContainer, Water(플라스틱 물병) | 300 | 129 | 1.0 |
 | D 문서·미디어 | Literature, SkillBook, RecipeResource, Cartography, Entertainment | 510 | 356 | 0.5 |
 | E 잡동사니·추억·장난감 | Junk, Memento, Bug, 인형·장난감 동물 분류(Teddy Bear, Fox, Bunny, Duck, Frog, Raccoon, Bear, Badger, Squirrel, Beaver, Mole, Hedgehog, Dog, Goblin, Spider, Eye), Sports, Instrument, InstrumentWeapon, JunkWeapon | 399 | 255 | 0.3 |
 | F 가정·주방·생활 | Household, Cooking, CookingWeapon, HouseholdWeapon, Appearance, Security, FireSource, LightSource | 208 | 131 | 0.5 |
@@ -493,7 +493,7 @@
 | I 의료 | FirstAid, FirstAidWeapon | 54 | 22 | 0.2 |
 | J 무기·운동기구 | Weapon, SportsWeapon, WeaponPart, WeaponCrafted, BrokenWeapon, WeaponImprovised, AnimalPartWeapon(무게만), Explosives(무게만), Ammo(무게만) | 234 + 33 | 49 | 2.0 |
 | (무거운 짐 무게) | Material, MaterialWeapon, Paint → 시세 계열 K 자재 / Furniture와 `base:moveable` 전부 → 가구 | | | |
-| (어디에도 넣지 않음) | ZedDmg, Wound, Bandage, MaleBody, Tail, Hidden, Corpse, Water, Animal, Generic | 186 | | |
+| (어디에도 넣지 않음) | ZedDmg, Wound, Bandage, MaleBody, Tail, Hidden, Corpse, Animal, Generic | 186 | | |
 
 - G(59종)와 I(54종)는 작아도 따로 둔다. 전자와 의료는 연구팀이 찾는 계열로 이야기에 나오고(설정집 4장), 시세 사건의 단위로도 쓴다.
 - '무게만'으로 적은 분류(AnimalPart, AnimalPartWeapon, Explosives, Ammo)는 납품과 분해를 받지 않는다 (1장, 3장). 다만 들고 다니는 무게는 있으므로 계열 무게에는 H와 J로 넣는다.
