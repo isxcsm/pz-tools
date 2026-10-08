@@ -30,5 +30,10 @@
     "OperationAcorn.UpgradeSerumSurvival": "생존 적응 혈청",
     "OperationAcorn.UpgradeSerumShared": "공용 연구 혈청",
     "OperationAcorn.CureSerum": "치료 혈청",
-    "OperationAcorn.DelayDrug": "지연제"
+    "OperationAcorn.DelayDrug": "지연제",
+    "OperationAcorn.CommTerminal": "통신 단말",
+    "OperationAcorn.DeliveryBox": "납품 상자",
+    "OperationAcorn.SupplyCrate": "보급 상자",
+    "OperationAcorn.TerminalManual": "단말 조립 책자",
+    "OperationAcorn.SupplyManifest": "보급 명세서"
 }

@@ -30,5 +30,10 @@
     "OperationAcorn.UpgradeSerumSurvival": "Survival Adaptation Serum",
     "OperationAcorn.UpgradeSerumShared": "Shared Research Serum",
     "OperationAcorn.CureSerum": "Cure Serum",
-    "OperationAcorn.DelayDrug": "Delay Drug"
+    "OperationAcorn.DelayDrug": "Delay Drug",
+    "OperationAcorn.CommTerminal": "Communication Terminal",
+    "OperationAcorn.DeliveryBox": "Delivery Box",
+    "OperationAcorn.SupplyCrate": "Supply Crate",
+    "OperationAcorn.TerminalManual": "Terminal Booklet",
+    "OperationAcorn.SupplyManifest": "Supply Manifest"
 }
