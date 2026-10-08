@@ -1,0 +1,10 @@
+module OperationAcorn
+{
+	/* The research team backpack lying on the floor (same pack as the worn model, own atlas). */
+	model OA_ResearchPack_Ground
+	{
+		mesh = WorldItems/Clothing/OA_ResearchPack_Ground,
+		texture = Clothes/Bag/OA_ResearchPack,
+		scale = 0.4,
+	}
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<fileGuidTable>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_ResearchPack.xml</path>
+		<guid>4fbba45f-fbcf-4f9e-a4bb-cfadf3fbbe5d</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_ResearchPack_LHand.xml</path>
+		<guid>8a9c34b3-a4b9-4341-80c4-3c11785722d6</guid>
+	</files>
+	<files>
+		<path>media/clothing/clothingItems/OA_Bag_ResearchPack_RHand.xml</path>
+		<guid>13b5d057-5a2d-436e-8d37-8dbac94fa075</guid>
+	</files>
+</fileGuidTable>
