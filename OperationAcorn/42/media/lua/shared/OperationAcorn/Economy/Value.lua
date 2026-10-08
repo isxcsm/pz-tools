@@ -217,6 +217,17 @@ function Value.appraiseLine(info, count, ctx, taken)
     return line
 end
 
+-- The translation keys of the marks an item shows in a tooltip or the estimate window, in the order to show them.
+function Value.markKeys(marks)
+    local keys = {}
+    if marks.refused then table.insert(keys, "IGUI_OA_Econ_Mark_Refused") end
+    if marks.request then table.insert(keys, "IGUI_OA_Econ_Mark_Request") end
+    if marks.newRegion then table.insert(keys, "IGUI_OA_Econ_Mark_NewRegion") end
+    if marks.high then table.insert(keys, "IGUI_OA_Econ_Mark_High") end
+    if marks.low then table.insert(keys, "IGUI_OA_Econ_Mark_Low") end
+    return keys
+end
+
 -- One item: { credits, trust, category, marks } before rounding (ARCHITECTURE 5).
 function Value.appraise(info, ctx)
     local line = Value.appraiseLine(info, 1, ctx)

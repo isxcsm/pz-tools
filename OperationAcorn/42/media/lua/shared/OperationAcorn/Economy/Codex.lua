@@ -63,8 +63,11 @@ local function milestone(record, events, kind, credits, detail)
     local event = { kind = kind, credits = credits * (OA.option("BonusMultiplier") or 1.0) }
     for k, v in pairs(detail or {}) do event[k] = v end
     table.insert(events, event)
+    -- The notice's arguments: the credits, then the count reached (or the category's name).
+    local arg = event.count
+    if event.letter then arg = getText(OA.Categories.nameKey(event.letter)) end
     local ok, err = pcall(OA.Sync.notice, record.id, "IGUI_OA_Econ_Notice_" .. kind,
-        { math.floor(event.credits + 0.5), detail and (detail.count or detail.letter or detail.index) or 0 })
+        { math.floor(event.credits + 0.5), arg or 0 })
     if not ok then OA.log("notice failed:", tostring(err)) end
 end
 

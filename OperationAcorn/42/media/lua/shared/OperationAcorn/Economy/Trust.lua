@@ -62,6 +62,20 @@ function Trust.tier(record)
     return (t.stage or 0) + (t.milestones or 0)
 end
 
+-- The translation key of a stage's name (0 is the start), and of a milestone's ("Milestone %1").
+function Trust.stageNameKey(stage)
+    return "IGUI_OA_Econ_Stage_" .. tostring(stage)
+end
+
+Trust.MILESTONE_NAME_KEY = "IGUI_OA_Econ_Stage_Milestone"
+
+-- The name a record's level goes by: the stage's, or "Milestone n" once past the last stage.
+function Trust.label(record)
+    local t = record.trade or {}
+    if (t.milestones or 0) > 0 then return getText(Trust.MILESTONE_NAME_KEY, t.milestones) end
+    return getText(Trust.stageNameKey(t.stage or 0))
+end
+
 -- Where the trust bar stands: { trust, from, to, kind = "stage"|"milestone", number } (to = the next threshold).
 function Trust.progress(record)
     local t = Trust.section(record)

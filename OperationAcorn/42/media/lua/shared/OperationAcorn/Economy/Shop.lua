@@ -194,6 +194,15 @@ function Shop.entry(id)
     return nil
 end
 
+-- The translation keys of an entry's name and of a group's.
+function Shop.nameKey(entry)
+    return "IGUI_OA_Econ_Shop_Item_" .. entry.id
+end
+
+function Shop.groupKey(group)
+    return "IGUI_OA_Econ_Shop_Group_" .. group
+end
+
 -- The list of things an entry delivers to choose from (the seeds are found when first asked).
 function Shop.choices(entry)
     if entry.choices == "seeds" then return Shop.seedChoices() end
