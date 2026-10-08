@@ -47,7 +47,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Store.lua` | 저장 데이터. 전역 ModData `OA_World` 하나에 모두 둔다. `Store.world(section)`, `Store.player(id)`, `Store.section(record, section)`, `Store.players()`, `Store.ensure(id, name)`(기록과 네 자리 채집점 번호를 만든다), `Store.idOf(character)`(캐릭터 modData `OA_Id`) |
 | `shared/OperationAcorn/Sync.lua` | 바뀐 것 알리기. `Sync.changed(what, playerId, detail)`, `Sync.notice(playerId, key, args)`, `Sync.send(character, command, args)`(클라이언트 → 서버, `args.id`를 붙인다), `Sync.listen(what, fn)`(클라이언트 쪽) |
 | `shared/OperationAcorn/Chunks.lua` | 칸이 불러질 때 할 일의 대기 표 (`LoadChunk`, 청크 키). `Chunks.handle(kind, fn)`, `Chunks.add(entry)`, `Chunks.remove(predicate)`, `Chunks.list(kind)`. `LoadGridsquare`는 쓰지 않는다 |
-| `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machine(kind, dir, running)` ...). 시트 자리는 바꾸지 않는다 |
+| `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
 

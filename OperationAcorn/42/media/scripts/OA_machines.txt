@@ -278,7 +278,8 @@ module OperationAcorn
             {
                 layer
                 {
-                    row = oa_machines_01_48,
+                    row = oa_machines_01_128 oa_machines_01_129,
+                    row = oa_machines_01_130 oa_machines_01_131,
                 }
             }
         }

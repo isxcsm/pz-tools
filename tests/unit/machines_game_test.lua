@@ -726,11 +726,11 @@ test("sprites follow the state and the kind", function()
     state.dir = "E"
     state.running = false
     Machines.refreshLook(obj, state)
-    eq(obj.sprite, OA.Sprites.machine("bulkShredder", "E", false))
+    eq(obj.sprite, OA.Sprites.machineTiles("bulkShredder", "E", false)[1].sprite)
     state.running = true
     Machines.refreshLook(obj, state)
-    eq(obj.sprite, OA.Sprites.machine("bulkShredder", "E", true))
-    eq(Machines.spriteName("rainStorage", "N", false), OA.Sprites.RAIN_STORAGE)
+    eq(obj.sprite, OA.Sprites.machineTiles("bulkShredder", "E", true)[1].sprite)
+    eq(Machines.spriteName("rainStorage", "N", false), OA.Sprites.rainStorageTiles()[1].sprite)
     eq(Machines.spriteName("lure", "N", true), OA.Sprites.lure(true))
     eq(Machines.itemFullType("woodSaw"), "OperationAcorn.LogSaw")
 end)

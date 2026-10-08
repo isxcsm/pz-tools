@@ -167,22 +167,12 @@ end
 Machines.itemFullType = itemFullType
 
 -- The tiles of a machine facing dir, running or not: { { dx, dy, sprite } ... }, one for each square of its footprint,
--- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0). The sprite
--- functions say (a lure is one tile, on or off; the rain storage 2x2 and it does not turn); a build whose Sprites
--- has none of the multi-tile ones gets the machine as one tile, the anchor's.
+-- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0), as Sprites has them
+-- (a lure is one tile, on or off; the rain storage 2x2, and it does not turn).
 function Machines.tiles(kind, dir, running)
-    local found
-    if kind == "lure" then
-        found = { { dx = 0, dy = 0, sprite = Sprites.lure(running) } }
-    elseif kind == "rainStorage" then
-        if Sprites.rainStorageTiles then found = Sprites.rainStorageTiles()
-        else found = { { dx = 0, dy = 0, sprite = Sprites.RAIN_STORAGE } } end
-    elseif Sprites.machineTiles then
-        found = Sprites.machineTiles(kind, dir or "S", running == true)
-    else
-        found = { { dx = 0, dy = 0, sprite = Sprites.machine(kind, dir or "S", running == true) } }
-    end
-    return found
+    if kind == "lure" then return { { dx = 0, dy = 0, sprite = Sprites.lure(running) } } end
+    if kind == "rainStorage" then return Sprites.rainStorageTiles() end
+    return Sprites.machineTiles(kind, dir or "S", running == true)
 end
 
 -- The size of a machine's footprint facing dir: w squares along x, h along y.
