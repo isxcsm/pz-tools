@@ -607,6 +607,9 @@ for _tier in TIERS:
                       ('saw_blade', saw_blade_item), ('catalyst', catalyst), ('cover', cover)):
         PICTURES['%s_%s' % (_key, _tier.lower())] = (lambda f=_fn, t=_tier: f(t))
 
+import icon_story  # noqa: E402
+PICTURES.update(icon_story.pictures(sys.modules[__name__]))
+
 
 def read_list():
     path = os.path.join(HERE, 'icons.txt')

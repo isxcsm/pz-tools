@@ -170,6 +170,10 @@ local ITEMS = {
     "SoundproofCoverNormal", "SoundproofCoverModern", "BagCapacityKit", "BagWeightKit", "TrunkKit",
     "EngineTuningKit", "ResearchBackpack", "FuelCanMk1", "FuelCanMk2", "FuelCanMk3", "WeldingTorchMk1",
     "WeldingTorchMk2", "WeldingTorchMk3", "MissionItem", "DocumentItem",
+    "MissionEnvelope", "MissionSampleTin", "MissionLogbook", "MissionFilterCase", "MissionTape", "MissionFabricRoll", "EvidenceEnvelope", "ClinicRecord",
+    "WeatherLog", "FarmJournal", "SampleCooler", "RosterPage", "ReviewMemo", "WardRecord", "CellLog", "SoilSample",
+    "StakeTag", "RosterLostPage", "FilterBundle", "PharmacyLedger", "CopyOriginal", "SampleCase", "DeadDropCase", "FieldCallDevice",
+    "AnalysisReply", "Appendix", "SerumSheet", "UnresolvedList", "HandoverFile", "KitVoucher",
 }
 -- The machines package's item names where they differ from the icon names (Item_OA_<icon>.png).
 local ALIAS = { Cutter = "FabricCutter", PropaneRefiner = "PropaneRefinery", OilRefiner = "OilRefinery", WoodSaw = "LogSaw",
