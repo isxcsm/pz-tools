@@ -907,13 +907,14 @@ end
 -- Why a square cannot take a tile of a machine: nil when it can, else the reason.
 local function squareProblem(kind, square)
     if not square then return "noSquare" end
+    -- A machine's own tiles are solid: say "taken", which tells the player more than "blocked".
+    if occupied(square) then return "taken" end
     if not square:TreatAsSolidFloor() then return "noFloor" end
     if square:isSolid() or square:isSolidTrans() or square:HasStairs() or square:HasTree() then return "blocked" end
     if not square:isFree(false) then return "blocked" end
     if square:isVehicleIntersecting() then return "blocked" end
     local properties = square:getProperties()
     if properties and properties:has(IsoFlagType.water) then return "water" end
-    if occupied(square) then return "taken" end
     if kind == "rainStorage" and not square:isOutside() then return "notOutside" end
     return nil
 end

@@ -9,5 +9,7 @@ for _, file in ipairs(files) do
     print("[p5all] ---- " .. file)
     local ok, err = pcall(RUN, file)
     if not ok then print("[p5all] ERROR in " .. file .. ": " .. tostring(err)) end
+    -- The files put machines on the same squares: clear them before the next one.
+    if P5_CLEAN then pcall(P5_CLEAN) end
 end
-print("[p5all] finished; search the log for BAD and ERROR, then call P5_CLEAN()")
+print("[p5all] finished; search the log for BAD and ERROR (the machines are already cleared)")

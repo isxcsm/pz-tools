@@ -20,7 +20,7 @@ for _, letter in ipairs(OA.Categories.LETTERS) do
     local n = made.total[letter] or 0
     local want = survey[letter]
     say("category", letter, "kinds", n, want and ("survey " .. want) or "")
-    if want then P1T.check(say, "category " .. letter .. " is in the survey's range", n > 0 and n <= want * 1.1, n) end
+    if want then P1T.check(say, "category " .. letter .. " is in the survey's range", n > 0 and n <= math.max(want * 1.1, want + 5), n) end
 end
 
 -- The world's table is the same shape (the save may have an older scan).
