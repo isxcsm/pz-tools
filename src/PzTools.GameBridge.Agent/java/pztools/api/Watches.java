@@ -77,6 +77,8 @@ final class Watches {
         String why;
         try { why = ApiHooks.hookStatus().getOrDefault(kind.hook, "unknown"); }
         catch (LinkageError older) { why = "this bootstrap does not count them"; }
+        // A class that has not loaded has nothing to write: the area looks meanwhile (and the app does not call that missing).
+        if (ApiHooks.NOT_LOADED.equals(why)) return why;
         return "polled: " + why + "; every frame " + kind.fallback;
     }
 }
