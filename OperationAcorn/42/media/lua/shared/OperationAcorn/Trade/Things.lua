@@ -142,7 +142,7 @@ Things.itemsOf = itemsOf
 -- What would be sealed of a container's items: { taken = { item }, infos = { info }, refused = { item },
 -- weight }. An item the team does not take (the manual left in, say) is `refused`: it goes back to the character.
 function Things.sealable(container)
-    local taken, infos, refused, weight = {}, {}, {}, 0
+    local taken, infos, refused, refusedInfos, weight = {}, {}, {}, {}, 0
     for _, item in ipairs(itemsOf(container)) do
         local ok, info = pcall(OA.Value.info, item)
         if ok and info and OA.Value.accepts(info) == true then
@@ -151,9 +151,20 @@ function Things.sealable(container)
             weight = weight + item:getActualWeight()
         else
             refused[#refused + 1] = item
+            if ok and info then refusedInfos[#refusedInfos + 1] = info end
         end
     end
-    return { taken = taken, infos = infos, refused = refused, weight = weight }
+    return { taken = taken, infos = infos, refused = refused, refusedInfos = refusedInfos, weight = weight }
+end
+
+-- The economy hears of what the box turned away (the big meteorite gets its radio line, once a day for a record).
+-- Only when a box is really sealed, not when the estimate is looked at.
+function Things.noteRefusals(record, infos)
+    if not (OA.Value and OA.Value.noteRefusal) then return end
+    for _, info in ipairs(infos or {}) do
+        local ok, err = pcall(OA.Value.noteRefusal, record, info)
+        if not ok then OA.log("refusal note failed:", tostring(err)) end
+    end
 end
 
 -- Seals a box: records its items by kind and count in the save, deletes them, shows the sealed tile and closes the
@@ -185,6 +196,7 @@ function Things.seal(character, record, object)
         sendRemoveItemFromContainer(container, item)
     end
     md[Objects.SEALED] = true
+    Things.noteRefusals(owner, plan.refusedInfos)
     Objects.closeFor(object)
     Objects.setSprite(object, Sprites.deliveryBox(true))
     if isServer() then object:transmitCompleteItemToClients() end
