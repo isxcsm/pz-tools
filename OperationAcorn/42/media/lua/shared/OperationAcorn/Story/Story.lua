@@ -114,7 +114,7 @@ end
 function Story.addTrust(record, trust)
     if trust <= 0 then return end
     if OA.Trade and OA.Trade.addTrust then
-        OA.Trade.addTrust(record, trust)
+        OA.Trade.addTrust(record, trust, "mission")
     elseif OA.Trust and OA.Trust.add then
         OA.Trust.add(record, trust)
     else

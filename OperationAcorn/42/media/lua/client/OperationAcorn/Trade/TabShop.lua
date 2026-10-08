@@ -120,7 +120,7 @@ function OATabShop:refreshCatalog(record)
     self.catalog:clear()
     local group
     for _, entry in ipairs(Shop.catalog()) do
-        local hidden = entry.special == "reissue" or (entry.kits and not OA.option("KitsForSale"))
+        local hidden = entry.special == "reissue" or (entry.kits and not OA.option("KitsForSale")) or not Shop.stocked(entry)
         if not hidden then
             if entry.group ~= group then
                 group = entry.group

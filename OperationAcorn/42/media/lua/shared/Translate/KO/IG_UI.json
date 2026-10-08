@@ -34,6 +34,7 @@
     "IGUI_OA_Econ_Shop_Locked": "아직 열리지 않았습니다.",
     "IGUI_OA_Econ_Shop_KitsOff": "이 세계에서는 키트를 팔지 않습니다.",
     "IGUI_OA_Econ_Shop_Debt": "잔액이 빚인 동안은 주문할 수 없습니다.",
+    "IGUI_OA_Econ_Shop_NotStocked": "아직 보급되지 않는 물품입니다.",
     "IGUI_OA_Econ_Shop_Interval": "구매 간격이 지나지 않았습니다.",
     "IGUI_OA_Econ_Shop_Limit": "이번 주 한도를 채웠습니다.",
     "IGUI_OA_Econ_Shop_Group_consumable": "소모품",

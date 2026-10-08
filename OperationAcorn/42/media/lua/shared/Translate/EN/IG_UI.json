@@ -34,6 +34,7 @@
     "IGUI_OA_Econ_Shop_Locked": "Not open yet.",
     "IGUI_OA_Econ_Shop_KitsOff": "Kits are not on sale in this world.",
     "IGUI_OA_Econ_Shop_Debt": "No orders while the balance is in debt.",
+    "IGUI_OA_Econ_Shop_NotStocked": "Not supplied yet.",
     "IGUI_OA_Econ_Shop_Interval": "The purchase interval has not passed.",
     "IGUI_OA_Econ_Shop_Limit": "This week's limit is reached.",
     "IGUI_OA_Econ_Shop_Group_consumable": "Consumables",

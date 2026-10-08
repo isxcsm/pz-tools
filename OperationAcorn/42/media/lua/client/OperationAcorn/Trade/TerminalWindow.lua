@@ -76,8 +76,11 @@ function OATerminalWindow:buildTabs()
     local h = self.panel.height - self.panel.tabHeight
     for _, tab in ipairs(tabs) do
         local view = tab.factory(0, 0, w, h, self)
-        view:initialise()
-        view:instantiate()
+        -- A factory may give a view it already made (initialise again would clear the children it added).
+        if not view.javaObject then
+            view:initialise()
+            view:instantiate()
+        end
         view.anchorRight = true
         view.anchorBottom = true
         local name = getText(tab.titleKey)

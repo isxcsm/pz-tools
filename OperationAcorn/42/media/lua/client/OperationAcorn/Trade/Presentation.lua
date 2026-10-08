@@ -23,8 +23,14 @@ local function charactersOf(playerId)
     return found
 end
 
+-- The parts that show their own notices; this shows the trade part's and the economy's.
+local SHOWN_ELSEWHERE = { "^IGUI_OA_Machine_", "^IGUI_OA_Story_", "^IGUI_OA_Tree_" }
+
 local function onNotice(playerId, detail)
-    if type(detail) ~= "table" or not detail.key then return end
+    if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
+    for _, prefix in ipairs(SHOWN_ELSEWHERE) do
+        if string.find(detail.key, prefix) then return end
+    end
     local args = detail.args or {}
     local text = getText(detail.key, unpack(args))
     for _, character in ipairs(charactersOf(playerId)) do

@@ -280,3 +280,21 @@ test("a serum bought is also noted to the upgrades part when it is there", funct
     S.bought(find("serum_load"), r, 1)
     eq(r.shop.serums.load, 3)
 end)
+
+test("a good whose item is not defined in the scripts is not sold", function()
+    local missing = { ["OperationAcorn.TeamBackpack"] = true, ["Base.CarBattery2"] = true }
+    getScriptManager = function()
+        return { FindItem = function(_, fullType) if missing[fullType] then return nil end return {} end }
+    end
+    local r = record(5, 1)
+    local backpack = find("team_backpack")
+    eq(S.stocked(backpack), false)
+    local n, why = S.available(backpack, r)
+    eq(n, 0)
+    eq(why, "IGUI_OA_Econ_Shop_NotStocked")
+    eq(S.stocked(find("car_battery")), false, "one of the choices is missing")
+    truthy(S.stocked(find("shred_bench")))
+    truthy(S.available(find("shred_bench"), r) > 0)
+    eq(S.stocked(find("seed_pack")), true, "choices named by a list kind")
+    getScriptManager = nil
+end)

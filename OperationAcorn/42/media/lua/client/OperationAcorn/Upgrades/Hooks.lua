@@ -333,12 +333,15 @@ local function terminalTab(x, y, width, height)
     local panel = ISPanel:new(x or 0, y or 0, width or fh * 30, height or fh * 12)
     panel.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
     panel.borderColor = { r = 0, g = 0, b = 0, a = 0 }
-    panel:initialise()
-    panel:instantiate()
-    local button = ISButton:new(fh, fh, fh * 14, fh + 8, getText("IGUI_OA_Tree_OpenPlan"), nil, function() Window.open(0) end)
-    button:initialise()
-    button:instantiate()
-    panel:addChild(button)
+    -- The terminal window initialises and instantiates the view (which clears its children), so the button is made
+    -- in createChildren, which instantiate calls.
+    function panel:createChildren()
+        ISPanel.createChildren(self)
+        local button = ISButton:new(fh, fh, fh * 14, fh + 8, getText("IGUI_OA_Tree_OpenPlan"), nil, function() Window.open(0) end)
+        button:initialise()
+        button:instantiate()
+        self:addChild(button)
+    end
     return panel
 end
 

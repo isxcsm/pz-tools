@@ -276,8 +276,35 @@ end
 -- it opens again, if that is known:
 --   locked (tier), debt (blocks every order but the box), kits off, the purchase interval of the cure serum and the
 --   delay drug (shorter with trust), the weekly limit, and how many one order may hold.
+-- Whether every item an entry gives is defined in the scripts. A good whose item a part of the mod still to come has
+-- not defined is not sold (it would be charged and never delivered) and not shown. Kept per type once known; without a
+-- script manager (the tests) every type counts as defined.
+local defined = {}
+local function isDefined(fullType)
+    local known = defined[fullType]
+    if known == nil then
+        local scripts = getScriptManager and getScriptManager()
+        if not scripts then return true end
+        known = scripts:FindItem(fullType) ~= nil
+        defined[fullType] = known
+    end
+    return known
+end
+function Shop.stocked(entry)
+    for _, g in ipairs(entry.give or {}) do
+        if not isDefined(g.type) then return false end
+    end
+    if type(entry.choices) == "table" then
+        for _, c in ipairs(entry.choices) do
+            if not isDefined(type(c) == "table" and c.type or c) then return false end
+        end
+    end
+    return true
+end
+
 function Shop.available(entry, record)
     local t = record.trade or {}
+    if not Shop.stocked(entry) then return 0, "IGUI_OA_Econ_Shop_NotStocked" end
     if OA.Trust.tier(record) < entry.tier then return 0, "IGUI_OA_Econ_Shop_Locked" end
     if entry.kits and not OA.option("KitsForSale") then return 0, "IGUI_OA_Econ_Shop_KitsOff" end
     if (t.credits or 0) < 0 and not entry.allowDebt then return 0, "IGUI_OA_Econ_Shop_Debt" end
