@@ -100,6 +100,7 @@ function Changes.applyZone(panel, building, zone)
             for key in pairs(left) do Networks.apply(panel, utility, key) end
         end
     end
+    Changes.syncAttached(panel)
     Sync.changed(panel.id)
     return true
 end
@@ -229,7 +230,8 @@ end
 
 -- What a panel keeps about devices gone from their loaded squares (destroyed or picked up) goes, and their rules go
 -- from the networks: an object put there later is another device. One it connected outside goes with its line.
-local DEVICE_FIELDS = { "excluded", "included", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }
+local DEVICE_FIELDS = { "excluded", "included", "attached", "essential", "schedule", "shed", "saving", "blackout", "timed",
+    "groupOf" }
 local function forgetGone(panel)
     local count = 0
     for _, utility in ipairs(BU.UTILITIES) do
@@ -497,6 +499,66 @@ function Changes.setRoomInside(panel, utility, roomId, connected)
         end
     end
     Sync.changed(panel.id)
+end
+
+-- Devices in rooms built onto the panel's building (Panels.attached) are the box's as its building's are: connected
+-- unless excluded, with no line. The API has them as single objects, so each is added to the networks (Networks.rule)
+-- and kept in attached. One that is in no such room of the box's zone any more (the room was taken down, or left the
+-- zone) is let go with what the box kept about it: at once when it is gone from its square, else when it has been
+-- missing from the rooms for a while, as the game's region data of a world that has just loaded may lag. Asked each
+-- minute, as the world starts, when the zone changes and by a window that sees one not added yet. Returns whether
+-- anything changed.
+local LET_GO = { "excluded", "essential", "schedule", "shed", "saving", "blackout", "timed", "groupOf" }
+local ATTACHED_GRACE_MS = 20000
+local missingSince = {}
+
+function Changes.syncAttached(panel)
+    local building = Panels.building(panel)
+    local spaces = building and Panels.attached(building)
+    if not spaces then return false end
+    local changed, now = false, getTimestampMs()
+    for _, utility in ipairs(BU.utilities()) do
+        local data = panel[utility]
+        data.attached = data.attached or {}
+        local found = {}
+        if #spaces > 0 then
+            for _, device in ipairs(Panels.devices(panel, utility)) do
+                if device.attached then found[device.key] = true end
+            end
+        end
+        for key in pairs(found) do
+            missingSince[panel.id .. "|" .. utility .. "|" .. key] = nil
+            if not data.attached[key] then
+                data.attached[key] = true
+                Networks.apply(panel, utility, key)
+                changed = true
+            end
+        end
+        local gone = {}
+        for key in pairs(data.attached) do
+            if not found[key] then
+                local here = present(key)
+                local slot = panel.id .. "|" .. utility .. "|" .. key
+                if here == false then
+                    gone[#gone + 1] = key
+                elseif here then
+                    missingSince[slot] = missingSince[slot] or now
+                    if now - missingSince[slot] >= ATTACHED_GRACE_MS then gone[#gone + 1] = key end
+                end
+            end
+        end
+        for _, key in ipairs(gone) do
+            missingSince[panel.id .. "|" .. utility .. "|" .. key] = nil
+            data.attached[key] = nil
+            for _, field in ipairs(LET_GO) do
+                if data[field] then data[field][key] = nil end
+            end
+            Networks.apply(panel, utility, key)
+            changed = true
+        end
+    end
+    if changed then Sync.changed(panel.id) end
+    return changed
 end
 
 -- A device outside any building wired or piped to the panel.

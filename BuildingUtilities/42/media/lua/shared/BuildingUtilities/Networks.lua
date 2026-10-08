@@ -35,16 +35,21 @@ local function powerProducers(panel)
 end
 
 -- What the network does with one device of a panel: "exclude", "include" or "reset" (the building's rule). A
--- device of the building is connected unless the player excluded it; one outside only when this panel connected it
--- (it is in included; any other the panel names is of its building); either is off while the box sheds it, keeps it
--- off for its bank, has it off for a blackout or its timer has it off. A power device outside is off too while the
--- game's AllowExteriorGenerator is off (BU.exteriorPower).
+-- device of the building is connected unless the player excluded it, and so is one in a room built onto it, which
+-- the API has as a single object (it is in attached: "include"); one outside only when this panel connected it (it
+-- is in included; any other the panel names is of its building); any is off while the box sheds it, keeps it off for
+-- its bank, has it off for a blackout or its timer has it off. A power device outside is off too while the game's
+-- AllowExteriorGenerator is off (BU.exteriorPower).
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
     local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.blackout and data.blackout[key]
         or data.timed and data.timed[key]
-    if not data.included[key] then return (data.excluded[key] or off) and "exclude" or "reset" end
-    return (off or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
+    if data.included[key] then
+        return (off or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
+    end
+    local built = data.attached and data.attached[key]
+    if data.excluded[key] or off then return "exclude" end
+    return built and "include" or "reset"
 end
 
 local function applyRule(id, rule, key)
@@ -79,7 +84,8 @@ end
 -- The power network's rules for every device the panel names.
 local function applyPowerRules(panel)
     local data, keys = panel.power, {}
-    for _, set in ipairs({ data.excluded, data.included, data.shed or {}, data.saving or {}, data.blackout or {}, data.timed or {} }) do
+    for _, set in ipairs({ data.excluded, data.included, data.attached or {}, data.shed or {}, data.saving or {},
+            data.blackout or {}, data.timed or {} }) do
         for key in pairs(set) do keys[key] = true end
     end
     for key in pairs(keys) do
@@ -109,7 +115,7 @@ local powerDefined, waterDefined = false, false
 -- Every water device key a panel names, as a set.
 local function waterKeys(panel)
     local data, keys = panel.water, {}
-    for _, set in ipairs({ data.excluded, data.included, data.groupOf or {} }) do
+    for _, set in ipairs({ data.excluded, data.included, data.attached or {}, data.groupOf or {} }) do
         for key in pairs(set) do keys[key] = true end
     end
     return keys
@@ -124,7 +130,7 @@ local function applyWaterRule(panel, key, floors)
     if not x or not waterOn() then return end
     local mine = Water.deviceGroup(panel, { key })
     local rule = Networks.rule(panel, "water", key)
-    local inside = not panel.water.included[key]
+    local inside = not panel.water.included[key] and not (panel.water.attached and panel.water.attached[key])
     for _, group in ipairs(Water.groups(panel)) do
         local each = "reset"
         if mine == Water.FIRST then

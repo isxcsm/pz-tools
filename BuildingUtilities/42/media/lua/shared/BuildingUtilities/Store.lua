@@ -14,7 +14,9 @@ local KEY = "BuildingUtilities"
 --   the whole building),
 --   log (what happened to it, oldest first: { hour, key, args }, at most Store.LOG_SIZE),
 --   and per utility (power, water): producers (a list of { x, y, z, paid }, in order), excluded (a set of
---   BU.thingKey) and included (BU.thingKey to what connecting it cost); for power also essential (a set: the box
+--   BU.thingKey), included (BU.thingKey to what connecting it cost) and attached (a set: devices in rooms built onto
+--   the building, which the box takes as its building's though the API has them as single objects, BU.Panels.attached);
+--   for power also essential (a set: the box
 --   never sheds them), schedule (BU.thingKey to a timer of BU.SCHEDULES), and what the box keeps off on its own:
 --   shed (under overload: BU.thingKey to what the device drew as it was shed, or true from an older version), saving
 --   (a set, keeping a low battery bank), blackout (a set: its lights, off by the player at the box) and timed (a set,
@@ -54,12 +56,12 @@ Store.KEY = KEY
 Store.LOG_SIZE = 30
 Store.ENERGY_HOURS = 48
 -- 3: four tiers; a box of tier 3, which shed load, is tier 4 now (shedding moved there). 4: units. 5: saving and
--- blackout. 6: water groups.
-local VERSION = 6
+-- blackout. 6: water groups. 7: attached rooms.
+local VERSION = 7
 
 local function utilityData()
-    return { producers = {}, excluded = {}, included = {}, essential = {}, schedule = {}, shed = {}, saving = {}, blackout = {},
-        timed = {} }
+    return { producers = {}, excluded = {}, included = {}, attached = {}, essential = {}, schedule = {}, shed = {},
+        saving = {}, blackout = {}, timed = {} }
 end
 
 -- What water keeps besides: one group, every tank and fixture in it.
@@ -146,11 +148,26 @@ function Store.producerOwner(x, y, z)
 end
 
 -- The panel that connected an outside device of a utility on its own, or nil.
-function Store.inclusionOwner(utility, key)
+function Store.includedOwner(utility, key)
     for _, panel in pairs(Store.panels()) do
         if panel[utility].included[key] then return panel end
     end
     return nil
+end
+
+-- The panel, other than one, that has a device of a utility in a room built onto its building, or nil.
+function Store.attachedOwner(utility, key, except)
+    for _, panel in pairs(Store.panels()) do
+        local attached = panel[utility].attached
+        if panel ~= except and attached and attached[key] then return panel end
+    end
+    return nil
+end
+
+-- The panel that takes a device as a single object of its own: one it connected outside, or one in a room built onto
+-- its building. Nil when none does.
+function Store.inclusionOwner(utility, key)
+    return Store.includedOwner(utility, key) or Store.attachedOwner(utility, key)
 end
 
 -- The panels whose parent is this one.

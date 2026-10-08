@@ -18,6 +18,9 @@ end
 
 function commands.setAllInside(player, panel, args) Changes.setAllInside(panel, args.utility, args.on == true) end
 
+-- A window saw devices in a room built onto the building that the networks do not have yet.
+function commands.syncAttached(player, panel, args) Changes.syncAttached(panel) end
+
 -- The box's zone: a list of room ids, or the whole building.
 function commands.setZone(player, panel, args)
     if args.whole == true then Changes.setZone(panel, nil); return end
@@ -399,7 +402,8 @@ end
 
 -- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute), after
 -- what the sandbox turned on or off (Changes.applyFeatures) and changed of the zones' and the water's floors
--- (Changes.applyShape). Power's checks and records only while it is on.
+-- (Changes.applyShape). Each box first takes the devices of rooms built onto its building into its networks
+-- (Changes.syncAttached). Power's checks and records only while it is on.
 local function everyMinute()
     if not BU.api() then return end
     Changes.applyFeatures()
@@ -408,6 +412,7 @@ local function everyMinute()
     local hourEnded = false
     local power = BU.enabled("power")
     for _, panel in ipairs(Store.list()) do
+        Changes.syncAttached(panel)
         if power then
             checkLoad(panel)
             checkFuel(panel)
@@ -510,6 +515,7 @@ local function defineAll()
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
     end
+    for _, panel in ipairs(Store.list()) do Changes.syncAttached(panel) end
     BU.log("defined the networks of", #Store.list(), "panels, features on:", BU.featureKey())
 end
 

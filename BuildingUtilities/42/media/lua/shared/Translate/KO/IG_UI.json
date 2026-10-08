@@ -994,5 +994,6 @@
     "IGUI_BU_FloorWater_boosted": "가압 펌프로 물을 받음",
     "IGUI_BU_FloorWater_dry": "물이 오지 않음",
     "IGUI_BU_Reason_exteriorOff": "샌드박스 옵션 '외부에서 발전기 사용 가능'이 꺼져 있어 발전기가 바깥에 전기를 주지 못합니다.",
-    "IGUI_BU_HeldExterior": "꺼짐(바깥 전기 없음)"
+    "IGUI_BU_HeldExterior": "꺼짐(바깥 전기 없음)",
+    "IGUI_BU_Attached": "증축"
 }

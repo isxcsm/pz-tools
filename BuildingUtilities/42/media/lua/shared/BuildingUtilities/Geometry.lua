@@ -112,6 +112,21 @@ function Geometry.toBuilding(x, y, rooms)
     return best
 end
 
+-- Steps from a square to a building's outline on one level, as buildings.near counts them: only the rooms of that
+-- level. Nil when it has none.
+function Geometry.toLevel(x, y, z, rooms)
+    local best
+    for _, room in ipairs(rooms) do
+        if room.level == z then
+            for _, rect in ipairs(room.rects) do
+                local steps = Geometry.toRect(x, y, rect)
+                if not best or steps < best then best = steps end
+            end
+        end
+    end
+    return best
+end
+
 -- The rectangles of rooms (as buildings.rooms lists them): those on a level, and all of them.
 function Geometry.roomRects(rooms, level)
     local onLevel, all = {}, {}

@@ -722,6 +722,21 @@ function ISBUPanelWindow:deviceStatus(utility, device)
     return text, dim
 end
 
+-- Devices in a room built onto the building that the networks do not have yet (Changes.syncAttached runs each minute):
+-- the server is asked to add them now, at most every few seconds.
+function ISBUPanelWindow:askAttached(devices)
+    for _, device in ipairs(devices) do
+        if device.pending then
+            local now = getTimestampMs()
+            if not self.attachedAsked or now - self.attachedAsked > 3000 then
+                self.attachedAsked = now
+                Sync.send(self.playerObj, "syncAttached", { panel = self.panel.id })
+            end
+            return
+        end
+    end
+end
+
 -- A tab's rows, from the panel's devices as the API has them now, or as given (devices and whether they are
 -- complete, from the last refresh).
 function ISBUPanelWindow:fill(utility, state, devices, complete)
@@ -733,7 +748,10 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     list:clear()
     local panel, playerObj = self.panel, self.playerObj
     local function add(row, tooltip) list:addItem(row.text or "", row, tooltip) end
-    if not devices then devices, complete = Panels.devices(panel, utility) end
+    if not devices then
+        devices, complete = Panels.devices(panel, utility)
+        self:askAttached(devices)
+    end
     local view = { state = state, devices = devices, complete = complete, names = {}, status = {}, totals = {},
         producerText = {}, fresh = {} }
     self.views[utility] = view
@@ -849,7 +867,11 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
     for _, device in ipairs(devices) do
         local entry = device.entry
         local name = BU.displayName(entry.x, entry.y, entry.z, entry.sprite)
-        if not device.inside then name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")" end
+        if not device.inside then
+            name = name .. "  (" .. Panels.where(panel, entry.x, entry.y) .. ")"
+        elseif device.attached then
+            name = name .. "  (" .. getText("IGUI_BU_Attached") .. ")"
+        end
         view.names[device.key] = name
         local status, dim = self:deviceStatus(utility, device)
         view.status[device.key] = status

@@ -1,6 +1,7 @@
 -- The mod's rules, as questions: a breaker box per building, or per zone of one (a large building's); producers
--- outside within a range of its outline; the devices of its building (or zone) connected unless excluded; devices
--- near it, outside any building, connected only on their own; another box as a sub-panel. Nothing here changes anything: BU.Changes does.
+-- outside within a range of its outline; the devices of its building (or zone), with those of rooms built onto it,
+-- connected unless excluded; devices near it, outside any building, connected only on their own; another box as a
+-- sub-panel. Nothing here changes anything: BU.Changes does.
 require "BuildingUtilities/Networks"
 require "BuildingUtilities/Geometry"
 local BU = BuildingUtilities
@@ -18,8 +19,188 @@ end
 
 function Panels.building(panel) return Panels.buildingAt(panel.x, panel.y, panel.z) end
 
+-- Rooms built onto a building. In vanilla a room the player builds against a map building belongs to no building: the
+-- game drops a player-built building that touches a map one (WorldRegionToMetaGrid), so its squares have no room and
+-- the API has no building there. A box takes such a room as part of the building it touches, as one of its rooms: its
+-- devices are inside, not outside. A space is such a room, or rooms joined by doors as the game's regions have them:
+-- enclosed and at least half roofed, as a player-built building needs to be, and sharing a side with a room of the
+-- building on the same floor. Found from the squares around the building when its rooms are listed, at most every few
+-- seconds (nobody builds by the second), and kept. A space is { level, host (the id of the building's room it
+-- touches most, which it counts as part of), squares (a set, by squareKey), count, rects (its squares as
+-- rectangles) and extent (the larger side of its box) }. Without the game's region data, or where a space grows past
+-- a size no room has, none are found (nil) and boxes take such devices as outside, as before.
+local ATTACHED_MS, ATTACHED_MAX = 5000, 1500
+local attachedCache = {}
+local attachedFailed = false
+local SIDES = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+
+local function squareKey(x, y, z) return (z * 100000 + y) * 100000 + x end
+
+-- What the game takes for a room a player built: an enclosed region at least half roofed.
+local function roomLike(region)
+    return region:isEnclosed() and region:getRoofedPercentage() >= 0.5
+end
+
+-- Squares of one floor as rectangles: runs along x, joined down where the next row has the same run.
+local function squareRects(xs, ys)
+    local rows, rowYs = {}, {}
+    for index = 1, #xs do
+        local y = ys[index]
+        if not rows[y] then rows[y] = {}; rowYs[#rowYs + 1] = y end
+        rows[y][#rows[y] + 1] = xs[index]
+    end
+    table.sort(rowYs)
+    local result, open = {}, {}
+    for _, y in ipairs(rowYs) do
+        local row = rows[y]
+        table.sort(row)
+        local start, last = row[1], row[1]
+        local runs = {}
+        for index = 2, #row + 1 do
+            local x = row[index]
+            if x ~= last + 1 then
+                local key = start .. "," .. (last - start + 1)
+                local rect = open[key]
+                if rect and rect.y + rect.h == y then
+                    rect.h = rect.h + 1
+                else
+                    rect = { x = start, y = y, w = last - start + 1, h = 1 }
+                    result[#result + 1] = rect
+                end
+                runs[key] = rect
+                start = x
+            end
+            last = x
+        end
+        open = runs
+    end
+    return result
+end
+
+-- The spaces around a building's rooms (see above): a list, or nil when one grows too large.
+local function findAttached(rooms)
+    local grid = getWorld():getMetaGrid()
+    local own, around = {}, {}
+    for _, room in ipairs(rooms) do
+        if room.level >= 0 then
+            for _, rect in ipairs(room.rects) do
+                around[#around + 1] = { rect = rect, z = room.level }
+                for y = rect.y, rect.y + rect.h - 1 do
+                    for x = rect.x, rect.x + rect.w - 1 do own[squareKey(x, y, room.level)] = room.id end
+                end
+            end
+        end
+    end
+    local alike, joined, claimed, outside, spaces, total = {}, {}, {}, {}, {}, 0
+    local function qualifies(region)
+        if alike[region] == nil then alike[region] = roomLike(region) end
+        return alike[region]
+    end
+    -- The regions a region is joined to by a door or a window.
+    local function joinedTo(region)
+        local set = joined[region]
+        if not set then
+            set = {}
+            local list = region:getDebugConnectedNeighborCopy()
+            for index = 0, list:size() - 1 do set[list:get(index)] = true end
+            joined[region] = set
+        end
+        return set
+    end
+    -- The space that begins at a square of a region: the squares of the region and of those joined to it. Nil when it
+    -- grows too large.
+    local function fill(x, y, z, region)
+        local space = { level = z, squares = { [squareKey(x, y, z)] = true }, count = 1 }
+        claimed[squareKey(x, y, z)] = true
+        local touches, regions = {}, { [region] = true }
+        local qx, qy, qr, head = { x }, { y }, { region }, 1
+        total = total + 1
+        while head <= #qx do
+            local cx, cy, current = qx[head], qy[head], qr[head]
+            head = head + 1
+            for _, side in ipairs(SIDES) do
+                local nx, ny = cx + side[1], cy + side[2]
+                local key = squareKey(nx, ny, z)
+                if own[key] then
+                    touches[own[key]] = (touches[own[key]] or 0) + 1
+                elseif not claimed[key] and not outside[key] and grid:getRoomAt(nx, ny, z) == nil then
+                    local other = IsoRegions.getIsoWorldRegion(nx, ny, z)
+                    local join = other ~= nil and (regions[other] or qualifies(other)
+                        and (other == current or joinedTo(current)[other]))
+                    if join then
+                        regions[other] = true
+                        space.squares[key], claimed[key] = true, true
+                        space.count, total = space.count + 1, total + 1
+                        if total > ATTACHED_MAX then return nil end
+                        qx[#qx + 1], qy[#qy + 1], qr[#qr + 1] = nx, ny, other
+                    elseif other == nil or not qualifies(other) then
+                        outside[key] = true
+                    end
+                end
+            end
+        end
+        local best = 0
+        for _, room in ipairs(rooms) do
+            if (touches[room.id] or 0) > best then space.host, best = room.id, touches[room.id] end
+        end
+        space.rects = squareRects(qx, qy)
+        local minX, minY, maxX, maxY
+        for _, rect in ipairs(space.rects) do
+            minX, minY = math.min(minX or rect.x, rect.x), math.min(minY or rect.y, rect.y)
+            maxX = math.max(maxX or rect.x + rect.w - 1, rect.x + rect.w - 1)
+            maxY = math.max(maxY or rect.y + rect.h - 1, rect.y + rect.h - 1)
+        end
+        space.extent = math.max(maxX - minX, maxY - minY) + 1
+        return space
+    end
+    -- A square across a side of a room of the building: false when a space there grew too large.
+    local function look(x, y, z)
+        local key = squareKey(x, y, z)
+        if own[key] or claimed[key] or outside[key] then return true end
+        if grid:getRoomAt(x, y, z) ~= nil then
+            outside[key] = true
+            return true
+        end
+        local region = IsoRegions.getIsoWorldRegion(x, y, z)
+        if region == nil or not qualifies(region) then
+            outside[key] = true
+            return true
+        end
+        local space = fill(x, y, z, region)
+        if not space then return false end
+        if space.host then spaces[#spaces + 1] = space end
+        return true
+    end
+    for _, item in ipairs(around) do
+        local rect, z = item.rect, item.z
+        for x = rect.x, rect.x + rect.w - 1 do
+            if not (look(x, rect.y - 1, z) and look(x, rect.y + rect.h, z)) then return nil end
+        end
+        for y = rect.y, rect.y + rect.h - 1 do
+            if not (look(rect.x - 1, y, z) and look(rect.x + rect.w, y, z)) then return nil end
+        end
+    end
+    return spaces
+end
+
+-- The spaces of a building, from its rooms as the API lists them, kept a few seconds: nil when they cannot be found.
+local function attachedFor(building, rooms)
+    if building.playerBuilt then return {} end
+    local now = getTimestampMs()
+    local cached = attachedCache[building.key]
+    if cached and now - cached.at < ATTACHED_MS then return cached.spaces or nil end
+    local ok, spaces = pcall(findAttached, rooms)
+    if not ok then
+        if not attachedFailed then BU.log("rooms built onto a building cannot be found:", spaces) end
+        attachedFailed, spaces = true, nil
+    end
+    attachedCache[building.key] = { at = now, spaces = spaces or false }
+    return spaces
+end
+
 -- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }, kept a second: windows and the
--- water layout ask for them often.
+-- water layout ask for them often. The rooms built onto the building (Panels.attached) are rectangles added to the
+-- room each touches most, after the room's own, so that the first is always a square of the map's room.
 local roomsCache = {}
 function Panels.rooms(building)
     if not building then return {} end
@@ -39,8 +220,47 @@ function Panels.rooms(building)
         end
         result[#result + 1] = { id = room.id, name = room.name, level = room.level, rects = rects }
     end
+    for _, space in ipairs(attachedFor(building, result) or {}) do
+        for _, room in ipairs(result) do
+            if room.id == space.host then
+                for _, rect in ipairs(space.rects) do
+                    room.rects[#room.rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
+                end
+            end
+        end
+    end
     roomsCache[building.key] = { at = now, rooms = result }
     return result
+end
+
+-- What was kept of the buildings' rooms, and of the rooms built onto them, forgotten: they are looked at again at the
+-- next ask (for a check that built or took down a wall just now).
+function Panels.forgetRooms() roomsCache, attachedCache = {}, {} end
+
+-- The rooms built onto a building (see above): a list of spaces (none for a building the player built), or nil when
+-- they cannot be found now.
+function Panels.attached(building)
+    if not building then return nil end
+    if building.playerBuilt then return {} end
+    Panels.rooms(building)
+    local cached = attachedCache[building.key]
+    return cached and cached.spaces or nil
+end
+
+-- The space of a list (Panels.attached) that has a square, or nil.
+function Panels.attachedAt(spaces, x, y, z)
+    local key = squareKey(x, y, z)
+    for _, space in ipairs(spaces or {}) do
+        if space.squares[key] then return space end
+    end
+    return nil
+end
+
+-- How many squares the rooms built onto a building have: changes when they do, for what is kept by building.
+function Panels.attachedSize(building)
+    local count = 0
+    for _, space in ipairs(Panels.attached(building) or {}) do count = count + space.count end
+    return count
 end
 
 -- The panels of a building, by its key.
@@ -428,14 +648,17 @@ end
 
 -- Devices.
 
--- The devices of a panel for one utility: those of its building (connected unless excluded) and those near it
--- outside any building (connected only when this panel added them; "other" when another panel did). An object that
--- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
--- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
--- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
--- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off; "exterior"
--- for one outside while the game keeps generators from powering things outside, BU.exteriorPower; or nil). A utility
--- that is off (BU.enabled) has none.
+-- The devices of a panel for one utility: those of its building, with those in rooms built onto it (Panels.attached),
+-- and those near it outside any building (connected only when this panel added them; "other" when another panel
+-- did). A device in a built-on room is inside, in the room it touches: connected unless excluded, with no line. One
+-- that another panel took, or that this panel connected outside before the room was built, stays outside. An object
+-- that covers several squares is one device, as the API switches it whole: its entry is that of its listed part with
+-- the smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
+-- key, keys, power, inside and state ("on", "off" or "other": the player's choice); attached (in a built-on room) and
+-- pending (not yet in the networks, BU.Changes.syncAttached); and for power: essential, schedule (BU.SCHEDULES) and
+-- held ("shed", "saving", "blackout" or "timer" while the box keeps it off; "exterior" for one outside while the game
+-- keeps generators from powering things outside, BU.exteriorPower; or nil). A utility that is off (BU.enabled) has
+-- none.
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
         if set[key] then return set[key] end
@@ -451,6 +674,14 @@ local function inclusionOwner(utility, keys)
     return nil
 end
 
+-- Whether a device in a built-on room is another panel's, or was connected outside by any panel.
+local function claimedElsewhere(panel, utility, keys)
+    for _, key in ipairs(keys) do
+        if Store.includedOwner(utility, key) or Store.attachedOwner(utility, key, panel) then return true end
+    end
+    return false
+end
+
 function Panels.devices(panel, utility)
     local api = BU.api()
     local building = Panels.building(panel)
@@ -460,7 +691,7 @@ function Panels.devices(panel, utility)
     local data = panel[utility]
     -- The listed parts by object: each part's key leads to its object's group.
     local groups, order, groupOf = {}, {}, {}
-    local function collect(list, inside)
+    local function collect(list, inside, built)
         for i = 1, list and #list or 0 do
             local entry = list[i]
             -- Of the building, only the rooms of the panel's zone.
@@ -470,7 +701,7 @@ function Panels.devices(panel, utility)
                 if not group then
                     local object = BU.objectsWithSprite(entry.x, entry.y, entry.z, entry.sprite)[1]
                     local keys = object and BU.partKeys(object) or { key }
-                    group = { keys = keys, entries = {}, inside = inside }
+                    group = { keys = keys, entries = {}, inside = inside, built = built }
                     for _, part in ipairs(keys) do groupOf[part] = group end
                     groupOf[key] = group
                     order[#order + 1] = group
@@ -480,10 +711,34 @@ function Panels.devices(panel, utility)
         end
     end
     local inside, insideComplete = api.buildings.objects(building.key, utility)
-    local outside, outsideComplete = api.buildings.near(building.key, BU.exteriorRange(panel.tier), utility)
+    -- The API lists the devices of built-on rooms among those outside: they are sought as far as the rooms reach, and
+    -- the others only within the range of the outline with the rooms, as the API counts it from the map's rooms.
+    local reach = BU.exteriorRange(panel.tier)
+    local spaces = Panels.attached(building)
+    local extent = 0
+    for _, space in ipairs(spaces or {}) do extent = math.max(extent, space.extent) end
+    local listed, outsideComplete = api.buildings.near(building.key, math.min(32, reach + extent), utility)
+    local outside, built = listed, {}
+    if extent > 0 and listed then
+        local rooms = Panels.rooms(building)
+        outside = {}
+        for i = 1, #listed do
+            local entry = listed[i]
+            local space = Panels.attachedAt(spaces, entry.x, entry.y, entry.z)
+            local steps = not space and Geometry.toLevel(entry.x, entry.y, entry.z, rooms)
+            if space then
+                entry.roomId = space.host
+                built[#built + 1] = entry
+            elseif steps and steps <= reach then
+                outside[#outside + 1] = entry
+            end
+        end
+    end
     collect(inside, true)
+    collect(built, true, true)
     collect(outside, false)
     for _, group in ipairs(order) do
+        if group.built and claimedElsewhere(panel, utility, group.keys) then group.inside = false end
         table.sort(group.entries, function(a, b) return a.key < b.key end)
         local first = group.entries[1]
         local power
@@ -492,6 +747,10 @@ function Panels.devices(panel, utility)
         end
         local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside,
             roomId = group.inside and (first.entry.roomId or "") or nil }
+        if group.built and group.inside then
+            device.attached = true
+            device.pending = not (data.attached and data.attached[first.key])
+        end
         if group.inside then
             device.state = anyKey(data.excluded, group.keys) and "off" or "on"
         else

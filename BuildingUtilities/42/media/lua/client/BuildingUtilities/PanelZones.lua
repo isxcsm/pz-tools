@@ -85,7 +85,7 @@ function ISBUPanelWindow:updatePlan()
     if not editable then self.zoneEditing = false end
     -- The range, while the window shows it in the world.
     local ranges, tier = nil, panel.tier or 1
-    local rangeKey = (self.building and self.building.key or "") .. "|" .. tier
+    local rangeKey = (self.building and self.building.key or "") .. "|" .. tier .. "|" .. Panels.attachedSize(self.building)
     if self.rangeShown then
         local exterior = BU.exteriorRange(tier)
         ranges = { exterior = exterior > 0 and exterior or nil, producer = not panel.parent and BU.producerRange(tier) or nil }
