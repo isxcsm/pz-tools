@@ -66,7 +66,7 @@ function ISOAPlaceThing:complete()
     if not square then return false end
     local ok, why
     if self.kind == Objects.TERMINAL then
-        ok, why = Things.placeTerminal(self.character, square, self.facing, self.item)
+        ok, why = Things.placeTerminal(self.character, square, self.facing, self.item, recordOf(self.character))
     elseif self.kind == Objects.DELIVERY_BOX then
         ok, why = Things.placeBox(self.character, recordOf(self.character), square, self.item)
     else

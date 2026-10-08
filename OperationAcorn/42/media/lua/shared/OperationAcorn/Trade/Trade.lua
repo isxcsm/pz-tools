@@ -22,6 +22,14 @@ function Trade.account(record)
     return t
 end
 
+-- Where the record's terminal stands (the last one it put down), as x, y, z; nothing before the first. The story part
+-- measures its distance bands from it.
+function Trade.terminalPosition(record)
+    local t = record.heli and record.heli.terminal
+    if t then return t.x, t.y, t.z end
+    return nil
+end
+
 -- Whether the record owes credits (a negative balance is a debt, DESIGN 9).
 function Trade.inDebt(record)
     local t = record.trade
@@ -108,11 +116,17 @@ function Trade.takeDrop(record)
     return list
 end
 
--- One line in the radio log: a translation key and its arguments (strings and numbers). The stage the record has now
--- goes with it, since the team's greeting changes by stage (Text.radioLine). Server side.
+-- One line in the radio log: a translation key and its arguments (strings and numbers). What the greeting is now goes
+-- with it, since the team greets by stage and after the handover by another call sign: the story part's greeting key
+-- when it has one (and the number it takes), else the stage (Text.radio decides). Server side.
 function Trade.radio(record, key, args)
     local log = Store.section(record, "radio")
-    table.insert(log, { at = OA.hours(), key = key, args = args, stage = record.trade and record.trade.stage or 0 })
+    local entry = { at = OA.hours(), key = key, args = args, stage = record.trade and record.trade.stage or 0 }
+    if OA.Story and OA.Story.greeting then
+        local ok, greet = pcall(OA.Story.greeting, record)
+        if ok and greet then entry.greet, entry.number = greet, string.format("%04d", record.number or 0) end
+    end
+    table.insert(log, entry)
     while #log > Trade.RADIO_LIMIT do table.remove(log, 1) end
     if OA.Sync then OA.Sync.changed("trade", record.id) end
 end

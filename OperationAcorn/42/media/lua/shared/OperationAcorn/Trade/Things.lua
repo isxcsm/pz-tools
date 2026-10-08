@@ -48,7 +48,7 @@ Things.watch, Things.unwatch = watch, unwatch
 -- The terminal ------------------------------------------------------------------------------------------------
 
 -- Puts a terminal item down on a square, facing S, E, N or W.
-function Things.placeTerminal(character, square, facing, item)
+function Things.placeTerminal(character, square, facing, item, record)
     local ok, why = Objects.free(square)
     if not ok then return false, why end
     local object = Objects.create(square, Objects.terminalSprite(facing, Objects.powered(square)),
@@ -56,7 +56,19 @@ function Things.placeTerminal(character, square, facing, item)
     Objects.consume(character, item)
     watch("trade.terminal", square:getX(), square:getY(), square:getZ())
     Objects.showTerminal(object)
+    if record then Things.terminalPlaced(record, square) end
     return true, object
+end
+
+-- The record learns where its terminal stands (the base, for the story part's distance bands). The first one placed
+-- also fixes the story part's anchor; the bands do not move when the terminal does.
+function Things.terminalPlaced(record, square)
+    local heli = Trade.heli(record)
+    local first = heli.terminal == nil
+    heli.terminal = { x = square:getX(), y = square:getY(), z = square:getZ() }
+    if first and OA.Story and OA.Story.setAnchor then
+        OA.Story.setAnchor(record, heli.terminal.x, heli.terminal.y, heli.terminal.z)
+    end
 end
 
 -- Takes a terminal up to carry.

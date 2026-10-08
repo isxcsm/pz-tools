@@ -7,6 +7,8 @@ require "OperationAcorn/Trade/Settle"
 require "OperationAcorn/Trade/Orders"
 require "OperationAcorn/Trade/Things"
 require "OperationAcorn/Trade/Later"
+require "OperationAcorn/Trade/Gain"
+require "OperationAcorn/Trade/Text"
 require "OperationAcorn/Trade/Markers"
 local OA = OperationAcorn
 local Store, Chunks, Sprites = OA.Store, OA.Chunks, OA.Sprites
@@ -91,7 +93,7 @@ end
 
 -- The services the settlement works with: the economy (P1), the shop and the story part.
 function Heli.services(record)
-    local Value, Trust = OA.Value, OA.Trust
+    local Value = OA.Value
     return {
         now = OA.hours(),
         day = OA.day(),
@@ -99,15 +101,10 @@ function Heli.services(record)
             if Value and Value.settle then return Value.settle(r, entries) end
             return { credits = 0, trust = 0, lines = {} }
         end,
-        trustAdd = function(r, amount)
-            if Trust and Trust.add then return Trust.add(r, amount) end
-            return {}
-        end,
+        trustAdd = function(r, amount) return Trade.addTrust(r, amount, "settle") end,
+        oldForm = OA.Story and OA.Story.oldForm and OA.Story.oldForm(record) or false,
         shop = Orders.shopService(record),
         rnd = function(a, b) return OA.random(a, b) end,
-        onStage = function(r, stage)
-            if OA.Story and OA.Story.onStage then OA.Story.onStage(r, stage) end
-        end,
     }
 end
 
@@ -241,6 +238,17 @@ function Heli.deliver(record, plan, call)
     end
 end
 
+-- The manifest written out goes to the story part's document folder too (the latest few are kept there).
+function Heli.keepManifest(record, receipt)
+    if not (OA.Story and OA.Story.addManifest) then return end
+    local ok, err = pcall(function()
+        local words = {}
+        for _, line in ipairs(Trade.Text.receipt(receipt)) do words[#words + 1] = line.text end
+        OA.Story.addManifest(record, receipt.id, table.concat(words, "\n"))
+    end)
+    if not ok then OA.log("manifest not kept:", tostring(err)) end
+end
+
 -- A helicopter whose time has come: settles, pays, and drops. Returns the plan.
 function Heli.arrive(record)
     local heli = Trade.heli(record)
@@ -249,15 +257,10 @@ function Heli.arrive(record)
     local plan = Settle.run(record, Heli.services(record))
     heli.call = nil
     heli.last = { at = OA.hours(), receipt = plan.receipt.id, kind = call.kind }
-    for _, e in ipairs(plan.events) do
-        if e.kind == "stage" then
-            Trade.radio(record, "IGUI_OA_Trade_Radio_NewItems")
-            OA.Sync.notice(record.id, "IGUI_OA_Trade_Notice_NewItems")
-        end
-    end
     if record.trade.credits < 0 then
         Trade.radio(record, "IGUI_OA_Trade_Radio_Debt")
     end
+    Heli.keepManifest(record, plan.receipt)
     Heli.deliver(record, plan, call)
     Heli.refreshBoxes(record)
     changed(record)

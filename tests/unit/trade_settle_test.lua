@@ -161,17 +161,12 @@ test("the discovery bonus comes with the settlement and starts again", function(
     eq(plan.receipt.bonus, 250)
 end)
 
-test("stage events bring shared serums into the crate and tell the story", function()
+test("stage events bring shared serums into the crate", function()
     local record = newRecord(0)
     seal(record, 10, nil, true)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
-    local stages = {}
-    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { 1, 2, { milestone = 1 } }, serums = 2,
-        onStage = function(r, n) stages[#stages + 1] = n end }))
+    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { 1, 2, { milestone = 1 } }, serums = 2 }))
     eq(#plan.events, 3)
-    eq(stages[1], 1)
-    eq(stages[2], 2)
-    eq(#stages, 2, "milestones are not stages")
     eq(plan.cargo[1].type, "OperationAcorn.UpgradeSerumShared")
     eq(plan.cargo[1].count, 2, "stage 2 and the milestone")
     eq(plan.cargo[1].mod.OA_Owner, record.id)

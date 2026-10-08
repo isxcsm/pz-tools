@@ -78,10 +78,11 @@ Settle.receiptLines = receiptLines
 -- Runs one arrival for a record. svc:
 --   svc.now                       the world age (hours), svc.day the game day
 --   svc.settle(record, entries)   OA.Value.settle: { credits, trust, lines }
---   svc.trustAdd(record, trust)   OA.Trust.add: the stages and milestones passed
+--   svc.trustAdd(record, trust)   Trade.addTrust: adds the trust and handles what a new stage or milestone brings once;
+--                                 it gives back the events
+--   svc.oldForm                   whether the manifest keeps the old form (the story part, from the 4th stage)
 --   svc.shop                      for Rules.payOrders
 --   svc.rnd(a, b)                 a whole number from a to b
---   svc.onStage(record, stage)    OA.Story.onStage, when it exists
 -- Returns the plan for the world: { receipt, removals = { { id, x, y, z } }, newBox, cargo = { specs }, spot,
 -- reissue }. The caller does the physical part and then clears the call.
 function Settle.run(record, svc)
@@ -108,9 +109,6 @@ function Settle.run(record, svc)
     local events = {}
     if (result.trust or 0) > 0 then
         events = Rules.stageEvents(svc.trustAdd(record, result.trust))
-    end
-    for _, e in ipairs(events) do
-        if e.kind == "stage" and svc.onStage then svc.onStage(record, e.n) end
     end
 
     -- 3. The orders, in order, with what the balance allows.
@@ -162,6 +160,8 @@ function Settle.run(record, svc)
     local receipt = {
         at = now,
         kind = reissue and "reissue" or "settle",
+        oldForm = svc.oldForm and true or nil,
+        number = record.number,
         boxes = #sealed,
         credits = result.credits or 0,
         trust = result.trust or 0,
