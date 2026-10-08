@@ -2,7 +2,7 @@
 
 [Documentation index](../README.md)
 
-> Plan only, decided 2026-10-08; nothing here is built. There is no release of the extension side before a long
+> Plan, decided 2026-10-08; of it only the API's own jar (boundary 1) is built. There is no release of the extension side before a long
 > single-player test by the developer: the [startup loader](startup-loader.md) stays hidden behind its experimental
 > setting until then. This page fixes the boundaries now, while they are cheap to draw, so that a later release
 > does not have to move code that players already run.
@@ -23,7 +23,8 @@ All parts are built and versioned with the app and shipped in its `game-bridge\`
 | Layer | File | Holds | Replaced in a running game |
 | --- | --- | --- | --- |
 | Bootstrap | `pztools-game-bootstrap.jar` | The socket, the game-loop hook, the extension API's hooks into game classes (`ApiHooks`) and its shared classes | No |
-| Payload | `pztools-game-bridge.jar` | The app's own work in the game (saves, WATCH, profiler, extension control) **and** the extension API's implementation (`pztools.bridge.runtime.api`: buildings, power and water networks) | Yes |
+| Payload | `pztools-game-bridge.jar` | The app's own work in the game (saves, WATCH, profiler, extension control) | Yes |
+| Extension API | `extensions\pztools-extension-api.jar` | The extension API's implementation (`pztools.api`: buildings, power and water networks), loaded only in a game the startup loader started | Yes |
 | Extension runtime | `extensions\pztools-extension-runtime.jar` | `ModuleHost`, `ContinuousRuntime` | Yes |
 | Modules | `extensions\*.jar`, listed in `catalog.tsv` | One extension each | Yes, each in its slot |
 
@@ -50,11 +51,11 @@ brings them.
 
 ### 1. The API's implementation in its own jar
 
-Move `pztools.bridge.runtime.api` out of the payload into `pztools-extension-api.jar`, loaded only in a game the
-startup loader started, the way the extension runtime jar is loaded now, with the same takeover in a running game
-([payload](module-reload.md#payload)). Then an API fix ships without the payload, an app update that changes the
-payload does not reload the networks of every Lua mod, and an attach-only game never loads the API's code at all.
-The API is small now; this is the cheapest time to split it.
+Done 2026-10-08 ([extension API reload](module-reload.md#extension-api)): `pztools.api` is in
+`extensions\pztools-extension-api.jar`, loaded only in a game the startup loader started, the way the extension
+runtime jar is, with the same takeover in a running game. An API fix ships without the payload, an app update that
+changes the payload does not reload the networks of every Lua mod, and an attach-only game never loads the API's
+code at all.
 
 ### 2. A manifest for every unit
 
@@ -108,7 +109,7 @@ Uninstalling the loader removes its folder; nothing of the extension side stays 
 ## Order
 
 1. Now: this page.
-2. When convenient, before any release: boundary 1 (the API jar).
+2. Boundary 1 (the API jar): done 2026-10-08.
 3. When a release is decided: manifests and signing (2), the tag rules and the checker change (3), downloads, and
    the Workshop question.
 
