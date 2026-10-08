@@ -81,7 +81,7 @@ function Menus.sealText(character, object)
     local record = OA.Client.record(character)
     local container = object:getContainer()
     local plan = Things.sealable(container)
-    local estimate = Estimate and Trade.Estimate.infos(record, plan.infos)
+    local estimate = Trade.Estimate.infos(record, plan.infos)
     local lines = {}
     if estimate then
         lines[#lines + 1] = getText("IGUI_OA_Trade_Seal_Worth", #plan.taken, Text.credits(estimate.credits), Text.credits(estimate.trust))
