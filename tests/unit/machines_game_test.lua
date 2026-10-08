@@ -819,7 +819,14 @@ local function worldSetup()
         function obj:getContainer() return self.containers[1] end
         function obj:addSecondaryContainer(c) table.insert(self.containers, c) end
         function obj:transmitCompleteItemToClients() end
-        function obj:getObjectIndex() return 0 end
+        -- like the game: its place on its square, -1 once it is off it
+        function obj:getObjectIndex()
+            local sq = self:getSquare()
+            for i, o in ipairs(sq and sq.objects or {}) do
+                if o == self then return i - 1 end
+            end
+            return -1
+        end
         return obj
     end }
     ItemContainer = { new = function(kind, sq, parent)
@@ -1174,7 +1181,7 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     eq(a.mod[Data.CAPACITY_KEY], nil, "only the research storage lifts its cap")
     square(21, 20, 0)
     local store = Machines.place("researchStorage", square(20, 20, 0), p, newItem("OperationAcorn.TeamLocker"), "S")
-    eq(store.mod[Data.CAPACITY_KEY], 0)
+    eq(store.mod[Data.CAPACITY_KEY], 200, "300: 100 raw (the game's cap) and 200 the API adds")
     eq(store.mod[Data.LOAD_KEY], nil, "no load for a storage")
     cleanup()
 end)

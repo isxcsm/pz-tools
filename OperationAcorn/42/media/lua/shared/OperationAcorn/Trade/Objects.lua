@@ -241,6 +241,9 @@ function Objects.capacityFor(record)
     return Objects.DEFAULT_CAPACITY
 end
 
+-- The game's cap on a container's capacity.
+Objects.VANILLA_CAP = 100
+
 -- Sets up a delivery box's container (made when missing): what it accepts and how much it holds. Done when the box
 -- is put down, when its chunk loads and when it is shown. A box with its sealed tile has no container.
 function Objects.setupBox(object, record)
@@ -256,11 +259,14 @@ function Objects.setupBox(object, record)
     end
     Objects.nameContainer(container, Objects.BOX_CONTAINER)
     -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
-    -- (added to the raw capacity; 0 here, the API reads nothing but numbers)
-    -- (the upgrades part declares that key); without it the game cuts the capacity to 100 and the box simply holds 100.
+    -- (the upgrades part declares that key) and adds the number to the raw capacity; without it the game holds the
+    -- box to 100. The raw capacity stays within 100 (the game warns on every larger one, and this runs on every
+    -- refresh of the loot window): the rest is OA_Capacity. Only what differs is written.
     local capacity = Objects.capacityFor(record)
-    object:getModData().OA_Capacity = 0
-    container:setCapacity(capacity)
+    local raw = math.min(capacity, Objects.VANILLA_CAP)
+    local md = object:getModData()
+    if md.OA_Capacity ~= capacity - raw then md.OA_Capacity = capacity - raw end
+    if container:getCapacity() ~= raw then container:setCapacity(raw) end
     if container:getAcceptItemFunction() ~= Objects.ACCEPT then container:setAcceptItemFunction(Objects.ACCEPT) end
     return container
 end

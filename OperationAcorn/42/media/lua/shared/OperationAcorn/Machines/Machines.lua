@@ -977,7 +977,10 @@ local function setupContainers(object, square, kind)
             container = ItemContainer.new(spec.type, square, object)
             object:addSecondaryContainer(container)
         end
-        container:setCapacity(spec.capacity)
+        -- within the game's cap of 100 (it warns on more); the rest is OA_Capacity, which the PZ Tools API adds
+        local raw = math.min(spec.capacity, 100)
+        if spec.capacity > raw then object:getModData()[Data.CAPACITY_KEY] = spec.capacity - raw end
+        container:setCapacity(raw)
         container:setExplored(true)
     end
 end
@@ -1034,7 +1037,6 @@ function Machines.place(kind, square, character, item, dir)
             end
             setupContainers(object, entry.square, kind)
             applyAccept(object, state)
-            if kind == "researchStorage" then object:getModData()[Data.CAPACITY_KEY] = 0 end
             Machines.syncLoad(object, state)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
@@ -1089,7 +1091,9 @@ end
 
 local function removeObject(object)
     local square = object:getSquare()
-    if square and square:transmitRemoveItemFromSquare(object) < 0 then
+    -- one taken away already (a pick up, a broken part) keeps its square but is no longer on it: nothing to do
+    if not square or object:getObjectIndex() < 0 then return end
+    if square:transmitRemoveItemFromSquare(object) < 0 then
         OA.log("could not remove a machine object at", square:getX(), square:getY(), square:getZ())
     end
 end

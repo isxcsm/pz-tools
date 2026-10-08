@@ -69,12 +69,16 @@ end)
 section("research storage", function()
     local object, reason = P5T.place("researchStorage", 3, 6, "S")
     if not check("placed", object ~= nil, reason) then return end
-    check("the anchor asks the API to lift the cap (OA_Capacity)", object:getModData().OA_Capacity == 0)
+    check("the anchor asks the API for the rest of 300 (OA_Capacity 200 over the raw 100)",
+        object:getModData().OA_Capacity == 200, tostring(object:getModData().OA_Capacity))
     local container = M.container(object, "store")
     check("it has the storage container", container ~= nil)
     if container then
-        say("info capacity", container:getCapacity(), "(vanilla caps the display at 100 until the API lifts it)")
-        check("capacity set to 300 or capped at 100 by vanilla", container:getCapacity() == 300 or container:getCapacity() == 100)
+        say("info raw capacity", container:getCapacity(), "(the API adds OA_Capacity to it)")
+        check("raw capacity 100", container:getCapacity() == 100, container:getCapacity())
+        local effective = container:getEffectiveCapacity(getPlayer())
+        local lifted = OperationAcorn.api() ~= nil
+        check("it holds 300 with the API, 100 without", effective == (lifted and 300 or 100), effective)
     end
 end)
 
