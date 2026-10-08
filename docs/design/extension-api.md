@@ -5,8 +5,8 @@
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
-> ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree and
-> the speed points so far). Planned: `"parallel"`, the rest of the formula points. The first areas serve a separate power
+> ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
+> speed points, the survival points and the [hidden zombies](#the-hidden-zombies) so far). Planned: `"parallel"`, the rest of the formula points. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
@@ -398,12 +398,12 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 
 | Call | Effect |
 | --- | --- |
-| `formulas.set(handle, point, value)` | Declares the mod's value for the point (a `value` of `nil` takes it back). A point the API does not have, or a value of the wrong shape or outside its range, is a Lua error that names the point. A point that is `"planned"` (below) takes a number, boolean, string or table and keeps nothing. |
+| `formulas.set(handle, point, value)` | Declares the mod's value for the point (a `value` of `nil` takes it back). A point the API does not have, or a value of the wrong shape or outside its range, is a Lua error that names the point. |
 | `formulas.get(point)` | The value all mods' declarations make together, in the point's shape, or `nil` when no mod declared it. |
 | `formulas.declared(handle, point)` | The mod's own value, or `nil`. |
 | `formulas.efficiency(item)` | The factor the current `carry.*` declarations put on the item's own weight (1 for none, 0.5 for +100%): what a mod's tooltip shows. `item` is an `InventoryItem`; anything else is a Lua error. |
 | `formulas.weight(item)` | The item's weight as the load counts it with nothing equipped (a bag with what is in it), under the current declarations. |
-| `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"planned"` when the point has no hook yet. A mod shows the player what is not applied. |
+| `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"unavailable: ..."` when the game lacks what a point reads. A mod shows the player what is not applied. |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
 loads (`OnGameStart`), as it defines its networks: they belong to the world they were made in, and are gone when the player
@@ -457,6 +457,7 @@ not have is a Lua error at `set`.
 | `loot.ammoMultiplier` | 0 to 100 | multiply | Times the ammunition modifier of the loot (`ItemPickerJava.getLootModifierFromType("Ammo")`), which the chance above is worked out with. |
 | `vision.darknessRestore` | 0 to 1, a reduction | reductions | The part of the dark the local player sees in that is taken away: `LightingJNI.getLumaInverted(character)` (0 light to 1 dark, which the vision cone and the shadows read) becomes `dark x (1 - value)`. The brightness of the screen is the native lighting's and does not change. |
 | `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
+| `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
 bag's weight reduction on what is inside it), and a formula only changes the weight the game reads: the efficiencies above,
@@ -471,7 +472,47 @@ The event `OnPZToolsBiteSurvived(bodyPartIndex)` is raised through `LuaEventMana
 took the infection out of (the index counts as `BodyPartType.ToIndex`), as `OnPZToolsNetworkChange` is raised; the API adds
 it to the game with the first Lua environment.
 
-Planned points, accepted and without effect until their hooks are built: `vision.hiddenZombieFix`.
+### The hidden zombies
+
+`vision.hiddenZombieFix` is the one point worked each frame instead of by a hook, because it is about every zombie at
+once. The game decides which zombies are drawn in `IsoGameCharacter.updateSeenVisibility`, once for each local player
+and each update: a zombie it does not find seen has the alpha it fades to set to 0 (`isVisibleToPlayer[player]` false).
+Some squares inside the vision cone and the view distance are not found seen though nothing stands between them and the
+player. While a mod declares the fix, the API goes through the cell's zombie list (`IsoCell.getZombieList()`) at the start
+of each frame, on the game thread, and for each local player looks only at the zombies that
+
+- the game does not draw (`isVisibleToPlayer[player]` false; one array read decides it for most),
+- stand within `GameTime.getViewDist()` of the player, the game's own bound for seeing a zombie (it stands for the screen),
+- stand on the player's floor or the floor just above or below it (a zombie two floors away is not looked at),
+- stand inside the vision cone: the angle the lighting hands the shadows (`LightingJNI`'s smoothed `visionConeLerp`, read,
+  not asked of `calculateVisionCone`, which moves it each time it is called), measured from `getLookVector`. Outside it the
+  shadows hide the zombie, so the fix leaves it.
+
+For such a zombie it draws a line from the player, and when nothing blocks the line it sets `setTargetAlpha(player, 1)` on
+that frame and each frame after it (the game sets it back to 0 when it updates; the alpha it fades to is all that is
+changed. The frame job runs at the start of the game's `logic()`, and the game's update does `updateAlpha` before
+`updateSeenVisibility`, so one setting per frame is enough).
+On the player's floor the line runs from the exact positions across the squares and stops at an edge the game blocks vision
+at (`IsoGridSquare.testVisionAdjacent`, as `LosUtil.lineClear` asks it); to the floor above or below it is
+`LosUtil.lineClear` itself, which has the game's floors, stairs and openings. Only a `Blocked` result stops a line, as in the
+game; a square the game has not loaded does not block. A zombie that is shown is also offered to
+`IsoPlayer.TestZombieSpotPlayer` every 0.1 to 0.5 seconds, so that it can notice the player as the zombies the game draws do.
+
+What a line found is not kept for a square, a place or a door. A zombie's line is drawn when the zombie first becomes a
+candidate, in the same frame, and again 0.06 to 0.1 seconds after the last (the spread differs from zombie to zombie, so
+that the lines are spread over the frames): what is shown is never older than 0.1 seconds, and nothing has to be undone when
+a door or an object changes. A zombie that is not a candidate for a few frames is forgotten.
+
+It does not change the game's own working: the count of visible zombies, the music's and the panic moodle's reading,
+`isVisibleToPlayer` and the lighting of the square (a zombie in a dark square is drawn dark) stay as the game has them. The
+game's own test of how bright the zombie's square is (the last part of `TestIfSeen`) is not repeated, so a zombie in a very
+dark square inside the cone is shown and drawn as dark as its square. Nothing is done while the player is asleep, dead, in a
+vehicle (the cone then is the vehicle's) or sees everyone (a cheat that has it done). While no mod declares the fix nothing
+runs, and the game is not touched.
+
+A fault stops this part alone, once, with a line in the game's log: the point then reads `unavailable: stopped: ...`, the other
+points go on and the game draws as it did. A game that lacks a member the fix reads makes the point read `unavailable: ...`
+from the start.
 
 ### Hook sites
 
@@ -586,6 +627,37 @@ shield through the zombie's bite, a save's load, two mods and a use for each dec
 much the trees' animation scale takes the slowdown away (`move.treeSlowMultiplier`), that a landing worked out lower plays
 the right animation, that the walking multiplier is not undone by the animation's own speed (PZ Optimize's parallel
 animation), and a real bite survived.
+
+The hidden-zombie fix has no bytecode hook, so what was checked against the installed game (7 October 2026, Build 42) is
+that every member it reads is there, with the types it expects, in the jar alone and with PZ Optimize's loose classes first
+(`IsoGameCharacter`, `IsoPlayer`, `LightingJNI`; the update order `updateAlpha` then `updateSeenVisibility` is the same in both).
+In the synthetic game: nothing is looked at before a declaration (no line, no alpha set); a zombie in sight is shown on the
+first frame; one behind a wall, outside the cone or the view distance, two floors away, behind a floor with no opening or
+that the game already draws is not changed; the alpha is set on every frame; a second at 60 frames draws 10 to 17 lines for a
+zombie and offers its spotting 2 to 11 times; a wall that comes between, tried at six moments of a zombie's period, stops it
+within 0.1 seconds (plus a frame), as does taking the wall away; several mods join as any, `clear` and `false` turn it off,
+declaring it again shows the zombie at once; a sleeping or dead player, one in a vehicle or who sees all gets nothing shown,
+and a narrow cone, one all round and a player who turns change who is a candidate; a second local player is looked for on its
+own; and a fault in the zombie list stops the fix alone while the other formulas go on. The cost per frame in the synthetic
+game, for 1000 to 10000 zombies on a 128 by 128 map of 4 floors with random walls (15% of the edges on each axis, 5% of the
+squares solid), 60% of them drawn by the game, view 40 squares, cone 144 degrees, the player walking and turning:
+
+| Zombies | Placed | Fix off | Fix on, mean / 99th percentile | Lines a frame |
+| --- | --- | --- | --- | --- |
+| 1000 | over the map | 0.000 ms | 0.010 / 0.024 ms | 7.8 |
+| 3000 | over the map | 0.000 ms | 0.039 / 0.089 ms | 22.5 |
+| 10000 | over the map | 0.000 ms | 0.140 / 0.244 ms | 71.3 |
+| 1000 | within 35 squares | 0.000 ms | 0.012 / 0.028 ms | 16.6 |
+| 3000 | within 35 squares | 0.000 ms | 0.042 / 0.083 ms | 53.0 |
+| 10000 | within 35 squares | 0.000 ms | 0.185 / 0.352 ms | 175.8 |
+
+Of the 0.185 ms, 0.067 ms is the pass over 10000 zombies the game all draws (one array read each) and 0.165 ms the pass over
+10000 that are not drawn with a cone so narrow that almost none is a candidate (their positions are read and nothing more);
+the lines are the rest. The design's offline measure for the same worst case was 0.16 ms on byte arrays with 1176 lines a
+frame; the lines here are fewer because of the 0.1 second cadence, and the squares of the synthetic game are objects, as the
+game's are, but are not the game's. The cost in the game is to be measured there. Not tried in the game yet: that a shown
+zombie is drawn (the alpha is all that is set), a zombie seen across a stair or an opening in the floor, the cost with a real
+horde, and whether the lighting of a square leaves a shown zombie too dark to see.
 
 ## How the game is answered
 

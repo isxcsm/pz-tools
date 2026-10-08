@@ -8,6 +8,10 @@ import zombie.iso.objects.IsoLightSwitch;
 public final class LightingJNI {
     private static List<IsoLightSwitch> switches;
     private static boolean lit;
+    // The degrees of the vision cone, which the game smooths over time and hands to the shadows.
+    private static float visionConeLerp = 144.0f;
+
+    public static void setCone(float degrees) { visionConeLerp = degrees; }
 
     private static void checkLights() {
         boolean any = false;
@@ -30,6 +34,7 @@ public final class LightingJNI {
         if (character.eagleEyed) degrees = degrees + 36.0f;
         degrees = degrees * character.getWornItemsVisionMultiplier();
         degrees = Math.max(18.0f, Math.min(360.0f, degrees));
+        visionConeLerp = degrees;
         return (degrees - 180.0f) / 180.0f;
     }
 

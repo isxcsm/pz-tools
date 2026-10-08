@@ -10,6 +10,7 @@ import zombie.characters.WornItems.WornItems;
 import zombie.inventory.InventoryItem;
 import zombie.inventory.ItemContainer;
 import zombie.iso.IsoMovingObject;
+import zombie.iso.Vector2;
 
 /**
  * Synthetic: the character methods the formulas change, shaped as the game's are (a getter that reads a field, a method
@@ -43,7 +44,21 @@ public class IsoGameCharacter extends IsoMovingObject {
     /** The clothes torn, the scratches of the trees, the speed the last landing was made at, and the damage it did. */
     public int holes, scratches;
     public float landedAt, impactDamage;
+    /** Whether the game draws it for each local player, as updateSeenVisibility worked it out. */
+    public final boolean[] isVisibleToPlayer = new boolean[4];
+    /** Where it looks, whether it sleeps or is dead, and the car it is in. */
+    public float lookX = 1f, lookY;
+    public boolean asleep, dead;
+    public Object vehicle;
     public IsoGameCharacter() { super(); }
+
+    public Vector2 getLookVector(Vector2 into) { into.set(lookX, lookY); return into; }
+
+    public boolean isAsleep() { return asleep; }
+
+    public boolean isDead() { return dead; }
+
+    public Object getVehicle() { return vehicle; }
 
     public BodyDamage getBodyDamage() { return bodyDamage; }
 

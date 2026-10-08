@@ -11,6 +11,13 @@ public class IsoPlayer extends IsoGameCharacter {
     public int hypothermia;
     public float deferredX, deferredY;
     public boolean invisible;
+    /** Whether the player sees everyone (a cheat), and the zombies it was offered to be spotted by. */
+    public boolean seeEveryone;
+    public final java.util.ArrayList<zombie.iso.IsoMovingObject> spotted = new java.util.ArrayList<>();
+
+    public boolean isSeeEveryone() { return seeEveryone; }
+
+    public void TestZombieSpotPlayer(zombie.iso.IsoMovingObject zombie) { spotted.add(zombie); }
 
     /** The speed along a path, slowed by a heavy load as the game's is. */
     public float getPathSpeed() {

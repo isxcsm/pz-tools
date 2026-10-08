@@ -108,7 +108,7 @@ final class FormulasTest {
                 "body.coldMultiplier", "body.corpseCountMultiplier", "body.corpseSicknessMultiplier", "body.holeChance", "infection.woundChance",
                 "infection.biteShield" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
-        check("planned".equals(points.rawget("vision.hiddenZombieFix")), "A point not built yet is " + points.rawget("vision.hiddenZombieFix"));
+        check(ApiHooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
         check(Formulas.POINTS.size() == 31, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
@@ -125,10 +125,7 @@ final class FormulasTest {
         rejects(formulas, "set", "body.discomfortMultiplier must be a number", mod, "body.discomfortMultiplier", "half");
         rejects(formulas, "set", "body.discomfortMultiplier must be a number", mod, "body.discomfortMultiplier", Double.NaN);
         rejects(formulas, "get", "there is no point body.nothing", "body.nothing");
-        // A point whose hooks are not built yet takes a value and keeps nothing.
-        call(formulas, "set", mod, "vision.hiddenZombieFix", true);
-        check(call(formulas, "get", "vision.hiddenZombieFix").get(0) == null, "A point not built yet kept a value");
-        rejects(formulas, "set", "must be a number, a boolean, a string or a table", mod, "vision.hiddenZombieFix", new Object());
+        rejects(formulas, "set", "vision.hiddenZombieFix must be true or false", mod, "vision.hiddenZombieFix", 1.0);
         // The shapes of the points that are built: a chance is from 0 to 1, an amount from 0 up, a shield true or false.
         rejects(formulas, "set", "body.holeChance must be a number from 0.0 to 1.0", mod, "body.holeChance", 1.5);
         rejects(formulas, "set", "move.treeScratchChance must be a number from 0.0 to 1.0", mod, "move.treeScratchChance", -0.1);
@@ -1441,7 +1438,7 @@ final class FormulasTest {
 
     private static boolean near(double value, double expected) { return Math.abs(value - expected) < 1e-5; }
 
-    private static List<Object> call(Object table, String name, Object... arguments) {
+    static List<Object> call(Object table, String name, Object... arguments) {
         // A handle's functions are called with a colon: the handle is the first argument.
         var holder = (KahluaTable)table;
         Object function = holder.rawget(name);

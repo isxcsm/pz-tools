@@ -26,7 +26,12 @@ public class IsoObject {
     public FluidContainer fluidContainer;
     public KahluaTable modData;
     public int syncs;
+    /** The alpha the object fades to, for each local player, and how many times it was set. */
+    public final float[] targetAlpha = { 1f, 1f, 1f, 1f };
+    public int alphaSets;
     public IsoObject(IsoSprite sprite) { this.sprite = sprite; }
+    public void setTargetAlpha(int player, float alpha) { targetAlpha[player] = alpha; alphaSets++; }
+    public float getTargetAlpha(int player) { return targetAlpha[player]; }
     public IsoSprite getSprite() { return sprite; }
     public String getSpriteName() { return null; }
     public IsoGridSquare getSquare() { return square; }

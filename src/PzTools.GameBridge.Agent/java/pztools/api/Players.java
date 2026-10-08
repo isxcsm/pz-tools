@@ -20,6 +20,9 @@ final class Players {
             MethodType.methodType(Object.class, Object.class));
     }
 
+    /** The game's own array of this machine's players, by player index (an empty place is null): read, never changed. */
+    Object[] all() { return players; }
+
     /** Whether the character is a player of this machine. */
     boolean local(Object character) {
         if (character == null) return false;

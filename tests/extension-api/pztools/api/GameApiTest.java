@@ -73,6 +73,7 @@ public final class GameApiTest {
         purify(api);
         food(api);
         FormulasTest.run(api);
+        HiddenZombiesTest.run(api);
         hooks(api);
         takeover(api, buildings);
         System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer API takes it over");

@@ -44,9 +44,7 @@ final class Formulas implements ApiHooks.Formulas {
         /** A table of names and numbers from 0 to 100; the values of a name multiply. */
         MULTIPLIERS,
         /** A name, or a list of names; the lists join. */
-        NAMES,
-        /** A point whose hooks are not built yet: a number, a boolean, a string or a table is accepted and has no effect. */
-        PLANNED
+        NAMES
     }
 
     /** What the names in a table are: any text, or names the game registers. */
@@ -56,16 +54,17 @@ final class Formulas implements ApiHooks.Formulas {
      * A hook point: its name, its value's shape, what its names are, the hooks (as {@code PZToolsAPI.hooks()} names them) it
      * needs, and whether it needs the game's inventory classes.
      */
-    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory, boolean survival) { }
+    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory, boolean survival, boolean sight) { }
 
-    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, false); }
+    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, false, false); }
 
-    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true, false); }
+    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true, false, false); }
 
     /** A point that needs the states, constants and body parts {@link Survival} reads. */
-    private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, true); }
+    private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, true, false); }
 
-    private static Point planned(String name) { return new Point(name, Shape.PLANNED, Names.ANY, List.of(), false, false); }
+    /** A point that is worked each frame from the game's zombies and squares ({@link HiddenZombies}), not by a hook. */
+    private static Point sight(String name, Shape shape) { return new Point(name, shape, Names.ANY, List.of(), false, false, true); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
     private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
@@ -107,7 +106,7 @@ final class Formulas implements ApiHooks.Formulas {
         live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
-        planned("vision.hiddenZombieFix"));
+        sight("vision.hiddenZombieFix", Shape.BOOLEAN));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -155,6 +154,10 @@ final class Formulas implements ApiHooks.Formulas {
     // The states, constants and body parts the walking, falling and biting points read; null, with the reason, in a game that changed them.
     private final Survival survival;
     private final String survivalProblem;
+    // The zombies the game does not draw that the player sees; null, with the reason, in a game that changed what it reads, or
+    // after it failed (it is then stopped, and the game draws as it did).
+    private final HiddenZombies hidden;
+    private String hiddenProblem;
     // The CharacterStat constants Stats.add is asked about.
     private final Object enduranceStat, poisonStat;
     // By mod, then point; what the mod declared: a Double, a Map of names to Doubles or a List of names.
@@ -191,6 +194,15 @@ final class Formulas implements ApiHooks.Formulas {
         }
         survival = reading;
         survivalProblem = trouble;
+        HiddenZombies sight = null;
+        String unseen = null;
+        try { sight = new HiddenZombies(loader, game, players); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            unseen = "the game's zombies, squares or vision could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + unseen);
+        }
+        hidden = sight;
+        hiddenProblem = unseen;
         Class<?> stat = Game.type(loader, "zombie.characters.CharacterStat");
         enduranceStat = stat.getField("ENDURANCE").get(null);
         poisonStat = stat.getField("POISON").get(null);
@@ -321,7 +333,7 @@ final class Formulas implements ApiHooks.Formulas {
         return point;
     }
 
-    /** The value a mod gave, checked and made plain: a Double, a Map of names to Doubles, a List of names; null for none (planned). */
+    /** The value a mod gave, checked and made plain: a Double, a Map of names to Doubles, a List of names. */
     private Object parse(Point point, Object value, String call) throws ReflectiveOperationException {
         String name = point.name();
         switch (point.shape()) {
@@ -336,11 +348,8 @@ final class Formulas implements ApiHooks.Formulas {
             case EFFICIENCIES: return entries(point, value, call, -0.9, MAX_MULTIPLIER);
             case MULTIPLIERS: return entries(point, value, call, 0, MAX_MULTIPLIER);
             case NAMES: return names(point, value, call);
-            default:
-                if (!(value instanceof Number || value instanceof Boolean || value instanceof String || lua.isTable(value)))
-                    throw new IllegalArgumentException(call + ": " + name + " must be a number, a boolean, a string or a table");
-                return null;
         }
+        throw new AssertionError(point.shape());
     }
 
     /** A table of names to numbers within the bounds, as a map in the table's order. */
@@ -408,7 +417,6 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** A mod's declaration of a point; null takes it back. */
     private void declare(String owner, Point point, Object value) {
-        if (point.shape() == Shape.PLANNED) return;
         var values = declared.computeIfAbsent(owner, key -> new TreeMap<>());
         Object before = value == null ? values.remove(point.name()) : values.put(point.name(), value);
         if (values.isEmpty()) declared.remove(owner);
@@ -433,6 +441,7 @@ final class Formulas implements ApiHooks.Formulas {
             if (dirty) write();
             if (survival != null)
                 for (Integer part; (part = survival.nextSurvived()) != null;) game.raise(Survival.EVENT, (double)part);
+            if (hidden != null && hiddenProblem == null) frameHidden();
         } catch (Throwable failure) {
             // Once: a fault that recurs each frame must not flood the game's log. The hooks keep answering.
             if (!reported) System.err.println("[PzTools API] formulas: " + failure);
@@ -441,6 +450,16 @@ final class Formulas implements ApiHooks.Formulas {
     }
 
     private boolean reported;
+
+    /** The zombies the game does not draw: a fault stops this part alone, once, and the game draws as it did. */
+    private void frameHidden() {
+        try { hidden.frame(); }
+        catch (Throwable failure) {
+            hiddenProblem = "stopped: " + failure;
+            hidden.declare(false);
+            System.err.println("[PzTools API] formulas: hidden zombies " + hiddenProblem);
+        }
+    }
 
     /** The value every mod's declarations of the point make together, or null when no mod declared it. */
     private Object combined(Point point) {
@@ -477,8 +496,8 @@ final class Formulas implements ApiHooks.Formulas {
                 for (var values : declared.values()) if (values.get(point.name()) instanceof List<?> list) for (Object item : list) result.add((String)item);
                 return result.isEmpty() ? null : List.copyOf(result);
             }
-            default -> { return null; }
         }
+        throw new AssertionError(point.shape());
     }
 
     /** Two values of one point: multipliers multiply, reductions leave what is left of the penalty multiplied, numbers add. */
@@ -529,6 +548,7 @@ final class Formulas implements ApiHooks.Formulas {
         next.impact = (float)Math.sqrt(number("fall.impactMultiplier", 1));
         next.walk = (float)number("move.walkMultiplier", 1);
         if (survival != null) survival.declare(combined(BY_NAME.get("infection.biteShield")) instanceof Boolean shield && shield);
+        if (hidden != null && hiddenProblem == null) hidden.declare(combined(BY_NAME.get("vision.hiddenZombieFix")) instanceof Boolean fix && fix);
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
         if (inventory != null) {
             var category = new HashMap<String, Float>();
@@ -563,9 +583,9 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** A point's state as {@code PZToolsAPI.hooks()} words it: applied when every hook it needs is, else what is wrong. */
     private String status(Point point, Map<String, String> hooks) {
-        if (point.shape() == Shape.PLANNED) return "planned";
         if (point.inventory() && inventory == null) return "unavailable: " + inventoryProblem;
         if (point.survival() && survival == null) return "unavailable: " + survivalProblem;
+        if (point.sight() && hiddenProblem != null) return "unavailable: " + hiddenProblem;
         int applied = 0;
         String first = null;
         for (String label : point.hooks()) {
@@ -633,7 +653,7 @@ final class Formulas implements ApiHooks.Formulas {
             if (!"V".equals(fields[0]) || fields.length < 4) throw new IllegalStateException("Unknown line in the kept formulas: " + lines[index]);
             Point point = BY_NAME.get(fields[2]);
             // A point this API no longer has: a newer or an older one's.
-            if (point == null || point.shape() == Shape.PLANNED) continue;
+            if (point == null) continue;
             String payload = fields[3].substring(2);
             Object value;
             switch (fields[3].charAt(0)) {
