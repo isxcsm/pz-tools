@@ -149,4 +149,17 @@ function Places.layoutSites(bounds, count, spacing, accept, existing, int)
     return sites, spacing
 end
 
+-- The compass point (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") of a place seen from another. The game's y
+-- grows to the south. nil when they are the same square.
+local POINTS = { "E", "SE", "S", "SW", "W", "NW", "N", "NE" }
+function Places.bearing(ax, ay, x, y)
+    local dx, dy = x - ax, y - ay
+    if dx == 0 and dy == 0 then return nil end
+    local angle = math.atan2(dy, dx)
+    local sector = math.floor(angle / (math.pi / 4) + 0.5)
+    if sector < 0 then sector = sector + 8 end
+    if sector >= 8 then sector = sector - 8 end
+    return POINTS[sector + 1]
+end
+
 return Places

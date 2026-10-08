@@ -26,7 +26,6 @@ function Story.section(record)
         s.seenMilestones = 0
         s.handover = false
         s.docs = {}          -- read documents: id -> true (or the place variant it was read at)
-        s.docQueue = {}      -- documents sent and not yet read, by item name: { id, ... }
         s.queue = {}         -- story missions waiting: { id =, fresh =, option = }
         s.missed = {}        -- story ids missed, offered again at the next stage
         s.done = {}          -- story id -> "done" | "missed" | "closed"
@@ -88,15 +87,10 @@ end
 function Story.queueSupply(record, itemName, doc)
     local s = Story.section(record)
     s.supply[#s.supply + 1] = { type = itemName, doc = doc }
-    if doc then
-        local q = s.docQueue[itemName]
-        if not q then q = {}; s.docQueue[itemName] = q end
-        q[#q + 1] = doc
-    end
     Story.flushSupply(record)
 end
 
--- Hands the waiting supply to the trade part. Items go as tables { type = full type, modData = {...} } (the trade part
+-- Hands the waiting supply to the trade part. Items go as tables { type = full type, mod = {...} } (the trade part
 -- accepts those or plain full type names).
 function Story.flushSupply(record)
     local s = Story.section(record)
@@ -106,7 +100,7 @@ function Story.flushSupply(record)
     for _, entry in ipairs(s.supply) do
         local mods = nil
         if entry.doc then mods = { OA_Doc = entry.doc } end
-        items[#items + 1] = { type = Data.fullType(entry.type), count = 1, modData = mods }
+        items[#items + 1] = { type = Data.fullType(entry.type), count = 1, mod = mods }
     end
     local ok, err = pcall(OA.Trade.addToDrop, record, items)
     if ok then
@@ -278,16 +272,23 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Radio and notes.
 
--- Which greeting the radio opens with: the stage's (0 to 5) or "H" after the handover.
-function Story.greetingKey(record)
-    if Story.handedOver(record) then return PREFIX .. "Greeting_H" end
-    local stage = Story.progress(record)
-    return PREFIX .. "Greeting_" .. tostring(OA.clamp(stage, 0, 5))
+-- Which greeting the radio opens with, as a translation key: the stage's (1 to 4) or "H" after the handover; nil when
+-- there is none (before the first stage, and at the 5th stage).
+function Story.greetingKeyFor(stage, handedOver)
+    if handedOver then return PREFIX .. "Greeting_H" end
+    if Data.GREETING_STAGES[stage] then return PREFIX .. "Greeting_" .. tostring(stage) end
+    return nil
 end
 
--- The greeting text (empty at the 5th stage), with the collection point number.
+function Story.greetingKey(record)
+    return Story.greetingKeyFor((Story.progress(record)), Story.handedOver(record))
+end
+
+-- The greeting text with the collection point number ("" when there is none).
 function Story.greeting(record)
-    return Story.text(Story.greetingKey(record), Story.number(record))
+    local key = Story.greetingKey(record)
+    if not key then return "" end
+    return Story.text(key, Story.number(record))
 end
 
 -- The first radio line when the terminal is first used: 'late' when the first crate came late or without a helicopter.
@@ -334,7 +335,7 @@ end
 -- The next manifest note, by the order pool: the special ones first (a receipt remark waiting), then the stage's
 -- own lines one per crate. nil when the story has nothing now (the trade part uses its general lines). Returns the
 -- text and the id.
-function Story.manifestNote(record)
+function Story.manifestNoteKey(record)
     local s = Story.section(record)
     local id = table.remove(s.noteQueue, 1)
     if not id then
@@ -344,7 +345,13 @@ function Story.manifestNote(record)
         s.noteIndex[key] = used + 1
         id = ids[used + 1]
     end
-    return Story.text(PREFIX .. "Note_" .. id, Story.number(record)), id
+    return PREFIX .. "Note_" .. id, { Story.number(record) }, id
+end
+
+function Story.manifestNote(record)
+    local key, args, id = Story.manifestNoteKey(record)
+    if not key then return nil end
+    return Story.text(key, args[1]), id
 end
 
 -- A remark the next crate's manifest should carry first (a receipt note: the sample case taken back, the cooler's
@@ -439,14 +446,6 @@ function Story.readDocuments(record)
     return list
 end
 
--- The document a supply item without its own id takes: the next one waiting for that item type.
-function Story.takeQueuedDoc(record, itemName)
-    local s = Story.section(record)
-    local q = s.docQueue[itemName]
-    if q and #q > 0 then return table.remove(q, 1) end
-    return nil
-end
-
 -- ---------------------------------------------------------------------------------------------------------------
 -- The status table (clue 20): other collection point numbers, sparse, made once. The player's number alone is
 -- 'kept'; the roster page (clue 18) shares three of the numbers.
@@ -484,6 +483,17 @@ function Story.registeredLate()
     local vars = SandboxVars
     if vars and vars.StartMonth and vars.StartMonth ~= 7 then return true end
     return false
+end
+
+-- The strange item of next week's requests after a hallucination: nil when there is none this week.
+Story.STRANGE = { "Base.Harmonica", "Base.Whistle", "Base.Thimble", "Base.Yoyo", "Base.Doll" }
+function Story.strangeItem(record)
+    local s = Story.section(record)
+    if s.strangeWeek and s.strangeWeek == OA.week() then
+        local i = OA.remainder(record.number or 0, #Story.STRANGE) + 1
+        return Story.STRANGE[i]
+    end
+    return nil
 end
 
 return Story

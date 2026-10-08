@@ -339,7 +339,7 @@ local function createStake(record, entry, level)
     m.anchor = { x = ax, y = ay }
     m.stake = site.n
     local p = { x = site.x, y = site.y, z = 0 }
-    local it = placementFrom(entry.item, "A", p, { OA_Stake = site.n })
+    local it = placementFrom(entry.item, "A", p, { OA_Stake = site.stake })
     it.mode = "floor"
     m.items[1] = it
     circleFor(m, site.x, site.y)
@@ -391,7 +391,7 @@ local function createSoil(record, def, id, level)
     end
     if #seen > 0 then
         local site = seen[OA.random(1, #seen)]
-        m.soil = { site = site.n, x = site.x, y = site.y, variant = "site" }
+        m.soil = { site = site.n, stake = site.stake, x = site.x, y = site.y, variant = "site" }
         m.place = nil
         circleFor(m, site.x, site.y)
         m.title = "soil_site"
@@ -671,7 +671,7 @@ end
 -- While the helicopter is on its way its noise goes out every ten minutes; when it comes the box is taken and paid.
 function Missions.tickField(record, m, now)
     local g = game()
-    if g and g.noise then g.noise(m.field.x, m.field.y, m.field.z) end
+    if g and g.noise then g.noise(record, m.field.x, m.field.y, m.field.z) end
     if now >= m.field.arrive then
         if m.field.late then
             Missions.finish(record, m, "expired")
@@ -692,9 +692,8 @@ function Missions.soil(record, character)
         local x, y = g.playerPosition(record)
         if not x or Places.distance(x, y, m.soil.x, m.soil.y) > 25 then return false end
     end
-    local site = m.soil.site
     if g.giveMissionItem then
-        g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = site })
+        g.giveMissionItem(character, Data.fullType("SoilSample"), m.id, { OA_Stake = m.soil.stake })
     end
     m.soil.taken = true
     m.items[1] = { key = "A", type = Data.fullType("SoilSample"), mode = "given", placed = true }

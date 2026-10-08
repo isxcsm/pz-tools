@@ -92,7 +92,6 @@ Data.ITEMS = {
     SerumSheet = { supply = true, docs = { "serum_sheet" }, weight = 0.1 },
     UnresolvedList = { supply = true, weight = 0.1 },
     HandoverFile = { supply = true, docs = { "handover_notice", "status_table" }, weight = 0.2 },
-    FieldNote = { weight = 0.05 },
     KitVoucher = { weight = 0.05 },
     MeteorFragment = { weight = 0.5 },
 }
@@ -232,12 +231,16 @@ Data.AFTER = {
 }
 Data.AFTER_LAST = 5
 
--- Greetings by stage (LORE 6): 0 the first, 1 to 5, "H" after the handover. The text is IGUI_OA_Story_Greeting_<n>.
-Data.GREETINGS = { [0] = 0, 1, 2, 3, 4, 5 }
+-- Greetings by stage (LORE 6): the stages 1 to 4 and "H" after the handover have one (IGUI_OA_Story_Greeting_<n>); before
+-- the first stage (the first-contact lines carry their own) and at the 5th stage (no greeting) there is none.
+Data.GREETING_STAGES = { [1] = true, [2] = true, [3] = true, [4] = true }
 
 -- Temporary refusals (LORE 7): the radio line when a category stops being taken and when it comes back as a request.
 -- Categories are the economy's letters. Text IGUI_OA_Story_Refuse_<A|F|any>_<start|back>.
 Data.REFUSALS = { A = true, F = true }
+
+-- How many broadcast lines each stage has (IGUI_OA_Story_Broadcast_<stage|H>_<n>).
+Data.BROADCAST_LINES = { ["0"] = 2, ["1"] = 3, ["2"] = 3, ["3"] = 3, ["4"] = 3, ["5"] = 2, H = 4 }
 
 -- Small numbers.
 Data.MISSION_RADIUS_BASE = 50
