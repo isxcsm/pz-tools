@@ -32,3 +32,9 @@ Some checks change the save's market or the record (they say so in their header)
 | `p1_pickup.lua` | the pickup hook: floor items tagged with their cell and entered in the codex (changes the record) | none |
 | `p1_buildings.lua` | the building watch: counts and searched containers where the character stands, API against vanilla | stand in a house; open containers and run it again |
 | `p1_events.lua` | the daily and ten-minute handlers, kills, the shred yield on real items | kill a zombie, then run it |
+
+## P6 gear and kits (`p6_gear.lua`)
+
+| File | What it checks | Setup |
+| --- | --- | --- |
+| `p6_gear.lua` | the gear items against the vanilla ones they are modelled on, the shop stocking them, the improved torches in the welding recipes, bag kits (with and without the API), trunk and engine kits on the nearest vehicle, the voucher | stand within 6 squares of a car; throwaway save; `P6_CLEAN()` after |

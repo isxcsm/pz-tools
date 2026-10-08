@@ -40,5 +40,12 @@
     "ContextMenu_OA_Story_LeaveCase": "Leave the case",
     "ContextMenu_OA_Story_Read": "Read",
     "ContextMenu_OA_Story_ReadStake": "Look at the stake",
-    "ContextMenu_OA_Story_TakeSoil": "Take a soil sample"
+    "ContextMenu_OA_Story_TakeSoil": "Take a soil sample",
+    "ContextMenu_OA_Gear_FitBag": "Fit to a bag",
+    "ContextMenu_OA_Gear_FitVehicle": "Fit to a vehicle",
+    "ContextMenu_OA_Gear_FitKit": "Fit a kit",
+    "ContextMenu_OA_Gear_FitKitOf": "%1 (%2 in hand)",
+    "ContextMenu_OA_Gear_FitTrunk": "Fit trunk kit",
+    "ContextMenu_OA_Gear_FitEngine": "Fit engine tuning kit",
+    "ContextMenu_OA_Gear_Redeem": "Redeem voucher"
 }

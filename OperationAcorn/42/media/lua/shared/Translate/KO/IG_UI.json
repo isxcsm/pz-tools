@@ -1066,5 +1066,20 @@
     "IGUI_OA_Econ_Radio_RefuseBack": "%1 시료가 다시 요청 목록에 올랐습니다. 이번 주 목록을 확인하십시오. 이상.",
     "IGUI_OA_Econ_Receipt_BigMeteorite": "출처 불명, 대조 불가.",
     "IGUI_OA_Econ_Receipt_Fragment": "파편 수령. 자재 기준으로 정산.",
-    "IGUI_OA_Econ_Radio_BigMeteorite": "출처 표시가 없는 큰 운석 물질은 받지 않습니다. 이상."
+    "IGUI_OA_Econ_Radio_BigMeteorite": "출처 표시가 없는 큰 운석 물질은 받지 않습니다. 이상.",
+    "IGUI_OA_Gear_AnyTarget": "대상 지정 없음",
+    "IGUI_OA_Gear_Failed": "키트를 달지 못했다: %1",
+    "IGUI_OA_Gear_Redeemed": "%1을(를) 받았다.",
+    "IGUI_OA_Gear_Fitted_bagCapacity": "%1 용량이 %2가 되었다.",
+    "IGUI_OA_Gear_Fitted_bagWeight": "%1 무게 감소가 %2가 되었다.",
+    "IGUI_OA_Gear_Fitted_trunk": "%1: 트렁크 용량이 %2가 되었다.",
+    "IGUI_OA_Gear_Fitted_engine": "%1: 엔진이 %2마력이 되었다.",
+    "IGUI_OA_Gear_Reason_kit": "맞는 키트가 아니다",
+    "IGUI_OA_Gear_Reason_bag": "가방이 아니다",
+    "IGUI_OA_Gear_Reason_target": "주문한 대상이 다르다",
+    "IGUI_OA_Gear_Reason_gone": "이미 없다",
+    "IGUI_OA_Gear_Reason_far": "차에서 너무 멀다",
+    "IGUI_OA_Gear_Reason_part": "차에 그 부품이 없다",
+    "IGUI_OA_Gear_Reason_voucher": "교환권이 없다",
+    "IGUI_OA_Gear_Reason_kind": "모르는 키트다"
 }

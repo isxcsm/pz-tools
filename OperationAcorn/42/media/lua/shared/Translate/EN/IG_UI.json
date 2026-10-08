@@ -1066,5 +1066,20 @@
     "IGUI_OA_Econ_Radio_RefuseBack": "%1 is on the request list again. Check this week's list. Over.",
     "IGUI_OA_Econ_Receipt_BigMeteorite": "Origin unknown, cannot be matched.",
     "IGUI_OA_Econ_Receipt_Fragment": "Fragment received. Settled at the material rate.",
-    "IGUI_OA_Econ_Radio_BigMeteorite": "Large meteorite matter without an origin marking is not accepted. Over."
+    "IGUI_OA_Econ_Radio_BigMeteorite": "Large meteorite matter without an origin marking is not accepted. Over.",
+    "IGUI_OA_Gear_AnyTarget": "any target",
+    "IGUI_OA_Gear_Failed": "Kit not fitted: %1",
+    "IGUI_OA_Gear_Redeemed": "%1 handed over.",
+    "IGUI_OA_Gear_Fitted_bagCapacity": "%1 now holds %2.",
+    "IGUI_OA_Gear_Fitted_bagWeight": "%1 now has a weight reduction of %2.",
+    "IGUI_OA_Gear_Fitted_trunk": "%1: the trunk now holds %2.",
+    "IGUI_OA_Gear_Fitted_engine": "%1: the engine now makes %2 hp.",
+    "IGUI_OA_Gear_Reason_kit": "that is not the right kit",
+    "IGUI_OA_Gear_Reason_bag": "that is not a bag",
+    "IGUI_OA_Gear_Reason_target": "it was ordered for another one",
+    "IGUI_OA_Gear_Reason_gone": "it is no longer there",
+    "IGUI_OA_Gear_Reason_far": "too far from the vehicle",
+    "IGUI_OA_Gear_Reason_part": "the vehicle has no such part",
+    "IGUI_OA_Gear_Reason_voucher": "no voucher",
+    "IGUI_OA_Gear_Reason_kind": "unknown kit"
 }

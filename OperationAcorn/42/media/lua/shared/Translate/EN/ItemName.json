@@ -66,5 +66,16 @@
     "OperationAcorn.StakeTag": "Stake Tag",
     "OperationAcorn.UnresolvedList": "Unresolved Items List",
     "OperationAcorn.WardRecord": "Ward Log",
-    "OperationAcorn.WeatherLog": "Airfield Weather Log"
+    "OperationAcorn.WeatherLog": "Airfield Weather Log",
+    "OperationAcorn.TeamBackpack": "Research Team Backpack",
+    "OperationAcorn.FuelCanMk1": "Improved Fuel Can Mk.I",
+    "OperationAcorn.FuelCanMk2": "Improved Fuel Can Mk.II",
+    "OperationAcorn.FuelCanMk3": "Improved Fuel Can Mk.III",
+    "OperationAcorn.TorchMk1": "Improved Welding Torch Mk.I",
+    "OperationAcorn.TorchMk2": "Improved Welding Torch Mk.II",
+    "OperationAcorn.TorchMk3": "Improved Welding Torch Mk.III",
+    "OperationAcorn.KitBagCapacity": "Bag Capacity Kit",
+    "OperationAcorn.KitBagWeight": "Bag Weight Kit",
+    "OperationAcorn.KitTrunk": "Trunk Kit",
+    "OperationAcorn.KitEngine": "Engine Tuning Kit"
 }

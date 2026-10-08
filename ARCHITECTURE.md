@@ -75,6 +75,9 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,
 새 지역 웃돈), `OA_Mission`(임무 ID), `OA_Box`(상자 ID), `OA_Issued`(혈청 발급 시각), `OA_Owner`(발급받은 기록 ID).
+개조 키트(P6)의 키: 키트 아이템 `OA_Target`(주문한 대상, 가방은 아이템 종류, 차는 스크립트 이름, 빈 문자열은 아무 데나), `OA_Voucher`(교환권으로 받음).
+가방 아이템 `OA_KitCap`, `OA_KitWeight`, `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`; 트렁크 부품(`TruckBed`, `TruckBedOpen`) `OA_KitTrunk`, `OA_KitBase`,
+`OA_KitRaw`; 엔진 부품 `OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 확장 API가 읽는 `OA_Capacity`는 키트가 쓸 때 숫자다 (원래 용량에 더할 양).
 
 ## 5. 작업 묶음
 
@@ -85,7 +88,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 치료 혈청·지연제(유통 기한, 본인만) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
 | P4 임무와 이야기 | 임무(장소 고르기, 아이템 넣기, 지도 원, 기한), 이야기 임무와 데드 드롭, 문서철, 무전 문구, 명세서 비고, 환각, 전용 주파수, 운석 낙하지(정하기, 실물 놓기, 파편), 이관 | `*/OperationAcorn/Story/*.lua`, `scripts/OA_story.txt` |
 | P5 아지트 기계 | 분해대, 대량 분해기, 재단기, 프로판·오일 정제기, 목재 절단기, 연구팀 보관함, 대형 빗물 저장소, 설치형 미끼, 기계 부품(달고 떼기, 닳기), 따라잡기 처리, 시료 묶음 | `*/OperationAcorn/Machines/*.lua`, `scripts/OA_machines.txt` |
-| P6 장비와 키트 | 연구팀 배낭, 개조 키트 넷, 개량 장비(Mk) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt` (2차) |
+| P6 장비와 키트 | 연구팀 배낭, 개조 키트 넷(타이밍 액션으로 달기, 교환권), 개량 장비(Mk) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt` |
 | P7 확장 API | pz-tools 쪽 훅 (FEASIBILITY 4장) | pz-tools 저장소 |
 | P8 에셋 | 타일 두 장, 아이템 아이콘, 배낭 메시 | `tools/tile_art.py`, `42/media/texturepacks`, `*.tiles`, `textures/` |
 

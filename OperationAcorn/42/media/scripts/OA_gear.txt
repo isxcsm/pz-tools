@@ -1,0 +1,259 @@
+/* Operation Acorn: gear and kits (the gear package).
+   The research team backpack, the improved fuel cans and welding torches (Mk.I to Mk.III) and the four modification
+   kits. Every property is one the vanilla scripts use: the backpack is modelled on Bag_ALICEpack, the cans on
+   PetrolCan (media/scripts/generated/items/normal.txt) and the torches on BlowTorch (drainable.txt).
+   What scripts cannot do is in media/lua/shared/OperationAcorn/Gear: fitting a kit (a timed action that writes the
+   counts to the bag or the vehicle), redeeming the handover voucher, and teaching the vanilla welding recipes about
+   the Mk torches. The tooltips are set in code (ISToolTipInv, Gear/Menu.lua), so none is named here. */
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    /* The research team backpack: 35 capacity and 85 weight reduction, the vanilla maxima, with two webbing
+       hangers on the sides (WebbingLeft/Right) for the two military canteens the shop gives with it. */
+    item TeamBackpack
+    {
+        DisplayCategory = Bag,
+        ItemType = base:container,
+        Weight = 2.0,
+        Icon = OA_ResearchBackpack,
+        AttachmentReplacement = Bag,
+        BloodLocation = Bag,
+        CanBeEquipped = base:back,
+        CanHaveHoles = false,
+        Capacity = 35,
+        CloseSound = CloseBag,
+        ClothingItem = OA_Bag_ResearchPack,
+        EquipSound = EquipBackpackLarge,
+        OpenSound = OpenBag,
+        PutInSound = PutItemInBag,
+        ReplaceInPrimaryHand = OA_Bag_ResearchPack_RHand holdingbagright,
+        ReplaceInSecondHand = OA_Bag_ResearchPack_LHand holdingbagleft,
+        RunSpeedModifier = 0.94,
+        WeightReduction = 85,
+        WorldStaticModel = OperationAcorn.OA_ResearchPack_Ground,
+        AttachmentsProvided = WebbingLeft;WebbingRight,
+        Tags = base:ignorezombiedensity,
+    }
+
+    /* The improved fuel cans: the vanilla petrol can with a larger tank and the same empty weight. The shop sends
+       them empty. The base:petrol tag is what the vehicle and generator menus look for. */
+    item FuelCanMk1
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk1,
+        StaticModel = Base.GasCan,
+        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
+        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
+        WorldStaticModel = Base.GasCan_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 15.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    item FuelCanMk2
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk2,
+        StaticModel = Base.GasCan,
+        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
+        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
+        WorldStaticModel = Base.GasCan_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 20.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    item FuelCanMk3
+    {
+        DisplayCategory = VehicleMaintenance,
+        Weight = 1.6,
+        ItemType = base:normal,
+        Icon = OA_FuelCanMk3,
+        StaticModel = Base.GasCan,
+        ReplaceInSecondHand = Bag_GasCan_LHand holdingbagleft,
+        ReplaceInPrimaryHand = Bag_GasCan_RHand holdingbagright,
+        WorldStaticModel = Base.GasCan_Ground,
+        Tags = base:petrol;base:cookablemicrowave,
+        component FluidContainer
+        {
+            ContainerName = GasCan,
+            Capacity = 25.0,
+            Fluids
+            {
+                fluid = Petrol:1.0,
+            }
+        }
+    }
+
+    /* The improved welding torches: the vanilla BlowTorch (10 uses, 1.0 full and 0.3 empty) with the charge times
+       1.5, 2 and 3 (UseDelta is 1 / the uses; a hair under, so that the game's floor(1 / UseDelta) gives 15, 20 and
+       30) and the weight times 1, 0.6 and 0.4 (both the full and the empty weight). base:blowtorch is the tag the
+       vanilla code that is not tied to the exact item type looks for. */
+    item TorchMk1
+    {
+        DisplayCategory = Tool,
+        ItemType = base:drainable,
+        Weight = 1.0,
+        WeightEmpty = 0.3,
+        Icon = OA_WeldingTorchMk1,
+        KeepOnDeplete = true,
+        MetalValue = 20.0,
+        UseDelta = 0.0666666,
+        UseWhileEquipped = false,
+        cantBeConsolided = true,
+        StaticModel = Base.BlowTorch,
+        WorldStaticModel = Base.BlowtorchGround,
+        Tags = base:blowtorch,
+    }
+
+    item TorchMk2
+    {
+        DisplayCategory = Tool,
+        ItemType = base:drainable,
+        Weight = 0.6,
+        WeightEmpty = 0.18,
+        Icon = OA_WeldingTorchMk2,
+        KeepOnDeplete = true,
+        MetalValue = 20.0,
+        UseDelta = 0.0499999,
+        UseWhileEquipped = false,
+        cantBeConsolided = true,
+        StaticModel = Base.BlowTorch,
+        WorldStaticModel = Base.BlowtorchGround,
+        Tags = base:blowtorch,
+    }
+
+    item TorchMk3
+    {
+        DisplayCategory = Tool,
+        ItemType = base:drainable,
+        Weight = 0.4,
+        WeightEmpty = 0.12,
+        Icon = OA_WeldingTorchMk3,
+        KeepOnDeplete = true,
+        MetalValue = 20.0,
+        UseDelta = 0.0333333,
+        UseWhileEquipped = false,
+        cantBeConsolided = true,
+        StaticModel = Base.BlowTorch,
+        WorldStaticModel = Base.BlowtorchGround,
+        Tags = base:blowtorch,
+    }
+
+    /* Refilling an improved torch from a propane tank: the vanilla RefillBlowTorch recipe (recipes_metalWelding.txt)
+       for each Mk. The torch is replaced by a new one of its own kind, filled by the same code (the propane that
+       fills one tank-load of the torch's own uses). */
+    craftRecipe RefillTorchMk1
+    {
+        timedAction = Welding,
+        time = 50,
+        OnCreate = RecipeCodeOnCreate.refillBlowTorch,
+        Tags = InHandCraft;Welding,
+        category = Metalworking,
+        inputs
+        {
+            item 1 [OperationAcorn.TorchMk1] mode:destroy flags[NotFull;ItemCount],
+            item 1 [Base.PropaneTank] flags[NotEmpty;ItemCount] mode:keep,
+        }
+        outputs
+        {
+            item 1 OperationAcorn.TorchMk1,
+        }
+    }
+
+    craftRecipe RefillTorchMk2
+    {
+        timedAction = Welding,
+        time = 50,
+        OnCreate = RecipeCodeOnCreate.refillBlowTorch,
+        Tags = InHandCraft;Welding,
+        category = Metalworking,
+        inputs
+        {
+            item 1 [OperationAcorn.TorchMk2] mode:destroy flags[NotFull;ItemCount],
+            item 1 [Base.PropaneTank] flags[NotEmpty;ItemCount] mode:keep,
+        }
+        outputs
+        {
+            item 1 OperationAcorn.TorchMk2,
+        }
+    }
+
+    craftRecipe RefillTorchMk3
+    {
+        timedAction = Welding,
+        time = 50,
+        OnCreate = RecipeCodeOnCreate.refillBlowTorch,
+        Tags = InHandCraft;Welding,
+        category = Metalworking,
+        inputs
+        {
+            item 1 [OperationAcorn.TorchMk3] mode:destroy flags[NotFull;ItemCount],
+            item 1 [Base.PropaneTank] flags[NotEmpty;ItemCount] mode:keep,
+        }
+        outputs
+        {
+            item 1 OperationAcorn.TorchMk3,
+        }
+    }
+
+    /* The modification kits. A kit carries the target it was ordered for in its modData (OA_Target: the item type of
+       a bag, the script name of a vehicle; empty for any) and is fitted by a timed action (Gear/Actions.lua). */
+    item KitBagCapacity
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_BagCapacityKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitBagWeight
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_BagWeightKit,
+        WorldStaticModel = Base.SewingBox,
+    }
+
+    item KitTrunk
+    {
+        DisplayCategory = VehicleMaintenance,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_TrunkKit,
+        WorldStaticModel = Base.ToolBox_Ground,
+    }
+
+    item KitEngine
+    {
+        DisplayCategory = VehicleMaintenance,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = OA_EngineTuningKit,
+        WorldStaticModel = Base.EngineParts,
+    }
+}
