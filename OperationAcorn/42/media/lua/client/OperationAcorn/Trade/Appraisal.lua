@@ -84,9 +84,10 @@ function OAEstimatePanel.drawRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
     local c = row.refused and { 0.9, 0.55, 0.5 } or { 0.9, 0.9, 0.9 }
-    list:drawText(row.name, 8, y + pad, c[1], c[2], c[3], 1, list.font)
     local text = row.value
-    list:drawText(text, list.width - 16 - UI.textWidth(text), y + pad, c[1], c[2], c[3], 1, list.font)
+    local textX = list.width - 16 - UI.textWidth(text)
+    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, c[1], c[2], c[3], 1, list.font)
+    list:drawText(text, textX, y + pad, c[1], c[2], c[3], 1, list.font)
 end
 
 -- The container of the page's pane, when it is an open delivery box: the object, or nil.

@@ -7,6 +7,7 @@ require "ISUI/ISPanel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Glow"
+require "OperationAcorn/Client"
 local OA = OperationAcorn
 local Hallucination = {}
 OA.Hallucination = Hallucination
@@ -82,7 +83,7 @@ Hallucination.overlays = {}
 
 -- Does the player want the effect (a client option; on unless switched off).
 function Hallucination.enabled()
-    local options = PZAPI and PZAPI.ModOptions and PZAPI.ModOptions:getOptions("OperationAcorn")
+    local options = PZAPI and PZAPI.ModOptions and PZAPI.ModOptions:getOptions(OA.MOD)
     local option = options and options:getOption("OA_Hallucination")
     if option and option.getValue then return option:getValue() ~= false end
     return true
@@ -114,12 +115,10 @@ end)
 
 -- The option, in the game's mod options screen.
 local function makeOptions()
-    if not (PZAPI and PZAPI.ModOptions) then return end
-    local options = PZAPI.ModOptions:getOptions("OperationAcorn")
-    if not options then
-        options = PZAPI.ModOptions:create("OperationAcorn", "IGUI_OA_Story_OptionsTitle")
-    end
-    options:addTickBox("OA_Hallucination", "IGUI_OA_Story_OptionHallucination", true, "IGUI_OA_Story_OptionHallucinationTip")
+    local options = OA.Client.options()
+    if not options then return end
+    options:addTickBox("OA_Hallucination", getText("IGUI_OA_Story_OptionHallucination"), true,
+        getText("IGUI_OA_Story_OptionHallucinationTip"))
 end
 
 makeOptions()

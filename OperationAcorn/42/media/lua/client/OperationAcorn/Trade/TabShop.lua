@@ -65,17 +65,19 @@ function OATabShop.drawCatalogRow(list, y, item)
         return
     end
     local c = row.open and 0.92 or 0.5
-    list:drawText(row.name, 16, y + pad, c, c, c, 1, list.font)
     local price = Text.credits(row.price)
-    list:drawText(price, list.width - 20 - UI.textWidth(price), y + pad, c, c, c, 1, list.font)
+    local priceX = list.width - 20 - UI.textWidth(price)
+    list:drawText(UI.fit(row.name, priceX - 24, list.font), 16, y + pad, c, c, c, 1, list.font)
+    list:drawText(price, priceX, y + pad, c, c, c, 1, list.font)
 end
 
 function OATabShop.drawCartRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
-    list:drawText(row.name, 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
     local text = "x" .. row.count .. "  " .. Text.credits(row.total)
-    list:drawText(text, list.width - 20 - UI.textWidth(text), y + pad, 0.8, 0.9, 0.8, 1, list.font)
+    local textX = list.width - 20 - UI.textWidth(text)
+    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
+    list:drawText(text, textX, y + pad, 0.8, 0.9, 0.8, 1, list.font)
 end
 
 local function priceOf(entry, line, record)

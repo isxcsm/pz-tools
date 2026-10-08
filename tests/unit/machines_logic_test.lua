@@ -553,3 +553,17 @@ test("numbers from NUMBERS 11", function()
     eq(Data.LURE.interval, 0.25)
     eq(Data.LURE.radius, 60)
 end)
+
+-- The machine window names each kind's own unit of work (built as IGUI_OA_Machine_SpeedValue_<kind>) and hint.
+test("every kind has its hint, and every working kind its speed line, in both languages", function()
+    for _, lang in ipairs({ "EN", "KO" }) do
+        local text = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. lang .. "/IG_UI.json")
+        for kind, def in pairs(Data.KINDS) do
+            truthy(string.find(text, '"IGUI_OA_Machine_Hint_' .. kind .. '":', 1, true), lang .. " lacks the hint of " .. kind)
+            if def.rate then
+                truthy(string.find(text, '"IGUI_OA_Machine_SpeedValue_' .. kind .. '":', 1, true),
+                    lang .. " lacks the speed line of " .. kind)
+            end
+        end
+    end
+end)

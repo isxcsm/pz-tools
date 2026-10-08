@@ -184,7 +184,8 @@ function OAMachineWindow:render()
     local kind = self.kind
     local def = Data.KINDS[kind]
     if def.rate then
-        line(getText("IGUI_OA_Machine_Speed"), getText("IGUI_OA_Machine_SpeedValue", number(status.rate), number(status.speed)))
+        -- the unit of work differs by kind (weight, clothes, logs, litres): each has its own line
+        line(getText("IGUI_OA_Machine_Speed"), getText("IGUI_OA_Machine_SpeedValue_" .. kind, number(status.rate), number(status.speed)))
         line(getText("IGUI_OA_Machine_Load"), number(status.load))
         line(getText("IGUI_OA_Machine_Noise"), tostring(status.noise))
     elseif kind == "rainStorage" then
@@ -222,6 +223,7 @@ function OAMachineWindow:new(x, y, character, object)
     local o = ISCollapsableWindow:new(x, y, WIDTH, heightFor(state.kind))
     setmetatable(o, self)
     self.__index = self
+    o.backgroundColor = { r = 0.02, g = 0.02, b = 0.03, a = 0.93 }
     o.character = character
     o.playerNum = character:getPlayerNum()
     o.object = object

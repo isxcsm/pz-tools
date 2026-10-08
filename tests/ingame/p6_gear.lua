@@ -226,17 +226,34 @@ section("the voucher", function()
     local voucher = give(Gear.VOUCHER)
     local before = OA.Shop.kitsFor("bagCapacity", "1", record)
     local price = OA.Shop.kitPrice("bagCapacity", "1", record)
+    -- the kits already held (earlier sections made some): the new one is the one not among them
+    local held = {}
+    local kits = player:getInventory():getAllTypeRecurse("OperationAcorn.KitBagCapacity")
+    for i = 0, kits:size() - 1 do held[kits:get(i):getID()] = true end
     OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "bagCapacity" })
-    check("the voucher is gone", voucher:getContainer() == nil)
-    local kit = player:getInventory():getFirstTypeRecurse("KitBagCapacity")
-    check("a bag capacity kit arrived", kit ~= nil)
-    if kit then
-        made[#made + 1] = kit
-        check("for any target", Gear.targetOf(kit) == "")
-        check("marked as a voucher kit", kit:getModData()[K.VOUCHER] == true)
+    -- a client command reaches the server side on a later tick, even alone: look a few ticks on
+    local ticks = 0
+    local function later()
+        ticks = ticks + 1
+        if ticks < 10 then return end
+        Events.OnTick.Remove(later)
+        check("the voucher is gone", voucher:getContainer() == nil)
+        local kit
+        kits = player:getInventory():getAllTypeRecurse("OperationAcorn.KitBagCapacity")
+        for i = 0, kits:size() - 1 do
+            if not held[kits:get(i):getID()] then kit = kits:get(i) end
+        end
+        check("a bag capacity kit arrived", kit ~= nil)
+        if kit then
+            made[#made + 1] = kit
+            check("for any target", Gear.targetOf(kit) == "")
+            check("marked as a voucher kit", kit:getModData()[K.VOUCHER] == true)
+        end
+        check("the shop's count did not move", OA.Shop.kitsFor("bagCapacity", "1", record) == before)
+        check("nor the price", OA.Shop.kitPrice("bagCapacity", "1", record) == price)
+        say("voucher checked")
     end
-    check("the shop's count did not move", OA.Shop.kitsFor("bagCapacity", "1", record) == before)
-    check("nor the price", OA.Shop.kitPrice("bagCapacity", "1", record) == price)
+    Events.OnTick.Add(later)
 end)
 
 -- Takes away the items the checks made and puts back the vehicle they fitted (power, loudness, the trunks).
@@ -269,4 +286,4 @@ function P6_CLEAN()
     say("cleaned")
 end
 
-say("finished; search the log for BAD and ERROR, then call P6_CLEAN()")
+say("finished (the voucher lines follow a few ticks later); search the log for BAD and ERROR, then call P6_CLEAN()")

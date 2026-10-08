@@ -30,18 +30,20 @@ end
 function OATabMarket.drawRequest(list, y, item)
     local row = item.item
     local pad = list.itemPadY
-    list:drawText(row.name, 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
     local text = row.text
-    list:drawText(text, list.width - 20 - UI.textWidth(text), y + pad, 0.85, 0.8, 0.5, 1, list.font)
+    local textX = list.width - 20 - UI.textWidth(text)
+    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
+    list:drawText(text, textX, y + pad, 0.85, 0.8, 0.5, 1, list.font)
 end
 
 function OATabMarket.drawCategory(list, y, item)
     local row = item.item
     local pad = list.itemPadY
-    list:drawText(row.name, 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
     local c = row.index >= 1.15 and { 0.6, 0.95, 0.6 } or (row.index <= 0.85 and { 0.95, 0.6, 0.55 } or { 0.85, 0.85, 0.85 })
     local text = row.arrow and (string.format("%.2f", row.index) .. "  " .. row.arrow) or string.format("%.2f", row.index)
-    list:drawText(text, list.width - 20 - UI.textWidth(text), y + pad, c[1], c[2], c[3], 1, list.font)
+    local textX = list.width - 20 - UI.textWidth(text)
+    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
+    list:drawText(text, textX, y + pad, c[1], c[2], c[3], 1, list.font)
 end
 
 function OATabMarket:onSelect()

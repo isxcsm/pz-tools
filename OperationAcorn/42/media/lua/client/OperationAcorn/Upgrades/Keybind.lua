@@ -1,11 +1,11 @@
 -- A key for the research plan, in the game's mod options (B42 PZAPI.ModOptions): unbound by default, so it never
 -- takes a key another mod or vanilla uses; the player picks one.
 require "OperationAcorn/Core"
+require "OperationAcorn/Client"
 local OA = OperationAcorn
 
-if not (PZAPI and PZAPI.ModOptions and PZAPI.ModOptions.create) then return end
-
-local options = PZAPI.ModOptions:create(OA.MOD, getText("IGUI_OA_Tree_OptionsTitle"))
+local options = OA.Client.options()
+if not options then return end
 local planKey = options:addKeyBind("openPlan", getText("IGUI_OA_Tree_OptionsPlanKey"), 0)
 
 local function onKeyPressed(key)

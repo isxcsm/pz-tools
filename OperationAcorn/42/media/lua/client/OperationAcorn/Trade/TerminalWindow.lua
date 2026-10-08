@@ -139,6 +139,8 @@ function OATerminalWindow:new(character, x, y, z)
     local o = ISCollapsableWindow:new(sx, sy, width, height)
     setmetatable(o, self)
     self.__index = self
+    -- nearly opaque: a long text over the world (zombies walking behind it) is hard to read at vanilla's 0.8
+    o.backgroundColor = { r = 0.02, g = 0.02, b = 0.03, a = 0.93 }
     o.title = getText("IGUI_OA_Trade_Terminal")
     o.character = character
     o.playerNum = character:getPlayerNum()

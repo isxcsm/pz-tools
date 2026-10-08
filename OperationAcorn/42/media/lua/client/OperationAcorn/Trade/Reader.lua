@@ -29,6 +29,7 @@ function OAReaderWindow:new(character, title, richText)
     local o = ISCollapsableWindow:new(x, y, width, height)
     setmetatable(o, self)
     self.__index = self
+    o.backgroundColor = { r = 0.02, g = 0.02, b = 0.03, a = 0.93 }
     o.title = title
     o.richText = richText
     o.playerNum = character:getPlayerNum()

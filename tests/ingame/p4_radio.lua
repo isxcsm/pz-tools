@@ -12,7 +12,7 @@ for i = 0, list:size() - 1 do
     local ch = list:get(i)
     if ch:GetFrequency() == f then
         same = same + 1
-        if ch:GetUUID() == "OAK-2B-4417" then mine = true end
+        if ch:getGUID() == "OAK-2B-4417" then mine = true end
     end
 end
 P4T.check(say, "our channel is registered", mine)

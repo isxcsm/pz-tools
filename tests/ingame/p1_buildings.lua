@@ -13,18 +13,25 @@ if not room then say("stand inside a building first"); return end
 local api = OA.api()
 say("PZ Tools API", api and "present" or "absent", "buildings", api and api.buildings and "yes" or "no")
 OA.Buildings.reset()
-local t0 = P1T.ms()
-local key, searched, total, complete = OA.Buildings.tick(player)
-local first = P1T.ms() - t0
-say("tick", tostring(key), "searched", tostring(searched), "of", tostring(total), "complete", tostring(complete),
-    "first look ms", first)
+-- the watch counts BUDGET squares a look: look until it has the whole building (or 400 looks), timing each look
+local key, searched, total, complete
+local looks, worst = 0, 0
+repeat
+    local t0 = P1T.ms()
+    key, searched, total, complete = OA.Buildings.tick(player)
+    worst = math.max(worst, P1T.ms() - t0)
+    looks = looks + 1
+until not key or complete or looks >= 400
+say("watch", tostring(key), "searched", tostring(searched), "of", tostring(total), "complete", tostring(complete),
+    "looks", looks, "slowest look ms", worst)
 P1T.check(say, "a building is found", key ~= nil)
 if not key then return end
-t0 = P1T.ms()
+P1T.check(say, "no look takes long (a part at a time)", worst <= 16, worst)
+local t0 = P1T.ms()
 local _, searched2 = OA.Buildings.tick(player)
-local second = P1T.ms() - t0
-say("second look ms", second, "searched", searched2)
-P1T.check(say, "the second look is no dearer than the scan", second <= math.max(first, 1))
+local again = P1T.ms() - t0
+say("one more look ms", again, "searched", searched2)
+P1T.check(say, "a look at a counted building is cheap", again <= 5, again)
 
 -- The vanilla path, for comparison (the scan with the API hidden).
 if api then

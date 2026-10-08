@@ -415,3 +415,68 @@ test("the API, when there, names the building and lists its rooms", function()
     eq(OA.Buildings.tick(w), nil, "a player-built building is never counted")
     PZToolsAPI = nil
 end)
+
+test("a big building is counted a part at a time, and only its unloaded squares are looked at again", function()
+    OA.Buildings.reset()
+    local saved = OA.Buildings.BUDGET
+    OA.Buildings.BUDGET = 4
+    local looks, boxes = {}, {}
+    local squares = {}
+    for x = 0, 9 do
+        local b = box(false)
+        boxes[x] = b
+        squares[x .. ",0,0"] = sq({ fakeObject({ b }) })
+    end
+    local hidden = squares["9,0,0"]
+    squares["9,0,0"] = nil
+    getCell = function()
+        return { getGridSquare = function(_, x, y, z)
+            local key = x .. "," .. y .. "," .. z
+            looks[key] = (looks[key] or 0) + 1
+            return squares[key]
+        end }
+    end
+    PZToolsAPI = {
+        version = 1,
+        client = function() return {} end,
+        buildings = {
+            at = function() return { key = "big", playerBuilt = false } end,
+            rooms = function() return { { id = 1, level = 0, rects = { { x = 0, y = 0, w = 10, h = 1 } } } } end,
+        },
+    }
+    local w = walker({})
+    local key, searched, total, complete = OA.Buildings.tick(w)
+    eq(key, "big"); eq(total, 4, "four squares a look"); eq(complete, false)
+    boxes[0].set(true)
+    key, searched, total, complete = OA.Buildings.tick(w)
+    eq(total, 8); eq(searched, 1); eq(complete, false)
+    key, searched, total, complete = OA.Buildings.tick(w)
+    eq(total, 9, "the last square is not loaded"); eq(complete, false)
+    squares["9,0,0"] = hidden
+    key, searched, total, complete = OA.Buildings.tick(w)
+    eq(total, 10); eq(complete, true)
+    for x = 0, 8 do eq(looks[x .. ",0,0"], 1, "a loaded square is looked at once: " .. x) end
+    eq(looks["9,0,0"], 2)
+    OA.Buildings.tick(w)
+    eq(looks["0,0,0"], 1, "a complete building is not walked again")
+    OA.Buildings.BUDGET = saved
+    PZToolsAPI = nil
+end)
+
+test("an opened container is not asked again", function()
+    OA.Buildings.reset()
+    local asked = 0
+    local a = box(false)
+    local isExplored = a.isExplored
+    a.isExplored = function(...) asked = asked + 1 return isExplored(...) end
+    local rooms = fakeBuilding({ { sq({ fakeObject({ a }) }) } })
+    local w = walker(rooms[1])
+    OA.Buildings.tick(w)
+    a.set(true)
+    local _, searched = OA.Buildings.tick(w)
+    eq(searched, 1)
+    local before = asked
+    _, searched = OA.Buildings.tick(w)
+    eq(searched, 1)
+    eq(asked, before, "not asked once opened")
+end)

@@ -24,6 +24,17 @@ function UI.textWidth(text, font)
     return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
+-- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
+-- never splits a letter.
+function UI.fit(text, width, font)
+    if UI.textWidth(text, font) <= width then return text end
+    local cut = text
+    while #cut > 1 and UI.textWidth(cut .. "...", font) > width do
+        cut = string.sub(cut, 1, #cut - 1)
+    end
+    return cut .. "..."
+end
+
 -- A label at x, y.
 function UI.label(parent, x, y, text, color, font)
     color = color or { r = 0.9, g = 0.9, b = 0.9, a = 1 }

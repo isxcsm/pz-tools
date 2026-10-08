@@ -27,6 +27,13 @@ function Client.record(character)
     return OA.Store.player(Client.id(character))
 end
 
+-- The mod's one section in the game's mod options (B42 PZAPI.ModOptions), made by whichever part asks first. Each
+-- create() call adds a section and takes the id over, so the parts must share this one. nil without the API.
+function Client.options()
+    if not (PZAPI and PZAPI.ModOptions and PZAPI.ModOptions.create) then return nil end
+    return PZAPI.ModOptions:getOptions(OA.MOD) or PZAPI.ModOptions:create(OA.MOD, getText("IGUI_OA_OptionsTitle"))
+end
+
 local function onCreatePlayer(index, character)
     if character and character:isLocalPlayer() then
         OA.Sync.send(character, "hello", {})

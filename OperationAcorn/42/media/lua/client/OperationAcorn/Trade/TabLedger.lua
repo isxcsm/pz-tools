@@ -27,9 +27,10 @@ end
 function OATabLedger.drawRow(list, y, item)
     local row = item.item
     local pad = list.itemPadY
-    list:drawText(row.name, 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
     local text = (row.credits >= 0 and "+" or "") .. Text.credits(row.credits)
-    list:drawText(text, list.width - 20 - UI.textWidth(text), y + pad, 0.7, 0.9, 0.7, 1, list.font)
+    local textX = list.width - 20 - UI.textWidth(text)
+    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, 0.92, 0.92, 0.92, 1, list.font)
+    list:drawText(text, textX, y + pad, 0.7, 0.9, 0.7, 1, list.font)
 end
 
 function OATabLedger:onSelect()

@@ -35,6 +35,8 @@ function ISOAViewer:createChildren()
     self.rich.autosetheight = false
     self.rich.clip = true
     self.rich.background = false
+    -- a document is read: the body one size up from the panels' small text, the title above it
+    self.rich.defaultFont = UIFont.Medium
     self.rich:addScrollBars()
     self.rich.anchorRight = true
     self.rich.anchorBottom = true
@@ -56,7 +58,7 @@ end
 
 -- The reading text: a title line, a rule, the body with its line ends turned into the panel's line commands.
 local function formatText(title, body)
-    local text = " <RGB:1,1,1> <H2> " .. title .. " <LINE> <LINE> <TEXT> <RGB:0.88,0.88,0.82> "
+    local text = " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE> <TEXT> <RGB:0.88,0.88,0.82> "
     local lines = {}
     -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
     body = string.gsub(body, "\\n", "\n")
