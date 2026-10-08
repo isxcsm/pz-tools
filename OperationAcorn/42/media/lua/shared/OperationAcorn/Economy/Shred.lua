@@ -1,0 +1,125 @@
+-- Shredding (NUMBERS 3): what a thing yields in sample bundles. The machines (the hand bench, the bulk shredder)
+-- ask here: they never keep their own formula. The yield is an expected count (a fraction); the machine rolls the
+-- fraction with Shred.roll.
+--   base  = weight * 5 / (1 + c / ShredDecay)         c: shreds of this kind lately (x0.9 a day)
+--   extra = keen eye + 0.2 * 2nd-board points + base * (blade multiplier - 1)
+--   final = base + min(extra, base)                   so never more than twice the base
+-- Rotten food gives half the base. A kind shredded for the first time pays 200 credits (and enters the codex).
+-- The record's `shred` section: counts { [base type] = { c, day } }, first { [base type] = true }.
+require "OperationAcorn/Core"
+require "OperationAcorn/Store"
+require "OperationAcorn/Economy/Categories"
+require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Economy/Codex"
+local OA = OperationAcorn
+local Shred = {}
+OA.Shred = Shred
+
+Shred.PER_WEIGHT = 5
+Shred.FIRST_BONUS = 200
+Shred.DAILY = 0.9
+Shred.ROTTEN = 0.5
+Shred.BOARD_PER_POINT = 0.2
+Shred.FORGET_BELOW = 0.05    -- counts decayed to less than this are dropped
+
+function Shred.section(record)
+    local s = OA.Store.section(record, "shred")
+    s.counts = s.counts or {}
+    s.first = s.first or {}
+    return s
+end
+
+local function reason(why)
+    return OA.Categories.reasonKey(why)
+end
+
+-- Whether a thing can be shredded: true, or false and the translation key of why not. Material (K), ammunition,
+-- furniture, bodies, animal parts, cash, shop goods and this mod's goods cannot; a bag only when empty.
+function Shred.can(info)
+    if info.cash then return false, reason("Cash") end
+    local cat, why = OA.Categories.of(info)
+    if not cat then return false, reason(why) end
+    if cat == "K" then return false, reason("Material") end
+    if info.filled then return false, reason("Filled") end
+    return true
+end
+
+-- Recent shreds of a kind (c), decayed to today.
+function Shred.count(record, baseType)
+    local entry = Shred.section(record).counts[baseType]
+    if not entry then return 0 end
+    return entry.c * Shred.DAILY ^ math.max(0, OA.day() - entry.day)
+end
+
+local function decay()
+    return OA.option("ShredDecay") or 50
+end
+
+-- The expected sample bundles one thing of this kind gives now, and the first-shred bonus it would pay (0 if the
+-- kind was shredded before). `extras` = { keen = bundles (0..3), board = points of the 2nd board, blade = the
+-- blade's multiplier (1.0, 1.1, 1.2) }, any of them may be missing. `c` overrides the record's count (batches).
+function Shred.yield(info, record, extras, c)
+    local weight = math.max(info.weight or 0, 0)
+    c = c or Shred.count(record, info.baseType)
+    local base = weight * Shred.PER_WEIGHT / (1 + c / decay())
+    if info.food == "rotten" then base = base * Shred.ROTTEN end
+    extras = extras or {}
+    local extra = (extras.keen or 0) + Shred.BOARD_PER_POINT * (extras.board or 0)
+        + base * ((extras.blade or 1.0) - 1.0)
+    if extra < 0 then extra = 0 end
+    if extra > base then extra = base end
+    local bonus = 0
+    if not Shred.section(record).first[info.baseType] then bonus = Shred.FIRST_BONUS end
+    return base + extra, bonus
+end
+
+-- The expected total of `n` things of one kind shredded one after the other (the count climbs with each), and the
+-- first-shred bonus. The bulk shredder uses it for a stack.
+function Shred.yieldMany(info, record, n, extras)
+    local c = Shred.count(record, info.baseType)
+    local total, bonus = 0, 0
+    for i = 1, n do
+        local e, b = Shred.yield(info, record, extras, c)
+        total = total + e
+        if i == 1 then bonus = b end
+        c = c + 1
+    end
+    return total, bonus
+end
+
+-- A whole number from an expected count: the whole part, and one more with the chance of the fraction.
+function Shred.roll(expected)
+    local whole = math.floor(expected)
+    local fraction = expected - whole
+    if fraction > 0 and OA.randomFloat(0, 1) < fraction then whole = whole + 1 end
+    return whole
+end
+
+-- Records `n` things of a kind shredded: the count goes up, the first-shred bonus (BonusMultiplier) is paid into
+-- trade.bonus and the kind enters the codex. Returns the bonus paid (credits, 0 if none).
+function Shred.commit(record, info, n)
+    n = n or 1
+    local s = Shred.section(record)
+    local key = info.baseType
+    local c = Shred.count(record, key)
+    s.counts[key] = { c = c + n, day = OA.day() }
+    local paid = 0
+    if not s.first[key] then
+        s.first[key] = true
+        paid = Shred.FIRST_BONUS * (OA.option("BonusMultiplier") or 1.0)
+        local t = OA.Trust.section(record)
+        t.bonus = t.bonus + paid
+        OA.Codex.acquire(record, info)
+    end
+    return paid
+end
+
+-- The daily upkeep: counts decayed away are dropped so the save does not keep every kind ever shredded.
+function Shred.daily(record)
+    local s = Shred.section(record)
+    for key, entry in pairs(s.counts) do
+        if entry.c * Shred.DAILY ^ math.max(0, OA.day() - entry.day) < Shred.FORGET_BELOW then s.counts[key] = nil end
+    end
+end
+
+return Shred
