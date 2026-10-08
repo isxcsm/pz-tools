@@ -15,6 +15,8 @@ OA.Server.on("machineSwitch", function(character, record, args)
     OA.Sync.changed("machines", args.id, { machine = args.machine })
 end)
 
+-- The generator load of the machines, declared to the extension API once the game runs.
+Events.OnGameStart.Add(Machines.declarePower)
 -- Every ten game minutes the loaded machines work on what is in them.
 Events.EveryTenMinutes.Add(Machines.tick)
 -- A chunk loads: the machines in it catch up the time they were away.

@@ -231,7 +231,34 @@ function Machines.syncLoad(object, state)
     if data[Data.LOAD_KEY] ~= multiplier then
         data[Data.LOAD_KEY] = multiplier
         if isServer() then object:transmitModData() end
+        -- The generators near it count their load again (as the game's own Lua does when a powered thing changes).
+        local square = object:getSquare()
+        if square and IsoGenerator and IsoGenerator.updateGenerator then IsoGenerator.updateGenerator(square) end
     end
+end
+
+-- Tells the extension API what each machine draws from a generator: the base load (NUMBERS 11) on the anchor's
+-- sprites of every facing and state, times the anchor's OA_Load (the motor's multiplier while it runs, else 0). The
+-- other squares of a machine draw nothing. Once a game; returns true when the API took it.
+function Machines.declarePower()
+    local api = OA.api()
+    local handle = OA.handle()
+    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
+    local base = {}
+    for kind, def in pairs(Data.KINDS) do
+        if def.load and Sprites.MACHINE_KINDS[kind] then
+            for _, dir in ipairs(Sprites.DIRECTIONS) do
+                for _, running in ipairs({ false, true }) do
+                    local name = Machines.spriteName(kind, dir, running)
+                    if name then base[name] = def.load end
+                end
+            end
+        end
+    end
+    local ok1, err1 = pcall(api.formulas.set, handle, "machine.baseConsumption", base)
+    local ok2, err2 = pcall(api.formulas.set, handle, "machine.loadKey", Data.LOAD_KEY)
+    if not (ok1 and ok2) then OA.log("machine power not declared:", tostring(err1), tostring(err2)) end
+    return ok1 and ok2
 end
 
 -- Shows the look the state calls for on every loaded square of the machine, where it is not already shown. Also
@@ -258,7 +285,7 @@ end
 
 -- Whether a square has electricity for a machine: a generator's, or the grid's inside a room (as the game's
 -- appliances, ItemContainer.isSquarePowered). The generator's load itself is the extension API's to count
--- (Machines.load); until it declares it, a machine runs on a generator without burning more of its fuel.
+-- (Machines.declarePower); without the API a machine runs on a generator without burning more of its fuel.
 function Machines.hasPower(square)
     if not square then return false end
     if square:haveElectricity() then return true end

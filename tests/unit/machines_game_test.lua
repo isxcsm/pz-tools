@@ -1176,3 +1176,45 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     eq(store.mod[Data.LOAD_KEY], nil, "no load for a storage")
     cleanup()
 end)
+
+test("the machines' generator load is declared to the API: the anchors' sprites and the load key", function()
+    local sets = {}
+    PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end,
+        formulas = { set = function(handle, point, value) sets[point] = { handle = handle, value = value } end } }
+    truthy(Machines.declarePower())
+    eq(sets["machine.loadKey"].value, Data.LOAD_KEY)
+    eq(sets["machine.loadKey"].handle, "h")
+    local base = sets["machine.baseConsumption"].value
+    for _, dir in ipairs(OA.Sprites.DIRECTIONS) do
+        eq(base[Machines.spriteName("woodSaw", dir, true)], 0.8)
+        eq(base[Machines.spriteName("woodSaw", dir, false)], 0.8)
+        eq(base[Machines.spriteName("bulkShredder", dir, true)], 0.6)
+    end
+    local woodSaw = Machines.tiles("woodSaw", "S", true)
+    for _, tile in ipairs(woodSaw) do
+        if tile.dx ~= 0 or tile.dy ~= 0 then eq(base[tile.sprite], nil, "only the anchor draws") end
+    end
+    eq(base[Machines.spriteName("researchStorage", "S", false)], nil, "no load, no entry")
+    eq(base[Machines.spriteName("rainStorage", "S", false)], nil)
+    PZToolsAPI = nil
+    eq(Machines.declarePower(), false, "no API")
+end)
+
+test("a change of the load key makes the generators near count again", function()
+    local square = worldSetup()
+    local p = player()
+    square(11, 10, 0)
+    local updated = {}
+    IsoGenerator = { updateGenerator = function(sq) updated[#updated + 1] = sq end }
+    local a = Machines.place("bulkShredder", square(10, 10, 0), p, newItem("OperationAcorn.BulkShredder"), "S")
+    local n = #updated
+    local state = Machines.state(a)
+    Machines.syncLoad(a, state)
+    eq(#updated, n, "nothing changed")
+    state.running = true
+    Machines.syncLoad(a, state)
+    eq(#updated, n + 1)
+    eq(updated[#updated], square(10, 10, 0))
+    IsoGenerator = nil
+    cleanup()
+end)
