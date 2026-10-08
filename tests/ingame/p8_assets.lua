@@ -5,8 +5,8 @@
 -- icons loaded as textures, and looks for the backpack's model script and clothing item.
 -- Run from the debug console (single player, a character standing in open ground): RUN("p8_assets.lua") with the
 -- loader from base-utilities' tests/ingame/README.md pointed at the folder this file is in. Lines are tagged "[p8]",
--- each "ok" or "BAD", ending with "done". Then LOOK at the tiles (the rows east of you, north of the player: the trade
--- tiles first, then a row of four directions for each machine look, stopped before running) and, if the backpack item exists, at yourself wearing
+-- each "ok" or "BAD", ending with "done". Then LOOK at the tiles (the trade tiles in a row north of you, then the machine
+-- looks in two columns beside you, four directions each, stopped before running) and, if the backpack item exists, at yourself wearing
 -- it (P8_WEAR()). P8_CLEAN() takes the tiles and the items it gave away again.
 local function say(...) print("[p8]", ...) end
 local function check(what, ok, extra) say(ok and "ok" or "BAD", what, extra and tostring(extra) or "") end
@@ -16,7 +16,11 @@ if not player then say("BAD no player"); return end
 local cell = getCell()
 local origin = player:getSquare()
 if not origin then say("BAD player has no square"); return end
-local ox, oy, oz = origin:getX() + 3, origin:getY() - 8, origin:getZ()
+-- The game keeps only about 24 squares around the player loaded: everything goes within that. The trade tiles in a row
+-- 12 north, one square apart; the machine looks in two columns (west and east of the player, who stands in the gap
+-- between them) of bands three squares deep, starting 9 north.
+local px, py, oz = origin:getX(), origin:getY(), origin:getZ()
+local ox, oy = px - 8, py - 12
 
 if P8_CLEAN then P8_CLEAN() end
 P8_PLACED = {}
@@ -28,10 +32,13 @@ end
 local function prop(sp, key)
     local props = sp and sp:getProperties()
     if not props then return nil end
-    local ok, val = pcall(function() return props:Val(key) end)
-    if ok and val and val ~= "" then return val end
-    local ok2, has = pcall(function() return props:Is(key) end)
-    if ok2 and has then return true end
+    -- B42's PropertyContainer: get(name) for a value, has(name) for a flag or a property without one.
+    local val = props:get(key)
+    if val and val ~= "" then return val end
+    if props:has(key) then return true end
+    -- A flag (solidtrans, IsLow ...) is asked for by its IsoFlagType, not by name.
+    local flag = IsoFlagType[key]
+    if flag and props:has(flag) then return true end
     return nil
 end
 
@@ -41,6 +48,9 @@ if not Sprites then say("BAD OperationAcorn.Sprites is not loaded (the mod is no
 local bad, placed = 0, 0
 local function wrong(...) say("BAD", ...); bad = bad + 1 end
 
+local function squareAt(x, y, z)
+    return cell:getGridSquare(x, y, z)
+end
 local function placeTile(sq, name)
     local obj = IsoObject.new(sq, name, nil, false)
     sq:AddSpecialObject(obj)
@@ -76,7 +86,7 @@ for _, group in ipairs(TRADE) do
     for index = group[2], group[2] + group[3] - 1 do
         local name = group[1] .. "_" .. index
         if checkProps(name, group[4], group[5]) then
-            local sq = cell:getGridSquare(x0 + column * 2, y0, oz)
+            local sq = squareAt(x0 + column, y0, oz)
             if sq then placeTile(sq, name) else wrong("no square for", name) end
             column = column + 1
         end
@@ -85,22 +95,21 @@ end
 for _, on in ipairs({ true, false }) do
     local name = Sprites.lure(on)
     if checkProps(name, "lure", { IsLow = true }) then
-        local sq = cell:getGridSquare(x0 + column * 2, y0, oz)
+        local sq = squareAt(x0 + column, y0, oz)
         if sq then placeTile(sq, name) else wrong("no square for", name) end
         column = column + 1
     end
 end
 
 -- The machines, each placed whole: its tiles on the squares of its footprint from the anchor (the min-x, min-y square),
--- a stopped look and a running look in a row, the four directions along it, every machine four squares apart. The
+-- a stopped look and a running look side by side, the four directions along each, three squares apart. The
 -- sheet's rules for them: facing and grid position on every tile, one group, the container (research storage) and the
 -- rain collector flag on the anchor only; the rain storage is the empty tank with the water level set as overlay.
 local DIRS = { "S", "E", "N", "W" }
 local KINDS = { "shredBench", "bulkShredder", "cutter", "woodSaw", "researchStorage", "propaneRefiner", "oilRefiner",
     "rainStorage" }
 local RUNS = { bulkShredder = true, cutter = true, woodSaw = true, propaneRefiner = true, oilRefiner = true }
-local ROW0 = 3
-local row = ROW0
+local look = 0
 local machines = 0
 for _, kind in ipairs(KINDS) do
     for _, running in ipairs(RUNS[kind] and { false, true } or { false }) do
@@ -113,7 +122,8 @@ for _, kind in ipairs(KINDS) do
             if not tiles or #tiles ~= w * h then
                 wrong(kind, dir, "machineTiles gives", tiles and #tiles or "nothing", "want", w * h)
             else
-                local ax, ay = x0 + (d - 1) * 5, y0 + row * 2
+                local ax = px + (look % 2 == 0 and -12 or 2) + (d - 1) * 3
+                local ay = py - 9 + math.floor(look / 2) * 3
                 local group
                 for _, t in ipairs(tiles) do
                     local anchor = t.dx == 0 and t.dy == 0
@@ -123,13 +133,14 @@ for _, kind in ipairs(KINDS) do
                         GroupName = true,
                         container = (kind == "researchStorage" and anchor) and "locker" or false,
                         IsWaterCollector = (kind == "rainStorage" and anchor) and true or false,
-                        Facing = kind == "rainStorage" and false or dir,
+                        Facing = dir,
                     }
+                    if kind == "rainStorage" then want.Facing = false end   -- (cond and false or x) would give x
                     if checkProps(t.sprite, kind .. " " .. dir, want) then
                         local g = prop(sprite(t.sprite), "GroupName")
                         group = group or g
                         if g ~= group then wrong(t.sprite, "group differs inside the machine", tostring(g), tostring(group)) end
-                        local sq = cell:getGridSquare(ax + t.dx, ay + t.dy, oz)
+                        local sq = squareAt(ax + t.dx, ay + t.dy, oz)
                         if sq then
                             local obj = placeTile(sq, t.sprite)
                             -- the rain storage's water level: an overlay on each square of the empty tank
@@ -150,7 +161,7 @@ for _, kind in ipairs(KINDS) do
                 machines = machines + 1
             end
         end
-        row = row + 3
+        look = look + 1
     end
 end
 check("tiles placed, machines whole", bad == 0, placed .. " tiles placed, " .. machines .. " machines, " .. bad .. " bad")
@@ -201,27 +212,33 @@ local function itemName(icon)
     end
     return icon
 end
-local given, missingScript, noIcon = 0, 0, 0
+local noIcon = 0
 for _, name in ipairs(ITEMS) do
     local tex = Texture.getSharedTexture("media/textures/Item_OA_" .. name .. ".png")
     if not tex then say("BAD icon texture missing", "Item_OA_" .. name); noIcon = noIcon + 1 end
-    local full = "OperationAcorn." .. itemName(name)
-    if ScriptManager.instance:FindItem(full) then
+end
+say(noIcon == 0 and "ok" or "BAD", "item icon textures", (#ITEMS - noIcon) .. " of " .. #ITEMS)
+-- Every item the mod defines, given once: each must show its own icon.
+local given, blank = 0, 0
+local all = ScriptManager.instance:getAllItems()
+for i = 0, all:size() - 1 do
+    local script = all:get(i)
+    if script:getModuleName() == "OperationAcorn" then
+        local full = script:getFullName()
         local ok, item = pcall(function() return player:getInventory():AddItem(full) end)
         if ok and item then
             given = given + 1
             P8_GIVEN[#P8_GIVEN + 1] = item
             local icon = item:getTexture()
-            if not icon or icon:getName() == "Item_Unknown" then say("BAD item shows no icon", full) end
+            if not icon or icon:getName() == "Item_Unknown" or string.find(icon:getName(), "Question") then
+                say("BAD item shows no icon", full); blank = blank + 1
+            end
         else
             say("BAD could not give", full, tostring(item))
         end
-    else
-        missingScript = missingScript + 1
     end
 end
-say(noIcon == 0 and "ok" or "BAD", "item icon textures", (#ITEMS - noIcon) .. " of " .. #ITEMS)
-say("info", "items given", given, "no item script yet", missingScript)
+say(blank == 0 and given > 0 and "ok" or "BAD", "every item of the mod has its icon", given .. " items, " .. blank .. " without")
 
 -- Tree node icons.
 local NODES = {
@@ -251,9 +268,9 @@ say(noNode == 0 and "ok" or "BAD", "node icon textures", (#NODES - noNode) .. " 
 -- The research backpack: its model script, and the item if its package exists.
 local model = ScriptManager.instance:getModelScript("OperationAcorn.OA_ResearchPack_Ground")
 check("ground model script", model ~= nil)
-local pack = ScriptManager.instance:FindItem("OperationAcorn.ResearchBackpack")
+local pack = ScriptManager.instance:FindItem("OperationAcorn.TeamBackpack")
 if pack then
-    local item = player:getInventory():AddItem("OperationAcorn.ResearchBackpack")
+    local item = player:getInventory():AddItem("OperationAcorn.TeamBackpack")
     P8_GIVEN[#P8_GIVEN + 1] = item
     check("backpack item has a clothing item", item and item:getClothingItem() ~= nil)
     check("backpack is a container", item and item:IsInventoryContainer())
@@ -262,7 +279,7 @@ if pack then
         say("wearing the backpack: look at its fit on the back (male and female), then drop it and look at the ground model, hold it in each hand")
     end
 else
-    say("info", "no ResearchBackpack item script yet (P6); the backpack model is checked once it exists")
+    say("info", "no TeamBackpack item script; the backpack model is checked once it exists")
 end
 
 function P8_CLEAN()

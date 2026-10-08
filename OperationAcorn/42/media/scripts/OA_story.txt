@@ -317,3 +317,4 @@ module OperationAcorn
         Tooltip = Tooltip_OA_Story_KitVoucher,
         WorldStaticModel = SheetOfPaper,
     }
+}
