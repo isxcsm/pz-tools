@@ -93,7 +93,7 @@ function Sprites.machineTiles(kind, dir, running)
 end
 
 -- The big rain storage (2x2, the same from every side) is placed as the EMPTY tank (rainStorageTiles: the object's
--- sprites, the ones the entity's SpriteConfig names, the anchor carries the rain collector flag). Its water level is an
+-- sprites; the anchor's is the one the entity's SpriteConfig names and carries the rain collector flag). Its water level is an
 -- overlay on each of the four squares (IsoObject.setOverlaySprite): level 1 a quarter, 2 a half, 3 full; level 0 is no
 -- overlay. An overlay tile holds only the pixels that differ from the empty tile, so the empty tile with it drawn over is
 -- exactly the level's picture. (128-131 are the full tank as one picture, used for the item icon.)

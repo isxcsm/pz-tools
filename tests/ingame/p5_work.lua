@@ -88,13 +88,17 @@ section("propane refiner", function()
     local inC = M.container(object, "in")
     local tank = inC:AddItem("Base.PropaneTank")
     if tank.setUsedDelta then tank:setUsedDelta(0) end
+    local weight = 0
     for _ = 1, 30 do
         local food = inC:AddItem("Base.Steak")
         if food.setAge and food.getOffAgeMax then food:setAge(food:getOffAgeMax() + 5) end
+        weight = weight + (M.rottenFood(food) or 0)
     end
     grind(object, 30)
     local filled = tank:getCurrentUsesFloat()
-    check("the tank got propane from rotten food", filled > 0.2, filled)
+    -- old filter: the rotten weight over PROPANE_WEIGHT fills that share of the tank
+    local want = math.min(1, weight / OperationAcorn.Machines.Data.PROPANE_WEIGHT)
+    check("the tank got propane from rotten food", want > 0 and near(filled, want, 0.02), filled .. " for " .. want)
     say("info tank", filled, "state buffer", M.state(object).buffer)
 end)
 
@@ -147,22 +151,24 @@ section("parts: install, wear, break", function()
     check("load with a modern motor is 0.9", near(M.load(object), 0.9, 0.01) or not state.running, M.load(object))
     check("the anchor keeps the multiplier for the API (OA_Load 1.5 while running)", object:getModData().OA_Load == (state.running and 1.5 or 0), tostring(object:getModData().OA_Load))
     -- Wear: an old shredder blade wears 2 an hour.
-    local before = state.parts.shredBlade.cond
+    -- (it wears only while it runs: give it a load that lasts)
+    for _ = 1, 40 do inC:AddItem("Base.Hammer") end
+    local before = state.parts.blade.cond
     grind(object, 5)
-    local after = state.parts.shredBlade.cond
+    local after = state.parts.blade.cond
     check("the blade wore in 5 hours of work", after < before, before .. " -> " .. after)
     -- A part under 25 gives the slow, thin rate; at 0 it stops.
-    state.parts.shredBlade.cond = 20
+    state.parts.blade.cond = 20
     local st = M.status(object)
     check("a worn blade slows the machine", st.worn == true or st.speed < 1, tostring(st.speed))
-    state.parts.shredBlade.cond = 1
+    state.parts.blade.cond = 1
     for _ = 1, 20 do inC:AddItem("Base.Hammer") end
     grind(object, 5)
     check("a broken blade stops the machine", M.status(object).stopped == true, tostring(M.status(object).broken))
     -- Take it out and put it back.
-    check("remove the blade", M.removePart(object, "shredBlade", player))
-    check("the slot is empty", state.parts.shredBlade == nil)
-    check("a machine without its blade is stopped for it", M.status(object).missing == "shredBlade", tostring(M.status(object).missing))
+    check("remove the blade", M.removePart(object, "blade", player))
+    check("the slot is empty", state.parts.blade == nil)
+    check("a machine without its blade is stopped for it", M.status(object).missing == "blade", tostring(M.status(object).missing))
 end)
 
 section("power rule", function()

@@ -91,5 +91,19 @@ function P5_CLEAN()
         if M.state(object) then M.remove(object) end
     end
     P5T.placed = {}
-    print("[p5] cleaned")
+    -- machines an earlier session placed (its list is gone after a restart) block the same squares: take every
+    -- machine in the checks' area east and south of the character
+    local p = getPlayer()
+    local px, py, pz = math.floor(p:getX()), math.floor(p:getY()), math.floor(p:getZ())
+    local swept = 0
+    for dy = -2, 30 do
+        for dx = -2, 20 do
+            local anchor = M.at(getCell():getGridSquare(px + dx, py + dy, pz))
+            if anchor and M.state(anchor) then
+                M.remove(anchor)
+                swept = swept + 1
+            end
+        end
+    end
+    print("[p5] cleaned", swept > 0 and (swept .. " left over from before") or "")
 end

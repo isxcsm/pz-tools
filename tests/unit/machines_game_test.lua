@@ -786,10 +786,12 @@ local function worldSetup()
             function sq:isOutside() return self.outside end
             function sq:RecalcAllWithNeighbours() end
             function sq:AddSpecialObject(object) table.insert(self.objects, object) end
+            -- like the game: the index the object had, -1 when it is not there
             function sq:transmitRemoveItemFromSquare(object)
                 for i, o in ipairs(self.objects) do
-                    if o == object then table.remove(self.objects, i) return end
+                    if o == object then table.remove(self.objects, i) return i - 1 end
                 end
+                return -1
             end
             function sq:AddWorldInventoryItem(item) self.dropped = self.dropped or {}; table.insert(self.dropped, item) end
             squares[key] = sq

@@ -72,6 +72,7 @@ function Grid:layout()
         local gapX = math.floor((self.width - gutter - pad - 5 * cardW) / 4)
         gapX = math.max(gapX, pad)
         local gapY = pad * 2
+        self.gapY = gapY
         local byId = {}
         for _, node in ipairs(Data.treeNodes(tab)) do
             local x = gutter + (node.col - 1) * (cardW + gapX)
@@ -193,13 +194,24 @@ function Grid:render()
         end
     end
 
+    -- a prerequisite: down from the bottom of the node it needs, across in the gap under that row, down into the
+    -- node (rects, 2 px: the vanilla drawLine2 is a skewed quad that shows as stray dashes on a straight line)
     for _, line in ipairs(self.lines) do
         local have = Rules.rank(sim, line.need[1])
         local ok = have >= line.need[2]
         local a, r, g, b = 0.8, 0.35, 0.35, 0.38
         if ok then a, r, g, b = 0.9, 0.4, 0.85, 0.45 end
         local f, t = line.from, line.to
-        self:drawLine2(f.x + f.w / 2, f.y + f.h + sy, t.x + t.w / 2, t.y + sy, a, r, g, b)
+        local x1, y1 = math.floor(f.x + f.w / 2) - 1, f.y + f.h + sy
+        local x2, y2 = math.floor(t.x + t.w / 2) - 1, t.y + sy
+        if x1 == x2 then
+            self:drawRect(x1, y1, 2, y2 - y1, a, r, g, b)
+        else
+            local ym = y1 + math.floor((self.gapY or win.pad) / 2)
+            self:drawRect(x1, y1, 2, ym - y1, a, r, g, b)
+            self:drawRect(math.min(x1, x2), ym, math.abs(x2 - x1) + 2, 2, a, r, g, b)
+            self:drawRect(x2, ym, 2, y2 - ym, a, r, g, b)
+        end
     end
 
     for _, rect in ipairs(self.rects) do
@@ -274,6 +286,15 @@ function Grid:render()
                 end
             end
         end
+    end
+
+    -- more below or above: a thin bar on the right shows where the view is (the wheel scrolls)
+    if self.contentH > self.height then
+        local track = self.height - 4
+        local thumb = math.max(win.fh, math.floor(track * self.height / self.contentH))
+        local at = math.floor((track - thumb) * self.scrollY / (self.contentH - self.height))
+        self:drawRect(self.width - 5, 2, 3, track, 0.5, 0.2, 0.2, 0.22)
+        self:drawRect(self.width - 5, 2 + at, 3, thumb, 0.9, 0.6, 0.6, 0.65)
     end
 
     if locked then

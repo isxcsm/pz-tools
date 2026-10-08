@@ -8,6 +8,7 @@ local Rules = OA.Upgrades.Rules
 local Server = OA.Upgrades.Server
 local say = P3T.say("p3plan")
 local record, player, u, id = P3T.record()
+P3T.fresh(u)
 
 P3T.points(u, "scout", 13)
 P3T.points(u, "load", 13)
@@ -29,8 +30,15 @@ P3T.check(say, "...and changed nothing", Rules.rank(u, "sensePlus") == 0)
 -- a capstone: needs 12 points in the tree and a fragment
 local fragmentKnown = getScriptManager():FindItem(Data.FRAGMENT) ~= nil
 say("meteor fragment item exists", fragmentKnown)
-ok, why = Server.approve(player, record, P3T.steps({ "night", "night", "night", "rich", "rich", "rich", "ledger", "ledger", "ledger" }))
-P3T.check(say, "nine more points of the scout tree", ok, why)
+-- fragments an earlier check gave (p8 gives every item of the mod) would pay for the capstone
+local held = player:getInventory():getAllTypeRecurse(Data.FRAGMENT)
+for i = 0, held:size() - 1 do
+    local item = held:get(i)
+    item:getContainer():DoRemoveItem(item)
+end
+-- 7 spent so far; five more make the 12 the capstone needs, and it takes the 13th
+ok, why = Server.approve(player, record, P3T.steps({ "night", "night", "night", "rich", "rich" }))
+P3T.check(say, "five more points of the scout tree", ok, why)
 say("scout points spent", Rules.treeSpent(u, "scout"))
 if fragmentKnown then
     ok, why = Server.approve(player, record, P3T.steps({ "nightEye" }))

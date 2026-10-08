@@ -12,8 +12,8 @@ local Data = M.Data
 local SIZE = { shredBench = { 2, 1 }, bulkShredder = { 2, 1 }, cutter = { 2, 1 }, woodSaw = { 2, 1 }, researchStorage = { 2, 1 },
     propaneRefiner = { 2, 2 }, oilRefiner = { 2, 2 }, rainStorage = { 2, 2 }, lure = { 1, 1 } }
 
-local function checkKind(kind, row)
-    local object, reason = P5T.place(kind, 3, row, "S")
+local function checkKind(kind, column, row)
+    local object, reason = P5T.place(kind, column, row, "S")
     if not check(kind .. " placed", object ~= nil, reason) then return end
     local state = M.state(object)
     local w, h = M.footprint(kind, "S")
@@ -43,10 +43,11 @@ local function checkKind(kind, row)
     if kind ~= "lure" then check(kind .. " pick up allowed when empty", M.canPickUp(object) ~= nil) end
 end
 
-local row = 2
-for _, kind in ipairs(Data.ORDER) do
-    checkKind(kind, row)
-    row = row + 3
+-- two columns of kinds (x 3 and 6), three rows apart: it stays within the squares loaded around the character
+for i, kind in ipairs(Data.ORDER) do
+    local half = math.ceil(#Data.ORDER / 2)
+    local column = i <= half and 3 or 6
+    checkKind(kind, column, 2 + ((i - 1) % half) * 3)
 end
 
 -- Turning: the cutter facing east is one wide and two long.
@@ -76,6 +77,29 @@ do
         local gone = M.at(getCell():getGridSquare(x, y, z)) == nil and M.at(getCell():getGridSquare(x + 1, y, z)) == nil
         check("every square is clear again", gone)
         check("registry entry gone", M.list()[state.id] == nil)
+        if item and item:getContainer() then item:getContainer():Remove(item) end
+    end
+end
+
+-- Picking up the rain storage: its anchor is an entity (the fluid container), the game's removal must take it too
+-- (found in game: a 2x2 SpriteConfig made the game refuse, so the anchor stayed and the item came back as well).
+do
+    local object = P5T.place("rainStorage", 10, 5, "S")
+    if check("rain storage placed for the pick up", object ~= nil) then
+        local state = M.state(object)
+        local x, y, z = state.x, state.y, state.z
+        local item = M.pickUp(object, getPlayer())
+        check("rain storage pick up gives the item", item ~= nil)
+        local left = 0
+        for dy = 0, 1 do
+            for dx = 0, 1 do
+                local objects = getCell():getGridSquare(x + dx, y + dy, z):getObjects()
+                for i = 0, objects:size() - 1 do
+                    if M.isMachineObject(objects:get(i)) then left = left + 1 end
+                end
+            end
+        end
+        check("no rain storage object is left on its four squares", left == 0, left)
         if item and item:getContainer() then item:getContainer():Remove(item) end
     end
 end

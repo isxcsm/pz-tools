@@ -30,6 +30,13 @@ function P3T.record()
     return record, player, u, id
 end
 
+-- Empties the upgrades section (keeps the table, so u stays the record's): a check that spends points starts from
+-- nothing, whatever an earlier run left.
+function P3T.fresh(u)
+    for k in pairs(u) do u[k] = nil end
+    OperationAcorn.Upgrades.Rules.fill(u)
+end
+
 -- An item of a type made in the character's inventory.
 function P3T.give(type)
     return getPlayer():getInventory():AddItem(type)

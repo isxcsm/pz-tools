@@ -1089,7 +1089,9 @@ end
 
 local function removeObject(object)
     local square = object:getSquare()
-    if square then square:transmitRemoveItemFromSquare(object) end
+    if square and square:transmitRemoveItemFromSquare(object) < 0 then
+        OA.log("could not remove a machine object at", square:getX(), square:getY(), square:getZ())
+    end
 end
 
 -- Removes a machine: all its objects on loaded squares and its registry entry (nothing given). A part on a square

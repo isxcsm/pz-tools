@@ -272,14 +272,16 @@ module OperationAcorn
             InitialPercentMin = 0.0,
             InitialPercentMax = 0.0,
         }
+        /* The anchor's tile only: the other three squares are the mod's plain parts (like every machine), not
+           entity tiles. A 2x2 face here makes the game look for entity parts it never finds and refuse to remove
+           the anchor (IsoObjectUtils.safelyRemoveTileObjectFromSquare). */
         component SpriteConfig
         {
             face S
             {
                 layer
                 {
-                    row = oa_machines_01_134 oa_machines_01_135,
-                    row = oa_machines_01_136 oa_machines_01_137,
+                    row = oa_machines_01_134,
                 }
             }
         }

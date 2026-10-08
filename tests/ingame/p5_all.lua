@@ -5,6 +5,8 @@
 -- vanilla move tool (it must not be offered), drive away and come back (catch-up on chunk load).
 local files = { "p5_place.lua", "p5_work.lua", "p5_special.lua" }
 RUN("p5_lib.lua")
+-- machines a run before a restart left behind
+P5_CLEAN()
 for _, file in ipairs(files) do
     print("[p5all] ---- " .. file)
     local ok, err = pcall(RUN, file)

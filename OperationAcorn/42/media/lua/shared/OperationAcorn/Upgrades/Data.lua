@@ -172,8 +172,8 @@ for id, slug in pairs(ICONS) do
     if n then n.icon = "media/textures/OA_Node_" .. slug .. ".png" end
 end
 
--- The board's columns in order, and each column's nodes.
-Data.BOARD_GROUPS = { "load", "survival", "scout" }
+-- The board's columns in order (the order of the tree tabs), and each column's nodes.
+Data.BOARD_GROUPS = { "scout", "load", "survival" }
 function Data.boardGroup(group)
     local list = {}
     for _, n in ipairs(nodes) do
