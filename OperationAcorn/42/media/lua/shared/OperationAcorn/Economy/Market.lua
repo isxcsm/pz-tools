@@ -256,6 +256,26 @@ function Market.dueRequests(firstDay, lastDay)
     return found
 end
 
+-- The radio line for a category refused for a while ("start") or come back as a request ("back"): the story part's
+-- words when it is there (they know the categories it has lines for), else this part's own. Returns key, args.
+function Market.refusalLine(category, phase)
+    local story = OA.Story
+    if story and story.refusalKey then
+        return story.refusalKey(category, phase), nil
+    end
+    local key = phase == "back" and "IGUI_OA_Econ_Radio_RefuseBack" or "IGUI_OA_Econ_Radio_RefuseStart"
+    return key, { getText(OA.Categories.nameKey(category)) }
+end
+
+-- Writes a line in a record's radio log (the trade part keeps the log); false when there is no trade part or the
+-- line failed. A broken line never breaks the economy.
+function Market.radioTo(record, key, args)
+    if not (OA.Trade and OA.Trade.radio) then return false end
+    local ok, err = pcall(OA.Trade.radio, record, key, args)
+    if not ok then OA.log("radio line failed:", tostring(err)) end
+    return ok
+end
+
 -- Forgets due requests that are past (kept ten weeks).
 function Market.prune(day)
     local st = Market.state()

@@ -170,19 +170,26 @@ local function onItemFound(character, itemType)
     end
 end
 
--- The market's events as lines in every record's radio log (the trade part keeps the log).
+-- The market's events as lines in every record's radio log (the trade part keeps the log). A category refused for a
+-- while has the story part's line (or this part's own); the others are this part's.
 local function onMarketEvent(event)
-    if event.kind == "refusal" then return end   -- shown only in the estimate window
-    if not (OA.Trade and OA.Trade.radio) then return end
-    local key = event.key
-    if not key then
-        key = event.kind == "glut" and "IGUI_OA_Econ_Event_Glut" or "IGUI_OA_Econ_Event_Demand"
+    local key, args
+    if event.kind == "refusal" then
+        key, args = OA.Market.refusalLine(event.cat, "start")
+    else
+        key = event.key
+        if not key then
+            key = event.kind == "glut" and "IGUI_OA_Econ_Event_Glut" or "IGUI_OA_Econ_Event_Demand"
+        end
+        args = { getText(OA.Categories.nameKey(event.cat)) }
     end
-    local category = getText(OA.Categories.nameKey(event.cat))
-    for _, record in pairs(OA.Store.players()) do
-        local ok, err = pcall(OA.Trade.radio, record, key, { category })
-        if not ok then OA.log("radio line failed:", tostring(err)) end
-    end
+    for _, record in pairs(OA.Store.players()) do OA.Market.radioTo(record, key, args) end
+end
+
+-- A refused category that has come back as a request: its line, once, to the record whose list it joined.
+local function onRequestBack(record, category)
+    local key, args = OA.Market.refusalLine(category, "back")
+    OA.Market.radioTo(record, key, args)
 end
 
 local started = false
@@ -192,6 +199,7 @@ function Economy.start()
     OA.Market.update(OA.day())
     OA.Requests.data()
     OA.Market.listen(onMarketEvent)
+    OA.Requests.listenBack(onRequestBack)
     Economy.hookTransfers()
 end
 

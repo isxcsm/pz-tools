@@ -1056,5 +1056,10 @@
     "IGUI_OA_Story_UI_Stake": "말뚝 번호: %1",
     "IGUI_OA_Story_UI_Swap_done": "기록철이 나왔습니다. 가져가십시오.",
     "IGUI_OA_Story_UI_Swap_needcase": "밀봉 시료함을 들고 현장 가까이로 가서 두십시오.",
-    "IGUI_OA_Story_UI_Swap_waiting": "시료함을 두었습니다. 기록철이 나올 때까지 현장 근처에 머무르십시오."
+    "IGUI_OA_Story_UI_Swap_waiting": "시료함을 두었습니다. 기록철이 나올 때까지 현장 근처에 머무르십시오.",
+    "IGUI_OA_Econ_Radio_RefuseStart": "%1 납품 접수를 당분간 중단합니다. 봉인 전에 견적을 확인하십시오. 이상.",
+    "IGUI_OA_Econ_Radio_RefuseBack": "%1 시료가 다시 요청 목록에 올랐습니다. 이번 주 목록을 확인하십시오. 이상.",
+    "IGUI_OA_Econ_Receipt_BigMeteorite": "출처 불명, 대조 불가.",
+    "IGUI_OA_Econ_Receipt_Fragment": "파편 수령. 자재 기준으로 정산.",
+    "IGUI_OA_Econ_Radio_BigMeteorite": "출처 표시가 없는 큰 운석 물질은 받지 않습니다. 이상."
 }

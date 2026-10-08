@@ -240,23 +240,44 @@ function Requests.pinNext(record, fullType)
     codex.reqPin = fullType
 end
 
+-- Who wants to hear that a refused category came back as a request: fn(record, category).
+local backListeners = {}
+function Requests.listenBack(fn)
+    table.insert(backListeners, fn)
+end
+
 -- The record's list for this week, drawn the first time the week is asked about and topped up as the stage grows.
+-- A strange item the story part names for this week (the week after a hallucination) goes on the list in addition
+-- to the usual count.
 function Requests.list(record)
     local codex, rq = state(record)
     local week = OA.week()
     if not rq or rq.week ~= week then
-        rq = { week = week, items = {}, used = {} }
+        rq = { week = week, items = {}, used = {}, extra = 0 }
         codex.req = rq
         if codex.reqPin then
             table.insert(rq.items, codex.reqPin)
             codex.reqPin = nil
         end
+        local story = OA.Story
+        local strange = story and story.strangeItem and story.strangeItem(record) or nil
+        if strange then
+            local present = false
+            for _, t in ipairs(rq.items) do if t == strange then present = true end end
+            if not present then table.insert(rq.items, strange) end
+            rq.extra = 1
+            rq.strange = strange
+        end
         -- Categories that were refused a few weeks ago come back.
         for _, cat in ipairs(OA.Market.dueRequests(week * 7, week * 7 + 6)) do
             draw(record, rq, Requests.DUE_PICKS, cat)
+            for _, fn in ipairs(backListeners) do
+                local ok, err = pcall(fn, record, cat)
+                if not ok then OA.log("request listener failed:", tostring(err)) end
+            end
         end
     end
-    local want = OA.Trust.rewards(record).requestCount
+    local want = OA.Trust.rewards(record).requestCount + (rq.extra or 0)
     if #rq.items < want then draw(record, rq, want - #rq.items) end
     return rq.items
 end
