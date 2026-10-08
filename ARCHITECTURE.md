@@ -145,3 +145,84 @@ python tools/check_translations.py                          # 번역 키, 샌드
 - 묶음마다 git 워크트리 하나, 브랜치 `pkg/<묶음>`. 로컬 커밋만 한다 (푸시 없음). `git stash`는 쓰지 않는다 (워크트리끼리 공유된다).
 - 번역 JSON은 여러 묶음이 같은 파일에 키를 더한다. 합칠 때 충돌은 키를 모두 모아 푼다.
 - 게임 안 확인 스크립트는 `tests/ingame/<묶음>_*.lua`로 남기고, 마지막 통합 확인에서 한 번에 돌린다.
+
+## 8. 타일 속성과 에셋 이름 (P8)
+
+### 타일 속성
+
+타일은 `tools/tile_art.py`가 그린다 (바닐라 타일을 빌리지 않는다). 시트 둘, 한 줄 8칸, 자리는 `Sprites.lua`와 같다.
+시트 이름과 tiledef 번호는 이 모드 것이다 (바닐라 최대 460, Building Utilities 5432·5433, 설치된 워크숍 모드의 tiledef 번호와 겹치지 않는 6601·6602).
+
+| 시트 | tiledef (`mod.info`) | 정의 파일 | 텍스처 팩 | 칸 |
+| --- | --- | --- | --- | --- |
+| `oa_trade_01` | `oa_trade 6601` | `media/oa_trade.tiles` | `texturepacks/OperationAcornTrade.pack` (`pack=OperationAcornTrade`) | 0~15 |
+| `oa_machines_01` | `oa_machines 6602` | `media/oa_machines.tiles` | `texturepacks/OperationAcornMachines.pack` (`pack=OperationAcornMachines`) | 0~50 |
+
+`mod.info`(`42/`과 `common/` 둘 다)의 `pack=`, `tiledef=` 줄은 위 표와 같다. 타일 이름은 `<시트>_<번호>` (예: `oa_machines_01_48`).
+방향이 있는 것은 남, 동, 북, 서 순서 네 칸이고 타일의 `Facing` 값이 `S`, `E`, `N`, `W`다 (앞면이 보는 쪽).
+
+모든 타일이 공통으로 갖는 값: `CustomName`(영어 이름, 우클릭 메뉴 제목). 번역은 모드 번역 키로 한다.
+
+| 타일 | 속성 |
+| --- | --- |
+| 통신 단말 0~7 | `BlocksPlacement`, `solidtrans`, `Facing` |
+| 납품 상자 8·9 | `container=crate`, `ContainerCapacity=50`, `IsLow`, `BlocksPlacement`, `solidtrans` |
+| 보급 상자 10·11 | `container=militarycrate`, `ContainerCapacity=100`, `IsLow`, `BlocksPlacement`, `solidtrans` |
+| 낙하산 상자 12 | `BlocksPlacement`, `solidtrans` |
+| 그을린 땅 13 | 없음 (바닥에 얹는 그림) |
+| 운석 바위 14 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
+| 낙하지 말뚝 15 | `IsLow` |
+| 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기 | `BlocksPlacement`, `solidtrans`, `Facing` |
+| 연구팀 보관함 44~47 | `container=locker`, `ContainerCapacity=100`, `BlocksPlacement`, `solidtrans`, `Facing` |
+| 대형 빗물 저장소 48 | `IsWaterCollector`, `IsLow`, `BlocksPlacement`, `solidtrans` |
+| 설치형 미끼 49·50 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
+
+- **`IsMoveAble`은 어느 타일에도 없다.** 바닐라 집기/놓기는 오브젝트를 일반 `Moveable` 아이템으로 바꿔서 이 모드의 `modData`(상자 ID, 기계 상태, 마모)를
+  잃는다. 설치와 회수는 각 묶음의 자체 동작이 한다 (Building Utilities와 같은 방식). 그래서 `PickUpWeight`, `PickUpTool`, `CustomItem`도 없다.
+  바닐라 우클릭 '옮기기'를 막는 일(BU의 `Moveables.lua`처럼 `ISMoveableSpriteProps.fromObject`에서 `isMoveable=false`)은 이 묶음이 아니라 설치 코드가 한다.
+- **컨테이너:** `IsoObject.new(cell, square, sprite)`로 만들면 바닐라가 `container`와 `ContainerCapacity`로 컨테이너를 만든다. 용량은 코드가 `ItemContainer:setCapacity`로 헬기 단계에 맞춰 다시 정한다
+  (연구팀 보관함 300은 확장 API가 상한 100을 걷는다). 밀봉된 납품 상자(9)·봉인된 보급 상자(10)는 컨테이너 값을 그대로 두고, 못 열게 하는 일은 코드가 한다.
+- **빗물 저장소:** 타일에는 `IsWaterCollector`만 둔다. B42의 비 모으기는 엔티티의 `FluidContainer` 컴포넌트가 한다 (`entity_raincollector.txt`). P5는 스크립트에
+  `entity` 하나를 쓴다: `component FluidContainer { ContainerName = Collector, Capacity = 용량, RainFactor = 0.4 }`와
+  `component SpriteConfig { face S { layer { row = oa_machines_01_48 } } }`. 바닐라 `waterMaxAmount`/`waterAmount` 타일 속성은 쓰지 않는다.
+- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machine(kind, dir, running)`의 이름으로 `setSprite`를 한다.
+- 그을린 땅(13)은 바닥 위의 투명 그림이다. 바닥 타일을 바꾸지 말고 `IsoObject.new(cell, square, "oa_trade_01_13")`로 칸에 얹는다.
+
+타일을 바꾸려면 `python tools/tile_art.py --preview`를 돌린다 (`tools/tile_art_preview_trade.png`, `..._machines.png`에서 모양을 본다). 저장은 시트 자리로 타일을 가리키므로,
+쓴 자리는 바꾸지 않고 새 타일은 빈 자리나 새 줄에 넣는다.
+
+### 에셋 이름
+
+**아이템 아이콘:** `Icon = OA_<아이템 이름>` → `media/textures/Item_OA_<아이템 이름>.png` (32×32). 목록은 `tools/icons.txt`가 하나뿐인 원본이다.
+아이템 이름이 바뀌면 거기 첫 열을 고치고 `python tools/icon_art.py`를 다시 돌린다 (옛 PNG는 지워진다). 지금 이름:
+`CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`, `SupplyManifest`, `SampleBundle`, `MeteorFragment`, `UpgradeSerumScout`, `UpgradeSerumLoad`,
+`UpgradeSerumSurvival`, `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `ShredBench`, `BulkShredder`, `Cutter`, `PropaneRefiner`, `OilRefiner`, `WoodSaw`,
+`ResearchStorage`, `RainStorage`, `Lure`, `BagCapacityKit`, `BagWeightKit`, `TrunkKit`, `EngineTuningKit`, `ResearchBackpack`, `FuelCanMk1`~`3`, `WeldingTorchMk1`~`3`,
+`MissionItem`, `DocumentItem`. 기계 부품 `Motor`, `ShredderBlade`, `CuttingBlade`, `SawBlade`, `Catalyst`, `SoundproofCover`는 등급을 색으로 구분한 세 그림이 있다:
+`<부품>Old`(녹슨 갈색), `<부품>Normal`(강철 회색), `<부품>Modern`(아노다이징 파랑). 등급 접미사 없는 `<부품>`은 보통 등급 그림이다.
+강화 혈청은 트리 색(정찰 청록, 하중 호박, 생존 초록, 공용 보라)이다.
+
+**트리 노드 아이콘:** `media/textures/OA_Node_<Slug>.png` (64×64), 한국어 노드 이름과 파일의 대응은 `tools/node_icons.txt`
+(`판<TAB>노드 이름<TAB>파일`). 노드 ID가 정해지면 트리 데이터가 이 표의 파일을 가리키게 한다. 2차 연구판은 이름 앞에 `B2`가 붙는다.
+
+**연구팀 배낭** (아이템 스크립트는 P6이 쓴다. 필요한 줄):
+
+```text
+ClothingItem = OA_Bag_ResearchPack,
+ReplaceInPrimaryHand = OA_Bag_ResearchPack_RHand holdingbagright,
+ReplaceInSecondHand = OA_Bag_ResearchPack_LHand holdingbagleft,
+WorldStaticModel = OA_ResearchPack_Ground,      (이름을 못 찾으면 OperationAcorn.OA_ResearchPack_Ground)
+AttachmentsProvided = WebbingLeft;WebbingRight,
+AttachmentReplacement = Bag,
+```
+
+| 이름 | 파일 |
+| --- | --- |
+| 옷 항목 `OA_Bag_ResearchPack`, `_LHand`, `_RHand` | `media/clothing/clothingItems/OA_Bag_ResearchPack*.xml` (GUID는 `media/fileGuidTable.xml`에 등록. 새 옷 XML을 더하는 묶음은 이 표에도 더한다) |
+| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (모든 꼭짓점이 `Bip01_BackPack`에 100%) |
+| 손에 든 모습 | `OA_ResearchPack_LHand.x` (`Bip01_Prop2`), `OA_ResearchPack_RHand.x` (`Bip01_Prop1`) |
+| 바닥 모델 `OA_ResearchPack_Ground` | `models_X/WorldItems/Clothing/OA_ResearchPack_Ground.fbx`, 정의는 `scripts/OA_backpack_models.txt` |
+| 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (256×256) |
+
+수통 걸이 자리(`WebbingLeft/Right`)는 캐릭터의 `ISHotbarAttachDefinition`이 정하므로 배낭 모델의 양옆 웨빙 띠는 모양일 뿐이다. 생성기는 `python tools/backpack_mesh.py`
+(`--check`는 다시 읽어 검사만, 게임 폴더는 환경 변수 `PZ_DIR`).
