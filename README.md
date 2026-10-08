@@ -8,6 +8,8 @@ buildings, or on other floors of a tall one, can take their supply from a main p
 sub-panel is its main panel's through it. A panel's zone reaches a few floors up and down from its own. A panel has
 four tiers; each carries more load, reaches farther (and more floors) and adds something (timers and sub-panels, a
 charge controller, shedding devices before the breaker trips).
+A room the player builds against a map building (an extension, which the game gives to no building) counts as part of
+that building: its devices are inside, connected by default, with no line to lay.
 
 The design, in Korean, is [DESIGN.md](DESIGN.md).
 
@@ -34,6 +36,9 @@ load each tier carries; line loss per wire; the low fuel warning; Electricity ex
 panels, battery capacity, charge efficiency, wear, the cold lock and the drain of worn batteries; water only from
 above. Risk options (`Risk...`: pipes freeze, pipes do not purify) are off by default. Each option's tooltip in the
 game says what it does.
+
+The game's own "Generator Working in Exterior" option (`AllowExteriorGenerator`) is followed: with it off, a panel gives
+no power to devices outside the building (an extension counts as inside), and the connect menu says why.
 
 The plan's supply lines (flowing dots, lines alone, or none) are each player's own choice, switched on the plan and
 kept in the game's mod options. Supply from another floor shows on the plan: on the producers' floor their lines run
