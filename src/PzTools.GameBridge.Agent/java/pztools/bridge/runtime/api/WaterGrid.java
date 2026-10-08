@@ -10,13 +10,21 @@ import pztools.bridge.runtime.api.PendingFluids.Delta;
 
 /**
  * Runs the water networks (docs/design/extension-api.md, "Water"): a fixture of a network that has water takes it from
- * the network's fullest producer, through the hooks on the game's water questions; mods draw from and fill the
+ * a producer the network draws from, as its policy picks ({@link #pick}), through the hooks on the game's water
+ * questions; mods draw from and fill the
  * producers, and what is owed to producers whose squares are not loaded goes in as they load. The hooks read an
  * immutable snapshot; the rest runs on the game's thread, once a second or when something changed, and what is owed
  * each frame.
  */
 final class WaterGrid implements ApiHooks.Water {
     static final String UTILITY = "water";
+    /** Policies: every draw from the fullest container the network draws from; or the nearest network's first. */
+    static final String FULLEST = "fullest", NEAREST = "nearest";
+    /**
+     * Under {@link #NEAREST}, a container at least this full gives first, wherever in the chain it is: water that would
+     * be lost (rain into a full collector) is used before water that would not.
+     */
+    static final double SPILL = 0.95;
     /**
      * In the modData of the containers on a square: the sequence number of the last change owed to it (PendingFluids)
      * that they took. A chunk is saved as it unloads, the global ModData only with the world: a world that stopped
@@ -27,10 +35,11 @@ final class WaterGrid implements ApiHooks.Water {
     private static final String AMOUNT_CHANGE = "OnWaterAmountChange";
 
     /**
-     * A network that has water now: its squares, the producers it draws from (see {@link #producers}), and whether its
-     * fixtures get their water purified.
+     * A network that has water now: its squares, the producers it draws from (see {@link #producers}), where each
+     * network's of them end in that list ({@code ends}, its own first, then each parent's), whether it draws from the
+     * nearest first ({@link #NEAREST}), and whether its fixtures get their water purified.
      */
-    private record Supplier(Network network, Area area, List<Position> producers, boolean purify) { }
+    private record Supplier(Network network, Area area, List<Position> producers, int[] ends, boolean nearest, boolean purify) { }
 
     /**
      * {@code unpurified}: whether a supplier does not purify its water, so that the taint questions need a look. Each
@@ -42,9 +51,10 @@ final class WaterGrid implements ApiHooks.Water {
 
     /**
      * One place a draw or fill reaches: a loaded container on a producer's square, or a producer's square that is not
-     * loaded (no object), as last seen with what it is owed.
+     * loaded (no object), as last seen with what it is owed; {@code tier}, how far up the chain its network is (0 the
+     * network's own).
      */
-    private record Unit(Position at, Object object, Object container, Stored stored) { }
+    private record Unit(Position at, Object object, Object container, Stored stored, int tier) { }
 
     private final Game game;
     private final Networks networks;
@@ -137,8 +147,8 @@ final class WaterGrid implements ApiHooks.Water {
     @Override public Object source(Object vanilla, Object fixture) {
         try {
             Supplier supplier = supplier(fixture);
-            Object fullest = supplier == null ? null : fullest(supplier.producers(), game.cell());
-            return fullest != null ? fullest : vanilla;
+            Object picked = supplier == null ? null : pick(supplier, game.cell());
+            return picked != null ? picked : vanilla;
         }
         catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
@@ -170,7 +180,7 @@ final class WaterGrid implements ApiHooks.Water {
     /** The producer a fixture takes its water from, when its network does not purify it; null otherwise. */
     private Object unpurifiedSource(Object fixture) throws ReflectiveOperationException {
         Supplier supplier = supplier(fixture);
-        return supplier == null || supplier.purify() ? null : fullest(supplier.producers(), game.cell());
+        return supplier == null || supplier.purify() ? null : pick(supplier, game.cell());
     }
 
     /** As {@code IsoObject.createSampleAndPurifyWater} makes the sample, each fluid as it is. */
@@ -218,13 +228,22 @@ final class WaterGrid implements ApiHooks.Water {
     }
 
     /**
-     * The fullest of the producers' loaded fluid containers that holds some, by share of its capacity; null for none. A
-     * square owed changes it has not taken yet counts as not loaded (see {@link #applyOwed}).
+     * The loaded fluid container a fixture of the supplier's network takes its water from, of those that hold some; null
+     * for none. Under {@link #FULLEST} the fullest by share of its capacity. Under {@link #NEAREST} one at least {@link
+     * #SPILL} full (the fullest such), else the fullest of the nearest network in the chain that has one holding some:
+     * one pass over the containers either way. A square owed changes it has not taken yet counts as not loaded (see
+     * {@link #applyOwed}). Asked whenever the game looks at a fixture's water: it allocates nothing.
      */
-    private Object fullest(List<Position> producers, Object cells) throws ReflectiveOperationException {
-        Object best = null;
-        double bestShare = 0;
-        for (Position at : producers) {
+    private Object pick(Supplier supplier, Object cells) throws ReflectiveOperationException {
+        List<Position> producers = supplier.producers();
+        int[] ends = supplier.ends();
+        boolean nearest = supplier.nearest();
+        Object best = null, spill = null;
+        double bestShare = 0, spillShare = 0;
+        int bestTier = Integer.MAX_VALUE, tier = 0;
+        for (int index = 0; index < producers.size(); index++) {
+            while (tier < ends.length - 1 && index >= ends[tier]) tier++;
+            Position at = producers.get(index);
             Object loaded = pending.owed(at) ? null : game.square(cells, at);
             if (loaded == null) continue;
             for (Object object : game.objectsOn(loaded)) {
@@ -233,10 +252,13 @@ final class WaterGrid implements ApiHooks.Water {
                 float held = (float)amount.invoke(container), most = (float)capacity.invoke(container);
                 if (most <= 0 || held <= 0) continue;
                 double share = held / most;
-                if (best == null || share > bestShare) { best = object; bestShare = share; }
+                if (nearest && share >= SPILL && (spill == null || share > spillShare)) { spill = object; spillShare = share; }
+                // Under NEAREST a farther network's containers count only for spilling, once a nearer one has water.
+                if (nearest && tier > bestTier) continue;
+                if (best == null || tier < bestTier || share > bestShare) { best = object; bestShare = share; bestTier = tier; }
             }
         }
-        return best;
+        return spill != null ? spill : best;
     }
 
     // The game's thread.
@@ -315,11 +337,13 @@ final class WaterGrid implements ApiHooks.Water {
         applyOwed(cells);
         List<Unit> units = units(network, cells);
         double[] held = new double[units.size()], most = new double[units.size()];
+        int[] tiers = new int[units.size()];
         for (int index = 0; index < held.length; index++) {
             held[index] = units.get(index).stored().amount();
             most[index] = units.get(index).stored().capacity();
+            tiers[index] = units.get(index).tier();
         }
-        double[] takes = level(held, most, litres);
+        double[] takes = NEAREST.equals(network.policy) ? nearest(held, most, tiers, litres) : level(held, most, litres);
         double drawn = 0;
         var touched = new HashSet<Position>();
         for (int index = 0; index < takes.length; index++) {
@@ -416,31 +440,72 @@ final class WaterGrid implements ApiHooks.Water {
     }
 
     /**
+     * How much each of several containers gives of {@code litres} under {@link #NEAREST}: first what is above {@link
+     * #SPILL} of their capacities, levelled (see {@link #level}); then the nearest network's containers ({@code tiers}
+     * 0), levelled, then the next one up, and so on. Never more than they hold.
+     */
+    static double[] nearest(double[] held, double[] capacities, int[] tiers, double litres) {
+        int count = held.length;
+        double[] result = new double[count], left = held.clone(), above = new double[count];
+        for (int index = 0; index < count; index++) above[index] = Math.max(0, held[index] - SPILL * capacities[index]);
+        double[] spilled = level(above, capacities, litres);
+        for (int index = 0; index < count; index++) {
+            result[index] = spilled[index];
+            left[index] -= spilled[index];
+            litres -= spilled[index];
+        }
+        int top = 0;
+        for (int tier : tiers) top = Math.max(top, tier);
+        for (int tier = 0; tier <= top && litres > 1e-9; tier++) {
+            int size = 0;
+            for (int index = 0; index < count; index++) if (tiers[index] == tier) size++;
+            if (size == 0) continue;
+            double[] someHeld = new double[size], someCapacities = new double[size];
+            int[] which = new int[size];
+            for (int index = 0, at = 0; index < count; index++) {
+                if (tiers[index] != tier) continue;
+                which[at] = index;
+                someHeld[at] = left[index];
+                someCapacities[at++] = capacities[index];
+            }
+            double[] takes = level(someHeld, someCapacities, litres);
+            for (int at = 0; at < size; at++) {
+                result[which[at]] += takes[at];
+                litres -= takes[at];
+            }
+        }
+        return result;
+    }
+
+    /**
      * What a draw or fill on the network reaches: the loaded containers on the producers it draws from, and those
      * producers' squares that are not loaded, once seen. None while the network, or a parent above it, is switched off.
      */
     private List<Unit> units(Network network, Object cells) throws ReflectiveOperationException {
         var result = new ArrayList<Unit>();
         if (networks.root(network) == null || !networks.switchedOn(network)) return result;
-        for (Network above : networks.chain(network))
+        int tier = 0;
+        for (Network above : networks.chain(network)) {
             for (Position at : above.squares()) {
                 Object loaded = game.square(cells, at);
                 if (loaded == null) {
                     Stored stored = withOwed(at, above.stored.get(at));
-                    if (stored != null && stored.capacity() > 0) result.add(new Unit(at, null, null, stored));
+                    if (stored != null && stored.capacity() > 0) result.add(new Unit(at, null, null, stored, tier));
                     continue;
                 }
                 for (Object object : game.objectsOn(loaded)) {
                     Stored stored = contents(object);
-                    if (stored != null) result.add(new Unit(at, object, fluidContainer.invoke(object), stored));
+                    if (stored != null) result.add(new Unit(at, object, fluidContainer.invoke(object), stored, tier));
                 }
             }
+            tier++;
+        }
         return result;
     }
 
     /**
      * Each frame: a square owed changes takes them as soon as it is loaded, before a fixture can draw from it ({@link
-     * #fullest} passes over it until then). Several containers on it give the fullest first and take the emptiest first;
+     * #pick} passes over it until then). Several containers on it give the fullest first and take the emptiest first;
      * a square without one drops what it is owed. The containers record the last change they took ({@link #APPLIED}),
      * so that none is taken twice. Only where the game changes what producers hold.
      */
@@ -609,7 +674,12 @@ final class WaterGrid implements ApiHooks.Water {
         for (Network network : watered) {
             for (Position at : network.squares()) producers.put(at, 1L);
             if (!network.supplied || networks.root(network) == null) continue;
-            var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), network.purify);
+            var chain = networks.chain(network);
+            int[] ends = new int[chain.size()];
+            int end = 0;
+            for (int index = 0; index < ends.length; index++) ends[index] = end += chain.get(index).squares().size();
+            var supplier = new Supplier(network, network.area, List.copyOf(producers(network)), ends,
+                NEAREST.equals(network.policy), network.purify);
             suppliers.add(supplier);
             byNetwork.put(network, supplier);
         }

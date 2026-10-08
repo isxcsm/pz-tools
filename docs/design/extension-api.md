@@ -4,7 +4,7 @@
 
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
-> water networks under `"fullest"`, with children, and food aged across supply changes
+> water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)). Planned: `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
@@ -139,7 +139,7 @@ A network carries one utility, power or water, from producers to consumers.
 | Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
 | Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
 | Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A power child has no producers of its own; a water child may have its own, and draws from them and its parents'. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
-| Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
+| Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio) or `"nearest"` (from the network's own producers first, then its parent's, and so on up, the fullest within each; a container at least 95% full gives first wherever it is). |
 
 A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
 another mod's network is a Lua error. Network ids are 1 to 64 letters, digits, `_`, `.` or `-`, one
@@ -147,7 +147,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 
 | Call | Effect |
 | --- | --- |
-| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"`. Defined again with another utility, it detaches its children. |
+| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"` or `"nearest"`. Defined again with another utility, it detaches its children. |
 | `networks.remove(handle, id)` | Removes it, giving its producers back to vanilla; `true` when there was one. |
 | `networks.setProducers(handle, id, list)` | Producers in order: squares (tables with `x`, `y`, `z`), and for power also sources the mod runs (tables with `source`, a name of 1 to 64 letters, digits, `_`, `.` or `-`). A square is a producer of one network at most. A power child takes none; a water child may. A new source is not available and switched off. A producer taken out of the list while it carries the load stops, and the next that can run takes over. |
 | `networks.setSource(handle, id, name, available, switchOn, hour)` | Sets a source of the network as its mod runs it: whether it can carry the load (`available`); `switchOn` `true` switches it on (it takes over, as a generator a player switches on), `false` off (the network stops if it was in use), `nil` leaves it; a source that is not available is switched off, and if it was in use the next producer takes over from `hour` (when it ran out; now when `nil`). The API does not know what the source is: the mod keeps its charge and says when it is empty. |
@@ -163,7 +163,7 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setPurify(handle, id, on)` | Water only: whether the water its fixtures give is purified, as vanilla purifies plumbed water (`true`, the default), or keeps the taint of the producer it comes from (`false`; see [fluids](#water)). Its own setting, also for a child. `false` is a Lua error in a game without both of the hooks it needs (`IsoObject.createSampleAndPurifyWater` and `isTaintedWater`, as the class is now): a game started by an install from before them gets them as it starts again; `PZToolsAPI.hooks()` says why one is missing. |
 | `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `outOfService` (`true` while it is off and out of service: the API saw it switched off by hand and never switches it on; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `outOfService` is on standby: the API switches it on when the one in use stops, if it can run, as its fuel and condition tell (see [power](#power)). An API from before the field gives none, and has none out of service, so a mod reads the field without a version check; but that API also stops the network when the one in use is switched off by hand, and leaves generators running while the network is switched off. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
-| `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, the fullest first (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
+| `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, in its policy's order (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
 | `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
@@ -207,7 +207,11 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   building or added on its own and not excluded, takes its water from the network while one of its
   producers holds some: from the fullest of them by share of its capacity, at each question. A child's
   fixtures draw from its own producers and its parents', the fullest of them all; a parent's never
-  draw from its child's. A producer's square has
+  draw from its child's. Under `"nearest"` they draw from the network's own producers first and from
+  each parent's only once the nearer ones hold nothing, the fullest within each; a container at least
+  95% full gives first wherever in the chain it is, so that rain is used before it would spill. A mod
+  that keeps the higher networks' water for the fixtures that can reach only those (water running
+  down floors) gets that order; the API knows nothing of floors. A producer's square has
   no consumers. The producers are read once a second; a `"supply"` event says when the network got or
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
@@ -332,7 +336,9 @@ own, then its parents'), and nothing while the network or a parent above it is s
 
 - **Order.** A draw takes from the fullest by share of its capacity until it is level with the next,
   then from both, and so on, as many small draws by fixtures would; a fill levels the room left the
-  same way, so the emptiest takes first. Each container gives every fluid it holds in proportion,
+  same way, so the emptiest takes first. Under `"nearest"` a draw first takes what is above 95% of
+  each container's capacity (levelled the same way), then from the network's own producers, levelled,
+  then from its parent's, and so on; a fill is as under `"fullest"`. Each container gives every fluid it holds in proportion,
   which is what the draw's table reports.
 - **Loaded.** A container on a loaded square changes at once, through the game's own
   `FluidContainer.removeFluid` and `addFluid` (a container that does not take that fluid takes none).

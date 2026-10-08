@@ -135,12 +135,13 @@ final class Networks {
             String owner = owner(arguments, call), id = id(arguments, call);
             String utility = Arguments.string(arguments, 2, call, "utility"), policy = Arguments.string(arguments, 3, call, "policy");
             // The policies that are not built yet ("parallel") give a clear error now.
-            String only = switch (utility) {
-                case PowerGrid.UTILITY -> "sequential";
-                case WaterGrid.UTILITY -> "fullest";
+            List<String> policies = switch (utility) {
+                case PowerGrid.UTILITY -> List.of("sequential");
+                case WaterGrid.UTILITY -> List.of(WaterGrid.FULLEST, WaterGrid.NEAREST);
                 default -> throw new IllegalArgumentException(call + ": utility must be \"power\" or \"water\"");
             };
-            if (!only.equals(policy)) throw new IllegalArgumentException(call + ": policy for " + utility + " must be \"" + only + "\"");
+            if (!policies.contains(policy))
+                throw new IllegalArgumentException(call + ": policy for " + utility + " must be \"" + String.join("\" or \"", policies) + "\"");
             if (WaterGrid.UTILITY.equals(utility) && water == null)
                 throw new IllegalArgumentException(call + ": water networks are not in this game; restart it to use them");
             Network existing = networks.get(id);

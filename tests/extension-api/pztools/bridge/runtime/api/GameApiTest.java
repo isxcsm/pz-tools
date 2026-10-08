@@ -68,6 +68,7 @@ public final class GameApiTest {
         failedTakeover(api);
         handover(api);
         water(api);
+        nearest(api);
         fluids(api);
         purify(api);
         food(api);
@@ -410,7 +411,7 @@ public final class GameApiTest {
         rejects(networks, "setProducers", "31,30,0 is a producer of the network grid", other, "second", list(at(31, 30, 0)));
         rejects(networks, "define", "utility must be \"power\" or \"water\"", mod, "x", "gas", "sequential");
         rejects(networks, "define", "policy for power must be \"sequential\"", mod, "x", "power", "parallel");
-        rejects(networks, "define", "policy for water must be \"fullest\"", mod, "x", "water", "sequential");
+        rejects(networks, "define", "policy for water must be \"fullest\" or \"nearest\"", mod, "x", "water", "sequential");
         rejects(networks, "define", "id must be 1 to 64", mod, "no spaces", "power", "sequential");
         rejects(networks, "define", "the first argument must be a handle", "power.mod", "x", "power", "sequential");
         rejects(networks, "exclude", "sprite must be a sprite name", mod, "grid", 1.0, 1.0, 0.0, "");
@@ -1623,6 +1624,51 @@ public final class GameApiTest {
         for (String id : List.of("annex", "pipes", "lights")) call(networks, "remove", mod, id);
         frame();
         check(!sink.getUsesExternalWaterSource() && !outside.getUsesExternalWaterSource(), "A removed network still supplies water");
+    }
+
+    /**
+     * Under "nearest" a fixture takes its water from its own network's producers first, the fullest of them, and from
+     * its parent's only once those are dry; a container at least 95 percent full gives first wherever it is, so that rain
+     * is not lost. A mod's draw likewise: what is above 95 percent first, then the network's own, then its parent's.
+     */
+    private static void nearest(KahluaTable api) throws Exception {
+        KahluaTable networks = (KahluaTable)api.rawget("networks");
+        Object mod = call(api, "client", "water.mod").get(0);
+        IsoObject roof = place(40, 40, 0, barrel(80)), floor = place(41, 40, 0, barrel(20)), other = place(42, 40, 0, barrel(10));
+        var tap = place(43, 41, 0, new IsoObject(new IsoSprite("tap")));
+        tap.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        call(networks, "define", mod, "roof", "water", "nearest");
+        call(networks, "setProducers", mod, "roof", list(at(40, 40, 0)));
+        call(networks, "define", mod, "floor", "water", "nearest");
+        call(networks, "setProducers", mod, "floor", list(at(41, 40, 0), at(42, 40, 0)));
+        call(networks, "setParent", mod, "floor", "roof");
+        call(networks, "include", mod, "floor", 43.0, 41.0, 0.0, "tap");
+        frame();
+        check(tap.getUsesExternalWaterSource() && tap.getFluidAmount() == 20,
+            "The network's own fullest producer did not give first: " + tap.getFluidAmount());
+        floor.fluidContainer.amount = 0;
+        check(tap.getFluidAmount() == 10, "The network's other producer did not give next: " + tap.getFluidAmount());
+        other.fluidContainer.amount = 0;
+        check(tap.getFluidAmount() == 80, "The parent's producer did not give once the network's own were dry: " + tap.getFluidAmount());
+        floor.fluidContainer.amount = 20;
+        roof.fluidContainer.amount = 96;
+        check(tap.getFluidAmount() == 96, "A container about to spill did not give first: " + tap.getFluidAmount());
+        // A draw: the 1 above 95 percent first, then the network's own levelled, the parent's untouched.
+        other.fluidContainer.amount = 10;
+        var drawn = call(networks, "draw", mod, "floor", 30.0);
+        check(near((Double)drawn.get(0), 30) && near(roof.fluidContainer.amount, 95) && near(floor.fluidContainer.amount, 0.5)
+            && near(other.fluidContainer.amount, 0.5), "A nearest draw went wrong: " + roof.fluidContainer.amount + ", "
+            + floor.fluidContainer.amount + ", " + other.fluidContainer.amount);
+        drawn = call(networks, "draw", mod, "floor", 10.0);
+        check(near((Double)drawn.get(0), 10) && near(roof.fluidContainer.amount, 86) && near(floor.fluidContainer.amount, 0)
+            && near(other.fluidContainer.amount, 0), "A nearest draw did not go on to the parent's: " + roof.fluidContainer.amount);
+        check(near(WaterGrid.nearest(new double[] { 50, 99, 30 }, new double[] { 100, 100, 100 }, new int[] { 1, 2, 0 }, 40)[1], 4)
+            && near(WaterGrid.nearest(new double[] { 50, 99, 30 }, new double[] { 100, 100, 100 }, new int[] { 1, 2, 0 }, 40)[2], 30)
+            && near(WaterGrid.nearest(new double[] { 50, 99, 30 }, new double[] { 100, 100, 100 }, new int[] { 1, 2, 0 }, 40)[0], 6),
+            "The nearest shares are wrong");
+        for (String id : List.of("floor", "roof")) call(networks, "remove", mod, id);
+        frame();
+        check(!tap.getUsesExternalWaterSource(), "A removed network still supplies water");
     }
 
     /**
