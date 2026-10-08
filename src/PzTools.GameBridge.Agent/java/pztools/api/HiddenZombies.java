@@ -44,12 +44,10 @@ final class HiddenZombies {
 
     private final Game game;
     private final Players players;
-    // IsoCell.getZombieList(); and see Reads for what is asked of each zombie.
-    private final MethodHandle zombiesOf;
-    // IsoPlayer.TestZombieSpotPlayer(IsoMovingObject), IsoPlayer.getX(), getY(), getZ().
+    // IsoPlayer.TestZombieSpotPlayer(IsoMovingObject), IsoPlayer.getX(), getY(), getZ() (what is asked of each zombie is in ZombieReads).
     private final MethodHandle spot, xOf, yOf, zOf;
-    // IsoPlayer: isSeeEveryone(), isAsleep(), isDead(), getVehicle(), getLookVector(Vector2).
-    private final MethodHandle seesAll, asleep, dead, vehicleOf, lookOf;
+    // IsoPlayer: isSeeEveryone(), isAsleep(), getVehicle(), getLookVector(Vector2).
+    private final MethodHandle seesAll, asleep, vehicleOf, lookOf;
     // GameTime.getInstance().getViewDist(); LightingJNI's smoothed vision cone in degrees, which the lighting reads.
     private final MethodHandle timeOf, viewDist, cone;
     // IsoGridSquare.testVisionAdjacent(dx, dy, dz, boolean, boolean); LosUtil.lineClear(cell, x0, y0, z0, x1, y1, z1, boolean).
@@ -64,36 +62,6 @@ final class HiddenZombies {
     private int epoch;
     private long random = 0x9E3779B97F4A7C15L;
 
-    // The loader Reads is built for: set by the first instance before Reads is first used.
-    private static ClassLoader loading;
-
-    /**
-     * What the pass asks of each zombie, as handles that are constants: a call through one is built into the loop (the same
-     * call through a handle in a field is not, and costs several times as much). They are made once for the game's loader;
-     * an instance made for another one does not work.
-     */
-    private static final class Reads {
-        static final ClassLoader LOADER = loading;
-        // IsoMovingObject.getX(), getY(), getZ(); IsoGameCharacter.isVisibleToPlayer; IsoObject.setTargetAlpha(int, float).
-        static final MethodHandle X, Y, Z, VISIBLE, ALPHA;
-
-        static {
-            try {
-                Class<?> moving = Game.type(LOADER, "zombie.iso.IsoMovingObject"), object = Game.type(LOADER, "zombie.iso.IsoObject");
-                var number = MethodType.methodType(float.class, Object.class);
-                X = Game.exact(moving.getMethod("getX"), number);
-                Y = Game.exact(moving.getMethod("getY"), number);
-                Z = Game.exact(moving.getMethod("getZ"), number);
-                VISIBLE = MethodHandles.publicLookup().unreflectGetter(Game.type(LOADER, "zombie.characters.IsoGameCharacter").getField("isVisibleToPlayer"))
-                    .asType(MethodType.methodType(boolean[].class, Object.class));
-                ALPHA = Game.exact(object.getMethod("setTargetAlpha", int.class, float.class),
-                    MethodType.methodType(void.class, Object.class, int.class, float.class));
-            } catch (ReflectiveOperationException failure) {
-                throw new ExceptionInInitializerError(failure);
-            }
-        }
-    }
-
     private static final class Candidate {
         long rayAt, spotAt;
         boolean clear;
@@ -104,15 +72,13 @@ final class HiddenZombies {
     HiddenZombies(ClassLoader loader, Game game, Players players) throws ReflectiveOperationException, IllegalAccessException {
         this.game = game;
         this.players = players;
-        synchronized (HiddenZombies.class) { if (loading == null) loading = loader; }
-        if (Reads.LOADER != loader) throw new IllegalStateException("the zombie reads were built for another game loader");
-        Class<?> cell = Game.type(loader, "zombie.iso.IsoCell"), moving = Game.type(loader, "zombie.iso.IsoMovingObject");
+        ZombieReads.use(loader);
+        Class<?> moving = Game.type(loader, "zombie.iso.IsoMovingObject");
         Class<?> character = Game.type(loader, "zombie.characters.IsoGameCharacter");
         Class<?> player = Game.type(loader, "zombie.characters.IsoPlayer"), square = Game.type(loader, "zombie.iso.IsoGridSquare");
-        Class<?> los = Game.type(loader, "zombie.iso.LosUtil"), results = Game.type(loader, "zombie.iso.LosUtil$TestResults");
+        Class<?> cell = Game.type(loader, "zombie.iso.IsoCell"), los = Game.type(loader, "zombie.iso.LosUtil"), results = Game.type(loader, "zombie.iso.LosUtil$TestResults");
         Class<?> time = Game.type(loader, "zombie.GameTime"), lighting = Game.type(loader, "zombie.iso.LightingJNI");
         Class<?> vectorType = Game.type(loader, "zombie.iso.Vector2");
-        zombiesOf = Game.exact(cell.getMethod("getZombieList"), MethodType.methodType(ArrayList.class, Object.class));
         var number = MethodType.methodType(float.class, Object.class);
         xOf = Game.exact(moving.getMethod("getX"), number);
         yOf = Game.exact(moving.getMethod("getY"), number);
@@ -121,7 +87,6 @@ final class HiddenZombies {
         var flag = MethodType.methodType(boolean.class, Object.class);
         seesAll = Game.exact(player.getMethod("isSeeEveryone"), flag);
         asleep = Game.exact(character.getMethod("isAsleep"), flag);
-        dead = Game.exact(character.getMethod("isDead"), flag);
         vehicleOf = Game.exact(character.getMethod("getVehicle"), MethodType.methodType(Object.class, Object.class));
         lookOf = Game.exact(character.getMethod("getLookVector", vectorType), MethodType.methodType(Object.class, Object.class, Object.class));
         timeOf = Game.exact(time.getMethod("getInstance"), MethodType.methodType(Object.class));
@@ -159,11 +124,11 @@ final class HiddenZombies {
             Object who = local[index];
             if (who == null) continue;
             if (zombies == null) {
-                zombies = (ArrayList<?>)zombiesOf.invokeExact(cell);
+                zombies = (ArrayList<?>)ZombieReads.Handles.LIST.invokeExact(cell);
                 view = (float)viewDist.invokeExact((Object)timeOf.invokeExact());
             }
             // Nobody sees in a sleep, in the grave or from a car (the cone then is the car's), and a player who sees everyone has it done.
-            if (!(boolean)dead.invokeExact(who) && !(boolean)asleep.invokeExact(who) && !(boolean)seesAll.invokeExact(who)
+            if (!(boolean)ZombieReads.Handles.DEAD.invokeExact(who) && !(boolean)asleep.invokeExact(who) && !(boolean)seesAll.invokeExact(who)
                     && (Object)vehicleOf.invokeExact(who) == null)
                 watch(index, who, cell, zombies, view, now);
             if (sweep) candidates[index].values().removeIf(known -> epoch - known.seen > FORGET_AFTER);
@@ -187,13 +152,13 @@ final class HiddenZombies {
         var known = candidates[index];
         for (int at = 0, count = zombies.size(); at < count; at++) {
             Object zombie = zombies.get(at);
-            boolean[] drawn = (boolean[])Reads.VISIBLE.invokeExact(zombie);
+            boolean[] drawn = (boolean[])ZombieReads.Handles.VISIBLE.invokeExact(zombie);
             if (drawn[index]) continue;
-            float zx = (float)Reads.X.invokeExact(zombie), zy = (float)Reads.Y.invokeExact(zombie);
+            float zx = (float)ZombieReads.Handles.X.invokeExact(zombie), zy = (float)ZombieReads.Handles.Y.invokeExact(zombie);
             float dx = zx - px, dy = zy - py;
             float squared = dx * dx + dy * dy;
             if (squared > within) continue;
-            int floor = floor((float)Reads.Z.invokeExact(zombie));
+            int floor = floor((float)ZombieReads.Handles.Z.invokeExact(zombie));
             if (floor - pz > 1 || pz - floor > 1) continue;
             if (!all && dx * lx + dy * ly < cosine * length * (float)Math.sqrt(squared)) continue;
             Candidate state = known.get(zombie);
@@ -209,7 +174,7 @@ final class HiddenZombies {
                 state.rayAt = now + RAY_MIN + (next() % RAY_SPREAD);
             }
             if (!state.clear) continue;
-            Reads.ALPHA.invokeExact(zombie, index, 1f);
+            ZombieReads.Handles.ALPHA.invokeExact(zombie, index, 1f);
             if (now - state.spotAt >= 0) {
                 spot.invokeExact(who, zombie);
                 state.spotAt = now + SPOT_MIN + (next() % SPOT_SPREAD);

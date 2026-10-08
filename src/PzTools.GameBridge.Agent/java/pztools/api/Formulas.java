@@ -23,7 +23,7 @@ final class Formulas implements ApiHooks.Formulas {
     // Between the parts of a value in the kept text; a name a mod gives holds no control character.
     private static final char SEPARATOR = '\u001f';
     private static final int MAX_NAME = 128, MAX_ENTRIES = 256;
-    private static final double MAX_MULTIPLIER = 100;
+    private static final double MAX_MULTIPLIER = 100, MAX_AMOUNT = 1000;
 
     /** What a point's value is, and how the values of several mods for it combine. */
     enum Shape {
@@ -43,6 +43,8 @@ final class Formulas implements ApiHooks.Formulas {
         EFFICIENCIES,
         /** A table of names and numbers from 0 to 100; the values of a name multiply. */
         MULTIPLIERS,
+        /** A table of names and numbers from 0 to 1000; the values of a name add. */
+        AMOUNTS,
         /** A name, or a list of names; the lists join. */
         NAMES
     }
@@ -50,21 +52,34 @@ final class Formulas implements ApiHooks.Formulas {
     /** What the names in a table are: any text, or names the game registers. */
     enum Names { ANY, ITEM_TYPE, ITEM_TAG }
 
+    /** What a point reads of the game besides its hooks: the API says the point is unavailable when it cannot. */
+    enum Needs {
+        NONE,
+        /** The game's inventory classes ({@link Inventory}). */
+        INVENTORY,
+        /** The states, constants and body parts {@link Survival} reads. */
+        SURVIVAL,
+        /** The game's zombies, squares and vision, each frame ({@link HiddenZombies}); the point has no hook. */
+        SIGHT,
+        /** The game's sprites, data tables, chunks and generators ({@link Machines}). */
+        MACHINES
+    }
+
     /**
      * A hook point: its name, its value's shape, what its names are, the hooks (as {@code PZToolsAPI.hooks()} names them) it
-     * needs, and whether it needs the game's inventory classes.
+     * needs, and what else it reads of the game.
      */
-    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory, boolean survival, boolean sight) { }
+    record Point(String name, Shape shape, Names names, List<String> hooks, Needs needs) { }
 
-    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, false, false); }
+    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.NONE); }
 
-    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true, false, false); }
+    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), Needs.INVENTORY); }
 
-    /** A point that needs the states, constants and body parts {@link Survival} reads. */
-    private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, true, false); }
+    private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.SURVIVAL); }
 
-    /** A point that is worked each frame from the game's zombies and squares ({@link HiddenZombies}), not by a hook. */
-    private static Point sight(String name, Shape shape) { return new Point(name, shape, Names.ANY, List.of(), false, false, true); }
+    private static Point sight(String name, Shape shape) { return new Point(name, shape, Names.ANY, List.of(), Needs.SIGHT); }
+
+    private static Point machine(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.MACHINES); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
     private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
@@ -106,7 +121,9 @@ final class Formulas implements ApiHooks.Formulas {
         live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
-        sight("vision.hiddenZombieFix", Shape.BOOLEAN));
+        sight("vision.hiddenZombieFix", Shape.BOOLEAN),
+        machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
+        machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -131,6 +148,9 @@ final class Formulas implements ApiHooks.Formulas {
         int maxWeightAdd, characterLimitAdd;
         double effectiveMultiplier = 1;
         String[] dataKeys = NO_NAMES;
+        // The machines: base consumption by sprite name, and the keys of an object's data that scale it.
+        Map<String, Float> machines = Map.of();
+        String[] machineKeys = NO_NAMES;
         float compress, runReduction, combatReduction;
         // The survival points: multipliers and chances as numbers, 1 (or 0) leaving the game's answer as it is.
         double lootChance = 1, lootAmmo = 1, cold = 1, corpseCount = 1, corpseSickness = 1, treeSlow = 1, treeScratch = 1, hole = 1, wound = 1;
@@ -158,6 +178,11 @@ final class Formulas implements ApiHooks.Formulas {
     // after it failed (it is then stopped, and the game draws as it did).
     private final HiddenZombies hidden;
     private String hiddenProblem;
+    // The machines mods declare; null, with the reason, in a game that changed what they read, or after a fault.
+    private final Machines machines;
+    private String machinesProblem;
+    // Sprite names declared as machines whose objects are to be put into the game's lists once the world has them loaded.
+    private final Set<String> listing = new LinkedHashSet<>();
     // The CharacterStat constants Stats.add is asked about.
     private final Object enduranceStat, poisonStat;
     // By mod, then point; what the mod declared: a Double, a Map of names to Doubles or a List of names.
@@ -203,6 +228,15 @@ final class Formulas implements ApiHooks.Formulas {
         }
         hidden = sight;
         hiddenProblem = unseen;
+        Machines listed = null;
+        String unlisted = null;
+        try { listed = new Machines(loader, game, players); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            unlisted = "the game's sprites, data tables, chunks or generators could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + unlisted);
+        }
+        machines = listed;
+        machinesProblem = unlisted;
         Class<?> stat = Game.type(loader, "zombie.characters.CharacterStat");
         enduranceStat = stat.getField("ENDURANCE").get(null);
         poisonStat = stat.getField("POISON").get(null);
@@ -347,6 +381,7 @@ final class Formulas implements ApiHooks.Formulas {
                 return value;
             case EFFICIENCIES: return entries(point, value, call, -0.9, MAX_MULTIPLIER);
             case MULTIPLIERS: return entries(point, value, call, 0, MAX_MULTIPLIER);
+            case AMOUNTS: return entries(point, value, call, 0, MAX_AMOUNT);
             case NAMES: return names(point, value, call);
         }
         throw new AssertionError(point.shape());
@@ -442,6 +477,7 @@ final class Formulas implements ApiHooks.Formulas {
             if (survival != null)
                 for (Integer part; (part = survival.nextSurvived()) != null;) game.raise(Survival.EVENT, (double)part);
             if (hidden != null && hiddenProblem == null) frameHidden();
+            if (machines != null && machinesProblem == null && !listing.isEmpty()) frameMachines();
         } catch (Throwable failure) {
             // Once: a fault that recurs each frame must not flood the game's log. The hooks keep answering.
             if (!reported) System.err.println("[PzTools API] formulas: " + failure);
@@ -450,6 +486,19 @@ final class Formulas implements ApiHooks.Formulas {
     }
 
     private boolean reported;
+
+    /**
+     * The machines declared since the world was loaded are put into the game's lists once a world and a player are there to
+     * say what is loaded; a fault stops this part alone, once, and the machines are then as the game lists them.
+     */
+    private void frameMachines() {
+        try { if (machines.list(listing)) listing.clear(); }
+        catch (Throwable failure) {
+            machinesProblem = "stopped: " + failure;
+            listing.clear();
+            System.err.println("[PzTools API] formulas: machines " + machinesProblem);
+        }
+    }
 
     /** The zombies the game does not draw: a fault stops this part alone, once, and the game draws as it did. */
     private void frameHidden() {
@@ -480,14 +529,14 @@ final class Formulas implements ApiHooks.Formulas {
                 }
                 return result;
             }
-            case EFFICIENCIES, MULTIPLIERS -> {
+            case EFFICIENCIES, MULTIPLIERS, AMOUNTS -> {
                 var result = new TreeMap<String, Double>();
                 for (var values : declared.values())
                     if (values.get(point.name()) instanceof Map<?, ?> map)
                         for (var entry : map.entrySet()) {
                             String key = (String)entry.getKey();
                             double value = (Double)entry.getValue();
-                            result.merge(key, value, (first, second) -> point.shape() == Shape.EFFICIENCIES ? first + second : first * second);
+                            result.merge(key, value, (first, second) -> point.shape() == Shape.MULTIPLIERS ? first * second : first + second);
                         }
                 return result.isEmpty() ? null : result;
             }
@@ -550,6 +599,14 @@ final class Formulas implements ApiHooks.Formulas {
         if (survival != null) survival.declare(combined(BY_NAME.get("infection.biteShield")) instanceof Boolean shield && shield);
         if (hidden != null && hiddenProblem == null) hidden.declare(combined(BY_NAME.get("vision.hiddenZombieFix")) instanceof Boolean fix && fix);
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
+        var declaredMachines = new HashMap<String, Float>();
+        for (var entry : table("machine.baseConsumption").entrySet()) declaredMachines.put(entry.getKey(), entry.getValue().floatValue());
+        next.machines = Map.copyOf(declaredMachines);
+        if (combined(BY_NAME.get("machine.loadKey")) instanceof List<?> loadKeys) next.machineKeys = loadKeys.toArray(String[]::new);
+        // A machine that draws power from now on is put into the game's lists in a frame with a world; one declared before is there.
+        for (var entry : next.machines.entrySet())
+            if (entry.getValue() > 0f && !(active.machines.getOrDefault(entry.getKey(), 0f) > 0f)) listing.add(entry.getKey());
+        listing.removeIf(name -> !(next.machines.getOrDefault(name, 0f) > 0f));
         if (inventory != null) {
             var category = new HashMap<String, Float>();
             for (var entry : table("carry.categoryEfficiency").entrySet()) category.put(entry.getKey(), entry.getValue().floatValue());
@@ -583,9 +640,13 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** A point's state as {@code PZToolsAPI.hooks()} words it: applied when every hook it needs is, else what is wrong. */
     private String status(Point point, Map<String, String> hooks) {
-        if (point.inventory() && inventory == null) return "unavailable: " + inventoryProblem;
-        if (point.survival() && survival == null) return "unavailable: " + survivalProblem;
-        if (point.sight() && hiddenProblem != null) return "unavailable: " + hiddenProblem;
+        switch (point.needs()) {
+            case INVENTORY -> { if (inventory == null) return "unavailable: " + inventoryProblem; }
+            case SURVIVAL -> { if (survival == null) return "unavailable: " + survivalProblem; }
+            case SIGHT -> { if (hiddenProblem != null) return "unavailable: " + hiddenProblem; }
+            case MACHINES -> { if (machines == null || machinesProblem != null) return "unavailable: " + machinesProblem; }
+            case NONE -> { }
+        }
         int applied = 0;
         String first = null;
         for (String label : point.hooks()) {
@@ -888,6 +949,25 @@ final class Formulas implements ApiHooks.Formulas {
     @Override public boolean wound(Object character) {
         double chance = active.wound;
         return chance >= 1 || !players.local(character) || ThreadLocalRandom.current().nextDouble() < chance;
+    }
+
+    @Override public boolean machine(boolean vanilla, Object object) {
+        if (vanilla) return true;
+        Map<String, Float> declared = active.machines;
+        if (declared.isEmpty() || machines == null || machinesProblem != null) return false;
+        try {
+            Float base = machines.base(declared, object);
+            return base != null && base > 0f;
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float machineLoad(float vanilla, Object object) {
+        Active now = active;
+        if (now.machines.isEmpty() || machines == null || machinesProblem != null) return vanilla;
+        try {
+            Float base = machines.base(now.machines, object);
+            return base == null ? vanilla : base * machines.factor(now.machineKeys, object);
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
     @Override public void bite(Object bodyDamage, int index, boolean after) {

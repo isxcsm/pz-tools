@@ -6,7 +6,8 @@
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
-> speed points, the survival points and the [hidden zombies](#the-hidden-zombies) so far). Planned: `"parallel"`, the rest of the formula points. The first areas serve a separate power
+> speed points, the survival points, the [hidden zombies](#the-hidden-zombies) and the [machines](#machines)), the
+> [helicopter](#the-helicopter) and the [zombies near a point](#zombies-near-a-point). Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
@@ -55,7 +56,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
+| `buildings`, `networks`, `formulas`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read. |
 
 Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -457,6 +458,8 @@ not have is a Lua error at `set`.
 | `loot.ammoMultiplier` | 0 to 100 | multiply | Times the ammunition modifier of the loot (`ItemPickerJava.getLootModifierFromType("Ammo")`), which the chance above is worked out with. |
 | `vision.darknessRestore` | 0 to 1, a reduction | reductions | The part of the dark the local player sees in that is taken away: `LightingJNI.getLumaInverted(character)` (0 light to 1 dark, which the vision cone and the shadows read) becomes `dark x (1 - value)`. The brightness of the screen is the native lighting's and does not change. |
 | `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
+| `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
+| `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
@@ -471,6 +474,33 @@ a zombie and a player of another machine get the game's. Every one is read from 
 The event `OnPZToolsBiteSurvived(bodyPartIndex)` is raised through `LuaEventManager` on the frame after a bite the shield
 took the infection out of (the index counts as `BodyPartType.ToIndex`), as `OnPZToolsNetworkChange` is raised; the API adds
 it to the game with the first Lua environment.
+
+### Machines
+
+A generator works out its load from the objects on the squares around it that the game lists for it. The game lists an
+object when it enters the world and `IsoObject.couldBePoweredByGenerator()` is true, and asks each listed object
+`IsoObject.getGeneratorPowerConsumption()` when the generator is placed, switched or told that something that uses power
+changed (`IsoGenerator.updateGenerator(square)`). `machine.baseConsumption` makes an object of a declared sprite one that
+could be powered (`true` when the game says so or the sprite is declared above 0) and gives its consumption as the declared
+number times the object's own load: each key of `machine.loadKey` that the object's mod data holds a number under multiplies
+it (a number below 0 counts as 0, above 100 as 100; a string or a NaN is left out; no key, or no mod data, is 1). A declared
+sprite takes the game's own answer for it away, a declaration of 0 included; anything not declared gets the game's. Several
+mods that declare one sprite add; their load keys join.
+
+The sprite is the name objects are known by in `buildings.objects` (the object's sprite name, or its sprite's). Objects of
+a class that has its own answer to the two questions (stoves, televisions and radios, washers and dryers, light switches,
+car battery chargers) keep it; the generic `IsoObject`, which a mod's tiles are, and the classes that do not answer for
+themselves are the ones declared. Nothing else hooks these two methods: the buildings area (`power` in `buildings.objects`)
+and the networks (the load of a consumer) read them, so a declared machine counts there with no other code.
+
+Objects that were in the world before the declaration are not on the game's lists. In the next frame that has a world and a
+local player, the API goes through the loaded chunks around each local player (half the loaded area and a chunk more,
+`IsoChunkMap.chunkGridWidth`), puts the objects of the newly declared sprites on the chunk's list
+(`IsoChunk.addObjectPoweredByGenerator`, which does nothing for one that is on it) and tells the generators of their squares
+(`IsoGenerator.updateGenerator`, once for each square). Objects that enter the world later list themselves. A declaration
+that is taken back leaves the lists as they are: the game asks each listed object again, and no longer finds it a
+consumer. A mod that changes the load of an object calls `IsoGenerator.updateGenerator(square)` after, as the game's own
+Lua does when it moves an object; the API does not poll the machines.
 
 ### The hidden zombies
 
@@ -543,6 +573,8 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.calculateCombatSpeed` | the read of `combatSpeedModifier` | The value read passes through `move.combatPenaltyReduction`. |
 | `IsoPlayer.getDeferredMovement(Vector2, boolean)` | each return | The vector returned (the method changes the argument and returns it) is scaled in place by `move.walkMultiplier` when the player is in the state of moving. The call is not made when the factor is 1. |
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
+| `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
+| `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoPlayer.calculateInTreesSpeed` | each return | The speed scale of the animation of walking through trees, passed through `move.treeSlowMultiplier`. |
 | `IsoGameCharacter.damageWhileInTrees` | the start | Returns at once, with the chance `move.treeScratchChance` leaves out. |
 | `IsoGameCharacter.addHole(BloodBodyPartType, boolean)` | the start | Returns false at once, with the chance `body.holeChance` leaves out. The one-argument `addHole` and `addHoleFromZombieAttacks` call it. |
@@ -658,6 +690,64 @@ frame; the lines here are fewer because of the 0.1 second cadence, and the squar
 game's are, but are not the game's. The cost in the game is to be measured there. Not tried in the game yet: that a shown
 zombie is drawn (the alpha is all that is set), a zombie seen across a stair or an opening in the floor, the cost with a real
 horde, and whether the lighting of a square leaves a shown zombie too dark to see.
+
+The machine hooks were put into the real bytes of `IsoObject` (the jar's and PZ Optimize's loose class, which overrides it)
+and verified by the JVM. In the synthetic game: an undeclared machine is not a consumer; a declared one is, with its
+consumption, and an object that is not declared, or that the game powers itself, gives the game's answer; a declaration of 0
+takes the game's load away; the load of an object (0.5, 0, 1000 held at 100, -3 held at 0, a string and a NaN left out, two
+keys multiplied) scales the consumption; two declarations of one sprite add and one taken back leaves the other's; a
+machine that was in the world is on the chunk's list in the next frame, its generators are told once for each square, and it
+is not listed again; with no player to say what is loaded nothing is listed until there is one; and 100000 rounds of six
+questions allocated 3984 bytes (no call allocates). Not tried in the game yet: a machine declared at `OnGameStart` with a
+generator already running; the generator's fuel use following a load key; `buildings.objects` and a network reading a
+declared machine.
+
+The helicopter's state was read from the game's bytes (the state is a protected field of an enum the game does not make
+public, which the API reads by reflection) in the jar, and `LuaEventManager.triggerEvent` with four arguments is there. In the
+synthetic game the state is read as `Inactive`, an event is raised for each of a target set, `changeState` with the helicopter
+moving, a state written straight, a take-off and a save loaded, with the target and position; nothing is raised for a move or
+for a frame with no change; and a newer API taking over while the helicopter hovers raises nothing and reads the state. Not
+tried in the game yet: a real flight, and that `Hovering` is the moment above the target that a mod dropping a crate looks for.
+
+`zombies.near` was tested for the nearest in order among 500 zombies (the count is not bounded, the list is), the radius, the
+level, the limit, a dead zombie, no world and wrong arguments. Over 10000 zombies spread over a 2000 by 2000 map a call took
+about 60 us for a radius of 5 and 170 to 220 us for a radius of 1000 (every zombie within it, the nearest 8 kept), and
+allocated 649 bytes whatever the number of zombies.
+
+## Systems
+
+Two areas that are not formulas: the game's helicopter, which the game's Lua cannot reach, and a query over the zombies the
+cell holds. Neither declares anything; a mod reads them.
+
+### The helicopter
+
+| Call | Effect |
+| --- | --- |
+| `helicopter.state()` | `"Inactive"` while the game's helicopter is not flying; otherwise `state, target, x, y`: the state (`"Arriving"`, `"Hovering"`, `"Searching"` or `"Leaving"`), the character it flies to (as the game has it, a local player or nil) and its position in squares. |
+
+One event, `OnPZToolsHelicopter(state, target, x, y)`, raised through `LuaEventManager` when the state changes: `"Arriving"` as the
+game sets a target (the helicopter starts 1000 squares off the target's), `"Hovering"`, `"Searching"` and `"Leaving"` as it
+goes through them, and `"Inactive"` when it is taken off (it ends, or a world is left). `x` and `y` are where the helicopter
+is. The API adds the event to the game with its Lua.
+
+The state is read once a frame, on the game's thread, not hooked: the game writes it when a target is set (`setTarget`), in
+`changeState`, straight in `update` (the helicopter leaves when its target is gone or dead), when a save loads
+(`Helicopter.load`) and when a client is synced, and takes the helicopter off in `deactivate` and in `pickRandomTarget` with
+nobody to fly to. Reading sees every one of these and cannot lose one to a change in the shape of a method; it costs a few
+field reads a frame. An event comes at the start of the frame after the change, and a state the helicopter passes through
+within one frame is not seen. The first look at a helicopter (the game starting, a save loaded while it flies, or a newer
+API taking over) is its state, not a change: no event is raised for it, and a mod that starts late reads `state()`.
+
+### Zombies near a point
+
+| Call | Effect |
+| --- | --- |
+| `zombies.near(x, y, z, radius, limit)` | `count, list`: how many living zombies stand on level `z` (a whole number) within `radius` squares (0 to 1000) of `(x, y)`, and the nearest `limit` of them (0 to 64; 8 when it is left out) nearest first, each a table of `zombie` (the game's `IsoZombie`), `x`, `y`, `z` and `distance`. A zombie exactly `radius` away counts. Without a world: `0` and an empty list. |
+
+It goes through the zombies the cell holds (`IsoCell.getZombieList()`, the loaded real ones: a zombie that has not been made
+yet is not on it, and nor is one that is dead), once, asking each its position through handles the compiler builds into the
+loop, so that a bigger radius costs no more than the zombies in it, and a zombie that is not near costs a few nanoseconds and
+allocates nothing. The list is bounded: the `limit` nearest are kept as it goes. Other levels are other calls.
 
 ## How the game is answered
 

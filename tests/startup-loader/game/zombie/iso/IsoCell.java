@@ -34,7 +34,11 @@ public final class IsoCell {
             if (dense != null && x >= 0 && y >= 0 && z >= 0 && x < denseSize && y < denseSize && z < denseFloors)
                 dense[(z * denseSize + y) * denseSize + x] = square;
             int wx = Math.floorDiv(x, IsoChunk.SIZE), wy = Math.floorDiv(y, IsoChunk.SIZE);
-            square.chunk = chunks.computeIfAbsent(wx + "," + wy, key -> new IsoChunk(wx, wy));
+            square.chunk = chunks.computeIfAbsent(wx + "," + wy, key -> {
+                var chunk = new IsoChunk(wx, wy);
+                chunk.cell = this;
+                return chunk;
+            });
             return square;
         });
     }

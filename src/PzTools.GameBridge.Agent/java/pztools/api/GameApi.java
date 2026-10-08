@@ -28,6 +28,8 @@ public final class GameApi {
     private static volatile Networks networks;
     // The formulas of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Formulas formulas;
+    // The helicopter of the Lua environment the game has now; null without one, or when the game cannot read it.
+    private static volatile Helicopters helicopters;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -62,6 +64,15 @@ public final class GameApi {
         if (current != null) current.frame();
         Formulas declared = formulas;
         if (declared != null) declared.frame();
+        Helicopters flying = helicopters;
+        if (flying != null) {
+            try { flying.frame(); }
+            catch (Throwable failure) {
+                // Once: a fault that recurs each frame must not flood the game's log. The state can still be read.
+                helicopters = null;
+                System.err.println("[PzTools API] helicopter events stopped: " + failure);
+            }
+        }
     }
 
     private static void luaStarted(Class<?> luaManager) {
@@ -80,6 +91,7 @@ public final class GameApi {
         catch (Throwable failure) {
             networks = null;
             formulas = null;
+            helicopters = null;
             Networks.unhook();
             Formulas.unhook();
             throw failure;
@@ -111,6 +123,7 @@ public final class GameApi {
             buildings.register(table(lua, api, "buildings"));
             networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
+            systems(lua, api, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -172,6 +185,28 @@ public final class GameApi {
             Formulas.retire(lua, meta);
             lua.set(api, "formulas", null);
         }
+    }
+
+    /**
+     * {@code PZToolsAPI.zombies} and {@code PZToolsAPI.helicopter}. Each is left out, with a line in the game's log, in a
+     * game that does not have what it reads: the others go on.
+     */
+    private static void systems(Kahlua lua, Object api, Game game, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Zombies(lua, game, loader).register(table(lua, api, "zombies")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "zombies", null);
+        }
+        Helicopters next;
+        try {
+            next = new Helicopters(lua, game, loader);
+            next.register(table(lua, api, "helicopter"));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "helicopter", null);
+            next = null;
+        }
+        helicopters = next;
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */

@@ -216,6 +216,12 @@ public final class ApiHooks {
          * just after ({@code after} true) {@code BodyDamage.SetBitten(index, true)}, in {@code AddRandomDamageFromZombie}.
          */
         default void bite(Object bodyDamage, int index, boolean after) { }
+
+        /** {@code IsoObject.couldBePoweredByGenerator()}: {@code vanilla}, or true for a machine a mod declared. */
+        default boolean machine(boolean vanilla, Object object) { return vanilla; }
+
+        /** {@code IsoObject.getGeneratorPowerConsumption()}: {@code vanilla}, or a declared machine's consumption times its own load. */
+        default float machineLoad(float vanilla, Object object) { return vanilla; }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -254,7 +260,8 @@ public final class ApiHooks {
         LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
-        HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS);
+        HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
+        MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS);
 
         final String label;
         final Group group;
@@ -412,6 +419,16 @@ public final class ApiHooks {
                 code.aload(0);
                 code.invokestatic(HOOKS, "waterTainted", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
                     ConstantDescs.CD_Object));
+            }),
+            // The machines mods declare (docs/design/extension-api.md, "Machines"): the two questions a generator asks of an
+            // object. Nothing else hooks them; the buildings and networks areas read them, and so follow.
+            Site.atReturns("couldBePoweredByGenerator", "()Z", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "machine", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+            }),
+            Site.atReturns("getGeneratorPowerConsumption", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "machineLoad", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
             }) }),
         Map.entry("zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
@@ -1522,6 +1539,22 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.bite(bodyDamage, index, after != 0); }
         catch (Throwable problem) { reportOnce(Call.BITE, problem); }
+    }
+
+    /** Put before each return of {@code IsoObject.couldBePoweredByGenerator}. */
+    public static boolean machine(boolean vanilla, Object object) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.machine(vanilla, object); }
+        catch (Throwable problem) { reportOnce(Call.MACHINE, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code IsoObject.getGeneratorPowerConsumption}. */
+    public static float machineLoad(float vanilla, Object object) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.machineLoad(vanilla, object); }
+        catch (Throwable problem) { reportOnce(Call.MACHINE_LOAD, problem); return vanilla; }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */
