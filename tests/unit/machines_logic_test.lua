@@ -130,6 +130,9 @@ test("generator load: the kind's load times the motor's multiplier, only while r
     local parts = Logic.newParts("bulkShredder")
     near(Logic.load("bulkShredder", parts, true), 0.6)
     eq(Logic.load("bulkShredder", parts, false), 0)
+    eq(Logic.loadMultiplier("bulkShredder", parts, true), 1.0)
+    eq(Logic.loadMultiplier("bulkShredder", parts, false), 0)
+    eq(Logic.loadMultiplier("shredBench", {}, true), 0)
     parts.motor = { tier = "normal", cond = 100 }
     near(Logic.load("bulkShredder", parts, true), 0.75)
     parts.motor = { tier = "modern", cond = 100 }

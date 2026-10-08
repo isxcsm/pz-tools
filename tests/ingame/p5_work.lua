@@ -145,6 +145,7 @@ section("parts: install, wear, break", function()
     for _ = 1, 4 do inC:AddItem("Base.Hammer") end
     P5T.work(object, 0.2)
     check("load with a modern motor is 0.9", near(M.load(object), 0.9, 0.01) or not state.running, M.load(object))
+    check("the anchor keeps the multiplier for the API (OA_Load 1.5 while running)", object:getModData().OA_Load == (state.running and 1.5 or 0), tostring(object:getModData().OA_Load))
     -- Wear: an old shredder blade wears 2 an hour.
     local before = state.parts.shredBlade.cond
     grind(object, 5)

@@ -69,6 +69,7 @@ end)
 section("research storage", function()
     local object, reason = P5T.place("researchStorage", 3, 6, "S")
     if not check("placed", object ~= nil, reason) then return end
+    check("the anchor asks the API to lift the cap (OA_Capacity)", object:getModData().OA_Capacity == true)
     local container = M.container(object, "store")
     check("it has the storage container", container ~= nil)
     if container then

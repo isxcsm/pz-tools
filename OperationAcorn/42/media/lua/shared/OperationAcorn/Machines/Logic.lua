@@ -128,10 +128,18 @@ end
 -- multiplier, only while it runs). This is the one function the extension API's power hook will read.
 function Logic.load(kind, parts, running)
     local def = Data.KINDS[kind]
+    if not def or not def.load then return 0 end
+    return def.load * Logic.loadMultiplier(kind, parts, running)
+end
+
+-- The factor the API's power hook multiplies a machine's base consumption by (the base per sprite is the API's):
+-- the motor's power multiplier while the machine runs, 0 when it does not. Load = base load x this.
+function Logic.loadMultiplier(kind, parts, running)
+    local def = Data.KINDS[kind]
     if not def or not def.load or not running then return 0 end
     local motor = parts and parts.motor
     local tier = motor and Logic.partDef(kind, "motor", motor.tier)
-    return def.load * (tier and tier.power or 1)
+    return tier and tier.power or 1
 end
 
 -- The radius of the sound a running machine makes.

@@ -231,8 +231,23 @@ local function showSprite(object, want)
     if isServer() then object:transmitUpdatedSpriteToClients() end
 end
 
--- Shows the look the state calls for on every loaded square of the machine, where it is not already shown.
+-- Keeps the load multiplier the generator hook reads (the anchor's modData OA_Load) as the state says: the motor's
+-- power multiplier while it runs, 0 otherwise. It is written only when it changes.
+function Machines.syncLoad(object, state)
+    local def = Data.KINDS[state.kind]
+    if not def or not def.load then return end
+    local multiplier = Logic.loadMultiplier(state.kind, state.parts, state.running == true)
+    local data = object:getModData()
+    if data[Data.LOAD_KEY] ~= multiplier then
+        data[Data.LOAD_KEY] = multiplier
+        if isServer() then object:transmitModData() end
+    end
+end
+
+-- Shows the look the state calls for on every loaded square of the machine, where it is not already shown. Also
+-- brings the load multiplier up to date (every change of running goes through here).
 function Machines.refreshLook(object, state)
+    Machines.syncLoad(object, state)
     local running = state.running == true
     if state.kind == "lure" then running = not state.spent end
     local parts
@@ -964,6 +979,8 @@ function Machines.place(kind, square, character, item, dir)
             end
             setupContainers(object, entry.square, kind)
             applyAccept(object, state)
+            if kind == "researchStorage" then object:getModData()[Data.CAPACITY_KEY] = true end
+            Machines.syncLoad(object, state)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
         end
@@ -1123,6 +1140,7 @@ function Machines.installPart(object, slot, item, character)
     end
     if old then giveBack(character, state.kind, slot, old) end
     state.parts[slot] = { tier = info.tier, cond = itemCondition(item) }
+    Machines.syncLoad(object, state)
     -- A fresh start: the machine looks at its work again from now.
     state.idle, state.last, state.carry = true, OA.hours(), 0
     if isServer() then object:transmitModData() end
