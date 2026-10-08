@@ -85,9 +85,6 @@
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk1": "Improved fuel can Mk.I",
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk2": "Improved fuel can Mk.II",
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk3": "Improved fuel can Mk.III",
-    "IGUI_OA_Econ_Shop_Item_torch_mk1": "Improved welding torch Mk.I",
-    "IGUI_OA_Econ_Shop_Item_torch_mk2": "Improved welding torch Mk.II",
-    "IGUI_OA_Econ_Shop_Item_torch_mk3": "Improved welding torch Mk.III",
     "IGUI_OA_Econ_Shop_Item_kit_bagCapacity": "Bag capacity kit",
     "IGUI_OA_Econ_Shop_Item_kit_bagWeight": "Bag weight kit",
     "IGUI_OA_Econ_Shop_Item_kit_trunk": "Trunk kit",
@@ -1081,5 +1078,7 @@
     "IGUI_OA_Gear_Reason_far": "too far from the vehicle",
     "IGUI_OA_Gear_Reason_part": "the vehicle has no such part",
     "IGUI_OA_Gear_Reason_voucher": "no voucher",
-    "IGUI_OA_Gear_Reason_kind": "unknown kit"
+    "IGUI_OA_Gear_Reason_kind": "unknown kit",
+    "IGUI_OA_Gear_Away": "%1 squares away",
+    "IGUI_OA_Gear_TargetUnknown": "not with you"
 }

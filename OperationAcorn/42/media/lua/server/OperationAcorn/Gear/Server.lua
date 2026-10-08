@@ -20,4 +20,11 @@ Server.on("gear.redeem", function(character, record, args)
     if not ok then OA.Sync.notice(record.id, "IGUI_OA_Gear_Failed", { why }) end
 end)
 
+-- A client tells the id it gave a vehicle (Gear.vehicleId): the server keeps it if the vehicle has none.
+Server.on("gear.tag", function(character, record, args)
+    if type(args.tag) ~= "string" or #args.tag > 40 then return end
+    local vehicle = Gear.findVehicle(args.vehicle)
+    if vehicle then Gear.tagVehicle(vehicle, args.tag) end
+end)
+
 return GearServer

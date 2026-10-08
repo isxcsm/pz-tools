@@ -33,7 +33,6 @@ test("every NUMBERS 7 price is in the catalog", function()
         saw_blade_normal = { 15000, 3 }, saw_blade_modern = { 40000, 5 }, filter_normal = { 20000, 3 },
         filter_modern = { 50000, 5 }, soundproof_cover = { 30000, 3 },
         fuelcan_mk1 = { 20000, 2 }, fuelcan_mk2 = { 45000, 4 }, fuelcan_mk3 = { 90000, 5 },
-        torch_mk1 = { 30000, 3 }, torch_mk2 = { 70000, 5 }, torch_mk3 = { 150000, 6 },
         kit_bagCapacity = { 40000, 6 }, kit_bagWeight = { 50000, 6 }, kit_trunk = { 60000, 6 }, kit_engine = { 80000, 6 },
     }
     for id, want in pairs(expect) do
@@ -72,7 +71,6 @@ test("what an entry hands over", function()
     eq(find("team_backpack").give[2].type, "Base.CanteenMilitary")
     eq(find("petrol_can").give[1].fluid, "Petrol")
     truthy(find("fuelcan_mk1").give[1].empty)
-    eq(find("torch_mk3").fragments, 1)
 end)
 
 test("the price is the base times the multiplier and the stage discount", function()
@@ -174,7 +172,7 @@ test("kits can be switched off", function()
     SandboxVars.OperationAcorn.KitsForSale = false
     local n, why = S.available(find("kit_trunk"), record(5, 1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_KitsOff")
-    eq(#S.opensAt(6), 1, "the Mk.III torch only")
+    eq(#S.opensAt(6), 0, "the kits are the only goods of the first milestone")
 end)
 
 test("debt blocks orders but not the box", function()

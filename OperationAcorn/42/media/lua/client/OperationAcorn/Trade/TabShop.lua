@@ -3,6 +3,7 @@
 -- the server, so a closed window loses nothing.
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Orders"
+require "OperationAcorn/Gear/Gear"
 local OA = OperationAcorn
 local Trade, UI, Orders, Text = OA.Trade, OA.Trade.UI, OA.Trade.Orders, OA.Trade.Text
 
@@ -10,38 +11,15 @@ OATabShop = OATab:derive("OATabShop")
 
 -- The kinds of kit that are for a bag; the others are for a vehicle.
 local BAG_KITS = { bagCapacity = true, bagWeight = true }
+-- How far (squares) from the character a vehicle may be to be chosen for a kit.
+local VEHICLE_REACH = 40
 
-local function bagTargets(character)
-    local found, seen = {}, {}
-    local items = character:getInventory():getItems()
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        if item:IsInventoryContainer() and not seen[item:getFullType()] then
-            seen[item:getFullType()] = true
-            found[#found + 1] = { target = item:getFullType(), name = item:getDisplayName() }
-        end
-    end
-    return found
-end
-
-local function vehicleTargets(character)
-    local found, seen = {}, {}
-    local vehicles = getCell():getVehicles()
-    for i = 0, vehicles:size() - 1 do
-        local vehicle = vehicles:get(i)
-        local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
-        local script = vehicle:getScript()
-        if dx * dx + dy * dy < 40 * 40 and script and not seen[script:getName()] then
-            seen[script:getName()] = true
-            found[#found + 1] = { target = script:getName(), name = getText("IGVehicleName_" .. script:getName()) }
-        end
-    end
-    return found
-end
-
+-- A kit is ordered for one bag or one vehicle: the target is the id of that bag (its item id) or of that vehicle
+-- (OA_TargetId in its parts' modData, given when first chosen), and the price counts the kits of that one. The ids
+-- and the names are the gear part's (OA.Gear.bagTargets, vehicleTargets).
 function OATabShop:targets(entry)
-    if BAG_KITS[entry.kit] then return bagTargets(self:character()) end
-    return vehicleTargets(self:character())
+    if BAG_KITS[entry.kit] then return OA.Gear.bagTargets(self:character()) end
+    return OA.Gear.vehicleTargets(self:character(), entry.kit, VEHICLE_REACH)
 end
 
 function OATabShop:createChildren()
@@ -107,10 +85,12 @@ local function priceOf(entry, line, record)
 end
 
 -- The name of a cart line: the entry's, with the choice and the target.
-local function lineName(entry, line)
+local function lineName(entry, line, character)
     local name = Orders.nameOf(entry)
     if line.choice and entry.choices then name = name .. " - " .. Text.nameOf(line.choice) end
-    if line.target and line.target ~= "" then name = name .. " (" .. line.target .. ")" end
+    if line.target and line.target ~= "" and entry.kit then
+        name = name .. " (" .. OA.Gear.targetName(entry.kit, line.target, character) .. ")"
+    end
     return name
 end
 
@@ -142,7 +122,7 @@ function OATabShop:refreshCart(record)
         local entry = Orders.entry(line.id)
         if entry then
             local price = OA.round(priceOf(entry, line, record))
-            self.cart:addItem(line.id, { line = line, name = lineName(entry, line), count = line.count, total = price * line.count })
+            self.cart:addItem(line.id, { line = line, name = lineName(entry, line, self:character()), count = line.count, total = price * line.count })
             total = total + price * line.count
         end
     end

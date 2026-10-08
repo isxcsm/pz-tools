@@ -1,5 +1,5 @@
 -- Gear on the game side, with fake game objects: fitting each kind of kit with and without the extension API, the count
--- and the effect staying in step, the voucher, the server command, the improved torches in the recipes. The fakes
+-- and the effect staying in step, the voucher, the server command. The fakes
 -- mimic only what Gear.lua calls.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -43,6 +43,7 @@ local function newInventory()
         return nil
     end
     function inv:getItemById(id) return self:getItemWithIDRecursiv(id) end
+    function inv:getItems() return newList(self.items) end
     function inv:getAllEvalRecurse(pred)
         local found = {}
         for _, it in ipairs(self.items) do if pred(it) then found[#found + 1] = it end end
@@ -192,7 +193,7 @@ end
 test("a capacity kit without the API goes into the bag's capacity and is counted on the bag", function()
     setup()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
-    local kit = kitOf(player, "bagCapacity", "Base.Bag_ALICEpack")
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(bag))
     local ok, value = Gear.fitBag(player, kit, bag)
     truthy(ok)
     eq(value, 31)
@@ -308,7 +309,7 @@ end)
 test("a kit ordered for one bag does not go on another", function()
     setup()
     local player, bag = bagFixture("OperationAcorn.TeamBackpack", 35, 85)
-    local kit = kitOf(player, "bagCapacity", "Base.Bag_ALICEpack")
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(newItem("Base.Bag_ALICEpack")))
     local ok, why = Gear.fitBag(player, kit, bag)
     eq(ok, false)
     eq(why, "target")
@@ -344,7 +345,7 @@ test("a trunk kit without the API raises the trunk part's capacity, counted on t
     setup()
     local player = newCharacter()
     local car, trunk = carWithTrunk(100)
-    local ok, total = Gear.fitTrunk(player, kitOf(player, "trunk", "CarNormal"), car)
+    local ok, total = Gear.fitTrunk(player, kitOf(player, "trunk", Gear.vehicleId(car, true)), car)
     truthy(ok)
     eq(total, 110)
     eq(trunk.capacity, 110)
@@ -427,7 +428,7 @@ test("vehicle kits need the character beside the vehicle, the right vehicle and 
     eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk"), nil)), "gone")
     local bare = newVehicle({ parts = { newPart("Engine") } })
     eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk"), bare)), "part")
-    truthy(Gear.fitTrunk(player, kitOf(player, "trunk", "CarNormal"), car), "the right script name fits")
+    truthy(Gear.fitTrunk(player, kitOf(player, "trunk", Gear.vehicleId(car, true)), car), "the right vehicle fits")
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -530,23 +531,23 @@ test("a bought kit is counted by the shop for its target and by the bag for the 
     local record = shopRecord()
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
     local entry = OA.Shop.entry("kit_bagCapacity")
-    OA.Shop.bought(entry, record, 1, "Base.Bag_ALICEpack")
-    eq(OA.Shop.kitsFor("bagCapacity", "Base.Bag_ALICEpack", record), 1)
+    OA.Shop.bought(entry, record, 1, Gear.bagKey(bag))
+    eq(OA.Shop.kitsFor("bagCapacity", Gear.bagKey(bag), record), 1)
     -- the delivered kit carries the target string the shop counted under, and only that bag takes it
-    local kit = kitOf(player, "bagCapacity", "Base.Bag_ALICEpack")
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(bag))
     truthy(Gear.fitBag(player, kit, bag))
     eq(bag.md[K.BAG_CAP], 1)
-    truthy(OA.Shop.kitPrice("bagCapacity", "Base.Bag_ALICEpack", record) > OA.Shop.KITS.bagCapacity.price)
+    truthy(OA.Shop.kitPrice("bagCapacity", Gear.bagKey(bag), record) > OA.Shop.KITS.bagCapacity.price)
 end)
 
 test("the order's kit carries the target in OA_Target, the key this part reads", function()
     setup()
     require "OperationAcorn/Trade/Orders"
     local entry = OA.Shop.entry("kit_trunk")
-    local specs = OA.Trade.Orders.itemSpecs(entry, { id = "kit_trunk", count = 1, target = "CarNormal" })
+    local specs = OA.Trade.Orders.itemSpecs(entry, { id = "kit_trunk", count = 1, target = "v123456-7" })
     eq(#specs, 1)
     eq(specs[1].type, "OperationAcorn.KitTrunk")
-    eq(specs[1].mod[K.TARGET], "CarNormal")
+    eq(specs[1].mod[K.TARGET], "v123456-7")
 end)
 
 test("the server command redeems the voucher a character names", function()
@@ -572,93 +573,174 @@ test("the server command redeems the voucher a character names", function()
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- The improved torches in the vanilla recipes
+-- One bag, one vehicle: the target is an instance, not a type
 
-local TORCHES = { "OperationAcorn.TorchMk1", "OperationAcorn.TorchMk2", "OperationAcorn.TorchMk3" }
-
--- A script manager with the items by name and the recipe lists; `torches` false leaves the vanilla torch out.
-local function newScriptManager(recipes, items)
-    return {
-        FindItem = function(_, name) return items[name] end,
-        getAllCraftRecipes = function() return newList(recipes.craft) end,
-        getAllBuildableRecipes = function() return newList(recipes.build) end,
-    }
-end
-
-local function newScripts()
-    local items = {}
-    for _, name in ipairs({ "Base.BlowTorch", "Base.Hammer", TORCHES[1], TORCHES[2], TORCHES[3] }) do
-        items[name] = { name = name }
-    end
-    return items
-end
-
-local function newRecipe(name, inputs)
-    return { getName = function() return name end, getInputs = function() return newList(inputs) end }
-end
-
--- A craft input: it lists the item scripts it accepts and hands the list out (the stand-in for the ArrayList).
-local function newInput(list, opts)
-    opts = opts or {}
-    local input = { list = list }
-    function input:isAcceptsAnyItem() return opts.any or false end
-    function input:getPossibleInputItems() return self end
-    function input:containsItem(script)
-        for _, s in ipairs(self.list) do if s == script then return true end end
-        return false
-    end
-    function input:add(script)
-        if opts.locked then error("unmodifiable") end
-        table.insert(self.list, script)
-        return true
-    end
-    return input
-end
-
-test("the improved torches join every craft input that lists the vanilla torch, but not the refill recipe", function()
+test("a kit ordered for one bag does not go on another bag of the same kind", function()
     setup()
-    local items = newScripts()
-    local vanilla, hammer = items["Base.BlowTorch"], items["Base.Hammer"]
-    local weapon = newInput({ vanilla })
-    local tool = newInput({ hammer })
-    local any = newInput({ vanilla }, { any = true })
-    local refill = newInput({ vanilla })
-    local wall = newInput({ vanilla, hammer })
-    local locked = newInput({ vanilla }, { locked = true })
-    local recipes = {
-        craft = { newRecipe("MakeBlockBludgeon", { weapon, tool, any }), newRecipe("RefillBlowTorch", { refill }),
-            newRecipe("Locked", { locked }) },
-        build = { newRecipe("BuildWall", { wall }) },
-    }
-    getScriptManager = function() return newScriptManager(recipes, items) end
-    eq(Gear.extendRecipes(), 2, "the weapon input and the wall input")
-    eq(#weapon.list, 4)
-    truthy(weapon:containsItem(items[TORCHES[1]]))
-    truthy(weapon:containsItem(items[TORCHES[3]]))
-    eq(#tool.list, 1, "an input without the torch is left alone")
-    eq(#any.list, 1, "so is an input that takes any item")
-    eq(#refill.list, 1, "refilling replaces the torch with a vanilla one: it takes the vanilla torch only")
-    eq(#wall.list, 5)
-    eq(#locked.list, 1, "an input that cannot be changed is left and the rest goes on")
-    -- once more changes nothing
-    eq(Gear.extendRecipes(), 0)
-    eq(#weapon.list, 4)
+    local player, first = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local second = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85 })
+    player.inventory:AddItem(second)
+    truthy(Gear.bagKey(first) ~= Gear.bagKey(second), "two bags, two keys")
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(first))
+    local ok, why = Gear.fitBag(player, kit, second)
+    eq(ok, false); eq(why, "target")
+    eq(second.md, nil)
+    truthy(Gear.fitBag(player, kit, first))
+    eq(first.md[K.BAG_CAP], 1)
 end)
 
-test("without the script manager or the vanilla torch the recipes are left alone", function()
+test("the shop's price rises per bag: a kit bought for one bag does not make the other dearer", function()
     setup()
-    getScriptManager = nil
-    eq(Gear.extendRecipes(), 0)
-    getScriptManager = function() return { FindItem = function() return nil end } end
-    eq(Gear.extendRecipes(), 0)
+    local record = shopRecord()
+    local player, first = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local second = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85 })
+    player.inventory:AddItem(second)
+    local entry = OA.Shop.entry("kit_bagCapacity")
+    local base = OA.Shop.kitPrice("bagCapacity", Gear.bagKey(second), record)
+    OA.Shop.bought(entry, record, 1, Gear.bagKey(first))
+    eq(OA.Shop.kitPrice("bagCapacity", Gear.bagKey(second), record), base, "the other bag costs what it did")
+    truthy(OA.Shop.kitPrice("bagCapacity", Gear.bagKey(first), record) > base, "this one costs more")
 end)
 
-test("the recipes are extended when the game starts", function()
+test("a bag key is the item id, as a string, and is the same when the bag is in another container", function()
     setup()
-    local items = newScripts()
-    local weapon = newInput({ items["Base.BlowTorch"] })
-    local recipes = { craft = { newRecipe("MakeBlockBludgeon", { weapon }) }, build = {} }
-    getScriptManager = function() return newScriptManager(recipes, items) end
-    TEST.fire("OnGameStart")
-    eq(#weapon.list, 4)
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local key = Gear.bagKey(bag)
+    eq(key, tostring(bag:getID()))
+    local other = newInventory()
+    player.inventory:DoRemoveItem(bag)
+    other:AddItem(bag)
+    eq(Gear.bagKey(bag), key)
+end)
+
+test("the shop's targets are the bags the character has, by id, and a second bag of a name is numbered", function()
+    setup()
+    local player, first = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local second = newItem("Base.Bag_ALICEpack", { capacity = 28, reduction = 85, name = "Pack" })
+    player.inventory:AddItem(second)
+    local hammer = newItem("Base.Hammer")
+    player.inventory:AddItem(hammer)
+    local targets = Gear.bagTargets(player)
+    eq(#targets, 2, "the hammer is not a bag")
+    eq(targets[1].target, Gear.bagKey(first))
+    eq(targets[2].target, Gear.bagKey(second))
+    eq(targets[1].name, "Pack #1")
+    eq(targets[2].name, "Pack #2")
+end)
+
+test("a vehicle gets an id the first time it is chosen, on its parts, and keeps it", function()
+    setup()
+    local car, trunk = carWithTrunk(100)
+    eq(Gear.vehicleId(car), nil)
+    eq(Gear.vehicleKey(car), "")
+    local id = Gear.vehicleId(car, true)
+    truthy(id and id ~= "")
+    eq(trunk.md[K.VEHICLE_ID], id)
+    eq(car.parts.Engine.md[K.VEHICLE_ID], id, "the engine part carries it too")
+    eq(Gear.vehicleId(car, true), id, "asking again gives the same one")
+    eq(Gear.vehicleKey(car), id)
+    -- the game saves the parts' modData: a reloaded vehicle is the same parts with the same data
+    local reloaded = newVehicle({ parts = { newPart("Engine"), newPart("TruckBed", { container = true, capacity = 100 }) } })
+    reloaded.parts.Engine.md[K.VEHICLE_ID] = id
+    eq(Gear.vehicleKey(reloaded), id)
+    -- a vehicle with neither engine nor trunk is nobody's target
+    local bare = newVehicle({ parts = { newPart("Door") } })
+    eq(Gear.vehicleId(bare, true), nil)
+end)
+
+test("two vehicles of one kind have two ids and a kit goes only to the one it was ordered for", function()
+    setup()
+    local player = newCharacter()
+    local first = carWithTrunk(100)
+    local second = carWithTrunk(100)
+    local a, b = Gear.vehicleId(first, true), Gear.vehicleId(second, true)
+    truthy(a ~= b)
+    local kit = kitOf(player, "trunk", a)
+    eq(select(2, Gear.fitTrunk(player, kit, second)), "target")
+    truthy(Gear.fitTrunk(player, kit, first))
+    local engineKit = kitOf(player, "engine", b)
+    eq(select(2, Gear.fitEngine(player, engineKit, first)), "target")
+    truthy(Gear.fitEngine(player, engineKit, second))
+    eq(Gear.engineKits(first), 0)
+    eq(Gear.engineKits(second), 1)
+end)
+
+test("a vehicle never chosen as a target takes only a kit for any", function()
+    setup()
+    local player = newCharacter()
+    local car = carWithTrunk(100)
+    eq(select(2, Gear.fitTrunk(player, kitOf(player, "trunk", "v1-1"), car)), "target")
+    truthy(Gear.fitTrunk(player, kitOf(player, "trunk", ""), car))
+end)
+
+test("a client gives the server the id it made, and the server keeps one that is already there", function()
+    setup()
+    local player = newCharacter()
+    local car = carWithTrunk(100)
+    isClient = function() return true end
+    getPlayer = function() return player end
+    TEST.sent = {}
+    local id = Gear.vehicleId(car, true)
+    eq(#TEST.sent, 1)
+    eq(TEST.sent[1].command, "gear.tag")
+    eq(TEST.sent[1].args.tag, id)
+    eq(TEST.sent[1].args.vehicle, car:getId())
+    isClient = function() return false end
+    getPlayer = nil
+    -- the server side: a vehicle without an id takes the client's; one with an id keeps its own
+    local fresh = carWithTrunk(100)
+    OA.Sync.send(player, "gear.tag", { vehicle = fresh:getId(), tag = "vclient-1" })
+    eq(Gear.vehicleId(fresh), "vclient-1")
+    OA.Sync.send(player, "gear.tag", { vehicle = fresh:getId(), tag = "vother-2" })
+    eq(Gear.vehicleId(fresh), "vclient-1")
+    OA.Sync.send(player, "gear.tag", { vehicle = fresh:getId(), tag = 5 })
+    eq(Gear.vehicleId(fresh), "vclient-1")
+end)
+
+test("the shop's targets near a character: vehicles that take the kind of kit, within reach, each with an id", function()
+    setup()
+    local player = newCharacter()
+    local near1 = carWithTrunk(100)
+    local far = carWithTrunk(100)
+    far.x = 500
+    local noTrunk = newVehicle({ parts = { newPart("Engine") } })
+    getCell = function() return { getVehicles = function() return newList({ near1, far, noTrunk }) end } end
+    local trunks = Gear.vehicleTargets(player, "trunk", 40)
+    eq(#trunks, 1)
+    eq(trunks[1].target, Gear.vehicleId(near1))
+    truthy(string.find(trunks[1].name, "IGUI_OA_Gear_Away", 1, true), "the name tells how far")
+    eq(#Gear.vehicleTargets(player, "engine", 40), 2, "the near car and the one without a trunk, not the far one")
+    eq(far.parts.Engine.md[K.VEHICLE_ID], nil, "a vehicle out of reach is not tagged")
+end)
+
+test("a kit's target is found again as the bag or the vehicle, and named; not with the character is said so", function()
+    setup()
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    bag.name = nil
+    local car = carWithTrunk(100)
+    getCell = function() return { getVehicles = function() return newList({ car }) end } end
+    eq(Gear.findTarget("bagCapacity", Gear.bagKey(bag), player), bag)
+    eq(Gear.findTarget("trunk", Gear.vehicleId(car, true), player), car)
+    eq(Gear.targetName("bagCapacity", Gear.bagKey(bag), player), "Pack")
+    eq(Gear.targetName("bagCapacity", "", player), "IGUI_OA_Gear_AnyTarget")
+    eq(Gear.targetName("bagCapacity", "99999", player), "IGUI_OA_Gear_TargetUnknown")
+    eq(Gear.targetName("trunk", "vnone-1", player), "IGUI_OA_Gear_TargetUnknown")
+    eq(Gear.targetName("trunk", Gear.vehicleId(car), player), "CarNormal")
+end)
+
+test("a voucher kit goes to any bag or vehicle and the shop does not count it", function()
+    setup()
+    local record = shopRecord()
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local car = carWithTrunk(100)
+    local voucher = newItem(Gear.VOUCHER)
+    player.inventory:AddItem(voucher)
+    Gear.redeem(player, voucher, "trunk")
+    local kit = player.inventory.items[#player.inventory.items]
+    eq(Gear.targetOf(kit), "")
+    local price = OA.Shop.kitPrice("trunk", Gear.vehicleKey(car), record)
+    truthy(Gear.fitTrunk(player, kit, car))
+    eq(Gear.trunkKits(car), 1)
+    eq(OA.Shop.kitsFor("trunk", Gear.vehicleId(car, true), record), 0)
+    eq(OA.Shop.kitPrice("trunk", Gear.vehicleKey(car), record), price)
 end)

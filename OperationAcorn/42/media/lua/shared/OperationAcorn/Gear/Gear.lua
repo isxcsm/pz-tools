@@ -106,7 +106,7 @@ local function dataOf(item)
     return item:hasModData() and item:getModData() or nil
 end
 
--- What a kit was ordered for: an item type, a script name, or "" for any.
+-- What a kit was ordered for: the key of one bag or one vehicle (Gear.bagKey, Gear.vehicleKey), or "" for any.
 function Gear.targetOf(kit)
     local md = dataOf(kit)
     local target = md and md[K.TARGET]
@@ -118,29 +118,154 @@ function Gear.kindOfItem(kit)
     return kit and Rules.kindOf(kit:getFullType()) or nil
 end
 
--- The key a vehicle's kits are counted under (the shop's: the script name).
-function Gear.vehicleKey(vehicle)
-    local script = vehicle:getScript()
-    return script and script:getName() or ""
+-- ---- targets: one bag, one vehicle ---------------------------------------------------------------------------
+-- The shop counts kits per target and the price rises with the count (NUMBERS 7), so a target is one bag or one
+-- vehicle, named by an id that stays with it:
+--   a bag    its item id (InventoryItem.getID): the game saves it with the item (InventoryItem.save and load, found with
+--            javap) and it stays the same when the bag is moved between containers.
+--   a car    an id this part writes into the modData of the vehicle's parts (OA_TargetId on the engine and the trunk
+--            parts) the first time it is chosen as a target. The game saves part modData with the vehicle; it does not
+--            save the vehicle's own modData (IsoMovingObject.save writes none), and its other ids are not unique
+--            (mechanicalId is random under 100000) or not saved (sqlId).
+
+-- The key a bag's kits are counted under.
+function Gear.bagKey(bag)
+    return tostring(bag:getID())
 end
 
--- The name of a vehicle as the mechanics window shows it.
-function Gear.vehicleName(vehicle)
-    local key = Gear.vehicleKey(vehicle)
-    local script = vehicle:getScript()
-    local model = script and script.getCarModelName and script:getCarModelName() or key
-    local text = getTextOrNull and (getTextOrNull("IGUI_VehicleName" .. tostring(model))
-        or getTextOrNull("IGUI_VehicleName" .. key))
-    return text or key
-end
-
--- The name a kit's target is shown under (a bag's item name, a vehicle's name, or "any").
-function Gear.targetName(kind, target)
-    if target == nil or target == "" then return getText("IGUI_OA_Gear_AnyTarget") end
-    if Rules.SCOPE[kind] == "bag" then
-        return getItemNameFromFullType and getItemNameFromFullType(target) or target
+-- The parts that carry a vehicle's id (the ones the kits change).
+local function carriers(vehicle)
+    local found = {}
+    for _, id in ipairs({ Gear.ENGINE_PART, Gear.TRUNK_PARTS[1], Gear.TRUNK_PARTS[2] }) do
+        local part = vehicle:getPartById(id)
+        if part then found[#found + 1] = part end
     end
-    return getTextOrNull and getTextOrNull("IGUI_VehicleName" .. target) or target
+    return found
+end
+
+-- Puts an id on a vehicle if it has none; returns the id it has. Called on the server (a client asks with gear.tag).
+function Gear.tagVehicle(vehicle, tag)
+    local have
+    local parts = carriers(vehicle)
+    for _, part in ipairs(parts) do
+        have = have or part:getModData()[K.VEHICLE_ID]
+    end
+    if have or #parts == 0 then return have end
+    for _, part in ipairs(parts) do
+        part:getModData()[K.VEHICLE_ID] = tag
+        if vehicle.transmitPartModData then vehicle:transmitPartModData(part) end
+    end
+    return tag
+end
+
+-- The id of a vehicle, nil when it has none yet. With `create` it is given one (nil still for a vehicle without an
+-- engine or a trunk, which no kit goes to).
+function Gear.vehicleId(vehicle, create)
+    for _, part in ipairs(carriers(vehicle)) do
+        local id = part:getModData()[K.VEHICLE_ID]
+        if id then return id end
+    end
+    if not create then return nil end
+    local tag = "v" .. tostring(OA.random(100000, 999999)) .. "-" .. tostring(math.floor(OA.hours() * 60))
+    local id = Gear.tagVehicle(vehicle, tag)
+    -- on a client the server must have it too, or the kit would find no vehicle there
+    if id == tag and isClient and isClient() and getPlayer then
+        OA.Sync.send(getPlayer(), "gear.tag", { vehicle = vehicle:getId(), tag = tag })
+    end
+    return id
+end
+
+-- The key a vehicle's kits are counted under: its id, "" while it has none.
+function Gear.vehicleKey(vehicle)
+    return Gear.vehicleId(vehicle) or ""
+end
+
+-- The name of a vehicle as the mechanics window shows it (IGUI_VehicleName<model>).
+function Gear.vehicleName(vehicle)
+    local script = vehicle:getScript()
+    local name = script and script:getName() or ""
+    local model = script and script.getCarModelName and script:getCarModelName() or name
+    local text = getTextOrNull and (getTextOrNull("IGUI_VehicleName" .. tostring(model))
+        or getTextOrNull("IGUI_VehicleName" .. name))
+    return text or name
+end
+
+-- A vehicle's name with how far it is from a character, to tell two of a kind apart.
+function Gear.vehicleLabel(vehicle, character)
+    local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
+    return Gear.vehicleName(vehicle) .. " - " ..
+        getText("IGUI_OA_Gear_Away", tostring(math.floor(math.sqrt(dx * dx + dy * dy) + 0.5)))
+end
+
+-- Names that two targets share get a number after them.
+local function numbered(list)
+    local count, seen = {}, {}
+    for _, t in ipairs(list) do count[t.name] = (count[t.name] or 0) + 1 end
+    for _, t in ipairs(list) do
+        if count[t.name] > 1 then
+            seen[t.name] = (seen[t.name] or 0) + 1
+            t.name = t.name .. " #" .. seen[t.name]
+        end
+    end
+    return list
+end
+
+-- The bags a character has (top level and worn): { { target = key, name }, ... } for the shop's order.
+function Gear.bagTargets(character)
+    local found = {}
+    local items = character:getInventory():getItems()
+    for i = 0, items:size() - 1 do
+        local item = items:get(i)
+        if item:IsInventoryContainer() then
+            found[#found + 1] = { target = Gear.bagKey(item), name = item:getDisplayName() }
+        end
+    end
+    return numbered(found)
+end
+
+-- The vehicles within `radius` squares of a character that a kit of this kind goes to (a trunk kit: one with a trunk,
+-- an engine kit: one with an engine): { { target = id, name }, ... }. Each is given its id.
+function Gear.vehicleTargets(character, kind, radius)
+    local found = {}
+    local vehicles = getCell():getVehicles()
+    for i = 0, vehicles:size() - 1 do
+        local vehicle = vehicles:get(i)
+        local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
+        local takes = (kind == "trunk" and #Gear.trunkParts(vehicle) > 0)
+            or (kind == "engine" and vehicle:getPartById(Gear.ENGINE_PART) ~= nil)
+        if takes and dx * dx + dy * dy <= radius * radius then
+            local id = Gear.vehicleId(vehicle, true)
+            if id then found[#found + 1] = { target = id, name = Gear.vehicleLabel(vehicle, character) } end
+        end
+    end
+    return numbered(found)
+end
+
+-- The bag or the vehicle a target key names, or nil: a bag the character has, a vehicle in the loaded cell.
+function Gear.findTarget(kind, target, character)
+    if target == nil or target == "" then return nil end
+    if Rules.SCOPE[kind] == "bag" then
+        local list = character:getInventory():getAllEvalRecurse(function(item)
+            return item:IsInventoryContainer() and Gear.bagKey(item) == target
+        end)
+        return list:size() > 0 and list:get(0) or nil
+    end
+    local vehicles = getCell():getVehicles()
+    for i = 0, vehicles:size() - 1 do
+        local vehicle = vehicles:get(i)
+        if Gear.vehicleId(vehicle) == target then return vehicle end
+    end
+    return nil
+end
+
+-- The name a kit's target is shown under: the bag's or the vehicle's name, "any", or "not found" when the bag is not
+-- with the character or the vehicle is not near.
+function Gear.targetName(kind, target, character)
+    if target == nil or target == "" then return getText("IGUI_OA_Gear_AnyTarget") end
+    local found = character and Gear.findTarget(kind, target, character)
+    if not found then return getText("IGUI_OA_Gear_TargetUnknown") end
+    if Rules.SCOPE[kind] == "bag" then return found:getDisplayName() end
+    return Gear.vehicleName(found)
 end
 
 -- ---- removing and giving items --------------------------------------------------------------------------------
@@ -226,7 +351,7 @@ function Gear.fitBag(character, kit, bag)
     local kind = Gear.kindOfItem(kit)
     if Rules.SCOPE[kind] ~= "bag" then return false, "kit" end
     if not bag or not bag.IsInventoryContainer or not bag:IsInventoryContainer() or bag == kit then return false, "bag" end
-    if not Rules.matches(Gear.targetOf(kit), bag:getFullType()) then return false, "target" end
+    if not Rules.matches(Gear.targetOf(kit), Gear.bagKey(bag)) then return false, "target" end
     local md = bag:getModData()
     if md[K.BAG_BASE_CAP] == nil then
         md[K.BAG_BASE_CAP] = bag:getItemContainer():getCapacity()
@@ -491,67 +616,5 @@ function Gear.redeem(character, voucher, kind)
     notice(character, "IGUI_OA_Gear_Redeemed", { kit:getDisplayName() })
     return true
 end
-
--- ---- the improved torches in the vanilla recipes --------------------------------------------------------------
-
-Gear.TORCH = "Base.BlowTorch"
-Gear.TORCHES = { "OperationAcorn.TorchMk1", "OperationAcorn.TorchMk2", "OperationAcorn.TorchMk3" }
--- The vanilla recipes that must keep taking the vanilla torch only: refilling replaces the torch with a vanilla one.
-Gear.TORCH_SKIP = { RefillBlowTorch = true }
-
--- Adds the improved torches to every craft input (a recipe's and a buildable's) that lists the vanilla torch: the
--- recipes are keyed on the exact item type Base.BlowTorch, so a torch of another type would not do. The input keeps
--- its list of the items it accepts (InputScript.getPossibleInputItems), which the crafting code asks. Done once when
--- the game starts; returns the number of inputs it changed.
-function Gear.extendRecipes()
-    local scripts = getScriptManager and getScriptManager()
-    if not scripts then return 0 end
-    local vanilla = scripts:FindItem(Gear.TORCH)
-    if not vanilla then return 0 end
-    local torches = {}
-    for _, fullType in ipairs(Gear.TORCHES) do
-        local script = scripts:FindItem(fullType)
-        if script then torches[#torches + 1] = script end
-    end
-    if #torches == 0 then return 0 end
-    local changed = 0
-    local seen = {}
-    local function extend(recipe)
-        if not recipe or seen[recipe] or Gear.TORCH_SKIP[recipe:getName()] then return end
-        seen[recipe] = true
-        local inputs = recipe:getInputs()
-        for i = 0, inputs:size() - 1 do
-            local input = inputs:get(i)
-            if not input:isAcceptsAnyItem() and input:containsItem(vanilla) then
-                local items = input:getPossibleInputItems()
-                local added = false
-                for _, script in ipairs(torches) do
-                    if not input:containsItem(script) then
-                        local ok = pcall(items.add, items, script)
-                        added = added or ok
-                    end
-                end
-                if added then changed = changed + 1 end
-            end
-        end
-    end
-    for _, list in ipairs({ scripts:getAllCraftRecipes(), scripts:getAllBuildableRecipes() }) do
-        for i = 0, list:size() - 1 do
-            local ok, err = pcall(extend, list:get(i))
-            if not ok then OA.log("gear: a recipe was not extended:", tostring(err)) end
-        end
-    end
-    OA.log("gear: improved torches added to", changed, "recipe inputs")
-    return changed
-end
-
--- Done when the game starts (a client or a single-player game), and when a dedicated server does. Doing it again is
--- harmless: an input that already lists the torches is left alone.
-local function onStart()
-    local ok, err = pcall(Gear.extendRecipes)
-    if not ok then OA.log("gear: extending the recipes failed:", tostring(err)) end
-end
-Events.OnGameStart.Add(onStart)
-Events.OnServerStarted.Add(onStart)
 
 return Gear

@@ -85,9 +85,6 @@
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk1": "개량 연료통 Mk.I",
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk2": "개량 연료통 Mk.II",
     "IGUI_OA_Econ_Shop_Item_fuelcan_mk3": "개량 연료통 Mk.III",
-    "IGUI_OA_Econ_Shop_Item_torch_mk1": "개량 용접 토치 Mk.I",
-    "IGUI_OA_Econ_Shop_Item_torch_mk2": "개량 용접 토치 Mk.II",
-    "IGUI_OA_Econ_Shop_Item_torch_mk3": "개량 용접 토치 Mk.III",
     "IGUI_OA_Econ_Shop_Item_kit_bagCapacity": "가방 용량 키트",
     "IGUI_OA_Econ_Shop_Item_kit_bagWeight": "가방 경량 키트",
     "IGUI_OA_Econ_Shop_Item_kit_trunk": "트렁크 키트",
@@ -1081,5 +1078,7 @@
     "IGUI_OA_Gear_Reason_far": "차에서 너무 멀다",
     "IGUI_OA_Gear_Reason_part": "차에 그 부품이 없다",
     "IGUI_OA_Gear_Reason_voucher": "교환권이 없다",
-    "IGUI_OA_Gear_Reason_kind": "모르는 키트다"
+    "IGUI_OA_Gear_Reason_kind": "모르는 키트다",
+    "IGUI_OA_Gear_Away": "%1칸 거리",
+    "IGUI_OA_Gear_TargetUnknown": "지금 곁에 없음"
 }

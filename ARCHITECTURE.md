@@ -75,7 +75,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 아이템과 오브젝트 modData 키는 모두 `OA_`로 시작한다: `OA_Bought`(상점에서 산 물건, 납품 거부), `OA_Cell`(나온 셀,
 새 지역 웃돈), `OA_Mission`(임무 ID), `OA_Box`(상자 ID), `OA_Issued`(혈청 발급 시각), `OA_Owner`(발급받은 기록 ID).
-개조 키트(P6)의 키: 키트 아이템 `OA_Target`(주문한 대상, 가방은 아이템 종류, 차는 스크립트 이름, 빈 문자열은 아무 데나), `OA_Voucher`(교환권으로 받음).
+개조 키트(P6)의 키: 키트 아이템 `OA_Target`(주문한 대상 하나: 가방은 아이템 ID, 차는 아래 `OA_TargetId`, 빈 문자열은 아무 데나), `OA_Voucher`(교환권으로 받음).
+차의 `OA_TargetId`: 처음 대상으로 고를 때 엔진·트렁크 부품 modData에 쓴다 (차 자체의 modData는 저장되지 않고, 다른 ID는 유일하지 않거나 저장되지 않는다). 클라이언트가 만들면 `gear.tag`로 서버에 알린다. 토치 아이콘(`WeldingTorchMk`)은 아이템 없이 디스크에만 남아 있다.
 가방 아이템 `OA_KitCap`, `OA_KitWeight`, `OA_KitBaseCap`, `OA_KitBaseRed`, `OA_KitRaw`; 트렁크 부품(`TruckBed`, `TruckBedOpen`) `OA_KitTrunk`, `OA_KitBase`,
 `OA_KitRaw`; 엔진 부품 `OA_KitEngine`, `OA_KitPower`, `OA_KitLoud`. 확장 API가 읽는 `OA_Capacity`는 키트가 쓸 때 숫자다 (원래 용량에 더할 양).
 

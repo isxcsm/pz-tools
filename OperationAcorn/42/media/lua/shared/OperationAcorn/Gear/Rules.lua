@@ -15,7 +15,8 @@ OA.Gear.Rules = Rules
 
 -- The modData keys. All start with OA_ (ARCHITECTURE 4).
 Rules.KEY = {
-    TARGET = "OA_Target",           -- on a kit: what it was ordered for (a bag's item type, a vehicle's script name; "" any)
+    TARGET = "OA_Target",           -- on a kit: what it was ordered for (the key of one bag or one vehicle; "" any)
+    VEHICLE_ID = "OA_TargetId",     -- on a vehicle's engine and trunk parts: the id the vehicle is a target under
     VOUCHER = "OA_Voucher",         -- on a kit: true when it came from the handover voucher (not counted in the shop)
     CAPACITY = "OA_Capacity",       -- the key the extension API reads: a number added to the raw capacity of the holder
     BAG_CAP = "OA_KitCap",          -- on a bag: capacity kits fitted
@@ -74,8 +75,8 @@ function Rules.kindOf(fullType)
     return nil
 end
 
--- Whether a kit meant for `wanted` (what the order named: an item type or a script name, or nothing for any target)
--- may be fitted to a target called `actual`.
+-- Whether a kit meant for `wanted` (what the order named: the key of one bag or vehicle, or nothing for any target)
+-- may be fitted to the target with the key `actual`.
 function Rules.matches(wanted, actual)
     if wanted == nil or wanted == "" then return true end
     return wanted == actual

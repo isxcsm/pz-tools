@@ -38,9 +38,22 @@ end
 
 -- The items of the gear package whose tooltip text is Tooltip_OA_Gear_<item name>.
 Menu.TEXTS = {
-    TeamBackpack = true, FuelCanMk1 = true, FuelCanMk2 = true, FuelCanMk3 = true, TorchMk1 = true, TorchMk2 = true,
-    TorchMk3 = true, KitBagCapacity = true, KitBagWeight = true, KitTrunk = true, KitEngine = true,
+    TeamBackpack = true, FuelCanMk1 = true, FuelCanMk2 = true, FuelCanMk3 = true,
+    KitBagCapacity = true, KitBagWeight = true, KitTrunk = true, KitEngine = true,
 }
+
+-- The line that says what a kit was ordered for. Finding the bag or the vehicle looks through the inventory or the
+-- cell, so the line is kept for a minute of game time per kit (a tooltip is drawn every frame it is shown).
+local lineCache = setmetatable({}, { __mode = "k" })
+
+function Menu.kitForLine(kit, kind)
+    local now = OA.hours()
+    local hit = lineCache[kit]
+    if hit and math.abs(now - hit.at) < 1 / 60 then return hit.text end
+    local text = getText("Tooltip_OA_Gear_KitFor", Gear.targetName(kind, Gear.targetOf(kit), getPlayer()))
+    lineCache[kit] = { at = now, text = text }
+    return text
+end
 
 -- The lines of an item's tooltip that this part adds (none for most items).
 local function extraLines(item)
@@ -51,9 +64,7 @@ local function extraLines(item)
     if own then
         lines[#lines + 1] = getText("Tooltip_OA_Gear_" .. item:getType())
         local kind = Gear.kindOfItem(item)
-        if kind then
-            lines[#lines + 1] = getText("Tooltip_OA_Gear_KitFor", Gear.targetName(kind, Gear.targetOf(item)))
-        end
+        if kind then lines[#lines + 1] = Menu.kitForLine(item, kind) end
     end
     if bag then
         for _, line in ipairs(Gear.bagLines(item) or {}) do lines[#lines + 1] = line end
@@ -125,10 +136,10 @@ local function addBagKitMenu(context, player, kit)
     local target = Gear.targetOf(kit)
     local fits = {}
     for _, bag in ipairs(bagsOf(player)) do
-        if bag ~= kit and Rules.matches(target, bag:getFullType()) then fits[#fits + 1] = bag end
+        if bag ~= kit and Rules.matches(target, Gear.bagKey(bag)) then fits[#fits + 1] = bag end
     end
     if #fits == 0 then
-        unavailable(option, getText("Tooltip_OA_Gear_NoBag", Gear.targetName(kind, target)))
+        unavailable(option, getText("Tooltip_OA_Gear_NoBag", Gear.targetName(kind, target, player)))
         return
     end
     local sub = ISContextMenu:getNew(context)
@@ -142,7 +153,7 @@ end
 -- The entry on a vehicle kit: it is fitted from the vehicle's mechanics window.
 local function addVehicleKitHint(context, kit)
     local option = context:addOption(getText("ContextMenu_OA_Gear_FitVehicle"), nil, nil)
-    unavailable(option, getText("Tooltip_OA_Gear_FitVehicle", Gear.targetName(Gear.kindOfItem(kit), Gear.targetOf(kit))))
+    unavailable(option, getText("Tooltip_OA_Gear_FitVehicle", Gear.targetName(Gear.kindOfItem(kit), Gear.targetOf(kit), getPlayer())))
 end
 
 local function redeem(player, voucher, kind)
@@ -165,7 +176,7 @@ local function addFitKitMenu(context, player, bag)
     if not bag:getContainer() then return end
     local entries = {}
     for _, kind in ipairs({ "bagCapacity", "bagWeight" }) do
-        local kits = kitsFor(player, kind, bag:getFullType())
+        local kits = kitsFor(player, kind, Gear.bagKey(bag))
         if #kits > 0 then entries[#entries + 1] = { kind = kind, kit = kits[1], count = #kits } end
     end
     if #entries == 0 then return end

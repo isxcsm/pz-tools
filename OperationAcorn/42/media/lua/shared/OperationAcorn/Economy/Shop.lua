@@ -5,7 +5,7 @@
 -- An entry: { id, group, tier, price (the base), give = { { type, count, full, fluid, empty } ... } or
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
 -- "cure" | "delay" | "serum" | "kit" | "reissue" | nil, fixed = true (no shop multiplier, no discount),
--- allowDebt, fragments = meteor fragments it also costs, kits = true (only with KitsForSale) }.
+-- allowDebt, kits = true (only with KitsForSale) }.
 -- tier is stage + milestones (Trust.tier): 0 the start, 1..5 stages, 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -27,7 +27,6 @@ Shop.TYPES = {
     locker = "OperationAcorn.TeamLocker", cistern = "OperationAcorn.RainCistern", bait = "OperationAcorn.BaitTrap",
     backpack = "OperationAcorn.TeamBackpack",
     fuelMk1 = "OperationAcorn.FuelCanMk1", fuelMk2 = "OperationAcorn.FuelCanMk2", fuelMk3 = "OperationAcorn.FuelCanMk3",
-    torchMk1 = "OperationAcorn.TorchMk1", torchMk2 = "OperationAcorn.TorchMk2", torchMk3 = "OperationAcorn.TorchMk3",
     kitBagCapacity = "OperationAcorn.KitBagCapacity", kitBagWeight = "OperationAcorn.KitBagWeight",
     kitTrunk = "OperationAcorn.KitTrunk", kitEngine = "OperationAcorn.KitEngine",
     motorNormal = "OperationAcorn.MotorNormal", motorModern = "OperationAcorn.MotorModern",
@@ -143,9 +142,6 @@ local function build()
     add({ id = "fuelcan_mk1", group = "mk", tier = 2, price = 20000, give = { give("fuelMk1", 1, { empty = true }) } })
     add({ id = "fuelcan_mk2", group = "mk", tier = 4, price = 45000, give = { give("fuelMk2", 1, { empty = true }) } })
     add({ id = "fuelcan_mk3", group = "mk", tier = 5, price = 90000, give = { give("fuelMk3", 1, { empty = true }) } })
-    add({ id = "torch_mk1", group = "mk", tier = 3, price = 30000, give = { give("torchMk1", 1, { empty = true }) } })
-    add({ id = "torch_mk2", group = "mk", tier = 5, price = 70000, give = { give("torchMk2", 1, { empty = true }) } })
-    add({ id = "torch_mk3", group = "mk", tier = 6, price = 150000, fragments = 1, give = { give("torchMk3", 1, { empty = true }) } })
     -- Modification kits (the first milestone, KitsForSale).
     for _, kind in ipairs(Shop.KIT_ORDER) do
         local k = Shop.KITS[kind]

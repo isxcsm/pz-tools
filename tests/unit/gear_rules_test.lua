@@ -114,7 +114,7 @@ end)
 
 test("every good the shop names for this package is an item of the gear script", function()
     local T = OA.Shop.TYPES
-    for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3", "torchMk1", "torchMk2", "torchMk3",
+    for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3",
         "kitBagCapacity", "kitBagWeight", "kitTrunk", "kitEngine" }) do
         local name = string.match(T[key], "^OperationAcorn%.(%w+)$")
         truthy(name, key .. " is of this mod")
@@ -156,41 +156,6 @@ test("the fuel cans: the vanilla petrol can with a 15, 20 and 25 litre tank and 
     end
 end)
 
--- floor(1 / UseDelta) in single precision is what the game calls the uses
-local function uses(delta)
-    return math.floor(1 / delta)
-end
-
-test("the welding torches: charge x1.5, x2, x3 and weight x1, x0.6, x0.4 of the vanilla BlowTorch", function()
-    -- BlowTorch (drainable.txt): Weight 1.0, WeightEmpty 0.3, UseDelta 0.1 (10 uses), KeepOnDeplete
-    local want = {
-        TorchMk1 = { uses = 15, weight = 1.0, empty = 0.3 },
-        TorchMk2 = { uses = 20, weight = 0.6, empty = 0.18 },
-        TorchMk3 = { uses = 30, weight = 0.4, empty = 0.12 },
-    }
-    for name, w in pairs(want) do
-        local p = item(name)
-        eq(p.ItemType, "base:drainable")
-        eq(uses(tonumber(p.UseDelta)), w.uses, name .. " uses")
-        near(tonumber(p.Weight), w.weight, 1e-9, name .. " weight")
-        near(tonumber(p.WeightEmpty), w.empty, 1e-9, name .. " empty weight")
-        eq(p.KeepOnDeplete, "true")
-        truthy(string.find(p.Tags, "base:blowtorch", 1, true), name .. " is a blowtorch by tag")
-    end
-end)
-
-test("each torch can be refilled from a propane tank, like the vanilla one", function()
-    local text = readfile(SCRIPT)
-    for mk = 1, 3 do
-        local body = string.match(text, "craftRecipe%s+RefillTorchMk" .. mk .. "%s*(%b{})")
-        truthy(body, "RefillTorchMk" .. mk)
-        truthy(string.find(body, "RecipeCodeOnCreate.refillBlowTorch", 1, true))
-        truthy(string.find(body, "[OperationAcorn.TorchMk" .. mk .. "]", 1, true))
-        truthy(string.find(body, "item 1 OperationAcorn.TorchMk" .. mk, 1, true), "the output is its own kind")
-        truthy(string.find(body, "Base.PropaneTank", 1, true))
-    end
-end)
-
 test("the kits are real items with their icons", function()
     local icons = {}
     for _, f in ipairs(listfiles("OperationAcorn/42/media/textures")) do icons[f] = true end
@@ -203,7 +168,7 @@ test("the kits are real items with their icons", function()
         truthy(icons["Item_OA_" .. icon .. ".png"], name .. " icon Item_OA_" .. icon .. ".png exists")
         count = count + 1
     end
-    eq(count, 11)
+    eq(count, 8)
     eq(item("KitBagCapacity").Icon, "OA_BagCapacityKit")
     eq(item("KitBagWeight").Icon, "OA_BagWeightKit")
     eq(item("KitTrunk").Icon, "OA_TrunkKit")

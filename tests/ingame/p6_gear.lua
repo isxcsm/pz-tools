@@ -4,18 +4,19 @@
 -- has a trunk), and P6_CLEAN() takes back what it can (the kits it fitted to the vehicle, the items it made).
 --
 -- What it checks: every item of OA_gear.txt against the vanilla item it is modelled on (the fuel cans' fluid container,
--- the torches' uses and weights, the backpack's capacity and reduction); the shop stocks all of them; the improved
--- torches are inputs of the vanilla welding recipes (and the refill recipe stays vanilla only); a bag kit and a weight
+-- the backpack's capacity and reduction); the shop stocks all of them; a bag kit and a weight
 -- kit on a vanilla bag and on the research backpack, with and without the extension API (it reads which one is there);
 -- a trunk kit and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
--- command, and the shop's count unchanged by it.
+-- command, and the shop's count unchanged by it; that a kit ordered for one bag or one vehicle (its item id, the id in
+-- the vehicle's parts) does not fit another of the same kind.
 --
--- Not scripted (do by hand): buy each good in the shop and see it arrive empty (cans, torches); hover a fitted bag and
+-- Not scripted (do by hand): buy each good in the shop and see it arrive empty (the cans); hover a fitted bag and
 -- see the kit lines; right-click a kit and a bag; fit a bag kit and a vehicle kit with the real timed action (the
 -- progress bar, the notice), from the inventory menu and from the mechanics window (right-click the trunk and the engine
 -- part); save, quit and load: the bag's capacity and reduction, the trunk, the engine power and loudness are as left;
--- drive the car with a full trunk; weld a barricade-free recipe (a block bludgeon) with a Mk torch and see it use
--- charges; refill a Mk torch from a propane tank; wear the backpack and hang two canteens on its sides.
+-- drive the car with a full trunk; wear the backpack and hang two canteens on its sides; order a kit for one of two
+-- bags of the same kind (the shop's target list names them #1, #2) and see that only that bag takes it; save, quit and
+-- load, and see the kit still finds its car (the id is in the car's parts).
 local OA = OperationAcorn
 local Gear = OA.Gear
 local Rules = Gear.Rules
@@ -65,7 +66,7 @@ say("extension API", api and "present" or "missing", "capacity key applied", tos
 -- ---------------------------------------------------------------------------------------------------------------------
 section("the items against the vanilla ones", function()
     local T = OA.Shop.TYPES
-    for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3", "torchMk1", "torchMk2", "torchMk3",
+    for _, key in ipairs({ "backpack", "fuelMk1", "fuelMk2", "fuelMk3",
         "kitBagCapacity", "kitBagWeight", "kitTrunk", "kitEngine" }) do
         check("script " .. T[key], scripts:FindItem(T[key]) ~= nil)
     end
@@ -94,66 +95,18 @@ section("the items against the vanilla ones", function()
         end
     end
 
-    local vanillaTorch = give("Base.BlowTorch")
-    check("vanilla torch has 10 uses", vanillaTorch:getMaxUses() == 10, vanillaTorch:getMaxUses())
-    local want = { [1] = { 15, 1.0 }, [2] = { 20, 0.6 }, [3] = { 30, 0.4 } }
-    for mk, w in pairs(want) do
-        local torch = give(T["torchMk" .. mk])
-        check("torch Mk" .. mk .. " uses " .. w[1], torch:getMaxUses() == w[1], torch:getMaxUses())
-        torch:setUsedDelta(1)
-        vanillaTorch:setUsedDelta(1)
-        check("torch Mk" .. mk .. " full weight x" .. w[2], near(torch:getActualWeight(), vanillaTorch:getActualWeight() * w[2], 0.01),
-            torch:getActualWeight() .. " vs " .. vanillaTorch:getActualWeight())
-        torch:setUsedDelta(0)
-        vanillaTorch:setUsedDelta(0)
-        check("torch Mk" .. mk .. " empty weight x" .. w[2], near(torch:getActualWeight(), vanillaTorch:getActualWeight() * w[2], 0.01),
-            torch:getActualWeight() .. " vs " .. vanillaTorch:getActualWeight())
-        check("torch Mk" .. mk .. " is a blowtorch (tag)", torch:hasTag(ItemTag.BLOW_TORCH))
-    end
-
     local shop = OA.Shop
-    for _, id in ipairs({ "team_backpack", "fuelcan_mk1", "fuelcan_mk2", "fuelcan_mk3", "torch_mk1", "torch_mk2", "torch_mk3",
+    for _, id in ipairs({ "team_backpack", "fuelcan_mk1", "fuelcan_mk2", "fuelcan_mk3",
         "kit_bagCapacity", "kit_bagWeight", "kit_trunk", "kit_engine" }) do
         check("the shop stocks " .. id, shop.stocked(shop.entry(id)))
     end
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
-section("the improved torches in the welding recipes", function()
-    Gear.extendRecipes()
-    local vanilla = scripts:FindItem(Gear.TORCH)
-    local mk = scripts:FindItem(OA.Shop.TYPES.torchMk3)
-    local lists = { scripts:getAllCraftRecipes(), scripts:getAllBuildableRecipes() }
-    local inputs, with, refill, refillMk = 0, 0, nil, nil
-    for _, list in ipairs(lists) do
-        for i = 0, list:size() - 1 do
-            local recipe = list:get(i)
-            local ins = recipe:getInputs()
-            for j = 0, ins:size() - 1 do
-                local input = ins:get(j)
-                if not input:isAcceptsAnyItem() and input:containsItem(vanilla) then
-                    if recipe:getName() == "RefillBlowTorch" then
-                        refill = input:containsItem(mk)
-                    else
-                        inputs = inputs + 1
-                        if input:containsItem(mk) then with = with + 1 end
-                    end
-                end
-            end
-            if string.find(recipe:getName(), "RefillTorchMk", 1, true) then refillMk = true end
-        end
-    end
-    say("inputs that take the vanilla torch", inputs, "of them also take the Mk.III", with)
-    check("there are such inputs", inputs > 0)
-    check("every one takes the Mk torches too", with == inputs)
-    check("the refill recipe does not take a Mk torch", refill == false or refill == nil, tostring(refill))
-    check("the Mk refill recipes exist", refillMk == true)
-end)
-
 -- ---------------------------------------------------------------------------------------------------------------------
 section("bag kits", function()
     local alice = give("Base.Bag_ALICEpack")
-    local kit = kitFor("bagCapacity", "Base.Bag_ALICEpack")
+    local kit = kitFor("bagCapacity", Gear.bagKey(alice))
     local ok, value = Gear.fitBag(player, kit, alice)
     check("capacity kit fits", ok, value)
     check("count 1 on the bag", alice:getModData()[K.BAG_CAP] == 1)
@@ -166,10 +119,15 @@ section("bag kits", function()
     check("reduction 87", alice:getWeightReduction() == 87, alice:getWeightReduction())
     Gear.fitBag(player, kitFor("bagWeight", ""), alice)
     check("reduction 89 after two", alice:getWeightReduction() == 89, alice:getWeightReduction())
-    local wrong = kitFor("bagCapacity", "Base.Bag_ALICEpack")
+    local wrong = kitFor("bagCapacity", Gear.bagKey(alice))
     local pack = give(OA.Shop.TYPES.backpack)
     ok = Gear.fitBag(player, wrong, pack)
-    check("a kit ordered for the vanilla pack does not fit the research pack", not ok)
+    check("a kit ordered for one bag does not fit another bag", not ok)
+    local twin = give("Base.Bag_ALICEpack")
+    check("two bags of one kind have two keys", Gear.bagKey(twin) ~= Gear.bagKey(alice))
+    check("a kit ordered for the first does not fit its twin", not Gear.fitBag(player, kitFor("bagCapacity", Gear.bagKey(alice)), twin))
+    check("the shop lists both bags as targets", #Gear.bagTargets(player) >= 3, #Gear.bagTargets(player))
+    check("the target is found again by its key", Gear.findTarget("bagCapacity", Gear.bagKey(twin), player) == twin)
 
     for _ = 1, 5 do Gear.fitBag(player, kitFor("bagCapacity", ""), pack) end
     local capacity = pack:getItemContainer():getCapacity()
@@ -204,7 +162,24 @@ end
 section("vehicle kits", function()
     local vehicle = nearestVehicle()
     if not check("a vehicle within " .. Gear.REACH .. " squares", vehicle ~= nil) then return end
-    say("vehicle", Gear.vehicleKey(vehicle), Gear.vehicleName(vehicle))
+    local id = Gear.vehicleId(vehicle, true)
+    say("vehicle", id, Gear.vehicleName(vehicle))
+    check("the vehicle got an id", id ~= nil and id ~= "")
+    check("asking again gives the same id", Gear.vehicleId(vehicle, true) == id)
+    local carriers = {}
+    for _, partId in ipairs({ Gear.ENGINE_PART, "TruckBed", "TruckBedOpen" }) do
+        local part = vehicle:getPartById(partId)
+        if part then carriers[#carriers + 1] = part end
+    end
+    for _, part in ipairs(carriers) do
+        check("the id is in the modData of " .. part:getId(), part:getModData()[K.VEHICLE_ID] == id)
+    end
+    local named = false
+    for _, t in ipairs(Gear.vehicleTargets(player, "engine", Gear.REACH)) do
+        if t.target == id then named = true end
+    end
+    check("the shop lists the vehicle as a target", named)
+    check("the id finds the vehicle again", Gear.findTarget("engine", id, player) == vehicle)
     local trunks = Gear.trunkParts(vehicle)
     local engine = vehicle:getPartById(Gear.ENGINE_PART)
     fitted[#fitted + 1] = vehicle
@@ -212,7 +187,7 @@ section("vehicle kits", function()
     if #trunks > 0 then
         local before = {}
         for i, part in ipairs(trunks) do before[i] = part:getContainerCapacity() end
-        local ok, total = Gear.fitTrunk(player, kitFor("trunk", Gear.vehicleKey(vehicle)), vehicle)
+        local ok, total = Gear.fitTrunk(player, kitFor("trunk", id), vehicle)
         check("trunk kit fits", ok, total)
         for i, part in ipairs(trunks) do
             local md = part:getModData()
@@ -233,7 +208,7 @@ section("vehicle kits", function()
 
     if engine then
         local power, loud = vehicle:getEnginePower(), vehicle:getEngineLoudness()
-        local ok, value = Gear.fitEngine(player, kitFor("engine", Gear.vehicleKey(vehicle)), vehicle)
+        local ok, value = Gear.fitEngine(player, kitFor("engine", id), vehicle)
         check("engine kit fits", ok, value)
         check("power +10%", vehicle:getEnginePower() == Rules.engine(power, 1, Rules.POWER_STEP), power .. " -> " .. vehicle:getEnginePower())
         check("loudness +5%", vehicle:getEngineLoudness() == Rules.engine(loud, 1, Rules.LOUDNESS_STEP), loud .. " -> " .. vehicle:getEngineLoudness())
@@ -242,15 +217,15 @@ section("vehicle kits", function()
     else
         say("this vehicle has no engine part; engine kit not checked")
     end
-    check("a kit ordered for another vehicle does not fit", select(1, Gear.fitEngine(player, kitFor("engine", "NoSuchCar"), vehicle)) == false)
+    check("a kit ordered for another vehicle does not fit", select(1, Gear.fitEngine(player, kitFor("engine", "vnone-0"), vehicle)) == false)
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 section("the voucher", function()
     local record = OA.Client.record(player)
     local voucher = give(Gear.VOUCHER)
-    local before = OA.Shop.kitsFor("bagCapacity", "Base.Bag_ALICEpack", record)
-    local price = OA.Shop.kitPrice("bagCapacity", "Base.Bag_ALICEpack", record)
+    local before = OA.Shop.kitsFor("bagCapacity", "1", record)
+    local price = OA.Shop.kitPrice("bagCapacity", "1", record)
     OA.Sync.send(player, "gear.redeem", { item = voucher:getID(), kind = "bagCapacity" })
     check("the voucher is gone", voucher:getContainer() == nil)
     local kit = player:getInventory():getFirstTypeRecurse("KitBagCapacity")
@@ -260,8 +235,8 @@ section("the voucher", function()
         check("for any target", Gear.targetOf(kit) == "")
         check("marked as a voucher kit", kit:getModData()[K.VOUCHER] == true)
     end
-    check("the shop's count did not move", OA.Shop.kitsFor("bagCapacity", "Base.Bag_ALICEpack", record) == before)
-    check("nor the price", OA.Shop.kitPrice("bagCapacity", "Base.Bag_ALICEpack", record) == price)
+    check("the shop's count did not move", OA.Shop.kitsFor("bagCapacity", "1", record) == before)
+    check("nor the price", OA.Shop.kitPrice("bagCapacity", "1", record) == price)
 end)
 
 -- Takes away the items the checks made and puts back the vehicle they fitted (power, loudness, the trunks).
