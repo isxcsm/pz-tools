@@ -35,5 +35,10 @@
     "ContextMenu_OA_Trade_PlaceCrate": "Put down the crate",
     "ContextMenu_OA_Trade_Carry": "Carry in both hands",
     "ContextMenu_OA_Trade_ReadManifest": "Read the manifest",
-    "ContextMenu_OA_Trade_LastPage": "Look at the last page"
+    "ContextMenu_OA_Trade_LastPage": "Look at the last page",
+    "ContextMenu_OA_Story_FieldCall": "Field call",
+    "ContextMenu_OA_Story_LeaveCase": "Leave the case",
+    "ContextMenu_OA_Story_Read": "Read",
+    "ContextMenu_OA_Story_ReadStake": "Look at the stake",
+    "ContextMenu_OA_Story_TakeSoil": "Take a soil sample"
 }

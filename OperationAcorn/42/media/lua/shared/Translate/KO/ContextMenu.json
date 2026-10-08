@@ -35,5 +35,10 @@
     "ContextMenu_OA_Trade_PlaceCrate": "보급 상자 내려놓기",
     "ContextMenu_OA_Trade_Carry": "두 손으로 들기",
     "ContextMenu_OA_Trade_ReadManifest": "명세서 읽기",
-    "ContextMenu_OA_Trade_LastPage": "마지막 쪽 보기"
+    "ContextMenu_OA_Trade_LastPage": "마지막 쪽 보기",
+    "ContextMenu_OA_Story_FieldCall": "현장 호출",
+    "ContextMenu_OA_Story_LeaveCase": "시료함 두기",
+    "ContextMenu_OA_Story_Read": "읽기",
+    "ContextMenu_OA_Story_ReadStake": "말뚝 살펴보기",
+    "ContextMenu_OA_Story_TakeSoil": "토양 시료 채취"
 }
