@@ -1,0 +1,75 @@
+-- A small reading window: the supply manifest that came in a crate, and the last page of the terminal manual.
+require "ISUI/ISCollapsableWindow"
+require "OperationAcorn/Trade/UI"
+local OA = OperationAcorn
+local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
+
+OAReaderWindow = ISCollapsableWindow:derive("OAReaderWindow")
+OAReaderWindow.instances = {}
+
+function OAReaderWindow:createChildren()
+    ISCollapsableWindow.createChildren(self)
+    local top, bottom = self:titleBarHeight(), self:resizeWidgetHeight()
+    self.body = UI.rich(self, 0, top, self.width, self.height - top - bottom)
+    self.body.anchorRight = true
+    self.body.anchorBottom = true
+    UI.setRich(self.body, self.richText)
+end
+
+function OAReaderWindow:close()
+    OAReaderWindow.instances[self.playerNum] = nil
+    self:setVisible(false)
+    self:removeFromUIManager()
+end
+
+function OAReaderWindow:new(character, title, richText)
+    local width, height = 460, 420
+    local x = (getCore():getScreenWidth() - width) / 2
+    local y = (getCore():getScreenHeight() - height) / 2
+    local o = ISCollapsableWindow:new(x, y, width, height)
+    setmetatable(o, self)
+    self.__index = self
+    o.title = title
+    o.richText = richText
+    o.playerNum = character:getPlayerNum()
+    o:setResizable(true)
+    return o
+end
+
+local Reader = {}
+Trade.Reader = Reader
+
+-- Opens the window with rich text (the window closes the one the player had open).
+function Reader.open(character, title, richText)
+    local previous = OAReaderWindow.instances[character:getPlayerNum()]
+    if previous then previous:close() end
+    local window = OAReaderWindow:new(character, title, richText)
+    window:initialise()
+    window:addToUIManager()
+    window:setVisible(true)
+    OAReaderWindow.instances[character:getPlayerNum()] = window
+    return window
+end
+
+-- The supply manifest item: the receipt it carries (kept in the item's modData by the helicopter), written out.
+function Reader.manifest(character, item)
+    local receipt = item:getModData().OA_Receipt
+    local lines
+    if receipt then
+        lines = Text.receipt(receipt)
+    else
+        lines = { { kind = "line", text = getText("IGUI_OA_Trade_Manifest_Blank") } }
+    end
+    Reader.open(character, getText("IGUI_OA_Trade_Manifest_Title"), UI.richLines(lines))
+end
+
+-- The last page of the terminal manual: the survivor's collection point number written by hand (LORE: start).
+function Reader.lastPage(character)
+    local record = OA.Client.record(character)
+    local number = record and record.number or 0
+    local text = " <H2> <RGB:1,1,1> " .. getText("IGUI_OA_Trade_Manual_LastPage") .. " <LINE> <TEXT> <RGB:0.85,0.85,0.7> "
+        .. getText("IGUI_OA_Trade_Manual_Number", string.format("%04d", number)) .. " <LINE> "
+    Reader.open(character, getText("IGUI_OA_Trade_Manual_Title"), text)
+end
+
+return Reader

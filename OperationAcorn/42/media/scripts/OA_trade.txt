@@ -1,0 +1,85 @@
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    /* The communication terminal: carried in both hands like a generator, put down as an object (Trade/Things). */
+    item CommTerminal
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 12.0,
+        Icon = OA_CommTerminal,
+        RequiresEquippedBothHands = true,
+    }
+
+    /* The delivery box that is put down on open ground; its number is kept in the item's modData while it is carried. */
+    item DeliveryBox
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 8.0,
+        Icon = OA_DeliveryBox,
+        RequiresEquippedBothHands = true,
+    }
+
+    /* The supply crate, empty and open: kept as a storage box or broken down for its wood and nails. */
+    item SupplyCrate
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 12.0,
+        Icon = OA_SupplyCrate,
+        RequiresEquippedBothHands = true,
+    }
+
+    /* The assembly booklet from the first supply: reading it teaches the terminal recipe. */
+    item TerminalManual
+    {
+        DisplayCategory = RecipeResource,
+        ItemType = base:literature,
+        Weight = 0.3,
+        Icon = OA_TerminalManual,
+        BoredomChange = -5,
+        LearnedRecipes = AssembleCommTerminal,
+        StaticModel = Magazine,
+        WorldStaticModel = MagazineElec1Ground,
+        Tags = base:magazine,
+    }
+
+    /* The supply manifest in every crate: the receipt of the flight, kept in the item's modData. */
+    item SupplyManifest
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_SupplyManifest,
+    }
+
+    craftRecipe AssembleCommTerminal
+    {
+        timedAction = MakingElectrical,
+        time = 300,
+        NeedToBeLearn = true,
+        SkillRequired = Electricity:3,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:20,
+        inputs
+        {
+            item 1 [Base.Mov_DesktopComputer],
+            item 1 [Base.HamRadio1;Base.HamRadio2;Base.HamRadioMakeShift],
+            item 1 tags[base:screwdriver] mode:keep,
+            item 1 tags[base:pliers] mode:keep flags[MayDegradeLight],
+            item 8 [Base.ElectronicsScrap],
+            item 4 [Base.Wire],
+            item 1 [Base.Amplifier],
+        }
+        outputs
+        {
+            item 1 OperationAcorn.CommTerminal,
+        }
+    }
+}

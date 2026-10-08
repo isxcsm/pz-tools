@@ -1,0 +1,287 @@
+module OperationAcorn
+{
+    imports
+    {
+        Base
+    }
+
+    item ShredBench
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 20.0,
+        Icon = OA_ShredBench,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_shredBench,
+    }
+
+    item BulkShredder
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 60.0,
+        Icon = OA_BulkShredder,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_bulkShredder,
+    }
+
+    item FabricCutter
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 35.0,
+        Icon = OA_Cutter,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_cutter,
+    }
+
+    item PropaneRefinery
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 50.0,
+        Icon = OA_PropaneRefiner,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_propaneRefiner,
+    }
+
+    item OilRefinery
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 55.0,
+        Icon = OA_OilRefiner,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_oilRefiner,
+    }
+
+    item LogSaw
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 55.0,
+        Icon = OA_WoodSaw,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_woodSaw,
+    }
+
+    item TeamLocker
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 40.0,
+        Icon = OA_ResearchStorage,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_researchStorage,
+    }
+
+    item RainCistern
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 25.0,
+        Icon = OA_RainStorage,
+        RequiresEquippedBothHands = true,
+        Tooltip = Tooltip_OA_Machine_rainStorage,
+    }
+
+    item BaitTrap
+    {
+        DisplayCategory = Furniture,
+        ItemType = base:normal,
+        Weight = 4.0,
+        Icon = OA_Lure,
+        Tooltip = Tooltip_OA_Machine_lure,
+    }
+
+    item SampleBundle
+    {
+        DisplayCategory = Material,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_SampleBundle,
+    }
+
+    item MotorOld
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 6.0,
+        Icon = OA_MotorOld,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_motor,
+    }
+
+    item MotorNormal
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 6.0,
+        Icon = OA_MotorNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_motor,
+    }
+
+    item MotorModern
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 6.0,
+        Icon = OA_MotorModern,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_motor,
+    }
+
+    item ShredBladeOld
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.5,
+        Icon = OA_ShredderBladeOld,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_shredBlade,
+    }
+
+    item ShredBladeNormal
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.5,
+        Icon = OA_ShredderBladeNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_shredBlade,
+    }
+
+    item ShredBladeModern
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.5,
+        Icon = OA_ShredderBladeModern,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_shredBlade,
+    }
+
+    item CutBladeOld
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CuttingBladeOld,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_cutBlade,
+    }
+
+    item CutBladeNormal
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CuttingBladeNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_cutBlade,
+    }
+
+    item CutBladeModern
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CuttingBladeModern,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_cutBlade,
+    }
+
+    item SawBladeOld
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = OA_SawBladeOld,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_sawBlade,
+    }
+
+    item SawBladeNormal
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = OA_SawBladeNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_sawBlade,
+    }
+
+    item SawBladeModern
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 2.0,
+        Icon = OA_SawBladeModern,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_sawBlade,
+    }
+
+    item FilterOld
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CatalystOld,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_catalyst,
+    }
+
+    item FilterNormal
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CatalystNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_catalyst,
+    }
+
+    item FilterModern
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 1.0,
+        Icon = OA_CatalystModern,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_catalyst,
+    }
+
+    item SoundproofCover
+    {
+        DisplayCategory = Tool,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_SoundproofCoverNormal,
+        ConditionMax = 100,
+        Tooltip = Tooltip_OA_Machine_Part_cover,
+    }
+
+    entity RainStorageEntity
+    {
+        component FluidContainer
+        {
+            ContainerName = Collector,
+            Capacity = 4000.0,
+            RainFactor = 4.0,
+            InitialPercentMin = 0.0,
+            InitialPercentMax = 0.0,
+        }
+        component SpriteConfig
+        {
+            face S
+            {
+                layer
+                {
+                    row = oa_machines_01_128 oa_machines_01_129,
+                    row = oa_machines_01_130 oa_machines_01_131,
+                }
+            }
+        }
+    }
+}
