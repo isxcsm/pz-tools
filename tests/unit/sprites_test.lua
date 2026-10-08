@@ -143,7 +143,7 @@ end)
 
 test("the machines tiles are defined in oa_machines.tiles, with matching properties", function()
     local places, count = readTiles("oa_machines.tiles", "oa_machines_01")
-    eq(count, 152, "19 rows of 8")
+    eq(count, 160, "20 rows of 8")
     for _, kind in ipairs(KINDS) do
         for _, dir in ipairs(DIRS) do
             for _, running in ipairs({ false, true }) do
@@ -186,52 +186,69 @@ test("the machines tiles are defined in oa_machines.tiles, with matching propert
     end
 end)
 
-test("rain storage water levels: four looks, each its own four tiles", function()
+test("rain storage: the empty tank is the object, the water levels are overlays", function()
     eq(Sprites.RAIN_LEVELS, 4)
-    local full = Sprites.rainStorageTiles(3)
-    local default = Sprites.rainStorageTiles()
-    local seen = {}
-    for _, t in ipairs(Sprites.machineTiles("rainStorage", "N", true)) do seen[t.dx .. "," .. t.dy] = t.sprite end
-    for i = 1, 4 do
-        eq(default[i].sprite, full[i].sprite, "nil is full")
-        eq(seen[full[i].dx .. "," .. full[i].dy], full[i].sprite, "machineTiles is the full look")
-    end
-    eq(full[1].sprite, "oa_machines_01_128", "full takes 128-131")
     local places, count = readTiles("oa_machines.tiles", "oa_machines_01")
-    local owner = {}
-    for _, kind in ipairs(KINDS) do
-        if kind ~= "rainStorage" then
-            for _, dir in ipairs(DIRS) do
-                for _, t in ipairs(Sprites.machineTiles(kind, dir, true)) do owner[t.sprite] = true end
-                for _, t in ipairs(Sprites.machineTiles(kind, dir, false)) do owner[t.sprite] = true end
-            end
-        end
+    local base = Sprites.rainStorageTiles()
+    eq(#base, 4)
+    eq(base[1].sprite, "oa_machines_01_134", "the anchor is the empty tank")
+    for i, expect in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+        eq(base[i].dx, expect[1])
+        eq(base[i].dy, expect[2])
+        eq(base[i].sprite, "oa_machines_01_" .. (133 + i))
     end
-    owner[Sprites.lure(true)] = true
-    owner[Sprites.lure(false)] = true
-    local levelSprites = {}
-    for level = 0, 3 do
-        local tiles = Sprites.rainStorageTiles(level)
+    local viaKind = Sprites.machineTiles("rainStorage", "N", true)
+    for i = 1, 4 do eq(viaKind[i].sprite, base[i].sprite, "machineTiles is the base") end
+    -- the base tiles carry the properties; only the anchor the rain collector flag
+    for _, t in ipairs(base) do
+        local p = places[indexOf(t.sprite)]
+        eq(p.CustomName, "Big Rain Storage")
+        eq(p.GroupName, "OA_rainStorage")
+        eq(p.SpriteGridPos, t.dx .. "," .. t.dy)
+        eq(p.Facing, nil)
+        eq(p.IsWaterCollector, (t.dx == 0 and t.dy == 0) and "" or nil, t.sprite .. " collector only on the anchor")
+        eq(p.IsLow, "")
+        truthy(p.solidtrans ~= nil and p.BlocksPlacement ~= nil, t.sprite .. " solid")
+    end
+    -- no overlay for level 0 or less
+    eq(#Sprites.rainOverlayTiles(0), 0)
+    eq(#Sprites.rainOverlayTiles(-2), 0)
+    eq(#Sprites.rainOverlayTiles(nil), 0)
+    -- the overlays: 4 tiles each at 146-157, in the order of the base tiles, decoration only
+    local seen = {}
+    for level = 1, 3 do
+        local tiles = Sprites.rainOverlayTiles(level)
         eq(#tiles, 4, "level " .. level)
-        for _, t in ipairs(tiles) do
-            truthy(not owner[t.sprite], t.sprite .. " is free of the other machines")
-            truthy(not levelSprites[t.sprite], t.sprite .. " is in one level only")
-            levelSprites[t.sprite] = level
+        for i, t in ipairs(tiles) do
+            eq(t.dx, base[i].dx)
+            eq(t.dy, base[i].dy)
+            eq(t.sprite, "oa_machines_01_" .. (146 + (level - 1) * 4 + i - 1), "level " .. level)
+            truthy(not seen[t.sprite], "an overlay tile in one level only")
+            seen[t.sprite] = true
             local index = indexOf(t.sprite)
             truthy(index and index < count, t.sprite .. " is in the sheet")
             local p = places[index]
-            eq(p.CustomName, "Big Rain Storage")
-            eq(p.GroupName, "OA_rainStorage")
-            eq(p.SpriteGridPos, t.dx .. "," .. t.dy)
-            eq(p.Facing, nil)
-            local anchor = t.dx == 0 and t.dy == 0
-            eq(p.IsWaterCollector, anchor and "" or nil, t.sprite .. " collector only on the anchor")
-            eq(p.IsLow, "")
+            truthy(p, t.sprite .. " is defined")
+            for _, key in ipairs({ "IsWaterCollector", "BlocksPlacement", "solidtrans", "container", "IsLow", "Facing", "SpriteGridPos" }) do
+                eq(p[key], nil, t.sprite .. " has no " .. key)
+            end
         end
     end
-    -- out of range levels are held to the ends
-    eq(Sprites.rainStorageTiles(-1)[1].sprite, Sprites.rainStorageTiles(0)[1].sprite)
-    eq(Sprites.rainStorageTiles(9)[1].sprite, full[1].sprite)
+    eq(Sprites.rainOverlayTiles(9)[1].sprite, Sprites.rainOverlayTiles(3)[1].sprite, "higher levels are held to full")
+    eq(Sprites.rainOverlayTiles(2.7)[1].sprite, Sprites.rainOverlayTiles(2)[1].sprite)
+    -- the full tank as one picture keeps 128-131
+    for i = 128, 131 do truthy(places[i] and places[i].CustomName, "full tank tile " .. i) end
+    -- no machine look uses the places of the overlays or the full tank
+    local used = {}
+    for _, kind in ipairs(KINDS) do
+        for _, dir in ipairs(DIRS) do
+            for _, running in ipairs({ false, true }) do
+                for _, t in ipairs(Sprites.machineTiles(kind, dir, running)) do used[t.sprite] = true end
+            end
+        end
+    end
+    for name in pairs(seen) do truthy(not used[name], name .. " is only an overlay") end
+    truthy(not used[Sprites.lure(true)] and not used[Sprites.lure(false)])
 end)
 
 test("the trade tiles keep their places", function()

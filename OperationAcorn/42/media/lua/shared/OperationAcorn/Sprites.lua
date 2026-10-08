@@ -78,7 +78,7 @@ end
 function Sprites.machineTiles(kind, dir, running)
     local k = KINDS[kind]
     if not k then return nil end
-    if kind == "rainStorage" then return Sprites.rainStorageTiles(nil) end
+    if kind == "rainStorage" then return Sprites.rainStorageTiles() end
     local f = k.facings == 4 and facing(dir) or 0
     local state = (running and k.states == 2) and 1 or 0
     local w, h = Sprites.footprint(kind, k.facings == 4 and dir or "S")
@@ -92,21 +92,32 @@ function Sprites.machineTiles(kind, dir, running)
     return tiles
 end
 
--- The big rain storage (2x2, the same from every side) shows how much water it holds: level 0 empty, 1 a quarter, 2 a half,
--- 3 full (nil is full). Each level is its own four tiles (the anchor of each carries the rain collector flag): full takes
--- the first places, the others come after the lure.
+-- The big rain storage (2x2, the same from every side) is placed as the EMPTY tank (rainStorageTiles: the object's
+-- sprites, the ones the entity's SpriteConfig names, the anchor carries the rain collector flag). Its water level is an
+-- overlay on each of the four squares (IsoObject.setOverlaySprite): level 1 a quarter, 2 a half, 3 full; level 0 is no
+-- overlay. An overlay tile holds only the pixels that differ from the empty tile, so the empty tile with it drawn over is
+-- exactly the level's picture. (128-131 are the full tank as one picture, used for the item icon.)
 Sprites.RAIN_LEVELS = 4
-local RAIN_BASE = { [0] = 134, [1] = 138, [2] = 142, [3] = 128 }
-function Sprites.rainStorageTiles(level)
-    if level == nil then level = Sprites.RAIN_LEVELS - 1 end
-    level = math.max(0, math.min(Sprites.RAIN_LEVELS - 1, math.floor(level)))
+local RAIN_BASE = 134
+local RAIN_OVERLAY = { [1] = 146, [2] = 150, [3] = 154 }
+
+local function rainTiles(first)
     local tiles = {}
     for dy = 0, 1 do
         for dx = 0, 1 do
-            tiles[#tiles + 1] = { dx = dx, dy = dy, sprite = tile(Sprites.MACHINES, RAIN_BASE[level] + dy * 2 + dx) }
+            tiles[#tiles + 1] = { dx = dx, dy = dy, sprite = tile(Sprites.MACHINES, first + dy * 2 + dx) }
         end
     end
     return tiles
+end
+
+function Sprites.rainStorageTiles() return rainTiles(RAIN_BASE) end
+
+-- The four overlay sprites of a water level (1 to 3, higher is held to 3), { dx, dy, sprite } like the base tiles. An
+-- empty list for level 0 or less (or nil): no overlay.
+function Sprites.rainOverlayTiles(level)
+    if type(level) ~= "number" or level < 1 then return {} end
+    return rainTiles(RAIN_OVERLAY[math.min(Sprites.RAIN_LEVELS - 1, math.floor(level))])
 end
 
 -- The lure is one tile and does not rotate.

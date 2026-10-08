@@ -398,7 +398,10 @@ def shadow(centre, rx, ry, strength=110):
     return draw
 
 
-def compose(scene, ground=None, over=None, seed=1, glows=None):
+OWNERS = {}   # owner maps kept by compose(owner_key=...), so looks of one object split the same way
+
+
+def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
     """The finished picture: a 128x256 image for a one-tile object, or {(i, j): image} for each tile of a bigger
     one (i along x, j along y of the footprint as it stands in the world). The picture is drawn whole and every
     finished pixel goes to the one tile its point stands on, so the tiles meet without a seam."""
@@ -451,6 +454,12 @@ def compose(scene, ground=None, over=None, seed=1, glows=None):
                 inside_own |= holds & (owner_x == i) & (owner_y == j)
         owner_x = np.where(inside_own, owner_x, near_x)
         owner_y = np.where(inside_own, owner_y, near_y)
+        if owner_key:
+            # the looks of one object (a tank at several water levels) must give the same tile to every pixel, or the
+            # overlay of one over another does not come out equal: the first look's map is the map
+            if owner_key not in OWNERS:
+                OWNERS[owner_key] = (owner_x, owner_y)
+            owner_x, owner_y = OWNERS[owner_key]
         arr = np.asarray(small)
         tiles = {}
         for j in range(fh):
