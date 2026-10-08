@@ -105,8 +105,12 @@ class Scene:
         self.turns = turns
         self.frost = frost
         self.faces = []
+        self.tilt = None   # (rotation matrix, centre): the whole scene leaned about a point (item icons)
 
     def turn(self, p, vector=False):
+        if self.tilt:
+            rot, centre = self.tilt
+            p = apply(rot, p) if vector else add(centre, apply(rot, sub(p, centre)))
         x, y, z = p
         for _ in range(self.turns % 4):
             x, y = (-y, x) if vector else (1 - y, x)
@@ -272,7 +276,7 @@ class Scene:
         nt = self.turn(n, True)
         if dot(nt, VIEW) <= 1e-6:
             return
-        o = add(origin, mul(n, offset))
+        o = add(origin, mul(n, max(offset, 0.0015)))
         pts = [o, add(o, u), add(add(o, u), v), add(o, v)]
         arr = np.asarray(image.convert('RGBA'))
         factor = 1.0 if emit else light_factor(nt)
