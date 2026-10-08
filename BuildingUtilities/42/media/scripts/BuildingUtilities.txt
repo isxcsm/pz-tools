@@ -46,6 +46,14 @@ module BuildingUtilities
         Icon = BUSprinkler,
     }
 
+    item BoosterPump
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 18.0,
+        Icon = BUBoosterPump,
+    }
+
     item WaterFilter
     {
         DisplayCategory = Electronics,
@@ -162,6 +170,34 @@ module BuildingUtilities
         outputs
         {
             item 1 BuildingUtilities.WaterPump,
+        }
+    }
+
+    craftRecipe MakeBoosterPump
+    {
+        timedAction = MakingElectrical,
+        time = 500,
+        SkillRequired = Electricity:3,
+        OnTest = BuildingUtilities.RecipeTest.MakeBoosterPump,
+        OnAddToMenu = BuildingUtilitiesRecipeShown,
+        Tags = AnySurfaceCraft,
+        category = Electrical,
+        xpAward = Electricity:15,
+        inputs
+        {
+            item 1 tags[base:screwdriver] mode:keep flags[Prop1],
+            item 1 tags[base:wrench] mode:keep flags[MayDegradeVeryLight],
+            item 3 [Base.MetalPipe],
+            item 1 [Base.RubberHose],
+            item 2 [Base.SmallSheetMetal],
+            item 1 [Base.SheetMetal],
+            item 6 [Base.ElectronicsScrap],
+            item 4 [Base.ElectricWire],
+            item 8 [Base.Screws],
+        }
+        outputs
+        {
+            item 1 BuildingUtilities.BoosterPump,
         }
     }
 

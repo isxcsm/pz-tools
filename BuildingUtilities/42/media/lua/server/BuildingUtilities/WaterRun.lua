@@ -1,5 +1,5 @@
 -- What the water units (BU.WaterUnits) do, on the server: each minute a main panel's pumps lift water into their
--- groups while its power is on, and its filters wear while they purify; each ten minutes its sprinklers water the
+-- groups while its power is on, its boosters lift its water up the floors, and its filters wear while they purify; each ten minutes its sprinklers water the
 -- crops around them. Server.lua calls these. Each works the panel's water layout out once (floors, Water.layout's
 -- second result) and passes it on.
 require "BuildingUtilities/Changes"
@@ -86,6 +86,52 @@ function WaterRun.pumps(panel, minutes)
         if now then running = running + 1 end
     end
     Changes.setExtraLoad(panel, "pumps", running * WaterUnits.PUMP_LOAD)
+    if changed then Sync.changed(panel.id) end
+end
+
+-- The running boosters of each main panel as last worked out (ids, floors and groups): when they change, its water
+-- networks take the floors they lift. Not saved: the world defines the networks from the saved state as it starts.
+local boosting = {}
+
+-- Each minute: a main panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
+-- where water reaches its floor ("noWater" else); running, they add to its load. When which run changes, its water
+-- networks (its sub-panels' too) are defined again (Networks.defineWater). Boosters that are off (BU.enabled) stand
+-- still and draw nothing.
+function WaterRun.boosters(panel)
+    local boosters = Store.unitList("booster", panel.id)
+    if #boosters == 0 and (boosting[panel.id] or "") == "" and not (panel.extraLoads and panel.extraLoads.boosters) then
+        return
+    end
+    local enabled = BU.enabled("booster")
+    local on = enabled and powered(panel)
+    local frozen = panel.water.frozen == true
+    local states = {}
+    if on and not frozen then
+        for _, group in ipairs(Water.groups(panel)) do
+            local _, each = Water.boostPlan(panel, group.id, function() return true end)
+            for id, state in pairs(each) do states[id] = state end
+        end
+    end
+    local running, changed, key = 0, false, {}
+    for _, unit in ipairs(boosters) do
+        local now = states[unit.id] == "running" or nil
+        local why = nil
+        if enabled and not now then why = (not on and "noPower") or (frozen and "frozen") or "noWater" end
+        if now ~= unit.boosting or why ~= unit.idle then unit.boosting, unit.idle, changed = now, why, true end
+        if now then
+            running = running + 1
+            key[#key + 1] = tostring(unit.id) .. "@" .. unit.z .. "g" .. tostring(unit.group or Water.FIRST)
+        end
+    end
+    table.sort(key)
+    key = table.concat(key, ",")
+    if boosting[panel.id] == nil then
+        boosting[panel.id] = key
+    elseif boosting[panel.id] ~= key then
+        boosting[panel.id] = key
+        Networks.defineWater(panel)
+    end
+    Changes.setExtraLoad(panel, "boosters", running * WaterUnits.BOOSTER_LOAD)
     if changed then Sync.changed(panel.id) end
 end
 

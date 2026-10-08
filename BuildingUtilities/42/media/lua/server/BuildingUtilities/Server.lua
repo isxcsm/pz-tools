@@ -416,6 +416,7 @@ local function everyMinute()
         recordWater(panel)
         if not panel.parent and hours > 0 then
             BU.WaterRun.pumps(panel, hours * 60)
+            BU.WaterRun.boosters(panel)
             BU.WaterRun.filters(panel, hours * 60)
         end
     end

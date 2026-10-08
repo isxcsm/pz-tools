@@ -99,6 +99,7 @@ function ISBUPanelWindow:updatePlan()
         zone = zone, zoneEditable = editable, zoneEdit = self.zoneEditing == true, zoneNote = getText("IGUI_BU_ZoneNote", inZone),
         farNote = self.building and self:farNote() or nil,
         reached = self.building and { Panels.floorsInReach(panel, self.building) } or nil,
+        waterSupply = utility == "water" and select(3, BU.Water.floorSupply(panel, self:waterLevels() or {})) or nil,
         ranges = ranges, rangeKey = rangeKey,
         choosing = self.choosing[utility] == true })
 end

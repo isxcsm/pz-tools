@@ -72,5 +72,9 @@
     "Sandbox_BuildingUtilities_EnableSprinklers": "Sprinklers",
     "Sandbox_BuildingUtilities_EnableSprinklers_tooltip": "Sprinklers can be made and put down, and water the crops around them from their panel's tanks. Needs Water. On by default. Off: none can be made; those put down water nothing and can still be removed.",
     "Sandbox_BuildingUtilities_EnableFilters": "Water filters",
-    "Sandbox_BuildingUtilities_EnableFilters_tooltip": "Water filters can be made and put down, and purify their group's water while \"Risk: pipes do not purify\" is on. Needs Water. On by default. Off: none can be made; those put down purify nothing (with that risk on, the water comes out as the tanks hold it) and can still be removed."
+    "Sandbox_BuildingUtilities_EnableFilters_tooltip": "Water filters can be made and put down, and purify their group's water while \"Risk: pipes do not purify\" is on. Needs Water. On by default. Off: none can be made; those put down purify nothing (with that risk on, the water comes out as the tanks hold it) and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableBoosters": "Booster pumps",
+    "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "Booster pumps can be made and put down, and lift their panel's water up from their floor while it has power, so that floors above the water storage get water. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
+    "Sandbox_BuildingUtilities_BoosterLift": "Booster pump lift (floors)",
+    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "How many floors above its own a booster pump lifts water to. Fixtures on those floors use the water storage at the booster's height and above. A booster on a floor another lifts to lifts on from there."
 }

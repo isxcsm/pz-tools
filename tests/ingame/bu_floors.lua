@@ -6,12 +6,13 @@
 -- and a generator and a solar panel two floors up wired through it: the sub-panel offered first with the shorter
 -- line, the cost one wire, the producer and the unit its main panel's through it, and the main panel's line as long
 -- as both together. Its water by height: each floor from the main panel's at that height or the nearest above, none
--- above every tank. The link taken away takes the lines wired through it, given back; a sub-panel taken down too.
+-- above every tank; booster pumps lift it (one on the ground floor, one on the sub-panel's lowest floor wired through
+-- it, chained), and the main panel's rooms they lift to join the ground floor's network. The link taken away takes the lines wired through it, given back; a sub-panel taken down too.
 -- "[bufloors]" lines, each "ok" or "BAD", ending with "done". What it put down is taken away, the sandbox values put
 -- back, and the tower panel's zone left as the floors it reaches.
 local BU = BuildingUtilities
-local Store, Panels, Changes, Costs, Actions, Energy, Networks, Solar, Water = BU.Store, BU.Panels, BU.Changes,
-    BU.Costs, BU.Actions, BU.Energy, BU.Networks, BU.Solar, BU.Water
+local Store, Panels, Changes, Costs, Actions, Energy, Networks, Solar, Water, WaterUnits = BU.Store, BU.Panels,
+    BU.Changes, BU.Costs, BU.Actions, BU.Energy, BU.Networks, BU.Solar, BU.Water, BU.WaterUnits
 local function say(...) print("[bufloors]", ...) end
 local function check(what, got, want) say(got == want and "ok" or "BAD", what, tostring(got), "want", tostring(want)) end
 
@@ -21,8 +22,8 @@ local building = Panels.building(main)
 if not building then say("BAD the tower panel's building is not known"); return end
 local page = SandboxVars.BuildingUtilities
 local was = { FloorReach = page.FloorReach, TilesPerFloor = page.TilesPerFloor, TilesPerPiece = page.TilesPerPiece,
-    tier = main.tier }
-page.FloorReach, page.TilesPerFloor, page.TilesPerPiece = 2, 3, 5
+    BoosterLift = page.BoosterLift, tier = main.tier }
+page.FloorReach, page.TilesPerFloor, page.TilesPerPiece, page.BoosterLift = 2, 3, 5, 10
 main.tier = 4
 say("building floors", building.minLevel, building.maxLevel, "box floor", main.z)
 
@@ -187,14 +188,83 @@ local atTank = Water.networkId(main, Water.FIRST, subLevel)
 check("water: a floor down hangs at the tank's height", parents[subLevel - 1], atTank)
 check("water: the tank's floor", parents[subLevel], atTank)
 check("water: a floor up has none", parents[subLevel + 1], "none")
-local dryLow, dryHigh = Water.dryFloors(sub)
-check("water: dry from", dryLow, subLevel + 1)
-check("water: dry to", dryHigh, subLevel + 2)
+local dry = Water.floorSupply(sub)
+check("water: dry from", dry[1] and dry[1][1], subLevel + 1)
+check("water: dry to", dry[1] and dry[1][2], subLevel + 2)
 main.water.producers = {}
-dryLow, dryHigh = Water.dryFloors(sub)
-check("water: no tank above the main panel's floors, all dry from", dryLow, subLevel - 2)
+dry = Water.floorSupply(sub)
+check("water: no tank, all dry from", dry[1] and dry[1][1], subLevel - 2)
+check("water: no tank, all dry to", dry[1] and dry[1][2], subLevel + 2)
+
+-- Booster pumps, the tank on the ground floor: one there lifts to the 10 floors above; one on the sub-panel's lowest
+-- floor (wired through it), where the first lifts to, lifts on from the ground floor's height.
+main.water.producers = { { x = main.x, y = main.y, z = main.z } }
+local function squareOn(level)
+    for _, room in ipairs(Panels.rooms(building)) do
+        if room.level == level then
+            local rect = room.rects[1]
+            for x = rect.x, rect.x + rect.w - 1 do
+                for y = rect.y, rect.y + rect.h - 1 do
+                    local q = getCell():getGridSquare(x, y, level)
+                    if q and free(q) and not Store.unitAt(x, y, level) and not Store.panelAt(x, y, level) then return q end
+                end
+            end
+        end
+    end
+end
+local lowSquare, highSquare = squareOn(main.z), squareOn(subLevel - 2)
+local low = lowSquare and Changes.installUnit("booster", lowSquare, WaterUnits.BOOSTER_SPRITES.S)
+local high = highSquare and Changes.installUnit("booster", highSquare, WaterUnits.BOOSTER_SPRITES.S)
+if low and high then
+    Changes.connectUnit(low, main, {})
+    Changes.connectUnit(high, sub, {})
+    check("booster: the high one the main panel's", high.panel, main.id)
+    check("booster: through the sub-panel", high.via, sub.id)
+    local always = function() return true end
+    local sources, states = Water.boostPlan(main, Water.FIRST, always)
+    check("booster: the low one runs", states[low.id], "running")
+    check("booster: the high one runs (chained)", states[high.id], "running")
+    check("booster: floor 10 from the ground", sources[main.z + 10], main.z)
+    check("booster: floor 20 from the ground", sources[subLevel - 2 + 10], main.z)
+    check("booster: floor 21 not lifted", sources[subLevel - 2 + 11], nil)
+    local onlyHigh = function(unit) return unit == high end
+    sources, states = Water.boostPlan(main, Water.FIRST, onlyHigh)
+    check("booster: alone, no water reaches the high one", states[high.id], "dry")
+    check("booster: alone, nothing lifted", sources[subLevel], nil)
+    -- The layout follows the boosters that run (unit.boosting, as the server sets it).
+    low.boosting, high.boosting = true, true
+    local layout = Water.layout(sub)
+    local groundId = Water.networkId(main, Water.FIRST, main.z)
+    local all = true
+    for _, network in ipairs(layout) do
+        if network.parent ~= groundId then all = false end
+    end
+    check("booster: every sub-panel floor from the ground floor's network", all, true)
+    local dryNow, boosted = Water.floorSupply(sub)
+    check("booster: no floor dry", #dryNow, 0)
+    check("booster: lifted from", boosted[1] and boosted[1][1], subLevel - 2)
+    check("booster: lifted to", boosted[1] and boosted[1][2], subLevel + 2)
+    local roomsOnGround, roomsAbove = 0, 0
+    for _, network in ipairs(Water.layout(main)) do
+        if network.group == Water.FIRST then
+            for _, room in ipairs(network.rooms) do
+                if network.level == main.z and room.level > main.z then roomsOnGround = roomsOnGround + 1 end
+            end
+            if network.level > main.z then roomsAbove = roomsAbove + #network.rooms end
+        end
+    end
+    check("booster: the main panel's lifted rooms in the ground floor's network", roomsOnGround > 0, true)
+    check("booster: no rooms left in the floors' own networks", roomsAbove, 0)
+    check("booster: a fixture on floor 5 joins the ground floor's", Water.networkFor(main, Water.FIRST, main.z + 5), groundId)
+    low.boosting, high.boosting = nil, nil
+    check("booster: stopped, floor 5 its own again", Water.networkFor(main, Water.FIRST, main.z + 5),
+        Water.networkId(main, Water.FIRST, main.z + 5))
+else
+    say("BAD no squares for booster pumps", lowSquare ~= nil, highSquare ~= nil)
+end
+if low then Changes.removeUnit(low) end
+if high then Changes.removeUnit(high) end
 main.water.producers = tanks
-check("water: the main panel's own floors not dry", Water.dryFloors(main), nil)
 
 -- What the sub-panel's lines took, then its link taken away with them.
 local paid = Changes.paidFor(sub)
@@ -217,7 +287,8 @@ check("taken down: producers", #main.power.producers, producersBefore)
 -- Put back.
 if solar then Changes.removeUnit(solar) end
 generator:remove()
-page.FloorReach, page.TilesPerFloor, page.TilesPerPiece = was.FloorReach, was.TilesPerFloor, was.TilesPerPiece
+page.FloorReach, page.TilesPerFloor, page.TilesPerPiece, page.BoosterLift = was.FloorReach, was.TilesPerFloor,
+    was.TilesPerPiece, was.BoosterLift
 main.tier = was.tier
 Changes.setZone(main, nil)
 say("done")

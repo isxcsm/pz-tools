@@ -140,8 +140,28 @@ local function powerStatus(panel, state)
     return result
 end
 
+-- Floors as text: each range "12F" or "12F to 16F", joined.
+local function floorsText(ranges)
+    local parts = {}
+    for _, range in ipairs(ranges) do
+        parts[#parts + 1] = range[1] == range[2] and BU.floorName(range[1])
+            or getText("IGUI_BU_FloorSpan", BU.floorName(range[1]), BU.floorName(range[2]))
+    end
+    return table.concat(parts, ", ")
+end
+
+-- How water reaches the floors of a panel with fixtures connected (levels, a set; nothing told without it), once its
+-- main panel has tanks: the floors none reaches (a reason and WARN), else those boosters lift to (a reason).
+local function supplyNote(panel, levels)
+    if not levels or #Panels.root(panel).water.producers == 0 then return nil end
+    local dry, boosted = BU.Water.floorSupply(panel, levels)
+    if #dry > 0 then return getText("IGUI_BU_Why_AboveTanks", floorsText(dry)), WARN end
+    if #boosted > 0 then return getText("IGUI_BU_Why_Boosted", floorsText(boosted)), nil end
+    return nil
+end
+
 -- A main panel's water: { text, left, reason, level }.
-local function waterStatus(panel, state)
+local function waterStatus(panel, state, levels)
     local available, why = BU.waterAvailable()
     if not available then
         return { text = getText("IGUI_BU_St_WaterUnavailable"), reason = getText("IGUI_BU_Why_NoWaterHooks", why), level = BAD }
@@ -156,13 +176,15 @@ local function waterStatus(panel, state)
     local held = state and getText("IGUI_BU_Left_Water", string.format("%.0f", state.amount or 0), string.format("%.0f", state.capacity or 0))
     if state and state.supplied then
         local level = (state.capacity or 0) > 0 and (state.amount or 0) < state.capacity * 0.1 and WARN or OK
-        return { text = getText("IGUI_BU_St_Water"), left = held, level = level }
+        local reason, warn = supplyNote(panel, levels)
+        return { text = getText("IGUI_BU_St_Water"), left = held, level = warn or level, reason = reason }
     end
     return { text = getText("IGUI_BU_St_WaterEmpty"), left = held, reason = getText("IGUI_BU_Why_Rain"), level = BAD }
 end
 
--- The status of a panel's utility; a sub-panel's is its main panel's, told as coming from it.
-function PanelWindow.status(panel, utility)
+-- The status of a panel's utility; a sub-panel's is its main panel's, told as coming from it. levels: the floors with
+-- water fixtures connected (a set), to tell how water reaches them.
+function PanelWindow.status(panel, utility, levels)
     local parent = Store.get(panel.parent)
     if parent and utility == "power" and panel.tripped then return trippedStatus(panel) end
     -- As for a main panel, the grid tells first while it runs.
@@ -172,24 +194,33 @@ function PanelWindow.status(panel, utility)
     if parent then
         local result = PanelWindow.status(parent, utility)
         result.text = getText("IGUI_BU_St_Sub", Panels.name(parent), result.text)
-        -- Water runs down only: the floors above every tank of the main panel have none.
-        local low, high = nil, nil
-        if utility == "water" then low, high = BU.Water.dryFloors(panel) end
-        if low then
-            local floors = low == high and BU.floorName(low) or getText("IGUI_BU_FloorSpan", BU.floorName(low), BU.floorName(high))
-            result.reason = getText("IGUI_BU_Why_AboveTanks", floors)
-            if result.level ~= BAD then result.level = WARN end
+        -- Water runs down only (but where boosters lift it): the floors above every tank of the main panel have none.
+        if utility == "water" and result.level ~= BAD then
+            local reason, warn = supplyNote(panel, levels)
+            if reason then result.reason = reason end
+            if warn then result.level = warn end
         end
         return result
     end
     local state = Networks.state(panel, utility)
-    if utility == "water" then return waterStatus(panel, state) end
+    if utility == "water" then return waterStatus(panel, state, levels) end
     return powerStatus(panel, state)
 end
 
 -- The status line as drawn: the text and what is left on it after the dot; the reason after it in grey when it fits
 -- (it ends at reasonEnd), else only in the tooltip, which has the utilities that are on in full. Measured here, not
 -- each frame. None with both off.
+-- The floors with water fixtures connected to the box, from its water tab's last rows; nil before it has any.
+function ISBUPanelWindow:waterLevels()
+    local view = self.views and self.views.water
+    if not view then return nil end
+    local levels = {}
+    for _, device in ipairs(view.devices or {}) do
+        if device.state == "on" then levels[device.entry.z] = true end
+    end
+    return levels
+end
+
 function ISBUPanelWindow:updateStatus()
     self.statusUtility = self:activeUtility()
     if not self.statusUtility then
@@ -197,7 +228,8 @@ function ISBUPanelWindow:updateStatus()
         self.statusArea:setTooltip(nil)
         return
     end
-    local status = PanelWindow.status(self.panel, self.statusUtility)
+    local waterLevels = self:waterLevels()
+    local status = PanelWindow.status(self.panel, self.statusUtility, waterLevels)
     local text = status.left and status.text .. ", " .. status.left or status.text
     local textX = PAD + FONT_HGT_SMALL
     self.status = { text = text, textX = textX, colour = PanelWindow.STATUS_COLOURS[status.level] }
@@ -209,7 +241,7 @@ function ISBUPanelWindow:updateStatus()
     end
     local lines = {}
     for _, utility in ipairs(self.utilities) do
-        local each = PanelWindow.status(self.panel, utility)
+        local each = PanelWindow.status(self.panel, utility, waterLevels)
         lines[#lines + 1] = " <RGB:1,1,1> " .. getText("IGUI_BU_Tab_" .. utility) .. ": " .. each.text
         if each.left then lines[#lines + 1] = " <RGB:0.8,0.8,0.8> " .. each.left end
         if each.reason then lines[#lines + 1] = " <RGB:0.7,0.7,0.7> " .. each.reason end

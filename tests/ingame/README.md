@@ -51,7 +51,8 @@ look; `BU22_CLEAN()` takes them away.
 - `bu_floors.lua`: floors in a tall building: how many floors a tier's zone reaches, a zone saved whole kept to them as
   the world starts, far rooms refused; a sub-panel on the 13th floor linked with a line three tiles longer a floor,
   and a generator and a solar panel wired through it (offered first, one wire, the main panel's, its line as long as
-  both), then the link and the sub-panel taken away with the lines through them. Each line "ok" or "BAD", ending with
+  both); its water by height, and two booster pumps (the ground floor's and one wired through the sub-panel) lifting
+  it, chained; then the link and the sub-panel taken away with the lines through them. Each line "ok" or "BAD", ending with
   "done". Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors or more, its id in
   `ModData.getOrCreate("BUTOWER").panel`.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in a

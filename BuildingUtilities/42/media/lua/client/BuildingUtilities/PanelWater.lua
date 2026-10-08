@@ -144,6 +144,11 @@ function ISBUPanelWindow:waterUnitStatus(unit)
         if unit.running and unit.idle == "noWater" then return getText("IGUI_BU_Pump_noWater") end
         if unit.running then return getText("IGUI_BU_Pump_running", WaterUnits.PUMP_RATE) end
         return getText("IGUI_BU_Pump_" .. (unit.idle or "noPower"))
+    elseif unit.kind == "booster" then
+        if unit.boosting then
+            return getText("IGUI_BU_Booster_running", BU.floorName(unit.z + 1), BU.floorName(unit.z + Water.boostFloors()))
+        end
+        return getText("IGUI_BU_Booster_" .. (unit.idle or "noPower"))
     elseif unit.kind == "sprinkler" then
         return getText(WaterUnits.spraying(unit) and "IGUI_BU_Sprinkler_watering" or "IGUI_BU_Sprinkler_waiting")
     end

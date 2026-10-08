@@ -666,7 +666,8 @@ function ISBUPlan:layoutStrip()
         local level = downward[index]
         self.strip[#self.strip + 1] = { level = level, x = PAD, y = y, w = STRIP_W - 6, h = CELL_H - 2,
             text = BU.floorShort(level), on = (self.floorOn[level] or 0) > 0, box = self.data and self.data.box.z == level,
-            producer = self.floorProducers and self.floorProducers[level], far = self:farFloor(level) }
+            producer = self.floorProducers and self.floorProducers[level], far = self:farFloor(level),
+            supply = self.data and self.data.waterSupply and self.data.waterSupply[level] }
         y = y + CELL_H
     end
     if overflow then arrow(1, first + fit - 1 < #downward) end
@@ -881,6 +882,9 @@ function ISBUPlan:render()
         self:drawRect(cell.x, cell.y, cell.w, cell.h, current and 0.8 or 0.4, current and 0.35 or 0.15, current and 0.35 or 0.15, current and 0.35 or 0.15)
         self:drawRectBorder(cell.x, cell.y, cell.w, cell.h, 1, 0.5, 0.5, 0.5)
         if cell.on then self:drawRect(cell.x + 1, cell.y + 1, 3, cell.h - 2, 1, 0.4, 0.9, 0.4) end
+        -- Water: a floor boosters lift to (blue) or that no water reaches (red), along its foot.
+        if cell.supply == "boosted" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.3, 0.75, 0.95)
+        elseif cell.supply == "dry" then self:drawRect(cell.x + 5, cell.y + cell.h - 3, cell.w - 12, 2, 1, 0.9, 0.3, 0.25) end
         -- The box's floor, so the player finds the way back.
         if cell.box then self:drawRect(cell.x + cell.w - 5, cell.y + 2, 3, 3, 1, 1, 1, 1) end
         -- Its producers, in their colour.
@@ -970,6 +974,7 @@ function ISBUPlan:onMouseMove(dx, dy)
         self.status = getText("IGUI_BU_StripScroll")
     elseif kind == "floor" then
         self.status = BU.floorName(thing.level)
+        if thing.supply then self.status = self.status .. "  (" .. getText("IGUI_BU_FloorWater_" .. thing.supply) .. ")" end
         if thing.far and self.data.farNote then self.status = self.status .. "  (" .. self.data.farNote .. ")" end
     elseif self:toggleAt(self:getMouseX(), self:getMouseY()) == "zone" then
         self.status = self.data.zoneNote

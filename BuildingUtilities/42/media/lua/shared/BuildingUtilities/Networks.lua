@@ -135,10 +135,20 @@ local function applyWaterRule(panel, key, floors)
     end
 end
 
+-- The water policy networks are defined with: BU.POLICY.water, or its fallback once the API refused it as a policy
+-- it does not have (then for the rest of the session, not asked again).
+local waterPolicy = BU.POLICY.water
+
 -- Defines a water network. A game whose API cannot take water networks refuses it (an API that predates hooks()
 -- does not tell before): water is then off for this world (BU.waterAvailable), and nothing else is tried.
 local function defineWaterNetwork(id)
-    local ok, failure = pcall(BU.api().networks.define, BU.handle(), id, "water", BU.POLICY.water)
+    local define = BU.api().networks.define
+    local ok, failure = pcall(define, BU.handle(), id, "water", waterPolicy)
+    if not ok and waterPolicy ~= BU.POLICY.waterFallback and tostring(failure):find("policy for water", 1, true) then
+        BU.log("water policy", waterPolicy, "not in this API; using", BU.POLICY.waterFallback)
+        waterPolicy = BU.POLICY.waterFallback
+        ok, failure = pcall(define, BU.handle(), id, "water", waterPolicy)
+    end
     if not ok then BU.hookFault("water", failure) end
     return ok
 end
@@ -188,15 +198,23 @@ function Networks.defineWater(panel, keys)
         local old = before[network.id]
         if not old or old.tanks ~= tanks[network.id] then change("setProducers", network.id, network.producers) end
     end
+    -- Rooms leave their old networks before any joins another: a room moves to another floor's network as a booster
+    -- starts or stops lifting to its floor.
+    local roomSets = {}
     for _, network in ipairs(layout) do
         local old = before[network.id]
         local rooms = {}
         for _, room in ipairs(network.rooms) do rooms[room.id] = room end
-        for roomId, room in pairs(rooms) do
-            if not (old and old.rooms[roomId]) then setRoom(network.id, room, true) end
-        end
+        roomSets[network.id] = rooms
         for roomId, room in pairs(old and old.rooms or {}) do
             if not rooms[roomId] then setRoom(network.id, room, false) end
+        end
+    end
+    for _, network in ipairs(layout) do
+        local old = before[network.id]
+        local rooms = roomSets[network.id]
+        for roomId, room in pairs(rooms) do
+            if not (old and old.rooms[roomId]) then setRoom(network.id, room, true) end
         end
         now[network.id] = { parent = network.parent, rooms = rooms, tanks = tanks[network.id] }
     end

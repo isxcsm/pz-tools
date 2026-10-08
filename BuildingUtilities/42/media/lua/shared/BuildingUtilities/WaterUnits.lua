@@ -2,7 +2,8 @@
 -- (BU.Water): the pump fills the group's tanks from a river, a lake or a well beside it while the panel has power
 -- (it goes anywhere, but without water beside it it runs dry: it draws its power and lifts nothing); the
 -- sprinkler waters the crops around it from the group; the filter purifies the group's water while the
--- RiskPlumbingUnpurified option leaves the pipes unpurified. What they do each minute is the server's
+-- RiskPlumbingUnpurified option leaves the pipes unpurified; the booster pump lifts the group's water from its floor
+-- to the floors above it (BU.Water.boostPlan). What they do each minute is the server's
 -- (server/BuildingUtilities/WaterRun.lua); their art is the bu_water_01 sheet (tools/tile_art.py), a lamp on each
 -- telling how it runs.
 require "BuildingUtilities/Units"
@@ -31,6 +32,16 @@ WaterUnits.FILTER_SPRITES = Units.sheetSprites(6, FILTER_WAYS)
 WaterUnits.FILTER_LOOKS = { resting = WaterUnits.FILTER_SPRITES, working = Units.sheetSprites(28, FILTER_WAYS),
     spent = Units.sheetSprites(30, FILTER_WAYS) }
 local FILTER_LOOK_OF = Units.lookOf(WaterUnits.FILTER_LOOKS)
+-- The booster pump faces the character who put it down (its control box in front); put down stopped. Its lamp: dark
+-- stopped, green boosting, amber with power but no water reaching its floor; under rime while its box's pipes are
+-- frozen (WaterUnits.boosterLook).
+local BOOSTER_SIDES, BOOSTER_ORDER = { "S", "E", "N", "W" }, { "stopped", "running", "dry", "frozen" }
+WaterUnits.BOOSTER_SPRITES = Units.sheetSprites(56, BOOSTER_SIDES)
+WaterUnits.BOOSTER_LOOKS = { stopped = WaterUnits.BOOSTER_SPRITES, running = Units.sheetSprites(60, BOOSTER_SIDES),
+    dry = Units.sheetSprites(64, BOOSTER_SIDES), frozen = Units.sheetSprites(68, BOOSTER_SIDES) }
+local BOOSTER_LOOK_OF = Units.lookOf(WaterUnits.BOOSTER_LOOKS)
+-- The load a booster puts on its panel's power while it lifts.
+WaterUnits.BOOSTER_LOAD = 0.25
 -- Litres a pump lifts an hour, and the load it puts on its panel's power while it runs.
 WaterUnits.PUMP_RATE = 20
 WaterUnits.PUMP_LOAD = 0.12
@@ -58,6 +69,16 @@ function WaterUnits.pumpLook(unit)
     local panel = Store.get(unit.panel)
     if panel and panel.water.frozen and BU.enabled("water") then return "frozen" end
     if unit.running then return unit.fluid and "running" or "dry" end
+    return "stopped"
+end
+
+-- How a booster looks: frozen while its box's pipes are (with water on), else running (lifting), dry (its power on
+-- but no water reaching its floor) or stopped.
+function WaterUnits.boosterLook(unit)
+    local panel = Store.get(unit.panel)
+    if panel and panel.water.frozen and BU.enabled("water") then return "frozen" end
+    if unit.boosting then return "running" end
+    if unit.idle == "noWater" then return "dry" end
     return "stopped"
 end
 
@@ -195,6 +216,29 @@ Units.define("filter", {
         if WaterUnits.mediaLeft(unit) >= 1 then entry.reason = getText("IGUI_BU_Reason_mediaFull")
         elseif not WaterUnits.hasMedia(character) then entry.reason = getText("IGUI_BU_Reason_noMedia") end
         return { entry }
+    end,
+})
+
+Units.define("booster", {
+    item = "BuildingUtilities.BoosterPump",
+    sprites = Units.lookSprites(WaterUnits.BOOSTER_LOOKS, BOOSTER_ORDER, BOOSTER_SIDES),
+    utility = "water",
+    minTier = WaterUnits.TIER,
+    tierReason = "waterUnitTier",
+    colour = { 0.3, 0.75, 0.95 },
+    canPlace = function() return true end,
+    -- Its front to the character.
+    sprite = function(square, character)
+        local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
+        local side
+        if math.abs(dx) > math.abs(dy) then side = dx > 0 and "E" or "W" else side = dy > 0 and "S" or "N" end
+        return WaterUnits.BOOSTER_SPRITES[side]
+    end,
+    sync = function(unit, object)
+        Units.showLook(object, WaterUnits.BOOSTER_LOOKS, WaterUnits.boosterLook(unit), BOOSTER_LOOK_OF)
+    end,
+    title = function(unit, text)
+        return text .. "  " .. getText(unit.boosting and "IGUI_BU_PumpRunning" or "IGUI_BU_PumpStopped")
     end,
 })
 

@@ -4,5 +4,6 @@
     "BuildingUtilities.BatteryRack": "Battery Rack",
     "BuildingUtilities.WaterPump": "Water Pump",
     "BuildingUtilities.Sprinkler": "Sprinkler",
-    "BuildingUtilities.WaterFilter": "Water Filter"
+    "BuildingUtilities.WaterFilter": "Water Filter",
+    "BuildingUtilities.BoosterPump": "Booster Pump"
 }

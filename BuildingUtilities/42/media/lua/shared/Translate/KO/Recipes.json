@@ -4,5 +4,6 @@
     "MakeBatteryRack": "배터리 랙 만들기",
     "MakeWaterPump": "양수 펌프 만들기",
     "MakeSprinkler": "스프링클러 만들기",
-    "MakeWaterFilter": "정수 필터 만들기"
+    "MakeWaterFilter": "정수 필터 만들기",
+    "MakeBoosterPump": "가압 펌프 만들기"
 }

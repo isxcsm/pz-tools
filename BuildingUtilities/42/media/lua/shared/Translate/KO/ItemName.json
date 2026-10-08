@@ -4,5 +4,6 @@
     "BuildingUtilities.BatteryRack": "배터리 랙",
     "BuildingUtilities.WaterPump": "양수 펌프",
     "BuildingUtilities.Sprinkler": "스프링클러",
-    "BuildingUtilities.WaterFilter": "정수 필터"
+    "BuildingUtilities.WaterFilter": "정수 필터",
+    "BuildingUtilities.BoosterPump": "가압 펌프"
 }

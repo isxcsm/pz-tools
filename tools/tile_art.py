@@ -1,5 +1,5 @@
 """Draws this mod's own tiles and writes them as its second tile sheet (bu_water_01): the water units (pump, sprinkler,
-filter) in each of their looks, the utility panel (the breaker box) in its looks, and the snow that lies on a solar
+filter, booster pump) in each of their looks, the utility panel (the breaker box) in its looks, and the snow that lies on a solar
 panel (overlays over the first sheet's panels, bu_solar_01).
 
 The art is made here, not painted: each object is a few solids (boxes, cylinders) in a tile's space, projected the
@@ -33,7 +33,7 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'BuildingU
 SHEET = 'bu_water_01'
 PACK = 'BuildingUtilitiesWater'
 SOLAR_PACK = 'BuildingUtilitiesSolar'
-COLS, ROWS = 8, 7
+COLS, ROWS = 8, 9
 W, H = 128, 256
 SS = 4  # drawn this many times larger, then scaled down
 UP = 64 * math.sqrt(1.5)  # pixels of a unit up: a square's side across is 64 * sqrt(2), looked at from 30 degrees
@@ -458,6 +458,119 @@ def water_filter(turns, look='resting'):
     return compose(s, ground=ground, seed=30 + turns, glows=glows)
 
 
+# The booster pump's looks: its lamp dark and its display dark (stopped: no power, or its pipes frozen under rime),
+# green with the display lit (boosting), amber with the display lit (powered, but no water reaches its floor).
+BOOSTER_LAMP = {'stopped': None, 'running': 'green', 'dry': 'amber', 'frozen': None}
+STAINLESS = (186, 190, 194)
+STAINLESS_DARK = (134, 138, 142)
+VESSEL = (36, 92, 168)
+VESSEL_DARK = (26, 66, 124)
+DISPLAY_LIT = (90, 230, 210)
+DISPLAY_DARK = (24, 40, 40)
+
+
+def handwheel(s, x, y, z, r, colour):
+    """A valve's handwheel lying flat at height z: the rim, the hub and four spokes."""
+    s.tube((x, y, z), (x, y, z + 0.012), r, colour, cap=CASING_DARK, segments=40, shine=0.3)
+    s.tube((x, y, z + 0.012), (x, y, z + 0.02), r * 0.3, CASING_DARK, segments=24)
+    s.tube((x, y, z + 0.02), (x, y, z + 0.03), r * 0.14, STEEL, shine=0.5, segments=16)
+
+
+def booster(turns, look='stopped'):
+    """A booster set on a skid, its front (the control box) to the south: the header runs west to east with a valve on
+    each side; between them the vertical multistage pump (its cast base on the header, the stack of stages held by
+    tie rods, the motor standing on top with its ribs, fan cover and terminal box); behind, the blue pressure vessel
+    on its ring stand; on the delivery side a check valve and a gauge; in front, the control box on its post, a lamp
+    on its top and a display on its door, a conduit up to the motor."""
+    frozen = look == 'frozen'
+    powered = look in ('running', 'dry')
+    s = Scene(turns, frost=0.45 if frozen else 0.0)
+    glows = []
+    # Pad and skid.
+    s.box(0.08, 0.2, 0.0, 0.92, 0.84, 0.04, CONCRETE)
+    for y0 in (0.3, 0.66):
+        s.box(0.1, y0, 0.04, 0.9, y0 + 0.05, 0.075, FRAME, top=(80, 82, 86), shine=0.2)
+    # The header, west to east, with its flanges at the ends.
+    hz, hy = 0.16, 0.56
+    s.tube((0.05, hy, hz), (0.95, hy, hz), 0.038, PIPE, shine=0.3)
+    for x in (0.05, 0.93):
+        s.tube((x, hy, hz), (x + 0.02, hy, hz), 0.058, STEEL, shine=0.5)
+    for x in (0.08, 0.92):
+        s.box(x - 0.03, hy - 0.03, 0.075, x + 0.03, hy + 0.03, hz - 0.035, FRAME)
+    # Suction valve (west) and its wheel.
+    s.box(0.16, hy - 0.05, hz - 0.05, 0.24, hy + 0.05, hz + 0.05, PIPE, top=(98, 102, 106), shine=0.3)
+    s.tube((0.2, hy, hz + 0.05), (0.2, hy, hz + 0.13), 0.01, STEEL, shine=0.5)
+    handwheel(s, 0.2, hy, hz + 0.13, 0.05, CASING)
+    # The pump: its cast base on the header, the stages, the tie rods, the lantern and the motor.
+    px, py = 0.42, hy
+    s.tube((px, py, 0.075), (px, py, 0.11), 0.1, MOTOR_DARK, segments=56)
+    s.tube((px, py, 0.11), (px, py, 0.23), 0.085, MOTOR, cap=MOTOR_DARK, segments=56, shine=0.2)
+    s.tube((px - 0.12, py, hz), (px + 0.12, py, hz), 0.05, MOTOR, shine=0.2)
+    stages = []
+    t = 0.0
+    while t < 0.999:
+        stages.append((t, min(1.0, t + 0.16), STAINLESS))
+        stages.append((min(1.0, t + 0.16), min(1.0, t + 0.2), STAINLESS_DARK))
+        t += 0.2
+    s.tube((px, py, 0.23), (px, py, 0.53), 0.062, STAINLESS, cap=STAINLESS_DARK, segments=56, bands=stages, shine=0.7)
+    for angle in (0.25, 1.82, 3.39, 4.96):
+        rx, ry = px + math.cos(angle) * 0.078, py + math.sin(angle) * 0.078
+        s.tube((rx, ry, 0.22), (rx, ry, 0.56), 0.008, STEEL, shine=0.6, segments=12)
+    s.tube((px, py, 0.53), (px, py, 0.57), 0.085, MOTOR_DARK, segments=56)
+    s.box(px - 0.05, py - 0.05, 0.57, px + 0.05, py + 0.05, 0.6, (60, 62, 66))
+    s.tube((px, py, 0.6), (px, py, 0.63), 0.09, MOTOR_DARK, segments=56)
+    s.tube((px, py, 0.63), (px, py, 0.83), 0.082, MOTOR, cap=MOTOR_DARK, segments=56, shine=0.15)
+    for i in range(14):
+        angle = 2 * math.pi * i / 14
+        rx, ry = px + math.cos(angle) * 0.084, py + math.sin(angle) * 0.084
+        s.tube((rx, ry, 0.64), (rx, ry, 0.82), 0.007, MOTOR_DARK, segments=8)
+    s.tube((px, py, 0.83), (px, py, 0.9), 0.078, (40, 44, 48), cap=(30, 33, 36), segments=56)
+    s.tube((px, py, 0.9), (px, py, 0.91), 0.05, (30, 33, 36), segments=40)
+    s.box(px - 0.04, py + 0.08, 0.68, px + 0.04, py + 0.12, 0.77, MOTOR_DARK, top=MOTOR)
+    # Behind the pump, the pressure vessel on its ring stand, piped to the header.
+    vx, vy = 0.74, 0.36
+    s.tube((vx, vy, 0.075), (vx, vy, 0.11), 0.07, FRAME, segments=40)
+    s.tube((vx, vy, 0.11), (vx, vy, 0.14), 0.11, VESSEL_DARK, segments=56)
+    s.tube((vx, vy, 0.14), (vx, vy, 0.5), 0.115, VESSEL, segments=56, shine=0.45,
+           bands=[(0, 0.5, VESSEL), (0.5, 0.52, VESSEL_DARK), (0.52, 1, VESSEL)])
+    for r0, z0, z1 in ((0.108, 0.5, 0.53), (0.094, 0.53, 0.555), (0.072, 0.555, 0.574), (0.042, 0.574, 0.586)):
+        s.tube((vx, vy, z0), (vx, vy, z1), r0, VESSEL, segments=56, shine=0.45)
+    s.tube((vx, vy, 0.586), (vx, vy, 0.605), 0.014, BRASS, cap=BRASS_DARK, shine=0.6, segments=16)
+    s.tube((vx, hy, hz), (vx, hy - 0.08, hz), 0.022, PIPE, shine=0.3)
+    s.tube((vx, hy - 0.08, hz), (vx, vy + 0.1, 0.12), 0.022, PIPE, shine=0.3)
+    # The delivery side: a check valve, a tee up to the gauge facing the front, a valve and its wheel.
+    s.tube((0.6, hy, hz), (0.66, hy, hz), 0.055, CASING_DARK, segments=40, shine=0.25)
+    s.box(0.6, hy - 0.035, hz + 0.03, 0.66, hy + 0.035, hz + 0.065, CASING, shine=0.25)
+    s.tube((0.86, hy, hz + 0.03), (0.86, hy, hz + 0.16), 0.011, BRASS, shine=0.5)
+    s.tube((0.86, hy - 0.01, hz + 0.2), (0.86, hy + 0.035, hz + 0.2), 0.048, STEEL, cap=DIAL, shine=0.5)
+    s.tube((0.86, hy + 0.035, hz + 0.2), (0.86, hy + 0.038, hz + 0.2), 0.008, (30, 30, 30))
+    s.box(0.76, hy - 0.05, hz - 0.05, 0.82, hy + 0.05, hz + 0.05, PIPE, top=(98, 102, 106), shine=0.3)
+    s.tube((0.79, hy, hz + 0.05), (0.79, hy, hz + 0.12), 0.01, STEEL, shine=0.5)
+    handwheel(s, 0.79, hy, hz + 0.12, 0.045, CASING)
+    # The control box on its post in front: the lamp on its top, the display on its door; the conduit to the motor.
+    s.box(0.17, 0.74, 0.04, 0.2, 0.77, 0.44, FRAME, shine=0.2)
+    s.box(0.09, 0.73, 0.44, 0.29, 0.8, 0.68, HOUSING, top=HOUSING_DARK, shine=0.15)
+    s.box(0.1, 0.8, 0.45, 0.28, 0.805, 0.67, DOOR, shine=0.2)
+    display = DISPLAY_LIT if powered else DISPLAY_DARK
+    s.box(0.13, 0.805, 0.58, 0.25, 0.81, 0.635, display, emit=powered)
+    if powered:
+        glows.append(((0.19, 0.81, 0.607), DISPLAY_LIT, 0.05))
+    for x in (0.14, 0.19, 0.24):
+        s.box(x - 0.012, 0.805, 0.5, x + 0.012, 0.812, 0.53, TOGGLE)
+    s.box(0.12, 0.805, 0.465, 0.26, 0.808, 0.48, HAZARD)
+    lamp(s, glows, 0.19, 0.765, 0.68, 0.024, BOOSTER_LAMP[look] or 'green', BOOSTER_LAMP[look] is not None)
+    s.tube((0.27, 0.76, 0.66), (0.37, 0.7, 0.74), 0.011, RUBBER, segments=12)
+    over = None
+    if frozen:
+        for x, length in ((0.3, 0.06), (0.52, 0.05), (0.68, 0.07), (0.9, 0.045)):
+            s.tube((x, hy, hz - 0.035), (x, hy, hz - 0.035 - length), 0.007, ICE, shine=0.8, segments=12)
+        for x, length in ((0.66, 0.05), (0.82, 0.06)):
+            s.tube((x, vy, 0.12), (x, vy, 0.12 - length), 0.006, ICE, shine=0.8, segments=12)
+        over = rime(41 + turns)
+    ground = shadow(s.turn((0.5, 0.52, 0))[:2], 0.44, 0.34)
+    return compose(s, ground=ground, over=over, seed=60 + turns, glows=glows)
+
+
 # The utility panel (the breaker box): a floor-standing console in grey sheet steel. Its looks: off (every lamp dark),
 # on (the green and amber power lamps lit, the meter up), tripped (the red lamp lit, the main breaker's handle fallen
 # to its middle, the meter down) and tripped with the red lamp dark: the client turns a tripped box between the two.
@@ -659,6 +772,7 @@ PUMP = {'CustomName': 'Water Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 FILTER = {'CustomName': 'Water Filter', 'BlocksPlacement': '', 'solidtrans': ''}
 SPRINKLER = {'CustomName': 'Sprinkler', 'IsLow': ''}
 BOX = {'CustomName': 'Utility Panel', 'BlocksPlacement': '', 'solidtrans': ''}
+BOOSTER = {'CustomName': 'Booster Pump', 'BlocksPlacement': '', 'solidtrans': ''}
 PUMP_FACINGS = ((0, 'E'), (1, 'S'), (2, 'W'), (3, 'N'))
 FILTER_FACINGS = ((0, 'S'), (3, 'E'))
 BOX_FACINGS = ((0, 'S'), (3, 'E'), (2, 'N'), (1, 'W'))
@@ -675,6 +789,10 @@ def filters(look):
 
 def boxes(look):
     return [(lambda t=t, look=look: console(t, look), dict(BOX, Facing=f)) for t, f in BOX_FACINGS]
+
+
+def boosters(look):
+    return [(lambda t=t, look=look: booster(t, look), dict(BOOSTER, Facing=f)) for t, f in BOX_FACINGS]
 
 
 def snows(heavy):
@@ -697,8 +815,10 @@ TILES = (
     + filters('working') + filters('spent')
     # 32-47: the utility panel off, on, tripped and tripped with its lamp dark, each S, E, N, W.
     + boxes('off') + boxes('on') + boxes('tripped') + boxes('tripped_dim')
-    # 48-53: snow on a solar panel (flat, W, N), light then heavy.
-    + snows(False) + snows(True)
+    # 48-53: snow on a solar panel (flat, W, N), light then heavy; 54, 55 free.
+    + snows(False) + snows(True) + [None, None]
+    # 56-71: the booster pump stopped, running, running with no water at its floor and frozen, each facing S, E, N, W.
+    + boosters('stopped') + boosters('running') + boosters('dry') + boosters('frozen')
 )
 
 
@@ -757,7 +877,7 @@ def write_pack(path, images):
 
 
 # The items' icons: a tile's thing, fitted into 64x64.
-ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32}
+ICONS = {'BUWaterPump': 1, 'BUSprinkler': 4, 'BUWaterFilter': 6, 'BUBreakerBox': 32, 'BUBoosterPump': 56}
 
 
 def write_icons(images):
@@ -782,7 +902,7 @@ def preview(images, path):
             continue
         tile = Image.new('RGBA', (W, H), (0, 0, 0, 0))
         tile.alpha_composite(floor)
-        if index >= 48:
+        if 48 <= index < 54:
             tile.alpha_composite(solar_tile(SNOW_PANELS[(index - 48) % 3]))
         tile.alpha_composite(image)
         sheet.alpha_composite(tile.crop((0, 64, W, H)), ((index % COLS) * W, (index // COLS) * (H - 64)))

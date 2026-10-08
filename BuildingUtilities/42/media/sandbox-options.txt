@@ -48,6 +48,12 @@ option BuildingUtilities.EnableFilters
     page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableFilters,
 }
 
+option BuildingUtilities.EnableBoosters
+{
+    type = boolean, default = true,
+    page = BuildingUtilitiesFeatures, translation = BuildingUtilities_EnableBoosters,
+}
+
 option BuildingUtilities.ProducerRange
 {
     type = integer, min = 1, max = 100, default = 20,
@@ -76,6 +82,12 @@ option BuildingUtilities.FloorReach
 {
     type = integer, min = 0, max = 50, default = 2,
     page = BuildingUtilities, translation = BuildingUtilities_FloorReach,
+}
+
+option BuildingUtilities.BoosterLift
+{
+    type = integer, min = 1, max = 50, default = 10,
+    page = BuildingUtilities, translation = BuildingUtilities_BoosterLift,
 }
 
 option BuildingUtilities.CostsEnabled

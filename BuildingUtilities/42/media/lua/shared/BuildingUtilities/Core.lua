@@ -5,7 +5,10 @@ local BU = BuildingUtilities
 
 BU.MOD = "BuildingUtilities"
 BU.UTILITIES = { "power", "water" }
-BU.POLICY = { power = "sequential", water = "fullest" }
+-- Water "nearest": a fixture takes from its own floor's tanks first and from higher floors' only once those are dry,
+-- so that the higher floors keep the water only they can reach; "fullest" (every draw from the fullest tank in reach)
+-- where the game's API does not have it (Networks finds that out by asking).
+BU.POLICY = { power = "sequential", water = "nearest", waterFallback = "fullest" }
 BU.API_VERSION = 1
 -- Breaker box tiers: an upgrade carries more load, reaches farther and can do more (below).
 BU.TIERS = 4
@@ -130,8 +133,9 @@ local FEATURES = {
     pump = { option = "EnablePumps", needs = { "water", "power" } },
     sprinkler = { option = "EnableSprinklers", needs = { "water" } },
     filter = { option = "EnableFilters", needs = { "water" } },
+    booster = { option = "EnableBoosters", needs = { "water", "power" } },
 }
-BU.FEATURES = { "power", "water", "solar", "rack", "controller", "pump", "sprinkler", "filter" }
+BU.FEATURES = { "power", "water", "solar", "rack", "controller", "pump", "sprinkler", "filter", "booster" }
 
 -- Whether a feature is on: its option, and those of the features it needs. A name that is no feature's is on.
 function BU.enabled(name)
@@ -167,7 +171,7 @@ end
 -- recipe's OnAddToMenu, which the game looks up by its plain name. Each recipe's OnTest (BU.RecipeTest) refuses every
 -- input meanwhile, so that one reached another way (an item's Craft menu) cannot be made either.
 BU.RECIPE_FEATURES = { MakeBreakerBox = "panel", MakeSolarPanel = "solar", MakeBatteryRack = "rack",
-    MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter" }
+    MakeWaterPump = "pump", MakeSprinkler = "sprinkler", MakeWaterFilter = "filter", MakeBoosterPump = "booster" }
 function BuildingUtilitiesRecipeShown(param)
     local name = param and param.recipe and param.recipe:getName()
     local feature = name and BU.RECIPE_FEATURES[name:match("[^%.]+$")]

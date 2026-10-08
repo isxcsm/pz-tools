@@ -2,7 +2,8 @@
 
 A Project Zomboid Build 42 mod. A utility panel put inside a building powers and waters the whole building (or the
 rooms it is zoned to) from supplies outside it: generators run one after another, rain barrels and tanks used as one
-store, solar panels, battery racks of car batteries, and water pumps, sprinklers and filters. Panels in other
+store, solar panels, battery racks of car batteries, and water pumps, sprinklers and filters. Water runs down from
+the stores to the floors below them; booster pumps lift it up to ten floors above their own, and chain. Panels in other
 buildings, or on other floors of a tall one, can take their supply from a main panel, and a supply wired to such a
 sub-panel is its main panel's through it. A panel's zone reaches a few floors up and down from its own. A panel has
 four tiers; each carries more load, reaches farther (and more floors) and adds something (timers and sub-panels, a
@@ -22,12 +23,12 @@ The design, in Korean, is [DESIGN.md](DESIGN.md).
 ## Options
 
 Sandbox options. The "Building Utilities: Features" page turns parts of the mod on or off, each on by default: power,
-water, and within them solar panels, battery racks, the charge controller, water pumps, sprinklers and water filters
-(a part needs the one it belongs to; a pump needs both water and power). A part that is off cannot be made or put
+water, and within them solar panels, battery racks, the charge controller, water pumps, sprinklers, water filters and
+booster pumps (a part needs the one it belongs to; a pump needs both water and power). A part that is off cannot be made or put
 down, its menus and window rows are hidden, and what of it is already placed does nothing (a utility that is off gives
 its generators and tanks back to the game) but can still be taken down; its saved setup comes back when it is on
 again. The "Building Utilities" page: ranges for supplies, outside devices and sub-panels, the floors a zone
-reaches, and how much each tier adds; whether lines cost materials, the tiles per wire or pipe, the tiles of line a
+reaches, the floors a booster pump lifts, and how much each tier adds; whether lines cost materials, the tiles per wire or pipe, the tiles of line a
 floor up or down adds and the share given back; overload and the
 load each tier carries; line loss per wire; the low fuel warning; Electricity experience; solar output, snow on
 panels, battery capacity, charge efficiency, wear, the cold lock and the drain of worn batteries; water only from
