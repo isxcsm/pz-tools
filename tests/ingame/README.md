@@ -52,9 +52,16 @@ look; `BU22_CLEAN()` takes them away.
   the world starts, far rooms refused; a sub-panel on the 13th floor linked with a line three tiles longer a floor,
   and a generator and a solar panel wired through it (offered first, one wire, the main panel's, its line as long as
   both); its water by height, and two booster pumps (the ground floor's and one wired through the sub-panel) lifting
-  it, chained; then the link and the sub-panel taken away with the lines through them. Each line "ok" or "BAD", ending with
-  "done". Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors or more, its id in
-  `ModData.getOrCreate("BUTOWER").panel`.
+  it, chained; then the link and the sub-panel taken away with the lines through them; last "water only from above"
+  changed in play and back, taken once each. Each line "ok" or "BAD", ending with "done". Run `diag_tptower.lua` (or
+  stand by the tower panel) first. Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors
+  or more, its id in `ModData.getOrCreate("BUTOWER").panel`.
+- `bu_nearest.lua`: the water policy drawn for real at the tower panel: a barrel on the ground floor and one a floor
+  up; a draw takes the own floor's first though the one above is fuller, one at 97 percent first (before it spills),
+  then on up once the own floor's is empty. Needs an app whose API has `"nearest"` (else the mod falls back to
+  `"fullest"` and the first check says so). Each line "ok" or "BAD", ending with "done".
+- `bu_features.lua` puts its units by the player: stand by the test panel (`diag_tp.lua`) first, or the plan spans
+  the distance and its hover checks fail.
 - `bu_test*.lua`: the checks of each batch. The older ones (`bu_test` to `bu_test11`) set up their own scenes in a
   test save that is gone; they are in the history (removed 2026-10-08).
 - `bu_lib.lua`: helpers the checks share (`BUT`: a tagged `say`, number formats, the main panel near the player, the

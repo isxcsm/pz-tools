@@ -145,6 +145,8 @@ end
 -- it does not have (then for the rest of the session, not asked again).
 local waterPolicy = BU.POLICY.water
 
+function Networks.waterPolicy() return waterPolicy end
+
 -- Defines a water network. A game whose API cannot take water networks refuses it (an API that predates hooks()
 -- does not tell before): water is then off for this world (BU.waterAvailable), and nothing else is tried.
 local function defineWaterNetwork(id)
