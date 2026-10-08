@@ -9,7 +9,9 @@ RUN("bu_lib.lua")
 local BU = BuildingUtilities
 local Store, Changes, Networks, Water = BU.Store, BU.Changes, BU.Networks, BU.Water
 local say = BUT.say("bunear")
-local function check(what, got, want) say(got == want and "ok" or "BAD", what, tostring(got), "want", tostring(want)) end
+local function check(what, got, want)
+    say(got == want and "ok" or "BAD", what, tostring(got), "want", tostring(want))
+end
 
 local main = Store.get(ModData.getOrCreate("BUTOWER").panel)
 local api = BU.api()
