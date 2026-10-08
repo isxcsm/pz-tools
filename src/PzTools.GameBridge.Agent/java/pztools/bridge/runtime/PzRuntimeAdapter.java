@@ -2,8 +2,12 @@ package pztools.bridge.runtime;
 
 import java.lang.reflect.*;
 
-/** All Build-42/Java-25 field knowledge lives here, not in scheduling or transport. */
+/**
+ * All Build-42/Java-25 field knowledge lives here, not in scheduling or transport. One adapter per game is shared by
+ * its readers (the state observer and the extension lifecycle), and read once per frame however many read it.
+ */
 final class PzRuntimeAdapter {
+    private static PzRuntimeAdapter shared;
     private final Class<?> window, ingame;
     private final Method paused, currentSave, speedControls, speed, coreInstance, noSave, gameMode;
     private final Field states, current, worldInstance, cell, fsInstance, client, clientSave, server, exiting;
@@ -15,8 +19,17 @@ final class PzRuntimeAdapter {
     String gameVersion;
     private boolean versionRead;
     Object worldCell;
+    // The frame this adapter was last read in (Frames.current), and what that read threw.
+    private long readFrame = -1;
+    private Throwable readFailure;
 
-    PzRuntimeAdapter(Class<?> window) throws ReflectiveOperationException {
+    /** The adapter of this game's GameWindow, made once. */
+    static synchronized PzRuntimeAdapter of(Class<?> window) throws ReflectiveOperationException {
+        if (shared == null || shared.window != window) shared = new PzRuntimeAdapter(window);
+        return shared;
+    }
+
+    private PzRuntimeAdapter(Class<?> window) throws ReflectiveOperationException {
         this.window = window;
         ClassLoader loader = window.getClassLoader();
         ingame = Class.forName("zombie.gameStates.IngameState", false, loader);
@@ -47,7 +60,28 @@ final class PzRuntimeAdapter {
             return value != null && value.length() <= 80 && value.indexOf('\0') < 0 ? value : null;
         } catch (ReflectiveOperationException | RuntimeException unavailable) { return null; }
     }
+    /**
+     * Reads the game's state, on the game thread. A second read in the same frame of the frame router gives what the
+     * first one read, or threw; outside one (a save's own read of the state) it reads again.
+     */
     void read() throws ReflectiveOperationException {
+        long frame = Frames.current();
+        if (frame >= 0 && frame == readFrame) {
+            switch (readFailure) {
+                case null -> { return; }
+                case ReflectiveOperationException failure -> throw failure;
+                case RuntimeException failure -> throw failure;
+                case Error failure -> throw failure;
+                default -> throw new IllegalStateException(readFailure);
+            }
+        }
+        readFrame = frame;
+        readFailure = null;
+        try { readNow(); }
+        catch (ReflectiveOperationException | RuntimeException | Error failure) { readFailure = failure; throw failure; }
+    }
+
+    private void readNow() throws ReflectiveOperationException {
         // Metadata failure must never invalidate pause/active-time observations.
         if (!versionRead) { gameVersion = readVersion(window.getClassLoader()); versionRead = true; }
         Object machine = states.get(null), world = worldInstance.get(null);

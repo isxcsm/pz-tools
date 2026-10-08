@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Trusted save capability; game-specific state and bytecode belong to the module. */
 public interface SaveProvider {
-    int API_MAJOR = 2;
     String id();
     /** Opt-in: close() must retire all observers and threads without abandoning accepted work. */
     default boolean supportsReload() { return false; }

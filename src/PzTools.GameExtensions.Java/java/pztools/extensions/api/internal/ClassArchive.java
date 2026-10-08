@@ -19,9 +19,6 @@ public final class ClassArchive {
         try { return new Snapshot(archive, HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(archive))); }
         catch (NoSuchAlgorithmException impossible) { throw new AssertionError(impossible); }
     }
-    public static ClassLoader open(Path path, String namespace, ClassLoader parent) throws IOException {
-        return read(path).loader(namespace, parent, true);
-    }
     public static final class Snapshot {
         private final byte[] bytes;
         private final String digest;

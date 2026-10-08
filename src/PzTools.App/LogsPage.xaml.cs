@@ -920,7 +920,7 @@ public sealed class LogEntryUiItem
                 }
                 catch (JsonException) { }
             // An extension that is no longer part of the app (the retired screen look) keeps a general name.
-            return Localizer.Get(id is null or PzTools.GameExtensions.ExtensionIds.VehicleDrivetrain
+            return Localizer.Get(id is null or PzTools.GameExtensions.VehicleDrivetrainExtension.Id
                 ? "Extension.VehicleDrivetrain.Title" : "GameExtensions.Title");
         }
     }

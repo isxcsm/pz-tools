@@ -625,9 +625,6 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="LogChooseDateTime" xml:space="preserve"><value>Wybierz datę i godzinę</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Data</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Rozszerzenia gry</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Wyłączone · Standardowy zapis</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Zgodność sprawdzana przy następnym zapisie &#183; Eksperymentalne</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Zastosuj</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Ustawienia rozszerzeń są niedostępne</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Nie udało się zapisać zmian. Otwórz stronę ponownie i sprawdź plik ustawień rozszerzeń.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Wszystkie wersje</value></data>
@@ -638,17 +635,12 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oczekiwanie na wersję gry · Rozszerzenie nieaktywne</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Ignoruj obsługiwany zakres wersji</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Niezgodne wersje mogą powodować błędy. Pomijane jest tylko ograniczenie wersji; niezbędne kontrole bezpieczeństwa pozostają aktywne. Ta opcja nie włącza rozszerzenia.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ograniczenie wersji pominięte · Kontrole bezpieczeństwa zachowane</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Trwa zapis przez rozszerzenie</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Ostatnie żądanie: zapis przez rozszerzenie ukończony</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Ostatnie żądanie: użyto zwykłego zapisu ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Ostatnie żądanie: zapis nie powiódł się ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Postaw mi kawę</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools się przydał?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Gra nie jest uruchomiona</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postać śpi</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Ulepszenia prowadzenia pojazdów</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Osobno ulepsza przyspieszanie, zmianę biegów, cofanie i kierowanie klawiaturą oraz oświetla otoczenie pojazdu przy włączonych reflektorach. Funkcja eksperymentalna, tylko dla jednego gracza.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Osobno ulepsza przyspieszanie, zmianę biegów, cofanie i kierowanie klawiaturą oraz oświetla otoczenie pojazdu przy włączonych reflektorach. Funkcja eksperymentalna, nieprzetestowana w trybie wieloosobowym.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Naturalne przyspieszanie i zmiana biegów</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Dostosowuje przyspieszanie do przodu do obrotów silnika i biegu.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Płynne cofanie</value></data>
@@ -659,7 +651,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Oświetla otoczenie pojazdu, w którym siedzisz, gdy jego reflektory są włączone. Wymaga sprawnych reflektorów i naładowanego akumulatora; w zapisie gry nic nie jest zapisywane.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Stosowanie zmian w grze.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Nie udało się zastosować rozszerzenia. Szczegóły znajdziesz w dziennikach.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Zapisane ustawienia zostaną zastosowane po wejściu do gry jednoosobowej.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Zapisane ustawienia zostaną zastosowane po wejściu do gry.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Aby je zastosować, wznów grę, zatrzymaj pojazd, puść gaz i wyłącz tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Gra w menu głównym</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Wczytywanie gry</value></data>
@@ -795,14 +787,17 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Wczytuj PZ Tools przy starcie gry (eksperymentalne)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Sprawdzanie plików gry…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Nie znaleziono folderu gry. Uruchom grę raz, a zostanie znaleziony.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie zmienia plik projectzomboid.jar gry, aby gra wczytywała PZ Tools przy starcie. Wyłączenie przywraca oryginalny plik gry.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools łączy się z grą dopiero po jej uruchomieniu. Włączenie dodaje własne pliki PZ Tools do folderu gry, aby gra wczytywała PZ Tools przy starcie; żaden plik gry się nie zmienia. Wyłączenie je usuwa.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Zainstalowano. Gra wczytuje PZ Tools przy starcie, a włączone rozszerzenia działają dalej, nawet gdy PZ Tools jest zamknięte.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Aktualizacja gry to usunęła. Włącz ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Niektórych jego plików brakuje w folderze gry. Włącz ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Uruchomiona teraz gra wystartowała bez tego. Uruchom grę ponownie, aby z tego korzystać.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Nie wczytało się do uruchomionej teraz gry. Szczegóły są w dzienniku.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>W uruchomionej teraz grze nie udało się wstawić niektórych hooków API rozszerzeń, prawdopodobnie dlatego, że inny mod zmienia ten sam kod gry: {0}. Mody dostają tam oryginalne odpowiedzi gry. Szczegóły są w dzienniku.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Inne narzędzie zmieniło plik projectzomboid.jar gry. Najpierw zweryfikuj pliki gry w Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zamknij grę oraz każdy serwer uruchomiony z jej folderu, a potem spróbuj ponownie.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Ta wersja gry nie jest obsługiwana.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Brakuje zapisanej kopii pliku gry. Zweryfikuj pliki gry w Steam, aby go przywrócić.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Nie udało się zmienić pliku gry. Szczegóły są w dzienniku.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Nie udało się zmienić folderu gry. Szczegóły są w dzienniku.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Instalowanie PZ Tools w grze</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Usuwanie PZ Tools z gry</value></data>
 </root>

@@ -3,7 +3,7 @@
 [Documentation index](../README.md)
 
 **Vehicle driving improvements** is the continuous [game extension](game-extensions.md)
-`pztools.vehicle-drivetrain`, version 0.2.0, capability `vehicle.drivetrain.v1`, shipped as
+`pztools.vehicle-drivetrain`, version 0.2.0, capability `continuous.v1`, shipped as
 `pztools-vehicle-drivetrain.jar`. The source is in
 [PzTools.GameExtensions.VehicleDrivetrain](../../src/PzTools.GameExtensions.VehicleDrivetrain/java/pztools/extensions/vehicle/).
 The player's steps are in [Better vehicle controls](../guides/vehicle-controls.md).
@@ -11,8 +11,9 @@ The player's steps are in [Better vehicle controls](../guides/vehicle-controls.m
 The model, the adapter and the bytecode checks are tested against synthetic game classes.
 Real driving has not been accepted yet: what the game's force and time values mean physically,
 fuel use and engine noise, and module updates in a running game still need live testing
-([vehicle test guide](../contributing/e2e-vehicle-drivetrain.md)). Multiplayer is not supported
-by any part of it.
+([vehicle test guide](../contributing/e2e-vehicle-drivetrain.md)). Multiplayer is not blocked,
+only untested: on a multiplayer client every part runs as in single player, for the vehicle the
+local player drives.
 
 ## The four options
 
@@ -36,23 +37,26 @@ and engine sound, so those effects need live testing.
 `zombie.core.physics.CarController` and retransforms the loaded class. No file of the game
 installation is changed. `VehicleBytecode.transform` changes `update()` as follows:
 
-1. Once the game has resolved the control mode, it calls `VehicleHooks.tryControl(controller,
-   mode, speed)` with mode Forward, Reverse, Braking or other.
+1. Once the game has resolved the control mode, it calls the `vehicle`
+   [control point](game-extensions.md#control-points), `ControlPoints.call("vehicle", controller, mode,
+   speed)`, with mode Forward, Reverse, Braking or other. The mode codes and outcome bits are the module's
+   own (`VehicleHooks`); the extension API knows nothing of vehicles.
 2. The calls to `control_NoControl`, `control_ForwardNew` and `control_Reverse` are skipped only
    when the outcome has the `APPLIED` bit.
 3. `DIRECTION_HOLD` switches the mode to Braking, sets `isBreak`, clears `isGas` and `isGasR`
    and sets the throttle to 0, so the game's braking and signal code runs.
 4. `OWN_OFFROAD` makes the `isDoingOffroad()` read before the game's gear-dependent offroad
    penalty return false for that update.
-5. At the start of the steering block, a second `tryControl` with mode `STEERING`; `APPLIED`
+5. At the start of the steering block, a second call with mode `STEERING`; `APPLIED`
    skips the block. Angle limits, tyre processing, wheel display and native calls after it
    still run.
-6. Each `Bullet.controlVehicle` call passes its arguments to `observeNative` first, for
+6. Each `Bullet.controlVehicle` call passes its arguments to `ControlPoints.observe` first, for
    diagnostics only.
 
-`VehicleHooks` ignores a re-entrant call on the same thread. An exception or an invalid outcome marks
-the registration failed; every later call returns `VANILLA`, and the host's next tick reports
-`FaultedPassThrough`.
+A re-entrant call on the same thread returns 0, the game's code. An exception, or an outcome other than
+`VANILLA`, `APPLIED`, `DIRECTION_HOLD` or `APPLIED | OWN_OFFROAD` (checked by the module's `VehicleHooks`),
+latches the point as failed; every later call returns 0, and the host's next tick reports
+`FaultedPassThrough` with `vehicle-callback-failed`.
 
 ### Compatibility checks
 
@@ -76,7 +80,10 @@ Before it installs anything (`preflight`, then `initialize`):
 - The transformed class must pass the class-file verifier.
 
 Every later retransformation runs the same checks on the bytes it receives. If they fail, the
-transformer returns the input unchanged and the provider reports `controller-contract-changed`.
+transformer returns the input unchanged and the provider reports `controller-contract-changed:<code>`.
+The code is the check that failed, such as `unsupported-control-contract:control_Reverse` or
+`unsupported-call-count:zombie/core/physics/Bullet.controlVehicle(IFFF)V`. Preflight reports the same
+`controller-contract-changed:<code>`, and a failed installation `unsupported-controller-layout:<code>`.
 It never replaces another transformer's output with bytes read from disk. Preflight for a
 module update observes the existing transformer chain, but cannot see transformers registered
 later or changes made through JVMTI or JNI.
@@ -109,7 +116,7 @@ check, in this order:
 | Rule | Reason |
 | --- | --- |
 | The option for this mode is on | `forward-disabled`, `reverse-disabled` |
-| Single-player, the activation's world | `multiplayer-unsupported`, `world-or-controller-changed` |
+| The activation's world | `world-or-controller-changed` |
 | The driver is the local player | `not-local-driver` |
 | Not towed, not burnt, not towing a burnt vehicle | `towed-or-burnt`, `burnt-tow-unsupported` |
 | Engine running | `engine-not-running` |
@@ -121,7 +128,7 @@ check, in this order:
 Ordinary towing is allowed.
 
 Steering (`VehicleAccess.readSteering`) is checked separately and does not need a running
-engine or a known engine family. It needs: single-player, the local player driving, keyboard
+engine or a known engine family. It needs: the activation's world, the local player driving, keyboard
 control (`getJoypad() == -1`), not towed or burnt, four wheels, and a game step that does not
 overshoot (`0.06 × m × f < 1`, see [keyboard steering](#keyboard-steering)).
 
@@ -131,7 +138,7 @@ Turning the extension on, and every later configuration change, waits until
 `VehicleDrivetrainProvider.readyToActivate` (`VehicleAccess.ready`) returns true on the game
 thread. That requires:
 
-- single-player and the activation's world;
+- the activation's world;
 - for every player in `IsoPlayer.players` (the local players) who is in a vehicle, driver or
   passenger: speed at most 0.5 km/h, throttle at most 0.01 and cruise control (`isRegulator`)
   off.
@@ -263,7 +270,8 @@ half updates equal one whole.
 - `KeyTimeline` (in the extension runtime, `pztools.extensions.runtime.input`) polls on its own
   daemon thread every 0.5 ms requested, about 1 ms in practice, and keeps running totals.
   `WindowsKeys` reads `GetAsyncKeyState` through the JDK's foreign-function interface with a
-  private high-resolution waitable timer. Keys count only while the game window is in front.
+  private high-resolution waitable timer. The functions are bound once; each timeline has its own
+  timer, closed when the timeline stops. Keys count only while the game window is in front.
   It installs no hook, injects no input and loads no native library of its own. The game's JVM
   already runs with `--enable-native-access=ALL-UNNAMED`, so no warning appears.
 - `SteeringKeys` matches the timeline to the game's current bindings and replaces it when they
@@ -409,7 +417,7 @@ code and are not a frame cost.
 
 ## Tests
 
-`DrivetrainModelTest`, `SteeringModelTest`, `KeyTimelineTest`, `VehicleHooksTest`,
+`DrivetrainModelTest`, `SteeringModelTest`, `KeyTimelineTest`, `ControlPointsTest`,
 `VehicleAdapterBehaviorTest`, `VehicleCompatibilityTest` (Java, against fixtures in
 `tests/vehicle-drivetrain-fixture/`), and `VehicleDrivetrainConfigurationTests` (C#). Game code
 is never copied into fixtures.

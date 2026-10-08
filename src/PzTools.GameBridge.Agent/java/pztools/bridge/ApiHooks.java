@@ -72,6 +72,16 @@ public final class ApiHooks {
 
         /** The object the fixture takes its water from ({@code IsoObject.checkExternalFluidSource()}): {@code vanilla}, or the network's. */
         Object source(Object vanilla, Object fixture);
+
+        /**
+         * The sample a fixture's water comes through from its source container
+         * ({@code IsoObject.createSampleAndPurifyWater}, which turns TaintedWater into Water): null for the game's, or
+         * one in its place.
+         */
+        default Object sample(Object fixture, Object source, float amount) { return null; }
+
+        /** Whether the fixture's water is tainted ({@code IsoObject.isTaintedWater()}): {@code vanilla}, or more. */
+        default boolean tainted(boolean vanilla, Object fixture) { return vanilla; }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -88,9 +98,24 @@ public final class ApiHooks {
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
-    // One report per hook and handler: a fault in a call the game makes 40,000 times a second must not flood its log.
-    private static final boolean[] reported = new boolean[8];
-    private static final int POWER_HOOKS = 6;
+    /** The handlers' calls, each reported once; a newer handler of its kind may report again. */
+    private enum Call {
+        SQUARE("square"), OBJECT("object"), GENERATOR("generator"), CONSUMER_CHANGED("consumerChanged"),
+        GENERATOR_UPDATE("generatorUpdate"), FOOD_HOURS("foodHours"), WATER_PLUMBED("waterPlumbed", true),
+        WATER_SOURCE("waterSource", true), WATER_SAMPLE("waterSample", true), WATER_TAINTED("waterTainted", true);
+
+        final String label;
+        final boolean water;
+
+        Call(String label) { this(label, false); }
+        Call(String label, boolean water) { this.label = label; this.water = water; }
+    }
+
+    // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
+    private static final Set<Call> reported = EnumSet.noneOf(Call.class);
+    private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
+    // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
+    private static volatile boolean purifyHooked;
 
     private ApiHooks() { }
 
@@ -106,7 +131,7 @@ public final class ApiHooks {
                 for (String axis : new String[] { "x", "y", "z" }) { code.aload(0); code.getfield(owner, axis, ConstantDescs.CD_int); }
                 code.invokestatic(HOOKS, "squarePowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
                     ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int));
-            }) },
+            }).reading("x", "y", "z") },
         "zombie/inventory/ItemContainer", new Site[] {
             Site.atReturns("isObjectPowered", "(Lzombie/iso/IsoObject;Z)Z", 2, (code, owner) -> {
                 code.aload(0); code.iconst_0(); code.iload(1); objectPowered(code);
@@ -128,7 +153,7 @@ public final class ApiHooks {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
                 && invoke.owner().asInternalName().equals("zombie/inventory/ItemContainer")
-                && invoke.name().equalsString("getSourceGrid"), FOOD),
+                && invoke.name().equalsString("getSourceGrid"), FOOD).named("power"),
             // age + hours * this.getFoodRotSpeed() / 24: the hours, then this, are on the stack.
             Site.before("updateAge", "(Z)V", (second, first, element) -> element instanceof InvokeInstruction invoke
                 && invoke.name().equalsString("getFoodRotSpeed") && invoke.type().equalsString("()F")
@@ -139,7 +164,7 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "foodHours", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double,
                         ConstantDescs.CD_Object));
                     code.aload(0);
-                }) },
+                }).named("hours") },
         "zombie/iso/IsoObject", new Site[] {
             // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
             Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
@@ -147,6 +172,25 @@ public final class ApiHooks {
                 code.invokestatic(HOOKS, "waterSource", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
                     ConstantDescs.CD_Object));
                 code.checkcast(owner);
+            }),
+            // At the start: the method reassigns its amount. A sample from the API is returned in place of the game's.
+            Site.atStart("createSampleAndPurifyWater",
+                "(Lzombie/entity/components/fluids/FluidContainer;F)Lzombie/entity/components/fluids/FluidContainer;", (code, owner) -> {
+                    Label vanilla = code.newLabel();
+                    code.aload(0); code.aload(1); code.fload(2);
+                    code.invokestatic(HOOKS, "waterSample", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_float));
+                    code.dup();
+                    code.ifnull(vanilla);
+                    code.checkcast(FLUID_CONTAINER);
+                    code.areturn();
+                    code.labelBinding(vanilla);
+                    code.pop();
+                }),
+            Site.atReturns("isTaintedWater", "()Z", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "waterTainted", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
+                    ConstantDescs.CD_Object));
             }) },
         "zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
@@ -182,7 +226,7 @@ public final class ApiHooks {
                     ProtectionDomain domain, byte[] bytes) {
                 if (name == null || !SITES.containsKey(name)) return null;
                 try { return ApiHooks.transform(name, bytes, loader); }
-                catch (Throwable problem) { report(name, problem); return null; }
+                catch (Throwable problem) { failed(name, String.valueOf(problem)); return null; }
             }
         };
         // Stays registered, so that the hooks survive another agent's retransformation (see AgentEntry.ensureGameHook).
@@ -192,57 +236,92 @@ public final class ApiHooks {
             if (SITES.containsKey(type.getName().replace('.', '/')) && instrumentation.isModifiableClass(type)) loaded.add(type);
         if (loaded.isEmpty()) return;
         try { instrumentation.retransformClasses(loaded.toArray(Class<?>[]::new)); }
-        catch (Throwable problem) { report("retransform", problem); }
+        catch (Throwable problem) {
+            for (Class<?> type : loaded) failed(type.getName().replace('.', '/'), "the loaded class could not be changed: " + problem);
+        }
     }
 
-    /** The hooked class, or null when the class has no hooks. Throws when the class is not shaped as expected. */
+    /** Every hook of the class, when the class could not be read or changed at all. */
+    private static void failed(String name, String problem) {
+        for (Site site : SITES.get(name)) record(site.label(name), problem);
+        if ("zombie/iso/IsoObject".equals(name)) { record(PLUMBING, problem); purifyHooked = false; }
+    }
+
+    /**
+     * The hooked class, or null when none of its hooks fits. Each hook is checked and put in on its own: a method another
+     * mod has changed loses its own hook only, and {@link #hookStatus} says which and why.
+     */
     static byte[] transform(String name, byte[] bytes, ClassLoader loader) {
         Site[] sites = SITES.get(name);
         if (sites == null) return null;
-        var cf = AgentEntry.classFile(loader);
+        var cf = GameHook.classFile(loader);
         var model = cf.parse(bytes);
         ClassDesc owner = model.thisClass().asSymbol();
-        ClassTransform transform = ClassTransform.ACCEPT_ALL;
+        var parts = new LinkedHashMap<String, ClassTransform>();
         for (Site site : sites) {
-            var methods = model.methods().stream().filter(site::matches).toList();
-            if (methods.size() != 1)
-                throw new IllegalArgumentException("Expected exactly one " + name + "." + site.method() + site.type());
-            // The hook reads the method's arguments at its end: the method must not reuse their slots.
-            for (CodeElement element : methods.get(0).code().orElseThrow())
-                if (element instanceof StoreInstruction store && store.slot() < site.argumentSlots())
-                    throw new IllegalArgumentException(name + "." + site.method() + " reuses its argument slot " + store.slot());
-            if (site.object() != null) {
-                int found = 0;
-                CodeElement previous = null;
-                for (CodeElement element : methods.get(0).code().orElseThrow()) {
-                    if (element instanceof LineNumber) continue;
-                    if (previous != null && site.object().test(previous) && Site.haveElectricity(element)) found++;
-                    previous = element;
-                }
-                if (found != 1)
-                    throw new IllegalArgumentException("Expected one square power question in " + name + "." + site.method() + ", found " + found);
-            }
-            if (site.at() != null) {
-                int found = 0;
-                CodeElement second = null, first = null;
-                for (CodeElement element : methods.get(0).code().orElseThrow()) {
-                    if (element instanceof LineNumber) continue;
-                    if (site.at().test(second, first, element)) found++;
-                    second = first;
-                    first = element;
-                }
-                if (found != 1)
-                    throw new IllegalArgumentException("Expected one place for the hook in " + name + "." + site.method() + ", found " + found);
-            }
-            transform = transform.andThen(ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
+            String problem = site.problem(name, model);
+            if (problem == null) parts.put(site.label(name), ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
+            else record(site.label(name), problem);
         }
-        if ("zombie/iso/IsoObject".equals(name)) transform = transform.andThen(plumbing(model, owner));
-        if ("zombie/iso/IsoGridSquare".equals(name))
-            for (String axis : new String[] { "x", "y", "z" })
-                if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(axis)
-                        && field.fieldType().equalsString("I") && !field.flags().has(AccessFlag.STATIC)))
-                    throw new IllegalArgumentException("Expected the field IsoGridSquare." + axis);
-        return cf.transformClass(model, transform);
+        if ("zombie/iso/IsoObject".equals(name)) {
+            try { parts.put(PLUMBING, plumbing(model, owner)); }
+            catch (IllegalArgumentException unfit) { record(PLUMBING, unfit.getMessage()); }
+        }
+        // The class is built with every fitting hook at once; should that fail (new stack maps that cannot be made, say),
+        // the hooks go in one at a time and only the ones the class takes stay.
+        byte[] result = null;
+        var kept = new LinkedHashMap<String, ClassTransform>();
+        try {
+            if (!parts.isEmpty()) result = cf.transformClass(model, combine(parts.values()));
+            kept.putAll(parts);
+        } catch (RuntimeException together) {
+            for (var part : parts.entrySet()) {
+                var trial = new ArrayList<>(kept.values());
+                trial.add(part.getValue());
+                try {
+                    result = cf.transformClass(model, combine(trial));
+                    kept.put(part.getKey(), part.getValue());
+                } catch (RuntimeException alone) { record(part.getKey(), "its code could not be built: " + alone.getMessage()); }
+            }
+        }
+        for (String label : kept.keySet()) record(label, APPLIED);
+        // The class as it is now: a later transform (another agent's, say) may keep one of the two hooks, or neither.
+        if ("zombie/iso/IsoObject".equals(name)) purifyHooked = kept.containsKey(PURIFY) && kept.containsKey(TAINTED);
+        return kept.isEmpty() ? null : result;
+    }
+
+    private static ClassTransform combine(Collection<ClassTransform> parts) {
+        ClassTransform transform = ClassTransform.ACCEPT_ALL;
+        for (ClassTransform part : parts) transform = transform.andThen(part);
+        return transform;
+    }
+
+    // ---- what went in ----
+
+    /** A hook's state in {@link #hookStatus}; anything else is why it did not go in. */
+    public static final String APPLIED = "applied", NOT_LOADED = "not-loaded";
+    private static final String PLUMBING = "IsoObject.waterQuestions", PURIFY = "IsoObject.createSampleAndPurifyWater",
+        TAINTED = "IsoObject.isTaintedWater";
+    // Guarded by itself. By label: applied, or why not; a class that has not loaded yet is not in it.
+    private static final Map<String, String> status = new HashMap<>();
+
+    private static void record(String label, String state) {
+        synchronized (status) { status.put(label, state); }
+        if (!APPLIED.equals(state)) System.err.println("[PzTools API] no hook in " + label + ": " + state);
+    }
+
+    /**
+     * Every hook the API puts into the game, by game class and method ({@code IsoGridSquare.haveElectricity}): applied,
+     * not-loaded (its class has not loaded yet; most load with the first world), or why it did not go in. A question
+     * whose hook is missing gets the game's own answer.
+     */
+    public static Map<String, String> hookStatus() {
+        var all = new TreeMap<String, String>();
+        for (var entry : SITES.entrySet())
+            for (Site site : entry.getValue()) all.put(site.label(entry.getKey()), NOT_LOADED);
+        all.put(PLUMBING, NOT_LOADED);
+        synchronized (status) { all.putAll(status); }
+        return all;
     }
 
     /** An instruction, with the two before it (line numbers skipped; null at the method's start). */
@@ -255,22 +334,28 @@ public final class ApiHooks {
      * {@code at} names.
      */
     private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit,
-            Predicate<CodeElement> object, int kind, Window at) {
+            Predicate<CodeElement> object, int kind, Window at, String part, List<String> fields) {
         static Site atReturns(String method, String type, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, true, argumentSlots, emit, null, 0, null);
+            return new Site(method, type, true, argumentSlots, emit, null, 0, null, null, List.of());
         }
 
         static Site atStart(String method, String type, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, null);
+            return new Site(method, type, false, 0, emit, null, 0, null, null, List.of());
         }
 
         static Site square(String method, String type, Predicate<CodeElement> object, int kind) {
-            return new Site(method, type, false, 0, null, object, kind, null);
+            return new Site(method, type, false, 0, null, object, kind, null, null, List.of());
         }
 
         static Site before(String method, String type, Window at, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, at);
+            return new Site(method, type, false, 0, emit, null, 0, at, null, List.of());
         }
+
+        /** Told apart from another hook in the same method by {@code part}. */
+        Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields); }
+
+        /** The hook reads these instance int fields of the class. */
+        Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names)); }
 
         static boolean haveElectricity(CodeElement element) {
             return element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/iso/IsoGridSquare")
@@ -279,6 +364,49 @@ public final class ApiHooks {
 
         boolean matches(MethodModel model) {
             return model.methodName().equalsString(method) && model.methodType().equalsString(type);
+        }
+
+        /** {@code IsoGridSquare.haveElectricity}, or {@code Food.updateAge:hours} for one of two hooks in a method. */
+        String label(String className) {
+            return className.substring(className.lastIndexOf('/') + 1) + "." + method + (part == null ? "" : ":" + part);
+        }
+
+        /** Why the hook does not fit the class as it is, or null. */
+        String problem(String className, ClassModel model) {
+            var methods = model.methods().stream().filter(this::matches).toList();
+            if (methods.size() != 1) return "expected one " + method + type + ", found " + methods.size();
+            var code = methods.get(0).code().orElse(null);
+            if (code == null) return method + " has no code";
+            // The hook reads the method's arguments at its end: the method must not reuse their slots.
+            for (CodeElement element : code)
+                if (element instanceof StoreInstruction store && store.slot() < argumentSlots)
+                    return method + " reuses its argument slot " + store.slot();
+            for (String name : fields)
+                if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(name)
+                        && field.fieldType().equalsString("I") && !field.flags().has(AccessFlag.STATIC)))
+                    return "expected the field " + className.substring(className.lastIndexOf('/') + 1) + "." + name;
+            if (object != null) {
+                int found = 0;
+                CodeElement previous = null;
+                for (CodeElement element : code) {
+                    if (element instanceof LineNumber) continue;
+                    if (previous != null && object.test(previous) && haveElectricity(element)) found++;
+                    previous = element;
+                }
+                if (found != 1) return "expected one square power question in " + method + ", found " + found;
+            }
+            if (at != null) {
+                int found = 0;
+                CodeElement second = null, first = null;
+                for (CodeElement element : code) {
+                    if (element instanceof LineNumber) continue;
+                    if (at.test(second, first, element)) found++;
+                    second = first;
+                    first = element;
+                }
+                if (found != 1) return "expected one place for the hook in " + method + ", found " + found;
+            }
+            return null;
         }
 
         CodeTransform code(ClassDesc owner) {
@@ -375,7 +503,7 @@ public final class ApiHooks {
 
     /** Sets the power networks, replacing an earlier payload's; null gives every power question to the game alone. */
     public static void setPower(Power next) {
-        synchronized (reported) { Arrays.fill(reported, 0, POWER_HOOKS, false); }
+        synchronized (reported) { reported.removeIf(call -> !call.water); }
         power = next;
     }
 
@@ -399,7 +527,7 @@ public final class ApiHooks {
 
     /** Sets the water networks, replacing an earlier payload's; null gives every water question to the game alone. */
     public static void setWater(Water next) {
-        synchronized (reported) { Arrays.fill(reported, POWER_HOOKS, reported.length, false); }
+        synchronized (reported) { reported.removeIf(call -> call.water); }
         water = next;
     }
 
@@ -409,7 +537,7 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return false;
         try { return current.plumbed(false, fixture); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS, "waterPlumbed", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.WATER_PLUMBED, problem); return false; }
     }
 
     /** Put before each return of {@code IsoObject.checkExternalFluidSource()}. */
@@ -417,8 +545,28 @@ public final class ApiHooks {
         Water current = water;
         if (current == null) return vanilla;
         try { return current.source(vanilla, fixture); }
-        catch (Throwable problem) { reportOnce(POWER_HOOKS + 1, "waterSource", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.WATER_SOURCE, problem); return vanilla; }
     }
+
+    /** Put at the start of {@code IsoObject.createSampleAndPurifyWater(source, amount)}: a sample it gives is returned at once. */
+    public static Object waterSample(Object fixture, Object source, float amount) {
+        Water current = water;
+        if (current == null) return null;
+        try { return current.sample(fixture, source, amount); }
+        catch (Throwable problem) { reportOnce(Call.WATER_SAMPLE, problem); return null; }
+    }
+
+    /** Put before each return of {@code IsoObject.isTaintedWater()}. */
+    public static boolean waterTainted(boolean vanilla, Object fixture) {
+        if (vanilla) return true;
+        Water current = water;
+        if (current == null) return false;
+        try { return current.tainted(false, fixture); }
+        catch (Throwable problem) { reportOnce(Call.WATER_TAINTED, problem); return false; }
+    }
+
+    /** Whether the game's purification of a fixture's water has its hooks: IsoObject loaded with them. */
+    public static boolean waterPurifyHooked() { return purifyHooked; }
 
     /** Put before each return of {@code IsoGridSquare.haveElectricity()}. */
     public static boolean squarePowered(boolean vanilla, int x, int y, int z) {
@@ -426,7 +574,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return false;
         try { return current.square(x, y, z); }
-        catch (Throwable problem) { reportOnce(0, "square", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.SQUARE, problem); return false; }
     }
 
     /** Put before each return of the object questions; see {@link Power#object}. */
@@ -434,7 +582,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return vanilla;
         try { return current.object(vanilla, object, kind, generators); }
-        catch (Throwable problem) { reportOnce(1, "object", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.OBJECT, problem); return vanilla; }
     }
 
     /** Put at the start of {@code IsoGenerator.setSurroundingElectricity()}: true returns at once. */
@@ -442,7 +590,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return false;
         try { return current.generator(generator); }
-        catch (Throwable problem) { reportOnce(2, "generator", problem); return false; }
+        catch (Throwable problem) { reportOnce(Call.GENERATOR, problem); return false; }
     }
 
     /** Put at the start of {@code IsoGenerator.updateGenerator(square)}. */
@@ -450,7 +598,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return;
         try { current.consumerChanged(square); }
-        catch (Throwable problem) { reportOnce(3, "consumerChanged", problem); }
+        catch (Throwable problem) { reportOnce(Call.CONSUMER_CHANGED, problem); }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */
@@ -458,7 +606,7 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return;
         try { current.generatorUpdate(generator); }
-        catch (Throwable problem) { reportOnce(4, "generatorUpdate", problem); }
+        catch (Throwable problem) { reportOnce(Call.GENERATOR_UPDATE, problem); }
     }
 
     /** Put before {@code Food.updateAge} reads the food's rot speed, with the hours it ages over on the stack. */
@@ -466,15 +614,12 @@ public final class ApiHooks {
         Power current = power;
         if (current == null) return vanilla;
         try { return current.foodHours(vanilla, food); }
-        catch (Throwable problem) { reportOnce(5, "foodHours", problem); return vanilla; }
+        catch (Throwable problem) { reportOnce(Call.FOOD_HOURS, problem); return vanilla; }
     }
 
-    private static void reportOnce(int hook, String name, Throwable problem) {
-        synchronized (reported) {
-            if (reported[hook]) return;
-            reported[hook] = true;
-        }
-        report(name, problem);
+    private static void reportOnce(Call call, Throwable problem) {
+        synchronized (reported) { if (!reported.add(call)) return; }
+        report(call.label, problem);
     }
 
     // To the game's console log; the game goes on as if the hook were not there.

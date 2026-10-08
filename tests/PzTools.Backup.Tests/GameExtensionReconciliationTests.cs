@@ -141,6 +141,23 @@ public sealed class GameExtensionReconciliationTests
         await session.DisposeAsync();
     }
 
+    [Theory]
+    [InlineData("Pztools.vehicle-drivetrain")]
+    [InlineData("pztools")]
+    [InlineData("pztools..vehicle")]
+    [InlineData("pztools.vehicle_drivetrain")]
+    public async Task EveryModuleCommand_RefusesWhatIsNotAnExtensionId(string id)
+    {
+        // One rule for an id, the catalogue's (ExtensionIds.Validate), whether a module is addressed or applied.
+        using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+        using var transport = new TcpClient(); var accept = listener.AcceptTcpClientAsync();
+        await transport.ConnectAsync((IPEndPoint)listener.LocalEndpoint); using var remote = await accept;
+        await using var session = Create(transport);
+        Assert.Throws<ArgumentException>(() => session.Module(id));
+        await Assert.ThrowsAsync<ArgumentException>(() => session.ApplyAsync(ProcessId, WorldId, -1, 1, id, false,
+            new Dictionary<string, string>(), CancellationToken.None));
+    }
+
     private static GameExtensionClient Create(TcpClient socket) =>
         (GameExtensionClient)typeof(GameExtensionClient).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic,
             null, [typeof(TcpClient)], null)!.Invoke([socket]);

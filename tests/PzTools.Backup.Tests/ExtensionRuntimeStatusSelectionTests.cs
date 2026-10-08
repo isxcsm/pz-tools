@@ -25,7 +25,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
     {
         var status = new RuntimeExtensionStatus(state, ProcessSession: Process, WorldSession: Other,
             Generation: new string('d', 32), AppliedRevision: 3, ModuleVersion: "0.2.0", ModuleHash: new string('e', 64),
-            RequestedRevision: 4, ControlReady: true, AppliedVehicleOptions: new(true, false, true));
+            RequestedRevision: 4, ControlReady: true, AppliedConfiguration: new string('e', 64));
         AssertUnavailable(Select(status));
     }
 
@@ -55,6 +55,38 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         })!);
     }
 
+    /// <summary>A multiplayer client's world, or one without saves, is a world the extensions run in.</summary>
+    [Theory]
+    [InlineData(RuntimeMode.Networked)]
+    [InlineData(RuntimeMode.Unsupported)]
+    public void AWorldThatIsNoLocalSaveGrantsReadiness(RuntimeMode mode)
+    {
+        var status = new RuntimeExtensionStatus(RuntimeExtensionState.Disabled, ProcessSession: Process,
+            WorldSession: World, RequestedRevision: 4, ControlReady: true);
+        var observation = Observation(status);
+        var selected = ExtensionActivationView.SelectCurrentStatus(observation with
+        {
+            Snapshot = observation.Snapshot! with { Mode = mode },
+        })!;
+        Assert.Equal(RuntimeExtensionState.Disabled, selected.State);
+        Assert.True(selected.ControlReady);
+    }
+
+    /// <summary>
+    /// A save outside the configured saves root is Unsupported for saves, not for the extensions: a module running in it
+    /// is shown as running. Any other Unsupported observation grants nothing.
+    /// </summary>
+    [Fact]
+    public void ASaveOutsideTheSavesRootStillShowsARunningModule()
+    {
+        var status = new RuntimeExtensionStatus(RuntimeExtensionState.Active, ProcessSession: Process, WorldSession: World,
+            Generation: new string('d', 32), AppliedRevision: 3, ModuleVersion: "0.2.0", ModuleHash: new string('e', 64),
+            RequestedRevision: 3, ControlReady: true, AppliedConfiguration: new string('e', 64));
+        var outside = Observation(status) with { Quality = RuntimeQuality.Unsupported, Reason = RuntimeObservation.OutsideSaveRootReason };
+        Assert.Equal(RuntimeExtensionState.Active, ExtensionActivationView.SelectCurrentStatus(outside)!.State);
+        AssertUnavailable(ExtensionActivationView.SelectCurrentStatus(outside with { Reason = "another-reason" })!);
+    }
+
     [Fact]
     public void ExtensionFreshnessHasItsOwnBoundAndAgeDoesNotCreateViewChanges()
     {
@@ -78,7 +110,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         Assert.Equal(failure.RequestedRevision, selected.RequestedRevision);
         Assert.Equal(failure.Reason, selected.Reason);
         Assert.False(selected.ControlReady);
-        Assert.Null(selected.AppliedVehicleOptions);
+        Assert.Null(selected.AppliedConfiguration);
         Assert.Equal(0, selected.AgeMilliseconds);
         var menu = Observation(failure);
         Assert.Equal(RuntimeExtensionState.RestartRequired, ExtensionActivationView.SelectCurrentStatus(menu with
@@ -109,7 +141,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         var selected = ExtensionActivationView.SelectCurrentStatus(RuntimeObservation.Unknown() with { Extension = status });
         Assert.Equal(status with { AgeMilliseconds = 0 }, selected);
         Assert.False(selected!.ControlReady);
-        Assert.Null(selected.AppliedVehicleOptions);
+        Assert.Null(selected.AppliedConfiguration);
     }
 
     private static RuntimeExtensionStatus Select(RuntimeExtensionStatus status) =>
@@ -124,7 +156,7 @@ public sealed class ExtensionRuntimeStatusSelectionTests
         Assert.Equal(RuntimeExtensionState.Pending, status.State);
         Assert.Equal("waiting-for-local-world", status.Reason);
         Assert.False(status.ControlReady);
-        Assert.Null(status.AppliedVehicleOptions);
+        Assert.Null(status.AppliedConfiguration);
         Assert.Equal(-1, status.AppliedRevision);
     }
 }

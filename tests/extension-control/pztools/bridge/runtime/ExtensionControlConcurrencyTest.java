@@ -1,6 +1,5 @@
 package pztools.bridge.runtime;
 
-import pztools.bridge.AgentEntry;
 import pztools.extensions.api.ContinuousModules;
 import pztools.extensions.api.ContinuousProvider;
 import pztools.extensions.api.RuntimeIdentity;
@@ -75,7 +74,7 @@ public final class ExtensionControlConcurrencyTest {
             var close = scope.start("close-cleanup", old::close);
             modules.deactivateGate.awaitEntered();
             check(old.expired() && modules.revokes.get() == 1, "Close did not immediately revoke the old owner");
-            check(!AgentEntry.acquireLifecycle(next, next::poll), "Cleanup released lifecycle ownership before deactivate returned");
+            check(!Frames.add(Frames.Job.LIFECYCLE, next, next::poll), "Cleanup released lifecycle ownership before deactivate returned");
 
             scope.start("duplicate-close", old::close).returnsPromptly();
             scope.start("late-poll-during-close", old::poll).returnsPromptly();
@@ -110,7 +109,7 @@ public final class ExtensionControlConcurrencyTest {
             close.remainsBlocked();
             check(modules.deactivations.get() == 0 && modules.ticks.get() == 0,
                 "Close retired the host before the admitted pre-host poll drained");
-            check(!AgentEntry.acquireLifecycle(next, next::poll), "An admitted pre-host poll lost lifecycle ownership");
+            check(!Frames.add(Frames.Job.LIFECYCLE, next, next::poll), "An admitted pre-host poll lost lifecycle ownership");
 
             clock.gate.open();
             poll.finish();
@@ -139,7 +138,7 @@ public final class ExtensionControlConcurrencyTest {
             await(modules.revokeEntered, "Close did not revoke while APPLY was admitted");
             close.remainsBlocked();
             check(modules.deactivations.get() == 0, "Close retired the host before APPLY drained");
-            check(!AgentEntry.acquireLifecycle(next, next::poll), "An in-flight APPLY lost lifecycle ownership");
+            check(!Frames.add(Frames.Job.LIFECYCLE, next, next::poll), "An in-flight APPLY lost lifecycle ownership");
 
             modules.applyGate.open();
             applying.finish();
@@ -209,7 +208,7 @@ public final class ExtensionControlConcurrencyTest {
     }
 
     private static void acquire(ExtensionControl.Session session) {
-        check(AgentEntry.acquireLifecycle(session, session::poll), "Lifecycle slot unavailable after retirement");
+        check(Frames.add(Frames.Job.LIFECYCLE, session, session::poll), "Lifecycle slot unavailable after retirement");
     }
 
     private static void apply(ExtensionControl.Session session, String id) throws Exception {

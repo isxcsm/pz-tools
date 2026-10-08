@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using PzTools.GameExtensions;
 using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Projections;
 
@@ -39,8 +38,6 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
     /// Queues only identity transitions. Supply the AppHost's existing inbox to share its configured
     /// recording level, retention and view cache; standalone callers use runtimeRoot/logs.db.
     /// </summary>
-    public void Observe(RuntimeExtensionStatus? status) => Observe(ExtensionIds.VehicleDrivetrain, status);
-
     public void Observe(string extensionId, RuntimeExtensionStatus? status)
     {
         try
@@ -54,7 +51,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
                 if (!observed && status is null) return;
                 var occurred = time.GetUtcNow();
                 bool changed = !observed || last!.Identity != identity;
-                // With diagnostics on, every status carries the game's latest driving sample, but steady driving
+                // With diagnostics on, every status carries the module's latest sample, but a module running steadily
                 // changes no state. A sample entry now and then shows it on the Logs page without flooding it.
                 var reading = SampleKey(status?.Diagnostics);
                 bool sample = !changed && reading is { Length: > 0 }
@@ -84,8 +81,8 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
         }
     }
 
-    // The sample without its age, which grows while the sample stays the same: a vehicle standing still, or left, keeps
-    // its last sample, and only a sample that changed is news.
+    // The sample without its age, which grows while the sample stays the same: a module with nothing new to measure
+    // keeps its last sample, and only a sample that changed is news.
     private static string? SampleKey(string? diagnostics) => diagnostics is null ? null
         : System.Text.RegularExpressions.Regex.Replace(diagnostics, @"(^|;)sample_age_ms=[^;]*", "");
 
@@ -126,13 +123,7 @@ public sealed class ExtensionRuntimeDiagnostics(string runtimeRoot, Func<LogInbo
             controlReady = status?.ControlReady ?? false,
             moduleVersion = status?.ModuleVersion,
             moduleHash = status?.ModuleHash,
-            appliedVehicleOptions = status?.AppliedVehicleOptions is { } options ? new
-            {
-                torqueEnabled = options.TorqueEnabled,
-                reverseEnabled = options.ReverseEnabled,
-                steeringEnabled = options.SteeringEnabled,
-                areaLightEnabled = options.AreaLightEnabled,
-            } : null,
+            appliedConfiguration = status?.AppliedConfiguration,
             diagnostics = status?.Diagnostics,
         });
         await sink.AppendAsync([new LogEntryView(

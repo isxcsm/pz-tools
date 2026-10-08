@@ -233,8 +233,8 @@ Java's mechanism for loading an agent into a running Java program. A helper proc
 
 ### Bootstrap
 
-The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`, class `AgentEntry`):
-the control socket, the game-loop hook and the extension API classes. A PZ Tools update with a different bootstrap
+The part of the bridge that stays loaded until the game exits (`pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks`):
+the control socket, the game-loop hook, the hooks of the extension API and the extensions' module API. A PZ Tools update with a different bootstrap
 API needs one game restart. Also called the *resident* part. See [module reload](module-reload.md).
 
 ### Payload
@@ -292,12 +292,20 @@ its version, Java namespace and entry class, jar, supported game versions and ca
 
 ### Capability
 
-The contract a module implements, such as `vehicle.drivetrain.v1`. It decides how the module is run.
+The contract a module implements, such as `continuous.v1` (run every frame while on; `vehicle.drivetrain.v1` is
+its earlier name). It decides how the module is run.
 
 ### Provider
 
 The class in a module that the host calls (`ContinuousProvider`): to validate and apply settings, on each game
 frame, and to close.
+
+<a id="control-point"></a>
+### Control point
+
+A named place in game code where a module may take a decision over (`ControlPoints`, part of the extension API).
+The module's own bytecode calls the point, and the module answers it while it is active; with no answer, or after
+the answer failed, the game's own code runs. See [game extensions](game-extensions.md#control-points).
 
 <a id="extension-runtime-host"></a>
 ### Extension runtime, host

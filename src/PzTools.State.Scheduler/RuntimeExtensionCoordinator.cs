@@ -36,10 +36,12 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         // (a long save, a stall) makes its samples old; that is not the world going away.
         DateTimeOffset? staleSince = null;
         string? boundProcess = null, boundWorld = null;
+        // Rounds in a row that lost the link; each waits longer before the next attempt (MaxLinkRetryDelay).
+        int linkFailures = 0;
 
         bool StaleButUnchanged(RuntimeObservation latest, string? process, string? world)
         {
-            if (latest.StreamEpoch != stream || latest.IsFresh) return false;
+            if (latest.StreamEpoch != stream || latest.IsExtensionFresh) return false;
             staleSince ??= DateTimeOffset.UtcNow;
             return DateTimeOffset.UtcNow - staleSince < TransientStaleGrace
                 && (latest.Snapshot is null || latest.Snapshot.ProcessSession == process && latest.Snapshot.WorldSession == world);
@@ -49,9 +51,9 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         {
             var latest = observations.Read();
             if (token.IsCancellationRequested || latest.StreamEpoch != stream) return false;
-            if (!latest.IsFresh) return StaleButUnchanged(latest, process, world);
+            if (!latest.IsExtensionFresh) return StaleButUnchanged(latest, process, world);
             staleSince = null;
-            return latest.Snapshot is { IsWorldReady: true } current
+            return latest.IsExtensionWorldReady && latest.Snapshot is { } current
                 && current.ProcessSession == process && current.WorldSession == world;
         }
 
@@ -112,7 +114,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     foreach (var module in modules) wanted[module.Id] = preferences[module.Id].Enabled;
                     var observation = observations.Read();
                     var snapshot = observation.Snapshot;
-                    bool ready = observation.StreamEpoch == stream && observation.IsFresh && snapshot?.IsWorldReady == true;
+                    bool ready = observation.StreamEpoch == stream && observation.IsExtensionWorldReady;
                     if (ready) staleSince = null;
                     if (!ready && client is not null && modules.Any(module => module.Session is not null)
                         && StaleButUnchanged(observation, boundProcess, boundWorld))
@@ -188,9 +190,13 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                             else
                             {
                                 module.DisabledRevision = -1;
-                                long requestRevision = revision;
+                                // The same settings a game the startup loader started runs with while the app is away
+                                // (ResidentExtensionRequest): the module's own options over its tuning files.
                                 actual = await module.Reconciliation!.ReconcileAsync(module.Session, process, world, revision,
-                                    module.Id, preference.ForceVersion, () => Configure(module, preference, requestRevision), token);
+                                    module.Id, preference.ForceVersion,
+                                    () => ContinuousConfiguration.For(module.Id, bridgeDirectory, runtimeRoot, preference), token);
+                                // What was sent for which revision: the evidence the game's acknowledgement is checked against.
+                                if (module.Reconciliation.Sent is { } sent) module.Activation.RecordRequest(sent.Revision, sent.Configuration);
                                 if (!IsCurrent(process, world)) { await CloseLeaseAsync(requestOff: true); break; }
                                 module.Activation.VerifyTarget(actual, revision);
                                 if (GameExtensionActivationState.IsDefinitiveFailure(actual, module.Reconciliation.RequestRejected))
@@ -202,7 +208,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                                     // state became unreadable), so the lease is renewed as a whole.
                                     await CloseLeaseAsync(requestOff: true);
                                     published.Publish(module.Id, actual with { WorldSession = world, RequestedRevision = revision,
-                                        ControlReady = false, AppliedVehicleOptions = null });
+                                        ControlReady = false, AppliedConfiguration = null });
                                     break;
                                 }
                                 else published.Publish(module.Id, module.Activation.Observe(actual, revision));
@@ -210,6 +216,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                         }
                         handling = null;
                     }
+                    linkFailures = 0;
                     await Task.Delay(options.ReconcileIntervalMs, token);
                 }
                 catch (ExtensionSessionMismatchException)
@@ -237,6 +244,10 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                     var affected = shared ? modules : [handling!];
                     RuntimeExtensionStatus? stopped = null;
                     if (shared) stopped = await CloseLeaseAsync(requestOff: affected.Any(module => wanted[module.Id]));
+                    // A lost or refused link is not the extension failing: the game was not asked anything, or could
+                    // not answer. The preference stays and the link is tried again. Only what the game itself reports
+                    // (a restart the update needs, here) or a failure while handling one module is definitive.
+                    bool definitive = !shared || failed.State == RuntimeExtensionState.RestartRequired;
                     foreach (var module in affected)
                     {
                         if (!wanted[module.Id])
@@ -247,11 +258,12 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
                             published.Publish(module.Id, new(RuntimeExtensionState.Disabled, "control-offline", process ?? "", world,
                                 RequestedRevision: revision));
                         }
-                        else if (process is not null && world is not null && revision >= 0 && IsCurrent(process, world))
+                        else if (definitive && process is not null && world is not null && revision >= 0 && IsCurrent(process, world))
                             await FailClosedAsync(module, failed, revision, process, world, stopped, leaseGone: shared);
                         else published.Publish(module.Id, failed);
                     }
-                    await Task.Delay(options.ReconcileIntervalMs, token);
+                    linkFailures = definitive ? 0 : linkFailures + 1;
+                    await Task.Delay(LinkRetryDelay(options.ReconcileIntervalMs, linkFailures), token);
                 }
             }
         }
@@ -262,23 +274,15 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         }
     }
 
+    /// <summary>The longest wait between attempts at a link that keeps failing: each attempt starts a helper process.</summary>
+    internal static readonly TimeSpan MaxLinkRetryDelay = TimeSpan.FromSeconds(30);
+
+    /// <summary>The reconcile interval, doubled for each failed link in a row up to <see cref="MaxLinkRetryDelay"/>.</summary>
+    internal static TimeSpan LinkRetryDelay(int intervalMs, int failures) =>
+        TimeSpan.FromMilliseconds(Math.Min(MaxLinkRetryDelay.TotalMilliseconds, intervalMs * Math.Pow(2, Math.Min(failures, 16))));
+
     /// <summary>How long a game whose state has stopped arriving keeps its extensions before they are released.</summary>
     internal static readonly TimeSpan TransientStaleGrace = TimeSpan.FromSeconds(30);
-
-    /// <summary>What a module is asked to do, from its own saved options and its own tuning file.</summary>
-    private IReadOnlyDictionary<string, string> Configure(Module module, ExtensionPreference preference, long revision)
-    {
-        // The same settings a game the startup loader started runs with while the app is away (ResidentExtensionRequest).
-        var tuning = ContinuousConfiguration.For(module.Id, bridgeDirectory, runtimeRoot, preference);
-        if (module.Id == ExtensionIds.VehicleDrivetrain)
-        {
-            bool enabled = tuning["probe_only"] != "true";
-            module.Activation.RecordRequest(revision, new(enabled && tuning["torque_enabled"] == "true",
-                enabled && tuning["reverse_enabled"] == "true", enabled && tuning["steering_enabled"] == "true",
-                enabled && tuning["area_light_enabled"] == "true"));
-        }
-        return tuning;
-    }
 
     /// <summary>The modules the deployed catalogue runs continuously; the built-in list when that file cannot be read.</summary>
     private IReadOnlyList<string> ContinuousModules()
@@ -297,6 +301,6 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
     private static bool Recoverable(Exception error, CancellationToken token) =>
         error is IOException or InvalidDataException or UnauthorizedAccessException or GameSaveException
             or InvalidOperationException or System.ComponentModel.Win32Exception or ArgumentException
-            or FormatException or OverflowException or Tomlyn.TomlException
+            or FormatException or OverflowException
         || error is OperationCanceledException && !token.IsCancellationRequested;
 }

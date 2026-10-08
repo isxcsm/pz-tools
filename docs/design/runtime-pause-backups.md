@@ -39,6 +39,9 @@ The backup scheduler uses an observation only once `runtime_facts` holds the sam
 | Save path | `ZomboidFileSystem.getCurrentSaveDir()`, read once per world |
 | Life, sleep | `IsoPlayer.getInstance()`, `isDead()`, `isAsleep()`, only when `IsoPlayer.numPlayers` is 1 |
 
+Each loaded world gets a new world id, whatever the mode: the [game extensions](game-extensions.md) are bound
+to it. Life and sleep are read, and the clock runs, in a `LocalSinglePlayer` world only.
+
 The active clock (`activeMillis`) grows only between two samples that both have the world ready, unpaused and
 the character not asleep. A sleep value that cannot be read is `Unknown`, which does not stop the clock: only
 the sleep pause is lost. A gap of more than 2 s between samples, or a new world, starts a new clock epoch at
@@ -89,7 +92,7 @@ during the break is never counted. Game speed does not matter: the clock counts 
 | Character dead | `CharacterDead` | Reset to a full interval while dead ([death backups](runtime-character-death.md)) |
 | Before the first frame, loading, stale, `Unknown` phase | `Unknown` | Kept |
 | Several game processes | `Ambiguous` | Kept |
-| Multiplayer or a mode without saving | `Unsupported` | Kept |
+| Multiplayer, a mode without saving, or a save outside the configured saves root (`outside-configured-save-root`; the [game extensions](game-extensions.md#delivery) still run) | `Unsupported` | Kept |
 | Main menu or unloading | `NoWorld` | Reset to a full interval |
 | No game process | `GameOffline`, `NoWorld` | Reset, as the target is cleared (below) |
 | A different world than before | None | Reset to a full interval |

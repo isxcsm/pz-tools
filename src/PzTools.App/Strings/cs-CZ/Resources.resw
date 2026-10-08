@@ -625,9 +625,6 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="LogChooseDateTime" xml:space="preserve"><value>Vybrat datum a čas</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Datum</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Rozšíření hry</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Vypnuto · Standardní ukládání</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Kompatibilita se ověř&#237; při př&#237;št&#237;m uložen&#237; &#183; Experiment&#225;ln&#237;</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Použít</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Nastavení rozšíření není dostupné</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Změny se nepodařilo uložit. Znovu otevřete stránku a zkontrolujte soubor nastavení rozšíření.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Všechny verze</value></data>
@@ -638,17 +635,12 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Čekání na verzi hry · Rozšíření neaktivní</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Ignorovat podporovaný rozsah verzí</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Nekompatibilní verze mohou způsobit chyby. Tato volba obchází pouze omezení verzí; nezbytné bezpečnostní kontroly zůstávají aktivní. Samotné rozšíření tím nezapnete.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Omezení verze ignorováno · Bezpečnostní kontroly zachovány</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Probíhá ukládání rozšířením</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Poslední požadavek: uložení rozšířením dokončeno</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Poslední požadavek: použito běžné uložení ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Poslední požadavek: uložení selhalo ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Pozvat na kávu</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>Pomohl vám PZ Tools?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Hra není spuštěna</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Postava spí</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Vylepšení řízení vozidel</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí a při rozsvícených světlech osvětluje okolí vozidla. Experimentální; pouze pro jednoho hráče.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Samostatně vylepšuje zrychlování vpřed, řazení, couvání a řízení klávesnicí a při rozsvícených světlech osvětluje okolí vozidla. Experimentální; v multiplayeru netestováno.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Přirozené zrychlování a řazení</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Přizpůsobuje zrychlování vpřed otáčkám motoru a převodovému stupni.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Plynulé couvání</value></data>
@@ -659,7 +651,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Osvětluje okolí vozidla, ve kterém sedíte, dokud svítí jeho světlomety. Vyžaduje funkční světlomety a nabitou baterii a do uložené hry se nic nezapisuje.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Probíhá změna nastavení ve hře.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Rozšíření se nepodařilo použít. Podrobnosti najdete v protokolech.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry pro jednoho hráče.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Uložená nastavení se použijí po vstupu do hry.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Pro použití pokračujte ve hře, zastavte vozidlo, uvolněte plyn a vypněte tempomat.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Hra v hlavní nabídce</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Hra se načítá</value></data>
@@ -795,14 +787,17 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Načítat PZ Tools při spuštění hry (experimentální)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Kontrola souborů hry…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Složka hry nebyla nalezena. Jednou hru spusťte a bude nalezena.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se ke hře připojuje až po jejím spuštění. Zapnutí změní soubor projectzomboid.jar hry, aby hra při spuštění načetla PZ Tools. Vypnutí vrátí původní soubor hry.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools se ke hře připojuje až po jejím spuštění. Zapnutí přidá do složky hry vlastní soubory PZ Tools, aby hra při spuštění načetla PZ Tools; žádný soubor hry se nezmění. Vypnutí je odebere.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Nainstalováno. Hra při spuštění načte PZ Tools a zapnutá rozšíření běží dál, i když je PZ Tools zavřené.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Aktualizace hry to odstranila. Chcete-li to používat, znovu to zapněte.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Některé jeho soubory ze složky hry zmizely. Chcete-li to používat, znovu to zapněte.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Právě běžící hra byla spuštěna bez něj. Chcete-li to používat, spusťte hru znovu.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Do právě běžící hry se nenačetlo. Podrobnosti jsou v protokolech.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>V právě běžící hře se nepodařilo vložit některé háčky rozhraní API pro rozšíření, nejspíš proto, že stejný kód hry mění jiný mod: {0}. Mody tam dostávají původní odpovědi hry. Podrobnosti jsou v protokolech.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Jiný nástroj změnil soubor projectzomboid.jar hry. Nejprve ověřte soubory hry ve službě Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Zavřete hru i každý server spuštěný z její složky a zkuste to znovu.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Tato verze hry není podporována.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Uložená kopie souboru hry chybí. Obnovte ji ověřením souborů hry ve službě Steam.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Soubor hry se nepodařilo změnit. Podrobnosti jsou v protokolech.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Složku hry se nepodařilo změnit. Podrobnosti jsou v protokolech.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Instalace PZ Tools do hry</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Odebírání PZ Tools ze hry</value></data>
 </root>

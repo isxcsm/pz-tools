@@ -32,6 +32,7 @@ public final class VehicleCompatibilityTest {
             contracts=VehicleBytecode.controlContracts(baseline,loader);
             run("baseline",()->accepted("baseline",baseline));
             run("immutable explicit fixture contracts",VehicleCompatibilityTest::immutableContracts);
+            run("rejection reasons carry the failed check",VehicleCompatibilityTest::rejectionReasons);
             run("unrelated class members",()->accepted("unrelated class members",extraMembers()));
             run("method order and source metadata",()->accepted("method order and source metadata",reorderMethods()));
             run("update observer outside the replaced region",()->accepted("outside observer",edit("update",new CodeTransform() {
@@ -522,7 +523,7 @@ public final class VehicleCompatibilityTest {
         valid(name+" transformed",transformed);
         long hooks=format.parse(transformed).methods().stream().filter(m->m.methodName().equalsString("update"))
             .flatMap(m->m.code().orElseThrow().elementStream()).filter(e->e instanceof InvokeInstruction i
-                && i.owner().asInternalName().equals("pztools/extensions/api/VehicleHooks") && i.name().equalsString("tryControl")).count();
+                && i.owner().asInternalName().equals(VehicleBytecode.POINTS_OWNER) && i.name().equalsString("call")).count();
         check(hooks==2,name+" must have exactly two dispatches");
     }
     private static void rejectedHelper(String name,byte[] source) {
@@ -541,6 +542,17 @@ public final class VehicleCompatibilityTest {
             return;
         }
         throw new AssertionError(name+" was unexpectedly accepted");
+    }
+    private static void rejectionReasons() {
+        String code;
+        try { transform(missingForwardCall()); code=null; }
+        catch(IllegalArgumentException rejected) { code=VehicleDrivetrainProvider.rejection(new IllegalStateException("controller-transform-rejected",rejected)); }
+        check(("unsupported-call-count:"+VehicleBytecode.TARGET+".control_ForwardNew(F)V").equals(code),"the check's own code is reported through a wrapping exception: "+code);
+        check(VehicleDrivetrainProvider.rejection(new IllegalStateException("controller-transform-rejected")).equals("controller-transform-rejected"),
+            "the module's own code when no check failed");
+        check(VehicleDrivetrainProvider.rejection(new IllegalArgumentException("Bad class file at offset 12")).equals("IllegalArgumentException"),
+            "free text is replaced by the exception class");
+        check(VehicleDrivetrainProvider.rejection(new java.io.IOException("x".repeat(10))).equals("IOException"),"other exceptions by class");
     }
     private static void run(String name,Runnable body) {
         cases++;

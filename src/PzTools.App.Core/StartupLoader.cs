@@ -10,19 +10,50 @@ public enum StartupLoaderStatus
     Unknown,
     /// <summary>No game folder known: no game installed through Steam, and none running.</summary>
     NotFound,
-    /// <summary>The game's jar is the game's own.</summary>
+    /// <summary>The game's folder has no startup loader.</summary>
     NotInstalled,
-    /// <summary>The game's jar is the one the install patched: the game loads the bridge as it starts.</summary>
+    /// <summary>The game's folder has the install's entry: the game loads the bridge as it starts.</summary>
     Installed,
-    /// <summary>Installed before, and a game update or Steam's file check has since replaced the jar.</summary>
+    /// <summary>Installed before, and the game's folder no longer has all of it (or, for an install an earlier version
+    /// put in the jar, a game update replaced the jar).</summary>
     Reverted,
-    /// <summary>The game's jar has a startup loader this install has no record of; it is left alone.</summary>
+    /// <summary>The game's jar has a startup loader patched in that this install has no record of; it is left alone.</summary>
     Foreign,
 }
 
 /// <param name="InstallFolder">Where the install keeps its files, while installed: the app writes there what the game's
 /// resident extensions run.</param>
-public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null, string? InstallFolder = null);
+/// <param name="Game">How the loader went in the game that runs now, while installed and one game runs; null when
+/// that is not known.</param>
+public sealed record StartupLoaderState(StartupLoaderStatus Status, string? GameFolder = null, string? InstallFolder = null,
+    StartupGameReport? Game = null);
+
+/// <summary>A game process, by its identifier and the time it started.</summary>
+public readonly record struct RunningGame(int ProcessId, DateTime StartedUtc);
+
+public enum StartupGameStatus
+{
+    /// <summary>The loader loaded the bridge as the game started.</summary>
+    Loaded,
+    /// <summary>The game started without the loader: before it was installed, or the game did not run it.</summary>
+    StartedWithout,
+    /// <summary>The loader ran and did not load the bridge; the report's detail says why.</summary>
+    LoadFailed,
+}
+
+/// <summary>What the loader and the extension API say about one game run, from the install folder.</summary>
+/// <param name="Detail">The loader's own line, for the log.</param>
+/// <param name="MissingHooks">The extension API's hooks the game could not put in, one per line as
+/// <c>Class.method: why</c>; empty when all went in, or the game has not said yet.</param>
+public sealed record StartupGameReport(StartupGameStatus Status, int ProcessId, string Detail = "", string MissingHooks = "")
+{
+    /// <summary>Whether the player should hear about it: the loader did not load, or a hook is missing.</summary>
+    public bool HasProblem => Status != StartupGameStatus.Loaded || MissingHooks.Length > 0;
+
+    /// <summary>The missing hooks' names, without the reasons.</summary>
+    public IEnumerable<string> MissingHookNames =>
+        MissingHooks.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => line.Split(": ", 2)[0]);
+}
 
 /// <summary>
 /// Why the install or uninstall did not happen: <c>game-running</c>, <c>game-not-found</c>, <c>unsupported-game</c>,
@@ -35,11 +66,11 @@ public sealed class StartupLoaderException(string code, string message, Exceptio
 }
 
 /// <summary>
-/// The startup loader (docs/design/startup-loader.md): an optional install that patches the game's jar so the game
-/// loads the bridge as it starts, without the app. The work is done by the bridge's own runtime
-/// (<c>pztools.bridge.StartupInstall</c>), which edits Java class files; this class decides when it may run and reads
-/// what it says. Install and uninstall run only while no game runs: a running game holds the jar, and a game started
-/// mid-install would read half of one.
+/// The startup loader (docs/design/startup-loader.md): an optional install that adds PZ Tools' own files to the game's
+/// folder so the game loads the bridge as it starts, without the app; no game file changes. The work is done by the
+/// bridge's own runtime (<c>pztools.bridge.StartupInstall</c>); this class decides when it may run and reads what it
+/// says. Install and uninstall run only while no game runs: a game started mid-install would find half of one, and
+/// turning an earlier version's install (a patched jar) into this kind puts back a jar a running game holds.
 /// </summary>
 public sealed class StartupLoader
 {
@@ -47,110 +78,159 @@ public sealed class StartupLoader
     public delegate Task<(int ExitCode, string Output)> Tool(IReadOnlyList<string> arguments, CancellationToken cancellationToken);
 
     private const string Mark = "PZTOOLS-STARTUP", Failed = "PZTOOLS-STARTUP-FAILED";
+    // In the install folder: the loader's line for the last game start, and the extension API's hooks in the game that
+    // runs (pztools.startup.StartupLoader.LOG, pztools.api.GameApi.STATUS).
+    private const string LoaderLog = "startup.log", ApiStatus = "api.tsv";
+    // File times against a process's start: the loader writes its line about half a second after the game starts.
+    private static readonly TimeSpan StartSlack = TimeSpan.FromSeconds(2);
+    private const int MaxStatusBytes = 1 << 16;
     private static readonly TimeSpan ToolTimeout = TimeSpan.FromMinutes(2);
 
     private readonly string bridgeDirectory;
     private readonly Func<string?> gameFolder;
-    private readonly Func<bool> gameRunning;
+    private readonly Func<IReadOnlyList<RunningGame>> games;
     private readonly Tool tool;
     private readonly SemaphoreSlim gate = new(1, 1);
-    private StartupLoaderState state = new(StartupLoaderStatus.Unknown);
+    // Written on the thread pool, read from any thread.
+    private volatile StartupLoaderState state = new(StartupLoaderStatus.Unknown);
 
     /// <param name="bridgeDirectory">The app's <c>game-bridge</c> folder: the runtime, the tool, and the files copied
     /// to the install.</param>
     /// <param name="gameFolder">The game's folder (the one holding <c>projectzomboid.jar</c>), or null when unknown.</param>
-    /// <param name="gameRunning">Whether a game runs now; by default any process <see cref="GameProcessFinder"/> finds.</param>
+    /// <param name="games">The games running now; by default the processes <see cref="GameProcessFinder"/> finds.</param>
     /// <param name="tool">Runs the install tool; by default the bridge's runtime.</param>
-    public StartupLoader(string bridgeDirectory, Func<string?> gameFolder, Func<bool>? gameRunning = null, Tool? tool = null)
+    public StartupLoader(string bridgeDirectory, Func<string?> gameFolder, Func<IReadOnlyList<RunningGame>>? games = null,
+        Tool? tool = null)
     {
         this.bridgeDirectory = Path.GetFullPath(bridgeDirectory);
         this.gameFolder = gameFolder;
-        this.gameRunning = gameRunning ?? (() => GameProcessFinder.Count() > 0);
+        this.games = games ?? RunningGames;
         this.tool = tool ?? RunBridgeTool;
     }
 
-    /// <summary>Raised after the state changed, on whichever thread changed it.</summary>
+    private bool GameRunning() => games().Count > 0;
+
+    private static IReadOnlyList<RunningGame> RunningGames()
+    {
+        var found = GameProcessFinder.Find();
+        var result = new List<RunningGame>(found.Length);
+        foreach (var process in found)
+        {
+            using (process)
+            {
+                try { result.Add(new(process.Id, process.StartTime.ToUniversalTime())); }
+                // Gone since, or its start time cannot be read: still a game that runs, of unknown start.
+                catch (Exception exception) when (exception is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    result.Add(new(process.Id, DateTime.MaxValue));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Raised after the state changed, on a thread-pool thread: a UI subscriber moves to its own thread.</summary>
     public event Action? Changed;
 
     public StartupLoaderState State => state;
 
-    /// <summary>Looks at the game's jar again. A look that fails leaves what was known.</summary>
-    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    // Every public method does its work on the thread pool, whichever thread calls it: each one may start the install
+    // tool, look for the game's processes or read files, and the app calls them from its UI thread.
+
+    /// <summary>Looks at the game's folder again. A look that fails leaves what was known.</summary>
+    public Task RefreshAsync(CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
             var folder = gameFolder();
             if (folder is null) { Publish(new(StartupLoaderStatus.NotFound)); return; }
-            try { Publish(ReadState(await RunAsync(["status", folder], cancellationToken), folder)); }
+            try
+            {
+                var next = ReadState(await RunAsync(["status", folder], cancellationToken), folder);
+                if (next is { Status: StartupLoaderStatus.Installed, InstallFolder: { } install } && games() is [var game])
+                    next = next with { Game = ReadGame(install, game) };
+                Publish(next);
+            }
             catch (StartupLoaderException error) when (error.Code == "game-not-found") { Publish(new(StartupLoaderStatus.NotFound)); }
             catch (StartupLoaderException) { if (state.Status == StartupLoaderStatus.Unknown) Publish(new(StartupLoaderStatus.Unknown, folder)); }
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
-    /// <summary>Patches the game's jar; installing again over an install only brings its bridge up to date.</summary>
+    /// <summary>Adds the loader to the game's folder; installing again over an install only brings it up to date.</summary>
     /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
     public Task InstallAsync(CancellationToken cancellationToken = default) =>
         ChangeAsync(folder => ["install", folder, bridgeDirectory], cancellationToken);
 
-    /// <summary>Puts the game's own jar back (unless an update already did) and removes the install folder.</summary>
+    /// <summary>Removes the loader from the game's folder (and puts back the jar an earlier version patched, unless an
+    /// update already did), then the install folder.</summary>
     /// <exception cref="StartupLoaderException">A game runs, the game was not found, or the tool refused.</exception>
     public Task UninstallAsync(CancellationToken cancellationToken = default) =>
         ChangeAsync(folder => ["uninstall", folder], cancellationToken);
 
     /// <summary>
-    /// Brings the install's copy of the bridge up to this app's, so the next game start loads the bridge of this
-    /// version. Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
+    /// Brings the install's copy of the bridge, and its entry in the game's folder, up to this app's, so the next game
+    /// start loads the bridge of this version; an earlier version's install in the jar becomes one in the folder.
+    /// Nothing happens when nothing is installed. Not while a game runs: the bridge it started with, and the
     /// extensions it runs from there, stay until it ends. False when it did not run for that.
     /// </summary>
-    public async Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default)
+    public Task<bool> RefreshBridgeAsync(CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
-            if (gameRunning()) return false;
+            if (GameRunning()) return false;
             await RunAsync(["refresh", bridgeDirectory], cancellationToken);
             return true;
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
     /// <summary>
     /// Writes what a game started by the loader runs without the app (<see cref="ResidentExtensionRequest"/>) to the
-    /// install folder, when it changed. Nothing happens unless installed. True when it was written.
+    /// install folder, when it changed. Nothing happens unless installed. True when it was written. While the files the
+    /// request is built from, and the request's own file, keep their time and length, it is not built again.
     /// </summary>
     /// <param name="runtimeRoot">The app's data folder: the extension settings and the tuning files.</param>
-    public async Task<bool> UpdateResidentExtensionsAsync(string runtimeRoot, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateResidentExtensionsAsync(string runtimeRoot, CancellationToken cancellationToken = default) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
             // Under the gate: an uninstall removes the folder, and must not find a file being written into it.
             if (state is not { Status: StartupLoaderStatus.Installed, InstallFolder: { } folder }) return false;
-            return await Task.Run(() => ResidentExtensionRequest.Write(folder, ResidentExtensionRequest.Build(bridgeDirectory, runtimeRoot)),
-                cancellationToken);
+            var target = Path.Combine(folder, ResidentExtensionRequest.FileName);
+            // Taken before the build: a file that changes while it is read differs from this the next time.
+            var inputs = ResidentExtensionRequest.InputStamp(bridgeDirectory, runtimeRoot);
+            if (inputs is not null && residentWritten is { } last && last == (folder, inputs, ResidentExtensionRequest.Stamp(target))) return false;
+            var written = ResidentExtensionRequest.Write(folder, ResidentExtensionRequest.Build(bridgeDirectory, runtimeRoot));
+            residentWritten = inputs is null ? null : (folder, inputs, ResidentExtensionRequest.Stamp(target));
+            return written;
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
-    private async Task ChangeAsync(Func<string, string[]> arguments, CancellationToken cancellationToken)
+    // Where the resident request was last written, the stamp of what it was built from, and its own file's stamp after.
+    private (string Folder, string Inputs, string? Request)? residentWritten;
+
+    private Task ChangeAsync(Func<string, string[]> arguments, CancellationToken cancellationToken) => Task.Run(async () =>
     {
         await gate.WaitAsync(cancellationToken);
         try
         {
             var folder = gameFolder() ?? throw new StartupLoaderException("game-not-found", "The game's folder was not found.");
-            if (gameRunning()) throw new StartupLoaderException("game-running", "Close the game first.");
+            if (GameRunning()) throw new StartupLoaderException("game-running", "Close the game first.");
             try { await RunAsync(arguments(folder), cancellationToken); }
             finally
             {
-                // What the jar is now, whether the change went through or stopped half way.
+                // What the game has now, whether the change went through or stopped half way.
                 try { Publish(ReadState(await RunAsync(["status", folder], CancellationToken.None), folder)); }
                 catch (StartupLoaderException) { }
             }
         }
         finally { gate.Release(); }
-    }
+    }, cancellationToken);
 
     private void Publish(StartupLoaderState next)
     {
@@ -178,13 +258,52 @@ public sealed class StartupLoader
         throw new StartupLoaderException("io", $"The install tool ended with {exitCode} and no result.");
     }
 
-    /// <summary>The state a status result gives: installed results name the install folder after the jar's digest.</summary>
+    /// <summary>The state a status result gives: installed results name the install folder after the entry's digest.</summary>
     internal static StartupLoaderState ReadState(string result, string gameFolder)
     {
         var status = Parse(result);
         var fields = result.Split('\t');
         return new(status, gameFolder, status == StartupLoaderStatus.Installed && fields.Length >= 3 && Path.IsPathFullyQualified(fields[2])
             ? fields[2] : null);
+    }
+
+    /// <summary>
+    /// What the install folder says about this game run: whether the loader's line is this run's, and what it says; and
+    /// which hooks the extension API could not put in, from the file the game writes as its classes load. Null when the
+    /// files cannot be read.
+    /// </summary>
+    internal static StartupGameReport? ReadGame(string installFolder, RunningGame game)
+    {
+        if (game.StartedUtc == DateTime.MaxValue) return null;
+        var log = new FileInfo(Path.Combine(installFolder, LoaderLog));
+        if (!log.Exists || log.LastWriteTimeUtc < game.StartedUtc - StartSlack) return new(StartupGameStatus.StartedWithout, game.ProcessId);
+        if (ReadSmall(log) is not { } logText) return null;
+        var line = logText.Split('\n')[0].TrimEnd('\r');
+        // "<time> loaded bridge-<id>"; anything else is why it did not load.
+        if (!line.Contains(" loaded bridge-", StringComparison.Ordinal)) return new(StartupGameStatus.LoadFailed, game.ProcessId, line);
+        var missing = new List<string>();
+        var status = new FileInfo(Path.Combine(installFolder, ApiStatus));
+        if (status.Exists && status.LastWriteTimeUtc >= game.StartedUtc - StartSlack && ReadSmall(status) is { } text)
+        {
+            var lines = text.Split('\n').Select(entry => entry.TrimEnd('\r')).ToArray();
+            if (lines is ["PZTOOLS-API\t1", var pid, ..] && pid == "pid\t" + game.ProcessId)
+                foreach (var fields in lines.Skip(2).Select(entry => entry.Split('\t')))
+                    if (fields is ["hook", var hook, var state] && state is not ("applied" or "not-loaded")) missing.Add(hook + ": " + state);
+        }
+        return new(StartupGameStatus.Loaded, game.ProcessId, line, string.Join('\n', missing));
+    }
+
+    private static string? ReadSmall(FileInfo file)
+    {
+        try
+        {
+            using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var buffer = new byte[MaxStatusBytes];
+            int length = 0, read;
+            while (length < buffer.Length && (read = stream.Read(buffer, length, buffer.Length - length)) > 0) length += read;
+            return System.Text.Encoding.UTF8.GetString(buffer, 0, length);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { return null; }
     }
 
     internal static StartupLoaderStatus Parse(string result) => result.Split('\t')[0] switch

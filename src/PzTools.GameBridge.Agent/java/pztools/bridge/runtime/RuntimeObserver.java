@@ -48,7 +48,7 @@ public final class RuntimeObserver {
         long leavingChecked;
         boolean wasRunning;
         Context(Class<?> window) throws Exception {
-            adapter = new PzRuntimeAdapter(window);
+            adapter = PzRuntimeAdapter.of(window);
             characterReader = new LiveCharacter(window.getClassLoader());
             lastSample = System.nanoTime(); published = lastSample; leavingChecked = lastSample - 1_000_000_000L;
             snapshot = exact();
@@ -64,8 +64,11 @@ public final class RuntimeObserver {
             long now = System.nanoTime();
             try {
                 adapter.read();
-                boolean ready = adapter.phase.equals("Ready") && adapter.mode.equals("LocalSinglePlayer");
-                boolean newWorld = ready && adapter.worldCell != lastCell;
+                // Every loaded world has its own identity, which the extensions are bound to in any mode. The
+                // character and the active clock are about local saves, and read in a single-player world only.
+                boolean loaded = adapter.phase.equals("Ready");
+                boolean ready = loaded && adapter.mode.equals("LocalSinglePlayer");
+                boolean newWorld = loaded && adapter.worldCell != lastCell;
                 if (newWorld) world = RuntimeIdentity.worldId(adapter.worldCell);
                 LiveCharacter.Facts nextCharacter = ready ? characterReader.read(world) : LiveCharacter.observe(null, null, "Unknown");
                 // Sleep that cannot be read only loses the sleep pause; it must not stop the clock.
@@ -81,7 +84,7 @@ public final class RuntimeObserver {
                 if (gap || newWorld || !running && wasRunning || !adapter.phase.equals(phase)) eligibility++;
                 lastTick = now; lastSample = now;
                 changed |= !nextCharacter.equals(character) || snapshot.execution() != SaveExecution.latest(); character = nextCharacter;
-                if (ready) lastCell = adapter.worldCell;
+                if (loaded) lastCell = adapter.worldCell;
                 else if (adapter.phase.equals("Menu") || adapter.phase.equals("Unloading")) {
                     lastCell = null; RuntimeIdentity.forgetWorld();
                 }
@@ -121,25 +124,21 @@ public final class RuntimeObserver {
     public static synchronized boolean start() throws Exception {
         if (context != null && context.active) return false;
         Context next = new Context(AgentEntry.ensureGameHook());
+        // Sampled each frame by the frame router, beside the profiler's marks and the other jobs, none of which can
+        // take this observer down with it.
+        if (!Frames.add(Frames.Job.OBSERVER, next, next::sample)) return false;
         context = next;
-        AgentEntry.observe(perFrame(next::sample));
         return true;
     }
-    /**
-     * The per-frame callback. Its slot is shared with an optional profile recording, reached only through its relay:
-     * one read when idle, and whatever the profiler throws ends the profiler's marks, never this observer.
-     */
-    static Runnable perFrame(Runnable sample) { return () -> { ProfileFrames.tick(); sample.run(); }; }
     public static synchronized void stop() {
         Context previous = context;
         if (previous != null) {
             previous.active = false;
             LiveCharacter.disconnect();
             BridgeSession.cancelObserver(previous.observer);
+            Frames.remove(Frames.Job.OBSERVER, previous);
         }
-        AgentEntry.observe(null);
         context = null;
-        ProfileControl.observerStopped();
     }
     static boolean running() { Context value = context; return value != null && value.active; }
     static String frame() {

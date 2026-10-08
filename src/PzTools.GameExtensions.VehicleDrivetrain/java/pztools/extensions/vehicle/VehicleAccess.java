@@ -9,7 +9,7 @@ import pztools.extensions.vehicle.model.SteeringModel;
 final class VehicleAccess {
     private final Class<?> controllerType, vehicleType, playerType, engineType, transmissionType;
     private final VarHandle vehicle, force, brake, controls, parking, throttle, transmission, rpm, steering, steeringInput;
-    private final VarHandle client, server, world, worldCell, players, time, slowTrait, fastTrait, gearCount, radius, reverseSpeedLimit;
+    private final VarHandle world, worldCell, players, time, slowTrait, fastTrait, gearCount, radius, reverseSpeedLimit;
     private final MethodHandle driver, script, running, getEngine, getVehicleEngine, getTowedBy, getTowing, burnt;
     private final MethodHandle localPlayer, hasTrait, speed, power, mass, engineRpm, gear, maxSpeed, offroad, offroadEfficiency;
     private final MethodHandle rpmType, wheelCount, getWheel, physicsSeconds, frameNo, getVehicle, gas, gasReverse, regulator, joypad, steeringClamp;
@@ -46,8 +46,6 @@ final class VehicleAccess {
         steering=writableField(controllerType,"vehicleSteering",float.class,false); steeringInput=field(controlsType,"steering",float.class,false);
         throttle=writableField(vehicleType,"throttle",float.class,false); transmission=writableField(vehicleType,"transmissionNumber",transmissionType,false);
         rpm=writableField(engineType,"speed",double.class,false);
-        client=field(type("zombie.network.GameClient"),"client",boolean.class,true);
-        server=field(type("zombie.network.GameServer"),"server",boolean.class,true);
         world=field(worldType,"instance",worldType,true); worldCell=field(worldType,"currentCell",cell,false);
         players=field(playerType,"players",playerType.arrayType(),true); time=field(gameTime,"instance",gameTime,true);
         slowTrait=field(trait,"SUNDAY_DRIVER",trait,true); fastTrait=field(trait,"SPEED_DEMON",trait,true);
@@ -115,7 +113,6 @@ final class VehicleAccess {
      */
     boolean areaLightTarget(ContinuousProvider.Context context,int[] tile) throws Throwable {
         if(newLight==null || Thread.currentThread()!=context.gameThread() || !context.worldValid().get()) return false;
-        if((boolean)client.get() || (boolean)server.get()) return false;
         Object currentWorld=world.get();
         if(currentWorld==null || worldCell.get(currentWorld)!=context.worldIdentity()) return false;
         for(Object p:(Object[])players.get()) {
@@ -212,8 +209,7 @@ final class VehicleAccess {
     boolean ready(ContinuousProvider.Context context) throws Throwable {
         context.requireGameThread();
         Object currentWorld=world.get();
-        if ((boolean)client.get() || (boolean)server.get() || currentWorld==null
-                || worldCell.get(currentWorld)!=context.worldIdentity()) return false;
+        if (currentWorld==null || worldCell.get(currentWorld)!=context.worldIdentity()) return false;
         Object[] list=(Object[])players.get();
         for(Object p:list) {
             if(p==null) continue;
@@ -228,7 +224,6 @@ final class VehicleAccess {
     }
     String read(Object c,ContinuousProvider.Context context,Frame f) throws Throwable {
         if (Thread.currentThread()!=context.gameThread() || !context.worldValid().get()) return "wrong-thread-or-world";
-        if ((boolean)client.get() || (boolean)server.get()) return "multiplayer-unsupported";
         Object currentWorld=world.get();
         if(currentWorld==null || worldCell.get(currentWorld)!=context.worldIdentity()
                 || !controllerType.isInstance(c)) return "world-or-controller-changed";
@@ -268,7 +263,6 @@ final class VehicleAccess {
     Object gearObject(int gear) { return gear==-1 ? reverse.get() : gear>=1 && gear<=8 ? gears[gear].get() : null; }
     String readSteering(Object c,ContinuousProvider.Context context,SteeringFrame f) throws Throwable {
         if(Thread.currentThread()!=context.gameThread() || !context.worldValid().get()) return "wrong-thread-or-world";
-        if((boolean)client.get() || (boolean)server.get()) return "multiplayer-unsupported";
         Object currentWorld=world.get();
         if(currentWorld==null || worldCell.get(currentWorld)!=context.worldIdentity() || !controllerType.isInstance(c)) return "world-or-controller-changed";
         Object v=vehicle.get(c); if(!vehicleType.isInstance(v)) return "missing-vehicle";

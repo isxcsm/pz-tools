@@ -1,7 +1,6 @@
 package pztools.bridge.runtime;
 
 import pztools.bridge.AgentEntry;
-import pztools.bridge.runtime.api.GameApi;
 import pztools.extensions.api.*;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
@@ -40,9 +39,9 @@ public final class ExtensionControl {
                 channel.configureBlocking(false);
                 send(channel, "EXTENSIONS\t1\t" + ProcessHandle.current().pid() + "\t" + p[1]);
                 owner = new Session(instrumentation, AgentEntry.ensureGameHook(), System::nanoTime,
-                    () -> (ContinuousModules)AgentEntry.extensions(), ExtensionControl::residentHostAbi, true, resident);
+                    ExtensionHost::continuous, ExtensionControl::residentHostAbi, true, resident);
                 if (resident) { paused = true; ResidentExtensions.pause(); }
-                if (!AgentEntry.acquireLifecycle(owner, owner::poll)) throw new IllegalStateException("Lifecycle already owned");
+                if (!Frames.add(Frames.Job.LIFECYCLE, owner, owner::poll)) throw new IllegalStateException("Lifecycle already owned");
                 ByteBuffer buffer = ByteBuffer.allocate(8192);
                 var line = new StringBuilder();
                 // Wait for data instead of polling: the thread wakes when a command arrives, and at
@@ -103,7 +102,7 @@ public final class ExtensionControl {
             this(instrumentation, window, System::nanoTime);
         }
         Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock) throws Exception {
-            this(instrumentation, window, clock, () -> (ContinuousModules)AgentEntry.extensions());
+            this(instrumentation, window, clock, ExtensionHost::continuous);
         }
         Session(Instrumentation instrumentation, Class<?> window, LongSupplier clock,
                 Callable<ContinuousModules> moduleHost) throws Exception {
@@ -119,13 +118,13 @@ public final class ExtensionControl {
             this.moduleHost = moduleHost; this.residentAbi = residentAbi;
             this.leased = leased; this.keepsModules = keepsModules;
             lease = new Leases.Lease(clock, LEASE_NANOS);
-            adapter = new PzRuntimeAdapter(window); gameThread = window.getField("gameThread");
+            adapter = PzRuntimeAdapter.of(window); gameThread = window.getField("gameThread");
         }
         boolean expired() { return !active.get() || leased && lease.lapsed(); }
         /** The world this controller's game-thread poll last found loaded and ready, or null. */
         String worldId() { ContinuousProvider.Context current = context; return current == null ? null : current.worldId(); }
+        /** The frame router's lifecycle job, on the game thread. */
         void poll() {
-            GameApi.frame(loader);
             if (!active.get() || !operations.tryLock()) return;
             try { if (active.get()) pollOwned(); }
             finally { operations.unlock(); }
@@ -136,7 +135,10 @@ public final class ExtensionControl {
             try {
                 if (Thread.currentThread() != gameThread.get(null)) throw new IllegalStateException("Wrong game thread");
                 adapter.read();
-                if (!adapter.phase.equals("Ready") || !adapter.mode.equals("LocalSinglePlayer")) {
+                // Any loaded world, whatever its mode: extensions need no save. A multiplayer client's world is
+                // untested, not refused; each module keeps to what is right there (the vehicle model drives only
+                // the local player's vehicle).
+                if (!adapter.phase.equals("Ready")) {
                     invalidateWorld(); if (target != null) target.tick(null); return;
                 }
                 ContinuousProvider.Context previous = context;
@@ -245,7 +247,7 @@ public final class ExtensionControl {
                 finally { completed.clear(); modules = null; }
             } finally {
                 // No old host call may run after a replacement owner acquires the shared host.
-                AgentEntry.releaseLifecycle(this);
+                Frames.remove(Frames.Job.LIFECYCLE, this);
                 operations.unlock();
             }
         }

@@ -9,7 +9,7 @@ public sealed partial class GameSaveClientTests
     /// The app starts the built install tool and reads its answer. Only <c>status</c> runs: install and uninstall
     /// write the player's install folder under ProgramData, and the Java test (StartupInstallTest) covers them.
     /// </summary>
-    [Fact]
+    [BridgeFact]
     public async Task StartupLoader_RunsTheBuiltInstallTool_AndReadsTheGameJar()
     {
         using var temp = new TempDirectory();
@@ -18,7 +18,7 @@ public sealed partial class GameSaveClientTests
         File.WriteAllBytes(Path.Combine(game, "ProjectZomboid64.exe"), []);
         using (var jar = ZipFile.Open(Path.Combine(game, "projectzomboid.jar"), ZipArchiveMode.Create))
             jar.CreateEntry("zombie/gameStates/MainScreenState.class");
-        var loader = new StartupLoader(RuntimeBridgeDirectory(), () => game, () => false);
+        var loader = new StartupLoader(RuntimeBridgeDirectory(), () => game, () => []);
         await loader.RefreshAsync();
         // Reverted when this PC has a real install: its record names another jar than this one.
         Assert.Contains(loader.State.Status, new[] { StartupLoaderStatus.NotInstalled, StartupLoaderStatus.Reverted });

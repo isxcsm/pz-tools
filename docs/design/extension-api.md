@@ -4,7 +4,7 @@
 
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
-> water networks under `"fullest"`, with children, and food aged across supply changes
+> water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)). Planned: `"parallel"`. The first areas serve a separate power and water mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
@@ -38,7 +38,7 @@ nothing and says why.
 | Adds to vanilla | Every answer is vanilla's answer, or more. Something no network contains behaves as in vanilla. |
 | Part of the install | The API is infrastructure, not a feature with its own switch: turning it off would cut every dependent mod's power at once. It exists only in a game the [startup loader](startup-loader.md) started, and it is always on there. A game the app attached to has no API. |
 | Never fails closed | Other extensions are revoked when they fault. The API is not: a hook that cannot answer gives vanilla's answer for that call, and the API keeps running. A fault is reported, never turned into a power cut. |
-| Single player | PZ Tools runs only in a local single-player world; so does the API. |
+| Single player supported | Single player is what is supported and tested. Multiplayer is not blocked, only untested: the API runs there as it does in single player, and only what would be wrong on a client (changing what producers hold) is refused. |
 
 ## Reaching the API from Lua
 
@@ -50,6 +50,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | Field | Meaning |
 | --- | --- |
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
+| `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
 | `buildings`, `networks` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. |
 
@@ -62,11 +63,18 @@ How the table gets there:
   environment, before the game loads any Lua
   ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java)). The call sets
   the table into the new environment, so mods find it as they load.
-- The payload that answers that call loads beside the game's start. If the game's first Lua
-  environment comes first, the call waits for the payload, at most 10 seconds, once per game.
-- A payload that replaces another, or that came after the game's Lua started, sets the table on the
+- The API's code is its own jar (`extensions\pztools-extension-api.jar`), which the payload loads
+  beside the game's start ([`ApiHost`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ApiHost.java)).
+  If the game's first Lua environment comes first, the call waits for the payload, at most 10
+  seconds, once per game.
+- The bootstrap keeps the loaded API with its jar's digest, so a payload update leaves it running.
+  Only a changed API jar loads a new API (the payload looks about once a second).
+- An API that replaces another, or that came after the game's Lua started, sets the table on the
   next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
-  handles are kept.
+  handles are kept. A function a mod copied out of the table (`local define =
+  PZToolsAPI.networks.define`) belongs to the API replaced: calling it is a Lua error that says
+  the API was updated, and the mod reads it from `PZToolsAPI` again. An API that fails to set the
+  table leaves the game as in vanilla, and the functions mods copied give the same error.
 - A game started by an install from before the API has no API until it is started again.
 
 A mod checks `PZToolsAPI` on `OnGameStart`. Without it (PZ Tools not installed, or this game not
@@ -76,8 +84,12 @@ generators make up for the hours it was away as they first update, and the API s
 networks defined by then. Until a mod defines its networks, the game behaves as in vanilla.
 
 When the app updates the API's code in a running game, the new code takes over the definitions of the
-old one; mods do not define anything again. A change that cannot take them over waits for the game's
-restart, as other bootstrap changes do.
+old one, and what the old code knew of them: the producer in use and each producer as last seen (with
+whether it is out of service), the supply, the load of consumers that are not loaded, and the supply's history for food. Mods do not
+define anything again, and a producer running on a square that is not loaded goes on carrying its
+network. The old code keeps the definitions in the API table's metatable, written once a frame when
+they changed, and hands them over with the rest as the new code takes over. A change that cannot take
+them over waits for the game's restart, as other bootstrap changes do.
 
 Uninstalling the startup loader removes the API from the next game start. The app says so before it
 uninstalls, naming the mods it has seen use the API.
@@ -90,7 +102,7 @@ different object.
 A building is what the game's map data (`IsoMetaGrid`) says it is: the rooms of one `BuildingDef`,
 for loaded and unloaded squares alike. A square belongs to it when one of its rooms covers the square
 (`IsoMetaGrid.getRoomAt`); walls and yards outside its rooms do not.
-([`Buildings`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/Buildings.java))
+([`Buildings`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Buildings.java))
 
 | Call | Returns |
 | --- | --- |
@@ -109,8 +121,11 @@ for loaded and unloaded squares alike. A square belongs to it when one of its ro
 
 A light switch belongs to the room it lights (`IsoLightSwitch.roomId`). One on a south or east wall
 stands on the square beyond the wall, outside its room: `objects` reads one square around the
-building for those, and `near` leaves out every switch that lights a room. Objects exist only on
-loaded squares; the second result says whether some were missing.
+building for those, and `near` leaves out every switch that lights a room. So with anything else
+that hangs on a wall (its sprite is `attachedN`, `attachedS`, `attachedE` or `attachedW`) and stands
+on a square of no room: it belongs to the room across that wall, as a lamp on a building's outer
+wall does. A network supplies such an object with that room, as power and water to its square
+would. Objects exist only on loaded squares; the second result says whether some were missing.
 
 A key is the position `"x,y,z"` of the corner of the building's lowest level that is furthest north,
 then west: a square of that building, so no two buildings share it. A key that no longer names a
@@ -127,8 +142,8 @@ A network carries one utility, power or water, from producers to consumers.
 | --- | --- |
 | Producers | Power: generators. Water: fluid containers (rain collectors, barrels, tanks). Each belongs to at most one network. |
 | Consumers | Whole buildings (named by one of their squares), with objects excluded from them; and single objects anywhere. An object in a building that no network contains is not a consumer unless added on its own. |
-| Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A child has no producers of its own. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
-| Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio). |
+| Children | Networks that have supply while this network has, from its producers (power: whose load its producer carries; water: whose fixtures draw from its containers). A power child has no producers of its own; a water child may have its own, and draws from them and its parents'. Networks form a tree of one mod's networks of one utility; a cycle is refused. |
+| Policy | How producers share the load. Power: `"sequential"` (the first producer that can run carries everything; the next starts when it stops) or `"parallel"` (all running producers share it). Water: `"fullest"` (each draw comes from the container with the highest fill ratio) or `"nearest"` (from the network's own producers first, then its parent's, and so on up, the fullest within each; a container at least 95% full gives first wherever it is). |
 
 A call that changes a network takes the mod's handle (from `PZToolsAPI.client`) first; changing
 another mod's network is a Lua error. Network ids are 1 to 64 letters, digits, `_`, `.` or `-`, one
@@ -136,9 +151,9 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 
 | Call | Effect |
 | --- | --- |
-| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"`. Defined again with another utility, it detaches its children. |
+| `networks.define(handle, id, utility, policy)` | Creates the network, or empties the mod's own network of that id. Now `"power"` with `"sequential"`, and `"water"` with `"fullest"` or `"nearest"`. Defined again with another utility, it detaches its children. |
 | `networks.remove(handle, id)` | Removes it, giving its producers back to vanilla; `true` when there was one. |
-| `networks.setProducers(handle, id, list)` | Producers in order: squares (tables with `x`, `y`, `z`), and for power also sources the mod runs (tables with `source`, a name of 1 to 64 letters, digits, `_`, `.` or `-`). A square is a producer of one network at most. A new source is not available and switched off. A producer taken out of the list while it carries the load stops, and the next that can run takes over. |
+| `networks.setProducers(handle, id, list)` | Producers in order: squares (tables with `x`, `y`, `z`), and for power also sources the mod runs (tables with `source`, a name of 1 to 64 letters, digits, `_`, `.` or `-`). A square is a producer of one network at most. A power child takes none; a water child may. A new source is not available and switched off. A producer taken out of the list while it carries the load stops, and the next that can run takes over. |
 | `networks.setSource(handle, id, name, available, switchOn, hour)` | Sets a source of the network as its mod runs it: whether it can carry the load (`available`); `switchOn` `true` switches it on (it takes over, as a generator a player switches on), `false` off (the network stops if it was in use), `nil` leaves it; a source that is not available is switched off, and if it was in use the next producer takes over from `hour` (when it ran out; now when `nil`). The API does not know what the source is: the mod keeps its charge and says when it is empty. |
 | `networks.addBuilding(handle, id, x, y, z)` | A building as a consumer, named by one of its squares; `true` when the square is in a building now. |
 | `networks.removeBuilding(handle, id, x, y, z)` | Removes that square, and any other that names the same building; `true` when one was removed. |
@@ -147,10 +162,13 @@ id per network across all mods. Squares are `x, y, z`; objects are a square and 
 | `networks.setExtraLoad(handle, id, load)` | Power only: adds a load (0 to 1000) to the network's consumers', as for a source that charges from it. |
 | `networks.exclude(...)` / `networks.include(...)` / `networks.reset(...)`, each `(handle, id, x, y, z, sprite)` | Excludes an object of a member building, adds a single object, or undoes either. |
 | `networks.setParent(handle, id, parentId)` | Makes the network a child of another of the mod's networks; `nil` detaches it. Removing a parent detaches its children. |
-| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children, and its producers are left as the game runs them. A network is defined switched on. |
+| `networks.setEnabled(handle, id, on)` | Switches the network on (`true`) or off (`false`). Switched off, it has no supply, nor have its children. A power network at the top of its parents runs no producer while it is off: the API switches its running generators off, on standby, and leaves its sources off; a generator a player switches on meanwhile goes back off at once and becomes the one to start first, and so does a source its mod switches on meanwhile. Switched on again (`"supply"` at that hour), the producer in use before starts if it can run, or else the next that can take over (see [power](#power)); with none, it has no supply. A generator's turn to start first is marked on it and outlasts a world loaded again; a source's is not, and after a load the first producer, in order, that can run starts, a source only if its mod has said by then that it is available. One whose square is not loaded: if it still runs there, it carries the network on; if it is off and none other can start, the network waits for its square to load and starts it then. A generator out of service (switched off by hand) never starts. A child switched off leaves its parent's producers running. A mod sets the switch as it defines the network, before the next frame. A network is defined switched on. |
 | `networks.setLoadFactor(handle, id, factor)` | Power only: multiplies the load of the network, its children's included, on its way to its producer (a number from 0 to 100; 1, the default, for none). A child's factor counts inside its parent's. The API does not know why: a mod uses it for losses or savings of its own. |
-| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `hoursLeft` (how long the fuel of the producer in use and of those that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, or a source's `source`, `running` and `available`. For water, instead of the power fields: `amount` and `capacity` (what its producers hold, as last seen; for a child, those of the network at the top of its parents) and `producers`, each its square and, once seen loaded, `amount` and `capacity` (a child lists none). |
+| `networks.setPurify(handle, id, on)` | Water only: whether the water its fixtures give is purified, as vanilla purifies plumbed water (`true`, the default), or keeps the taint of the producer it comes from (`false`; see [fluids](#water)). Its own setting, also for a child. `false` is a Lua error in a game without both of the hooks it needs (`IsoObject.createSampleAndPurifyWater` and `isTaintedWater`, as the class is now): a game started by an install from before them gets them as it starts again; `PZToolsAPI.hooks()` says why one is missing. |
+| `networks.state(id)` | `nil`, or `owner`, `utility`, `policy`, `supplied`, `enabled`; `parent` for a child; `producer` (the producer in use, its square or a table with its `source`; absent without one running); `load` (its children's that are switched on included, times its load factor; what it draws while it has supply, also while it is switched off), `ownLoad` (its own consumers' and its extra load, without the factor), `extraLoad` and `loadFactor`; `complete` (whether every consumer was loaded when the load was last worked out); `fuelPerHour` (the litres of fuel a generator burns an hour carrying the load now: its base consumption and the load, times the sandbox's fuel rate; also while a source carries it or nothing runs; for a child, that of the network at the top of its parents); `hoursLeft` (how long the fuel of the producer in use and of those on standby that can take over lasts at the load now, as last seen; absent without supply and while a source carries it); and `producers`, in order, each its square and, once seen loaded, `running`, `fuel` and `condition`, and `outOfService` (`true` while it is off and out of service: the API saw it switched off by hand and never switches it on; absent otherwise), or a source's `source`, `running` and `available`. A generator with `running` false and no `outOfService` is on standby: the API switches it on when the one in use stops, if it can run, as its fuel and condition tell (see [power](#power)). An API from before the field gives none, and has none out of service, so a mod reads the field without a version check; but that API also stops the network when the one in use is switched off by hand, and leaves generators running while the network is switched off. For water, instead of the power fields: `purify`; `amount` and `capacity` (what the producers it draws from hold, as last seen and with what draws and fills owe them: its own and, for a child, its parents') and `producers`, its own alone, each its square, `pending` (the litres draws and fills owe it, signed: below 0 for draws) and, once seen loaded, `amount` (with `pending` counted) and `capacity`. |
 | `networks.consumers(id)` | The objects it supplies on loaded squares, as `buildings.objects` gives them, and whether every square was loaded. |
+| `networks.draw(handle, id, amount)` | Water only: takes up to `amount` litres (0 to 1,000,000) from the producers the network draws from, in its policy's order (see [draw and fill](#draw-and-fill)). Returns the litres taken and a table of what they were, by the game's fluid name (`{ Water = 12.5, TaintedWater = 2.5 }`). |
+| `networks.fill(handle, id, amount, fluid)` | Water only: adds up to `amount` litres of `fluid`, a name from the game's fluid registry (`"Water"`, `"TaintedWater"`), to the producers the network draws from, the emptiest first, as far as they have room. Returns the litres added. |
 
 One event, `OnPZToolsNetworkChange(id, what, hour)`, raised through `LuaEventManager` after the
 change, never per frame. `what` is `"supply"` (it started or stopped), `"producer"` (another producer
@@ -160,11 +178,13 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 ### Built so far
 
 - Power networks under `"sequential"`: buildings and single objects as consumers, and exclusions.
-- Supply under `"sequential"`: one producer runs at a time and carries the load. The player switches
-  the network on and off with its producers: the one switched on last carries it, and the API
-  switches the others off; switching off the one in use stops the network. When the one in use runs
-  out of fuel or breaks, the API switches on the first other producer, in order, that can run, from
-  the hour the first ran out (see Time below).
+- Supply under `"sequential"`: one producer runs at a time and carries the load. The one the player
+  switched on last carries it, and the API switches the others off, on standby. A generator switched
+  off by hand is out of service: the API never switches it on until a player switches it on again.
+  When the one in use is switched off, runs out of fuel or breaks, the API switches on the first other
+  producer, in order, that can take over (an available source, or a generator on standby that can
+  run), at once or from the hour the first ran out (see Time below); with none, the network stops
+  (see Standby below).
 - Load: worked out when a definition changes; when the game says something that uses power was
   switched, placed or taken in or beside a member building, or at an object added on its own
   (`IsoGenerator.updateGenerator`); and every 5 seconds while some consumers are not loaded.
@@ -190,25 +210,40 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - Water networks under `"fullest"`: a fixture the game can pipe water to (`waterPiped`), in a member
   building or added on its own and not excluded, takes its water from the network while one of its
   producers holds some: from the fullest of them by share of its capacity, at each question. A child's
-  fixtures draw from the producers of the network at the top of its parents. A producer's square has
+  fixtures draw from its own producers and its parents', the fullest of them all; a parent's never
+  draw from its child's. Under `"nearest"` they draw from the network's own producers first and from
+  each parent's only once the nearer ones hold nothing, the fullest within each; a container at least
+  95% full gives first wherever in the chain it is, so that rain is used before it would spill. A mod
+  whose parents' water is the only water some other fixtures reach (those of the parents' own
+  networks) keeps it for them this way. The policy of the fixture's own network applies. A producer's square has
   no consumers. The producers are read once a second; a `"supply"` event says when the network got or
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
   supply started and stopped (see Food below).
-- Switch: `setEnabled` switches a network off and on, for power and water.
+- Switch: `setEnabled` switches a network off and on, for power and water. A power network switched
+  off stops its generators (on standby, burning nothing); switched on, the one in use before starts
+  again, or the next on standby that can run.
 - Load factor: `setLoadFactor` multiplies a power network's load on its way to the producer.
 - Rooms: `addRoom` takes single rooms of a building instead of all of it.
 - Sources: producers its mod runs (`setSource`), in the same order as generators under `"sequential"`;
   `setExtraLoad` adds a load to a network.
+- Draw and fill: `draw` and `fill` move water out of and into a water network's producers, also those
+  whose squares are not loaded, which take the change as they load ([draw and fill](#draw-and-fill)).
+- Purification: `setPurify(false)` lets a water network's fixtures give their producer's taint
+  instead of vanilla's purified water.
 - Not yet: `"parallel"`.
 
 ### Power
 
 - **Supply.** A network is supplied while its producer in use runs. Under `"sequential"` only that
-  one is switched on; the API switches on the next when it runs out or breaks. A child is supplied
-  when its parent is. A network switched off (`setEnabled`) is not, nor are its children; its
-  producer in use keeps running as the game runs it and burns its base consumption alone, and a child
-  switched off adds nothing to its parent's load.
+  one is switched on; the API switches on the next on standby when it is switched off, runs out or
+  breaks. A child is supplied
+  when its parent is. A network switched off (`setEnabled`) is not, nor are its children; the
+  API switches its generators off, on standby, and the one in use before starts first when it is
+  switched on again (if it cannot run, the next that can take over). A generator switched on by hand
+  while the network is off is in service again: the API switches it straight back off, and it is the
+  one that starts first; a source its mod switches on meanwhile is, too. A child switched off adds nothing to its parent's load, and its parent's
+  producer keeps running.
 - **Load.** The sum of vanilla consumption (`IsoObject.getGeneratorPowerConsumption()` and the
   constants on `IsoGenerator`) over its consumers and its children's, each network's times its load
   factor, computed when a consumer is added, removed, placed or picked up, never per frame. Load of consumers in squares that are not
@@ -233,26 +268,120 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   hours a network or a parent above it was switched off count as without supply. A fridge
   with the game's own power now (the grid, a generator in range), an excluded one and frozen food age
   as in vanilla. Freezing and thawing follow the power now, as in vanilla. The times are not saved: a
-  world loaded again, or a newer payload, starts them anew.
+  world loaded again starts them anew; a newer payload takes them over.
+- **Standby.** Under `"sequential"` a generator that is off is on standby, unless it is out of
+  service. Out of service: switched off by hand while it could run (the API knows the switches it
+  makes; any other is by hand), also one switched on and off between two of its frames, which it sees
+  through the generator's update. The API never switches it on: not when the one in use is switched
+  off, runs out or breaks, nor when a source stops, nor when its network is switched on. Switched on
+  by hand, it carries the load as the one switched on last, and is in service again. Every other
+  generator that is off is on standby, as under the API before; so is one that stopped for want of
+  fuel or condition, which becomes a candidate again once it can run (nothing starts it as it is
+  refuelled or repaired: it takes over when the one in use next stops). When the one in use stops,
+  the first producer, in order, that can take over does: an available source, or a generator on
+  standby that can run; switched off by hand, at once (`"producer"`); only with none does the network
+  stop (`"supply"`). Standby is a generator's; a source is as its mod sets it: switched off by its
+  mod while available, it stops the network, as before; available, it can take over.
+- **First sight.** A generator the API sees for the first time (a new producer, a world loaded, a
+  newer payload taking over from one before the marks) is out of service if it carries the
+  out-of-service mark, or if it is off, can run, and carries the running mark: it was switched off
+  where the API did not see it, the game running without it. Off and unable to run, it stopped by
+  itself, and is on standby. Off without either mark (never seen running in a network by this API),
+  it is on standby.
 - **Settled state.** The generators' own saved fields (switched on, fuel, condition, `lastHour`) are
-  the state: the API keeps nothing in the save. After a world loads, the producer the game runs is
-  the one in use; the API records it as its first update starts, before the game makes up for the
-  hours away.
+  the state, with three marks the API keeps in the `modData` of a network's generators, each written
+  as it changes, never per frame. `PZToolsRunning` (`true`) while the API sees it running; it goes
+  when the API sees it stop or switches it off. `PZToolsOutOfService` (`true`) on one out of service;
+  it goes when it is seen running. `PZToolsResume` on the one to start first when its network,
+  switched off, is switched on again: its `lastHour` when it was marked, read only while the network
+  is off. The game changes `lastHour` only while the generator runs, so a resume mark whose hour is
+  not the generator's is from before it ran again, and counts for nothing. The world saves the marks
+  with the generator, as it saves its switch, so a world loaded again knows them as their squares
+  load; picked up, a generator leaves them behind (`ISTakeGenerator` copies fuel and condition, not
+  `modData`), and one placed there instead is new. A generator that leaves the producers loses its
+  marks at the next frame if its square is loaded, and so does one switched on in no network: the
+  marks are for network generators. In a running game the API keeps them also in memory, for
+  generators on squares that are not loaded too, and a newer payload takes them over; one from before
+  the marks hands over none, and the next frame reads them from the generators as at first sight.
+  After a world loads, the producer the game runs is the one in use; the API records it as its first
+  update starts, before the game makes up for the hours away.
+- **Multiplayer** (untested). The server, or a single-player game, owns the switches and the marks,
+  as it owns draw and fill. A client switches no producer and writes no mark: it reads the
+  out-of-service mark the server keeps, and takes the producer that runs as the one in use.
 
 ### Water
 
-- **Supply.** A network has water while one of its producers holds some, as last seen loaded, and it
-  is switched on. A child has water when the network at the top of its parents has and it and each
-  parent between are switched on. Without water, its fixtures are the
-  game's again.
-- **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
-  gives each draw. Levels converge as water is used, and space opens first in the containers that
+- **Supply.** A network has water while one of the producers it draws from holds some, as last seen
+  loaded and with what draws and fills owe it, and it is switched on. A child draws from its own producers, if it has any, and from each
+  parent's up to the one at the top; it has water while one of those holds some and it and each
+  parent above it are switched on. A parent switched off cuts its children, whatever they hold.
+  Without water, its fixtures are the game's again.
+- **Draws.** A consumer fixture draws from the network: under `"fullest"` the producer with the
+  highest fill ratio gives each draw (under `"nearest"` see above; the policy of the fixture's own
+  network applies, whatever its parents' are). Levels converge as water is used, and space opens first in the containers that
   are fullest, so rain is lost only when all are full. No water is moved between containers. A
   producer is the fluid container on a producer square; one whose square is not loaded gives no draw.
-- **Fluids.** Vanilla decides amount, draw and taint from the container the draw comes from, as it
-  does for a fixture plumbed to a barrel.
+- **Fluids.** Vanilla decides amount and draw from the container the draw comes from, as it does for
+  a fixture plumbed to a barrel, and it purifies plumbed water: what a fixture passes on
+  (`IsoObject.transferFluidTo`) comes through a sample of its source
+  (`createSampleAndPurifyWater`) in which TaintedWater is Water; the fluid and name the fixture shows
+  (`getPrimaryFluid`, `getFluidUiName`) are that sample's; and `isTaintedWater` says no while the
+  source holds anything. So a network's fixtures give clean water from rain-filled producers, as in
+  vanilla. A network with `setPurify(false)` keeps its producer's taint: the sample is a copy of the
+  source as it is, and `isTaintedWater` says yes while that source holds TaintedWater. A multiplayer
+  client defines no networks, so its interface may still show such water as clean.
 - **Time.** Water is drawn only when a fixture is used, which happens with its square loaded. Rain
   collectors fill themselves (see below), so a water network needs no catch-up of its own.
+
+#### Draw and fill
+
+A mod moves water into and out of a network's producers with `draw` and `fill`, for consumers and
+producers of its own that are not game fixtures. They reach the producers the network draws from (its
+own, then its parents'), and nothing while the network or a parent above it is switched off.
+
+- **Order.** A draw takes from the fullest by share of its capacity until it is level with the next,
+  then from both, and so on, as many small draws by fixtures would; a fill levels the room left the
+  same way, so the emptiest takes first. Under `"nearest"` a draw first takes what is above 95% of
+  each container's capacity (levelled the same way), then from the network's own producers, levelled,
+  then from its parent's, and so on; a fill is as under `"fullest"`. The policy of the network drawn
+  from applies. Each container gives every fluid it holds in proportion,
+  which is what the draw's table reports.
+- **Loaded.** A container on a loaded square changes at once, through the game's own
+  `FluidContainer.removeFluid` and `addFluid` (a container that does not take that fluid takes none).
+  As the game does after a fluid change, the object is synced (`IsoObject.sync()`, which sends it to
+  multiplayer clients) and `OnWaterAmountChange` is raised.
+- **Not loaded.** A producer whose square is not loaded is drawn and filled as last seen, with what it
+  is owed already, its fluids included; the change is owed to its square. A producer never seen loaded
+  since the networks were defined takes neither. `state` counts what is owed in `amount` and reports
+  it as `pending`.
+- **Owed.** What is owed belongs to the world, by square, not to a network: defining a network again
+  or changing its producers loses none. The world keeps it in the game's global ModData under
+  `PZToolsPendingFluids` (`next`, the next sequence number, and `deltas`, a list of `x`, `y`, `z`,
+  `sequence`, `litres` and, for a fill, `fluid`), which the game saves with the world. A square takes
+  what it is owed on the first frame it is loaded, in order: draws from its fullest container first,
+  fills into its emptiest, between empty and full. Until then no fixture draws from it. A square whose
+  containers are gone drops what it is owed, and the game's log says so.
+- **Added up.** A draw owed right after a draw to the same square adds to it, and so does a fill of one
+  fluid after a fill of the same, so a mod that draws every few minutes from a producer far away owes
+  one change, not one per draw. The square takes the sum as it would take the two one after the other:
+  its containers level their shares from the fullest down (or their room from the emptiest), and a
+  second draw levels on from where the first stopped, each container giving every fluid in proportion.
+  A change of another kind starts a new one, and none adds to a change read from the ModData as the
+  world loaded, which the square may have taken already (see below). Each change goes into the ModData
+  table as it is owed, without writing the others again.
+- **Once only.** A chunk is saved as it unloads, the global ModData only when the world is saved, so a
+  world that stopped between the two still owes a square changes it took. Each change has a sequence
+  number, and the containers on a square record the last one they took in their own modData
+  (`PZToolsFluidsApplied`), which is saved with them; a square takes no change at or below it, and once
+  seen loaded, `state` and the supply count none of them as owed while it is not loaded. A number is past
+  every one given, read or seen taken in the game, and a newer payload goes on from the last; it is past
+  the clock as well, so that a change owed in a game started again after such a world is numbered past
+  the ones taken. A square never seen loaded since the world loaded counts every change read as owed, as
+  only its containers know which it took.
+- **Multiplayer.** Only the server, or a single-player game, changes what producers hold: on a
+  multiplayer client `draw` and `fill` are a Lua error.
+- The API does not simulate rain for producers that are not loaded. Whether the game fills a rain
+  collector for the time its square was not loaded is not verified.
 
 ## How the game is answered
 
@@ -264,7 +393,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 | Is this room's light on, and this switch's lamps? | `LightingJNI.checkLights()`: a room light asks its switches' squares (`haveElectricity()`); a lamp with switches asks its first switch (`canSwitchLight()`, which asks `hasElectricityAround()`) | A switch of the room that the network supplies (its room's building is a member), not excluded |
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
 | Does this fixture take water from another object? | Each water question of `IsoObject` (`getFluidAmount`, `useFluid`, `hasWater`, `getUsesExternalWaterSource` and the others) reads its field `usesExternalWaterSource` | Vanilla, or it is a consumer of a network that has water |
-| Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the network's fullest producer; vanilla when none holds water |
+| Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the producer its network's policy picks (the fullest, or the nearest network's fullest); vanilla when none holds water |
+| What comes out of it, and is it tainted? | `IsoObject.createSampleAndPurifyWater(source, amount)` (TaintedWater becomes Water), behind `transferFluidTo`, `getPrimaryFluid` and `getFluidUiName`; `IsoObject.isTaintedWater()` | Vanilla; for a consumer of a network that does not purify, a sample with the producer's fluids as they are, and tainted while the producer holds TaintedWater |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
 | How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`), and ages it over the hours since it last aged | The container's object, by the appliance rule; the hours split where the network's supply started and stopped |
 
@@ -273,19 +403,40 @@ puts the hooks in as the classes load. Each return of the square and object ques
 game's answer to the API, which can only add to it; `setSurroundingElectricity()` and
 `updateGenerator()` ask the API first; `Food.updateAge` passes the hours it ages the food over. Each
 read of `usesExternalWaterSource` in the water questions passes the field and the object to the API;
-`save` keeps the game's own field, so the world saves what vanilla would. A method that is not shaped
-as expected gets no hook, which the game's log reports, and that question gets the game's answer.
+`save` keeps the game's own field, so the world saves what vanilla would. `createSampleAndPurifyWater`
+asks the API first, at its start because it reassigns its amount, and returns the API's sample when
+there is one; each return of `isTaintedWater` passes the game's answer.
+
+Each hook is checked and put in on its own. A method that is not shaped as expected (another mod
+changed it, or a game update did) gets no hook, and that question gets the game's answer; the class's
+other hooks still go in. Should the class fail to build with all its hooks (new stack maps over a
+type that cannot be loaded, say), the hooks go in one at a time and only the ones it takes stay. The
+game's log names each missing hook and why; `PZToolsAPI.hooks()` gives the same to mods, and the game
+writes it to the install folder for the app, which says so on the startup loader's card
+([startup loader](startup-loader.md#the-game-that-runs)).
 
 The answers come from a snapshot the API makes again when something changes
-([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)):
-for each supplied network, one bit per square over the box around its buildings, and the networks'
-object rules by square. `haveElectricity()` is called very often (lighting, food, sounds), so it
-costs a box test and a bit per network, never a walk over buildings. An object question looks at the
-object only when some network has a rule for an object. For an excluded object the API asks the game
-again with the networks silenced on that thread. The water questions have their own snapshot
-([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/WaterGrid.java)):
-the areas of the networks that have water, and their object rules. A question about an object outside
-those areas, or with no water network, costs a lookup of the object's square.
+([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/api/PowerGrid.java)).
+A definition that changes marks it out of date: the next frame makes it again, or the first question
+the game asks before then on its own thread, the one the mods' calls come on (a world's generators
+make up for the hours away as they first update, which can come before the next frame). So a mod that
+defines many objects in a row costs one snapshot, and a call that changes nothing costs none. It holds,
+for each supplied network, one bit per square of its buildings, kept in blocks of 8 by 8 squares of a
+level only where a room reaches, so that buildings far apart cost no more than buildings side by side;
+and the networks' object rules by square. `haveElectricity()` is called very often (lighting, food,
+sounds), so it costs a box test and a hash lookup per supplied network, never a walk over buildings.
+An object question the game answers yes ends at once while no network has a rule for an object. With
+rules, the object's square, and those of its other parts for one that covers several, are looked up
+among the squares that have rules, and its sprite is read only on such a square. One the game answers
+no while a network has supply is asked also whether a supplied network lights its room (a light
+switch: a search of the supplied rooms' sorted ids) and whether it hangs on a wall of a supplied
+building, which its sprite says (kept per sprite). For an object that no rule names, none of this
+allocates. For an excluded object the API asks the game again with the networks silenced on that
+thread. The water questions have their own snapshot
+([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/api/WaterGrid.java)):
+the areas of the networks that have water, their producers' squares and their object rules. A question
+about an object that takes no pipes, which its sprite says, ends there; one about a fixture costs the
+lookups of an object question.
 
 ## What vanilla does that mods need to know
 
@@ -306,6 +457,10 @@ those areas, or with no water network, costs a lookup of the object's square.
   water shut-off (`IsoObject.isWaterInfinite()` asks `getUsesExternalWaterSource()`). So a consumer of
   a water network that has water draws from its producers from the start; without water it has the
   mains while they run, and its own reserve after.
+- Water through a fixture that takes it from another object is purified: TaintedWater in the source
+  comes out as Water, and the fixture says it is not tainted while its source holds anything
+  (`IsoObject.createSampleAndPurifyWater`, `isTaintedWater`). Drinking from or filling at the source
+  object itself gives its water as it is.
 - Rain collectors are kept by a Lua global object system (`SRainBarrelSystem`) that adds rain every
   ten minutes while it rains, whether or not the collector's square is loaded, and writes the amount
   into the object when it loads. Rain is always `TaintedWater`. A change to the object's fluid while
@@ -366,6 +521,25 @@ generator outside it as its producer.
 | The first refuelled and switched on while the second ran | `producer` at 7.41; the second was switched off. |
 | The first switched off | `supply` at 7.43; the building went dark and the second stayed off. |
 
+These checks predate out of service (8 October 2026). With it, the last row changes: the first,
+switched off by hand, is out of service, and the second, on standby, takes over at once with
+`producer` instead of `supply`. Not yet checked in the game: the `modData` mark of a generator
+switched off while the game ran without the API, and a multiplayer server and client.
+
+On 8 October 2026 the rest was checked with Building Utilities' `tests/ingame/api_power.lua`: a
+network of its own handle over generators it put down, an extra load of 1 (0.102 litres an hour at
+the sandbox's rate) and no building.
+
+| Check | Result |
+| --- | --- |
+| By hand | A switched on carried. B switched on carried, A on standby. B switched off: out of service, and A took over at once. |
+| A failover | A switched off by hand: out of service; C took over and B stayed off. |
+| A running-out | C with half an hour of fuel from 196.45 stopped: `supply` at 197.000; A and B stayed off and out of service. |
+| A source | Switched on, it carried and C went on standby. Not available, C took over; A and B stayed off. |
+| `setEnabled` | Off: no supply, C stopped on standby (not out of service). On: C started again, A and B stayed off. |
+| A running-out not loaded | C with an hour and a half of fuel from 197.08, F added to the list, the player taken about 9,400 squares away to F: `producer` at 199.000 (C's `lastHour` 197 plus 2), F running. Back at C later: C off and empty, no event. |
+| After a load | F with fuel to 202, the world saved and loaded, the network defined again: `supply` at 202.000, and the network stopped (A, B and C not loaded). Back at A and B: both off and out of service, their marks read after the load. |
+
 On 7 October 2026 stage 3 was checked in the same game, started again with the new bootstrap, by a
 throwaway Lua script loaded from the debug console. No `[PzTools API]` report: the water hooks found
 `IsoObject`'s flag reads and `checkExternalFluidSource`, and the food hook its place in `Food.updateAge`.
@@ -378,7 +552,23 @@ throwaway Lua script loaded from the debug console. No `[PzTools API]` report: t
 | A steak in the gas station's fridge, the generator off for an hour (13.24 to 14.24) and on for half of one | Aged from 14.24: 0.0042; aged from 13.24: 0.0458. The difference is the hour off unchilled; the fridge factor seen is 0.2, the sandbox's (vanilla would give 1). |
 | Found on the way | A milk carton is a fluid container in Build 42, not food: it does not age. |
 
+On 8 October 2026 the game was started from Steam with PZ Optimize installed (its loose class
+overrides include `IsoGridSquare` and `IsoLightSwitch`). At the main menu `api.tsv` had the hooks of
+the classes loaded by then applied and the rest not loaded; after the save loaded, all 15 were applied,
+and `PZToolsAPI.hooks()` in the debug console gave 15 of 15 applied. With one hook's line changed to a
+failure by hand, the app's next round logged a warning naming `IsoGenerator.update`.
+
 ## Costs and risks
+- A generator in use whose square is not loaded when its network is switched off cannot be switched
+  off then: it runs on in the save. Switched on again before its square loads, the network goes on
+  with it; otherwise the API switches it off as its square loads, after the game burned the hours it
+  was away.
+- If the API switches a generator off first (another took over), a player's switch-off of it already
+  under way finds it off and does nothing (vanilla's action), so it ends on standby, not out of
+  service.
+- While a network is switched off its generators are off. If the API then faults, or the game starts
+  without it, they stay off and the game powers nothing from them until a player switches one on, as
+  in vanilla: the API does not fail closed into running them.
 - The generator's hourly wear is random; computing it for hours that were not loaded draws the same
   chances in one go, not the same sequence vanilla would have drawn.
 - Splitting food age changes a vanilla calculation that other mods may also change.

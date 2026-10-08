@@ -75,7 +75,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameBridge.Agent", 
 		src\PzTools.GameBridge.Agent\java\pztools\bridge\AgentEntry.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\AgentEntry.java
 		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\BridgeSession.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\BridgeSession.java
 		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\SaveNotice.java
-		src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java = src\PzTools.GameBridge.Agent\java\pztools\bridge\runtime\LegacyBridgeRetirement.java
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PzTools.GameBridge.Native", "PzTools.GameBridge.Native", "{70EBAAB9-DA9E-49D4-A6FD-A23628EDAE6E}"

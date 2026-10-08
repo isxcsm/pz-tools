@@ -8,10 +8,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import pztools.bridge.AgentEntry;
 
+import static pztools.bridge.runtime.Replies.error;
+import static pztools.bridge.runtime.Replies.ok;
+
 /**
  * A short note over the player's head for what the app did at the player's request, such as a hotkey pressed in the
  * game. Built only from a fixed catalog of notes, each with at most one whole number, so no text from outside reaches
- * the game. The request returns at once; the note is shown on the game thread, through the per-frame relay.
+ * the game. The request returns at once; the note is shown on the game thread, by the notes' own job in the frame
+ * router ({@link Frames.Job#NOTICES}), held only while a note waits.
  */
 final class GameNotices {
     static final int MAXIMUM_ITEMS = 4;
@@ -23,6 +27,8 @@ final class GameNotices {
     private static final Map<String, Map<String, String>> CATALOG = load();
     private static final AtomicReference<Note> pending = new AtomicReference<>();
     private static volatile Method instance, setHaloNote;
+    // Guarded by the class: the thread that gives the frame router's job back once no note waits.
+    private static Thread relay;
 
     private record Note(String text, boolean warning, float duration, long expires) { }
 
@@ -34,22 +40,51 @@ final class GameNotices {
     static synchronized String handle(String[] command) {
         try {
             if (command.length < 3 || command.length > 2 + MAXIMUM_ITEMS)
-                return ProfileControl.error("protocol", "Invalid notice request");
+                return error("protocol", "Invalid notice request");
             String[] items = java.util.Arrays.copyOfRange(command, 2, command.length);
             String text = compose(command[1], items);
             boolean warning = false;
             for (String item : items) warning |= WARNINGS.contains(key(item));
             prepare(AgentEntry.ensureGameHook().getClassLoader());
             // At the main menu, or between worlds, there is no one to show it to; the app says so another way.
-            if (instance.invoke(null) == null) return ProfileControl.ok("no-player");
+            if (instance.invoke(null) == null) return ok("no-player");
+            if (!Frames.add(Frames.Job.NOTICES, GameNotices.class, GameNotices::tick))
+                return error("notice-failed", "The game loop is not available to the bridge now");
             pending.set(new Note(text, warning, items.length > 1 ? LONG_DURATION : DURATION, System.nanoTime() + PATIENCE_NANOS));
-            ProfileControl.hookForNotice();
-            return ProfileControl.ok("queued");
+            relay();
+            return ok("queued");
         } catch (IllegalArgumentException invalid) {
-            return ProfileControl.error("protocol", String.valueOf(invalid.getMessage()));
+            return error("protocol", String.valueOf(invalid.getMessage()));
         } catch (Throwable failure) {
-            return ProfileControl.error("notice-failed", failure.getClass().getSimpleName());
+            return error("notice-failed", failure.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * Gives the frame router's job back once no note waits (shown, or too old to show), and at once when the payload
+     * is being replaced, which waits for the job to go.
+     */
+    private static void relay() {
+        if (relay != null) return;
+        relay = new Thread(() -> {
+            try {
+                while (true) {
+                    Thread.sleep(100);
+                    synchronized (GameNotices.class) {
+                        Note note = pending.get();
+                        if (note != null && System.nanoTime() <= note.expires && !AgentEntry.runtimeReloadRequested()) continue;
+                        pending.set(null);
+                        Frames.remove(Frames.Job.NOTICES, GameNotices.class);
+                        relay = null;
+                        return;
+                    }
+                }
+            } catch (InterruptedException interrupted) {
+                synchronized (GameNotices.class) { Frames.remove(Frames.Job.NOTICES, GameNotices.class); relay = null; }
+            }
+        }, "PzTools-notices");
+        relay.setDaemon(true);
+        relay.start();
     }
 
     /** The note's text: each item's line in the language, joined. Refuses anything not in the catalog. */
@@ -120,8 +155,6 @@ final class GameNotices {
         }
         var frozen = new HashMap<String, Map<String, String>>();
         result.forEach((language, lines) -> frozen.put(language, Map.copyOf(lines)));
-        frozen.put("ko", frozen.get("ko-KR"));
-        frozen.put("en", frozen.get("en-US"));
-        return Map.copyOf(frozen);
+        return NoticeLanguages.withShortTags(frozen);
     }
 }

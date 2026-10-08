@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.*;
 import pztools.extensions.api.*;
 
 /** Explicitly activated local-SP module. Installation instruments only an inert stable hook. */
-public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.FrameListener {
+public final class VehicleDrivetrainProvider implements ContinuousProvider, pztools.extensions.runtime.spi.FrameListener {
     private Instrumentation instrumentation;
     private Class<?> target;
     private ClassFileTransformer transformer;
@@ -24,7 +24,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     private volatile boolean retired;
     private boolean initialized,registered,disposed;
-    private VehicleHooks.Retirement retirement;
+    private Lease retirement;
     private volatile VehicleControl control;
 
     @Override public String id() { return "pztools.vehicle-drivetrain"; }
@@ -52,7 +52,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     @Override public Support preflight(Instrumentation instrumentation,ClassLoader loader,PreflightSource activeSource) throws Exception {
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
+        if(Class.forName(ControlPoints.class.getName(),false,loader)!=ControlPoints.class) return new Support(false,"unsupported-hook-loader");
         // Reject missing/type-changed handles before asking the healthy active generation to retransform.
         new VehicleAccess(loader);
         Class<?> candidateTarget=Class.forName(VehicleBytecode.TARGET.replace('/','.'),false,loader);
@@ -60,7 +60,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
         byte[] live=activeSource.capture(candidateTarget);
         if(live==null) live=captureUnownedInput(instrumentation,loader,candidateTarget);
         try { VehicleBytecode.transform(live,loader); }
-        catch(IllegalArgumentException rejected) { return new Support(false,"controller-contract-changed"); }
+        catch(IllegalArgumentException rejected) { return new Support(false,"controller-contract-changed:"+rejection(rejected)); }
         return new Support(true,null);
     }
     private static byte[] captureUnownedInput(Instrumentation instrumentation,ClassLoader loader,Class<?> target) throws Exception {
@@ -118,10 +118,9 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public Support initialize(Instrumentation instrumentation,ClassLoader loader) throws Exception {
         if(retired || disposed) return new Support(false,"module-retired");
-        if(initialized) return new Support(transformationFailure.get()==null,"game-code-changed");
         if(instrumentation==null || Runtime.version().feature()!=25 || !instrumentation.isRetransformClassesSupported())
             return new Support(false,"unsupported-runtime");
-        if(Class.forName(VehicleHooks.class.getName(),false,loader)!=VehicleHooks.class) return new Support(false,"unsupported-hook-loader");
+        if(Class.forName(ControlPoints.class.getName(),false,loader)!=ControlPoints.class) return new Support(false,"unsupported-hook-loader");
         access=new VehicleAccess(loader);
         target=Class.forName(VehicleBytecode.TARGET.replace('/','.'),false,loader);
         if(!instrumentation.isModifiableClass(target)) return new Support(false,"unmodifiable-controller");
@@ -152,7 +151,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
             synchronized(transformationGate) { retired=true; }
             instrumentation.removeTransformer(transformer);
             instrumentation.retransformClasses(target);
-            return new Support(false,"unsupported-controller-layout");
+            return new Support(false,"unsupported-controller-layout:"+rejection(failure));
         }
     }
     @Override public void validateConfig(Map<String,String> config) { new VehicleControl.Settings(config); }
@@ -181,7 +180,10 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public void gameFrame() { var current=control; if(current!=null) current.gameFrame(); }
     @Override public String diagnostics() { var current=control; return current==null?"":current.diagnostics(); }
-    @Override public String failureReason() { return transformationFailure.get()==null?null:"controller-contract-changed"; }
+    @Override public String failureReason() {
+        Throwable failure=transformationFailure.get();
+        return failure==null?null:"controller-contract-changed:"+rejection(failure);
+    }
     @Override public synchronized void deactivate() {
         var current=control;
         if(current!=null) { current.stopKeys(); current.stopLight(); }
@@ -189,7 +191,7 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
     }
     @Override public void close() throws Exception {
         deactivate();
-        VehicleHooks.Retirement wait;
+        Lease wait;
         synchronized(this) { if(disposed) return; wait=retirement; }
         if(wait!=null) wait.await(5000);
         synchronized(transformationGate) { retired=true; }
@@ -200,6 +202,21 @@ public final class VehicleDrivetrainProvider implements ContinuousProvider, pzto
             if(control!=null) control.clear(); control=null; access=null; target=null; transformer=null;
             instrumentation=null; initialized=false; disposed=true;
         }
+    }
+    /**
+     * Why the controller was refused, short enough for a status reason: the code VehicleBytecode or
+     * VehiclePatchContract gave (such as unsupported-control-contract:control_Reverse), else this module's own
+     * code along the way (such as controller-transform-rejected), else the exception's class. Free text from
+     * the JDK never gets through.
+     */
+    static String rejection(Throwable failure) {
+        for(Class<?> kind:List.of(IllegalArgumentException.class,IllegalStateException.class))
+            for(Throwable cause=failure;cause!=null;cause=cause.getCause()==cause?null:cause.getCause()) {
+                String code=cause.getMessage();
+                if(kind.isInstance(cause) && code!=null && code.length()<=160 && code.matches("[A-Za-z0-9_.:/()$;\\[-]+"))
+                    return code;
+            }
+        return failure.getClass().getSimpleName();
     }
     private static Exception checked(Throwable failure) {
         if(failure instanceof Exception exception) return exception;

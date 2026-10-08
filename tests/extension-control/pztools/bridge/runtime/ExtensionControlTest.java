@@ -45,6 +45,9 @@ public final class ExtensionControlTest {
         pausedPendingOff();
         lifecycleRelease();
         worldIdentity();
+        worldsWithoutLocalSave();
+        FramesTest.run();
+        ApiHostTest.run();
         ResidentExtensionsTest.run();
         ExtensionControlConcurrencyTest.run();
         System.out.println("PASS: extension wire map bounds, STATE fields, command replay, controller epochs and bounded lease");
@@ -155,6 +158,30 @@ public final class ExtensionControlTest {
                 && !modules.context.worldId().equals(first.worldId()), "Reloaded cell reused the prior world identity");
         } finally { session.close(); zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1); }
     }
+    /** A multiplayer client's world and a world without saves run the extensions as a single-player world does. */
+    private static void worldsWithoutLocalSave() throws Exception {
+        zombie.GameWindow.mode="normal"; zombie.GameWindow.gameThread=Thread.currentThread();
+        zombie.ZomboidFileSystem.path="synthetic-world";
+        zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1);
+        boolean previousClient = zombie.network.GameClient.client;
+        var session = new ExtensionControl.Session(null, zombie.GameWindow.class);
+        var field = ExtensionControl.Session.class.getDeclaredField("modules"); field.setAccessible(true);
+        var modules = new FixtureModules(); field.set(session, modules);
+        try {
+            zombie.network.GameClient.client = true;
+            session.poll();
+            var networked = modules.context;
+            check(modules.ticks.get() == 1 && networked != null && networked.worldValid().get()
+                && networked.worldIdentity() == zombie.iso.IsoWorld.instance.currentCell
+                && networked.worldId().equals(session.worldId())
+                && networked.worldId().equals(RuntimeIdentity.worldId(zombie.iso.IsoWorld.instance.currentCell)),
+                "A multiplayer client's loaded world did not run the extensions");
+            zombie.network.GameClient.client = false; zombie.GameWindow.mode = "no-save";
+            session.poll();
+            check(modules.ticks.get() == 2 && modules.context == networked && networked.worldValid().get() && modules.revokes.get() == 0,
+                "A world without saves did not run the extensions");
+        } finally { session.close(); zombie.network.GameClient.client = previousClient; zombie.GameWindow.mode = "normal"; }
+    }
     private static void pausedPendingOff() throws Exception {
         zombie.GameWindow.mode="normal"; zombie.GameWindow.gameThread=Thread.currentThread();
         zombie.ZomboidFileSystem.path="synthetic-world";
@@ -174,35 +201,36 @@ public final class ExtensionControlTest {
         } finally { session.close(); zombie.ui.UIManager.getSpeedControls().SetCurrentGameSpeed(1); }
     }
     private static void lifecycleRelease() throws Exception {
-        var pause = AgentEntry.class.getDeclaredField("dispatchPaused"); pause.setAccessible(true);
+        // The game loop paused, as a payload switch pauses it.
+        var pause = Class.forName("pztools.bridge.GameHook").getDeclaredField("paused"); pause.setAccessible(true);
         var modulesField = ExtensionControl.Session.class.getDeclaredField("modules"); modulesField.setAccessible(true);
         var clock = new AtomicLong(100);
         var session = new ExtensionControl.Session(null, Class.forName("zombie.GameWindow"), clock::get);
         var modules = new FixtureModules(); modulesField.set(session, modules);
-        check(AgentEntry.acquireLifecycle(session, session::poll), "Lifecycle slot occupied before test");
-        Object saveOwner = new Object(); var saves = new AtomicInteger(); var watches = new AtomicInteger();
+        check(Frames.add(Frames.Job.LIFECYCLE, session, session::poll), "Lifecycle slot occupied before test");
+        Object saveOwner = new Object(), watchOwner = new Object(); var saves = new AtomicInteger(); var watches = new AtomicInteger();
         check(AgentEntry.acquire(saveOwner, saves::incrementAndGet), "Save slot occupied before test");
-        AgentEntry.observe(watches::incrementAndGet);
+        check(Frames.add(Frames.Job.OBSERVER, watchOwner, watches::incrementAndGet), "Observer job occupied before test");
         try {
             pause.setBoolean(null, true);
             var closing = new Thread(session::close); closing.start(); closing.join(2000);
             check(!closing.isAlive() && modules.revokes.get() == 1 && modules.closes.get() == 1,
-                "dispatchPaused close waited for a game tick");
+                "A close during a paused game loop waited for a game tick");
             session.poll();
             check(modules.ticks.get() == 0, "Late captured lifecycle callback touched a closed generation");
             Object nextOwner = new Object(); var nextTicks = new AtomicInteger();
-            check(AgentEntry.acquireLifecycle(nextOwner, nextTicks::incrementAndGet), "Closed session leaked lifecycle ownership");
-            pause.setBoolean(null, false); AgentEntry.poll(); AgentEntry.releaseLifecycle(nextOwner);
+            check(Frames.add(Frames.Job.LIFECYCLE, nextOwner, nextTicks::incrementAndGet), "Closed session leaked lifecycle ownership");
+            pause.setBoolean(null, false); AgentEntry.poll(); Frames.remove(Frames.Job.LIFECYCLE, nextOwner);
             check(saves.get() == 1 && watches.get() == 1 && nextTicks.get() == 1,
                 "Lifecycle close displaced save or WATCH callbacks");
 
             var failing = new ExtensionControl.Session(null, Class.forName("zombie.GameWindow"), clock::get);
             var failingModules = new FixtureModules(); failingModules.throwRevoke = true; modulesField.set(failing, failingModules);
-            check(AgentEntry.acquireLifecycle(failing, failing::poll), "Cannot acquire faulting lifecycle");
+            check(Frames.add(Frames.Job.LIFECYCLE, failing, failing::poll), "Cannot acquire faulting lifecycle");
             failing.close();
-            check(failingModules.closes.get() == 1 && AgentEntry.acquireLifecycle(nextOwner, nextTicks::incrementAndGet),
-                "Failed revoke skipped retirement or leaked bootstrap ownership");
-            AgentEntry.releaseLifecycle(nextOwner);
+            check(failingModules.closes.get() == 1 && Frames.add(Frames.Job.LIFECYCLE, nextOwner, nextTicks::incrementAndGet),
+                "Failed revoke skipped retirement or leaked lifecycle ownership");
+            Frames.remove(Frames.Job.LIFECYCLE, nextOwner);
 
             var leased = new ExtensionControl.Session(null, Class.forName("zombie.GameWindow"), clock::get);
             var leasedModules = new FixtureModules(); modulesField.set(leased, leasedModules);
@@ -214,14 +242,14 @@ public final class ExtensionControlTest {
             var late = new ExtensionControl.Session(null, Class.forName("zombie.GameWindow"), clock::get);
             var lateModules = new FixtureModules(); modulesField.set(late, lateModules);
             var observerEntered = new CountDownLatch(1); var releaseObserver = new CountDownLatch(1);
-            AgentEntry.observe(() -> { observerEntered.countDown(); try { releaseObserver.await(2, TimeUnit.SECONDS); }
-                catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); } });
-            check(AgentEntry.acquireLifecycle(late, late::poll), "Cannot acquire late lifecycle");
+            check(Frames.add(Frames.Job.OBSERVER, watchOwner, () -> { observerEntered.countDown(); try { releaseObserver.await(2, TimeUnit.SECONDS); }
+                catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); } }), "Cannot replace the observer's job");
+            check(Frames.add(Frames.Job.LIFECYCLE, late, late::poll), "Cannot acquire late lifecycle");
             var dispatch = new Thread(AgentEntry::poll); dispatch.start();
             check(observerEntered.await(2, TimeUnit.SECONDS), "Dispatch did not enter observer");
             late.close(); releaseObserver.countDown(); dispatch.join(2000);
             check(!dispatch.isAlive() && lateModules.ticks.get() == 0, "Captured callback resurrected an EOF-closed owner");
-        } finally { pause.setBoolean(null, false); AgentEntry.observe(null); AgentEntry.release(saveOwner); session.close(); }
+        } finally { pause.setBoolean(null, false); Frames.remove(Frames.Job.OBSERVER, watchOwner); AgentEntry.release(saveOwner); session.close(); }
     }
     private static final class FixtureModules implements ContinuousModules {
         final AtomicInteger ticks = new AtomicInteger(), revokes = new AtomicInteger(), closes = new AtomicInteger(), applies = new AtomicInteger(), appliedPending = new AtomicInteger();

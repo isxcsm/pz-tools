@@ -36,7 +36,11 @@ New-Item -ItemType Directory -Force $fixtureClasses | Out-Null
 & $javac --release 25 -encoding UTF-8 -cp $runtimeJar -d $fixtureClasses (Join-Path $root 'tests/game-extensions-fixture/pztools/extensions/fixture/TestSaveProvider.java')
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture compilation failed.' }
 $env:PZTOOLS_EXTENSION_FIXTURE_JAR = Join-Path $output 'fixture-module.jar'
-[IO.File]::WriteAllText((Join-Path $output 'fixture-module.mf'), "Manifest-Version: 1.0`nPzTools-Extension-Api: 3`n`n", [Text.UTF8Encoding]::new($false))
+# Fixture archives declare the extension ABI the host was built with: ExtensionApi.HOST_ABI, as the build reads it.
+$apiSource = Join-Path $root 'src/PzTools.GameExtensions.Java/java/pztools/extensions/api/ExtensionApi.java'
+$hostAbi = [regex]::Match([IO.File]::ReadAllText($apiSource), '\bHOST_ABI\s*=\s*([0-9]+)\s*;').Groups[1].Value
+if (-not $hostAbi) { throw "ExtensionApi.HOST_ABI could not be read from $apiSource." }
+[IO.File]::WriteAllText((Join-Path $output 'fixture-module.mf'), "Manifest-Version: 1.0`nPzTools-Extension-Api: $hostAbi`n`n", [Text.UTF8Encoding]::new($false))
 & $jar --create --manifest (Join-Path $output 'fixture-module.mf') --file $env:PZTOOLS_EXTENSION_FIXTURE_JAR -C $fixtureClasses pztools/extensions/fixture
 if ($LASTEXITCODE -ne 0) { throw 'Extension transport fixture packaging failed.' }
 
@@ -77,11 +81,13 @@ function Invoke-JavaTest([string] $name, [string[]] $arguments) {
     if ($LASTEXITCODE -ne 0) { $failures.Add($name) }
 }
 Invoke-JavaTest 'override archive validation' @('OverrideArchiveValidationTest', (Join-Path $output 'override-archive-validation'))
-Invoke-JavaTest 'extension checkpoint behavior' @('CheckpointRuntimeTest')
+Invoke-JavaTest 'extension checkpoint behavior' @('pztools.extensions.runtime.CheckpointRuntimeTest')
+Invoke-JavaTest 'extension catalogue' @('pztools.extensions.runtime.CatalogueTest')
 Invoke-JavaTest 'shared extension version rules' @('VersionSupportTest', (Join-Path $root 'tests/game-extensions/version-support.tsv'), (Join-Path $root 'config/game-extensions/catalog.tsv'))
 Invoke-JavaTest 'vehicle drivetrain model' @('pztools.extensions.vehicle.model.DrivetrainModelTest')
 Invoke-JavaTest 'keyboard steering model' @('pztools.extensions.vehicle.model.SteeringModelTest')
-Invoke-JavaTest 'key timeline' @('pztools.extensions.runtime.input.KeyTimelineTest')
+# The game's JVM allows native access, as the Windows key source needs.
+Invoke-JavaTest 'key timeline' @('--enable-native-access=ALL-UNNAMED', 'pztools.extensions.runtime.input.KeyTimelineTest')
 Invoke-JavaTest 'vehicle adapter control preservation' @('pztools.extensions.vehicle.VehicleAdapterBehaviorTest', $vehicleFixture)
 Invoke-JavaTest 'vehicle adapter compatibility' @('pztools.extensions.vehicle.VehicleCompatibilityTest', $vehicleFixture)
 Invoke-JavaTest 'independent module slots' @('pztools.extensions.runtime.ModuleSlotsTest', $slots)

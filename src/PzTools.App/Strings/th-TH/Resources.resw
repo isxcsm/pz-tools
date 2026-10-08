@@ -632,9 +632,6 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="LogChooseDateTime" xml:space="preserve"><value>เลือกวันที่และเวลา</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>วันที่</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>ส่วนขยายเกม</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>ปิด · ใช้การบันทึกมาตรฐาน</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>ตรวจสอบความเข้ากันได้เมื่อบันทึกครั้งถัดไป &#183; ทดลอง</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>นำไปใช้</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>ไม่สามารถใช้การตั้งค่าส่วนขยายได้</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>บันทึกการเปลี่ยนแปลงไม่ได้ โปรดเปิดหน้านี้อีกครั้งและตรวจสอบไฟล์การตั้งค่าส่วนขยาย</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>ทุกเวอร์ชัน</value></data>
@@ -645,17 +642,12 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>กำลังรอเวอร์ชันเกม · ส่วนขยายไม่ทำงาน</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>ไม่ใช้ข้อจำกัดช่วงเวอร์ชันที่รองรับ</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>เวอร์ชันที่เข้ากันไม่ได้อาจทำให้เกิดข้อผิดพลาด ตัวเลือกนี้ข้ามเฉพาะข้อจำกัดเวอร์ชัน แต่ยังคงตรวจสอบความปลอดภัยที่จำเป็น และไม่ได้เปิดส่วนขยายให้ทำงาน</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>ข้ามข้อจำกัดเวอร์ชัน · ยังคงตรวจสอบความปลอดภัย</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>กำลังบันทึกด้วยส่วนขยาย</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>คำขอล่าสุด: บันทึกด้วยส่วนขยายสำเร็จ</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>คำขอล่าสุด: ใช้การบันทึกมาตรฐาน ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>คำขอล่าสุด: บันทึกไม่สำเร็จ ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>เลี้ยงกาแฟสักแก้ว</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools ช่วยคุณได้ไหม?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>เกมไม่ได้กำลังทำงาน</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>ตัวละครกำลังนอนหลับ</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>ปรับปรุงการขับขี่ยานพาหนะ</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน และส่องสว่างรอบตัวรถเมื่อเปิดไฟหน้า ฟีเจอร์ทดลองสำหรับผู้เล่นคนเดียวเท่านั้น</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>ปรับการเร่งและเปลี่ยนเกียร์เดินหน้า การถอยหลัง และการเลี้ยวด้วยคีย์บอร์ดแยกกัน และส่องสว่างรอบตัวรถเมื่อเปิดไฟหน้า ฟีเจอร์ทดลองที่ยังไม่ได้ทดสอบในโหมดผู้เล่นหลายคน</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>เร่งและเปลี่ยนเกียร์อย่างเป็นธรรมชาติ</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>ปรับการเร่งเดินหน้าตามรอบเครื่องยนต์และเกียร์</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>ถอยหลังอย่างนุ่มนวล</value></data>
@@ -666,7 +658,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>ส่องสว่างบริเวณรอบรถที่คุณนั่งอยู่ขณะเปิดไฟหน้า ต้องมีไฟหน้าที่ใช้งานได้และแบตเตอรี่ที่มีไฟ และจะไม่มีการเขียนอะไรลงในเซฟของคุณ</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>กำลังนำการเปลี่ยนแปลงไปใช้ในเกม</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>ไม่สามารถใช้ส่วนขยายได้ โปรดดูรายละเอียดในบันทึก</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>การตั้งค่าที่บันทึกไว้จะมีผลเมื่อเข้าเกมผู้เล่นคนเดียว</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>การตั้งค่าที่บันทึกไว้จะมีผลเมื่อเข้าเกม</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>หากต้องการใช้การตั้งค่า ให้เล่นเกมต่อ หยุดรถ ปล่อยคันเร่ง และปิดระบบควบคุมความเร็วอัตโนมัติ</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>เกมอยู่ที่เมนูหลัก</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>กำลังโหลดเกม</value></data>
@@ -802,14 +794,17 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="StartupLoaderHeader" xml:space="preserve"><value>โหลด PZ Tools เมื่อเกมเริ่ม (ทดลอง)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>กำลังตรวจสอบไฟล์เกม…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>ไม่พบโฟลเดอร์ของเกม เปิดเกมหนึ่งครั้งแล้วจะพบ</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว เมื่อเปิด จะแก้ไขไฟล์ projectzomboid.jar ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม เมื่อปิด จะคืนไฟล์เดิมของเกม</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools จะเชื่อมต่อกับเกมหลังจากเกมเริ่มแล้ว เมื่อเปิด จะเพิ่มไฟล์ของ PZ Tools เองลงในโฟลเดอร์ของเกมเพื่อให้เกมโหลด PZ Tools ตอนเริ่ม โดยไม่เปลี่ยนไฟล์ใดๆ ของเกม เมื่อปิด จะลบไฟล์เหล่านั้นออก</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>ติดตั้งแล้ว เกมจะโหลด PZ Tools ตอนเริ่ม และส่วนขยายที่เปิดไว้จะยังทำงานต่อแม้ปิด PZ Tools แล้ว</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>การอัปเดตเกมได้ลบออกไป เปิดอีกครั้งเพื่อใช้งาน</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>ไฟล์บางส่วนหายไปจากโฟลเดอร์ของเกม เปิดอีกครั้งเพื่อใช้งาน</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>เกมที่กำลังทำงานอยู่ตอนนี้เริ่มโดยไม่มีฟีเจอร์นี้ เริ่มเกมใหม่เพื่อใช้งาน</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>ไม่ได้โหลดเข้าไปในเกมที่กำลังทำงานอยู่ รายละเอียดอยู่ในบันทึก</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>ในเกมที่กำลังทำงานอยู่ ใส่ฮุกบางส่วนของ API ส่วนขยายไม่ได้ อาจเป็นเพราะม็อดอื่นแก้ไขโค้ดเกมส่วนเดียวกัน: {0} ในส่วนนั้นม็อดจะได้รับผลลัพธ์เดิมของเกม รายละเอียดอยู่ในบันทึก</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>เครื่องมืออื่นได้แก้ไขไฟล์ projectzomboid.jar ของเกม โปรดตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam ก่อน</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>ปิดเกมและเซิร์ฟเวอร์ที่เปิดจากโฟลเดอร์ของเกม แล้วลองอีกครั้ง</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>ไม่รองรับเกมเวอร์ชันนี้</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>ไม่พบสำเนาไฟล์เกมที่เก็บไว้ ตรวจสอบความสมบูรณ์ของไฟล์เกมใน Steam เพื่อกู้คืน</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>แก้ไขไฟล์เกมไม่ได้ รายละเอียดอยู่ในบันทึก</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>แก้ไขโฟลเดอร์ของเกมไม่ได้ รายละเอียดอยู่ในบันทึก</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>กำลังติดตั้ง PZ Tools ลงในเกม</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>กำลังนำ PZ Tools ออกจากเกม</value></data>
 </root>

@@ -625,9 +625,6 @@ GC работает: доля отрезка, когда работал сбор
   <data name="LogChooseDateTime" xml:space="preserve"><value>Выбрать дату и время</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Дата</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Расширения игры</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Выключено · Стандартное сохранение</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Проверка совместимости при следующем сохранении &#183; Экспериментально</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Применить</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Настройки расширений недоступны</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Не удалось сохранить изменения. Откройте страницу заново и проверьте файл настроек расширений.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Все версии</value></data>
@@ -638,17 +635,12 @@ GC работает: доля отрезка, когда работал сбор
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Ожидание версии игры · Расширение неактивно</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Игнорировать диапазон поддерживаемых версий</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Несовместимые версии могут вызывать ошибки. Игнорируется только ограничение версий; обязательные проверки безопасности сохраняются. Эта настройка не включает расширение.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Ограничение версии отключено · Обязательные проверки сохранены</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Сохранение расширением выполняется</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Последний запрос: сохранение расширением завершено</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Последний запрос: обычное сохранение ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Последний запрос: ошибка сохранения ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Угостить кофе</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools оказался полезным?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Игра не запущена</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Персонаж спит</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Улучшенное управление автомобилем</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры, а при включённых фарах освещает пространство вокруг машины. Экспериментально; только для одиночной игры.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>Независимо улучшает разгон вперёд, переключение передач, задний ход и управление с клавиатуры, а при включённых фарах освещает пространство вокруг машины. Экспериментально; в сетевой игре не проверено.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Естественный разгон и переключение передач</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>Настраивает разгон вперёд в зависимости от оборотов двигателя и передачи.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Плавный задний ход</value></data>
@@ -659,7 +651,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Освещает пространство вокруг машины, в которой вы находитесь, пока включены фары. Нужны исправные фары и заряженный аккумулятор; в сохранение ничего не записывается.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Применение изменений в игре.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Не удалось применить расширение. Подробности — в журнале.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Сохранённые настройки будут применены после входа в одиночную игру.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Сохранённые настройки будут применены после входа в игру.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Для применения возобновите игру, остановите автомобиль, отпустите газ и отключите круиз-контроль.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Игра в главном меню</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Игра загружается</value></data>
@@ -795,14 +787,17 @@ GC работает: доля отрезка, когда работал сбор
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Загружать PZ Tools при запуске игры (экспериментально)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Проверка файлов игры…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Папка игры не найдена. Запустите игру один раз, и она будет найдена.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools подключается к игре после её запуска. Если включить, файл projectzomboid.jar игры изменится, чтобы игра загружала PZ Tools при запуске. Если выключить, вернётся исходный файл игры.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools подключается к игре после её запуска. Если включить, в папку игры добавятся собственные файлы PZ Tools, чтобы игра загружала PZ Tools при запуске; файлы игры не изменяются. Если выключить, они будут удалены.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Установлено. Игра загружает PZ Tools при запуске, а включённые расширения продолжают работать, даже когда PZ Tools закрыт.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Обновление игры удалило это. Включите снова, чтобы пользоваться.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Некоторые его файлы пропали из папки игры. Включите снова, чтобы пользоваться.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Игра, которая работает сейчас, запущена без него. Перезапустите игру, чтобы пользоваться.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>В игру, которая работает сейчас, он не загрузился. Подробности в журнале.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>В игре, которая работает сейчас, не удалось встроить некоторые хуки API расширений — вероятно, другой мод изменяет тот же код игры: {0}. Там моды получают исходные ответы игры. Подробности в журнале.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Другая программа изменила файл projectzomboid.jar игры. Сначала проверьте целостность файлов игры в Steam.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Закройте игру и все серверы, запущенные из её папки, и повторите попытку.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Эта версия игры не поддерживается.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Сохранённая копия файла игры отсутствует. Проверьте целостность файлов игры в Steam, чтобы восстановить его.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не удалось изменить файл игры. Подробности в журнале.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Не удалось изменить папку игры. Подробности в журнале.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>Установка PZ Tools в игру</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>Удаление PZ Tools из игры</value></data>
 </root>

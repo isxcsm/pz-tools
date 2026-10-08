@@ -134,9 +134,9 @@ public final class VehicleAdapterBehaviorTest {
             check(control.diagnostics().contains("invalid-or-long-dt"),"zero dt diagnostic");
             e.set(e.time,"dt",1f/60); e.tick(); check(e.nativeForce()<=initial*1.15,"zero dt discards prior model ramp");
             Object script=e.get(e.vehicle,"script"); e.set(script,"engineRpmType","modded-unknown"); e.tick(); near(e.nativeForce(),11,"unknown profile original");
-            e.set(script,"engineRpmType","generic"); e.setStatic("zombie.network.GameClient","client",true); e.tick(); near(e.nativeForce(),11,"multiplayer original");
-            check(control.diagnostics().contains("mass=0.0"),"early rejection does not expose prior sample fields");
+            e.set(script,"engineRpmType","generic"); e.setStatic("zombie.network.GameClient","client",true); e.tick(); check(Math.abs(e.nativeForce()-11)>1e-6,"a multiplayer client's local driver gets the model");
             e.setStatic("zombie.network.GameClient","client",false); e.set(e.vehicle,"towedBy",e.vehicle); e.tick(); near(e.nativeForce(),11,"towed original");
+            check(control.diagnostics().contains("mass=0.0"),"early rejection does not expose prior sample fields");
             e.set(e.vehicle,"towedBy",null); e.set(e.vehicle,"running",false); e.tick();
             near(e.number(e.controller,"startRequests"),1,"adapter rejection preserves starting"); near(e.nativeForce(),0,"engine off ends with native zero");
         }
@@ -176,6 +176,14 @@ public final class VehicleAdapterBehaviorTest {
             e.context.worldValid().set(false); e.tick(); near(e.nativeForce(),11,"ended world remains original");
             e.unregister(); e.register((c,m,s)->{throw new IllegalStateException("synthetic failure before commit");}); e.tick();
             near(e.nativeForce(),11,"fault fallback"); check(VehicleHooks.failure(e.owner)!=null,"fault visible");
+        }
+        try(var e=new Env()) {
+            // An outcome the patched update() does not act on is the module's bug: it faults, and the game drives.
+            e.set(e.controller,"request",1); int[] calls={0};
+            e.register((c,m,s)->{ calls[0]++; return VehicleHooks.APPLIED|VehicleHooks.DIRECTION_HOLD; }); e.tick();
+            near(e.nativeForce(),11,"invalid outcome runs the original control"); near(e.number(e.controller,"forwardCalls"),1,"original propulsion ran once");
+            check(VehicleHooks.failure(e.owner)!=null,"invalid outcome faults the vehicle point");
+            e.tick(); near(calls[0],1,"a faulted point is not called again");
         }
         groups++;
     }
@@ -963,8 +971,8 @@ public final class VehicleAdapterBehaviorTest {
             check(control.areaLightState().startsWith("failed:"),"fault is reported: "+control.areaLightState());
             e.set(cell,"rejectLights",false); control.gameFrame();
             near(e.number(cell,"added"),0,"no retry storm after a fault");
-            check(VehicleHooks.failure()==null,"the fault stays inside the light");
-            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0 && VehicleHooks.failure()==null,"driving assistance still applies");
+            check(VehicleHooks.failure(e.owner)==null,"the fault stays inside the light");
+            e.set(e.controller,"request",1); e.tick(); check(e.nativeForce()>0 && VehicleHooks.failure(e.owner)==null,"driving assistance still applies");
         }
         groups++;
     }

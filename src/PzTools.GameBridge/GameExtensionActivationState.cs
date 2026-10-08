@@ -3,7 +3,8 @@ using PzTools.Process.Contracts.GameRuntime;
 namespace PzTools.GameBridge;
 
 /// <summary>
-/// Single-owner management state. Applied feature values require a matching JVM acknowledgement.
+/// Single-owner management state. Applied evidence (the digest of the configuration sent for a revision) requires a
+/// matching JVM acknowledgement of a revision this app requested.
 /// Ordinary failures are scoped to a process/world and settings revision. RestartRequired remains
 /// latched for the entire process, including world changes; this type never writes settings itself.
 /// </summary>
@@ -13,7 +14,8 @@ public sealed class GameExtensionActivationState
     public const string BootstrapUpdateReason = "bootstrap-update";
 
     private string? process, world;
-    private readonly Dictionary<long, RuntimeVehicleOptions> requests = [];
+    // The digest of the configuration sent with each requested revision.
+    private readonly Dictionary<long, string> requests = [];
     private RuntimeExtensionStatus? lastGood;
     private RuntimeExtensionStatus? failure;
     private long blockedRevision = -1;
@@ -41,10 +43,11 @@ public sealed class GameExtensionActivationState
     /// <summary>Validate a control response before issuing any follow-up command for the current world.</summary>
     public void VerifyTarget(RuntimeExtensionStatus actual, long requestedRevision) => _ = Scope(actual, requestedRevision);
 
-    public void RecordRequest(long revision, RuntimeVehicleOptions options)
+    /// <summary>The app sent this revision with a configuration of this digest (GameExtensionReconciler.Sent).</summary>
+    public void RecordRequest(long revision, string configuration)
     {
         if (process is null || revision < 0) throw new InvalidOperationException("Bind a live request first.");
-        requests[revision] = options;
+        requests[revision] = configuration;
         // Only the most recent pending configurations can still be acknowledged. Keep memory bounded.
         if (requests.Count > 32) requests.Remove(requests.Keys.Min());
     }
@@ -57,13 +60,13 @@ public sealed class GameExtensionActivationState
         if (IsDefinitiveFailure(actual, requestRejected: false)) return scoped;
         if (actual.State == RuntimeExtensionState.Active && actual.Reason is null
             && requests.TryGetValue(actual.AppliedRevision, out var applied))
-            lastGood = scoped with { ControlReady = true, AppliedVehicleOptions = applied };
-        RuntimeVehicleOptions? options = null;
+            lastGood = scoped with { ControlReady = true, AppliedConfiguration = applied };
+        string? configuration = null;
         if (actual.State is RuntimeExtensionState.Active or RuntimeExtensionState.Pending
             && lastGood is { } good && actual.Generation == good.Generation && actual.AppliedRevision == good.AppliedRevision)
-            options = good.AppliedVehicleOptions;
+            configuration = good.AppliedConfiguration;
         if (actual.State == RuntimeExtensionState.Disabled) lastGood = null;
-        return scoped with { ControlReady = true, AppliedVehicleOptions = options };
+        return scoped with { ControlReady = true, AppliedConfiguration = configuration };
     }
 
     public static bool IsDefinitiveFailure(RuntimeExtensionStatus actual, bool requestRejected) => requestRejected
@@ -86,7 +89,7 @@ public sealed class GameExtensionActivationState
         {
             State = actual.State is RuntimeExtensionState.Unsupported or RuntimeExtensionState.FaultedPassThrough or RuntimeExtensionState.RestartRequired
                 ? actual.State : RuntimeExtensionState.Unsupported,
-            ControlReady = false, AppliedVehicleOptions = null,
+            ControlReady = false, AppliedConfiguration = null,
         };
         blockedRevision = requestedRevision;
         // An update of the app that waits for the game's restart is not a failure of the extension: the latch keeps it
@@ -106,7 +109,7 @@ public sealed class GameExtensionActivationState
             || actual.WorldSession is not null && actual.WorldSession != world && actual.State != RuntimeExtensionState.RestartRequired)
             throw new ExtensionSessionMismatchException();
         return actual with { WorldSession = world, RequestedRevision = requestedRevision, AgeMilliseconds = 0,
-            ControlReady = false, AppliedVehicleOptions = null };
+            ControlReady = false, AppliedConfiguration = null };
     }
 }
 

@@ -30,7 +30,6 @@ public final class BridgeSession {
     private static Field worldInstance, worldCell;
     private static final String JVM_SESSION = RuntimeIdentity.processId();
     private static ClassLoader gameLoader;
-    private static boolean legacyRetired;
     private static final Object owner = new Object();
     private static boolean acquired;
 
@@ -89,18 +88,13 @@ public final class BridgeSession {
                 if (!AgentEntry.acquire(owner, BridgeSession::poll))
                     throw new BridgeFailure("busy", "Another bridge session is still active");
                 acquired = true;
-                if (!legacyRetired) {
-                    if (!LegacyBridgeRetirement.retire(instrumentation))
-                        throw new BridgeFailure("busy", "An older bridge request is still running");
-                    legacyRetired = true;
-                }
                 install(instrumentation);
                 if (ticket != null) RuntimeObserver.reserve(ticket);
                 SaveModules resolvedModules = null;
                 SaveModules.Resolution resolution = new SaveModules.Resolution(null, null);
                 if (extension) {
                     try {
-                        resolvedModules = AgentEntry.extensions();
+                        resolvedModules = ExtensionHost.current();
                         resolution = resolvedModules.resolve(command[6], instrumentation, gameLoader, PzRuntimeAdapter.readVersion(gameLoader), command[7].equals("force"));
                     } catch (Exception | LinkageError unavailable) {
                         resolution = new SaveModules.Resolution(null, "module-unavailable");
@@ -127,7 +121,9 @@ public final class BridgeSession {
                 // Reserve transport time before the client's overall response deadline.
                 int scheduledWait = (int)Math.max(0, Math.ceil((request.notBefore - System.nanoTime()) / 1_000_000_000.0));
                 String result = awaitResult(request, input, socket, completionSeconds - queueSeconds - 15 + scheduledWait, output);
-                if (request.result.isDone() || request.state.get() == 3) cleanup(instrumentation);
+                // Before the answer, not only in finally: cleanup waits for the game thread to leave poll (both hold this
+                // class's lock), so the client never sees a result while the request still holds the game thread.
+                if (request.result.isDone() || request.state.get() == 3) cleanup();
                 output.println(result);
             } catch (Throwable exception) {
                 output.println(error(exception instanceof RuntimeObserver.Deferred ? "runtime-deferred" : exception instanceof BridgeFailure failure ? failure.code : "bridge-failed",
@@ -141,7 +137,7 @@ public final class BridgeSession {
                 request.cancelBeforeSave();
                 if (request.state.get() == 3) pending.compareAndSet(request, null);
             }
-            try { cleanup(instrumentation); }
+            try { cleanup(); }
             catch (Throwable exception) { System.err.println("[PzTools bridge cleanup] " + describe(exception)); }
         }
     }
@@ -155,7 +151,7 @@ public final class BridgeSession {
         }
     }
 
-    private static synchronized void cleanup(Instrumentation instrumentation) throws Exception {
+    private static synchronized void cleanup() {
         if (!acquired) return;
         Request owned = pending.get();
         if (owned != null && owned.state.get() == 2 && !owned.result.isDone()) return;
@@ -385,8 +381,8 @@ public final class BridgeSession {
             + (request.recoveryError == null ? "" : "; recovery-metadata-unavailable=" + request.recoveryError)
             + (request.noticeError == null ? "" : "; notice-unavailable=" + request.noticeError);
         publishExecution(request, "Succeeded", request.fallbackReason);
-        if (request.requestedProvider == null) request.result.complete("OK\t" + encode(detail));
-        else request.result.complete("SAVED\t" + provider + "\t" + completion + "\t" + encode(detail)
+        if (request.requestedProvider == null) request.result.complete(Replies.ok(detail));
+        else request.result.complete("SAVED\t" + provider + "\t" + completion + "\t" + Replies.encode(detail)
             + "\t" + (request.fallbackReason == null ? "-" : request.fallbackReason));
     }
 
@@ -446,8 +442,7 @@ public final class BridgeSession {
         }
         return null;
     }
-    private static String encode(String value) { return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
-    private static String error(String code, String message) { return "ERROR\t" + code + "\t" + encode(message); }
+    private static String error(String code, String message) { return Replies.error(code, message); }
     private static String describe(Throwable exception) {
         // Preserve the throw site even for exceptions without a message.
         // Keep the wire/telemetry diagnostic bounded; a full stack trace can dwarf the result.

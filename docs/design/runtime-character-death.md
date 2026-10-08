@@ -16,7 +16,7 @@ flag in `players.db`. What the player sees is in
 single player and `IsoPlayer.numPlayers` is 1; otherwise life is `Unknown`. `IsoPlayer.getInstance()` and
 `isDead()` give `Alive` or `Dead`; a failed read is `Unknown`, never alive or dead.
 
-`RuntimeCharacterIdentity` (in the extension API, so it survives a payload reload) turns those readings into
+`RuntimeCharacterIdentity` (in the bootstrap, so it survives a payload reload) turns those readings into
 identities:
 
 | Event | Character id | Death id |

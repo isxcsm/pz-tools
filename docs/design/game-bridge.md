@@ -19,7 +19,7 @@ The build puts these files in `game-bridge\` next to the workers:
 | --- | --- | --- |
 | `runtime\` | Attach helper | A `jlink` image of the build JDK with `jdk.attach`, `jdk.jfr` and `jdk.zipfs`. It runs the attach helper and the [startup loader](startup-loader.md) install, and is never loaded into the game. |
 | `pztools-game-bridge.jar` | Helper and game | `pztools.bridge.AttachMain` (the helper's main class) and the payload (`pztools.bridge.runtime.*`) |
-| `pztools-game-bootstrap.jar` | Game | `AgentEntry`, `ApiHooks` (the [extension API](extension-api.md)'s hooks) and the extension API classes. Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
+| `pztools-game-bootstrap.jar` | Game | The [bootstrap](#layers): `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks` (the hooks of the [extension API](extension-api.md) for Lua mods, whose runtime is in the payload) and the module API of the [game extensions](game-extensions.md) (`pztools.extensions.api`). Loaded once per game process; built with fixed timestamps so its bytes do not change between builds. |
 | `pztools-attach-bootstrap.dll` | Game | A JVMTI agent that loads the game's own `jli.dll` |
 | `extensions\` | Game | Extension runtime, modules and catalogue ([game extensions](game-extensions.md)) |
 
@@ -54,22 +54,23 @@ starts the same way:
 4. If the game has neither `pztools.bridge.control.v1` nor `pztools.bridge.bootstrap.api`, no bootstrap
    is loaded yet. The helper loads `pztools-attach-bootstrap.dll` (`loadAgentPath`), then the bootstrap
    jar (`loadAgent`, option `BOOTSTRAP1:<base64 payload path>`). The bootstrap binds its own listener on
-   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=11` at once and
+   127.0.0.1, makes a 32-byte secret, and publishes `pztools.bridge.bootstrap.api=12` at once and
    `pztools.bridge.control.v1=2:<pid>:<port>:<secret>` once the game has loaded `GameWindow`, so that the
    secret is not in the game's list of properties
    ([startup loader](startup-loader.md#the-control-secret-and-the-games-log)). Without the endpoint yet,
    the helper waits for it (stage `bootstrap-starting`, up to 15 seconds); a game still starting after that
    gets "try again once it shows its menu".
-5. The helper requires `pztools.bridge.bootstrap.api` to be `11`. Any other value means the game still runs a
+5. The helper requires `pztools.bridge.bootstrap.api` to be `12`. Any other value means the game still runs a
    bootstrap from another version; the helper stops without sending anything
    (see [restart required](#restart-required-after-an-app-update)).
 6. The helper detaches, connects to the bootstrap's port and sends the secret, the app's port and token, the
    payload path and the kind. The bootstrap answers `ACCEPTED`, `BUSY`, `PAYLOAD_UNAVAILABLE`, `REJECTED` or
    `RESTART_REQUIRED`. Anything but `ACCEPTED` makes the helper exit with an error; no command was sent.
-7. On `ACCEPTED` the bootstrap runs the payload's entry point on a new daemon thread. It connects back to the
-   app's listener and identifies itself with the process id and token: `HELLO\t6\t<pid>\t<token>` for a
-   request, `RUNTIME\t1\t<pid>\t<token>` for the state stream, `EXTENSIONS\t1\t<pid>\t<token>` for extension
-   control. The client rejects any other greeting (`authentication-failed`).
+7. On `ACCEPTED` the bootstrap runs the session the payload's entry gave for the kind on a new daemon thread
+   (see [layers](#layers)). It connects back to the app's listener and identifies itself with the process id and
+   token: `HELLO\t6\t<pid>\t<token>` for a request, `RUNTIME\t1\t<pid>\t<token>` for the state stream,
+   `EXTENSIONS\t1\t<pid>\t<token>` for extension control. The client rejects any other greeting
+   (`authentication-failed`).
 
 The native bootstrap exists because the `instrument` agent library needs `jli.dll`, and some embedded Java
 launchers neither load it nor put the runtime's `bin` folder on the DLL search path. The DLL finds the
@@ -107,8 +108,8 @@ right even when the app was started with another administrator's password. Witho
 
 ### The game-loop hook
 
-The first request that needs the game thread calls `AgentEntry.ensureGameHook`. It requires Java feature
-version 25 with class retransformation, exactly one loaded `zombie.GameWindow`, exactly one `logic()V`, a
+The first request that needs the game thread calls `AgentEntry.ensureGameHook` (`GameHook`). It requires Java
+feature version 25 with class retransformation, exactly one loaded `zombie.GameWindow`, exactly one `logic()V`, a
 static `void save(boolean)`, a `gameThread` field, and the bootstrap class visible from the game's class
 loader. It then retransforms `GameWindow` to insert one static call, `AgentEntry.poll()`, at the start of
 `logic()`. Any failed check refuses the request.
@@ -117,27 +118,49 @@ The transformer stays registered. When another agent retransforms `GameWindow` l
 on the original bytes, so both changes survive. A failure at that point leaves the class without the call and
 is counted in the `hookFailures` diagnostic.
 
-`poll()` runs up to three callbacks each frame: the state observer (with the optional profiler), the extension
-lifecycle, and the pending request. An observer or lifecycle callback that throws is dropped.
+`poll()` runs two callbacks each frame, both the payload's: first its frame router, then the game-thread work of
+the request that owns the game thread (a save, `AgentEntry.acquire`). The bootstrap knows no other per-frame
+work. The router (`Frames`) runs the payload's jobs in a fixed order, each held by its owner until the owner lets
+go:
+
+| Job | Held by | While |
+| --- | --- | --- |
+| Profiler | `ProfileControl` | A recording runs; it marks the frames ([profiler](profiler.md)) |
+| Extension API | `ResidentApi` | Always, in a game the [startup loader](startup-loader.md) started: the API jar's `GameApi.frame` (through `ApiHost`) sets the API into a Lua environment that predates it and runs the power and water networks |
+| Notes | `GameNotices` | A note the app asked for waits to be shown ([hotkeys](profiler.md#hotkeys)) |
+| State observer | `RuntimeObserver` | A WATCH stream is open |
+| Extension lifecycle | The `ExtensionControl.Session` that holds the extensions | An app's extension control is connected, or the [resident controller](startup-loader.md#resident-extensions) holds them |
+
+A job that throws is dropped and the other jobs go on; a callback the bootstrap runs that throws is dropped too.
+Nothing either throws reaches the game. The router holds the bootstrap's frame slot while any job is held and
+gives it back with the last one, which is what a [payload switch](module-reload.md#payload) waits for. The state
+observer and the extension lifecycle read the game's state through one shared `PzRuntimeAdapter`, read once per
+frame.
 
 ### Layers
 
 | Layer | Holds | Replaced while the game runs? |
 | --- | --- | --- |
-| [Bootstrap](glossary.md#bootstrap) (`AgentEntry`) | Control listener, game-loop hook, payload loading | No |
-| [Payload](glossary.md#payload) | Save requests, state stream, extension control, profiling, leases | Yes |
+| [Bootstrap](glossary.md#bootstrap) | `AgentEntry` (the agent's arguments, the calls a payload makes, the startup), `ControlServer` (the control listener and its sessions), `GameHook` (the game-loop hook and its two callbacks), `Payload` (loading and switching the payload) | No |
+| [Payload](glossary.md#payload) | Its one entry (`PayloadEntry`), the frame router, save requests, state stream, extension control, the extension runtime's loading, the loading of the extension API and the resident extensions of a startup game, profiling, notes, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) and modules | Game extensions | Yes, each on its own |
 
-The payload jar must declare `PzTools-Bootstrap-Api: 11` in its manifest, or the bootstrap answers
-`PAYLOAD_UNAVAILABLE`. A jar with the same digest as the loaded one is reused, also from a new folder after the
-app has moved. For a new digest the bootstrap answers `BUSY` at once if a request session (save, profiler or
-notice) is running. Otherwise it links the new jar, asks WATCH and extension control to end, pauses dispatch
-and waits up to 3 seconds for every session and callback to finish before switching. If they do not,
-it answers `BUSY` and keeps the old payload. See [component updates](module-reload.md).
+The bootstrap holds no feature, so that a new one never needs a game restart. The payload has one entry,
+`PayloadEntry.dispatch(kind, options, instrumentation)`, which returns the work of a session of that kind, or
+nothing for a kind it does not know (the bootstrap then answers `REJECTED`). The bootstrap passes the kind the
+helper sent through as it is (any 1–16 capital letters); a connection that names none is a request. Its only kind of
+its own is `STARTUP`, which it dispatches once per payload in a game the [startup loader](startup-loader.md)
+started. One session of each kind runs at a time; a second gets `BUSY`. A new kind of session, or a new per-frame
+job of the payload (see [the game-loop hook](#the-game-loop-hook)), is the payload's alone.
 
-On its first save request the payload also disarms any `pztools.bridge.SaveBridge` classes left in the game by
-versions older than the bootstrap design (`LegacyBridgeRetirement`). If that old code still has a request
-pending, the new request is refused as `busy`.
+The payload jar must declare `PzTools-Bootstrap-Api: 12` in its manifest and link (`PayloadEntry` and the
+classes it names load), or the bootstrap answers `PAYLOAD_UNAVAILABLE`; whatever went wrong with one connection,
+the control listener goes on with the next. A jar with the same digest as the loaded one is reused, also from a new
+folder after the app has moved. For a new digest the bootstrap answers `BUSY` at once if a request session (save,
+profiler or notice) is running or a request still holds the game thread. Otherwise it links the new jar, asks the
+payload's sessions and threads to let go, pauses the game-loop callbacks (nothing new may take them meanwhile) and
+waits up to 3 seconds for every session and per-frame job to finish before switching. If they do not, it answers
+`BUSY` and keeps the old payload. See [component updates](module-reload.md).
 
 ### What changes in the game, and what does not
 
@@ -145,13 +168,15 @@ Changed, in memory only, until the game exits:
 
 - one static call at the start of `GameWindow.logic()`;
 - the system properties `pztools.bridge.control.v1` and `pztools.bridge.bootstrap.api`;
-- daemon threads: the control listener and one per open session;
+- daemon threads: the control listener and one per open session; in a game the startup loader started, also the
+  extension API's and the resident extensions' own;
 - the per-frame state read and, for a living character, the `pztools.recovery.*` keys in the player's
   modData ([character recovery](character-recovery.md#the-identity-stamp));
 - a halo note above the player during a save, when notices are on;
 - whatever an enabled extension does ([game extensions](game-extensions.md)).
 
-Not changed: game files, launch options, Workshop mods and Lua code. The game is saved only through its own
+Not changed: game files, launch options, Workshop mods and Lua code (the optional
+[startup loader](startup-loader.md) adds files of PZ Tools' own to the game's folder, and changes none of the game's). The game is saved only through its own
 `GameWindow.save(true)`, and only when a request asks for it. The bridge stays loaded after PZ Tools exits;
 what PZ Tools asked for ends with its [lease](#leases).
 
@@ -329,7 +354,8 @@ absolute path is cut to its last part.
 `AttachDiagnostics.Classify` recognises one cause the player can change: Java reports that the target "does
 not support the attach mechanism", which is what `-XX:+DisableAttachMechanism` does. Its code is
 `attach-disabled`, and the app says **A game launch option is blocking the connection.** Everything else is
-`attach-failed` (on the state stream, `runtime-unavailable`). The app always runs as administrator by its
+`attach-failed` (on the state stream and extension control, which start the helper the same way through
+`AttachLink`, `runtime-unavailable`). The app always runs as administrator by its
 manifest, so a game with more rights than the app is not a cause.
 
 | Link | Log entry |
@@ -373,7 +399,7 @@ These numbers decide what happens. This table is the one place they are recorded
 | Contract | Current | Checked between | On a mismatch |
 | --- | --- | --- | --- |
 | Java runtime | 25, with retransformation | The game's JVM and the bootstrap/payload | `unsupported-runtime` or a refused hook |
-| Bootstrap API | 11 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
+| Bootstrap API | 12 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
 | Save protocol | `HELLO` 6 | `GameSaveClient` and the payload | Payloads speaking 1–4 still serve plain saves with fewer features. A guarded request, non-default timeouts or a due time on an older payload give `unsupported-protocol`. |
 | State stream | `STATE5` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE5` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap. |
 | Extension host ABI | 3 | The extension runtime and each module | The module is not loaded |

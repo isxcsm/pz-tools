@@ -90,7 +90,7 @@ public sealed partial class GameSaveClientTests
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
         await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
-        var control = lease.Module(ExtensionIds.VehicleDrivetrain);
+        var control = lease.Module(VehicleDrivetrainExtension.Id);
         Assert.Equal(RuntimeExtensionState.Disabled, (await lease.StatusAsync(deadline.Token)).State);
         Assert.Equal(RuntimeExtensionState.Disabled, (await control.StatusAsync(deadline.Token)).State);
         var pending = await control.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1,
@@ -135,9 +135,9 @@ public sealed partial class GameSaveClientTests
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
         await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
-        var control = lease.Module(ExtensionIds.VehicleDrivetrain);
+        var control = lease.Module(VehicleDrivetrainExtension.Id);
         await control.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1,
-            ExtensionIds.VehicleDrivetrain, false, new Dictionary<string, string> { ["fixture_value"] = "first" }, deadline.Token);
+            VehicleDrivetrainExtension.Id, false, new Dictionary<string, string> { ["fixture_value"] = "first" }, deadline.Token);
         var active = await AwaitContinuousState(control, s => s.State == RuntimeExtensionState.Active, deadline.Token);
 
         // The game yields to a debug tool (the chunk viewer): the same world, loaded, with time standing still.
@@ -167,9 +167,9 @@ public sealed partial class GameSaveClientTests
         string? generation;
         await using (var first = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token))
         {
-            await first.Module(ExtensionIds.VehicleDrivetrain).ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1, "pztools.vehicle-drivetrain", false,
+            await first.Module(VehicleDrivetrainExtension.Id).ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 1, "pztools.vehicle-drivetrain", false,
                 new Dictionary<string, string>(), deadline.Token);
-            generation = (await AwaitContinuousState(first.Module(ExtensionIds.VehicleDrivetrain), s => s.State == RuntimeExtensionState.Active, deadline.Token)).Generation;
+            generation = (await AwaitContinuousState(first.Module(VehicleDrivetrainExtension.Id), s => s.State == RuntimeExtensionState.Active, deadline.Token)).Generation;
         }
         // Observe actual ownership release; a transient BUSY is not permission to reuse an old session.
         GameExtensionClient? reconnected = null;
@@ -179,7 +179,7 @@ public sealed partial class GameSaveClientTests
             catch (GameSaveException) { await Task.Delay(100, deadline.Token); }
         }
         await using var secondLease = reconnected;
-        var second = secondLease.Module(ExtensionIds.VehicleDrivetrain);
+        var second = secondLease.Module(VehicleDrivetrainExtension.Id);
         Assert.Equal(RuntimeExtensionState.Disabled, (await second.StatusAsync(deadline.Token)).State);
         await second.ApplyAsync(ready.ProcessSession, ready.WorldSession, -1, 2, "pztools.vehicle-drivetrain", false,
             new Dictionary<string, string>(), deadline.Token);
@@ -201,7 +201,7 @@ public sealed partial class GameSaveClientTests
         var ready = await watch.WaitAsync(s => s.IsWorldReady && s.Pause == GamePause.Running);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         await using var lease = await GameExtensionClient.ConnectAsync(bridge, game.Pid, deadline.Token);
-        var vehicle = lease.Module(ExtensionIds.VehicleDrivetrain);
+        var vehicle = lease.Module(VehicleDrivetrainExtension.Id);
         // A module that exists only for this test: the transport runs any catalogued continuous module.
         var second = lease.Module(SecondModule);
         Task<RuntimeExtensionStatus> Apply(GameExtensionModule module, long expected, long revision, string value) =>
@@ -218,7 +218,7 @@ public sealed partial class GameSaveClientTests
         Assert.Contains("secondValue=second", secondActive.Diagnostics);
         // A command must name the module it means.
         await Assert.ThrowsAsync<ArgumentException>(() => second.ApplyAsync(ready.ProcessSession, ready.WorldSession, 2, 3,
-            ExtensionIds.VehicleDrivetrain, false, new Dictionary<string, string>(), deadline.Token));
+            VehicleDrivetrainExtension.Id, false, new Dictionary<string, string>(), deadline.Token));
 
         // With the game paused nothing can be applied on the game thread. A new settings revision that
         // leaves this module's configuration as it was is still acknowledged at once, while a real

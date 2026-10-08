@@ -5,15 +5,17 @@ namespace PzTools.Process.Contracts.GameRuntime;
 
 public enum RuntimeExtensionState { Disabled, Pending, Active, Unsupported, FaultedPassThrough, RestartRequired }
 
-/// <summary>Feature values confirmed by an applied revision, never merely the saved request.</summary>
-public sealed record RuntimeVehicleOptions(bool TorqueEnabled, bool ReverseEnabled, bool SteeringEnabled, bool AreaLightEnabled = true);
-
 /// <summary>Applied JVM state, not the user's saved preference. It does not grant backup permission.</summary>
+/// <param name="AppliedConfiguration">
+/// The digest (<c>ContinuousConfiguration.Digest</c>) of the configuration this app sent for the applied revision, while
+/// the game runs that revision in the generation that acknowledged it: evidence that what runs is what the app asked for,
+/// never merely the saved request. The app's scheduler sets it; the game's STATUS does not carry it.
+/// </param>
 public sealed record RuntimeExtensionStatus(RuntimeExtensionState State, string? Reason = null,
     string ProcessSession = "", string? WorldSession = null, string? Generation = null,
     long AppliedRevision = -1, string? ModuleVersion = null, string? ModuleHash = null,
     string? Diagnostics = null, long AgeMilliseconds = 0, long RequestedRevision = -1,
-    bool ControlReady = false, RuntimeVehicleOptions? AppliedVehicleOptions = null)
+    bool ControlReady = false, string? AppliedConfiguration = null)
 {
     public RuntimeExtensionStatus Validate()
     {
@@ -29,7 +31,8 @@ public sealed record RuntimeExtensionStatus(RuntimeExtensionState State, string?
             || State == RuntimeExtensionState.Active && (ProcessSession.Length == 0 || WorldSession is null
                 || Generation is null || AppliedRevision < 0 || ModuleVersion is null || ModuleHash is null)
             || ControlReady && (ProcessSession.Length == 0 || WorldSession is null)
-            || AppliedVehicleOptions is not null && (!ControlReady || State is not (RuntimeExtensionState.Active or RuntimeExtensionState.Pending)
+            || AppliedConfiguration is not null && (AppliedConfiguration.Length != 64 || !AppliedConfiguration.All(char.IsAsciiHexDigit)
+                || !ControlReady || State is not (RuntimeExtensionState.Active or RuntimeExtensionState.Pending)
                 || ProcessSession.Length == 0 || WorldSession is null || Generation is null || AppliedRevision < 0))
             throw new InvalidDataException("Invalid extension runtime status.");
         return this;

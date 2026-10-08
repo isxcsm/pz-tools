@@ -27,7 +27,13 @@ public sealed record RuntimeSnapshot(
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
+    /// <summary>A loaded local single-player world with its save: what saves, backups and schedules act on.</summary>
     public bool IsWorldReady => Phase == WorldPhase.Ready && Mode == RuntimeMode.LocalSinglePlayer && SavePath is not null;
+    /// <summary>
+    /// A loaded world in any mode, which game extensions run in: they need no save. A multiplayer client's world is
+    /// untested, not refused. <see cref="WorldSession"/> names each loaded world, whatever its mode.
+    /// </summary>
+    public bool IsExtensionWorldReady => Phase == WorldPhase.Ready;
     /// <summary>
     /// The observer's initial snapshot, repeated until the game's main loop first runs. A game that runs
     /// but cannot be read is sampled too: its Unknown moves past sequence 0 within a tenth of a second.
@@ -111,8 +117,19 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     public RuntimeExtensionStatus? ExtensionFor(string moduleId) =>
         Extensions is not null && Extensions.TryGetValue(moduleId, out var own) ? own : Extension;
     public string SemanticKey => $"{StreamEpoch}/{Quality}/{Snapshot?.SemanticKey}/{Reason}";
-    public bool IsFresh => Quality == RuntimeQuality.Fresh && AgeMilliseconds <= 2000
-        && Snapshot is { SampleAgeMilliseconds: <= 2000 };
+    public bool IsFresh => Quality == RuntimeQuality.Fresh && IsCurrentSample;
+    /// <summary>The game's save is outside the configured saves root: no save PZ Tools may act on.</summary>
+    public const string OutsideSaveRootReason = "outside-configured-save-root";
+    /// <summary>
+    /// A current sample the game extensions act on. They need no save, so a rule about saves does not stop them: a
+    /// sample that is <see cref="RuntimeQuality.Unsupported"/> only because its save is outside the configured saves
+    /// root counts as fresh here. Saves, backups and schedules keep <see cref="IsFresh"/>.
+    /// </summary>
+    public bool IsExtensionFresh => (Quality == RuntimeQuality.Fresh
+        || Quality == RuntimeQuality.Unsupported && Reason == OutsideSaveRootReason) && IsCurrentSample;
+    /// <summary>A current sample of a loaded world the game extensions run in, in any mode and with any save.</summary>
+    public bool IsExtensionWorldReady => IsExtensionFresh && Snapshot is { IsExtensionWorldReady: true };
+    private bool IsCurrentSample => AgeMilliseconds <= 2000 && Snapshot is { SampleAgeMilliseconds: <= 2000 };
     public static RuntimeObservation Unknown(string? reason = null) => new("", RuntimeQuality.Unknown, null, Reason: reason);
     /// <summary>
     /// The played character is dead. Periodic backups of a dead character only push the backups

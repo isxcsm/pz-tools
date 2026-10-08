@@ -625,9 +625,6 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="LogChooseDateTime" xml:space="preserve"><value>Tarih ve saat seç</value></data>
   <data name="LogDateLabel" xml:space="preserve"><value>Tarih</value></data>
 <data name="GameExtensions.Title" xml:space="preserve"><value>Oyun eklentileri</value></data>
-<data name="GameExtensions.Disabled" xml:space="preserve"><value>Kapalı · Standart kayıt</value></data>
-<data name="GameExtensions.AwaitingValidation" xml:space="preserve"><value>Uyumluluk sonraki kayıtta denetlenir &#183; Deneysel</value></data>
-<data name="GameExtensions.Apply" xml:space="preserve"><value>Uygula</value></data>
 <data name="GameExtensions.SettingsError" xml:space="preserve"><value>Eklenti ayarları kullanılamıyor</value></data>
 <data name="GameExtensions.SettingsErrorBody" xml:space="preserve"><value>Değişiklikler kaydedilemedi. Sayfayı yeniden açın ve eklenti ayarları dosyasını kontrol edin.</value></data>
 <data name="GameExtensions.VersionAll" xml:space="preserve"><value>Tüm sürümler</value></data>
@@ -638,17 +635,12 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
 <data name="GameExtensions.VersionUnknown" xml:space="preserve"><value>Oyun sürümü bekleniyor · Eklenti etkin değil</value></data>
 <data name="GameExtensions.ForceVersion" xml:space="preserve"><value>Desteklenen sürüm aralığını yok say</value></data>
 <data name="GameExtensions.ForceWarning" xml:space="preserve"><value>Desteklenmeyen sürümler hatalara neden olabilir. Yalnızca sürüm aralığı sınırı kaldırılır; temel güvenlik kontrolleri etkin kalır. Eklenti ayrıca açılmalıdır.</value></data>
-<data name="GameExtensions.ForcedVersion" xml:space="preserve"><value>Sürüm sınırı kaldırıldı · Temel kontroller etkin</value></data>
-  <data name="GameExtensions.ExecutionRunning" xml:space="preserve"><value>Eklenti aracılığıyla kayıt sürüyor</value></data>
-  <data name="GameExtensions.ExecutionSucceeded" xml:space="preserve"><value>Son istek: eklenti aracılığıyla kayıt tamamlandı</value></data>
-  <data name="GameExtensions.ExecutionFallback" xml:space="preserve"><value>Son istek: standart kayıt kullanıldı ({0})</value></data>
-  <data name="GameExtensions.ExecutionFailed" xml:space="preserve"><value>Son istek: kayıt başarısız ({0})</value></data>
   <data name="CoffeeSupport.Title" xml:space="preserve"><value>Bir kahve ısmarla</value></data>
   <data name="CoffeeSupport.Message" xml:space="preserve"><value>PZ Tools işinize yaradı mı?</value></data>
   <data name="RuntimeBackupOffline" xml:space="preserve"><value>Oyun çalışmıyor</value></data>
   <data name="RuntimeBackupSleeping" xml:space="preserve"><value>Karakter uyuyor</value></data>
   <data name="Extension.VehicleDrivetrain.Title" xml:space="preserve"><value>Araç sürüşü iyileştirmeleri</value></data>
-  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir; farlar açıkken aracın çevresini aydınlatır. Deneyseldir; yalnızca tek oyunculu oyun içindir.</value></data>
+  <data name="Extension.VehicleDrivetrain.Description" xml:space="preserve"><value>İleri hızlanma ve vites geçişlerini, geri sürüşü ve klavyeyle direksiyon kontrolünü ayrı ayrı iyileştirir; farlar açıkken aracın çevresini aydınlatır. Deneyseldir; çok oyunculu oyunda test edilmemiştir.</value></data>
   <data name="VehicleDrivetrain.Torque" xml:space="preserve"><value>Doğal hızlanma ve vites geçişleri</value></data>
   <data name="VehicleDrivetrain.TorqueDescription" xml:space="preserve"><value>İleri hızlanmayı motor devrine ve vitese göre ayarlar.</value></data>
   <data name="VehicleDrivetrain.Reverse" xml:space="preserve"><value>Yumuşak geri sürüş</value></data>
@@ -659,7 +651,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="VehicleDrivetrain.AreaLightDescription" xml:space="preserve"><value>Farlar açıkken içinde bulunduğunuz aracın çevresini aydınlatır. Çalışan farlar ve dolu bir akü gerekir; kaydınıza hiçbir şey yazılmaz.</value></data>
   <data name="GameExtensions.Applying" xml:space="preserve"><value>Değişiklikler oyunda uygulanıyor.</value></data>
   <data name="GameExtensions.InitializationFailed" xml:space="preserve"><value>Eklenti uygulanamadı. Ayrıntılar için günlükleri kontrol edin.</value></data>
-  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, tek oyunculu bir oyuna girdiğinizde uygulanır.</value></data>
+  <data name="GameExtensions.WorldRequired" xml:space="preserve"><value>Kaydedilen ayarlar, bir oyuna girdiğinizde uygulanır.</value></data>
   <data name="GameExtensions.ApplyWhenSafe" xml:space="preserve"><value>Uygulamak için oyuna devam edin, aracı durdurun, gazı bırakın ve hız sabitleyiciyi kapatın.</value></data>
   <data name="RuntimeBackupMainMenu" xml:space="preserve"><value>Oyun ana menüde</value></data>
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Oyun yükleniyor</value></data>
@@ -795,14 +787,17 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="StartupLoaderHeader" xml:space="preserve"><value>Oyun başlarken PZ Tools'u yükle (deneysel)</value></data>
   <data name="StartupLoaderChecking" xml:space="preserve"><value>Oyun dosyaları denetleniyor…</value></data>
   <data name="StartupLoaderNotFound" xml:space="preserve"><value>Oyun klasörü bulunamadı. Oyunu bir kez başlatın, bulunacaktır.</value></data>
-  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools oyuna, oyun başladıktan sonra bağlanır. Açmak, oyunun projectzomboid.jar dosyasını değiştirir; böylece oyun başlarken PZ Tools'u yükler. Kapatmak, oyunun kendi dosyasını geri koyar.</value></data>
+  <data name="StartupLoaderNotInstalled" xml:space="preserve"><value>PZ Tools oyuna, oyun başladıktan sonra bağlanır. Açmak, PZ Tools'un kendi dosyalarını oyun klasörüne ekler; böylece oyun başlarken PZ Tools'u yükler. Oyunun hiçbir dosyası değişmez. Kapatmak bu dosyaları kaldırır.</value></data>
   <data name="StartupLoaderInstalled" xml:space="preserve"><value>Yüklendi. Oyun başlarken PZ Tools'u yükler ve açık olan uzantılar PZ Tools kapalıyken de çalışmaya devam eder.</value></data>
-  <data name="StartupLoaderReverted" xml:space="preserve"><value>Bir oyun güncellemesi bunu kaldırdı. Kullanmak için yeniden açın.</value></data>
+  <data name="StartupLoaderReverted" xml:space="preserve"><value>Dosyalarının bazıları oyun klasöründe artık yok. Kullanmak için yeniden açın.</value></data>
+  <data name="StartupLoaderGameWithout" xml:space="preserve"><value>Şu anda çalışan oyun bu özellik olmadan başlatıldı. Kullanmak için oyunu yeniden başlatın.</value></data>
+  <data name="StartupLoaderGameFailed" xml:space="preserve"><value>Şu anda çalışan oyuna yüklenemedi. Ayrıntılar günlüklerde.</value></data>
+  <data name="StartupLoaderHooksMissing" xml:space="preserve"><value>Şu anda çalışan oyunda uzantı API'sinin bazı kancaları eklenemedi; muhtemelen başka bir mod oyunun aynı kodunu değiştiriyor: {0}. Modlar orada oyunun kendi yanıtlarını alır. Ayrıntılar günlüklerde.</value></data>
   <data name="StartupLoaderForeign" xml:space="preserve"><value>Başka bir araç oyunun projectzomboid.jar dosyasını değiştirmiş. Önce Steam'de oyun dosyalarını doğrulayın.</value></data>
   <data name="StartupLoaderGameRunning" xml:space="preserve"><value>Oyunu ve klasöründen başlatılan tüm sunucuları kapatıp yeniden deneyin.</value></data>
   <data name="StartupLoaderUnsupported" xml:space="preserve"><value>Oyunun bu sürümü desteklenmiyor.</value></data>
   <data name="StartupLoaderOriginalMissing" xml:space="preserve"><value>Oyun dosyasının saklanan kopyası eksik. Geri yüklemek için Steam'de oyun dosyalarını doğrulayın.</value></data>
-  <data name="StartupLoaderFailed" xml:space="preserve"><value>Oyun dosyası değiştirilemedi. Ayrıntılar günlüklerde.</value></data>
+  <data name="StartupLoaderFailed" xml:space="preserve"><value>Oyun klasörü değiştirilemedi. Ayrıntılar günlüklerde.</value></data>
   <data name="StartupLoaderInstalling" xml:space="preserve"><value>PZ Tools oyuna yükleniyor</value></data>
   <data name="StartupLoaderRemoving" xml:space="preserve"><value>PZ Tools oyundan kaldırılıyor</value></data>
 </root>
