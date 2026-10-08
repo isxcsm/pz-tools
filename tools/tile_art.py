@@ -1,22 +1,26 @@
 """Draws Operation Acorn's own tiles and writes them as its two tile sheets, with the .tiles definitions, the texture
-packs, and the item icons that are drawn from the tiles. Taken from Building Utilities' tools/tile_art.py: the objects are
-a few solids in a tile's space, projected the way the game draws a square, shaded by a light from above and the viewer's
-left, drawn four times larger with a depth buffer and scaled down (see tile_engine.py).
+packs, and the previews. Taken from Building Utilities' tools/tile_art.py: the objects are a few solids in a tile's space,
+projected the way the game draws a square, shaded by a light from above and the viewer's left, drawn four times larger
+with a depth buffer and scaled down (see tile_engine.py). The big machines are drawn whole and split into the tiles of
+their footprint (tile_big1/2/3.py).
 
 The sheets (8 tiles a row; the code names a tile by its place: see Sprites.lua):
 
     oa_trade_01     the communication terminal (off, on; S E N W each), the delivery box, the supply crate, the
                     parachute crate, the scorched ground, the meteor rocks, the drop-site stake (16 tiles)
-    oa_machines_01  the shred bench, bulk shredder, cutter, propane refiner, oil refiner and wood saw (stopped and
-                    running, S E N W each), the research storage (S E N W), the big rain storage, the lure (51 tiles)
+    oa_machines_01  the shred bench, bulk shredder, cutter, wood saw, research storage (2x1), the propane and oil
+                    refiners (2x2), the big rain storage (2x2), the lure (1x1): 134 tiles. A machine takes
+                    states x facings x tiles places, in this order: state (stopped, running), facing (S E N W), then the
+                    tiles of that facing's footprint row by row (y outer, x inner). Its base place and footprint are in KINDS.
 
 Saves name the tiles by their place in the sheet: a new tile goes in a free place or a new row, never in a used one,
 and the sheet keeps its eight columns.
 
     python tools/tile_art.py            writes OperationAcorn/42/media/oa_trade.tiles, oa_machines.tiles and
                                         texturepacks/OperationAcornTrade.pack, OperationAcornMachines.pack
-    python tools/tile_art.py --preview  also writes tools/tile_art_preview_trade.png and ..._machines.png (the tiles on a
-                                        floor, for a look)
+    python tools/tile_art.py --preview  also writes tools/tile_art_preview_trade.png, ..._machines.png (every machine
+                                        assembled as it stands in the world, each look and facing) and
+                                        ..._machines_tiles.png (the loose tiles on a floor, eight to a row)
     python tools/tile_art.py --only trade|machines   one sheet only
 
 The items' icons are drawn by tools/icon_art.py, the tree icons by tools/node_icons.py, the backpack by
@@ -36,8 +40,10 @@ from PIL import Image, ImageDraw  # noqa: E402
 import tile_engine as E  # noqa: E402
 import tile_objects as O  # noqa: E402
 import tile_trade as T  # noqa: E402
-import tile_machines as M  # noqa: E402
 import tile_machines2 as M2  # noqa: E402
+import tile_big1 as B1  # noqa: E402
+import tile_big2 as B2  # noqa: E402
+import tile_big3 as B3  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'OperationAcorn', '42', 'media')
 COLS = 8
@@ -66,23 +72,11 @@ PARACHUTE = props('Parachute Crate', **SOLID)
 DECAL = {}
 ROCKS = props('Meteorite', IsLow='', BlocksPlacement='')
 STAKE = props('Site Stake', IsLow='')
-BENCH = props('Shred Bench', **SOLID)
-SHREDDER = props('Bulk Shredder', **SOLID)
-CUTTER = props('Cutter', **SOLID)
-PROPANE = props('Propane Refiner', **SOLID)
-OIL = props('Oil Refiner', **SOLID)
-SAW = props('Wood Saw', **SOLID)
-STORAGE = props('Research Storage', container='locker', ContainerCapacity='100', **SOLID)
-RAIN = props('Big Rain Storage', IsLow='', IsWaterCollector='', **SOLID)
 LURE = props('Lure', IsLow='', BlocksPlacement='')
 
 
-def facings(draw, base):
-    """Four tiles (S, E, N, W) of one object: draw(turns) -> image."""
-    return [(lambda t=t: draw(t), dict(base, Facing=f)) for f, t in FACINGS]
-
-
 def facings2(draw, base, look):
+    """Four tiles (S, E, N, W) of one object: draw(turns, look) -> image."""
     return [(lambda t=t: draw(t, look), dict(base, Facing=f)) for f, t in FACINGS]
 
 
@@ -96,28 +90,125 @@ TRADE = (
     + [(T.parachute_crate, PARACHUTE), (T.scorched_ground, DECAL), (T.meteor_rocks, ROCKS), (T.site_stake, STAKE)]
 )
 
-MACHINES = (
-    # 0-3: the shred bench
-    facings(M.shred_bench, BENCH)
-    # 4-7, 8-11: the bulk shredder, stopped and running; 12-19 the cutter; 20-27 propane; 28-35 oil; 36-43 saw
-    + facings2(M.bulk_shredder, SHREDDER, False) + facings2(M.bulk_shredder, SHREDDER, True)
-    + facings2(M.cutter, CUTTER, False) + facings2(M.cutter, CUTTER, True)
-    + facings2(M.propane_refiner, PROPANE, False) + facings2(M.propane_refiner, PROPANE, True)
-    + facings2(M.oil_refiner, OIL, False) + facings2(M.oil_refiner, OIL, True)
-    + facings2(M2.wood_saw, SAW, False) + facings2(M2.wood_saw, SAW, True)
-    # 44-47: the research storage
-    + facings(M2.research_storage, STORAGE)
-    # 48: the big rain storage; 49: the lure on; 50: the lure off
-    + [(M2.rain_storage, RAIN), (lambda: M2.lure(True), LURE), (lambda: M2.lure(False), LURE)]
+# The big machines. foot = (w along x, h along y) facing south; the east and west facings swap them. states: 1, or 2
+# (stopped, running). facings: 4 (S E N W), or 1 for the rain storage (it looks the same from every side).
+# props go on every tile of the machine; anchor_props on the anchor tile only (the footprint's min-x, min-y square,
+# grid position 0,0), the way vanilla puts a container on one square of a piece of multi-tile furniture.
+KINDS = (
+    dict(key='shredBench', name='Shred Bench', foot=(2, 1), states=1, facings=4, props=dict(SOLID), anchor_props={},
+         draw=lambda t, st: B1.shred_bench(t)),
+    dict(key='bulkShredder', name='Bulk Shredder', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+         draw=lambda t, st: B1.bulk_shredder(t, st)),
+    dict(key='cutter', name='Cutter', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+         draw=lambda t, st: B1.cutter(t, st)),
+    dict(key='woodSaw', name='Wood Saw', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+         draw=lambda t, st: B2.wood_saw(t, st)),
+    dict(key='researchStorage', name='Research Storage', foot=(2, 1), states=1, facings=4, props=dict(SOLID),
+         anchor_props=dict(container='locker', ContainerCapacity='100'),
+         draw=lambda t, st: B2.research_storage(t)),
+    dict(key='propaneRefiner', name='Propane Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID),
+         anchor_props={}, draw=lambda t, st: B3.propane_refiner(t, st)),
+    dict(key='oilRefiner', name='Oil Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID), anchor_props={},
+         draw=lambda t, st: B3.oil_refiner(t, st)),
+    dict(key='rainStorage', name='Big Rain Storage', foot=(2, 2), states=1, facings=1, props=dict(IsLow='', **SOLID),
+         anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage()),
 )
 
+
+def _layout():
+    base = 0
+    for kind in KINDS:
+        kind['base'] = base
+        kind['tiles'] = kind['foot'][0] * kind['foot'][1]
+        base += kind['states'] * kind['facings'] * kind['tiles']
+    return base
+
+
+LURE_ON = _layout()          # 132
+LURE_OFF = LURE_ON + 1       # 133
+MACHINE_TILES = LURE_OFF + 1
+MACHINE_ROWS = (MACHINE_TILES + COLS - 1) // COLS
+
+
+def facing_list(kind):
+    return FACINGS if kind['facings'] == 4 else (('', 0),)
+
+
+def foot_of(kind, turns):
+    w, h = kind['foot']
+    return (h, w) if turns % 2 else (w, h)
+
+
+_RENDERED = {}
+
+
+def render(key, state, facing):
+    """One look of one machine: {(i, j): tile image}, cached."""
+    kind = next(k for k in KINDS if k['key'] == key)
+    turns = dict(FACINGS).get(facing, 0)
+    token = (key, state, facing)
+    if token not in _RENDERED:
+        done = kind['draw'](turns, bool(state))
+        _RENDERED[token] = done if isinstance(done, dict) else {(0, 0): done}
+    return _RENDERED[token]
+
+
+def assembled(key, state=0, facing='S', floor=False, background=(0, 0, 0, 0)):
+    """A machine as it stands in the world: its tiles placed at their squares on one canvas."""
+    tiles = render(key, state, facing)
+    fw = max(i for i, j in tiles) + 1
+    fh = max(j for i, j in tiles) + 1
+    out = Image.new('RGBA', ((fw + fh) * 64 + 128, (fw + fh) * 32 + 256), background)
+    dx = fh * 64
+    if floor:
+        d = ImageDraw.Draw(out)
+        for j in range(fh):
+            for i in range(fw):
+                ox, oy = dx + (i - j) * 64, (i + j) * 32
+                d.polygon([(ox + 64, oy + 192), (ox + 128, oy + 224), (ox + 64, oy + 256), (ox, oy + 224)],
+                          fill=(96, 110, 80, 255))
+    for j in range(fh):
+        for i in range(fw):
+            out.alpha_composite(tiles[(i, j)], (dx + (i - j) * 64, (i + j) * 32))
+    return out
+
+
+def machine_entries():
+    """(image, props) for every place of the machines sheet (None where it is empty)."""
+    entries = [None] * (MACHINE_ROWS * COLS)
+    for kind in KINDS:
+        n = kind['tiles']
+        nf = kind['facings']
+        for st in range(kind['states']):
+            for fi, (facing, turns) in enumerate(facing_list(kind)):
+                tiles = render(kind['key'], st, facing)
+                fw, fh = foot_of(kind, turns)
+                assert set(tiles) == {(i, j) for j in range(fh) for i in range(fw)}, (kind['key'], facing)
+                for (i, j), image in tiles.items():
+                    p = props(kind['name'], GroupName='OA_' + kind['key'], SpriteGridPos='%d,%d' % (i, j))
+                    p.update(kind['props'])
+                    if (i, j) == (0, 0):
+                        p.update(kind['anchor_props'])
+                    if facing:
+                        p['Facing'] = facing
+                    entries[kind['base'] + (st * nf + fi) * n + j * fw + i] = (image, p)
+    entries[LURE_ON] = (M2.lure(True), LURE)
+    entries[LURE_OFF] = (M2.lure(False), LURE)
+    return entries
+
+
+def trade_entries():
+    return [(entry[0](), entry[1]) for entry in TRADE]
+
+
 SHEETS = {
-    'trade': dict(sheet='oa_trade_01', file='oa_trade.tiles', pack='OperationAcornTrade', tiles=TRADE, rows=2),
-    'machines': dict(sheet='oa_machines_01', file='oa_machines.tiles', pack='OperationAcornMachines', tiles=MACHINES, rows=7),
+    'trade': dict(sheet='oa_trade_01', file='oa_trade.tiles', pack='OperationAcornTrade', make=trade_entries, rows=2),
+    'machines': dict(sheet='oa_machines_01', file='oa_machines.tiles', pack='OperationAcornMachines',
+                     make=machine_entries, rows=MACHINE_ROWS),
 }
 
 
-def write_tiles(path, sheet, tiles, rows):
+def write_tiles(path, sheet, entries, rows):
     out = io.BytesIO()
     out.write(b'tdef')
     out.write(struct.pack('<ii', 1, 1))
@@ -125,7 +216,7 @@ def write_tiles(path, sheet, tiles, rows):
     out.write((sheet + '.png\n').encode('latin1'))
     out.write(struct.pack('<iiii', COLS, rows, 1, COLS * rows))
     for index in range(COLS * rows):
-        p = tiles[index][1] if index < len(tiles) and tiles[index] else {}
+        p = entries[index][1] if index < len(entries) and entries[index] else {}
         out.write(struct.pack('<i', len(p)))
         for key, value in p.items():
             out.write((key + '\n' + value + '\n').encode('latin1'))
@@ -193,14 +284,38 @@ def preview(images, path):
     sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST).save(path)
 
 
+def machines_preview(path):
+    """Every machine as it stands in the world on its floor squares: a row a look (stopped, running), a column a facing
+    (S E N W), then the rain storage and the lure."""
+    rows = []
+    for kind in KINDS:
+        for st in range(kind['states']):
+            row = [assembled(kind['key'], st, f, floor=True, background=(52, 58, 52, 255)) for f, t in facing_list(kind)]
+            rows.append(row)
+    cell_w = 4 * 64 + 128
+    height = sum(max(im.height for im in row) for row in rows) + 256
+    sheet = Image.new('RGBA', (cell_w * 4, height), (52, 58, 52, 255))
+    y = 0
+    for row in rows:
+        for column, image in enumerate(row):
+            sheet.alpha_composite(image, (column * cell_w + (cell_w - image.width) // 2, y))
+        y += max(im.height for im in row)
+    for column, on in enumerate((True, False)):
+        tile = Image.new('RGBA', (W, H), (52, 58, 52, 255))
+        ImageDraw.Draw(tile).polygon([(64, 192), (128, 224), (64, 256), (0, 224)], fill=(96, 110, 80, 255))
+        tile.alpha_composite(M2.lure(on))
+        sheet.alpha_composite(tile, (column * cell_w + (cell_w - W) // 2, y))
+    sheet.save(path)
+
+
 def build(name):
     spec = SHEETS[name]
-    images = [entry[0]() if entry else None for entry in spec['tiles']]
-    write_tiles(os.path.join(ROOT, spec['file']), spec['sheet'], spec['tiles'], spec['rows'])
+    entries = spec['make']()
+    write_tiles(os.path.join(ROOT, spec['file']), spec['sheet'], entries, spec['rows'])
     os.makedirs(os.path.join(ROOT, 'texturepacks'), exist_ok=True)
     write_pack(os.path.join(ROOT, 'texturepacks', spec['pack'] + '.pack'), spec['sheet'],
-               [('%s_%d' % (spec['sheet'], index), image) for index, image in enumerate(images) if image is not None])
-    return images
+               [('%s_%d' % (spec['sheet'], index), entry[0]) for index, entry in enumerate(entries) if entry])
+    return [entry[0] if entry else None for entry in entries]
 
 
 def main():
@@ -211,7 +326,11 @@ def main():
             continue
         images = build(name)
         if '--preview' in sys.argv:
-            preview(images, os.path.join(here, 'tile_art_preview_%s.png' % name))
+            if name == 'machines':
+                machines_preview(os.path.join(here, 'tile_art_preview_machines.png'))
+                preview(images, os.path.join(here, 'tile_art_preview_machines_tiles.png'))
+            else:
+                preview(images, os.path.join(here, 'tile_art_preview_%s.png' % name))
         print('wrote', name, sum(1 for image in images if image is not None), 'tiles')
 
 

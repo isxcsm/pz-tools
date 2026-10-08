@@ -31,10 +31,12 @@ public class LuaTest {
         thread.debugOwnerThread = Thread.currentThread();
         se.krka.kahlua.vm.KahluaUtil.setupLibraryText(env, thread, GAME.resolve("stdlib.lua").toFile());
 
-        // readfile(path): the file's text, or nil when it is not there.
+        // readfile(path[, "bytes"]): the file's text, or nil when it is not there.
         env.rawset("readfile", (JavaFunction) (LuaCallFrame frame, int n) -> {
             Path path = Path.of((String) frame.get(0));
-            try { return frame.push(Files.readString(path, StandardCharsets.UTF_8)); }
+            // readfile(path, "bytes") gives one character a byte (binary files such as .tiles)
+            boolean bytes = n > 1 && "bytes".equals(frame.get(1));
+            try { return frame.push(Files.readString(path, bytes ? StandardCharsets.ISO_8859_1 : StandardCharsets.UTF_8)); }
             catch (Exception missing) { return frame.pushNil(); }
         });
         // listfiles(dir): the names of the files in it, as a table (1..n), sorted.
