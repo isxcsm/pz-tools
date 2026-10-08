@@ -191,8 +191,8 @@ def trade_tile(index):
     return lambda: fit(brighten(A.TRADE[index][0]()))
 
 
-def machine(key):
-    return lambda: from_machine(key)
+def machine(key, state=0):
+    return lambda: from_machine(key, state)
 
 
 def document_manual():
@@ -592,7 +592,7 @@ PICTURES = {
     'oil_refiner': machine('oilRefiner'),
     'wood_saw': machine('woodSaw'),
     'research_storage': machine('researchStorage'),
-    'rain_storage': machine('rainStorage'),
+    'rain_storage': machine('rainStorage', 3),
     'lure': lure_icon,
     'backpack': backpack,
     'kit_bag_capacity': lambda: kit('bagplus', (170, 200, 236)),

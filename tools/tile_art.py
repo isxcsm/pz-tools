@@ -9,7 +9,8 @@ The sheets (8 tiles a row; the code names a tile by its place: see Sprites.lua):
     oa_trade_01     the communication terminal (off, on; S E N W each), the delivery box, the supply crate, the
                     parachute crate, the scorched ground, the meteor rocks, the drop-site stake (16 tiles)
     oa_machines_01  the shred bench, bulk shredder, cutter, wood saw, research storage (2x1), the propane and oil
-                    refiners (2x2), the big rain storage (2x2), the lure (1x1): 134 tiles. A machine takes
+                    refiners (2x2), the big rain storage (2x2, four water levels: full 128-131, the lure 132-133, then empty,
+                    a quarter, a half at 134-145), the lure (1x1): 146 tiles. A machine takes
                     states x facings x tiles places, in this order: state (stopped, running), facing (S E N W), then the
                     tiles of that facing's footprint row by row (y outer, x inner). Its base place and footprint are in KINDS.
 
@@ -110,8 +111,10 @@ KINDS = (
          anchor_props={}, draw=lambda t, st: B3.propane_refiner(t, st)),
     dict(key='oilRefiner', name='Oil Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B3.oil_refiner(t, st)),
-    dict(key='rainStorage', name='Big Rain Storage', foot=(2, 2), states=1, facings=1, props=dict(IsLow='', **SOLID),
-         anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage()),
+    # four water levels (state 0 empty .. 3 full), full in the first four places, the others after the lure
+    dict(key='rainStorage', name='Big Rain Storage', foot=(2, 2), states=4, facings=1, props=dict(IsLow='', **SOLID),
+         anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage(st),
+         state_bases={0: 134, 1: 138, 2: 142, 3: 128}),
 )
 
 
@@ -120,13 +123,18 @@ def _layout():
     for kind in KINDS:
         kind['base'] = base
         kind['tiles'] = kind['foot'][0] * kind['foot'][1]
-        base += kind['states'] * kind['facings'] * kind['tiles']
+        if 'state_bases' in kind:
+            assert base == kind['state_bases'][3]
+            base += kind['tiles']
+        else:
+            base += kind['states'] * kind['facings'] * kind['tiles']
     return base
 
 
 LURE_ON = _layout()          # 132
 LURE_OFF = LURE_ON + 1       # 133
-MACHINE_TILES = LURE_OFF + 1
+RAIN_LEVEL_TILES = 3 * 4     # the rain storage's levels 0-2, after the lure: 134-145
+MACHINE_TILES = LURE_OFF + 1 + RAIN_LEVEL_TILES
 MACHINE_ROWS = (MACHINE_TILES + COLS - 1) // COLS
 
 
@@ -148,7 +156,7 @@ def render(key, state, facing):
     turns = dict(FACINGS).get(facing, 0)
     token = (key, state, facing)
     if token not in _RENDERED:
-        done = kind['draw'](turns, bool(state))
+        done = kind['draw'](turns, state if 'state_bases' in kind else bool(state))
         _RENDERED[token] = done if isinstance(done, dict) else {(0, 0): done}
     return _RENDERED[token]
 
@@ -191,7 +199,10 @@ def machine_entries():
                         p.update(kind['anchor_props'])
                     if facing:
                         p['Facing'] = facing
-                    entries[kind['base'] + (st * nf + fi) * n + j * fw + i] = (image, p)
+                    first = kind['state_bases'][st] if 'state_bases' in kind else kind['base'] + st * nf * n
+                    place = first + (fi * n if 'state_bases' not in kind else 0) + j * fw + i
+                    assert entries[place] is None, (kind['key'], place)
+                    entries[place] = (image, p)
     entries[LURE_ON] = (M2.lure(True), LURE)
     entries[LURE_OFF] = (M2.lure(False), LURE)
     return entries
@@ -290,6 +301,11 @@ def machines_preview(path):
     rows = []
     for kind in KINDS:
         for st in range(kind['states']):
+            if 'state_bases' in kind:
+                if st == 0:   # one row for the four water levels, empty to full
+                    rows.append([assembled(kind['key'], level, '', floor=True, background=(52, 58, 52, 255))
+                                 for level in range(kind['states'])])
+                continue
             row = [assembled(kind['key'], st, f, floor=True, background=(52, 58, 52, 255)) for f, t in facing_list(kind)]
             rows.append(row)
     cell_w = 4 * 64 + 128
