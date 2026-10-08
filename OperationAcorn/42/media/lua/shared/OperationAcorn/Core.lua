@@ -70,6 +70,12 @@ function OA.round(x)
     return -math.floor(-x + 0.5)
 end
 
+-- Whether a table has no entries. The game's Lua has no next(), so this is a pairs loop that stops at once.
+function OA.isEmpty(t)
+    for _ in pairs(t) do return false end
+    return true
+end
+
 function OA.clamp(x, lo, hi)
     if x < lo then return lo end
     if x > hi then return hi end

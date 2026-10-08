@@ -235,7 +235,7 @@ end
 function Tabs.hasEntries(r)
     if not r then return false end
     local s = Story.section(r)
-    return next(s.docs) ~= nil or #s.manifests > 0
+    return not OA.isEmpty(s.docs) or #s.manifests > 0
 end
 
 function ISOADocsPanel:refresh()

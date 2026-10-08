@@ -177,7 +177,7 @@ test("refusals start with the first stage and come back as a request", function(
     local st = M.state()
     eq(st.nextRefusal, 20)
     for d = 1, 25 do M.update(d) end
-    eq(next(st.refused), nil, "no refusals at stage 0")
+    eq(OA.isEmpty(st.refused), true, "no refusals at stage 0")
     OA.Store.ensure("p", "P")
     OA.Store.player("p").trade = { stage = 1 }
     st.nextRefusal = 26

@@ -808,7 +808,7 @@ end
 -- loaded but whose object is gone (destroyed) is dropped from the registry after two such steps.
 function Machines.tick()
     local reg = registry()
-    if next(reg.list) == nil then return end
+    if OA.isEmpty(reg.list) then return end
     local ids = {}
     for id in pairs(reg.list) do ids[#ids + 1] = id end
     local cell = getCell()
@@ -832,7 +832,7 @@ end
 -- The LoadChunk handler: the machines on the chunk catch up the time they were away.
 function Machines.onChunk(chunk)
     local reg = Store.world("machines")
-    if not reg.byChunk or next(reg.byChunk) == nil then return end
+    if not reg.byChunk or OA.isEmpty(reg.byChunk) then return end
     local first = chunk:getGridSquare(0, 0, 0)
     if not first then return end
     local ids = reg.byChunk[Chunks.key(first:getX(), first:getY())]

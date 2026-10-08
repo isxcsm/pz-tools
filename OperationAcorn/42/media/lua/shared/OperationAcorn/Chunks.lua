@@ -69,7 +69,7 @@ end
 
 function Chunks.loaded(chunk)
     local table0 = pending()
-    if next(table0) == nil then return end
+    if OA.isEmpty(table0) then return end
     local key = chunkKey(chunk)
     local list = key and table0[key]
     if not list then return end

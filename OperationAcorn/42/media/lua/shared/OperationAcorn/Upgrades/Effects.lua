@@ -133,11 +133,11 @@ function Effects.compute(u, now, options)
             for _, name in ipairs(Data.FAMILIES[family]) do category[name] = (category[name] or 0) + amount end
         end
     end
-    if next(category) then out[P.carryCategory] = category end
+    if not OA.isEmpty(category) then out[P.carryCategory] = category end
     local item = {}
     local furniture = R.fraction(u, "furniture") + board("bHeavy")
     if furniture > 0 then item["base:moveable"] = furniture end
-    if next(item) then out[P.carryItem] = item end
+    if not OA.isEmpty(item) then out[P.carryItem] = item end
     if rank("keyring") > 0 then out[P.carryTag] = { ["base:keyring"] = 0 } end
 
     -- capacity

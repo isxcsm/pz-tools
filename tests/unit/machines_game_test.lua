@@ -135,7 +135,7 @@ end
 
 local function newObject(square, kind)
     local obj = { square = square, mod = {}, sprite = nil, containers = {} }
-    function obj:hasModData() return next(self.mod) ~= nil end
+    function obj:hasModData() return not OA.isEmpty(self.mod) end
     function obj:getModData() return self.mod end
     function obj:getSquare() return self.square end
     function obj:getX() return self.square.x end

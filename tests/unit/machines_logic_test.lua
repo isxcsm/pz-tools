@@ -35,7 +35,7 @@ test("a new machine ships with old parts at full condition", function()
     eq(saw.cover, nil, "no cover")
     eq(Logic.effects("woodSaw", saw).stopped, false, "runs without a cover")
     -- The bench, the storage, the rain storage and the lure have no parts.
-    eq(next(Logic.newParts("shredBench")), nil)
+    eq(OA.isEmpty(Logic.newParts("shredBench")), true)
 end)
 
 test("motor tiers set speed and electricity", function()

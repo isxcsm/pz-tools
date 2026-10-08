@@ -20,17 +20,9 @@ local function sandboxDefaults()
     return vars
 end
 
--- The game adds next() to Kahlua's libraries (vanilla Lua uses it); the bare VM lacks it.
-if not next then
-    function next(t, k)
-        local found = k == nil
-        for key, value in pairs(t) do
-            if found then return key, value end
-            if key == k then found = true end
-        end
-        return nil
-    end
-end
+-- The game's Lua has no next() (found in game: a call failed with "tried to call nil"), and neither has the test VM:
+-- a use of it fails here as it does there.
+next = nil
 
 -- Game stubs. TEST holds what a test sets: the world age, the time of day.
 TEST = {}
