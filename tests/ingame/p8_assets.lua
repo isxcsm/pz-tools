@@ -93,7 +93,7 @@ end
 -- The machines, each placed whole: its tiles on the squares of its footprint from the anchor (the min-x, min-y square),
 -- a stopped look and a running look in a row, the four directions along it, every machine four squares apart. The
 -- sheet's rules for them: facing and grid position on every tile, one group, the container (research storage) and the
--- rain collector flag on the anchor only.
+-- rain collector flag on the anchor only (of each of the rain storage's four water levels).
 local DIRS = { "S", "E", "N", "W" }
 local KINDS = { "shredBench", "bulkShredder", "cutter", "woodSaw", "researchStorage", "propaneRefiner", "oilRefiner",
     "rainStorage" }
@@ -103,8 +103,11 @@ local row = ROW0
 local machines = 0
 for _, kind in ipairs(KINDS) do
     for _, running in ipairs(RUNS[kind] and { false, true } or { false }) do
-        for d, dir in ipairs(kind == "rainStorage" and { "S" } or DIRS) do
-            local tiles = Sprites.machineTiles(kind, dir, running)
+        -- the rain storage does not turn: its four looks are the water levels, empty to full
+        for d, dir in ipairs(kind == "rainStorage" and { 0, 1, 2, 3 } or DIRS) do
+            local level
+            if kind == "rainStorage" then level, dir = dir, "S" end
+            local tiles = level and Sprites.rainStorageTiles(level) or Sprites.machineTiles(kind, dir, running)
             local w, h = Sprites.footprint(kind, dir)
             if not tiles or #tiles ~= w * h then
                 wrong(kind, dir, "machineTiles gives", tiles and #tiles or "nothing", "want", w * h)
@@ -139,7 +142,7 @@ check("tiles placed, machines whole", bad == 0, placed .. " tiles placed, " .. m
 
 -- Every tile of both sheets is loaded (also those no look uses), by its place.
 local missing = 0
-for _, sheet in ipairs({ { "oa_trade_01", 16 }, { "oa_machines_01", 134 } }) do
+for _, sheet in ipairs({ { "oa_trade_01", 16 }, { "oa_machines_01", 146 } }) do
     for index = 0, sheet[2] - 1 do
         if not sprite(sheet[1] .. "_" .. index) then missing = missing + 1; say("BAD tile not loaded", sheet[1] .. "_" .. index) end
     end
@@ -167,6 +170,10 @@ local ITEMS = {
     "SoundproofCoverNormal", "SoundproofCoverModern", "BagCapacityKit", "BagWeightKit", "TrunkKit",
     "EngineTuningKit", "ResearchBackpack", "FuelCanMk1", "FuelCanMk2", "FuelCanMk3", "WeldingTorchMk1",
     "WeldingTorchMk2", "WeldingTorchMk3", "MissionItem", "DocumentItem",
+    "MissionEnvelope", "MissionSampleTin", "MissionLogbook", "MissionFilterCase", "MissionTape", "MissionFabricRoll", "EvidenceEnvelope", "ClinicRecord",
+    "WeatherLog", "FarmJournal", "SampleCooler", "RosterPage", "ReviewMemo", "WardRecord", "CellLog", "SoilSample",
+    "StakeTag", "RosterLostPage", "FilterBundle", "PharmacyLedger", "CopyOriginal", "SampleCase", "DeadDropCase", "FieldCallDevice",
+    "AnalysisReply", "Appendix", "SerumSheet", "UnresolvedList", "HandoverFile", "KitVoucher",
 }
 -- The machines package's item names where they differ from the icon names (Item_OA_<icon>.png).
 local ALIAS = { Cutter = "FabricCutter", PropaneRefiner = "PropaneRefinery", OilRefiner = "OilRefinery", WoodSaw = "LogSaw",

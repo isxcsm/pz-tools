@@ -166,19 +166,26 @@ def research_storage(turns):
     return compose(s, ground=ground, seed=160 + turns, glows=[])
 
 
-def rain_storage():
+def rain_storage(level=3):
     """The big rain storage (2 x 2): a 4000 litre open-topped round plastic tank, blue-grey and ribbed, a thick lip
-    with a hand rail of steel loops, rain water standing a little below the rim, a ladder up the south-east side, a
-    downspout pipe feeding it from above, a brass tap with its valve low on the front and an overflow pipe."""
+    with a hand rail of steel loops, a ladder up the south-east side, a downspout pipe feeding it from above, a brass
+    tap with its valve low on the front and an overflow pipe. level 0..3 is how much water it holds: empty (a dry
+    floor with a little dirt and leaves), a quarter, a half, full (the water a hand below the rim)."""
     s = Scene(0, foot=(2, 2))
-    cx, cy, r, h = 1.0, 1.0, 0.82, 1.0
+    cx, cy, r, h = 1.0, 1.0, 0.82, 0.8
     PLASTIC = (58, 104, 150)
     PLASTIC_DARK = (40, 76, 114)
     PLASTIC_LIGHT = (140, 176, 206)
+    floor_z = 0.09
+    full_z = 0.66
+    wz = floor_z + (full_z - floor_z) * (0.0, 0.25, 0.5, 1.0)[level]
     # the base ring, a pallet of timber under the tank
     s.box(0.12, 0.12, 0.0, 1.88, 1.88, 0.06, WOOD_DARK, top=WOOD)
-    # the far inside wall, then the outer wall with its ribs (a darker band now and then)
-    s.tube((cx, cy, 0.08), (cx, cy, h), r - 0.04, (78, 92, 104), segments=64, inward=True)
+    # the far inside wall (dry above the water, dark and wet below it), then the outer wall with its ribs
+    wet_top = wz if level else floor_z
+    if level:
+        s.tube((cx, cy, 0.08), (cx, cy, wet_top), r - 0.04, (46, 70, 90), segments=64, inward=True)
+    s.tube((cx, cy, wet_top), (cx, cy, h), r - 0.04, (78, 92, 104), segments=64, inward=True)
     bands = []
     n = 8
     for i in range(n):
@@ -187,19 +194,50 @@ def rain_storage():
     s.tube((cx, cy, 0.06), (cx, cy, h), r, PLASTIC, segments=64, bands=bands, shine=0.3, caps=False)
     s.tube((cx, cy, h - 0.07), (cx, cy, h + 0.02), r + 0.03, PLASTIC_LIGHT, segments=64, shine=0.35, caps=False)
     ring_top(s, (cx, cy), r - 0.07, r + 0.03, h + 0.02, PLASTIC_LIGHT, segments=64, shine=0.35)
-    wz = h - 0.26
-    disc(s, (cx, cy), r - 0.05, wz, (52, 150, 176), segments=64, shine=0.9)
-    glint = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
-    gd = ImageDraw.Draw(glint)
-    gd.ellipse([34, 56, 130, 100], fill=(190, 226, 250, 150))
-    gd.ellipse([150, 140, 210, 164], fill=(190, 226, 250, 110))
-    gd.ellipse([60, 170, 100, 184], fill=(190, 226, 250, 90))
-    for k in (60, 100, 140):
-        gd.ellipse([128 - k // 2, 128 - k // 2, 128 + k // 2, 128 + k // 2], outline=(200, 232, 250, 70), width=2)
-    flat_decal(s, cx - r + 0.08, cy - r + 0.08, cx + r - 0.08, cy + r - 0.08, wz, glint)
-    for lx, ly, rot in ((0.8, 1.1, 20), (1.2, 0.8, 70), (1.1, 1.3, 130)):
-        s.xbox((lx, ly, wz + 0.004), (0.1, 0.05, 0.006), rotation((0, 0, 1), rot), (120, 130, 60), top=(138, 150, 70))
-    # a name plate on the south side and the steel hoops that hold the tank
+    if level == 0:
+        # dry: the floor of the tank, dark dirt and silt with leaves and twigs, a dried ring of scum on the wall
+        disc(s, (cx, cy), r - 0.05, floor_z, (92, 80, 62), segments=64, shine=0.05)
+        dirt = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
+        dd = ImageDraw.Draw(dirt)
+        rn = random.Random(31)
+        for _ in range(70):
+            x, y = rn.randint(20, 236), rn.randint(20, 236)
+            if (x - 128) ** 2 + (y - 128) ** 2 > 104 ** 2:
+                continue
+            size = rn.randint(3, 11)
+            tone = rn.choice(((60, 50, 38, 170), (118, 102, 78, 150), (74, 66, 48, 160)))
+            dd.ellipse([x, y, x + size, y + size * 2 // 3 + 1], fill=tone)
+        for k in (46, 80):
+            dd.ellipse([128 - k, 128 - k, 128 + k, 128 + k], outline=(70, 60, 46, 60), width=3)
+        flat_decal(s, cx - r + 0.08, cy - r + 0.08, cx + r - 0.08, cy + r - 0.08, floor_z, dirt)
+        for lx, ly, rot, c1, c2 in ((0.8, 1.15, 20, (132, 104, 52), (150, 120, 60)), (1.25, 0.85, 70, (112, 96, 44), (132, 112, 52)),
+                                    (1.1, 1.35, 130, (140, 90, 40), (160, 106, 48)), (1.4, 1.2, 100, (96, 110, 52), (116, 130, 62))):
+            s.xbox((lx, ly, floor_z + 0.004), (0.1, 0.05, 0.006), rotation((0, 0, 1), rot), c1, top=c2)
+        s.tube((0.9, 0.9, floor_z + 0.012), (1.2, 1.02, floor_z + 0.016), 0.012, (84, 66, 44), segments=6)
+    else:
+        disc(s, (cx, cy), r - 0.05, wz, (52, 150, 176), segments=64, shine=0.9)
+        glint = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
+        gd = ImageDraw.Draw(glint)
+        gd.ellipse([34, 56, 130, 100], fill=(190, 226, 250, 150))
+        gd.ellipse([150, 140, 210, 164], fill=(190, 226, 250, 110))
+        gd.ellipse([60, 170, 100, 184], fill=(190, 226, 250, 90))
+        for k in (60, 100, 140):
+            gd.ellipse([128 - k // 2, 128 - k // 2, 128 + k // 2, 128 + k // 2], outline=(200, 232, 250, 70), width=2)
+        flat_decal(s, cx - r + 0.08, cy - r + 0.08, cx + r - 0.08, cy + r - 0.08, wz, glint)
+        for lx, ly, rot in ((0.8, 1.1, 20), (1.2, 0.8, 70), (1.1, 1.3, 130)):
+            s.xbox((lx, ly, wz + 0.004), (0.1, 0.05, 0.006), rotation((0, 0, 1), rot), (120, 130, 60), top=(138, 150, 70))
+    # the level gauge: a sight tube down the south side with its water, the marks at the quarters
+    fraction = (0.0, 0.25, 0.5, 1.0)[level]
+    gx = cx + 0.12
+    gy = cy + math.sqrt(r * r - 0.12 * 0.12)
+    g0, g1 = 0.12, h - 0.1
+    s.box(gx - 0.05, gy - 0.01, g0 - 0.03, gx + 0.05, gy + 0.05, g1 + 0.03, STEEL_DARK, top=STEEL)
+    s.box(gx - 0.026, gy + 0.05, g0, gx + 0.026, gy + 0.062, g1, (188, 204, 212), top=(188, 204, 212), shine=0.5)
+    if fraction > 0:
+        s.box(gx - 0.026, gy + 0.062, g0, gx + 0.026, gy + 0.07, g0 + (g1 - g0) * fraction, (40, 156, 186), top=(60, 176, 204), shine=0.8)
+    for q in (0.25, 0.5, 0.75, 1.0):
+        zq = g0 + (g1 - g0) * q
+        s.box(gx + 0.026, gy + 0.05, zq - 0.006, gx + 0.075, gy + 0.075, zq + 0.006, (232, 232, 220), top=(232, 232, 220))
     fy = cy + r
     # the ladder up the south-east side
     a = math.radians(55)
@@ -224,4 +262,4 @@ def rain_storage():
     s.tube((ox - 0.03, oy, h - 0.16), (ox + 0.13, oy, h - 0.16), 0.05, PLASTIC_DARK, segments=16, shine=0.3)
     s.tube((ox + 0.13, oy, h - 0.16), (ox + 0.13, oy, 0.18), 0.05, PLASTIC_DARK, segments=16, shine=0.3)
     ground = shadow((1.0, 1.0), 0.95, 0.95, 125)
-    return compose(s, ground=ground, seed=170)
+    return compose(s, ground=ground, seed=170 + level)
