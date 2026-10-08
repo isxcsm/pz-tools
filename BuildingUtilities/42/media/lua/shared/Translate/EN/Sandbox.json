@@ -51,7 +51,7 @@
     "Sandbox_BuildingUtilities_WornBatteryDrain": "Worn batteries drain the bank",
     "Sandbox_BuildingUtilities_WornBatteryDrain_tooltip": "Each battery below condition 30 takes 2 percent of its bank a day. On by default.",
     "Sandbox_BuildingUtilities_WaterFromAboveOnly": "Water only from above",
-    "Sandbox_BuildingUtilities_WaterFromAboveOnly_tooltip": "As vanilla plumbing: a fixture takes water only from tanks on the floors above it. Off (the default): also from tanks on its own floor. Either way never from tanks below (a pump lifts water).",
+    "Sandbox_BuildingUtilities_WaterFromAboveOnly_tooltip": "As vanilla plumbing: a fixture takes water only from tanks on the floors above it. Off (the default): also from tanks on its own floor. Either way never from tanks below (a booster pump lifts it up).",
     "Sandbox_BuildingUtilities_RiskPipesFreeze": "Risk: pipes freeze",
     "Sandbox_BuildingUtilities_RiskPipesFreeze_tooltip": "A utility panel's water stops after 6 hours below -5 degrees C at the panel (a heated building stays warmer) and flows again after 2 hours above 0. Off by default.",
     "Sandbox_BuildingUtilities_RiskPlumbingUnpurified": "Risk: pipes do not purify",
@@ -60,7 +60,7 @@
     "Sandbox_BuildingUtilities_EnablePower": "Power",
     "Sandbox_BuildingUtilities_EnablePower_tooltip": "Utility panels power their buildings from the generators, solar panels and battery racks connected to them, with breakers, line loss, timers and the rest of their power side. On by default. Off: panels give no power and nothing of their power side can be made or connected; generators and devices work as in the game without this mod. What was connected stays, and works again once this is on.",
     "Sandbox_BuildingUtilities_EnableWater": "Water",
-    "Sandbox_BuildingUtilities_EnableWater_tooltip": "Utility panels water their buildings from the tanks connected to them, with water groups, pumps, sprinklers and filters. On by default. Off: panels give no water and nothing of their water side can be made or connected; tanks and fixtures work as in the game without this mod. What was connected stays, and works again once this is on.",
+    "Sandbox_BuildingUtilities_EnableWater_tooltip": "Utility panels water their buildings from the tanks connected to them, with water groups, pumps, sprinklers, filters and booster pumps. On by default. Off: panels give no water and nothing of their water side can be made or connected; rain collectors and fixtures work as in the game without this mod. What was connected stays, and works again once this is on.",
     "Sandbox_BuildingUtilities_EnableSolar": "Solar panels",
     "Sandbox_BuildingUtilities_EnableSolar_tooltip": "Solar panels can be made and put down, and power their panel by day. Needs Power. On by default. Off: none can be made; those put down make nothing and can still be removed.",
     "Sandbox_BuildingUtilities_EnableBatteries": "Battery racks",
@@ -74,7 +74,7 @@
     "Sandbox_BuildingUtilities_EnableFilters": "Water filters",
     "Sandbox_BuildingUtilities_EnableFilters_tooltip": "Water filters can be made and put down, and purify their group's water while \"Risk: pipes do not purify\" is on. Needs Water. On by default. Off: none can be made; those put down purify nothing (with that risk on, the water comes out as the tanks hold it) and can still be removed.",
     "Sandbox_BuildingUtilities_EnableBoosters": "Booster pumps",
-    "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "Booster pumps can be made and put down, and lift their panel's water up from their floor while it has power, so that floors above the water storage get water. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
+    "Sandbox_BuildingUtilities_EnableBoosters_tooltip": "Booster pumps can be made and put down, and lift their panel's water up from their floor while it has power, so that floors above the tanks get water. Needs Water and Power. On by default. Off: none can be made; those put down stand still, draw no power and can still be removed.",
     "Sandbox_BuildingUtilities_BoosterLift": "Booster pump lift (floors)",
-    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "How many floors above its own a booster pump lifts water to. Fixtures on those floors use the water storage at the booster's height and above. A booster on a floor another lifts to lifts on from there."
+    "Sandbox_BuildingUtilities_BoosterLift_tooltip": "How many floors above its own a booster pump lifts water to. Fixtures on those floors use the tanks at the booster's height and above. A booster on a floor another lifts to lifts on from there."
 }

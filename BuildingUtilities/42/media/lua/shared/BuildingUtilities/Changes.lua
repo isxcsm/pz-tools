@@ -104,8 +104,9 @@ function Changes.applyZone(panel, building, zone)
     return true
 end
 
--- Each box's zone kept to the floors it reaches (Panels.zoneInReach), as the world starts: one saved before the limit,
--- or with a smaller one in the sandbox, loses the rooms beyond and says so.
+-- Each box's zone kept to the floors it reaches (Panels.zoneInReach), as the world starts and when the sandbox's reach
+-- changed in play (Changes.applyShape): one saved before the limit, or with a smaller one in the sandbox, loses the
+-- rooms beyond and says so.
 function Changes.fitZones()
     for _, panel in ipairs(Store.list()) do
         local zone, changed = Panels.zoneInReach(panel)
@@ -751,6 +752,31 @@ function Changes.applyFeatures(defined)
         if BU.PanelLook then BU.PanelLook.show(panel) end
     end
     Sync.changed(nil)
+    return true
+end
+
+-- The sandbox's values that shape where things reach and which floors water reaches (FloorReach and RangePerTier for
+-- the zones' floors, WaterFromAboveOnly for the tanks' floors), as the world was last brought to them; nil before it
+-- started.
+local appliedShape = nil
+
+-- Brings the world to those values once the sandbox changed them in play: each box's zone kept to the floors it
+-- reaches now (Changes.fitZones), each main panel's water networks to the floors its tanks reach now, the devices whose
+-- network changed with them (Networks.floorsChanged). Checked each minute, a text compared. The world's start, which
+-- fits the zones and defines the networks as the values are, only takes them as applied (defined). Returns whether
+-- they changed.
+function Changes.applyShape(defined)
+    local key = BU.sandbox("FloorReach", 2) .. "/" .. BU.sandbox("RangePerTier", 50) .. "/" .. tostring(Water.aboveOnly())
+    if key == appliedShape then return false end
+    appliedShape = key
+    if defined then return false end
+    BU.log("reach and water floors now:", key)
+    Changes.fitZones()
+    if BU.enabled("water") then
+        for _, panel in ipairs(Store.list()) do
+            if not panel.parent then Networks.floorsChanged(panel) end
+        end
+    end
     return true
 end
 

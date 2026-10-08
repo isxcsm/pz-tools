@@ -92,7 +92,7 @@ end
 -- Each minute: a main panel's boosters (Water.boostPlan) run while it has power and its pipes are not frozen, each
 -- where water reaches its floor ("noWater" else); running, they add to its load. When what runs differs from what its
 -- water networks were defined with (Networks.boostDefined: also after a booster was wired or taken away, or as the
--- world loaded), they follow (Networks.boostChanged, its sub-panels' too). Boosters that are off (BU.enabled) stand
+-- world loaded), they follow (Networks.floorsChanged, its sub-panels' too). Boosters that are off (BU.enabled) stand
 -- still and draw nothing.
 function WaterRun.boosters(panel)
     local boosters = Store.unitList("booster", panel.id)
@@ -117,7 +117,7 @@ function WaterRun.boosters(panel)
         if now ~= unit.boosting or why ~= unit.idle then unit.boosting, unit.idle, changed = now, why, true end
         if now then running = running + 1 end
     end
-    if Water.boostKey(panel) ~= (Networks.boostDefined(panel) or "") then Networks.boostChanged(panel) end
+    if Water.boostKey(panel) ~= (Networks.boostDefined(panel) or "") then Networks.floorsChanged(panel) end
     Changes.setExtraLoad(panel, "boosters", running * WaterUnits.BOOSTER_LOAD)
     if changed then Sync.changed(panel.id) end
 end

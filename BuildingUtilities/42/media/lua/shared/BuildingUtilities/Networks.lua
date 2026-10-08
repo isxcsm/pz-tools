@@ -96,7 +96,7 @@ local function waterOn() return BU.enabled("water") and BU.waterAvailable() end
 -- the networks are defined anew as a world loads.
 local defined = {}
 -- What each main panel's water networks were last defined with: their floors (Water.layout's second result) and its
--- running boosters (Water.boostKey), for Networks.boostChanged. Not saved, as defined.
+-- running boosters (Water.boostKey), for Networks.floorsChanged. Not saved, as defined.
 local definedFloors, definedBoost = {}, {}
 -- The purify switch last set on each water network (nil: as the API defines one, purifying). Not saved: the
 -- networks are defined anew as a world loads, which purifies them.
@@ -247,10 +247,11 @@ end
 -- The running boosters a main panel's water networks were last defined with (Water.boostKey), or nil before.
 function Networks.boostDefined(panel) return definedBoost[panel.id] end
 
--- A main panel's running boosters changed (Water.boostKey differs from Networks.boostDefined): its networks follow
--- (the lifted floors' rooms move, its sub-panels hang anew), and the rules of the water devices whose network changed
--- with them, not every device's.
-function Networks.boostChanged(panel)
+-- The floors a main panel's water reaches changed: its running boosters (Water.boostKey differs from
+-- Networks.boostDefined), or the sandbox's WaterFromAboveOnly (Changes.applyShape). Its networks follow (the lifted
+-- floors' rooms move, its sub-panels hang anew), and the rules of the water devices whose network changed with them,
+-- not every device's.
+function Networks.floorsChanged(panel)
     local old = definedFloors[panel.id]
     local floors = select(2, Water.layout(panel))
     local keys = {}

@@ -86,11 +86,13 @@ function PanelWindow.boxTitle(panel)
     return name
 end
 
--- A box's tab: its title and, below the first sub-panels, a mark a level down.
+-- A box's tab: its title, the main panel's marked in front (where a cut title keeps it), and below the first
+-- sub-panels a mark a level down; and its tooltip, the whole title, the main panel's saying so in words.
 local function tabTitle(entry)
     local name = PanelWindow.boxTitle(entry.panel)
+    if entry.depth == 0 then return getText("IGUI_BU_MainTab", name), getText("IGUI_BU_MainTabTip", name) end
     if entry.depth > 1 then name = string.rep(">", entry.depth - 1) .. " " .. name end
-    return name
+    return name, name
 end
 
 function ISBUPanelWindow:new(x, y, playerObj, panel, anchor)
@@ -244,9 +246,9 @@ end
 -- The boxes' tabs' titles and their widths, measured once a refresh (not each time the window is laid out).
 function ISBUPanelWindow:measurePanelTabs()
     local measure = getTextManager()
-    self.tabTitles, self.tabWidths = {}, {}
+    self.tabTitles, self.tabTips, self.tabWidths = {}, {}, {}
     for index, entry in ipairs(self.tree) do
-        self.tabTitles[index] = tabTitle(entry)
+        self.tabTitles[index], self.tabTips[index] = tabTitle(entry)
         self.tabWidths[index] = measure:MeasureStringX(UIFont.Small, self.tabTitles[index]) + 16
     end
 end
@@ -277,7 +279,7 @@ function ISBUPanelWindow:placePanelTabs(force)
         tab:setX(x)
         tab:setWidth(w)
         tab:setTitle(title)
-        tab:setTooltip(titles[index])
+        tab:setTooltip(self.tabTips[index])
         local lit = tab.internal == self.panel.id
         tab.backgroundColor = lit and { r = 0.15, g = 0.4, b = 0.55, a = 1 } or { r = 0, g = 0, b = 0, a = 0.8 }
         tab.borderColor = lit and { r = 0.5, g = 0.75, b = 0.9, a = 1 } or { r = 0.4, g = 0.4, b = 0.4, a = 1 }

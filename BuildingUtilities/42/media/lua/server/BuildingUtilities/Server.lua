@@ -398,10 +398,12 @@ local function checkResumed(panel)
 end
 
 -- Each minute, over the hours since the last (none as the units' time starts: the water units wait a minute), after
--- what the sandbox turned on or off (Changes.applyFeatures). Power's checks and records only while it is on.
+-- what the sandbox turned on or off (Changes.applyFeatures) and changed of the zones' and the water's floors
+-- (Changes.applyShape). Power's checks and records only while it is on.
 local function everyMinute()
     if not BU.api() then return end
     Changes.applyFeatures()
+    Changes.applyShape()
     local hours = updateUnits()
     local hourEnded = false
     local power = BU.enabled("power")
@@ -504,6 +506,7 @@ local function defineAll()
     Networks.defineAll()
     Changes.fitZones()
     Changes.applyFeatures(true)
+    Changes.applyShape(true)
     if BU.enabled("power") then
         for _, panel in ipairs(Store.list()) do Changes.applyTimers(panel) end
     end

@@ -710,6 +710,8 @@
     "IGUI_BU_RoutedHere": "여기를 거쳐 %2(으)로 가는 선 %1개",
     "IGUI_BU_SubPanelFloors": "%1 (%2~%3)",
     "IGUI_BU_SubPanelFloor": "%1 (%2)",
+    "IGUI_BU_MainTab": "[주] %1",
+    "IGUI_BU_MainTabTip": "주 제어반: %1",
     "IGUI_BU_FloorSpan": "%1~%2",
     "IGUI_BU_Why_AboveTanks": "%1 높이 이상에는 물 저장소가 없어 물이 나오지 않습니다. 그 건물 옥상에 빗물받이 통을 두고 연결하거나, 아래층에 가압 펌프를 두세요",
     "IGUI_BU_Notice_RoutesCut": "%1: 연결선이 끊기면서 이곳을 거쳐 주 제어반으로 가던 선 %2개도 떼어졌습니다.",

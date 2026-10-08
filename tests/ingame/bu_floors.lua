@@ -7,7 +7,9 @@
 -- line, the cost one wire, the producer and the unit its main panel's through it, and the main panel's line as long
 -- as both together. Its water by height: each floor from the main panel's at that height or the nearest above, none
 -- above every tank; booster pumps lift it (one on the ground floor, one on the sub-panel's lowest floor wired through
--- it, chained), and the main panel's rooms they lift to join the ground floor's network. The link taken away takes the lines wired through it, given back; a sub-panel taken down too.
+-- it, chained), and the main panel's rooms they lift to join the ground floor's network. The link taken away takes
+-- the lines wired through it, given back; a sub-panel taken down too. Last, "water only from above" changed in play
+-- and back, taken once each (Changes.applyShape).
 -- "[bufloors]" lines, each "ok" or "BAD", ending with "done". What it put down is taken away, the sandbox values put
 -- back, and the tower panel's zone left as the floors it reaches.
 local BU = BuildingUtilities
@@ -291,4 +293,15 @@ page.FloorReach, page.TilesPerFloor, page.TilesPerPiece, page.BoosterLift = was.
     was.TilesPerPiece, was.BoosterLift
 main.tier = was.tier
 Changes.setZone(main, nil)
+
+-- "Water only from above" changed in play: the minute's check (Changes.applyShape) takes it once and the main panels'
+-- networks follow (a tank then waters the floor below its own); changed back, they follow again.
+local aboveWas = page.WaterFromAboveOnly
+check("shape: nothing new", Changes.applyShape(), false)
+page.WaterFromAboveOnly = not Water.aboveOnly()
+check("shape: a changed option taken", Changes.applyShape(), true)
+check("shape: once", Changes.applyShape(), false)
+check("shape: a tank's floor", Water.producerLevel({ z = 5 }), Water.aboveOnly() and 4 or 5)
+page.WaterFromAboveOnly = aboveWas
+check("shape: changed back", Changes.applyShape(), true)
 say("done")
