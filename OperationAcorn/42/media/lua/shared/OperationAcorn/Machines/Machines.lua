@@ -1033,7 +1033,7 @@ function Machines.place(kind, square, character, item, dir)
             end
             setupContainers(object, entry.square, kind)
             applyAccept(object, state)
-            if kind == "researchStorage" then object:getModData()[Data.CAPACITY_KEY] = true end
+            if kind == "researchStorage" then object:getModData()[Data.CAPACITY_KEY] = 0 end
             Machines.syncLoad(object, state)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }

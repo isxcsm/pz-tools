@@ -1172,7 +1172,7 @@ test("the anchor keeps the load multiplier and the capacity flag for the API", f
     eq(a.mod[Data.CAPACITY_KEY], nil, "only the research storage lifts its cap")
     square(21, 20, 0)
     local store = Machines.place("researchStorage", square(20, 20, 0), p, newItem("OperationAcorn.TeamLocker"), "S")
-    eq(store.mod[Data.CAPACITY_KEY], true)
+    eq(store.mod[Data.CAPACITY_KEY], 0)
     eq(store.mod[Data.LOAD_KEY], nil, "no load for a storage")
     cleanup()
 end)

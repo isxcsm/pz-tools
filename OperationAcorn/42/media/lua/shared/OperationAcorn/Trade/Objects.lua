@@ -255,10 +255,11 @@ function Objects.setupBox(object, record)
         object:setContainer(container)
     end
     Objects.nameContainer(container, Objects.BOX_CONTAINER)
-    -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity = true
+    -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
+    -- (added to the raw capacity; 0 here, the API reads nothing but numbers)
     -- (the upgrades part declares that key); without it the game cuts the capacity to 100 and the box simply holds 100.
     local capacity = Objects.capacityFor(record)
-    object:getModData().OA_Capacity = true
+    object:getModData().OA_Capacity = 0
     container:setCapacity(capacity)
     if container:getAcceptItemFunction() ~= Objects.ACCEPT then container:setAcceptItemFunction(Objects.ACCEPT) end
     return container

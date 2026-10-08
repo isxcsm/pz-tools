@@ -48,7 +48,7 @@ P2T.check(say, "box has a container", container ~= nil)
 if container then
     say("capacity", container:getCapacity(), "type", container:getType(), "wanted", Objects.capacityFor(record))
     P2T.check(say, "capacity at most the vanilla cap unless the API lifts it",
-        container:getCapacity() <= 100 or object:getModData().OA_Capacity == true)
+        container:getCapacity() <= 100 or object:getModData().OA_Capacity == 0)
     local rag = instanceItem("Base.RippedSheets")
     local bullet = instanceItem("Base.Bullets9mm")
     P2T.check(say, "accepts cloth scraps", container:isItemAllowed(rag))

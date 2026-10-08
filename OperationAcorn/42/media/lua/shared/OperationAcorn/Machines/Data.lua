@@ -59,8 +59,8 @@ Data.KINDS = {
 
 -- The object modData key of the other squares of a multi-tile machine, pointing to its anchor.
 Data.ANCHOR_KEY = "OA_Anchor"
--- The anchor's modData keys the PZ Tools API reads: OA_Capacity = true lifts the vanilla container cap for the
--- research storage (the upgrades package names the key to the API); OA_Load is the machine's load multiplier (the
+-- The anchor's modData keys the PZ Tools API reads: OA_Capacity, a number (0 here), lifts the vanilla container cap for
+-- the research storage (the API adds the number to the raw capacity and reads nothing but numbers) (the upgrades package names the key to the API); OA_Load is the machine's load multiplier (the
 -- motor's power multiplier while it runs, else 0), for the generator hook's per-object multiplier.
 Data.CAPACITY_KEY = "OA_Capacity"
 Data.LOAD_KEY = "OA_Load"
