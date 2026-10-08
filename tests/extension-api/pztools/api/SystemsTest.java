@@ -29,10 +29,10 @@ final class SystemsTest {
     private SystemsTest() { }
 
     static void run(KahluaTable api) throws Exception {
-        IsoCell home = IsoWorld.instance.cell;
+        IsoCell home = IsoWorld.instance.currentCell;
         try {
             var cell = new IsoCell();
-            IsoWorld.instance.cell = cell;
+            IsoWorld.instance.setCell(cell);
             for (int x = 0; x < 64; x++) for (int y = 0; y < 64; y++) for (int z = 0; z < 3; z++) cell.load(x, y, z);
             var player = new IsoPlayer();
             player.x = 10.5f; player.y = 10.5f;
@@ -42,10 +42,11 @@ final class SystemsTest {
             var formulas = (KahluaTable)api.rawget("formulas");
             machines(formulas, mod, second, cell, player);
             helicopter(api, player);
+            WatchesTest.run(api, player);
             zombies(api, cell);
             IsoPlayer.players[0] = null;
         } finally {
-            IsoWorld.instance.cell = home;
+            IsoWorld.instance.setCell(home);
             IsoPlayer.players[0] = null;
         }
     }
@@ -278,10 +279,10 @@ final class SystemsTest {
         rejects(area, "limit must be a whole number from 0 to 64", "near", 0.0, 0.0, 0.0, 5.0, 65.0);
         rejects(area, "x must be a number", "near", "here", 0.0, 0.0, 5.0);
         // No world: nothing.
-        var home = IsoWorld.instance.cell;
-        IsoWorld.instance.cell = null;
+        var home = IsoWorld.instance.currentCell;
+        IsoWorld.instance.setCell(null);
         List<Object> nowhere = FormulasTest.call(area, "near", 10.0, 10.0, 0.0, 20.0);
-        IsoWorld.instance.cell = home;
+        IsoWorld.instance.setCell(home);
         check((Double)nowhere.get(0) == 0.0, "Without a world there were zombies");
         // Cost: 10000 zombies, a radius that takes none, then all: the same pass, the same time, and nothing allocated for a zombie.
         cell.zombieList.clear();

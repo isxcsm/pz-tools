@@ -63,6 +63,8 @@ final class HiddenZombies {
     // The game thread's: what is known of each zombie that is a candidate, by player.
     private final IdentityHashMap<Object, Candidate>[] candidates;
     private int epoch;
+    // Whether anything is kept for the zombies since the fix was last off (so that a frame with it off has nothing to forget).
+    private boolean holding;
     private long random = 0x9E3779B97F4A7C15L;
 
     private static final class Candidate {
@@ -115,9 +117,10 @@ final class HiddenZombies {
 
     /** Each frame, on the game's thread. */
     void frame() throws Throwable {
-        if (!on) { forget(); return; }
+        if (!on) { if (holding) forget(); return; }
         Object cell = game.cell();
         if (cell == null) { forget(); return; }
+        holding = true;
         Object[] local = players.all();
         ArrayList<?> zombies = null;
         float view = 0;
@@ -138,7 +141,10 @@ final class HiddenZombies {
         }
     }
 
-    private void forget() { for (var known : candidates) if (!known.isEmpty()) known.clear(); }
+    private void forget() {
+        for (var known : candidates) if (!known.isEmpty()) known.clear();
+        holding = false;
+    }
 
     private void watch(int index, Object who, Object cell, ArrayList<?> zombies, float view, long now) throws Throwable {
         float px = (float)xOf.invokeExact(who), py = (float)yOf.invokeExact(who);

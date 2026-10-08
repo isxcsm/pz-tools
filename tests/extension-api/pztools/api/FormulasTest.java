@@ -1376,24 +1376,24 @@ final class FormulasTest {
     private static void world(KahluaTable api, KahluaTable formulas, IsoPlayer player) throws Exception {
         Object mod = call(api, "client", "world.mod").get(0);
         player.clothingDiscomfortModifier = 2f;
-        IsoCell home = IsoWorld.instance.cell;
+        IsoCell home = IsoWorld.instance.currentCell;
         GameApi.frame(FormulasTest.class.getClassLoader());
         call(formulas, "set", mod, "body.discomfortMultiplier", 0.5);
         check(player.getClothingDiscomfortModifier() == 1f, "The formula does not apply");
         // The player leaves the world: no cell, then another.
-        IsoWorld.instance.cell = null;
+        IsoWorld.instance.setCell(null);
         GameApi.frame(FormulasTest.class.getClassLoader());
         check(player.getClothingDiscomfortModifier() == 2f && call(formulas, "get", "body.discomfortMultiplier").get(0) == null,
             "A formula outlived the world it was declared in");
-        IsoWorld.instance.cell = new IsoCell();
+        IsoWorld.instance.setCell(new IsoCell());
         GameApi.frame(FormulasTest.class.getClassLoader());
         // Declared in the new world, before its first frame: kept.
         call(formulas, "set", mod, "body.discomfortMultiplier", 0.5);
         GameApi.frame(FormulasTest.class.getClassLoader());
         check(player.getClothingDiscomfortModifier() == 1f, "A formula declared in a new world was dropped");
-        IsoWorld.instance.cell = null;
+        IsoWorld.instance.setCell(null);
         GameApi.frame(FormulasTest.class.getClassLoader());
-        IsoWorld.instance.cell = home;
+        IsoWorld.instance.setCell(home);
         GameApi.frame(FormulasTest.class.getClassLoader());
         check(player.getClothingDiscomfortModifier() == 2f, "The formula came back with the old world");
     }

@@ -8,14 +8,17 @@ import java.lang.reflect.Method;
 
 /**
  * {@code PZToolsAPI.helicopter}: the game's helicopter (the one that flies over a world, {@code IsoWorld.helicopter}),
- * which Lua cannot reach. Its state is read once a frame, on the game's thread, and a change of it is raised as the Lua
- * event {@code OnPZToolsHelicopter(state, target, x, y)}.
+ * which Lua cannot reach. A change of its state is raised as the Lua event {@code OnPZToolsHelicopter(state, target, x, y)},
+ * on the game's thread.
  *
- * <p>The state is read, not hooked, because the game writes it in five places (when a target is set, in {@code changeState},
- * straight in {@code update} when the target is gone or dead, when a save loads and when a client is synced) and takes the
- * helicopter off in two ({@code deactivate} and {@code pickRandomTarget} with nobody to fly to). Reading it sees every write
- * and cannot be missed by a change in the shape of one method; the cost is a few field reads a frame, and an event comes at
- * the start of the frame after the change.
+ * <p>The game writes the state in five places (when a target is set, in {@code changeState}, straight in {@code update} when
+ * the target is gone or dead, when a save loads and when a client is synced) and takes the helicopter off in two
+ * ({@code deactivate} and {@code pickRandomTarget} with nobody to fly to). The bootstrap counts every store of the two fields
+ * the state is made of ({@code state}, and {@code active}, which {@code isActive} reads), whichever method makes it and on
+ * whichever thread (see {@link Watches}); the frame job compares that count and the world's, and only when one moved reads the
+ * state, so that an event comes at the start of the frame after the change and a frame in which nothing was written reads
+ * nothing. The state is read then, not taken at the store: a method that writes both fields ({@code load}) is seen whole.
+ * Should a hook be missing, the frame reads the state every frame, as it did before the hooks.
  */
 final class Helicopters {
     static final String EVENT = "OnPZToolsHelicopter";
@@ -29,9 +32,11 @@ final class Helicopters {
     private final Field world, helicopter;
     // Helicopter.isActive(); the protected state (an enum of the game's) and Enum.name().
     private final MethodHandle active, state, name, target, x, y;
-    // The helicopter and state the last frame saw; null before the first.
+    // The helicopter and state the last look saw; null before the first.
     private Object seen;
     private String last;
+    // The writes and the world changes the last look was after.
+    private final Watches.Seen writes = Watches.HELICOPTER_FLIGHT.user(), moves = Watches.WORLD_CELL.user();
 
     Helicopters(Kahlua lua, Game game, ClassLoader loader) throws ReflectiveOperationException, IllegalAccessException {
         this.lua = lua;
@@ -60,8 +65,11 @@ final class Helicopters {
         }));
     }
 
-    /** Each frame, on the game's thread: raises the event for a change since the last frame. */
+    /** Each frame, on the game's thread: raises the event for a change since the last look, when something was written. */
     void frame() throws Throwable {
+        // Both are asked (not one or the other): each remembers what it has seen. A new world has a helicopter of its own.
+        boolean wrote = writes.moved(), moved = moves.moved();
+        if (!wrote && !moved) return;
         Object flying = helicopter();
         if (flying == null) { seen = null; last = null; return; }
         String now = stateName(flying);

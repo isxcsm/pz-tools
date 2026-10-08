@@ -45,6 +45,7 @@ public final class GameApiTest {
         LuaManager.init();
         KahluaTable api = (KahluaTable)LuaManager.env.rawget(GameApi.GLOBAL);
         check(api != null && api.rawget("version").equals(1.0), "The API table or its version is missing");
+        FrameCostTest.run("nothing declared");
         KahluaTable buildings = (KahluaTable)api.rawget("buildings");
         at(buildings);
         rooms(buildings);
@@ -82,7 +83,7 @@ public final class GameApiTest {
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
     private static final String KEY = "11,11,-1";
-    private static IsoGridSquare square(int x, int y, int z) { return IsoWorld.instance.cell.load(x, y, z); }
+    private static IsoGridSquare square(int x, int y, int z) { return IsoWorld.instance.currentCell.load(x, y, z); }
 
     private static void world() {
         var grid = IsoWorld.instance.metaGrid;
@@ -435,9 +436,10 @@ public final class GameApiTest {
             "Clearing a handle removed the wrong networks");
         // Leaving the world removes its networks.
         var world = IsoWorld.instance;
-        IsoWorld.instance = null;
+        var cell = world.currentCell;
+        world.setCell(null);
         frame();
-        IsoWorld.instance = world;
+        world.setCell(cell);
         frame();
         check(call(networks, "state", "second").get(0) == null, "A world's networks outlived it");
         second.setActivated(false);
@@ -489,13 +491,13 @@ public final class GameApiTest {
         var settledHour = first.lastHour();
         var settledFuel = first.fuel;
         var settledPerHour = first.getTotalPowerUsing();
-        var unloaded = IsoWorld.instance.cell.squares.remove("33,33,0");
+        var unloaded = IsoWorld.instance.currentCell.squares.remove("33,33,0");
         time.hours = 500;
         frame();
         int end = settledHour + (int)Math.ceil(settledFuel / settledPerHour);
         check(second.activated && second.lastHour() == end && producer(networks) == 34.0 && raised("producer", end),
             "The next did not take over from the hour an unloaded producer ran out: " + second.lastHour() + " for " + end);
-        IsoWorld.instance.cell.squares.put("33,33,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("33,33,0", unloaded);
         first.update();
         frame();
         check(!first.activated && second.activated, "The first ran again after it loaded");
@@ -1042,9 +1044,10 @@ public final class GameApiTest {
         // A world loaded again: the networks are defined anew, and the marks on the generators tell out of service from
         // standby. The fuel of one out of service is not counted in the hours left.
         var world = IsoWorld.instance;
-        IsoWorld.instance = null;
+        var cell = world.currentCell;
+        world.setCell(null);
         frame();
-        IsoWorld.instance = world;
+        world.setCell(cell);
         frame();
         define.run();
         frame();
@@ -1059,7 +1062,7 @@ public final class GameApiTest {
         // A newer API takes the marks over, also of a generator whose square is not loaded.
         a.setActivated(true);
         frame();
-        var squares = IsoWorld.instance.cell.squares;
+        var squares = IsoWorld.instance.currentCell.squares;
         var away = squares.remove("38,40,0");
         GameApi.register(LuaManager.class);
         frame();
@@ -1179,9 +1182,10 @@ public final class GameApiTest {
         // marked one, before the first in order.
         d.fuel = 5;
         var world = IsoWorld.instance;
-        IsoWorld.instance = null;
+        var cell = world.currentCell;
+        world.setCell(null);
         frame();
-        IsoWorld.instance = world;
+        world.setCell(cell);
         frame();
         define.run();
         call(networks, "setEnabled", mod, "svc", false);
@@ -1239,9 +1243,10 @@ public final class GameApiTest {
         };
         Runnable reload = () -> {
             var world = IsoWorld.instance;
-            IsoWorld.instance = null;
+            var cell = world.currentCell;
+            world.setCell(null);
             frame();
-            IsoWorld.instance = world;
+            world.setCell(cell);
             frame();
         };
         define.run();
@@ -1334,7 +1339,7 @@ public final class GameApiTest {
         check(g1.activated && outOfService(networks, "svc", 2) && outOfService(networks, "svc", 3), "The others are not out of service");
         call(networks, "setEnabled", mod, "svc", false);
         frame();
-        var squares = IsoWorld.instance.cell.squares;
+        var squares = IsoWorld.instance.currentCell.squares;
         var away = squares.remove("36,44,0");
         call(networks, "setEnabled", mod, "svc", true);
         frame();
@@ -1482,7 +1487,7 @@ public final class GameApiTest {
         call(networks, "define", mod, "late", "power", "sequential");
         check(meta.rawget("networks") == written, "The definitions were written at the call, not at the frame");
         // The producer's, the barrel's and the fridge's squares leave the world; a newer API takes over before a frame.
-        var squares = IsoWorld.instance.cell.squares;
+        var squares = IsoWorld.instance.currentCell.squares;
         var away = new LinkedHashMap<String, IsoGridSquare>();
         for (String key : List.of("34,33,0", "30,40,0", "11,11,0")) away.put(key, squares.remove(key));
         Object define = networks.rawget("define");
@@ -1725,7 +1730,7 @@ public final class GameApiTest {
         check(clean.syncs == 1 && tainted.syncs == 1 && LuaEventManager.raised.contains(List.of("OnWaterAmountChange", clean, 60f)),
             "A drawn container was not synced or its change not raised");
         // Not loaded: owed, from what it held when last seen.
-        var unloaded = IsoWorld.instance.cell.squares.remove("31,34,0");
+        var unloaded = IsoWorld.instance.currentCell.squares.remove("31,34,0");
         drawn = call(networks, "draw", mod, "tanks", 20.0);
         mix = (KahluaTable)drawn.get(1);
         check(near((Double)drawn.get(0), 20) && near((Double)mix.rawget("Water"), 10) && near((Double)mix.rawget("TaintedWater"), 10)
@@ -1753,7 +1758,7 @@ public final class GameApiTest {
             "A newer API lost what is owed");
         // Loaded again: it takes what it is owed at the next frame, and records the last change it took.
         Object before = kept.rawget("deltas");
-        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("31,34,0", unloaded);
         frame();
         check(near(tainted.fluidContainer.amount, 40) && near(tainted.fluidContainer.fluid(Fluid.TaintedWater), 25)
             && near(tainted.fluidContainer.fluid(Fluid.Water), 15) && tainted.syncs == 2, "A loaded producer did not take what it was owed: "
@@ -1764,13 +1769,15 @@ public final class GameApiTest {
         KahluaTable older = LuaManager.platform.newTable();
         older.rawset("deltas", before);
         ModData.tables.put(PendingFluids.KEY, older);
+        // The game stores its cell when a world starts, after it loaded the ModData.
+        IsoWorld.instance.setCell(IsoWorld.instance.currentCell);
         frame();
         check(near(tainted.fluidContainer.amount, 40) && ((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 0,
             "A change was taken twice: " + tainted.fluidContainer.amount);
         // And a change owed after such a world gets a number past the ones the producer took.
-        IsoWorld.instance.cell.squares.remove("31,34,0");
+        IsoWorld.instance.currentCell.squares.remove("31,34,0");
         call(networks, "draw", mod, "tanks", 2.0);
-        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("31,34,0", unloaded);
         frame();
         check(tainted.fluidContainer.amount < 40, "A change owed after an older ModData was not taken");
         // Such a world again, the square not loaded: the changes read from the ModData that the square took, as it was
@@ -1780,13 +1787,15 @@ public final class GameApiTest {
         KahluaTable reloaded = LuaManager.platform.newTable();
         reloaded.rawset("deltas", before);
         ModData.tables.put(PendingFluids.KEY, reloaded);
-        IsoWorld.instance.cell.squares.remove("31,34,0");
+        // The game stores its cell when a world starts, after it loaded the ModData.
+        IsoWorld.instance.setCell(IsoWorld.instance.currentCell);
+        IsoWorld.instance.currentCell.squares.remove("31,34,0");
         var taken = (KahluaTable)((KahluaTable)state(networks, "tanks").rawget("producers")).rawget(2.0);
         check(near((Double)taken.rawget("pending"), 0) && near((Double)taken.rawget("amount"), tainted.fluidContainer.amount),
             "A square not loaded is owed changes it took: " + taken.rawget("pending") + ", " + taken.rawget("amount"));
         call(networks, "fill", mod, "tanks", 10.0, "Water");
         check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 3, "A change was added to one the square took already");
-        IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("31,34,0", unloaded);
         frame();
         check(near(tainted.fluidContainer.amount + clean.fluidContainer.amount, held + 10),
             "A change read from an older ModData was taken again: " + tainted.fluidContainer.amount);
@@ -1797,29 +1806,29 @@ public final class GameApiTest {
         call(networks, "define", mod, "pair", "water", "fullest");
         call(networks, "setProducers", mod, "pair", list(at(32, 34, 0)));
         frame();
-        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        unloaded = IsoWorld.instance.currentCell.squares.remove("32,34,0");
         check(near((Double)call(networks, "draw", mod, "pair", 10.0).get(0), 10) && near((Double)call(networks, "draw", mod, "pair", 20.0).get(0), 20),
             "A draw from an unloaded square went wrong");
         var pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
         check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), -30),
             "Two draws owed one after the other were not added up");
-        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 20) && near(emptier.fluidContainer.amount, 10), "The owed draw did not come from the fullest");
-        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        unloaded = IsoWorld.instance.currentCell.squares.remove("32,34,0");
         call(networks, "fill", mod, "pair", 20.0, "Water");
         call(networks, "fill", mod, "pair", 30.0, "Water");
         pairOwed = (KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas");
         check(pairOwed.len() == 1 && near((Double)((KahluaTable)pairOwed.rawget(1.0)).rawget("litres"), 50),
             "Two fills owed one after the other were not added up");
-        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("32,34,0", unloaded);
         frame();
         check(near(fuller.fluidContainer.amount, 40) && near(emptier.fluidContainer.amount, 40), "The owed fill did not go to the emptiest");
         // Its containers gone, a square drops what it is owed.
-        unloaded = IsoWorld.instance.cell.squares.remove("32,34,0");
+        unloaded = IsoWorld.instance.currentCell.squares.remove("32,34,0");
         call(networks, "fill", mod, "pair", 5.0, "Water");
         unloaded.objects.clear();
-        IsoWorld.instance.cell.squares.put("32,34,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("32,34,0", unloaded);
         frame();
         check(((KahluaTable)ModData.get(PendingFluids.KEY).rawget("deltas")).len() == 0, "A square without containers kept what it was owed");
         // A producer never seen loaded takes nothing; nor does a network switched off.
@@ -1941,10 +1950,10 @@ public final class GameApiTest {
         double perHour = generator.getTotalPowerUsing();
         int end = 3050 + (int)Math.ceil(1 / perHour);
         food = aged(container, 3050);
-        var unloaded = IsoWorld.instance.cell.squares.remove("34,33,0");
+        var unloaded = IsoWorld.instance.currentCell.squares.remove("34,33,0");
         time.hours = end + 50;
         frame();
-        IsoWorld.instance.cell.squares.put("34,33,0", unloaded);
+        IsoWorld.instance.currentCell.squares.put("34,33,0", unloaded);
         food.updateAge(false);
         check(near(food.age, ((end - 3050) * 0.2 + 50) / 24), "Food was not chilled until the fuel ran out: " + food.age * 24 + " for " + end);
         call(networks, "remove", mod, "cold");
@@ -2015,9 +2024,10 @@ public final class GameApiTest {
                 "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
                 "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
-                "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption" })
+                "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "Helicopter.writes:flight",
+                "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 66, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 68, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

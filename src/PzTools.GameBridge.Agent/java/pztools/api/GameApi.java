@@ -250,8 +250,12 @@ public final class GameApi {
 
     /** {@link ApiHooks#hookStatus}; empty from a bootstrap that does not keep it (a game started before it did). */
     private static Map<String, String> hooks() {
-        try { return ApiHooks.hookStatus(); }
-        catch (LinkageError olderBootstrap) { return Map.of(); }
+        var all = new java.util.TreeMap<String, String>();
+        try { all.putAll(ApiHooks.hookStatus()); }
+        catch (LinkageError olderBootstrap) { /* none kept */ }
+        // The areas told by hooks instead of looking each frame: applied, or why they look every frame.
+        all.putAll(Watches.status());
+        return all;
     }
 
     /**

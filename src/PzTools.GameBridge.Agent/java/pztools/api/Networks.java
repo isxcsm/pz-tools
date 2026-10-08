@@ -49,6 +49,7 @@ final class Networks {
     private WaterGrid water;
     // The game's cell when the last frame ran: a world was left when it goes.
     private Object world;
+    private final Watches.Seen moves = Watches.WORLD_CELL.user();
     private boolean reported;
     // Set when a definition changed since the mirror was written; the next frame, or a newer API, writes it.
     private boolean dirty;
@@ -497,16 +498,21 @@ final class Networks {
     /** Each frame, on the game's thread. */
     void frame() {
         try {
-            Object cell = game.cell();
-            // The world the networks were defined in was left; the mods define them again in the next one.
-            if (world != null && cell != world) {
-                grid.forget();
-                if (!networks.isEmpty()) { networks.clear(); changed(); }
+            // The game's cell is looked at when the bootstrap counted a store of it (every frame while it does not count).
+            if (moves.moved()) {
+                Object cell = game.cell();
+                // The world the networks were defined in was left; the mods define them again in the next one.
+                if (world != null && cell != world) {
+                    grid.forget();
+                    if (!networks.isEmpty()) { networks.clear(); changed(); }
+                }
+                world = cell;
             }
-            world = cell;
-            if (cell != null) {
-                grid.frame(cell);
-                if (water != null) water.frame(cell);
+            if (world != null) {
+                // One reading of the clock for both grids (the grids' own work is once a second).
+                long now = System.nanoTime();
+                grid.frame(world, now);
+                if (water != null) water.frame(world, now);
             }
             flush();
         } catch (Throwable failure) {

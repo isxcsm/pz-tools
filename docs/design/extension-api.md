@@ -207,7 +207,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
 - When a network's supply starts or stops, its consumers are told (`IsoObject.checkHaveElectricity`),
   as vanilla tells the objects in a generator's range.
 - The definitions belong to the world they were made in: when the game's cell goes (the player left
-  the world), the API removes them, and the mods define them again in the next world.
+  the world: the game stores the cell, which a hook tells the API of), the API removes them, and the mods define them
+  again in the next world.
 - Events: `OnPZToolsNetworkChange` for supply, the producer in use and the load.
 - Children: a child has supply while its parent has (its supply events carry the parent's hour), and
   the parent's producer burns both loads.
@@ -607,6 +608,8 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `ItemPickerJava.getLootModifierFromType` | the read of `ammoLootModifier` | Times `loot.ammoMultiplier`; the only read of that field in the method. |
 | `LightingJNI.getLumaInverted` | each return | Passed through `vision.darknessRestore` (the method is private; it is found by its signature). |
 | `LightingJNI.calculateVisionCone` | before the call of `getWornItemsVisionMultiplier()` | The degrees on the stack have `vision.coneAdd` added before the worn items' multiplier. |
+| `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
+| `IsoWorld.writes:currentCell` | after every store of `IsoWorld.currentCell` (`init`, `KillCell`; outside the constructors) | Counts the store; the same. |
 
 #### The weight kept
 
@@ -736,6 +739,21 @@ moving, a state written straight, a take-off and a save loaded, with the target 
 for a frame with no change; and a newer API taking over while the helicopter hovers raises nothing and reads the state. Not
 tried in the game yet: a real flight, and that `Hovering` is the moment above the target that a mod dropping a crate looks for.
 
+The two hooks that tell the frame job (`Helicopter.writes:flight`, `IsoWorld.writes:currentCell`) were put into the real bytes of
+`Helicopter` (the jar's; PZ Optimize has no loose one) and `IsoWorld` (the jar's and PZ Optimize's loose class) and verified by
+the JVM. The stores of the helicopter's `state` and `active` are in `pickRandomTarget`, `setTarget`, `changeState`, `update`,
+`deactivate`, `clientSync` and `load`; the stores of `currentCell` are in `init` and `KillCell`. In the synthetic game: an event
+for each of `setTarget`, `changeState`, a state written straight, a load (which stores the flag and then the state, and raises
+one event), a client sync that takes it off and one that puts it on, `deactivate` and `pickRandomTarget` with nobody; none before
+the frame; none for a state that came back within a frame; a frame in which nothing was written does not ask the helicopter
+anything (counted over 4000 frames); a write from another thread, and a load from another, is raised by the next frame on
+the game's thread; the first look is a baseline and the next change is raised; a store of the world's cell is counted once and
+seen by the next frame, a cell that changed without a store is not looked for; with a hook missing (a class without the field it
+needs) the status reads `polled: ...`, the frames look every time and a store nobody counted is seen, and with the hook back it is
+not looked for and a counted one is. One frame of the API with nothing declared and no helicopter flying cost 140.6 ns before
+(it read the game's cell twice and the helicopter's world, helicopter and flag through reflection, the ModData, and the clock twice, every frame) and 38 to 44 ns
+after (the counts compared by four users, and one reading of the clock for the grids' cadence).
+
 `zombies.near` was tested for the nearest in order among 500 zombies (the count is not bounded, the list is), the radius, the
 level, the limit, a dead zombie, no world and wrong arguments. Over 10000 zombies spread over a 2000 by 2000 map a call took
 about 60 us for a radius of 5 and 170 to 220 us for a radius of 1000 (every zombie within it, the nearest 8 kept), and
@@ -757,13 +775,42 @@ game sets a target (the helicopter starts 1000 squares off the target's), `"Hove
 goes through them, and `"Inactive"` when it is taken off (it ends, or a world is left). `x` and `y` are where the helicopter
 is. The API adds the event to the game with its Lua.
 
-The state is read once a frame, on the game's thread, not hooked: the game writes it when a target is set (`setTarget`), in
-`changeState`, straight in `update` (the helicopter leaves when its target is gone or dead), when a save loads
-(`Helicopter.load`) and when a client is synced, and takes the helicopter off in `deactivate` and in `pickRandomTarget` with
-nobody to fly to. Reading sees every one of these and cannot lose one to a change in the shape of a method; it costs a few
-field reads a frame. An event comes at the start of the frame after the change, and a state the helicopter passes through
-within one frame is not seen. The first look at a helicopter (the game starting, a save loaded while it flies, or a newer
-API taking over) is its state, not a change: no event is raised for it, and a mod that starts late reads `state()`.
+The game writes the state when a target is set (`setTarget`), in `changeState`, straight in `update` (the helicopter leaves when
+its target is gone or dead), when a save loads (`Helicopter.load`) and when a client is synced, and takes the helicopter off in
+`deactivate` and in `pickRandomTarget` with nobody to fly to. What `isActive()` reads is the field `active`; the state is
+`state`. The bootstrap counts every store of those two fields in `Helicopter` (a hook after the store, whichever method makes it
+and whichever thread), and the frame job reads the state only after the count moved (see
+[below](#what-the-frame-job-learns-from-the-hooks)): the two fields cover all of the writers, and no shape of a method is
+relied on, so a change in a method cannot lose one. The state is read when the frame runs, not taken at the store, so that a
+method that stores both fields (a load) is seen whole, and an event comes at the start of the frame after the change, on the
+game's thread. A state the helicopter passes through within one frame is not seen. The first look at a helicopter (the game
+starting, a save loaded while it flies, a newer API taking over, and a new world) is its state, not a change: no event is
+raised for it, and a mod that starts late reads `state()`.
+
+### What the frame job learns from the hooks
+
+The frame job (`GameApi.frame`, once a frame on the game's thread) does no work for things that change rarely: it compares two
+counts the bootstrap keeps, and looks only when one has moved. The counts are of the stores of `IsoWorld.currentCell` (the game
+stores it in `init` when a world starts and in `KillCell` when it is left; `getCell()` returns it) and of the stores of
+`Helicopter.state` and `Helicopter.active`. A hook only counts (an atomic increment, on any thread), so it is safe in the middle
+of the game's methods; each user of a count (the formulas, the networks, the water grid, the helicopter) remembers the last count
+it saw, and acts, on the game's thread, when it differs.
+
+- A world change (the cell stored) makes the formulas and the networks compare the game's cell with the one they hold and clear
+  what was declared in the world that went, and the water grid read the changes owed to squares from the world's ModData (the
+  game loads it in `init` before it stores the cell; the grid also reads it with its once-a-second work and when a mod draws or
+  fills, and a frame with nothing owed does nothing). Writing the definitions (`dirty`) is a flag the changes set, not a look.
+- The clock is read once a frame, for the grids' once-a-second cadence, and nothing else is done by the grids between their
+  seconds. The hidden-zombie fix stays per frame, as it must (the game sets the alpha back each frame), and runs only while declared.
+- A store of the cell outside `IsoWorld` (`IsoCell`'s constructor, the offline `WorldConverter`) is not counted: the game stores
+  the cell in `IsoWorld.init` as well, after it is built, and nothing else makes a world.
+
+When a hook is not in the game's class (the bootstrap is older, the class changed so that the hook does not fit, or it has not
+loaded), the count means nothing and the users look at every frame, as they did before the hooks: no event is lost, the frame costs
+a few reflective reads more. `PZToolsAPI.hooks()` (and the `api.tsv` the app reads) says which it is for each area: `Helicopter.events`
+and `IsoWorld.change` read `applied` when the hooks tell the area, else `polled: <why the hook is missing>; every frame ...`, besides
+the two hooks' own entries (`Helicopter.writes:flight`, `IsoWorld.writes:currentCell`) and the log line the bootstrap writes
+for a hook that did not go in.
 
 ### Zombies near a point
 

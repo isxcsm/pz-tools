@@ -15,7 +15,10 @@ public class Helicopter {
     public float x, y;
     protected boolean active;
 
-    public boolean isActive() { return active; }
+    /** How many times the flag was asked: the API asks only when it was told something was written. */
+    public int activeReads;
+
+    public boolean isActive() { activeReads++; return active; }
 
     public void setTarget(IsoGameCharacter character) {
         target = character;
@@ -31,6 +34,16 @@ public class Helicopter {
 
     /** What update does: a state through changeState, the helicopter moving, a state written straight, a save loaded. */
     public void update(String next, float newX, float newY) { changeState(State.valueOf(next)); x = newX; y = newY; }
+
+    /** What the game does with nobody to fly to: the helicopter is taken off. */
+    public void pickRandomTarget() { active = false; }
+
+    /** What a client does when the server tells it where the helicopter is (the game's has it deactivate and then store the flag). */
+    public void clientSync(float newX, float newY, boolean flying) {
+        x = newX; y = newY;
+        if (!flying) deactivate();
+        active = flying;
+    }
 
     public void leaveAtOnce() { state = State.Leaving; }
 

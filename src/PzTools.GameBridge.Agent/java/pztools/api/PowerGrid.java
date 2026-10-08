@@ -430,8 +430,7 @@ final class PowerGrid implements ApiHooks.Power {
     // The game's thread.
 
     /** Once a frame: works the networks out again once a second, or when something changed. */
-    void frame(Object cells) throws ReflectiveOperationException {
-        long now = System.nanoTime();
+    void frame(Object cells, long now) throws ReflectiveOperationException {
         if (!cadence.due(now)) return;
         unmark(cells);
         var supplyChanged = new ArrayList<Network>();

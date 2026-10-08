@@ -469,10 +469,13 @@ final class Formulas implements ApiHooks.Formulas {
     /** Each frame, on the game's thread. */
     void frame() {
         try {
-            Object cell = game.cell();
-            // The world the formulas were declared in was left; the mods declare them again in the next one.
-            if (world != null && cell != world && !declared.isEmpty()) { declared.clear(); dirty = true; publish(); }
-            world = cell;
+            // The game's cell is looked at when the bootstrap counted a store of it (every frame while it does not count).
+            if (moves.moved()) {
+                Object cell = game.cell();
+                // The world the formulas were declared in was left; the mods declare them again in the next one.
+                if (world != null && cell != world && !declared.isEmpty()) { declared.clear(); dirty = true; publish(); }
+                world = cell;
+            }
             if (dirty) write();
             if (survival != null)
                 for (Integer part; (part = survival.nextSurvived()) != null;) game.raise(Survival.EVENT, (double)part);
@@ -486,6 +489,7 @@ final class Formulas implements ApiHooks.Formulas {
     }
 
     private boolean reported;
+    private final Watches.Seen moves = Watches.WORLD_CELL.user();
 
     /**
      * The machines declared since the world was loaded are put into the game's lists once a world and a player are there to

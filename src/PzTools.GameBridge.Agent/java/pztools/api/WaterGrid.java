@@ -64,6 +64,7 @@ final class WaterGrid implements ApiHooks.Water {
     private final Kahlua lua;
     private final PendingFluids pending;
     private final Cadence cadence = new Cadence();
+    private final Watches.Seen moves = Watches.WORLD_CELL.user();
     private volatile Snapshot snapshot = Snapshot.EMPTY;
     // Set by a definition change, made on the thread that changed it; see current().
     private volatile boolean stale;
@@ -524,9 +525,13 @@ final class WaterGrid implements ApiHooks.Water {
      * a square without one drops what it is owed. The containers record the last change they took ({@link #APPLIED}),
      * so that none is taken twice. Only where the game changes what producers hold.
      */
-    private void applyOwed(Object cells) throws ReflectiveOperationException {
+    private void applyOwed(Object cells) throws ReflectiveOperationException { applyOwed(cells, true); }
+
+    /** {@code read}: the changes are read from the ModData first, if it is another table than they were last read from. */
+    private void applyOwed(Object cells, boolean read) throws ReflectiveOperationException {
+        if (!read && pending.isEmpty()) return;
         if (!authoritative()) return;
-        pending.refresh();
+        if (read) pending.refresh();
         if (pending.isEmpty() || cells == null) return;
         var taken = new ArrayList<Position>();
         for (Position at : pending.squares()) {
@@ -648,9 +653,13 @@ final class WaterGrid implements ApiHooks.Water {
      * last seen, with what it is owed; a network has water while one of the producers it draws from has, and it and
      * each parent above it are switched on.
      */
-    void frame(Object cells) throws ReflectiveOperationException {
-        applyOwed(cells);
-        if (!cadence.due(System.nanoTime())) return;
+    void frame(Object cells, long now) throws ReflectiveOperationException {
+        // What is owed is read from the world's ModData when a world started (it is loaded before the cell is stored), and once a
+        // second with the grid's work; a frame with nothing owed and nothing to read does nothing here.
+        boolean world = moves.moved();
+        applyOwed(cells, world);
+        if (!cadence.due(now)) return;
+        if (!world && authoritative()) { pending.refresh(); applyOwed(cells, false); }
         List<Network> watered = networks.of(UTILITY);
         for (Network network : watered) {
             members.resolve(network);

@@ -15,6 +15,7 @@ import java.lang.reflect.AccessFlag;
 import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 
@@ -393,6 +394,11 @@ public final class ApiHooks {
                     code.aload(0);
                 }).named("hours"),
             Site.watch("weight", "weightChanged", List.of("baseHunger", "hungChange", "thirstChange"), List.of("burnt")) }),
+        // The helicopter is on or off, and in a state, by these two fields alone (isActive reads active): every store of either, in any
+        // method, counts a write for the API to look at on the game's thread.
+        Map.entry("zombie/iso/Helicopter", new Site[] { Site.watch("flight", "helicopterChanged", List.of("state", "active"), List.of()) }),
+        // The world's cell is IsoWorld.currentCell (getCell reads it); it is stored when the world starts and when it is killed.
+        Map.entry("zombie/iso/IsoWorld", new Site[] { Site.watch("currentCell", "worldChanged", List.of("currentCell"), List.of()) }),
         Map.entry("zombie/iso/IsoObject", new Site[] {
             // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
             Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
@@ -758,6 +764,8 @@ public final class ApiHooks {
     private static void record(String label, String state) {
         synchronized (status) {
             status.put(label, state);
+            helicopterWatched = APPLIED.equals(status.get(HELICOPTER_WATCH));
+            worldWatched = APPLIED.equals(status.get(WORLD_WATCH));
             if (TRACKING.contains(label)) {
                 boolean sound = true;
                 for (String needed : TRACKING) {
@@ -781,6 +789,30 @@ public final class ApiHooks {
         "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
         "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "IsoGameCharacter.getInventoryWeight");
     private static volatile boolean weightTracked = true;
+
+    // What the API drains on the game's thread instead of looking each frame: how many times the helicopter's state or flag, and the
+    // world's cell, were stored since the game started; any thread may count. Meaningful only while the matching hook is applied.
+    private static final String HELICOPTER_WATCH = "Helicopter.writes:flight", WORLD_WATCH = "IsoWorld.writes:currentCell";
+    private static final AtomicInteger helicopterWrites = new AtomicInteger(), worldWrites = new AtomicInteger();
+    private static volatile boolean helicopterWatched, worldWatched;
+
+    /** Put after each store of {@code Helicopter.state} or {@code Helicopter.active}; it only counts. */
+    public static void helicopterChanged(Object helicopter) { helicopterWrites.incrementAndGet(); }
+
+    /** Put after each store of {@code IsoWorld.currentCell}; it only counts. */
+    public static void worldChanged(Object world) { worldWrites.incrementAndGet(); }
+
+    /** How many stores of the helicopter's state or flag the hooks counted. */
+    public static int helicopterWrites() { return helicopterWrites.get(); }
+
+    /** How many stores of the world's cell the hooks counted. */
+    public static int worldWrites() { return worldWrites.get(); }
+
+    /** Whether the hook on the stores of the helicopter's state and flag is in the class the game runs. */
+    public static boolean helicopterWatched() { return helicopterWatched; }
+
+    /** Whether the hook on the stores of the world's cell is in the class the game runs. */
+    public static boolean worldWatched() { return worldWatched; }
 
     /** Whether every hook of {@link #TRACKING} that was tried went in (a class that has not loaded yet has nothing to track). */
     public static boolean weightTracked() { return weightTracked; }

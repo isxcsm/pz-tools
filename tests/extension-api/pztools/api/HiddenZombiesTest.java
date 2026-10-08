@@ -29,12 +29,12 @@ final class HiddenZombiesTest {
 
     static void run(KahluaTable api) throws Exception {
         KahluaTable formulas = (KahluaTable)api.rawget("formulas");
-        IsoCell home = IsoWorld.instance.cell;
+        IsoCell home = IsoWorld.instance.currentCell;
         float viewed = GameTime.instance.viewDist;
         HiddenZombies.clock = () -> now;
         try {
             var cell = new IsoCell();
-            IsoWorld.instance.cell = cell;
+            IsoWorld.instance.setCell(cell);
             for (int x = 0; x < 64; x++) for (int y = 0; y < 64; y++) for (int z = 0; z < 3; z++) cell.load(x, y, z);
             var player = new IsoPlayer();
             player.x = 10.5f; player.y = 10.5f; player.z = 0f;
@@ -58,7 +58,7 @@ final class HiddenZombiesTest {
         } finally {
             HiddenZombies.clock = System::nanoTime;
             GameTime.instance.viewDist = viewed;
-            IsoWorld.instance.cell = home;
+            IsoWorld.instance.setCell(home);
             IsoPlayer.players[0] = null;
             IsoPlayer.players[1] = null;
         }
@@ -319,7 +319,7 @@ final class HiddenZombiesTest {
         var size = 128;
         var cell = new IsoCell();
         cell.dense(size, 4);
-        IsoWorld.instance.cell = cell;
+        IsoWorld.instance.setCell(cell);
         var random = new Random(42);
         for (int z = 0; z < 4; z++) for (int y = 0; y < size; y++) for (int x = 0; x < size; x++) {
             var square = cell.load(x, y, z);
@@ -413,7 +413,7 @@ final class HiddenZombiesTest {
     /** A fault in the game's list stops the fix alone, once; the formulas and the game go on. */
     private static void fault(KahluaTable api, KahluaTable formulas) {
         var cell = new IsoCell();
-        IsoWorld.instance.cell = cell;
+        IsoWorld.instance.setCell(cell);
         var player = new IsoPlayer();
         IsoPlayer.players[0] = player;
         frames(1);
