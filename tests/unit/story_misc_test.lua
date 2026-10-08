@@ -299,3 +299,24 @@ test("the world's texts keep LORE's rules: no dates outside documents, no empty-
         eq(string.find(value, "구조", 1, true) == nil, true, key .. " talks of rescue")
     end
 end)
+
+-- B42: the metagrid spans +-250 cells, the drawn map only some; zones are known only for loaded cells.
+test("the sites' bounds are the drawn map's cells, found to the cell", function()
+    local savedWorld = getWorld
+    getWorld = function()
+        return { getMetaGrid = function()
+            return {
+                getMinX = function() return -250 end, getMinY = function() return -250 end,
+                getMaxX = function() return 250 end, getMaxY = function() return 250 end,
+                getCellData = function(_, cx, cy) return (cx >= 3 and cx <= 21 and cy >= 5 and cy <= 9) or nil end,
+                getZonesAt = function() return nil end,
+            }
+        end }
+    end
+    Sites.resetExtent()
+    local b = Sites.bounds()
+    eq(b.minX, 3 * 256); eq(b.maxX, 22 * 256 - 1)
+    eq(b.minY, 5 * 256); eq(b.maxY, 10 * 256 - 1)
+    getWorld = savedWorld
+    Sites.resetExtent()
+end)

@@ -17,8 +17,7 @@ OA.Sites = Sites
 
 Sites.COUNT = 24
 Sites.SPACING = 300
--- Zone types the map gives land its outdoors: a site may start in these, never in a town or on water.
-Sites.LAND = { Forest = true, DeepForest = true, Vegitation = true, FarmLand = true, Ranch = true, Farm = true }
+-- Zone types a site never lies in (judged where the zones are known: B42 loads a cell's zones with the cell).
 Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true, Nav = false }
 Sites.DATES = 8
 Sites.MAX_RETRIES = 12
@@ -68,30 +67,85 @@ function Sites.bestBonus()
     return best
 end
 
--- A map point that may hold a site: the map has land there (decided by zones, not by squares).
-local function acceptPoint(x, y)
+-- The map's cell size in squares (B42).
+local CELL = 256
+
+-- The extent, in cells, of the cells that hold map data (the hand-made map; B42 reports a metagrid of +-250 cells
+-- around it, generated where nothing was drawn). Found once a session: a coarse look every STEP cells, then the
+-- edges to the cell. nil when no cell has data.
+local extent
+local function mapExtent()
+    if extent ~= nil then return extent or nil end
     local grid = getWorld():getMetaGrid()
-    if not grid:isValidSquare(x, y) then return false end
-    local zones = grid:getZonesAt(x, y, 0)
-    if not zones then return false end
-    local land = false
-    for i = 0, zones:size() - 1 do
-        local t = zones:get(i):getType()
-        if Sites.NOT[t] then return false end
-        if Sites.LAND[t] then land = true end
+    local x1, y1, x2, y2 = grid:getMinX(), grid:getMinY(), grid:getMaxX(), grid:getMaxY()
+    local STEP = 8
+    local minX, minY, maxX, maxY
+    for cx = x1, x2, STEP do
+        for cy = y1, y2, STEP do
+            if grid:getCellData(cx, cy) then
+                minX, maxX = math.min(minX or cx, cx), math.max(maxX or cx, cx)
+                minY, maxY = math.min(minY or cy, cy), math.max(maxY or cy, cy)
+            end
+        end
     end
-    return land
+    if not minX then
+        extent = false
+        return nil
+    end
+    -- the coarse look may stop up to STEP - 1 cells short of an edge
+    local yLo, yHi = math.max(y1, minY - STEP + 1), math.min(y2, maxY + STEP - 1)
+    local xLo, xHi = math.max(x1, minX - STEP + 1), math.min(x2, maxX + STEP - 1)
+    local function column(cx)
+        for cy = yLo, yHi do if grid:getCellData(cx, cy) then return true end end
+        return false
+    end
+    local function row(cy)
+        for cx = xLo, xHi do if grid:getCellData(cx, cy) then return true end end
+        return false
+    end
+    local lo = xLo
+    while lo < minX and not column(lo) do lo = lo + 1 end
+    local hi = xHi
+    while hi > maxX and not column(hi) do hi = hi - 1 end
+    minX, maxX = lo, hi
+    lo = yLo
+    while lo < minY and not row(lo) do lo = lo + 1 end
+    hi = yHi
+    while hi > maxY and not row(hi) do hi = hi - 1 end
+    minY, maxY = lo, hi
+    extent = { minX = minX, minY = minY, maxX = maxX, maxY = maxY }
+    return extent
 end
 
--- The map's extent in squares: the metagrid reports cells (or squares, when a version says so).
-function Sites.bounds()
+-- A map point that may hold a site: a cell of the drawn map, and no zone there that says town or water. B42 keeps a
+-- cell's zones only once the cell has loaded, so far from the player there are mostly none: the land is then judged
+-- when the site's chunk loads (Sites.onChunk), and a site that is not on land moves.
+local function acceptPoint(x, y)
     local grid = getWorld():getMetaGrid()
-    local size = 256
-    local minX, minY, maxX, maxY = grid:getMinX(), grid:getMinY(), grid:getMaxX(), grid:getMaxY()
-    if maxX < 2000 then
-        return { minX = minX * size, minY = minY * size, maxX = (maxX + 1) * size - 1, maxY = (maxY + 1) * size - 1 }
+    if not grid:getCellData(math.floor(x / CELL), math.floor(y / CELL)) then return false end
+    local zones = grid:getZonesAt(x, y, 0)
+    if zones then
+        for i = 0, zones:size() - 1 do
+            if Sites.NOT[zones:get(i):getType()] then return false end
+        end
     end
-    return { minX = minX, minY = minY, maxX = maxX, maxY = maxY }
+    return true
+end
+
+-- The map's extent in squares: the cells that hold map data, else the whole metagrid.
+function Sites.bounds()
+    local e = mapExtent()
+    if e then
+        return { minX = e.minX * CELL, minY = e.minY * CELL, maxX = (e.maxX + 1) * CELL - 1, maxY = (e.maxY + 1) * CELL - 1 }
+    end
+    local grid = getWorld():getMetaGrid()
+    return { minX = grid:getMinX() * CELL, minY = grid:getMinY() * CELL, maxX = (grid:getMaxX() + 1) * CELL - 1,
+        maxY = (grid:getMaxY() + 1) * CELL - 1 }
+end
+
+-- Forget the extent (a test).
+function Sites.resetExtent()
+    extent = nil
 end
 
 local function register(site)
@@ -169,6 +223,13 @@ end
 local function isLand(sq)
     if not sq then return false end
     if sq:getBuilding() or not sq:isOutside() then return false end
+    -- the square's cell is loaded, so are its zones: no town, no water
+    local zones = getWorld():getMetaGrid():getZonesAt(sq:getX(), sq:getY(), 0)
+    if zones then
+        for i = 0, zones:size() - 1 do
+            if Sites.NOT[zones:get(i):getType()] then return false end
+        end
+    end
     if not sq:isFree(false) or not sq:TreatAsSolidFloor() then return false end
     local ok, water = pcall(function() return sq:isWaterSquare() end)
     if ok and water then return false end
