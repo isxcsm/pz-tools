@@ -35,7 +35,7 @@ nothing and says why.
 | Narrow | No general reflection, file or process access. Any Lua mod can call the API, so nothing in it may reach outside the game. |
 | PZ Tools owns the hooks | One owner per vanilla method, so two areas that touch the same class do not conflict. Mods see areas, not hooks. |
 | Owned definitions | Each network belongs to the mod that created it (a name it passes once). A mod can only change or remove its own. |
-| Adds to vanilla | Every answer is vanilla's answer, or more. Something no network contains behaves as in vanilla. |
+| Vanilla unless declared | An answer differs from vanilla's only for what a mod declared: a network it built, a multiplier or rule it set. Anything no mod declared behaves as in vanilla. A declared change may give more or less than vanilla (more power, less carried weight, a device cut off). |
 | Part of the install | The API is infrastructure, not a feature with its own switch: turning it off would cut every dependent mod's power at once. It exists only in a game the [startup loader](startup-loader.md) started, and it is always on there. A game the app attached to has no API. |
 | Never fails closed | Other extensions are revoked when they fault. The API is not: a hook that cannot answer gives vanilla's answer for that call, and the API keeps running. A fault is reported, never turned into a power cut. |
 | Single player supported | Single player is what is supported and tested. Multiplayer is not blocked, only untested: the API runs there as it does in single player, and only what would be wrong on a client (changing what producers hold) is refused. |
