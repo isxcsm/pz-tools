@@ -680,6 +680,7 @@ function Machines.update(object, opts)
     if not state then return nil end
     local kind = state.kind
     if kind == "lure" then return Machines.updateLure(object, state, opts) end
+    if kind == "rainStorage" then return Machines.updateRain(object, state) end
     if not Data.processes(kind) then return nil end
 
     local square = object:getSquare()
@@ -738,6 +739,42 @@ function Machines.updateLure(object, state, opts)
         sound(object, Data.LURE.radius)
     end
     return result
+end
+
+-- The look of a rain storage's water, 0 (dry) to Sprites.RAIN_LEVELS - 1 (full), from the share of its capacity. The
+-- art has a dry floor, a quarter, a half and a full tank; a share shows the nearest of them, except that any water at
+-- all shows (dry only under 2 %).
+function Machines.rainLevel(amount, capacity)
+    if not capacity or capacity <= 0 then return 0 end
+    local share = (amount or 0) / capacity
+    if share < 0.02 then return 0 end
+    if share < 0.375 then return 1 end
+    if share < 0.75 then return 2 end
+    return 3
+end
+
+local function showOverlay(object, want)
+    local current = object:getOverlaySprite()
+    if (current and current:getName() or nil) == want then return end
+    object:setOverlaySprite(want, isServer())
+end
+
+-- A rain storage shows its water as an overlay on each of its squares (its own sprite is the one its entity's sprite
+-- config names, and must stay so). The overlays change only when the level passes from one look to another; a
+-- machine with a square not loaded keeps its old level and tries again on the next step.
+function Machines.updateRain(object, state)
+    if not object.getFluidAmount then return nil end
+    local level = Machines.rainLevel(object:getFluidAmount(), object:getFluidCapacity())
+    if state.level == level then return nil end
+    local want = {}
+    for _, tile in ipairs(Sprites.rainOverlayTiles(level)) do want[tile.dx .. "," .. tile.dy] = tile.sprite end
+    showOverlay(object, want["0,0"])
+    local parts = Machines.partsOf(state)
+    for _, part in ipairs(parts) do showOverlay(part.object, want[part.dx .. "," .. part.dy]) end
+    if #parts + 1 < #Machines.tiles("rainStorage") then return nil end
+    state.level = level
+    if isServer() then object:transmitModData() end
+    return nil
 end
 
 -- The EveryTenMinutes handler: works every machine whose square is loaded. A registered machine whose square is

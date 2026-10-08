@@ -941,6 +941,80 @@ test("the rain storage is 2x2 and only outside; the entity is made on the anchor
     cleanup()
 end)
 
+test("the rain storage shows its water as overlays, changed only when the level passes to another look", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(30, 30, 0)
+    square(31, 30, 0)
+    square(30, 31, 0)
+    square(31, 31, 0)
+    OA.Sprites.rainOverlayTiles = function(level)
+        if level <= 0 then return {} end
+        return { { dx = 0, dy = 0, sprite = "w" .. level .. "00" }, { dx = 1, dy = 0, sprite = "w" .. level .. "10" },
+            { dx = 0, dy = 1, sprite = "w" .. level .. "01" }, { dx = 1, dy = 1, sprite = "w" .. level .. "11" } }
+    end
+    local anchor = Machines.place("rainStorage", sq, p, newItem("OperationAcorn.RainCistern"), "S")
+    local water, sets = 0, 0
+    local function overlays(object)
+        object.overlay = nil
+        function object:getOverlaySprite()
+            local name = self.overlay
+            return name and { getName = function() return name end } or nil
+        end
+        function object:setOverlaySprite(name) self.overlay = name; sets = sets + 1 end
+    end
+    local objects = { anchor, squares["31,30,0"].objects[1], squares["30,31,0"].objects[1], squares["31,31,0"].objects[1] }
+    for _, o in ipairs(objects) do overlays(o) end
+    function anchor:getFluidAmount() return water end
+    function anchor:getFluidCapacity() return 4000 end
+    local function shown()
+        local names = {}
+        for i, o in ipairs(objects) do names[i] = o.overlay or "-" end
+        return table.concat(names, " ")
+    end
+
+    eq(Machines.rainLevel(0, 4000), 0)
+    eq(Machines.rainLevel(79, 4000), 0, "under 2 % is dry")
+    eq(Machines.rainLevel(80, 4000), 1, "any water shows")
+    eq(Machines.rainLevel(1499, 4000), 1)
+    eq(Machines.rainLevel(1500, 4000), 2)
+    eq(Machines.rainLevel(2999, 4000), 2)
+    eq(Machines.rainLevel(3000, 4000), 3)
+    eq(Machines.rainLevel(10, 0), 0, "no capacity")
+
+    Machines.tick()
+    eq(shown(), "- - - -", "dry")
+    eq(sets, 0, "nothing to change on a dry new tank")
+    water = 500
+    Machines.tick()
+    eq(shown(), "w100 w110 w101 w111")
+    eq(sets, 4)
+    water = 1400
+    Machines.tick()
+    eq(sets, 4, "the same look: nothing set")
+    water = 3500
+    Machines.tick()
+    eq(shown(), "w300 w310 w301 w311")
+    water = 0
+    Machines.tick()
+    eq(shown(), "- - - -", "drained: the overlays go")
+
+    -- A square not loaded: what is loaded changes now, the rest on a later step.
+    water = 2000
+    local away = squares["31,31,0"]
+    squares["31,31,0"] = nil
+    Machines.tick()
+    eq(shown(), "w200 w210 w201 -")
+    squares["31,31,0"] = away
+    Machines.tick()
+    eq(shown(), "w200 w210 w201 w211")
+    local before = sets
+    Machines.tick()
+    eq(sets, before, "settled")
+    OA.Sprites.rainOverlayTiles = nil
+    cleanup()
+end)
+
 test("the lure is one passable tile", function()
     local square = worldSetup()
     local p = player()
