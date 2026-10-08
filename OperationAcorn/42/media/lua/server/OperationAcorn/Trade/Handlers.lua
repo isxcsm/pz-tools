@@ -65,7 +65,12 @@ Server.on("tradeUsed", function(character, record, args)
     if heli.greeted then return end
     heli.greeted = true
     local late = record.first ~= nil and record.first.mode ~= "window"
-    Trade.radio(record, late and "IGUI_OA_Trade_Radio_Late" or "IGUI_OA_Trade_Radio_Start", { string.format("%04d", record.number or 0) })
+    if OA.Story and OA.Story.firstContact then
+        -- The story part says it, once for each record.
+        OA.Story.firstContact(record, late)
+    else
+        Trade.radio(record, late and "IGUI_OA_Trade_Radio_Late" or "IGUI_OA_Trade_Radio_Start", { string.format("%04d", record.number or 0) })
+    end
 end)
 
 -- The ten-minute work. A failing part does not stop the others.

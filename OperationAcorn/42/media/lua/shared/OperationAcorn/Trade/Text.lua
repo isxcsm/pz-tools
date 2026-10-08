@@ -52,7 +52,7 @@ function Text.radio(entry)
     local args = entry.args or {}
     local body = Text.tr(entry.key, unpack(args))
     if not string.find(entry.key, "^IGUI_OA_Trade_Radio_%a") then return body end
-    local greeting = Text.greeting(entry.stage)
+    local greeting = entry.greet and Text.tr(entry.greet, entry.number) or Text.greeting(entry.stage)
     local line = body .. " " .. Text.tr("IGUI_OA_Trade_Radio_Over")
     if greeting ~= "" then line = greeting .. " " .. line end
     return line
@@ -75,6 +75,15 @@ local function markText(marks)
 end
 Text.markText = markText
 
+-- The name of a column of the manifest form: the story part's other name from the 4th stage on (the receipt keeps
+-- whether it was written in the old form), else the form's own.
+function Text.formLabel(receipt, id)
+    if receipt.oldForm and OA.Story and OA.Story.OLD_LABELS and OA.Story.OLD_LABELS[id] then
+        return Text.tr("IGUI_OA_Story_Form_" .. id)
+    end
+    return Text.tr("IGUI_OA_Trade_Rc_Label_" .. id)
+end
+
 -- A receipt as lines { text, kind } for the manifest, the ledger and the radio's look back. kind is "head", "line",
 -- "good" (a gift), "bad" (something cut short), "note" or "total".
 function Text.receipt(receipt)
@@ -85,7 +94,14 @@ function Text.receipt(receipt)
     local function raw(kind, text)
         lines[#lines + 1] = { kind = kind, text = text }
     end
-    add("head", "IGUI_OA_Trade_Rc_Head", receipt.id or 0, receipt.day or 0)
+    if receipt.oldForm then
+        add("head", "IGUI_OA_Trade_Rc_HeadOld", Text.formLabel(receipt, "serial"), receipt.id or 0, receipt.day or 0)
+    else
+        add("head", "IGUI_OA_Trade_Rc_Head", receipt.id or 0, receipt.day or 0)
+    end
+    if receipt.number then
+        add("line", "IGUI_OA_Trade_Rc_Row", Text.formLabel(receipt, "receivers"), string.format("%04d", receipt.number))
+    end
     if receipt.kind == "reissue" then add("line", "IGUI_OA_Trade_Rc_Reissue") end
     if (receipt.boxes or 0) > 0 then
         add("line", "IGUI_OA_Trade_Rc_Boxes", receipt.boxes, Text.credits(receipt.credits), Text.credits(receipt.trust))
@@ -119,7 +135,7 @@ function Text.receipt(receipt)
     end
     if receipt.note and receipt.note.key then
         local a = receipt.note.args or {}
-        raw("note", Text.tr(receipt.note.key, unpack(a)))
+        add("note", "IGUI_OA_Trade_Rc_Row", Text.formLabel(receipt, "remarks"), Text.tr(receipt.note.key, unpack(a)))
     end
     add("total", "IGUI_OA_Trade_Rc_Balance", Text.credits(receipt.balanceBefore), Text.credits(receipt.balance))
     return lines
