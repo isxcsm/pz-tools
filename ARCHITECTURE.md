@@ -156,10 +156,34 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 시트 | tiledef (`mod.info`) | 정의 파일 | 텍스처 팩 | 칸 |
 | --- | --- | --- | --- | --- |
 | `oa_trade_01` | `oa_trade 6601` | `media/oa_trade.tiles` | `texturepacks/OperationAcornTrade.pack` (`pack=OperationAcornTrade`) | 0~15 |
-| `oa_machines_01` | `oa_machines 6602` | `media/oa_machines.tiles` | `texturepacks/OperationAcornMachines.pack` (`pack=OperationAcornMachines`) | 0~50 |
+| `oa_machines_01` | `oa_machines 6602` | `media/oa_machines.tiles` | `texturepacks/OperationAcornMachines.pack` (`pack=OperationAcornMachines`) | 0~133 (17줄) |
 
-`mod.info`(`42/`과 `common/` 둘 다)의 `pack=`, `tiledef=` 줄은 위 표와 같다. 타일 이름은 `<시트>_<번호>` (예: `oa_machines_01_48`).
-방향이 있는 것은 남, 동, 북, 서 순서 네 칸이고 타일의 `Facing` 값이 `S`, `E`, `N`, `W`다 (앞면이 보는 쪽).
+`mod.info`(`42/`과 `common/` 둘 다)의 `pack=`, `tiledef=` 줄은 위 표와 같다. 타일 이름은 `<시트>_<번호>` (예: `oa_machines_01_128`).
+방향이 있는 것은 남, 동, 북, 서 순서이고 타일의 `Facing` 값이 `S`, `E`, `N`, `W`다 (앞면이 보는 쪽).
+
+### 큰 기계는 여러 칸이다
+
+큰 기계는 한 물체로 통째 그려서 발자국(footprint)의 칸마다 잘라 담는다 (이음매가 없다. 위로 높이 솟은 부분은 그 칸 그림 위로 겹쳐 올라간다).
+남쪽 보기 기준 발자국은 x쪽 w칸 × y쪽 h칸이고, 동·서쪽 보기는 w와 h가 바뀐다.
+
+| 종류 (`kind`) | 발자국 (w×h, 남쪽) | 보기 | 첫 칸 | 칸 수 |
+| --- | --- | --- | --- | --- |
+| `shredBench` | 2×1 | 멈춤만 | 0 | 8 |
+| `bulkShredder` | 2×1 | 멈춤, 도는 중 | 8 | 16 |
+| `cutter` | 2×1 | 멈춤, 도는 중 | 24 | 16 |
+| `woodSaw` | 2×1 | 멈춤, 도는 중 | 40 | 16 |
+| `researchStorage` | 2×1 | 멈춤만 | 56 | 8 |
+| `propaneRefiner` | 2×2 | 멈춤, 도는 중 | 64 | 32 |
+| `oilRefiner` | 2×2 | 멈춤, 도는 중 | 96 | 32 |
+| `rainStorage` | 2×2 | 돌지 않음, 한 가지 | 128 | 4 |
+| 미끼 (켜짐, 꺼짐) | 1×1 | 돌지 않음 | 132, 133 | 2 |
+
+한 기계의 자리: 상태(멈춤, 도는 중) → 방향(S, E, N, W) → 그 방향 발자국의 칸을 y 바깥, x 안쪽 순서. 곧 `첫 칸 + (상태 × 방향수 + 방향) × w×h + dy × w + dx`
+(방향수는 4, 빗물 저장소는 1). 코드는 이 계산을 하지 말고 `Sprites.machineTiles`를 쓴다. 1×1 물체(통신 단말, 납품 상자, 보급 상자, 낙하산 상자, 미끼, 낙하지 소품)는 그대로 한 칸이다.
+
+**칸마다의 속성:** 기계의 모든 칸이 `CustomName`, `GroupName`(기계마다 하나, `OA_<kind>`), `SpriteGridPos`(`gx,gy`, 그 방향 발자국 안의 자리), `BlocksPlacement`, `solidtrans`,
+`Facing`(돌지 않는 빗물 저장소는 없음)을 갖는다. **컨테이너(연구팀 보관함)와 `IsWaterCollector`(빗물 저장소)는 앵커 칸에만 있다.** 앵커 = 발자국의 최소 x, 최소 y 칸이고 `SpriteGridPos=0,0`이다.
+바닐라 여러 칸 가구와 같은 약속이다 (`newtiledefinitions`의 `SpriteGridPos`와 `GroupName`, 엔티티 스크립트 `SpriteConfig`의 `face X { layer { row = ... } }`; 피아노 `entity_piano.txt`가 예).
 
 모든 타일이 공통으로 갖는 값: `CustomName`(영어 이름, 우클릭 메뉴 제목). 번역은 모드 번역 키로 한다.
 
@@ -172,24 +196,35 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 그을린 땅 13 | 없음 (바닥에 얹는 그림) |
 | 운석 바위 14 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
 | 낙하지 말뚝 15 | `IsLow` |
-| 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기 | `BlocksPlacement`, `solidtrans`, `Facing` |
-| 연구팀 보관함 44~47 | `container=locker`, `ContainerCapacity=100`, `BlocksPlacement`, `solidtrans`, `Facing` |
-| 대형 빗물 저장소 48 | `IsWaterCollector`, `IsLow`, `BlocksPlacement`, `solidtrans` |
-| 설치형 미끼 49·50 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
+| 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기의 모든 칸 | `BlocksPlacement`, `solidtrans`, `Facing`, `GroupName`, `SpriteGridPos` |
+| 연구팀 보관함의 모든 칸 | 위와 같음. 앵커 칸(`SpriteGridPos=0,0`)에만 `container=locker`, `ContainerCapacity=100` 더 |
+| 대형 빗물 저장소 128~131 | 모든 칸 `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`, `SpriteGridPos` (`Facing` 없음). 앵커 칸 128에만 `IsWaterCollector` |
+| 설치형 미끼 132(켜짐)·133(꺼짐) | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
 
 - **`IsMoveAble`은 어느 타일에도 없다.** 바닐라 집기/놓기는 오브젝트를 일반 `Moveable` 아이템으로 바꿔서 이 모드의 `modData`(상자 ID, 기계 상태, 마모)를
   잃는다. 설치와 회수는 각 묶음의 자체 동작이 한다 (Building Utilities와 같은 방식). 그래서 `PickUpWeight`, `PickUpTool`, `CustomItem`도 없다.
   바닐라 우클릭 '옮기기'를 막는 일(BU의 `Moveables.lua`처럼 `ISMoveableSpriteProps.fromObject`에서 `isMoveable=false`)은 이 묶음이 아니라 설치 코드가 한다.
 - **컨테이너:** `IsoObject.new(cell, square, sprite)`로 만들면 바닐라가 `container`와 `ContainerCapacity`로 컨테이너를 만든다. 용량은 코드가 `ItemContainer:setCapacity`로 헬기 단계에 맞춰 다시 정한다
   (연구팀 보관함 300은 확장 API가 상한 100을 걷는다). 밀봉된 납품 상자(9)·봉인된 보급 상자(10)는 컨테이너 값을 그대로 두고, 못 열게 하는 일은 코드가 한다.
-- **빗물 저장소:** 타일에는 `IsWaterCollector`만 둔다. B42의 비 모으기는 엔티티의 `FluidContainer` 컴포넌트가 한다 (`entity_raincollector.txt`). P5는 스크립트에
+- **빗물 저장소 (2×2):** 앵커 타일(128)에만 `IsWaterCollector`를 둔다. B42의 비 모으기는 엔티티의 `FluidContainer` 컴포넌트가 한다 (`entity_raincollector.txt`). P5는 스크립트에
   `entity` 하나를 쓴다: `component FluidContainer { ContainerName = Collector, Capacity = 용량, RainFactor = 0.4 }`와
-  `component SpriteConfig { face S { layer { row = oa_machines_01_48 } } }`. 바닐라 `waterMaxAmount`/`waterAmount` 타일 속성은 쓰지 않는다.
-- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machine(kind, dir, running)`의 이름으로 `setSprite`를 한다.
+  `component SpriteConfig { face S { layer { row = oa_machines_01_128 oa_machines_01_129, row = oa_machines_01_130 oa_machines_01_131 } } }`
+  (한 줄이 y 한 칸, 줄 안은 x 순서. 돌지 않으니 face S 하나). `Sprites.rainStorageTiles()`가 같은 네 칸을 준다. 바닐라 `waterMaxAmount`/`waterAmount` 타일 속성은 쓰지 않는다.
+- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSprite`를 한다 (칸 하나만 바꾸면 기계가 찢어진다).
+  돌아가는 모습이 없는 기계는 `running`을 무시한다.
 - 그을린 땅(13)은 바닥 위의 투명 그림이다. 바닥 타일을 바꾸지 말고 `IsoObject.new(cell, square, "oa_trade_01_13")`로 칸에 얹는다.
 
-타일을 바꾸려면 `python tools/tile_art.py --preview`를 돌린다 (`tools/tile_art_preview_trade.png`, `..._machines.png`에서 모양을 본다). 저장은 시트 자리로 타일을 가리키므로,
+타일을 바꾸려면 `python tools/tile_art.py --preview`를 돌린다 (`tools/tile_art_preview_trade.png`; `..._machines.png`는 기계마다 서 있는 모습 그대로 이어 붙인 것, `..._machines_tiles.png`는 낱칸). 저장은 시트 자리로 타일을 가리키므로,
 쓴 자리는 바꾸지 않고 새 타일은 빈 자리나 새 줄에 넣는다.
+
+### 코드가 쓰는 이름: `OperationAcorn/Sprites.lua`
+
+- `Sprites.FOOTPRINT[kind] = { w =, h = }` 남쪽 보기 발자국 (큰 기계 여덟 종류와 1×1 물체). `Sprites.footprint(kind, dir)` → `w, h` (동·서는 바뀐다; 모르는 kind는 nil).
+- `Sprites.machineTiles(kind, dir, running)` → `{ { dx =, dy =, sprite = }, ... }` 발자국의 칸마다 하나. `dx`, `dy`는 앵커(최소 x, 최소 y)에서 0 이상. `dx=0, dy=0` 항목이 앵커다.
+  `kind`는 `Sprites.MACHINE_KINDS`의 일곱 이름과 `rainStorage`. 모르는 kind는 nil.
+- `Sprites.rainStorageTiles()` 같은 모양, 돌지 않는다. 미끼는 한 칸이라 `Sprites.lure(on)`이 이름 하나를 준다 (켜짐 `oa_machines_01_132`, 꺼짐 `_133`).
+- 무역 시트 함수 (`terminal`, `deliveryBox`, `supplyCrate`, `PARACHUTE_CRATE`, `SCORCHED_GROUND`, `METEOR_ROCKS`, `SITE_STAKE`)는 그대로다. 옛 `Sprites.machine`과 `Sprites.RAIN_STORAGE`는 없다.
+- 시험: `tests/unit/sprites_test.lua` (발자국, 동서 바뀜, 칸당 하나, 모든 이름이 `.tiles`에 있고 속성이 맞는지).
 
 ### 에셋 이름
 

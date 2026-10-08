@@ -85,9 +85,9 @@ def brighten(image, k=1.18):
     return Image.fromarray(a.astype(np.uint8), 'RGBA')
 
 
-def from_tile(sheet, index):
-    spec = A.SHEETS[sheet]['tiles'][index]
-    return fit(brighten(spec[0]()))
+def from_machine(key, state=0, facing='S'):
+    """A machine's icon: the whole machine as it stands in the world (its tiles assembled), south facing."""
+    return fit(brighten(A.assembled(key, state, facing)))
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -187,8 +187,12 @@ def paper_image(w=64, h=80, lines=7, stamp=None, checks=False, seed=1):
 # ----------------------------------------------------------------------------------------------------------------
 # The pictures.
 
-def machine(sheet, index):
-    return lambda: from_tile(sheet, index)
+def trade_tile(index):
+    return lambda: fit(brighten(A.TRADE[index][0]()))
+
+
+def machine(key):
+    return lambda: from_machine(key)
 
 
 def document_manual():
@@ -567,8 +571,8 @@ def lure_icon():
 
 PICTURES = {
     'terminal': lambda: fit(brighten(O.terminal(0, True))),
-    'delivery_box': machine('trade', 9),
-    'supply_crate': machine('trade', 10),
+    'delivery_box': trade_tile(9),
+    'supply_crate': trade_tile(10),
     'manual': document_manual,
     'manifest': document_manifest,
     'document': document_generic,
@@ -581,14 +585,14 @@ PICTURES = {
     'serum_shared': lambda: vial('Shared'),
     'cure': cure_vial,
     'delay': delay_drug,
-    'shred_bench': machine('machines', 0),
-    'bulk_shredder': machine('machines', 4),
-    'cutter': machine('machines', 12),
-    'propane_refiner': machine('machines', 20),
-    'oil_refiner': machine('machines', 28),
-    'wood_saw': machine('machines', 36),
-    'research_storage': machine('machines', 44),
-    'rain_storage': machine('machines', 48),
+    'shred_bench': machine('shredBench'),
+    'bulk_shredder': machine('bulkShredder'),
+    'cutter': machine('cutter'),
+    'propane_refiner': machine('propaneRefiner'),
+    'oil_refiner': machine('oilRefiner'),
+    'wood_saw': machine('woodSaw'),
+    'research_storage': machine('researchStorage'),
+    'rain_storage': machine('rainStorage'),
     'lure': lure_icon,
     'backpack': backpack,
     'kit_bag_capacity': lambda: kit('bagplus', (170, 200, 236)),

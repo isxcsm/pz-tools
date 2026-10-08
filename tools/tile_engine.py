@@ -50,8 +50,24 @@ def mul(a, k):
     return (a[0] * k, a[1] * k, a[2] * k)
 
 
+# The canvas the scene is drawn on. A single tile is 128x256 (W x H); a machine of several tiles is drawn once on a
+# canvas that holds every tile's window: the anchor tile's window sits at x offset dx (so the tiles west of it fit).
+CV = {'w': W, 'h': H, 'dx': 0}
+
+
+def set_canvas(fw, fh):
+    """The canvas of a footprint of fw x fh tiles (as it stands in the world, after the turns)."""
+    CV['w'] = (fw + fh - 2) * 64 + 128
+    CV['h'] = (fw + fh - 2) * 32 + 256
+    CV['dx'] = (fh - 1) * 64
+
+
+def reset_canvas():
+    CV['w'], CV['h'], CV['dx'] = W, H, 0
+
+
 def project(x, y, z):
-    return ((64 + (x - y) * 64) * SS, (192 + (x + y) * 32 - z * UP) * SS)
+    return ((64 + (x - y) * 64 + CV['dx']) * SS, (192 + (x + y) * 32 - z * UP) * SS)
 
 
 def shade(colour, normal, shine):
@@ -101,9 +117,10 @@ IDENTITY = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 class Scene:
     """Faces of solids, drawn into a depth buffer; what is added is turned a number of quarter turns about the
     tile's middle. Frost whitens every face by so much (0 to 1); a face that emits keeps its colour unshaded."""
-    def __init__(self, turns=0, frost=0.0):
+    def __init__(self, turns=0, frost=0.0, foot=(1, 1)):
         self.turns = turns
         self.frost = frost
+        self.foot = foot   # the footprint (tiles along x, along y) the object is drawn for, facing south
         self.faces = []
         self.tilt = None   # (rotation matrix, centre): the whole scene leaned about a point (item icons)
 
@@ -112,9 +129,18 @@ class Scene:
             rot, centre = self.tilt
             p = apply(rot, p) if vector else add(centre, apply(rot, sub(p, centre)))
         x, y, z = p
+        cw, ch = self.foot
         for _ in range(self.turns % 4):
-            x, y = (-y, x) if vector else (1 - y, x)
+            x, y = (-y, x) if vector else (ch - y, x)
+            cw, ch = ch, cw
         return (x, y, z)
+
+    def final_foot(self):
+        """The footprint after the turns: (tiles along x, tiles along y) as it stands in the world."""
+        cw, ch = self.foot
+        if self.turns % 2:
+            cw, ch = ch, cw
+        return cw, ch
 
     def face(self, points, colour, normal, shine=0.0, emit=False):
         normal = self.turn(normal, True)
@@ -284,9 +310,16 @@ class Scene:
 
     def render(self):
         """The faces in a depth buffer: an RGBA image of the big canvas."""
-        size = (W * SS, H * SS)
+        return self.render_full()[0]
+
+    def render_full(self):
+        """The faces in a depth buffer: the RGBA image of the canvas and, for every pixel it drew, the world x and y
+        of the point it shows (to tell which tile of a machine the pixel belongs to); nan where nothing is drawn."""
+        size = (CV['w'] * SS, CV['h'] * SS)
         depth = np.full((size[1], size[0]), -1e9, dtype=np.float64)
         colour = np.zeros((size[1], size[0], 4), dtype=np.uint8)
+        wx = np.full((size[1], size[0]), np.nan, dtype=np.float32)
+        wy = np.full((size[1], size[0]), np.nan, dtype=np.float32)
         for entry in self.faces:
             kind, points = entry[0], entry[1]
             screen = [project(*p) for p in points]
@@ -300,17 +333,23 @@ class Scene:
             m = np.asarray(mask) > 0
             if not m.any():
                 continue
-            # The face's depth is a plane over the screen: fitted to its corners, kept within them.
+            # The face's depth, and the world x and y of its points, are planes over the screen: fitted to its
+            # corners, kept within them.
             corners = np.array([[sx, sy, 1.0] for sx, sy in screen])
-            values = np.array([dot(p, VIEW) for p in points])
+            values = np.array([[dot(p, VIEW), p[0], p[1]] for p in points])
             plane, *_ = np.linalg.lstsq(corners, values, rcond=None)
             gx, gy = np.meshgrid(np.arange(x0, x1 + 1), np.arange(y0, y1 + 1))
-            d = np.clip(plane[0] * gx + plane[1] * gy + plane[2], values.min(), values.max())
+            fit = np.stack([gx, gy, np.ones_like(gx)], axis=-1) @ plane
+            d = np.clip(fit[..., 0], values[:, 0].min(), values[:, 0].max())
             region = depth[y0:y1 + 1, x0:x1 + 1]
             nearer = m & (d > region)
+            owner_x = np.clip(fit[..., 1], values[:, 1].min(), values[:, 1].max())
+            owner_y = np.clip(fit[..., 2], values[:, 2].min(), values[:, 2].max())
             if kind == 'poly':
                 region[nearer] = d[nearer]
                 colour[y0:y1 + 1, x0:x1 + 1][nearer] = entry[2] + (255,)
+                wx[y0:y1 + 1, x0:x1 + 1][nearer] = owner_x[nearer]
+                wy[y0:y1 + 1, x0:x1 + 1][nearer] = owner_y[nearer]
                 continue
             # A decal: each screen pixel is mapped back to the image by the plane's affine projection.
             arr, factor = entry[2], entry[3]
@@ -334,37 +373,96 @@ class Scene:
             target = colour[y0:y1 + 1, x0:x1 + 1]
             t_alpha = target[..., 3].astype(np.float64) / 255.0
             out_a = alpha + t_alpha * (1 - alpha)
-            out_rgb = (lit * alpha[..., None] + target[..., :3].astype(np.float64) * (t_alpha * (1 - alpha))[..., None])                 / np.maximum(out_a, 1e-9)[..., None]
+            out_rgb = (lit * alpha[..., None] + target[..., :3].astype(np.float64) * (t_alpha * (1 - alpha))[..., None]) \
+                / np.maximum(out_a, 1e-9)[..., None]
             write = inside & (alpha > 0.03)
             target[write, :3] = np.clip(out_rgb[write], 0, 255).astype(np.uint8)
             target[write, 3] = np.clip(out_a[write] * 255, 0, 255).astype(np.uint8)
             solid_write = write & (alpha > 0.5)
             region[solid_write] = d[solid_write]
-        return Image.fromarray(colour, 'RGBA')
+            wx[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_x[solid_write]
+            wy[y0:y1 + 1, x0:x1 + 1][solid_write] = owner_y[solid_write]
+        return Image.fromarray(colour, 'RGBA'), wx, wy
 
 
 def shadow(centre, rx, ry, strength=110):
-    """A soft shadow on the floor (big canvas)."""
-    layer = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
-    cx, cy = centre
-    pts = [project(cx + math.cos(a) * rx, cy + math.sin(a) * ry, 0) for a in [i * math.pi / 32 for i in range(64)]]
-    ImageDraw.Draw(layer).polygon(pts, fill=(0, 0, 0, strength))
-    return layer.filter(ImageFilter.GaussianBlur(5 * SS))
+    """A soft shadow on the floor, in the object's own (south-facing) footprint: it turns with the object. It is
+    drawn when the scene is composed (the canvas is known then)."""
+    def draw(scene):
+        layer = Image.new('RGBA', (CV['w'] * SS, CV['h'] * SS), (0, 0, 0, 0))
+        cx, cy, _ = scene.turn((centre[0], centre[1], 0))
+        ax, ay = (ry, rx) if scene.turns % 2 else (rx, ry)
+        pts = [project(cx + math.cos(a) * ax, cy + math.sin(a) * ay, 0) for a in [i * math.pi / 32 for i in range(64)]]
+        ImageDraw.Draw(layer).polygon(pts, fill=(0, 0, 0, strength))
+        return layer.filter(ImageFilter.GaussianBlur(5 * SS))
+    return draw
 
 
 def compose(scene, ground=None, over=None, seed=1, glows=None):
-    big = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
-    if ground:
-        big.alpha_composite(ground)
-    solid = scene.render()
-    big.alpha_composite(solid)
-    if over:
-        over(big)
-    small = big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')
-    small = finish(small, solid.getchannel('A').resize((W, H), Image.LANCZOS), seed)
-    if glows:
-        small = glow(small, scene, glows)
-    return small
+    """The finished picture: a 128x256 image for a one-tile object, or {(i, j): image} for each tile of a bigger
+    one (i along x, j along y of the footprint as it stands in the world). The picture is drawn whole and every
+    finished pixel goes to the one tile its point stands on, so the tiles meet without a seam."""
+    fw, fh = scene.final_foot()
+    set_canvas(fw, fh)
+    try:
+        cw, ch = CV['w'], CV['h']
+        big = Image.new('RGBA', (cw * SS, ch * SS), (0, 0, 0, 0))
+        if ground:
+            big.alpha_composite(ground(scene) if callable(ground) else ground)
+        solid, wx, wy = scene.render_full()
+        big.alpha_composite(solid)
+        if over:
+            over(big)
+        small = big.convert('RGBa').resize((cw, ch), Image.LANCZOS).convert('RGBA')
+        small = finish(small, solid.getchannel('A').resize((cw, ch), Image.LANCZOS), seed)
+        if glows:
+            small = glow(small, scene, glows)
+        if (fw, fh) == (1, 1):
+            return small
+        # which tile does each finished pixel belong to: the mean of the points its subpixels show, else the ground
+        # point under it
+        known = ~np.isnan(wx)
+        count = known.reshape(ch, SS, cw, SS).sum(axis=(1, 3))
+        sx = np.where(known, wx, 0).reshape(ch, SS, cw, SS).sum(axis=(1, 3))
+        sy = np.where(known, wy, 0).reshape(ch, SS, cw, SS).sum(axis=(1, 3))
+        gy, gx = np.mgrid[0:ch, 0:cw]
+        u = (gx + 0.5 - 64 - CV['dx']) / 64.0           # x - y of the ground point
+        v = (gy + 0.5 - 192) / 32.0                      # x + y
+        ground_x, ground_y = (u + v) / 2, (v - u) / 2
+        owner_x = np.where(count > 0, sx / np.maximum(count, 1), ground_x)
+        owner_y = np.where(count > 0, sy / np.maximum(count, 1), ground_y)
+        owner_x = np.clip(np.floor(owner_x), 0, fw - 1).astype(int)
+        owner_y = np.clip(np.floor(owner_y), 0, fh - 1).astype(int)
+        # a pixel that falls outside its tile's window (a flame, steam or glow high above the machine) goes to the tile
+        # whose window holds it and whose column is nearest
+        best = np.full((ch, cw), 1e18)
+        near_x = np.zeros((ch, cw), dtype=int)
+        near_y = np.zeros((ch, cw), dtype=int)
+        inside_own = np.zeros((ch, cw), dtype=bool)
+        for j in range(fh):
+            for i in range(fw):
+                x0, y0 = CV['dx'] + (i - j) * 64, (i + j) * 32
+                holds = (gx >= x0) & (gx < x0 + W) & (gy >= y0) & (gy < y0 + H)
+                cost = np.where(holds, np.abs(gx + 0.5 - (x0 + 64)) + 0.01 * (i + j), 1e18)
+                better = cost < best
+                best = np.where(better, cost, best)
+                near_x = np.where(better, i, near_x)
+                near_y = np.where(better, j, near_y)
+                inside_own |= holds & (owner_x == i) & (owner_y == j)
+        owner_x = np.where(inside_own, owner_x, near_x)
+        owner_y = np.where(inside_own, owner_y, near_y)
+        arr = np.asarray(small)
+        tiles = {}
+        for j in range(fh):
+            for i in range(fw):
+                x0, y0 = CV['dx'] + (i - j) * 64, (i + j) * 32
+                window = arr[y0:y0 + H, x0:x0 + W].copy()
+                mine = (owner_x[y0:y0 + H, x0:x0 + W] == i) & (owner_y[y0:y0 + H, x0:x0 + W] == j)
+                window[~mine] = 0
+                tiles[(i, j)] = Image.fromarray(window, 'RGBA')
+        return tiles
+    finally:
+        reset_canvas()
 
 
 def finish(image, solid, seed):
@@ -391,9 +489,9 @@ def glow(image, scene, glows):
     a = np.asarray(image).astype(np.float64) / 255
     alpha = a[..., 3:4]
     premultiplied = a[..., :3] * alpha
-    gy, gx = np.mgrid[0:H, 0:W]
-    air = np.zeros((H, W, 1))
-    air_colour = np.zeros((H, W, 3))
+    gy, gx = np.mgrid[0:image.height, 0:image.width]
+    air = np.zeros((image.height, image.width, 1))
+    air_colour = np.zeros((image.height, image.width, 3))
     for entry in glows:
         point, colour, radius = entry[:3]
         if len(entry) > 3 and dot(scene.turn(entry[3], True), VIEW) <= 0.05:
