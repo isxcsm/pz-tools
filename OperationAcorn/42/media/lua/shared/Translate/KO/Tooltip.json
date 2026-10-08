@@ -1,2 +1,17 @@
 {
+    "Tooltip_OA_Machine_shredBench": "손으로 쓰는 분해대. 전기가 필요 없다. 무게 1마다 2분쯤 걸린다.",
+    "Tooltip_OA_Machine_bulkShredder": "상자째 넣은 물건을 시간당 무게 30씩 시료 묶음으로 간다. 전기가 필요하다. 시끄럽다.",
+    "Tooltip_OA_Machine_cutter": "옷을 시간당 20벌씩 천, 데님, 가죽 조각으로 자른다. 전기가 필요하다.",
+    "Tooltip_OA_Machine_propaneRefiner": "썩은 음식으로 프로판을 만들어 빈 통을 채운다. 전기가 필요하다.",
+    "Tooltip_OA_Machine_oilRefiner": "식용유, 라드, 씨앗을 휘발유로 정제해 빈 통을 채운다. 전기가 필요하다.",
+    "Tooltip_OA_Machine_woodSaw": "통나무 하나를 5분마다 판자 6개로 켠다. 목공 경험치는 없다. 전기가 필요하다. 아주 시끄럽다.",
+    "Tooltip_OA_Machine_researchStorage": "아지트에 두는 큰 보관함.",
+    "Tooltip_OA_Machine_rainStorage": "위가 열린 큰 물 저장소. 4000L, 빗물받이보다 10배 빨리 모은다. 비가 오는 곳에 놓는다.",
+    "Tooltip_OA_Machine_lure": "하루 동안 15분마다 소리를 내 멀리 있는 좀비를 끈다. 끝나면 껍데기만 남는다.",
+    "Tooltip_OA_Machine_Part_motor": "기계 모터. 등급이 높을수록 빨리 돌고 전기를 더 쓴다. 기계가 돌면 닳는다.",
+    "Tooltip_OA_Machine_Part_shredBlade": "대량 분해기용 날. 등급이 높을수록 같은 양에서 시료 묶음이 더 나온다. 돌면 닳는다.",
+    "Tooltip_OA_Machine_Part_cutBlade": "재단기용 칼날. 등급이 높을수록 조각이 더 나온다. 돌면 닳는다.",
+    "Tooltip_OA_Machine_Part_sawBlade": "목재 절단기용 톱날. 등급이 높을수록 판자가 더 나온다. 돌면 닳는다.",
+    "Tooltip_OA_Machine_Part_catalyst": "정제기용 촉매·필터. 등급이 높을수록 재료를 덜 쓴다. 돌면 닳는다.",
+    "Tooltip_OA_Machine_Part_cover": "목재 절단기용 방음 덮개. 소음 반경이 반으로 줄고 조금 느려진다. 돌면 닳는다."
 }

@@ -1,2 +1,12 @@
 {
+    "ContextMenu_OA_Machine_Place": "Place %1",
+    "ContextMenu_OA_Machine_Open": "Machine window",
+    "ContextMenu_OA_Machine_PickUp": "Pick up",
+    "ContextMenu_OA_Machine_RemoveShell": "Clear the spent shell",
+    "ContextMenu_OA_Machine_SwitchOn": "Switch on",
+    "ContextMenu_OA_Machine_SwitchOff": "Switch off",
+    "ContextMenu_OA_Machine_Shred": "Shred by hand",
+    "ContextMenu_OA_Machine_ShredAll": "Everything (%1 things)",
+    "ContextMenu_OA_Machine_ShredKind": "%1 (%2)",
+    "ContextMenu_OA_Machine_NoPart": "No fitting part in your inventory"
 }
