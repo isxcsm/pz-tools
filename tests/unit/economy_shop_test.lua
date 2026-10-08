@@ -267,3 +267,16 @@ test("a purchase is remembered with its time", function()
     eq(r.shop.week.battery_pack.n, 2)
     eq(S.available(find("battery_pack"), r), 3)
 end)
+
+test("a serum bought is also noted to the upgrades part when it is there", function()
+    local noted = {}
+    OA.Upgrades = { noteBought = function(rec, tree, count) noted[#noted + 1] = { rec = rec, tree = tree, count = count } end }
+    local r = record(0)
+    S.bought(find("serum_load"), r, 2)
+    eq(#noted, 1)
+    eq(noted[1].tree, "load"); eq(noted[1].count, 2)
+    eq(r.shop.serums.load, 2)
+    OA.Upgrades = nil
+    S.bought(find("serum_load"), r, 1)
+    eq(r.shop.serums.load, 3)
+end)

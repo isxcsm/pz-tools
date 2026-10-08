@@ -329,6 +329,11 @@ function Shop.bought(entry, record, count, target)
         per[key] = (per[key] or 0) + count
     elseif entry.special == "serum" then
         shop.serums[entry.tree] = (shop.serums[entry.tree] or 0) + count
+        -- The upgrades part keeps its own count of serums bought (its board and price read it): keep it in step.
+        if OA.Upgrades and OA.Upgrades.noteBought then
+            local ok, err = pcall(OA.Upgrades.noteBought, record, entry.tree, count)
+            if not ok then OA.log("upgrades noteBought failed:", tostring(err)) end
+        end
     end
 end
 
