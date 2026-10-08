@@ -34,8 +34,8 @@ WOOD = (150, 116, 74)
 WOOD_DARK = (112, 84, 52)
 BLUE = (52, 104, 168)
 # Lamps: their lens lit, and the dark glass of an unlit one.
-LIT = {'green': (80, 255, 120), 'amber': (255, 150, 30), 'red': (255, 60, 44), 'cyan': (90, 230, 240)}
-UNLIT = {'green': (36, 74, 46), 'amber': (96, 60, 24), 'red': (92, 32, 28), 'cyan': (30, 70, 76)}
+LIT = {'green': (80, 255, 120), 'amber': (255, 150, 30), 'red': (255, 60, 44)}
+UNLIT = {'green': (36, 74, 46), 'amber': (96, 60, 24), 'red': (92, 32, 28)}
 BEZEL = (54, 56, 58)
 
 
@@ -135,21 +135,41 @@ def noise_texture(w, h, seed, base, spread=14, streaks=False):
 # The trade sheet.
 
 def screen_image(on, w=96, h=64):
-    """The terminal's screen: dark glass when off; the team's console when on (a header, rows, a small graph)."""
-    img = Image.new('RGBA', (w, h), (14, 20, 22, 255) if not on else (10, 38, 44, 255))
-    d = ImageDraw.Draw(img)
+    """The terminal's screen, a rugged field computer of 1993: a gas-plasma panel, orange pixels on black, blocky
+    characters. Off: dark grey-green glass with a faint reflection of the room."""
     if not on:
-        # a faint reflection of the room
-        d.polygon([(0, 0), (w * 0.5, 0), (w * 0.2, h)], fill=(40, 50, 54, 255))
-        d.polygon([(w * 0.55, 0), (w * 0.62, 0), (w * 0.32, h), (w * 0.25, h)], fill=(30, 40, 44, 255))
+        img = Image.new('RGBA', (w, h), (26, 32, 28, 255))
+        d = ImageDraw.Draw(img)
+        d.polygon([(0, 0), (w * 0.5, 0), (w * 0.2, h)], fill=(38, 46, 40, 255))
+        d.polygon([(w * 0.55, 0), (w * 0.62, 0), (w * 0.32, h), (w * 0.25, h)], fill=(34, 42, 36, 255))
         return img
-    d.rectangle([0, 0, w, 9], fill=(30, 170, 176, 255))
-    d.rectangle([3, 3, 26, 6], fill=(10, 38, 44, 255))
-    for i in range(5):
-        y = 14 + i * 8
-        d.rectangle([4, y, 4 + 18 + (i * 13) % 30, y + 2], fill=(110, 240, 230, 255))
-        d.rectangle([60, y, 90 - (i * 7) % 14, y + 2], fill=(60, 180, 190, 255))
-    d.rectangle([4, 54, 40, 60], fill=(250, 190, 50, 255))
+    img = Image.new('RGBA', (w, h), (22, 8, 2, 255))
+    d = ImageDraw.Draw(img)
+    on_px, dim = (255, 138, 28, 255), (170, 84, 14, 255)
+    rnd = random.Random(11)
+    # a status bar: an orange stripe with dark blocky characters
+    d.rectangle([0, 0, w, 7], fill=on_px)
+    for i in range(9):
+        x = 3 + i * 5
+        for _ in range(3):
+            y0 = rnd.randint(1, 4)
+            d.rectangle([x + rnd.randint(0, 2), y0, x + 2, y0 + rnd.randint(0, 2)], fill=(22, 8, 2, 255))
+    # rows of blocky characters, 3x5 cells in words, a cursor block at the end
+    for row in range(7):
+        y = 11 + row * 7
+        x = 4
+        for word in range(rnd.randint(2, 4)):
+            for _ in range(rnd.randint(2, 7)):
+                cell = [(cx, cy) for cx in range(3) for cy in range(5) if rnd.random() < 0.55]
+                for cx, cy in cell:
+                    d.rectangle([x + cx, y + cy, x + cx, y + cy], fill=on_px if row % 3 else dim)
+                x += 4
+                if x > w - 8:
+                    break
+            x += 4
+            if x > w - 8:
+                break
+    d.rectangle([w - 9, h - 8, w - 5, h - 3], fill=on_px)
     return img
 
 
@@ -221,9 +241,9 @@ def terminal(turns, on):
     stick(s, centre, rot, lid_size, '-y', acorn_mark(40), margin=0.07, offset=0.003)
     if on:
         lx, ly, lz = add(centre, apply(rot, (0, 0.05, 0.0)))
-        glows.append(((lx, ly, lz), (60, 200, 210), 0.20, apply(rot, (0, 1, 0))))
+        glows.append(((lx, ly, lz), (255, 140, 40), 0.20, apply(rot, (0, 1, 0))))
         # the screen's light on the keyboard
-        glows.append(((0.35, 0.60, bz1 + 0.01), (60, 200, 210), 0.14))
+        glows.append(((0.35, 0.60, bz1 + 0.01), (255, 140, 40), 0.14))
 
     # The field radio: a rectangular set with its dial, two knobs, a speaker grille, an antenna and a handset.
     rx0, rx1, ry0, ry1, rz0, rz1 = 0.60, 0.88, 0.36, 0.66, 0.43, 0.68

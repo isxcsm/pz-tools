@@ -277,7 +277,7 @@ def vial(tree, cross=False):
     s.tube((cx, cy, 0.0), (cx, cy, 0.5), 0.17, t['liquid'], cap=t['liquid'], segments=28, shine=0.7,
            bands=[(0, 0.08, t['dark']), (0.08, 0.86, t['liquid']), (0.86, 1.0, t['dark'])])
     # the glass: a pale highlight stripe down the side
-    s.tube((cx - 0.165, cy + 0.03, 0.08), (cx - 0.165, cy + 0.03, 0.42), 0.018, (236, 244, 248), segments=6, emit=True)
+    s.tube((cx - 0.165, cy + 0.03, 0.08), (cx - 0.165, cy + 0.03, 0.42), 0.018, (240, 240, 234), segments=6, emit=True)
     # neck, the crimp ring and the stopper
     s.tube((cx, cy, 0.5), (cx, cy, 0.58), 0.1, t['dark'], segments=24, shine=0.5)
     s.tube((cx, cy, 0.58), (cx, cy, 0.66), 0.115, (206, 208, 212), cap=(226, 228, 232), segments=24, shine=0.8)
