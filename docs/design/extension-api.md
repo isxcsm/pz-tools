@@ -5,8 +5,9 @@
 > **In progress.** Built: the `PZToolsAPI` table, `version`, `client`, the
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
-> ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points so far). Planned:
-> `"parallel"`, the rest of the formula points. The first areas serve a separate power and water mod, the formulas the
+> ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree and
+> the speed points so far). Planned: `"parallel"`, the rest of the formula points. The first areas serve a separate power
+> and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
 > were tried in the game with a throwaway probe.
@@ -233,8 +234,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   whose squares are not loaded, which take the change as they load ([draw and fill](#draw-and-fill)).
 - Purification: `setPurify(false)` lets a water network's fixtures give their producer's taint
   instead of vanilla's purified water.
-- Formulas: the body points ([formulas](#formulas-mechanism)), declared through a mod's handle and read by hooks in the
-  game's character and stats methods.
+- Formulas: the body, load and speed points ([formulas](#formulas-mechanism)), declared through a mod's handle and read by
+  hooks in the game's character, stats, inventory and moodle methods.
 - Not yet: `"parallel"`.
 
 ### Power
@@ -400,6 +401,8 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 | `formulas.set(handle, point, value)` | Declares the mod's value for the point (a `value` of `nil` takes it back). A point the API does not have, or a value of the wrong shape or outside its range, is a Lua error that names the point. A point that is `"planned"` (below) takes a number, boolean, string or table and keeps nothing. |
 | `formulas.get(point)` | The value all mods' declarations make together, in the point's shape, or `nil` when no mod declared it. |
 | `formulas.declared(handle, point)` | The mod's own value, or `nil`. |
+| `formulas.efficiency(item)` | The factor the current `carry.*` declarations put on the item's own weight (1 for none, 0.5 for +100%): what a mod's tooltip shows. `item` is an `InventoryItem`; anything else is a Lua error. |
+| `formulas.weight(item)` | The item's weight as the load counts it with nothing equipped (a bag with what is in it), under the current declarations. |
 | `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"planned"` when the point has no hook yet. A mod shows the player what is not applied. |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
@@ -414,8 +417,11 @@ whose point has no declaration, gives the game's answer, and the API goes on.
 
 ### Points
 
-Values are plain numbers and tables. "Multiply" means the values of several mods multiply; "reductions" combine as
-`1 - (1 - a)(1 - b)`, the part of a penalty that is left multiplying; "add" sums them.
+Values are plain numbers, tables and lists. "Multiply" means the values of several mods multiply; "reductions" combine as
+`1 - (1 - a)(1 - b)`, the part of a penalty that is left multiplying; "add" sums them (the whole-number points round
+the sum); in a table, each name combines on its own, and a list joins the lists of the mods without repeating a name.
+A name the game registers (an item type such as `base:moveable`, an item tag such as `base:keyring`) that the game does
+not have is a Lua error at `set`.
 
 | Point | Value | Combined | Meaning |
 | --- | --- | --- | --- |
@@ -424,11 +430,25 @@ Values are plain numbers and tables. "Multiply" means the values of several mods
 | `body.fatigueMultiplier` | 0 to 100 | multiply | Times the fatigue an awake character gains (`getFatiqueMultiplier`, read by `updateStats_Awake`). |
 | `body.enduranceDrainMultiplier` | 0 to 100 | multiply | Times every drop of the endurance stat (`Stats.add` of a negative amount, which `Stats.remove` is). What recovers it is not scaled. |
 | `body.poisonMultiplier` | 0 to 100 | multiply | Times every rise of the poison stat (`Stats.add` of a positive amount). What lowers it is not scaled. |
+| `carry.categoryEfficiency` | table: display category to -0.9 to 100 | add per name | A carrying efficiency for every item whose `getDisplayCategory()` is the name: `1` carries it as if it weighed half, `-0.5` as if twice. |
+| `carry.itemEfficiency` | table: item type to -0.9 to 100 | add per name | The same by the item's type (`isItemType`), e.g. `base:moveable`. An item's efficiencies (its category's and its types') add; its own weight is divided by 1 plus the sum. |
+| `carry.containerTagMultiplier` | table: item tag to 0 to 100 | multiply per name | Times the weight of what is inside a bag with the tag (`hasTag`): `0` makes its contents weightless. The bag's own weight is not changed. |
+| `capacity.maxWeightAdd` | -1000 to 1000, whole | add | Added to the most the character carries (`IsoGameCharacter.getMaxWeight`, which the load moodle, the path speed and the fall damage compare the load with). |
+| `capacity.effectiveMultiplier` | 0 to 100 | multiply | Times what a container holds for the local player (`ItemContainer.getEffectiveCapacity`, after the game's own trait multiplier), for the containers that multiplier reaches: not a character's inventory, a corpse, the floor, or a bag (a bag's capacity is its own kit, below). |
+| `capacity.characterLimitAdd` | -1000 to 1000, whole | add | Added to the limit of the local player's own inventory (`getEffectiveCapacity` of the character's container, 50 in vanilla), which `hasRoomFor` checks. |
+| `capacity.modDataKey` | name or list of names | join | A container whose holder (the object it stands in, the item it is in, the vehicle part it belongs to) has one of these keys in its `modData`, as a number, is held to none of the game's limits (100 for a container, 50 for an item's, 1000 for a vehicle's, and a bag's 50 less its weight): its capacity is its raw capacity plus the numbers. Any other container keeps the game's limits. |
+| `overload.compress` | 0 to 1, a reduction | reductions | The part of the excess over the most carried that does not count when the game asks how heavily the character is loaded: the load becomes `max + (load - max)(1 - r)`. It reaches the load moodle (`Moodle.Update`), the path speed (`IsoPlayer.getPathSpeed`) and the fall damage (`handleLandingImpact`), not what `hasRoomFor` checks. A load within the most is as it is. |
+| `move.runPenaltyReduction` | 0 to 1, a reduction | reductions | The part of the run penalty that equipment's total modifier (`fullSpeedMod`, stored by `calculateBaseSpeed`) takes away when it is below 1. A bonus is not reduced. |
+| `move.combatPenaltyReduction` | 0 to 1, a reduction | reductions | The same for the combat speed modifier read by `calculateCombatSpeed`. |
+
+The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
+bag's weight reduction on what is inside it), and a formula only changes the weight the game reads: the efficiencies above,
+item by item, and a bag by what is inside it. The same weight is what `hasRoomFor` adds when the local player's inventory
+is asked whether an item fits, whether directly or through a worn bag; a bag's own room still takes the item's real
+weight. Another character, a crate, a vehicle and the floor count weight as vanilla.
 
 Planned points, accepted and without effect until their hooks are built: `body.coldMultiplier`,
-`body.corpseCountMultiplier`, `body.corpseSicknessMultiplier`, `body.holeChance`, `carry.categoryEfficiency`,
-`carry.itemEfficiency`, `capacity.maxWeightAdd`, `capacity.effectiveMultiplier`, `capacity.characterLimitAdd`,
-`overload.compress`, `move.runPenaltyReduction`, `move.combatPenaltyReduction`, `move.walkMultiplier`,
+`body.corpseCountMultiplier`, `body.corpseSicknessMultiplier`, `body.holeChance`, `move.walkMultiplier`,
 `move.treeSlowMultiplier`, `move.treeScratchChance`, `infection.woundChance`, `infection.biteShield`,
 `fall.landingRemap`, `fall.impactMultiplier`, `loot.spawnMultiplier`, `loot.ammoMultiplier`, `vision.darknessRestore`,
 `vision.coneAdd` and `vision.hiddenZombieFix`.
@@ -445,6 +465,32 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.addStiffness` | the start | Times `body.stiffnessMultiplier` on the amount, which is the method's own argument, when it is above 0. |
 | `IsoGameCharacter.getFatiqueMultiplier` | each return | Times `body.fatigueMultiplier`. |
 | `Stats.add` | the start | Times `body.enduranceDrainMultiplier` or `body.poisonMultiplier` on the amount (the argument) for the endurance or poison stat of a local player's `Stats`. `remove` calls `add`, so it is covered. |
+| `IsoGameCharacter.getInventoryWeight` | each of the three weight reads | The weight of each item of the inventory (`getUnequippedWeight`, `getEquippedWeight`, `getHotbarEquippedWeight`) passes through the carry points, for the local player. Found by the three reads of an `InventoryItem` weight in the method. |
+| `ItemContainer.hasRoomFor(IsoGameCharacter, InventoryItem)` | each read of the item's weight | An item's weight read for a comparison with the carrier's inventory (the worn-bag branch, followed by an addition) or for the room question of this container passes through the carry points when the character whose body the weight would be on is a local player. A read followed by anything else makes the hook not go in. |
+| `IsoGameCharacter.getMaxWeight` | each return | Adds `capacity.maxWeightAdd`. |
+| `ItemContainer.getEffectiveCapacity` | each return | Times `capacity.effectiveMultiplier`, or adds `capacity.characterLimitAdd` to a character's inventory. |
+| `ItemContainer.getCapacity` | each return | The raw capacity plus the keys' numbers for a container that declares one. |
+| `InventoryContainer.getCapacity`, `getEffectiveCapacity` | each return | The container's own answer, without the bag clamp, for a bag that declares a key in its `modData`. |
+| `Moodle.Update`, `IsoPlayer.getPathSpeed`, `IsoGameCharacter.handleLandingImpact` (labelled `:overload`) | each `ItemContainer.getCapacityWeight()` call (one, one and three) | The load passes through `overload.compress` for a local player's inventory. |
+| `IsoGameCharacter.calculateBaseSpeed` | the store of `fullSpeedMod` | The value stored passes through `move.runPenaltyReduction`. |
+| `IsoGameCharacter.calculateCombatSpeed` | the read of `combatSpeedModifier` | The value read passes through `move.combatPenaltyReduction`. |
+
+A hook that edits a call site counts the sites it finds and goes in only when it finds as many as the game's method has
+(3 weight reads, 3 load reads in the fall damage, and so on); a method another mod rewrote loses its own hook only, and
+`formulas.points()` then says `"partial: ..."` for each point that needs it. The load tree needs the game's inventory
+classes (`InventoryItem`, `ItemContainer`, `InventoryContainer`, `ItemType`, `ItemTag`, `VehiclePart`); in a game where
+they cannot be read, its points say `"unavailable: ..."` and the body points go on.
+
+### Verified
+
+Against the installed game (7 October 2026, Build 42) and with PZ Optimize's loose classes, offline: every hook above was
+put into the real bytes of `IsoGameCharacter`, `IsoPlayer`, `Stats` (the jar's and PZ Optimize's), and `Moodle`,
+`ItemContainer` and `InventoryContainer` (the jar's; PZ Optimize does not override them), and the resulting classes
+verified by the JVM. Behavior is tested against synthetic game classes of the same shape (the `api` suite): each point
+changes the local player's answer and no other character's, several mods combine by the rules above, a declaration
+goes with the world, survives a newer API and never makes the game fail. Not tried in the game yet: the load tree in
+play (weights in the inventory pane, a full inventory, the moodle, the path speed and a fall), and the speed points on a
+worn bag.
 
 ## How the game is answered
 

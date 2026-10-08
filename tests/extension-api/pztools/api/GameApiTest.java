@@ -1999,9 +1999,13 @@ public final class GameApiTest {
                 "IsoObject.waterQuestions", "Food.updateAge:power", "Food.updateAge:hours", "IsoGenerator.setSurroundingElectricity",
                 "IsoGenerator.updateGenerator", "IsoGenerator.update", "IsoLightSwitch.hasElectricityAround",
                 "DeviceData.canBePoweredHere", "LightingJNI.checkLights", "IsoGameCharacter.getClothingDiscomfortModifier",
-                "IsoGameCharacter.addStiffness", "IsoGameCharacter.getFatiqueMultiplier", "Stats.add" })
+                "IsoGameCharacter.addStiffness", "IsoGameCharacter.getFatiqueMultiplier", "Stats.add", "IsoGameCharacter.getInventoryWeight",
+                "IsoGameCharacter.getMaxWeight", "IsoGameCharacter.handleLandingImpact:overload", "IsoGameCharacter.calculateBaseSpeed",
+                "IsoGameCharacter.calculateCombatSpeed", "IsoPlayer.getPathSpeed:overload", "Moodle.Update:overload", "ItemContainer.hasRoomFor",
+                "ItemContainer.getEffectiveCapacity", "ItemContainer.getCapacity", "InventoryContainer.getCapacity",
+                "InventoryContainer.getEffectiveCapacity" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 19, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 31, "The hooks are " + ApiHooks.hookStatus().keySet());
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
         transform.setAccessible(true);

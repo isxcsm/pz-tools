@@ -41,12 +41,24 @@ final class Formulas implements ApiHooks.Formulas {
         PLANNED
     }
 
-    /** A hook point: its name, its value's shape and the hooks (as {@code PZToolsAPI.hooks()} names them) it needs. */
-    record Point(String name, Shape shape, List<String> hooks) { }
+    /** What the names in a table are: any text, or names the game registers. */
+    enum Names { ANY, ITEM_TYPE, ITEM_TAG }
 
-    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, List.of(hooks)); }
+    /**
+     * A hook point: its name, its value's shape, what its names are, the hooks (as {@code PZToolsAPI.hooks()} names them) it
+     * needs, and whether it needs the game's inventory classes.
+     */
+    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory) { }
 
-    private static Point planned(String name) { return new Point(name, Shape.PLANNED, List.of()); }
+    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false); }
+
+    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true); }
+
+    private static Point planned(String name) { return new Point(name, Shape.PLANNED, Names.ANY, List.of(), false); }
+
+    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor" },
+        OVERLOAD = { "Moodle.Update:overload", "IsoPlayer.getPathSpeed:overload", "IsoGameCharacter.handleLandingImpact:overload" },
+        LIFT = { "ItemContainer.getCapacity", "InventoryContainer.getCapacity", "InventoryContainer.getEffectiveCapacity" };
 
     static final List<Point> POINTS = List.of(
         live("body.discomfortMultiplier", Shape.MULTIPLIER, "IsoGameCharacter.getClothingDiscomfortModifier"),
@@ -54,14 +66,22 @@ final class Formulas implements ApiHooks.Formulas {
         live("body.fatigueMultiplier", Shape.MULTIPLIER, "IsoGameCharacter.getFatiqueMultiplier"),
         live("body.enduranceDrainMultiplier", Shape.MULTIPLIER, "Stats.add"),
         live("body.poisonMultiplier", Shape.MULTIPLIER, "Stats.add"),
-        planned("carry.categoryEfficiency"), planned("carry.itemEfficiency"), planned("capacity.maxWeightAdd"),
-        planned("capacity.effectiveMultiplier"), planned("capacity.characterLimitAdd"), planned("overload.compress"),
-        planned("move.runPenaltyReduction"), planned("move.combatPenaltyReduction"), planned("move.walkMultiplier"),
-        planned("move.treeSlowMultiplier"), planned("move.treeScratchChance"), planned("body.coldMultiplier"),
-        planned("body.corpseCountMultiplier"), planned("body.corpseSicknessMultiplier"), planned("body.holeChance"),
-        planned("infection.woundChance"), planned("infection.biteShield"), planned("fall.landingRemap"),
-        planned("fall.impactMultiplier"), planned("loot.spawnMultiplier"), planned("loot.ammoMultiplier"),
-        planned("vision.darknessRestore"), planned("vision.coneAdd"), planned("vision.hiddenZombieFix"));
+        load("carry.categoryEfficiency", Shape.EFFICIENCIES, Names.ANY, CARRIED),
+        load("carry.itemEfficiency", Shape.EFFICIENCIES, Names.ITEM_TYPE, CARRIED),
+        load("carry.containerTagMultiplier", Shape.MULTIPLIERS, Names.ITEM_TAG, CARRIED),
+        live("capacity.maxWeightAdd", Shape.NUMBER, "IsoGameCharacter.getMaxWeight"),
+        load("capacity.effectiveMultiplier", Shape.MULTIPLIER, Names.ANY, "ItemContainer.getEffectiveCapacity"),
+        load("capacity.characterLimitAdd", Shape.NUMBER, Names.ANY, "ItemContainer.getEffectiveCapacity"),
+        load("capacity.modDataKey", Shape.NAMES, Names.ANY, LIFT),
+        load("overload.compress", Shape.REDUCTION, Names.ANY, OVERLOAD),
+        live("move.runPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateBaseSpeed"),
+        live("move.combatPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateCombatSpeed"),
+        planned("move.walkMultiplier"), planned("move.treeSlowMultiplier"), planned("move.treeScratchChance"),
+        planned("body.coldMultiplier"), planned("body.corpseCountMultiplier"), planned("body.corpseSicknessMultiplier"),
+        planned("body.holeChance"), planned("infection.woundChance"), planned("infection.biteShield"),
+        planned("fall.landingRemap"), planned("fall.impactMultiplier"), planned("loot.spawnMultiplier"),
+        planned("loot.ammoMultiplier"), planned("vision.darknessRestore"), planned("vision.coneAdd"),
+        planned("vision.hiddenZombieFix"));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -72,8 +92,21 @@ final class Formulas implements ApiHooks.Formulas {
      * and never changed after that, so that a hook reads it as it is. 1 (a multiplier) and 0 (an addition, a
      * reduction) leave the game's answer as it is.
      */
-    private static final class Active {
+    static final class Active {
+        private static final Object[] NO_OBJECTS = {};
+        private static final float[] NO_FLOATS = {};
+        private static final String[] NO_NAMES = {};
         double discomfort = 1, stiffness = 1, fatigue = 1, endurance = 1, poison = 1;
+        // The load: whether any weight formula is declared; the efficiency of a display category; of item types and the tags
+        // of bags, resolved to the game's own objects, with a number each.
+        boolean carry;
+        Map<String, Float> category = Map.of();
+        Object[] typeObjects = NO_OBJECTS, tagObjects = NO_OBJECTS;
+        float[] typeEfficiency = NO_FLOATS, tagMultiplier = NO_FLOATS;
+        int maxWeightAdd, characterLimitAdd;
+        double effectiveMultiplier = 1;
+        String[] dataKeys = NO_NAMES;
+        float compress, runReduction, combatReduction;
     }
 
     private final Kahlua lua;
@@ -81,6 +114,9 @@ final class Formulas implements ApiHooks.Formulas {
     private final Object meta;
     private final Networks.Owners owners;
     private final Players players;
+    // The game's inventory classes; null, with the reason, in a game whose inventory this API cannot read.
+    private final Inventory inventory;
+    private final String inventoryProblem;
     // The CharacterStat constants Stats.add is asked about.
     private final Object enduranceStat, poisonStat;
     // By mod, then point; what the mod declared: a Double, a Map of names to Doubles or a List of names.
@@ -99,6 +135,15 @@ final class Formulas implements ApiHooks.Formulas {
         this.meta = meta;
         this.owners = owners;
         players = new Players(loader);
+        Inventory reachable = null;
+        String problem = null;
+        try { reachable = new Inventory(loader); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            problem = "the game's inventory could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + problem);
+        }
+        inventory = reachable;
+        inventoryProblem = problem;
         Class<?> stat = Game.type(loader, "zombie.characters.CharacterStat");
         enduranceStat = stat.getField("ENDURANCE").get(null);
         poisonStat = stat.getField("POISON").get(null);
@@ -178,6 +223,16 @@ final class Formulas implements ApiHooks.Formulas {
             var values = declared.get(owner);
             return new Object[] { toLua(point, values == null ? null : values.get(point.name())) };
         });
+        function(table, "efficiency", (call, arguments) -> {
+            Object item = item(arguments, call);
+            try { return new Object[] { (double)inventory.factor(active, item) }; }
+            catch (Throwable failure) { throw Game.failed(Game.thrown(failure)); }
+        });
+        function(table, "weight", (call, arguments) -> {
+            Object item = item(arguments, call);
+            try { return new Object[] { (double)inventory.unequipped(active, item) }; }
+            catch (Throwable failure) { throw Game.failed(Game.thrown(failure)); }
+        });
         function(table, "points", (call, arguments) -> {
             Object result = lua.table();
             Map<String, String> hooks = hooks();
@@ -190,6 +245,13 @@ final class Formulas implements ApiHooks.Formulas {
         String owner = owners.of(arguments.length > 0 ? arguments[0] : null);
         if (owner == null) throw new IllegalArgumentException(call + ": the first argument must be a handle from PZToolsAPI.client");
         return owner;
+    }
+
+    private Object item(Object[] arguments, String call) {
+        if (inventory == null) throw new IllegalArgumentException(call + ": " + inventoryProblem);
+        Object item = arguments.length > 0 ? arguments[0] : null;
+        if (!inventory.isItem(item)) throw new IllegalArgumentException(call + ": item must be an inventory item");
+        return item;
     }
 
     private static Point point(Object[] arguments, int index, String call) {
@@ -228,6 +290,13 @@ final class Formulas implements ApiHooks.Formulas {
                     + " characters without control characters");
             if (!(entry.getValue() instanceof Number number) || !(number.doubleValue() >= min && number.doubleValue() <= max))
                 throw new IllegalArgumentException(call + ": " + point.name() + "[" + key + "] must be a number from " + min + " to " + max);
+            if (point.names() != Names.ANY) {
+                if (inventory == null) throw new IllegalArgumentException(call + ": " + point.name() + ": " + inventoryProblem);
+                if ((point.names() == Names.ITEM_TYPE ? inventory.itemTypeNamed(key) : inventory.itemTagNamed(key)) == null)
+                    throw new IllegalArgumentException(call + ": " + point.name() + "[" + key + "] is not an item "
+                        + (point.names() == Names.ITEM_TYPE ? "type" : "tag") + " the game has (such as "
+                        + (point.names() == Names.ITEM_TYPE ? "base:moveable" : "base:keyring") + ")");
+            }
             result.put(key, number.doubleValue());
             if (result.size() > MAX_ENTRIES)
                 throw new IllegalArgumentException(call + ": " + point.name() + " has more than " + MAX_ENTRIES + " entries");
@@ -351,6 +420,11 @@ final class Formulas implements ApiHooks.Formulas {
         return combined(BY_NAME.get(name)) instanceof Double value ? value : none;
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Double> table(String name) {
+        return combined(BY_NAME.get(name)) instanceof Map<?, ?> map ? (Map<String, Double>)map : Map.of();
+    }
+
     /** Works the declarations out into the snapshot the hooks read. */
     private void publish() {
         var next = new Active();
@@ -359,12 +433,48 @@ final class Formulas implements ApiHooks.Formulas {
         next.fatigue = number("body.fatigueMultiplier", 1);
         next.endurance = number("body.enduranceDrainMultiplier", 1);
         next.poison = number("body.poisonMultiplier", 1);
+        next.maxWeightAdd = (int)Math.round(number("capacity.maxWeightAdd", 0));
+        next.effectiveMultiplier = number("capacity.effectiveMultiplier", 1);
+        next.characterLimitAdd = (int)Math.round(number("capacity.characterLimitAdd", 0));
+        next.compress = (float)number("overload.compress", 0);
+        next.runReduction = (float)number("move.runPenaltyReduction", 0);
+        next.combatReduction = (float)number("move.combatPenaltyReduction", 0);
+        if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
+        if (inventory != null) {
+            var category = new HashMap<String, Float>();
+            for (var entry : table("carry.categoryEfficiency").entrySet()) category.put(entry.getKey(), entry.getValue().floatValue());
+            next.category = category;
+            var types = table("carry.itemEfficiency");
+            var tags = table("carry.containerTagMultiplier");
+            var typeObjects = new ArrayList<Object>(); var typeEfficiency = new ArrayList<Float>();
+            for (var entry : types.entrySet()) {
+                Object type = inventory.itemTypeNamed(entry.getKey());
+                if (type != null) { typeObjects.add(type); typeEfficiency.add(entry.getValue().floatValue()); }
+            }
+            var tagObjects = new ArrayList<Object>(); var tagMultiplier = new ArrayList<Float>();
+            for (var entry : tags.entrySet()) {
+                Object tag = inventory.itemTagNamed(entry.getKey());
+                if (tag != null) { tagObjects.add(tag); tagMultiplier.add(entry.getValue().floatValue()); }
+            }
+            next.typeObjects = typeObjects.toArray();
+            next.typeEfficiency = floats(typeEfficiency);
+            next.tagObjects = tagObjects.toArray();
+            next.tagMultiplier = floats(tagMultiplier);
+            next.carry = !category.isEmpty() || next.typeObjects.length > 0 || next.tagObjects.length > 0;
+        }
         active = next;
     }
 
+    private static float[] floats(List<Float> values) {
+        float[] result = new float[values.size()];
+        for (int index = 0; index < result.length; index++) result[index] = values.get(index);
+        return result;
+    }
+
     /** A point's state as {@code PZToolsAPI.hooks()} words it: applied when every hook it needs is, else what is wrong. */
-    private static String status(Point point, Map<String, String> hooks) {
+    private String status(Point point, Map<String, String> hooks) {
         if (point.shape() == Shape.PLANNED) return "planned";
+        if (point.inventory() && inventory == null) return "unavailable: " + inventoryProblem;
         int applied = 0;
         String first = null;
         for (String label : point.hooks()) {
@@ -470,6 +580,87 @@ final class Formulas implements ApiHooks.Formulas {
         return vanilla * multiplier;
     }
 
+    @Override public float carried(Object item, float vanilla, Object character, int kind) {
+        Active now = active;
+        if (!now.carry || !players.local(character)) return vanilla;
+        try { return inventory.carried(now, item, vanilla, kind); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float incoming(Object item, float vanilla, Object container, boolean viaBag) {
+        Active now = active;
+        if (!now.carry) return vanilla;
+        try { return inventory.incoming(now, item, vanilla, container, viaBag, players); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public int maxWeight(int vanilla, Object character) {
+        int add = active.maxWeightAdd;
+        return add == 0 || !players.local(character) ? vanilla : vanilla + add;
+    }
+
+    @Override public int effectiveCapacity(int vanilla, Object container, Object character) {
+        Active now = active;
+        if (now.characterLimitAdd == 0 && now.effectiveMultiplier == 1) return vanilla;
+        try { return inventory.effectiveCapacity(now, vanilla, container, character, players); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public int capacity(int vanilla, Object container) {
+        String[] keys = active.dataKeys;
+        if (keys.length == 0) return vanilla;
+        try {
+            int lifted = inventory.lifted(keys, container);
+            return lifted < 0 ? vanilla : lifted;
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public int bagCapacity(int vanilla, Object bag) {
+        String[] keys = active.dataKeys;
+        if (keys.length == 0) return vanilla;
+        try {
+            int lifted = inventory.bagCapacity(keys, bag);
+            return lifted < 0 ? vanilla : lifted;
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public int bagEffectiveCapacity(int vanilla, Object bag, Object character) {
+        String[] keys = active.dataKeys;
+        if (keys.length == 0) return vanilla;
+        try {
+            int lifted = inventory.bagEffectiveCapacity(keys, bag, character);
+            return lifted < 0 ? vanilla : lifted;
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float overload(Object container, float weight) {
+        Active now = active;
+        if (now.compress == 0f) return weight;
+        try { return inventory.compressed(now, container, weight, players); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float runPenalty(float vanilla, Object character) {
+        float reduction = active.runReduction;
+        // Only a penalty (below 1) is reduced.
+        if (reduction == 0f || vanilla >= 1f || !players.local(character)) return vanilla;
+        return 1f - (1f - vanilla) * (1f - reduction);
+    }
+
+    @Override public float combatPenalty(float vanilla, Object character) {
+        float reduction = active.combatReduction;
+        if (reduction == 0f || vanilla >= 1f || !players.local(character)) return vanilla;
+        return 1f - (1f - vanilla) * (1f - reduction);
+    }
+
+    /**
+     * Throws what a method handle of the game threw as it is, without declaring it: the hooks do not declare checked
+     * exceptions, and the bootstrap that calls them reports a fault and answers as the game does. Nothing is wrapped, so
+     * the hook allocates nothing for it either.
+     */
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> E sneaky(Throwable failure) throws E { throw (E)failure; }
+
     @Override public float statDelta(float delta, Object stats, Object stat) {
         Active now = active;
         try {
@@ -482,11 +673,7 @@ final class Formulas implements ApiHooks.Formulas {
                 if (now.poison == 1 || stat != poisonStat || !players.ownsStats(stats)) return delta;
                 return (float)(delta * now.poison);
             }
-        } catch (RuntimeException | Error failure) {
-            throw failure;
-        } catch (Throwable impossible) {
-            throw new IllegalStateException(impossible);
-        }
+        } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
         return delta;
     }
 }

@@ -1,7 +1,9 @@
 package pztools.bridge;
 
 import java.lang.classfile.*;
+import java.lang.classfile.instruction.ConstantInstruction;
 import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.classfile.instruction.OperatorInstruction;
 import java.lang.classfile.instruction.InvokeInstruction;
 import java.lang.classfile.instruction.LineNumber;
 import java.lang.classfile.instruction.LoadInstruction;
@@ -102,7 +104,47 @@ public final class ApiHooks {
 
         /** {@code Stats.add(stat, delta)} (also {@code remove}): the change to the stat. */
         default float statDelta(float delta, Object stats, Object stat) { return delta; }
+
+        /**
+         * A weight {@code IsoGameCharacter.getInventoryWeight()} adds for an item of the character's inventory, of the
+         * kind {@link #UNEQUIPPED}, {@link #EQUIPPED} or {@link #HOTBAR}: how the game counts that item.
+         */
+        default float carried(Object item, float vanilla, Object character, int kind) { return vanilla; }
+
+        /**
+         * The weight an item adds to a container when {@code ItemContainer.hasRoomFor(character, item)} asks whether
+         * it fits. {@code viaBag} when the container is a worn bag and it is the carrying character's inventory the
+         * item is weighed against.
+         */
+        default float incoming(Object item, float vanilla, Object container, boolean viaBag) { return vanilla; }
+
+        /** {@code IsoGameCharacter.getMaxWeight()}. */
+        default int maxWeight(int vanilla, Object character) { return vanilla; }
+
+        /** {@code ItemContainer.getEffectiveCapacity(character)}. */
+        default int effectiveCapacity(int vanilla, Object container, Object character) { return vanilla; }
+
+        /** {@code ItemContainer.getCapacity()}, which the game clamps to 100, or 50 for an item's, or 1000 for a vehicle's. */
+        default int capacity(int vanilla, Object container) { return vanilla; }
+
+        /** {@code InventoryContainer.getCapacity()}, which the game clamps to what a bag can be. */
+        default int bagCapacity(int vanilla, Object bag) { return vanilla; }
+
+        /** {@code InventoryContainer.getEffectiveCapacity(character)}. */
+        default int bagEffectiveCapacity(int vanilla, Object bag, Object character) { return vanilla; }
+
+        /** What {@code container.getCapacityWeight()} gives to a question of how heavily its character is loaded. */
+        default float overload(Object container, float weight) { return weight; }
+
+        /** The full speed modifier {@code IsoGameCharacter.calculateBaseSpeed()} works out (below 1 slows). */
+        default float runPenalty(float vanilla, Object character) { return vanilla; }
+
+        /** The combat speed modifier {@code IsoGameCharacter.calculateCombatSpeed()} reads (below 1 slows). */
+        default float combatPenalty(float vanilla, Object character) { return vanilla; }
     }
+
+    /** The kinds of {@link Formulas#carried}: how the game counts an item's weight. */
+    public static final int UNEQUIPPED = 0, EQUIPPED = 1, HOTBAR = 2;
 
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
@@ -126,7 +168,12 @@ public final class ApiHooks {
         FOOD_HOURS("foodHours", Group.POWER), WATER_PLUMBED("waterPlumbed", Group.WATER),
         WATER_SOURCE("waterSource", Group.WATER), WATER_SAMPLE("waterSample", Group.WATER),
         WATER_TAINTED("waterTainted", Group.WATER), DISCOMFORT("discomfort", Group.FORMULAS),
-        STIFFNESS("stiffness", Group.FORMULAS), FATIGUE("fatigue", Group.FORMULAS), STAT_DELTA("statDelta", Group.FORMULAS);
+        STIFFNESS("stiffness", Group.FORMULAS), FATIGUE("fatigue", Group.FORMULAS), STAT_DELTA("statDelta", Group.FORMULAS),
+        CARRIED("carried", Group.FORMULAS), INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS),
+        EFFECTIVE_CAPACITY("effectiveCapacity", Group.FORMULAS), CAPACITY("capacity", Group.FORMULAS),
+        BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
+        OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
+        COMBAT_PENALTY("combatPenalty", Group.FORMULAS);
 
         final String label;
         final Group group;
@@ -161,6 +208,32 @@ public final class ApiHooks {
         Map.entry("zombie/inventory/ItemContainer", new Site[] {
             Site.atReturns("isObjectPowered", "(Lzombie/iso/IsoObject;Z)Z", 2, (code, owner) -> {
                 code.aload(0); code.iconst_0(); code.iload(1); objectPowered(code);
+            }),
+            // Whether an item fits: each weight the method reads of the item. The first read of a worn bag's is weighed against
+            // the character's inventory (it is followed by an addition); the others against this container (they are
+            // followed by the call that asks whether it fits).
+            Site.edit("hasRoomFor", "(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/InventoryItem;)Z", new Edit(
+                calls("zombie/inventory/InventoryItem", "getUnequippedWeight", "()F"), -1, (elements, index) -> {
+                    CodeElement next = Edit.after(elements, index);
+                    if (next instanceof OperatorInstruction add && add.opcode() == Opcode.FADD) return 1;
+                    if (next instanceof InvokeInstruction invoke && invoke.name().equalsString("hasRoomFor")) return 0;
+                    throw new IllegalArgumentException("an item's weight is read for something other than a comparison or a room question");
+                }, (code, element, viaBag) -> {
+                    code.dup();
+                    code.with(element);
+                    code.aload(0);
+                    code.loadConstant(viaBag);
+                    code.invokestatic(HOOKS, "incoming", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_int));
+                })),
+            Site.atReturns("getEffectiveCapacity", "(Lzombie/characters/IsoGameCharacter;)I", 2, (code, owner) -> {
+                code.aload(0); code.aload(1);
+                code.invokestatic(HOOKS, "effectiveCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object,
+                    ConstantDescs.CD_Object));
+            }),
+            Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "capacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
             }) }),
         Map.entry("zombie/iso/objects/IsoLightSwitch", new Site[] {
             Site.atReturns("hasElectricityAround", "()Z", 1, (code, owner) -> {
@@ -252,6 +325,56 @@ public final class ApiHooks {
             Site.atReturns("getFatiqueMultiplier", "()D", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "fatigue", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double, ConstantDescs.CD_Object));
+            }),
+            // The weight of each item of the character's inventory, as the game counts it: unequipped, equipped, on the hotbar.
+            Site.edit("getInventoryWeight", "()F", new Edit(
+                element -> element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/inventory/InventoryItem")
+                    && invoke.type().equalsString("()F") && (invoke.name().equalsString("getUnequippedWeight")
+                        || invoke.name().equalsString("getEquippedWeight") || invoke.name().equalsString("getHotbarEquippedWeight")),
+                3, (elements, index) -> {
+                    String name = ((InvokeInstruction)elements.get(index)).name().stringValue();
+                    return name.equals("getUnequippedWeight") ? UNEQUIPPED : name.equals("getEquippedWeight") ? EQUIPPED : HOTBAR;
+                }, (code, element, kind) -> {
+                    code.dup();
+                    code.with(element);
+                    code.aload(0);
+                    code.loadConstant(kind);
+                    code.invokestatic(HOOKS, "carried", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_int));
+                })),
+            Site.atReturns("getMaxWeight", "()I", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "maxWeight", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
+            }),
+            // How heavily the character is loaded, three times, as the fall damage is worked out.
+            Site.edit("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", overloadEdit(3)).named("overload"),
+            // The full speed modifier is stored; the combat speed modifier is read once.
+            Site.edit("calculateBaseSpeed", "()F", new Edit(field(Opcode.PUTFIELD, "zombie/characters/IsoGameCharacter", "fullSpeedMod"), 1, null,
+                (code, element, kind) -> {
+                    code.aload(0);
+                    code.invokestatic(HOOKS, "runPenalty", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                    code.with(element);
+                })),
+            Site.edit("calculateCombatSpeed", "()F", new Edit(field(Opcode.GETFIELD, "zombie/characters/IsoGameCharacter", "combatSpeedModifier"), 1, null,
+                (code, element, kind) -> {
+                    code.with(element);
+                    code.aload(0);
+                    code.invokestatic(HOOKS, "combatPenalty", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                })) }),
+        Map.entry("zombie/characters/IsoPlayer", new Site[] {
+            Site.edit("getPathSpeed", "()F", overloadEdit(1)).named("overload") }),
+        Map.entry("zombie/characters/Moodles/Moodle", new Site[] {
+            Site.edit("Update", "()Z", overloadEdit(1)).named("overload") }),
+        // A bag clamps its capacity to what a bag can be (50 less its own weight), over the container's own.
+        Map.entry("zombie/inventory/types/InventoryContainer", new Site[] {
+            Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "bagCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
+            }),
+            Site.atReturns("getEffectiveCapacity", "(Lzombie/characters/IsoGameCharacter;)I", 2, (code, owner) -> {
+                code.aload(0); code.aload(1);
+                code.invokestatic(HOOKS, "bagEffectiveCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object,
+                    ConstantDescs.CD_Object));
             }) }),
         Map.entry("zombie/characters/Stats", new Site[] {
             // add(stat, delta); remove(stat, amount) is add(stat, -amount).
@@ -263,6 +386,15 @@ public final class ApiHooks {
                     ConstantDescs.CD_float));
                 code.fstore(2);
             }) }));
+
+    /** The result of each {@code ItemContainer.getCapacityWeight()} call, with the container it was asked of. */
+    private static Edit overloadEdit(int expected) {
+        return new Edit(calls("zombie/inventory/ItemContainer", "getCapacityWeight", "()F"), expected, null, (code, element, kind) -> {
+            code.dup();
+            code.with(element);
+            code.invokestatic(HOOKS, "overload", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float));
+        });
+    }
 
     private static void objectPowered(CodeBuilder code) {
         code.invokestatic(HOOKS, "objectPowered", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean,
@@ -314,7 +446,7 @@ public final class ApiHooks {
         var parts = new LinkedHashMap<String, ClassTransform>();
         for (Site site : sites) {
             String problem = site.problem(name, model);
-            if (problem == null) parts.put(site.label(name), ClassTransform.transformingMethodBodies(site::matches, site.code(owner)));
+            if (problem == null) parts.put(site.label(name), site.classTransform(owner));
             else record(site.label(name), problem);
         }
         if ("zombie/iso/IsoObject".equals(name)) {
@@ -378,6 +510,42 @@ public final class ApiHooks {
         return all;
     }
 
+    /**
+     * Rewrites the instructions of a method that {@code matcher} picks. {@code emit} writes the instruction itself and
+     * what goes with it; {@code kinds} tells each place apart from the code around it (null: all alike) and may refuse
+     * a shape it does not expect. {@code expected} is how many places there must be, or -1 for one or more.
+     */
+    private record Edit(Predicate<CodeElement> matcher, int expected, Kinds kinds, Emit emit) {
+        @FunctionalInterface interface Kinds { int kind(List<CodeElement> elements, int index); }
+
+        @FunctionalInterface interface Emit { void emit(CodeBuilder code, CodeElement element, int kind); }
+
+        /** The kind of each place the matcher picks, in order. */
+        int[] kindsIn(List<CodeElement> elements) {
+            var found = new ArrayList<Integer>();
+            for (int index = 0; index < elements.size(); index++)
+                if (matcher.test(elements.get(index))) found.add(kinds == null ? 0 : kinds.kind(elements, index));
+            return found.stream().mapToInt(Integer::intValue).toArray();
+        }
+
+        /** The next instruction after the one at {@code index} that is not a constant being pushed, or null. */
+        static CodeElement after(List<CodeElement> elements, int index) {
+            for (int next = index + 1; next < elements.size(); next++)
+                if (elements.get(next) instanceof Instruction && !(elements.get(next) instanceof ConstantInstruction)) return elements.get(next);
+            return null;
+        }
+    }
+
+    private static Predicate<CodeElement> calls(String owner, String name, String type) {
+        return element -> element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals(owner)
+            && invoke.name().equalsString(name) && invoke.type().equalsString(type);
+    }
+
+    private static Predicate<CodeElement> field(Opcode opcode, String owner, String name) {
+        return element -> element instanceof FieldInstruction field && field.opcode() == opcode
+            && field.owner().asInternalName().equals(owner) && field.name().equalsString(name);
+    }
+
     /** An instruction, with the two before it (line numbers skipped; null at the method's start). */
     @FunctionalInterface private interface Window { boolean test(CodeElement second, CodeElement first, CodeElement element); }
 
@@ -388,28 +556,33 @@ public final class ApiHooks {
      * {@code at} names.
      */
     private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit,
-            Predicate<CodeElement> object, int kind, Window at, String part, List<String> fields) {
+            Predicate<CodeElement> object, int kind, Window at, String part, List<String> fields, Edit edit) {
         static Site atReturns(String method, String type, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, true, argumentSlots, emit, null, 0, null, null, List.of());
+            return new Site(method, type, true, argumentSlots, emit, null, 0, null, null, List.of(), null);
         }
 
         static Site atStart(String method, String type, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, null, null, List.of());
+            return new Site(method, type, false, 0, emit, null, 0, null, null, List.of(), null);
         }
 
         static Site square(String method, String type, Predicate<CodeElement> object, int kind) {
-            return new Site(method, type, false, 0, null, object, kind, null, null, List.of());
+            return new Site(method, type, false, 0, null, object, kind, null, null, List.of(), null);
         }
 
         static Site before(String method, String type, Window at, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, at, null, List.of());
+            return new Site(method, type, false, 0, emit, null, 0, at, null, List.of(), null);
+        }
+
+        /** Rewrites each instruction of the method that {@code edit} picks. */
+        static Site edit(String method, String type, Edit edit) {
+            return new Site(method, type, false, 0, null, null, 0, null, null, List.of(), edit);
         }
 
         /** Told apart from another hook in the same method by {@code part}. */
-        Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields); }
+        Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields, edit); }
 
         /** The hook reads these instance int fields of the class. */
-        Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names)); }
+        Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names), edit); }
 
         static boolean haveElectricity(CodeElement element) {
             return element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/iso/IsoGridSquare")
@@ -460,7 +633,33 @@ public final class ApiHooks {
                 }
                 if (found != 1) return "expected one place for the hook in " + method + ", found " + found;
             }
+            if (edit != null) {
+                int found;
+                try { found = edit.kindsIn(code.elementList()).length; }
+                catch (IllegalArgumentException unfit) { return method + ": " + unfit.getMessage(); }
+                if (edit.expected() >= 0 ? found != edit.expected() : found == 0)
+                    return "expected " + (edit.expected() >= 0 ? String.valueOf(edit.expected()) : "at least one") + " place(s) for the hook in "
+                        + method + ", found " + found;
+            }
             return null;
+        }
+
+        /** What goes into the class for this hook. */
+        ClassTransform classTransform(ClassDesc owner) {
+            if (edit == null) return ClassTransform.transformingMethodBodies(this::matches, code(owner));
+            // An edit tells its places apart from the code around them, so it reads the method's code first.
+            return ClassTransform.transformingMethods(this::matches, (method, element) -> {
+                if (!(element instanceof CodeModel original)) { method.with(element); return; }
+                int[] kinds = edit.kindsIn(original.elementList());
+                method.transformCode(original, CodeTransform.ofStateful(() -> new CodeTransform() {
+                    private int next;
+
+                    @Override public void accept(CodeBuilder builder, CodeElement place) {
+                        if (edit.matcher().test(place)) edit.emit().emit(builder, place, kinds[next++]);
+                        else builder.with(place);
+                    }
+                }));
+            });
         }
 
         CodeTransform code(ClassDesc owner) {
@@ -691,6 +890,86 @@ public final class ApiHooks {
         if (current == null) return delta;
         try { return current.statDelta(delta, stats, stat); }
         catch (Throwable problem) { reportOnce(Call.STAT_DELTA, problem); return delta; }
+    }
+
+    /** Put after each read of an item's weight in {@code IsoGameCharacter.getInventoryWeight()}. */
+    public static float carried(Object item, float vanilla, Object character, int kind) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.carried(item, vanilla, character, kind); }
+        catch (Throwable problem) { reportOnce(Call.CARRIED, problem); return vanilla; }
+    }
+
+    /** Put after each read of the item's weight in {@code ItemContainer.hasRoomFor(character, item)}. */
+    public static float incoming(Object item, float vanilla, Object container, int viaBag) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.incoming(item, vanilla, container, viaBag != 0); }
+        catch (Throwable problem) { reportOnce(Call.INCOMING, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code IsoGameCharacter.getMaxWeight()}. */
+    public static int maxWeight(int vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.maxWeight(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.MAX_WEIGHT, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code ItemContainer.getEffectiveCapacity(character)}. */
+    public static int effectiveCapacity(int vanilla, Object container, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.effectiveCapacity(vanilla, container, character); }
+        catch (Throwable problem) { reportOnce(Call.EFFECTIVE_CAPACITY, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code ItemContainer.getCapacity()}. */
+    public static int capacity(int vanilla, Object container) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.capacity(vanilla, container); }
+        catch (Throwable problem) { reportOnce(Call.CAPACITY, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code InventoryContainer.getCapacity()}. */
+    public static int bagCapacity(int vanilla, Object bag) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.bagCapacity(vanilla, bag); }
+        catch (Throwable problem) { reportOnce(Call.BAG_CAPACITY, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code InventoryContainer.getEffectiveCapacity(character)}. */
+    public static int bagEffectiveCapacity(int vanilla, Object bag, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.bagEffectiveCapacity(vanilla, bag, character); }
+        catch (Throwable problem) { reportOnce(Call.BAG_EFFECTIVE_CAPACITY, problem); return vanilla; }
+    }
+
+    /** Put after each call of {@code ItemContainer.getCapacityWeight()} that asks how heavily a character is loaded. */
+    public static float overload(Object container, float weight) {
+        Formulas current = formulas;
+        if (current == null) return weight;
+        try { return current.overload(container, weight); }
+        catch (Throwable problem) { reportOnce(Call.OVERLOAD, problem); return weight; }
+    }
+
+    /** Put before the store of {@code IsoGameCharacter.fullSpeedMod} in {@code calculateBaseSpeed()}. */
+    public static float runPenalty(float vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.runPenalty(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.RUN_PENALTY, problem); return vanilla; }
+    }
+
+    /** Put after the read of {@code IsoGameCharacter.combatSpeedModifier} in {@code calculateCombatSpeed()}. */
+    public static float combatPenalty(float vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.combatPenalty(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.COMBAT_PENALTY, problem); return vanilla; }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */

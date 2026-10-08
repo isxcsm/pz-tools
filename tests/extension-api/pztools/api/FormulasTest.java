@@ -1,13 +1,26 @@
 package pztools.api;
 
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassTransform;
+import java.lang.classfile.MethodModel;
+import java.lang.reflect.Method;
 import java.util.List;
 import se.krka.kahlua.vm.*;
 import zombie.characters.CharacterStat;
 import zombie.characters.IsoGameCharacter;
 import zombie.characters.IsoPlayer;
 import zombie.characters.BodyDamage.BodyPartType;
+import zombie.characters.Moodles.Moodle;
+import zombie.inventory.InventoryItem;
+import zombie.inventory.ItemContainer;
+import zombie.inventory.types.InventoryContainer;
 import zombie.iso.IsoCell;
+import zombie.iso.IsoObject;
 import zombie.iso.IsoWorld;
+import zombie.iso.objects.IsoDeadBody;
+import zombie.scripting.objects.ItemTag;
+import zombie.scripting.objects.ItemType;
+import zombie.vehicles.VehiclePart;
 import zombie.Lua.LuaManager;
 import pztools.bridge.ApiHooks;
 
@@ -29,6 +42,12 @@ final class FormulasTest {
         calls(api, formulas);
         bodyPoints(api, formulas, player, other);
         combining(api, formulas, player);
+        carry(api, formulas, player, other);
+        room(api, formulas, player, other);
+        capacities(api, formulas, player, other);
+        loads(api, formulas, player, other);
+        speeds(api, formulas, player, other);
+        partial(formulas);
         faults(api, formulas, player);
         world(api, formulas, player);
         takeover(api, formulas, player);
@@ -36,12 +55,17 @@ final class FormulasTest {
     }
 
     private static void points(KahluaTable formulas) {
+        // The classes the load tree hooks are transformed as they load: use each once.
+        new Moodle(new IsoPlayer());
+        new InventoryContainer("Bag", 1f, 30);
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
-                "body.enduranceDrainMultiplier", "body.poisonMultiplier" })
+                "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency",
+                "carry.containerTagMultiplier", "capacity.maxWeightAdd", "capacity.effectiveMultiplier", "capacity.characterLimitAdd",
+                "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check("planned".equals(points.rawget("loot.spawnMultiplier")), "A point not built yet is " + points.rawget("loot.spawnMultiplier"));
-        check(Formulas.POINTS.size() == 29, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 31, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(ApiHooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -143,6 +167,335 @@ final class FormulasTest {
         check(player.getClothingDiscomfortModifier() == 0f, "A multiplier of 0 was not applied");
         call(second, "clear");
         check(player.getClothingDiscomfortModifier() == 4f, "Clearing the last formula left the answer changed");
+    }
+
+    private static InventoryItem item(String category, float weight) { return new InventoryItem(category, weight); }
+
+    private static InventoryItem put(IsoGameCharacter owner, InventoryItem item) {
+        owner.inventory.items.add(item);
+        return item;
+    }
+
+    private static KahluaTable table(Object... pairs) {
+        KahluaTable result = LuaManager.platform.newTable();
+        for (int index = 0; index < pairs.length; index += 2) result.rawset(pairs[index], pairs[index + 1]);
+        return result;
+    }
+
+    private static KahluaTable list(Object... items) {
+        KahluaTable result = LuaManager.platform.newTable();
+        for (int index = 0; index < items.length; index++) result.rawset((double)(index + 1), items[index]);
+        return result;
+    }
+
+    /**
+     * An inventory of 30 by the game's count: a plank, paint, a sofa (a moveable), a tool, and a bag (30 room) that holds four
+     * nails and a key ring with three keys. Returns plank, paint, sofa, tool, bag, ring.
+     */
+    private static InventoryItem[] stock(IsoGameCharacter owner) {
+        owner.inventory.items.clear();
+        owner.equipped.clear();
+        var plank = put(owner, item("Material", 3f));
+        var paint = put(owner, item("Paint", 2f));
+        var sofa = put(owner, item("Furniture", 20f));
+        sofa.itemType = ItemType.MOVEABLE;
+        var tool = put(owner, item("Tool", 1.5f));
+        var bag = new InventoryContainer("Bag", 1f, 30);
+        put(owner, bag);
+        for (int index = 0; index < 4; index++) bag.getInventory().items.add(item("Material", 0.5f));
+        var ring = new InventoryContainer("Keys", 0.2f, 10);
+        ring.itemType = ItemType.KEY_RING;
+        ring.tags.add(ItemTag.KEY_RING);
+        bag.getInventory().items.add(ring);
+        for (int index = 0; index < 3; index++) ring.getInventory().items.add(item("Key", 0.1f));
+        return new InventoryItem[] { plank, paint, sofa, tool, bag, ring };
+    }
+
+    /**
+     * What the character carries counts by efficiency: a display category's, an item type's, a bag's tags; the efficiencies of
+     * one item add and divide its weight, a worn or hotbar bag keeps the game's own factors, and no other character's weight
+     * changes.
+     */
+    private static void carry(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
+        Object mod = call(api, "client", "carry.mod").get(0), second = call(api, "client", "carry.second").get(0);
+        var mine = stock(player);
+        stock(other);
+        float vanilla = player.getInventoryWeight();
+        check(near(vanilla, 30) && other.getInventoryWeight() == vanilla, "The game's weight is not 30: " + vanilla);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        check(near(player.getInventoryWeight(), 27.5) && other.getInventoryWeight() == vanilla,
+            "Material at +100% did not halve the plank and the nails, or another character's weight changed: " + player.getInventoryWeight());
+        // An item's efficiencies add: its category's and its type's.
+        call(formulas, "set", mod, "carry.itemEfficiency", table("base:moveable", 1.0));
+        check(near(player.getInventoryWeight(), 17.5), "The moveable type at +100% did not halve the sofa: " + player.getInventoryWeight());
+        // The mods' efficiencies of one name add too: Material +150%, Furniture +100%; the sofa is at +200% in all.
+        call(formulas, "set", second, "carry.categoryEfficiency", table("Material", 0.5, "Furniture", 1.0));
+        var both = (KahluaTable)call(formulas, "get", "carry.categoryEfficiency").get(0);
+        check(near((Double)both.rawget("Material"), 1.5) && near((Double)both.rawget("Furniture"), 1.0), "Two mods' efficiencies of a name did not add");
+        check(near(player.getInventoryWeight(), 3 / 2.5 + 2 + 20 / 3.0 + 1.5 + (1 + 4 * 0.5 / 2.5 + 0.5)),
+            "Added efficiencies: " + player.getInventoryWeight());
+        call(second, "clear");
+        call(formulas, "set", mod, "carry.itemEfficiency", null);
+        // What is inside a bag with a tag counts by the number: a key ring's keys weigh nothing.
+        call(formulas, "set", mod, "carry.containerTagMultiplier", table("base:keyring", 0.0));
+        check(near(player.getInventoryWeight(), 1.5 + 2 + 20 + 1.5 + (1 + 1.0 + 0.2)), "A key ring's keys still weigh: " + player.getInventoryWeight());
+        // Equipped, the game's own count (half) holds, with the efficiency in it.
+        player.equipped.add(mine[0]);
+        check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + 2.2), "An equipped plank: " + player.getInventoryWeight());
+        // A worn bag: the weight reduction takes weight off what is inside, not off the bag.
+        player.equipped.add(mine[4]);
+        ((InventoryContainer)mine[4]).setWeightReduction(50);
+        check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + (0.5 + 1.2 * 0.5)), "An equipped bag: " + player.getInventoryWeight());
+        // A bag on the hotbar: 70% of the whole.
+        player.equipped.remove(mine[4]);
+        mine[4].attachedSlot = 1;
+        check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + 2.2 * 0.7), "A bag on the hotbar: " + player.getInventoryWeight());
+        mine[4].attachedSlot = -1;
+        player.equipped.remove(mine[0]);
+        ((InventoryContainer)mine[4]).setWeightReduction(0);
+        // A formula that reaches nothing the character carries leaves the game's weight to the bit.
+        call(formulas, "set", mod, "carry.containerTagMultiplier", null);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Nothing", 1.0));
+        check(player.getInventoryWeight() == vanilla, "A formula for a category nothing has changed the weight: " + player.getInventoryWeight());
+        // The read queries: an item's factor, and its weight as the load counts it.
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        check(near((Double)call(formulas, "efficiency", mine[0]).get(0), 0.5) && near((Double)call(formulas, "efficiency", mine[1]).get(0), 1)
+            && near((Double)call(formulas, "weight", mine[0]).get(0), 1.5) && near((Double)call(formulas, "weight", mine[4]).get(0), 2.5)
+            && near((Double)call(formulas, "weight", mine[1]).get(0), 2), "The read queries are wrong");
+        rejects(formulas, "efficiency", "item must be an inventory item", 5.0);
+        rejects(formulas, "set", "carry.itemEfficiency[base:nothing] is not an item type", mod, "carry.itemEfficiency", table("base:nothing", 1.0));
+        rejects(formulas, "set", "carry.containerTagMultiplier[base:nothing] is not an item tag", mod, "carry.containerTagMultiplier",
+            table("base:nothing", 0.0));
+        rejects(formulas, "set", "[Material] must be a number from -0.9 to 100.0", mod, "carry.categoryEfficiency", table("Material", -1.0));
+        rejects(formulas, "set", "must be a table of names to numbers", mod, "carry.categoryEfficiency", 1.0);
+        rejects(formulas, "set", "must be named by strings", mod, "carry.categoryEfficiency", table(1.0, 1.0));
+        call(mod, "clear");
+        check(player.getInventoryWeight() == vanilla, "Clearing the formulas left the weight changed");
+        player.inventory.items.clear();
+        other.inventory.items.clear();
+    }
+
+    /** Whether an item fits: what it adds is counted by the same efficiency, against the character who would carry it. */
+    private static void room(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
+        Object mod = call(api, "client", "room.mod").get(0);
+        player.inventory.items.clear();
+        other.inventory.items.clear();
+        player.equipped.clear();
+        put(player, item("Tool", 45f));
+        put(other, item("Tool", 45f));
+        var incoming = item("Material", 10f);
+        check(!player.inventory.hasRoomFor(player, incoming) && !other.inventory.hasRoomFor(other, incoming), "10 more than 45 of 50 fit");
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        check(player.inventory.hasRoomFor(player, incoming), "An item at half its weight did not fit");
+        check(!other.inventory.hasRoomFor(other, incoming), "An item fit another character at half its weight");
+        // A worn bag: against the carrier's inventory by efficiency, against the bag's own room by the real weight.
+        player.inventory.items.clear();
+        put(player, item("Tool", 10f));
+        var bag = new InventoryContainer("Bag", 1f, 30);
+        put(player, bag);
+        bag.equipParent = player;
+        player.equipped.add(bag);
+        check(bag.getInventory().hasRoomFor(player, item("Material", 29f)), "An item that fits the bag did not fit");
+        check(!bag.getInventory().hasRoomFor(player, item("Material", 31f)), "An item fit a bag by less than its real weight");
+        player.inventory.items.clear();
+        put(player, item("Tool", 44f));
+        put(player, bag);
+        check(bag.getInventory().hasRoomFor(player, incoming), "Half an item did not fit the carrier's inventory");
+        call(formulas, "set", mod, "carry.categoryEfficiency", null);
+        check(!bag.getInventory().hasRoomFor(player, incoming), "The whole item fit the carrier's inventory");
+        // A container that is not a character's: the real weight.
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        var crate = new ItemContainer(new IsoObject(null));
+        crate.capacity = 9;
+        check(!crate.hasRoomFor(player, incoming), "A crate counted an item at its efficiency");
+        crate.worldItem = true;
+        incoming.onGround = true;
+        check(!crate.hasRoomFor(player, incoming), "A crate on the ground counted an item at its efficiency");
+        call(mod, "clear");
+        player.inventory.items.clear();
+        other.inventory.items.clear();
+        player.equipped.clear();
+    }
+
+    /** The most a character carries, what a container holds and the limits of the game that a container may declare away. */
+    private static void capacities(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
+        Object mod = call(api, "client", "capacity.mod").get(0), second = call(api, "client", "capacity.second").get(0);
+        check(player.getMaxWeight() == 20 && other.getMaxWeight() == 20, "The most carried is not the game's");
+        call(formulas, "set", mod, "capacity.maxWeightAdd", 4.0);
+        call(formulas, "set", second, "capacity.maxWeightAdd", 2.0);
+        check(player.getMaxWeight() == 26 && other.getMaxWeight() == 20 && player.inventory.getMaxWeight() == 26f,
+            "The most carried was not added to for the local player alone: " + player.getMaxWeight());
+        call(second, "clear");
+        call(mod, "clear");
+        check(player.getMaxWeight() == 20, "The most carried stayed added to");
+
+        // What a container holds: the game's trait multiplier first, the formula's after it; not a corpse, the floor, a
+        // character's inventory or a bag.
+        var crate = new ItemContainer(new IsoObject(null));
+        crate.capacity = 60;
+        var body = new ItemContainer(new IsoDeadBody());
+        body.capacity = 60;
+        var floor = new ItemContainer(new IsoObject(null));
+        floor.capacity = 60;
+        floor.type = "floor";
+        var bag = new InventoryContainer("Bag", 1f, 30);
+        check(crate.getEffectiveCapacity(player) == 60, "A container's capacity is not the game's");
+        call(formulas, "set", mod, "capacity.effectiveMultiplier", 1.5);
+        call(formulas, "set", second, "capacity.effectiveMultiplier", 1.2);
+        check(crate.getEffectiveCapacity(player) == 108 && crate.getEffectiveCapacity(other) == 60 && crate.getEffectiveCapacity(null) == 60,
+            "A container's capacity was not multiplied for the local player alone: " + crate.getEffectiveCapacity(player));
+        check(body.getEffectiveCapacity(player) == 60 && floor.getEffectiveCapacity(player) == 60
+            && player.inventory.getEffectiveCapacity(player) == 50 && bag.getInventory().getEffectiveCapacity(player) == 30,
+            "The capacity of a corpse, the floor, a character or a bag was multiplied");
+        player.organized = true;
+        check(crate.getEffectiveCapacity(player) == 140, "The trait multiplier and the formula: " + crate.getEffectiveCapacity(player));
+        player.organized = false;
+        call(second, "clear");
+        call(mod, "clear");
+        check(crate.getEffectiveCapacity(player) == 60, "The capacity stayed multiplied");
+
+        // The character's own inventory limit.
+        call(formulas, "set", mod, "capacity.characterLimitAdd", 18.0);
+        check(player.inventory.getEffectiveCapacity(player) == 68 && other.inventory.getEffectiveCapacity(other) == 50
+            && crate.getEffectiveCapacity(player) == 60, "The limit of the character's inventory: " + player.inventory.getEffectiveCapacity(player));
+        call(mod, "clear");
+
+        // The game's limits are 100 for a container, 50 for an item's, 1000 for a vehicle part's. A container that declares a key
+        // in the modData of what holds it is not held to them; any other is.
+        crate.capacity = 300;
+        var other_crate = new ItemContainer(new IsoObject(null));
+        other_crate.capacity = 300;
+        var trunk = new ItemContainer(null);
+        trunk.capacity = 1500;
+        var part = new VehiclePart();
+        trunk.vehiclePart = part;
+        var seat = new ItemContainer(null);
+        seat.capacity = 800;
+        seat.vehicleSeat = true;
+        seat.seatOccupied = true;
+        var seatPart = new VehiclePart();
+        seat.vehiclePart = seatPart;
+        var kit = new InventoryContainer("Bag", 1f, 60);
+        var plain = new InventoryContainer("Bag", 1f, 60);
+        check(crate.getCapacity() == 100 && trunk.getCapacity() == 1000 && kit.getInventory().getCapacity() == 50 && kit.getCapacity() == 49
+            && seat.getCapacity() == 200, "The game's limits are not the game's");
+        call(formulas, "set", mod, "capacity.modDataKey", "OA_CapacityAdd");
+        check(crate.getCapacity() == 100 && trunk.getCapacity() == 1000 && kit.getCapacity() == 49, "A key nobody declares in changed a capacity");
+        crate.parent.getModData().rawset("OA_CapacityAdd", 0.0);
+        part.getModData().rawset("OA_CapacityAdd", 250.0);
+        kit.getModData().rawset("OA_CapacityAdd", 20.0);
+        seatPart.getModData().rawset("OA_CapacityAdd", 25.0);
+        check(crate.getCapacity() == 300 && other_crate.getCapacity() == 100, "A container that declares was not lifted, or another was");
+        check(crate.getEffectiveCapacity(player) == 300, "The effective capacity of a lifted container: " + crate.getEffectiveCapacity(player));
+        check(trunk.getCapacity() == 1750 && seat.getCapacity() == 225, "A vehicle part's key: " + trunk.getCapacity() + ", " + seat.getCapacity());
+        // A bag that declares is lifted past its own clamp (50 less its weight) too.
+        check(kit.getInventory().getCapacity() == 80 && kit.getCapacity() == 80 && kit.getEffectiveCapacity(player) == 80
+            && plain.getCapacity() == 49 && plain.getEffectiveCapacity(player) == 49, "A bag's kit: " + kit.getCapacity());
+        // A second mod's key joins the first's; a key without a number is not a declaration.
+        call(formulas, "set", second, "capacity.modDataKey", list("OA_Other", "OA_CapacityAdd"));
+        other_crate.parent.getModData().rawset("OA_Other", "yes");
+        check(other_crate.getCapacity() == 100, "A key that is not a number lifted a container");
+        other_crate.parent.getModData().rawset("OA_Other", 5.0);
+        check(other_crate.getCapacity() == 305, "A second mod's key did not lift: " + other_crate.getCapacity());
+        check(((KahluaTable)call(formulas, "get", "capacity.modDataKey").get(0)).len() == 2, "The keys of two mods did not join");
+        call(mod, "clear");
+        call(second, "clear");
+        check(crate.getCapacity() == 100 && kit.getCapacity() == 49 && trunk.getCapacity() == 1000, "The capacity stayed lifted");
+        rejects(formulas, "set", "must be a string or a list of strings", mod, "capacity.modDataKey", 1.0);
+    }
+
+    /** How heavily a character is loaded, as the moodle, the path speed and the fall damage ask it. */
+    private static void loads(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
+        Object mod = call(api, "client", "overload.mod").get(0);
+        var moodle = new Moodle(player);
+        var otherMoodle = new Moodle(other);
+        player.inventory.items.clear();
+        other.inventory.items.clear();
+        put(player, item("Tool", 30f));
+        put(other, item("Tool", 30f));
+        player.heavyLoad = 1;
+        moodle.Update();
+        player.landing();
+        check(near(moodle.ratio, 1.5) && near(player.getPathSpeed(), 0.825) && near(player.landing[0], 1.5) && near(player.landing[1], 30),
+            "The game's load: " + moodle.ratio);
+        call(formulas, "set", mod, "overload.compress", 0.6);
+        // 20 + (30 - 20) x 0.4 = 24, in the moodle, the path speed and the questions of the fall.
+        moodle.Update();
+        otherMoodle.Update();
+        player.landing();
+        check(near(moodle.ratio, 1.2) && near(otherMoodle.ratio, 1.5), "The moodle's load was not compressed for the local player alone: " + moodle.ratio);
+        check(near(player.getPathSpeed(), 0.65 + 0.35 * 0.8), "The path speed's load: " + player.getPathSpeed());
+        check(near(player.landing[0], 1.2) && near(player.landing[1], 24), "The fall's load: " + player.landing[0] + ", " + player.landing[1]);
+        // Within the most there is nothing to compress; and the most is the one the character has now.
+        player.inventory.items.clear();
+        put(player, item("Tool", 15f));
+        moodle.Update();
+        check(near(moodle.ratio, 0.75), "A load within the most was compressed: " + moodle.ratio);
+        call(formulas, "set", mod, "capacity.maxWeightAdd", 5.0);
+        player.inventory.items.clear();
+        put(player, item("Tool", 30f));
+        moodle.Update();
+        check(near(moodle.ratio, (25 + 5 * 0.4) / 25), "The most carried added to is not the most compressed from: " + moodle.ratio);
+        call(mod, "clear");
+        moodle.Update();
+        check(near(moodle.ratio, 1.5), "The load stayed compressed");
+        rejects(formulas, "set", "overload.compress must be a number from 0.0 to 1.0", mod, "overload.compress", 1.5);
+        player.heavyLoad = 0;
+        player.inventory.items.clear();
+        other.inventory.items.clear();
+    }
+
+    /** What equipment takes off the speeds: the part of a penalty a formula takes away, and no bonus. */
+    private static void speeds(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) {
+        Object mod = call(api, "client", "speed.mod").get(0), second = call(api, "client", "speed.second").get(0);
+        player.bagsRunModifier = other.bagsRunModifier = 0.8f;
+        check(near(player.calculateBaseSpeed(), 0.8 * 0.9), "The game's speed");
+        call(formulas, "set", mod, "move.runPenaltyReduction", 0.5);
+        check(near(player.calculateBaseSpeed(), 0.8 * 0.95) && near(player.fullSpeedMod(), 0.9) && near(other.calculateBaseSpeed(), 0.8 * 0.9),
+            "A penalty was not halved for the local player alone: " + player.calculateBaseSpeed());
+        // Two reductions: what is left of the penalty multiplies, 0.5 x 0.5.
+        call(formulas, "set", second, "move.runPenaltyReduction", 0.5);
+        check(near(player.calculateBaseSpeed(), 0.8 * 0.975) && near(player.fullSpeedMod(), 0.95), "Two reductions: " + player.calculateBaseSpeed());
+        check(near((Double)call(formulas, "get", "move.runPenaltyReduction").get(0), 0.75), "Two reductions combine as "
+            + call(formulas, "get", "move.runPenaltyReduction").get(0));
+        call(second, "clear");
+        player.bagsRunModifier = 1.2f;
+        check(near(player.calculateBaseSpeed(), 0.8 * 0.9), "A bonus was reduced: " + player.calculateBaseSpeed());
+        call(mod, "clear");
+
+        player.setCombatSpeedModifier(0.9f);
+        other.setCombatSpeedModifier(0.9f);
+        check(near(player.calculateCombatSpeed(), 0.9), "The game's combat speed");
+        call(formulas, "set", mod, "move.combatPenaltyReduction", 0.5);
+        check(near(player.calculateCombatSpeed(), 0.95) && near(other.calculateCombatSpeed(), 0.9), "The combat penalty was not halved for the local player alone");
+        player.setCombatSpeedModifier(1.2f);
+        check(near(player.calculateCombatSpeed(), 1.2), "A combat bonus was reduced");
+        call(mod, "clear");
+        player.setCombatSpeedModifier(1f);
+        other.setCombatSpeedModifier(1f);
+        player.bagsRunModifier = other.bagsRunModifier = 1f;
+    }
+
+    /** A point whose hook is missing says so, and the other hooks of the class stay. */
+    private static void partial(KahluaTable formulas) throws Exception {
+        Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
+        transform.setAccessible(true);
+        ClassLoader game = FormulasTest.class.getClassLoader();
+        String container = "zombie/inventory/ItemContainer";
+        byte[] own;
+        try (var input = game.getResourceAsStream(container + ".class")) { own = input.readAllBytes(); }
+        var files = ClassFile.of();
+        byte[] without = files.transformClass(files.parse(own), ClassTransform.dropping(element ->
+            element instanceof MethodModel method && method.methodName().equalsString("hasRoomFor")
+                && method.methodType().stringValue().equals("(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/InventoryItem;)Z")));
+        check(transform.invoke(null, container, without, game) != null, "The container's other hooks were lost with one");
+        var points = (KahluaTable)call(formulas, "points").get(0);
+        check(points.rawget("carry.categoryEfficiency") instanceof String text && text.startsWith("partial: ItemContainer.hasRoomFor: expected one hasRoomFor"),
+            "A point with one hook missing is " + points.rawget("carry.categoryEfficiency"));
+        check(ApiHooks.APPLIED.equals(points.rawget("capacity.characterLimitAdd")), "A point of another hook of the class: " + points.rawget("capacity.characterLimitAdd"));
+        transform.invoke(null, container, own, game);
+        points = (KahluaTable)call(formulas, "points").get(0);
+        check(ApiHooks.APPLIED.equals(points.rawget("carry.categoryEfficiency")), "The point did not come back: " + points.rawget("carry.categoryEfficiency"));
     }
 
     /** A hook that cannot answer gives the game's answer, and the API keeps running. */
