@@ -37,13 +37,14 @@ end
 -- What the network does with one device of a panel: "exclude", "include" or "reset" (the building's rule). A
 -- device of the building is connected unless the player excluded it; one outside only when this panel connected it
 -- (it is in included; any other the panel names is of its building); either is off while the box sheds it, keeps it
--- off for its bank, has it off for a blackout or its timer has it off.
+-- off for its bank, has it off for a blackout or its timer has it off. A power device outside is off too while the
+-- game's AllowExteriorGenerator is off (BU.exteriorPower).
 function Networks.rule(panel, utility, key)
     local data = panel[utility]
     local off = data.shed and data.shed[key] or data.saving and data.saving[key] or data.blackout and data.blackout[key]
         or data.timed and data.timed[key]
     if not data.included[key] then return (data.excluded[key] or off) and "exclude" or "reset" end
-    return off and "exclude" or "include"
+    return (off or utility == "power" and not BU.exteriorPower()) and "exclude" or "include"
 end
 
 local function applyRule(id, rule, key)

@@ -691,6 +691,10 @@ function ISBUPanelWindow:preview(device)
     return text
 end
 
+-- What a device the box keeps off says, by why (Panels.devices' held).
+local HELD_TEXT = { shed = "IGUI_BU_HeldShed", saving = "IGUI_BU_HeldSaving", blackout = "IGUI_BU_HeldBlackout",
+    timer = "IGUI_BU_HeldTimer", exterior = "IGUI_BU_HeldExterior" }
+
 -- What a device does now, in words, for its row and the plan.
 function ISBUPanelWindow:deviceStatus(utility, device)
     local text, dim = "", false
@@ -704,8 +708,7 @@ function ISBUPanelWindow:deviceStatus(utility, device)
         if device.state ~= "on" then
             text, dim = power > 0 and string.format("%.3f", power) or "", true
         elseif device.held then
-            text = getText(device.held == "shed" and "IGUI_BU_HeldShed" or device.held == "saving" and "IGUI_BU_HeldSaving"
-                or device.held == "blackout" and "IGUI_BU_HeldBlackout" or "IGUI_BU_HeldTimer")
+            text = getText(HELD_TEXT[device.held])
         elseif power > 0 then
             text = string.format("%.3f", power) .. " (" .. percent(power, self.capacity) .. ")"
         else

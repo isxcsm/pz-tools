@@ -24,6 +24,10 @@ function ISBUPanelWindow:costShort(cost)
 end
 
 function ISBUPanelWindow:setChoosing(utility, on)
+    if on and utility == "power" and not BU.exteriorPower() then
+        HaloTextHelper.addBadText(self.playerObj, getText("IGUI_BU_Reason_exteriorOff"))
+        return
+    end
     self.choosing[utility] = on or nil
     if not on then self.chosen[utility] = {} end
     self:refill(utility)

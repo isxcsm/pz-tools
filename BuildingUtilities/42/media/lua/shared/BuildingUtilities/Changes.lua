@@ -756,27 +756,34 @@ function Changes.applyFeatures(defined)
 end
 
 -- The sandbox's values that shape where things reach and which floors water reaches (FloorReach and RangePerTier for
--- the zones' floors, WaterFromAboveOnly for the tanks' floors), as the world was last brought to them; nil before it
--- started.
+-- the zones' floors, WaterFromAboveOnly for the tanks' floors), and whether generators power things outside (the game's
+-- AllowExteriorGenerator), as the world was last brought to them; nil before it started.
 local appliedShape = nil
 
 -- Brings the world to those values once the sandbox changed them in play: each box's zone kept to the floors it
 -- reaches now (Changes.fitZones), each main panel's water networks to the floors its tanks reach now, the devices whose
--- network changed with them (Networks.floorsChanged). Checked each minute, a text compared. The world's start, which
--- fits the zones and defines the networks as the values are, only takes them as applied (defined). Returns whether
--- they changed.
+-- network changed with them (Networks.floorsChanged), the power devices connected outside given or refused power
+-- (Networks.rule). Checked each minute, a text compared. The world's start, which fits the zones and defines
+-- the networks as the values are, only takes them as applied (defined). Returns whether they changed.
 function Changes.applyShape(defined)
     local key = BU.sandbox("FloorReach", 2) .. "/" .. BU.sandbox("RangePerTier", 50) .. "/" .. tostring(Water.aboveOnly())
+        .. "/" .. tostring(BU.exteriorPower())
     if key == appliedShape then return false end
     appliedShape = key
     if defined then return false end
-    BU.log("reach and water floors now:", key)
+    BU.log("reach, water floors and outside power now:", key)
     Changes.fitZones()
     if BU.enabled("water") then
         for _, panel in ipairs(Store.list()) do
             if not panel.parent then Networks.floorsChanged(panel) end
         end
     end
+    if BU.enabled("power") then
+        for _, panel in ipairs(Store.list()) do
+            for thing in pairs(panel.power.included) do Networks.apply(panel, "power", thing) end
+        end
+    end
+    Sync.changed(nil)
     return true
 end
 

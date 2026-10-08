@@ -992,5 +992,7 @@
     "IGUI_BU_Booster_noWater": "waiting: no water reaches its floor",
     "IGUI_BU_Why_Boosted": "water reaches %1 through booster pumps",
     "IGUI_BU_FloorWater_boosted": "water from a booster pump",
-    "IGUI_BU_FloorWater_dry": "no water reaches it"
+    "IGUI_BU_FloorWater_dry": "no water reaches it",
+    "IGUI_BU_Reason_exteriorOff": "The sandbox option 'Generator Working in Exterior' is off: generators power nothing outdoors.",
+    "IGUI_BU_HeldExterior": "off (no power outdoors)"
 }

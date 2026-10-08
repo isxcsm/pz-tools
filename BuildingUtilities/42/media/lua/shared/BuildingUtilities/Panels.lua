@@ -433,8 +433,9 @@ end
 -- covers several squares is one device, as the API switches it whole: its entry is that of its listed part with the
 -- smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice), and for power: essential,
--- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off, or nil). A
--- utility that is off (BU.enabled) has none.
+-- schedule (BU.SCHEDULES) and held ("shed", "saving", "blackout" or "timer" while the box keeps it off; "exterior"
+-- for one outside while the game keeps generators from powering things outside, BU.exteriorPower; or nil). A utility
+-- that is off (BU.enabled) has none.
 local function anyKey(set, keys)
     for _, key in ipairs(keys) do
         if set[key] then return set[key] end
@@ -501,8 +502,9 @@ function Panels.devices(panel, utility)
         if utility == "power" and device.state == "on" then
             device.essential = data.essential[device.key] == true
             device.schedule = data.schedule[device.key] or "always"
-            device.held = data.shed[device.key] and "shed" or data.saving[device.key] and "saving"
-                or data.blackout[device.key] and "blackout" or data.timed[device.key] and "timer" or nil
+            device.held = not device.inside and not BU.exteriorPower() and "exterior" or data.shed[device.key] and "shed"
+                or data.saving[device.key] and "saving" or data.blackout[device.key] and "blackout"
+                or data.timed[device.key] and "timer" or nil
         end
         result[#result + 1] = device
     end

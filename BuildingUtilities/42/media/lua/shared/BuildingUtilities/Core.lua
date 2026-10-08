@@ -120,6 +120,11 @@ function BU.sandbox(name, default)
     return value
 end
 
+-- Whether generators power things outside: the game's own AllowExteriorGenerator (on by default; a value this world
+-- lacks counts as on). The API leaves it to the mod for a device it adds on its own, so a box gives no power to the
+-- devices it connected outside while the option is off, and connects no more.
+function BU.exteriorPower() return not (SandboxVars and SandboxVars.AllowExteriorGenerator == false) end
+
 -- What the sandbox's features page (Sandbox_BuildingUtilitiesFeatures) turns off, each on by default: by name, its
 -- option and the features it needs. The unit kinds go by their names (BU.Units.KINDS); the box itself ("panel") is on
 -- while either utility is. A feature that is off cannot be made or put down, its menus, tabs and rows are hidden, and

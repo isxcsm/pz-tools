@@ -58,6 +58,7 @@ function Actions.outsideCost(panel, utility, device)
     if not device or device.inside then return nil, "noDevice" end
     if device.state == "other" then return nil, "connectedElsewhere" end
     if device.state == "on" then return nil, "connected" end
+    if utility == "power" and not BU.exteriorPower() then return nil, "exteriorOff" end
     return Costs.outside(utility, Panels.wire(panel, device.entry.x, device.entry.y, device.entry.z)), device
 end
 
