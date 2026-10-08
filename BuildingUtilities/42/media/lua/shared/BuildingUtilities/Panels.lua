@@ -200,7 +200,8 @@ end
 
 -- A building's rooms as plain tables: { id, name, level, rects = { { x, y, w, h } } }, kept a second: windows and the
 -- water layout ask for them often. The rooms built onto the building (Panels.attached) are rectangles added to the
--- room each touches most, after the room's own, so that the first is always a square of the map's room.
+-- room each touches most, after the room's own (own: how many), so that the first is always a square of the map's
+-- room, and the box's name is still that of the largest room of the map.
 local roomsCache = {}
 function Panels.rooms(building)
     if not building then return {} end
@@ -223,6 +224,7 @@ function Panels.rooms(building)
     for _, space in ipairs(attachedFor(building, result) or {}) do
         for _, room in ipairs(result) do
             if room.id == space.host then
+                room.own = room.own or #room.rects
                 for _, rect in ipairs(space.rects) do
                     room.rects[#room.rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h }
                 end
@@ -1045,7 +1047,10 @@ function Panels.autoName(panel)
     local best, area = nil, 0
     for _, room in ipairs(Panels.rooms(building)) do
         local size = 0
-        for _, rect in ipairs(room.rects) do size = size + rect.w * rect.h end
+        for index = 1, room.own or #room.rects do
+            local rect = room.rects[index]
+            size = size + rect.w * rect.h
+        end
         if room.name and room.name ~= "" and size > area then best, area = room.name, size end
     end
     local name = best and getText("IGUI_BU_PanelOf", BU.roomName(best)) or getText("IGUI_BU_PanelDefault")
