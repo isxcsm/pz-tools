@@ -82,7 +82,7 @@ function Heli.call(character, record, kind, x, y)
     call.orders = Trade.copy(Orders.cart(record))
     Trade.orders(record).cart = {}
     Rules.startCall(heli, now, arrive, rewards.callInterval, call)
-    Trade.radio(record, kind == "reissue" and "IGUI_OA_Trade_Radio_ReissueCalled" or "IGUI_OA_Trade_Radio_Called", { math.floor(delay + 0.5) })
+    Trade.radio(record, kind == "reissue" and "IGUI_OA_Trade_Radio_ReissueCalled" or "IGUI_OA_Trade_Radio_Called")
     changed(record)
     return true
 end
@@ -251,12 +251,12 @@ function Heli.arrive(record)
     heli.last = { at = OA.hours(), receipt = plan.receipt.id, kind = call.kind }
     for _, e in ipairs(plan.events) do
         if e.kind == "stage" then
-            Trade.radio(record, "IGUI_OA_Trade_Radio_NewItems", { e.n })
-            OA.Sync.notice(record.id, "IGUI_OA_Trade_Notice_NewItems", { e.n })
+            Trade.radio(record, "IGUI_OA_Trade_Radio_NewItems")
+            OA.Sync.notice(record.id, "IGUI_OA_Trade_Notice_NewItems")
         end
     end
     if record.trade.credits < 0 then
-        Trade.radio(record, "IGUI_OA_Trade_Radio_Debt", { -record.trade.credits })
+        Trade.radio(record, "IGUI_OA_Trade_Radio_Debt")
     end
     Heli.deliver(record, plan, call)
     Heli.refreshBoxes(record)

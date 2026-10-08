@@ -86,7 +86,7 @@ function Orders.shopService(record)
                 most[line] = { n = n or 0, why = why }
             end
             local m = most[line]
-            if m and (delivered or 0) >= m.n then return false, m.why or "IGUI_OA_Econ_Shop_Limit" end
+            if m and (delivered or 0) >= m.n then return false, m.why or "limit" end
             return true
         end,
         price = function(entry, line)

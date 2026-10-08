@@ -1,2 +1,7 @@
 {
+    "OperationAcorn.CommTerminal": "Communication Terminal",
+    "OperationAcorn.DeliveryBox": "Delivery Box",
+    "OperationAcorn.SupplyCrate": "Supply Crate",
+    "OperationAcorn.TerminalManual": "Terminal Booklet",
+    "OperationAcorn.SupplyManifest": "Supply Manifest"
 }

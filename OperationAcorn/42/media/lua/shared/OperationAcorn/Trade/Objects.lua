@@ -255,11 +255,11 @@ function Objects.setupBox(object, record)
         object:setContainer(container)
     end
     Objects.nameContainer(container, Objects.BOX_CONTAINER)
-    -- What the rewards give is kept on the object; the container holds up to the vanilla cap of 100 until the extension
-    -- API lifts it (then only this line changes).
+    -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity = true
+    -- (the upgrades part declares that key); without it the game cuts the capacity to 100 and the box simply holds 100.
     local capacity = Objects.capacityFor(record)
-    object:getModData().OA_Capacity = capacity
-    container:setCapacity(math.min(capacity, 100))
+    object:getModData().OA_Capacity = true
+    container:setCapacity(capacity)
     if container:getAcceptItemFunction() ~= Objects.ACCEPT then container:setAcceptItemFunction(Objects.ACCEPT) end
     return container
 end

@@ -327,7 +327,6 @@ function Things.bulkLoad(character, boxObject)
     for _, move in ipairs(plan.moves) do
         local from, item = move.from, move.item
         if from:contains(item) then
-            if OA.Value.stampCell then pcall(OA.Value.stampCell, item, character) end
             from:DoRemoveItem(item)
             sendRemoveItemFromContainer(from, item)
             box:AddItem(item)

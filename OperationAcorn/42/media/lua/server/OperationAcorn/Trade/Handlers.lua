@@ -56,9 +56,16 @@ Server.on("tradeCall", function(character, record, args)
     if not ok then refuse(record, reason) end
 end)
 
--- A player opened what the helicopter left: its mark is looked at at once.
-Server.on("tradeOpened", function(character, record, args)
-    Trade.Markers.check(record)
+-- The first time a terminal is used the team answers (LORE: the first radio line says the number once more). A world
+-- where the first supply did not come with the vanilla helicopter gets the late line.
+Server.on("tradeUsed", function(character, record, args)
+    local object = Handlers.terminalFor(character, args)
+    if not object then return end
+    local heli = Trade.heli(record)
+    if heli.greeted then return end
+    heli.greeted = true
+    local late = record.first ~= nil and record.first.mode ~= "window"
+    Trade.radio(record, late and "IGUI_OA_Trade_Radio_Late" or "IGUI_OA_Trade_Radio_Start", { string.format("%04d", record.number or 0) })
 end)
 
 -- The ten-minute work. A failing part does not stop the others.

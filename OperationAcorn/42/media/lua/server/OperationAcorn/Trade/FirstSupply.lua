@@ -65,7 +65,6 @@ function FirstSupply.check()
                     OA.log("first supply failed:", tostring(done))
                 elseif done then
                     plan.done = true
-                    Trade.radio(record, plan.mode == "late" and "IGUI_OA_Trade_Radio_FirstLate" or "IGUI_OA_Trade_Radio_First")
                     OA.Sync.notice(record.id, "IGUI_OA_Trade_Notice_First")
                 end
             end

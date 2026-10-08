@@ -57,7 +57,7 @@ ISOAPlaceThing = base("ISOAPlaceThing", 150)
 function ISOAPlaceThing:isValid()
     local square = squareOf(self)
     if not square or not self.character:getInventory():contains(self.item) then return false end
-    if self.kind == Objects.DELIVERY_BOX then return Objects.clearSquare(square, 0) end
+    if self.kind == Objects.DELIVERY_BOX then return Objects.clearSquare(square) end
     return Objects.free(square)
 end
 
@@ -152,8 +152,14 @@ end
 function ISOASeal:complete()
     local object = Objects.find(squareOf(self), Objects.DELIVERY_BOX)
     if not object then return false end
-    local ok, why = Things.seal(self.character, recordOf(self.character), object)
-    if not ok then refuse(self.character, why) end
+    local ok, why, entries = Things.seal(self.character, recordOf(self.character), object)
+    if not ok then
+        refuse(self.character, why)
+    else
+        local count = 0
+        for _, e in ipairs(entries) do count = count + e.count end
+        OA.Sync.notice(OA.Store.idOf(self.character), "IGUI_OA_Trade_Notice_Sealed", { count })
+    end
     return true
 end
 

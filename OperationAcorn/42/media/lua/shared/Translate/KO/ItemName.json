@@ -1,2 +1,7 @@
 {
+    "OperationAcorn.CommTerminal": "통신 단말",
+    "OperationAcorn.DeliveryBox": "납품 상자",
+    "OperationAcorn.SupplyCrate": "보급 상자",
+    "OperationAcorn.TerminalManual": "단말 조립 책자",
+    "OperationAcorn.SupplyManifest": "보급 명세서"
 }
