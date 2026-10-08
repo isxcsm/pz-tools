@@ -306,6 +306,9 @@ function Objects.makeItem(spec)
             fluidContainer:Empty()
             fluidContainer:addFluid(fluid, spec.amount or fluidContainer:getCapacity())
         end
+    elseif spec.empty then
+        local fluidContainer = item:getFluidContainer()
+        if fluidContainer then fluidContainer:Empty() end
     end
     return item
 end

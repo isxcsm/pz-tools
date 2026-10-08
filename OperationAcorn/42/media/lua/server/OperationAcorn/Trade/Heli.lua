@@ -105,7 +105,6 @@ function Heli.services(record)
         end,
         shop = Orders.shopService(record),
         rnd = function(a, b) return OA.random(a, b) end,
-        sharedEvery = OA.option("SharedSerumMilestones") or 1,
         onStage = function(r, stage)
             if OA.Story and OA.Story.onStage then OA.Story.onStage(r, stage) end
         end,

@@ -25,7 +25,6 @@ local function services(options)
     svc = {
         now = options.now or 100,
         day = options.day or 4,
-        sharedEvery = options.every or 1,
         settled = {},
         settle = function(record, entries)
             svc.settled[#svc.settled + 1] = entries
@@ -34,6 +33,7 @@ local function services(options)
         end,
         trustAdd = function(record, amount)
             record.trade.trust = (record.trade.trust or 0) + amount
+            record.trade.sharedSerums = (record.trade.sharedSerums or 0) + (options.serums or 0)
             return options.events or {}
         end,
         rnd = function(a, b) return options.roll or b end,
@@ -166,7 +166,7 @@ test("stage events bring shared serums into the crate and tell the story", funct
     seal(record, 10, nil, true)
     Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
     local stages = {}
-    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { 1, 2, { milestone = 1 } },
+    local plan = Settle.run(record, services({ credits = 100, trust = 800, events = { 1, 2, { milestone = 1 } }, serums = 2,
         onStage = function(r, n) stages[#stages + 1] = n end }))
     eq(#plan.events, 3)
     eq(stages[1], 1)

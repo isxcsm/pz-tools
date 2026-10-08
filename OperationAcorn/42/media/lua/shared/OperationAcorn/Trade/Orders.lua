@@ -2,12 +2,12 @@
 -- P1's (OA.Shop); this keeps the cart, finds an entry by the id a cart line carries and turns an entry into the
 -- item specs one unit brings.
 --
--- record.orders = { cart = { { id, count, target } } }
+-- record.orders = { cart = { { id, count, target, choice } } }
 --
--- What this reads of a catalog entry (OA.Shop.catalog()): `id`; `items` (a list of { type, count, ... item specs}) or
--- `type` (a full type name) and `count`; for the price `tree` (an upgrade serum: OA.Shop.serumPrice) or `kit` (a
--- modification kit: OA.Shop.kitPrice with the line's target), else OA.Shop.price(entry, record); the name from
--- `name` or `nameKey` or the item's own.
+-- What this reads of a catalog entry (OA.Shop.catalog()): `id`, `special` ("kit" with `kit`, "serum" with `tree`,
+-- "reissue", "cure", "delay"), `group`; the goods as `give` (a list of { type, count, full, fluid, empty }) or as
+-- `choices` (a list of the same, the player picks one: the line's `choice` is the picked type); the name from
+-- OA.Shop.nameKey. Prices and availability: OA.Shop.price, serumPrice, kitPrice, available (how many, why not, when).
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
 local OA = OperationAcorn
@@ -47,33 +47,51 @@ end
 function Orders.nameOf(entry)
     if not entry then return "?" end
     if entry.name then return entry.name end
+    if OA.Shop and OA.Shop.nameKey then return getText(OA.Shop.nameKey(entry)) end
     if entry.nameKey then return getText(entry.nameKey) end
-    local fullType = entry.type or (entry.items and entry.items[1] and entry.items[1].type)
-    if fullType then return getItemNameFromFullType(fullType) end
     return tostring(entry.id or "?")
 end
 
--- Whether an answer from the shop is a yes: true, or a table/other non-false with no reason. P1's `available` gives
--- true, or false and a reason key.
-local function yes(ok, why)
-    if ok == true then return true end
-    if ok == nil or ok == false then return false, why end
-    if type(ok) == "string" then return false, ok end
-    return true
+-- The things an entry can deliver to pick from: its `choices` (P1 finds the seeds when asked), else none.
+function Orders.choicesOf(entry)
+    if not entry.choices then return nil end
+    if OA.Shop and OA.Shop.choices then return OA.Shop.choices(entry) end
+    if type(entry.choices) == "table" then return entry.choices end
+    return nil
 end
 
--- The shop services Rules.payOrders needs, over OA.Shop.
+-- The picked one of an entry's choices by its type, or the first when the line picked none (or a type that is not
+-- offered).
+local function picked(entry, line)
+    local choices = Orders.choicesOf(entry)
+    if not choices or #choices == 0 then return nil end
+    for _, g in ipairs(choices) do
+        if line and g.type == line.choice then return g end
+    end
+    return choices[1]
+end
+
+-- The shop services Rules.payOrders needs, over OA.Shop. P1's `available` answers how many a record may buy at once
+-- (0 with a reason) from the weekly count and intervals, so it is asked once for a line and the line's units are
+-- counted against it; `bought` records each unit as it is delivered.
 function Orders.shopService(record)
     local Shop = OA.Shop
+    local most = {}
     return {
         entry = function(line) return Orders.entry(line.id) end,
-        available = function(entry)
+        available = function(entry, line, delivered)
             if not (Shop and Shop.available) then return true end
-            return yes(Shop.available(entry, record))
+            if (delivered or 0) == 0 then
+                local n, why = Shop.available(entry, record)
+                most[line] = { n = n or 0, why = why }
+            end
+            local m = most[line]
+            if m and (delivered or 0) >= m.n then return false, m.why or "IGUI_OA_Econ_Shop_Limit" end
+            return true
         end,
         price = function(entry, line)
-            if entry.kit and Shop.kitPrice then return Shop.kitPrice(entry.kit, line.target, record) end
-            if entry.tree and Shop.serumPrice then return Shop.serumPrice(entry.tree, record) end
+            if entry.special == "kit" and Shop.kitPrice then return Shop.kitPrice(entry.kit, line.target or "", record) end
+            if entry.special == "serum" and Shop.serumPrice then return Shop.serumPrice(entry.tree, record) end
             return Shop.price(entry, record)
         end,
         bought = function(entry, line)
@@ -85,29 +103,29 @@ function Orders.shopService(record)
     }
 end
 
+-- One goods table of P1's ({ type, count, full, fluid, empty }) as a drop spec (Trade.dropSpec's fields).
+local function spec(g, entry, line)
+    local s = Trade.dropSpec({ type = g.type, count = g.count, fluid = g.fluid, empty = g.empty })
+    if s and line and line.target and entry.special == "kit" then
+        s.mod = s.mod or {}
+        s.mod.OA_Target = line.target
+    end
+    return s
+end
+
 -- The item specs one unit of an entry brings (a kit carries its target in the item's modData).
 function Orders.itemSpecs(entry, line)
     local specs = {}
-    local function add(src)
-        local spec = Trade.dropSpec(src)
-        if not spec then return end
-        if line and line.target and entry.kit then
-            spec.mod = spec.mod or {}
-            spec.mod.OA_Target = line.target
-        end
-        specs[#specs + 1] = spec
-    end
-    if entry.items then
-        for _, src in ipairs(entry.items) do add(src) end
-    elseif entry.type or entry.fullType then
-        add({ type = entry.type or entry.fullType, count = entry.count, mod = entry.mod, condition = entry.condition,
-            used = entry.used, fluid = entry.fluid, amount = entry.amount })
+    local goods = entry.give or { picked(entry, line) }
+    for _, g in ipairs(goods) do
+        local s = spec(g, entry, line)
+        if s then specs[#specs + 1] = s end
     end
     return specs
 end
 
 -- Replaces the cart with the lines given, keeping the valid ones: a known entry, a whole count of 1 to the limit,
--- no more lines than the limit, a repeated entry (same id and target) merged. Returns the cart.
+-- no more lines than the limit, a repeated entry (same id, target and choice) merged. Returns the cart.
 function Orders.set(record, lines)
     local cart = {}
     local seen = {}
@@ -115,15 +133,19 @@ function Orders.set(record, lines)
         if #cart >= Orders.MAX_LINES then break end
         local id = line.id
         local count = math.floor(tonumber(line.count) or 0)
-        if type(id) == "string" and count >= 1 and Orders.entry(id) then
+        local entry = type(id) == "string" and Orders.entry(id) or nil
+        if entry and count >= 1 then
             count = math.min(count, Orders.MAX_COUNT)
             local target = type(line.target) == "string" and line.target or nil
-            local key = id .. "|" .. (target or "")
+            local choice
+            local pick = picked(entry, line)
+            if pick then choice = pick.type end
+            local key = id .. "|" .. (target or "") .. "|" .. (choice or "")
             local at = seen[key]
             if at then
                 cart[at].count = math.min(Orders.MAX_COUNT, cart[at].count + count)
             else
-                cart[#cart + 1] = { id = id, count = count, target = target }
+                cart[#cart + 1] = { id = id, count = count, target = target, choice = choice }
                 seen[key] = #cart
             end
         end

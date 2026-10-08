@@ -183,13 +183,6 @@ test("stage events are read from the shapes OA.Trust.add may give", function()
     eq(#Rules.stageEvents(nil), 0)
 end)
 
-test("shared serums come from stages 2 to 5 and every nth milestone", function()
-    local events = Rules.stageEvents({ 1, 2, 3, { milestone = 1 }, { milestone = 2 } })
-    eq(Rules.sharedSerums(events, 1), 4, "stages 2 and 3, both milestones")
-    eq(Rules.sharedSerums(events, 2), 3, "only the second milestone")
-    eq(Rules.sharedSerums(Rules.stageEvents({ 5, 6 }), 1), 1, "stage 6 is not a stage with a serum")
-end)
-
 test("the first supply of a world with the vanilla helicopter", function()
     local function rnd(a, b) return a end
     -- Day 2: the vanilla window is on night 7, ending at 14.

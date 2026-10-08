@@ -81,7 +81,6 @@ Settle.receiptLines = receiptLines
 --   svc.trustAdd(record, trust)   OA.Trust.add: the stages and milestones passed
 --   svc.shop                      for Rules.payOrders
 --   svc.rnd(a, b)                 a whole number from a to b
---   svc.sharedEvery               the SharedSerumMilestones option
 --   svc.onStage(record, stage)    OA.Story.onStage, when it exists
 -- Returns the plan for the world: { receipt, removals = { { id, x, y, z } }, newBox, cargo = { specs }, spot,
 -- reissue }. The caller does the physical part and then clears the call.
@@ -105,13 +104,11 @@ function Settle.run(record, svc)
     local debtPaid
     account.credits, debtPaid = Rules.applyGain(account.credits, gain)
 
-    -- 2. Trust, and what passing a stage or a milestone brings.
+    -- 2. Trust, and what passing a stage or a milestone brings (OA.Trust.add puts the shared serums into the account).
     local events = {}
     if (result.trust or 0) > 0 then
         events = Rules.stageEvents(svc.trustAdd(record, result.trust))
     end
-    local serums = Rules.sharedSerums(events, svc.sharedEvery)
-    if serums > 0 then account.sharedSerums = (account.sharedSerums or 0) + serums end
     for _, e in ipairs(events) do
         if e.kind == "stage" and svc.onStage then svc.onStage(record, e.n) end
     end

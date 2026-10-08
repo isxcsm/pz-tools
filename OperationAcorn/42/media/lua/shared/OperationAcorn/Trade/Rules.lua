@@ -80,21 +80,6 @@ function Rules.stageEvents(list)
     return events
 end
 
--- Shared upgrade serums the events bring (NUMBERS 6): one for stage 2, 3, 4 and 5, then one for every
--- `every`th milestone. The first stage (1) brings none.
-function Rules.sharedSerums(events, every)
-    every = math.max(1, every or 1)
-    local count = 0
-    for _, e in ipairs(events) do
-        if e.kind == "stage" and e.n >= 2 and e.n <= 5 then
-            count = count + 1
-        elseif e.kind == "milestone" and OA.remainder(e.n, every) == 0 then
-            count = count + 1
-        end
-    end
-    return count
-end
-
 -- Orders paid in order. `lines` is the cart: { { id, count, target } }. `svc` answers for the game:
 --   svc.entry(line)                          the catalog entry, or nil
 --   svc.available(entry, line, delivered)    true, or false and a reason key
