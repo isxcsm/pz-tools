@@ -417,9 +417,11 @@ whose point has no declaration, gives the game's answer, and the API goes on.
 
 ### Points
 
-Values are plain numbers, tables and lists. "Multiply" means the values of several mods multiply; "reductions" combine as
-`1 - (1 - a)(1 - b)`, the part of a penalty that is left multiplying; "add" sums them (the whole-number points round
-the sum); in a table, each name combines on its own, and a list joins the lists of the mods without repeating a name.
+Values are plain numbers, booleans, tables and lists. "Multiply" means the values of several mods multiply; "reductions"
+combine as `1 - (1 - a)(1 - b)`, the part of a penalty that is left multiplying; "add" sums them (the whole-number points
+round the sum); a "chance" is a number from 0 to 1, the part of the events that happen, and chances multiply; a boolean
+joins as "any": true when any mod declares true; in a table, each name combines on its own, and a list joins the lists of
+the mods without repeating a name.
 A name the game registers (an item type such as `base:moveable`, an item tag such as `base:keyring`) that the game does
 not have is a Lua error at `set`.
 
@@ -440,6 +442,21 @@ not have is a Lua error at `set`.
 | `overload.compress` | 0 to 1, a reduction | reductions | The part of the excess over the most carried that does not count when the game asks how heavily the character is loaded: the load becomes `max + (load - max)(1 - r)`. It reaches the load moodle (`Moodle.Update`), the path speed (`IsoPlayer.getPathSpeed`) and the fall damage (`handleLandingImpact`), not what `hasRoomFor` checks. A load within the most is as it is. |
 | `move.runPenaltyReduction` | 0 to 1, a reduction | reductions | The part of the run penalty that equipment's total modifier (`fullSpeedMod`, stored by `calculateBaseSpeed`) takes away when it is below 1. A bonus is not reduced. |
 | `move.combatPenaltyReduction` | 0 to 1, a reduction | reductions | The same for the combat speed modifier read by `calculateCombatSpeed`. |
+| `move.walkMultiplier` | 0 to 100 | multiply | Times the movement the player's animation gives (`IsoPlayer.getDeferredMovement`, the distance walked, run or sprinted a frame), while the player is in the state of moving (`PlayerMovementState`: walking, running, sprinting, crouched) or strafing (`PlayerStrafeState`: moving while aiming). Climbing, vaulting, falling and the other states are not scaled. The blended `calculateWalkSpeed` is not used: it is capped. |
+| `move.treeSlowMultiplier` | 0 to 100 | multiply | Times how much walking through trees slows the player. `IsoTree.getSlowFactor` (the factor the player's walk and run speeds are multiplied by on a tree's square) becomes `1 - (1 - factor) x value`, so `0` takes the slowdown away and `2` doubles it; a factor of 1 or more (a ranger's or a lumberjack's bonus) is not changed. The animation of walking through trees (`IsoPlayer.calculateInTreesSpeed`, the speed scale of the `inTrees` animation) is divided by the value, by at most 2 (`Formulas.MAX_TREE_ANIMATION`) however small it is, since the slowdown the animation carries is not in the game's code to be worked out: this needs a check in the game. |
+| `move.treeScratchChance` | chance | multiply | The chance that walking through trees goes on to hurt: `IsoGameCharacter.damageWhileInTrees` runs only that part of the time (it also tears the clothes). |
+| `body.coldMultiplier` | 0 to 100 | multiply | Times how fast a cold is caught (`Thermoregulator.getCatchAColdDelta`, of the local player's thermoregulator). |
+| `body.corpseCountMultiplier` | 0 to 100 | multiply | Times the number of corpses the game counts around the local player (`CorpseCount.getCorpseCount(character)`), rounded to a whole number. The sickness the corpses make is worked out from this count (`GetBaseCorpseSickness` asks it), so a smaller count lowers that sickness too. |
+| `body.corpseSicknessMultiplier` | 0 to 100 | multiply | Times the sickness the corpses around make (`BodyDamage.GetBaseCorpseSickness`, which the noxious smell moodle and the illness read), after the count above. |
+| `body.holeChance` | chance | multiply | The chance that clothes tear when the game tears them (`IsoGameCharacter.addHole(part, boolean)`): otherwise no hole is made, and the call answers false. |
+| `infection.woundChance` | chance | multiply | The chance that a wound rolls for an infection when the game has it (`BodyPart.generateZombieInfection`, called for scratches and cuts); otherwise it does not roll. |
+| `infection.biteShield` | boolean | any | While declared true, the next zombie bite on the local player takes the infection it sets out of the part (`isInfected` and `isFakeInfected`, as they were before the bite; the wound infection and the bite itself stay), uses the shield up and raises `OnPZToolsBiteSurvived(bodyPartIndex)` on a later frame. It is armed once each time it becomes declared: to arm it again a mod declares it `nil` or `false` and then `true`; while any mod keeps declaring it, one use is all there is. Only the bite a zombie makes (`BodyDamage.AddRandomDamageFromZombie`) counts, not a bitten part a save loads. |
+| `fall.landingRemap` | 0 to 1000, floors | add | Floors of a fall forgiven: a landing (`IsoGameCharacter.DoLand(speed)`) is worked out as if from that many floors lower (the speed becomes `sqrt(speed^2 - 2 g x floors)`, `g` being `FallingConstants.IsoFallAcceleration`), or not as a fall at all when it was not as high as that. A fall at the speed that kills (`FallingConstants.lethalFallThreshold`) or above is left as the game has it, so the shift never turns a lethal fall into a survivable one. Damage is linear in the height of the fall, so half a floor off a one-floor fall halves the damage. |
+| `fall.impactMultiplier` | 0 to 100 | multiply | Times the damage a landing does (`handleLandingImpact`, which works it out from `FallDamage.getImpactIsoSpeed()` squared): the speed it reads is multiplied by the square root of the value. What kind of fall it is (light, hard, lethal) comes from the landing and does not change. |
+| `loot.spawnMultiplier` | 0 to 100 | multiply | Times the chance an item is put into a container or on a corpse (`ItemPickerJava.getActualSpawnChance`), for containers filled from now on; one already filled stays. Not tied to a character. |
+| `loot.ammoMultiplier` | 0 to 100 | multiply | Times the ammunition modifier of the loot (`ItemPickerJava.getLootModifierFromType("Ammo")`), which the chance above is worked out with. |
+| `vision.darknessRestore` | 0 to 1, a reduction | reductions | The part of the dark the local player sees in that is taken away: `LightingJNI.getLumaInverted(character)` (0 light to 1 dark, which the vision cone and the shadows read) becomes `dark x (1 - value)`. The brightness of the screen is the native lighting's and does not change. |
+| `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
 bag's weight reduction on what is inside it), and a formula only changes the weight the game reads: the efficiencies above,
@@ -447,11 +464,14 @@ item by item, and a bag by what is inside it. The same weight is what `hasRoomFo
 is asked whether an item fits, whether directly or through a worn bag; a bag's own room still takes the item's real
 weight. Another character, a crate, a vehicle and the floor count weight as vanilla.
 
-Planned points, accepted and without effect until their hooks are built: `body.coldMultiplier`,
-`body.corpseCountMultiplier`, `body.corpseSicknessMultiplier`, `body.holeChance`, `move.walkMultiplier`,
-`move.treeSlowMultiplier`, `move.treeScratchChance`, `infection.woundChance`, `infection.biteShield`,
-`fall.landingRemap`, `fall.impactMultiplier`, `loot.spawnMultiplier`, `loot.ammoMultiplier`, `vision.darknessRestore`,
-`vision.coneAdd` and `vision.hiddenZombieFix`.
+The survival points change the local player's answers only (the loot points are not tied to a character); another character,
+a zombie and a player of another machine get the game's. Every one is read from a field when asked and calls no Lua.
+
+The event `OnPZToolsBiteSurvived(bodyPartIndex)` is raised through `LuaEventManager` on the frame after a bite the shield
+took the infection out of (the index counts as `BodyPartType.ToIndex`), as `OnPZToolsNetworkChange` is raised; the API adds
+it to the game with the first Lua environment.
+
+Planned points, accepted and without effect until their hooks are built: `vision.hiddenZombieFix`.
 
 ### Hook sites
 
@@ -480,6 +500,22 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `Moodle.Update`, `IsoPlayer.getPathSpeed`, `IsoGameCharacter.handleLandingImpact` (labelled `:overload`) | each `ItemContainer.getCapacityWeight()` call (one, one and three) | The load passes through `overload.compress` for a local player's inventory. |
 | `IsoGameCharacter.calculateBaseSpeed` | the store of `fullSpeedMod` | The value stored passes through `move.runPenaltyReduction`. |
 | `IsoGameCharacter.calculateCombatSpeed` | the read of `combatSpeedModifier` | The value read passes through `move.combatPenaltyReduction`. |
+| `IsoPlayer.getDeferredMovement(Vector2, boolean)` | each return | The vector returned (the method changes the argument and returns it) is scaled in place by `move.walkMultiplier` when the player is in the state of moving. The call is not made when the factor is 1. |
+| `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
+| `IsoPlayer.calculateInTreesSpeed` | each return | The speed scale of the animation of walking through trees, passed through `move.treeSlowMultiplier`. |
+| `IsoGameCharacter.damageWhileInTrees` | the start | Returns at once, with the chance `move.treeScratchChance` leaves out. |
+| `IsoGameCharacter.addHole(BloodBodyPartType, boolean)` | the start | Returns false at once, with the chance `body.holeChance` leaves out. The one-argument `addHole` and `addHoleFromZombieAttacks` call it. |
+| `BodyPart.generateZombieInfection(int)` | the start | Returns at once, with the chance `infection.woundChance` leaves out (read from the part's `parentChar`). |
+| `BodyDamage.AddRandomDamageFromZombie` | just before and just after the call of `SetBitten(index, true)` | The bite shield's two moments (see `infection.biteShield`). There is one such call and the index is a local variable, or the hook does not go in. `BodyPart.SetBitten`, which a save loading a part calls too, is not hooked. |
+| `Thermoregulator.getCatchAColdDelta` | each return | Times `body.coldMultiplier` (the thermoregulator's `player` field). |
+| `CorpseCount.getCorpseCount(IsoGameCharacter)` | each return | Times `body.corpseCountMultiplier`, rounded. |
+| `BodyDamage.GetBaseCorpseSickness` | each return | Times `body.corpseSicknessMultiplier` (the body's `parentChar`). |
+| `IsoGameCharacter.DoLand(float)` | the start | Replaces the speed, the method's own argument, by what `fall.landingRemap` makes of it. |
+| `IsoGameCharacter.handleLandingImpact` (labelled `:impact`) | the call of `FallDamage.getImpactIsoSpeed()` | The speed read passes through `fall.impactMultiplier`. The same method as the load's `:overload` hooks; two hooks, one class owner. |
+| `ItemPickerJava.getActualSpawnChance` | each return | Times `loot.spawnMultiplier`. |
+| `ItemPickerJava.getLootModifierFromType` | the read of `ammoLootModifier` | Times `loot.ammoMultiplier`; the only read of that field in the method. |
+| `LightingJNI.getLumaInverted` | each return | Passed through `vision.darknessRestore` (the method is private; it is found by its signature). |
+| `LightingJNI.calculateVisionCone` | before the call of `getWornItemsVisionMultiplier()` | The degrees on the stack have `vision.coneAdd` added before the worn items' multiplier. |
 
 #### The weight kept
 
@@ -540,7 +576,16 @@ and allocates nothing (counted). The hooks that follow the weight were put into 
 and `IsoGameCharacter` (the jar's and PZ Optimize's loose class) and verified by the JVM. Not tried in the game yet: the
 weight kept against a real inventory, with real fluids and food, and the inventory pane refreshing; the load tree in
 play (weights in the inventory pane, a full inventory, the moodle, the path speed and a fall), and the speed points on a
-worn bag.
+worn bag. The survival points (loot, vision, falls, trees, walking, the body's illnesses, clothes and wounds, the bite
+shield) were put into the real bytes of `ItemPickerJava`, `LightingJNI` (the jar's and PZ Optimize's loose class),
+`IsoTree`, `Thermoregulator`, `CorpseCount`, `BodyDamage`, `BodyPart`, `IsoGameCharacter` and `IsoPlayer` (the jar's and
+the loose ones) and verified by the JVM; in the synthetic game each point is tested to change the local player's answer
+and no other character's, to combine as its rule says, to give the game's answer when its hook fails, and to be taken back
+by `clear`; the chances are counted over thousands of calls, a fall is tried at every side of the lethal height, the bite
+shield through the zombie's bite, a save's load, two mods and a use for each declaration. Not tried in the game yet: how
+much the trees' animation scale takes the slowdown away (`move.treeSlowMultiplier`), that a landing worked out lower plays
+the right animation, that the walking multiplier is not undone by the animation's own speed (PZ Optimize's parallel
+animation), and a real bite survived.
 
 ## How the game is answered
 

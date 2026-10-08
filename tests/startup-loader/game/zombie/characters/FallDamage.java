@@ -1,4 +1,8 @@
 package zombie.characters;
 
-/** Synthetic. */
-public final class FallDamage { }
+/** Synthetic: the speed a landing was made at. */
+public final class FallDamage {
+    private float impactIsoSpeed;
+    public void setLandingImpact(float speed) { impactIsoSpeed = speed; }
+    public float getImpactIsoSpeed() { return impactIsoSpeed; }
+}

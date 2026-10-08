@@ -14,7 +14,7 @@ final class Game {
     final Class<?> objectType, lightSwitch, container;
     private final Field world, squareX, squareY, squareZ, switchRoom;
     private final Method metaGrid, cell, gridSquare, objectSquare, objects, hasGrid, gridObjects;
-    private final Method gameTime, worldHours, addEvent, raise, raiseTwo;
+    private final Method gameTime, worldHours, addEvent, raise, raiseTwo, raiseOne;
     // IsoCell.getGridSquare(int, int, int) as (Object, int, int, int)Object: called through invokeExact, it boxes nothing.
     private final MethodHandle gridSquareExact;
     /** The arguments of a call that takes none, for the hooks' calls: a call written without them allocates an array. */
@@ -46,6 +46,7 @@ final class Game {
         addEvent = events.getMethod("AddEvent", String.class);
         raise = events.getMethod("triggerEvent", String.class, Object.class, Object.class, Object.class);
         raiseTwo = events.getMethod("triggerEvent", String.class, Object.class, Object.class);
+        raiseOne = events.getMethod("triggerEvent", String.class, Object.class);
     }
 
     static Class<?> type(ClassLoader loader, String name) throws ClassNotFoundException {
@@ -164,5 +165,9 @@ final class Game {
 
     void raise(String event, Object first, Object second) throws ReflectiveOperationException {
         raiseTwo.invoke(null, event, first, second);
+    }
+
+    void raise(String event, Object first) throws ReflectiveOperationException {
+        raiseOne.invoke(null, event, first);
     }
 }

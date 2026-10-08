@@ -8,28 +8,42 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import se.krka.kahlua.vm.*;
+import zombie.ai.states.PlayerClimbState;
+import zombie.ai.states.PlayerStrafeState;
+import zombie.ai.states.player.PlayerMovementState;
 import zombie.characters.CharacterStat;
+import zombie.characters.FallingConstants;
 import zombie.characters.IsoGameCharacter;
 import zombie.characters.IsoPlayer;
+import zombie.characters.IsoZombie;
+import zombie.characters.BodyDamage.BodyDamage;
+import zombie.characters.BodyDamage.BodyPart;
 import zombie.characters.BodyDamage.BodyPartType;
+import zombie.characters.BodyDamage.Thermoregulator;
 import zombie.characters.Moodles.Moodle;
 import zombie.characters.WornItems.WornItems;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.inventory.InventoryItem;
 import zombie.inventory.ItemContainer;
+import zombie.inventory.ItemPickerJava;
 import zombie.inventory.types.Food;
 import zombie.inventory.types.HandWeapon;
 import zombie.inventory.types.InventoryContainer;
 import zombie.inventory.types.Moveable;
 import zombie.inventory.types.WeaponPart;
+import zombie.iso.CorpseCount;
 import zombie.iso.IsoCell;
 import zombie.iso.IsoObject;
 import zombie.iso.IsoWorld;
+import zombie.iso.LightingJNI;
+import zombie.iso.Vector2;
 import zombie.iso.objects.IsoDeadBody;
+import zombie.iso.objects.IsoTree;
 import zombie.network.packets.ItemStatsPacket;
 import zombie.scripting.objects.ItemTag;
 import zombie.scripting.objects.ItemType;
 import zombie.vehicles.VehiclePart;
+import zombie.Lua.LuaEventManager;
 import zombie.Lua.LuaManager;
 import pztools.bridge.ApiHooks;
 import pztools.bridge.Tracked;
@@ -51,6 +65,7 @@ final class FormulasTest {
         points(formulas);
         calls(api, formulas);
         bodyPoints(api, formulas, player, other);
+        survival(api, formulas, player, other);
         combining(api, formulas, player);
         carry(api, formulas, player, other);
         kept(api, formulas, player, other);
@@ -76,13 +91,24 @@ final class FormulasTest {
         new ItemStatsPacket();
         new FluidContainer(1f, 0f);
         new WornItems();
+        ItemPickerJava.getLootModifierFromType("Other");
+        new IsoTree();
+        new Thermoregulator(new IsoPlayer());
+        CorpseCount.instance.getCorpseCount(null);
+        new BodyDamage(new IsoPlayer());
+        new BodyPart(new IsoPlayer());
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency",
                 "carry.containerTagMultiplier", "capacity.maxWeightAdd", "capacity.effectiveMultiplier", "capacity.characterLimitAdd",
                 "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
-        check("planned".equals(points.rawget("loot.spawnMultiplier")), "A point not built yet is " + points.rawget("loot.spawnMultiplier"));
+        for (String applied : new String[] { "loot.spawnMultiplier", "loot.ammoMultiplier", "vision.darknessRestore", "vision.coneAdd",
+                "fall.landingRemap", "fall.impactMultiplier", "move.walkMultiplier", "move.treeSlowMultiplier", "move.treeScratchChance",
+                "body.coldMultiplier", "body.corpseCountMultiplier", "body.corpseSicknessMultiplier", "body.holeChance", "infection.woundChance",
+                "infection.biteShield" })
+            check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
+        check("planned".equals(points.rawget("vision.hiddenZombieFix")), "A point not built yet is " + points.rawget("vision.hiddenZombieFix"));
         check(Formulas.POINTS.size() == 31, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
@@ -100,9 +126,16 @@ final class FormulasTest {
         rejects(formulas, "set", "body.discomfortMultiplier must be a number", mod, "body.discomfortMultiplier", Double.NaN);
         rejects(formulas, "get", "there is no point body.nothing", "body.nothing");
         // A point whose hooks are not built yet takes a value and keeps nothing.
-        call(formulas, "set", mod, "loot.spawnMultiplier", 1.5);
-        check(call(formulas, "get", "loot.spawnMultiplier").get(0) == null, "A point not built yet kept a value");
-        rejects(formulas, "set", "must be a number, a boolean, a string or a table", mod, "loot.spawnMultiplier", new Object());
+        call(formulas, "set", mod, "vision.hiddenZombieFix", true);
+        check(call(formulas, "get", "vision.hiddenZombieFix").get(0) == null, "A point not built yet kept a value");
+        rejects(formulas, "set", "must be a number, a boolean, a string or a table", mod, "vision.hiddenZombieFix", new Object());
+        // The shapes of the points that are built: a chance is from 0 to 1, an amount from 0 up, a shield true or false.
+        rejects(formulas, "set", "body.holeChance must be a number from 0.0 to 1.0", mod, "body.holeChance", 1.5);
+        rejects(formulas, "set", "move.treeScratchChance must be a number from 0.0 to 1.0", mod, "move.treeScratchChance", -0.1);
+        rejects(formulas, "set", "fall.landingRemap must be a number from 0.0 to 1000.0", mod, "fall.landingRemap", -1.0);
+        rejects(formulas, "set", "infection.biteShield must be true or false", mod, "infection.biteShield", 1.0);
+        rejects(formulas, "set", "vision.darknessRestore must be a number from 0.0 to 1.0", mod, "vision.darknessRestore", 2.0);
+        rejects(formulas, "set", "vision.coneAdd must be a number from -1000.0 to 1000.0", mod, "vision.coneAdd", 5000.0);
     }
 
     /** Each point of the body changes the local player's answer by its value, and no other character's. */
@@ -167,6 +200,296 @@ final class FormulasTest {
         call(formulas, "set", mod, "body.poisonMultiplier", null);
         call(mod, "clear");
     }
+
+    /**
+     * The survival points: loot, what the player sees, falls, trees, walking, the illnesses of the body, torn clothes and
+     * wounds, and the bite shield. Each changes the local player's answer and no other character's.
+     */
+    private static void survival(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) throws Exception {
+        Object mod = call(api, "client", "survival.mod").get(0), second = call(api, "client", "survival.second").get(0);
+        var remote = new IsoPlayer();
+
+        // Loot: the chance of an item, and the ammunition modifier alone.
+        var item = new ItemPickerJava.ItemPickerItem();
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 5), "The game's chance of an item");
+        call(formulas, "set", mod, "loot.spawnMultiplier", 1.5);
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 7.5), "The chance was not multiplied: "
+            + ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false));
+        call(formulas, "set", second, "loot.spawnMultiplier", 2.0);
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 15) && near((Double)call(formulas, "get", "loot.spawnMultiplier").get(0), 3),
+            "Two mods' loot chances did not multiply");
+        call(second, "clear");
+        check(ItemPickerJava.getLootModifierFromType("Ammo") == 1f, "The ammunition modifier changed with nothing declared");
+        call(formulas, "set", mod, "loot.ammoMultiplier", 1.5);
+        check(ItemPickerJava.getLootModifierFromType("Ammo") == 1.5f && ItemPickerJava.getLootModifierFromType("Generator") == 4f
+            && ItemPickerJava.getLootModifierFromType("Other") == 1f, "Only the ammunition modifier should change");
+        item.itemName = "Base.Bullets9mm";
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 5 * 1.5 * 1.5), "Both loot points on an ammunition item: "
+            + ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false));
+        call(mod, "clear");
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 5), "Clearing left the loot changed");
+
+        // Vision: the darkness the player sees in, and the width of the cone.
+        player.luma = other.luma = 0.25f;
+        check(near(LightingJNI.darkness(player), 0.75), "The game's darkness");
+        call(formulas, "set", mod, "vision.darknessRestore", 0.6);
+        check(near(LightingJNI.darkness(player), 0.3) && near(LightingJNI.darkness(other), 0.75), "Darkness was not restored for the local player alone");
+        call(formulas, "set", second, "vision.darknessRestore", 0.5);
+        check(near((Double)call(formulas, "get", "vision.darknessRestore").get(0), 0.8) && near(LightingJNI.darkness(player), 0.15),
+            "Two restorations leave what is left of the dark multiplied: " + LightingJNI.darkness(player));
+        call(second, "clear");
+        call(mod, "clear");
+        check(near(LightingJNI.calculateVisionCone(player), (144 - 126 * 0.75 - 180) / 180), "The game's cone");
+        call(formulas, "set", mod, "vision.coneAdd", 36.0);
+        check(near(LightingJNI.calculateVisionCone(player), (144 - 126 * 0.75 + 36 - 180) / 180)
+            && near(LightingJNI.calculateVisionCone(other), (144 - 126 * 0.75 - 180) / 180), "The cone was not widened for the local player alone: "
+            + LightingJNI.calculateVisionCone(player));
+        // The worn items' multiplier takes the added degrees too, as the traits' are, and the cone has its limits.
+        player.wornVision = 1.5f;
+        check(near(LightingJNI.calculateVisionCone(player), ((144 - 126 * 0.75 + 36) * 1.5 - 180) / 180), "The worn items did not scale the added degrees");
+        call(formulas, "set", mod, "vision.coneAdd", 1000.0);
+        check(near(LightingJNI.calculateVisionCone(player), 1.0), "The cone went past all around: " + LightingJNI.calculateVisionCone(player));
+        call(formulas, "set", mod, "vision.coneAdd", -100.0);
+        check(near(LightingJNI.calculateVisionCone(player), (18 - 180) / 180.0), "The cone went below its least: " + LightingJNI.calculateVisionCone(player));
+        player.wornVision = 1f;
+        player.luma = other.luma = 1f;
+        call(mod, "clear");
+
+        // A fall: the floors forgiven, never from a height that kills, and the damage by a multiplier.
+        float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f), twoFloors = FallingConstants.getIsoImpactSpeedFromHeight(2f);
+        player.DoLand(oneFloor);
+        check(near(player.landedAt, oneFloor) && nearly(player.impactDamage, 115 / 1.5), "The game's landing: " + player.impactDamage);
+        call(formulas, "set", mod, "fall.landingRemap", 0.5);
+        player.DoLand(oneFloor);
+        other.DoLand(oneFloor);
+        check(nearly(player.impactDamage, 115 / 3.0) && nearly(other.impactDamage, 115 / 1.5), "Half a floor of the fall was not forgiven for the local player alone: "
+            + player.impactDamage + ", " + other.impactDamage);
+        call(formulas, "set", mod, "fall.landingRemap", 1.0);
+        player.landedAt = player.impactDamage = -1f;
+        player.DoLand(oneFloor);
+        check(player.landedAt == -1f && player.impactDamage == -1f, "A fall forgiven altogether was still a landing: " + player.landedAt);
+        player.DoLand(twoFloors);
+        check(nearly(player.impactDamage, 115 / 1.5), "Two floors with one forgiven are one: " + player.impactDamage);
+        // A fall of the height that kills is the game's, whatever is forgiven; a little lower is not.
+        call(formulas, "set", mod, "fall.landingRemap", 5.0);
+        float lethal = FallingConstants.lethalFallThreshold;
+        player.DoLand(lethal);
+        check(player.landedAt == lethal, "A fall that kills was forgiven: " + player.landedAt);
+        player.DoLand(lethal * 1.5f);
+        check(player.landedAt == lethal * 1.5f, "A higher fall was forgiven");
+        player.landedAt = -1f;
+        player.DoLand(Math.nextDown(lethal));
+        check(player.landedAt == -1f, "A fall just below the lethal height was not forgiven");
+        call(formulas, "set", mod, "fall.landingRemap", null);
+        // The damage the landing does is a multiplier of what the speed works out to.
+        call(formulas, "set", mod, "fall.impactMultiplier", 0.5);
+        player.DoLand(oneFloor);
+        other.DoLand(oneFloor);
+        check(nearly(player.impactDamage, 115 / 3.0) && nearly(other.impactDamage, 115 / 1.5), "The damage was not halved for the local player alone: "
+            + player.impactDamage + ", " + other.impactDamage);
+        check(player.landedAt == oneFloor, "The multiplier changed the speed of the landing, not the damage");
+        call(formulas, "set", mod, "fall.landingRemap", 0.5);
+        player.DoLand(oneFloor);
+        check(nearly(player.impactDamage, 115 / 6.0), "Both fall points: " + player.impactDamage);
+        call(mod, "clear");
+        player.DoLand(oneFloor);
+        check(nearly(player.impactDamage, 115 / 1.5), "Clearing left the fall changed");
+
+        // Trees: how much they slow the player and how fast the animation goes, and whether they scratch.
+        var tree = new IsoTree();
+        check(near(tree.getSlowFactor(player), 0.8) && near(player.treesSpeed(), 1), "The game's trees");
+        call(formulas, "set", mod, "move.treeSlowMultiplier", 0.5);
+        check(near(tree.getSlowFactor(player), 0.9) && near(tree.getSlowFactor(other), 0.8) && near(tree.getSlowFactor(remote), 0.8),
+            "The tree's slowdown was not halved for the local player alone: " + tree.getSlowFactor(player));
+        tree.size = 3;
+        check(near(tree.getSlowFactor(player), 0.75), "A denser tree: " + tree.getSlowFactor(player));
+        tree.size = 5;
+        check(near(tree.getSlowFactor(player), 1), "A tree that does not slow");
+        tree.size = 1;
+        player.ranger = true;
+        check(near(tree.getSlowFactor(player), 1.2), "A ranger's bonus was changed: " + tree.getSlowFactor(player));
+        player.ranger = false;
+        check(near(player.treesSpeed(), 2) && near(remote.treesSpeed(), 1), "The animation was not sped up for the local player alone: " + player.treesSpeed());
+        call(formulas, "set", mod, "move.treeSlowMultiplier", 0.0);
+        check(near(tree.getSlowFactor(player), 1) && near(player.treesSpeed(), Formulas.MAX_TREE_ANIMATION), "No slowdown: " + tree.getSlowFactor(player)
+            + ", " + player.treesSpeed());
+        call(formulas, "set", mod, "move.treeSlowMultiplier", 2.0);
+        check(near(tree.getSlowFactor(player), 0.6) && near(player.treesSpeed(), 0.5), "A double slowdown: " + tree.getSlowFactor(player));
+        call(formulas, "set", mod, "move.treeSlowMultiplier", 100.0);
+        check(near(tree.getSlowFactor(player), 0), "A slowdown past standing still: " + tree.getSlowFactor(player));
+        call(formulas, "set", mod, "move.treeSlowMultiplier", null);
+        for (int step = 0; step < 100; step++) { player.stepInTrees(); other.stepInTrees(); }
+        check(player.scratches == 100 && player.holes == 100, "The game's scratches");
+        call(formulas, "set", mod, "move.treeScratchChance", 0.0);
+        for (int step = 0; step < 100; step++) { player.stepInTrees(); other.stepInTrees(); }
+        check(player.scratches == 100 && player.holes == 100 && other.scratches == 200, "A chance of 0 still scratched: " + player.scratches);
+        call(formulas, "set", mod, "move.treeScratchChance", 0.5);
+        call(formulas, "set", second, "move.treeScratchChance", 0.5);
+        check(near((Double)call(formulas, "get", "move.treeScratchChance").get(0), 0.25), "Two chances did not multiply");
+        call(second, "clear");
+        for (int step = 0; step < 4000; step++) player.stepInTrees();
+        check(player.scratches - 100 > 1800 && player.scratches - 100 < 2200 && player.holes == player.scratches,
+            "A chance of a half scratched " + (player.scratches - 100) + " of 4000 times; the clothes tore " + player.holes);
+        call(mod, "clear");
+
+        // Walking: the movement of a player who walks, runs or strafes, and nothing else.
+        player.deferredX = 2f;
+        player.deferredY = 4f;
+        remote.deferredX = 2f;
+        remote.deferredY = 4f;
+        player.setCurrentState(PlayerMovementState.instance());
+        remote.setCurrentState(PlayerMovementState.instance());
+        var movement = new Vector2();
+        player.movement(movement);
+        check(movement.x == 2f && movement.y == 4f, "The game's movement");
+        call(formulas, "set", mod, "move.walkMultiplier", 1.5);
+        player.movement(movement);
+        check(near(movement.x, 3) && near(movement.y, 6), "Walking was not faster: " + movement.x + ", " + movement.y);
+        remote.movement(movement);
+        check(movement.x == 2f && movement.y == 4f, "A player of another machine walked faster");
+        player.setCurrentState(PlayerStrafeState.instance());
+        player.movement(movement);
+        check(near(movement.x, 3), "Strafing was not faster");
+        player.setCurrentState(PlayerClimbState.instance());
+        player.movement(movement);
+        check(movement.x == 2f && movement.y == 4f, "Climbing was faster");
+        player.setCurrentState(null);
+        player.movement(movement);
+        check(movement.x == 2f, "A player in no state was faster");
+        player.setCurrentState(PlayerMovementState.instance());
+        call(formulas, "set", second, "move.walkMultiplier", 1.2);
+        player.movement(movement);
+        check(near(movement.x, 3.6), "Two walking multipliers: " + movement.x);
+        call(second, "clear");
+        player.invisible = true;
+        check(player.movement(movement).x == 0f, "A movement set to nothing was not returned as it is");
+        player.invisible = false;
+        call(mod, "clear");
+        player.movement(movement);
+        check(movement.x == 2f && movement.y == 4f, "Clearing left the walking changed");
+        player.setCurrentState(null);
+
+        // The body: a cold, the corpses around and the sickness they make.
+        var cold = new Thermoregulator(player);
+        var remoteCold = new Thermoregulator(remote);
+        cold.skin = remoteCold.skin = 0.2f;
+        check(near(cold.getCatchAColdDelta(), 0.2), "The game's cold");
+        call(formulas, "set", mod, "body.coldMultiplier", 0.4);
+        check(near(cold.getCatchAColdDelta(), 0.08) && near(remoteCold.getCatchAColdDelta(), 0.2), "A cold was not slowed for the local player alone: "
+            + cold.getCatchAColdDelta());
+        player.hypothermia = 3;
+        check(near(cold.getCatchAColdDelta(), 0.24), "The game's own multiplier of the cold stayed in it");
+        player.hypothermia = 0;
+        call(formulas, "set", mod, "body.coldMultiplier", null);
+        CorpseCount.instance.corpses = 8;
+        check(CorpseCount.instance.getCorpseCount(player) == 8 && near(player.getBodyDamage().GetBaseCorpseSickness(), 0.03), "The game's corpses");
+        call(formulas, "set", mod, "body.corpseSicknessMultiplier", 0.5);
+        check(near(player.getBodyDamage().GetBaseCorpseSickness(), 0.015) && near(other.getBodyDamage().GetBaseCorpseSickness(), 0.03)
+            && CorpseCount.instance.getCorpseCount(player) == 8, "The sickness was not scaled for the local player alone");
+        call(formulas, "set", mod, "body.corpseCountMultiplier", 0.625);
+        check(CorpseCount.instance.getCorpseCount(player) == 5 && CorpseCount.instance.getCorpseCount(other) == 8
+            && CorpseCount.instance.getCorpseCount(null) == 0, "The corpses were not counted fewer for the local player alone: "
+            + CorpseCount.instance.getCorpseCount(player));
+        check(near(player.getBodyDamage().GetBaseCorpseSickness(), 0), "The game makes the sickness from the corpses counted");
+        CorpseCount.instance.corpses = 0;
+        check(CorpseCount.instance.getCorpseCount(player) == 0, "No corpses are still none");
+        call(formulas, "set", mod, "body.corpseCountMultiplier", 2.0);
+        CorpseCount.instance.corpses = 5;
+        check(CorpseCount.instance.getCorpseCount(player) == 10, "Corpses counted more");
+        call(mod, "clear");
+        CorpseCount.instance.corpses = 0;
+
+        // Clothes tear, and wounds rolled for an infection, by a chance.
+        check(player.addHole(null, true) && player.holes == player.scratches + 1, "The game tears the clothes");
+        int holes = player.holes;
+        call(formulas, "set", mod, "body.holeChance", 0.0);
+        boolean any = false;
+        for (int index = 0; index < 100; index++) any |= player.addHole(null, true);
+        check(!any && player.holes == holes && other.addHole(null, true), "A chance of 0 still tore the clothes, or reached another character");
+        call(formulas, "set", mod, "body.holeChance", 0.5);
+        int torn = 0;
+        for (int index = 0; index < 4000; index++) if (player.addHole(null, true)) torn++;
+        check(torn > 1800 && torn < 2200 && player.holes == holes + torn, "A chance of a half tore the clothes " + torn + " of 4000 times");
+        call(mod, "clear");
+        var wound = player.getBodyDamage().getBodyParts().get(0);
+        var otherWound = other.getBodyDamage().getBodyParts().get(0);
+        wound.setScratched(true, false);
+        otherWound.setScratched(true, false);
+        check(wound.infectionRolls == 1 && wound.IsInfected(), "The game rolls for an infection");
+        wound.SetInfected(false);
+        otherWound.SetInfected(false);
+        call(formulas, "set", mod, "infection.woundChance", 0.0);
+        for (int index = 0; index < 100; index++) { wound.setScratched(true, false); otherWound.setScratched(true, false); }
+        check(wound.infectionRolls == 1 && !wound.IsInfected() && otherWound.infectionRolls == 101,
+            "A chance of 0 still rolled for an infection, or reached another character: " + wound.infectionRolls);
+        call(formulas, "set", mod, "infection.woundChance", 0.5);
+        for (int index = 0; index < 4000; index++) wound.setScratched(true, false);
+        check(wound.infectionRolls - 1 > 1800 && wound.infectionRolls - 1 < 2200, "A chance of a half rolled " + (wound.infectionRolls - 1) + " of 4000 times");
+        call(mod, "clear");
+
+        // The bite shield: used once for each time it is declared, never for what a save loads, for the local player alone.
+        var zombie = new IsoZombie();
+        var parts = player.getBodyDamage().getBodyParts();
+        var others = other.getBodyDamage().getBodyParts();
+        for (var part : parts) { part.SetInfected(false); part.SetFakeInfected(false); }
+        LuaEventManager.raised.clear();
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 0);
+        check(parts.get(0).bitten() && parts.get(0).IsInfected(), "The game's bite infects");
+        parts.get(0).SetInfected(false);
+        check(LuaEventManager.added.contains("OnPZToolsBiteSurvived"), "The bite event was not added");
+        call(formulas, "set", mod, "infection.biteShield", true);
+        // A save loading a bitten part is not a bite.
+        parts.get(2).SetBitten(true);
+        check(parts.get(2).IsInfected(), "A part loaded as bitten lost its infection to the shield");
+        parts.get(2).SetInfected(false);
+        // A bite on another character's body: not the player's.
+        other.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 1);
+        check(others.get(1).bitten() && others.get(1).IsInfected(), "The shield took another character's bite");
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 1);
+        check(parts.get(1).bitten() && !parts.get(1).IsInfected() && !parts.get(1).IsFakeInfected(), "The shield did not take the infection out of the bite: "
+            + parts.get(1).IsInfected());
+        GameApi.frame(FormulasTest.class.getClassLoader());
+        check(LuaEventManager.raised.size() == 1 && LuaEventManager.raised.get(0).equals(List.of("OnPZToolsBiteSurvived", 1.0)),
+            "The survived bite was not told: " + LuaEventManager.raised);
+        GameApi.frame(FormulasTest.class.getClassLoader());
+        check(LuaEventManager.raised.size() == 1, "The survived bite was told twice");
+        // Used up: the next bite infects, though the mod still declares it.
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 2);
+        check(parts.get(2).IsInfected(), "The shield was used twice for one declaration");
+        parts.get(2).SetInfected(false);
+        // Declared again after it was taken back: armed once more. What the part had before the bite stays.
+        call(formulas, "set", mod, "infection.biteShield", null);
+        call(formulas, "set", mod, "infection.biteShield", true);
+        parts.get(0).SetInfected(true);
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 0);
+        check(parts.get(0).IsInfected(), "An infection the part had before the bite was taken out");
+        GameApi.frame(FormulasTest.class.getClassLoader());
+        check(LuaEventManager.raised.size() == 2 && LuaEventManager.raised.get(1).equals(List.of("OnPZToolsBiteSurvived", 0.0)), "The second survived bite: "
+            + LuaEventManager.raised);
+        // Two mods: either arms it, and it is armed once while both declare it.
+        call(formulas, "set", mod, "infection.biteShield", null);
+        call(formulas, "set", mod, "infection.biteShield", true);
+        call(formulas, "set", second, "infection.biteShield", true);
+        check(call(formulas, "get", "infection.biteShield").get(0) == Boolean.TRUE, "Two shields did not join");
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 2);
+        check(!parts.get(2).IsInfected(), "The shield was not armed");
+        call(mod, "clear");
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 2);
+        check(parts.get(2).IsInfected(), "Another mod's declaration armed the shield again");
+        call(second, "clear");
+        check(call(formulas, "get", "infection.biteShield").get(0) == null, "The shield stayed declared");
+        // Taking it back disarms it.
+        parts.get(2).SetInfected(false);
+        call(formulas, "set", mod, "infection.biteShield", true);
+        call(formulas, "set", mod, "infection.biteShield", false);
+        player.getBodyDamage().AddRandomDamageFromZombie(zombie, "Bite", 2);
+        check(parts.get(2).IsInfected(), "A shield declared false still worked");
+        call(mod, "clear");
+        for (var part : parts) { part.SetInfected(false); part.SetBitten(false); }
+        LuaEventManager.raised.clear();
+    }
+
+    private static boolean nearly(double value, double expected) { return Math.abs(value - expected) <= Math.abs(expected) * 1e-3 + 1e-6; }
 
     /** Several mods declaring one point combine by its rule; a mod's clear takes back its own and nobody else's. */
     private static void combining(KahluaTable api, KahluaTable formulas, IsoPlayer player) {
@@ -982,11 +1305,72 @@ final class FormulasTest {
         player.stats.set(CharacterStat.ENDURANCE, 1f);
         player.stats.add(CharacterStat.ENDURANCE, -0.5f);
         check(near(player.stats.get(CharacterStat.ENDURANCE), 0.5), "A stat change failed with its hook");
+        survivalFaults(player);
         ApiHooks.setFormulas(null);
         check(player.getClothingDiscomfortModifier() == 3f, "Without a handler the game's answer changed");
         GameApi.register(LuaManager.class);
         check(player.getClothingDiscomfortModifier() == 1.5f, "A newer API did not take the formulas back");
         call(mod, "clear");
+    }
+
+    /** The survival hooks too: a handler that fails gives the game's answer at each of them, and the game goes on. */
+    private static void survivalFaults(IsoPlayer player) {
+        ApiHooks.setFormulas(new ApiHooks.Formulas() {
+            @Override public float lootChance(float vanilla) { throw new IllegalStateException("broken"); }
+            @Override public float lootAmmo(float vanilla) { throw new IllegalStateException("broken"); }
+            @Override public float darkness(float vanilla, Object character) { throw new IllegalStateException("broken"); }
+            @Override public float coneAdd(Object character, float degrees) { throw new IllegalStateException("broken"); }
+            @Override public float landing(float speed, Object character) { throw new IllegalStateException("broken"); }
+            @Override public float impact(float speed, Object character) { throw new IllegalStateException("broken"); }
+            @Override public float treeSlow(float vanilla, Object mover) { throw new IllegalStateException("broken"); }
+            @Override public float treeAnimation(float vanilla, Object who) { throw new IllegalStateException("broken"); }
+            @Override public boolean treeScratch(Object character) { throw new IllegalStateException("broken"); }
+            @Override public float walk(Object character) { throw new IllegalStateException("broken"); }
+            @Override public float cold(float vanilla, Object who) { throw new IllegalStateException("broken"); }
+            @Override public int corpseCount(int vanilla, Object character) { throw new IllegalStateException("broken"); }
+            @Override public float corpseSickness(float vanilla, Object character) { throw new IllegalStateException("broken"); }
+            @Override public boolean hole(Object character) { throw new IllegalStateException("broken"); }
+            @Override public boolean wound(Object character) { throw new IllegalStateException("broken"); }
+            @Override public void bite(Object bodyDamage, int index, boolean after) { throw new IllegalStateException("broken"); }
+        });
+        var item = new ItemPickerJava.ItemPickerItem();
+        check(near(ItemPickerJava.getActualSpawnChance(item, null, null, 0f, false), 5) && ItemPickerJava.getLootModifierFromType("Ammo") == 1f,
+            "A loot hook that failed did not give the game's answer");
+        player.luma = 0.25f;
+        check(near(LightingJNI.darkness(player), 0.75) && near(LightingJNI.calculateVisionCone(player), (144 - 126 * 0.75 - 180) / 180),
+            "A vision hook that failed did not give the game's answer");
+        player.luma = 1f;
+        float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f);
+        player.DoLand(oneFloor);
+        check(player.landedAt == oneFloor && nearly(player.impactDamage, 115 / 1.5), "A fall hook that failed did not give the game's answer");
+        var tree = new IsoTree();
+        check(near(tree.getSlowFactor(player), 0.8) && near(player.treesSpeed(), 1), "A tree hook that failed did not give the game's answer");
+        int scratches = player.scratches;
+        player.stepInTrees();
+        check(player.scratches == scratches + 1 && player.addHole(null, true), "A gate that failed did not let the game go on");
+        player.deferredX = 2f;
+        player.deferredY = 4f;
+        player.setCurrentState(PlayerMovementState.instance());
+        var movement = new Vector2();
+        player.movement(movement);
+        check(movement.x == 2f && movement.y == 4f, "A walking hook that failed changed the movement");
+        player.setCurrentState(null);
+        var cold = new Thermoregulator(player);
+        cold.skin = 0.2f;
+        CorpseCount.instance.corpses = 8;
+        check(near(cold.getCatchAColdDelta(), 0.2) && CorpseCount.instance.getCorpseCount(player) == 8
+            && near(player.getBodyDamage().GetBaseCorpseSickness(), 0.03), "A body hook that failed did not give the game's answer");
+        CorpseCount.instance.corpses = 0;
+        var part = player.getBodyDamage().getBodyParts().get(1);
+        part.SetInfected(false);
+        int rolls = part.infectionRolls;
+        part.setScratched(true, false);
+        check(part.infectionRolls == rolls + 1, "A wound gate that failed did not let the roll go on");
+        part.SetInfected(false);
+        player.getBodyDamage().AddRandomDamageFromZombie(new IsoZombie(), "Bite", 1);
+        check(part.bitten() && part.IsInfected(), "A bite hook that failed stopped the bite");
+        part.SetInfected(false);
+        part.SetBitten(false);
     }
 
     /** The declarations belong to the world they were made in. */

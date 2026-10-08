@@ -11,10 +11,16 @@ public final class LuaEventManager {
         if (!added.contains(name)) added.add(name);
         return null;
     }
+    public static void triggerEvent(String name, Object first) {
+        raised.add(List.of(name, first));
+    }
     public static void triggerEvent(String name, Object first, Object second) {
         raised.add(List.of(name, first, second));
     }
     public static void triggerEvent(String name, Object first, Object second, Object third) {
         raised.add(List.of(name, first, second, third));
+    }
+    public static void triggerEvent(String name, Object first, Object second, Object third, Object fourth) {
+        raised.add(java.util.Arrays.asList(name, first, second, third, fourth));
     }
 }

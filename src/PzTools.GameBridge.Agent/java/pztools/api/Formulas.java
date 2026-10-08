@@ -1,6 +1,7 @@
 package pztools.api;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 import pztools.bridge.ApiHooks;
 import pztools.bridge.Tracked;
@@ -32,6 +33,12 @@ final class Formulas implements ApiHooks.Formulas {
         REDUCTION,
         /** A number from -1000 to 1000; the values add. */
         NUMBER,
+        /** A number from 0 to 1000; the values add. */
+        AMOUNT,
+        /** A number from 0 to 1, the part of the events that happen; the values multiply. */
+        CHANCE,
+        /** A boolean; the values join: true when any mod declares true. */
+        BOOLEAN,
         /** A table of names and numbers from -0.9 to 100, a carrying efficiency each; the values of a name add. */
         EFFICIENCIES,
         /** A table of names and numbers from 0 to 100; the values of a name multiply. */
@@ -49,13 +56,16 @@ final class Formulas implements ApiHooks.Formulas {
      * A hook point: its name, its value's shape, what its names are, the hooks (as {@code PZToolsAPI.hooks()} names them) it
      * needs, and whether it needs the game's inventory classes.
      */
-    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory) { }
+    record Point(String name, Shape shape, Names names, List<String> hooks, boolean inventory, boolean survival) { }
 
-    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false); }
+    private static Point live(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, false); }
 
-    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true); }
+    private static Point load(String name, Shape shape, Names names, String... hooks) { return new Point(name, shape, names, List.of(hooks), true, false); }
 
-    private static Point planned(String name) { return new Point(name, Shape.PLANNED, Names.ANY, List.of(), false); }
+    /** A point that needs the states, constants and body parts {@link Survival} reads. */
+    private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), false, true); }
+
+    private static Point planned(String name) { return new Point(name, Shape.PLANNED, Names.ANY, List.of(), false, false); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
     private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
@@ -82,11 +92,21 @@ final class Formulas implements ApiHooks.Formulas {
         load("overload.compress", Shape.REDUCTION, Names.ANY, OVERLOAD),
         live("move.runPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateBaseSpeed"),
         live("move.combatPenaltyReduction", Shape.REDUCTION, "IsoGameCharacter.calculateCombatSpeed"),
-        planned("move.walkMultiplier"), planned("move.treeSlowMultiplier"), planned("move.treeScratchChance"),
-        planned("body.coldMultiplier"), planned("body.corpseCountMultiplier"), planned("body.corpseSicknessMultiplier"),
-        planned("body.holeChance"), planned("infection.woundChance"), planned("infection.biteShield"),
-        planned("fall.landingRemap"), planned("fall.impactMultiplier"), planned("loot.spawnMultiplier"),
-        planned("loot.ammoMultiplier"), planned("vision.darknessRestore"), planned("vision.coneAdd"),
+        body("move.walkMultiplier", Shape.MULTIPLIER, "IsoPlayer.getDeferredMovement"),
+        live("move.treeSlowMultiplier", Shape.MULTIPLIER, "IsoTree.getSlowFactor", "IsoPlayer.calculateInTreesSpeed"),
+        live("move.treeScratchChance", Shape.CHANCE, "IsoGameCharacter.damageWhileInTrees"),
+        live("body.coldMultiplier", Shape.MULTIPLIER, "Thermoregulator.getCatchAColdDelta"),
+        live("body.corpseCountMultiplier", Shape.MULTIPLIER, "CorpseCount.getCorpseCount"),
+        live("body.corpseSicknessMultiplier", Shape.MULTIPLIER, "BodyDamage.GetBaseCorpseSickness"),
+        live("body.holeChance", Shape.CHANCE, "IsoGameCharacter.addHole"),
+        live("infection.woundChance", Shape.CHANCE, "BodyPart.generateZombieInfection"),
+        body("infection.biteShield", Shape.BOOLEAN, "BodyDamage.AddRandomDamageFromZombie"),
+        body("fall.landingRemap", Shape.AMOUNT, "IsoGameCharacter.DoLand"),
+        live("fall.impactMultiplier", Shape.MULTIPLIER, "IsoGameCharacter.handleLandingImpact:impact"),
+        live("loot.spawnMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getActualSpawnChance"),
+        live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
+        live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
+        live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
         planned("vision.hiddenZombieFix"));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
@@ -113,7 +133,16 @@ final class Formulas implements ApiHooks.Formulas {
         double effectiveMultiplier = 1;
         String[] dataKeys = NO_NAMES;
         float compress, runReduction, combatReduction;
+        // The survival points: multipliers and chances as numbers, 1 (or 0) leaving the game's answer as it is.
+        double lootChance = 1, lootAmmo = 1, cold = 1, corpseCount = 1, corpseSickness = 1, treeSlow = 1, treeScratch = 1, hole = 1, wound = 1;
+        // darkness restored (0 to 1); degrees added to the vision cone; floors forgiven in a fall; the factor of the speed a fall
+        // damages by (the square root of the multiplier of the damage, which grows with the speed squared); the walking movement's
+        // factor; the factor of the speed scale of the animation of walking through trees.
+        float darkness, coneAdd, landingShift, impact = 1, walk = 1, treeAnimation = 1;
     }
+
+    /** The animation of walking through trees plays at most this many times as fast as the game's, whatever slowdown is taken away. */
+    static final double MAX_TREE_ANIMATION = 2;
 
     private final Kahlua lua;
     private final Game game;
@@ -123,6 +152,9 @@ final class Formulas implements ApiHooks.Formulas {
     // The game's inventory classes; null, with the reason, in a game whose inventory this API cannot read.
     private final Inventory inventory;
     private final String inventoryProblem;
+    // The states, constants and body parts the walking, falling and biting points read; null, with the reason, in a game that changed them.
+    private final Survival survival;
+    private final String survivalProblem;
     // The CharacterStat constants Stats.add is asked about.
     private final Object enduranceStat, poisonStat;
     // By mod, then point; what the mod declared: a Double, a Map of names to Doubles or a List of names.
@@ -150,6 +182,15 @@ final class Formulas implements ApiHooks.Formulas {
         }
         inventory = reachable;
         inventoryProblem = problem;
+        Survival reading = null;
+        String trouble = null;
+        try { reading = new Survival(loader, players); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            trouble = "the game's states, fall constants or body parts could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + trouble);
+        }
+        survival = reading;
+        survivalProblem = trouble;
         Class<?> stat = Game.type(loader, "zombie.characters.CharacterStat");
         enduranceStat = stat.getField("ENDURANCE").get(null);
         poisonStat = stat.getField("POISON").get(null);
@@ -222,6 +263,8 @@ final class Formulas implements ApiHooks.Formulas {
         generation = generation(lua, meta) + 1;
         lua.set(meta, GENERATION, (double)generation);
         lua.set(meta, HANDOVER, (Supplier<String>)this::handover);
+        // Once per game; a Lua environment made later knows it too.
+        game.addEvent(Survival.EVENT);
         function(table, "set", (call, arguments) -> {
             String owner = owner(arguments, call);
             Point point = point(arguments, 1, call);
@@ -285,6 +328,11 @@ final class Formulas implements ApiHooks.Formulas {
             case MULTIPLIER: return Arguments.number(new Object[] { value }, 0, call, name, 0, MAX_MULTIPLIER);
             case REDUCTION: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1);
             case NUMBER: return Arguments.number(new Object[] { value }, 0, call, name, -1000, 1000);
+            case AMOUNT: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1000);
+            case CHANCE: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1);
+            case BOOLEAN:
+                if (!(value instanceof Boolean)) throw new IllegalArgumentException(call + ": " + name + " must be true or false");
+                return value;
             case EFFICIENCIES: return entries(point, value, call, -0.9, MAX_MULTIPLIER);
             case MULTIPLIERS: return entries(point, value, call, 0, MAX_MULTIPLIER);
             case NAMES: return names(point, value, call);
@@ -349,7 +397,7 @@ final class Formulas implements ApiHooks.Formulas {
     @SuppressWarnings("unchecked")
     private Object toLua(Point point, Object value) throws ReflectiveOperationException {
         if (value == null) return null;
-        if (value instanceof Double number) return number;
+        if (value instanceof Double || value instanceof Boolean) return value;
         Object result = lua.table();
         if (value instanceof Map<?, ?> map) for (var entry : ((Map<String, Double>)map).entrySet()) lua.set(result, entry.getKey(), entry.getValue());
         else return lua.list((List<String>)value);
@@ -383,6 +431,8 @@ final class Formulas implements ApiHooks.Formulas {
             if (world != null && cell != world && !declared.isEmpty()) { declared.clear(); dirty = true; publish(); }
             world = cell;
             if (dirty) write();
+            if (survival != null)
+                for (Integer part; (part = survival.nextSurvived()) != null;) game.raise(Survival.EVENT, (double)part);
         } catch (Throwable failure) {
             // Once: a fault that recurs each frame must not flood the game's log. The hooks keep answering.
             if (!reported) System.err.println("[PzTools API] formulas: " + failure);
@@ -395,7 +445,15 @@ final class Formulas implements ApiHooks.Formulas {
     /** The value every mod's declarations of the point make together, or null when no mod declared it. */
     private Object combined(Point point) {
         switch (point.shape()) {
-            case MULTIPLIER, REDUCTION, NUMBER -> {
+            case BOOLEAN -> {
+                Boolean result = null;
+                for (var values : declared.values()) {
+                    if (!(values.get(point.name()) instanceof Boolean value)) continue;
+                    result = result == null ? value : result || value;
+                }
+                return result;
+            }
+            case MULTIPLIER, REDUCTION, NUMBER, AMOUNT, CHANCE -> {
                 Double result = null;
                 for (var values : declared.values()) {
                     if (!(values.get(point.name()) instanceof Double value)) continue;
@@ -426,7 +484,7 @@ final class Formulas implements ApiHooks.Formulas {
     /** Two values of one point: multipliers multiply, reductions leave what is left of the penalty multiplied, numbers add. */
     private static double combine(Shape shape, double first, double second) {
         return switch (shape) {
-            case MULTIPLIER -> first * second;
+            case MULTIPLIER, CHANCE -> first * second;
             case REDUCTION -> 1 - (1 - first) * (1 - second);
             default -> first + second;
         };
@@ -455,6 +513,22 @@ final class Formulas implements ApiHooks.Formulas {
         next.compress = (float)number("overload.compress", 0);
         next.runReduction = (float)number("move.runPenaltyReduction", 0);
         next.combatReduction = (float)number("move.combatPenaltyReduction", 0);
+        next.lootChance = number("loot.spawnMultiplier", 1);
+        next.lootAmmo = number("loot.ammoMultiplier", 1);
+        next.cold = number("body.coldMultiplier", 1);
+        next.corpseCount = number("body.corpseCountMultiplier", 1);
+        next.corpseSickness = number("body.corpseSicknessMultiplier", 1);
+        next.treeSlow = number("move.treeSlowMultiplier", 1);
+        next.treeAnimation = (float)(1 / Math.max(next.treeSlow, 1 / MAX_TREE_ANIMATION));
+        next.treeScratch = number("move.treeScratchChance", 1);
+        next.hole = number("body.holeChance", 1);
+        next.wound = number("infection.woundChance", 1);
+        next.darkness = (float)number("vision.darknessRestore", 0);
+        next.coneAdd = (float)number("vision.coneAdd", 0);
+        next.landingShift = (float)number("fall.landingRemap", 0);
+        next.impact = (float)Math.sqrt(number("fall.impactMultiplier", 1));
+        next.walk = (float)number("move.walkMultiplier", 1);
+        if (survival != null) survival.declare(combined(BY_NAME.get("infection.biteShield")) instanceof Boolean shield && shield);
         if (combined(BY_NAME.get("capacity.modDataKey")) instanceof List<?> keys) next.dataKeys = keys.toArray(String[]::new);
         if (inventory != null) {
             var category = new HashMap<String, Float>();
@@ -491,6 +565,7 @@ final class Formulas implements ApiHooks.Formulas {
     private String status(Point point, Map<String, String> hooks) {
         if (point.shape() == Shape.PLANNED) return "planned";
         if (point.inventory() && inventory == null) return "unavailable: " + inventoryProblem;
+        if (point.survival() && survival == null) return "unavailable: " + survivalProblem;
         int applied = 0;
         String first = null;
         for (String label : point.hooks()) {
@@ -527,6 +602,7 @@ final class Formulas implements ApiHooks.Formulas {
                             separate = true;
                         }
                     }
+                    case Boolean flag -> text.append("b:").append(flag);
                     case List<?> list -> text.append("l:").append(String.join(String.valueOf(SEPARATOR), list.stream().map(String.class::cast).toList()));
                     default -> throw new IllegalStateException("Not a value: " + value.getValue());
                 }
@@ -562,6 +638,7 @@ final class Formulas implements ApiHooks.Formulas {
             Object value;
             switch (fields[3].charAt(0)) {
                 case 'n' -> value = Double.parseDouble(payload);
+                case 'b' -> value = Boolean.parseBoolean(payload);
                 case 't' -> {
                     var map = new TreeMap<String, Double>();
                     String[] parts = payload.split(String.valueOf(SEPARATOR), -1);
@@ -707,6 +784,96 @@ final class Formulas implements ApiHooks.Formulas {
         float reduction = active.combatReduction;
         if (reduction == 0f || vanilla >= 1f || !players.local(character)) return vanilla;
         return 1f - (1f - vanilla) * (1f - reduction);
+    }
+
+    @Override public float lootChance(float vanilla) {
+        double multiplier = active.lootChance;
+        return multiplier == 1 ? vanilla : (float)(vanilla * multiplier);
+    }
+
+    @Override public float lootAmmo(float vanilla) {
+        double multiplier = active.lootAmmo;
+        return multiplier == 1 ? vanilla : (float)(vanilla * multiplier);
+    }
+
+    @Override public float darkness(float vanilla, Object character) {
+        float restored = active.darkness;
+        if (restored == 0f || !players.local(character)) return vanilla;
+        return vanilla * (1f - restored);
+    }
+
+    @Override public float coneAdd(Object character, float degrees) {
+        float add = active.coneAdd;
+        if (add == 0f || !players.local(character)) return degrees;
+        return degrees + add;
+    }
+
+    @Override public float landing(float speed, Object character) {
+        float shift = active.landingShift;
+        if (shift == 0f || survival == null || !players.local(character)) return speed;
+        return survival.landing(speed, shift);
+    }
+
+    @Override public float impact(float speed, Object character) {
+        float factor = active.impact;
+        if (factor == 1f || !players.local(character)) return speed;
+        return speed * factor;
+    }
+
+    @Override public float treeSlow(float vanilla, Object mover) {
+        double multiplier = active.treeSlow;
+        // Only a slowdown (below 1) is changed; the game's bonuses for a ranger or a lumberjack stay.
+        if (multiplier == 1 || vanilla >= 1f || !players.local(mover)) return vanilla;
+        return (float)Math.max(0, 1 - (1 - vanilla) * multiplier);
+    }
+
+    @Override public float treeAnimation(float vanilla, Object player) {
+        float factor = active.treeAnimation;
+        if (factor == 1f || !players.local(player)) return vanilla;
+        return vanilla * factor;
+    }
+
+    @Override public boolean treeScratch(Object character) {
+        double chance = active.treeScratch;
+        return chance >= 1 || !players.local(character) || ThreadLocalRandom.current().nextDouble() < chance;
+    }
+
+    @Override public float walk(Object character) {
+        float factor = active.walk;
+        if (factor == 1f || survival == null || !players.local(character)) return 1f;
+        try { return survival.moving(character) ? factor : 1f; }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public float cold(float vanilla, Object player) {
+        double multiplier = active.cold;
+        return multiplier == 1 || !players.local(player) ? vanilla : (float)(vanilla * multiplier);
+    }
+
+    @Override public int corpseCount(int vanilla, Object character) {
+        double multiplier = active.corpseCount;
+        return multiplier == 1 || vanilla <= 0 || !players.local(character) ? vanilla : (int)Math.round(vanilla * multiplier);
+    }
+
+    @Override public float corpseSickness(float vanilla, Object character) {
+        double multiplier = active.corpseSickness;
+        return multiplier == 1 || !players.local(character) ? vanilla : (float)(vanilla * multiplier);
+    }
+
+    @Override public boolean hole(Object character) {
+        double chance = active.hole;
+        return chance >= 1 || !players.local(character) || ThreadLocalRandom.current().nextDouble() < chance;
+    }
+
+    @Override public boolean wound(Object character) {
+        double chance = active.wound;
+        return chance >= 1 || !players.local(character) || ThreadLocalRandom.current().nextDouble() < chance;
+    }
+
+    @Override public void bite(Object bodyDamage, int index, boolean after) {
+        if (survival == null) return;
+        try { survival.bite(bodyDamage, index, after); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
     /**

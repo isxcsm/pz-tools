@@ -165,6 +165,57 @@ public final class ApiHooks {
 
         /** The combat speed modifier {@code IsoGameCharacter.calculateCombatSpeed()} reads (below 1 slows). */
         default float combatPenalty(float vanilla, Object character) { return vanilla; }
+
+        /** {@code ItemPickerJava.getActualSpawnChance(...)}: the chance an item is put into a container or a corpse. */
+        default float lootChance(float vanilla) { return vanilla; }
+
+        /** The ammunition loot modifier {@code ItemPickerJava.getLootModifierFromType("Ammo")} gives. */
+        default float lootAmmo(float vanilla) { return vanilla; }
+
+        /** {@code LightingJNI.getLumaInverted(character)}: how dark it is for the character, from 0 (light) to 1. */
+        default float darkness(float vanilla, Object character) { return vanilla; }
+
+        /** The vision cone's width in degrees before {@code LightingJNI.calculateVisionCone} applies the worn items'; the width to use. */
+        default float coneAdd(Object character, float degrees) { return degrees; }
+
+        /** The speed {@code IsoGameCharacter.DoLand(speed)} lands with. */
+        default float landing(float speed, Object character) { return speed; }
+
+        /** The speed {@code FallDamage.getImpactIsoSpeed()} gives {@code handleLandingImpact} for the damage. */
+        default float impact(float speed, Object character) { return speed; }
+
+        /** {@code IsoTree.getSlowFactor(mover)}. */
+        default float treeSlow(float vanilla, Object mover) { return vanilla; }
+
+        /** {@code IsoPlayer.calculateInTreesSpeed()}: the speed scale of the animation of walking through trees. */
+        default float treeAnimation(float vanilla, Object player) { return vanilla; }
+
+        /** Whether {@code IsoGameCharacter.damageWhileInTrees()} goes on to scratch the character this time. */
+        default boolean treeScratch(Object character) { return true; }
+
+        /** What the movement {@code IsoPlayer.getDeferredMovement} gives is multiplied by (1 for none). */
+        default float walk(Object character) { return 1f; }
+
+        /** {@code Thermoregulator.getCatchAColdDelta()} of the player's thermoregulator. */
+        default float cold(float vanilla, Object player) { return vanilla; }
+
+        /** {@code CorpseCount.getCorpseCount(character)}. */
+        default int corpseCount(int vanilla, Object character) { return vanilla; }
+
+        /** {@code BodyDamage.GetBaseCorpseSickness()} of the character's body damage. */
+        default float corpseSickness(float vanilla, Object character) { return vanilla; }
+
+        /** Whether {@code IsoGameCharacter.addHole(part, boolean)} makes a hole in the clothing this time. */
+        default boolean hole(Object character) { return true; }
+
+        /** Whether {@code BodyPart.generateZombieInfection(chance)} rolls for an infection this time. */
+        default boolean wound(Object character) { return true; }
+
+        /**
+         * A zombie's bite is put on the body part {@code index} of {@code bodyDamage}: just before ({@code after} false) and
+         * just after ({@code after} true) {@code BodyDamage.SetBitten(index, true)}, in {@code AddRandomDamageFromZombie}.
+         */
+        default void bite(Object bodyDamage, int index, boolean after) { }
     }
 
     /** The kinds of {@link Power#object}. */
@@ -198,7 +249,12 @@ public final class ApiHooks {
         EFFECTIVE_CAPACITY("effectiveCapacity", Group.FORMULAS), CAPACITY("capacity", Group.FORMULAS),
         BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
-        COMBAT_PENALTY("combatPenalty", Group.FORMULAS);
+        COMBAT_PENALTY("combatPenalty", Group.FORMULAS), LOOT_CHANCE("lootChance", Group.FORMULAS),
+        LOOT_AMMO("lootAmmo", Group.FORMULAS), DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
+        LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
+        TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
+        COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
+        HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS);
 
         final String label;
         final Group group;
@@ -213,6 +269,8 @@ public final class ApiHooks {
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
     private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
     private static final ClassDesc ARRAY_LIST = ClassDesc.of("java.util.ArrayList"), LIST = ClassDesc.of("java.util.List");
+    private static final ClassDesc PLAYER = ClassDesc.of("zombie.characters.IsoPlayer"),
+        CHARACTER = ClassDesc.of("zombie.characters.IsoGameCharacter"), VECTOR2 = ClassDesc.of("zombie.iso.Vector2");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
 
@@ -296,7 +354,21 @@ public final class ApiHooks {
             // switch.square.haveElectricity(), for each switch of a room whose light is checked.
             Site.square("checkLights", "()V", element -> element instanceof FieldInstruction field
                 && field.opcode() == Opcode.GETFIELD && field.owner().asInternalName().equals("zombie/iso/objects/IsoLightSwitch")
-                && field.name().equalsString("square"), ROOM_LIGHT) }),
+                && field.name().equalsString("square"), ROOM_LIGHT),
+            // How dark it is for the character, from 0 to 1 (private; the vision cone and the native lighting read it).
+            Site.atReturns("getLumaInverted", "(Lzombie/characters/IsoGameCharacter;)F", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "darkness", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }),
+            // degrees x worn items' multiplier: the degrees, then the character, are on the stack. The traits add to the degrees just before.
+            Site.before("calculateVisionCone", "(Lzombie/characters/IsoGameCharacter;)F", (second, first, element) -> element instanceof InvokeInstruction invoke
+                && invoke.name().equalsString("getWornItemsVisionMultiplier") && invoke.type().equalsString("()F")
+                && first instanceof LoadInstruction self && self.slot() == 0 && self.typeKind() == TypeKind.REFERENCE
+                && second instanceof LoadInstruction degrees && degrees.typeKind() == TypeKind.FLOAT, (code, owner) -> {
+                    code.swap();
+                    code.invokestatic(HOOKS, "coneAdd", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float));
+                    code.aload(0);
+                }) }),
         Map.entry("zombie/inventory/types/Food", new Site[] {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
@@ -395,6 +467,39 @@ public final class ApiHooks {
             }),
             // How heavily the character is loaded, three times, as the fall damage is worked out.
             Site.edit("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", overloadEdit(3)).named("overload"),
+            // The speed the damage is worked out from, replaced where the fall damage reads it.
+            Site.edit("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", new Edit(calls("zombie/characters/FallDamage",
+                "getImpactIsoSpeed", "()F"), 1, null, (code, element, kind) -> {
+                    code.with(element);
+                    code.aload(0);
+                    code.invokestatic(HOOKS, "impact", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                })).named("impact"),
+            // The speed of a landing is the method's own argument: replaced before the method uses it.
+            Site.atStart("DoLand", "(F)V", (code, owner) -> {
+                code.fload(1);
+                code.aload(0);
+                code.invokestatic(HOOKS, "landing", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                code.fstore(1);
+            }),
+            // Whether walking through trees goes on to hurt (and tear the clothes): false returns at once.
+            Site.atStart("damageWhileInTrees", "()V", (code, owner) -> {
+                Label scratch = code.newLabel();
+                code.aload(0);
+                code.invokestatic(HOOKS, "treeScratch", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                code.ifne(scratch);
+                code.return_();
+                code.labelBinding(scratch);
+            }),
+            // Whether clothes tear: false returns false at once (no hole made).
+            Site.atStart("addHole", "(Lzombie/characterTextures/BloodBodyPartType;Z)Z", (code, owner) -> {
+                Label hole = code.newLabel();
+                code.aload(0);
+                code.invokestatic(HOOKS, "hole", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                code.ifne(hole);
+                code.iconst_0();
+                code.ireturn();
+                code.labelBinding(hole);
+            }),
             // The full speed modifier is stored; the combat speed modifier is read once.
             Site.edit("calculateBaseSpeed", "()F", new Edit(field(Opcode.PUTFIELD, "zombie/characters/IsoGameCharacter", "fullSpeedMod"), 1, null,
                 (code, element, kind) -> {
@@ -409,7 +514,29 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "combatPenalty", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
                 })) }),
         Map.entry("zombie/characters/IsoPlayer", new Site[] {
-            Site.edit("getPathSpeed", "()F", overloadEdit(1)).named("overload") }),
+            Site.edit("getPathSpeed", "()F", overloadEdit(1)).named("overload"),
+            Site.atReturns("calculateInTreesSpeed", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "treeAnimation", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }),
+            // The movement the animation gives is a Vector2 the method changes and returns: scaled in place before each return,
+            // and not at all when there is nothing to scale by.
+            Site.atReturns("getDeferredMovement", "(Lzombie/iso/Vector2;Z)Lzombie/iso/Vector2;", 1, (code, owner) -> {
+                Label unchanged = code.newLabel(), done = code.newLabel();
+                code.dup();
+                code.aload(0);
+                code.invokestatic(HOOKS, "walk", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                code.dup();
+                code.fconst_1();
+                code.fcmpl();
+                code.ifeq(unchanged);
+                code.invokevirtual(VECTOR2, "scale", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_float));
+                code.goto_(done);
+                code.labelBinding(unchanged);
+                code.pop();
+                code.pop();
+                code.labelBinding(done);
+            }) }),
         Map.entry("zombie/characters/Moodles/Moodle", new Site[] {
             Site.edit("Update", "()Z", overloadEdit(1)).named("overload") }),
         // A bag clamps its capacity to what a bag can be (50 less its own weight), over the container's own.
@@ -424,6 +551,72 @@ public final class ApiHooks {
                     ConstantDescs.CD_Object));
             }),
             Site.watch("weight", "weightChanged", List.of("container", "weightReduction"), List.of()) }),
+        // The loot: the chance of an item, and the ammunition modifier.
+        Map.entry("zombie/inventory/ItemPickerJava", new Site[] {
+            Site.atReturns("getActualSpawnChance", "(Lzombie/inventory/ItemPickerJava$ItemPickerItem;Lzombie/characters/IsoGameCharacter;"
+                + "Lzombie/inventory/ItemContainer;FZ)F", 0, (code, owner) -> code.invokestatic(HOOKS, "lootChance",
+                    MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float))),
+            Site.edit("getLootModifierFromType", "(Ljava/lang/String;)F", new Edit(field(Opcode.GETSTATIC, "zombie/inventory/ItemPickerJava",
+                "ammoLootModifier"), 1, null, (code, element, kind) -> {
+                    code.with(element);
+                    code.invokestatic(HOOKS, "lootAmmo", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float));
+                })) }),
+        Map.entry("zombie/iso/objects/IsoTree", new Site[] {
+            Site.atReturns("getSlowFactor", "(Lzombie/iso/IsoMovingObject;)F", 2, (code, owner) -> {
+                code.aload(1);
+                code.invokestatic(HOOKS, "treeSlow", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }) }),
+        // The body: a cold, the corpses around, a wound's infection and a bite.
+        Map.entry("zombie/characters/BodyDamage/Thermoregulator", new Site[] {
+            Site.atReturns("getCatchAColdDelta", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.getfield(owner, "player", PLAYER);
+                code.invokestatic(HOOKS, "cold", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }).reading("player:Lzombie/characters/IsoPlayer;") }),
+        Map.entry("zombie/iso/CorpseCount", new Site[] {
+            Site.atReturns("getCorpseCount", "(Lzombie/characters/IsoGameCharacter;)I", 2, (code, owner) -> {
+                code.aload(1);
+                code.invokestatic(HOOKS, "corpseCount", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
+            }) }),
+        Map.entry("zombie/characters/BodyDamage/BodyDamage", new Site[] {
+            Site.atReturns("GetBaseCorpseSickness", "()F", 1, (code, owner) -> {
+                code.aload(0);
+                code.getfield(owner, "parentChar", CHARACTER);
+                code.invokestatic(HOOKS, "corpseSickness", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+            }).reading("parentChar:Lzombie/characters/IsoGameCharacter;"),
+            // The one place a zombie's bite is put on a body part: SetBitten(index, true) with the index in a local. (Loading a
+            // save calls BodyPart.SetBitten too, which is why the hook is here and not in BodyPart.)
+            Site.edit("AddRandomDamageFromZombie", "(Lzombie/characters/IsoZombie;Ljava/lang/String;I)Z", new Edit(
+                calls("zombie/characters/BodyDamage/BodyDamage", "SetBitten", "(IZ)V"), 1, (elements, index) -> {
+                    // iload <index>; iconst_1; invokevirtual SetBitten(IZ)V
+                    CodeElement[] before = new CodeElement[2];
+                    int found = 0;
+                    for (int back = index - 1; back >= 0 && found < 2; back--)
+                        if (elements.get(back) instanceof Instruction) before[found++] = elements.get(back);
+                    if (found == 2 && before[0] instanceof ConstantInstruction one && one.constantValue().equals(1)
+                            && before[1] instanceof LoadInstruction load && load.typeKind() == TypeKind.INT) return load.slot();
+                    throw new IllegalArgumentException("the bite is not put on a body part by a local index");
+                }, (code, element, slot) -> {
+                    code.aload(0);
+                    code.iload(slot);
+                    code.iconst_0();
+                    code.invokestatic(HOOKS, "bite", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_int, ConstantDescs.CD_int));
+                    code.with(element);
+                    code.aload(0);
+                    code.iload(slot);
+                    code.iconst_1();
+                    code.invokestatic(HOOKS, "bite", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_int, ConstantDescs.CD_int));
+                })) }),
+        Map.entry("zombie/characters/BodyDamage/BodyPart", new Site[] {
+            Site.atStart("generateZombieInfection", "(I)V", (code, owner) -> {
+                Label roll = code.newLabel();
+                code.aload(0);
+                code.getfield(owner, "parentChar", CHARACTER);
+                code.invokestatic(HOOKS, "wound", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+                code.ifne(roll);
+                code.return_();
+                code.labelBinding(roll);
+            }).reading("parentChar:Lzombie/characters/IsoGameCharacter;") }),
         Map.entry("zombie/characters/Stats", new Site[] {
             // add(stat, delta); remove(stat, amount) is add(stat, -amount).
             Site.atStart("add", "(Lzombie/characters/CharacterStat;F)Z", (code, owner) -> {
@@ -766,10 +959,14 @@ public final class ApiHooks {
             for (CodeElement element : code)
                 if (element instanceof StoreInstruction store && store.slot() < argumentSlots)
                     return method + " reuses its argument slot " + store.slot();
-            for (String name : fields)
+            for (String declared : fields) {
+                // "name" is an instance int field; "name:descriptor" an instance field of that type.
+                int colon = declared.indexOf(':');
+                String name = colon < 0 ? declared : declared.substring(0, colon), descriptor = colon < 0 ? "I" : declared.substring(colon + 1);
                 if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(name)
-                        && field.fieldType().equalsString("I") && !field.flags().has(AccessFlag.STATIC)))
+                        && field.fieldType().equalsString(descriptor) && !field.flags().has(AccessFlag.STATIC)))
                     return "expected the field " + className.substring(className.lastIndexOf('/') + 1) + "." + name;
+            }
             if (object != null) {
                 int found = 0;
                 CodeElement previous = null;
@@ -1197,6 +1394,134 @@ public final class ApiHooks {
         if (current == null) return vanilla;
         try { return current.combatPenalty(vanilla, character); }
         catch (Throwable problem) { reportOnce(Call.COMBAT_PENALTY, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code ItemPickerJava.getActualSpawnChance}. */
+    public static float lootChance(float vanilla) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.lootChance(vanilla); }
+        catch (Throwable problem) { reportOnce(Call.LOOT_CHANCE, problem); return vanilla; }
+    }
+
+    /** Put after the read of {@code ItemPickerJava.ammoLootModifier} in {@code getLootModifierFromType}. */
+    public static float lootAmmo(float vanilla) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.lootAmmo(vanilla); }
+        catch (Throwable problem) { reportOnce(Call.LOOT_AMMO, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code LightingJNI.getLumaInverted}. */
+    public static float darkness(float vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.darkness(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.DARKNESS, problem); return vanilla; }
+    }
+
+    /** Put before {@code calculateVisionCone} multiplies the degrees by what the worn items allow. */
+    public static float coneAdd(Object character, float degrees) {
+        Formulas current = formulas;
+        if (current == null) return degrees;
+        try { return current.coneAdd(character, degrees); }
+        catch (Throwable problem) { reportOnce(Call.CONE_ADD, problem); return degrees; }
+    }
+
+    /** Put at the start of {@code IsoGameCharacter.DoLand}: the speed to land with. */
+    public static float landing(float speed, Object character) {
+        Formulas current = formulas;
+        if (current == null) return speed;
+        try { return current.landing(speed, character); }
+        catch (Throwable problem) { reportOnce(Call.LANDING, problem); return speed; }
+    }
+
+    /** Put after the call of {@code FallDamage.getImpactIsoSpeed()} in {@code handleLandingImpact}. */
+    public static float impact(float speed, Object character) {
+        Formulas current = formulas;
+        if (current == null) return speed;
+        try { return current.impact(speed, character); }
+        catch (Throwable problem) { reportOnce(Call.IMPACT, problem); return speed; }
+    }
+
+    /** Put before each return of {@code IsoTree.getSlowFactor}. */
+    public static float treeSlow(float vanilla, Object mover) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.treeSlow(vanilla, mover); }
+        catch (Throwable problem) { reportOnce(Call.TREE_SLOW, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code IsoPlayer.calculateInTreesSpeed}. */
+    public static float treeAnimation(float vanilla, Object player) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.treeAnimation(vanilla, player); }
+        catch (Throwable problem) { reportOnce(Call.TREE_ANIMATION, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code IsoGameCharacter.damageWhileInTrees}: false returns at once. */
+    public static boolean treeScratch(Object character) {
+        Formulas current = formulas;
+        if (current == null) return true;
+        try { return current.treeScratch(character); }
+        catch (Throwable problem) { reportOnce(Call.TREE_SCRATCH, problem); return true; }
+    }
+
+    /** Put before each return of {@code IsoPlayer.getDeferredMovement(vector, boolean)}: what the vector is scaled by (1 leaves it). */
+    public static float walk(Object character) {
+        Formulas current = formulas;
+        if (current == null) return 1f;
+        try { return current.walk(character); }
+        catch (Throwable problem) { reportOnce(Call.WALK, problem); return 1f; }
+    }
+
+    /** Put before each return of {@code Thermoregulator.getCatchAColdDelta}. */
+    public static float cold(float vanilla, Object player) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.cold(vanilla, player); }
+        catch (Throwable problem) { reportOnce(Call.COLD, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code CorpseCount.getCorpseCount(character)}. */
+    public static int corpseCount(int vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.corpseCount(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.CORPSE_COUNT, problem); return vanilla; }
+    }
+
+    /** Put before each return of {@code BodyDamage.GetBaseCorpseSickness}. */
+    public static float corpseSickness(float vanilla, Object character) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.corpseSickness(vanilla, character); }
+        catch (Throwable problem) { reportOnce(Call.CORPSE_SICKNESS, problem); return vanilla; }
+    }
+
+    /** Put at the start of {@code IsoGameCharacter.addHole(part, boolean)}: false returns false at once. */
+    public static boolean hole(Object character) {
+        Formulas current = formulas;
+        if (current == null) return true;
+        try { return current.hole(character); }
+        catch (Throwable problem) { reportOnce(Call.HOLE, problem); return true; }
+    }
+
+    /** Put at the start of {@code BodyPart.generateZombieInfection}: false returns at once. */
+    public static boolean wound(Object character) {
+        Formulas current = formulas;
+        if (current == null) return true;
+        try { return current.wound(character); }
+        catch (Throwable problem) { reportOnce(Call.WOUND, problem); return true; }
+    }
+
+    /** Put just before ({@code after} 0) and just after (1) the call of {@code SetBitten(index, true)} a zombie's bite makes. */
+    public static void bite(Object bodyDamage, int index, int after) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.bite(bodyDamage, index, after != 0); }
+        catch (Throwable problem) { reportOnce(Call.BITE, problem); }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */

@@ -2007,9 +2007,14 @@ public final class GameApiTest {
                 "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem", "Food.writes:weight",
                 "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part", "HandWeapon.clearWeaponPart:name",
                 "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
-                "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount" })
+                "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "ItemPickerJava.getActualSpawnChance",
+                "ItemPickerJava.getLootModifierFromType", "LightingJNI.getLumaInverted", "LightingJNI.calculateVisionCone",
+                "IsoTree.getSlowFactor", "Thermoregulator.getCatchAColdDelta", "CorpseCount.getCorpseCount",
+                "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
+                "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
+                "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 48, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 64, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

@@ -2,17 +2,20 @@ package zombie.characters;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import zombie.ai.State;
+import zombie.characterTextures.BloodBodyPartType;
+import zombie.characters.BodyDamage.BodyDamage;
 import zombie.characters.BodyDamage.BodyPartType;
 import zombie.characters.WornItems.WornItems;
 import zombie.inventory.InventoryItem;
 import zombie.inventory.ItemContainer;
-import zombie.iso.IsoObject;
+import zombie.iso.IsoMovingObject;
 
 /**
  * Synthetic: the character methods the formulas change, shaped as the game's are (a getter that reads a field, a method
  * that hands its argument on, a getter with a branch, a loop over the inventory, a speed worked out from its parts).
  */
-public class IsoGameCharacter extends IsoObject {
+public class IsoGameCharacter extends IsoMovingObject {
     public float clothingDiscomfortModifier = 1f;
     public final Stats stats = new Stats();
     /** What addStiffness added to each part. */
@@ -30,7 +33,52 @@ public class IsoGameCharacter extends IsoObject {
     /** What the last landing made of the load: the first question, and the second when the load is near the most. */
     public final float[] landing = new float[2];
     public float bagsRunModifier = 1f;
-    public IsoGameCharacter() { super(null); }
+    public final BodyDamage bodyDamage = new BodyDamage(this);
+    private final FallDamage fallDamage = new FallDamage();
+    private State currentState;
+    private boolean running;
+    /** How much light is on the character (1: all), the multiplier of the worn items on the vision, a ranger's walk through trees. */
+    public float luma = 1f, wornVision = 1f;
+    public boolean eagleEyed, ranger;
+    /** The clothes torn, the scratches of the trees, the speed the last landing was made at, and the damage it did. */
+    public int holes, scratches;
+    public float landedAt, impactDamage;
+    public IsoGameCharacter() { super(); }
+
+    public BodyDamage getBodyDamage() { return bodyDamage; }
+
+    public float getWornItemsVisionMultiplier() { return wornVision; }
+
+    public State getCurrentState() { return currentState; }
+
+    public boolean isCurrentState(State state) { return currentState == state; }
+
+    public void setCurrentState(State state) { currentState = state; }
+
+    public boolean isRunning() { return running; }
+
+    public void setRunning(boolean value) { running = value; }
+
+    public boolean addHole(BloodBodyPartType part, boolean ripped) {
+        holes++;
+        return true;
+    }
+
+    protected void damageWhileInTrees() {
+        scratches++;
+        addHole(BloodBodyPartType.Hand_L, true);
+    }
+
+    /** A step through the trees that may hurt. */
+    public void stepInTrees() { damageWhileInTrees(); }
+
+    /** The character lands at the speed (the game's DoLand): a landing the game counts as a fall is worked out. */
+    public void DoLand(float speed) {
+        if (!FallingConstants.isFall(speed)) return;
+        landedAt = speed;
+        fallDamage.setLandingImpact(speed);
+        handleLandingImpact(fallDamage);
+    }
 
     public Stats getStats() { return stats; }
 
@@ -79,6 +127,8 @@ public class IsoGameCharacter extends IsoObject {
 
     /** Three questions about the load, as the fall damage asks them (the third only near the most). */
     protected void handleLandingImpact(FallDamage damage) {
+        float ratio = damage.getImpactIsoSpeed() / FallingConstants.hardFallThreshold;
+        impactDamage = ratio * ratio * 115f;
         landing[0] = getInventory().getCapacityWeight() / getInventory().getMaxWeight();
         if (getInventory().getMaxWeight() - getInventory().getCapacityWeight() < 2.0f)
             landing[1] = getInventory().getCapacityWeight() / getInventory().getMaxWeight() * 20.0f;
