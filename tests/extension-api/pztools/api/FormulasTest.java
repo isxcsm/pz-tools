@@ -4,6 +4,8 @@ import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassTransform;
 import java.lang.classfile.MethodModel;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import se.krka.kahlua.vm.*;
 import zombie.characters.CharacterStat;
@@ -11,18 +13,26 @@ import zombie.characters.IsoGameCharacter;
 import zombie.characters.IsoPlayer;
 import zombie.characters.BodyDamage.BodyPartType;
 import zombie.characters.Moodles.Moodle;
+import zombie.characters.WornItems.WornItems;
+import zombie.entity.components.fluids.FluidContainer;
 import zombie.inventory.InventoryItem;
 import zombie.inventory.ItemContainer;
+import zombie.inventory.types.Food;
+import zombie.inventory.types.HandWeapon;
 import zombie.inventory.types.InventoryContainer;
+import zombie.inventory.types.Moveable;
+import zombie.inventory.types.WeaponPart;
 import zombie.iso.IsoCell;
 import zombie.iso.IsoObject;
 import zombie.iso.IsoWorld;
 import zombie.iso.objects.IsoDeadBody;
+import zombie.network.packets.ItemStatsPacket;
 import zombie.scripting.objects.ItemTag;
 import zombie.scripting.objects.ItemType;
 import zombie.vehicles.VehiclePart;
 import zombie.Lua.LuaManager;
 import pztools.bridge.ApiHooks;
+import pztools.bridge.Tracked;
 
 /**
  * The formulas as a Lua mod sees them, against the synthetic game: what a mod declares through its handle changes the
@@ -43,7 +53,7 @@ final class FormulasTest {
         bodyPoints(api, formulas, player, other);
         combining(api, formulas, player);
         carry(api, formulas, player, other);
-        memo(api, formulas, player, other);
+        kept(api, formulas, player, other);
         room(api, formulas, player, other);
         capacities(api, formulas, player, other);
         loads(api, formulas, player, other);
@@ -59,6 +69,13 @@ final class FormulasTest {
         // The classes the load tree hooks are transformed as they load: use each once.
         new Moodle(new IsoPlayer());
         new InventoryContainer("Bag", 1f, 30);
+        new Food(null);
+        new HandWeapon(1f);
+        new WeaponPart(0f);
+        new Moveable();
+        new ItemStatsPacket();
+        new FluidContainer(1f, 0f);
+        new WornItems();
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency",
@@ -173,8 +190,14 @@ final class FormulasTest {
     private static InventoryItem item(String category, float weight) { return new InventoryItem(category, weight); }
 
     private static InventoryItem put(IsoGameCharacter owner, InventoryItem item) {
-        owner.inventory.items.add(item);
+        owner.inventory.AddItem(item);
         return item;
+    }
+
+    private static void clearEquipment(IsoGameCharacter character) {
+        character.getWornItems().clear();
+        character.setPrimaryHandItem(null);
+        character.setSecondaryHandItem(null);
     }
 
     private static KahluaTable table(Object... pairs) {
@@ -195,7 +218,7 @@ final class FormulasTest {
      */
     private static InventoryItem[] stock(IsoGameCharacter owner) {
         owner.inventory.items.clear();
-        owner.equipped.clear();
+        clearEquipment(owner);
         var plank = put(owner, item("Material", 3f));
         var paint = put(owner, item("Paint", 2f));
         var sofa = put(owner, item("Furniture", 20f));
@@ -203,12 +226,12 @@ final class FormulasTest {
         var tool = put(owner, item("Tool", 1.5f));
         var bag = new InventoryContainer("Bag", 1f, 30);
         put(owner, bag);
-        for (int index = 0; index < 4; index++) bag.getInventory().items.add(item("Material", 0.5f));
+        for (int index = 0; index < 4; index++) bag.getInventory().AddItem(item("Material", 0.5f));
         var ring = new InventoryContainer("Keys", 0.2f, 10);
         ring.itemType = ItemType.KEY_RING;
         ring.tags.add(ItemTag.KEY_RING);
-        bag.getInventory().items.add(ring);
-        for (int index = 0; index < 3; index++) ring.getInventory().items.add(item("Key", 0.1f));
+        bag.getInventory().AddItem(ring);
+        for (int index = 0; index < 3; index++) ring.getInventory().AddItem(item("Key", 0.1f));
         return new InventoryItem[] { plank, paint, sofa, tool, bag, ring };
     }
 
@@ -241,23 +264,23 @@ final class FormulasTest {
         call(formulas, "set", mod, "carry.containerTagMultiplier", table("base:keyring", 0.0));
         check(near(player.getInventoryWeight(), 1.5 + 2 + 20 + 1.5 + (1 + 1.0 + 0.2)), "A key ring's keys still weigh: " + player.getInventoryWeight());
         // Equipped, the game's own count (half) holds, with the efficiency in it.
-        player.equipped.add(mine[0]);
+        player.wear(mine[0]);
         check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + 2.2), "An equipped plank: " + player.getInventoryWeight());
         // A worn bag: the weight reduction takes weight off what is inside, not off the bag.
-        player.equipped.add(mine[4]);
+        player.wear(mine[4]);
         ((InventoryContainer)mine[4]).setWeightReduction(50);
         check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + (0.5 + 1.2 * 0.5)), "An equipped bag: " + player.getInventoryWeight());
         // A bag on the hotbar: 70% of the whole.
-        player.equipped.remove(mine[4]);
-        mine[4].attachedSlot = 1;
+        player.takeOff(mine[4]);
+        mine[4].setAttachedSlot(1);
         check(near(player.getInventoryWeight(), 0.75 + 2 + 20 + 1.5 + 2.2 * 0.7), "A bag on the hotbar: " + player.getInventoryWeight());
-        mine[4].attachedSlot = -1;
-        player.equipped.remove(mine[0]);
+        mine[4].setAttachedSlot(-1);
+        player.takeOff(mine[0]);
         ((InventoryContainer)mine[4]).setWeightReduction(0);
-        // A formula that reaches nothing the character carries leaves the game's weight to the bit.
+        // A formula that reaches nothing the character carries leaves the game's weight (to the last bit of a float: the sum is a double's).
         call(formulas, "set", mod, "carry.containerTagMultiplier", null);
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Nothing", 1.0));
-        check(player.getInventoryWeight() == vanilla, "A formula for a category nothing has changed the weight: " + player.getInventoryWeight());
+        check(near(player.getInventoryWeight(), vanilla), "A formula for a category nothing has changed the weight: " + player.getInventoryWeight());
         // The read queries: an item's factor, and its weight as the load counts it.
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
         check(near((Double)call(formulas, "efficiency", mine[0]).get(0), 0.5) && near((Double)call(formulas, "efficiency", mine[1]).get(0), 1)
@@ -276,124 +299,448 @@ final class FormulasTest {
         other.inventory.items.clear();
     }
 
-    private static long walks() throws Exception {
+    private static Formulas formulasObject() throws Exception {
         var field = GameApi.class.getDeclaredField("formulas");
         field.setAccessible(true);
-        return ((Formulas)field.get(null)).bagWalks();
+        return (Formulas)field.get(null);
     }
 
+    private static long allocated() {
+        return ((com.sun.management.ThreadMXBean)java.lang.management.ManagementFactory.getThreadMXBean()).getThreadAllocatedBytes(Thread.currentThread().threadId());
+    }
+
+    // ---- the account of the load, kept ----
+
     /**
-     * A bag's weight is kept while its items, its game weight and the declarations are as they were; anything the game or a
-     * mod does to the items (add, remove, move, swap, nest) or to a weight is seen, and the cost of a call with nothing changed
-     * is measured.
+     * What the load counts is kept, not worked out: with Material at +100% (its items weigh half) and key rings' items at half,
+     * a stock of 27.35 whose every change (items added, taken out, moved, swapped, nested; a weight, an amount, a magazine, a
+     * part changed in place; worn, held, on the hotbar) is followed by the difference, without one item looked at again; what
+     * cannot be followed item by item is worked out once; and a long random sequence ends where a fresh pass over the inventory does.
      */
-    private static void memo(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) throws Exception {
-        Object mod = call(api, "client", "memo.mod").get(0);
+    private static void kept(KahluaTable api, KahluaTable formulas, IsoPlayer player, IsoGameCharacter other) throws Exception {
+        Object mod = call(api, "client", "kept.mod").get(0);
+        Formulas game = formulasObject();
+        check(ApiHooks.weightTracked(), "The hooks that follow the weight did not go in: " + ApiHooks.hookStatus());
         var mine = stock(player);
         var bag = (InventoryContainer)mine[4];
         var ring = (InventoryContainer)mine[5];
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
-        float first = player.getInventoryWeight();
-        long walked = walks();
-        check(near(first, 27.5), "The weight with a formula: " + first);
-        check(player.getInventoryWeight() == first && walks() == walked, "A bag nobody touched was worked out again");
-        // Taking an item out of a bag and putting one in.
-        var nail = bag.getInventory().items.get(0);
-        bag.getInventory().items.remove(0);
-        check(near(player.getInventoryWeight(), first - 0.25) && walks() == walked + 1, "A removed item: " + player.getInventoryWeight() + ", " + (walks() - walked));
-        walked = walks();
-        bag.getInventory().items.add(0, nail);
-        check(near(player.getInventoryWeight(), first) && walks() == walked + 1, "An item put back");
-        // Moved from one bag to another.
-        var second = new InventoryContainer("Bag", 1f, 30);
-        put(player, second);
-        float with = player.getInventoryWeight();
-        check(near(with, first + 1), "A second bag: " + with);
-        walked = walks();
-        bag.getInventory().items.remove(nail);
-        second.getInventory().items.add(nail);
-        check(near(player.getInventoryWeight(), with) && walks() == walked + 2, "An item moved between bags: " + (walks() - walked));
-        // Swapped, with the same size and the same game weight for each bag, between a key ring (whose contents weigh nothing)
-        // and another bag: the weights the game reads do not change, the items do.
-        call(formulas, "set", mod, "carry.containerTagMultiplier", table("base:keyring", 0.0));
-        var paint = item("Paint", 0.5f);
-        ring.getInventory().items.add(paint);
-        var material = item("Material", 0.5f);
-        second.getInventory().items.add(material);
-        float swapped = player.getInventoryWeight();
-        walked = walks();
-        ring.getInventory().items.set(ring.getInventory().items.indexOf(paint), material);
-        second.getInventory().items.set(second.getInventory().items.indexOf(material), paint);
-        check(near(player.getInventoryWeight(), swapped + 0.25) && walks() == walked + 3,
-            "Items swapped between bags: " + (player.getInventoryWeight() - swapped) + ", " + (walks() - walked));
-        call(formulas, "set", mod, "carry.containerTagMultiplier", null);
-        // Nested: an item put into the ring inside the bag.
-        float beforeKey = player.getInventoryWeight();
-        walked = walks();
-        ring.getInventory().items.add(item("Key", 0.1f));
-        check(near(player.getInventoryWeight(), beforeKey + 0.1) && walks() == walked + 2, "An item put into a nested bag: " + (walks() - walked));
-        // A weight that changed where it stands.
-        beforeKey = player.getInventoryWeight();
-        walked = walks();
-        nail.actualWeight = 2f;
-        check(near(player.getInventoryWeight(), beforeKey + 0.75) && walks() > walked, "A weight that changed in place: " + player.getInventoryWeight());
-        // The declarations: any change of them works every bag out again.
-        walked = walks();
-        player.getInventoryWeight();
-        check(walks() == walked, "Nothing changed, yet a bag was worked out");
-        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 3.0));
-        player.getInventoryWeight();
-        check(walks() >= walked + 3, "A declaration changed, and the bags were not worked out again: " + (walks() - walked));
-        // Another character's bags are not the player's.
+        call(formulas, "set", mod, "carry.containerTagMultiplier", table("base:keyring", 0.5));
         stock(other);
-        walked = walks();
-        other.getInventoryWeight();
-        check(walks() == walked, "A character that is not the player's bags were worked out");
+        long visits = game.inventoryVisits(), rebuilds = game.inventoryRebuilds();
+        float first = player.getInventoryWeight();
+        check(near(first, 27.35), "The weight with the formulas: " + first);
+        check(game.inventoryRebuilds() - rebuilds == 3 && game.inventoryVisits() - visits == 13,
+            "The first question worked out the inventory, the bag and the ring: " + (game.inventoryRebuilds() - rebuilds) + " lists, "
+            + (game.inventoryVisits() - visits) + " items");
+        visits = game.inventoryVisits();
+        rebuilds = game.inventoryRebuilds();
+        check(near(other.getInventoryWeight(), 30), "Another character's weight is not the game's: " + other.getInventoryWeight());
 
-        // The cost, in a 300-item inventory: 60 loose items and 5 bags of 48, with a bag in a bag.
-        player.inventory.items.clear();
-        player.equipped.clear();
-        for (int index = 0; index < 60; index++) put(player, item(index % 3 == 0 ? "Material" : "Tool", 0.5f));
-        for (int index = 0; index < 5; index++) {
-            var container = new InventoryContainer("Bag", 1f, 50);
-            put(player, container);
-            for (int inner = 0; inner < 48; inner++) container.getInventory().items.add(item(inner % 4 == 0 ? "Material" : "Paint", 0.25f));
-        }
-        call(formulas, "set", mod, "carry.categoryEfficiency", null);
-        double none = timePerCall(player, 20000);
+        // A question with nothing changed is a few field reads: no item looked at, nothing allocated.
+        float sink = 0;
+        for (int index = 0; index < 50000; index++) sink += player.getInventoryWeight();
+        long bytes = allocated();
+        for (int index = 0; index < 200000; index++) sink += player.getInventoryWeight();
+        bytes = allocated() - bytes;
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "A question with nothing changed looked at items");
+        check(bytes < 4096, "A question with nothing changed allocated " + bytes + " bytes in 200000 calls");
+        check(player.getInventoryWeight() == first && sink > 0, "The weight changed with nothing changed");
+
+        // Items added and taken out, in the character's list, in a bag, in a bag in a bag.
+        var nail = item("Material", 0.5f);
+        bag.getInventory().AddItem(nail);
+        check(near(player.getInventoryWeight(), 27.6), "An item put in a bag: " + player.getInventoryWeight());
+        bag.getInventory().Remove(nail);
+        check(near(player.getInventoryWeight(), 27.35), "An item taken out of a bag: " + player.getInventoryWeight());
+        var key = item("Key", 0.1f);
+        ring.getInventory().AddItem(key);
+        check(near(player.getInventoryWeight(), 27.4), "An item put in a bag in a bag: " + player.getInventoryWeight());
+        ring.getInventory().Remove(key);
+        check(near(player.getInventoryWeight(), 27.35), "An item taken out of a bag in a bag: " + player.getInventoryWeight());
+        // Moved: a key from the ring (whose items count half) into the bag (whose do not), and a nail from the bag to the character.
+        key = ring.getInventory().getItems().get(0);
+        ring.getInventory().Remove(key);
+        bag.getInventory().AddItem(key);
+        check(near(player.getInventoryWeight(), 27.4), "A key moved from the ring to the bag: " + player.getInventoryWeight());
+        nail = bag.getInventory().getItems().get(0);
+        bag.getInventory().Remove(nail);
+        player.inventory.AddItem(nail);
+        check(near(player.getInventoryWeight(), 27.4), "A nail moved from the bag to the character: " + player.getInventoryWeight());
+        // The whole ring, with its keys, from the bag to the character.
+        bag.getInventory().Remove(ring);
+        player.inventory.AddItem(ring);
+        check(near(player.getInventoryWeight(), 27.4), "The ring moved out of the bag: " + player.getInventoryWeight());
+        ring.getInventory().AddItem(item("Key", 0.1f));
+        check(near(player.getInventoryWeight(), 27.45), "An item put in the ring, which is the character's now: " + player.getInventoryWeight());
+        // Swapped in a list: the ring's first key and the bag's key, and swapped back.
+        var swapKey = bag.getInventory().getItems().get(bag.getInventory().getItems().size() - 1);
+        var ringKey = ring.getInventory().getItems().get(0);
+        int last = bag.getInventory().getItems().size() - 1;
+        ring.getInventory().getItems().set(0, swapKey);
+        bag.getInventory().getItems().set(last, ringKey);
+        check(near(player.getInventoryWeight(), 27.45), "Items swapped between a bag and a ring: " + player.getInventoryWeight());
+        ring.getInventory().getItems().set(0, ringKey);
+        bag.getInventory().getItems().set(last, swapKey);
+        check(near(player.getInventoryWeight(), 27.45), "Items swapped back: " + player.getInventoryWeight());
+        // Back where they were: the ring into the bag, the key into the ring, the nail into the bag.
+        ring.getInventory().Remove(ring.getInventory().getItems().get(ring.getInventory().getItems().size() - 1));
+        player.inventory.Remove(ring);
+        bag.getInventory().AddItem(ring);
+        bag.getInventory().Remove(swapKey);
+        ring.getInventory().AddItem(swapKey);
+        player.inventory.Remove(nail);
+        bag.getInventory().AddItem(nail);
+        check(near(player.getInventoryWeight(), 27.35), "Everything back: " + player.getInventoryWeight());
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds,
+            "Adding, taking out, moving and swapping looked at items: " + (game.inventoryVisits() - visits) + ", " + (game.inventoryRebuilds() - rebuilds));
+
+        // Weights that change where the item stands: its own, what it holds, a food's, a fluid's, a weapon's parts and magazine.
+        long settled = game.inventorySettled();
+        float base = player.getInventoryWeight();
+        nail.setActualWeight(2f);
+        check(near(player.getInventoryWeight(), base + 0.75), "A weight that changed in place: " + player.getInventoryWeight());
+        nail.setActualWeight(0.5f);
+        mine[3].setCurrentAmmoCount(5);
+        check(near(player.getInventoryWeight(), base + 0.5), "An item that holds something: " + player.getInventoryWeight());
+        mine[3].setCurrentAmmoCount(0);
+        var food = new Food(null);
+        food.setBaseHunger(-4f);
+        food.setHungChange(-4f);
+        bag.getInventory().AddItem(food);
+        check(near(player.getInventoryWeight(), base + 1), "A food: " + player.getInventoryWeight());
+        food.setHungChange(-1f);
+        check(near(player.getInventoryWeight(), base + 0.25), "A food eaten: " + player.getInventoryWeight());
+        food.burn();
+        check(near(player.getInventoryWeight(), base + 0.25), "A food that burnt: " + player.getInventoryWeight());
+        var water = new FluidContainer(5, 2);
+        mine[1].setFluid(water);
+        check(near(player.getInventoryWeight(), base + 0.25 + 2), "A fluid: " + player.getInventoryWeight());
+        water.adjustAmount(-1.5f);
+        check(near(player.getInventoryWeight(), base + 0.25 + 0.5), "A fluid drunk: " + player.getInventoryWeight());
+        mine[1].setFluid(null);
+        check(near(player.getInventoryWeight(), base + 0.25), "A fluid gone: " + player.getInventoryWeight());
+        var rifle = new HandWeapon(3f);
+        player.inventory.AddItem(rifle);
+        check(near(player.getInventoryWeight(), base + 0.25 + 3), "A weapon: " + player.getInventoryWeight());
+        rifle.setWeaponPart("scope", new WeaponPart(0.5f));
+        check(near(player.getInventoryWeight(), base + 0.25 + 3.5), "A part attached: " + player.getInventoryWeight());
+        rifle.setRoundChambered(true);
+        check(near(player.getInventoryWeight(), base + 0.25 + 4.5), "A round chambered: " + player.getInventoryWeight());
+        rifle.setContainsClip(true);
+        rifle.setMagazineType("Base.Mag");
+        check(near(player.getInventoryWeight(), base + 0.25 + 5.5), "A magazine: " + player.getInventoryWeight());
+        rifle.clearAllWeaponParts();
+        check(near(player.getInventoryWeight(), base + 0.25 + 5), "The parts taken off: " + player.getInventoryWeight());
+        var packet = new ItemStatsPacket();
+        var meal = new Food(null);
+        meal.setBaseHunger(-1f);
+        meal.setHungChange(-1f);
+        player.inventory.AddItem(meal);
+        float withMeal = player.getInventoryWeight();
+        packet.apply(meal, new ArrayList<>(List.of("Base.Salt")));
+        // What a packet's extra items weigh is the game's to say (nothing, here); that the change is seen is what is checked: no failure, no drift.
+        check(player.getInventoryWeight() == withMeal, "A packet's extra items changed the weight in the synthetic game");
+        player.inventory.Remove(meal);
+        player.inventory.Remove(rifle);
+        bag.getInventory().Remove(food);
+        check(near(player.getInventoryWeight(), base), "The weapon, the meal and the food taken out: " + player.getInventoryWeight());
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds && game.inventorySettled() > settled,
+            "Changes in place were not settled one by one: " + (game.inventoryVisits() - visits) + " items, " + (game.inventoryRebuilds() - rebuilds)
+            + " lists, " + (game.inventorySettled() - settled) + " changes");
+
+        // Worn, held, on the hotbar: the game's own count (half, or 70%), with the efficiency in it.
+        player.wear(mine[0]);
+        check(near(player.getInventoryWeight(), 26.6), "A worn plank: " + player.getInventoryWeight());
+        player.setPrimaryHandItem(mine[3]);
+        check(near(player.getInventoryWeight(), 25.85), "A tool in the hand: " + player.getInventoryWeight());
+        mine[1].setAttachedSlot(2);
+        check(near(player.getInventoryWeight(), 25.25), "An item on the hotbar: " + player.getInventoryWeight());
+        player.setPrimaryHandItem(mine[1]);
+        check(near(player.getInventoryWeight(), 25.6), "An item on the hotbar that is also in the hand: " + player.getInventoryWeight());
+        player.setPrimaryHandItem(null);
+        mine[1].setAttachedSlot(-1);
+        player.takeOff(mine[0]);
+        check(near(player.getInventoryWeight(), 27.35), "Everything off: " + player.getInventoryWeight());
+        // Worn, then the list of what is worn is another one.
+        player.wear(mine[0]);
+        check(near(player.getInventoryWeight(), 26.6), "Worn again: " + player.getInventoryWeight());
+        player.setWornItems(new WornItems());
+        check(near(player.getInventoryWeight(), 27.35), "Another list of worn items: " + player.getInventoryWeight());
+        // A worn bag takes weight off its items, and its items count to it all the same.
+        bag.equipParent = player;
+        player.wear(bag);
+        bag.setWeightReduction(50);
+        check(near(player.getInventoryWeight(), 27.35 - 2.35 + 0.5 + 1.35 * 0.5), "A worn bag: " + player.getInventoryWeight());
+        bag.setWeightReduction(0);
+        player.takeOff(bag);
+        bag.equipParent = null;
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "Worn, held and hotbar changes looked at items");
+
+        // What cannot be followed item by item is worked out once, for the list and the lists it is in.
+        long before = game.inventoryRebuilds();
+        bag.getInventory().getItems().removeIf(each -> each.getDisplayCategory().equals("Material"));
+        check(near(player.getInventoryWeight(), 27.35 - 1.0), "The nails taken out by a filter: " + player.getInventoryWeight());
+        check(game.inventoryRebuilds() == before + 2, "A filter worked out " + (game.inventoryRebuilds() - before) + " lists, not the bag and the character's");
+        before = game.inventoryRebuilds();
+        player.getInventoryWeight();
+        check(game.inventoryRebuilds() == before, "A list worked out once was worked out again");
+        // Emptied: followed, not worked out again.
+        ring.getInventory().getItems().clear();
+        check(near(player.getInventoryWeight(), 27.35 - 1.0 - 0.15), "A ring emptied: " + player.getInventoryWeight());
+        check(game.inventoryRebuilds() == before, "A list emptied was worked out again");
+        // The container has another list: setItems and emptyIt.
+        var inside = new ArrayList<InventoryItem>();
+        inside.add(item("Tool", 3f));
+        bag.getInventory().setItems(inside);
+        check(near(player.getInventoryWeight(), 29), "A bag's list replaced: " + player.getInventoryWeight());
+        bag.getInventory().emptyIt();
+        check(near(player.getInventoryWeight(), 26), "A bag emptied by emptyIt: " + player.getInventoryWeight());
+        // Put back what the tests took: the bag holds its nails, the ring and the keys again.
+        for (int index = 0; index < 4; index++) bag.getInventory().AddItem(item("Material", 0.5f));
+        bag.getInventory().AddItem(ring);
+        for (int index = 0; index < 3; index++) ring.getInventory().AddItem(item("Key", 0.1f));
+        check(near(player.getInventoryWeight(), 27.35), "The stock back: " + player.getInventoryWeight());
+
+        // A list put into by the list itself (a mod's getItems().add): the weight is right at once, and an item's change later too.
+        var loose = item("Tool", 1f);
+        bag.getInventory().getItems().add(loose);
+        check(near(player.getInventoryWeight(), 28.35), "An item put in through the list: " + player.getInventoryWeight());
+        long settledBefore = game.inventorySettled();
+        loose.setActualWeight(4f);
+        check(near(player.getInventoryWeight(), 31.35) && game.inventorySettled() > settledBefore, "An item put in through the list changed in place: " + player.getInventoryWeight());
+        bag.getInventory().getItems().remove(loose);
+        check(near(player.getInventoryWeight(), 27.35), "An item taken out through the list: " + player.getInventoryWeight());
+
+        // The declarations: any change works every list out again, once.
+        before = game.inventoryRebuilds();
+        long beforeVisits = game.inventoryVisits();
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 3.0));
+        float quartered = player.getInventoryWeight();
+        check(near(quartered, 1.5 / 2 + 2 + 20 + 1.5 + (1 + 4 * 0.5 / 4 + 0.2 + 0.3 * 0.5)), "Another efficiency: " + quartered);
+        check(game.inventoryRebuilds() == before + 3 && game.inventoryVisits() - beforeVisits == 5 + 5 + 3,
+            "A declaration changed: " + (game.inventoryRebuilds() - before) + " lists and " + (game.inventoryVisits() - beforeVisits) + " items worked out");
+        before = game.inventoryRebuilds();
+        player.getInventoryWeight();
+        check(game.inventoryRebuilds() == before, "The lists were worked out after the first question after the change");
         call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
-        double warm = timePerCall(player, 20000);
-        double cold = timeCold(formulas, mod, player, 4000);
-        System.out.printf("[formulas] getInventoryWeight, 300 items: no formula %.2f us, formula with the bags kept %.2f us, formula with every bag worked out %.2f us%n",
-            none, warm, cold);
-        check(warm < cold, "Keeping the bags did not make the call cheaper: " + warm + " against " + cold);
+        player.getInventoryWeight();
+
+        // A container made before the hooks (here: given a plain list) is followed from the first question on.
+        var late = new InventoryContainer("Bag", 1f, 30);
+        late.getInventory().items = new ArrayList<>();
+        late.getInventory().items.add(item("Tool", 2f));
+        player.inventory.AddItem(late);
+        check(near(player.getInventoryWeight(), 27.35 + 3), "A bag with a plain list: " + player.getInventoryWeight());
+        check((Object)late.getInventory().items instanceof Tracked, "The plain list was not replaced by a tracked one");
+        late.getInventory().AddItem(item("Tool", 1f));
+        check(near(player.getInventoryWeight(), 27.35 + 4), "An item put into the bag whose list was replaced: " + player.getInventoryWeight());
+        player.inventory.Remove(late);
+
+        // The character's own list replaced, and a character that is not the player's.
+        check(near(other.getInventoryWeight(), 30), "Another character's weight is not the game's: " + other.getInventoryWeight());
+        check(near(player.getInventoryWeight(), 27.35), "The weight changed after the late bag was taken out: " + player.getInventoryWeight());
         call(mod, "clear");
-        player.inventory.items.clear();
-        other.inventory.items.clear();
+        check(near(player.getInventoryWeight(), 30), "Clearing the formulas left the weight changed: " + player.getInventoryWeight());
+
+        random(formulas, mod, player);
+        moves(formulas, mod, player);
+        call(mod, "clear");
+        player.inventory.removeAllItems();
+        other.inventory.removeAllItems();
+        clearEquipment(player);
     }
 
-    private static double timePerCall(IsoGameCharacter character, int calls) {
-        float sink = 0;
-        for (int index = 0; index < calls; index++) sink += character.getInventoryWeight();
-        long start = System.nanoTime();
-        for (int index = 0; index < calls; index++) sink += character.getInventoryWeight();
-        long elapsed = System.nanoTime() - start;
-        if (sink == 0.123f) System.out.print("");
-        return elapsed / 1000.0 / calls;
+    // ---- a fresh pass, for the random test ----
+
+    private static float factorOf(InventoryItem item) { return item.getDisplayCategory().equals("Material") ? 0.5f : 1f; }
+
+    /** The weight an item adds to its list with nothing equipped: the formulas applied the way the load defines them, by a pass over the items. */
+    private static float freshPlain(InventoryItem item) {
+        if (!(item instanceof InventoryContainer bag)) return item.getUnequippedWeight() * factorOf(item);
+        double inner = 0;
+        for (InventoryItem each : bag.getInventory().items) inner += freshPlain(each);
+        float own = bag.getActualWeight() * factorOf(bag);
+        return (float)(own + inner * (bag.hasTag(ItemTag.KEY_RING) ? 0.5f : 1f));
     }
 
-    /** Each call follows a change of the declarations, so every bag is worked out. */
-    private static double timeCold(KahluaTable formulas, Object mod, IsoGameCharacter character, int calls) {
-        float sink = 0;
-        double total = 0;
-        for (int index = 0; index < calls * 2; index++) {
-            call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0 + (index % 7) * 0.1));
-            long start = System.nanoTime();
-            sink += character.getInventoryWeight();
-            if (index >= calls) total += System.nanoTime() - start;
+    private static float freshBody(IsoGameCharacter character, InventoryItem item) {
+        boolean equipped = character.isEquipped(item);
+        boolean hotbar = item.getAttachedSlot() > -1 && !equipped;
+        if (!hotbar && !equipped) return freshPlain(item);
+        float vanilla = hotbar ? item.getHotbarEquippedWeight() : item.getEquippedWeight();
+        if (!(item instanceof InventoryContainer bag)) return factorOf(item) == 1f ? vanilla : vanilla * factorOf(item);
+        float whole = freshPlain(bag);
+        if (whole == bag.getUnequippedWeight()) return vanilla;
+        if (hotbar) return bag.getUnequippedWeight() == 0f ? vanilla : whole * (vanilla / bag.getUnequippedWeight());
+        float own = bag.getActualWeight() * factorOf(bag);
+        int reduction = bag.getWeightReduction();
+        float taken = reduction > 0 ? 1 - reduction / 100f : 1f;
+        return own * (float)zombie.ZomboidGlobals.equippedOrWornEncumbranceMultiplier + (whole - own) * taken;
+    }
+
+    private static float freshTotal(IsoGameCharacter character) {
+        double sum = 0;
+        for (InventoryItem each : character.inventory.items) sum += freshBody(character, each);
+        return (float)sum;
+    }
+
+    private static void collect(ItemContainer container, List<InventoryItem[]> into) {
+        for (InventoryItem each : container.items) {
+            into.add(new InventoryItem[] { each, null });
+            if (each instanceof InventoryContainer bag) collect(bag.getInventory(), into);
         }
-        if (sink == 0.123f) System.out.print("");
-        return total / 1000.0 / calls;
+    }
+
+    private static boolean inside(InventoryItem outer, ItemContainer container) {
+        if (!(outer instanceof InventoryContainer bag)) return false;
+        if (bag.getInventory() == container) return true;
+        for (InventoryItem each : bag.getInventory().items) if (inside(each, container)) return true;
+        return false;
+    }
+
+    /**
+     * Ten thousand random changes (items made, taken out, moved from any container to any other, nested bags, weights, amounts,
+     * what is worn, held and on the hotbar, now and then a filter or a clear), and after each the weight is the fresh pass's, to the bit.
+     */
+    private static void random(KahluaTable formulas, Object mod, IsoPlayer player) throws Exception {
+        Formulas game = formulasObject();
+        player.inventory.removeAllItems();
+        clearEquipment(player);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        call(formulas, "set", mod, "carry.containerTagMultiplier", table("base:keyring", 0.5));
+        var random = new java.util.Random(20260509);
+        String[] categories = { "Material", "Tool", "Paint", "Key", "Food" };
+        for (int index = 0; index < 24; index++) {
+            if (index % 6 == 0) {
+                var bag = new InventoryContainer("Bag", 0.5f + random.nextInt(4) * 0.25f, 50);
+                if (random.nextBoolean()) bag.tags.add(ItemTag.KEY_RING);
+                put(player, bag);
+            } else put(player, new InventoryItem(categories[random.nextInt(categories.length)], 0.01f + random.nextInt(500) / 100f));
+        }
+        player.getInventoryWeight();
+        long rebuilds = game.inventoryRebuilds(), visits = game.inventoryVisits();
+        int[] counts = new int[16];
+        for (int step = 0; step < 10000; step++) {
+            var all = new ArrayList<InventoryItem[]>();
+            collect(player.inventory, all);
+            var containers = new ArrayList<ItemContainer>();
+            containers.add(player.inventory);
+            for (var entry : all) if (entry[0] instanceof InventoryContainer bag) containers.add(bag.getInventory());
+            InventoryItem pick = all.isEmpty() ? null : all.get(random.nextInt(all.size()))[0];
+            ItemContainer target = containers.get(random.nextInt(containers.size()));
+            int operation = random.nextInt(16);
+            counts[operation]++;
+            switch (operation) {
+                case 0, 1 -> {
+                    InventoryItem made;
+                    if (random.nextInt(8) == 0) {
+                        var bag = new InventoryContainer("Bag", 0.5f, 50);
+                        if (random.nextBoolean()) bag.tags.add(ItemTag.KEY_RING);
+                        made = bag;
+                    } else if (random.nextInt(8) == 0) {
+                        var meal = new Food(null);
+                        meal.setBaseHunger(-4f);
+                        meal.setHungChange(-4f + random.nextInt(4));
+                        made = meal;
+                    } else made = new InventoryItem(categories[random.nextInt(categories.length)], 0.01f + random.nextInt(500) / 100f);
+                    target.AddItem(made);
+                }
+                case 2 -> { if (pick != null && pick.container != null) pick.container.Remove(pick); }
+                case 3, 4, 5 -> {
+                    if (pick != null && pick.container != null && !inside(pick, target) && target != pick.container) {
+                        pick.container.Remove(pick);
+                        target.AddItem(pick);
+                    }
+                }
+                case 6 -> { if (pick != null) pick.setActualWeight(0.01f + random.nextInt(800) / 100f); }
+                case 7 -> { if (pick != null) pick.setCurrentAmmoCount(random.nextInt(30)); }
+                case 8 -> {
+                    var top = player.inventory.items;
+                    if (!top.isEmpty()) {
+                        InventoryItem item = top.get(random.nextInt(top.size()));
+                        if (player.isEquipped(item)) player.takeOff(item);
+                        else player.wear(item);
+                    }
+                }
+                case 9 -> {
+                    var top = player.inventory.items;
+                    if (!top.isEmpty()) player.setPrimaryHandItem(random.nextInt(3) == 0 ? null : top.get(random.nextInt(top.size())));
+                }
+                case 10 -> {
+                    var top = player.inventory.items;
+                    if (!top.isEmpty()) top.get(random.nextInt(top.size())).setAttachedSlot(random.nextBoolean() ? -1 : random.nextInt(4));
+                }
+                case 11 -> { if (pick instanceof Food meal) meal.setHungChange(-random.nextInt(5)); else if (pick != null) pick.setCustomWeight(random.nextBoolean()); }
+                case 12 -> {
+                    if (pick != null && pick.fluid == null && random.nextInt(4) == 0) pick.setFluid(new FluidContainer(5, random.nextInt(5)));
+                    else if (pick != null && pick.fluid != null) pick.fluid.adjustAmount(random.nextBoolean() ? -0.25f : 0.25f);
+                }
+                case 13 -> { if (pick instanceof InventoryContainer bag) bag.setWeightReduction(random.nextInt(4) * 25); }
+                case 14 -> {
+                    if (random.nextInt(25) == 0 && target != player.inventory) {
+                        if (random.nextBoolean()) target.getItems().removeIf(each -> each.getDisplayCategory().equals("Paint"));
+                        else target.removeAllItems();
+                    } else if (target.getItems().size() > 1) Collections.swap(target.getItems(), 0, target.getItems().size() - 1);
+                }
+                default -> { if (pick != null && pick.container != null && random.nextInt(4) == 0) pick.setActualWeight(pick.actualWeight); }
+            }
+            float expected = freshTotal(player), got = player.getInventoryWeight();
+            if (got != expected) throw new AssertionError("Step " + step + " (operation " + operation + "): the kept weight is " + got + ", a fresh pass gives " + expected);
+        }
+        long worked = game.inventoryRebuilds() - rebuilds;
+        var last = new ArrayList<InventoryItem[]>();
+        collect(player.inventory, last);
+        System.out.printf("[formulas] 10000 random changes (%d items at the end, %d at the top): kept weight == fresh pass every time; "
+            + "%d lists worked out again, %d items looked at%n", last.size(), player.inventory.items.size(), worked, game.inventoryVisits() - visits);
+        check(worked < 800, "The random changes worked out " + worked + " lists");
+        player.inventory.removeAllItems();
+    }
+
+    /** 3000 items moved one by one from one bag to another, the character's capacity asked after each. */
+    private static void moves(KahluaTable formulas, Object mod, IsoPlayer player) throws Exception {
+        Formulas game = formulasObject();
+        player.inventory.removeAllItems();
+        clearEquipment(player);
+        call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0));
+        var from = new InventoryContainer("Bag", 1f, 50);
+        var to = new InventoryContainer("Bag", 1f, 50);
+        put(player, from);
+        put(player, to);
+        var moved = new ArrayList<InventoryItem>();
+        for (int index = 0; index < 3000; index++) moved.add(from.getInventory().AddItem(item("Material", 0.002f)));
+        var probe = item("Tool", 0.5f);
+        long first = game.inventoryVisits();
+        float full = player.getInventoryWeight();
+        long visits = game.inventoryVisits(), rebuilds = game.inventoryRebuilds(), worked = game.inventoryWorked();
+        int fits = 0;
+        long start = System.nanoTime();
+        for (InventoryItem each : moved) {
+            from.getInventory().Remove(each);
+            to.getInventory().AddItem(each);
+            if (player.inventory.hasRoomFor(player, probe)) fits++;
+            if (Math.abs(player.getInventoryWeight() - full) > 1e-3) throw new AssertionError("The weight changed by a move: " + player.getInventoryWeight());
+        }
+        long elapsed = System.nanoTime() - start;
+        check(fits == 3000, "The character's capacity said no for a move");
+        check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds,
+            "Moving 3000 items worked lists out again: " + (game.inventoryVisits() - visits) + " items, " + (game.inventoryRebuilds() - rebuilds) + " lists");
+        worked = game.inventoryWorked() - worked;
+        System.out.printf("[formulas] 3000 items moved one by one with a capacity question each: %.2f us a move, %d items looked at, %d lists worked out, "
+            + "%d item weights worked out (%.1f a move)%n", elapsed / 1000.0 / 3000, game.inventoryVisits() - visits, game.inventoryRebuilds() - rebuilds,
+            worked, worked / 3000.0);
+        check(worked <= 3000 * 4, "A move worked out " + worked / 3000.0 + " item weights");
+        // The same moves when the declarations change on every move: each question works the lists out, so the cost shows what the account saves.
+        var again = new ArrayList<>(moved);
+        long cold = System.nanoTime();
+        for (int index = 0; index < 60; index++) {
+            call(formulas, "set", mod, "carry.categoryEfficiency", table("Material", 1.0 + (index % 7) * 0.1));
+            player.getInventoryWeight();
+        }
+        cold = System.nanoTime() - cold;
+        System.out.printf("[formulas] a question after a change of the declarations (3003 items worked out): %.1f us%n", cold / 1000.0 / 60);
+        again.clear();
+        player.inventory.removeAllItems();
     }
 
     /** Whether an item fits: what it adds is counted by the same efficiency, against the character who would carry it. */
@@ -401,7 +748,7 @@ final class FormulasTest {
         Object mod = call(api, "client", "room.mod").get(0);
         player.inventory.items.clear();
         other.inventory.items.clear();
-        player.equipped.clear();
+        clearEquipment(player);
         put(player, item("Tool", 45f));
         put(other, item("Tool", 45f));
         var incoming = item("Material", 10f);
@@ -415,7 +762,7 @@ final class FormulasTest {
         var bag = new InventoryContainer("Bag", 1f, 30);
         put(player, bag);
         bag.equipParent = player;
-        player.equipped.add(bag);
+        player.wear(bag);
         check(bag.getInventory().hasRoomFor(player, item("Material", 29f)), "An item that fits the bag did not fit");
         check(!bag.getInventory().hasRoomFor(player, item("Material", 31f)), "An item fit a bag by less than its real weight");
         player.inventory.items.clear();
@@ -435,7 +782,7 @@ final class FormulasTest {
         call(mod, "clear");
         player.inventory.items.clear();
         other.inventory.items.clear();
-        player.equipped.clear();
+        clearEquipment(player);
     }
 
     /** The most a character carries, what a container holds and the limits of the game that a container may declare away. */

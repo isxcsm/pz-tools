@@ -18,12 +18,15 @@ public final class ItemContainer {
     public boolean fridge, freezer;
     public int capacity = 50;
     public String type = "";
-    public final ArrayList<InventoryItem> items = new ArrayList<>();
+    public ArrayList<InventoryItem> items;
     public InventoryItem containingItem;
     public VehiclePart vehiclePart;
     public InventoryContainer inventoryContainer;
     public boolean vehicleSeat, seatOccupied;
-    public ItemContainer(IsoObject parent) { this.parent = parent; }
+    public ItemContainer(IsoObject parent) {
+        this.parent = parent;
+        this.items = new ArrayList<>();
+    }
     public boolean isFridge() { return fridge; }
     public boolean isFreezer() { return freezer; }
     public IsoObject getParent() { return parent; }
@@ -34,6 +37,26 @@ public final class ItemContainer {
     }
 
     public ArrayList<InventoryItem> getItems() { return items; }
+    public void setItems(ArrayList<InventoryItem> list) { items = list; }
+    public void emptyIt() { items = new ArrayList<>(); }
+
+    /** As the game's: the item is put in the list and knows its container. */
+    public InventoryItem AddItem(InventoryItem item) {
+        item.container = this;
+        items.add(item);
+        return item;
+    }
+
+    /** As the game's: the item is taken out of the list and has no container. */
+    public void Remove(InventoryItem item) {
+        items.remove(item);
+        item.container = null;
+    }
+
+    public void removeAllItems() {
+        for (InventoryItem item : items) item.container = null;
+        items.clear();
+    }
     public InventoryItem getContainingItem() { return containingItem; }
     public VehiclePart getVehiclePart() { return vehiclePart; }
     public String getType() { return type; }

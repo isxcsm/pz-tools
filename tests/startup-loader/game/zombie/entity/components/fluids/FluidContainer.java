@@ -1,13 +1,17 @@
 package zombie.entity.components.fluids;
 
 import java.util.LinkedHashMap;
+import zombie.entity.Component;
 
 /**
  * Synthetic: what an object holds. {@code amount} is the total, which a test may set; {@code shares} how it divides
  * among fluids (Water unless given). Like the game's, fluid is removed from every fluid in proportion.
  */
-public final class FluidContainer {
+public final class FluidContainer extends Component {
     public float amount;
+    /** As the game's: a change of the fluid makes the cached amount stale; asking for the amount works it out again. */
+    public boolean cacheInvalidated;
+    public float amountCache;
     public final float capacity;
     public final LinkedHashMap<Fluid, Float> shares = new LinkedHashMap<>();
     public FluidContainer(float capacity, float amount) { this(capacity, amount, Fluid.Water); }
@@ -18,10 +22,24 @@ public final class FluidContainer {
     }
     /** Like the game's: an empty container that holds one litre. */
     public static FluidContainer CreateContainer() { return new FluidContainer(1, 0); }
-    public float getAmount() { return amount; }
+    public float getAmount() {
+        if (cacheInvalidated) {
+            amountCache = amount;
+            cacheInvalidated = false;
+        }
+        return amount;
+    }
+    /** Changes the amount as the game's adjustAmount does: the cache is stale. */
+    public void adjustAmount(float change) {
+        amount = Math.max(0, Math.min(capacity, amount + change));
+        cacheInvalidated = true;
+    }
     public float getCapacity() { return capacity; }
     public float getFreeCapacity() { return capacity - amount; }
-    public void removeFluid(float used) { amount -= Math.max(0, Math.min(used, amount)); }
+    public void removeFluid(float used) {
+        amount -= Math.max(0, Math.min(used, amount));
+        cacheInvalidated = true;
+    }
     public boolean isTainted() { return amount > 0 && fluid(Fluid.TaintedWater) > 0; }
     public boolean canAddFluid(Fluid fluid) { return fluid != Fluid.Petrol || amount == 0 || fluid(Fluid.Petrol) == amount; }
 
@@ -34,6 +52,7 @@ public final class FluidContainer {
         shares.clear();
         shares.putAll(amounts);
         amount += add;
+        cacheInvalidated = true;
     }
 
     /** The litres of one fluid. */

@@ -465,15 +465,56 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `IsoGameCharacter.addStiffness` | the start | Times `body.stiffnessMultiplier` on the amount, which is the method's own argument, when it is above 0. |
 | `IsoGameCharacter.getFatiqueMultiplier` | each return | Times `body.fatigueMultiplier`. |
 | `Stats.add` | the start | Times `body.enduranceDrainMultiplier` or `body.poisonMultiplier` on the amount (the argument) for the endurance or poison stat of a local player's `Stats`. `remove` calls `add`, so it is covered. |
-| `IsoGameCharacter.getInventoryWeight` | each of the three weight reads | The weight of each item of the inventory (`getUnequippedWeight`, `getEquippedWeight`, `getHotbarEquippedWeight`) passes through the carry points, for the local player. Found by the three reads of an `InventoryItem` weight in the method. |
+| `IsoGameCharacter.getInventoryWeight` | the start | For a local player's character with a carry point declared, the method returns the kept weight (below) at once; for anything else, or when the API cannot answer, the game's own method runs. Found by its signature. |
 | `ItemContainer.hasRoomFor(IsoGameCharacter, InventoryItem)` | each read of the item's weight | An item's weight read for a comparison with the carrier's inventory (the worn-bag branch, followed by an addition) or for the room question of this container passes through the carry points when the character whose body the weight would be on is a local player. A read followed by anything else makes the hook not go in. |
 | `IsoGameCharacter.getMaxWeight` | each return | Adds `capacity.maxWeightAdd`. |
 | `ItemContainer.getEffectiveCapacity` | each return | Times `capacity.effectiveMultiplier`, or adds `capacity.characterLimitAdd` to a character's inventory. |
 | `ItemContainer.getCapacity` | each return | The raw capacity plus the keys' numbers for a container that declares one. |
 | `InventoryContainer.getCapacity`, `getEffectiveCapacity` | each return | The container's own answer, without the bag clamp, for a bag that declares a key in its `modData`. |
+| `ItemContainer.items` (every store of the field) | the store | The list stored is a `Tracked` list (an `ArrayList` that tells the API of each add, remove, set, clear, sort and bulk change after it is made), and its owner is the container. The container's own methods change the list through it, so none of them needs a hook of its own; neither do mods that call `getItems()` and change the list directly. |
+| `ItemContainer.emptyIt`, `ItemContainer.setItems` | the start | The container's list is replaced or emptied without going through the list's methods: the kept account of the old list is dropped. |
+| `WornItems.items` (every store of the field) | the store | The same for the list of what a character wears. |
+| `InventoryItem`, `Food`, `HandWeapon`, `Moveable`, `InventoryContainer`, `ItemStatsPacket` (`writes:weight`) | after each store of a field the item's weight reads | The API is told that the item's weight may have changed (the fields: weight, ammunition, custom weight, extra items, type and name of a moveable, a food's hunger values and burnt flag, a weapon's clip, chambered round and magazine, a bag's container and reduction). The fields are found by name in the class bytes; one that does not exist is left out. |
+| `InventoryItem.addExtraItem`, `HandWeapon.clearAllWeaponParts`, `clearWeaponPart`, `setWeaponPart`, `attachWeaponPart` | each return | The weight of the item, or of the part it carries, changed through a collection or an object the item holds rather than a field of its own. |
+| `FluidContainer` (`writes:amount`) | after each store of the fluid cache fields | The amount of a fluid changed: the item that holds it (the component's `getGameEntity()`) is recomputed. |
 | `Moodle.Update`, `IsoPlayer.getPathSpeed`, `IsoGameCharacter.handleLandingImpact` (labelled `:overload`) | each `ItemContainer.getCapacityWeight()` call (one, one and three) | The load passes through `overload.compress` for a local player's inventory. |
 | `IsoGameCharacter.calculateBaseSpeed` | the store of `fullSpeedMod` | The value stored passes through `move.runPenaltyReduction`. |
 | `IsoGameCharacter.calculateCombatSpeed` | the read of `combatSpeedModifier` | The value read passes through `move.combatPenaltyReduction`. |
+
+#### The weight kept
+
+`getInventoryWeight` used to walk the inventory, every bag and every item in it, on each question, and the question is
+asked many times a frame (the inventory pane, the moodle, `hasRoomFor`, the path speed). With a carry point declared the
+API keeps the answer instead, and a question on nothing that changed is a field read: no walk, no allocation, no clock.
+Nothing in the game keeps a sum of the inventory's weight (it computes it on each question), so there is none to reuse.
+
+- Each list of items (a container's, and what a character wears) has a kept account: a sum, in a `double`, of what each
+  item adds, and what each added is kept per item, so that taking an item out subtracts exactly what was added. A bag adds
+  its own weight under the carry points plus the sum of its container times the bag's tag factor; the account of a bag's
+  container knows its parent, so a change inside a nested bag adds its difference up the chain, bag by bag (the depth of the
+  nesting, not the size of the inventory). The sum is kept exact: after each addition the API checks that the rounding error
+  of the sum is zero and drops the account (to be built again once) when it is not, so the returned value is the fresh walk's,
+  to the bit.
+- A character's total is the sum of the inventory's list less what the character holds, has on the hotbar or wears counted
+  as unequipped, plus those at their equipped weights. What is equipped is compared by identity at each question (the two
+  hands, the worn list and its version): a change moves a few items between the two terms, it is not a walk.
+- A change reaches the account as it is made (the hooks above) and is settled at the next question, in the order it was
+  made; more than 4096 unsettled changes drop the accounts instead (each is built again once). A declaration change
+  (`formulas.set` of a carry point, or `clear`) invalidates every account at once with one counter; each is built again by
+  the question that needs it. Nothing declared: the game's own method runs and nothing is kept.
+
+What the API cannot see, and what it does about it:
+
+| State | Why | What happens |
+| --- | --- | --- |
+| A script's weight of an item (`Item.actualWeight`), `ScriptManager` data | Read through a method the item calls, not a field of the item | Not followed: it does not change while a game runs |
+| `ZomboidGlobals.equippedOrWornEncumbranceMultiplier` | A static the game's options set | Compared at each question; a change drops the accounts |
+| The weight modifier of a weapon part already attached | Not a field the weapon's hooks reach | The part is reweighed when it is attached, detached or the parts cleared (the hooks above); a change of an attached part's modifier alone is not seen. The game does not do it |
+| An item whose `container` field names a container whose list does not hold it, or the reverse | A mod or an old save that breaks the game's invariant | Such lists are kept by the list itself, not by the container the item names |
+| A write that avoids the methods and the fields (reflection, `Unsafe`) | The hooks are on the game's code | Not seen |
+| A list that is not `Tracked` (a container made before the API was attached) | The store was made before the hook | Upgraded to a tracked list the first time it is asked about, and built once; the hooks cover the later changes |
+| Too many changes between two questions, or a lock held by another thread when a hook ran | A bound on the queue; hooks never block the game | The accounts are dropped and built again by the next question: once per list |
+| Any hook above that is missing (`PZToolsAPI.hooks()`) | A class another mod rewrote | `ApiHooks.weightTracked()` is false and the game's own `getInventoryWeight` answers: the API does not keep an account it cannot follow |
 
 A hook that edits a call site counts the sites it finds and goes in only when it finds as many as the game's method has
 (3 weight reads, 3 load reads in the fall damage, and so on); a method another mod rewrote loses its own hook only, and
@@ -488,7 +529,16 @@ put into the real bytes of `IsoGameCharacter`, `IsoPlayer`, `Stats` (the jar's a
 `ItemContainer` and `InventoryContainer` (the jar's; PZ Optimize does not override them), and the resulting classes
 verified by the JVM. Behavior is tested against synthetic game classes of the same shape (the `api` suite): each point
 changes the local player's answer and no other character's, several mods combine by the rules above, a declaration
-goes with the world, survives a newer API and never makes the game fail. Not tried in the game yet: the load tree in
+goes with the world, survives a newer API and never makes the game fail. The kept weight is checked against a fresh
+walk: after each of 10000 random operations (items made, taken out, moved between any two containers, bags nested,
+weights, ammunition and fluid amounts changed, what is worn, held or on the hotbar changed, filters and clears) the answer
+equals the walk's to the bit. Moving 3000 items one by one between two containers with a capacity question after each cost
+6.4 us a move, looked at no item (the lists were already worked out) and worked out 3 item weights a move; a question after a
+declaration change on 3003 items cost 0.73 ms once (every list built again). A question on nothing that changed iterates
+and allocates nothing (counted). The hooks that follow the weight were put into the real bytes of `ItemContainer`,
+`WornItems`, `InventoryItem`, `Food`, `HandWeapon`, `Moveable`, `InventoryContainer`, `ItemStatsPacket`, `FluidContainer`
+and `IsoGameCharacter` (the jar's and PZ Optimize's loose class) and verified by the JVM. Not tried in the game yet: the
+weight kept against a real inventory, with real fluids and food, and the inventory pane refreshing; the load tree in
 play (weights in the inventory pane, a full inventory, the moodle, the path speed and a fall), and the speed points on a
 worn bag.
 

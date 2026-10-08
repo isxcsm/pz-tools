@@ -106,10 +106,34 @@ public final class ApiHooks {
         default float statDelta(float delta, Object stats, Object stat) { return delta; }
 
         /**
-         * A weight {@code IsoGameCharacter.getInventoryWeight()} adds for an item of the character's inventory, of the
-         * kind {@link #UNEQUIPPED}, {@link #EQUIPPED} or {@link #HOTBAR}: how the game counts that item.
+         * {@code IsoGameCharacter.getInventoryWeight()}: how heavy the character's inventory is as the load's formulas
+         * count it, or NaN to leave the game's own answer. Asked for any character, at the start of the method.
          */
-        default float carried(Object item, float vanilla, Object character, int kind) { return vanilla; }
+        default float inventoryWeight(Object character) { return Float.NaN; }
+
+        /** An item went into a tracked list (after the list took it). Called with the API's lock free, on any thread. */
+        default void itemAdded(Tracked list, Object item) { }
+
+        /** An item came out of a tracked list (after it did). */
+        default void itemRemoved(Tracked list, Object item) { }
+
+        /** A tracked list was emptied. */
+        default void listCleared(Tracked list) { }
+
+        /** A tracked list changed in a way that is not followed item by item. */
+        default void listChanged(Tracked list) { }
+
+        /** {@code ItemContainer.items} is about to be replaced by another list ({@code setItems}, {@code emptyIt}). */
+        default void itemsReplacing(Object container) { }
+
+        /**
+         * A field that the weight of an item reads was written (or, for a weapon, its parts changed): the item may weigh
+         * something else now. Called in the middle of the game's own method, so it must only note it.
+         */
+        default void weightChanged(Object item) { }
+
+        /** A fluid container's amount (which the weight of what holds it reads) may have changed. */
+        default void fluidChanged(Object fluid) { }
 
         /**
          * The weight an item adds to a container when {@code ItemContainer.hasRoomFor(character, item)} asks whether
@@ -143,9 +167,6 @@ public final class ApiHooks {
         default float combatPenalty(float vanilla, Object character) { return vanilla; }
     }
 
-    /** The kinds of {@link Formulas#carried}: how the game counts an item's weight. */
-    public static final int UNEQUIPPED = 0, EQUIPPED = 1, HOTBAR = 2;
-
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -169,7 +190,11 @@ public final class ApiHooks {
         WATER_SOURCE("waterSource", Group.WATER), WATER_SAMPLE("waterSample", Group.WATER),
         WATER_TAINTED("waterTainted", Group.WATER), DISCOMFORT("discomfort", Group.FORMULAS),
         STIFFNESS("stiffness", Group.FORMULAS), FATIGUE("fatigue", Group.FORMULAS), STAT_DELTA("statDelta", Group.FORMULAS),
-        CARRIED("carried", Group.FORMULAS), INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS),
+        INVENTORY_WEIGHT("inventoryWeight", Group.FORMULAS), ITEM_ADDED("itemAdded", Group.FORMULAS),
+        ITEM_REMOVED("itemRemoved", Group.FORMULAS), LIST_CLEARED("listCleared", Group.FORMULAS),
+        LIST_CHANGED("listChanged", Group.FORMULAS), ITEMS_REPLACING("itemsReplacing", Group.FORMULAS),
+        WEIGHT_CHANGED("weightChanged", Group.FORMULAS), FLUID_CHANGED("fluidChanged", Group.FORMULAS),
+        INCOMING("incoming", Group.FORMULAS), MAX_WEIGHT("maxWeight", Group.FORMULAS),
         EFFECTIVE_CAPACITY("effectiveCapacity", Group.FORMULAS), CAPACITY("capacity", Group.FORMULAS),
         BAG_CAPACITY("bagCapacity", Group.FORMULAS), BAG_EFFECTIVE_CAPACITY("bagEffectiveCapacity", Group.FORMULAS),
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
@@ -187,6 +212,7 @@ public final class ApiHooks {
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
     private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
+    private static final ClassDesc ARRAY_LIST = ClassDesc.of("java.util.ArrayList"), LIST = ClassDesc.of("java.util.List");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
 
@@ -234,7 +260,30 @@ public final class ApiHooks {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "capacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
-            }) }),
+            }),
+            // The list of items is a Tracked list wherever the game makes it; setItems and emptyIt replace it.
+            Site.track("items", ARRAY_LIST, Tracked.ITEMS),
+            Site.atStart("emptyIt", "()V", (code, owner) -> thisCall(code, "itemsReplacing")),
+            Site.atStart("setItems", "(Ljava/util/ArrayList;)V", (code, owner) -> thisCall(code, "itemsReplacing")) }),
+        Map.entry("zombie/characters/WornItems/WornItems", new Site[] { Site.track("items", LIST, Tracked.WORN) }),
+        // Everything an item's weight reads is written in these classes (docs/design/extension-api.md, "What the load reads").
+        Map.entry("zombie/inventory/InventoryItem", new Site[] {
+            Site.watch("weight", "weightChanged", List.of("actualWeight", "ammoType", "currentAmmoCount", "customWeight", "extraItems",
+                "fullType", "name", "replaceOnUse", "replaceOnUseFullType", "scriptItem", "cooked", "burnt", "attachedSlot",
+                "displayCategory", "itemType"), List.of()),
+            Site.atReturns("addExtraItem", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")) }),
+        Map.entry("zombie/inventory/types/HandWeapon", new Site[] {
+            Site.watch("weight", "weightChanged", List.of("containsClip", "roundChambered", "magazineType"), List.of()),
+            Site.atReturns("clearAllWeaponParts", "()V", 1, (code, owner) -> thisCall(code, "weightChanged")),
+            Site.atReturns("clearWeaponPart", "(Lzombie/inventory/types/WeaponPart;)V", 1, (code, owner) -> thisCall(code, "weightChanged")).named("part"),
+            Site.atReturns("clearWeaponPart", "(Ljava/lang/String;)V", 1, (code, owner) -> thisCall(code, "weightChanged")).named("name"),
+            Site.atReturns("setWeaponPart", "(Ljava/lang/String;Lzombie/inventory/types/WeaponPart;)V", 1, (code, owner) -> thisCall(code, "weightChanged")),
+            Site.atReturns("attachWeaponPart", "(Lzombie/characters/IsoGameCharacter;Lzombie/inventory/types/WeaponPart;Z)V", 1,
+                (code, owner) -> thisCall(code, "weightChanged")) }),
+        Map.entry("zombie/inventory/types/Moveable", new Site[] { Site.watch("weight", "weightChanged", List.of(), List.of("actualWeight", "fullType", "name")) }),
+        Map.entry("zombie/network/packets/ItemStatsPacket", new Site[] { Site.watch("weight", "weightChanged", List.of(), List.of("extraItems")) }),
+        Map.entry("zombie/entity/components/fluids/FluidContainer", new Site[] {
+            Site.watch("amount", "fluidChanged", List.of("cacheInvalidated", "amountCache"), List.of()) }),
         Map.entry("zombie/iso/objects/IsoLightSwitch", new Site[] {
             Site.atReturns("hasElectricityAround", "()Z", 1, (code, owner) -> {
                 code.aload(0); code.iconst_1(); code.iconst_1(); objectPowered(code);
@@ -263,7 +312,8 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "foodHours", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double,
                         ConstantDescs.CD_Object));
                     code.aload(0);
-                }).named("hours") }),
+                }).named("hours"),
+            Site.watch("weight", "weightChanged", List.of("baseHunger", "hungChange", "thirstChange"), List.of("burnt")) }),
         Map.entry("zombie/iso/IsoObject", new Site[] {
             // The water questions' reads of usesExternalWaterSource are hooked too; see plumbing.
             Site.atReturns("checkExternalFluidSource", "()Lzombie/iso/IsoObject;", 1, (code, owner) -> {
@@ -326,22 +376,19 @@ public final class ApiHooks {
                 code.aload(0);
                 code.invokestatic(HOOKS, "fatigue", MethodTypeDesc.of(ConstantDescs.CD_double, ConstantDescs.CD_double, ConstantDescs.CD_Object));
             }),
-            // The weight of each item of the character's inventory, as the game counts it: unequipped, equipped, on the hotbar.
-            Site.edit("getInventoryWeight", "()F", new Edit(
-                element -> element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/inventory/InventoryItem")
-                    && invoke.type().equalsString("()F") && (invoke.name().equalsString("getUnequippedWeight")
-                        || invoke.name().equalsString("getEquippedWeight") || invoke.name().equalsString("getHotbarEquippedWeight")),
-                3, (elements, index) -> {
-                    String name = ((InvokeInstruction)elements.get(index)).name().stringValue();
-                    return name.equals("getUnequippedWeight") ? UNEQUIPPED : name.equals("getEquippedWeight") ? EQUIPPED : HOTBAR;
-                }, (code, element, kind) -> {
-                    code.dup();
-                    code.with(element);
-                    code.aload(0);
-                    code.loadConstant(kind);
-                    code.invokestatic(HOOKS, "carried", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float,
-                        ConstantDescs.CD_Object, ConstantDescs.CD_int));
-                })),
+            // How heavy the inventory is with the load's formulas: the API keeps the sum and answers at once, or NaN for the game's own walk.
+            Site.atStart("getInventoryWeight", "()F", (code, owner) -> {
+                Label known = code.newLabel();
+                code.aload(0);
+                code.invokestatic(HOOKS, "inventoryWeight", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                code.dup();
+                code.dup();
+                code.fcmpl();
+                code.ifne(known);
+                code.freturn();
+                code.labelBinding(known);
+                code.pop();
+            }),
             Site.atReturns("getMaxWeight", "()I", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "maxWeight", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
@@ -375,7 +422,8 @@ public final class ApiHooks {
                 code.aload(0); code.aload(1);
                 code.invokestatic(HOOKS, "bagEffectiveCapacity", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object,
                     ConstantDescs.CD_Object));
-            }) }),
+            }),
+            Site.watch("weight", "weightChanged", List.of("container", "weightReduction"), List.of()) }),
         Map.entry("zombie/characters/Stats", new Site[] {
             // add(stat, delta); remove(stat, amount) is add(stat, -amount).
             Site.atStart("add", "(Lzombie/characters/CharacterStat;F)Z", (code, owner) -> {
@@ -386,6 +434,12 @@ public final class ApiHooks {
                     ConstantDescs.CD_float));
                 code.fstore(2);
             }) }));
+
+    /** {@code this}, passed to the static call {@code name(Object)}. */
+    private static void thisCall(CodeBuilder code, String name) {
+        code.aload(0);
+        code.invokestatic(HOOKS, name, MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+    }
 
     /** The result of each {@code ItemContainer.getCapacityWeight()} call, with the container it was asked of. */
     private static Edit overloadEdit(int expected) {
@@ -492,9 +546,34 @@ public final class ApiHooks {
     private static final Map<String, String> status = new HashMap<>();
 
     private static void record(String label, String state) {
-        synchronized (status) { status.put(label, state); }
+        synchronized (status) {
+            status.put(label, state);
+            if (TRACKING.contains(label)) {
+                boolean sound = true;
+                for (String needed : TRACKING) {
+                    String seen = status.get(needed);
+                    if (seen != null && !APPLIED.equals(seen)) sound = false;
+                }
+                weightTracked = sound;
+            }
+        }
         if (!APPLIED.equals(state)) System.err.println("[PzTools API] no hook in " + label + ": " + state);
     }
+
+    /**
+     * The hooks that let the API keep an exact account of the inventory's weight (it is told of every change to a list of
+     * items and every write of a field the weight reads); with one of them missing the account would drift, and the API
+     * leaves the game's own weight alone.
+     */
+    private static final List<String> TRACKING = List.of("ItemContainer.items:tracked", "ItemContainer.emptyIt", "ItemContainer.setItems",
+        "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem", "Food.writes:weight",
+        "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part", "HandWeapon.clearWeaponPart:name",
+        "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
+        "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount", "IsoGameCharacter.getInventoryWeight");
+    private static volatile boolean weightTracked = true;
+
+    /** Whether every hook of {@link #TRACKING} that was tried went in (a class that has not loaded yet has nothing to track). */
+    public static boolean weightTracked() { return weightTracked; }
 
     /**
      * Every hook the API puts into the game, by game class and method ({@code IsoGridSquare.haveElectricity}): applied,
@@ -550,39 +629,117 @@ public final class ApiHooks {
     @FunctionalInterface private interface Window { boolean test(CodeElement second, CodeElement first, CodeElement element); }
 
     /**
+     * A hook on the stores of instance fields (see {@link Site#track} and {@link Site#watch}). The field may be written through
+     * a subclass's name or by a class beside it, so a store counts when it is of the class itself or of one of the inventory's.
+     */
+    private record Mark(boolean wrap, String target, int kind, List<String> own, List<String> inherited, ClassDesc fieldType) {
+        boolean stores(CodeElement element, String className) {
+            if (!(element instanceof FieldInstruction field) || field.opcode() != Opcode.PUTFIELD) return false;
+            String name = field.name().stringValue(), where = field.owner().asInternalName();
+            return (own.contains(name) || inherited.contains(name)) && (where.equals(className) || where.startsWith("zombie/inventory/"));
+        }
+
+        String problem(String className, ClassModel model) {
+            String simple = className.substring(className.lastIndexOf('/') + 1);
+            for (String name : own) {
+                var field = model.fields().stream().filter(candidate -> candidate.fieldName().equalsString(name)
+                    && !candidate.flags().has(AccessFlag.STATIC)).findFirst();
+                if (field.isEmpty()) return "expected the field " + simple + "." + name;
+                String type = field.get().fieldType().stringValue();
+                if (type.equals("J") || type.equals("D")) return "the field " + simple + "." + name + " is a long or a double";
+                if (wrap && !type.equals(fieldType.descriptorString())) return "the field " + simple + "." + name + " is " + type;
+            }
+            int found = 0;
+            for (MethodModel method : model.methods()) {
+                if (!wrap && (method.methodName().equalsString("<init>") || method.methodName().equalsString("<clinit>"))) continue;
+                var code = method.code().orElse(null);
+                if (code == null) continue;
+                for (CodeElement element : code) if (stores(element, className)) found++;
+            }
+            return found == 0 ? "expected stores of " + String.join(", ", own) + (inherited.isEmpty() ? "" : " and " + String.join(", ", inherited)) + " in " + simple : null;
+        }
+
+        /** The code of every method but the constructors, with the stores signalled. */
+        ClassTransform transform(String className) {
+            if (wrap) return ClassTransform.transformingMethodBodies((builder, element) -> {
+                if (!stores(element, className)) { builder.with(element); return; }
+                // this, list -> this, tracked list
+                builder.swap();
+                builder.dup_x1();
+                builder.swap();
+                builder.loadConstant(kind);
+                builder.invokestatic(HOOKS, "track", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                    ConstantDescs.CD_int));
+                builder.checkcast(fieldType);
+                builder.with(element);
+            });
+            return ClassTransform.transformingMethodBodies(method -> !method.methodName().equalsString("<init>")
+                && !method.methodName().equalsString("<clinit>"), (builder, element) -> {
+                    if (!stores(element, className)) { builder.with(element); return; }
+                    // object, value -> object, object, value; the store; object
+                    builder.dup2();
+                    builder.pop();
+                    builder.dup_x2();
+                    builder.pop();
+                    builder.with(element);
+                    builder.invokestatic(HOOKS, target, MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+                });
+        }
+    }
+
+    /**
      * Where a hook goes in one method: before each return, with the return value on the stack; at its start; after
      * the one place where the method asks a square about power for an object ({@code object} gets the square from the
      * object on the stack, and {@code IsoGridSquare.haveElectricity()} follows at once); or before the one instruction
      * {@code at} names.
      */
     private record Site(String method, String type, boolean returns, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit,
-            Predicate<CodeElement> object, int kind, Window at, String part, List<String> fields, Edit edit) {
+            Predicate<CodeElement> object, int kind, Window at, String part, List<String> fields, Edit edit, Mark mark) {
         static Site atReturns(String method, String type, int argumentSlots, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, true, argumentSlots, emit, null, 0, null, null, List.of(), null);
+            return new Site(method, type, true, argumentSlots, emit, null, 0, null, null, List.of(), null, null);
         }
 
         static Site atStart(String method, String type, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, null, null, List.of(), null);
+            return new Site(method, type, false, 0, emit, null, 0, null, null, List.of(), null, null);
         }
 
         static Site square(String method, String type, Predicate<CodeElement> object, int kind) {
-            return new Site(method, type, false, 0, null, object, kind, null, null, List.of(), null);
+            return new Site(method, type, false, 0, null, object, kind, null, null, List.of(), null, null);
         }
 
         static Site before(String method, String type, Window at, BiConsumer<CodeBuilder, ClassDesc> emit) {
-            return new Site(method, type, false, 0, emit, null, 0, at, null, List.of(), null);
+            return new Site(method, type, false, 0, emit, null, 0, at, null, List.of(), null, null);
         }
 
         /** Rewrites each instruction of the method that {@code edit} picks. */
         static Site edit(String method, String type, Edit edit) {
-            return new Site(method, type, false, 0, null, null, 0, null, null, List.of(), edit);
+            return new Site(method, type, false, 0, null, null, 0, null, null, List.of(), edit, null);
+        }
+
+        /**
+         * Every store of the instance field {@code field} (in every method, the constructors' too) hands the list it stores to
+         * {@link #track} first, so that the field holds a {@link Tracked} list of the kind. {@code fieldType} is the field's
+         * type as the game declares it.
+         */
+        static Site track(String field, ClassDesc fieldType, int kind) {
+            return new Site(field, null, false, 0, null, null, 0, null, "tracked", List.of(), null,
+                new Mark(true, field, kind, List.of(field), List.of(), fieldType)).named("tracked");
+        }
+
+        /**
+         * After every store (outside the constructors) of the fields of the class in {@code own}, and of the fields of its
+         * superclass in {@code inherited}, the object stored into is passed to {@code signal}: its weight, or its fluid, may have changed.
+         */
+        static Site watch(String part, String signal, List<String> own, List<String> inherited) {
+            return new Site("writes", null, false, 0, null, null, 0, null, part, List.of(), null,
+                new Mark(false, signal, 0, own, inherited, null));
         }
 
         /** Told apart from another hook in the same method by {@code part}. */
-        Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields, edit); }
+        Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields, edit, mark); }
 
         /** The hook reads these instance int fields of the class. */
-        Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names), edit); }
+        Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names), edit, mark); }
 
         static boolean haveElectricity(CodeElement element) {
             return element instanceof InvokeInstruction invoke && invoke.owner().asInternalName().equals("zombie/iso/IsoGridSquare")
@@ -600,6 +757,7 @@ public final class ApiHooks {
 
         /** Why the hook does not fit the class as it is, or null. */
         String problem(String className, ClassModel model) {
+            if (mark != null) return mark.problem(className, model);
             var methods = model.methods().stream().filter(this::matches).toList();
             if (methods.size() != 1) return "expected one " + method + type + ", found " + methods.size();
             var code = methods.get(0).code().orElse(null);
@@ -646,6 +804,10 @@ public final class ApiHooks {
 
         /** What goes into the class for this hook. */
         ClassTransform classTransform(ClassDesc owner) {
+            if (mark != null) {
+                String descriptor = owner.descriptorString();
+                return mark.transform(descriptor.substring(1, descriptor.length() - 1));
+            }
             if (edit == null) return ClassTransform.transformingMethodBodies(this::matches, code(owner));
             // An edit tells its places apart from the code around them, so it reads the method's code first.
             return ClassTransform.transformingMethods(this::matches, (method, element) -> {
@@ -892,12 +1054,77 @@ public final class ApiHooks {
         catch (Throwable problem) { reportOnce(Call.STAT_DELTA, problem); return delta; }
     }
 
-    /** Put after each read of an item's weight in {@code IsoGameCharacter.getInventoryWeight()}. */
-    public static float carried(Object item, float vanilla, Object character, int kind) {
+    /** Put at the start of {@code IsoGameCharacter.getInventoryWeight()}: NaN for the game's own walk. */
+    public static float inventoryWeight(Object character) {
         Formulas current = formulas;
-        if (current == null) return vanilla;
-        try { return current.carried(item, vanilla, character, kind); }
-        catch (Throwable problem) { reportOnce(Call.CARRIED, problem); return vanilla; }
+        if (current == null) return Float.NaN;
+        try { return current.inventoryWeight(character); }
+        catch (Throwable problem) { reportOnce(Call.INVENTORY_WEIGHT, problem); return Float.NaN; }
+    }
+
+    /**
+     * Put where the game makes the list of a container's items, or of a character's worn items: the list it made, as a
+     * {@link Tracked} one (the list the game goes on with).
+     */
+    public static Object track(Object owner, Object list, int kind) {
+        if (list instanceof Tracked) return list;
+        return new Tracked(kind, owner, (Collection<?>)list);
+    }
+
+    /** Called by a {@link Tracked} list after it took an item. */
+    static void itemAdded(Tracked list, Object item) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.itemAdded(list, item); }
+        catch (Throwable problem) { reportOnce(Call.ITEM_ADDED, problem); }
+    }
+
+    /** Called by a {@link Tracked} list after an item came out. */
+    static void itemRemoved(Tracked list, Object item) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.itemRemoved(list, item); }
+        catch (Throwable problem) { reportOnce(Call.ITEM_REMOVED, problem); }
+    }
+
+    /** Called by a {@link Tracked} list after it was emptied. */
+    static void listCleared(Tracked list) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.listCleared(list); }
+        catch (Throwable problem) { reportOnce(Call.LIST_CLEARED, problem); }
+    }
+
+    /** Called by a {@link Tracked} list after a change it cannot name item by item. */
+    static void listChanged(Tracked list) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.listChanged(list); }
+        catch (Throwable problem) { reportOnce(Call.LIST_CHANGED, problem); }
+    }
+
+    /** Put at the start of {@code ItemContainer.setItems(list)} and {@code emptyIt()}. */
+    public static void itemsReplacing(Object container) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.itemsReplacing(container); }
+        catch (Throwable problem) { reportOnce(Call.ITEMS_REPLACING, problem); }
+    }
+
+    /** Put after each store of a field that an item's weight reads. */
+    public static void weightChanged(Object item) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.weightChanged(item); }
+        catch (Throwable problem) { reportOnce(Call.WEIGHT_CHANGED, problem); }
+    }
+
+    /** Put after each store of a field that a fluid container's amount is read from. */
+    public static void fluidChanged(Object fluid) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.fluidChanged(fluid); }
+        catch (Throwable problem) { reportOnce(Call.FLUID_CHANGED, problem); }
     }
 
     /** Put after each read of the item's weight in {@code ItemContainer.hasRoomFor(character, item)}. */

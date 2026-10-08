@@ -2003,9 +2003,14 @@ public final class GameApiTest {
                 "IsoGameCharacter.getMaxWeight", "IsoGameCharacter.handleLandingImpact:overload", "IsoGameCharacter.calculateBaseSpeed",
                 "IsoGameCharacter.calculateCombatSpeed", "IsoPlayer.getPathSpeed:overload", "Moodle.Update:overload", "ItemContainer.hasRoomFor",
                 "ItemContainer.getEffectiveCapacity", "ItemContainer.getCapacity", "InventoryContainer.getCapacity",
-                "InventoryContainer.getEffectiveCapacity" })
+                "InventoryContainer.getEffectiveCapacity", "ItemContainer.items:tracked", "ItemContainer.emptyIt", "ItemContainer.setItems",
+                "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem", "Food.writes:weight",
+                "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part", "HandWeapon.clearWeaponPart:name",
+                "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight", "Moveable.writes:weight",
+                "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 31, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 48, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
         transform.setAccessible(true);

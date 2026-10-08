@@ -2,9 +2,8 @@ package zombie.characters;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Set;
 import zombie.characters.BodyDamage.BodyPartType;
+import zombie.characters.WornItems.WornItems;
 import zombie.inventory.InventoryItem;
 import zombie.inventory.ItemContainer;
 import zombie.iso.IsoObject;
@@ -23,7 +22,8 @@ public class IsoGameCharacter extends IsoObject {
     public int maxWeight = 20;
     public boolean organized, disorganized;
     public final ItemContainer inventory = new ItemContainer(this);
-    public final Set<InventoryItem> equipped = new HashSet<>();
+    private InventoryItem leftHandItem, rightHandItem;
+    private WornItems wornItems = new WornItems();
     private float runSpeedModifier = 1f;
     private float fullSpeedMod;
     private float combatSpeedModifier = 1f;
@@ -48,7 +48,21 @@ public class IsoGameCharacter extends IsoObject {
 
     public int getMaxWeight() { return maxWeight; }
 
-    public boolean isEquipped(InventoryItem item) { return equipped.contains(item); }
+    public InventoryItem getPrimaryHandItem() { return leftHandItem; }
+    public InventoryItem getSecondaryHandItem() { return rightHandItem; }
+    public void setPrimaryHandItem(InventoryItem item) { leftHandItem = item; }
+    public void setSecondaryHandItem(InventoryItem item) { rightHandItem = item; }
+    public WornItems getWornItems() { return wornItems; }
+    public void setWornItems(WornItems worn) { wornItems = worn; }
+
+    /** Wears the item (the place does not matter here: one place for each). */
+    public void wear(InventoryItem item) { wornItems.setItem("place" + item.hashCode(), item); }
+
+    public void takeOff(InventoryItem item) { wornItems.remove(item); }
+
+    public boolean isEquipped(InventoryItem item) {
+        return wornItems.contains(item) || (item != null && (leftHandItem == item || rightHandItem == item));
+    }
 
     public float getInventoryWeight() {
         if (getInventory() == null) return 0.0f;

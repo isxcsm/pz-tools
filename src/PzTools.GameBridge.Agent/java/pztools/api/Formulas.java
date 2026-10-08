@@ -3,6 +3,7 @@ package pztools.api;
 import java.util.*;
 import java.util.function.Supplier;
 import pztools.bridge.ApiHooks;
+import pztools.bridge.Tracked;
 
 /**
  * {@code PZToolsAPI.formulas}: the values mods declare for named hook points, which the hooks in the game's methods read
@@ -56,7 +57,12 @@ final class Formulas implements ApiHooks.Formulas {
 
     private static Point planned(String name) { return new Point(name, Shape.PLANNED, Names.ANY, List.of(), false); }
 
-    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor" },
+    // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
+    private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
+        "ItemContainer.emptyIt", "ItemContainer.setItems", "WornItems.items:tracked", "InventoryItem.writes:weight", "InventoryItem.addExtraItem",
+        "Food.writes:weight", "HandWeapon.writes:weight", "HandWeapon.clearAllWeaponParts", "HandWeapon.clearWeaponPart:part",
+        "HandWeapon.clearWeaponPart:name", "HandWeapon.setWeaponPart", "HandWeapon.attachWeaponPart", "InventoryContainer.writes:weight",
+        "Moveable.writes:weight", "ItemStatsPacket.writes:weight", "FluidContainer.writes:amount" },
         OVERLOAD = { "Moodle.Update:overload", "IsoPlayer.getPathSpeed:overload", "IsoGameCharacter.handleLandingImpact:overload" },
         LIFT = { "ItemContainer.getCapacity", "InventoryContainer.getCapacity", "InventoryContainer.getEffectiveCapacity" };
 
@@ -159,8 +165,15 @@ final class Formulas implements ApiHooks.Formulas {
         publish();
     }
 
-    /** How many bags the load worked out from their items rather than from what it kept (for the tests). */
-    long bagWalks() { return inventory == null ? 0 : inventory.walks; }
+    /** How many items the load looked at to work a list out, how many lists it worked out, and how many changes it settled (for the tests). */
+    long inventoryVisits() { return inventory == null ? 0 : inventory.visits; }
+
+    long inventoryRebuilds() { return inventory == null ? 0 : inventory.rebuilds; }
+
+    long inventorySettled() { return inventory == null ? 0 : inventory.settled; }
+
+    /** How many times the load worked out what one item adds to its list (for the tests). */
+    long inventoryWorked() { return inventory == null ? 0 : inventory.worked; }
 
     /** Gives the game's questions to these formulas. Throws a LinkageError in a game whose bootstrap has no formula hooks. */
     void hook() { ApiHooks.setFormulas(this); }
@@ -583,10 +596,50 @@ final class Formulas implements ApiHooks.Formulas {
         return vanilla * multiplier;
     }
 
-    @Override public float carried(Object item, float vanilla, Object character, int kind) {
+    @Override public float inventoryWeight(Object character) {
         Active now = active;
-        if (!now.carry || !players.local(character)) return vanilla;
-        try { return inventory.carried(now, item, vanilla, kind); }
+        if (!now.carry || inventory == null || !ApiHooks.weightTracked() || !players.local(character)) return Float.NaN;
+        try { return inventory.total(now, character); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void itemAdded(Tracked list, Object item) {
+        if (inventory == null) return;
+        try { inventory.added(active, list, item); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void itemRemoved(Tracked list, Object item) {
+        if (inventory == null) return;
+        try { inventory.removed(active, list, item); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void listCleared(Tracked list) {
+        if (inventory == null) return;
+        try { inventory.cleared(active, list); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void listChanged(Tracked list) {
+        if (inventory != null) inventory.changed(list);
+    }
+
+    @Override public void itemsReplacing(Object container) {
+        if (inventory == null) return;
+        try { inventory.replacing(container); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void weightChanged(Object item) {
+        if (inventory == null) return;
+        try { inventory.weightChanged(item); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void fluidChanged(Object fluid) {
+        if (inventory == null) return;
+        try { inventory.fluidChanged(fluid); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
