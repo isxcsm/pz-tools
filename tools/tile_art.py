@@ -36,6 +36,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import numpy as np  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
 import tile_engine as E  # noqa: E402
@@ -111,10 +112,12 @@ KINDS = (
          anchor_props={}, draw=lambda t, st: B3.propane_refiner(t, st)),
     dict(key='oilRefiner', name='Oil Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B3.oil_refiner(t, st)),
-    # four water levels (state 0 empty .. 3 full), full in the first four places, the others after the lure
+    # four water levels are drawn (0 empty .. 3 full). The EMPTY tank is the object (134-137, what is placed, what the
+    # entity's SpriteConfig names, with IsWaterCollector on the anchor); the full tank stays at 128-131 (the item
+    # icon); levels 1-3 are overlay tiles at 146-157 (see rain_overlays). Places 138-145 are not used.
     dict(key='rainStorage', name='Big Rain Storage', foot=(2, 2), states=4, facings=1, props=dict(IsLow='', **SOLID),
          anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage(st),
-         state_bases={0: 134, 1: 138, 2: 142, 3: 128}),
+         state_bases={0: 134, 3: 128}),
 )
 
 
@@ -133,8 +136,8 @@ def _layout():
 
 LURE_ON = _layout()          # 132
 LURE_OFF = LURE_ON + 1       # 133
-RAIN_LEVEL_TILES = 3 * 4     # the rain storage's levels 0-2, after the lure: 134-145
-MACHINE_TILES = LURE_OFF + 1 + RAIN_LEVEL_TILES
+RAIN_OVERLAY = 146           # the rain storage's overlays of levels 1, 2, 3: 4 tiles each, 146-157
+MACHINE_TILES = RAIN_OVERLAY + 12
 MACHINE_ROWS = (MACHINE_TILES + COLS - 1) // COLS
 
 
@@ -161,9 +164,31 @@ def render(key, state, facing):
     return _RENDERED[token]
 
 
-def assembled(key, state=0, facing='S', floor=False, background=(0, 0, 0, 0)):
+def rain_overlays():
+    """The overlay tiles of the rain storage's levels 1-3: {level: {(i, j): image}}. An overlay tile has the pixels of that
+    level's tile that differ from the empty tank's tile, transparent elsewhere; the empty tile with the overlay drawn
+    over it (alpha compositing) is exactly the level's tile (asserted for all twelve)."""
+    empty = render('rainStorage', 0, '')
+    out = {}
+    for level in (1, 2, 3):
+        full = render('rainStorage', level, '')
+        out[level] = {}
+        for pos in sorted(empty, key=lambda q: (q[1], q[0])):
+            a = np.asarray(empty[pos]).astype(np.int16)
+            b = np.asarray(full[pos]).astype(np.int16)
+            differs = (a != b).any(axis=2)
+            overlay = np.where(differs[..., None], b, 0).astype(np.uint8)
+            tile = Image.fromarray(overlay, 'RGBA')
+            joined = np.asarray(Image.alpha_composite(empty[pos], tile))
+            assert (joined == np.asarray(full[pos])).all(), ('rain overlay level', level, pos,
+                                                           'pixels off: %d' % int((joined != np.asarray(full[pos])).any(axis=2).sum()))
+            out[level][pos] = tile
+    return out
+
+
+def assembled(key, state=0, facing='S', floor=False, background=(0, 0, 0, 0), tiles=None):
     """A machine as it stands in the world: its tiles placed at their squares on one canvas."""
-    tiles = render(key, state, facing)
+    tiles = tiles or render(key, state, facing)
     fw = max(i for i, j in tiles) + 1
     fh = max(j for i, j in tiles) + 1
     out = Image.new('RGBA', ((fw + fh) * 64 + 128, (fw + fh) * 32 + 256), background)
@@ -188,6 +213,8 @@ def machine_entries():
         n = kind['tiles']
         nf = kind['facings']
         for st in range(kind['states']):
+            if 'state_bases' in kind and st not in kind['state_bases']:
+                continue
             for fi, (facing, turns) in enumerate(facing_list(kind)):
                 tiles = render(kind['key'], st, facing)
                 fw, fh = foot_of(kind, turns)
@@ -205,6 +232,13 @@ def machine_entries():
                     entries[place] = (image, p)
     entries[LURE_ON] = (M2.lure(True), LURE)
     entries[LURE_OFF] = (M2.lure(False), LURE)
+    # the overlays: decoration only, no properties
+    overlays = rain_overlays()
+    for level in (1, 2, 3):
+        for (i, j), image in overlays[level].items():
+            place = RAIN_OVERLAY + (level - 1) * 4 + j * 2 + i
+            assert entries[place] is None, place
+            entries[place] = (image, {})
     return entries
 
 
@@ -302,9 +336,15 @@ def machines_preview(path):
     for kind in KINDS:
         for st in range(kind['states']):
             if 'state_bases' in kind:
-                if st == 0:   # one row for the four water levels, empty to full
-                    rows.append([assembled(kind['key'], level, '', floor=True, background=(52, 58, 52, 255))
-                                 for level in range(kind['states'])])
+                if st == 0:   # one row for the four water levels, empty to full: the empty tank with the overlay over it
+                    overlays = rain_overlays()
+                    row = []
+                    for level in range(kind['states']):
+                        tiles = render(kind['key'], 0, '')
+                        if level:
+                            tiles = {pos: Image.alpha_composite(tiles[pos], overlays[level][pos]) for pos in tiles}
+                        row.append(assembled(kind['key'], floor=True, background=(52, 58, 52, 255), tiles=tiles))
+                    rows.append(row)
                 continue
             row = [assembled(kind['key'], st, f, floor=True, background=(52, 58, 52, 255)) for f, t in facing_list(kind)]
             rows.append(row)
@@ -348,6 +388,8 @@ def main():
             else:
                 preview(images, os.path.join(here, 'tile_art_preview_%s.png' % name))
         print('wrote', name, sum(1 for image in images if image is not None), 'tiles')
+        if name == 'machines':
+            print('rain overlays: 12 tiles, each overlaid on the empty tile equals its level tile (pixel-equal)')
 
 
 if __name__ == '__main__':

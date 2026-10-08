@@ -5,7 +5,7 @@ import random
 
 from PIL import Image, ImageDraw
 
-from tile_engine import Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
+from tile_engine import OWNERS, Scene, shadow, compose, unit, rotation, apply, add, mul, stencil_text, acorn_mark, project, SS
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, BLUE, LIT, UNLIT, BEZEL, lamp, lamp_y,
                           front_decal, side_decal, flat_decal, noise_texture)
@@ -171,6 +171,8 @@ def rain_storage(level=3):
     with a hand rail of steel loops, a ladder up the south-east side, a downspout pipe feeding it from above, a brass
     tap with its valve low on the front and an overflow pipe. level 0..3 is how much water it holds: empty (a dry
     floor with a little dirt and leaves), a quarter, a half, full (the water a hand below the rim)."""
+    if level and 'rainStorage' not in OWNERS:
+        rain_storage(0)    # the empty tank's split of the pixels into tiles is the one every level uses
     s = Scene(0, foot=(2, 2))
     cx, cy, r, h = 1.0, 1.0, 0.82, 0.8
     PLASTIC = (58, 104, 150)
@@ -262,4 +264,4 @@ def rain_storage(level=3):
     s.tube((ox - 0.03, oy, h - 0.16), (ox + 0.13, oy, h - 0.16), 0.05, PLASTIC_DARK, segments=16, shine=0.3)
     s.tube((ox + 0.13, oy, h - 0.16), (ox + 0.13, oy, 0.18), 0.05, PLASTIC_DARK, segments=16, shine=0.3)
     ground = shadow((1.0, 1.0), 0.95, 0.95, 125)
-    return compose(s, ground=ground, seed=170 + level)
+    return compose(s, ground=ground, seed=170, owner_key='rainStorage')

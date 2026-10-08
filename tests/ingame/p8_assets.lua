@@ -46,6 +46,7 @@ local function placeTile(sq, name)
     sq:AddSpecialObject(obj)
     P8_PLACED[#P8_PLACED + 1] = { sq = sq, obj = obj }
     placed = placed + 1
+    return obj
 end
 
 -- The 1x1 trade tiles (and the lure): each loaded, its properties as the sheet defines them, then placed two squares apart.
@@ -93,7 +94,7 @@ end
 -- The machines, each placed whole: its tiles on the squares of its footprint from the anchor (the min-x, min-y square),
 -- a stopped look and a running look in a row, the four directions along it, every machine four squares apart. The
 -- sheet's rules for them: facing and grid position on every tile, one group, the container (research storage) and the
--- rain collector flag on the anchor only (of each of the rain storage's four water levels).
+-- rain collector flag on the anchor only; the rain storage is the empty tank with the water level set as overlay.
 local DIRS = { "S", "E", "N", "W" }
 local KINDS = { "shredBench", "bulkShredder", "cutter", "woodSaw", "researchStorage", "propaneRefiner", "oilRefiner",
     "rainStorage" }
@@ -103,11 +104,11 @@ local row = ROW0
 local machines = 0
 for _, kind in ipairs(KINDS) do
     for _, running in ipairs(RUNS[kind] and { false, true } or { false }) do
-        -- the rain storage does not turn: its four looks are the water levels, empty to full
+        -- the rain storage does not turn: its four looks are the water levels, empty to full (the empty tank, 1 to 3 with the overlay)
         for d, dir in ipairs(kind == "rainStorage" and { 0, 1, 2, 3 } or DIRS) do
             local level
             if kind == "rainStorage" then level, dir = dir, "S" end
-            local tiles = level and Sprites.rainStorageTiles(level) or Sprites.machineTiles(kind, dir, running)
+            local tiles = Sprites.machineTiles(kind, dir, running)
             local w, h = Sprites.footprint(kind, dir)
             if not tiles or #tiles ~= w * h then
                 wrong(kind, dir, "machineTiles gives", tiles and #tiles or "nothing", "want", w * h)
@@ -129,7 +130,21 @@ for _, kind in ipairs(KINDS) do
                         group = group or g
                         if g ~= group then wrong(t.sprite, "group differs inside the machine", tostring(g), tostring(group)) end
                         local sq = cell:getGridSquare(ax + t.dx, ay + t.dy, oz)
-                        if sq then placeTile(sq, t.sprite) else wrong("no square for", t.sprite) end
+                        if sq then
+                            local obj = placeTile(sq, t.sprite)
+                            -- the rain storage's water level: an overlay on each square of the empty tank
+                            if level and level >= 1 then
+                                for _, o in ipairs(Sprites.rainOverlayTiles(level)) do
+                                    if o.dx == t.dx and o.dy == t.dy then
+                                        checkProps(o.sprite, "rain overlay " .. level, { IsWaterCollector = false, BlocksPlacement = false, solidtrans = false, container = false })
+                                        obj:setOverlaySprite(o.sprite)
+                                        if obj:getOverlaySprite() == nil then wrong(o.sprite, "overlay did not stick") end
+                                    end
+                                end
+                            end
+                        else
+                            wrong("no square for", t.sprite)
+                        end
                     end
                 end
                 machines = machines + 1
@@ -142,9 +157,10 @@ check("tiles placed, machines whole", bad == 0, placed .. " tiles placed, " .. m
 
 -- Every tile of both sheets is loaded (also those no look uses), by its place.
 local missing = 0
-for _, sheet in ipairs({ { "oa_trade_01", 16 }, { "oa_machines_01", 146 } }) do
+for _, sheet in ipairs({ { "oa_trade_01", 16 }, { "oa_machines_01", 158 } }) do
     for index = 0, sheet[2] - 1 do
-        if not sprite(sheet[1] .. "_" .. index) then missing = missing + 1; say("BAD tile not loaded", sheet[1] .. "_" .. index) end
+        local unused = sheet[1] == "oa_machines_01" and index >= 138 and index <= 145   -- places kept free (the rain levels are overlays)
+        if not unused and not sprite(sheet[1] .. "_" .. index) then missing = missing + 1; say("BAD tile not loaded", sheet[1] .. "_" .. index) end
     end
 end
 check("every tile of the sheets is loaded", missing == 0, missing .. " missing")
