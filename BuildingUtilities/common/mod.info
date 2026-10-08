@@ -1,8 +1,10 @@
 name=Building Utilities
 id=BuildingUtilities
 author=PZ Tools
-description=A utility panel powers and waters a whole building from generators, water tanks and solar panels outside it, with battery racks to store power. Needs PZ Tools installed (its startup loader). Single player only.
+description=A utility panel powers and waters a whole building from generators, water storage and solar panels outside it, with battery racks to store power and pumps, sprinklers, filters and booster pumps for its water. Needs PZ Tools installed (its startup loader). Multiplayer is untested.
 modversion=0.1.0
 versionMin=42.0.0
 pack=BuildingUtilitiesSolar
 tiledef=bu_solar 5432
+pack=BuildingUtilitiesWater
+tiledef=bu_water 5433
