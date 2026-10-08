@@ -1,5 +1,6 @@
 package pztools.bridge.runtime.api;
 
+import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
 import pztools.bridge.ApiHooks;
@@ -68,6 +69,8 @@ final class WaterGrid implements ApiHooks.Water {
     private volatile boolean stale;
     private volatile Thread changer;
     private final Method fluidContainer, amount, capacity;
+    // The same three for pick, the hook's path: invokeExact, no argument arrays, no boxed floats.
+    private final MethodHandle containerOf, amountOf, capacityOf;
     private final Method sample, scaledSample, sampleSize, sampleFluid, sampleInstance, instanceAmount, sampleRelease, fluidName, fluidNamed;
     private final Method createContainer, isTainted;
     private final Method removeFluid, addFluid, modData, sync;
@@ -96,6 +99,9 @@ final class WaterGrid implements ApiHooks.Water {
         Class<?> fluidSample = Game.type(loader, "zombie.entity.components.fluids.FluidSample");
         amount = container.getMethod("getAmount");
         capacity = container.getMethod("getCapacity");
+        containerOf = Game.exact(fluidContainer, MethodType.methodType(Object.class, Object.class));
+        amountOf = Game.exact(amount, MethodType.methodType(float.class, Object.class));
+        capacityOf = Game.exact(capacity, MethodType.methodType(float.class, Object.class));
         sample = container.getMethod("createFluidSample");
         scaledSample = container.getMethod("createFluidSample", float.class);
         createContainer = container.getMethod("CreateContainer");
@@ -232,9 +238,16 @@ final class WaterGrid implements ApiHooks.Water {
      * for none. Under {@link #FULLEST} the fullest by share of its capacity. Under {@link #NEAREST} one at least {@link
      * #SPILL} full (the fullest such), else the fullest of the nearest network in the chain that has one holding some:
      * one pass over the containers either way. A square owed changes it has not taken yet counts as not loaded (see
-     * {@link #applyOwed}). Asked whenever the game looks at a fixture's water: it allocates nothing.
+     * {@link #applyOwed}). Asked whenever the game looks at a fixture's water: it allocates nothing (the square's own
+     * list, read by index; handles called exactly).
      */
     private Object pick(Supplier supplier, Object cells) throws ReflectiveOperationException {
+        try { return pickExact(supplier, cells); }
+        catch (ReflectiveOperationException failure) { throw failure; }
+        catch (Throwable failure) { throw Game.thrown(failure); }
+    }
+
+    private Object pickExact(Supplier supplier, Object cells) throws Throwable {
         List<Position> producers = supplier.producers();
         int[] ends = supplier.ends();
         boolean nearest = supplier.nearest();
@@ -246,12 +259,14 @@ final class WaterGrid implements ApiHooks.Water {
             Position at = producers.get(index);
             Object loaded = pending.owed(at) ? null : game.square(cells, at);
             if (loaded == null) continue;
-            for (Object object : game.objectsOn(loaded)) {
-                Object container = fluidContainer.invoke(object);
+            List<?> objects = game.objectList(loaded);
+            for (int each = 0; each < objects.size(); each++) {
+                Object object = objects.get(each);
+                Object container = (Object)containerOf.invokeExact(object);
                 if (container == null) continue;
-                float held = (float)amount.invoke(container), most = (float)capacity.invoke(container);
+                float held = (float)amountOf.invokeExact(container), most = (float)capacityOf.invokeExact(container);
                 if (most <= 0 || held <= 0) continue;
-                double share = held / most;
+                double share = (double)held / most;
                 if (nearest && share >= SPILL && (spill == null || share > spillShare)) { spill = object; spillShare = share; }
                 // Under NEAREST a farther network's containers count only for spilling, once a nearer one has water.
                 if (nearest && tier > bestTier) continue;

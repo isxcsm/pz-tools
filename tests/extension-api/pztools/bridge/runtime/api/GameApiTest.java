@@ -1666,9 +1666,37 @@ public final class GameApiTest {
             && near(WaterGrid.nearest(new double[] { 50, 99, 30 }, new double[] { 100, 100, 100 }, new int[] { 1, 2, 0 }, 40)[2], 30)
             && near(WaterGrid.nearest(new double[] { 50, 99, 30 }, new double[] { 100, 100, 100 }, new int[] { 1, 2, 0 }, 40)[0], 6),
             "The nearest shares are wrong");
-        for (String id : List.of("floor", "roof")) call(networks, "remove", mod, id);
+        // Exactly 95 percent full counts as about to spill.
+        roof.fluidContainer.amount = 95;
+        floor.fluidContainer.amount = 20;
+        other.fluidContainer.amount = 10;
+        check(tap.getFluidAmount() == 95, "A container exactly 95 percent full did not give first: " + tap.getFluidAmount());
+        roof.fluidContainer.amount = 80;
+        // A child with no producers of its own, under the floor: the floor's first, then the roof's (three levels).
+        var hallTap = place(44, 41, 0, new IsoObject(new IsoSprite("hall tap")));
+        hallTap.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        call(networks, "define", mod, "hall", "water", "nearest");
+        call(networks, "setParent", mod, "hall", "floor");
+        call(networks, "include", mod, "hall", 44.0, 41.0, 0.0, "hall tap");
+        // Under "fullest", in the same chain: the fullest of all, the parent's although its own holds some.
+        var flatTap = place(45, 41, 0, new IsoObject(new IsoSprite("flat tap")));
+        flatTap.sprite.properties.flags.add(IsoFlagType.waterPiped);
+        IsoObject flatOwn = place(46, 40, 0, barrel(30));
+        call(networks, "define", mod, "flat", "water", "fullest");
+        call(networks, "setProducers", mod, "flat", list(at(46, 40, 0)));
+        call(networks, "setParent", mod, "flat", "roof");
+        call(networks, "include", mod, "flat", 45.0, 41.0, 0.0, "flat tap");
         frame();
-        check(!tap.getUsesExternalWaterSource(), "A removed network still supplies water");
+        check(hallTap.getFluidAmount() == 20, "A child with no producers did not draw from its parent's first: " + hallTap.getFluidAmount());
+        floor.fluidContainer.amount = 0;
+        other.fluidContainer.amount = 0;
+        check(hallTap.getFluidAmount() == 80, "A child with no producers did not go on to the top: " + hallTap.getFluidAmount());
+        check(flatTap.getFluidAmount() == 80 && flatOwn.fluidContainer.amount == 30,
+            "Under fullest, the parent's fuller barrel did not give first: " + flatTap.getFluidAmount());
+        for (String id : List.of("flat", "hall", "floor", "roof")) call(networks, "remove", mod, id);
+        frame();
+        check(!tap.getUsesExternalWaterSource() && !hallTap.getUsesExternalWaterSource() && !flatTap.getUsesExternalWaterSource(),
+            "A removed network still supplies water");
     }
 
     /**

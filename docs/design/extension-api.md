@@ -210,8 +210,8 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   draw from its child's. Under `"nearest"` they draw from the network's own producers first and from
   each parent's only once the nearer ones hold nothing, the fullest within each; a container at least
   95% full gives first wherever in the chain it is, so that rain is used before it would spill. A mod
-  that keeps the higher networks' water for the fixtures that can reach only those (water running
-  down floors) gets that order; the API knows nothing of floors. A producer's square has
+  whose parents' water is the only water some other fixtures reach (those of the parents' own
+  networks) keeps it for them this way. The policy of the fixture's own network applies. A producer's square has
   no consumers. The producers are read once a second; a `"supply"` event says when the network got or
   lost water.
 - Food: the hours food in a network's fridge or freezer ages over are split where the network's
@@ -312,8 +312,9 @@ a producer ran out while its square was not loaded. A mod reads the rest with `n
   parent's up to the one at the top; it has water while one of those holds some and it and each
   parent above it are switched on. A parent switched off cuts its children, whatever they hold.
   Without water, its fixtures are the game's again.
-- **Draws.** A consumer fixture draws from the network: the producer with the highest fill ratio
-  gives each draw. Levels converge as water is used, and space opens first in the containers that
+- **Draws.** A consumer fixture draws from the network: under `"fullest"` the producer with the
+  highest fill ratio gives each draw (under `"nearest"` see above; the policy of the fixture's own
+  network applies, whatever its parents' are). Levels converge as water is used, and space opens first in the containers that
   are fullest, so rain is lost only when all are full. No water is moved between containers. A
   producer is the fluid container on a producer square; one whose square is not loaded gives no draw.
 - **Fluids.** Vanilla decides amount and draw from the container the draw comes from, as it does for
@@ -338,7 +339,8 @@ own, then its parents'), and nothing while the network or a parent above it is s
   then from both, and so on, as many small draws by fixtures would; a fill levels the room left the
   same way, so the emptiest takes first. Under `"nearest"` a draw first takes what is above 95% of
   each container's capacity (levelled the same way), then from the network's own producers, levelled,
-  then from its parent's, and so on; a fill is as under `"fullest"`. Each container gives every fluid it holds in proportion,
+  then from its parent's, and so on; a fill is as under `"fullest"`. The policy of the network drawn
+  from applies. Each container gives every fluid it holds in proportion,
   which is what the draw's table reports.
 - **Loaded.** A container on a loaded square changes at once, through the game's own
   `FluidContainer.removeFluid` and `addFluid` (a container that does not take that fluid takes none).
@@ -387,7 +389,7 @@ own, then its parents'), and nothing while the network or a parent above it is s
 | Is this room's light on, and this switch's lamps? | `LightingJNI.checkLights()`: a room light asks its switches' squares (`haveElectricity()`); a lamp with switches asks its first switch (`canSwitchLight()`, which asks `hasElectricityAround()`) | A switch of the room that the network supplies (its room's building is a member), not excluded |
 | Can this radio or television be powered? | `DeviceData.canBePoweredHere()` | Same rule |
 | Does this fixture take water from another object? | Each water question of `IsoObject` (`getFluidAmount`, `useFluid`, `hasWater`, `getUsesExternalWaterSource` and the others) reads its field `usesExternalWaterSource` | Vanilla, or it is a consumer of a network that has water |
-| Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the network's fullest producer; vanilla when none holds water |
+| Which object does it take water from? | `IsoObject.checkExternalFluidSource()` | For a consumer, the producer its network's policy picks (the fullest, or the nearest network's fullest); vanilla when none holds water |
 | What comes out of it, and is it tainted? | `IsoObject.createSampleAndPurifyWater(source, amount)` (TaintedWater becomes Water), behind `transferFluidTo`, `getPrimaryFluid` and `getFluidUiName`; `IsoObject.isTaintedWater()` | Vanilla; for a consumer of a network that does not purify, a sample with the producer's fluids as they are, and tainted while the producer holds TaintedWater |
 | Which squares does this generator power, and how much does it burn? | `IsoGenerator.setSurroundingElectricity()`, then hourly in `IsoGenerator.update()` | No squares; the network's load |
 | How much has this food aged? | `Food.updateAge(boolean)` asks its container's square (`haveElectricity()`), and ages it over the hours since it last aged | The container's object, by the appliance rule; the hours split where the network's supply started and stopped |

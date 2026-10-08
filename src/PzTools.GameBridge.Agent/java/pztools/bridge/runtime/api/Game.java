@@ -1,5 +1,6 @@
 package pztools.bridge.runtime.api;
 
+import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
 import pztools.bridge.runtime.api.Network.Position;
@@ -14,6 +15,8 @@ final class Game {
     private final Field world, squareX, squareY, squareZ, switchRoom;
     private final Method metaGrid, cell, gridSquare, objectSquare, objects, hasGrid, gridObjects;
     private final Method gameTime, worldHours, addEvent, raise, raiseTwo;
+    // IsoCell.getGridSquare(int, int, int) as (Object, int, int, int)Object: called through invokeExact, it boxes nothing.
+    private final MethodHandle gridSquareExact;
     /** The arguments of a call that takes none, for the hooks' calls: a call written without them allocates an array. */
     static final Object[] NONE = {};
     // The parts of an object that covers several squares, read into a list of the thread's own (see parts).
@@ -29,6 +32,7 @@ final class Game {
         metaGrid = worldType.getMethod("getMetaGrid");
         cell = worldType.getMethod("getCell");
         gridSquare = cellType.getMethod("getGridSquare", int.class, int.class, int.class);
+        gridSquareExact = exact(gridSquare, MethodType.methodType(Object.class, Object.class, int.class, int.class, int.class));
         squareX = squareType.getField("x"); squareY = squareType.getField("y"); squareZ = squareType.getField("z");
         objects = squareType.getMethod("getObjects");
         objectSquare = objectType.getMethod("getSquare");
@@ -51,6 +55,20 @@ final class Game {
     static <T extends AccessibleObject> T accessible(T member) { member.setAccessible(true); return member; }
 
     /**
+     * A public method of the game as a handle of the given type (its receiver and results as Object, its primitives
+     * kept), for {@code invokeExact} on the hooks' paths: no argument array, no boxing.
+     */
+    static MethodHandle exact(Method method, MethodType type) throws IllegalAccessException {
+        return MethodHandles.publicLookup().unreflect(method).asType(type);
+    }
+
+    /** A failure through a handle as through {@link Method#invoke}: the game's own exception in an InvocationTargetException. */
+    static ReflectiveOperationException thrown(Throwable failure) {
+        if (failure instanceof Error error) throw error;
+        return failure instanceof ReflectiveOperationException reflective ? reflective : new InvocationTargetException(failure);
+    }
+
+    /**
      * A failure of the game behind a hook, as the hooks report it: the game's own exception for a method that threw,
      * which the bootstrap logs once and answers as vanilla.
      */
@@ -61,7 +79,7 @@ final class Game {
     /** The game's current cell, or null when no world is loaded. */
     Object cell() throws ReflectiveOperationException {
         Object current = world.get(null);
-        return current == null ? null : cell.invoke(current);
+        return current == null ? null : cell.invoke(current, NONE);
     }
 
     /** The map's rooms and buildings (IsoMetaGrid), for loaded and unloaded squares alike; null without a world. */
@@ -72,7 +90,9 @@ final class Game {
 
     /** The loaded square, or null. */
     Object square(Object cells, int x, int y, int z) throws ReflectiveOperationException {
-        return cells == null ? null : gridSquare.invoke(cells, x, y, z);
+        if (cells == null) return null;
+        try { return (Object)gridSquareExact.invokeExact(cells, x, y, z); }
+        catch (Throwable failure) { throw thrown(failure); }
     }
 
     Object square(Object cells, Position at) throws ReflectiveOperationException { return square(cells, at.x(), at.y(), at.z()); }
@@ -91,9 +111,15 @@ final class Game {
     /** The object's square, or null when it is on none. */
     Position at(Object object) throws ReflectiveOperationException { return position(squareOf(object)); }
 
+    /**
+     * A square's objects as the game holds them, not copied: for the hooks' paths, read by index (PZArrayList has no
+     * iterator) and through before anything changes the square.
+     */
+    List<?> objectList(Object square) throws ReflectiveOperationException { return (List<?>)objects.invoke(square, NONE); }
+
     /** A square's objects. The game's list (PZArrayList) is read by index: it has no iterator. */
     List<Object> objectsOn(Object square) throws ReflectiveOperationException {
-        var list = (List<?>)objects.invoke(square);
+        var list = objectList(square);
         var result = new ArrayList<Object>(list.size());
         for (int index = 0; index < list.size(); index++) result.add(list.get(index));
         return result;
