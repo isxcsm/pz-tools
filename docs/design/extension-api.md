@@ -523,11 +523,22 @@ generator outside it as its producer.
 
 These checks predate out of service (8 October 2026). With it, the last row changes: the first,
 switched off by hand, is out of service, and the second, on standby, takes over at once with
-`producer` instead of `supply`. Not yet checked in the game: a generator switched off by hand stays
-off through a failover, a running-out and a source stopping; the `modData` marks after a save is
-loaded again, also for a generator switched off while the game ran without the API; a network
-switched off with `setEnabled` stopping its generator and starting it again; and a multiplayer
-server and client.
+`producer` instead of `supply`. Not yet checked in the game: the `modData` mark of a generator
+switched off while the game ran without the API, and a multiplayer server and client.
+
+On 8 October 2026 the rest was checked with Building Utilities' `tests/ingame/api_power.lua`: a
+network of its own handle over generators it put down, an extra load of 1 (0.102 litres an hour at
+the sandbox's rate) and no building.
+
+| Check | Result |
+| --- | --- |
+| By hand | A switched on carried. B switched on carried, A on standby. B switched off: out of service, and A took over at once. |
+| A failover | A switched off by hand: out of service; C took over and B stayed off. |
+| A running-out | C with half an hour of fuel from 196.45 stopped: `supply` at 197.000; A and B stayed off and out of service. |
+| A source | Switched on, it carried and C went on standby. Not available, C took over; A and B stayed off. |
+| `setEnabled` | Off: no supply, C stopped on standby (not out of service). On: C started again, A and B stayed off. |
+| A running-out not loaded | C with an hour and a half of fuel from 197.08, F added to the list, the player taken about 9,400 squares away to F: `producer` at 199.000 (C's `lastHour` 197 plus 2), F running. Back at C later: C off and empty, no event. |
+| After a load | F with fuel to 202, the world saved and loaded, the network defined again: `supply` at 202.000, and the network stopped (A, B and C not loaded). Back at A and B: both off and out of service, their marks read after the load. |
 
 On 7 October 2026 stage 3 was checked in the same game, started again with the new bootstrap, by a
 throwaway Lua script loaded from the debug console. No `[PzTools API]` report: the water hooks found

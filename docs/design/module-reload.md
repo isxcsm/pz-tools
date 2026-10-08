@@ -150,6 +150,15 @@ about once a second (its size and time; it reads the jar only when they changed)
 new API, which sets its hooks and takes the game's Lua environment over on its next frame, as described in the
 [extension API](extension-api.md). Only a game the startup loader started loads it.
 
+On 8 October 2026 this was checked in a running game, the app started again over it each time: the app switched
+from a build with the API inside the payload to one with it in its own jar, and Building Utilities' networks kept
+their state. With the API jar rewritten (the same classes, other bytes), a function read from `PZToolsAPI` before
+raised "the API was updated" within a second, and the networks went on. With the jar put back and the payload jar
+rewritten instead, the payload switched (its threads started again) and a function read before still worked: the
+API was not loaded again. After a full collection (`jcmd <pid> GC.run`) the class loaders of the API replaced by
+another and of the payload replaced by another were gone, but for the API whose function a Lua global still held.
+The payload from before the split stayed loaded; it is not looked into, as no game switches from it again.
+
 ### Continuous modules
 
 [`ContinuousRuntime.apply`](../../src/PzTools.GameExtensions.Java/java/pztools/extensions/runtime/ContinuousRuntime.java)
