@@ -24,6 +24,14 @@ public class LuaCheck {
     private static final Pattern LOCAL = Pattern.compile("\\blocal\\s+(?:function\\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*)");
 
     public static void main(String[] args) throws Exception {
+        // --globals <out.lua>: also write every global name the mod's files read and none of them sets, as a Lua list
+        // (for a check in the running game that each exists: a B41 name like InventoryItemFactory is nil in B42)
+        String globalsOut = null;
+        if (args.length >= 2 && args[0].equals("--globals")) {
+            globalsOut = args[1];
+            args = java.util.Arrays.copyOfRange(args, 2, args.length);
+        }
+        Set<String> read = new TreeSet<>(), written = new TreeSet<>();
         List<Path> files = new ArrayList<>();
         if (args.length == 0) {
             for (String root : new String[] { "OperationAcorn", "tests" }) {
@@ -54,6 +62,9 @@ public class LuaCheck {
             while (alias.find()) locals.remove(alias.group(1));
             Set<String> globals = new TreeSet<>();
             collect(closure.prototype, globals);
+            if (file.toString().replace('\\', '/').contains("OperationAcorn/")) {
+                collectSplit(closure.prototype, read, written);
+            }
             List<String> suspicious = new ArrayList<>();
             for (String name : globals) if (locals.contains(name) && !ALLOWED.contains(name)) suspicious.add(name);
             if (suspicious.isEmpty()) {
@@ -63,8 +74,28 @@ public class LuaCheck {
                 System.out.println("FAIL " + file + ": used as a global but declared local in the file (used before its declaration?): " + suspicious);
             }
         }
+        if (globalsOut != null) {
+            read.removeAll(written);
+            StringBuilder out = new StringBuilder("-- Written by tools/LuaCheck.java --globals: the globals the mod reads.\nreturn {\n");
+            for (String name : read) out.append("    \"").append(name).append("\",\n");
+            out.append("}\n");
+            Files.writeString(Path.of(globalsOut), out.toString());
+            System.out.println(read.size() + " globals read, written to " + globalsOut);
+        }
         System.out.println(files.size() + " files, " + failed + " failed");
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    // The globals a function and the functions inside it read, and the ones they write, apart.
+    private static void collectSplit(se.krka.kahlua.vm.Prototype prototype, Set<String> read, Set<String> written) {
+        for (int instruction : prototype.code) {
+            int op = instruction & 0x3F;
+            if (op == GETGLOBAL || op == SETGLOBAL) {
+                Object constant = prototype.constants[instruction >>> 14];
+                if (constant instanceof String name) (op == GETGLOBAL ? read : written).add(name);
+            }
+        }
+        if (prototype.prototypes != null) for (var inner : prototype.prototypes) collectSplit(inner, read, written);
     }
 
     // The names of the globals a function and the functions inside it read or write.

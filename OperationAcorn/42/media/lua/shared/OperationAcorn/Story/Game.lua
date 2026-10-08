@@ -132,7 +132,7 @@ end
 -- A new item with the mission's marks on it (OA_Mission is what the economy reads), its name made specific when it
 -- carries a serial.
 local function newItem(record, m, it)
-    local item = InventoryItemFactory.CreateItem(it.type)
+    local item = instanceItem(it.type)
     if not item then
         OA.log("cannot make", it.type)
         return nil
@@ -154,7 +154,7 @@ local function newItem(record, m, it)
 end
 
 function Game.giveMissionItem(character, fullType, missionId, mods)
-    local item = InventoryItemFactory.CreateItem(fullType)
+    local item = instanceItem(fullType)
     if not item then return nil end
     local md = item:getModData()
     md.OA_Mission = missionId
@@ -320,11 +320,13 @@ local function lockRoom(record, m, it, sq)
         end
     end
     if locked == 0 then return end
-    local building = sq:getBuilding()
+    -- the key opens what the building's def names (IsoDoor.checkKeyId); IsoBuilding has no key id in B42
+    local def = sq:getBuilding() and sq:getBuilding():getDef()
+    if not def then return end
     local keyIt = {
         key = "KEY", type = "Base.Key1", mode = "container", plain = true, placed = false,
         x = it.x, y = it.y, z = it.z, x1 = it.x1, y1 = it.y1, x2 = it.x2, y2 = it.y2, z1 = it.z1, z2 = it.z2,
-        avoidRoom = room:getName(), keyId = building:getKeyId(), mods = {},
+        avoidRoom = room:getName(), keyId = def:getKeyId(), mods = {},
     }
     m.items[#m.items + 1] = keyIt
     Game.request(record, m, keyIt)
@@ -357,7 +359,7 @@ function Game.tryPlace(record, m, it, forceFloor)
         local item = newItem(record, m, it)
         if not item then return true end
         if it.inside then
-            local inner = InventoryItemFactory.CreateItem(Data.fullType(it.inside))
+            local inner = instanceItem(Data.fullType(it.inside))
             if inner then
                 local md = inner:getModData()
                 md.OA_Mission = Missions.itemId(m, "A")

@@ -36,12 +36,17 @@ end
 function P4T.go(x, y, z)
     local p = getPlayer()
     p:setX(x + 0.5); p:setY(y + 0.5); p:setZ(z or 0)
-    p:setLx(x + 0.5); p:setLy(y + 0.5); p:setLz(z or 0)
+    p:setLastX(x + 0.5); p:setLastY(y + 0.5); p:setLastZ(z or 0)
 end
 
--- Every item of a mission (by OA_Mission, with or without a '#piece') in the loaded squares of a building box.
+-- Every item of a mission (by OA_Mission, with or without a '#piece') in the loaded squares of a building box, or
+-- every item `match(item)` says yes to when it is given (an untagged piece, as the evidence room's key).
 -- Returns a list of { x, y, z, container, item }.
-function P4T.scan(id, x1, y1, x2, y2, z1, z2)
+function P4T.scan(id, x1, y1, x2, y2, z1, z2, match)
+    match = match or function(it)
+        local md = it:hasModData() and it:getModData().OA_Mission
+        return md and string.find(md, id, 1, true) == 1
+    end
     local found = {}
     local cell = getCell()
     for z = z1, z2 do
@@ -56,8 +61,7 @@ function P4T.scan(id, x1, y1, x2, y2, z1, z2)
                             local items = c:getItems()
                             for j = 0, items:size() - 1 do
                                 local it = items:get(j)
-                                local md = it:hasModData() and it:getModData().OA_Mission
-                                if md and string.find(md, id, 1, true) == 1 then
+                                if match(it) then
                                     found[#found + 1] = { x = x, y = y, z = z, container = c:getType(), item = it:getFullType() }
                                 end
                             end
@@ -66,8 +70,7 @@ function P4T.scan(id, x1, y1, x2, y2, z1, z2)
                     local wi = sq:getWorldObjects()
                     for i = 0, wi:size() - 1 do
                         local it = wi:get(i):getItem()
-                        local md = it and it:hasModData() and it:getModData().OA_Mission
-                        if md and string.find(md, id, 1, true) == 1 then
+                        if it and match(it) then
                             found[#found + 1] = { x = x, y = y, z = z, container = "floor", item = it:getFullType() }
                         end
                     end
