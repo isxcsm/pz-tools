@@ -294,13 +294,13 @@ local current = nil
 function Research:new(playerNum)
     local fh = getTextManager():getFontHeight(UIFont.Small)
     local pad = math.max(6, math.floor(fh * 0.5))
+    local cardH = fh * 2 + 8
+    local iconSize = cardH - 8
     -- the card is as wide as the longest name needs
     local cardW = fh * 6
     for _, node in ipairs(Data.nodes) do
         cardW = math.max(cardW, getTextManager():MeasureStringX(UIFont.Small, Texts.nodeName(node.id)) + pad + iconSize + 8)
     end
-    local cardH = fh * 2 + 8
-    local iconSize = cardH - 8
     local gutter = 0
     for row = 1, Data.ROWS do
         local need = Rules.rowNeed(row)

@@ -148,7 +148,7 @@ end)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 local function nearestVehicle()
-    local vehicles = getCell():getVehicles()
+    local vehicles = OperationAcorn.vehicles()
     local best, bestD
     for i = 0, vehicles:size() - 1 do
         local v = vehicles:get(i)

@@ -24,6 +24,25 @@ end
 -- a use of it fails here as it does there.
 next = nil
 
+-- java.util.ArrayList as the mod uses it (OA.vehicles copies a Set into one). A Set stub is { items = { ... } }.
+ArrayList = { new = function()
+    local list = { items = {} }
+    function list:clear() self.items = {} end
+    function list:addAll(from)
+        local src = from.items or {}
+        for _, v in ipairs(src) do self.items[#self.items + 1] = v end
+        if not from.items and from.size then
+            for i = 0, from:size() - 1 do self.items[#self.items + 1] = from:get(i) end
+        end
+        return true
+    end
+    function list:add(v) self.items[#self.items + 1] = v return true end
+    function list:size() return #self.items end
+    function list:get(i) return self.items[i + 1] end
+    function list:isEmpty() return #self.items == 0 end
+    return list
+end }
+
 -- Game stubs. TEST holds what a test sets: the world age, the time of day.
 TEST = {}
 local function resetGame()

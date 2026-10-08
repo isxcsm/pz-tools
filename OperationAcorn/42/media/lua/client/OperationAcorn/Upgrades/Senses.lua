@@ -248,6 +248,7 @@ end
 
 local buildingList = nil
 
+local vehicleList
 local function alarmJob(now)
     local player = getPlayer()
     if not player or player:isDead() then return end
@@ -258,7 +259,8 @@ local function alarmJob(now)
     end
     local spots = {}
     local px, py, pz = player:getX(), player:getY(), player:getZ()
-    local vehicles = getCell():getVehicles()
+    vehicleList = OA.vehicles(vehicleList)
+    local vehicles = vehicleList
     for i = 0, vehicles:size() - 1 do
         local v = vehicles:get(i)
         if v:isAlarmed() then

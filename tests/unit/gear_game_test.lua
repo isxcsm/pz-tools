@@ -704,7 +704,7 @@ test("the shop's targets near a character: vehicles that take the kind of kit, w
     local far = carWithTrunk(100)
     far.x = 500
     local noTrunk = newVehicle({ parts = { newPart("Engine") } })
-    getCell = function() return { getVehicles = function() return newList({ near1, far, noTrunk }) end } end
+    getCell = function() return { getVehicles = function() return { items = { near1, far, noTrunk } } end } end
     local trunks = Gear.vehicleTargets(player, "trunk", 40)
     eq(#trunks, 1)
     eq(trunks[1].target, Gear.vehicleId(near1))
@@ -718,7 +718,7 @@ test("a kit's target is found again as the bag or the vehicle, and named; not wi
     local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
     bag.name = nil
     local car = carWithTrunk(100)
-    getCell = function() return { getVehicles = function() return newList({ car }) end } end
+    getCell = function() return { getVehicles = function() return { items = { car } } end } end
     eq(Gear.findTarget("bagCapacity", Gear.bagKey(bag), player), bag)
     eq(Gear.findTarget("trunk", Gear.vehicleId(car, true), player), car)
     eq(Gear.targetName("bagCapacity", Gear.bagKey(bag), player), "Pack")

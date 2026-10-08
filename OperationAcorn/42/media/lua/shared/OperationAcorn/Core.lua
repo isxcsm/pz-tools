@@ -70,6 +70,16 @@ function OA.round(x)
     return -math.floor(-x + 0.5)
 end
 
+-- The vehicles of the loaded cell, as a list Lua can index. B42's IsoCell.getVehicles() is a Set, which has no get(i)
+-- (found in game: "tried to call nil"); the vehicles are copied into `into` (a reused ArrayList) or a new one.
+function OA.vehicles(into)
+    local list = into or ArrayList.new()
+    list:clear()
+    local cell = getCell()
+    if cell then list:addAll(cell:getVehicles()) end
+    return list
+end
+
 -- Whether a table has no entries. The game's Lua has no next(), so this is a pairs loop that stops at once.
 function OA.isEmpty(t)
     for _ in pairs(t) do return false end

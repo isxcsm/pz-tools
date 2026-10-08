@@ -227,7 +227,7 @@ end
 -- an engine kit: one with an engine): { { target = id, name }, ... }. Each is given its id.
 function Gear.vehicleTargets(character, kind, radius)
     local found = {}
-    local vehicles = getCell():getVehicles()
+    local vehicles = OA.vehicles()
     for i = 0, vehicles:size() - 1 do
         local vehicle = vehicles:get(i)
         local dx, dy = vehicle:getX() - character:getX(), vehicle:getY() - character:getY()
@@ -250,7 +250,7 @@ function Gear.findTarget(kind, target, character)
         end)
         return list:size() > 0 and list:get(0) or nil
     end
-    local vehicles = getCell():getVehicles()
+    local vehicles = OA.vehicles()
     for i = 0, vehicles:size() - 1 do
         local vehicle = vehicles:get(i)
         if Gear.vehicleId(vehicle) == target then return vehicle end
