@@ -163,9 +163,11 @@ test("greetings shorten with the stage, none at the fifth, long again after the 
     eq(Story.greetingKeyFor(5, false), nil)
     eq(Story.greetingKeyFor(5, true), "IGUI_OA_Story_Greeting_H")
     local record = setup(5)
-    eq(Story.greeting(record), "")
+    eq(Story.greeting(record), nil)
+    eq(Story.greetingText(record), "")
     record.trade.stage = 2
-    truthy(string.find(Story.greeting(record), "Greeting_2", 1, true))
+    eq(Story.greeting(record), "IGUI_OA_Story_Greeting_2")
+    truthy(string.find(Story.greetingText(record), "Greeting_2", 1, true))
 end)
 
 test("the old form comes at the fourth stage", function()

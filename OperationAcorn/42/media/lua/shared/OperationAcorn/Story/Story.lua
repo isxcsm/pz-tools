@@ -283,8 +283,13 @@ function Story.greetingKey(record)
     return Story.greetingKeyFor((Story.progress(record)), Story.handedOver(record))
 end
 
--- The greeting text with the collection point number ("" when there is none).
+-- The greeting key for the record's story state (nil when there is none): what the terminal can ask for.
 function Story.greeting(record)
+    return Story.greetingKey(record)
+end
+
+-- The greeting text with the collection point number ("" when there is none).
+function Story.greetingText(record)
     local key = Story.greetingKey(record)
     if not key then return "" end
     return Story.text(key, Story.number(record))

@@ -67,19 +67,32 @@ end
 -- The terminal's position (the base), for the distance band: the trade part's if it tells, else the record's own
 -- note of it (Story.setAnchor), else where the player is now. Returns x, y or nil.
 function Missions.anchor(record)
+    local story = record.story
+    if story and story.anchor and story.anchor.x then return story.anchor.x, story.anchor.y end
     if OA.Trade and OA.Trade.terminalPosition then
         local x, y = OA.Trade.terminalPosition(record)
         if x then return x, y end
     end
-    local t = record.trade or {}
-    local home = t.terminal or t.home or (record.story and record.story.anchor)
-    if home and home.x then return home.x, home.y end
     local g = game()
-    if g and g.playerPosition then
-        local x, y = g.playerPosition(record)
-        if x then return x, y end
+    local px, py
+    if g and g.playerPosition then px, py = g.playerPosition(record) end
+    -- The terminals placed (the trade part keeps them as waiting entries): the one nearest the character is the
+    -- base; it is kept, so the distance bands do not move when the terminal does.
+    if OA.Chunks and OA.Chunks.list then
+        local best, bestD
+        for _, e in ipairs(OA.Chunks.list("trade.terminal")) do
+            local d = px and Places.distance(px, py, e.x, e.y) or 0
+            if not bestD or d < bestD then best, bestD = e, d end
+        end
+        if best then
+            Story.setAnchor(record, best.x, best.y, best.z)
+            return best.x, best.y
+        end
     end
-    return nil
+    local t = record.trade or {}
+    local home = t.terminal or t.home
+    if home and home.x then return home.x, home.y end
+    return px, py
 end
 
 -- The trade part (or the player's first mission) fixes the base's position: kept for the band.
@@ -575,6 +588,8 @@ function Missions.onSettled(record, result)
     local s = Missions.state(record)
     local m = s.active
     if not m or m.state ~= "sealed" then return end
+    -- The trade part settles all of a record's sealed boxes in one arrival and says how many it took (a number).
+    if result and type(result.boxes) == "number" and result.boxes <= 0 then return end
     local covered = result and (result.boxes or result.boxIds)
     if type(covered) == "table" and m.box ~= nil then
         local found = false

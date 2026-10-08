@@ -71,7 +71,7 @@ function Radio.lines(record)
         lines[1] = getText("IGUI_OA_Story_Broadcast_idle")
         return lines
     end
-    local greeting = OA.Story.greeting(record)
+    local greeting = OA.Story.greetingText(record)
     if greeting and greeting ~= "" then lines[#lines + 1] = greeting end
     local stage, milestones = OA.Story.progress(record)
     local key = OA.Story.handedOver(record) and "H" or tostring(OA.clamp(stage, 0, 5))
