@@ -10,7 +10,6 @@ local Data = OA.StoryData
 local Story = {}
 OA.Story = Story
 
-local PREFIX = "IGUI_OA_Story_"
 
 -- Text by key and arguments (a function, so that tests can see the keys).
 function Story.text(key, ...)
@@ -79,7 +78,7 @@ end
 -- A story radio line by id.
 function Story.radio(record, id, args)
     local number = Story.number(record)
-    return Story.radioKey(record, PREFIX .. "Radio_" .. id, args or { number })
+    return Story.radioKey(record, "IGUI_OA_Story_Radio_" .. id, args or { number })
 end
 
 -- Documents and items for the next supply crate. The trade part takes them with OA.Trade.addToDrop; when it is not
@@ -266,7 +265,7 @@ end
 
 -- The call sign the team goes by now, as a translation key.
 function Story.callSignKey(record)
-    return PREFIX .. (Story.handedOver(record) and "CallSign_Handover" or "CallSign_Oak")
+    return "IGUI_OA_Story_" .. (Story.handedOver(record) and "CallSign_Handover" or "CallSign_Oak")
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -275,8 +274,8 @@ end
 -- Which greeting the radio opens with, as a translation key: the stage's (1 to 4) or "H" after the handover; nil when
 -- there is none (before the first stage, and at the 5th stage).
 function Story.greetingKeyFor(stage, handedOver)
-    if handedOver then return PREFIX .. "Greeting_H" end
-    if Data.GREETING_STAGES[stage] then return PREFIX .. "Greeting_" .. tostring(stage) end
+    if handedOver then return "IGUI_OA_Story_Greeting_H" end
+    if Data.GREETING_STAGES[stage] then return "IGUI_OA_Story_Greeting_" .. tostring(stage) end
     return nil
 end
 
@@ -305,13 +304,13 @@ end
 -- and when; this only gives the words.
 function Story.refusalKey(category, phase)
     local cat = Data.REFUSALS[category] and category or "any"
-    return PREFIX .. "Refuse_" .. cat .. "_" .. (phase == "back" and "back" or "start")
+    return "IGUI_OA_Story_Refuse_" .. cat .. "_" .. (phase == "back" and "back" or "start")
 end
 
 -- The big meteorite's receipt line and radio line (the economy marks it 'not taken').
-Story.BIG_METEORITE_RECEIPT = PREFIX .. "Receipt_BigMeteorite"
-Story.BIG_METEORITE_RADIO = PREFIX .. "Radio_big_meteorite"
-Story.FRAGMENT_RECEIPT = PREFIX .. "Receipt_Fragment"
+Story.BIG_METEORITE_RECEIPT = "IGUI_OA_Story_Receipt_BigMeteorite"
+Story.BIG_METEORITE_RADIO = "IGUI_OA_Story_Radio_big_meteorite"
+Story.FRAGMENT_RECEIPT = "IGUI_OA_Story_Receipt_Fragment"
 
 -- The pool a record's notes come from: the stage's, or after the handover the milestone's.
 local function notePool(record)
@@ -345,7 +344,7 @@ function Story.manifestNoteKey(record)
         s.noteIndex[key] = used + 1
         id = ids[used + 1]
     end
-    return PREFIX .. "Note_" .. id, { Story.number(record) }, id
+    return "IGUI_OA_Story_Note_" .. id, { Story.number(record) }, id
 end
 
 function Story.manifestNote(record)
@@ -363,7 +362,7 @@ end
 
 -- The serum remark (manifest note 6 of the sample lines) for crates that carry a serum.
 function Story.serumNote(record)
-    return Story.text(PREFIX .. "Note_serum", Story.number(record))
+    return Story.text("IGUI_OA_Story_Note_serum", Story.number(record))
 end
 
 -- The old form (from the 4th stage): the manifest keeps its fixed form with a few other column names. The trade part
@@ -376,7 +375,7 @@ end
 
 function Story.formLabel(record, id, default)
     if Story.oldForm(record) and Story.OLD_LABELS[id] then
-        return Story.text(PREFIX .. "Form_" .. id)
+        return Story.text("IGUI_OA_Story_Form_" .. id)
     end
     return default
 end
@@ -411,7 +410,7 @@ function Story.dailyRadio(record, day)
     end
     s.radioIndex = n
     s.radioDay = day
-    Story.radioKey(record, PREFIX .. key, { Story.number(record) })
+    Story.radioKey(record, "IGUI_OA_Story_" .. key, { Story.number(record) })
     return true
 end
 

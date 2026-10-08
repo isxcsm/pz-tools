@@ -58,6 +58,8 @@ end
 local function formatText(title, body)
     local text = " <RGB:1,1,1> <H2> " .. title .. " <LINE> <LINE> <TEXT> <RGB:0.88,0.88,0.82> "
     local lines = {}
+    -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
+    body = string.gsub(body, "\\n", "\n")
     for line in string.gmatch(body .. "\n", "(.-)\n") do lines[#lines + 1] = line end
     return text .. table.concat(lines, " <LINE> ")
 end

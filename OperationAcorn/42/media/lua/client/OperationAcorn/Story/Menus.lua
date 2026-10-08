@@ -17,17 +17,11 @@ local Data, Places, Docs = OA.StoryData, OA.Places, OA.StoryDocs
 local Menus = {}
 OA.StoryMenus = Menus
 
-local PREFIX = "IGUI_OA_Story_"
 local SOIL_NEAR = 25
 
 local function activeMission(player)
     local record = OA.Client.record(player)
     return record and record.missions and record.missions.active or nil, record
-end
-
--- The stake's date line (a document's date; the survey stakes carry one of a few).
-function Menus.stakeDate(stake)
-    return OA.remainder(math.max(0, (stake or 1) - 1), 8) + 1
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -72,7 +66,7 @@ end
 local function stakeObject(worldobjects)
     for _, obj in ipairs(worldobjects) do
         local md = obj.getModData and obj:getModData()
-        if md and md.OA_Stake then return obj, md.OA_Stake end
+        if md and md.OA_StakeNo then return obj, md.OA_StakeNo, md.OA_StakeDate end
     end
     return nil
 end
@@ -83,12 +77,12 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     if player:getVehicle() then return end
     local m = activeMission(player)
 
-    local obj, stake = stakeObject(worldobjects)
+    local obj, stake, date = stakeObject(worldobjects)
     if obj then
         context:addOption(getText("ContextMenu_OA_Story_ReadStake"), worldobjects, function()
             local square = obj:getSquare()
             if square and luautils.walkAdj(player, square, true) then
-                ISTimedActionQueue.add(ISOAStoryAction:new(player, "stake", { stake = stake, date = Menus.stakeDate(stake) }, 40))
+                ISTimedActionQueue.add(ISOAStoryAction:new(player, "stake", { stake = stake, date = date }, 40))
             end
         end)
     end
@@ -122,7 +116,7 @@ end
 -- What the server says about the story's own tries (a device with no signal, a case too far from its place).
 
 local function onNotice(playerId, detail)
-    if not (detail and type(detail.key) == "string" and string.find(detail.key, PREFIX, 1, true) == 1) then return end
+    if not (detail and type(detail.key) == "string" and string.find(detail.key, "^IGUI_OA_Story_") ~= nil) then return end
     local player = getPlayer()
     if not player or OA.Store.idOf(player) ~= playerId then return end
     local args = detail.args or {}

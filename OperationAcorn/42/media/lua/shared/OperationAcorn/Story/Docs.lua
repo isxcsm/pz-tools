@@ -10,7 +10,6 @@ local Data, Story = OA.StoryData, OA.Story
 local Docs = {}
 OA.StoryDocs = Docs
 
-local PREFIX = "IGUI_OA_Story_"
 
 -- Document ids by kind. "found" ones come with a mission item, "supply" ones in a supply crate, "note" ones are
 -- the short field notes of regular missions, "stake" is a drop site's survey stake.
@@ -41,7 +40,7 @@ function Docs.all()
 end
 
 function Docs.titleKey(id)
-    return PREFIX .. "DocTitle_" .. id
+    return "IGUI_OA_Story_DocTitle_" .. id
 end
 
 -- The names printed on the shelter roster (Latin, as in a Kentucky roster of 1993): the ones next to the numbers.
@@ -49,13 +48,13 @@ Docs.ROSTER_NAMES = { "HARGROVE, D.", "PRUITT, R.", "LINDQVIST, M.", "OKONKWO, T
 
 local function placeTexts(variant)
     if variant and Data.PLACES[variant] then
-        return getText(PREFIX .. "Place_" .. variant), getText(PREFIX .. "PlaceNote_" .. variant)
+        return getText("IGUI_OA_Story_Place_" .. variant), getText("IGUI_OA_Story_PlaceNote_" .. variant)
     end
     return "", ""
 end
 
 local function statusText(code)
-    return getText(PREFIX .. "Status_" .. code)
+    return getText("IGUI_OA_Story_Status_" .. code)
 end
 
 -- The roster page: names with four-digit numbers in the 'conversion' column; three numbers are ones of the status
@@ -63,36 +62,38 @@ end
 local function rosterBody(record, variant, extra)
     local st = Story.statusTable(record)
     local place, note = placeTexts(variant)
-    local lines = { getText(PREFIX .. "Doc_roster_page_head", Story.number(record), place, note) }
+    local lines = { getText("IGUI_OA_Story_Doc_roster_page_head", Story.number(record), place, note) }
     local names = Docs.ROSTER_NAMES
     local used = 0
     for _, idx in ipairs(st.roster) do
         used = used + 1
-        lines[#lines + 1] = getText(PREFIX .. "Doc_roster_page_row", names[used], string.format("%04d", st.rows[idx].n))
+        lines[#lines + 1] = getText("IGUI_OA_Story_Doc_roster_page_row", names[used], string.format("%04d", st.rows[idx].n))
     end
-    lines[#lines + 1] = getText(PREFIX .. "Doc_roster_page_smeared", Story.number(record))
-    lines[#lines + 1] = getText(PREFIX .. "Doc_roster_page_foot", Story.number(record), place, note)
+    lines[#lines + 1] = getText("IGUI_OA_Story_Doc_roster_page_smeared", Story.number(record))
+    lines[#lines + 1] = getText("IGUI_OA_Story_Doc_roster_page_foot", Story.number(record), place, note)
     return table.concat(lines, "\n")
 end
 
 -- The state table of the handover (LORE clue 20).
 local function statusBody(record)
     local st = Story.statusTable(record)
-    local lines = { getText(PREFIX .. "Doc_status_table_head", Story.number(record)) }
+    local lines = { getText("IGUI_OA_Story_Doc_status_table_head", Story.number(record)) }
     for _, row in ipairs(st.rows) do
         if row.c == "keep" then
-            local date = Story.registeredLate() and getText(PREFIX .. "Doc_status_before_first") or getText(PREFIX .. "Doc_status_date")
-            lines[#lines + 1] = getText(PREFIX .. "Doc_status_row_keep", string.format("%04d", row.n), statusText("keep"), date,
-                getText(PREFIX .. "Doc_status_basis"))
+            local date = Story.registeredLate() and getText("IGUI_OA_Story_Doc_status_before_first") or getText("IGUI_OA_Story_Doc_status_date")
+            lines[#lines + 1] = getText("IGUI_OA_Story_Doc_status_row_keep", string.format("%04d", row.n), statusText("keep"), date,
+                getText("IGUI_OA_Story_Doc_status_basis"))
         else
-            lines[#lines + 1] = getText(PREFIX .. "Doc_status_row", string.format("%04d", row.n), statusText(row.c))
+            lines[#lines + 1] = getText("IGUI_OA_Story_Doc_status_row", string.format("%04d", row.n), statusText(row.c))
         end
     end
-    lines[#lines + 1] = getText(PREFIX .. "Doc_status_table_foot", Story.number(record))
+    lines[#lines + 1] = getText("IGUI_OA_Story_Doc_status_table_foot", Story.number(record))
     return table.concat(lines, "\n")
 end
 
 local DYNAMIC = { roster_page = rosterBody, status_table = statusBody }
+-- Documents that read differently when there is no number to print (the soil slip of a plain ground sample).
+local NO_EXTRA = { soil_slip = "soil_slip_plain" }
 
 -- The text of a document for a record. `variant` is a place id (changes the place wording), `extra` a number the
 -- text uses (a stake number, a serial).
@@ -100,12 +101,14 @@ function Docs.body(record, id, variant, extra)
     local dynamic = DYNAMIC[id]
     if dynamic then return dynamic(record, variant, extra) end
     local place, note = placeTexts(variant)
-    return getText(PREFIX .. "Doc_" .. id, Story.number(record), place, note, extra and tostring(extra) or "")
+    local text = id
+    if NO_EXTRA[id] and (extra == nil or extra == "") then text = NO_EXTRA[id] end
+    return getText("IGUI_OA_Story_Doc_" .. text, Story.number(record), place, note, extra and tostring(extra) or "")
 end
 
 -- The survey stake's own text: its number and the date on it (a document, as every date is).
 function Docs.stakeBody(stakeNo, dateIndex)
-    return getText(PREFIX .. "Doc_stake", tostring(stakeNo), getText(PREFIX .. "StakeDate_" .. tostring(dateIndex or 1)))
+    return getText("IGUI_OA_Story_Doc_stake", tostring(stakeNo), getText("IGUI_OA_Story_StakeDate_" .. tostring(dateIndex or 1)))
 end
 
 -- What reading an item shows: { { id =, variant =, extra = }, ... } from the item's name (without module) and its

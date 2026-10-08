@@ -338,6 +338,7 @@ local function createStake(record, entry, level)
     m.title = "stake"
     m.anchor = { x = ax, y = ay }
     m.stake = site.n
+    m.stakeNo = site.stake
     local p = { x = site.x, y = site.y, z = 0 }
     local it = placementFrom(entry.item, "A", p, { OA_Stake = site.stake })
     it.mode = "floor"
@@ -727,10 +728,13 @@ function Missions.describe(record)
     info.swap = m.swap and m.swap.stage
     info.field = m.field and m.field.stage
     info.compare = m.compare and m.compare.serial
+    info.stakeNo = m.stakeNo
     info.contract = m.contract
     info.soil = m.soil and m.soil.variant
     info.cooler = m.carry and { temp = Missions.coolerTemp(m, now), started = m.carry.start ~= nil }
     info.level = m.level
+    local first = m.items and m.items[1]
+    if first then info.item = Data.itemName(first.type) end
     return info
 end
 

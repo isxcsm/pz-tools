@@ -19,7 +19,6 @@ local Data, Places, Missions, Story, Docs = OA.StoryData, OA.Places, OA.Missions
 local Tabs = {}
 OA.StoryTabs = Tabs
 
-local PREFIX = "IGUI_OA_Story_"
 local PAD = 10
 
 -- Panels made, refreshed when the record changes (a listener cannot be removed, so only the latest few are kept).
@@ -47,12 +46,12 @@ function Tabs.keys(info)
     elseif info.kind == "contract" then
         prefix, brief = "ConTitle_", "ConBrief_"
     end
-    return PREFIX .. prefix .. tostring(info.title), PREFIX .. brief .. tostring(info.title)
+    return "IGUI_OA_Story_" .. prefix .. tostring(info.title), "IGUI_OA_Story_" .. brief .. tostring(info.title)
 end
 
 local function daysText(hours)
-    if hours >= 24 then return getText(PREFIX .. "UI_Days", string.format("%.1f", hours / 24)) end
-    return getText(PREFIX .. "UI_Hours", math.max(1, math.ceil(hours)))
+    if hours >= 24 then return getText("IGUI_OA_Story_UI_Days", string.format("%.1f", hours / 24)) end
+    return getText("IGUI_OA_Story_UI_Hours", math.max(1, math.ceil(hours)))
 end
 
 -- The mission text as rich text lines.
@@ -60,40 +59,46 @@ local function missionLines(info)
     local lines = {}
     local function add(text) lines[#lines + 1] = text end
     if not info.id then
-        add(" <H2> " .. getText(PREFIX .. "UI_NoMission") .. " <LINE> <LINE> <TEXT> ")
+        add(" <H2> " .. getText("IGUI_OA_Story_UI_NoMission") .. " <LINE> <LINE> <TEXT> ")
         if info.nextIn and info.nextIn > 0 then
-            add(getText(PREFIX .. "UI_NextIn", daysText(info.nextIn)) .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_NextIn", daysText(info.nextIn)) .. " <LINE> ")
         end
     else
         local titleKey, briefKey = Tabs.keys(info)
-        local place = info.place and getText(PREFIX .. "Place_" .. info.place) or ""
+        local place = info.place and getText("IGUI_OA_Story_Place_" .. info.place) or ""
         add(" <H2> " .. getText(titleKey) .. " <LINE> <LINE> <TEXT> ")
         add(getText(briefKey, place, Story.number(record() or {})) .. " <LINE> <LINE> ")
+        if info.item and info.state ~= "offer" then
+            add(getText("IGUI_OA_Story_UI_Item", getItemNameFromFullType(Data.fullType(info.item)),
+                getText("Tooltip_OA_Story_" .. info.item)) .. " <LINE> <LINE> ")
+        end
         if info.state == "offer" then
-            add(getText(PREFIX .. "UI_Offer") .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Offer") .. " <LINE> ")
         elseif info.state == "sealed" then
-            add(getText(PREFIX .. "UI_Sealed") .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Sealed") .. " <LINE> ")
         elseif info.state == "calling" then
-            add(getText(PREFIX .. "UI_Calling") .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Calling") .. " <LINE> ")
         else
-            add(getText(PREFIX .. "UI_Left", daysText(math.max(0, info.left or 0))) .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Left", daysText(math.max(0, info.left or 0))) .. " <LINE> ")
         end
-        if info.swap then add(getText(PREFIX .. "UI_Swap_" .. info.swap) .. " <LINE> ") end
-        if info.field then add(getText(PREFIX .. "UI_Field_" .. info.field) .. " <LINE> ") end
+        if info.swap then add(getText("IGUI_OA_Story_UI_Swap_" .. info.swap) .. " <LINE> ") end
+        if info.field then add(getText("IGUI_OA_Story_UI_Field_" .. info.field) .. " <LINE> ") end
         if info.cooler and info.cooler.started then
-            add(getText(PREFIX .. "UI_Cooler", string.format("%.1f", info.cooler.temp)) .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Cooler", string.format("%.1f", info.cooler.temp)) .. " <LINE> ")
         end
+        if info.compare then add(getText("IGUI_OA_Story_UI_Compare", tostring(info.compare)) .. " <LINE> ") end
+        if info.stakeNo then add(getText("IGUI_OA_Story_UI_Stake", tostring(info.stakeNo)) .. " <LINE> ") end
         if info.area and info.anchor then
             local point = Places.bearing(info.anchor.x, info.anchor.y, info.area.x, info.area.y)
-            if point then add(getText(PREFIX .. "UI_Bearing_" .. point) .. " <LINE> ") end
+            if point then add(getText("IGUI_OA_Story_UI_Bearing_" .. point) .. " <LINE> ") end
         end
         if info.credits then
-            add(getText(PREFIX .. "UI_Reward", tostring(info.credits), tostring(info.trust or 0)) .. " <LINE> ")
+            add(getText("IGUI_OA_Story_UI_Reward", tostring(info.credits), tostring(info.trust or 0)) .. " <LINE> ")
         end
     end
     local r = info.results
     if r then
-        add(" <LINE> " .. getText(PREFIX .. "UI_Results", tostring(r.done or 0), tostring(r.expired or 0), tostring(r.lost or 0)))
+        add(" <LINE> " .. getText("IGUI_OA_Story_UI_Results", tostring(r.done or 0), tostring(r.expired or 0), tostring(r.lost or 0)))
     end
     return table.concat(lines, "")
 end
@@ -118,7 +123,7 @@ function ISOAMissionPanel:createChildren()
     self.rich.anchorRight = true
     self.rich.anchorBottom = true
     self:addChild(self.rich)
-    self.map = ISButton:new(PAD, self.height - PAD - 26, 140, 26, getText(PREFIX .. "UI_ShowMap"), self, ISOAMissionPanel.onMap)
+    self.map = ISButton:new(PAD, self.height - PAD - 26, 140, 26, getText("IGUI_OA_Story_UI_ShowMap"), self, ISOAMissionPanel.onMap)
     self.map:initialise()
     self.map:instantiate()
     self.map.anchorTop = false
@@ -151,7 +156,7 @@ function ISOAMissionPanel:refresh()
         local x = PAD + 150
         for _, option in ipairs({ "a", "b" }) do
             if info.options[option] then
-                local label = getText(PREFIX .. "Option_" .. tostring(info.title) .. "_" .. option)
+                local label = getText("IGUI_OA_Story_Option_" .. tostring(info.title) .. "_" .. option)
                 local b = ISButton:new(x, self.height - PAD - 26, 170, 26, label, self, ISOAMissionPanel.onChoose)
                 b.internal = option
                 b:initialise()
@@ -202,7 +207,7 @@ function ISOADocsPanel:createChildren()
     self.list.onmousedblclick = ISOADocsPanel.onOpen
     self.list.target = self
     self:addChild(self.list)
-    self.open = ISButton:new(PAD, self.height - PAD - 26, 140, 26, getText(PREFIX .. "UI_Open"), self, ISOADocsPanel.onOpen)
+    self.open = ISButton:new(PAD, self.height - PAD - 26, 140, 26, getText("IGUI_OA_Story_UI_Open"), self, ISOADocsPanel.onOpen)
     self.open:initialise()
     self.open:instantiate()
     self.open.anchorTop = false
@@ -220,7 +225,7 @@ function Tabs.entries(r)
     local manifests = Story.section(r).manifests
     for i = #manifests, 1, -1 do
         local mf = manifests[i]
-        list[#list + 1] = { text = mf.text, title = getText(PREFIX .. "UI_ManifestTitle", tostring(mf.serial)) }
+        list[#list + 1] = { text = mf.text, title = getText("IGUI_OA_Story_UI_ManifestTitle", tostring(mf.serial)) }
     end
     return list
 end
@@ -277,10 +282,10 @@ local function onGameStart()
         local r = record()
         return r and Story.progress(r) or 0
     end
-    local ok, err = pcall(OA.Terminal.addTab, "story_missions", PREFIX .. "TabMissions", Tabs.missionTab,
+    local ok, err = pcall(OA.Terminal.addTab, "story_missions", "IGUI_OA_Story_TabMissions", Tabs.missionTab,
         function() return stage() >= 1 end)
     if not ok then OA.log("mission tab failed:", tostring(err)) end
-    ok, err = pcall(OA.Terminal.addTab, "story_docs", PREFIX .. "TabDocs", Tabs.docsTab,
+    ok, err = pcall(OA.Terminal.addTab, "story_docs", "IGUI_OA_Story_TabDocs", Tabs.docsTab,
         function() return Tabs.hasEntries(record()) end)
     if not ok then OA.log("document tab failed:", tostring(err)) end
 end
