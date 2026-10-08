@@ -24,6 +24,10 @@ if panel.parent then say("BAD the test panel is a sub-panel"); return end
 local player = getPlayer()
 local grid = getWorld():isHydroPowerOn()
 local was = { tripped = panel.tripped, switchedOff = panel.switchedOff, quietCut = panel.quietCut, tier = panel.tier }
+-- The generator scene runs the box at tier 1, whose capacity the test panel's devices may pass: overload is off for it,
+-- so a trip does not stop the generator under the checks.
+local page = SandboxVars.BuildingUtilities
+local overloadWas = page and page.OverloadEnabled
 say("grid", grid, "tier", panel.tier, "generators", #panel.power.producers, "source", Energy.hasSource(panel))
 
 local function state() return Networks.state(panel, "power") end
@@ -241,6 +245,7 @@ local function finish()
     end
     if solar then Changes.removeUnit(solar) end
     panel.tripped, panel.switchedOff, panel.quietCut, panel.tier = was.tripped, was.switchedOff, was.quietCut, was.tier
+    if page then page.OverloadEnabled = overloadWas end
     Networks.applyEnabled(panel)
     BU.Sync.changed(panel.id)
     say("put back: tripped", panel.tripped, "switchedOff", panel.switchedOff, "quietCut", panel.quietCut, "tier", panel.tier,
@@ -286,6 +291,7 @@ steps[#steps + 1] = function()
     local square = freeSquare()
     if not square then say("BAD no free square outside for the generator"); return "stop" end
     panel.tier = 1
+    if page then page.OverloadEnabled = false end
     Energy.bank = function() return nil end
     fakeOutput(0)
     generator = IsoGenerator.new(instanceItem("Base.Generator"), getCell(), square)
