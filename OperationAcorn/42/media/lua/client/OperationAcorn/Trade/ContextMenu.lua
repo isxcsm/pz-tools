@@ -2,7 +2,6 @@
 -- their items, the manifest and the manual in the inventory.
 require "ISUI/ISContextMenu"
 require "OperationAcorn/Trade/Actions"
-require "OperationAcorn/Trade/PlaceCursor"
 require "OperationAcorn/Trade/Reader"
 require "OperationAcorn/Trade/Estimate"
 local OA = OperationAcorn
@@ -181,6 +180,8 @@ local PLACE_KEY = {
     [Objects.ITEMS.crate] = { kind = Objects.CRATE, key = "ContextMenu_OA_Trade_PlaceCrate" },
 }
 
+-- The cursor (server/OperationAcorn/Trade/PlaceCursor.lua) derives from ISBuildingObject, which the game loads with
+-- the server folder after the client one, so it is looked up when used, not required here.
 function Menus.place(character, kind, item)
     ISOAPlaceCursor.start(character, kind, item)
 end

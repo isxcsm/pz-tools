@@ -3,7 +3,7 @@
 -- nearby) and 털이 기록 (how many containers of the building are still unopened). The work is done twice a second
 -- by the shared timer (Pulse.lua), from the game's loaded zombie list; the drawing only reads what that left.
 require "ISUI/ISPanel"
-require "ISCoordConversion"
+-- ISCoordConversion is a server-folder file, loaded after this one: it is used when drawing, not required here.
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Pulse"
