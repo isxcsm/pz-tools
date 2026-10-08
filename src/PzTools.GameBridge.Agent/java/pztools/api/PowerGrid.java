@@ -1,16 +1,16 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import pztools.bridge.ApiHooks;
-import pztools.bridge.runtime.api.Network.Position;
-import pztools.bridge.runtime.api.Network.Producer;
-import pztools.bridge.runtime.api.Network.Seen;
-import pztools.bridge.runtime.api.Network.Source;
-import pztools.bridge.runtime.api.Network.Settled;
-import pztools.bridge.runtime.api.Network.Thing;
-import pztools.bridge.runtime.api.Members.Area;
+import pztools.api.Network.Position;
+import pztools.api.Network.Producer;
+import pztools.api.Network.Seen;
+import pztools.api.Network.Source;
+import pztools.api.Network.Settled;
+import pztools.api.Network.Thing;
+import pztools.api.Members.Area;
 
 /**
  * Runs the power networks (docs/design/extension-api.md, "Power"): answers the game's power questions through the

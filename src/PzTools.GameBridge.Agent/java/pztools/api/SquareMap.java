@@ -1,7 +1,7 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.util.Map;
-import pztools.bridge.runtime.api.Network.Position;
+import pztools.api.Network.Position;
 
 /**
  * An immutable map from squares to numbers, for the hooks: read on any thread without allocating, at the cost of a box

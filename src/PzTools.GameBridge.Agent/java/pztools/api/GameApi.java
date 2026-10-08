@@ -1,4 +1,4 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import pztools.bridge.ApiHooks;
 import java.io.IOException;
@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * The extension API for Lua mods (docs/design/extension-api.md): the global table {@code PZToolsAPI}, set into each Lua
  * environment the game makes, in a game the startup loader started. It is part of that install, not an extension the
- * player switches: once started it stays until the game exits, and a newer payload takes it over.
+ * player switches: once started it stays until the game exits, and a newer API takes it over.
  */
 public final class GameApi {
     /** Raised on any incompatible change to what a mod sees. */
@@ -18,11 +18,11 @@ public final class GameApi {
     public static final String STATUS = "api.tsv";
     static final String GLOBAL = "PZToolsAPI";
     private static final String AREA = "PZToolsAPI.";
-    // In the table's metatable: marks it as this API's, so that a newer payload updates it in place and the tables mods
+    // In the table's metatable: marks it as this API's, so that a newer API updates it in place and the tables mods
     // hold stay valid; and keeps the mods' handles.
     private static final String MARK = "pztools", HANDLES = "clients", HANDLE_METHODS = "clientMethods",
         HANDLE_META = "clientMeta";
-    // Set when this payload's API has not reached the Lua environment the game has now.
+    // Set when this API has not reached the Lua environment the game has now.
     private static volatile boolean pending;
     // The networks of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Networks networks;
@@ -31,7 +31,10 @@ public final class GameApi {
 
     private GameApi() { }
 
-    /** In a game the startup loader started, once per payload: the game's Lua environments get the API from now on. */
+    /**
+     * In a game the startup loader started, once each time its jar is loaded (the payload's ApiHost): the game's Lua
+     * environments get the API from now on.
+     */
     public static void start() {
         // Before the handler is published: the game's Lua may start at once, and its start sets the API and clears this.
         pending = true;
@@ -44,8 +47,8 @@ public final class GameApi {
     }
 
     /**
-     * Each frame, on the game's thread. Sets the API into the environment the game already had when this payload
-     * started: a payload that replaced an older one, or one that came after the game's Lua had started.
+     * Each frame, on the game's thread. Sets the API into the environment the game already had when this API
+     * started: one that replaced an older one, or one that came after the game's Lua had started.
      */
     public static void frame(ClassLoader game) {
         if (pending) {
@@ -64,8 +67,8 @@ public final class GameApi {
     }
 
     /**
-     * Sets the API into the game's Lua environment, taking over from an earlier payload. Should that fail, the game
-     * answers every power and water question alone: the earlier payload's networks no longer run, so they must not
+     * Sets the API into the game's Lua environment, taking over from an earlier API. Should that fail, the game
+     * answers every power and water question alone: the earlier API's networks no longer run, so they must not
      * answer from what they last knew.
      */
     static void register(Class<?> luaManager) throws ReflectiveOperationException {
@@ -110,8 +113,8 @@ public final class GameApi {
     }
 
     /**
-     * {@code PZToolsAPI.networks}, with the definitions an earlier payload kept in this environment. Without it (a game
-     * started by an install from before the networks, or a game this payload cannot read), mods find no
+     * {@code PZToolsAPI.networks}, with the definitions an earlier API kept in this environment. Without it (a game
+     * started by an install from before the networks, or a game this API cannot read), mods find no
      * {@code networks} and the game answers every power and water question alone.
      */
     private static void networks(Kahlua lua, Object api, Object meta, Object handles, Game game, Buildings buildings,

@@ -1,8 +1,8 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.reflect.*;
 import java.util.*;
-import pztools.bridge.runtime.api.Network.Position;
+import pztools.api.Network.Position;
 
 /**
  * The fluid that mods drew from and filled into water producers whose squares were not loaded, owed to those squares
@@ -127,7 +127,7 @@ final class PendingFluids {
     /** A square was seen to have taken the change of that number: later ones are numbered past it. */
     void numberPast(long sequence) { next = Math.max(next, sequence + 1); }
 
-    /** The next sequence number, for a newer payload to go on from (see Networks.handover). */
+    /** The next sequence number, for a newer API to go on from (see Networks.handover). */
     long next() { return next; }
 
     /** The square took what it was owed, or can no longer. */

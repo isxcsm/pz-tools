@@ -10,6 +10,7 @@
                                  $(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Agent\notices.tsv;
                                  $(GameBridgeRepositoryRoot)\src\PzTools.GameExtensions.Java\**\*.java" Set="GameBridgeAgent" />
     <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-game-bridge.jar" Set="GameBridgeAgent" />
+    <UpToDateCheckBuilt Include="$(BridgeOutputPath)\extensions\pztools-extension-api.jar" Set="GameBridgeAgent" />
     <UpToDateCheckInput Include="$(GameBridgeRepositoryRoot)\src\PzTools.GameBridge.Native\**\*.cpp" Set="GameBridgeNative" />
     <UpToDateCheckBuilt Include="$(BridgeOutputPath)\pztools-attach-bootstrap.dll" Set="GameBridgeNative" />
     <UpToDateCheckInput Include="$(GameBridgeRepositoryRoot)\src\PzTools.GameExtensions.VehicleDrivetrain\**\*.java" Set="GameBridgeDrivetrain" />
@@ -31,7 +32,7 @@
                Link="game-bridge\pztools-attach-bootstrap.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <!-- Build outputs may also contain fixtures or retired modules. Ship only
            the runtime and provider built for the bundled catalogue. -->
-      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" />
+      <_BridgeExtension Include="$(BridgeOutputPath)\extensions\pztools-extension-api.jar;$(BridgeOutputPath)\extensions\pztools-extension-runtime.jar;$(BridgeOutputPath)\extensions\pztools-vehicle-drivetrain.jar" />
       <Content Include="@(_BridgeExtension)" Link="game-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="game-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="game-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

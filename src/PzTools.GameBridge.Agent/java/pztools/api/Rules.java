@@ -1,9 +1,9 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.util.*;
 import java.util.function.Function;
-import pztools.bridge.runtime.api.Network.Position;
-import pztools.bridge.runtime.api.Network.Thing;
+import pztools.api.Network.Position;
+import pztools.api.Network.Thing;
 
 /**
  * The networks' object rules (excluded and included objects) by square, as the hooks read them: immutable, read on any

@@ -42,7 +42,7 @@ module archives and the tuning file to `game-bridge/extensions/` in the app fold
 | support scope | `Major` | `All`, `Major` or `Minor` |
 | minimum, maximum inclusive | `42`, `42` | Both `-` for `All`. `Major` and `Minor` need a minimum; a maximum of `-` means no upper bound. |
 | title, description resource | `Extension.VehicleDrivetrain.Title` | Keys in `Resources.resw`, must start with `Extension.` |
-| capability | `vehicle.drivetrain.v1` | Required: a row without it is refused |
+| capability | `continuous.v1` | Required: a row without it is refused |
 
 The capability, not the id, decides how a module is activated (`ExtensionCapabilities.Classify`):
 

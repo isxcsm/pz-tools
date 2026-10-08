@@ -126,7 +126,7 @@ go:
 | Job | Held by | While |
 | --- | --- | --- |
 | Profiler | `ProfileControl` | A recording runs; it marks the frames ([profiler](profiler.md)) |
-| Extension API | `ResidentApi` | Always, in a game the [startup loader](startup-loader.md) started: `GameApi.frame` sets the API into a Lua environment that predates the payload and runs the power and water networks |
+| Extension API | `ResidentApi` | Always, in a game the [startup loader](startup-loader.md) started: the API jar's `GameApi.frame` (through `ApiHost`) sets the API into a Lua environment that predates it and runs the power and water networks |
 | Notes | `GameNotices` | A note the app asked for waits to be shown ([hotkeys](profiler.md#hotkeys)) |
 | State observer | `RuntimeObserver` | A WATCH stream is open |
 | Extension lifecycle | The `ExtensionControl.Session` that holds the extensions | An app's extension control is connected, or the [resident controller](startup-loader.md#resident-extensions) holds them |
@@ -142,7 +142,7 @@ frame.
 | Layer | Holds | Replaced while the game runs? |
 | --- | --- | --- |
 | [Bootstrap](glossary.md#bootstrap) | `AgentEntry` (the agent's arguments, the calls a payload makes, the startup), `ControlServer` (the control listener and its sessions), `GameHook` (the game-loop hook and its two callbacks), `Payload` (loading and switching the payload) | No |
-| [Payload](glossary.md#payload) | Its one entry (`PayloadEntry`), the frame router, save requests, state stream, extension control, the extension runtime's loading, the extension API and resident extensions of a startup game, profiling, notes, leases | Yes |
+| [Payload](glossary.md#payload) | Its one entry (`PayloadEntry`), the frame router, save requests, state stream, extension control, the extension runtime's loading, the loading of the extension API and the resident extensions of a startup game, profiling, notes, leases | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) and modules | Game extensions | Yes, each on its own |
 
 The bootstrap holds no feature, so that a new one never needs a game restart. The payload has one entry,

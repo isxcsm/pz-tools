@@ -54,7 +54,7 @@ is the path that exists today.
    In installed mode it also adds the [extension API](extension-api.md)'s hooks, to `LuaManager.init()`
    before the game loads its Lua and to the game's power and water questions. Once the game loads
    `GameWindow` it loads the payload and runs the payload's startup (`PayloadEntry`, kind `STARTUP`),
-   once per payload: the extension API starts (`ResidentApi`), and the payload's
+   once per payload: the extension API starts from its own jar (`ResidentApi`, `ApiHost`), and the payload's
    [resident controller](#resident-extensions) runs the extensions the app last asked for, without
    waiting for the app.
 5. **When the app starts later**, its helper attaches, finds `pztools.bridge.control.v1` already set,
@@ -174,7 +174,7 @@ the old one is deleted later, so a path into the app folder would break at the n
 | File | Content |
 | --- | --- |
 | Install folder | `%ProgramData%\PzTools\startup\s-<account digest>`, one per user: only the player's account and the administrators may change it |
-| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) and the app's `extensions` folder (the extension runtime, the modules, the catalogue), named by content digest |
+| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) and the app's `extensions` folder (the extension API, the extension runtime, the modules, the catalogue), named by content digest |
 | `current` | Which `bridge-<digest>` the next game start loads, with the bootstrap's SHA-256 |
 | `resident.tsv` | The [resident request](#resident-extensions): the settings revision and each continuous module, on or off, with its configuration as the app would send it in `APPLY` |
 | `install.tsv` | The game's folder and the entry's SHA-256 (while an earlier version's jar patch is still in place: the jar's SHA-256 before and after it) |
@@ -232,8 +232,9 @@ In installed mode, extensions stay in the game until it exits.
   reconciliation finds nothing to do.
 - **The extension API.** It does not depend on the extensions: its own thread (`ResidentApi`) holds
   the frame router's API job, which runs the API's per-frame work (setting the API into a Lua
-  environment the game made before the payload loaded, and the power and water networks), and writes
-  `api.tsv` once a second, with or without the app and whether or not any extension runs.
+  environment the game made before the API loaded, and the power and water networks), takes a
+  changed API jar, and writes `api.tsv` once a second, with or without the app and whether or not
+  any extension runs.
 - **Not installed.** Nothing changes: the lease and the revoke on disconnect stay.
 
 Whether resident becomes the rule for both modes is decided after the installed mode has been in

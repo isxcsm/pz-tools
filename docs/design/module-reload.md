@@ -13,7 +13,8 @@ change is detected, and what survives the switch.
 | --- | --- | --- |
 | Native attach bootstrap | `pztools-attach-bootstrap.dll` | No. Loaded on the first attach only. |
 | [Bootstrap](glossary.md#bootstrap) | `pztools-game-bootstrap.jar`: `AgentEntry`, `ControlServer`, `GameHook`, `Payload`, `ApiHooks`, `RuntimeCharacterIdentity` and the module API of the extensions (`pztools.extensions.api`) | No. Needs a game restart. |
-| [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: its entry and frame router, save requests, WATCH, extension control and the loading of the extension runtime, the extension API and resident extensions of a startup game, profiler, notices, leases | Yes |
+| [Payload](glossary.md#payload) | `pztools-game-bridge.jar`: its entry and frame router, save requests, WATCH, extension control and the loading of the extension runtime and of the extension API, the resident extensions of a startup game, profiler, notices, leases | Yes |
+| [Extension API](extension-api.md) | `extensions\pztools-extension-api.jar`: `GameApi`, buildings, power and water networks (`pztools.api`); loaded only in a game the [startup loader](startup-loader.md) started | Yes |
 | [Extension runtime](glossary.md#extension-runtime-host) | `extensions\pztools-extension-runtime.jar`: `ModuleHost`, `ContinuousRuntime` | Yes |
 | [Modules](glossary.md#extension-module) | `extensions\pztools-vehicle-drivetrain.jar`, listed in `extensions\catalog.tsv` | Yes, each in its own [slot](glossary.md#slot) |
 
@@ -118,7 +119,7 @@ running, and the new payload's [resident controller](startup-loader.md#resident-
 | Kept in the bootstrap | Lost with the old payload |
 | --- | --- |
 | Process, world, character and death ids | The app runs' [leases](game-bridge.md#leases) |
-| The extension runtime and its host | Running profiler recordings and a note still waiting to be shown |
+| The extension runtime and its host, the extension API | Running profiler recordings and a note still waiting to be shown |
 | The game-loop hook and the control socket | The last save report |
 | | The continuous modules' generations (retired as above, unless the game was started by the startup loader) |
 
@@ -138,6 +139,16 @@ If the old host cannot be closed, the new one is discarded and the old one stays
 session instead. A runtime jar refused for its extension ABI is answered `RestartRequired` (`bootstrap-update`)
 to all four. The new host starts no module by itself; modules return with the next `APPLY`.
 Replacing the runtime leaves WATCH running.
+
+### Extension API
+
+`ApiHost.current` (payload) reads the API jar beside the extension runtime, checks that its manifest names the
+bootstrap API the game loaded (`PzTools-Bootstrap-Api`), and loads it under its own class loader (namespace
+`pztools.api`). The bootstrap keeps the loaded API with the jar's digest (`AgentEntry.kept`), so a payload switch
+leaves it running and the new payload's `ResidentApi` takes its frame job up again. The payload looks at the jar
+about once a second (its size and time; it reads the jar only when they changed): a new digest loads and starts the
+new API, which sets its hooks and takes the game's Lua environment over on its next frame, as described in the
+[extension API](extension-api.md). Only a game the startup loader started loads it.
 
 ### Continuous modules
 

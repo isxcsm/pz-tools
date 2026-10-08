@@ -1,9 +1,9 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.reflect.*;
 
 /**
- * The game's Lua runtime (Kahlua), reached by reflection from {@code LuaManager}: the payload is built without the
+ * The game's Lua runtime (Kahlua), reached by reflection from {@code LuaManager}: the API is built without the
  * game. Used only on the game's thread, where the game itself uses these tables.
  */
 final class Kahlua {

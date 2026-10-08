@@ -2,13 +2,13 @@ package pztools.bridge.runtime;
 
 import java.nio.file.Path;
 import pztools.bridge.AgentEntry;
-import pztools.bridge.runtime.api.GameApi;
 
 /**
- * The extension API in a game the startup loader started (docs/design/extension-api.md), started once per payload by
- * the payload's startup. It sets the API's handlers, runs its per-frame work as the frame router's API job, and writes
- * which of its hooks the game has to the install folder for the app (api.tsv): with or without the app, and whatever
- * the extensions do. A newer payload's takes over; this one lets go of its job while a payload switch waits.
+ * The extension API in a game the startup loader started (docs/design/extension-api.md), run by each payload's startup:
+ * the API itself is its own jar ({@link ApiHost}), which outlives a payload switch. This runs the API's per-frame work
+ * as the frame router's API job, takes a changed API jar about once a second, and writes which of its hooks the game
+ * has to the install folder for the app (api.tsv): with or without the app, and whatever the extensions do. A newer
+ * payload's takes over; this one lets go of its job while a payload switch waits.
  */
 final class ResidentApi {
     private static final long WAKE_MILLIS = 250, STATUS_NANOS = 1_000_000_000L;
@@ -16,12 +16,16 @@ final class ResidentApi {
     // Guarded by gate.
     private static Path root;
     private static Thread runner;
+    // The API the frame job calls: the one ApiHost last gave.
+    private static volatile ApiHost.Api api;
 
     private ResidentApi() { }
 
     static void start(Path installFolder) {
         if (!installFolder.isAbsolute()) throw new IllegalArgumentException("Absolute install folder required");
-        GameApi.start();
+        // Before the game's Lua starts: a new API sets its hook for it now.
+        try { api = ApiHost.current(); }
+        catch (Exception unreadable) { throw new IllegalStateException("The extension API's jar: " + unreadable, unreadable); }
         synchronized (gate) {
             root = installFolder;
             if (runner != null && runner.isAlive()) return;
@@ -44,12 +48,14 @@ final class ResidentApi {
                         if (held) { Frames.remove(Frames.Job.API, owner); held = false; }
                     } else if (!AgentEntry.payloadCurrent(ResidentApi.class)) return;
                     else if (System.nanoTime() - nextStatus >= 0) {
-                        // Once a second: the hook may come only with GameWindow, the status as the hooks' classes load.
+                        // Once a second: the hook may come only with GameWindow, the status as the hooks' classes load,
+                        // a changed jar with an update.
                         nextStatus = System.nanoTime() + STATUS_NANOS;
+                        api = ApiHost.current();
                         if (!held) held = hold(owner);
                         Path folder;
                         synchronized (gate) { folder = root; }
-                        GameApi.writeStatus(folder);
+                        api.writeStatus(folder);
                     }
                 } catch (Throwable failure) {
                     String text = String.valueOf(failure);
@@ -71,6 +77,10 @@ final class ResidentApi {
         ClassLoader game;
         try { game = AgentEntry.ensureGameHook().getClassLoader(); }
         catch (Exception | LinkageError notYet) { return false; } // GameWindow has not loaded yet, for one.
-        return Frames.add(Frames.Job.API, owner, () -> GameApi.frame(game));
+        return Frames.add(Frames.Job.API, owner, () -> {
+            try { api.frame(game); }
+            catch (Error | RuntimeException failure) { throw failure; }
+            catch (Throwable impossible) { throw new IllegalStateException(impossible); }
+        });
     }
 }

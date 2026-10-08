@@ -91,8 +91,19 @@ public sealed class PublishedDistributionTests
         string[] payload = ["pztools-extension-runtime.jar",
             "pztools-vehicle-drivetrain.jar", "catalog.tsv", "vehicle-drivetrain.toml"];
         foreach (var name in payload) Assert.True(File.Exists(Path.Combine(extensions, name)), name);
-        Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Order(),
+        // The extension API's code is its own jar there too: it answers the bootstrap's hooks, not the extension host.
+        const string api = "pztools-extension-api.jar";
+        Assert.Equal(payload.Where(name => name.EndsWith(".jar", StringComparison.Ordinal)).Append(api).Order(),
             Directory.GetFiles(extensions, "*.jar").Select(Path.GetFileName).Order());
+        using (var apiJar = ZipFile.OpenRead(Path.Combine(extensions, api)))
+        {
+            Assert.Equal("12", Manifest(apiJar)["PzTools-Bootstrap-Api"]);
+            Assert.NotNull(apiJar.GetEntry("pztools/api/GameApi.class"));
+            Assert.All(apiJar.Entries, entry => Assert.True(entry.FullName.StartsWith("META-INF/", StringComparison.Ordinal)
+                || entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal), entry.FullName));
+        }
+        using (var bridgeJar = ZipFile.OpenRead(Path.Combine(bridge, "pztools-game-bridge.jar")))
+            Assert.DoesNotContain(bridgeJar.Entries, entry => entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-test-save.jar")));
         // The retired screen look ships nothing any more.
@@ -113,7 +124,7 @@ public sealed class PublishedDistributionTests
         var catalogue = ExtensionCatalog.ReadFile(cataloguePath);
         Assert.Equal([VehicleDrivetrainExtension.Id], catalogue.Select(item => item.Id).Order());
         var vehicle = catalogue.Single(item => item.Id == VehicleDrivetrainExtension.Id);
-        Assert.Equal("vehicle.drivetrain.v1", Assert.Single(vehicle.Capabilities));
+        Assert.Equal(ExtensionCapabilities.Continuous, Assert.Single(vehicle.Capabilities));
         Assert.Equal(new GameVersionSupport(VersionSupportScope.Major, "42", "42"), vehicle.SupportedVersions);
         var row = Assert.Single(File.ReadLines(cataloguePath), line => line.StartsWith(VehicleDrivetrainExtension.Id + "\t", StringComparison.Ordinal)).Split('\t');
         Assert.Equal(11, row.Length);

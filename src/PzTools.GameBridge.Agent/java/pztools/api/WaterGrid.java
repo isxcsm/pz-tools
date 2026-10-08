@@ -1,13 +1,13 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
 import pztools.bridge.ApiHooks;
-import pztools.bridge.runtime.api.Members.Area;
-import pztools.bridge.runtime.api.Network.Position;
-import pztools.bridge.runtime.api.Network.Stored;
-import pztools.bridge.runtime.api.PendingFluids.Delta;
+import pztools.api.Members.Area;
+import pztools.api.Network.Position;
+import pztools.api.Network.Stored;
+import pztools.api.PendingFluids.Delta;
 
 /**
  * Runs the water networks (docs/design/extension-api.md, "Water"): a fixture of a network that has water takes it from
@@ -295,7 +295,7 @@ final class WaterGrid implements ApiHooks.Water {
         return result;
     }
 
-    /** The next sequence number of what is owed, for a newer payload; and where this one goes on from an earlier one's. */
+    /** The next sequence number of what is owed, for a newer API; and where this one goes on from an earlier one's. */
     long nextSequence() { return pending.next(); }
 
     void goOnFrom(long sequence) { pending.numberPast(sequence - 1); }

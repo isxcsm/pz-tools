@@ -1,13 +1,13 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.invoke.*;
 import java.lang.reflect.*;
 import java.util.*;
-import pztools.bridge.runtime.api.Network.Position;
+import pztools.api.Network.Position;
 
 /**
  * The game's world as the buildings and the networks reach it: the classes, methods and fields they share, resolved
- * once by reflection (the payload is built without the game). Reading through them is safe on any thread the game asks
+ * once by reflection (the API is built without the game). Reading through them is safe on any thread the game asks
  * a question on.
  */
 final class Game {

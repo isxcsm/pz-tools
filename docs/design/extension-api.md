@@ -63,13 +63,17 @@ How the table gets there:
   environment, before the game loads any Lua
   ([`ApiHooks`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/ApiHooks.java)). The call sets
   the table into the new environment, so mods find it as they load.
-- The payload that answers that call loads beside the game's start. If the game's first Lua
-  environment comes first, the call waits for the payload, at most 10 seconds, once per game.
-- A payload that replaces another, or that came after the game's Lua started, sets the table on the
+- The API's code is its own jar (`extensions\pztools-extension-api.jar`), which the payload loads
+  beside the game's start ([`ApiHost`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/ApiHost.java)).
+  If the game's first Lua environment comes first, the call waits for the payload, at most 10
+  seconds, once per game.
+- The bootstrap keeps the loaded API with its jar's digest, so a payload update leaves it running.
+  Only a changed API jar loads a new API (the payload looks about once a second).
+- An API that replaces another, or that came after the game's Lua started, sets the table on the
   next frame. It updates the table in place, so the tables a mod holds stay valid, and the mods'
   handles are kept. A function a mod copied out of the table (`local define =
-  PZToolsAPI.networks.define`) belongs to the payload replaced: calling it is a Lua error that says
-  the API was updated, and the mod reads it from `PZToolsAPI` again. A payload that fails to set the
+  PZToolsAPI.networks.define`) belongs to the API replaced: calling it is a Lua error that says
+  the API was updated, and the mod reads it from `PZToolsAPI` again. An API that fails to set the
   table leaves the game as in vanilla, and the functions mods copied give the same error.
 - A game started by an install from before the API has no API until it is started again.
 
@@ -98,7 +102,7 @@ different object.
 A building is what the game's map data (`IsoMetaGrid`) says it is: the rooms of one `BuildingDef`,
 for loaded and unloaded squares alike. A square belongs to it when one of its rooms covers the square
 (`IsoMetaGrid.getRoomAt`); walls and yards outside its rooms do not.
-([`Buildings`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/Buildings.java))
+([`Buildings`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Buildings.java))
 
 | Call | Returns |
 | --- | --- |
@@ -412,7 +416,7 @@ writes it to the install folder for the app, which says so on the startup loader
 ([startup loader](startup-loader.md#the-game-that-runs)).
 
 The answers come from a snapshot the API makes again when something changes
-([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/PowerGrid.java)).
+([`PowerGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/api/PowerGrid.java)).
 A definition that changes marks it out of date: the next frame makes it again, or the first question
 the game asks before then on its own thread, the one the mods' calls come on (a world's generators
 make up for the hours away as they first update, which can come before the next frame). So a mod that
@@ -429,7 +433,7 @@ switch: a search of the supplied rooms' sorted ids) and whether it hangs on a wa
 building, which its sprite says (kept per sprite). For an object that no rule names, none of this
 allocates. For an excluded object the API asks the game again with the networks silenced on that
 thread. The water questions have their own snapshot
-([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/bridge/runtime/api/WaterGrid.java)):
+([`WaterGrid`](../../src/PzTools.GameBridge.Agent/java/pztools/api/WaterGrid.java)):
 the areas of the networks that have water, their producers' squares and their object rules. A question
 about an object that takes no pipes, which its sprite says, ends there; one about a fixture costs the
 lookups of an object question.

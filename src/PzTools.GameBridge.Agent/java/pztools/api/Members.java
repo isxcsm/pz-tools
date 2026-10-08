@@ -1,8 +1,8 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.util.*;
-import pztools.bridge.runtime.api.Network.Position;
-import pztools.bridge.runtime.api.Network.Thing;
+import pztools.api.Network.Position;
+import pztools.api.Network.Thing;
 
 /**
  * What a network takes in, as the map has it now: the squares of its member buildings, and the objects in them that

@@ -1,4 +1,4 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassTransform;
@@ -32,7 +32,7 @@ import zombie.world.moddata.ModData;
 
 /**
  * The extension API as a Lua mod sees it, against the synthetic game of the startup loader test: the table, the facts
- * about buildings, the mods' handles, the power and water networks, and a newer payload taking the table over. The API's hooks
+ * about buildings, the mods' handles, the power and water networks, and a newer API taking the table over. The API's hooks
  * are in the game's classes, put there by {@link pztools.bridge.ApiTestAgent} as the startup loader's bootstrap does.
  */
 public final class GameApiTest {
@@ -40,7 +40,7 @@ public final class GameApiTest {
 
     public static void main(String[] args) throws Exception {
         world();
-        // As in the game: the payload sets the handler, and the hook sets the API as the game's Lua starts.
+        // As in the game: the API sets the handler, and the hook sets the API as the game's Lua starts.
         GameApi.start();
         LuaManager.init();
         KahluaTable api = (KahluaTable)LuaManager.env.rawget(GameApi.GLOBAL);
@@ -74,7 +74,7 @@ public final class GameApiTest {
         food(api);
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer payload takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -388,7 +388,7 @@ public final class GameApiTest {
             && !square(33, 30, 0).haveElectricity(), "The second producer does not carry the network");
         check(near(second.getTotalPowerUsing(), (0.02 + 0.112) * 0.1) && near(first.getTotalPowerUsing(), 0.02 * 0.1), "The load moved wrongly");
 
-        // A handler that fails gives the game's answers; a newer payload takes the definitions over.
+        // A handler that fails gives the game's answers; a newer API takes the definitions over.
         ApiHooks.setPower(new ApiHooks.Power() {
             @Override public boolean square(int x, int y, int z) { throw new IllegalStateException("broken"); }
             @Override public boolean object(boolean vanilla, Object object, int kind, boolean generators) { throw new IllegalStateException("broken"); }
@@ -401,7 +401,7 @@ public final class GameApiTest {
         GameApi.register(LuaManager.class);
         frame();
         check(api.rawget("networks") == networks && square(11, 11, 0).haveElectricity() && !square(33, 30, 0).haveElectricity()
-            && ItemContainer.isObjectPowered(light, true), "A newer payload did not take the networks over");
+            && ItemContainer.isObjectPowered(light, true), "A newer API did not take the networks over");
 
         // Each network belongs to its mod.
         Object other = call(api, "client", "other.mod").get(0);
@@ -607,7 +607,7 @@ public final class GameApiTest {
     /**
      * A network switched off has no supply, nor have its children; the API switches its producer off, and its load still
      * reads. A child switched off leaves its parent's producer running. Food in its fridge ages unchilled for the hours
-     * it was off, and a newer payload keeps the switch.
+     * it was off, and a newer API keeps the switch.
      */
     private static void switches(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -663,15 +663,15 @@ public final class GameApiTest {
         time.hours = 2530;
         food.updateAge(false);
         check(near(food.age, (20 * 0.2 + 10) / 24), "Food aged chilled while the network was switched off: " + food.age * 24);
-        // A newer payload keeps the switch, and counts a network it finds switched off as off before.
+        // A newer API keeps the switch, and counts a network it finds switched off as off before.
         call(networks, "setEnabled", mod, "main", false);
         GameApi.register(LuaManager.class);
         frame();
-        check(state(networks, "main").rawget("enabled").equals(false) && !square(11, 11, 0).haveElectricity(), "A newer payload lost the switch");
+        check(state(networks, "main").rawget("enabled").equals(false) && !square(11, 11, 0).haveElectricity(), "A newer API lost the switch");
         time.hours = 2540;
         food = aged(container, 2530);
         food.updateAge(false);
-        check(near(food.age, 10 / 24.0), "Food aged chilled in a network a newer payload found switched off: " + food.age * 24);
+        check(near(food.age, 10 / 24.0), "Food aged chilled in a network a newer API found switched off: " + food.age * 24);
         call(networks, "remove", mod, "sub");
         call(networks, "remove", mod, "main");
         frame();
@@ -680,7 +680,7 @@ public final class GameApiTest {
 
     /**
      * A load factor multiplies the load of a network and its children on its way to the producer: the state, the fuel
-     * burned and the hours left follow it, a child's factor counts inside its parent's, and a newer payload keeps it.
+     * burned and the hours left follow it, a child's factor counts inside its parent's, and a newer API keeps it.
      */
     private static void loadFactors(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -721,11 +721,11 @@ public final class GameApiTest {
         call(networks, "define", mod, "pipes", "water", "fullest");
         rejects(networks, "setLoadFactor", "pipes carries water, which has no load", mod, "pipes", 1.0);
         call(networks, "remove", mod, "pipes");
-        // A newer payload keeps the factors.
+        // A newer API keeps the factors.
         GameApi.register(LuaManager.class);
         frame();
         check(state(networks, "main").rawget("loadFactor").equals(1.5) && state(networks, "sub").rawget("loadFactor").equals(2.0),
-            "A newer payload lost the load factors");
+            "A newer API lost the load factors");
         call(networks, "remove", mod, "sub");
         call(networks, "remove", mod, "main");
         frame();
@@ -734,7 +734,7 @@ public final class GameApiTest {
 
     /**
      * A network can take single rooms of a building instead of all of it: only their squares have power and only their
-     * objects are its consumers. A room named again, or of a building it takes whole, changes nothing; a newer payload
+     * objects are its consumers. A room named again, or of a building it takes whole, changes nothing; a newer API
      * keeps them.
      */
     private static void memberRooms(KahluaTable api) throws Exception {
@@ -759,10 +759,10 @@ public final class GameApiTest {
         frame();
         check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "A second room did not get power");
         check(near((Double)state(networks, "flat").rawget("ownLoad"), kitchen), "The basement changed the load");
-        // A newer payload keeps the rooms.
+        // A newer API keeps the rooms.
         GameApi.register(LuaManager.class);
         frame();
-        check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "A newer payload lost the rooms");
+        check(square(11, 11, -1).haveElectricity() && square(11, 11, 0).haveElectricity(), "A newer API lost the rooms");
         check(call(networks, "removeRoom", mod, "flat", 12.0, 11.0, -1.0).get(0).equals(true), "Removing a room by another square failed");
         check(call(networks, "removeRoom", mod, "flat", 12.0, 11.0, -1.0).get(0).equals(false), "A room was removed twice");
         frame();
@@ -862,7 +862,7 @@ public final class GameApiTest {
     /**
      * A source its mod runs carries the load like a generator: switched on by the mod it takes over, and the API switches
      * the generators off; when the mod says it can no longer run, the next producer takes over from the hour the mod
-     * gives. Its extra load adds to the network's, and a newer payload keeps both.
+     * gives. Its extra load adds to the network's, and a newer API keeps both.
      */
     private static void sources(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -912,12 +912,12 @@ public final class GameApiTest {
         state = state(networks, "solar");
         check(near((Double)state.rawget("ownLoad"), ownLoad + 0.5) && state.rawget("extraLoad").equals(0.5)
             && near((Double)state.rawget("load"), ownLoad + 0.5), "The extra load was not added");
-        // A newer payload keeps the source switched on, and the extra load.
+        // A newer API keeps the source switched on, and the extra load.
         GameApi.register(LuaManager.class);
         frame();
         state = state(networks, "solar");
         check(state.rawget("supplied").equals(true) && ((KahluaTable)state.rawget("producer")).rawget("source").equals("bank")
-            && near((Double)state.rawget("ownLoad"), ownLoad + 0.5), "A newer payload lost the source or the extra load");
+            && near((Double)state.rawget("ownLoad"), ownLoad + 0.5), "A newer API lost the source or the extra load");
         // Taken out of the producers while it carries the load: the generator takes over at once.
         call(networks, "setProducers", mod, "solar", list(at(34, 33, 0)));
         frame();
@@ -953,7 +953,7 @@ public final class GameApiTest {
      * Generators on standby and out of service under "sequential": every generator that is off is on standby, also one
      * first seen off, but one the API saw switched off by hand, which it never switches on, whether the one in use is
      * switched off, runs out, or a source stops. Switched on by hand, a generator carries the load and is in service
-     * again. The mark is kept on the generator, so a world loaded again knows it, and a newer payload takes it over,
+     * again. The mark is kept on the generator, so a world loaded again knows it, and a newer API takes it over,
      * also for a generator whose square is not loaded; one from before the marks gives none, and so standby.
      */
     private static void service(KahluaTable api) throws Exception {
@@ -1053,7 +1053,7 @@ public final class GameApiTest {
         a.setActivated(false);
         frame();
         check(b.activated && !a.activated && !c.activated && serving(networks) == 37.0, "After a load the one on standby did not take over");
-        // A newer payload takes the marks over, also of a generator whose square is not loaded.
+        // A newer API takes the marks over, also of a generator whose square is not loaded.
         a.setActivated(true);
         frame();
         var squares = IsoWorld.instance.cell.squares;
@@ -1061,17 +1061,17 @@ public final class GameApiTest {
         GameApi.register(LuaManager.class);
         frame();
         check(outOfService(networks, "svc", 3) && !outOfService(networks, "svc", 2) && serving(networks) == 36.0,
-            "A newer payload lost the mark of a generator not loaded");
+            "A newer API lost the mark of a generator not loaded");
         squares.put("38,40,0", away);
         frame();
         a.setActivated(false);
         frame();
-        check(b.activated && !a.activated && !c.activated && serving(networks) == 37.0, "After a newer payload took over the one on standby did not take over");
+        check(b.activated && !a.activated && !c.activated && serving(networks) == 37.0, "After a newer API took over the one on standby did not take over");
         b.setActivated(false);
         frame();
         check(!a.activated && !b.activated && !c.activated && state(networks, "svc").rawget("supplied").equals(false),
-            "After a newer payload took over a generator out of service was started");
-        // A payload from before the marks hands over none: the marks on the generators tell, as at first sight.
+            "After a newer API took over a generator out of service was started");
+        // An API from before the marks hands over none: the marks on the generators tell, as at first sight.
         olderHandover(api);
         GameApi.register(LuaManager.class);
         frame();
@@ -1105,7 +1105,7 @@ public final class GameApiTest {
      * A power network switched off stops its generators: the API switches them off, on standby, and they burn nothing.
      * Switched on again, the one in use before starts, or the first on standby that can run if it cannot; never one out
      * of service (switched off by hand). One a player switches on meanwhile goes back off at once and starts first. A world loaded again and a
-     * newer payload keep which one starts first.
+     * newer API keep which one starts first.
      */
     private static void switchedOff(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -1188,16 +1188,16 @@ public final class GameApiTest {
         call(networks, "setEnabled", mod, "svc", true);
         frame();
         check(f.activated && !d.activated && !e.activated && serving(networks) == 38.0, "After a load, the one to start first did not");
-        // A newer payload keeps it too.
+        // A newer API keeps it too.
         call(networks, "setEnabled", mod, "svc", false);
         frame();
         GameApi.register(LuaManager.class);
         frame();
-        check(!f.activated && !d.activated, "A newer payload started a generator of a network switched off");
+        check(!f.activated && !d.activated, "A newer API started a generator of a network switched off");
         call(networks, "setEnabled", mod, "svc", true);
         frame();
-        check(f.activated && !d.activated && !e.activated && serving(networks) == 38.0, "After a newer payload, the one to start first did not");
-        // A payload from before the marks, whose network lines end at the producer in use, hands over neither which to
+        check(f.activated && !d.activated && !e.activated && serving(networks) == 38.0, "After a newer API, the one to start first did not");
+        // An API from before the marks, whose network lines end at the producer in use, hands over neither which to
         // start first nor that it stopped them: the mark on the generator tells.
         call(networks, "setEnabled", mod, "svc", false);
         frame();
@@ -1392,7 +1392,7 @@ public final class GameApiTest {
         for (int x = 36; x <= 38; x++) square(x, 44, 0).objects.clear();
     }
 
-    /** The handover of a payload from before the marks: its E lines end at the condition, its N lines at the producer in use. */
+    /** The handover of an API from before the marks: its E lines end at the condition, its N lines at the producer in use. */
     private static void olderHandover(KahluaTable api) {
         KahluaTable meta = api.getMetatable();
         @SuppressWarnings("unchecked") var handover = (java.util.function.Supplier<String>)meta.rawget("networksHandover");
@@ -1414,8 +1414,8 @@ public final class GameApiTest {
     }
 
     /**
-     * A newer payload that fails to take the API over leaves the game as vanilla: the earlier payload's networks no
-     * longer run, so they answer nothing. A later payload takes the definitions over.
+     * A newer API that fails to take the API over leaves the game as vanilla: the earlier API's networks no
+     * longer run, so they answer nothing. A later API takes the definitions over.
      */
     private static void failedTakeover(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -1428,26 +1428,26 @@ public final class GameApiTest {
         generator.setActivated(true);
         frame();
         check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "The network does not run");
-        // Here the payload cannot read the game's Lua at all.
-        try { GameApi.register(String.class); throw new AssertionError("A payload that cannot read the game's Lua took the API over"); }
+        // Here the API cannot read the game's Lua at all.
+        try { GameApi.register(String.class); throw new AssertionError("An API that cannot read the game's Lua took the API over"); }
         catch (ReflectiveOperationException expected) { }
         frame();
-        check(!square(11, 11, 0).haveElectricity(), "A failed takeover left the earlier payload's networks answering");
+        check(!square(11, 11, 0).haveElectricity(), "A failed takeover left the earlier API's networks answering");
         generator.setSurroundingElectricity();
         check(square(32, 33, 0).haveElectricity(), "After a failed takeover the game does not power the generator's range");
         GameApi.register(LuaManager.class);
         frame();
-        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "A later payload did not take the networks over");
+        check(square(11, 11, 0).haveElectricity() && !square(32, 33, 0).haveElectricity(), "A later API did not take the networks over");
         call(networks, "remove", mod, "held");
         frame();
         generator.setActivated(false);
     }
 
     /**
-     * A newer payload takes over what the networks know besides their definitions: a producer running on a square that
+     * A newer API takes over what the networks know besides their definitions: a producer running on a square that
      * is not loaded goes on carrying its network until its fuel would run out, a water producer that is not loaded
      * still holds what it was last seen to, and consumers that are not loaded still count. The definitions are written
-     * where a newer payload finds them once a frame, or as it takes over; a function a mod kept from before says that
+     * where a newer API finds them once a frame, or as it takes over; a function a mod kept from before says that
      * the API was updated.
      */
     private static void handover(KahluaTable api) throws Exception {
@@ -1478,7 +1478,7 @@ public final class GameApiTest {
         check(meta.rawget("networks") == written, "A call that changed nothing wrote the definitions again");
         call(networks, "define", mod, "late", "power", "sequential");
         check(meta.rawget("networks") == written, "The definitions were written at the call, not at the frame");
-        // The producer's, the barrel's and the fridge's squares leave the world; a newer payload takes over before a frame.
+        // The producer's, the barrel's and the fridge's squares leave the world; a newer API takes over before a frame.
         var squares = IsoWorld.instance.cell.squares;
         var away = new LinkedHashMap<String, IsoGridSquare>();
         for (String key : List.of("34,33,0", "30,40,0", "11,11,0")) away.put(key, squares.remove(key));
@@ -1489,13 +1489,13 @@ public final class GameApiTest {
         KahluaTable kept = state(networks, "kept");
         check(kept.rawget("supplied").equals(true) && ((KahluaTable)kept.rawget("producer")).rawget("x").equals(34.0)
             && kept.rawget("hoursLeft") != null && new IsoGridSquare(11, 11, 0).haveElectricity(),
-            "A newer payload lost the producer running on a square that is not loaded");
-        check(near((Double)kept.rawget("load"), load), "A newer payload lost the load of consumers not loaded: " + kept.rawget("load") + " for " + load);
+            "A newer API lost the producer running on a square that is not loaded");
+        check(near((Double)kept.rawget("load"), load), "A newer API lost the load of consumers not loaded: " + kept.rawget("load") + " for " + load);
         check(state(networks, "keptWater").rawget("supplied").equals(true) && near((Double)state(networks, "keptWater").rawget("amount"), 40),
-            "A newer payload lost what a water producer not loaded holds");
-        check(LuaEventManager.raised.isEmpty(), "A newer payload changed the supply: " + LuaEventManager.raised);
-        check(state(networks, "late") != null, "A newer payload lost a definition made since the last frame");
-        // The producer not loaded runs out at the hour its fuel would: the newer payload knows when. (A definition
+            "A newer API lost what a water producer not loaded holds");
+        check(LuaEventManager.raised.isEmpty(), "A newer API changed the supply: " + LuaEventManager.raised);
+        check(state(networks, "late") != null, "A newer API lost a definition made since the last frame");
+        // The producer not loaded runs out at the hour its fuel would: the newer API knows when. (A definition
         // changes, so that the next frame works the networks out rather than waiting a second.)
         time.hours = end + 5;
         call(networks, "remove", mod, "late");
@@ -1610,7 +1610,7 @@ public final class GameApiTest {
         call(networks, "addBuilding", mod, "annex", 20.0, 20.0, 0.0);
         frame();
         check(state(networks, "annex").rawget("supplied").equals(false) && raised("annex", "supply", hours), "A dry child supplies water");
-        // A failing hook gives the game's answers; a newer payload takes the networks over.
+        // A failing hook gives the game's answers; a newer API takes the networks over.
         high.fluidContainer.amount = 50;
         frame();
         ApiHooks.setWater(new ApiHooks.Water() {
@@ -1620,7 +1620,7 @@ public final class GameApiTest {
         check(!sink.getUsesExternalWaterSource() && sink.getFluidAmount() == 0, "A failing hook did not give the game's answer");
         GameApi.register(LuaManager.class);
         frame();
-        check(sink.getFluidAmount() == 50 && shed.getFluidAmount() == 50, "A newer payload did not take the water networks over");
+        check(sink.getFluidAmount() == 50 && shed.getFluidAmount() == 50, "A newer API did not take the water networks over");
         for (String id : List.of("annex", "pipes", "lights")) call(networks, "remove", mod, id);
         frame();
         check(!sink.getUsesExternalWaterSource() && !outside.getUsesExternalWaterSource(), "A removed network still supplies water");
@@ -1744,10 +1744,10 @@ public final class GameApiTest {
         GameClient.client = true;
         rejects(networks, "draw", "a multiplayer client cannot change what producers hold", mod, "tanks", 1.0);
         GameClient.client = false;
-        // A newer payload owes the same.
+        // A newer API owes the same.
         GameApi.register(LuaManager.class);
         check(near((Double)((KahluaTable)((KahluaTable)state(networks, "tanks").rawget("producers")).rawget(2.0)).rawget("pending"), 5),
-            "A newer payload lost what is owed");
+            "A newer API lost what is owed");
         // Loaded again: it takes what it is owed at the next frame, and records the last change it took.
         Object before = kept.rawget("deltas");
         IsoWorld.instance.cell.squares.put("31,34,0", unloaded);
@@ -1831,7 +1831,7 @@ public final class GameApiTest {
 
     /**
      * As in vanilla, water a fixture takes from a network is purified; a network that does not purify passes its
-     * producer's taint on, in the fixture's water and in what the game says of it. A newer payload keeps the switch.
+     * producer's taint on, in the fixture's water and in what the game says of it. A newer API keeps the switch.
      */
     private static void purify(KahluaTable api) throws Exception {
         KahluaTable networks = (KahluaTable)api.rawget("networks");
@@ -1854,10 +1854,10 @@ public final class GameApiTest {
         var clean = place(30, 36, 0, barrel(90));
         check(!sink.isTaintedWater(), "Clean water from a network that does not purify is tainted");
         clean.fluidContainer.amount = 0;
-        // A newer payload keeps the switch; on again, the water is purified.
+        // A newer API keeps the switch; on again, the water is purified.
         GameApi.register(LuaManager.class);
         frame();
-        check(state(networks, "rain").rawget("purify").equals(false) && sink.isTaintedWater(), "A newer payload lost the switch");
+        check(state(networks, "rain").rawget("purify").equals(false) && sink.isTaintedWater(), "A newer API lost the switch");
         call(networks, "setPurify", mod, "rain", true);
         check(!sink.isTaintedWater(), "Switched on again, the water is not purified");
         rejects(networks, "setPurify", "on must be true or false", mod, "rain", "no");
@@ -2102,7 +2102,7 @@ public final class GameApiTest {
 
     private static void takeover(KahluaTable api, KahluaTable buildings) throws Exception {
         Object handle = call(api, "client", "example.mod").get(0), at = buildings.rawget("at");
-        // A newer payload registers into the environment the game already has: the tables mods hold stay valid.
+        // A newer API registers into the environment the game already has: the tables mods hold stay valid.
         GameApi.register(LuaManager.class);
         check(LuaManager.env.rawget(GameApi.GLOBAL) == api && api.rawget("buildings") == buildings, "The tables were replaced");
         check(buildings.rawget("at") != at, "The functions were not replaced");

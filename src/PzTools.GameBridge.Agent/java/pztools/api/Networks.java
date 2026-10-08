@@ -1,20 +1,20 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.util.*;
 import java.util.function.Supplier;
 import pztools.bridge.ApiHooks;
-import pztools.bridge.runtime.api.Network.Position;
-import pztools.bridge.runtime.api.Network.Producer;
-import pztools.bridge.runtime.api.Network.Seen;
-import pztools.bridge.runtime.api.Network.Settled;
-import pztools.bridge.runtime.api.Network.Source;
-import pztools.bridge.runtime.api.Network.Stored;
-import pztools.bridge.runtime.api.Network.Thing;
+import pztools.api.Network.Position;
+import pztools.api.Network.Producer;
+import pztools.api.Network.Seen;
+import pztools.api.Network.Settled;
+import pztools.api.Network.Source;
+import pztools.api.Network.Stored;
+import pztools.api.Network.Thing;
 
 /**
  * {@code PZToolsAPI.networks}: the networks the mods define (docs/design/extension-api.md, "Networks"). Each belongs to
  * the mod whose handle defined it, and only that mod changes it. The definitions are kept in the API table's metatable,
- * so that a newer payload takes them over with what this one knows of them, and are gone with the world they were made
+ * so that a newer API takes them over with what this one knows of them, and are gone with the world they were made
  * in.
  */
 final class Networks {
@@ -24,8 +24,8 @@ final class Networks {
     private static final int MAX_SPRITE = 256;
     // The key in the API's metatable, and the version of the text kept there.
     private static final String MIRROR = "networks", FORMAT = "pztools-networks 1";
-    // In the API's metatable: the number of the networks that run now, each payload's one more than the last; and what
-    // the next payload calls to take them over (see handover). Payloads from before them read the mirror alone.
+    // In the API's metatable: the number of the networks that run now, each API's one more than the last; and what
+    // the next API calls to take them over (see handover). APIs from before them read the mirror alone.
     private static final String GENERATION = "networksGeneration", HANDOVER = "networksHandover";
     // The version of the text handover gives.
     private static final String STATE = "pztools-network-state 1";
@@ -50,7 +50,7 @@ final class Networks {
     // The game's cell when the last frame ran: a world was left when it goes.
     private Object world;
     private boolean reported;
-    // Set when a definition changed since the mirror was written; the next frame, or a newer payload, writes it.
+    // Set when a definition changed since the mirror was written; the next frame, or a newer API, writes it.
     private boolean dirty;
     // This environment's networks as GENERATION numbers them; 0 until register.
     private long generation;
@@ -65,12 +65,12 @@ final class Networks {
         grid = new PowerGrid(loader, game, this, members, buildings, lua);
         try { water = new WaterGrid(loader, game, this, members, buildings, lua); }
         catch (LinkageError olderBootstrap) { water = null; }
-        // The payload this one replaces writes its definitions to the mirror and hands over the rest it knows.
+        // The API this one replaces writes its definitions to the mirror and hands over the rest it knows.
         String state = null;
         if (lua.get(meta, HANDOVER) instanceof Supplier<?> earlier) {
             try { state = (String)earlier.get(); }
             catch (RuntimeException | LinkageError failure) {
-                System.err.println("[PzTools API] networks: the earlier payload did not hand them over; they are worked out anew: " + failure);
+                System.err.println("[PzTools API] networks: the earlier API did not hand them over; they are worked out anew: " + failure);
             }
         }
         Object kept = lua.get(meta, MIRROR);
@@ -78,7 +78,7 @@ final class Networks {
         if (state != null) {
             try { restore(state); }
             catch (RuntimeException unreadable) {
-                System.err.println("[PzTools API] networks: what the earlier payload knew of them could not be read; they are worked out anew: " + unreadable);
+                System.err.println("[PzTools API] networks: what the earlier API knew of them could not be read; they are worked out anew: " + unreadable);
                 networks.clear();
                 load(kept);
             }
@@ -108,8 +108,8 @@ final class Networks {
     }
 
     /**
-     * No networks run in the environment any more: a payload could not take them over. The functions mods kept from
-     * the earlier payload refuse to be called, as they do after a takeover; its handover stays for a later payload.
+     * No networks run in the environment any more: an API could not take them over. The functions mods kept from
+     * the earlier API refuse to be called, as they do after a takeover; its handover stays for a later API.
      */
     static void retire(Kahlua lua, Object meta) {
         try { lua.set(meta, GENERATION, (double)(generation(lua, meta) + 1)); }
@@ -121,7 +121,7 @@ final class Networks {
     }
 
     /**
-     * Sets this area's functions into its table, replacing those of an earlier payload, whose functions then refuse to
+     * Sets this area's functions into its table, replacing those of an earlier API, whose functions then refuse to
      * be called: a mod that kept one (a local copy of {@code PZToolsAPI.networks.define}) would change networks that no
      * longer run, and that a later takeover would read.
      */
@@ -567,7 +567,7 @@ final class Networks {
         }));
     }
 
-    /** Refuses a call into networks that a newer payload took over, or that stopped: the mod kept the function. */
+    /** Refuses a call into networks that a newer API took over, or that stopped: the mod kept the function. */
     private void current(String call) throws ReflectiveOperationException {
         if (generation == 0 || generation(lua, meta) != generation)
             throw new IllegalArgumentException(call + ": the API was updated since this function was read; read it again from PZToolsAPI");
@@ -658,11 +658,11 @@ final class Networks {
         if (water != null) water.changed();
     }
 
-    /** Keeps the definitions where a newer payload finds them, when they changed since they were last kept. */
+    /** Keeps the definitions where a newer API finds them, when they changed since they were last kept. */
     private void flush() throws ReflectiveOperationException { if (dirty) write(); }
 
     /**
-     * Keeps the definitions where a newer payload finds them, as they are now: with the sources as the frames last
+     * Keeps the definitions where a newer API finds them, as they are now: with the sources as the frames last
      * switched them, which is no definition change.
      */
     private void write() throws ReflectiveOperationException {
@@ -674,7 +674,7 @@ final class Networks {
                 .append(network.enabled ? "" : "off").append('\t')
                 .append(network.loadFactor == 1f ? "" : Float.toString(network.loadFactor)).append('\t')
                 .append(network.extraLoad == 0f ? "" : Float.toString(network.extraLoad))
-                // Added later: a line without it is from an earlier payload, and purifies.
+                // Added later: a line without it is from an earlier API, and purifies.
                 .append(network.purify ? "" : "\tunpurified").append('\n');
             for (Producer producer : network.producers) {
                 if (producer.at() != null) { text.append("P\t").append(producer.at()).append('\n'); continue; }
@@ -692,7 +692,7 @@ final class Networks {
         dirty = false;
     }
 
-    /** The definitions an earlier payload kept, if any. */
+    /** The definitions an earlier API kept, if any. */
     private void load(Object kept) {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
@@ -732,8 +732,8 @@ final class Networks {
     }
 
     /**
-     * Called by a newer payload as it takes over (see {@link #HANDOVER}), on the game's thread: writes the definitions
-     * to the mirror, and gives what this payload knows of the networks beyond them, which the mirror does not keep: the
+     * Called by a newer API as it takes over (see {@link #HANDOVER}), on the game's thread: writes the definitions
+     * to the mirror, and gives what this API knows of the networks beyond them, which the mirror does not keep: the
      * producer in use and each producer as last seen, out of service or not, the supply, the load of consumers on
      * squares that are not loaded, and the supply's history for food. A producer running on a square that is not loaded
      * so goes on carrying its network, and one out of service there stays out of service.
@@ -751,7 +751,7 @@ final class Networks {
                 // Added later: whether the API stopped its producers as it was switched off, and the one to start first.
                 .append('\t').append(network.stopped ? "1" : "").append('\t').append(key(network.resume)).append('\n');
             for (var seen : network.seen.entrySet()) {
-                // Added later, at the end so that an earlier payload reads the line still: out of service, or empty.
+                // Added later, at the end so that an earlier API reads the line still: out of service, or empty.
                 text.append("E\t").append(key(seen.getKey())).append('\t').append(seen.getValue().activated() ? "1" : "").append('\t')
                     .append(seen.getValue().fuel()).append('\t').append(seen.getValue().condition()).append('\t')
                     .append(network.outOfService.contains(seen.getKey()) ? "out" : "").append('\n');
@@ -794,13 +794,13 @@ final class Networks {
     }
 
     /**
-     * What the payload this one replaced knew of the networks beyond their definitions (see {@link #handover}), for
+     * What the API this one replaced knew of the networks beyond their definitions (see {@link #handover}), for
      * the networks and producers it still defines.
      */
     private void restore(String text) {
         String[] lines = text.split("\n");
         if (!STATE.equals(lines[0])) {
-            System.err.println("[PzTools API] networks: what the earlier payload knew of them is in another format; they are worked out anew");
+            System.err.println("[PzTools API] networks: what the earlier API knew of them is in another format; they are worked out anew");
             return;
         }
         Network network = null;
@@ -820,7 +820,7 @@ final class Networks {
                 network.loadComplete = "1".equals(fields[6]);
                 Producer inUse = producer(fields[7]);
                 network.inUse = network.producers.contains(inUse) ? inUse : null;
-                // From a payload before them, none: a network it left switched off with its producer running is stopped
+                // From an API before them, none: a network it left switched off with its producer running is stopped
                 // at the next frame, which starts that producer first when the network is switched on again.
                 if (fields.length > 9) {
                     network.stopped = "1".equals(fields[8]);
@@ -836,7 +836,7 @@ final class Networks {
                     Producer producer = producer(fields[1]);
                     if (!network.producers.contains(producer)) continue;
                     network.seen.put(producer, new Seen("1".equals(fields[2]), Float.parseFloat(fields[3]), Integer.parseInt(fields[4])));
-                    // From a payload before the marks, which it did not keep: the next frame reads them as at first sight.
+                    // From an API before the marks, which it did not keep: the next frame reads them as at first sight.
                     if (fields.length < 6) network.recheck.add(producer);
                     else if ("out".equals(fields[5])) network.outOfService.add(producer);
                 }

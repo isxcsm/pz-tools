@@ -1,9 +1,9 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import pztools.bridge.runtime.api.Network.Position;
+import pztools.api.Network.Position;
 
 /**
  * {@code PZToolsAPI.buildings}: buildings as the game's map data (the meta grid) describes them now, and the objects in
@@ -65,7 +65,7 @@ final class Buildings {
             flag.getField("attachedE").get(null), flag.getField("attachedW").get(null) };
     }
 
-    /** Sets this area's functions into its table, replacing those of an earlier payload. */
+    /** Sets this area's functions into its table, replacing those of an earlier API. */
     void register(Object table) throws ReflectiveOperationException {
         lua.set(table, "at", lua.function(AREA + "at", arguments -> new Object[] {
             at(Arguments.integer(arguments, 0, AREA + "at", "x"), Arguments.integer(arguments, 1, AREA + "at", "y"),

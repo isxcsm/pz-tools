@@ -79,7 +79,7 @@ public sealed class StartupLoader
 
     private const string Mark = "PZTOOLS-STARTUP", Failed = "PZTOOLS-STARTUP-FAILED";
     // In the install folder: the loader's line for the last game start, and the extension API's hooks in the game that
-    // runs (pztools.startup.StartupLoader.LOG, pztools.bridge.runtime.api.GameApi.STATUS).
+    // runs (pztools.startup.StartupLoader.LOG, pztools.api.GameApi.STATUS).
     private const string LoaderLog = "startup.log", ApiStatus = "api.tsv";
     // File times against a process's start: the loader writes its line about half a second after the game starts.
     private static readonly TimeSpan StartSlack = TimeSpan.FromSeconds(2);

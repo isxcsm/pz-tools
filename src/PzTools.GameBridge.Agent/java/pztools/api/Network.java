@@ -1,4 +1,4 @@
-package pztools.bridge.runtime.api;
+package pztools.api;
 
 import java.util.*;
 
@@ -105,8 +105,8 @@ final class Network {
     /** The squares of generators the game ran since the last frame (see PowerGrid.generatorUpdate). */
     final Set<Position> ran = new HashSet<>();
     /**
-     * Producers a payload from before the marks handed over: the next frame reads their marks as at first sight, which
-     * that payload did not keep.
+     * Producers an API from before the marks handed over: the next frame reads their marks as at first sight, which
+     * that API did not keep.
      */
     final Set<Producer> recheck = new HashSet<>();
     /**
