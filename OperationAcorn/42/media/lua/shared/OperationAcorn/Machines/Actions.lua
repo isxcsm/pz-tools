@@ -68,22 +68,23 @@ ISOAMachinePlace = base("ISOAMachinePlace", 150)
 
 function ISOAMachinePlace:isValid()
     local item = Actions.findItem(self.character, self.itemId)
-    return item ~= nil and Machines.canPlace(self.kind, self.square) ~= nil
+    return item ~= nil and Machines.canPlace(self.kind, self.square, self.dir) ~= nil
 end
 
 function ISOAMachinePlace:complete()
     local item = Actions.findItem(self.character, self.itemId)
     local square = getCell():getGridSquare(self.x, self.y, self.z)
-    if not item or not square or not Machines.canPlace(self.kind, square) then return false end
+    if not item or not square or not Machines.canPlace(self.kind, square, self.dir) then return false end
     if self.character.removeFromHands then self.character:removeFromHands(item) end
-    Machines.place(self.kind, square, self.character, item)
+    Machines.place(self.kind, square, self.character, item, self.dir)
     removeFromInventory(item)
     return true
 end
 
-function ISOAMachinePlace:new(character, square, item, kind)
+-- dir: the facing the machine is put down with (Machines.facing at the time of the click).
+function ISOAMachinePlace:new(character, square, item, kind, dir)
     local o = ISBaseTimedAction.new(self, character)
-    o.square, o.kind, o.itemId = square, kind, item:getID()
+    o.square, o.kind, o.itemId, o.dir = square, kind, item:getID(), dir or "S"
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
     o.maxTime = o:getDuration()
     return o

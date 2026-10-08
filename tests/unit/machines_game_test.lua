@@ -763,3 +763,314 @@ test("status for the window", function()
     eq(st.noise, 20)
     near(st.rate, 12 * 0.85)
 end)
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- Multi-tile machines (DESIGN 12: big facilities take several tiles)
+
+-- The fakes for building objects: squares that can take objects, thumpables, containers made by the script.
+local function worldSetup()
+    setup()
+    local function square(x, y, z)
+        local key = x .. "," .. y .. "," .. z
+        if not squares[key] then
+            local sq = newSquare(x, y, z)
+            sq.outside = true
+            function sq:TreatAsSolidFloor() return true end
+            function sq:isSolid() return false end
+            function sq:isSolidTrans() return false end
+            function sq:HasStairs() return false end
+            function sq:HasTree() return false end
+            function sq:isFree() return not self.busy end
+            function sq:isVehicleIntersecting() return false end
+            function sq:getProperties() return { has = function() return false end } end
+            function sq:isOutside() return self.outside end
+            function sq:RecalcAllWithNeighbours() end
+            function sq:AddSpecialObject(object) table.insert(self.objects, object) end
+            function sq:transmitRemoveItemFromSquare(object)
+                for i, o in ipairs(self.objects) do
+                    if o == object then table.remove(self.objects, i) return end
+                end
+            end
+            function sq:AddWorldInventoryItem(item) self.dropped = self.dropped or {}; table.insert(self.dropped, item) end
+            squares[key] = sq
+        end
+        return squares[key]
+    end
+    getCell = function()
+        return { getGridSquare = function(self, x, y, z) return squares[x .. "," .. y .. "," .. z] end }
+    end
+    IsoFlagType = { water = "water" }
+    IsoThumpable = { new = function(cell, sq, sprite)
+        local obj = newObject(sq, nil)
+        obj.sprite = sprite
+        obj.thumpable = true
+        function obj:setCanPassThrough(v) self.passable = v end
+        function obj:setBlockAllTheSquare(v) self.blocks = v end
+        function obj:setCanBarricade() end
+        function obj:setIsThumpable() end
+        function obj:setIsDismantable() end
+        function obj:setIsHoppable() end
+        function obj:setMaxHealth() end
+        function obj:setHealth() end
+        function obj:setBreakSound() end
+        function obj:setIsContainer(v) self.isContainer = v; self.containers[1] = self.containers[1] or newContainer("none", 100) end
+        function obj:getContainer() return self.containers[1] end
+        function obj:addSecondaryContainer(c) table.insert(self.containers, c) end
+        function obj:transmitCompleteItemToClients() end
+        function obj:getObjectIndex() return 0 end
+        return obj
+    end }
+    ItemContainer = { new = function(kind, sq, parent)
+        local c = newContainer(kind, 100)
+        c.parent = parent
+        return c
+    end }
+    entityCalls = {}
+    getScriptManager = function()
+        return { getGameEntityScript = function(self, name) return { name = name } end }
+    end
+    GameEntityFactory = { CreateIsoObjectEntity = function(object, script) entityCalls[#entityCalls + 1] = { object = object, script = script } end }
+    getSprite = function() return nil end
+    -- The assets' multi-tile functions (P8): a 2x1 and a 2x2.
+    OA.Sprites.machineTiles = function(kind, dir, running)
+        local w, h = 2, 1
+        if kind == "propaneRefiner" or kind == "oilRefiner" then w, h = 2, 2 end
+        if dir == "E" or dir == "W" then w, h = h, w end
+        local tiles = {}
+        for dy = 0, h - 1 do
+            for dx = 0, w - 1 do
+                tiles[#tiles + 1] = { dx = dx, dy = dy, sprite = kind .. dir .. (running and "R" or "S") .. dx .. dy }
+            end
+        end
+        return tiles
+    end
+    OA.Sprites.rainStorageTiles = function()
+        return { { dx = 0, dy = 0, sprite = "rain00" }, { dx = 1, dy = 0, sprite = "rain10" },
+            { dx = 0, dy = 1, sprite = "rain01" }, { dx = 1, dy = 1, sprite = "rain11" } }
+    end
+    return square
+end
+
+local function cleanup()
+    OA.Sprites.machineTiles, OA.Sprites.rainStorageTiles = nil, nil
+end
+
+test("a 2x1 machine takes two squares: the anchor holds the state, the other points to it", function()
+    local square = worldSetup()
+    local p = player()
+    local item = newItem("OperationAcorn.BulkShredder")
+    local sq = square(10, 10, 0)
+    square(11, 10, 0)
+    square(10, 11, 0)
+    eq(Machines.footprint("bulkShredder", "S"), 2)
+    local _, h = Machines.footprint("bulkShredder", "E")
+    eq(h, 2, "turned, it is two along y")
+    truthy(Machines.canPlace("bulkShredder", sq, "S"))
+    local anchor = Machines.place("bulkShredder", sq, p, item, "S")
+    truthy(anchor)
+    local state = Machines.state(anchor)
+    eq(state.x, 10)
+    eq(state.y, 10)
+    local partSquare = square(11, 10, 0)
+    eq(#partSquare.objects, 1)
+    local part = partSquare.objects[1]
+    eq(Machines.state(part), nil)
+    eq(part.mod[Data.ANCHOR_KEY].id, state.id)
+    eq(part.sprite, "bulkShredderSS10")
+    eq(anchor.sprite, "bulkShredderSS00")
+    eq(#anchor.containers, 2, "in and out, on the anchor only")
+    eq(#part.containers, 0)
+    -- Any part resolves to the anchor.
+    eq(Machines.at(partSquare), anchor)
+    eq(Machines.at(sq), anchor)
+    eq(Machines.anchorOf(part), anchor)
+    -- Only the anchor is registered.
+    local count = 0
+    for _ in pairs(Machines.list()) do count = count + 1 end
+    eq(count, 1)
+    eq(Machines.find(state.id), anchor)
+    -- The square next to it is free; one the machine covers is taken.
+    local ok, why = Machines.canPlace("lure", partSquare, "S")
+    eq(ok, nil)
+    eq(why, "taken")
+    cleanup()
+end)
+
+test("turning changes the footprint, and a blocked square refuses the whole machine", function()
+    local square = worldSetup()
+    local sq = square(20, 20, 0)
+    square(21, 20, 0)
+    square(20, 21, 0).busy = true
+    truthy(Machines.canPlace("cutter", sq, "S"))
+    local ok, why = Machines.canPlace("cutter", sq, "E")
+    eq(ok, nil)
+    eq(why, "blocked")
+    ok, why = Machines.canPlace("cutter", square(21, 20, 0), "S")
+    eq(ok, nil)
+    eq(why, "noSquare", "the second square of the footprint is not loaded")
+    -- The refiner needs four squares and the fourth is not loaded.
+    ok, why = Machines.canPlace("propaneRefiner", sq, "S")
+    eq(ok, nil)
+    eq(why, "noSquare")
+    cleanup()
+end)
+
+test("the rain storage is 2x2 and only outside; the entity is made on the anchor's tile alone", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(30, 30, 0)
+    square(31, 30, 0)
+    square(30, 31, 0)
+    local inside = square(31, 31, 0)
+    inside.outside = false
+    local ok, why = Machines.canPlace("rainStorage", sq, "S")
+    eq(ok, nil)
+    eq(why, "notOutside")
+    inside.outside = true
+    truthy(Machines.canPlace("rainStorage", sq, "E"), "it does not turn: always the same four squares")
+    local anchor = Machines.place("rainStorage", sq, p, newItem("OperationAcorn.RainCistern"), "N")
+    eq(#entityCalls, 1)
+    eq(entityCalls[1].object, anchor)
+    eq(entityCalls[1].script.name, Data.RAIN_ENTITY)
+    eq(anchor.sprite, "rain00")
+    eq(square(31, 31, 0).objects[1].sprite, "rain11")
+    for _, key in ipairs({ "31,30,0", "30,31,0", "31,31,0" }) do
+        eq(#squares[key].objects, 1)
+        eq(Machines.at(squares[key]), anchor)
+    end
+    cleanup()
+end)
+
+test("the lure is one passable tile", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(40, 40, 0)
+    local anchor = Machines.place("lure", sq, p, newItem("OperationAcorn.BaitTrap"), "S")
+    truthy(anchor)
+    eq(anchor.passable, true)
+    eq(anchor.blocks, false)
+    eq(#sq.objects, 1)
+    cleanup()
+end)
+
+test("picking up removes every part and gives one item with the parts", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(10, 10, 0)
+    square(11, 10, 0)
+    local anchor = Machines.place("woodSaw", sq, p, newItem("OperationAcorn.LogSaw"), "S")
+    local state = Machines.state(anchor)
+    state.parts.blade.cond = 61
+    truthy(Machines.canPickUp(anchor))
+    local item = Machines.pickUp(anchor, p)
+    truthy(item)
+    eq(item:getFullType(), "OperationAcorn.LogSaw")
+    eq(item.mod[Data.KEY].parts.blade.cond, 61)
+    eq(#sq.objects, 0)
+    eq(#square(11, 10, 0).objects, 0)
+    eq(Machines.list()[state.id], nil)
+    eq(countOf(p.inv, "OperationAcorn.LogSaw"), 1)
+    cleanup()
+end)
+
+test("a machine with something in it cannot be picked up, wherever it is clicked", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(10, 10, 0)
+    local other = square(11, 10, 0)
+    local anchor = Machines.place("cutter", sq, p, newItem("OperationAcorn.FabricCutter"), "S")
+    fill(Machines.container(anchor, "out"), "Base.RippedSheets", 1)
+    local found = Machines.at(other)
+    eq(found, anchor)
+    local ok, why = Machines.canPickUp(found)
+    eq(ok, nil)
+    eq(why, "notEmpty")
+    cleanup()
+end)
+
+test("destroying any part takes the whole machine, dropping what it held", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(10, 10, 0)
+    local other = square(11, 10, 0)
+    local anchor = Machines.place("cutter", sq, p, newItem("OperationAcorn.FabricCutter"), "S")
+    local state = Machines.state(anchor)
+    fill(Machines.container(anchor, "in"), "Base.Hammer", 2)
+    local part = other.objects[1]
+    Machines.forget(part)
+    eq(#sq.objects, 0, "the anchor goes too")
+    eq(#sq.dropped, 2, "what was in it lies on the floor")
+    eq(Machines.list()[state.id], nil)
+    cleanup()
+end)
+
+test("destroying the anchor takes the other parts", function()
+    local square = worldSetup()
+    local p = player()
+    local s1, s2 = square(20, 20, 0), square(21, 20, 0)
+    local a = Machines.place("cutter", s1, p, newItem("OperationAcorn.FabricCutter"), "S")
+    local id = Machines.state(a).id
+    s1:transmitRemoveItemFromSquare(a)
+    Machines.forget(a)
+    eq(#s2.objects, 0)
+    eq(Machines.list()[id], nil)
+    cleanup()
+end)
+
+test("an orphan part whose anchor is gone is removed when it is looked at", function()
+    local square = worldSetup()
+    local p = player()
+    local s1, s2 = square(10, 10, 0), square(11, 10, 0)
+    local a = Machines.place("cutter", s1, p, newItem("OperationAcorn.FabricCutter"), "S")
+    s1:transmitRemoveItemFromSquare(a)
+    eq(Machines.at(s2), nil)
+    eq(#s2.objects, 0)
+    cleanup()
+end)
+
+test("a part whose anchor's square is not loaded waits", function()
+    local square = worldSetup()
+    local p = player()
+    local s1, s2 = square(10, 10, 0), square(11, 10, 0)
+    Machines.place("cutter", s1, p, newItem("OperationAcorn.FabricCutter"), "S")
+    squares["10,10,0"] = nil
+    eq(Machines.at(s2), nil)
+    eq(#s2.objects, 1, "kept")
+    cleanup()
+end)
+
+test("the look follows the state on every tile", function()
+    local square = worldSetup()
+    local p = player()
+    local s1, s2 = square(10, 10, 0), square(11, 10, 0)
+    local a = Machines.place("bulkShredder", s1, p, newItem("OperationAcorn.BulkShredder"), "S")
+    local state = Machines.state(a)
+    state.running = true
+    Machines.refreshLook(a, state)
+    eq(a.sprite, "bulkShredderSR00")
+    eq(s2.objects[1].sprite, "bulkShredderSR10")
+    state.running = false
+    Machines.refreshLook(a, state)
+    eq(s2.objects[1].sprite, "bulkShredderSS10")
+    cleanup()
+end)
+
+test("a 2x2 refiner works from its anchor as before", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(10, 10, 0)
+    square(11, 10, 0); square(10, 11, 0); square(11, 11, 0)
+    local a = Machines.place("propaneRefiner", sq, p, newItem("OperationAcorn.PropaneRefinery"), "S")
+    eq(#squares["11,11,0"].objects, 1)
+    sq.power = true
+    local inC = Machines.container(a, "in")
+    local tank = newItem("Base.PropaneTank", { fill = 0 })
+    inC:AddItem(tank)
+    fill(inC, "Base.Meat", 10, { classes = { Food = true }, rotten = true, weight = 5 })
+    TEST.hours = 1
+    Machines.tick()
+    TEST.hours = 13.5
+    Machines.tick()
+    near(tank:getCurrentUsesFloat(), 0.5, 0.01, "half a tank")
+    cleanup()
+end)

@@ -9,7 +9,7 @@ local Machines = OA.Machines
 local fromObject = ISMoveableSpriteProps.fromObject
 function ISMoveableSpriteProps.fromObject(object)
     local props = fromObject(object)
-    if props and object and Machines.state(object) then
+    if props and object and Machines.isMachineObject(object) then
         props.isMoveable = false
         props.canScrap = false
     end

@@ -57,6 +57,9 @@ Data.KINDS = {
     },
 }
 
+-- The object modData key of the other squares of a multi-tile machine, pointing to its anchor.
+Data.ANCHOR_KEY = "OA_Anchor"
+
 -- The machine kind of an item type (without the module): BulkShredder -> bulkShredder.
 Data.ITEM_KINDS = {}
 for kind, def in pairs(Data.KINDS) do Data.ITEM_KINDS[def.item] = kind end

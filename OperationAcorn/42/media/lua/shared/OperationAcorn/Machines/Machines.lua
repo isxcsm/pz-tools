@@ -5,7 +5,10 @@
 -- Where things are kept:
 --   The world section "machines" (Store.world): { next, list = { [id] = { kind, x, y, z } }, byChunk = { [chunk key] =
 --     { id ... } } }. It only says where machines are, so that the ten-minute step and the chunk load find them.
---   The machine's object modData OA_Machine: { id, kind, dir, owner (player id), parts = { [slot] = { tier, cond } },
+--   A machine covers one or more squares (DESIGN 12: 2x1 or 2x2 for the big ones), one object on each. The anchor, at
+--     the smallest x and y, holds everything below, the containers and the rain storage's fluid; the other objects
+--     carry only modData OA_Anchor = { id, x, y, z }. Machines.at(square) gives the anchor for any of the squares.
+--   The anchor's object modData OA_Machine: { id, kind, dir, x, y, z (the anchor), owner (player id), parts = { [slot] = { tier, cond } },
 --     on, last (world hours up to which it has worked), carry (work not yet a whole job), idle, running, reason,
 --     buffer (a refiner's product not yet in a tank) ... }. It travels with the object when the chunk unloads, which
 --     is what lets a place catch up the time it was away (DESIGN 12, performance rules).
@@ -98,13 +101,61 @@ function Machines.find(id)
     return findOnSquare(getCell():getGridSquare(entry.x, entry.y, entry.z), id)
 end
 
--- The machine object on a square, if any.
+-- A part of a multi-tile machine (a square of its footprint other than the anchor's) carries OA_Anchor = { id, x, y, z }
+-- in its object modData and nothing else: the state, the containers and the fluid container are the anchor's.
+function Machines.anchorMark(object)
+    if not object or not object:hasModData() then return nil end
+    return object:getModData()[Data.ANCHOR_KEY]
+end
+
+-- Whether an object is a machine's anchor or one of its other parts.
+function Machines.isMachineObject(object)
+    return Machines.state(object) ~= nil or Machines.anchorMark(object) ~= nil
+end
+
+-- The anchor of a machine object (the object itself when it is the anchor). nil when it is a part whose anchor's
+-- square is not loaded; a part whose anchor's square is loaded but whose anchor is gone is an orphan and is taken away.
+function Machines.anchorOf(object)
+    if Machines.state(object) then return object, Machines.state(object) end
+    local mark = Machines.anchorMark(object)
+    if not mark then return nil end
+    local square = getCell():getGridSquare(mark.x, mark.y, mark.z)
+    if not square then return nil end
+    local anchor, state = findOnSquare(square, mark.id)
+    if not anchor then
+        local own = object:getSquare()
+        if own then own:transmitRemoveItemFromSquare(object) end
+        return nil
+    end
+    return anchor, state
+end
+
+-- The machine on a square (its anchor, whichever of its squares this is), if any.
 function Machines.at(square)
-    return findOnSquare(square, nil)
+    if not square then return nil end
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        local object = objects:get(i)
+        if Machines.state(object) then return object, Machines.state(object) end
+        if Machines.anchorMark(object) then
+            local anchor, state = Machines.anchorOf(object)
+            if anchor then return anchor, state end
+        end
+    end
+    return nil
+end
+
+-- Whether a machine object (anchor or part) stands on a square.
+local function occupied(square)
+    local objects = square:getObjects()
+    for i = 0, objects:size() - 1 do
+        if Machines.isMachineObject(objects:get(i)) then return true end
+    end
+    return false
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
--- Names, looks
+-- Names, looks, footprints
 
 function Machines.name(kind)
     return text("IGUI_OA_Machine_Name_" .. kind)
@@ -115,24 +166,86 @@ local function itemFullType(kind)
 end
 Machines.itemFullType = itemFullType
 
--- The sprite a machine of a kind shows, facing dir, running or not (a lure: on or off; the rain storage has one).
-function Machines.spriteName(kind, dir, running)
-    if kind == "rainStorage" then return Sprites.RAIN_STORAGE end
-    if kind == "lure" then return Sprites.lure(running) end
-    return Sprites.machine(kind, dir or "S", running)
+-- The tiles of a machine facing dir, running or not: { { dx, dy, sprite } ... }, one for each square of its footprint,
+-- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0). The sprite
+-- functions say (a lure is one tile, on or off; the rain storage 2x2 and it does not turn); a build whose Sprites
+-- has none of the multi-tile ones gets the machine as one tile, the anchor's.
+function Machines.tiles(kind, dir, running)
+    local found
+    if kind == "lure" then
+        found = { { dx = 0, dy = 0, sprite = Sprites.lure(running) } }
+    elseif kind == "rainStorage" then
+        if Sprites.rainStorageTiles then found = Sprites.rainStorageTiles()
+        else found = { { dx = 0, dy = 0, sprite = Sprites.RAIN_STORAGE } } end
+    elseif Sprites.machineTiles then
+        found = Sprites.machineTiles(kind, dir or "S", running == true)
+    else
+        found = { { dx = 0, dy = 0, sprite = Sprites.machine(kind, dir or "S", running == true) } }
+    end
+    return found
 end
 
--- Shows the look the state calls for, when it is not already shown.
-function Machines.refreshLook(object, state)
-    local kind = state.kind
-    local want
-    if kind == "lure" then want = Machines.spriteName(kind, state.dir, not state.spent)
-    else want = Machines.spriteName(kind, state.dir, state.running == true) end
+-- The size of a machine's footprint facing dir: w squares along x, h along y.
+function Machines.footprint(kind, dir)
+    local w, h = 1, 1
+    for _, tile in ipairs(Machines.tiles(kind, dir, false)) do
+        if tile.dx + 1 > w then w = tile.dx + 1 end
+        if tile.dy + 1 > h then h = tile.dy + 1 end
+    end
+    return w, h
+end
+
+-- The sprite of the anchor (the tile at 0, 0): the one the rain storage's entity script is attached to.
+function Machines.spriteName(kind, dir, running)
+    for _, tile in ipairs(Machines.tiles(kind, dir, running)) do
+        if tile.dx == 0 and tile.dy == 0 then return tile.sprite end
+    end
+    return nil
+end
+
+-- The other objects of a machine on loaded squares: { { dx, dy, object } ... }.
+function Machines.partsOf(state)
+    local parts = {}
+    for _, tile in ipairs(Machines.tiles(state.kind, state.dir, false)) do
+        if tile.dx ~= 0 or tile.dy ~= 0 then
+            local square = getCell():getGridSquare(state.x + tile.dx, state.y + tile.dy, state.z)
+            if square then
+                local objects = square:getObjects()
+                for i = 0, objects:size() - 1 do
+                    local mark = Machines.anchorMark(objects:get(i))
+                    if mark and mark.id == state.id then
+                        parts[#parts + 1] = { dx = tile.dx, dy = tile.dy, object = objects:get(i) }
+                    end
+                end
+            end
+        end
+    end
+    return parts
+end
+
+local function showSprite(object, want)
     if not want then return end
     local sprite = object:getSprite()
     if sprite and sprite:getName() == want then return end
     object:setSprite(want)
     if isServer() then object:transmitUpdatedSpriteToClients() end
+end
+
+-- Shows the look the state calls for on every loaded square of the machine, where it is not already shown.
+function Machines.refreshLook(object, state)
+    local running = state.running == true
+    if state.kind == "lure" then running = not state.spent end
+    local parts
+    for _, tile in ipairs(Machines.tiles(state.kind, state.dir, running)) do
+        if tile.dx == 0 and tile.dy == 0 then
+            showSprite(object, tile.sprite)
+        elseif state.x then
+            parts = parts or Machines.partsOf(state)
+            for _, part in ipairs(parts) do
+                if part.dx == tile.dx and part.dy == tile.dy then showSprite(part.object, tile.sprite) end
+            end
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -705,13 +818,14 @@ end
 -- Putting down and taking up
 
 -- Rain storage needs the rain flag on its sprite for the plumbing to treat it as a water source (Building Utilities
--- asks for the IsWaterCollector tile property). The tile definition has it; this sets it when a build lacks it.
+-- asks for the IsWaterCollector tile property). The tile definition has it; this sets it when a build lacks it. Only
+-- the anchor's tile has it: the fluid container is the anchor's alone.
 local propertiesDone = false
 function Machines.ensureSpriteProperties()
     if propertiesDone then return end
     propertiesDone = true
     local ok = pcall(function()
-        local sprite = getSprite(Sprites.RAIN_STORAGE)
+        local sprite = getSprite(Machines.spriteName("rainStorage", "S", false))
         local properties = sprite and sprite:getProperties()
         if properties and not properties:has("IsWaterCollector") then
             properties:set("IsWaterCollector", "")
@@ -721,17 +835,46 @@ function Machines.ensureSpriteProperties()
     if not ok then OA.log("could not set the rain storage sprite property") end
 end
 
--- Whether a machine of a kind can stand on a square: true, or nil and a reason (IGUI_OA_Machine_Reason_<reason>).
-function Machines.canPlace(kind, square)
-    if not square then return nil, "noSquare" end
-    if not square:TreatAsSolidFloor() then return nil, "noFloor" end
-    if square:isSolid() or square:isSolidTrans() or square:HasStairs() or square:HasTree() then return nil, "blocked" end
-    if not square:isFree(false) then return nil, "blocked" end
-    if square:isVehicleIntersecting() then return nil, "blocked" end
+-- Why a square cannot take a tile of a machine: nil when it can, else the reason.
+local function squareProblem(kind, square)
+    if not square then return "noSquare" end
+    if not square:TreatAsSolidFloor() then return "noFloor" end
+    if square:isSolid() or square:isSolidTrans() or square:HasStairs() or square:HasTree() then return "blocked" end
+    if not square:isFree(false) then return "blocked" end
+    if square:isVehicleIntersecting() then return "blocked" end
     local properties = square:getProperties()
-    if properties and properties:has(IsoFlagType.water) then return nil, "water" end
-    if Machines.at(square) then return nil, "taken" end
-    if kind == "rainStorage" and not square:isOutside() then return nil, "notOutside" end
+    if properties and properties:has(IsoFlagType.water) then return "water" end
+    if occupied(square) then return "taken" end
+    if kind == "rainStorage" and not square:isOutside() then return "notOutside" end
+    return nil
+end
+
+-- The squares a machine of a kind facing dir would stand on with its anchor at a square:
+-- { { dx, dy, square, sprite } ... }. Returns nil and a reason when one is missing.
+function Machines.footprintSquares(kind, square, dir)
+    local found = {}
+    local cell = getCell()
+    for _, tile in ipairs(Machines.tiles(kind, dir, kind == "lure")) do
+        local target = square
+        if tile.dx ~= 0 or tile.dy ~= 0 then
+            target = cell:getGridSquare(square:getX() + tile.dx, square:getY() + tile.dy, square:getZ())
+        end
+        if not target then return nil, "noSquare" end
+        found[#found + 1] = { dx = tile.dx, dy = tile.dy, square = target, sprite = tile.sprite }
+    end
+    return found
+end
+
+-- Whether a machine of a kind, facing dir, can stand with its anchor on a square (every square of its footprint on
+-- the same floor, free and not another machine's): true, or nil and a reason (IGUI_OA_Machine_Reason_<reason>).
+function Machines.canPlace(kind, square, dir)
+    if not square then return nil, "noSquare" end
+    local squares, reason = Machines.footprintSquares(kind, square, dir or "S")
+    if not squares then return nil, reason end
+    for _, entry in ipairs(squares) do
+        local problem = squareProblem(kind, entry.square)
+        if problem then return nil, problem end
+    end
     return true
 end
 
@@ -769,28 +912,12 @@ local function setupContainers(object, square, kind)
     end
 end
 
--- Puts a machine down: the object on the square, its state (the parts of a carried item if it has them), the
--- registry. `character` is the one who puts it down (owner). Returns the object. The item is not removed here.
-function Machines.place(kind, square, character, item)
-    local def = Data.KINDS[kind]
-    Machines.ensureSpriteProperties()
-    local dir = Machines.facing(square, character)
-    local reg = registry()
-    local id = "m" .. tostring(reg.next)
-    reg.next = reg.next + 1
-
-    local state = { id = id, kind = kind, dir = dir, owner = Store.idOf(character), on = true, last = OA.hours(),
-        carry = 0, idle = true, running = false, buffer = 0 }
-    local carried = item and item:getModData()[Data.KEY]
-    state.parts = carried and carried.parts and copyParts(carried.parts) or Logic.newParts(kind)
-    if kind == "lure" then
-        state.start, state.slot, state.spent = OA.hours(), -1, false
-        state.running = true
-    end
-
-    local object = IsoThumpable.new(getCell(), square, Machines.spriteName(kind, dir, kind == "lure"), false)
-    object:setCanPassThrough(false)
-    object:setBlockAllTheSquare(true)
+-- One IsoThumpable of a machine on a square, with the sprite of its tile.
+local function newObject(kind, square, sprite)
+    local object = IsoThumpable.new(getCell(), square, sprite, false)
+    local passable = kind == "lure"
+    object:setCanPassThrough(passable)
+    object:setBlockAllTheSquare(not passable)
     object:setCanBarricade(false)
     object:setIsThumpable(false)
     object:setIsDismantable(false)
@@ -798,22 +925,55 @@ function Machines.place(kind, square, character, item)
     object:setMaxHealth(500)
     object:setHealth(500)
     object:setBreakSound("BreakObject")
-    object:getModData()[Data.KEY] = state
-
-    if kind == "rainStorage" then
-        local script = getScriptManager():getGameEntityScript(Data.RAIN_ENTITY)
-        if script then GameEntityFactory.CreateIsoObjectEntity(object, script, true)
-        else OA.log("no entity script", Data.RAIN_ENTITY) end
-    end
-    setupContainers(object, square, kind)
-    applyAccept(object, state)
-
-    square:AddSpecialObject(object)
-    object:transmitCompleteItemToClients()
-    square:RecalcAllWithNeighbours(true)
-    register(state, square:getX(), square:getY(), square:getZ())
-    OA.log("placed", kind, id, "at", square:getX(), square:getY(), square:getZ())
     return object
+end
+
+-- Puts a machine down: one object on each square of its footprint (the anchor, at the smallest x and y, holds the
+-- state, the containers and the rain storage's fluid; the others point to it), its state (the parts of a carried item
+-- if it has them), the registry (the anchor only). `character` is the one who puts it down (owner), `dir` the facing
+-- (the character's side of the square when not given). Returns the anchor object. The item is not removed here.
+function Machines.place(kind, square, character, item, dir)
+    Machines.ensureSpriteProperties()
+    dir = dir or Machines.facing(square, character)
+    local squares = Machines.footprintSquares(kind, square, dir)
+    if not squares then return nil end
+    local reg = registry()
+    local id = "m" .. tostring(reg.next)
+    reg.next = reg.next + 1
+
+    local ax, ay, az = square:getX(), square:getY(), square:getZ()
+    local state = { id = id, kind = kind, dir = dir, owner = Store.idOf(character), on = true, last = OA.hours(),
+        carry = 0, idle = true, running = false, buffer = 0, x = ax, y = ay, z = az }
+    local carried = item and item:getModData()[Data.KEY]
+    state.parts = carried and carried.parts and copyParts(carried.parts) or Logic.newParts(kind)
+    if kind == "lure" then
+        state.start, state.slot, state.spent = OA.hours(), -1, false
+        state.running = true
+    end
+
+    local anchor
+    for _, entry in ipairs(squares) do
+        local object = newObject(kind, entry.square, entry.sprite)
+        if entry.dx == 0 and entry.dy == 0 then
+            anchor = object
+            object:getModData()[Data.KEY] = state
+            if kind == "rainStorage" then
+                local script = getScriptManager():getGameEntityScript(Data.RAIN_ENTITY)
+                if script then GameEntityFactory.CreateIsoObjectEntity(object, script, true)
+                else OA.log("no entity script", Data.RAIN_ENTITY) end
+            end
+            setupContainers(object, entry.square, kind)
+            applyAccept(object, state)
+        else
+            object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
+        end
+        entry.square:AddSpecialObject(object)
+        object:transmitCompleteItemToClients()
+    end
+    for _, entry in ipairs(squares) do entry.square:RecalcAllWithNeighbours(true) end
+    register(state, ax, ay, az)
+    OA.log("placed", kind, id, "at", ax, ay, az, dir, #squares, "squares")
+    return anchor
 end
 
 -- Whether every container of a machine is empty (it can be picked up).
@@ -827,7 +987,7 @@ function Machines.isEmpty(object)
     return true
 end
 
--- Whether a machine can be picked up: true, or nil and a reason.
+-- Whether a machine can be picked up: true, or nil and a reason. `object` is the anchor (Machines.at gives it).
 function Machines.canPickUp(object)
     local state = Machines.state(object)
     if not state then return nil, "notMachine" end
@@ -837,7 +997,7 @@ function Machines.canPickUp(object)
 end
 
 -- Takes a machine up: gives the character the item (with the parts and their condition in its modData), removes
--- the object and the registry entry. A spent lure gives nothing. Returns the item or nil.
+-- every part, the anchor and the registry entry. A spent lure gives nothing. Returns the item or nil.
 function Machines.pickUp(object, character)
     local state = Machines.state(object)
     if not state or not Machines.canPickUp(object) then return nil end
@@ -855,18 +1015,58 @@ function Machines.pickUp(object, character)
     return item
 end
 
--- Removes a machine's object and its registry entry (nothing given).
-function Machines.remove(object)
-    local state = Machines.state(object)
+local function removeObject(object)
     local square = object:getSquare()
-    if state then unregister(state.id) end
     if square then square:transmitRemoveItemFromSquare(object) end
 end
 
--- A machine object was destroyed by other means (the game's OnDestroyIsoThumpable): forget it.
-function Machines.forget(object)
+-- Removes a machine: all its objects on loaded squares and its registry entry (nothing given). A part on a square
+-- that is not loaded is an orphan, taken away when its anchor is looked for and not found.
+function Machines.remove(object)
     local state = Machines.state(object)
-    if state then unregister(state.id) end
+    if state then
+        unregister(state.id)
+        if state.x then
+            for _, part in ipairs(Machines.partsOf(state)) do removeObject(part.object) end
+        end
+    end
+    removeObject(object)
+end
+
+-- Drops what a machine holds on the ground by its anchor (a machine broken up).
+local function spill(object)
+    local state = Machines.state(object)
+    local square = object:getSquare()
+    if not state or not square then return end
+    for _, which in ipairs(Data.KINDS[state.kind].containers) do
+        local container = Machines.container(object, which)
+        if container then
+            local items = container:getItems()
+            for i = items:size() - 1, 0, -1 do
+                local held = items:get(i)
+                container:Remove(held)
+                square:AddWorldInventoryItem(held, 0.5, 0.5, 0)
+            end
+        end
+    end
+end
+
+-- A machine object was destroyed by other means (the game's OnDestroyIsoThumpable): the whole machine goes. The
+-- destroyed object may be the anchor or any part; the rest of the machine is taken away, what the anchor held is
+-- dropped, and the registry entry is forgotten.
+function Machines.forget(destroyed)
+    local anchor, state = Machines.anchorOf(destroyed)
+    if not state then return end
+    unregister(state.id)
+    if anchor ~= destroyed then
+        spill(anchor)
+        removeObject(anchor)
+    end
+    if state.x then
+        for _, part in ipairs(Machines.partsOf(state)) do
+            if part.object ~= destroyed then removeObject(part.object) end
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------

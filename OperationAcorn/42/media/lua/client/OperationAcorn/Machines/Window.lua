@@ -4,6 +4,7 @@
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISButton"
 require "ISUI/ISContextMenu"
+require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
 local OA = OperationAcorn
@@ -119,7 +120,13 @@ function OAMachineWindow:onInstall(button)
         local item = entry.item
         local percent = math.floor(item:getCondition() * 100 / math.max(1, item:getConditionMax()) + 0.5)
         local label = string.format("%s (%d%%)", item:getName(), percent)
-        context:addOption(label, self, OAMachineWindow.doInstall, slot, item)
+        local option = context:addOption(label, self, OAMachineWindow.doInstall, slot, item)
+        local info = Machines.partOf(item)
+        if info then
+            local tip = ISWorldObjectContextMenu.addToolTip()
+            tip.description = getText("Tooltip_OA_Machine_Part_" .. info.part)
+            option.toolTip = tip
+        end
     end
 end
 

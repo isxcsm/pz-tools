@@ -1,6 +1,7 @@
 -- The world context menu of the base machines: put a machine down from the inventory, open its window, switch it,
 -- shred by hand at the bench, take it up. And the halo notes for worn parts.
 require "ISUI/ISWorldObjectContextMenu"
+require "ISUI/ISInventoryPaneContextMenu"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
@@ -35,9 +36,9 @@ local function queueAt(playerObj, square, action)
     if square and luautils.walkAdj(playerObj, square, true) then ISTimedActionQueue.add(action) end
 end
 
-local function onPlace(playerObj, square, item, kind)
+local function onPlace(playerObj, square, item, kind, dir)
     ISInventoryPaneContextMenu.transferIfNeeded(playerObj, item)
-    queueAt(playerObj, square, ISOAMachinePlace:new(playerObj, square, item, kind))
+    queueAt(playerObj, square, ISOAMachinePlace:new(playerObj, square, item, kind, dir))
 end
 
 local function onOpen(playerObj, object)
@@ -127,9 +128,10 @@ local function addPlaceOptions(context, playerObj, square)
     for _, kind in ipairs(Data.ORDER) do
         local item = inventory:getFirstTypeRecurse(Machines.itemFullType(kind))
         if item then
+            local dir = Machines.facing(square, playerObj)
             local option = context:addOption(getText("ContextMenu_OA_Machine_Place", Machines.name(kind)), playerObj,
-                onPlace, square, item, kind)
-            local ok, reason = Machines.canPlace(kind, square)
+                onPlace, square, item, kind, dir)
+            local ok, reason = Machines.canPlace(kind, square, dir)
             if not ok then unavailable(option, getText("IGUI_OA_Machine_Reason_" .. reason))
             else tooltip(option, getText("Tooltip_OA_Machine_" .. kind)) end
         end
