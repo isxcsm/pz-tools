@@ -17,8 +17,6 @@ OA.Sites = Sites
 
 Sites.COUNT = 24
 Sites.SPACING = 300
--- The upgrade node that raises the fragments (P3's node id for 눈썰미).
-Sites.NODE = "KeenEye"
 -- Zone types the map gives land its outdoors: a site may start in these, never in a town or on water.
 Sites.LAND = { Forest = true, DeepForest = true, Vegitation = true, FarmLand = true, Ranch = true, Farm = true }
 Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true, Nav = false }
@@ -47,25 +45,25 @@ function Sites.count()
     return math.max(0, OA.round(Sites.COUNT * scale))
 end
 
--- The fragments one site holds: 1 to 3, the upgrade raising the expected number by half the node's rank (+50% per
--- rank, rounded at random so the expectation is kept).
-function Sites.fragmentCount(rank, int, float)
+-- The fragments one site holds: 1 to 3, multiplied by 1 plus the upgrade bonus (눈썰미 and the research board; +0.5
+-- is half as many again), rounded at random so that the expectation is kept.
+function Sites.fragmentCount(bonus, int, float)
     int = int or OA.random
     float = float or OA.randomFloat
     local base = int(1, 3)
-    local expected = base * (1 + 0.5 * (rank or 0))
+    local expected = base * (1 + (bonus or 0))
     local whole = math.floor(expected)
     if float(0, 1) < expected - whole then whole = whole + 1 end
     return whole
 end
 
--- The best rank of the keen eye among the records (the site is the world's, the fragments are placed once).
-function Sites.bestRank()
+-- The best fragment bonus among the records (the site is the world's, the fragments are placed once).
+function Sites.bestBonus()
     local best = 0
-    if not (OA.Upgrades and OA.Upgrades.rank) then return 0 end
+    if not (OA.Upgrades and OA.Upgrades.fragmentBonus) then return 0 end
     for _, record in pairs(OA.Store.players()) do
-        local ok, rank = pcall(OA.Upgrades.rank, record, Sites.NODE)
-        if ok and type(rank) == "number" and rank > best then best = rank end
+        local ok, bonus = pcall(OA.Upgrades.fragmentBonus, record)
+        if ok and type(bonus) == "number" and bonus > best then best = bonus end
     end
     return best
 end
@@ -220,7 +218,7 @@ local function build(site, sq, chunkSquare)
     end
     stakeSq = stakeSq or sq
     addObject(stakeSq, OA.Sprites.SITE_STAKE, { OA_Site = site.n, OA_StakeNo = site.stake, OA_StakeDate = site.date })
-    local count = Sites.fragmentCount(Sites.bestRank())
+    local count = Sites.fragmentCount(Sites.bestBonus())
     site.fragments = count
     for _ = 1, count do
         local item = sq:AddWorldInventoryItem(OA.StoryData.fullType("MeteorFragment"), 0.2 + OA.randomFloat(0, 0.6),

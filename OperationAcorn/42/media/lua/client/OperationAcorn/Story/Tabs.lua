@@ -14,6 +14,7 @@ require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/Viewer"
+pcall(require, "OperationAcorn/Trade/Terminal") -- the trade part registers the terminal; its tabs are optional here
 local OA = OperationAcorn
 local Data, Places, Missions, Story, Docs = OA.StoryData, OA.Places, OA.Missions, OA.Story, OA.StoryDocs
 local Tabs = {}
@@ -278,15 +279,15 @@ OA.Sync.listen("all", refreshAll)
 -- kept.
 local function onGameStart()
     if not (OA.Terminal and OA.Terminal.addTab) then return end
-    local function stage()
-        local r = record()
+    local function stage(r)
+        r = r or record()
         return r and Story.progress(r) or 0
     end
     local ok, err = pcall(OA.Terminal.addTab, "story_missions", "IGUI_OA_Story_TabMissions", Tabs.missionTab,
-        function() return stage() >= 1 end)
+        function(r) return stage(r) >= 1 end)
     if not ok then OA.log("mission tab failed:", tostring(err)) end
     ok, err = pcall(OA.Terminal.addTab, "story_docs", "IGUI_OA_Story_TabDocs", Tabs.docsTab,
-        function() return Tabs.hasEntries(record()) end)
+        function(r) return Tabs.hasEntries(r or record()) end)
     if not ok then OA.log("document tab failed:", tostring(err)) end
 end
 Events.OnGameStart.Add(onGameStart)

@@ -119,7 +119,7 @@ end)
 
 -- The serum with the adaptation node at its second point was taken (the upgrade part calls this on each dose): the
 -- overlay is told how long to run and where the nearest drop site is; next week's requests get one strange item.
-function Story.onSerum(record, character)
+function Story.onSerum(character, record, kind)
     local s = Story.section(record)
     s.hallucinations = (s.hallucinations or 0) + 1
     s.strangeWeek = OA.week() + 1

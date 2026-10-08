@@ -46,11 +46,6 @@ function Rewards.reward(level, story, quality, creditScale)
     return OA.round(row.credits * m * (creditScale or 1)), OA.round(row.trust * m)
 end
 
--- What a mission in time pays beyond the plain item value that the sealed item is settled at anyway, never below 0.
-function Rewards.extra(credits, trust)
-    return math.max(0, credits - Rewards.EXPIRED_CREDITS), math.max(0, trust - Rewards.EXPIRED_TRUST)
-end
-
 -- Judged when the box is sealed (not when the helicopter comes): "ok" in time, "late" after the deadline (world age,
 -- hours). The mission item then counts as a plain item.
 function Rewards.judge(deadline, sealedAt)

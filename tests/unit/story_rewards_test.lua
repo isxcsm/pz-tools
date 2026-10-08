@@ -35,13 +35,6 @@ test("the credit scale applies to credits only", function()
     eq(c, 20000); eq(t, 60)
 end)
 
-test("a mission in time pays what the plain item value leaves", function()
-    local c, t = R.extra(10000, 60)
-    eq(c, 9000); eq(t, 55)
-    c, t = R.extra(500, 2)
-    eq(c, 0, "never negative"); eq(t, 0)
-end)
-
 test("the deadline is judged when the box is sealed", function()
     eq(R.judge(100, 99.9), "ok")
     eq(R.judge(100, 100), "ok")

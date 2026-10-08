@@ -104,7 +104,7 @@ test("a story mission that is missed comes back at the next stage, and regulars 
     eq(record.story.queue[1].fresh, false)
 end)
 
-test("sealed in time is paid at the settlement, the plain value stays with the box", function()
+test("sealed in time is paid in full at the settlement", function()
     local record = setup(2)
     record.story = nil
     M.tick(record)
@@ -118,8 +118,8 @@ test("sealed in time is paid at the settlement, the plain value stays with the b
     eq(record.trade.credits, 0, "not paid yet")
     M.onSettled(record, { credits = 1000, trust = 5 })
     eq(M.active(record), nil)
-    -- 2nd stage story: 30,000 credits and 180 trust, of which 1,000 and 5 come with the box itself.
-    eq(record.trade.credits, 29000)
+    -- 2nd stage story: 30,000 credits (the economy values the item in time at nothing; the whole reward is paid here).
+    eq(record.trade.credits, 30000)
     eq(record.missions.results.done, 1)
     eq(record.story.done[m.story], "done")
 end)
@@ -207,7 +207,7 @@ test("the cooler's reward falls with its warming", function()
     eq(m.pay.credits, 45000)
     eq(m.pay.trust, 270)
     M.onSettled(record, {})
-    eq(record.trade.credits, 44000)
+    eq(record.trade.credits, 45000)
     -- The next crate's manifest carries the cooler remark first.
     eq(record.story.noteQueue[1], "cooler_bad")
 end)
@@ -270,7 +270,7 @@ test("the field call seals on the spot and the helicopter pays", function()
     for _ = 1, 30 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
     truthy((M.game.noise_count or 0) > 0, "the helicopter's noise went out")
     eq(M.active(record), nil, "paid")
-    eq(record.trade.credits, 104000)
+    eq(record.trade.credits, 105000)
 end)
 
 test("the field call needs the place and the device", function()
@@ -329,4 +329,28 @@ test("a mission is one at a time", function()
     M.tick(record)
     eq(M.active(record), nil)
     truthy(first.id ~= nil)
+end)
+
+test("the economy sees a mission item as plain once its mission is over, late, or not this character's", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    eq(Story.missionExpired(m.id), false, "open and in time")
+    eq(Story.missionExpired(m.id .. "#A"), false, "a piece of it")
+    eq(Story.missionExpired("M9999-1"), true, "someone else's")
+    eq(Story.missionExpired("junk"), true)
+    eq(Story.missionExpired(nil), true)
+    M.onSealed(record, "b", { { info = { mission = m.id }, count = 1 } })
+    TEST.hours = TEST.hours + 20 * 24
+    eq(Story.missionExpired(m.id), false, "sealed stays a mission item until it is settled")
+    M.onSettled(record, {})
+    eq(Story.missionExpired(m.id), true, "over")
+end)
+
+test("a mission item past the deadline counts as plain before it is sealed", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    TEST.hours = TEST.hours + 8 * 24
+    eq(Story.missionExpired(m.id), true)
 end)

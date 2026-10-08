@@ -474,10 +474,9 @@ end
 
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
-    -- The plain item value is settled with the box; the rest is paid here.
-    local extraCredits, extraTrust = Rewards.extra(credits, trust)
-    Story.addCredits(record, extraCredits)
-    Story.addTrust(record, extraTrust)
+    -- The economy values a mission item that is in time at nothing (P1: "MissionItem"); the whole reward is paid here.
+    Story.addCredits(record, credits)
+    Story.addTrust(record, trust)
     Story.radio(record, m.story and "mission_paid_story" or "mission_paid")
     if m.swap then Story.queueNote(record, "case_confirmed") end
     if m.cooler then Story.queueNote(record, "cooler_" .. (m.cooler.grade or "good")) end
@@ -585,6 +584,28 @@ function Missions.onSettled(record, result)
         if not found then return end
     end
     Missions.pay(record, m)
+end
+
+-- The economy asks, as it values a mission item: is it a plain item now (1,000 credits and 5 trust, no mission)?
+-- True for an item whose mission is over, past its time, or not this character's; false while the mission is open and
+-- in time, and while its box waits for the helicopter.
+function Missions.expired(id)
+    local base = Missions.parseId(id)
+    local number = string.match(tostring(base), "^M(%d+)%-%d+$")
+    if not number then return true end
+    for _, record in pairs(OA.Store.players()) do
+        if tostring(record.number or 0) == number then
+            local m = record.missions and record.missions.active
+            if not (m and m.id == base) then return true end
+            if m.state == "sealed" or m.state == "calling" then return false end
+            return Rewards.judge(m.deadline, OA.hours()) ~= "ok"
+        end
+    end
+    return true
+end
+
+function Story.missionExpired(id)
+    return Missions.expired(id)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
