@@ -13,5 +13,20 @@
     "Tooltip_OA_Machine_Part_cutBlade": "재단기용 칼날. 등급이 높을수록 조각이 더 나온다. 돌면 닳는다.",
     "Tooltip_OA_Machine_Part_sawBlade": "목재 절단기용 톱날. 등급이 높을수록 판자가 더 나온다. 돌면 닳는다.",
     "Tooltip_OA_Machine_Part_catalyst": "정제기용 촉매·필터. 등급이 높을수록 재료를 덜 쓴다. 돌면 닳는다.",
-    "Tooltip_OA_Machine_Part_cover": "목재 절단기용 방음 덮개. 소음 반경이 반으로 줄고 조금 느려진다. 돌면 닳는다."
+    "Tooltip_OA_Machine_Part_cover": "목재 절단기용 방음 덮개. 소음 반경이 반으로 줄고 조금 느려진다. 돌면 닳는다.",
+    "Tooltip_OA_Tree_CureLeft": "유통 기한까지 %1일 남았다. 발급받은 사람만 쓸 수 있다.",
+    "Tooltip_OA_Tree_CureExpired": "유통 기한이 지났다. 효과가 없다.",
+    "Tooltip_OA_Tree_CureNotOwner": "다른 사람이 발급받은 혈청이다. 효과가 없다.",
+    "Tooltip_OA_Tree_NotInfected": "감염되지 않았다.",
+    "Tooltip_OA_Tree_DelayInfo": "감염 진행이 %1시간 동안 4분의 1 속도로 느려진다.",
+    "Tooltip_OA_Tree_Reinforced": "강화문이다. 이 기술을 2단계까지 올려야 한다.",
+    "Tooltip_OA_Tree_NeedPryBar": "빠루나 쇠지렛대가 필요하다.",
+    "Tooltip_OA_Tree_NeedPickTools": "클립과 드라이버가 필요하다.",
+    "Tooltip_OA_Tree_PryInfo": "성공 %1. 빠르고 시끄럽다. 실패하면 지치고 피로가 쌓인다.",
+    "Tooltip_OA_Tree_PickInfo": "성공 %1. 느리고 조용하다. 실패하면 클립이 휜다.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumScout": "현장 탐지 연구의 점 1개. 처음 맞으면 연구가 열린다.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumLoad": "하중 적응 연구의 점 1개. 처음 맞으면 연구가 열린다.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumSurvival": "생존 적응 연구의 점 1개. 처음 맞으면 연구가 열린다.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumShared": "어느 연구에든 쓸 수 있는 점 1개.",
+    "Tooltip_OA_Tree_Item_DelayDrug": "감염 진행을 늦춘다. 겹쳐 먹을 수 있고, 유통 기한은 없다."
 }

@@ -24,5 +24,11 @@
     "OperationAcorn.SawBladeModern": "Modern Saw Blade",
     "OperationAcorn.FilterOld": "Old Catalyst Filter",
     "OperationAcorn.FilterNormal": "Standard Catalyst Filter",
-    "OperationAcorn.FilterModern": "Modern Catalyst Filter"
+    "OperationAcorn.FilterModern": "Modern Catalyst Filter",
+    "OperationAcorn.UpgradeSerumScout": "Field Detection Serum",
+    "OperationAcorn.UpgradeSerumLoad": "Load Adaptation Serum",
+    "OperationAcorn.UpgradeSerumSurvival": "Survival Adaptation Serum",
+    "OperationAcorn.UpgradeSerumShared": "Shared Research Serum",
+    "OperationAcorn.CureSerum": "Cure Serum",
+    "OperationAcorn.DelayDrug": "Delay Drug"
 }
