@@ -1,2 +1,8 @@
 {
+    "ContextMenu_OA_Tree_Inject": "Inject serum",
+    "ContextMenu_OA_Tree_UseCure": "Use cure serum",
+    "ContextMenu_OA_Tree_TakeDelay": "Take delay drug",
+    "ContextMenu_OA_Tree_Open": "Research plan",
+    "ContextMenu_OA_Tree_Pry": "Pry open (%1)",
+    "ContextMenu_OA_Tree_Pick": "Pick lock (%1)"
 }

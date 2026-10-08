@@ -1,2 +1,17 @@
 {
+    "Tooltip_OA_Tree_CureLeft": "%1 days of shelf life left. Only the person it was issued to can use it.",
+    "Tooltip_OA_Tree_CureExpired": "Past its shelf life. It does nothing.",
+    "Tooltip_OA_Tree_CureNotOwner": "Issued to someone else. It does nothing for you.",
+    "Tooltip_OA_Tree_NotInfected": "You are not infected.",
+    "Tooltip_OA_Tree_DelayInfo": "Infection runs at a quarter speed for %1 hours.",
+    "Tooltip_OA_Tree_Reinforced": "A reinforced door. This skill needs rank 2.",
+    "Tooltip_OA_Tree_NeedPryBar": "Needs a crowbar or pry bar.",
+    "Tooltip_OA_Tree_NeedPickTools": "Needs a paperclip and a screwdriver.",
+    "Tooltip_OA_Tree_PryInfo": "Success %1. Fast and loud. Failing costs endurance and adds fatigue.",
+    "Tooltip_OA_Tree_PickInfo": "Success %1. Slow and quiet. Failing bends the clip.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumScout": "One point for Field Detection Research. The first one opens it.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumLoad": "One point for Load Adaptation Research. The first one opens it.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumSurvival": "One point for Survival Adaptation Research. The first one opens it.",
+    "Tooltip_OA_Tree_Item_UpgradeSerumShared": "One point usable in any research.",
+    "Tooltip_OA_Tree_Item_DelayDrug": "Slows infection. Doses stack and it does not expire."
 }

@@ -1,2 +1,8 @@
 {
+    "OperationAcorn.UpgradeSerumScout": "Field Detection Serum",
+    "OperationAcorn.UpgradeSerumLoad": "Load Adaptation Serum",
+    "OperationAcorn.UpgradeSerumSurvival": "Survival Adaptation Serum",
+    "OperationAcorn.UpgradeSerumShared": "Shared Research Serum",
+    "OperationAcorn.CureSerum": "Cure Serum",
+    "OperationAcorn.DelayDrug": "Delay Drug"
 }
