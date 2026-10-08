@@ -117,6 +117,15 @@ function Trade.radio(record, key, args)
     if OA.Sync then OA.Sync.changed("trade", record.id) end
 end
 
+-- A copy of a table with its tables (plain values only: what the save keeps), so that two places in the save do not
+-- share one table.
+function Trade.copy(value)
+    if type(value) ~= "table" then return value end
+    local result = {}
+    for k, v in pairs(value) do result[k] = Trade.copy(v) end
+    return result
+end
+
 -- Whether a player character is the one a record belongs to.
 function Trade.owns(record, character)
     return record ~= nil and character ~= nil and OA.Store.idOf(character) == record.id
