@@ -16,7 +16,8 @@ import zombie.iso.LosUtil;
 
 /**
  * {@code vision.hiddenZombieFix} against the synthetic game: which zombies it shows (the ones the game does not draw, on the
- * player's floor or next to it, in the view distance and the cone, with nothing blocking the line), how often it looks, that it
+ * player's floor or next to it, in the view distance and the cone, with nothing blocking the line and the game's light test passed),
+ * how often it looks, that it
  * does nothing unless declared, and what it costs for thousands of zombies.
  */
 final class HiddenZombiesTest {
@@ -43,6 +44,7 @@ final class HiddenZombiesTest {
             frames(1);
             Object mod = FormulasTest.call(api, "client", "hidden.mod").get(0), second = FormulasTest.call(api, "client", "hidden.second").get(0);
             filters(formulas, mod, cell, player);
+            light(formulas, mod, cell, player);
             cadence(formulas, mod, cell, player);
             declarations(api, formulas, mod, second, cell, player);
             states(formulas, mod, cell, player);
@@ -96,6 +98,98 @@ final class HiddenZombiesTest {
             check(hidden.targetAlpha[0] == 0f && hidden.alphaSets == 0, "A zombie that should stay as the game has it was changed: " + describe(hidden));
         check(player.spotted.size() == 4 && player.spotted.containsAll(List.of(near, aside, edge, above)),
             "The zombies shown were not offered to the player's spotting: " + player.spotted.size());
+        FormulasTest.call(mod, "clear");
+        cell.zombieList.clear();
+        player.spotted.clear();
+        frames(1);
+    }
+
+    /**
+     * What the game goes on to ask of a zombie it finds in sight (the rest of {@code TestIfSeen}) is still asked: the light of the
+     * zombie's square, the player's own square when the zombie is within the detection range, the distance of 1 and the view distance.
+     */
+    private static void light(KahluaTable formulas, Object mod, IsoCell cell, IsoPlayer player) {
+        FormulasTest.call(formulas, "set", mod, "vision.hiddenZombieFix", true);
+        var ours = cell.getGridSquare(10, 10, 0);
+        player.square = ours;
+        // In a lit square (the square grid of the game is not what is asked) the zombie is shown; in a square the game's light test
+        // finds too dark it is not, and the same zombie is shown when the square is a little lighter.
+        var lit = place(cell, 20.5f, 10.5f, 0);
+        var dark = place(cell, 22.5f, 10.5f, 0);
+        var darker = place(cell, 24.5f, 10.5f, 0);
+        cell.getGridSquare(22, 10, 0).setLight(0, 0.0001f);
+        cell.getGridSquare(24, 10, 0).setLight(0, 0.01f);
+        frames(1);
+        check(lit.alphaSets == 1, "A zombie in a lit square was not shown: " + describe(lit));
+        check(dark.alphaSets == 0 && dark.targetAlpha[0] == 0f, "A zombie in a square too dark for the game's light test was shown: " + describe(dark));
+        check(darker.alphaSets == 1, "A zombie in a dim square the game still sees was not shown: " + describe(darker));
+        // The light of a square going out hides a shown zombie within 0.1 seconds, and its coming back shows it.
+        cell.getGridSquare(20, 10, 0).setLight(0, 0f);
+        int sets = lit.alphaSets;
+        long lag = 0;
+        do { sets = lit.alphaSets; frames(1); lag += FRAME; } while (lit.alphaSets > sets && lag < 1_000_000_000L);
+        check(lag <= 100_000_000L + FRAME, "A zombie in a square that went dark stayed shown for " + lag / 1_000_000 + " ms");
+        sets = lit.alphaSets;
+        frames(10);
+        check(lit.alphaSets == sets, "A zombie in a dark square was shown again");
+        cell.getGridSquare(20, 10, 0).setLight(0, 1f);
+        long wait = 0;
+        do { frames(1); wait += FRAME; } while (lit.alphaSets == sets && wait < 1_000_000_000L);
+        check(lit.alphaSets > sets && wait <= 100_000_000L + FRAME, "A zombie was not shown again within 0.1 seconds of the light coming back: " + wait / 1_000_000 + " ms");
+        cell.zombieList.clear();
+        FormulasTest.call(mod, "clear");
+        frames(1);
+
+        // The detection range: the player's own square lights a zombie in the dark only within it.
+        FormulasTest.call(formulas, "set", mod, "vision.hiddenZombieFix", true);
+        cell.getGridSquare(15, 10, 0).setLight(0, 0f);
+        cell.getGridSquare(13, 10, 0).setLight(0, 0f);
+        var beyond = place(cell, 15.5f, 10.5f, 0);
+        var within = place(cell, 13.5f, 10.5f, 0);
+        frames(1);
+        check(beyond.alphaSets == 0, "A zombie in the dark beyond the detection range was shown: " + describe(beyond));
+        check(within.alphaSets == 1, "A zombie in the dark within the detection range of a lit player was not shown: " + describe(within));
+        ours.setLight(0, 0f);
+        for (int wait2 = 0; wait2 < 12; wait2++) frames(1);
+        int before = within.alphaSets;
+        frames(12);
+        check(within.alphaSets == before, "A zombie in the dark was shown with the player's square dark as well");
+        ours.setLight(0, 1f);
+        player.detectionRange = 6f;
+        frames(12);
+        check(beyond.alphaSets > 0, "A zombie in the dark within a longer detection range was not shown");
+        player.detectionRange = 2f;
+        frames(12);
+        before = within.alphaSets;
+        frames(12);
+        check(within.alphaSets == before, "A zombie in the dark beyond a shorter detection range was shown");
+        player.detectionRange = 3.5f;
+        FormulasTest.call(mod, "clear");
+        cell.zombieList.clear();
+        frames(1);
+
+        // Within a square the light is doubled and the fade is none; a step further it is neither.
+        FormulasTest.call(formulas, "set", mod, "vision.hiddenZombieFix", true);
+        ours.setLight(0, 0f);
+        cell.getGridSquare(11, 10, 0).setLight(0, 0.00015f);
+        cell.getGridSquare(12, 10, 0).setLight(0, 0.00015f);
+        var close = place(cell, 11.4f, 10.5f, 0);
+        var apart = place(cell, 12.0f, 10.5f, 0);
+        frames(1);
+        check(close.alphaSets == 1 && apart.alphaSets == 0, "The distance of 1 did not double the light: " + describe(close) + " / " + describe(apart));
+
+        // Beyond the view distance nothing is shown, and a zombie with no square is not either (the game does not see it).
+        ours.setLight(0, 1f);
+        GameTime.instance.viewDist = 6f;
+        var past = place(cell, 17.5f, 10.5f, 0);
+        var homeless = place(cell, 14.5f, 10.5f, 0);
+        homeless.square = null;
+        frames(1);
+        check(past.alphaSets == 0 && homeless.alphaSets == 0, "A zombie past the view distance, or with no square, was shown");
+        GameTime.instance.viewDist = 30f;
+        for (int x = 11; x <= 15; x++) cell.getGridSquare(x, 10, 0).setLight(0, 1f);
+        for (int x : new int[] { 20, 22, 24 }) cell.getGridSquare(x, 10, 0).setLight(0, 1f);
+        player.square = null;
         FormulasTest.call(mod, "clear");
         cell.zombieList.clear();
         player.spotted.clear();
@@ -254,6 +348,7 @@ final class HiddenZombiesTest {
                         zombie.x = horde ? (float)(64.5 + Math.cos(angle) * distance) : random.nextFloat() * size;
                         zombie.y = horde ? (float)(64.5 + Math.sin(angle) * distance) : random.nextFloat() * size;
                         zombie.z = random.nextInt(4);
+                        zombie.square = cell.getGridSquare((int)zombie.x, (int)zombie.y, (int)zombie.z);
                         zombie.isVisibleToPlayer[0] = random.nextFloat() < 0.6f;
                         zombie.targetAlpha[0] = zombie.isVisibleToPlayer[0] ? 1f : 0f;
                         cell.zombieList.add(zombie);

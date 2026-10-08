@@ -1,5 +1,6 @@
 package zombie.iso;
 
+import zombie.core.textures.ColorInfo;
 import zombie.iso.objects.IsoGenerator;
 import zombie.util.list.PZArrayList;
 
@@ -13,6 +14,12 @@ public final class IsoGridSquare {
     /** The questions the vision asked of any square. */
     public static int visionTests;
     public final PZArrayList<IsoObject> objects = new PZArrayList<>();
+    /** The light of the square for each local player: full unless a test sets it. */
+    public interface ILighting { ColorInfo lightInfo(); }
+    private static final ILighting BRIGHT = () -> new ColorInfo(1f, 1f, 1f);
+    public final ILighting[] lighting = { BRIGHT, BRIGHT, BRIGHT, BRIGHT };
+    /** Sets the light of the square for the player (0: dark, 1: full). */
+    public void setLight(int player, float light) { lighting[player] = () -> new ColorInfo(light, light, light); }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
     public PZArrayList<IsoObject> getObjects() { return objects; }
     public IsoGenerator getGenerator() {

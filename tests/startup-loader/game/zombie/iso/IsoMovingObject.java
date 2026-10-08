@@ -8,4 +8,10 @@ public class IsoMovingObject extends IsoObject {
     public float getY() { return y; }
     public float getZ() { return z; }
     public IsoGridSquare getCurrentSquare() { return square; }
+    /** The distance in the plane to another moving object, as the game's. */
+    public float DistToProper(IsoObject other) {
+        if (!(other instanceof IsoMovingObject moving)) return 0f;
+        float dx = moving.x - x, dy = moving.y - y;
+        return (float)Math.sqrt(dx * dx + dy * dy);
+    }
 }

@@ -16,8 +16,11 @@ import java.util.function.LongSupplier;
  * ({@code IsoGridSquare.isCanSee}) though nothing stands between them and the player. This looks at exactly those
  * zombies, once a frame, on the game's thread, in the game's own list: the ones the game does not draw, on the player's
  * floor or the floor above or below, inside the view distance and the vision cone the game uses for the shadows. For
- * such a zombie it draws a line from the player and, when nothing blocks it, sets the alpha the zombie fades to back to 1
- * every frame, as the game would have had it. The game's own working is not touched: only the alpha it fades to.
+ * such a zombie it draws a line from the player and, when nothing blocks it, asks the rest of the game's test of a zombie in
+ * sight ({@code IsoGameCharacter.TestIfSeen}: the view distance, the light of the square, the detection range, the fade and the
+ * dot with where the player looks; the line stands for {@code isCanSee} and nothing else of it is changed), and when that is
+ * passed sets the alpha the zombie fades to back to 1 every frame, as the game would have had it. The game's own working is
+ * not touched: only the alpha it fades to.
  *
  * <p>The line on the player's floor runs from the exact positions across the squares, and stops at a square edge the game
  * blocks vision at ({@code testVisionAdjacent}, as {@code LosUtil.lineClear} asks it); to the floor above or below it is
@@ -64,7 +67,7 @@ final class HiddenZombies {
 
     private static final class Candidate {
         long rayAt, spotAt;
-        boolean clear;
+        boolean shown;
         int seen;
     }
 
@@ -170,16 +173,65 @@ final class HiddenZombies {
             }
             state.seen = epoch;
             if (now - state.rayAt >= 0) {
-                state.clear = clear(cell, px, py, pz, zx, zy, floor);
+                // The line stands for the game's square grid (isCanSee); what the game goes on to ask of a zombie it finds in sight is asked here.
+                state.shown = clear(cell, px, py, pz, zx, zy, floor) && lit(index, who, zombie, zx, zy, view);
                 state.rayAt = now + RAY_MIN + (next() % RAY_SPREAD);
             }
-            if (!state.clear) continue;
+            if (!state.shown) continue;
             ZombieReads.Handles.ALPHA.invokeExact(zombie, index, 1f);
             if (now - state.spotAt >= 0) {
                 spot.invokeExact(who, zombie);
                 state.spotAt = now + SPOT_MIN + (next() % SPOT_SPREAD);
             }
         }
+    }
+
+    /**
+     * What the game decides about a zombie it finds in sight, after the part that finds it in sight: the rest of
+     * {@code IsoGameCharacter.TestIfSeen(int, IsoPlayer)}, in the same order and arithmetic (the game's jar and PZ Optimize's
+     * class have the same). The zombie is in sight here (a clear line inside the cone stands for {@code isCanSee}), so the
+     * allowances for a zombie that is not ({@code canSeeHeadSquare}; {@code isCouldSee} with the detection range) are not reached.
+     * The light is the native lighting's per-square light, read as the game reads it.
+     */
+    private boolean lit(int index, Object who, Object zombie, float zx, float zy, float view) throws Throwable {
+        float distance = (float)ZombieReads.Handles.DISTANCE.invokeExact(zombie, who);
+        // Beyond the view distance the game does not see it (the filter used the same bound on the squares).
+        if (distance > view) return false;
+        float range = (float)ZombieReads.Handles.RANGE.invokeExact(who);
+        Object square = (Object)ZombieReads.Handles.SQUARE.invokeExact(zombie);
+        if (square == null) return false;
+        Object slot = ((Object[])ZombieReads.Handles.LIGHTING.invokeExact(square))[index];
+        Object color = slot == null ? null : (Object)ZombieReads.Handles.LIGHT.invokeExact(slot);
+        if (color == null) return false;
+        float light = ((float)ZombieReads.Handles.RED.invokeExact(color) + (float)ZombieReads.Handles.GREEN.invokeExact(color)
+            + (float)ZombieReads.Handles.BLUE.invokeExact(color)) / 3f;
+        // Near enough to be heard, the player's own square lights it too.
+        if (distance < range) {
+            Object ours = (Object)ZombieReads.Handles.SQUARE.invokeExact(who);
+            if (ours != null) {
+                Object theirs = ((Object[])ZombieReads.Handles.LIGHTING.invokeExact(ours))[index];
+                Object found = theirs == null ? null : (Object)ZombieReads.Handles.LIGHT.invokeExact(theirs);
+                if (found != null) {
+                    float other = ((float)ZombieReads.Handles.RED.invokeExact(found) + (float)ZombieReads.Handles.GREEN.invokeExact(found)
+                        + (float)ZombieReads.Handles.BLUE.invokeExact(found)) / 3f;
+                    if (!(light > other)) light = other;
+                }
+            }
+        }
+        if (light > 0.6f) light = 1f;
+        float fade = 1f - distance / view;
+        if (light == 1f && fade > 0.3f) fade = 1f;
+        float dot = (float)ZombieReads.Handles.DOT.invokeExact(who, zx, zy);
+        if (dot < 0.5f) dot = 0.5f;
+        light *= dot;
+        if (light < 0f) light = 0f;
+        if (distance <= 1f) {
+            fade = 1f;
+            light *= 2f;
+        }
+        light *= fade;
+        light *= 100f;
+        return light > 0.025f;
     }
 
     /** Whether nothing blocks the way from the player's place to the zombie's. */

@@ -52,6 +52,17 @@ public class IsoGameCharacter extends IsoMovingObject {
     public Object vehicle;
     public IsoGameCharacter() { super(); }
 
+    /** How near a player is heard, and the dot of the way to a point with where the character looks, as the game's. */
+    public float detectionRange = 3.5f;
+    public float getDetectionRange() { return detectionRange; }
+
+    public float getDotWithForwardDirection(float px, float py) {
+        float dx = px - x, dy = py - y, length = (float)Math.sqrt(dx * dx + dy * dy), look = (float)Math.sqrt(lookX * lookX + lookY * lookY);
+        if (length > 0f) { dx /= length; dy /= length; }
+        float ex = look > 0f ? lookX / look : lookX, ey = look > 0f ? lookY / look : lookY;
+        return dx * ex + dy * ey;
+    }
+
     public Vector2 getLookVector(Vector2 into) { into.set(lookX, lookY); return into; }
 
     public boolean isAsleep() { return asleep; }

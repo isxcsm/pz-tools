@@ -460,7 +460,7 @@ not have is a Lua error at `set`.
 | `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
-| `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
+| `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
 bag's weight reduction on what is inside it), and a formula only changes the weight the game reads: the efficiencies above,
@@ -519,13 +519,31 @@ of each frame, on the game thread, and for each local player looks only at the z
   shadows hide the zombie, so the fix leaves it.
 
 For such a zombie it draws a line from the player, and when nothing blocks the line it sets `setTargetAlpha(player, 1)` on
-that frame and each frame after it (the game sets it back to 0 when it updates; the alpha it fades to is all that is
+that frame and each frame after it, once the rest of the game's test of a zombie it finds in sight is passed (below; the game
+sets it back to 0 when it updates; the alpha it fades to is all that is
 changed. The frame job runs at the start of the game's `logic()`, and the game's update does `updateAlpha` before
 `updateSeenVisibility`, so one setting per frame is enough).
 On the player's floor the line runs from the exact positions across the squares and stops at an edge the game blocks vision
 at (`IsoGridSquare.testVisionAdjacent`, as `LosUtil.lineClear` asks it); to the floor above or below it is
 `LosUtil.lineClear` itself, which has the game's floors, stairs and openings. Only a `Blocked` result stops a line, as in the
-game; a square the game has not loaded does not block. A zombie that is shown is also offered to
+game; a square the game has not loaded does not block.
+
+The line replaces one part of the game's decision and nothing else. `IsoGameCharacter.TestIfSeen(int, IsoPlayer)` (the same
+in the jar and in PZ Optimize's loose class, read from both) finds a zombie in sight by `IsoGridSquare.isCanSee` (with the
+allowances `canSeeHeadSquare`, and `isCouldSee` with the detection range, for one that is not), and then decides by the light:
+`DistToProper` against the view distance, the zombie's square's light `(r + g + b) / 3` (`ILighting.lightInfo()`, the native
+lighting's, which the darkness point does not change) raised to the player's own square's when the zombie is within
+`getDetectionRange()`, a light above 0.6 taken as 1, the fade `1 - distance / view` (taken as 1 when the light is full and
+the fade is above 0.3), the dot of `getDotWithForwardDirection` with a floor of 0.5, the distance of 1 or less that doubles the
+light and ends the fade, and at last `light x fade x 100 > 0.025`. A clear line inside the cone stands for `isCanSee`; for a
+zombie that has it, the API asks the game's own methods (`DistToProper`, `getDetectionRange`, `getDotWithForwardDirection`,
+`getCurrentSquare`, `lightInfo`) and repeats the arithmetic after them in the game's order, so that a zombie in the dark that
+the game keeps unseen stays unseen, whichever square the game's grid missed. Nothing else of the test is a thing to answer
+differently, so the allowances for a zombie not in sight are not reached (a zombie outside the cone is the game's own, as
+before). A square whose light is missing, or a zombie with no square, is not shown. It is worked when the line is, at most
+0.1 seconds old, so a light that changes shows or hides a zombie as soon as a line would.
+
+A zombie that is shown is also offered to
 `IsoPlayer.TestZombieSpotPlayer` every 0.1 to 0.5 seconds, so that it can notice the player as the zombies the game draws do.
 
 What a line found is not kept for a square, a place or a door. A zombie's line is drawn when the zombie first becomes a
@@ -534,9 +552,9 @@ that the lines are spread over the frames): what is shown is never older than 0.
 a door or an object changes. A zombie that is not a candidate for a few frames is forgotten.
 
 It does not change the game's own working: the count of visible zombies, the music's and the panic moodle's reading,
-`isVisibleToPlayer` and the lighting of the square (a zombie in a dark square is drawn dark) stay as the game has them. The
-game's own test of how bright the zombie's square is (the last part of `TestIfSeen`) is not repeated, so a zombie in a very
-dark square inside the cone is shown and drawn as dark as its square. Nothing is done while the player is asleep, dead, in a
+`isVisibleToPlayer` and the lighting of the square (a zombie in a dark square is drawn dark) stay as the game has them. A
+zombie the game's light test finds unseen (a square near black, farther than the detection range from a dark player) stays
+unseen. Nothing is done while the player is asleep, dead, in a
 vehicle (the cone then is the vehicle's) or sees everyone (a cheat that has it done). While no mod declares the fix nothing
 runs, and the game is not touched.
 
@@ -662,7 +680,8 @@ animation), and a real bite survived.
 
 The hidden-zombie fix has no bytecode hook, so what was checked against the installed game (7 October 2026, Build 42) is
 that every member it reads is there, with the types it expects, in the jar alone and with PZ Optimize's loose classes first
-(`IsoGameCharacter`, `IsoPlayer`, `LightingJNI`; the update order `updateAlpha` then `updateSeenVisibility` is the same in both).
+(`IsoGameCharacter`, `IsoPlayer`, `LightingJNI`; the update order `updateAlpha` then `updateSeenVisibility` is the same in both,
+and the bytecode of `TestIfSeen` the API follows is the same in the two: the loose class only lays the early return out differently).
 In the synthetic game: nothing is looked at before a declaration (no line, no alpha set); a zombie in sight is shown on the
 first frame; one behind a wall, outside the cone or the view distance, two floors away, behind a floor with no opening or
 that the game already draws is not changed; the alpha is set on every frame; a second at 60 frames draws 10 to 17 lines for a
@@ -670,26 +689,34 @@ zombie and offers its spotting 2 to 11 times; a wall that comes between, tried a
 within 0.1 seconds (plus a frame), as does taking the wall away; several mods join as any, `clear` and `false` turn it off,
 declaring it again shows the zombie at once; a sleeping or dead player, one in a vehicle or who sees all gets nothing shown,
 and a narrow cone, one all round and a player who turns change who is a candidate; a second local player is looked for on its
-own; and a fault in the zombie list stops the fix alone while the other formulas go on. The cost per frame in the synthetic
+own; and a fault in the zombie list stops the fix alone while the other formulas go on. The game's light test: a zombie in a
+lit square is shown; the same in a square with a light of 0.0001 (below the game's test) is not, and in one of 0.01 it is; a
+square that goes dark hides a shown zombie within 0.1 seconds and its light coming back shows it; a zombie in a black square
+at 5 squares is not shown while one at 3 squares is (the detection range is 3.5, the player's square lit), with the player's
+square dark it is not either, a range of 6 shows the first and a range of 2 hides the second; a zombie within 1 square in a
+square of 0.00015 is shown (the light doubles) and one at 1.5 is not; one past the view distance, and one with no square, are
+not shown. The cost per frame in the synthetic
 game, for 1000 to 10000 zombies on a 128 by 128 map of 4 floors with random walls (15% of the edges on each axis, 5% of the
 squares solid), 60% of them drawn by the game, view 40 squares, cone 144 degrees, the player walking and turning:
 
 | Zombies | Placed | Fix off | Fix on, mean / 99th percentile | Lines a frame |
 | --- | --- | --- | --- | --- |
-| 1000 | over the map | 0.000 ms | 0.010 / 0.024 ms | 7.8 |
-| 3000 | over the map | 0.000 ms | 0.039 / 0.089 ms | 22.5 |
-| 10000 | over the map | 0.000 ms | 0.140 / 0.244 ms | 71.3 |
-| 1000 | within 35 squares | 0.000 ms | 0.012 / 0.028 ms | 16.6 |
-| 3000 | within 35 squares | 0.000 ms | 0.042 / 0.083 ms | 53.0 |
-| 10000 | within 35 squares | 0.000 ms | 0.185 / 0.352 ms | 175.8 |
+| 1000 | over the map | 0.000 ms | 0.012 / 0.028 ms | 7.8 |
+| 3000 | over the map | 0.000 ms | 0.035 / 0.079 ms | 22.5 |
+| 10000 | over the map | 0.000 ms | 0.143 / 0.282 ms | 71.3 |
+| 1000 | within 35 squares | 0.000 ms | 0.012 / 0.029 ms | 16.6 |
+| 3000 | within 35 squares | 0.000 ms | 0.039 / 0.069 ms | 53.0 |
+| 10000 | within 35 squares | 0.000 ms | 0.198 / 0.394 ms | 175.8 |
 
-Of the 0.185 ms, 0.067 ms is the pass over 10000 zombies the game all draws (one array read each) and 0.165 ms the pass over
+(The game's light test is in these numbers: every line that is clear is followed by it, in handles that are constants; it
+is within the noise of the same table before it was added: 0.19 to 0.21 ms for the worst case.) Of the 0.198 ms, 0.053 ms is the pass over 10000 zombies the game all draws (one array read each) and 0.152 ms the pass over
 10000 that are not drawn with a cone so narrow that almost none is a candidate (their positions are read and nothing more);
 the lines are the rest. The design's offline measure for the same worst case was 0.16 ms on byte arrays with 1176 lines a
 frame; the lines here are fewer because of the 0.1 second cadence, and the squares of the synthetic game are objects, as the
 game's are, but are not the game's. The cost in the game is to be measured there. Not tried in the game yet: that a shown
 zombie is drawn (the alpha is all that is set), a zombie seen across a stair or an opening in the floor, the cost with a real
-horde, and whether the lighting of a square leaves a shown zombie too dark to see.
+horde, and that the light of a real square keeps a zombie in the dark unseen as the game keeps it (the lighting is native; the
+synthetic game's is a number for each square).
 
 The machine hooks were put into the real bytes of `IsoObject` (the jar's and PZ Optimize's loose class, which overrides it)
 and verified by the JVM. In the synthetic game: an undeclared machine is not a consumer; a declared one is, with its

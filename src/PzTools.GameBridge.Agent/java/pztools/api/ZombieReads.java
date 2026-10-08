@@ -27,6 +27,10 @@ final class ZombieReads {
         // IsoCell.getZombieList(); IsoMovingObject.getX(), getY(), getZ(); IsoGameCharacter.isVisibleToPlayer and isDead();
         // IsoObject.setTargetAlpha(int, float).
         static final MethodHandle LIST, X, Y, Z, VISIBLE, DEAD, ALPHA;
+        // What the rest of IsoGameCharacter.TestIfSeen asks, for a zombie whose line is clear: IsoMovingObject.DistToProper(IsoObject) and
+        // getCurrentSquare(); IsoGameCharacter.getDetectionRange() and getDotWithForwardDirection(float, float); IsoGridSquare.lighting;
+        // IsoGridSquare.ILighting.lightInfo(); ColorInfo.r, g and b.
+        static final MethodHandle DISTANCE, SQUARE, RANGE, DOT, LIGHTING, LIGHT, RED, GREEN, BLUE;
 
         static {
             try {
@@ -42,6 +46,18 @@ final class ZombieReads {
                 DEAD = Game.exact(character.getMethod("isDead"), MethodType.methodType(boolean.class, Object.class));
                 ALPHA = Game.exact(object.getMethod("setTargetAlpha", int.class, float.class),
                     MethodType.methodType(void.class, Object.class, int.class, float.class));
+                Class<?> square = Game.type(LOADER, "zombie.iso.IsoGridSquare"), lighting = Game.type(LOADER, "zombie.iso.IsoGridSquare$ILighting");
+                Class<?> color = Game.type(LOADER, "zombie.core.textures.ColorInfo");
+                DISTANCE = Game.exact(moving.getMethod("DistToProper", object), MethodType.methodType(float.class, Object.class, Object.class));
+                SQUARE = Game.exact(moving.getMethod("getCurrentSquare"), MethodType.methodType(Object.class, Object.class));
+                RANGE = Game.exact(character.getMethod("getDetectionRange"), number);
+                DOT = Game.exact(character.getMethod("getDotWithForwardDirection", float.class, float.class),
+                    MethodType.methodType(float.class, Object.class, float.class, float.class));
+                LIGHTING = MethodHandles.publicLookup().unreflectGetter(square.getField("lighting")).asType(MethodType.methodType(Object[].class, Object.class));
+                LIGHT = Game.exact(lighting.getMethod("lightInfo"), MethodType.methodType(Object.class, Object.class));
+                RED = MethodHandles.publicLookup().unreflectGetter(color.getField("r")).asType(number);
+                GREEN = MethodHandles.publicLookup().unreflectGetter(color.getField("g")).asType(number);
+                BLUE = MethodHandles.publicLookup().unreflectGetter(color.getField("b")).asType(number);
             } catch (ReflectiveOperationException failure) {
                 throw new ExceptionInInitializerError(failure);
             }
