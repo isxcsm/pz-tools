@@ -50,7 +50,7 @@ end
 -- closing word; the story part's lines (other keys) are said as they are written.
 function Text.radio(entry)
     local args = entry.args or {}
-    local body = Text.tr(entry.key, args[1], args[2], args[3], args[4])
+    local body = Text.tr(entry.key, unpack(args))
     if not string.find(entry.key, "^IGUI_OA_Trade_Radio_%a") then return body end
     local greeting = Text.greeting(entry.stage)
     local line = body .. " " .. Text.tr("IGUI_OA_Trade_Radio_Over")
@@ -119,7 +119,7 @@ function Text.receipt(receipt)
     end
     if receipt.note and receipt.note.key then
         local a = receipt.note.args or {}
-        raw("note", Text.tr(receipt.note.key, a[1], a[2], a[3], a[4]))
+        raw("note", Text.tr(receipt.note.key, unpack(a)))
     end
     add("total", "IGUI_OA_Trade_Rc_Balance", Text.credits(receipt.balanceBefore), Text.credits(receipt.balance))
     return lines

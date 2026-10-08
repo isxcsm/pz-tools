@@ -26,7 +26,7 @@ end
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or not detail.key then return end
     local args = detail.args or {}
-    local text = getText(detail.key, args[1], args[2], args[3], args[4])
+    local text = getText(detail.key, unpack(args))
     for _, character in ipairs(charactersOf(playerId)) do
         local bad = string.find(detail.key, "_Reason_", 1, true) ~= nil
         if bad then HaloTextHelper.addBadText(character, text) else HaloTextHelper.addText(character, text) end
