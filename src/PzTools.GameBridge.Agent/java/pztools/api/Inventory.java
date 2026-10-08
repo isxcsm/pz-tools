@@ -127,18 +127,53 @@ final class Inventory {
         return result;
     }
 
-    /** A bag's weight with nothing equipped: its own times its factor, and its items' (unequipped) times its tags'. */
-    private float bagWeight(Formulas.Active now, Object bag) throws Throwable {
-        float result = (float)actualWeight.invokeExact(bag) * factor(now, bag);
+    /** What a bag weighed the last time it was worked out, and what that was worked out from. */
+    private record Memo(Object bag, Object declarations, int plainBits, int contents, float whole) { }
+
+    private static final int MEMOS = 128;
+    // A direct-mapped table by the bag's identity: a bag that collides with another is worked out again, nothing is evicted by size.
+    private final Memo[] memos = new Memo[MEMOS];
+    /** How many bags were worked out from their items (not found in the table), for the tests. */
+    long walks;
+
+    /**
+     * What stands for the items of a bag, its nested bags' included: their identities and their number. A bag whose items are
+     * added to, taken out, moved or swapped has another one (to the chance of a hash collision, 1 in 2^32), whichever way the
+     * game or a mod did it, so it needs no signal from the game; a weight that changed in place shows in the game's own total.
+     */
+    private int contents(ArrayList<?> inside) throws Throwable {
+        int print = inside.size();
+        for (int index = 0; index < inside.size(); index++) {
+            Object item = inside.get(index);
+            print = print * 31 + System.identityHashCode(item);
+            if (bagType.isInstance(item)) print = print * 31 + contents((ArrayList<?>)items.invokeExact(bagContainer.invokeExact(item)));
+        }
+        return print;
+    }
+
+    /**
+     * A bag's weight with nothing equipped: its own times its factor, and its items' (unequipped) times its tags'. It is kept
+     * for as long as the game's own weight of the bag ({@code plain}), the bag's items and the declarations are as they were, so
+     * a bag nobody touched costs a pass over its items' identities, not a factor for each.
+     */
+    private float bagWeight(Formulas.Active now, Object bag, float plain) throws Throwable {
         ArrayList<?> inside = (ArrayList<?>)items.invokeExact(bagContainer.invokeExact(bag));
+        int print = contents(inside), bits = Float.floatToRawIntBits(plain);
+        int slot = (System.identityHashCode(bag) * 0x9E3779B1) >>> 25;
+        Memo kept = memos[slot];
+        if (kept != null && kept.bag == bag && kept.declarations == now && kept.plainBits == bits && kept.contents == print) return kept.whole;
+        walks++;
+        float result = (float)actualWeight.invokeExact(bag) * factor(now, bag);
         float contents = 0;
         for (int index = 0; index < inside.size(); index++) contents += unequipped(now, inside.get(index));
-        return result + contents * tagFactor(now, bag);
+        float whole = result + contents * tagFactor(now, bag);
+        memos[slot] = new Memo(bag, now, bits, print, whole);
+        return whole;
     }
 
     /** An item's weight with nothing equipped, as the load counts it. */
     float unequipped(Formulas.Active now, Object item) throws Throwable {
-        if (bagType.isInstance(item)) return bagWeight(now, item);
+        if (bagType.isInstance(item)) return bagWeight(now, item, (float)unequippedWeight.invokeExact(item));
         return (float)unequippedWeight.invokeExact(item) * factor(now, item);
     }
 
@@ -148,7 +183,7 @@ final class Inventory {
             float factor = factor(now, item);
             return factor == 1f ? vanilla : vanilla * factor;
         }
-        float plain = (float)unequippedWeight.invokeExact(item), whole = bagWeight(now, item);
+        float plain = (float)unequippedWeight.invokeExact(item), whole = bagWeight(now, item, plain);
         if (whole == plain) return vanilla;
         switch (kind) {
             case 0: return whole;
@@ -175,7 +210,7 @@ final class Inventory {
             float factor = factor(now, item);
             return factor == 1f ? vanilla : vanilla * factor;
         }
-        float whole = bagWeight(now, item);
+        float whole = bagWeight(now, item, vanilla);
         return whole == vanilla ? vanilla : whole;
     }
 

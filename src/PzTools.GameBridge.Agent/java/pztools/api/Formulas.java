@@ -159,6 +159,9 @@ final class Formulas implements ApiHooks.Formulas {
         publish();
     }
 
+    /** How many bags the load worked out from their items rather than from what it kept (for the tests). */
+    long bagWalks() { return inventory == null ? 0 : inventory.walks; }
+
     /** Gives the game's questions to these formulas. Throws a LinkageError in a game whose bootstrap has no formula hooks. */
     void hook() { ApiHooks.setFormulas(this); }
 
