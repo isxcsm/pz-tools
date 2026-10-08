@@ -491,5 +491,7 @@
     "IGUI_OA_Tree_AlarmHouse": "An alarmed house is nearby.",
     "IGUI_OA_Tree_LedgerAlreadyDone": "This building is already fully searched.",
     "IGUI_OA_Tree_LedgerLeft": "%1 unopened container(s)",
-    "IGUI_OA_Tree_LedgerDone": "Building fully searched."
+    "IGUI_OA_Tree_LedgerDone": "Building fully searched.",
+    "IGUI_OA_Tree_OptionsTitle": "Operation Acorn",
+    "IGUI_OA_Tree_OptionsPlanKey": "Open the research plan"
 }

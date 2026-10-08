@@ -491,5 +491,7 @@
     "IGUI_OA_Tree_AlarmHouse": "경보 달린 집이 가까이 있다.",
     "IGUI_OA_Tree_LedgerAlreadyDone": "이 건물은 이미 다 뒤졌다.",
     "IGUI_OA_Tree_LedgerLeft": "안 연 용기 %1개",
-    "IGUI_OA_Tree_LedgerDone": "이 건물을 다 뒤졌다."
+    "IGUI_OA_Tree_LedgerDone": "이 건물을 다 뒤졌다.",
+    "IGUI_OA_Tree_OptionsTitle": "도토리 작전",
+    "IGUI_OA_Tree_OptionsPlanKey": "연구 계획서 열기"
 }
