@@ -116,11 +116,14 @@ local function drawStandIn(self)
     end
 end
 
--- The presence marks: glowing arcs on the ground around the character's feet (an ellipse of RING tiles, so it follows
--- the zoom and the view's slant), each turned to face its way. Nearer is bigger, warmer and brighter; one arc for a
+-- The presence marks: glowing arcs round the character (an ellipse of RING tiles laid as the ground lies, so it follows
+-- the zoom and the view's slant), each turned to face its way. The ellipse is centred on the body's middle, BODY of a
+-- floor above the feet, where the camera centres the character (as Visual Sounds centres on the screen): round the
+-- feet it all hung low. Nearer is bigger, warmer and brighter; one arc for a
 -- lone zombie, two for a few, three for a crowd; rings for zombies beating on something and a chevron for another
 -- floor (rank 2). The arcs are white pictures tinted as they are drawn.
 local RING = 1.7
+local BODY = 0.3
 local SOUND_RING = 2.5
 local NEAR = { 1.00, 0.36, 0.24 }
 local MID = { 1.00, 0.72, 0.28 }
@@ -167,7 +170,7 @@ function Hud:render()
         local ox, oy = isoToScreenX(n, px, py, pz), isoToScreenY(n, px, py, pz)
         local exX, exY = isoToScreenX(n, px + 1, py, pz) - ox, isoToScreenY(n, px + 1, py, pz) - oy
         local eyX, eyY = isoToScreenX(n, px, py + 1, pz) - ox, isoToScreenY(n, px, py + 1, pz) - oy
-        local cx, cy = ox - self.x, oy - self.y
+        local cx, cy = ox - self.x, isoToScreenY(n, px, py, pz + BODY) - self.y
         for sector, e in pairs(S.dirs) do
             local gx, gy = onGround(sector, RING, exX, exY, eyX, eyY)
             local len = math.sqrt(gx * gx + gy * gy)

@@ -34,13 +34,12 @@ local function has(text, key)
     return string.find(text, '"' .. key .. '":', 1, true) ~= nil
 end
 
-test("every node has its name, note, description and rank text in both languages", function()
+test("every node has its name and rank text in both languages, a note on capstones only", function()
     for _, lang in ipairs({ "EN", "KO" }) do
         local text = file(lang, "IG_UI.json")
         for _, node in ipairs(Data.nodes) do
-            for _, part in ipairs({ "Name", "Note", "Desc" }) do
-                truthy(has(text, Data.key(node.id, part)), lang .. " lacks " .. Data.key(node.id, part))
-            end
+            truthy(has(text, Data.key(node.id, "Name")), lang .. " lacks " .. Data.key(node.id, "Name"))
+            eq(has(text, Data.key(node.id, "Note")), node.capstone == true, lang .. " note of " .. node.id)
             if node.rankText then
                 for r = 1, node.ranks do
                     truthy(has(text, Data.key(node.id, "Rank" .. r)), lang .. " lacks " .. node.id .. " rank " .. r)
@@ -95,6 +94,13 @@ test("rank line numbers follow the effect option", function()
     eq(Texts.args(Data.byId.moveSpeed, 3, u)[1], "95%")
 end)
 
+test("a carrying efficiency shows the weight it takes off", function()
+    local u = Rules.blank()
+    -- +100% efficiency halves the weight
+    eq(Texts.args(Data.byId.furniture, 2, u)[1], "50%")
+    eq(Texts.args(Data.byId.materials, 1, u)[1], "13%")
+end)
+
 test("overload shows the share of the excess that still counts", function()
     local u = Rules.blank()
     eq(Texts.args(Data.byId.overload, 1, u)[1], "70%")
@@ -109,8 +115,10 @@ test("board numbers read what is bought", function()
     near(tonumber(string.match(walk[1], "[%d%.]+")), 20, 1e-9)
     eq(walk[2], "40%")
     eq(Texts.args(Data.byId.bLimit, 4, u)[1], "4")
+    -- a reduction shows what it takes off: a wait divided by 1.3 is 23% shorter
     local bite = Texts.args(Data.byId.bBite, 3, u)
-    eq(bite[1], "30%")
+    eq(bite[1], "23%")
+    eq(bite[2], "5.4")
 end)
 
 test("the conditions list what a node needs, each with its state", function()

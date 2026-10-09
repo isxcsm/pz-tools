@@ -1,10 +1,12 @@
 -- The upgrade trees as data: every node of the three trees and of the 2nd board (TREES.md), with where it sits on the
 -- screen, what it needs, how many ranks it has and what each rank gives. Nothing here touches the game; the rules
 -- (Rules.lua) and the effects (Effects.lua) read this table. Names and texts are translations, found by node id:
---   IGUI_OA_Tree_Node_<id>_Name, _Note (the research team's remark, stranger higher up), _Desc (what it does) and
---   _Rank (the effect of a rank; _Rank1, _Rank2 ... when each rank reads differently: rankText = true).
+--   IGUI_OA_Tree_Node_<id>_Name, _Rank (the effect of a rank, one sentence; _Rank1, _Rank2 ... when each rank reads
+--   differently: rankText = true), _Desc (only where the rank text leaves out something a player would not expect) and
+--   _Note (the research team's line, capstones only).
 -- kind: "lua" works with this mod alone; "api" needs the extension API (PZ Tools) to change the game's numbers.
 -- values: the effect of each rank in its unit (cumulative: the value at that rank), values2 a second series.
+-- lighter: the values are carrying efficiencies (a weight is divided by 1 + sum); the text shows the weight taken off.
 require "OperationAcorn/Core"
 OperationAcorn.Upgrades = OperationAcorn.Upgrades or {}
 local Data = {}
@@ -90,13 +92,13 @@ node("scout", "nightEye", 5, 2, 1, "api", { { "night", 3 } }, { capstone = true 
 node("load", "overload", 1, 1, 2, "api", {}, { unit = "pct", values = { 70, 40 }, rankText = true })
 node("load", "moveSpeed", 1, 3, 3, "lua", {}, { cap = 95, unit = "pct", values = { 20, 35, 50 } })
 node("load", "keyring", 1, 4, 1, "api")
-node("load", "furniture", 1, 2, 2, "api", {}, { unit = "pct", values = { 50, 100 } })
-node("load", "materials", 2, 4, 3, "api", {}, { unit = "pct", values = { 15, 30, 45 } })
+node("load", "furniture", 1, 2, 2, "api", {}, { unit = "pct", lighter = true, values = { 50, 100 } })
+node("load", "materials", 2, 4, 3, "api", {}, { unit = "pct", lighter = true, values = { 15, 30, 45 } })
 node("load", "runSpeed", 2, 2, 2, "api", {}, { cap = 95, unit = "pct", values = { 30, 60 } })
 node("load", "capacity", 3, 1, 5, "api", { { "overload", 2 } }, { unit = "num", values = { 2, 4, 6, 8, 10 } })
 node("load", "combatSpeed", 3, 2, 2, "api", { { "runSpeed", 2 } }, { cap = 95, unit = "pct", values = { 30, 60 } })
 -- materialsPlus values: the total efficiency from the base node and this one together (it replaces the base node's).
-node("load", "materialsPlus", 4, 4, 2, "api", { { "materials", 3 } }, { unit = "pct", values = { 70, 100 } })
+node("load", "materialsPlus", 4, 4, 2, "api", { { "materials", 3 } }, { unit = "pct", lighter = true, values = { 70, 100 } })
 node("load", "storage", 4, 3, 3, "api", { { "moveSpeed", 2 } }, { unit = "pct", values = { 20, 40, 60 } })
 node("load", "armor", 5, 2, 1, "api", { { "combatSpeed", 2 } }, { capstone = true })
 

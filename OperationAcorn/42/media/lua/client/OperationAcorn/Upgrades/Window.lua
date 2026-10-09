@@ -372,15 +372,21 @@ function View:tipFor(id)
         local name = self.revealed[node.group] and Texts.nodeName(id) or "???"
         return name, line(getText("IGUI_OA_Tree_BoardHidden", Rules.capstones(sim), #Data.TREES), 0.8, 0.8, 0.85)
     end
+    -- as the talent tooltips of other games read: the rank, what it does now (or what the first rank will do), where
+    -- it does not apply, what the next rank does, what it still needs; the research team's line last, on capstones
     local rank = Rules.rank(sim, id)
     local planned = self.counts[id] or 0
-    local text = line(Texts.note(id), 0.6, 0.6, 0.65)
-    text = text .. line(Texts.desc(id), 0.85, 0.85, 0.85)
-    local rankText = node.ranks and (" " .. rank .. "/" .. node.ranks) or (" " .. rank)
-    text = text .. line(getText("IGUI_OA_Tree_Current") .. rankText .. (planned > 0 and (" (+" .. planned .. ")") or ""), 1, 1, 1)
-    text = text .. line(Texts.rankLine(node, rank, sim), 0.9, 0.95, 1.0)
-    if not Rules.maxed(sim, id) then
-        local nextLine
+    local maxed = Rules.maxed(sim, id)
+    local stage
+    if node.board then
+        stage = getText("IGUI_OA_Tree_StageBoard", rank, Rules.cost(sim, id))
+    else
+        stage = getText("IGUI_OA_Tree_Stage", rank, node.ranks)
+    end
+    if planned > 0 then stage = stage .. " " .. getText("IGUI_OA_Tree_StagePlanned", planned) end
+    local text = line(stage, 0.7, 0.7, 0.72)
+    local nextLine
+    if not maxed then
         if node.board and node.choose then
             nextLine = getText("IGUI_OA_Tree_NextFamily")
         else
@@ -393,20 +399,24 @@ function View:tipFor(id)
                 nextLine = Texts.rankLine(node, math.min(rank + 1, node.ranks or rank + 1), sim)
             end
         end
-        text = text .. line(getText("IGUI_OA_Tree_Next") .. ": " .. nextLine, 0.7, 1.0, 0.8)
-        if node.board then
-            text = text .. line(getText("IGUI_OA_Tree_BoardRank", rank, Rules.cost(sim, id)), 0.75, 0.75, 0.8)
-        end
-        for _, c in ipairs(Texts.conditions(sim, node, { fragments = self.fragmentsLeft })) do
-            if c.ok then
-                text = text .. line(c.text, 0.55, 0.85, 0.55)
-            else
-                text = text .. line(c.text, 1.0, 0.45, 0.4)
-            end
-        end
-    else
-        text = text .. line(getText("IGUI_OA_Tree_Maxed"), 0.55, 0.85, 0.55)
     end
+    local now = Texts.rankLine(node, rank, sim)
+    if now then
+        text = text .. line(now, 1, 1, 1)
+    elseif nextLine then
+        text = text .. line(nextLine, 1, 1, 1)
+    end
+    local desc = Texts.desc(id)
+    if desc then text = text .. line(desc, 0.7, 0.7, 0.72) end
+    if not maxed then
+        if now and nextLine then text = text .. line(getText("IGUI_OA_Tree_Next") .. ": " .. nextLine, 0.55, 0.85, 0.55) end
+        -- only what is still missing, in red (a met condition is only noise)
+        for _, c in ipairs(Texts.conditions(sim, node, { fragments = self.fragmentsLeft })) do
+            if not c.ok then text = text .. line(c.text, 1.0, 0.45, 0.4) end
+        end
+    end
+    local note = Texts.note(id)
+    if note then text = text .. line(note, 0.85, 0.78, 0.55) end
     local api = Texts.apiNote(id)
     if api and node.kind == "api" then text = text .. line(api, 1.0, 0.6, 0.3) end
     if self.refusal and self.refusal.id == id then

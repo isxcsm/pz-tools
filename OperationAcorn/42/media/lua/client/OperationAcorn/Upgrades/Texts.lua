@@ -35,12 +35,22 @@ function Texts.nodeName(id)
     return getText(Data.key(id, "Name"))
 end
 
-function Texts.note(id)
-    return getText(Data.key(id, "Note"))
+-- A translation that may be left out, or nil.
+local function optional(key)
+    if getTextOrNull then return getTextOrNull(key) end
+    local text = getText(key)
+    if text ~= key then return text end
+    return nil
 end
 
+-- The research team's line under a capstone (only capstones have one), or nil.
+function Texts.note(id)
+    return optional(Data.key(id, "Note"))
+end
+
+-- What a node's rank text leaves out that a player would not expect (where it does not apply), or nil.
 function Texts.desc(id)
-    return getText(Data.key(id, "Desc"))
+    return optional(Data.key(id, "Desc"))
 end
 
 -- A reason a rank cannot be taken (Rules.blocked), in words.
@@ -49,6 +59,11 @@ function Texts.reason(why)
 end
 
 -- A value of a node at a rank as shown: scaled by the effect option, kept under the node's cap.
+-- A sum of efficiencies or reductions (a value is divided by 1 + sum) as the whole percentage it takes off.
+local function lighter(sum)
+    return math.floor((1 - 1 / (1 + sum)) * 100 + 0.5)
+end
+
 local function shown(node, value)
     local v = value * Rules.mult()
     if node.cap and v > node.cap then v = node.cap end
@@ -62,7 +77,8 @@ function Texts.args(node, rank, u)
     if node.board then
         local amount = Rules.boardAmount(u, node.id)
         if node.form == "divide" then
-            args[1] = Texts.percent(amount * 100)
+            -- what the reduction takes off, as the player meets it (a value divided by 1 + sum)
+            args[1] = Texts.percent(lighter(amount))
             if node.id == "bBite" then args[2] = Texts.number(Rules.biteHours(u) / 24) end
         elseif node.form == "add" then
             if node.unit == "pct100" then
@@ -79,7 +95,7 @@ function Texts.args(node, rank, u)
             for _, family in ipairs(Data.FAMILY_ORDER) do
                 local n = u.board.family[family]
                 if n and n > 0 then
-                    parts[#parts + 1] = Texts.familyName(family) .. " +" .. Texts.percent(Rules.familyAmount(u, family) * 100)
+                    parts[#parts + 1] = Texts.familyName(family) .. " " .. Texts.percent(lighter(Rules.familyAmount(u, family)))
                 end
             end
             args[1] = #parts > 0 and table.concat(parts, ", ") or "-"
@@ -92,6 +108,8 @@ function Texts.args(node, rank, u)
     if node.id == "overload" then
         -- the values are the share of the excess still counted
         text = Texts.percent(100 - shown({ cap = 95 }, 100 - v))
+    elseif node.lighter then
+        text = Texts.percent(lighter(shown(node, v) / 100))
     elseif node.unit == "pct" then
         text = Texts.percent(shown(node, v))
     else
@@ -99,12 +117,13 @@ function Texts.args(node, rank, u)
     end
     args[1] = text
     if node.values2 then args[2] = Texts.number(node.values2[rank] * Rules.mult()) end
+    if node.id == "resistPlus" then args[2] = Texts.number(Rules.biteHours(u) / 24) end
     return args
 end
 
--- The line telling what a rank of a node gives (rank 0: nothing yet).
+-- The sentence telling what a rank of a node gives, or nil for rank 0.
 function Texts.rankLine(node, rank, u)
-    if rank < 1 then return getText("IGUI_OA_Tree_NoEffect") end
+    if rank < 1 then return nil end
     local key = Data.key(node.id, "Rank")
     if node.rankText then key = key .. math.min(rank, node.ranks or rank) end
     local args = Texts.args(node, rank, u)
