@@ -153,8 +153,24 @@ local function newObject(square, kind)
     end
     function obj:setSpriteFromName(name) self.sprite = name end
     function obj:transmitModData() end
+    -- the animations drawn over it (the lure's sound rings)
+    obj.anims = {}
+    function obj:hasAttachedAnimSprites() return #self.anims > 0 end
+    function obj:RemoveAttachedAnims() self.anims = {} end
+    function obj:AttachExistingAnim(sprite)
+        local instance = { sprite = sprite, steps = 0 }
+        function instance:setFrameSpeedPerFrame(v) self.speed = v end
+        function instance:getParentSprite() return { update = function(_, inst) inst.steps = inst.steps + 1 end } end
+        table.insert(self.anims, instance)
+    end
+    function obj:getAttachedAnimSprite()
+        local anims = self.anims
+        return { size = function() return #anims end, get = function(_, i) return anims[i + 1] end }
+    end
     return obj
 end
+IsoSprite = { CreateSpriteUsingCache = function(name, anim, frames) return { name = name, anim = anim, frames = frames } end }
+ColorInfo = { new = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end }
 
 local squares
 local sounds
@@ -1190,6 +1206,25 @@ test("clearing a spent lure removes it and gives nothing", function()
     eq(#sq.objects, 0)
     eq(Machines.list()[state.id], nil)
     eq(#p.inv.items, 0)
+    cleanup()
+end)
+
+test("a working lure plays its sound rings, once, and a spent one does not", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(40, 40, 0)
+    local anchor = Machines.place("lure", sq, p, newItem("OperationAcorn.BaitTrap"), "S")
+    local state = Machines.state(anchor)
+    eq(#anchor.anims, 1, "placed: the rings")
+    eq(anchor.anims[1].sprite.name, Machines.Data.LURE_FX.name)
+    eq(anchor.anims[1].speed, Machines.Data.LURE_FX.speed)
+    TEST.fire("OnTick")
+    eq(anchor.anims[1].steps, 1, "stepped each tick")
+    Machines.refreshLook(anchor, state)
+    eq(#anchor.anims, 1, "shown again: still one")
+    state.spent = true
+    Machines.refreshLook(anchor, state)
+    eq(#anchor.anims, 0, "spent: none")
     cleanup()
 end)
 

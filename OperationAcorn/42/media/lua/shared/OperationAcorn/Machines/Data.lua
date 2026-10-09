@@ -139,6 +139,10 @@ Data.LURE = { hours = 24, interval = 0.25, radius = 60 }
 -- The item modData key of a lure taken back while it worked: the hours it had left (put down again, it goes on from
 -- there; a lure taken back does not come back new).
 Data.LURE_LEFT_KEY = "OA_LureLeft"
+-- The working lure's sound rings: a looping animation the game plays over it (IsoObject.AttachAnim loads the frames
+-- <name>_<anim>_0 ..; they are in the machines texture pack, tools/tile_art.py lure_fx_frames). speed: frames a
+-- sixtieth of a second (IsoSprite.update): 0.08, the six frames in some 1.25 seconds.
+Data.LURE_FX = { name = "oa_lurefx", anim = "01", frames = 6, speed = 0.08 }
 
 
 -- Conversions (NUMBERS 11).

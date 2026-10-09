@@ -4,14 +4,15 @@ import random
 
 from PIL import Image, ImageDraw
 
-from tile_engine import Scene, shadow, compose, rotation, stencil_text, acorn_mark, project, SS
+from tile_engine import Scene, shadow, compose, rotation, stencil_text, acorn_mark, project, SS, W, H
 from tile_objects import (OD, OD_DARK, OD_LIGHT, BLACK, RUBBER, STEEL, STEEL_DARK, STENCIL, RED, BRASS, BLUE, LIT, UNLIT,
                           BEZEL, lamp_y, front_decal, side_decal, flat_decal)
 from tile_machines import (GRAPHITE, GRAPHITE_DARK, ring_top, disc)
 
 def lure(on):
     """The installable lure: a field loudspeaker on a short tripod, two horns up on its mast, a battery box with a
-    lamp at its foot and an antenna. On: the lamp and the beacon are lit and sound rings spread out from the horns."""
+    lamp at its foot and an antenna. On: the lamp and the beacon are lit (the sound rings that spread out from the
+    horns are an animation drawn over it: lure_rings)."""
     s = Scene(0)
     glows = []
     cx, cy = 0.5, 0.5
@@ -41,15 +42,27 @@ def lure(on):
     s.tube((0.62, 0.62, 0.17), (0.62, 0.62, 0.24), 0.012, BLACK, segments=6)
     s.tube((0.62, 0.62, 0.24), (cx + 0.02, cy + 0.02, 0.5), 0.006, BLACK, segments=5)
     s.tube((0.76, 0.62, 0.17), (0.76, 0.62, 0.34), 0.008, STEEL, segments=6)
-
-    def rings(img):
-        d = ImageDraw.Draw(img, 'RGBA')
-        for (hx, hy, hz) in ((cx + 0.15, cy + 0.12, 0.97), (cx - 0.15, cy - 0.12, 0.97)):
-            px, py = project(hx, hy, hz)
-            for i, rr in enumerate((16, 26, 36)):
-                d.arc([px - rr * SS, py - rr * SS * 0.7, px + rr * SS, py + rr * SS * 0.7], -50, 50,
-                      fill=(255, 220, 140, 220 - i * 55), width=int(2.4 * SS))
-                d.arc([px - rr * SS, py - rr * SS * 0.7, px + rr * SS, py + rr * SS * 0.7], 130, 230,
-                      fill=(255, 220, 140, 150 - i * 40), width=int(2.0 * SS))
     ground = shadow((0.5, 0.5), 0.3, 0.26, 105)
-    return compose(s, ground=ground, over=rings if on else None, seed=180 + (1 if on else 0), glows=glows)
+    return compose(s, ground=ground, seed=180 + (1 if on else 0), glows=glows)
+
+
+# The speaker head the sound rings spread from.
+LURE_HEAD = (0.5, 0.5, 0.92)
+LURE_FX_FRAMES = 6
+
+
+def lure_rings(frame, frames=LURE_FX_FRAMES):
+    """One frame of the working lure's sound rings, drawn over its tile (a looping animation the game plays on the
+    object): three rings to each side of the speaker head, each born at the head, spreading out and fading, a third
+    of the loop apart."""
+    big = Image.new('RGBA', (W * SS, H * SS), (0, 0, 0, 0))
+    d = ImageDraw.Draw(big, 'RGBA')
+    px, py = project(*LURE_HEAD)
+    for k in range(3):
+        t = (frame / frames + k / 3) % 1.0
+        rr = 14 + 30 * t
+        fade = (1 - t) ** 1.2
+        box = [px - rr * SS, py - rr * SS * 0.75, px + rr * SS, py + rr * SS * 0.75]
+        d.arc(box, -40, 40, fill=(255, 220, 140, int(235 * fade)), width=int(2.4 * SS))
+        d.arc(box, 140, 220, fill=(255, 220, 140, int(200 * fade)), width=int(2.4 * SS))
+    return big.convert('RGBa').resize((W, H), Image.LANCZOS).convert('RGBA')

@@ -300,8 +300,14 @@ def trade_entries():
 SHEETS = {
     'trade': dict(sheet='oa_trade_01', file='oa_trade.tiles', pack='OperationAcornTrade', make=trade_entries, rows=2),
     'machines': dict(sheet='oa_machines_01', file='oa_machines.tiles', pack='OperationAcornMachines',
-                     make=machine_entries, rows=MACHINE_ROWS),
+                     make=machine_entries, rows=MACHINE_ROWS, extra=lambda: lure_fx_frames()),
 }
+
+
+# Pictures in a sheet's pack that are no tiles: the working lure's sound rings, the frames of the animation the game
+# plays over it (IsoObject.AttachAnim loads <name>_<anim>_<frame>: oa_lurefx_01_0..5; Data.LURE_FX).
+def lure_fx_frames():
+    return [('oa_lurefx_01_%d' % i, M2.lure_rings(i)) for i in range(M2.LURE_FX_FRAMES)]
 
 
 def write_tiles(path, sheet, entries, rows):
@@ -421,7 +427,8 @@ def build(name):
     write_tiles(os.path.join(ROOT, spec['file']), spec['sheet'], entries, spec['rows'])
     os.makedirs(os.path.join(ROOT, 'texturepacks'), exist_ok=True)
     write_pack(os.path.join(ROOT, 'texturepacks', spec['pack'] + '.pack'), spec['sheet'],
-               [('%s_%d' % (spec['sheet'], index), entry[0]) for index, entry in enumerate(entries) if entry])
+               [('%s_%d' % (spec['sheet'], index), entry[0]) for index, entry in enumerate(entries) if entry]
+               + (spec['extra']() if 'extra' in spec else []))
     return [entry[0] if entry else None for entry in entries]
 
 

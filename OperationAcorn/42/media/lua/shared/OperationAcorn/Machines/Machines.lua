@@ -262,6 +262,52 @@ function Machines.declarePower()
     return ok1 and ok2
 end
 
+-- The working lure's sound rings (Data.LURE_FX) on its object, or off. Drawn where the game draws (not on a dedicated
+-- server). The game would save the animation with the object, but drops it on load (it has no tile id), so a loaded
+-- lure gets it again (Machines.onChunk). Each lure has its own instance of the shared frames, so that two in sight do
+-- not step one another's frames. The game steps the frames of its own fires only: the lures' are stepped here, each
+-- tick, while one is loaded (IsoSprite.update moves an instance on by its speed and the time since the last tick).
+local whiteTint
+-- object -> its rings' instance, for the lures loaded with their rings on
+local playing = setmetatable({}, { __mode = "k" })
+local stepping = false
+
+local function stepRings()
+    local any = false
+    for object, instance in pairs(playing) do
+        if object:getObjectIndex() < 0 then
+            playing[object] = nil
+        else
+            instance:getParentSprite():update(instance)
+            any = true
+        end
+    end
+    if not any then
+        Events.OnTick.Remove(stepRings)
+        stepping = false
+    end
+end
+
+function Machines.lureFx(object, on)
+    if isServer() then return end
+    if object:hasAttachedAnimSprites() then object:RemoveAttachedAnims() end
+    playing[object] = nil
+    if not on then return end
+    local fx = Data.LURE_FX
+    local sprite = IsoSprite.CreateSpriteUsingCache(fx.name, fx.anim, fx.frames)
+    whiteTint = whiteTint or ColorInfo.new(1, 1, 1, 1)
+    object:AttachExistingAnim(sprite, 0, 0, true, 0, false, 0, whiteTint)
+    local list = object:getAttachedAnimSprite()
+    local mine = list and list:size() > 0 and list:get(list:size() - 1)
+    if not mine then return end
+    mine:setFrameSpeedPerFrame(fx.speed)
+    playing[object] = mine
+    if not stepping then
+        stepping = true
+        Events.OnTick.Add(stepRings)
+    end
+end
+
 -- Shows the look the state calls for on every loaded square of the machine, where it is not already shown. Also
 -- brings the load multiplier up to date (every change of running goes through here).
 function Machines.refreshLook(object, state)
@@ -269,6 +315,7 @@ function Machines.refreshLook(object, state)
     local look = state.running == true
     if state.kind == "lure" then
         look = not state.spent
+        Machines.lureFx(object, look)
     elseif not look and Data.processes(state.kind) and state.on ~= false
         and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object:getSquare()) then
         look = "ready"   -- switched on and waiting: the lamps lit, nothing moving
@@ -967,6 +1014,7 @@ function Machines.onChunk(chunk)
                 local state = Machines.state(object)
                 Machines.ensureSpriteProperties()
                 applyAccept(object, Data.KINDS[state.kind].containers)
+                if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
                 local ok, err = pcall(Machines.update, object, { catchUp = true })
                 if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
             end
@@ -1193,8 +1241,8 @@ function Machines.place(kind, square, character, item, dir, bare)
     end
     for _, entry in ipairs(squares) do entry.square:RecalcAllWithNeighbours(true) end
     register(state, ax, ay, az)
-    -- the look it is put down in: ready when it is on and has power (Machines.refreshLook)
-    if Data.processes(kind) then Machines.refreshLook(anchor, state) end
+    -- the look it is put down in: ready when it is on and has power (Machines.refreshLook); a lure's sound rings
+    if Data.processes(kind) or kind == "lure" then Machines.refreshLook(anchor, state) end
     OA.log("placed", kind, id, "at", ax, ay, az, dir, #squares, "squares")
     return anchor
 end

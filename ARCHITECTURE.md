@@ -246,7 +246,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 - `Sprites.FOOTPRINT[kind] = { w =, h = }` 남쪽 보기 발자국 (큰 기계 여덟 종류와 1×1 물체). `Sprites.footprint(kind, dir)` → `w, h` (동·서는 바뀐다; 모르는 kind는 nil).
 - `Sprites.machineTiles(kind, dir, running)` → `{ { dx =, dy =, sprite = }, ... }` 발자국의 칸마다 하나. `dx`, `dy`는 앵커(최소 x, 최소 y)에서 0 이상. `dx=0, dy=0` 항목이 앵커다.
   `kind`는 `Sprites.MACHINE_KINDS`의 일곱 이름과 `rainStorage`. 모르는 kind는 nil.
-- `Sprites.rainStorageTiles()` 같은 모양, 돌지 않는다: 빈 통의 네 칸 (물체의 스프라이트). `Sprites.machineTiles("rainStorage", ...)`도 같다. `Sprites.rainOverlayTiles(level)`은 물 높이 1~3(3보다 크면 3)의 덧그림 네 칸 `{ dx, dy, sprite }`, 0 이하(`nil` 포함)는 빈 목록. `Sprites.RAIN_LEVELS = 4`. 미끼는 한 칸이라 `Sprites.lure(on)`이 이름 하나를 준다 (켜짐 `oa_machines_01_132`, 꺼짐 `_133`).
+- `Sprites.rainStorageTiles()` 같은 모양, 돌지 않는다: 빈 통의 네 칸 (물체의 스프라이트). `Sprites.machineTiles("rainStorage", ...)`도 같다. `Sprites.rainOverlayTiles(level)`은 물 높이 1~3(3보다 크면 3)의 덧그림 네 칸 `{ dx, dy, sprite }`, 0 이하(`nil` 포함)는 빈 목록. `Sprites.RAIN_LEVELS = 4`. 미끼는 한 칸이라 `Sprites.lure(on)`이 이름 하나를 준다 (켜짐 `oa_machines_01_132`, 꺼짐 `_133`). 켜진 미끼의 소리 고리는 타일이 아니라 기계 팩에 함께 든 그림 `oa_lurefx_01_0`~`_5`(`tools/tile_art.py` `lure_fx_frames`)를 오브젝트에 붙인 반복 애니메이션이다 (`Machines.lureFx`, `Data.LURE_FX`). 게임은 제 불(`IsoFire`)의 프레임만 넘기므로 불러진 미끼가 있는 동안 Lua가 틱마다 `IsoSprite.update`로 넘긴다. 붙인 그림은 저장되더라도 타일 번호가 없어 불러올 때 버려지므로 `Machines.onChunk`가 다시 붙인다.
 - 무역 시트 함수 (`terminal`, `deliveryBox`, `supplyCrate`, `PARACHUTE_CRATE`, `SCORCHED_GROUND`, `METEOR_ROCKS`, `SITE_STAKE`)는 그대로다. 옛 `Sprites.machine`과 `Sprites.RAIN_STORAGE`는 없다.
 - 시험: `tests/unit/sprites_test.lua` (발자국, 동서 바뀜, 칸당 하나, 모든 이름이 `.tiles`에 있고 속성이 맞는지).
 
