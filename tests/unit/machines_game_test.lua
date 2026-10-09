@@ -693,6 +693,60 @@ test("the tick works loaded machines and forgets ones whose object is gone", fun
     eq(reg.list[state.id], nil)
 end)
 
+test("fast-forwarded, a machine missing for a few steps is kept until MISSING_MS of real time", function()
+    setup()
+    local obj, state, sq = addMachine("cutter", 10, 10)
+    local reg = OA.Store.world("machines")
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    local objects = sq.objects
+    sq.objects = {}
+    -- x40: ten-minute steps some 0.6 s apart while the chunk streams in
+    for _ = 1, 10 do
+        Machines.tick()
+        clock = clock + 600
+    end
+    truthy(reg.list[state.id], "kept within MISSING_MS")
+    -- the object is there now: the count starts over
+    sq.objects = objects
+    Machines.tick()
+    sq.objects = {}
+    clock = clock + 600
+    Machines.tick()
+    clock = clock + Machines.MISSING_MS - 1
+    Machines.tick()
+    truthy(reg.list[state.id], "missing again only since the last find")
+    clock = clock + 1
+    Machines.tick()
+    eq(reg.list[state.id], nil, "gone once MISSING_MS passed")
+end)
+
+test("a machine's square unloaded in between starts its missing time over", function()
+    setup()
+    local obj, state, sq = addMachine("cutter", 10, 10)
+    local reg = OA.Store.world("machines")
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    local entry = reg.list[state.id]
+    entry.missed = 1   -- a save from before kept a count of steps
+    sq.objects = {}
+    Machines.tick()
+    eq(entry.missed, nil, "the old count goes")
+    -- the place unloads (its square is somewhere else now), and loads again later
+    local x = entry.x
+    entry.x = 500
+    clock = clock + Machines.MISSING_MS
+    Machines.tick()
+    entry.x = x
+    clock = clock + 1000
+    Machines.tick()
+    truthy(reg.list[state.id], "the first miss of this load")
+    clock = clock + Machines.MISSING_MS
+    Machines.tick()
+    eq(reg.list[state.id], nil)
+    truthy(Machines.MISSING_MS <= 25000, "the default speed (25 s for ten game minutes) drops at the second step")
+end)
+
 test("the registry finds a machine by id and by square", function()
     setup()
     local obj, state, sq = addMachine("cutter", 10, 10)

@@ -804,26 +804,43 @@ function Machines.updateRain(object, state)
     return nil
 end
 
--- The EveryTenMinutes handler: works every machine whose square is loaded. A registered machine whose square is
--- loaded but whose object is gone (destroyed) is dropped from the registry after two such steps.
+-- Real milliseconds a machine's object must stay missing from its loaded square, from the step that first found it
+-- missing to a later one, before the registry forgets the machine (destroyed). The object can come a little after its
+-- square while the game streams the chunk in, and that takes real time, not game time: two ten-minute steps are 25 s
+-- apart at the default day length but some 1.2 s fast-forwarded (x40), and less asleep, which could drop a machine
+-- still loading. At the default speed the second step still drops it, as before.
+Machines.MISSING_MS = 20000
+
+local missingSince = {}   -- by machine id: the real time (ms) a step first found its loaded square without it
+
+-- The EveryTenMinutes handler: works every machine whose square is loaded (each step: a machine integrates the time
+-- since it last worked). A registered machine whose square is loaded but whose object is gone (destroyed) is dropped
+-- from the registry once it has been missing MISSING_MS of real time; a square unloaded in between starts over.
 function Machines.tick()
     local reg = registry()
     if OA.isEmpty(reg.list) then return end
     local ids = {}
     for id in pairs(reg.list) do ids[#ids + 1] = id end
     local cell = getCell()
+    local now = getTimestampMs()
     for _, id in ipairs(ids) do
         local entry = reg.list[id]
+        entry.missed = nil   -- the old count of steps, kept in saves made before
         local square = cell:getGridSquare(entry.x, entry.y, entry.z)
-        if square then
-            local object = findOnSquare(square, id)
-            if object then
-                entry.missed = nil
-                local ok, err = pcall(Machines.update, object)
-                if not ok then OA.log("machine", id, "failed:", tostring(err)) end
-            else
-                entry.missed = (entry.missed or 0) + 1
-                if entry.missed >= 2 then unregister(id) end
+        local object = square and findOnSquare(square, id)
+        if object then
+            missingSince[id] = nil
+            local ok, err = pcall(Machines.update, object)
+            if not ok then OA.log("machine", id, "failed:", tostring(err)) end
+        elseif not square then
+            missingSince[id] = nil
+        else
+            local since = missingSince[id]
+            if not since or now < since then
+                missingSince[id] = now
+            elseif now - since >= Machines.MISSING_MS then
+                missingSince[id] = nil
+                unregister(id)
             end
         end
     end
