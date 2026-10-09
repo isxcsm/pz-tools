@@ -1,5 +1,5 @@
--- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (a ring of faint marks
--- around the character, by direction and, at rank 2, by distance), 경보 읽기 (a mark over alarmed houses and cars
+-- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (glowing arcs on the
+-- ground around the character, by direction and, at rank 2, by distance), 경보 읽기 (a mark over alarmed houses and cars
 -- nearby) and 털이 기록 (how many containers of the building are still unopened). The work is done twice a second
 -- by the shared timer (Pulse.lua), from the game's loaded zombie list; the drawing only reads what that left.
 require "ISUI/ISPanel"
@@ -17,7 +17,7 @@ OA.Upgrades.Senses = Senses
 -- What the last pulse found.
 local S = {
     dirs = {}, radius = 0, distance = false, thumpSeen = false, extended = false,
-    sixth = false, alarms = {}, sounds = {}, ring = false,
+    sixth = false, sixthDrawn = false, alarms = {}, sounds = {}, ring = false,
 }
 Senses.state = S
 
@@ -42,44 +42,168 @@ end
 
 function Hud:prerender() end
 
-local function moodleIcon(size)
-    return getTexture("media/ui/Moodles/48/Mood_Scared.png"), getTexture("media/ui/Moodles/48/_Moodles_BGoutline.png")
+-- ---- the sixth sense's moodle ----------------------------------------------------------------------------------
+
+-- A moodle of the game's own column, through the extension API (PZToolsAPI.moodles): the game draws it, places it,
+-- wiggles it and shows its tooltip (Translate/<lang>/Moodles.json). In a game without the API's moodle hooks the HUD
+-- draws a stand-in beside the column instead (drawStandIn).
+local MOODLE = "sixth"
+local MOODLE_PICTURE = "media/textures/OA_Moodle_Sixth_{size}.png"
+local MOODLE_SIZES = { 32, 48, 64, 80, 96, 128 }
+local moodle = { state = nil, level = 0 }   -- state: nil until decided, "api" or "draw"
+
+-- Whether the hooks the API's moodles need went in: true, false, or nil while their classes have not loaded.
+local function moodleHooks(api)
+    local ok, hooks = pcall(api.hooks)
+    if not ok or type(hooks) ~= "table" then return false end
+    local level, picture = hooks["Moodle.Update:level"], hooks["MoodlesUI.render"]
+    if level == "applied" and picture == "applied" then return true end
+    if level == "not-loaded" or picture == "not-loaded" then return nil end
+    return false
+end
+
+-- Shows or hides the sixth sense's moodle. Returns whether the game's column shows it (else the HUD draws it).
+local function setSixth(on)
+    if moodle.state == nil then
+        local api, handle = OA.api(), OA.handle()
+        if not (api and handle and type(api.moodles) == "table") then
+            moodle.state = "draw"
+        else
+            local hooked = moodleHooks(api)
+            if hooked == nil then return false end
+            moodle.state = "draw"
+            if hooked then
+                local ok, err = pcall(api.moodles.define, handle, MOODLE, { kind = "neutral", picture = MOODLE_PICTURE })
+                if ok then moodle.state = "api" else OA.log("sixth sense moodle:", tostring(err)) end
+            end
+        end
+    end
+    if moodle.state ~= "api" then return false end
+    local level = on and 1 or 0
+    if level ~= moodle.level then
+        local ok, err = pcall(PZToolsAPI.moodles.set, OA.handle(), MOODLE, level)
+        if ok then moodle.level = level else OA.log("sixth sense moodle:", tostring(err)) end
+    end
+    return true
+end
+
+-- The stand-in: the moodle's picture on the game's moodle background, at the moodle size option, left of the
+-- game's column, with the moodle's name and text when the mouse is over it.
+local function drawStandIn(self)
+    local option = getCore():getOptionMoodleSize()
+    local size = MOODLE_SIZES[option] or ((getCore():getScreenHeight() > 1200) and 64 or 48)
+    local column = UIManager.getMoodleUI(self.playerNum)
+    local x, y = self.width - size - 8, size * 2
+    if column then
+        x = column:getX() - self.x - size - 6
+        y = column:getY() - self.y
+    end
+    local back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png")
+    local icon = getTexture(string.gsub(MOODLE_PICTURE, "{size}", tostring(size)))
+    if back then self:drawTextureScaled(back, x, y, size, size, 0.9, 0.42, 0.42, 0.42) end
+    if icon then self:drawTextureScaled(icon, x, y, size, size, 1, 1, 1, 1) end
+    local mx, my = getMouseX() - self.x, getMouseY() - self.y
+    if mx >= x and mx < x + size and my >= y and my < y + size then
+        local name = getText("Moodles_" .. OA.MOD .. ":" .. MOODLE .. "_lvl1")
+        local text = getText("Moodles_" .. OA.MOD .. ":" .. MOODLE .. "_desc_lvl1")
+        local tm = getTextManager()
+        local w = math.max(tm:MeasureStringX(UIFont.Small, name), tm:MeasureStringX(UIFont.Small, text)) + 16
+        local fh = tm:getFontHeight(UIFont.Small)
+        local tx = x - w - 6
+        self:drawRect(tx, y, w, fh * 2 + 12, 0.75, 0, 0, 0)
+        self:drawText(name, tx + 8, y + 4, 1, 1, 1, 1, UIFont.Small)
+        self:drawText(text, tx + 8, y + 6 + fh, 0.8, 0.8, 0.8, 1, UIFont.Small)
+    end
+end
+
+-- The presence marks: glowing arcs on the ground around the character's feet (an ellipse of RING tiles, so it follows
+-- the zoom and the view's slant), each turned to face its way. Nearer is bigger, warmer and brighter; one arc for a
+-- lone zombie, two for a few, three for a crowd; rings for zombies beating on something and a chevron for another
+-- floor (rank 2). The arcs are white pictures tinted as they are drawn.
+local RING = 1.7
+local SOUND_RING = 2.5
+local NEAR = { 1.00, 0.36, 0.24 }
+local MID = { 1.00, 0.72, 0.28 }
+local FAR = { 0.80, 0.88, 1.00 }
+local THUMP = { 1.00, 0.58, 0.18 }
+local CAR = { 0.70, 0.85, 1.00 }
+local ALARM = { 1.00, 0.30, 0.30 }
+local pictures = {}
+local function picture(name)
+    local t = pictures[name]
+    if t == nil then
+        t = getTexture("media/textures/" .. name .. ".png") or false
+        pictures[name] = t
+    end
+    return t or nil
+end
+
+-- Draws a picture centred at (x, y), turned so that its top faces the screen direction (dx, dy), over a dark copy a
+-- pixel lower and right so that a pale mark still reads on a pale floor.
+local function turned(self, tex, x, y, dx, dy, c, a)
+    if not tex then return end
+    local angle = math.deg(math.atan2(dy, dx)) + 90
+    local ui = self.javaObject
+    ui:DrawTextureAngle(tex, x + 1, y + 1, angle, 0, 0, 0, a * 0.55)
+    ui:DrawTextureAngle(tex, x, y, angle, c[1], c[2], c[3], a)
+end
+
+-- The screen offset of a sector's mark on the ground ellipse of `tiles`, from the screen offsets of one tile east
+-- (exX, exY) and south (eyX, eyY). The sector's direction is in the slanted screen space of Sense.sector; it is
+-- turned back into the world to put it at the same distance in every direction.
+local function onGround(sector, tiles, exX, exY, eyX, eyY)
+    local ux, uy = Sense.direction(sector)
+    local wx, wy = uy + ux / 2, uy - ux / 2
+    local len = math.sqrt(wx * wx + wy * wy)
+    wx, wy = wx / len * tiles, wy / len * tiles
+    return wx * exX + wy * eyX, wx * exY + wy * eyY
 end
 
 function Hud:render()
     local fh = getTextManager():getFontHeight(UIFont.Small)
-    local cx, cy = self.width / 2, self.height / 2
-    if S.ring then
-        local ringR = fh * 5
-        local mark = math.max(4, math.floor(fh * 0.6))
+    local player = getSpecificPlayer(self.playerNum)
+    if S.ring and player then
+        local n, px, py, pz = self.playerNum, player:getX(), player:getY(), player:getZ()
+        local ox, oy = isoToScreenX(n, px, py, pz), isoToScreenY(n, px, py, pz)
+        local exX, exY = isoToScreenX(n, px + 1, py, pz) - ox, isoToScreenY(n, px + 1, py, pz) - oy
+        local eyX, eyY = isoToScreenX(n, px, py + 1, pz) - ox, isoToScreenY(n, px, py + 1, pz) - oy
+        local cx, cy = ox - self.x, oy - self.y
         for sector, e in pairs(S.dirs) do
-            local ux, uy = Sense.direction(sector)
-            local r, a = ringR, 0.55
+            local gx, gy = onGround(sector, RING, exX, exY, eyX, eyY)
+            local len = math.sqrt(gx * gx + gy * gy)
+            local ux, uy = gx / len, gy / len
+            local tex, c, a = picture("OA_Sense_Arc_M"), FAR, 0.8
             if S.distance and S.radius > 0 then
                 local t = math.min(1, e.d / S.radius)
-                r = ringR * (0.6 + 0.5 * t)
-                a = 0.9 - 0.55 * t
+                if t < 0.34 then
+                    tex, c = picture("OA_Sense_Arc_L"), NEAR
+                elseif t < 0.67 then
+                    tex, c = picture("OA_Sense_Arc_M"), MID
+                else
+                    tex, c = picture("OA_Sense_Arc_S"), FAR
+                end
+                a = 1.0 - 0.45 * t
             end
-            local size = e.n > 3 and mark + 3 or mark
-            local x, y = cx + ux * r, cy + uy * r * 0.6
+            local arcs = (e.n >= 4) and 3 or ((e.n >= 2) and 2 or 1)
+            local step = tex and tex:getHeight() * 0.55 or 6
+            for k = 0, arcs - 1 do
+                turned(self, tex, cx + gx + ux * step * k, cy + gy + uy * step * k, ux, uy, c, a * (1 - 0.25 * k))
+            end
             if e.thump then
-                self:drawRect(x - size / 2, y - size / 2, size, size, a, 1.0, 0.6, 0.2)
-            else
-                self:drawRect(x - size / 2, y - size / 2, size, size, a, 0.75, 0.9, 1.0)
+                turned(self, picture("OA_Sense_Thump"), cx + gx - ux * step * 1.4, cy + gy - uy * step * 1.4, 0, -1, THUMP, 0.95)
+            end
+            if e.up or e.down then
+                local x = cx + gx + ux * step * arcs + ux * 8
+                local y = cy + gy + uy * step * arcs + uy * 8
+                turned(self, picture(e.up and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, c, a)
             end
         end
         local now = getTimestampMs()
         for _, sound in ipairs(S.sounds) do
             if sound.untilMs > now then
-                local ux, uy = Sense.direction(sound.sector)
-                local r = ringR * 1.35
-                local size = mark + 2
-                local x, y = cx + ux * r, cy + uy * r * 0.6
-                if sound.kind == "alarm" then
-                    self:drawRect(x - size / 2, y - size / 2, size, size, 0.8, 1.0, 0.3, 0.3)
-                else
-                    self:drawRect(x - size / 2, y - size / 2, size, size, 0.8, 1.0, 0.9, 0.3)
-                end
+                local gx, gy = onGround(sound.sector, SOUND_RING, exX, exY, eyX, eyY)
+                local c = (sound.kind == "alarm") and ALARM or CAR
+                turned(self, picture("OA_Sense_Dots"), cx + gx, cy + gy, gx, gy, c, 0.9)
             end
         end
     end
@@ -96,18 +220,7 @@ function Hud:render()
             end
         end
     end
-    if S.sixth then
-        local icon, back = moodleIcon()
-        local moodle = UIManager.getMoodleUI(self.playerNum)
-        local size = math.floor(fh * 3.2)
-        local x, y = self.width - size - 8, fh * 8
-        if moodle then
-            x = moodle:getX() - self.x - size - 6
-            y = moodle:getY() - self.y
-        end
-        if back then self:drawTextureScaled(back, x, y, size, size, 0.9, 0.9, 0.5, 0.5) end
-        if icon then self:drawTextureScaled(icon, x, y, size, size, 1, 1, 0.6, 0.6) end
-    end
+    if S.sixthDrawn then drawStandIn(self) end
 end
 
 local hud = nil
@@ -119,6 +232,8 @@ local function showHud(on)
         hud:instantiate()
         hud.javaObject:setConsumeMouseEvents(false)
         hud:addToUIManager()
+        -- marks on the world: under every window and the game's own HUD
+        hud:backMost()
     end
     if hud then
         hud:setVisible(on)
@@ -185,9 +300,24 @@ local function collect(player, radius)
     return list
 end
 
+-- The sixth sense shown as S.sixth says: the game's moodle, or the HUD's stand-in (S.sixthDrawn). Nothing is defined
+-- for a character that never had it on.
+local function updateSixth()
+    if S.sixth or moodle.level > 0 then
+        S.sixthDrawn = S.sixth and not setSixth(S.sixth)
+    else
+        S.sixthDrawn = false
+    end
+end
+
 local function senseJob(now)
     local player = getPlayer()
-    if not player or player:isDead() then S.ring, S.sixth = false, false showHud(false) return end
+    if not player or player:isDead() then
+        S.ring, S.sixth = false, false
+        updateSixth()
+        showHud(false)
+        return
+    end
     local u = section(player)
     if not u then return end
     local sixthR = Rules.sixthRadius(u)
@@ -197,6 +327,7 @@ local function senseJob(now)
     S.sixth = false
     if sixthR <= 0 and not active then
         S.dirs = {}
+        updateSixth()
         showHud(#S.alarms > 0)
         return
     end
@@ -215,7 +346,8 @@ local function senseJob(now)
     else
         S.dirs = {}
     end
-    showHud(S.ring or S.sixth or #S.alarms > 0)
+    updateSixth()
+    showHud(S.ring or S.sixthDrawn or #S.alarms > 0)
 end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
@@ -293,7 +425,7 @@ local function alarmJob(now)
             HaloTextHelper.addBadText(player, getText(spot.car and "IGUI_OA_Tree_AlarmCar" or "IGUI_OA_Tree_AlarmHouse"))
         end
     end
-    showHud(S.ring or S.sixth or #S.alarms > 0)
+    showHud(S.ring or S.sixthDrawn or #S.alarms > 0)
 end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
@@ -389,6 +521,7 @@ function Senses.refresh()
     end
     if not need then
         S.ring, S.sixth, S.alarms, S.dirs = false, false, {}, {}
+        updateSixth()
         showHud(false)
     end
     return need

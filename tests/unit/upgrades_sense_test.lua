@@ -71,6 +71,10 @@ test("sense scan groups zombies by sector and keeps the nearest", function()
     local sum = 0
     for _, e in pairs(all) do sum = sum + e.n end
     eq(sum, 4, "the advanced rank counts other floors")
+    local east = all[Sense.sector(3, 0)]
+    eq(east.up, true, "the one two floors up marks its sector")
+    eq(east.down, nil)
+    eq(out[s].up, nil, "nothing above on the plain scan")
 end)
 
 test("sense hunch: within the radius, on this floor or beside it", function()

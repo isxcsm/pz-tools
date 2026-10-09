@@ -48,8 +48,8 @@ function Sense.distance(u)
 end
 
 -- Scans zombies { x, y, z, thump } around (px, py, pz) within radius: the sectors that have any, as
--- { [sector] = { n = count, d = nearest distance, thump = any is breaking in } }. Only the character's own floor
--- unless `floors` (the advanced rank) lets the floors above and below count.
+-- { [sector] = { n = count, d = nearest distance, thump = any is breaking in, up / down = any is on a floor above /
+-- below } }. Only the character's own floor unless `floors` (the advanced rank) lets the other floors count.
 function Sense.scan(zombies, px, py, pz, radius, floors)
     local out = {}
     local r2 = radius * radius
@@ -68,6 +68,7 @@ function Sense.scan(zombies, px, py, pz, radius, floors)
             e.n = e.n + 1
             if d < e.d then e.d = d end
             if z.thump then e.thump = true end
+            if z.z - pz >= 0.5 then e.up = true elseif pz - z.z >= 0.5 then e.down = true end
         end
     end
     return out
