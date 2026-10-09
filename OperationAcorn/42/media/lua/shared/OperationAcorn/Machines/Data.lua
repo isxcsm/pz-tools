@@ -13,13 +13,20 @@ Data.KEY = "OA_Machine"
 -- The module the machine and part items are in.
 Data.MODULE = "OperationAcorn"
 
+-- Shredding speed, one rule for the hand bench and the bulk shredder: game seconds for an item of weight 1, and the
+-- least for one item (NUMBERS 11: 10 seconds a weight, never under 1 second). The bulk shredder works at this speed
+-- with the old motor; a better motor is its bonus (the motor's speed below), besides working on its own.
+Data.SHRED_SECONDS = { perWeight = 10, least = 1 }
+
 -- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage and lure, which have one tile each).
 --   item: the item type (in module OperationAcorn) the shop delivers and the player puts down.
 --   weight: the whole machine's (scripts/OA_machines.txt and tools/tile_art.py say the same); the furniture tool's
 --     pieces share it, one a tile.
 --   power: true when it runs only with electricity. load: the generator load (NUMBERS 11: the unit is the vanilla
 --     generator's per-device consumption, a fridge is 0.13). rate: work units an hour with the old motor (what a unit
---     is differs by kind: weight, clothes, litres, logs). noise: the radius of the sound it makes while it runs.
+--     is differs by kind: weight, clothes, litres, logs). noise: the radius of the sound it makes while it runs. wear: the
+--     multiplier of its parts' wear an hour (1 when missing): the bulk shredder works twelve times the 30 an hour its
+--     parts were weighed for, and they last the same weight ground (NUMBERS 11: an old motor, about 1,500).
 --   slots: the part slots, in the order a window lists them. A slot a machine ships without is in `empty`.
 --   inputs/outputs: the containers (titles IGUI_ContainerTitle_<type>); `in` is where things are put, `out` where
 --     the products come out. A refiner has `in` only: the tank it fills stays in it.
@@ -28,7 +35,7 @@ Data.KINDS = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
     },
     bulkShredder = {
-        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 30, noise = 20,
+        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 3600 / Data.SHRED_SECONDS.perWeight, wear = 12, noise = 20,
         slots = { "motor", "blade" }, containers = { "in", "out" },
     },
     cutter = {
@@ -114,9 +121,6 @@ Data.RAIN_POUR_SPEED = Data.RAIN_CAPACITY / 600
 -- radius `radius` (vanilla NoiseTrap: 30 seconds and 17). After that only a spent shell is left.
 Data.LURE = { hours = 24, interval = 0.25, radius = 60 }
 
--- The hand bench: minutes of game time for an item of weight 1, and the least for one item (NUMBERS 11: 12 seconds a
--- weight, never under 1.5 seconds).
-Data.BENCH = { minutesPerWeight = 0.2, minMinutes = 0.025 }
 
 -- Conversions (NUMBERS 11).
 Data.PROPANE_WEIGHT = 50 -- weight of rotten food that fills one empty tank (5 for each 10%)

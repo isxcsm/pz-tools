@@ -608,7 +608,9 @@ local function makeIO(object, state, record)
             local entry = queue.peek()
             if not entry then return nil, "noInput" end
             if not outC or free(outC) < 1 then return nil, "outputFull" end
-            return { cost = math.max(entry.data.weight or 0, 0.05), entry = entry }
+            -- the shared shredding rule: never under its least time for one item
+            local s = Data.SHRED_SECONDS
+            return { cost = math.max(entry.data.weight or 0, s.least / s.perWeight), entry = entry }
         end
         io.finish = function(job, fx)
             local count = Machines.shredYield(record, job.entry.data, fx)

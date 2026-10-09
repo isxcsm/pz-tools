@@ -112,6 +112,7 @@ end
 function Logic.wear(kind, parts, hours)
     local changed = {}
     if hours <= 0 then return changed end
+    hours = hours * (Data.KINDS[kind].wear or 1)
     for slot, part in pairs(parts) do
         local tier = Logic.partDef(kind, slot, part.tier)
         if tier and part.cond > 0 then
@@ -243,7 +244,8 @@ end
 
 -- The hand bench: minutes of game time to shred an item of this weight.
 function Logic.benchMinutes(weight)
-    return math.max(Data.BENCH.minMinutes, Data.BENCH.minutesPerWeight * weight)
+    local s = Data.SHRED_SECONDS
+    return math.max(s.least, s.perWeight * weight) / 60
 end
 
 -- The vanilla ripping rule (RecipeCodeOnCreate.ripClothing): an item covering n parts, less its holes and patches

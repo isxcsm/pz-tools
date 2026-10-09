@@ -1,6 +1,6 @@
 {
-    "Tooltip_OA_Machine_shredBench": "A hand bench that shreds things into sample bundles. No electricity needed. About twelve seconds for each unit of weight.",
-    "Tooltip_OA_Machine_bulkShredder": "Shreds whole boxes of goods into sample bundles, 30 weight an hour. Needs electricity. Loud.",
+    "Tooltip_OA_Machine_shredBench": "A hand bench that shreds things into sample bundles. No electricity needed. Ten seconds for each unit of weight.",
+    "Tooltip_OA_Machine_bulkShredder": "Shreds whole boxes of goods into sample bundles, 360 weight an hour. Needs electricity. Loud.",
     "Tooltip_OA_Machine_cutter": "Cuts clothes into rags, denim and leather, 20 an hour. Needs electricity.",
     "Tooltip_OA_Machine_propaneRefiner": "Turns rotten food into propane and fills an empty tank. Needs electricity.",
     "Tooltip_OA_Machine_oilRefiner": "Refines cooking oil, lard and seeds into petrol and fills an empty can. Needs electricity.",

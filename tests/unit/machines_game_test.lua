@@ -298,8 +298,8 @@ test("catching up when the chunk loads does the work of the time away", function
     TEST.hours = 1
     Machines.update(obj)
     eq(state.idle, false)
-    -- Away for 2 hours: 60 weight of hammers, 60 hammers.
-    TEST.hours = 3
+    -- Away for 10 minutes: 60 weight of hammers, 60 hammers.
+    TEST.hours = 1 + 1 / 6
     local chunk = { getGridSquare = function(self, lx, ly, lz)
         return squares[(16 + lx) .. "," .. (0 + ly) .. "," .. lz]
     end }
@@ -338,9 +338,9 @@ test("no power, no work; the clock restarts when power comes back", function()
     TEST.hours = 2
     Machines.update(obj)
     eq(state.idle, false, "found work, started")
-    TEST.hours = 2.5
+    TEST.hours = 2 + 2.5 / 60
     Machines.update(obj)
-    eq(#Machines.container(obj, "in").items, 25, "30 minutes: 15 weight")
+    eq(#Machines.container(obj, "in").items, 25, "two and a half minutes: 15 weight")
 end)
 
 test("a switched-off machine does not work", function()
@@ -772,7 +772,7 @@ test("hand shredding takes the items and gives bundles, booked to the record", f
     eq(countOf(p.inv, "OperationAcorn.SampleBundle"), 5)
     eq(countOf(p.inv, "Base.Hammer"), 0)
     eq(#OA.Shred.committed, 1)
-    near(Machines.benchMinutesFor(entries), 0.2)
+    near(Machines.benchMinutesFor(entries), 10 / 60)
 end)
 
 test("sprites follow the state and the kind", function()

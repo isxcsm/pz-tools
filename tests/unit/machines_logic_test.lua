@@ -152,17 +152,21 @@ end)
 
 test("wear per running hour by tier", function()
     local parts = { motor = { tier = "old", cond = 100 }, blade = { tier = "normal", cond = 100 } }
-    Logic.wear("bulkShredder", parts, 10)
+    Logic.wear("cutter", parts, 10)
     near(parts.motor.cond, 80)
     near(parts.blade.cond, 85)
     parts.motor = { tier = "modern", cond = 100 }
-    Logic.wear("bulkShredder", parts, 10)
+    Logic.wear("cutter", parts, 10)
     near(parts.motor.cond, 90)
+    -- the bulk shredder wears its parts twelve times as fast an hour (it grinds twelve times as much)
+    local bulk = { motor = { tier = "old", cond = 100 } }
+    Logic.wear("bulkShredder", bulk, 1)
+    near(bulk.motor.cond, 76)
     -- It does not go under 0, and says so when a part reaches 0 or falls under 25.
     parts.motor = { tier = "old", cond = 30 }
-    local changed = Logic.wear("bulkShredder", parts, 3)
+    local changed = Logic.wear("cutter", parts, 3)
     eq(changed.motor, "worn")
-    changed = Logic.wear("bulkShredder", parts, 100)
+    changed = Logic.wear("cutter", parts, 100)
     eq(changed.motor, "broken")
     eq(parts.motor.cond, 0)
 end)
@@ -443,12 +447,12 @@ test("oil speed: half a litre an hour", function()
     eq(r.done, 2)
 end)
 
-test("the hand bench: twelve seconds a weight, never under a second and a half", function()
-    near(Logic.benchMinutes(1), 0.2)
-    near(Logic.benchMinutes(0.2), 0.04)
-    near(Logic.benchMinutes(0.05), 0.025)
-    near(Logic.benchMinutes(0), 0.025)
-    near(Logic.benchMinutes(5), 1)
+test("the hand bench: ten seconds a weight, never under a second", function()
+    near(Logic.benchMinutes(1), 10 / 60)
+    near(Logic.benchMinutes(0.2), 2 / 60)
+    near(Logic.benchMinutes(0.05), 1 / 60)
+    near(Logic.benchMinutes(0), 1 / 60)
+    near(Logic.benchMinutes(6), 1)
 end)
 
 test("the lure: a sound every 15 minutes for 24 hours, then a spent shell", function()
@@ -533,7 +537,7 @@ end)
 
 test("numbers from NUMBERS 11", function()
     local k = Data.KINDS
-    eq(k.bulkShredder.rate, 30)
+    eq(k.bulkShredder.rate, 360, "the bench's ten seconds a weight, with the old motor")
     eq(k.bulkShredder.load, 0.6)
     eq(k.bulkShredder.noise, 20)
     eq(k.cutter.rate, 20)
