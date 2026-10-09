@@ -80,6 +80,87 @@ final class FormulasTest {
         IsoPlayer.players[0] = null;
     }
 
+    /**
+     * Night sight's screen pass as it draws: the strength, the shares of the squares' light that light sources give (a lamp's
+     * falling off to its radius, a room's light whole, none without one) in a texture on its own unit, the unit that was
+     * active made active again, and where a pixel is on the shares.
+     */
+    private static void lamps(Formulas formulas, zombie.iso.weather.WeatherShader pass, IsoPlayer player) {
+        IsoCell home = IsoWorld.instance.currentCell;
+        var cell = new IsoCell();
+        IsoWorld.instance.setCell(cell);
+        player.x = 100.5f;
+        player.y = 200.5f;
+        player.z = 0f;
+        var lamp = new zombie.iso.IsoGridSquare.ResultLight(104, 203, 7, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE);
+        cell.load(100, 203, 0).setLight(0, 0.5f, lamp);
+        cell.load(101, 200, 0).setLight(0, 0.3f);
+        cell.load(102, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(90, 190, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_ROOMLIGHT));
+        cell.load(103, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(110, 200, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE));
+        cell.load(104, 203, 0).setLight(0, 1f, lamp);
+        for (var square : cell.squares.values()) square.inRoom = true;
+        // outdoors, away from light sources
+        cell.load(99, 199, 0).setLight(0, 0.4f);
+        // how dark the player's square is by its light sources alone: what night sight follows while its floor lights it
+        try {
+            check(formulas.nightLamps().sourceDark(0) == 1f, "A square with no light sources is not dark: " + formulas.nightLamps().sourceDark(0));
+            cell.load(100, 200, 0).setLight(0, 0.6f, lamp);
+            check(Math.abs(formulas.nightLamps().sourceDark(0) - 5 / 7.0) < 1e-5, "A lamp's square is not as dark as its falloff: " + formulas.nightLamps().sourceDark(0));
+        } catch (Throwable failure) { throw new AssertionError(failure); }
+        // the player in a room
+        cell.getGridSquare(100, 200, 0).inRoom = true;
+        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
+        formulas.nightSightFrame(0);
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8), "The screen pass did not get the strength: " + org.lwjgl.opengl.GL20.values);
+        check(org.lwjgl.opengl.GL20.integers.get(5) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
+            && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == NightLamps.SIZE,
+            "The shares' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
+        int x0 = 100 - NightLamps.SIZE / 2, y0 = 200 - NightLamps.SIZE / 2;
+        // a square's colour kept (in a room the light sources' share, outdoors at least the game's tint's), and its light sources' share
+        java.util.function.BiFunction<Integer, Integer, Double> kept = (x, y) ->
+            (org.lwjgl.opengl.GL11.pixels[2 * ((y - y0) * NightLamps.SIZE + (x - x0))] & 0xFF) / 255.0;
+        java.util.function.BiFunction<Integer, Integer, Double> share = (x, y) ->
+            (org.lwjgl.opengl.GL11.pixels[2 * ((y - y0) * NightLamps.SIZE + (x - x0)) + 1] & 0xFF) / 255.0;
+        double lampShare = (1 - 4 / 7.0) / 0.5;
+        check(Math.abs(share.apply(100, 203) - lampShare) < 0.01 && Math.abs(kept.apply(100, 203) - lampShare) < 0.01
+            && share.apply(104, 203) == 1.0 && share.apply(101, 200) == 0.0 && kept.apply(101, 200) == 0.0
+            && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(103, 200) == 0.0,
+            "The light sources' shares: " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + share.apply(103, 200));
+        check(share.apply(99, 199) == 0.0 && kept.apply(99, 199) == 0.0 && org.lwjgl.opengl.GL20.values.get(4) == 0f,
+            "In a room with the game's light outdoors not known yet, outdoors is not grey: " + kept.apply(99, 199));
+        // the player outdoors: every square keeps the game's tint's share at least, and the game's light outdoors is
+        // known (the squares outdoors less their light sources': 0.4, and 0.6 less the lamp's 2/7)
+        cell.getGridSquare(100, 200, 0).inRoom = false;
+        frameLater(formulas, pass);
+        double keep = formulas.nightSightKeep(), outdoors = (0.4 + 0.6 - 2 / 7.0) / 2;
+        check(Math.abs(kept.apply(99, 199) - keep) < 0.01 && Math.abs(kept.apply(101, 200) - keep) < 0.01 && Math.abs(kept.apply(90, 180) - keep) < 0.01
+            && near(org.lwjgl.opengl.GL20.values.get(4), keep),
+            "Outdoors, or off the loaded squares, the colour is not kept by the game's tint: " + kept.apply(99, 199));
+        // back in a room: outdoors keeps the game's light against the square's (and beyond, against the squares' mean)
+        cell.getGridSquare(100, 200, 0).inRoom = true;
+        frameLater(formulas, pass);
+        check(Math.abs(kept.apply(99, 199) - outdoors / 0.4 * keep) < 0.01 && kept.apply(101, 200) == 0.0
+            && Math.abs(org.lwjgl.opengl.GL20.values.get(4) - Math.min(1, outdoors / 0.4) * keep) < 0.01,
+            "Outdoors seen from a room does not keep the game's own light: " + kept.apply(99, 199) + " " + org.lwjgl.opengl.GL20.values.get(4));
+        IsoWorld.instance.setCell(home);
+        float[] u = org.lwjgl.opengl.GL20.vectors.get(6), v = org.lwjgl.opengl.GL20.vectors.get(7);
+        float wx = 103.25f, wy = 197.5f;
+        float fx = zombie.Lua.LuaManager.GlobalObject.isoToScreenX(0, wx, wy, 0f);
+        float fy = zombie.core.Core.getInstance().getScreenHeight() - zombie.Lua.LuaManager.GlobalObject.isoToScreenY(0, wx, wy, 0f);
+        check(near(u[0] * fx + u[1] * fy + u[2], (wx - x0) / (double)NightLamps.SIZE) && near(v[0] * fx + v[1] * fy + v[2], (wy - y0) / (double)NightLamps.SIZE),
+            "A pixel is not found where it is on the floor: " + java.util.Arrays.toString(u) + " " + java.util.Arrays.toString(v));
+        player.x = player.y = 0f;
+    }
+
+    // A frame after the shares are due to be worked out again, and a draw.
+    private static void frameLater(Formulas formulas, zombie.iso.weather.WeatherShader pass) {
+        try { Thread.sleep(NightLamps.REFRESH_NS / 1_000_000L + 10); }
+        catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
+        formulas.nightSightFrame(0);
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+    }
+
     private static void points(KahluaTable formulas) {
         // The classes the load tree hooks are transformed as they load: use each once.
         new Moodle(new IsoPlayer());
@@ -257,7 +338,7 @@ final class FormulasTest {
         player.luma = other.luma = 1f;
         call(mod, "clear");
 
-        // Night sight: the screen shader gets its step (screen.frag alone, once), its uniform is found when the screen pass
+        // Night sight: the screen shader gets its step (screen.frag alone, once), its uniforms are found when the screen pass
         // compiles and set when it draws.
         String world = "uniform float NightValue;\nvec3 screenWorld(in vec3 pixel, in vec3 noise) {\n\tvec3 col = pixel;\n"
             + "\tif (pixel.r > 0.5) { col = col * 0.5; }\n\treturn col;\n}\nvoid main() { }\n";
@@ -270,7 +351,11 @@ final class FormulasTest {
         check(ApiHooks.shaderSource("void main() { }", "media/shaders/screen.frag").equals("void main() { }"), "A screen shader with no world path was changed");
         zombie.core.opengl.ShaderUnit.text = world;
         check(new zombie.core.opengl.ShaderUnit().load("media/shaders/screen.frag").contains("PZT_NightSight"), "The loaded screen shader has no step");
-        org.lwjgl.opengl.GL20.uniforms.put("PZT_NightSight", 3);
+        String[] uniforms = { "PZT_NightSight", "PZT_SightKeep", "PZT_SightLamps", "PZT_SightU", "PZT_SightV" };
+        for (int i = 0; i < uniforms.length; i++) {
+            check(patched.contains(uniforms[i] + ";"), "The step has no " + uniforms[i]);
+            org.lwjgl.opengl.GL20.uniforms.put(uniforms[i], 3 + i);
+        }
         var pass = new zombie.iso.weather.WeatherShader();
         pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
 
@@ -287,8 +372,7 @@ final class FormulasTest {
         check(near(formulasObject.nightSightScreen(), 0.1 / Formulas.SIGHT_EASE), "Night sight did not ease in: " + formulasObject.nightSightScreen());
         for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
-        pass.startRenderThread(new zombie.core.textures.TextureDraw());
-        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8), "The screen pass did not get the strength: " + org.lwjgl.opengl.GL20.values);
+        lamps(formulasObject, pass, player);
         // its least screen light: more in a room than outside, never darker than the game's
         var screen = new zombie.core.opengl.RenderSettings.PlayerRenderSettings();
         var stranger = new IsoPlayer();
@@ -305,6 +389,9 @@ final class FormulasTest {
         player.nightTint = stranger.nightTint = 0.25f;
         check(near(screen.tintFor(player), 0.25 + (Formulas.TINT_FULL - 0.25) * 0.8) && near(screen.tintFor(stranger), 0.25),
             "The night's tint was not eased for the local player alone: " + screen.tintFor(player));
+        // the game's share of it is what keeps the colour outdoors away from light sources
+        formulasObject.nightSightStep(t += 1_000_000L);
+        check(near(formulasObject.nightSightKeep(), 0.25 / (0.25 + (Formulas.TINT_FULL - 0.25) * 0.8)), "The share of the tint kept: " + formulasObject.nightSightKeep());
         player.nightTint = stranger.nightTint = 1f;
         player.climateAmbient = 0.9f;
         check(near(screen.ambientFor(player), 0.9), "A day screen changed: " + screen.ambientFor(player));

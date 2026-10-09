@@ -460,7 +460,7 @@ not have is a Lua error at `set`.
 | `loot.ammoMultiplier` | 0 to 100 | multiply | Times the ammunition modifier of the loot (`ItemPickerJava.getLootModifierFromType("Ammo")`), which the chance above is worked out with. |
 | `vision.darknessRestore` | 0 to 1, a reduction | reductions | The part of the dark the local player sees in that is taken away: `LightingJNI.getLumaInverted(character)` (0 light to 1 dark, which the vision cone and the shadows read) becomes `dark x (1 - value)`. The brightness of the screen is the native lighting's and does not change. |
 | `vision.coneAdd` | -1000 to 1000, degrees | add | Degrees added to the width of the vision cone (`LightingJNI.calculateVisionCone`), where the game's traits add theirs: after its first limits (18 to 180) and before the worn items' multiplier and the last limits (18 to 360). Full-angle degrees; the cone is smoothed over time by the game as before. |
-| `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: in the dark the screen's dark tones are lifted (the darker the more) and their colour drains to a cold grey, as the eye's rods see; what a lamp or a fire lights keeps its colour. It follows how dark it is for the player (`LightingJNI.getLumaInverted`: none in daylight or under a lamp, partly at a lamp's edge, whole in a night or a basement with no light), easing in and out over 0.3 seconds, eases the night's dark tint on the world's objects (walls and furniture stay black without it), and keeps the screen's ambient light up to some of it: outdoors up to 0.3 by the square of the strength (a little barely lifts a dark night), in a room from 0.6 to 1 (a room with no light is black below about 0.6; the room is the player's square's, as the game's own `isExterior` is set true for every player) so that there is something to lift. A step in the screen shader (`screen.frag`, see [night sight](#night-sight)); the night vision goggles' path is left alone. |
+| `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: in the dark the screen's dark tones are lifted (the darker the more); what the eye saw without it keeps its colour, and what it adds is a cold grey, as the eye's rods see (what a lamp or a fire lights keeps its colour and is not lifted). It follows how dark it is for the player (`LightingJNI.getLumaInverted`, or by the light sources alone while its floor lights the squares: none in daylight or under a lamp, partly at a lamp's edge, whole in a night or a basement with no light), easing in and out over 0.3 seconds, eases the night's dark tint on the world's objects (walls and furniture stay black without it), and keeps the screen's ambient light up to some of it: outdoors up to 0.3 by the square of the strength (a little barely lifts a dark night), in a room from 0.6 to 1 (a room with no light is black below about 0.6; the room is the player's square's, as the game's own `isExterior` is set true for every player) so that there is something to lift. A step in the screen shader (`screen.frag`, see [night sight](#night-sight)); the night vision goggles' path is left alone. |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
@@ -610,12 +610,12 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `ItemPickerJava.getLootModifierFromType` | the read of `ammoLootModifier` | Times `loot.ammoMultiplier`; the only read of that field in the method. |
 | `LightingJNI.getLumaInverted` | each return | Passed through `vision.darknessRestore` (the method is private; it is found by its signature). |
 | `LightingJNI.calculateVisionCone` | before the call of `getWornItemsVisionMultiplier()` | The degrees on the stack have `vision.coneAdd` added before the worn items' multiplier. |
-| `RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient` | before the read of `ambient` that the night darkness lifts (`lift + (1 - lift) x ambient`) | Night sight keeps the field up to its floor for a local player (by the field `isExterior`), where Cat's Eyes has just kept it at 0.2. |
+| `RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient` | before the read of `ambient` that the night darkness lifts (`lift + (1 - lift) x ambient`) | Night sight keeps the field up to its floor for a local player (in a room by the player's square), where Cat's Eyes has just kept it at 0.2. |
 | `RenderSettings$PlayerRenderSettings.updateRenderSettings:tint` | each return | The tints the world's objects are multiplied by (`rmod`, `gmod`, `bmod`: a dark blue at night, which keeps walls and furniture black in a dark room whatever the ambient) eased towards 0.7 (the goggles' at night) by night sight. |
 | `ShaderUnit.loadShaderFile` | each return | The source of `screen.frag` gets night sight's step (once; another file, or one without the world path, is left as it is). |
-| `WeatherShader.onCompileSuccess` | each return | Finds the step's uniform `PZT_NightSight` in the compiled program (-1 when the step is not there, which GL ignores). |
-| `WeatherShader.startMainThread` | the start | Night sight moves on, once a frame for each player's screen. |
-| `WeatherShader.startRenderThread` | each return | Sets the uniform to night sight's strength, the program being bound. |
+| `WeatherShader.onCompileSuccess` | each return | Hands the compiled program over; the step's uniforms are found in it when it next draws (-1 when the step is not there, which GL ignores). |
+| `WeatherShader.startMainThread` | the start | Night sight moves on, once a frame for each player's screen; where its pixels are on the floor, and now and then the light sources' shares of the squares' light. |
+| `WeatherShader.startRenderThread` | each return | Sets night sight's uniforms, the program being bound: the strength, the game's share of the ambient, the shares' texture (put in on its own unit) and where a pixel is on it. |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
 | `IsoWorld.writes:currentCell` | after every store of `IsoWorld.currentCell` (`init`, `KillCell`; outside the constructors) | Counts the store; the same. |
 
@@ -624,10 +624,31 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 The game draws the world into a buffer and then through one screen pass (`WeatherShader`, `media/shaders/screen.frag`), whose
 world path (`screenWorld`) does the desaturation and grain. The bridge puts a uniform and a function in front of that path
 when the source is loaded, and the path returns its colour through the function: `pztNightSight(col)` gives the colour back
-as it is at strength 0, and otherwise lifts its luminance by a gamma (1 - 0.7 x strength) and mixes it towards a cold grey
-where it is dark: a pixel brighter than night sight lifts anything to (what a lamp or a fire lights) keeps its colour. Black stays black, so the ambient floor gives the dark something to lift; vanilla's ambient alone
-leaves a basement with an even light black near the walls whatever it is (the goggles do the same in their own green
-path). The strength is one number for the machine: split-screen players share the first one's.
+as it is at strength 0, and otherwise lifts its luminance by a gamma (1 - 0.7 x strength). What the eye saw without night
+sight keeps its colour, and what night sight adds is a cold grey:
+
+- A square's light is the larger of the ambient and the light sources' (measured: a basement square or a closed bathroom
+  reads 0 with the game's ambient at night and 0.2 to 0.7 with night sight's; a lamp's squares read the same with either,
+  falling off from the lamp's colour at its square to nothing at its radius). Each square's light sources' share of its
+  light is worked out from the lights the game finds reach it (`IsoGridSquare.lighting`; a room's light fills it), for the
+  64 squares on a side around the player on the player's floor, every 0.1 seconds on the game's thread, and put into a
+  small texture on its own unit (12) by the render thread. The shader finds the floor under each pixel from where the game
+  draws three points of it (`isoToScreenX` and `Y`, every frame) and reads the square's values, smoothly between squares.
+- What a light source lights keeps its colour and is not lifted. The ambient is one for the whole screen, so the floor a
+  room gets lights the squares outdoors too (measured: 0.08 with the game's, 0.32 to 0.47 with the floor). With the player
+  outdoors, where the floor is a little, every square keeps at least the game's share of the tint on what stands there
+  (`PZT_SightKeep`, its tint against night sight's). With the player in a room, a square in a room keeps the light
+  sources' share alone (the game's room with no light is black at night: a sealed room reads 0 to 0.16), and a square
+  outdoors the game's own light outdoors against its own, times the tint's share. The game's own light outdoors is the mean
+  light of the squares outdoors less their light sources', the last time the player was outdoors (until then, none).
+  Beyond the squares worked out, the same by the mean light of the squares outdoors among them. A wall or a thing standing
+  on a square is drawn above it and read as the squares behind.
+- How dark it is for the player is the game's reading (`getLumaInverted`) while the floor is off. While the floor raises
+  the ambient, the floor's own light would make the reading lighter and night sight would turn itself down and back up
+  (a flicker); it then follows how dark the light sources alone leave the player's square.
+
+Black stays black, so the ambient floor gives the dark something to lift; vanilla's ambient alone leaves a basement with an
+even light black near the walls whatever it is (the goggles do the same in their own green path). The strength is one number for the machine: split-screen players share the first one's, and get no light sources' shares (the pass does not say whose screen it draws).
 
 #### The weight kept
 

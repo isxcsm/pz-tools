@@ -189,8 +189,11 @@ public final class ApiHooks {
         /** Once a frame for each player's screen, on the main thread before it is drawn: night sight moves on. */
         default void nightSightFrame(int playerIndex) { }
 
-        /** The strength of night sight the screen pass works with now, 0 for none (read on the render thread). */
-        default float nightSightScreen() { return 0f; }
+        /** When the screen pass compiles (with night sight's step or without): its program. */
+        default void nightSightProgram(int program) { }
+
+        /** Each time the screen pass draws, on the render thread with its program bound: night sight's uniforms are set. */
+        default void nightSightDraw(int program) { }
 
         /** The vision cone's width in degrees before {@code LightingJNI.calculateVisionCone} applies the worn items'; the width to use. */
         default float coneAdd(Object character, float degrees) { return degrees; }
@@ -266,7 +269,6 @@ public final class ApiHooks {
     // The payload loads beside the game's start; the first Lua environment may be made before it is ready.
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pztools.bridge.ApiHooks");
-    private static final ClassDesc GL20 = ClassDesc.of("org.lwjgl.opengl.GL20");
     private static Handler handler;
     // A game the startup loader started, whose payload has not set the handler yet.
     private static boolean expected;
@@ -444,8 +446,8 @@ public final class ApiHooks {
                     code.putfield(owner, tint, ConstantDescs.CD_float);
                 }
             }).reading("rmod:F", "gmod:F", "bmod:F").named("tint") }),
-        // Night sight's screen pass: a step put into the screen shader's world path (ScreenShader), its uniform found when the
-        // shader compiles and set each time it draws; the strength moves on once a frame before.
+        // Night sight's screen pass: a step put into the screen shader's world path (ScreenShader), its program kept when the
+        // shader compiles and its uniforms set each time it draws; the strength moves on once a frame before.
         Map.entry("zombie/core/opengl/ShaderUnit", new Site[] {
             Site.atReturns("loadShaderFile", "(Ljava/lang/String;Ljava/util/ArrayList;)Ljava/lang/String;", 3, (code, owner) -> {
                 code.aload(1);
@@ -455,19 +457,16 @@ public final class ApiHooks {
             Site.atReturns("onCompileSuccess", "(Lzombie/core/opengl/ShaderProgram;)V", 2, (code, owner) -> {
                 code.aload(0);
                 code.invokevirtual(owner, "getID", MethodTypeDesc.of(ConstantDescs.CD_int));
-                code.ldc(ScreenShader.UNIFORM);
-                code.invokestatic(GL20, "glGetUniformLocation", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int,
-                    ClassDesc.of("java.lang.CharSequence")));
-                code.invokestatic(HOOKS, "nightSightUniform", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+                code.invokestatic(HOOKS, "nightSightProgram", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
             }),
             Site.atStart("startMainThread", "(Lzombie/core/textures/TextureDraw;I)V", (code, owner) -> {
                 code.iload(2);
                 code.invokestatic(HOOKS, "nightSightFrame", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
             }),
             Site.atReturns("startRenderThread", "(Lzombie/core/textures/TextureDraw;)V", 2, (code, owner) -> {
-                code.invokestatic(HOOKS, "nightSightLocation", MethodTypeDesc.of(ConstantDescs.CD_int));
-                code.invokestatic(HOOKS, "nightSightScreen", MethodTypeDesc.of(ConstantDescs.CD_float));
-                code.invokestatic(GL20, "glUniform1f", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int, ConstantDescs.CD_float));
+                code.aload(0);
+                code.invokevirtual(owner, "getID", MethodTypeDesc.of(ConstantDescs.CD_int));
+                code.invokestatic(HOOKS, "nightSightDraw", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
             }) }),
         Map.entry("zombie/inventory/types/Food", new Site[] {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
@@ -1631,19 +1630,19 @@ public final class ApiHooks {
     }
 
     /** Put before {@code updateRenderSettings} lifts the ambient by the sandbox's night darkness. */
-    // Where the screen shader keeps night sight's strength (-1, which GL leaves alone, until it compiles with the step).
-    private static volatile int nightSightLocation = -1;
-
     /** Put at the return of {@code ShaderUnit.loadShaderFile}: the screen shader gets night sight's step. */
     public static String shaderSource(String source, String fileName) {
         try { return ScreenShader.patch(source, fileName); }
         catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return source; }
     }
 
-    /** Put at the return of {@code WeatherShader.onCompileSuccess}: where its uniform is, or -1. */
-    public static void nightSightUniform(int location) { nightSightLocation = location; }
-
-    public static int nightSightLocation() { return nightSightLocation; }
+    /** Put at the return of {@code WeatherShader.onCompileSuccess}: its program. */
+    public static void nightSightProgram(int program) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.nightSightProgram(program); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
+    }
 
     /** Put at the start of {@code WeatherShader.startMainThread}. */
     public static void nightSightFrame(int playerIndex) {
@@ -1653,12 +1652,12 @@ public final class ApiHooks {
         catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
     }
 
-    /** Put before the return of {@code WeatherShader.startRenderThread}, whose program is bound: the strength for its uniform. */
-    public static float nightSightScreen() {
+    /** Put before the return of {@code WeatherShader.startRenderThread}, whose program is bound. */
+    public static void nightSightDraw(int program) {
         Formulas current = formulas;
-        if (current == null) return 0f;
-        try { return current.nightSightScreen(); }
-        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return 0f; }
+        if (current == null) return;
+        try { current.nightSightDraw(program); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
     }
 
     /** Put before each return of {@code updateRenderSettings}, once for each of the night's tints. */
@@ -1885,24 +1884,31 @@ public final class ApiHooks {
         private static final String RETURN = "return col;";
 
         /**
-         * Dark tones are lifted, the darker the more (a gamma), and their colour drains to a cold grey as the eye's rods see;
-         * what a lamp or a fire lights keeps its colour (the eye sees colour in light): a pixel brighter than night sight
-         * lifts anything to, fading into the grey around it. (Warmth is no sign of light: a wooden room is warm in the dark.)
+         * Dark tones are lifted, the darker the more (a gamma). What the eye saw without night sight keeps its colour, and
+         * what night sight adds is a cold grey, as the eye's rods see: a pixel's colour is kept by its square's share
+         * (PZT_SightLamps: the floor under the pixel is found from PZT_SightU and V; beyond it, PZT_SightKeep), which is
+         * the share a light source gives where one reaches; a light source's light (its second channel) is not lifted.
          */
         static final String STEP = """
 
             uniform float PZT_NightSight;
+            uniform float PZT_SightKeep;
+            uniform sampler2D PZT_SightLamps;
+            uniform vec3 PZT_SightU;
+            uniform vec3 PZT_SightV;
 
             vec3 pztNightSight(in vec3 col) {
             	float s = clamp(PZT_NightSight, 0.0, 1.0);
             	if (s <= 0.0) return col;
+            	vec3 at = vec3(gl_FragCoord.xy, 1.0);
+            	vec2 uv = vec2(dot(PZT_SightU, at), dot(PZT_SightV, at));
+            	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
+            	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) square = texture(PZT_SightLamps, uv).rg;
             	float l = dot(col, vec3(0.299, 0.587, 0.114));
-            	float lifted = pow(max(l, 0.0), 1.0 - 0.7 * s);
-            	vec3 grey = vec3(lifted) * vec3(0.84, 0.92, 1.08);
-            	vec3 kept = col * (lifted / max(l, 0.001));
-            	float lit = smoothstep(0.5, 0.8, l);
-        	float drain = s * (1.0 - lit);
-            	return clamp(mix(kept, grey, drain), 0.0, 1.0);
+            	float lifted = mix(pow(max(l, 0.0), 1.0 - 0.7 * s), l, square.y);
+            	vec3 kept = col * square.x;
+            	float grey = max(lifted - dot(kept, vec3(0.299, 0.587, 0.114)), 0.0);
+            	return clamp(kept + grey * vec3(0.84, 0.92, 1.08), 0.0, 1.0);
             }
 
             """;

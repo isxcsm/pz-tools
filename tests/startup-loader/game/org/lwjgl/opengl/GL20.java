@@ -7,6 +7,8 @@ import java.util.Map;
 public final class GL20 {
     public static final Map<String, Integer> uniforms = new HashMap<>();
     public static final Map<Integer, Float> values = new HashMap<>();
+    public static final Map<Integer, Integer> integers = new HashMap<>();
+    public static final Map<Integer, float[]> vectors = new HashMap<>();
 
     public static int glGetUniformLocation(int program, CharSequence name) {
         Integer location = uniforms.get(name.toString());
@@ -15,5 +17,13 @@ public final class GL20 {
 
     public static void glUniform1f(int location, float value) {
         if (location >= 0) values.put(location, value);
+    }
+
+    public static void glUniform1i(int location, int value) {
+        if (location >= 0) integers.put(location, value);
+    }
+
+    public static void glUniform3f(int location, float x, float y, float z) {
+        if (location >= 0) vectors.put(location, new float[] { x, y, z });
     }
 }

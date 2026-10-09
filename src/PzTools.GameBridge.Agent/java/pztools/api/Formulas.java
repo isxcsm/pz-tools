@@ -64,7 +64,9 @@ final class Formulas implements ApiHooks.Formulas {
         /** The game's zombies, squares and vision, each frame ({@link HiddenZombies}); the point has no hook. */
         SIGHT,
         /** The game's sprites, data tables, chunks and generators ({@link Machines}). */
-        MACHINES
+        MACHINES,
+        /** The squares' lights, where the game draws the floor and GL ({@link NightLamps}). */
+        SCREEN
     }
 
     /**
@@ -80,6 +82,8 @@ final class Formulas implements ApiHooks.Formulas {
     private static Point body(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.SURVIVAL); }
 
     private static Point sight(String name, Shape shape) { return new Point(name, shape, Names.ANY, List.of(), Needs.SIGHT); }
+
+    private static Point screen(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.SCREEN); }
 
     private static Point machine(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.MACHINES); }
 
@@ -123,7 +127,7 @@ final class Formulas implements ApiHooks.Formulas {
         live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
-        live("vision.nightSight", Shape.LEVEL, "LightingJNI.getLumaInverted", "RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient",
+        screen("vision.nightSight", Shape.LEVEL, "LightingJNI.getLumaInverted", "RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient",
             "RenderSettings$PlayerRenderSettings.updateRenderSettings:tint",
             "ShaderUnit.loadShaderFile", "WeatherShader.onCompileSuccess", "WeatherShader.startMainThread", "WeatherShader.startRenderThread"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
@@ -188,7 +192,23 @@ final class Formulas implements ApiHooks.Formulas {
     // Night sight: the darkness last read for a local player (the game's main thread), and the strength the screen is
     // worked with now (written on the main thread, read on the render thread).
     private volatile float seenDark, sight;
+    // Whether night sight's floor raised the screen's ambient light the last time it was worked out; how dark the
+    // player's square is by its light sources alone (the game thread's). While the floor lights the squares, the game's
+    // darkness reads its light too, and night sight would turn itself down and back up (a flicker): it then follows
+    // the light sources.
+    private volatile boolean floorRaised;
+    private float sourceDark = 1f;
     private long sightAt;
+    // How much of the brightness of what stands outdoors is the game's (its tint on the world's objects against night
+    // sight's: 1 the game's own), as the last frame's screen settings had it; what the screen pass keeps the colour of
+    // outdoors away from light sources. (Outdoors the night's light is the sky's, which the floor barely adds to; in a
+    // room with no light the game's is black, so all of it is night sight's.)
+    private volatile float keep = 1f;
+    private float tintKept = 1f;
+    // The screen pass's uniforms and the light sources' shares of the squares' light; null, with the reason, in a game
+    // that changed what they read. A fault in the shares stops them alone (the reason is then set).
+    private final NightLamps lamps;
+    private String lampsProblem;
     private final Kahlua lua;
     private final Game game;
     private final Object meta;
@@ -263,6 +283,15 @@ final class Formulas implements ApiHooks.Formulas {
         }
         machines = listed;
         machinesProblem = unlisted;
+        NightLamps screen = null;
+        String unlit = null;
+        try { screen = new NightLamps(loader, game, players); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            unlit = "the game's square lights, screen placement or GL could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + unlit);
+        }
+        lamps = screen;
+        lampsProblem = unlit;
         Class<?> stat = Game.type(loader, "zombie.characters.CharacterStat");
         enduranceStat = stat.getField("ENDURANCE").get(null);
         poisonStat = stat.getField("POISON").get(null);
@@ -681,6 +710,7 @@ final class Formulas implements ApiHooks.Formulas {
             case SURVIVAL -> { if (survival == null) return "unavailable: " + survivalProblem; }
             case SIGHT -> { if (hiddenProblem != null) return "unavailable: " + hiddenProblem; }
             case MACHINES -> { if (machines == null || machinesProblem != null) return "unavailable: " + machinesProblem; }
+            case SCREEN -> { if (lamps == null) return "unavailable: " + lampsProblem; }
             case NONE -> { }
         }
         int applied = 0;
@@ -933,12 +963,40 @@ final class Formulas implements ApiHooks.Formulas {
      * the player (none in daylight or by a lamp), over {@link #SIGHT_EASE} seconds so that it never pops. Worked once a
      * frame on the main thread, before the screen is drawn.
      */
-    @Override public void nightSightFrame(int playerIndex) { nightSightStep(System.nanoTime()); }
+    @Override public void nightSightFrame(int playerIndex) {
+        long now = System.nanoTime();
+        if (lamps == null || lampsProblem != null) { nightSightStep(now); return; }
+        try {
+            if (floorRaised) sourceDark = lamps.sourceDark(playerIndex);
+            nightSightStep(now);
+            lamps.frame(playerIndex, sight > 0f, keep, now);
+        }
+        catch (Throwable failure) {
+            lampsProblem = "stopped: " + failure;
+            lamps.stop();
+            System.err.println("[PzTools API] formulas: night sight's light sources " + lampsProblem);
+        }
+    }
+
+    /** Each time the screen pass draws, on the render thread with its program bound. */
+    @Override public void nightSightDraw(int program) {
+        if (lamps == null) return;
+        try { lamps.draw(program, sight, keep); }
+        catch (Throwable failure) { throw new IllegalStateException("night sight's screen pass", failure); }
+    }
+
+    /** When the screen pass compiles. */
+    @Override public void nightSightProgram(int program) { if (lamps != null) lamps.program(program); }
 
     void nightSightStep(long now) {
-        float seconds = sightAt == 0 ? 0f : Math.min(0.25f, (now - sightAt) / 1e9f);
+        keep = tintKept;
+        tintKept = 1f;
+        // never backwards (a clock read elsewhere), never more than a quarter of a second at once
+        float seconds = sightAt == 0 ? 0f : Math.max(0f, Math.min(0.25f, (now - sightAt) / 1e9f));
         sightAt = now;
-        float target = active.nightSight * darkGate(seenDark);
+        // with the floor on and nothing to say how dark the light sources leave it, the game's reading
+        float dark = floorRaised && lamps != null && lampsProblem == null ? sourceDark : seenDark;
+        float target = active.nightSight * darkGate(dark);
         float current = sight;
         current = target > current ? Math.min(target, current + seconds / SIGHT_EASE) : Math.max(target, current - seconds / SIGHT_EASE);
         sight = current;
@@ -950,22 +1008,33 @@ final class Formulas implements ApiHooks.Formulas {
         return gate <= 0f ? 0f : gate >= 1f ? 1f : gate * gate * (3f - 2f * gate);
     }
 
-    @Override public float nightSightScreen() { return sight; }
+    /** The strength the screen pass works with now (for the tests). */
+    float nightSightScreen() { return sight; }
+
+    /** The screen pass's light sources, or null (for the tests). */
+    NightLamps nightLamps() { return lamps; }
+
+    /** The share of the brightness outdoors away from light sources whose colour the screen pass keeps (for the tests). */
+    float nightSightKeep() { return keep; }
 
     @Override public float nightTint(float vanilla, Object player) {
         float current = sight;
         if (current == 0f || vanilla >= TINT_FULL || !players.local(player)) return vanilla;
-        return vanilla + (TINT_FULL - vanilla) * current;
+        float tint = vanilla + (TINT_FULL - vanilla) * current;
+        tintKept = Math.min(tintKept, Math.max(vanilla, 0f) / tint);
+        return tint;
     }
 
     @Override public float ambientFloor(float vanilla, Object player) {
         float current = sight;
-        if (current == 0f || !players.local(player)) return vanilla;
+        if (!players.local(player)) return vanilla;
+        if (current == 0f) { floorRaised = false; return vanilla; }
         boolean room;
         try { room = players.inRoom(player); }
         catch (Throwable problem) { throw new IllegalStateException("the player's square", problem); }
         // outdoors by the square of the strength: a little night sight barely lifts a dark night, the whole of it a lot
         float floor = room ? ROOM_FROM + (ROOM_FULL - ROOM_FROM) * current : OUTSIDE_FULL * current * current;
+        floorRaised = vanilla < floor;
         return vanilla >= floor ? vanilla : floor;
     }
 

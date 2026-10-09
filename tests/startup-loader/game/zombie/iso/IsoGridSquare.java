@@ -14,12 +14,31 @@ public final class IsoGridSquare {
     /** The questions the vision asked of any square. */
     public static int visionTests;
     public final PZArrayList<IsoObject> objects = new PZArrayList<>();
-    /** The light of the square for each local player: full unless a test sets it. */
-    public interface ILighting { ColorInfo lightInfo(); }
+    /** The light of the square for each local player: full unless a test sets it; with the light sources that reach it. */
+    public interface ILighting {
+        ColorInfo lightInfo();
+        default int resultLightCount() { return 0; }
+        default ResultLight getResultLight(int index) { return null; }
+    }
+    /** A light source that reaches a square. */
+    public static final class ResultLight {
+        public static final int RLF_NONE = 0, RLF_ROOMLIGHT = 1, RLF_TORCH = 2;
+        public int id, x, y, z, radius, flags;
+        public float r, g, b;
+        public ResultLight(int x, int y, int radius, float light, int flags) { this.x = x; this.y = y; this.radius = radius; r = g = b = light; this.flags = flags; }
+    }
+    /** Sets the light of the square for the player, and the light sources that reach it. */
+    public void setLight(int player, float light, ResultLight... sources) {
+        lighting[player] = new ILighting() {
+            public ColorInfo lightInfo() { return new ColorInfo(light, light, light); }
+            public int resultLightCount() { return sources.length; }
+            public ResultLight getResultLight(int index) { return sources[index]; }
+        };
+    }
     private static final ILighting BRIGHT = () -> new ColorInfo(1f, 1f, 1f);
     public final ILighting[] lighting = { BRIGHT, BRIGHT, BRIGHT, BRIGHT };
     /** Sets the light of the square for the player (0: dark, 1: full). */
-    public void setLight(int player, float light) { lighting[player] = () -> new ColorInfo(light, light, light); }
+    public void setLight(int player, float light) { setLight(player, light, new ResultLight[0]); }
     /** Whether the square is in a room (a test sets it). */
     public boolean inRoom;
     public boolean isInARoom() { return inRoom; }
