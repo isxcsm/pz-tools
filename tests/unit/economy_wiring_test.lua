@@ -266,11 +266,13 @@ local function box(explored)
     return c
 end
 
-local function fakeObject(containers, thumpable)
+local function fakeObject(containers, thumpable, modData)
     return {
         classes = { IsoThumpable = thumpable or nil },
         getContainerCount = function() return #containers end,
         getContainerByIndex = function(_, i) return containers[i + 1] end,
+        hasModData = function() return modData ~= nil end,
+        getModData = function() return modData end,
     }
 end
 
@@ -329,6 +331,14 @@ test("containers the player built are not counted", function()
     OA.Buildings.reset()
     local a, mine = box(false), box(false)
     local rooms = fakeBuilding({ { sq({ fakeObject({ a }), fakeObject({ mine }, true) }) } })
+    local _, _, total = OA.Buildings.tick(walker(rooms[1]))
+    eq(total, 1)
+end)
+
+test("the mod's own boxes and crates in a building are not counted", function()
+    OA.Buildings.reset()
+    local a, delivery = box(false), box(false)
+    local rooms = fakeBuilding({ { sq({ fakeObject({ a }), fakeObject({ delivery }, false, { OA_Kind = "box" }) }) } })
     local _, _, total = OA.Buildings.tick(walker(rooms[1]))
     eq(total, 1)
 end)

@@ -13,6 +13,9 @@ local OA = OperationAcorn
 local Buildings = {}
 OA.Buildings = Buildings
 
+-- The modData key the mod's own objects carry (Objects.KIND): their containers are not the building's.
+local MOD_KIND = "OA_Kind"
+
 local states = {}      -- by player number: the walk over the building the character is in (see newWalk)
 
 -- Squares one look visits at most. A big building (an office of some 20,000 squares and 1,900 containers) is counted
@@ -56,7 +59,8 @@ local function collect(walk, square)
     for i = 0, objects:size() - 1 do
         local object = objects:get(i)
         local count = object:getContainerCount()
-        if count > 0 and not instanceof(object, "IsoThumpable") then
+        -- not a player-built one (IsoThumpable), nor one of the mod's own (a delivery box or a crate, OA_Kind)
+        if count > 0 and not instanceof(object, "IsoThumpable") and not (object:hasModData() and object:getModData()[MOD_KIND]) then
             for j = 0, count - 1 do
                 local container = object:getContainerByIndex(j)
                 if container and not walk.seen[container] then

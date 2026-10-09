@@ -54,6 +54,8 @@ if container then
     local lifted = OA.api() ~= nil
     P2T.check(say, "it holds the whole with the API, 100 without",
         container:getCapacity() == (lifted and want or math.min(want, 100)), container:getCapacity() .. " of " .. want)
+    -- explored: else the game rolls loot into it when it is first opened (the tile gives it its container)
+    P2T.check(say, "the box is explored", container:isExplored())
     local rag = instanceItem("Base.RippedSheets")
     local bullet = instanceItem("Base.Bullets9mm")
     P2T.check(say, "accepts cloth scraps", container:isItemAllowed(rag))
@@ -83,6 +85,7 @@ if crateSquare then
     P2T.check(say, "crate opens", opened == true)
     local c = crate:getContainer()
     P2T.check(say, "opened crate holds the cargo", c ~= nil and c:getItems():size() == 2)
+    P2T.check(say, "the opened crate is explored", c ~= nil and c:isExplored())
     P2T.check(say, "not empty so it cannot be carried", Things.crateEmpty(crate) == false)
 end
 say("done; call P2_CLEAN() to remove what was made")

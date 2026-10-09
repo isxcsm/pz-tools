@@ -386,9 +386,10 @@ function Things.crateContainer(object)
     local container = object:getContainer()
     if not container then
         container = ItemContainer.new(Objects.CRATE_CONTAINER, object:getSquare(), object)
-        container:setExplored(true)
         object:setContainer(container)
     end
+    -- (unexplored, the game would roll loot into it when it is first opened)
+    if not container:isExplored() then container:setExplored(true) end
     Objects.nameContainer(container, Objects.CRATE_CONTAINER)
     container:setCapacity(100)
     return container

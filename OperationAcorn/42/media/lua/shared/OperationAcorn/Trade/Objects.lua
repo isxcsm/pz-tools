@@ -188,8 +188,18 @@ function Objects.create(square, sprite, kind, data)
     md[Objects.KIND] = kind
     for k, v in pairs(data or {}) do md[k] = v end
     square:AddTileObject(object)
+    Objects.markExplored(object)
     if isServer() then object:transmitCompleteItemToClients() end
     return object
+end
+
+-- Marks the object's containers explored: the game rolls loot into a container the first time it is opened unless it
+-- is (ISInventoryPage, ItemPickerJava), and the tile's container is not, as the game makes it.
+function Objects.markExplored(object)
+    for i = 0, object:getContainerCount() - 1 do
+        local container = object:getContainerByIndex(i)
+        if container and not container:isExplored() then container:setExplored(true) end
+    end
 end
 
 -- Takes an object off its square on purpose (picked up, taken by the helicopter): its removal is not a destruction.
@@ -254,9 +264,10 @@ function Objects.setupBox(object, record)
     local container = object:getContainer()
     if not container then
         container = ItemContainer.new(Objects.BOX_CONTAINER, object:getSquare(), object)
-        container:setExplored(true)
         object:setContainer(container)
     end
+    -- (a box of an older save may have kept its tile's container unexplored)
+    if not container:isExplored() then container:setExplored(true) end
     Objects.nameContainer(container, Objects.BOX_CONTAINER)
     -- The PZ Tools API lifts the vanilla cap of 100 for containers whose object carries modData OA_Capacity as a number
     -- (the upgrades part declares that key) and adds the number to the raw capacity; without it the game holds the
