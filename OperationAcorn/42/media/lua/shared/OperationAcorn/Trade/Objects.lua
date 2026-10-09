@@ -266,7 +266,9 @@ function Objects.setupBox(object, record)
     local raw = math.min(capacity, Objects.VANILLA_CAP)
     local md = object:getModData()
     if md.OA_Capacity ~= capacity - raw then md.OA_Capacity = capacity - raw end
-    if container:getCapacity() ~= raw then container:setCapacity(raw) end
+    -- (with the API getCapacity says the whole, raw and OA_Capacity; without it the raw)
+    local now = container:getCapacity()
+    if now ~= raw and now ~= capacity then container:setCapacity(raw) end
     if container:getAcceptItemFunction() ~= Objects.ACCEPT then container:setAcceptItemFunction(Objects.ACCEPT) end
     return container
 end

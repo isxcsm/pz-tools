@@ -74,11 +74,10 @@ section("research storage", function()
     local container = M.container(object, "store")
     check("it has the storage container", container ~= nil)
     if container then
-        say("info raw capacity", container:getCapacity(), "(the API adds OA_Capacity to it)")
-        check("raw capacity 100", container:getCapacity() == 100, container:getCapacity())
-        local effective = container:getEffectiveCapacity(getPlayer())
+        -- 100 raw and OA_Capacity 200: getCapacity says 300 where the API adds it, 100 without
         local lifted = OperationAcorn.api() ~= nil
-        check("it holds 300 with the API, 100 without", effective == (lifted and 300 or 100), effective)
+        check("it holds 300 with the API, 100 without", container:getCapacity() == (lifted and 300 or 100),
+            container:getCapacity())
     end
 end)
 

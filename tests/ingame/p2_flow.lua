@@ -20,6 +20,8 @@ for _ = 1, 8 do object:getContainer():AddItem(instanceItem("Base.RippedSheets"))
 local sealed = Things.seal(player, record, object)
 P2T.check(say, "box sealed", sealed == true)
 local before = T.account(record).credits
+-- an earlier run's call leaves the next one days away: this run may call now
+record.heli.next = nil
 local called, why = Heli.call(player, record, "normal")
 P2T.check(say, "call accepted", called == true, why)
 P2T.check(say, "a second call is refused while one is on its way", select(2, Heli.call(player, record, "normal")) == "pending")

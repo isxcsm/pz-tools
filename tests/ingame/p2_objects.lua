@@ -47,11 +47,13 @@ local container = object:getContainer()
 P2T.check(say, "box has a container", container ~= nil)
 if container then
     say("capacity", container:getCapacity(), "type", container:getType(), "wanted", Objects.capacityFor(record))
-    -- the raw capacity within the game's cap, the rest in OA_Capacity for the API to add
+    -- 100 raw (the game's cap) and the rest in OA_Capacity, which the API adds: the whole with it, 100 without
+    local want = Objects.capacityFor(record)
     local extra = object:getModData().OA_Capacity
-    P2T.check(say, "raw capacity within the game's cap, the rest for the API",
-        container:getCapacity() <= 100 and container:getCapacity() + (extra or 0) == Objects.capacityFor(record),
-        container:getCapacity() .. " + " .. tostring(extra))
+    P2T.check(say, "the rest over 100 is in OA_Capacity", extra == want - math.min(want, 100), tostring(extra))
+    local lifted = OA.api() ~= nil
+    P2T.check(say, "it holds the whole with the API, 100 without",
+        container:getCapacity() == (lifted and want or math.min(want, 100)), container:getCapacity() .. " of " .. want)
     local rag = instanceItem("Base.RippedSheets")
     local bullet = instanceItem("Base.Bullets9mm")
     P2T.check(say, "accepts cloth scraps", container:isItemAllowed(rag))
