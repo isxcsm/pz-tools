@@ -107,7 +107,7 @@ local function addMachineOptions(context, playerObj, object)
     context:addSubMenu(option, sub)
     tooltip(option, getText("Tooltip_OA_Machine_" .. kind))
 
-    if #Data.KINDS[kind].slots > 0 or Data.processes(kind) or kind == "rainStorage" or kind == "lure" then
+    if Data.hasWindow(kind) then
         sub:addOption(getText("ContextMenu_OA_Machine_Open"), playerObj, onOpen, object)
     end
     if Data.processes(kind) then

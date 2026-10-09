@@ -7,7 +7,7 @@ Reports:
 - sandbox pages and options (media/sandbox-options.txt) without a name, options without a tooltip, and sandbox texts
   no page or option has;
 - items and craft recipes (media/scripts) without a name, and names no item or recipe has;
-- texts with a bare percent sign, which breaks the game's String.format, and texts whose %1, %2 ... differ between
+- texts with a bare percent sign (not %%), which breaks the game's String.format, and texts whose %1, %2 ... differ between
   the languages.
 Exit code 1 when anything is found.
 
@@ -99,7 +99,8 @@ def main():
                                                                ' '.join(params['KO']) or 'nothing'))
         for lang in LANGS:
             for key, text in texts[lang].items():
-                if re.search(r'%(?!\d)', text):
+                # '%%' is the escaped sign (the game's own texts write 10%%)
+                if re.search(r'%(?!\d)', text.replace('%%', '')):
                     problems.append('bare %% in %s %s' % (lang, key))
 
     extra = sorted(n for n in os.listdir(os.path.join(ROOT, 'shared', 'Translate', 'EN')) if n.startswith('OA_'))

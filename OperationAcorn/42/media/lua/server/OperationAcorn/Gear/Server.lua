@@ -17,7 +17,7 @@ end
 
 Server.on("gear.redeem", function(character, record, args)
     local ok, why = GearServer.redeem(character, args)
-    if not ok then OA.Sync.notice(record.id, "IGUI_OA_Gear_Failed", { why }) end
+    if not ok then OA.Sync.notice(record.id, "IGUI_OA_Gear_RedeemFailed", { why }) end
 end)
 
 -- A client tells the id it gave a vehicle (Gear.vehicleId): the server keeps it if the vehicle has none.

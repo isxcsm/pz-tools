@@ -280,8 +280,8 @@ local function onNotice(playerId, detail)
     if not player then return end
     if playerId and OA.Client.id(player) ~= playerId then return end
     local args = detail.args or {}
-    if detail.key == "IGUI_OA_Gear_Failed" then
-        local text = getText("IGUI_OA_Gear_Failed", getText("IGUI_OA_Gear_Reason_" .. tostring(args[1])))
+    if detail.key == "IGUI_OA_Gear_Failed" or detail.key == "IGUI_OA_Gear_RedeemFailed" then
+        local text = getText(detail.key, getText("IGUI_OA_Gear_Reason_" .. tostring(args[1])))
         HaloTextHelper.addBadText(player, text)
     else
         HaloTextHelper.addGoodText(player, getText(detail.key, args[1], args[2], args[3]))
