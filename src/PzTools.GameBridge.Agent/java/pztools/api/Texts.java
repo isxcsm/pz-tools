@@ -483,20 +483,20 @@ final class Texts implements ApiHooks.Text {
         static {
             // Stamped: big white letters that slam onto the screen and swell away, for something done (a quest complete).
             ALL.put("stamp", new Style(
-                Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(1.0, 1.0, 1.0, 1.0)),
+                Map.ofEntries(Map.entry("font", List.of("SdfBold", "Large")), Map.entry("size", 0.1), Map.entry("color", List.of(1.0, 1.0, 1.0, 1.0)),
                     Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.45)),
-                    Map.entry("y", 0.4), Map.entry("enter", "slam"), Map.entry("enterTime", 0.22), Map.entry("hold", 2.4),
+                    Map.entry("y", 0.28), Map.entry("enter", "slam"), Map.entry("enterTime", 0.22), Map.entry("hold", 2.4),
                     Map.entry("leave", "grow"), Map.entry("leaveTime", 0.7)),
-                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.032), Map.entry("color", List.of(0.88, 0.88, 0.88, 1.0)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.045), Map.entry("color", List.of(0.88, 0.88, 0.88, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.2), Map.entry("enter", "fade"), Map.entry("enterTime", 0.35),
                     Map.entry("leave", "fade"), Map.entry("leaveTime", 0.7)),
                 0.25));
             // Found: warm amber letters that rise into view and drift up as they go, for something found (a search complete).
             ALL.put("discovery", new Style(
-                Map.ofEntries(Map.entry("font", List.of("SdfRobertoSans", "Large")), Map.entry("size", 0.06), Map.entry("color", List.of(1.0, 0.8, 0.38, 1.0)),
-                    Map.entry("shadow", true), Map.entry("y", 0.4), Map.entry("enter", "rise"), Map.entry("enterTime", 0.6), Map.entry("hold", 2.4),
+                Map.ofEntries(Map.entry("font", List.of("SdfRobertoSans", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(1.0, 0.8, 0.38, 1.0)),
+                    Map.entry("shadow", true), Map.entry("y", 0.28), Map.entry("enter", "rise"), Map.entry("enterTime", 0.6), Map.entry("hold", 2.4),
                     Map.entry("leave", "rise"), Map.entry("leaveTime", 0.9)),
-                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.03), Map.entry("color", List.of(1.0, 0.93, 0.78, 1.0)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.042), Map.entry("color", List.of(1.0, 0.93, 0.78, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.25), Map.entry("enter", "rise"), Map.entry("enterTime", 0.6),
                     Map.entry("leave", "rise"), Map.entry("leaveTime", 0.9)),
                 0.3));

@@ -1097,8 +1097,8 @@ which override the jar's; it overrides none of the text classes):
 
 | Style | Title | Line under it |
 | --- | --- | --- |
-| `"stamp"` | White, `SdfBold` (or `Large`), a line 8.5% of the screen high at `y` 0.4, a shadow and a faint dark outline; slams on in 0.22 s, stays 2.4 s, swells away in 0.7 s. For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 3.2%; fades in 0.2 s after the title, goes with it. |
-| `"discovery"` | Amber (1, 0.8, 0.38), `SdfRobertoSans` (bold italic; or `Large`), 6%, a shadow; rises into place in 0.6 s, stays 2.4 s, drifts up as it fades in 0.9 s. For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 3%; rises 0.25 s after the title, goes with it. |
+| `"stamp"` | White, `SdfBold` (or `Large`), a line 10% of the screen high at `y` 0.28 (above the player), a shadow and a faint dark outline; slams on in 0.22 s, stays 2.4 s, swells away in 0.7 s. For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 4.5%; fades in 0.2 s after the title, goes with it. |
+| `"discovery"` | Amber (1, 0.8, 0.38), `SdfRobertoSans` (bold italic; or `Large`), 8% at `y` 0.28, a shadow; rises into place in 0.6 s, stays 2.4 s, drifts up as it fades in 0.9 s. For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 4.2%; rises 0.25 s after the title, goes with it. |
 | `"notice"` | Cool white, `SdfBold` (or `Medium`), 3.6% at `y` 0.2; drops in in 0.35 s, stays 2.6 s, fades in 0.6 s. For news that is not an event of its own. | Grey-blue, `SdfRegular` (or `Small`), 2.6%. |
 
 Each local player's screen has a queue of titles: one shows at a time (the title and its line), and the next starts when it

@@ -284,10 +284,10 @@ final class TextsTest {
         advance(0.22);
         render();
         Object[] title = last("Quest complete"), line = last("The well is clean");
-        double zoom = 0.085 * 900 / 45, lineZoom = 0.032 * 900 / 45;
-        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 360 - 45 * zoom / 2, zoom, "Quest complete", 1, 1, 1, 1);
+        double zoom = 0.1 * 900 / 45, lineZoom = 0.045 * 900 / 45;
+        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 0.28 * 900 - 45 * zoom / 2, zoom, "Quest complete", 1, 1, 1, 1);
         check(line != null && line[1] == UIFont.SdfRegular && near(zoom(line), lineZoom)
-            && near((Double)line[3], (0.4 + 0.085 / 2 + 0.085 * 0.25 + 0.032 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
+            && near((Double)line[3], (0.28 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
         check(last("Search complete") == null, "The second title did not wait");
         // The stamp and its line go together, after 0.22 + 2.4 + 0.7 seconds.
         advance(3.0);
