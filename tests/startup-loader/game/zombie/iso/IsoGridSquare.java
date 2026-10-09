@@ -20,6 +20,9 @@ public final class IsoGridSquare {
     public final ILighting[] lighting = { BRIGHT, BRIGHT, BRIGHT, BRIGHT };
     /** Sets the light of the square for the player (0: dark, 1: full). */
     public void setLight(int player, float light) { lighting[player] = () -> new ColorInfo(light, light, light); }
+    /** Whether the square is in a room (a test sets it). */
+    public boolean inRoom;
+    public boolean isInARoom() { return inRoom; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
     public PZArrayList<IsoObject> getObjects() { return objects; }
     public IsoGenerator getGenerator() {

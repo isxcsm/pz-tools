@@ -97,6 +97,9 @@ final class FormulasTest {
         CorpseCount.instance.getCorpseCount(null);
         new BodyDamage(new IsoPlayer());
         new BodyPart(new IsoPlayer());
+        new zombie.core.opengl.RenderSettings.PlayerRenderSettings();
+        new zombie.core.opengl.ShaderUnit();
+        new zombie.iso.weather.WeatherShader();
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency",
@@ -104,14 +107,14 @@ final class FormulasTest {
                 "capacity.modDataKey", "overload.compress", "move.runPenaltyReduction", "move.combatPenaltyReduction" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         for (String applied : new String[] { "loot.spawnMultiplier", "loot.ammoMultiplier", "vision.darknessRestore", "vision.coneAdd",
-                "fall.landingRemap", "fall.impactMultiplier", "move.walkMultiplier", "move.treeSlowMultiplier", "move.treeScratchChance",
+                "vision.nightSight", "fall.landingRemap", "fall.impactMultiplier", "move.walkMultiplier", "move.treeSlowMultiplier", "move.treeScratchChance",
                 "body.coldMultiplier", "body.corpseCountMultiplier", "body.corpseSicknessMultiplier", "body.holeChance", "infection.woundChance",
                 "infection.biteShield" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(ApiHooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 33, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 34, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(ApiHooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -252,6 +255,68 @@ final class FormulasTest {
         check(near(LightingJNI.calculateVisionCone(player), (18 - 180) / 180.0), "The cone went below its least: " + LightingJNI.calculateVisionCone(player));
         player.wornVision = 1f;
         player.luma = other.luma = 1f;
+        call(mod, "clear");
+
+        // Night sight: the screen shader gets its step (screen.frag alone, once), its uniform is found when the screen pass
+        // compiles and set when it draws.
+        String world = "uniform float NightValue;\nvec3 screenWorld(in vec3 pixel, in vec3 noise) {\n\tvec3 col = pixel;\n"
+            + "\tif (pixel.r > 0.5) { col = col * 0.5; }\n\treturn col;\n}\nvoid main() { }\n";
+        String patched = ApiHooks.shaderSource(world, "media/shaders/screen.frag");
+        check(patched.contains("uniform float PZT_NightSight;") && patched.contains("return pztNightSight(col);")
+            && patched.indexOf("vec3 pztNightSight(") < patched.indexOf("vec3 screenWorld(") && patched.contains("col = col * 0.5; }"),
+            "The screen shader did not get night sight's step: " + patched);
+        check(ApiHooks.shaderSource(patched, "media/shaders/screen.frag").equals(patched), "The step went in twice");
+        check(ApiHooks.shaderSource(world, "media/shaders/blur.frag").equals(world), "Another shader was changed");
+        check(ApiHooks.shaderSource("void main() { }", "media/shaders/screen.frag").equals("void main() { }"), "A screen shader with no world path was changed");
+        zombie.core.opengl.ShaderUnit.text = world;
+        check(new zombie.core.opengl.ShaderUnit().load("media/shaders/screen.frag").contains("PZT_NightSight"), "The loaded screen shader has no step");
+        org.lwjgl.opengl.GL20.uniforms.put("PZT_NightSight", 3);
+        var pass = new zombie.iso.weather.WeatherShader();
+        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
+
+        // It eases in as it gets dark, for the local player alone, and leaves in the light; none in daylight.
+        var formulasObject = GameApi.formulas();
+        check(Formulas.darkGate(0.2f) == 0f && Formulas.darkGate(0.54f) == 1f && Formulas.darkGate(0.4f) > 0.4f && Formulas.darkGate(0.4f) < 0.6f,
+            "The darkness gate");
+        call(formulas, "set", mod, "vision.nightSight", 0.8);
+        player.luma = 0.05f;
+        LightingJNI.darkness(player);
+        long t = 1_000_000_000L;
+        formulasObject.nightSightStep(t);
+        formulasObject.nightSightStep(t += 1_000_000_000L / 10);
+        check(near(formulasObject.nightSightScreen(), 0.1 / Formulas.SIGHT_EASE), "Night sight did not ease in: " + formulasObject.nightSightScreen());
+        for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
+        check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8), "The screen pass did not get the strength: " + org.lwjgl.opengl.GL20.values);
+        // its least screen light: more in a room than outside, never darker than the game's
+        var screen = new zombie.core.opengl.RenderSettings.PlayerRenderSettings();
+        var stranger = new IsoPlayer();
+        player.climateAmbient = stranger.climateAmbient = 0.05f;
+        check(near(screen.ambientFor(player), 0.8 * 0.8 * Formulas.OUTSIDE_FULL) && near(screen.ambientFor(stranger), 0.05),
+            "The screen light outside was not kept up for the local player alone: " + screen.ambientFor(player));
+        var standing = player.getCurrentSquare();
+        var room = new zombie.iso.IsoGridSquare(0, 0, 0);
+        room.inRoom = true;
+        player.square = room;
+        check(near(screen.ambientFor(player), Formulas.ROOM_FROM + (Formulas.ROOM_FULL - Formulas.ROOM_FROM) * 0.8), "The screen light in a room: " + screen.ambientFor(player));
+        player.square = standing;
+        // the night's tint on objects eases towards a light one
+        player.nightTint = stranger.nightTint = 0.25f;
+        check(near(screen.tintFor(player), 0.25 + (Formulas.TINT_FULL - 0.25) * 0.8) && near(screen.tintFor(stranger), 0.25),
+            "The night's tint was not eased for the local player alone: " + screen.tintFor(player));
+        player.nightTint = stranger.nightTint = 1f;
+        player.climateAmbient = 0.9f;
+        check(near(screen.ambientFor(player), 0.9), "A day screen changed: " + screen.ambientFor(player));
+        // in the light it leaves
+        player.luma = 0.9f;
+        LightingJNI.darkness(player);
+        for (int i = 0; i < 4; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
+        check(formulasObject.nightSightScreen() == 0f, "Night sight did not leave in the light: " + formulasObject.nightSightScreen());
+        rejects(formulas, "set", "vision.nightSight must be a number from 0.0 to 1.0", mod, "vision.nightSight", 1.5);
+        player.climateAmbient = stranger.climateAmbient = 1f;
+        player.luma = 1f;
+        call(second, "clear");
         call(mod, "clear");
 
         // A fall: the floors forgiven, never from a height that kills, and the damage by a multiplier.
@@ -1319,6 +1384,7 @@ final class FormulasTest {
             @Override public float lootAmmo(float vanilla) { throw new IllegalStateException("broken"); }
             @Override public float darkness(float vanilla, Object character) { throw new IllegalStateException("broken"); }
             @Override public float coneAdd(Object character, float degrees) { throw new IllegalStateException("broken"); }
+            @Override public float ambientFloor(float vanilla, Object player) { throw new IllegalStateException("broken"); }
             @Override public float landing(float speed, Object character) { throw new IllegalStateException("broken"); }
             @Override public float impact(float speed, Object character) { throw new IllegalStateException("broken"); }
             @Override public float treeSlow(float vanilla, Object mover) { throw new IllegalStateException("broken"); }
@@ -1339,6 +1405,10 @@ final class FormulasTest {
         check(near(LightingJNI.darkness(player), 0.75) && near(LightingJNI.calculateVisionCone(player), (144 - 126 * 0.75 - 180) / 180),
             "A vision hook that failed did not give the game's answer");
         player.luma = 1f;
+        player.climateAmbient = 0.05f;
+        check(near(new zombie.core.opengl.RenderSettings.PlayerRenderSettings().ambientFor(player), 0.05),
+            "A screen light hook that failed did not give the game's answer");
+        player.climateAmbient = 1f;
         float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f);
         player.DoLand(oneFloor);
         check(player.landedAt == oneFloor && nearly(player.impactDamage, 115 / 1.5), "A fall hook that failed did not give the game's answer");

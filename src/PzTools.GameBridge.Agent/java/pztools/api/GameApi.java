@@ -37,6 +37,9 @@ public final class GameApi {
 
     private GameApi() { }
 
+    /** The formulas of the Lua environment the game has now, or null (for the tests of this package). */
+    static Formulas formulas() { return formulas; }
+
     /**
      * In a game the startup loader started, once each time its jar is loaded (the payload's ApiHost): the game's Lua
      * environments get the API from now on.

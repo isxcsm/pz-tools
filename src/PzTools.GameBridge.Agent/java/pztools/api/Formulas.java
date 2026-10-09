@@ -37,6 +37,8 @@ final class Formulas implements ApiHooks.Formulas {
         AMOUNT,
         /** A number from 0 to 1, the part of the events that happen; the values multiply. */
         CHANCE,
+        /** A number from 0 to 1, a level kept up to; the largest wins. */
+        LEVEL,
         /** A boolean; the values join: true when any mod declares true. */
         BOOLEAN,
         /** A table of names and numbers from -0.9 to 100, a carrying efficiency each; the values of a name add. */
@@ -121,6 +123,9 @@ final class Formulas implements ApiHooks.Formulas {
         live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
+        live("vision.nightSight", Shape.LEVEL, "LightingJNI.getLumaInverted", "RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient",
+            "RenderSettings$PlayerRenderSettings.updateRenderSettings:tint",
+            "ShaderUnit.loadShaderFile", "WeatherShader.onCompileSuccess", "WeatherShader.startMainThread", "WeatherShader.startRenderThread"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"));
@@ -156,13 +161,34 @@ final class Formulas implements ApiHooks.Formulas {
         double lootChance = 1, lootAmmo = 1, cold = 1, corpseCount = 1, corpseSickness = 1, treeSlow = 1, treeScratch = 1, hole = 1, wound = 1;
         // darkness restored (0 to 1); degrees added to the vision cone; floors forgiven in a fall; the factor of the speed a fall
         // damages by (the square root of the multiplier of the damage, which grows with the speed squared); the walking movement's
-        // factor; the factor of the speed scale of the animation of walking through trees.
-        float darkness, coneAdd, landingShift, impact = 1, walk = 1, treeAnimation = 1;
+        // factor; the factor of the speed scale of the animation of walking through trees; night sight's strength.
+        float nightSight, darkness, coneAdd, landingShift, impact = 1, walk = 1, treeAnimation = 1;
     }
+
+    /** Seconds night sight takes to come in whole, or to leave. */
+    static final float SIGHT_EASE = 0.3f;
+    /**
+     * The darkness the game reads (0 light to 1 dark) where night sight starts, and where it is whole. Measured in a
+     * night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day). Its own light
+     * makes a basement read 0.63: whole stays whole, so that it does not turn itself down and back up.
+     */
+    static final float DARK_FROM = 0.3f, DARK_FULL = 0.5f;
+    /**
+     * The least ambient light of the screen with night sight: the screen pass needs some light to lift (a black square
+     * stays black). Outdoors it grows with the square of the strength up to {@link #OUTSIDE_FULL}; a room with no light is black up to
+     * about 0.6 (measured in a basement), so there it starts from {@link #ROOM_FROM} and grows to {@link #ROOM_FULL}.
+     */
+    static final float OUTSIDE_FULL = 0.3f, ROOM_FROM = 0.6f, ROOM_FULL = 1f;
+    /** The night's tint on the world's objects at full night sight (the goggles' is 0.7 at night; 1 is none). */
+    static final float TINT_FULL = 0.7f;
 
     /** The animation of walking through trees plays at most this many times as fast as the game's, whatever slowdown is taken away. */
     static final double MAX_TREE_ANIMATION = 2;
 
+    // Night sight: the darkness last read for a local player (the game's main thread), and the strength the screen is
+    // worked with now (written on the main thread, read on the render thread).
+    private volatile float seenDark, sight;
+    private long sightAt;
     private final Kahlua lua;
     private final Game game;
     private final Object meta;
@@ -376,6 +402,7 @@ final class Formulas implements ApiHooks.Formulas {
             case NUMBER: return Arguments.number(new Object[] { value }, 0, call, name, -1000, 1000);
             case AMOUNT: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1000);
             case CHANCE: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1);
+            case LEVEL: return Arguments.number(new Object[] { value }, 0, call, name, 0, 1);
             case BOOLEAN:
                 if (!(value instanceof Boolean)) throw new IllegalArgumentException(call + ": " + name + " must be true or false");
                 return value;
@@ -525,7 +552,7 @@ final class Formulas implements ApiHooks.Formulas {
                 }
                 return result;
             }
-            case MULTIPLIER, REDUCTION, NUMBER, AMOUNT, CHANCE -> {
+            case MULTIPLIER, REDUCTION, NUMBER, AMOUNT, CHANCE, LEVEL -> {
                 Double result = null;
                 for (var values : declared.values()) {
                     if (!(values.get(point.name()) instanceof Double value)) continue;
@@ -553,11 +580,15 @@ final class Formulas implements ApiHooks.Formulas {
         throw new AssertionError(point.shape());
     }
 
-    /** Two values of one point: multipliers multiply, reductions leave what is left of the penalty multiplied, numbers add. */
+    /**
+     * Two values of one point: multipliers multiply, reductions leave what is left of the penalty multiplied, levels keep
+     * the larger, numbers add.
+     */
     private static double combine(Shape shape, double first, double second) {
         return switch (shape) {
             case MULTIPLIER, CHANCE -> first * second;
             case REDUCTION -> 1 - (1 - first) * (1 - second);
+            case LEVEL -> Math.max(first, second);
             default -> first + second;
         };
     }
@@ -597,6 +628,7 @@ final class Formulas implements ApiHooks.Formulas {
         next.wound = number("infection.woundChance", 1);
         next.darkness = (float)number("vision.darknessRestore", 0);
         next.coneAdd = (float)number("vision.coneAdd", 0);
+        next.nightSight = (float)number("vision.nightSight", 0);
         next.landingShift = (float)number("fall.landingRemap", 0);
         next.impact = (float)Math.sqrt(number("fall.impactMultiplier", 1));
         next.walk = (float)number("move.walkMultiplier", 1);
@@ -883,7 +915,10 @@ final class Formulas implements ApiHooks.Formulas {
 
     @Override public float darkness(float vanilla, Object character) {
         float restored = active.darkness;
-        if (restored == 0f || !players.local(character)) return vanilla;
+        if ((restored == 0f && active.nightSight == 0f) || !players.local(character)) return vanilla;
+        // how dark it is for the player, as the game has it: what night sight takes to
+        seenDark = vanilla;
+        if (restored == 0f) return vanilla;
         return vanilla * (1f - restored);
     }
 
@@ -891,6 +926,47 @@ final class Formulas implements ApiHooks.Formulas {
         float add = active.coneAdd;
         if (add == 0f || !players.local(character)) return degrees;
         return degrees + add;
+    }
+
+    /**
+     * Night sight: the strength the screen is worked with now goes towards the point's value times how dark it is for
+     * the player (none in daylight or by a lamp), over {@link #SIGHT_EASE} seconds so that it never pops. Worked once a
+     * frame on the main thread, before the screen is drawn.
+     */
+    @Override public void nightSightFrame(int playerIndex) { nightSightStep(System.nanoTime()); }
+
+    void nightSightStep(long now) {
+        float seconds = sightAt == 0 ? 0f : Math.min(0.25f, (now - sightAt) / 1e9f);
+        sightAt = now;
+        float target = active.nightSight * darkGate(seenDark);
+        float current = sight;
+        current = target > current ? Math.min(target, current + seconds / SIGHT_EASE) : Math.max(target, current - seconds / SIGHT_EASE);
+        sight = current;
+    }
+
+    /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for. */
+    static float darkGate(float dark) {
+        float gate = (dark - DARK_FROM) / (DARK_FULL - DARK_FROM);
+        return gate <= 0f ? 0f : gate >= 1f ? 1f : gate * gate * (3f - 2f * gate);
+    }
+
+    @Override public float nightSightScreen() { return sight; }
+
+    @Override public float nightTint(float vanilla, Object player) {
+        float current = sight;
+        if (current == 0f || vanilla >= TINT_FULL || !players.local(player)) return vanilla;
+        return vanilla + (TINT_FULL - vanilla) * current;
+    }
+
+    @Override public float ambientFloor(float vanilla, Object player) {
+        float current = sight;
+        if (current == 0f || !players.local(player)) return vanilla;
+        boolean room;
+        try { room = players.inRoom(player); }
+        catch (Throwable problem) { throw new IllegalStateException("the player's square", problem); }
+        // outdoors by the square of the strength: a little night sight barely lifts a dark night, the whole of it a lot
+        float floor = room ? ROOM_FROM + (ROOM_FULL - ROOM_FROM) * current : OUTSIDE_FULL * current * current;
+        return vanilla >= floor ? vanilla : floor;
     }
 
     @Override public float landing(float speed, Object character) {

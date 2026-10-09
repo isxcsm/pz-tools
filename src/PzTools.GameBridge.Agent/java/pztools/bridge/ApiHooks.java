@@ -177,6 +177,21 @@ public final class ApiHooks {
         /** {@code LightingJNI.getLumaInverted(character)}: how dark it is for the character, from 0 (light) to 1. */
         default float darkness(float vanilla, Object character) { return vanilla; }
 
+        /**
+         * The screen's ambient light {@code RenderSettings.PlayerRenderSettings.updateRenderSettings} works out for a player
+         * (vanilla's Cat's Eyes keeps it at 0.2 or more), before the sandbox's night darkness lifts it; the ambient to use.
+         */
+        default float ambientFloor(float vanilla, Object player) { return vanilla; }
+
+        /** One of the night's tints on the world's objects ({@code rmod}, {@code gmod}, {@code bmod}) for a player; the tint to use. */
+        default float nightTint(float vanilla, Object player) { return vanilla; }
+
+        /** Once a frame for each player's screen, on the main thread before it is drawn: night sight moves on. */
+        default void nightSightFrame(int playerIndex) { }
+
+        /** The strength of night sight the screen pass works with now, 0 for none (read on the render thread). */
+        default float nightSightScreen() { return 0f; }
+
         /** The vision cone's width in degrees before {@code LightingJNI.calculateVisionCone} applies the worn items'; the width to use. */
         default float coneAdd(Object character, float degrees) { return degrees; }
 
@@ -251,6 +266,7 @@ public final class ApiHooks {
     // The payload loads beside the game's start; the first Lua environment may be made before it is ready.
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pztools.bridge.ApiHooks");
+    private static final ClassDesc GL20 = ClassDesc.of("org.lwjgl.opengl.GL20");
     private static Handler handler;
     // A game the startup loader started, whose payload has not set the handler yet.
     private static boolean expected;
@@ -279,6 +295,7 @@ public final class ApiHooks {
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
         COMBAT_PENALTY("combatPenalty", Group.FORMULAS), LOOT_CHANCE("lootChance", Group.FORMULAS),
         LOOT_AMMO("lootAmmo", Group.FORMULAS), DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
+        AMBIENT_FLOOR("ambientFloor", Group.FORMULAS), NIGHT_SIGHT("nightSight", Group.FORMULAS),
         LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
@@ -400,6 +417,58 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "coneAdd", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float));
                     code.aload(0);
                 }) }),
+        // The night's screen brightness: ambient = lift + (1 - lift) x this.ambient, where vanilla's Cat's Eyes has just raised
+        // this.ambient to 0.2. Before that read (this on the stack), night sight keeps the field up to its floor. (The method's
+        // isExterior is set true for every player just after it is worked out, so the floor asks the player's square itself.)
+        Map.entry("zombie/core/opengl/RenderSettings$PlayerRenderSettings", new Site[] {
+            Site.before("updateRenderSettings", "(ILzombie/characters/IsoPlayer;)V", (second, first, element) -> element instanceof FieldInstruction field
+                && field.opcode() == Opcode.GETFIELD && field.name().equalsString("ambient")
+                && first instanceof LoadInstruction self && self.slot() == 0 && self.typeKind() == TypeKind.REFERENCE
+                && second instanceof OperatorInstruction sub && sub.opcode() == Opcode.FSUB, (code, owner) -> {
+                    code.dup();
+                    code.dup();
+                    code.getfield(owner, "ambient", ConstantDescs.CD_float);
+                    code.aload(2);
+                    code.invokestatic(HOOKS, "ambientFloor", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                    code.putfield(owner, "ambient", ConstantDescs.CD_float);
+                }).reading("ambient:F").named("ambient"),
+            // The tints the world's objects are multiplied by (a dark blue at night: walls and furniture go black in a dark
+            // room whatever the ambient), eased by night sight before the method returns.
+            Site.atReturns("updateRenderSettings", "(ILzombie/characters/IsoPlayer;)V", 3, (code, owner) -> {
+                for (String tint : new String[] { "rmod", "gmod", "bmod" }) {
+                    code.aload(0);
+                    code.dup();
+                    code.getfield(owner, tint, ConstantDescs.CD_float);
+                    code.aload(2);
+                    code.invokestatic(HOOKS, "nightTint", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
+                    code.putfield(owner, tint, ConstantDescs.CD_float);
+                }
+            }).reading("rmod:F", "gmod:F", "bmod:F").named("tint") }),
+        // Night sight's screen pass: a step put into the screen shader's world path (ScreenShader), its uniform found when the
+        // shader compiles and set each time it draws; the strength moves on once a frame before.
+        Map.entry("zombie/core/opengl/ShaderUnit", new Site[] {
+            Site.atReturns("loadShaderFile", "(Ljava/lang/String;Ljava/util/ArrayList;)Ljava/lang/String;", 3, (code, owner) -> {
+                code.aload(1);
+                code.invokestatic(HOOKS, "shaderSource", MethodTypeDesc.of(ConstantDescs.CD_String, ConstantDescs.CD_String, ConstantDescs.CD_String));
+            }) }),
+        Map.entry("zombie/iso/weather/WeatherShader", new Site[] {
+            Site.atReturns("onCompileSuccess", "(Lzombie/core/opengl/ShaderProgram;)V", 2, (code, owner) -> {
+                code.aload(0);
+                code.invokevirtual(owner, "getID", MethodTypeDesc.of(ConstantDescs.CD_int));
+                code.ldc(ScreenShader.UNIFORM);
+                code.invokestatic(GL20, "glGetUniformLocation", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int,
+                    ClassDesc.of("java.lang.CharSequence")));
+                code.invokestatic(HOOKS, "nightSightUniform", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+            }),
+            Site.atStart("startMainThread", "(Lzombie/core/textures/TextureDraw;I)V", (code, owner) -> {
+                code.iload(2);
+                code.invokestatic(HOOKS, "nightSightFrame", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int));
+            }),
+            Site.atReturns("startRenderThread", "(Lzombie/core/textures/TextureDraw;)V", 2, (code, owner) -> {
+                code.invokestatic(HOOKS, "nightSightLocation", MethodTypeDesc.of(ConstantDescs.CD_int));
+                code.invokestatic(HOOKS, "nightSightScreen", MethodTypeDesc.of(ConstantDescs.CD_float));
+                code.invokestatic(GL20, "glUniform1f", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_int, ConstantDescs.CD_float));
+            }) }),
         Map.entry("zombie/inventory/types/Food", new Site[] {
             // container.getSourceGrid().haveElectricity(), for food in a fridge or freezer.
             Site.square("updateAge", "(Z)V", element -> element instanceof InvokeInstruction invoke
@@ -1561,6 +1630,52 @@ public final class ApiHooks {
         catch (Throwable problem) { reportOnce(Call.DARKNESS, problem); return vanilla; }
     }
 
+    /** Put before {@code updateRenderSettings} lifts the ambient by the sandbox's night darkness. */
+    // Where the screen shader keeps night sight's strength (-1, which GL leaves alone, until it compiles with the step).
+    private static volatile int nightSightLocation = -1;
+
+    /** Put at the return of {@code ShaderUnit.loadShaderFile}: the screen shader gets night sight's step. */
+    public static String shaderSource(String source, String fileName) {
+        try { return ScreenShader.patch(source, fileName); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return source; }
+    }
+
+    /** Put at the return of {@code WeatherShader.onCompileSuccess}: where its uniform is, or -1. */
+    public static void nightSightUniform(int location) { nightSightLocation = location; }
+
+    public static int nightSightLocation() { return nightSightLocation; }
+
+    /** Put at the start of {@code WeatherShader.startMainThread}. */
+    public static void nightSightFrame(int playerIndex) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.nightSightFrame(playerIndex); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
+    }
+
+    /** Put before the return of {@code WeatherShader.startRenderThread}, whose program is bound: the strength for its uniform. */
+    public static float nightSightScreen() {
+        Formulas current = formulas;
+        if (current == null) return 0f;
+        try { return current.nightSightScreen(); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return 0f; }
+    }
+
+    /** Put before each return of {@code updateRenderSettings}, once for each of the night's tints. */
+    public static float nightTint(float vanilla, Object player) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.nightTint(vanilla, player); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return vanilla; }
+    }
+
+    public static float ambientFloor(float vanilla, Object player) {
+        Formulas current = formulas;
+        if (current == null) return vanilla;
+        try { return current.ambientFloor(vanilla, player); }
+        catch (Throwable problem) { reportOnce(Call.AMBIENT_FLOOR, problem); return vanilla; }
+    }
+
     /** Put before {@code calculateVisionCone} multiplies the degrees by what the worn items allow. */
     public static float coneAdd(Object character, float degrees) {
         Formulas current = formulas;
@@ -1755,4 +1870,68 @@ public final class ApiHooks {
 
     // To the game's console log; the game goes on as if the hook were not there.
     private static void report(String where, Throwable problem) { System.err.println("[PzTools API] " + where + ": " + problem); }
+
+    /**
+     * Night sight's step in the game's screen shader ({@code media/shaders/screen.frag}, the pass the whole world is drawn
+     * through): the source the game loads gets a uniform and a function, and the world path ({@code screenWorld}) returns its
+     * colour through the function. At strength 0 the function gives the colour back as it is. The night vision goggles' path
+     * is left alone. A source without the places the step goes (a mod's own shader, a newer game) is loaded as it is, and
+     * night sight then shows no screen pass.
+     */
+    static final class ScreenShader {
+        static final String UNIFORM = "PZT_NightSight";
+        private static final String FILE = "screen.frag";
+        private static final String WORLD = "vec3 screenWorld(";
+        private static final String RETURN = "return col;";
+
+        /**
+         * Dark tones are lifted, the darker the more (a gamma), and their colour drains to a cold grey as the eye's rods see;
+         * what a lamp or a fire lights keeps its colour (the eye sees colour in light): a pixel brighter than night sight
+         * lifts anything to, fading into the grey around it. (Warmth is no sign of light: a wooden room is warm in the dark.)
+         */
+        static final String STEP = """
+
+            uniform float PZT_NightSight;
+
+            vec3 pztNightSight(in vec3 col) {
+            	float s = clamp(PZT_NightSight, 0.0, 1.0);
+            	if (s <= 0.0) return col;
+            	float l = dot(col, vec3(0.299, 0.587, 0.114));
+            	float lifted = pow(max(l, 0.0), 1.0 - 0.7 * s);
+            	vec3 grey = vec3(lifted) * vec3(0.84, 0.92, 1.08);
+            	vec3 kept = col * (lifted / max(l, 0.001));
+            	float lit = smoothstep(0.5, 0.8, l);
+        	float drain = s * (1.0 - lit);
+            	return clamp(mix(kept, grey, drain), 0.0, 1.0);
+            }
+
+            """;
+
+        private ScreenShader() { }
+
+        /** The source with night sight's step, or the source as it is (another file, already patched, or no place for it). */
+        static String patch(String source, String fileName) {
+            if (source == null || fileName == null || !fileName.replace('\\', '/').endsWith(FILE) || source.contains(UNIFORM)) return source;
+            int world = source.indexOf(WORLD);
+            if (world < 0) return source;
+            int body = source.indexOf('{', world);
+            int end = body < 0 ? -1 : closing(source, body);
+            if (end < 0) return source;
+            int ret = source.lastIndexOf(RETURN, end);
+            if (ret < body) return source;
+            return source.substring(0, world) + STEP + source.substring(world, ret) + "return pztNightSight(col);"
+                + source.substring(ret + RETURN.length());
+        }
+
+        /** The index of the brace that closes the one at {@code open}, or -1. */
+        private static int closing(String source, int open) {
+            int depth = 0;
+            for (int i = open; i < source.length(); i++) {
+                char c = source.charAt(i);
+                if (c == '{') depth++;
+                else if (c == '}' && --depth == 0) return i;
+            }
+            return -1;
+        }
+    }
 }

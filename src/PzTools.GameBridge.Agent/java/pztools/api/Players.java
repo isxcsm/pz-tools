@@ -10,18 +10,29 @@ import java.lang.invoke.MethodType;
  */
 final class Players {
     private final Object[] players;
-    // IsoGameCharacter.getStats() as (Object)Object.
-    private final MethodHandle stats;
+    // IsoGameCharacter.getStats() as (Object)Object; IsoMovingObject.getCurrentSquare() as (Object)Object and
+    // IsoGridSquare.isInARoom() as (Object)boolean.
+    private final MethodHandle stats, square, inARoom;
 
     Players(ClassLoader loader) throws ReflectiveOperationException, IllegalAccessException {
         Class<?> player = Game.type(loader, "zombie.characters.IsoPlayer");
         players = (Object[])player.getField("players").get(null);
         stats = Game.exact(Game.type(loader, "zombie.characters.IsoGameCharacter").getMethod("getStats"),
             MethodType.methodType(Object.class, Object.class));
+        square = Game.exact(Game.type(loader, "zombie.iso.IsoMovingObject").getMethod("getCurrentSquare"),
+            MethodType.methodType(Object.class, Object.class));
+        inARoom = Game.exact(Game.type(loader, "zombie.iso.IsoGridSquare").getMethod("isInARoom"),
+            MethodType.methodType(boolean.class, Object.class));
     }
 
     /** The game's own array of this machine's players, by player index (an empty place is null): read, never changed. */
     Object[] all() { return players; }
+
+    /** Whether the player stands in a room (a building's, a basement's), not outdoors. */
+    boolean inRoom(Object player) throws Throwable {
+        Object at = player == null ? null : square.invokeExact(player);
+        return at != null && (boolean)inARoom.invokeExact(at);
+    }
 
     /** Whether the character is a player of this machine. */
     boolean local(Object character) {
