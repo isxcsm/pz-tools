@@ -554,11 +554,17 @@ end
 -- and key soundKind found. Emptied now and then so that it keeps no source long.
 local kindOf, kindKey, kindsAt = {}, {}, 0
 local KINDS_MS = 5000
+-- At most SOUNDS_PER_WINDOW world sounds heard each SOUND_WINDOW_MS, as Visual Sounds caps the sounds it handles: the
+-- game calls this inside its sound list's lock (PZ Optimize) for every sound, an alarm every frame, so a burst (a
+-- crowd beating on doors, gunfire) costs no more than this; one heard again later shows again.
+local SOUNDS_PER_WINDOW = 16
+local SOUND_WINDOW_MS = 250
+local windowAt, windowCount = 0, 0
 
 local function onWorldSound(x, y, z, radius, volume, source)
     if not S.ring or S.hearing <= 0 then return end
     local player = getPlayer()
-    if not player then return end
+    if not player or source == player then return end
     -- heard at all (the hearing traits change how far), and not under the character's feet
     local px, py, pz = player:getX(), player:getY(), player:getZ()
     local dx, dy = x - px, y - py
@@ -566,6 +572,11 @@ local function onWorldSound(x, y, z, radius, volume, source)
     local reach = radius * S.hearing
     if d2 >= reach * reach or d2 < 1 then return end
     local now = getTimestampMs()
+    if now - windowAt >= SOUND_WINDOW_MS or now < windowAt then
+        windowAt, windowCount = now, 0
+    end
+    if windowCount >= SOUNDS_PER_WINDOW then return end
+    windowCount = windowCount + 1
     local kind, key
     if source ~= nil then
         if now - kindsAt > KINDS_MS then kindOf, kindKey, kindsAt = {}, {}, now end

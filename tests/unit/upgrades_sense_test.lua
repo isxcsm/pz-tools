@@ -163,7 +163,24 @@ test("sense voices: a crowd does not call at once", function()
         local n = #Sense.voices(zs, memo, 0, 0, 0, 10, false, now, out)
         if now > Sense.FIRST_MS and n > most then most = n end
     end
-    truthy(most <= 8, "at most a few a half second, was " .. most)
+    truthy(most <= Sense.VOICES_PER_LOOK, "at most a few a half second, was " .. most)
+end)
+
+test("sense voices: past the groans a look allows, the rest wait; a strike is told at once", function()
+    local memo, out = {}, {}
+    local zs = {}
+    for k = 1, 10 do zs[k] = zed("z" .. k, 1, 0) end
+    Sense.voices(zs, memo, 0, 0, 0, 10, false, 0, out)
+    local heard = #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS, out)
+    eq(heard, Sense.VOICES_PER_LOOK, "the first look after they came in")
+    heard = heard + #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 500, out)
+    heard = heard + #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 1000, out)
+    eq(heard, 10, "the others on the next looks")
+    zs[10] = zed("z10", 1, 0, 0, false, true)
+    for k = 1, 9 do zs[k] = zed("z" .. k, 1, 0) end
+    local strike = Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 1500, out)
+    eq(#strike, 1)
+    eq(strike[1].kind, "attack")
 end)
 
 test("sense hunch: unseen, within the radius, on this floor or beside it", function()

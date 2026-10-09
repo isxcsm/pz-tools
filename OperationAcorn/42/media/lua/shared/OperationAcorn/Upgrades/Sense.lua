@@ -20,6 +20,10 @@ Sense.IDLE_MS = 5000
 Sense.HUNT_MS = 2000
 -- The first sound of a zombie newly in reach comes within this (ms), spread over the zombies.
 Sense.FIRST_MS = 1500
+-- At most this many groans a look (twice a second), the first zombies of the list (the nearest, from the API's query)
+-- first; the others' wait for the next look. Taking a target and striking are always told. As Visual Sounds caps the
+-- sounds it handles: a crowd does not flood the list (Sense.ZOMBIE_MARKS) nor the work.
+Sense.VOICES_PER_LOOK = 4
 -- A noise's distance band (tiles): near below NEAR, mid below MID, far beyond. An alarm in the near band is one the
 -- zombies around are coming to; past MID it draws another street's.
 Sense.NEAR = 12
@@ -117,9 +121,10 @@ end
 -- its number so that a crowd does not call at once; one that takes a target ("aggro") or lunges or strikes ("attack")
 -- makes one at once. `zombies` are { ref, x, y, z, hunt, attack } (ref: what stays the same for a zombie); only those
 -- within `radius` of (px, py), on the floor of pz unless `floors`, are heard. `memo` (kept by the caller) remembers
--- each zombie; ones not in reach are forgotten. Returns the sounds as { kind, key = ref, x, y, z } in `out` (reused).
+-- each zombie; ones not in reach are forgotten. At most VOICES_PER_LOOK groans. Returns the sounds as { kind, key = ref,
+-- x, y, z } in `out` (reused).
 function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
-    local n = 0
+    local n, groans = 0, 0
     local r2 = radius * radius
     memo.count = memo.count or 0
     memo.seen = (memo.seen or 0) + 1
@@ -143,7 +148,10 @@ function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
                 kind = "aggro"
             end
             m.hunt, m.attack, m.seen = z.hunt, z.attack, seen
-            if not kind and now >= m.due then kind = "zombie" end
+            if not kind and now >= m.due and groans < Sense.VOICES_PER_LOOK then
+                kind = "zombie"
+                groans = groans + 1
+            end
             if kind then
                 local every = z.hunt and Sense.HUNT_MS or Sense.IDLE_MS
                 -- a quarter of the time either way, by the zombie's number
