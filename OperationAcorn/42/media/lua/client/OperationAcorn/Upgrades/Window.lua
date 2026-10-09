@@ -385,31 +385,36 @@ function View:tipFor(id)
     end
     if planned > 0 then stage = stage .. " " .. getText("IGUI_OA_Tree_StagePlanned", planned) end
     local text = line(stage, 0.7, 0.7, 0.72)
-    local nextLine
+    -- what every rank taken gives (a later rank's text adds to the earlier ones' or replaces them), and of the next
+    -- rank only what it adds or changes
+    local now = Texts.lines(node, rank, sim)
+    local nextLines = {}
     if not maxed then
         if node.board and node.choose then
-            nextLine = getText("IGUI_OA_Tree_NextFamily")
+            nextLines[1] = getText("IGUI_OA_Tree_NextFamily")
         else
             -- the next rank as it would read: on a copy of the plan that takes it
             local after = Plan.add(self.u, self.steps, id, node.choose and "A" or nil, self.fragments)
+            local lines
             if after then
                 local simAfter = Plan.simulate(self.u, after, self.fragments)
-                nextLine = Texts.rankLine(node, Rules.rank(simAfter, id), simAfter)
+                lines = Texts.lines(node, Rules.rank(simAfter, id), simAfter)
             else
-                nextLine = Texts.rankLine(node, math.min(rank + 1, node.ranks or rank + 1), sim)
+                lines = Texts.lines(node, math.min(rank + 1, node.ranks or rank + 1), sim)
             end
+            nextLines = Texts.newLines(now, lines)
         end
     end
-    local now = Texts.rankLine(node, rank, sim)
-    if now then
-        text = text .. line(now, 1, 1, 1)
-    elseif nextLine then
-        text = text .. line(nextLine, 1, 1, 1)
-    end
+    for _, one in ipairs(#now > 0 and now or nextLines) do text = text .. line(one, 1, 1, 1) end
     local desc = Texts.desc(id)
     if desc then text = text .. line(desc, 0.7, 0.7, 0.72) end
     if not maxed then
-        if now and nextLine then text = text .. line(getText("IGUI_OA_Tree_Next") .. ": " .. nextLine, 0.55, 0.85, 0.55) end
+        if #now > 0 then
+            for i, one in ipairs(nextLines) do
+                if i == 1 then one = getText("IGUI_OA_Tree_Next") .. ": " .. one end
+                text = text .. line(one, 0.55, 0.85, 0.55)
+            end
+        end
         -- only what is still missing, in red (a met condition is only noise)
         for _, c in ipairs(Texts.conditions(sim, node, { fragments = self.fragmentsLeft })) do
             if not c.ok then text = text .. line(c.text, 1.0, 0.45, 0.4) end

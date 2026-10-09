@@ -4,6 +4,8 @@
 --   IGUI_OA_Tree_Node_<id>_Name, _Rank (the effect of a rank, one sentence; _Rank1, _Rank2 ... when each rank reads
 --   differently: rankText = true), _Desc (only where the rank text leaves out something a player would not expect) and
 --   _Note (the research team's line, capstones only).
+-- adds (with rankText): the ranks whose text adds to the lines before rather than replacing them (true: every rank after
+-- the first), so a tooltip lists what each rank taken gives; a rank not added replaces the lines before it.
 -- kind: "lua" works with this mod alone; "api" needs the extension API (PZ Tools) to change the game's numbers.
 -- values: the effect of each rank in its unit (cumulative: the value at that rank), values2 a second series.
 -- lighter: the values are carrying efficiencies (a weight is divided by 1 + sum); the text shows the weight taken off.
@@ -78,13 +80,13 @@ end
 node("scout", "sight", 1, 2, 3, "api", {}, { cap = 90, unit = "deg", values = { 12, 24, 36 } })
 node("scout", "sixth", 1, 1, 2, "lua", {}, { unit = "tiles", values = { 8, 12 } })
 node("scout", "alarm", 1, 3, 1, "lua")
-node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true })
+node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true })
 node("scout", "rich", 2, 3, 3, "api", {}, { unit = "pct", values = { 15, 30, 50 } })
 node("scout", "night", 2, 2, 3, "api", {}, { cap = 100, unit = "pct", values = { 20, 40, 60 } })
-node("scout", "sense", 3, 1, 2, "lua", { { "sixth", 2 } }, { rankText = true })
+node("scout", "sense", 3, 1, 2, "lua", { { "sixth", 2 } }, { rankText = true, adds = true })
 node("scout", "keen", 3, 3, 3, "lua", { { "rich", 2 } }, { unit = "pct", values = { 50, 100, 150 }, values2 = { 1, 2, 3 } })
 node("scout", "ammo", 4, 3, 2, "api", { { "keen", 2 } }, { unit = "pct", values = { 50, 100 } })
-node("scout", "sensePlus", 4, 1, 3, "lua", { { "sense", 2 } }, { rankText = true })
+node("scout", "sensePlus", 4, 1, 3, "lua", { { "sense", 2 } }, { rankText = true, adds = true })
 node("scout", "nightEye", 5, 2, 1, "api", { { "night", 3 } }, { capstone = true })
 
 -- ---- Load: load adaptation research (10 nodes, 25 points, capstone Armor Constitution) -------------------------------
@@ -104,10 +106,10 @@ node("load", "armor", 5, 2, 1, "api", { { "combatSpeed", 2 } }, { capstone = tru
 
 -- ---- Survival: survival adaptation research (10 nodes, 25 points, capstone Breakthrough Sprint) ---------------------
 node("survival", "serumAdapt", 1, 1, 2, "lua", {}, { rankText = true })
-node("survival", "crowbar", 1, 2, 2, "lua", {}, { cap = 100, unit = "pct", values = { 35, 50 }, rankText = true })
+node("survival", "crowbar", 1, 2, 2, "lua", {}, { cap = 100, unit = "pct", values = { 35, 50 }, rankText = true, adds = true })
 node("survival", "stiff", 1, 3, 3, "api", {}, { cap = 95, unit = "pct", values = { 20, 40, 60 } })
-node("survival", "fall", 2, 1, 3, "api", {}, { rankText = true })
-node("survival", "lock", 2, 4, 2, "lua", {}, { cap = 100, unit = "pct", values = { 50, 90 }, rankText = true })
+node("survival", "fall", 2, 1, 3, "api", {}, { rankText = true, adds = { [3] = true } })
+node("survival", "lock", 2, 4, 2, "lua", {}, { cap = 100, unit = "pct", values = { 50, 90 }, rankText = true, adds = true })
 node("survival", "brush", 2, 2, 2, "api", {}, { cap = 100, unit = "pct", values = { 50, 100 }, rankText = true })
 node("survival", "gear", 3, 3, 3, "api", {}, { cap = 95, unit = "pct", values = { 20, 40, 60 } })
 node("survival", "resist", 3, 4, 3, "api", {}, { cap = 95, unit = "pct", values = { 20, 40, 60 } })

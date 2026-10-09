@@ -130,6 +130,41 @@ function Texts.rankLine(node, rank, u)
     return getText(key, args[1], args[2], args[3])
 end
 
+-- Whether a rank's text adds to the lines of the ranks before it (Data: adds).
+local function adds(node, k)
+    if k < 2 or not node.rankText or not node.adds then return false end
+    return node.adds == true or node.adds[k] == true
+end
+
+-- What a node gives at a rank, a line each: the text of every rank taken that a later one does not replace, with the
+-- numbers of this rank (so a number reads once, as it is now). Empty for rank 0.
+function Texts.lines(node, rank, u)
+    local list = {}
+    if rank < 1 then return list end
+    if not node.rankText then
+        list[1] = Texts.rankLine(node, rank, u)
+        return list
+    end
+    local args = Texts.args(node, rank, u)
+    local base = Data.key(node.id, "Rank")
+    for k = 1, math.min(rank, node.ranks or rank) do
+        if not adds(node, k) then list = {} end
+        list[#list + 1] = getText(base .. k, args[1], args[2], args[3])
+    end
+    return list
+end
+
+-- The lines of after that are not in before: what a rank taken next gives or changes.
+function Texts.newLines(before, after)
+    local had = {}
+    for _, text in ipairs(before) do had[text] = true end
+    local list = {}
+    for _, text in ipairs(after) do
+        if not had[text] then list[#list + 1] = text end
+    end
+    return list
+end
+
 -- Why the API side of a node does nothing, or nil when it works.
 function Texts.apiNote(id)
     local status, detail = Effects.status(id)

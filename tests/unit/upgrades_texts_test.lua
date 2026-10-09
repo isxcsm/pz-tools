@@ -153,3 +153,46 @@ test("moving an item takes the time of its weight up to 3", function()
     -- weight 0 changes nothing
     eq(Rules.weightRatio(0, 1), 1)
 end)
+
+test("a tooltip lists what every rank taken gives, and of the next rank only what is new", function()
+    local u = Rules.blank()
+    local function keys(list)
+        local out = {}
+        for i, text in ipairs(list) do out[i] = string.match(text, "^(%S+)") end
+        return table.concat(out, ",")
+    end
+    local P = "IGUI_OA_Tree_Node_"
+    eq(#Texts.lines(Data.byId.sense, 0, u), 0)
+    -- a rank that adds keeps the lines before it
+    eq(keys(Texts.lines(Data.byId.sense, 2, u)), P .. "sense_Rank1," .. P .. "sense_Rank2")
+    eq(keys(Texts.lines(Data.byId.sensePlus, 3, u)), P .. "sensePlus_Rank1," .. P .. "sensePlus_Rank2," .. P .. "sensePlus_Rank3")
+    -- a rank that does not replaces them: no damage from one floor replaces half damage, two floors adds to it
+    eq(keys(Texts.lines(Data.byId.fall, 2, u)), P .. "fall_Rank2")
+    eq(keys(Texts.lines(Data.byId.fall, 3, u)), P .. "fall_Rank2," .. P .. "fall_Rank3")
+    eq(keys(Texts.lines(Data.byId.overload, 2, u)), P .. "overload_Rank2")
+    -- the numbers are the rank's: the first line of a crowbar at rank 2 reads its rank 2 chance
+    local crowbar = Texts.lines(Data.byId.crowbar, 2, u)
+    eq(keys(crowbar), P .. "crowbar_Rank1," .. P .. "crowbar_Rank2")
+    eq(string.match(crowbar[1], "^%S+ (%S+)"), "50%")
+    -- one text for every rank: one line, its numbers the rank's
+    eq(string.match(Texts.lines(Data.byId.rich, 2, u)[1], "^%S+ (%S+)"), "30%")
+    -- the next rank: only what it adds or changes
+    eq(keys(Texts.newLines(Texts.lines(Data.byId.sense, 1, u), Texts.lines(Data.byId.sense, 2, u))), P .. "sense_Rank2")
+    eq(keys(Texts.newLines(Texts.lines(Data.byId.crowbar, 1, u), crowbar)), P .. "crowbar_Rank1," .. P .. "crowbar_Rank2")
+end)
+
+test("an adding rank text has no number of its own (the first line shows it)", function()
+    for _, lang in ipairs({ "EN", "KO" }) do
+        local text = file(lang, "IG_UI.json")
+        for _, node in ipairs(Data.nodes) do
+            if node.adds then
+                for r = 2, node.ranks do
+                    if node.adds == true or node.adds[r] then
+                        local line = string.match(text, '"' .. Data.key(node.id, "Rank" .. r) .. '": "([^"]*)"')
+                        truthy(line and not string.find(line, "%1", 1, true), lang .. " " .. node.id .. " rank " .. r)
+                    end
+                end
+            end
+        end
+    end
+end)
