@@ -1,6 +1,7 @@
 -- The machine window (DESIGN 12: right-click a machine -> maintenance): what the machine is doing, its parts and how
--- worn they are, buttons to put a part in or take it out (timed actions) and to switch it on or off. It reads the
--- machine's state each frame it is open; nothing runs when it is closed.
+-- worn they are, and buttons to put a part in or take it out (timed actions; it is switched on and off where its
+-- containers show, LootControls.lua, or from its menu). It reads the machine's state each frame it is open; nothing runs
+-- when it is closed.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISButton"
 require "ISUI/ISContextMenu"
@@ -20,20 +21,7 @@ local ROW = FONT_HGT + 10
 local WIDTH = 400
 
 -- The text of the machine's state.
-local function stateText(status)
-    if not status.on then return getText("IGUI_OA_Machine_State_off") end
-    if status.stopped then
-        if status.broken then return getText("IGUI_OA_Machine_State_broken", getText("IGUI_OA_Machine_Slot_" .. status.broken)) end
-        return getText("IGUI_OA_Machine_State_missing", getText("IGUI_OA_Machine_Slot_" .. (status.missing or "motor")))
-    end
-    if status.powered == false then return getText("IGUI_OA_Machine_State_noPower") end
-    if status.running then return getText("IGUI_OA_Machine_State_running") end
-    local reason = status.reason
-    if reason == "noInput" or reason == "outputFull" or reason == "noTank" or reason == "noOwner" then
-        return getText("IGUI_OA_Machine_State_" .. reason)
-    end
-    return getText("IGUI_OA_Machine_State_idle")
-end
+local stateText = Machines.statusText
 
 local function conditionColor(cond)
     if cond < Data.WORN_BELOW then return 1, 0.35, 0.3 end
@@ -64,7 +52,6 @@ local function heightFor(kind)
     local def = Data.KINDS[kind]
     local y = ISCollapsableWindow.TitleBarHeight() + 8 + infoLines(kind) * ROW
     if #def.slots > 0 then y = y + ROW * (1 + #def.slots) end
-    if Data.processes(kind) then y = y + ROW + 6 end
     return y + 12
 end
 
@@ -91,12 +78,6 @@ function OAMachineWindow:createChildren()
         end
     end
     self.partsEnd = y
-    if Data.processes(self.kind) then
-        self.switch = ISButton:new(10, y + 6, 120, ROW - 2, "", self, OAMachineWindow.onSwitch)
-        self.switch:initialise()
-        self.switch:instantiate()
-        self:addChild(self.switch)
-    end
 end
 
 -- Where a character walks to and what it does there.
@@ -145,12 +126,6 @@ function OAMachineWindow:onRemove(button)
         ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), button.internal))
 end
 
-function OAMachineWindow:onSwitch()
-    local state = Machines.state(self.object)
-    if not state then return end
-    OA.Sync.send(self.character, "machineSwitch", { machine = self.machineId, on = state.on == false })
-end
-
 function OAMachineWindow:update()
     ISCollapsableWindow.update(self)
     if self:getIsVisible() and (not self.object or self.object:getObjectIndex() == -1) then
@@ -160,10 +135,6 @@ function OAMachineWindow:update()
     end
     local status = Machines.status(self.object)
     if not status then return end
-    if self.switch then
-        self.switch:setTitle(getText(status.on and "IGUI_OA_Machine_SwitchOff" or "IGUI_OA_Machine_SwitchOn"))
-        self.switch:setWidth(math.max(120, getTextManager():MeasureStringX(FONT, self.switch.title) + 20))
-    end
     for slot, row in pairs(self.partRows) do
         row.remove:setEnable(status.parts[slot] ~= nil)
     end

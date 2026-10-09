@@ -12,7 +12,8 @@ local CHECK_MS = 100    -- how often a watched machine's progress is read
 local ASK_MS = 400      -- the least time between two asks to work (the answer comes on the next tick)
 local IDLE_ASK_MS = 3000 -- an idle machine is asked again this seldom while nothing changes in it
 
--- anchor -> { jobs (Machines.progress), count, due = { check, idle, ask = real ms each was last due (OA.due) } }
+-- anchor -> { jobs (Machines.progress), stop (why it is not working on what is in it), count,
+--   due = { check, idle, ask = real ms each was last due (OA.due) } }
 local watched = setmetatable({}, { __mode = "k" })
 
 local function look(pane, anchor, state)
@@ -36,6 +37,7 @@ local function look(pane, anchor, state)
         due = OA.due(w.due, "idle", now, IDLE_ASK_MS) or count ~= w.count
     end
     w.count = count
+    w.stop = not w.jobs and count > 0 and Machines.stopText(anchor) or nil
     if due and OA.due(w.due, "ask", now, ASK_MS) then
         local player = getSpecificPlayer(pane.player or 0)
         if player then OA.Sync.send(player, "machineWork", { machine = state.id }) end
@@ -65,6 +67,17 @@ function ISInventoryPane:renderdetails(doDragged)
                 item:setJobType(text)
                 item:setJobDelta(math.max(0.01, math.min(1, job.share)))
             end
+        end
+    end
+    -- not working on what is in it: the reason on the first row, where a job's name goes (the game writes a row's job
+    -- whenever it has one; so small a share draws no bar)
+    if shown == 0 and w.stop and self.itemslist and self.itemslist[1] then
+        local item = self.itemslist[1].items[1]
+        if item then
+            shown = 1
+            saved[1], savedType[1], savedDelta[1] = item, item:getJobType(), item:getJobDelta()
+            item:setJobType(w.stop)
+            item:setJobDelta(0.001)
         end
     end
     if shown == 0 then return original(self, doDragged) end

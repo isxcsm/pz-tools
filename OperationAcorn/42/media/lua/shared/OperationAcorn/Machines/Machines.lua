@@ -977,6 +977,35 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The status (for windows and tooltips)
 
+-- The words for what a machine is doing (its window's status line): off, stopped (a part broken or missing), no
+-- power, working, or why it waits.
+function Machines.statusText(status)
+    if not status.on then return getText("IGUI_OA_Machine_State_off") end
+    if status.stopped then
+        if status.broken then return getText("IGUI_OA_Machine_State_broken", getText("IGUI_OA_Machine_Slot_" .. status.broken)) end
+        return getText("IGUI_OA_Machine_State_missing", getText("IGUI_OA_Machine_Slot_" .. (status.missing or "motor")))
+    end
+    if status.powered == false then return getText("IGUI_OA_Machine_State_noPower") end
+    if status.running then return getText("IGUI_OA_Machine_State_running") end
+    local reason = status.reason
+    if reason == "noInput" or reason == "outputFull" or reason == "noTank" or reason == "noOwner" then
+        return getText("IGUI_OA_Machine_State_" .. reason)
+    end
+    return getText("IGUI_OA_Machine_State_idle")
+end
+
+-- Why a machine with things in it is not working on them, in words: nil when it works, or only waits for its next
+-- step (the reason it gave last is noInput, or none yet).
+local STOP_REASONS = { outputFull = true, noTank = true, noOwner = true }
+function Machines.stopText(object)
+    local status = Machines.status(object)
+    if not status or status.running then return nil end
+    if status.on and not status.stopped and status.powered ~= false and not STOP_REASONS[status.reason] then return nil end
+    -- off for want of a part: that, rather than only off
+    if not status.on and status.stopped then return select(2, Machines.canSwitchOn(object)) end
+    return Machines.statusText(status)
+end
+
 -- What a machine is doing now: { kind, name, on, running, reason, powered, speed, lanes, rate, load, noise, stopped,
 -- missing, broken, worn, parts = { [slot] = { tier, cond } } }. rate: work an hour on all its lanes; speed: that over
 -- the old motor's (lanes x the motor's speed).
@@ -1320,11 +1349,12 @@ function Machines.installPart(object, slot, item, character)
     return true
 end
 
--- Takes the part out of a slot into the character's inventory.
+-- Takes the part out of a slot into the character's inventory. A working machine is switched off first.
 function Machines.removePart(object, slot, character)
     local state = Machines.state(object)
     local part = state and state.parts[slot]
     if not part then return false end
+    if Data.processes(state.kind) then state.on = false end
     state.parts[slot] = nil
     giveBack(character, state.kind, slot, part)
     state.idle, state.running, state.last, state.lanes = true, false, OA.hours(), {}
@@ -1333,10 +1363,23 @@ function Machines.removePart(object, slot, character)
     return true
 end
 
--- Switches a machine on or off.
+-- Whether a machine can be switched on: true, or nil and why, in words (a part it needs is missing or broken).
+function Machines.canSwitchOn(object)
+    local state = Machines.state(object)
+    if not state then return nil end
+    local fx = Logic.effects(state.kind, state.parts)
+    if not fx.stopped then return true end
+    if fx.broken then
+        return nil, getText("IGUI_OA_Machine_CannotOn_broken", getText("IGUI_OA_Machine_Slot_" .. fx.broken))
+    end
+    return nil, getText("IGUI_OA_Machine_CannotOn_missing", getText("IGUI_OA_Machine_Slot_" .. (fx.missing or "motor")))
+end
+
+-- Switches a machine on or off. It is not switched on without the parts it needs.
 function Machines.setOn(object, on)
     local state = Machines.state(object)
     if not state or not Data.processes(state.kind) then return end
+    if on and not Machines.canSwitchOn(object) then return end
     state.on = on and true or false
     state.idle, state.last, state.lanes = true, OA.hours(), {}
     if not state.on then state.running = false end

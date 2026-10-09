@@ -107,8 +107,12 @@ local function addMachineOptions(context, playerObj, object)
     end
     if Data.processes(kind) then
         local off = state.on == false
-        sub:addOption(getText(off and "ContextMenu_OA_Machine_SwitchOn" or "ContextMenu_OA_Machine_SwitchOff"),
+        local switch = sub:addOption(getText(off and "ContextMenu_OA_Machine_SwitchOn" or "ContextMenu_OA_Machine_SwitchOff"),
             playerObj, onSwitch, object, off)
+        if off then
+            local ok, why = Machines.canSwitchOn(object)
+            if not ok then unavailable(switch, why) end
+        end
     end
     if Data.KINDS[kind].hand then addShredMenu(sub, playerObj, object) end
 

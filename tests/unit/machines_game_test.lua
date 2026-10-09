@@ -624,7 +624,15 @@ test("installing and removing parts", function()
     eq(#p.inv.items, 2)
     eq(p.inv.items[2].fullType, "OperationAcorn.MotorModern")
     eq(p.inv.items[2].cond, 70)
-    -- Without a motor it is stopped.
+    -- Taking a part out switches it off; without a motor it cannot be switched on, nor work.
+    eq(state.on, false, "switched off by the removal")
+    local can, why = Machines.canSwitchOn(obj)
+    eq(can, nil)
+    truthy(why and why:find("motor"), "says the motor")
+    Machines.setOn(obj, true)
+    eq(state.on, false, "not switched on without a motor")
+    eq(Machines.stopText(obj), "IGUI_OA_Machine_CannotOn_missing IGUI_OA_Machine_Slot_motor", "why it is not working")
+    state.on = true
     powered(sq)
     fill(Machines.container(obj, "in"), "Base.Hammer", 3, {})
     TEST.hours = 1

@@ -27,19 +27,40 @@ function Handler:shouldBeVisible()
     return stateOf(self.object) ~= nil
 end
 
+-- Whether the button can be pressed now: switching off always; switching on only with the parts it needs (else why).
+local function usable(object, state)
+    if state.on ~= false then return true end
+    return Machines.canSwitchOn(Machines.anchorOf(object))
+end
+
 function Handler:getControl()
-    self.control = self:getButtonControl(title(stateOf(self.object)))
+    local state = stateOf(self.object)
+    self.control = self:getButtonControl(title(state))
+    local ok, why = usable(self.object, state)
+    self.control:setEnable(ok == true)
+    self.control:setTooltip(why)
     return self.control
 end
 
 function Handler:handleJoypadContextMenu(context)
     local state = stateOf(self.object)
-    if state then self:addJoypadContextMenuOption(context, title(state)) end
+    if not state then return end
+    local option = self:addJoypadContextMenuOption(context, title(state))
+    local ok, why = usable(self.object, state)
+    if not ok then
+        option.notAvailable = true
+        local tip = ISToolTip:new()
+        tip:initialise()
+        tip.description = why or ""
+        option.toolTip = tip
+    end
 end
 
 function Handler:perform()
     local state = stateOf(self.object)
-    if state then OA.Sync.send(self.playerObj, "machineSwitch", { machine = state.id, on = state.on == false }) end
+    if state and usable(self.object, state) then
+        OA.Sync.send(self.playerObj, "machineSwitch", { machine = state.id, on = state.on == false })
+    end
 end
 
 function Handler:new()
