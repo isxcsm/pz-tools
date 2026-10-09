@@ -78,7 +78,7 @@ end
 -- second column, under the middle of its tree.
 -- ---- Scout: field detection research (10 nodes, 25 points, capstone Night Eye) --------------------------------------
 node("scout", "sight", 1, 2, 3, "api", {}, { cap = 90, unit = "deg", values = { 12, 24, 36 } })
-node("scout", "sixth", 1, 1, 2, "lua", {}, { unit = "tiles", values = { 8, 12 } })
+node("scout", "sixth", 1, 1, 2, "lua", {}, { unit = "tiles", values = { 4, 8 } })
 node("scout", "alarm", 1, 3, 1, "lua")
 node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit = "pct", values = { 0, 0, 50 } })
 node("scout", "rich", 2, 3, 3, "api", {}, { unit = "pct", values = { 15, 30, 50 } })
