@@ -124,7 +124,8 @@ end
 -- lone zombie, two for a few, three for a crowd; rings for zombies beating on something and a chevron for another
 -- floor (rank 2), drawn upright on the mark itself as Visual Sounds draws its arrows. A noise heard (rank 2) is a
 -- thin arc on a wider ring, its kind in its pattern as Visual Sounds draws them (plain, a wheel for a vehicle, dots for
--- a radio, TV or generator, spikes for an alarm), all in one white: colour belongs to the zombies' arcs. The pictures
+-- a radio, TV or generator, spikes for an alarm), in one white (colour belongs to the zombies' arcs) but for alarms:
+-- those draw every zombie around, so they are a deep red at full strength, as Visual Sounds marks them. The pictures
 -- are white, tinted as they are drawn.
 local RING = 1.7
 local BODY = 0.3
@@ -136,6 +137,7 @@ local MID = { 1.00, 0.72, 0.28 }
 local FAR = { 0.80, 0.88, 1.00 }
 local THUMP = { 1.00, 0.58, 0.18 }
 local NOISE_TINT = { 0.95, 0.95, 0.90 }
+local ALARM_TINT = { 0.95, 0.08, 0.06 }
 local NOISE_PICTURE = { vehicle = "OA_Sense_Car", alarm = "OA_Sense_Alarm", device = "OA_Sense_Dots", noise = "OA_Sense_Noise" }
 local pictures = {}
 local function picture(name)
@@ -217,11 +219,17 @@ function Hud:render()
                 local gx, gy = wx * exX + wy * eyX, wx * exY + wy * eyY
                 local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
                 local ux, uy = gx / len, gy / len
-                local a = S.distance and (1.0 - 0.45 * math.min(1, d / (reach * 2))) or 0.9
+                local alarm = sound.kind == "alarm"
+                local tint = alarm and ALARM_TINT or NOISE_TINT
+                local a = alarm and 1 or (S.distance and (1.0 - 0.45 * math.min(1, d / (reach * 2))) or 0.9)
                 local x, y = cx + gx, cy + gy
-                turned(self, picture(NOISE_PICTURE[sound.kind]), x, y, ux, uy, NOISE_TINT, a)
+                turned(self, picture(NOISE_PICTURE[sound.kind]), x, y, ux, uy, tint, a)
+                if alarm then
+                    -- drawn twice: one red pass is thin on a pale floor
+                    turned(self, picture(NOISE_PICTURE[sound.kind]), x, y, ux, uy, tint, a)
+                end
                 if math.abs(sound.z - pz) >= 0.5 then
-                    turned(self, picture(sound.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, NOISE_TINT, a)
+                    turned(self, picture(sound.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, NOISE_TINT, 1)
                 end
             end
         end

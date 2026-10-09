@@ -11,7 +11,7 @@ the way the zombies are. Each is drawn at 8x and downsampled with LANCZOS.
   OA_Sense_Noise / _Car / _Dots / _Alarm
                             thin arcs for a noise heard (rank 2), its kind in the pattern as Visual Sounds draws
                             them: plain (anything), a wheel (a vehicle), dots (a radio, TV or generator), spikes
-                            (an alarm). One white tint for all: the zombies' arcs keep the colours
+                            (an alarm). White for all but alarms (deep red): the zombies' arcs keep the colours
   OA_Sense_Thump            two small rings, for zombies beating on something (rank 2)
   OA_Sense_Up / _Down       a chevron, for zombies a floor above or below (rank 2)
 """
