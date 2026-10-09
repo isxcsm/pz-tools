@@ -47,3 +47,16 @@ test("chunk work runs once its chunk loads", function()
     eq(ran, 2, "done entries leave the table")
     eq(#OA.Chunks.list("probe"), 0)
 end)
+
+test("a real-time throttle is due once each interval, per key", function()
+    local last = {}
+    -- getTimestampMs-sized numbers: only subtraction is used on them
+    local t = 1760000000000
+    truthy(OA.due(last, "a", t, 5000), "the first time")
+    eq(OA.due(last, "a", t + 4999, 5000), false, "within the interval")
+    truthy(OA.due(last, "b", t + 4999, 5000), "another key keeps its own time")
+    truthy(OA.due(last, "a", t + 5000, 5000), "the interval passed")
+    eq(OA.due(last, "a", t + 5001, 5000), false, "counted from the last due time")
+    truthy(OA.due(last, "a", t - 1, 5000), "a clock that went back is due at once")
+    eq(OA.due(last, "a", t, 5000), false)
+end)

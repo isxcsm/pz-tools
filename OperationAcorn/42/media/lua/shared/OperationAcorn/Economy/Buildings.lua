@@ -33,11 +33,7 @@ Buildings.LOOK_MS = 2000
 -- Whether the minute check looks at a character's building now (`now`: getTimestampMs()), and if so notes it. A clock
 -- that went back looks at once.
 function Buildings.due(character, now)
-    local number = character:getPlayerNum()
-    local last = lookedAt[number]
-    if last and now >= last and now - last < Buildings.LOOK_MS then return false end
-    lookedAt[number] = now
-    return true
+    return OA.due(lookedAt, character:getPlayerNum(), now, Buildings.LOOK_MS)
 end
 
 -- A walk over the squares of the building at a square, counted a part at a time (stepWalk): nil outside any building
