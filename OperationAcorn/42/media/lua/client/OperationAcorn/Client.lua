@@ -10,6 +10,8 @@ local function onServerCommand(module, command, args)
     if module ~= OA.MOD or type(args) ~= "table" then return end
     if command == "changed" then
         OA.Sync.deliver(args.what, args.player, args.detail)
+    elseif command == "title" then
+        OA.Sync.deliver("title", args.player, args.detail)
     elseif command == "notice" then
         OA.Sync.deliver("notice", args.player, { key = args.key, args = args.args })
     else
