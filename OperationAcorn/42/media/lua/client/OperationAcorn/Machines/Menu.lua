@@ -56,6 +56,12 @@ local function onPickUp(playerObj, object)
     queueAt(playerObj, square, ISOAMachinePickUp:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
+local function onTakeLure(playerObj, object)
+    local state = Machines.state(object)
+    local square = object:getSquare()
+    queueAt(playerObj, square, ISOAMachineTakeLure:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
+end
+
 -- Queues shredding of entries at the bench, an action an item.
 local function onShred(playerObj, object, entries)
     local state = Machines.state(object)
@@ -100,7 +106,6 @@ local function addMachineOptions(context, playerObj, object)
     local option = context:addOptionOnTop(Machines.name(kind), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-    tooltip(option, getText("Tooltip_OA_Machine_" .. kind))
 
     if Data.hasWindow(kind) then
         sub:addOption(getText("ContextMenu_OA_Machine_Open"), playerObj, onOpen, object)
@@ -116,12 +121,18 @@ local function addMachineOptions(context, playerObj, object)
     end
     if Data.KINDS[kind].hand then addShredMenu(sub, playerObj, object) end
 
-    -- a machine is taken up with the game's furniture tool (Moveables.lua); a spent lure's shell is cleared here
+    -- a machine is taken up with the game's furniture tool (Moveables.lua); a lure is taken back while it works (with
+    -- the hours it has left) or cleared away once it is spent
     if kind == "lure" then
-        local pick = sub:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
-        local ok, reason = Machines.canPickUp(object)
-        if not ok then unavailable(pick, getText("IGUI_OA_Machine_Reason_" .. reason)) end
+        if Machines.canTakeLure(object) then
+            sub:addOption(getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
+        else
+            sub:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
+        end
     end
+    -- what the machine is, on the first option of its submenu (on the machine's own option it would cover the submenu)
+    local first = sub.options and sub.options[1]
+    if first and not first.toolTip then tooltip(first, getText("Tooltip_OA_Machine_" .. kind)) end
 end
 
 -- The lure is put down from its item; the machines are furniture, put down with the game's furniture tool.

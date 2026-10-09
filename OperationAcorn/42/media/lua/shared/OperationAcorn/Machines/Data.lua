@@ -136,6 +136,9 @@ Data.RAIN_POUR_SPEED = Data.RAIN_CAPACITY / 600
 -- The installable lure: lasts `hours` of world time from when it is put down, one sound every `interval` hours with
 -- radius `radius` (vanilla NoiseTrap: 30 seconds and 17). After that only a spent shell is left.
 Data.LURE = { hours = 24, interval = 0.25, radius = 60 }
+-- The item modData key of a lure taken back while it worked: the hours it had left (put down again, it goes on from
+-- there; a lure taken back does not come back new).
+Data.LURE_LEFT_KEY = "OA_LureLeft"
 
 
 -- Conversions (NUMBERS 11).

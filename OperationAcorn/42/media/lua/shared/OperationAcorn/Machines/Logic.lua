@@ -368,7 +368,8 @@ end
 
 -- Hours left on a lure.
 function Logic.lureLeft(state, now)
-    return math.max(0, Data.LURE.hours - (now - state.start))
+    -- (never more than a whole lure: world time set back puts its start ahead of now)
+    return math.max(0, math.min(Data.LURE.hours, Data.LURE.hours - (now - state.start)))
 end
 
 return Logic

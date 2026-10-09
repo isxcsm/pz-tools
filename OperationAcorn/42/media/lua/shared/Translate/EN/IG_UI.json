@@ -136,7 +136,7 @@
     "IGUI_OA_Machine_Reason_notOutside": "The rain water storage must stand outdoors with no roof above.",
     "IGUI_OA_Machine_Reason_nothingToShred": "Nothing you carry can be shredded.",
     "IGUI_OA_Machine_Reason_notMachine": "Not a research team machine.",
-    "IGUI_OA_Machine_Reason_armed": "Still active. Only a spent shell can be cleared.",
+    "IGUI_OA_Machine_Reason_armed": "Still working. Only a spent lure can be cleared away.",
     "IGUI_OA_Machine_Reason_notEmpty": "Empty it first.",
     "IGUI_OA_Machine_Reason_hasParts": "Take its parts out first.",
     "IGUI_OA_Machine_Job_shred": "Shredding",

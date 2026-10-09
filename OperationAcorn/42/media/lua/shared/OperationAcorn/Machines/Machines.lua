@@ -1162,7 +1162,10 @@ function Machines.place(kind, square, character, item, dir, bare)
         lanes = {}, idle = true, running = false, buffer = 0, x = ax, y = ay, z = az }
     state.parts = bare and {} or Logic.newParts(kind)
     if kind == "lure" then
-        state.start, state.slot, state.spent = OA.hours(), -1, false
+        -- a lure taken back while it worked goes on with the hours it had left
+        local left = item and item:getModData()[Data.LURE_LEFT_KEY]
+        local used = type(left) == "number" and math.max(0, math.min(Data.LURE.hours, Data.LURE.hours - left)) or 0
+        state.start, state.slot, state.spent = OA.hours() - used, -1, false
         state.running = true
     end
 
@@ -1220,12 +1223,33 @@ function Machines.canPickUp(object)
     return true
 end
 
--- Clears a spent lure's shell away (a machine is taken up by the furniture tool): every tile and the registry entry,
--- nothing given. Returns whether it was cleared.
+-- Clears a spent lure away (a machine is taken up by the furniture tool): every tile and the registry entry, nothing
+-- given. Returns whether it was cleared.
 function Machines.pickUp(object)
     if not Machines.state(object) or not Machines.canPickUp(object) then return false end
     Machines.remove(object)
     return true
+end
+
+-- Whether a lure can be taken back: one that still works (a spent one is cleared, Machines.pickUp).
+function Machines.canTakeLure(object)
+    local state = Machines.state(object)
+    return state ~= nil and state.kind == "lure" and not state.spent
+end
+
+-- Takes a working lure back as its item, with the hours it had left (Data.LURE_LEFT_KEY). Returns the item, or nil.
+function Machines.takeLure(object, character)
+    if not Machines.canTakeLure(object) then return nil end
+    local state = Machines.state(object)
+    local left = Logic.lureLeft(state, OA.hours())
+    local item = instanceItem(itemFullType("lure"))
+    if not item then return nil end
+    item:getModData()[Data.LURE_LEFT_KEY] = left
+    Machines.remove(object)
+    local inventory = character:getInventory()
+    inventory:AddItem(item)
+    sendAddItemToContainer(inventory, item)
+    return item
 end
 
 local function removeObject(object)

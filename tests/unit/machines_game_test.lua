@@ -1193,6 +1193,30 @@ test("clearing a spent lure removes it and gives nothing", function()
     cleanup()
 end)
 
+test("a working lure is taken back with the hours it has left, and goes on from there", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(40, 40, 0)
+    TEST.hours = 100
+    local anchor = Machines.place("lure", sq, p, newItem("OperationAcorn.BaitTrap"), "S")
+    TEST.hours = 110
+    truthy(Machines.canTakeLure(anchor))
+    local item = Machines.takeLure(anchor, p)
+    truthy(item, "taken back")
+    eq(#sq.objects, 0)
+    eq(#p.inv.items, 1)
+    near(item:getModData()[Machines.Data.LURE_LEFT_KEY], 14, 1e-6, "24 hours less the 10 it worked")
+    -- put down again later: it goes on with its 14 hours, not a new day
+    TEST.hours = 200
+    local again = Machines.place("lure", sq, p, item, "S")
+    near(OA.Machines.Logic.lureLeft(Machines.state(again), 200), 14, 1e-6)
+    -- a spent lure is not taken back, only cleared
+    Machines.state(again).spent = true
+    eq(Machines.canTakeLure(again), false)
+    eq(Machines.takeLure(again, p), nil)
+    cleanup()
+end)
+
 test("a machine with something in it cannot be picked up, wherever it is clicked", function()
     local square = worldSetup()
     local p = player()

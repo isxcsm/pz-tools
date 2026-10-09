@@ -111,6 +111,28 @@ function ISOAMachinePickUp:new(character, id, x, y, z)
     return o
 end
 
+-- Taking a working lure back as its item (with the hours it has left).
+ISOAMachineTakeLure = base("ISOAMachineTakeLure", 100)
+
+function ISOAMachineTakeLure:isValid()
+    local object = Machines.find(self.machineId)
+    return object ~= nil and Machines.canTakeLure(object)
+end
+
+function ISOAMachineTakeLure:complete()
+    local object = Machines.find(self.machineId)
+    if not object then return false end
+    Machines.takeLure(object, self.character)
+    return true
+end
+
+function ISOAMachineTakeLure:new(character, id, x, y, z)
+    local o = ISBaseTimedAction.new(self, character)
+    o.machineId, o.x, o.y, o.z = id, x, y, z
+    o.maxTime = o:getDuration()
+    return o
+end
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Parts
 

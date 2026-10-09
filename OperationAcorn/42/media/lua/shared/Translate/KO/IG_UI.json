@@ -136,7 +136,7 @@
     "IGUI_OA_Machine_Reason_notOutside": "빗물 저장소는 지붕이 없는 실외에 놓아야 합니다.",
     "IGUI_OA_Machine_Reason_nothingToShred": "분해할 수 있는 물건이 없습니다.",
     "IGUI_OA_Machine_Reason_notMachine": "연구팀 기계가 아닙니다.",
-    "IGUI_OA_Machine_Reason_armed": "아직 작동 중입니다. 다 쓴 껍데기만 치울 수 있습니다.",
+    "IGUI_OA_Machine_Reason_armed": "아직 작동 중입니다. 다 쓴 미끼만 치울 수 있습니다.",
     "IGUI_OA_Machine_Reason_notEmpty": "먼저 비워야 합니다.",
     "IGUI_OA_Machine_Reason_hasParts": "부품을 먼저 빼야 합니다.",
     "IGUI_OA_Machine_Job_shred": "분해 중",

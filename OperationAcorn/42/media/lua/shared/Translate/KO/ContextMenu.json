@@ -1,7 +1,8 @@
 {
     "ContextMenu_OA_Machine_Place": "%1 놓기",
     "ContextMenu_OA_Machine_Open": "기계 창",
-    "ContextMenu_OA_Machine_RemoveShell": "다 쓴 껍데기 치우기",
+    "ContextMenu_OA_Machine_RemoveShell": "다 쓴 미끼 치우기",
+    "ContextMenu_OA_Machine_TakeLure": "미끼 회수",
     "ContextMenu_OA_Machine_SwitchOn": "켜기",
     "ContextMenu_OA_Machine_SwitchOff": "끄기",
     "ContextMenu_OA_Machine_Shred": "손으로 분해",
