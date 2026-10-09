@@ -200,6 +200,25 @@ test("a bag taken from the world tags what is in it too, and the codex counts it
     truthy(record.codex.kinds.Satchel and record.codex.kinds.Pencil)
 end)
 
+test("a pickup tells the story's missions, for the sample cooler's clock", function()
+    ISTransferAction = { transferItem = function(self, ch, it) return it end }
+    boot()
+    OA.Economy.start()
+    local record = OA.Store.ensure("p", "P")
+    local told = {}
+    OA.Missions = { pickedUp = function(rec, it) told[#told + 1] = { record = rec, item = it } end }
+    local cooler = item("OperationAcorn.SampleCooler", { data = { OA_Mission = "M1-1" } })
+    ISTransferAction:transferItem(character("p"), cooler, container("shelves", { square = square(1, 1) }),
+        container("inventory", { mine = true }), nil)
+    eq(#told, 1)
+    eq(told[1].record, record)
+    eq(told[1].item, cooler)
+    -- a move inside the pack is no pickup
+    ISTransferAction:transferItem(character("p"), cooler, container("inventory", { mine = true }),
+        container("bag", { mine = true }), nil)
+    eq(#told, 1)
+end)
+
 test("a failing bookkeeping step never breaks the game's transfer", function()
     local moved = false
     ISTransferAction = { transferItem = function(self, ch, it) moved = true; return it end }

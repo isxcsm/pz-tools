@@ -4,9 +4,10 @@
 --     foraging, trades ...);
 --   every minute (at most each few real seconds): the building a character stands in, for "all containers searched";
 --   a zombie's death: the killer's kill count;
---   an item taken from a container, the floor or a corpse: the cell it came from (the new-region premium) and the
---   codex. The pickup is caught by wrapping ISTransferAction:transferItem, the one place the game moves an item
---   between containers; the original runs first and its result is returned as it was.
+--   an item taken from a container, the floor or a corpse: the cell it came from (the new-region premium), the codex
+--   and the story's sample cooler (its clock starts). The pickup is caught by wrapping ISTransferAction:transferItem,
+--   the one place the game moves an item between containers; the original runs first and its result is returned as
+--   it was.
 -- Nothing here runs per tick, per frame or per square.
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -126,7 +127,10 @@ local function afterPickup(character, item, cell)
     if not item then return end
     tagCell(item, cell, { left = 200 })
     local record = recordOf(character)
-    if record then acquireItem(record, OA.Codex.section(record).kinds, item, 1) end
+    if not record then return end
+    acquireItem(record, OA.Codex.section(record).kinds, item, 1)
+    -- The story's sample cooler starts its clock as it is picked up.
+    if OA.Missions and OA.Missions.pickedUp then OA.Missions.pickedUp(record, item) end
 end
 
 local hooked = false
