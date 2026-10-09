@@ -51,10 +51,31 @@ function UpgradesServer.approve(character, record, rawSteps)
     local ok, result, used = Rules.approve(u, steps, { fragments = UpgradesServer.fragments(character) })
     if not ok then return false, result end
     if used > 0 and not takeFragments(character, used) then return false, "fragment" end
+    local wasOpen, capstones = Rules.boardOpen(u), Rules.capstones(u)
     Rules.assign(u, result)
     OA.Sync.changed("upgrades", record.id, { kind = "approve" })
     OA.Sync.notice(record.id, "IGUI_OA_Tree_Approved", { #steps })
+    UpgradesServer.titles(record.id, u, steps, wasOpen, capstones)
     return true
+end
+
+-- The title of an approval that took a capstone: the second board's when that opened it (the last capstone), else the
+-- capstone's with its name (the last one in the plan). One title for one approval.
+function UpgradesServer.titles(id, u, steps, wasOpen, capstones)
+    if not wasOpen and Rules.boardOpen(u) then
+        OA.Sync.title(id, { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "stamp",
+            tone = "gold", fallback = "good" })
+        return
+    end
+    if Rules.capstones(u) <= capstones then return end
+    local name
+    for _, step in ipairs(steps) do
+        local node = Data.byId[step.id]
+        if node and node.capstone then name = Data.key(node.id, "Name") end
+    end
+    if not name then return end
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Capstone", sub = name, style = "stamp", tone = "gold",
+        fallback = "good" })
 end
 
 -- Resets a tree for a record: the credits come out of the trade section.
@@ -89,7 +110,8 @@ Server.on("upgrades.bite", function(character, record, args)
     if not Rules.biteReady(u, now) then return end
     u.biteAt = now
     OA.Sync.changed("upgrades", record.id, { kind = "bite" })
-    OA.Sync.notice(record.id, "IGUI_OA_Tree_BiteSaved", { math.floor(Rules.biteHours(u) / 24 + 0.5) })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_BiteSaved", sub = "IGUI_OA_Title_BiteSavedSub",
+        subArgs = { math.floor(Rules.biteHours(u) / 24 + 0.5) }, style = "stamp", tone = "green", fallback = "good" })
 end)
 
 return UpgradesServer

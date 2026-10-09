@@ -445,6 +445,18 @@ function Missions.begin(record, m)
     OA.Sync.changed("missions", record.id)
 end
 
+-- The translation keys of a mission's title and brief by its kind (the title is the story id, the item or the contract
+-- id). `m` is a mission or the tab's description of one.
+function Missions.keys(m)
+    local prefix, brief = "Title_", "Brief_"
+    if m.kind == "regular" then
+        prefix, brief = "RegTitle_", "RegBrief_"
+    elseif m.kind == "contract" then
+        prefix, brief = "ConTitle_", "ConBrief_"
+    end
+    return "IGUI_OA_Story_" .. prefix .. tostring(m.title), "IGUI_OA_Story_" .. brief .. tostring(m.title)
+end
+
 -- Starts the next mission if one is due. Returns it.
 function Missions.start(record)
     local stage, milestones = Story.progress(record)
@@ -468,6 +480,8 @@ function Missions.start(record)
     if not m then return nil end
     Missions.begin(record, m)
     if m.story then Story.radio(record, "mission_story") else Story.radio(record, "mission_new") end
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal",
+        style = "notice" })
     OA.log("mission", m.id, m.story or m.title, "for", record.number)
     return m
 end
@@ -481,12 +495,22 @@ function Missions.finish(record, m, result)
     s.nextAt = OA.hours() + intervalHours()
     s.results[result] = (s.results[result] or 0) + 1
     s.last = { id = m.id, story = m.story, result = result, at = OA.hours() }
+    if result == "expired" then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "notice",
+            tone = "red", fallback = "bad" })
+    end
     Story.missionEnded(record, m, result)
     OA.Sync.changed("missions", record.id)
 end
 
+-- The reward goes in, and the player sees the request done (before the title of a stage its trust may bring).
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
+    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "stamp", fallback = "good" }
+    if credits and credits > 0 then
+        detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, math.floor(credits + 0.5) }
+    end
+    OA.Sync.title(record.id, detail)
     -- The economy values a mission item that is in time at nothing (P1: "MissionItem"); the whole reward is paid here.
     Story.addCredits(record, credits)
     Story.addTrust(record, trust)

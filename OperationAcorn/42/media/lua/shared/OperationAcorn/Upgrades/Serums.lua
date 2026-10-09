@@ -140,7 +140,7 @@ function Serums.cure(character, item, id)
     end
     if not consume(item) then return false end
     Serums.cureBody(character)
-    OA.Sync.notice(id, "IGUI_OA_Tree_CureDone", {})
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", style = "stamp", tone = "green", fallback = "good" })
     return true
 end
 

@@ -193,6 +193,14 @@ local function present(owner, entry)
     Later.after(Heli.LOUD_AT, function() Heli.landNow(id) end)
 end
 
+-- The player is told a drop is done (with the radio line): a title, saying the crate is on the map when it is there
+-- already (a drop on a square not loaded yet comes down, and is marked, when the square loads).
+function Heli.dropped(owner, marked)
+    Trade.radio(owner, "IGUI_OA_Trade_Radio_Dropped")
+    OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = marked and "IGUI_OA_Title_Marked" or nil,
+        style = "notice", fallback = "good" })
+end
+
 -- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the radio follow.
 function Heli.landNow(ownerId)
     local owner = Store.player(ownerId)
@@ -201,12 +209,13 @@ function Heli.landNow(ownerId)
     local entry = heli.landing
     if not entry then return end
     heli.landing = nil
-    if not Heli.setDown(entry) then
+    local done = Heli.setDown(entry)
+    if not done then
         entry.kind = "trade.land"
         Chunks.add(entry)
     end
     Heli.noise(entry.x, entry.y, entry.z or 0)
-    Trade.radio(owner, "IGUI_OA_Trade_Radio_Dropped")
+    Heli.dropped(owner, done and entry.cargo ~= nil and #entry.cargo > 0)
 end
 
 -- Does the physical part of an arrival.
@@ -234,7 +243,7 @@ function Heli.deliver(record, plan, call)
         present(record, entry)
     else
         Chunks.add(entry)
-        Trade.radio(record, "IGUI_OA_Trade_Radio_Dropped")
+        Heli.dropped(record, false)
     end
 end
 

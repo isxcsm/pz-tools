@@ -259,6 +259,8 @@ function Story.completeHandover(record)
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
     Story.radio(record, Data.HANDOVER_RADIO)
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
+        subArgs = { { key = Story.callSignKey(record) } }, style = "stamp" })
     OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)
 end

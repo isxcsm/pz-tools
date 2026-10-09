@@ -820,6 +820,58 @@ test("server: approve spends points and fragments, and refuses a bad plan whole"
     eq(Rules.rank(v, "sight"), 0, "nothing was bought")
 end)
 
+test("server: a capstone approved has a gold title with its name; the last one opens the board, one title", function()
+    require "OperationAcorn/Upgrades/Server"
+    local character = fakeCharacter(3)
+    local record = OA.Store.ensure("cap", "tester")
+    local u = Rules.section(record)
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
+    local function approveTree(tree)
+        inject(u, tree, 26)
+        local steps = {}
+        for _, id in ipairs(ORDER[tree]) do steps[#steps + 1] = { id = id } end
+        steps[#steps + 1] = { id = Data.capstone(tree).id }
+        sendClientCommand(character, OA.MOD, "upgrades.approve", { id = "cap", steps = steps })
+    end
+    approveTree("scout")
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_Capstone")
+    eq(told[1].sub, Data.key("nightEye", "Name"))
+    eq(told[1].tone, "gold")
+    approveTree("load")
+    eq(#told, 2)
+    eq(told[2].sub, Data.key("armor", "Name"))
+    approveTree("survival")
+    truthy(Rules.boardOpen(u))
+    eq(#told, 3, "the board's title in place of the capstone's")
+    eq(told[3].key, "IGUI_OA_Title_BoardOpened")
+    eq(told[3].tone, "gold")
+    -- a plan without a capstone has no title
+    inject(u, "scout", 1)
+    sendClientCommand(character, OA.MOD, "upgrades.approve", { id = "cap", steps = { { id = ORDER.scout[1] } } })
+    eq(#told, 3)
+end)
+
+test("a cure serum that works has a green title in place of its notice", function()
+    local Serums = OA.Upgrades.Serums
+    local told, notices = {}, {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
+    OA.Sync.listen("notice", function(id, detail) notices[#notices + 1] = detail.key end)
+    local real = { status = Serums.cureStatus, infected = Serums.infected, body = Serums.cureBody }
+    Serums.cureStatus = function() return "ok", 3 end
+    Serums.infected = function() return true end
+    Serums.cureBody = function() end
+    local container = { DoRemoveItem = function() end }
+    local item = { getType = function() return "CureSerum" end, getContainer = function() return container end }
+    truthy(Serums.cure({}, item, "cure1"))
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_Cured")
+    eq(told[1].tone, "green")
+    eq(#notices, 0)
+    Serums.cureStatus, Serums.infected, Serums.cureBody = real.status, real.infected, real.body
+end)
+
 test("server: reset takes the credits and refuses a debt", function()
     require "OperationAcorn/Upgrades/Server"
     local character = fakeCharacter(0)
@@ -845,10 +897,17 @@ test("server: the bite shield rests after a save", function()
     local u = Rules.section(record)
     inject(u, "survival", 25)
     buy(u, ORDER.survival)
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
     TEST.hours = 300
     sendClientCommand(character, OA.MOD, "upgrades.bite", { id = "bit" })
     eq(u.biteAt, 300)
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_BiteSaved")
+    eq(told[1].tone, "green")
+    eq(told[1].subArgs[1], math.floor(Rules.biteHours(u) / 24 + 0.5))
     TEST.hours = 310
     sendClientCommand(character, OA.MOD, "upgrades.bite", { id = "bit" })
     eq(u.biteAt, 300, "a second save while resting does not count")
+    eq(#told, 1)
 end)

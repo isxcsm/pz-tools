@@ -66,3 +66,32 @@ test("the minute's infection work runs every game minute, whatever the real time
     if not ok then error(err, 0) end
     eq(calls, 5)
 end)
+
+test("a tree opened is a title with the tree's line under it, or the banner without the API's text", function()
+    local Hooks = loadHooks()
+    local banners, called, halo = {}, {}, {}
+    Hooks.banner = function(text) banners[#banners + 1] = text end
+    local data = { OA_Id = "p1" }
+    local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
+    getNumActivePlayers = function() return 1 end
+    getSpecificPlayer = function() return character end
+    HaloTextHelper = { addText = function(_, t) halo[#halo + 1] = t end }
+    PZToolsAPI = nil
+    Hooks.treeOpened("p1", "scout")
+    eq(#banners, 1)
+    eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Tree_Event_scout")
+    eq(#halo, 0, "the banner, not a text over the character")
+    PZToolsAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = {
+            status = function() return "applied" end,
+            title = function(handle, spec) called[#called + 1] = spec end,
+        },
+    }
+    Hooks.treeOpened("p1", "load")
+    eq(#banners, 1, "no banner when the title is drawn")
+    eq(called[1].text, "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_load")
+    eq(called[1].subtitle, "IGUI_OA_Tree_Event_load")
+    PZToolsAPI = nil
+end)

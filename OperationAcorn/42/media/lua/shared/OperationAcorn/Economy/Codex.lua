@@ -47,7 +47,7 @@ function Codex.section(record)
     return c
 end
 
--- Adds a credit bonus (scaled by BonusMultiplier) and, for a milestone, tells the player.
+-- Adds a credit bonus (scaled by BonusMultiplier).
 local function pay(record, credits)
     local t = OA.Trust.section(record)
     t.bonus = t.bonus + credits * (OA.option("BonusMultiplier") or 1.0)
@@ -58,17 +58,31 @@ local function serum(record, n)
     t.sharedSerums = t.sharedSerums + n
 end
 
--- A milestone worth telling: the key and numbers go to the player as a notice, the event goes back to the caller.
-local function milestone(record, events, kind, credits, detail)
+-- A milestone worth telling: the event goes back to the caller, and to `tell` below.
+local function milestone(events, kind, credits, detail)
     local event = { kind = kind, credits = credits * (OA.option("BonusMultiplier") or 1.0) }
     for k, v in pairs(detail or {}) do event[k] = v end
     table.insert(events, event)
-    -- The notice's arguments: the credits, then the count reached (or the category's name).
-    local arg = event.count
-    if event.letter then arg = getText(OA.Categories.nameKey(event.letter)) end
-    local ok, err = pcall(OA.Sync.notice, record.id, "IGUI_OA_Econ_Notice_" .. kind,
-        { math.floor(event.credits + 0.5), arg or 0 })
-    if not ok then OA.log("notice failed:", tostring(err)) end
+end
+
+-- The style of each milestone's title: the codex's are finds, the counts are notices.
+Codex.TITLE_STYLE = { Kinds = "discovery", Category = "discovery", Buildings = "notice", Kills = "notice" }
+
+-- Tells the player of the milestones one action made, with one title: the last (highest) milestone, and the bonus of
+-- all of them under it.
+local function tell(record, events)
+    local last = events[#events]
+    if not last then return end
+    local credits = 0
+    for _, event in ipairs(events) do credits = credits + event.credits end
+    local key, args = "IGUI_OA_Title_Codex" .. last.kind, { last.count or 0 }
+    if last.letter then
+        key = key .. "_" .. tostring(last.index)
+        args = { { key = OA.Categories.nameKey(last.letter) } }
+    end
+    local ok, err = pcall(OA.Sync.title, record.id, { key = key, args = args, sub = "IGUI_OA_Title_Bonus",
+        subArgs = { math.floor(credits + 0.5) }, style = Codex.TITLE_STYLE[last.kind], fallback = "good" })
+    if not ok then OA.log("title failed:", tostring(err)) end
 end
 
 -- The codex counts a kind the first time a character gets it. `info` as in ARCHITECTURE 5. Returns true when the
@@ -91,7 +105,7 @@ function Codex.acquire(record, info)
         while paid < #Codex.CATEGORY_STEPS and c.cat[letter] >= math.ceil(Codex.CATEGORY_STEPS[paid + 1] * total) do
             paid = paid + 1
             pay(record, Codex.CATEGORY_PAY[paid])
-            milestone(record, events, "Category", Codex.CATEGORY_PAY[paid], { letter = letter, index = paid })
+            milestone(events, "Category", Codex.CATEGORY_PAY[paid], { letter = letter, index = paid })
         end
         c.paid.cats[letter] = paid
     end
@@ -101,8 +115,9 @@ function Codex.acquire(record, info)
         pay(record, Codex.KIND_PAY[c.paid.kinds])
         local extra = Codex.KIND_SERUM[step]
         if extra then serum(record, extra) end
-        milestone(record, events, "Kinds", Codex.KIND_PAY[c.paid.kinds], { count = step, sharedSerums = extra or 0 })
+        milestone(events, "Kinds", Codex.KIND_PAY[c.paid.kinds], { count = step, sharedSerums = extra or 0 })
     end
+    tell(record, events)
     return true, events
 end
 
@@ -145,9 +160,10 @@ function Codex.buildingSearched(record, key, containers)
     while c.paid.buildings < #Codex.BUILDING_STEPS and c.nb >= Codex.BUILDING_STEPS[c.paid.buildings + 1] do
         c.paid.buildings = c.paid.buildings + 1
         pay(record, Codex.BUILDING_PAY[c.paid.buildings])
-        milestone(record, events, "Buildings", Codex.BUILDING_PAY[c.paid.buildings],
+        milestone(events, "Buildings", Codex.BUILDING_PAY[c.paid.buildings],
             { count = Codex.BUILDING_STEPS[c.paid.buildings] })
     end
+    tell(record, events)
     return credits, events
 end
 
@@ -188,8 +204,9 @@ function Codex.kill(record, n)
         c.paid.kills = c.paid.kills + 1
         local credits = Codex.killPay(c.paid.kills)
         pay(record, credits)
-        milestone(record, events, "Kills", credits, { count = Codex.killThreshold(c.paid.kills) })
+        milestone(events, "Kills", credits, { count = Codex.killThreshold(c.paid.kills) })
     end
+    tell(record, events)
     return events
 end
 

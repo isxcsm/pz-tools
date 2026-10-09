@@ -104,8 +104,13 @@ test("milestones: the unresolved list, the soil mission at the second, the hando
     for _, q in ipairs(s.queue) do if q.id == "handover" then hand = true end end
     truthy(hand)
     eq(Story.handedOver(record), false, "not before the mission ends")
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
     Story.missionEnded(record, { story = "handover" }, "expired")
     eq(Story.handedOver(record), true, "any ending completes it")
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_Handover")
+    eq(told[1].subArgs[1].key, "IGUI_OA_Story_CallSign_Handover", "the new call sign under it")
     eq(s.noteQueue[#s.noteQueue], "last_b")
     local types = {}
     for _, it in ipairs(TEST.drop) do types[it.type] = true end
