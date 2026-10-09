@@ -15,29 +15,30 @@ public final class RuntimeObserver {
     /**
      * @param debugger the game thread has stopped in the game's Lua debugger since this sample: said by a stream thread,
      *                 never by the game thread, whose next sample ends it
+     * @param saving   it stopped there from inside the game's save, which may be half written
      */
     public record Snapshot(String process, String observer, String world, long clock, long eligibility,
         long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path, String gameVersion, LiveCharacter.Facts character, SaveExecution.Report execution,
-        boolean debugger) {
+        boolean debugger, boolean saving) {
         String wire(long age) {
             String encoded = path == null ? "-" : Base64.getEncoder().encodeToString(path.getBytes(StandardCharsets.UTF_8));
             // STATE5 adds the most the game's Java heap may grow to, in megabytes: the memory the game was started with.
-            // STATE6 adds whether the game thread is stopped in the Lua debugger.
+            // STATE6 adds whether the game thread is stopped in the Lua debugger, and whether from inside the save.
             return String.join("\t", "STATE6", process, observer, world, Long.toString(clock),
                 Long.toString(eligibility), Long.toString(sequence), phase, pause, mode,
                 Integer.toString(speed), Long.toString(activeMillis), Long.toString(age), encoded,
                 "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1,runtime.heap.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep(),
-                Long.toString(Runtime.getRuntime().maxMemory() >> 20), debugger ? "Debugger" : "-");
+                Long.toString(Runtime.getRuntime().maxMemory() >> 20), !debugger ? "-" : saving ? "DebuggerSaving" : "Debugger");
         }
         /** This sample as the game's own sample reads once it is leaving its world. */
         Snapshot leaving(long next) {
             return new Snapshot(process, observer, world, clock, eligibility, next, "Unloading", "Unknown", mode, -1,
-                activeMillis, null, gameVersion, LiveCharacter.Facts.UNKNOWN, execution, false);
+                activeMillis, null, gameVersion, LiveCharacter.Facts.UNKNOWN, execution, false, false);
         }
         /** This sample, unchanged but for saying the game thread has stopped in the Lua debugger since. */
-        Snapshot inDebugger(long next) {
+        Snapshot inDebugger(long next, boolean inSave) {
             return new Snapshot(process, observer, world, clock, eligibility, next, phase, pause, mode, speed,
-                activeMillis, path, gameVersion, character, execution, true);
+                activeMillis, path, gameVersion, character, execution, true, inSave);
         }
     }
     /** A stopped generation is never mutated/reused by the next subscription. */
@@ -68,7 +69,7 @@ public final class RuntimeObserver {
         Snapshot exact() {
             return new Snapshot(PROCESS, observer, world, clockEpoch, eligibility, sequence,
                 phase, pause, mode, adapter.speedLevel, activeNanos / 1_000_000L,
-                phase.equals("Ready") ? adapter.path : null, adapter.gameVersion, phase.equals("Ready") && mode.equals("LocalSinglePlayer") ? character : LiveCharacter.Facts.UNKNOWN, SaveExecution.latest(), false);
+                phase.equals("Ready") ? adapter.path : null, adapter.gameVersion, phase.equals("Ready") && mode.equals("LocalSinglePlayer") ? character : LiveCharacter.Facts.UNKNOWN, SaveExecution.latest(), false, false);
         }
         void sample() {
             if (!active) return;
@@ -138,7 +139,8 @@ public final class RuntimeObserver {
             if (!debugger && !(seen.phase().equals("Ready") && PzRuntimeAdapter.leavingWorld(frames))) return;
             synchronized (this) {
                 // A sample taken meanwhile is the game's own word, and newer.
-                if (snapshot == seen && lastSample == sampled) snapshot = debugger ? seen.inDebugger(++sequence) : seen.leaving(++sequence);
+                if (snapshot == seen && lastSample == sampled)
+                    snapshot = debugger ? seen.inDebugger(++sequence, PzRuntimeAdapter.saving(frames)) : seen.leaving(++sequence);
             }
         }
     }

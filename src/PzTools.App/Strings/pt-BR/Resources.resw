@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Fazer backup quando o personagem morrer</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Ligado, faz um backup logo depois que o personagem morre.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>A partida continuou mudando, então o backup não foi feito. Tente novamente em instantes.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>O jogo parou no depurador Lua enquanto salvava, então o save no disco pode estar incompleto. Não foi feito backup. Retome o jogo, deixe-o terminar de salvar e tente novamente.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próximo backup: aguardando</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Claro</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar arquivo de backup</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Não é possível importar este arquivo. Verifique se ele foi exportado pelo PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Backup manual</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Foi feito backup do último estado salvo. O jogo está parado no depurador Lua e não pôde salvar antes.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restaurar o backup selecionado?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Substituir os arquivos atuais de “{0}” pelo backup “{1}”. O progresso feito após esse backup será perdido. Se a restauração for interrompida, abra o PZ Tools novamente antes de carregar essa partida no jogo.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restaurar</value></data>
@@ -659,6 +661,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personagem morto – backups em espera</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Jogo parado no depurador Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Não foi possível conectar ao jogo; fazendo backup sem salvar o jogo antes.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>O jogo está parado no depurador Lua; fazendo backup do último estado salvo sem pedir que ele salve.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>No momento não é possível ler o sono, então só a pausa se aplica.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Não se aplica no momento porque não há conexão com o jogo.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próximo backup (sem conexão com o jogo)</value></data>

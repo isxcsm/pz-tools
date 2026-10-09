@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Sauvegarder à la mort du personnage</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Activé, crée une sauvegarde juste après la mort de votre personnage.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>La partie changeait sans cesse, elle n’a pas été sauvegardée. Réessayez dans un instant.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Le jeu s’est arrêté dans le débogueur Lua pendant l’enregistrement : la partie sur le disque est peut-être incomplète. Elle n’a pas été sauvegardée. Reprenez le jeu, laissez-le finir d’enregistrer, puis réessayez.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Prochaine sauvegarde : en attente</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Système</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Clair</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importer une archive</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Impossible d’importer ce fichier. Vérifiez qu’il a été exporté par PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Sauvegarde manuelle</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Le dernier état enregistré a été sauvegardé. Le jeu est arrêté dans le débogueur Lua et n’a pas pu enregistrer avant.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restaurer la sauvegarde sélectionnée ?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Remplacer les fichiers actuels de « {0} » par la sauvegarde « {1} ». La progression depuis cette sauvegarde sera perdue. Si la restauration est interrompue, rouvrez PZ Tools avant de charger cette partie dans le jeu.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restaurer</value></data>
@@ -659,6 +661,7 @@ Attentes de mémoire : nombre de fois où un fil s&apos;est arrêté jusqu&apos;
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personnage mort – sauvegardes en attente</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Jeu arrêté dans le débogueur Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Connexion au jeu impossible ; sauvegarde sans enregistrement préalable de la partie.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Le jeu est arrêté dans le débogueur Lua ; sauvegarde du dernier état enregistré sans lui demander d’enregistrer.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Le sommeil ne peut pas être lu pour l’instant : seule la pause s’applique.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Non appliqué pour l’instant, car le jeu est injoignable.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Prochaine sauvegarde (jeu non connecté)</value></data>

@@ -16,6 +16,8 @@ public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, 
     /// <summary>The game is stopped in its Lua debugger (<see cref="RuntimeObservation.IsInDebugger"/>).</summary>
     GameDebugger = 512 }
 public enum ScheduleDisposition { Default, Preserve, Consume, CompletionUnknown }
+/// <summary>How the game waits in its Lua debugger, for a backup of one save (RuntimeObservation.DebuggerStopFor).</summary>
+public enum GameDebuggerStop { None, Stopped, StoppedWhileSaving }
 
 /// <summary>Durations belong to one observer/clock epoch, never to the host's UTC clock.</summary>
 public sealed record RuntimeSnapshot(
@@ -30,7 +32,10 @@ public sealed record RuntimeSnapshot(
     // Error on, a breakpoint or a step. Said by the bridge's stream thread from where the game thread is; the game's
     // next sample ends it. Not part of the semantic key: the observation's reason says it once the sample is old
     // (RuntimeObservation.GameDebuggerReason).
-    bool InDebugger = false)
+    bool InDebugger = false,
+    // Stopped there from inside the game's save (GameWindow.save runs Lua events between the files it writes): the
+    // save on disk may be half written.
+    bool StoppedWhileSaving = false)
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
@@ -57,7 +62,7 @@ public sealed record RuntimeSnapshot(
             || CharacterLife != RuntimeCharacterLife.Unknown && (!IsWorldReady || CharacterSession is null)
             || SavePath is { Length: > 4096 } || SavePath?.IndexOf('\0') >= 0
             || SavePath is not null && !Path.IsPathFullyQualified(SavePath)
-            || HeapMaximumMegabytes is < 0 or > 1L << 30
+            || HeapMaximumMegabytes is < 0 or > 1L << 30 || StoppedWhileSaving && !InDebugger
             || Phase == WorldPhase.Ready && SavePath is null)
             throw new InvalidDataException("Invalid runtime snapshot.");
         LastSave?.Validate();
@@ -94,14 +99,11 @@ public sealed record RuntimeSnapshot(
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
             p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length >= 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown,
-            p.Length >= 22 ? Heap(p[21]) : null, p.Length >= 23 && p[22] switch
-            {
-                "-" => false,
-                "Debugger" => true,
-                _ => throw new InvalidDataException("Unknown runtime stall."),
-            })
+            p.Length >= 22 ? Heap(p[21]) : null, p.Length >= 23 && Stall(p[22]) != "-", p.Length >= 23 && Stall(p[22]) == "DebuggerSaving")
             .RequireCapabilities(p[14]).Validate();
     }
+    private static string Stall(string value) => value is "-" or "Debugger" or "DebuggerSaving" ? value
+        : throw new InvalidDataException("Unknown runtime stall.");
     // Only said for the player to see: a heap Java reports as having no limit (Long.MAX_VALUE, shifted) is no heap
     // to show, not a frame to refuse.
     private static long? Heap(string value) =>
@@ -166,6 +168,16 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     public const string GameDebuggerReason = "game-debugger";
     /// <summary>The game waits in its Lua debugger (<see cref="GameDebuggerReason"/>); its last sample says where.</summary>
     public bool IsInDebugger => Quality == RuntimeQuality.Stale && Reason == GameDebuggerReason && Snapshot is not null;
+    /// <summary>
+    /// Whether a backup of this save meets a game waiting in its Lua debugger, which cannot save until its player goes
+    /// on. Not for another save the game has loaded, which is not being played; outside a world (the main menu, leaving
+    /// one) the game may still have this save's files open, and it counts.
+    /// </summary>
+    public GameDebuggerStop DebuggerStopFor(string savePath) =>
+        !IsInDebugger || Snapshot!.SavePath is { } loaded
+            && !StringComparer.OrdinalIgnoreCase.Equals(loaded, Path.TrimEndingDirectorySeparator(Path.GetFullPath(savePath)))
+            ? GameDebuggerStop.None
+            : Snapshot.StoppedWhileSaving ? GameDebuggerStop.StoppedWhileSaving : GameDebuggerStop.Stopped;
     /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
     public const string RestartRequiredReason = "runtime-restart-required";
     /// <summary>The game was started with connecting turned off by a launch option.</summary>

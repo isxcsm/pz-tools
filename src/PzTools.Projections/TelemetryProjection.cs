@@ -562,7 +562,7 @@ public sealed class TelemetryProjectionHost(
             return LogLevel.Information;
         // The backup went ahead without the game's own save: worth seeing, though nothing failed.
         if (name == "source.prepare.completed" && payload is { ValueKind: JsonValueKind.Object } prepared
-            && LogDiagnostics.ReadOutcome(prepared) == "save-unavailable")
+            && LogDiagnostics.ReadOutcome(prepared) is "save-unavailable" or "game-debugger")
             return LogLevel.Warning;
         if (name.Contains("critical", StringComparison.OrdinalIgnoreCase))
             return LogLevel.Critical;

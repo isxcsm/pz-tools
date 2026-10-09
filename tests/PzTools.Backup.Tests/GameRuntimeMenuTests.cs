@@ -145,7 +145,18 @@ public sealed partial class GameSaveClientTests
         Assert.True(resumed.IsWorldReady);
         Assert.Equal(world.WorldSession, resumed.WorldSession);
         Assert.True(resumed.ClockEpoch > world.ClockEpoch);
+        Assert.False(stopped.StoppedWhileSaving);
         Assert.False(File.Exists(temp.GetPath("calls.txt")));
+
+        // A Lua error in the save's own Lua events stops the game half way through writing its save.
+        await File.WriteAllTextAsync(temp.GetPath("hold-debugger"), "hold");
+        await File.WriteAllTextAsync(temp.GetPath("break-in-save"), "break");
+        var midSave = await watch.WaitAsync(s => s.Sequence > resumed.Sequence && s.InDebugger);
+        Assert.True(midSave.StoppedWhileSaving);
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
+        File.Delete(temp.GetPath("hold-debugger"));
+        var saved = await watch.WaitAsync(s => s.Sequence > midSave.Sequence && !s.InDebugger);
+        Assert.False(saved.StoppedWhileSaving);
     }
 
     private static void AssertNonPlaying(RuntimeSnapshot value)

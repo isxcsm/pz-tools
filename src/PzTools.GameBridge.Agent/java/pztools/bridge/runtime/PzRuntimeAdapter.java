@@ -148,6 +148,19 @@ final class PzRuntimeAdapter {
         return false;
     }
 
+    /**
+     * Whether the game thread is inside the game's save: {@code GameWindow.save} writes the world's files with the Lua
+     * events OnSave and OnPostSave between them, so a Lua error there stops it with the save half written; and the
+     * players' own save on the way out of a world.
+     */
+    static boolean saving(StackTraceElement[] frames) {
+        for (StackTraceElement frame : frames) {
+            String called = frame.getClassName() + "." + frame.getMethodName();
+            if (called.equals("zombie.GameWindow.save") || called.equals("zombie.savefile.PlayerDB.saveLocalPlayersForce")) return true;
+        }
+        return false;
+    }
+
     private boolean yieldedFromGame(Object machine) throws ReflectiveOperationException {
         if (yieldStack == null || !(yieldStack.get(machine) instanceof java.util.List<?> yielded)) return false;
         for (Object state : yielded) if (ingame.isInstance(state)) return true;

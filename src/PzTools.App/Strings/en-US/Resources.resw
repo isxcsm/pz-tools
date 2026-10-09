@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Back up when the character dies</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>When on, makes one backup right after your character dies.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>The save kept changing, so it was not backed up. Try again in a moment.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>The game stopped in its Lua debugger while saving, so the save on disk may be incomplete. It was not backed up. Resume the game, let it finish saving, then try again.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Next backup: waiting</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>System</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Light</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Import archive</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>This file cannot be imported. Check that PZ Tools exported it.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manual backup</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Backed up the last saved state. The game is stopped in its Lua debugger and could not save first.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Restore the selected backup?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Replace the current files for ‘{0}’ with backup ‘{1}’. Progress made after that backup will be lost. If restoring is interrupted, reopen PZ Tools before loading this save in the game.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restore</value></data>
@@ -658,6 +660,7 @@ Detailed: takes a reading every 0.001 to 0.0015 seconds and also records waits a
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Character dead – backups waiting</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Game stopped in Lua debugger</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Could not connect to the game; backing up without saving it first.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>The game is stopped in its Lua debugger; backing up its last saved state without asking it to save.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Sleep cannot be read right now, so only pausing applies.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Not applied right now because the game cannot be reached.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Next backup (game not connected)</value></data>

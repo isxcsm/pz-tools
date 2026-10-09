@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Cadangkan saat karakter mati</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Jika aktif, membuat satu cadangan tepat setelah karaktermu mati.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Simpanan terus berubah, jadi tidak dicadangkan. Coba lagi sebentar lagi.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Gim berhenti di debugger Lua saat menyimpan, jadi simpanan di disk mungkin tidak lengkap. Tidak dicadangkan. Lanjutkan gim, biarkan selesai menyimpan, lalu coba lagi.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Cadangan berikutnya: menunggu</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistem</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Terang</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Impor arsip</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Berkas ini tidak dapat diimpor. Pastikan berkas diekspor oleh PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Cadangan manual</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Status terakhir yang disimpan telah dicadangkan. Gim berhenti di debugger Lua dan tidak bisa menyimpan dulu.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Pulihkan cadangan yang dipilih?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Ganti berkas saat ini untuk “{0}” dengan cadangan “{1}”. Kemajuan setelah cadangan tersebut akan hilang. Jika pemulihan terhenti, buka kembali PZ Tools sebelum memuat simpanan ini di gim.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Pulihkan</value></data>
@@ -659,6 +661,7 @@ Menunggu memori: berapa kali sebuah thread berhenti sampai memori dibebaskan, ka
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter mati – pencadangan menunggu</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Gim berhenti di debugger Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Tidak dapat terhubung ke gim; mencadangkan tanpa menyimpan gim terlebih dahulu.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Gim berhenti di debugger Lua; mencadangkan status terakhir yang disimpan tanpa meminta gim menyimpan.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Status tidur saat ini tidak dapat dibaca, jadi hanya jeda yang diterapkan.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Saat ini tidak diterapkan karena gim tidak dapat dijangkau.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Cadangan berikutnya (tidak terhubung ke gim)</value></data>

@@ -735,6 +735,33 @@ public sealed class AppCoreTests
         Assert.Equal(ProcessExitCodes.Success, result.ExitCode);
     }
 
+    // A game waiting in its Lua debugger cannot save: the worker is told so, and takes the last save without asking.
+    [Theory]
+    [InlineData(PzTools.Process.Contracts.GameRuntime.GameDebuggerStop.None, null)]
+    [InlineData(PzTools.Process.Contracts.GameRuntime.GameDebuggerStop.Stopped, "stopped")]
+    [InlineData(PzTools.Process.Contracts.GameRuntime.GameDebuggerStop.StoppedWhileSaving, "saving")]
+    public async Task ManualBackup_TellsTheWorkerTheGameIsInItsDebugger(
+        PzTools.Process.Contracts.GameRuntime.GameDebuggerStop stop, string? said)
+    {
+        using var temp = new TempDirectory();
+        var repository = await RepositoryDatabase.CreateOrOpenAsync(temp.GetPath("repository"));
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        var launcher = new EnvelopeLauncher("backup-runner", ProcessOutcome.Succeeded);
+        string? asked = null;
+        var coordinator = new OperationCoordinator(repository, temp.Path, BackupTelemetry(repository), launcher,
+            new RunIndexAllocator(temp.GetPath("control.db")), temp.GetPath("operations"),
+            gameDebugger: path => { asked = path; return stop; });
+
+        var result = await coordinator.BackupAsync("Sandbox/Save", source);
+
+        Assert.Equal(source, asked);
+        var arguments = launcher.LastArguments.ToList();
+        var flag = arguments.IndexOf("--game-in-debugger");
+        Assert.Equal(said, flag < 0 ? null : arguments[flag + 1]);
+        Assert.Equal(said is not null, result.FromLastSave);
+    }
+
     [Fact]
     public async Task ManualBackup_RejectsMismatchedChildEnvelope()
     {

@@ -46,4 +46,39 @@ public sealed class BackupGameSave(Func<string, CancellationToken, Task<string>>
 
     private static ActivityState ProbeActivity(string sourcePath) =>
         new GameActivityLane().Probe(Path.Combine(sourcePath, "players.db")).State;
+
+    /// <summary>The game waits in its Lua debugger: the backup takes its last completed save, without asking it.</summary>
+    public const string GameInDebugger = "game-debugger";
+
+    /// <summary>
+    /// A backup of a save whose game waits in its Lua debugger (RuntimeObservation.DebuggerStopFor). The game cannot
+    /// save until its player goes on, so it is not asked, and nothing waits for it: what is on disk is its last
+    /// completed save, unless it stopped while writing one. That is known from where the game stopped (inside its save)
+    /// and from a database transaction left open in the save's folder (a rollback journal): then the files may be half
+    /// written, and the backup is refused rather than keep them.
+    /// </summary>
+    public static GameSaveResult FromLastSave(string sourcePath, bool stoppedWhileSaving)
+    {
+        if (stoppedWhileSaving)
+            throw new GameStoppedMidSaveException("The game stopped in its Lua debugger while saving.");
+        if (OpenTransaction(sourcePath) is { } journal)
+            throw new GameStoppedMidSaveException($"A save database transaction is open ({journal}).");
+        return new(GameInDebugger, "The game is stopped in its Lua debugger; its last completed save is backed up.");
+    }
+
+    private static string? OpenTransaction(string sourcePath)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(sourcePath, "*.db-journal", SearchOption.TopDirectoryOnly)
+                .Select(Path.GetFileName).FirstOrDefault();
+        }
+        catch (DirectoryNotFoundException) { return null; }
+    }
+}
+
+/// <summary>The game stopped in the middle of writing its save: a backup now would keep a half-written save.</summary>
+public sealed class GameStoppedMidSaveException(string detail) : IOException($"{Code}: {detail}")
+{
+    public const string Code = "game-stopped-mid-save";
 }

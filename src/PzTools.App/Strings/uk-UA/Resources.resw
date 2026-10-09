@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Створювати копію після смерті персонажа</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Якщо ввімкнено, створює одну копію одразу після смерті персонажа.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Збереження постійно змінювалося, копію не створено. Повторіть трохи згодом.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Гра зупинилася в налагоджувачі Lua під час збереження, тому збереження на диску може бути неповним. Копію не створено. Продовжте гру, дайте їй завершити збереження та повторіть спробу.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Наступна копія: очікування</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Системна</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Світла</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Імпорт архіву</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Цей файл не можна імпортувати. Переконайтеся, що його експортував PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ручна копія</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Збережено останній записаний стан. Гру зупинено в налагоджувачі Lua, і вона не змогла зберегтися перед цим.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Відновити вибрану копію?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Замінити поточні файли «{0}» резервною копією «{1}». Прогрес після створення цієї копії буде втрачено. Якщо відновлення перерветься, знову відкрийте PZ Tools, перш ніж завантажувати це збереження в грі.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Відновити</value></data>
@@ -659,6 +661,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мертвий – копії чекають</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Гру зупинено в налагоджувачі Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не вдалося підключитися до гри; копія створюється без збереження гри.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Гру зупинено в налагоджувачі Lua; копіюється останній записаний стан без запиту на збереження.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Стан сну зараз недоступний, тому враховується лише пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Зараз не застосовується: немає зв’язку з грою.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Наступна копія (немає зв’язку з грою)</value></data>

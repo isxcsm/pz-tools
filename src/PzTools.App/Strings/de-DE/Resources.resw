@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Beim Tod des Charakters sichern</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Wenn an, wird direkt nach dem Tod deiner Figur eine Sicherung erstellt.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Der Spielstand änderte sich ständig und wurde nicht gesichert. Versuchen Sie es gleich erneut.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Das Spiel wurde beim Speichern im Lua-Debugger angehalten, daher ist der Spielstand auf dem Datenträger möglicherweise unvollständig. Er wurde nicht gesichert. Setzen Sie das Spiel fort, lassen Sie es fertig speichern und versuchen Sie es erneut.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Nächste Sicherung: wartet</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>System</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Hell</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Archiv importieren</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Diese Datei kann nicht importiert werden. Prüfen Sie, ob sie aus PZ Tools exportiert wurde.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuelle Sicherung</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Der zuletzt gespeicherte Stand wurde gesichert. Das Spiel ist im Lua-Debugger angehalten und konnte vorher nicht speichern.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Ausgewählte Sicherung wiederherstellen?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Die aktuellen Dateien von „{0}“ durch die Sicherung „{1}“ ersetzen. Fortschritte seit dieser Sicherung gehen verloren. Falls die Wiederherstellung unterbrochen wird, öffnen Sie PZ Tools erneut, bevor Sie diesen Spielstand im Spiel laden.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Wiederherstellen</value></data>
@@ -659,6 +661,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Charakter tot – Sicherungen warten</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Spiel im Lua-Debugger angehalten</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Keine Verbindung zum Spiel; es wird ohne vorheriges Speichern gesichert.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Das Spiel ist im Lua-Debugger angehalten; der zuletzt gespeicherte Stand wird gesichert, ohne das Spiel speichern zu lassen.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Der Schlafzustand ist derzeit nicht lesbar; es gilt nur die Pause.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Derzeit nicht aktiv, weil das Spiel nicht erreichbar ist.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Nächste Sicherung (Spiel nicht verbunden)</value></data>

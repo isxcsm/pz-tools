@@ -401,7 +401,7 @@ These numbers decide what happens. This table is the one place they are recorded
 | Java runtime | 25, with retransformation | The game's JVM and the bootstrap/payload | `unsupported-runtime` or a refused hook |
 | Bootstrap API | 12 | The helper and the bootstrap in the game (system property); the bootstrap and the payload jar (manifest) | Helper: restart required. Payload: `PAYLOAD_UNAVAILABLE`. |
 | Save protocol | `HELLO` 6 | `GameSaveClient` and the payload | Payloads speaking 1–4 still serve plain saves with fewer features. A guarded request, non-default timeouts or a due time on an older payload give `unsupported-protocol`. |
-| State stream | `STATE6` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE6` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap; `STATE6` whether the game thread waits in the Lua debugger (`Debugger` or `-`; [the Lua debugger](runtime-pause-backups.md#the-lua-debugger)). |
+| State stream | `STATE6` | `RuntimeSnapshot.ParseWire` and the payload | `STATE1`–`STATE6` are read. A frame missing the required capabilities `runtime.snapshot.v1`, `runtime.active-clock.v1`, `save.guarded.v1` is rejected. `STATE5` adds the game's maximum heap; `STATE6` whether the game thread waits in the Lua debugger, and whether from inside the game's save (`Debugger`, `DebuggerSaving` or `-`; [the Lua debugger](runtime-pause-backups.md#the-lua-debugger)). |
 | Extension host ABI | 3 | The extension runtime and each module | The module is not loaded |
 | Extension control wire | 1 | `GameExtensionClient` and the payload, in the `EXTENSIONS` greeting | `authentication-failed` |
 

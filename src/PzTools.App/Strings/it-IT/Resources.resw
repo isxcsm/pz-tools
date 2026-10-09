@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crea un backup alla morte del personaggio</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Se attivo, crea un backup subito dopo la morte del personaggio.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Il salvataggio continuava a cambiare, quindi il backup non è stato fatto. Riprova tra poco.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Il gioco si è fermato nel debugger Lua durante il salvataggio, quindi il salvataggio su disco potrebbe essere incompleto. Non è stato eseguito il backup. Riprendi il gioco, lascia che finisca di salvare e riprova.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Prossimo backup: in attesa</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Chiaro</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importa archivio</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Impossibile importare questo file. Verifica che sia stato esportato da PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Backup manuale</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>È stato eseguito il backup dell’ultimo stato salvato. Il gioco è fermo nel debugger Lua e non ha potuto salvare prima.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Ripristinare il backup selezionato?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Sostituire i file attuali di «{0}» con il backup «{1}». I progressi successivi a quel backup andranno persi. Se il ripristino viene interrotto, riapri PZ Tools prima di caricare questo salvataggio nel gioco.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Ripristina</value></data>
@@ -659,6 +661,7 @@ Attese di memoria: quante volte un thread si è fermato finché non è stata lib
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personaggio morto – backup in attesa</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Gioco fermo nel debugger Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Impossibile connettersi al gioco; backup eseguito senza salvare prima il gioco.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Il gioco è fermo nel debugger Lua; backup dell’ultimo stato salvato senza chiedergli di salvare.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Al momento il sonno non è leggibile, quindi si applica solo la pausa.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Al momento non applicato perché il gioco non è raggiungibile.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Prossimo backup (gioco non connesso)</value></data>

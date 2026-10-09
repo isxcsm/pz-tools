@@ -951,6 +951,7 @@ public sealed class LogEntryUiItem
         "app.action.failed" => Localizer.Format(model.Level >= LogLevel.Error ? "LogEvent.RunFailed" : "LogEvent.Other",
             PayloadText("title") is { } title ? Localizer.Translate(title) : Localizer.Get("LogComponent.Other")),
         "source.prepare.completed" when outcome == "save-unavailable" => Localizer.Get("LogEvent.GameSaveUnavailable"),
+        "source.prepare.completed" when outcome == "game-debugger" => Localizer.Get("LogEvent.GameInDebugger"),
         "tick.completed" when outcome == "Failed" => ActivityMessage("LogEvent.TickFailed"),
         "tick.failed" => ActivityMessage("LogEvent.TickFailed"),
         "game.link.failed" => Localizer.Get("LogEvent.GameLinkFailed"),

@@ -13,7 +13,9 @@ internal sealed record OnceBackupArguments(
     DateTimeOffset? ScheduledUtc = null,
     bool RequireActiveGame = false,
     RuntimeSaveTicket? RuntimeTicket = null, string? RuntimeAuthority = null, long? RuntimeGeneration = null,
-    string? GameVersion = null)
+    string? GameVersion = null,
+    // The game waits in its Lua debugger with this save (RuntimeObservation.DebuggerStopFor): it is not asked to save.
+    GameDebuggerStop GameDebugger = GameDebuggerStop.None)
 {
     // Recover only an unambiguous caller identity for errors raised while
     // parsing other options. Full argument validation still happens in Parse.
@@ -39,6 +41,7 @@ internal sealed record OnceBackupArguments(
         string? runtimeAuthority = null;
         long? runtimeGeneration = null;
         string? gameVersion = null;
+        GameDebuggerStop? gameDebugger = null;
         var configurationArguments = new List<string>();
         for (var index = 0; index < arguments.Length; index++)
         {
@@ -48,6 +51,13 @@ internal sealed record OnceBackupArguments(
                     || arguments[index].Length > 80 || arguments[index].Any(char.IsControl))
                     throw new BackupConfigurationException("--game-version requires one value of at most 80 printable characters.");
                 gameVersion = arguments[index].Trim(); continue;
+            }
+            if (arguments[index] == "--game-in-debugger")
+            {
+                if (gameDebugger is not null || ++index >= arguments.Length || arguments[index] is not ("stopped" or "saving"))
+                    throw new BackupConfigurationException("--game-in-debugger requires one value: stopped or saving.");
+                gameDebugger = arguments[index] == "saving" ? GameDebuggerStop.StoppedWhileSaving : GameDebuggerStop.Stopped;
+                continue;
             }
             if (arguments[index] == "--runtime-authority")
             {
@@ -161,12 +171,16 @@ internal sealed record OnceBackupArguments(
         if ((runtimeTicket is null) != (runtimeAuthority is null) || (runtimeTicket is null) != (runtimeGeneration is null)
             || runtimeTicket is not null && (!saveGame || !requireActiveGame || scheduledUtc is not null))
             throw new BackupConfigurationException("Guarded runtime backups require --save-game and --require-active-game, without a UTC deadline.");
+        // Said by the app of a backup someone asked for; a scheduled one waits for the game (BackupScheduler.WaitsForDebugger).
+        if (gameDebugger is not null && (runtimeTicket is not null || requireActiveGame || scheduledUtc is not null))
+            throw new BackupConfigurationException("--game-in-debugger is for a backup someone asked for, not a scheduled one.");
         return new OnceBackupArguments(
             sourceId,
             runIndex,
             revision,
             controlDatabasePath,
             saveGame,
-            ConfigurationArguments.Parse(configurationArguments.ToArray(), requireRepository: true), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration, gameVersion);
+            ConfigurationArguments.Parse(configurationArguments.ToArray(), requireRepository: true), scheduledUtc, requireActiveGame, runtimeTicket, runtimeAuthority, runtimeGeneration, gameVersion,
+            gameDebugger ?? GameDebuggerStop.None);
     }
 }

@@ -221,6 +221,9 @@ internal sealed class HotKeyController : IDisposable
         // The backup's own card says why it failed; the player hears it and reads the note.
         Sound(done ? SystemSound.Done : SystemSound.Failed);
         Note(host, done ? "backup-done" : result.Outcome == ProcessOutcome.Busy ? "busy" : "backup-failed");
+        // The game, waiting in its Lua debugger, shows no note: the app says what was backed up instead.
+        if (result.FromLastSave)
+            app.ShowSidebarNotification(InfoBarSeverity.Informational, Localizer.Get("ManualBackupTitle"), Localizer.Get("ManualBackupFromLastSave"));
     }
 
     // The settings' own switch, as if flipped there: nothing else holds backups back, and nothing turns them on again

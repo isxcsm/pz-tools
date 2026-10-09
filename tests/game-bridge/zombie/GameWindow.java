@@ -17,7 +17,7 @@ public final class GameWindow {
     }
 
     public static boolean isIngameState() { return states.current instanceof zombie.gameStates.IngameState; }
-    private static boolean busy;
+    private static boolean busy, breakInSave;
     private static double sink;
     private static volatile Object garbage;
     private static void logic() { ticks++; zombie.characters.IsoPlayer.tickHalo(); if (busy) simulateWork(); }
@@ -33,6 +33,13 @@ public final class GameWindow {
     public static void save(boolean flag) throws IOException {
         if (Thread.currentThread() != gameThread || !flag) throw new IOException("Wrong save invocation");
         if (mode.equals("throw")) throw new IOException("Synthetic save failure");
+        // As the game's OnSave and OnPostSave Lua events run between the files it writes: a Lua error there stops the
+        // save half way, in the Lua debugger.
+        if (breakInSave) {
+            breakInSave = false;
+            try { zombie.ui.UIManager.debugBreakpoint(ZomboidFileSystem.path, 1); }
+            catch (InterruptedException interrupted) { throw new IOException(interrupted); }
+        }
         while (Files.exists(Path.of(ZomboidFileSystem.instance.getCurrentSaveDir(), "hold-save"))) {
             try { Thread.sleep(20); } catch (InterruptedException interrupted) { throw new IOException(interrupted); }
         }
@@ -132,6 +139,7 @@ public final class GameWindow {
                 ((zombie.gameStates.IngameState)states.current).updateInternal(Path.of(args[0]));
             // A Lua error with Break On Error on: the game thread waits in the Lua debugger.
             if (consumeSignal(Path.of(args[0], "break-on-error"))) zombie.ui.UIManager.debugBreakpoint(args[0], 1);
+            if (consumeSignal(Path.of(args[0], "break-in-save"))) { breakInSave = true; save(true); }
             // A game hung in its world: the game thread stops elsewhere.
             while (Files.exists(Path.of(args[0], "hold-frame"))) Thread.sleep(20);
             if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new zombie.gameStates.MainScreenState();

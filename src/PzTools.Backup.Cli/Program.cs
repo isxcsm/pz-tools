@@ -144,6 +144,8 @@ internal static class BackupCli
         Console.WriteLine("         [--save-game-before-backup <true|false>]  Override the game-save preference.");
         Console.WriteLine("         [--scheduled-utc <ISO 8601>]  Prepare ahead, then save/capture no earlier than this time.");
         Console.WriteLine("         [--game-version <text>]  Record the running game's version with the new backup.");
+        Console.WriteLine("         [--game-in-debugger <stopped|saving>]  The game waits in its Lua debugger: back up its last");
+        Console.WriteLine("                                     completed save without asking it; refuse one stopped mid-save.");
         Console.WriteLine("  restore --repository <path> --source-id <id> --revision <n> --target <path>");
         Console.WriteLine("  verify --repository <path>       Verify every committed pack.");
         Console.WriteLine("  maintenance prune --repository <path> --source-id <id> --keep <n>");
@@ -193,10 +195,14 @@ internal static class BackupCli
                 // the app is started by someone looking at the app: it saves at once, without notices or delay.
                 options.GameSaveCountdown && (request.RequireActiveGame || request.ScheduledUtc is not null)
                     ? LanguageCatalog.Get(options.NameLanguage ?? LanguageCatalog.Local).Tag : null, request.ScheduledUtc);
-            var timing = new BackupTimingPreparation((path, token) => request.SaveGame && options.SaveGameBeforeBackup
+            // A game waiting in its Lua debugger cannot save: what is on disk is taken at once, unless it stopped mid-save.
+            // That holds with saving before a backup off too.
+            var timing = new BackupTimingPreparation((path, token) => request.GameDebugger != GameDebuggerStop.None
+                ? Task.FromResult(BackupGameSave.FromLastSave(path, request.GameDebugger == GameDebuggerStop.StoppedWhileSaving))
+                : request.SaveGame && options.SaveGameBeforeBackup
                 ? gameSave.PrepareAsync(path, token) : Task.FromResult(new GameSaveResult("disabled")));
             BackupSourcePreparation? prepareSource = request.RequireActiveGame || request.ScheduledUtc is not null
-                || request.SaveGame && options.SaveGameBeforeBackup ? async (path, token) =>
+                || request.SaveGame && options.SaveGameBeforeBackup || request.GameDebugger != GameDebuggerStop.None ? async (path, token) =>
             {
                 var prepared = await timing.PrepareAsync(path, request.ScheduledUtc, request.RequireActiveGame, token);
                 return new BackupPreparationResult(prepared.Outcome, prepared.Detail);
@@ -277,6 +283,11 @@ internal static class BackupCli
                 runIndex, ProcessOutcome.Failed, started,
                 "invalid-arguments", exception.Message);
             return ProcessExitCodes.InvalidArguments;
+        }
+        catch (GameStoppedMidSaveException exception)
+        {
+            await CompleteOwnedWorkflowAsync(ProcessOutcome.Failed, GameStoppedMidSaveException.Code);
+            return WriteBackupFailure(runIndex, ProcessOutcome.Failed, started, GameStoppedMidSaveException.Code, exception.Message);
         }
         catch (GameSaveException exception)
         {

@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Karakter ölünce yedekle</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Açıkken karakterin öldükten hemen sonra bir yedek alır.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Kayıt sürekli değiştiği için yedeklenemedi. Biraz sonra tekrar deneyin.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Oyun kaydederken Lua hata ayıklayıcısında durdu, bu yüzden diskteki kayıt eksik olabilir. Yedek alınmadı. Oyuna devam edin, kaydetmeyi bitirmesini bekleyin ve tekrar deneyin.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Sonraki yedek: bekleniyor</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistem</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Açık</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Arşiv içe aktar</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Bu dosya içe aktarılamıyor. PZ Tools ile dışa aktarıldığını kontrol edin.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Manuel yedek</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Son kaydedilen durum yedeklendi. Oyun Lua hata ayıklayıcısında durdu ve önce kaydedemedi.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Seçili yedek geri yüklensin mi?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>“{0}” kaydının geçerli dosyalarını “{1}” yedeğiyle değiştirir. Bu yedekten sonraki ilerleme kaybolur. Geri yükleme kesilirse bu kaydı oyunda açmadan önce PZ Tools'u yeniden açın.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Geri yükle</value></data>
@@ -659,6 +661,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter öldü – yedekler bekliyor</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Oyun Lua hata ayıklayıcısında durdu</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Oyuna bağlanılamadı; oyun kaydedilmeden yedek alınıyor.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Oyun Lua hata ayıklayıcısında durdu; kaydetmesi istenmeden son kaydedilen durum yedekleniyor.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Uyku durumu şu anda okunamıyor; yalnızca duraklatma uygulanıyor.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Oyuna ulaşılamadığı için şu anda uygulanmıyor.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Sonraki yedek (oyuna bağlı değil)</value></data>

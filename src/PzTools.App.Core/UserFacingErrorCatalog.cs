@@ -142,6 +142,7 @@ public static class UserFacingErrorCatalog
         if (HasCodePrefix(message, SettingsInvalid) || Starts(message, "Cannot start workers: invalid app runtime configuration."))
             return "OperationError.Configuration";
         if (HasCodePrefix(message, "capture-unstable")) return "OperationError.SaveChanged";
+        if (HasCodePrefix(message, "game-stopped-mid-save")) return "OperationError.GameStoppedMidSave";
         if (LegacyMessageKey(message) is { } legacy) return legacy;
         if (Contains(message, "access is denied") || Contains(message, "unauthorized")) return "OperationError.AccessDenied";
         if ((Contains(message, "does not exist") || Contains(message, "not found"))

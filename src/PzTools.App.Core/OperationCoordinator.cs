@@ -5,6 +5,7 @@ using System.Text.Json;
 using PzTools.Backup.Storage.Repository;
 using PzTools.Control;
 using PzTools.Process.Contracts;
+using PzTools.Process.Contracts.GameRuntime;
 using PzTools.Process.Hosting;
 using PzTools.Process.Telemetry;
 using PzTools.Projections;
@@ -22,7 +23,9 @@ public sealed record AppOperationResult(
     string? Error,
     string? ErrorMessage = null,
     // The worker's own result, when it has one worth showing (for example what a revival recovered).
-    JsonElement Result = default);
+    JsonElement Result = default,
+    // A backup made while the game waited in its Lua debugger: of its last completed save, as it could not save first.
+    bool FromLastSave = false);
 
 public sealed class OperationCoordinator(
     RepositoryDatabase repository,
@@ -33,7 +36,9 @@ public sealed class OperationCoordinator(
     string operationsRoot,
     AppRuntimeOptions? runtimeOptions = null,
     LogInboxStore? diagnostics = null,
-    Func<string, string?>? gameVersion = null)
+    Func<string, string?>? gameVersion = null,
+    // Whether a backup of a save meets a game waiting in its Lua debugger (RuntimeObservation.DebuggerStopFor).
+    Func<string, GameDebuggerStop>? gameDebugger = null)
 {
     private readonly AppRuntimeOptions runtime = runtimeOptions ?? new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> gates =
@@ -297,11 +302,15 @@ public sealed class OperationCoordinator(
             workflow.StartedUtc);
         telemetrySources.SetWorkflow("backup-worker", workflowView);
         var finalStatus = OperationStatus.Running;
+        // Read as the backup starts: a game in its Lua debugger is not asked to save, nor waited for.
+        var debugger = gameDebugger?.Invoke(sourcePath) ?? GameDebuggerStop.None;
         try
         {
             var execution = await RunAndValidateAsync(
                 Path.Combine(workerDirectory, "PzTools.Backup.Runner.exe"),
                 [
+                    .. debugger == GameDebuggerStop.None ? Array.Empty<string>()
+                        : ["--game-in-debugger", debugger == GameDebuggerStop.StoppedWhileSaving ? "saving" : "stopped"],
                     "--repository", repository.RepositoryPath,
                     "--source-id", saveId,
                     "--source", $"{saveId}={Path.GetFullPath(sourcePath)}",
@@ -320,7 +329,8 @@ public sealed class OperationCoordinator(
                 workflow.RunIndex, "backup-worker", outcome, execution.Error);
             return new AppOperationResult(
                 operationId, workflow.RunIndex, outcome, execution.ExitCode,
-                execution.Error, execution.ErrorMessage);
+                execution.Error, execution.ErrorMessage,
+                FromLastSave: debugger != GameDebuggerStop.None && outcome is ProcessOutcome.Succeeded or ProcessOutcome.NoChange);
         }
         catch (OperationCanceledException)
         {

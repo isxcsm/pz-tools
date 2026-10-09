@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>角色死亡時備份</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>開啟後，在角色死亡後立即備份一次。</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>存檔持續變更，未能備份。請稍後再試。</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>遊戲在儲存時停在 Lua 偵錯工具中，磁碟上的存檔可能不完整，因此未備份。請繼續遊戲，等它儲存完成後再試。</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>下次備份：等待中</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>系統</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>淺色</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>匯入備份檔</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>無法匯入此檔案。請確認是否由 PZ Tools 匯出。</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>手動備份</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>已備份最後儲存的狀態。遊戲停在 Lua 偵錯工具中，無法先儲存。</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>還原所選備份？</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>將「{0}」目前的檔案替換為備份「{1}」。該備份之後的遊戲進度將會遺失。如果還原中斷，請先重新開啟 PZ Tools，再於遊戲中載入此存檔。</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>還原</value></data>
@@ -659,6 +661,7 @@ GC 運作：區間中垃圾回收器在工作的時間比例。它與遊戲同�
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>角色已死亡 – 備份等待中</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>遊戲停在 Lua 偵錯工具中</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>無法連線到遊戲，將不儲存遊戲直接備份。</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>遊戲停在 Lua 偵錯工具中，不要求儲存，直接備份最後儲存的狀態。</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>目前無法讀取睡眠狀態，僅暫停時套用。</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>無法連線到遊戲，目前不會套用。</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>下次備份（未連線到遊戲）</value></data>

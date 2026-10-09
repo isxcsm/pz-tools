@@ -88,7 +88,15 @@ it was, frozen. So:
 - the countdown holds (`GameDebugger`) without counting the wait, and resumes where it stood;
 - no clock-time fallback starts, however long the player reads the error;
 - periodic backups on the clock (game-aware timing off) wait as well (`BackupScheduler.WaitsForDebugger`): the game
-  cannot save first, and it may have stopped in the middle of writing its save. A backup the user asks for still runs;
+  cannot save first, and it may have stopped in the middle of writing its save;
+- a backup the user asks for (**Back up now**, the hotkey) runs at once without asking the game to save
+  (`RuntimeObservation.DebuggerStopFor` → `--game-in-debugger` → `BackupGameSave.FromLastSave`): what is on disk is
+  the game's last completed save, and the result says so (**Backed up the last saved state…**). It is refused
+  (`game-stopped-mid-save`) when the game stopped inside its save — the stack has `GameWindow.save` or
+  `PlayerDB.saveLocalPlayersForce`, as when a Lua error comes from the OnSave or OnPostSave events that `GameWindow.save`
+  runs between the files it writes (`STATE6` `DebuggerSaving`) — or when a save database's transaction is open (a
+  `*.db-journal` file in the save's folder). A save another world than the one loaded is backed up as ever. In-game
+  notes are not sent meanwhile: the game would show them only once the player goes on;
 - the save stays the one in play (`GameActivityLane`, `StateProjector`), and the game extensions keep their world
   (`RuntimeExtensionCoordinator.KeepsWorldWhileStale`), past the 30 s a stall otherwise gets;
 - the schedule line shows **Game stopped in Lua debugger**.

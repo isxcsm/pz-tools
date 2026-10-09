@@ -2502,6 +2502,8 @@ public sealed partial class MainWindowShell : UserControl
         {
             var operations = App.Host.Operations;
             var result = await RunWithProgressAsync("backup", id => operations.BackupAsync(save.SaveId, save.SourcePath, operationId: id));
+            // The game could not save first: the card says what was backed up instead.
+            if (result.FromLastSave) SetLocalResultMessage(result.OperationId, Localizer.Get("ManualBackupFromLastSave"));
             ShowOperationResult(result);
         }
         catch (Exception exception)

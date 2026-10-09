@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Crear copia cuando muera el personaje</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Si está activado, hace una copia justo después de que muera tu personaje.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>La partida no dejaba de cambiar y no se ha copiado. Inténtalo de nuevo en un momento.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>El juego se ha detenido en el depurador de Lua mientras guardaba, así que la partida en el disco puede estar incompleta. No se ha hecho copia. Reanuda el juego, deja que termine de guardar y vuelve a intentarlo.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Próxima copia: en espera</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Sistema</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Claro</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importar archivo comprimido</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>No se puede importar este archivo. Comprueba que lo haya exportado PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Copia manual</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Se ha hecho copia del último estado guardado. El juego está detenido en el depurador de Lua y no ha podido guardar antes.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>¿Restaurar la copia seleccionada?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Sustituir los archivos actuales de «{0}» por la copia «{1}». Se perderá el progreso posterior a esa copia. Si la restauración se interrumpe, vuelve a abrir PZ Tools antes de cargar esta partida en el juego.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Restaurar</value></data>
@@ -659,6 +661,7 @@ Esperas de memoria: cuántas veces un hilo se detuvo hasta que se liberó memori
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personaje muerto – copias en espera</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Juego detenido en el depurador de Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>No se ha podido conectar con el juego; se hace la copia sin guardar antes la partida.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>El juego está detenido en el depurador de Lua; se hace copia del último estado guardado sin pedirle que guarde.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Ahora mismo no se puede leer el sueño, así que solo se aplica la pausa.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Ahora mismo no se aplica porque no hay conexión con el juego.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Próxima copia (sin conexión con el juego)</value></data>

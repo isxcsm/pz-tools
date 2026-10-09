@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>สำรองเมื่อตัวละครเสียชีวิต</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>เมื่อเปิด จะสร้างข้อมูลสำรองหนึ่งครั้งทันทีหลังตัวละครตาย</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>เซฟเปลี่ยนแปลงไม่หยุด จึงสำรองข้อมูลไม่ได้ ลองอีกครั้งในอีกสักครู่</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>เกมหยุดในดีบักเกอร์ Lua ระหว่างบันทึก เซฟบนดิสก์จึงอาจไม่ครบ ยังไม่ได้สำรอง ให้เล่นเกมต่อจนบันทึกเสร็จ แล้วลองอีกครั้ง</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>สำรองครั้งถัดไป: รออยู่</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>ตามระบบ</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>สว่าง</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>นำเข้าไฟล์สำรอง</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>นำเข้าไฟล์นี้ไม่ได้ ตรวจสอบว่าเป็นไฟล์ที่ส่งออกจาก PZ Tools</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>สำรองด้วยตนเอง</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>สำรองสถานะที่บันทึกไว้ล่าสุดแล้ว เกมหยุดอยู่ในดีบักเกอร์ Lua จึงบันทึกก่อนไม่ได้</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>กู้คืนข้อมูลสำรองที่เลือกหรือไม่?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>แทนที่ไฟล์ปัจจุบันของ “{0}” ด้วยข้อมูลสำรอง “{1}” ความคืบหน้าหลังจากสำรองครั้งนั้นจะหายไป หากการกู้คืนถูกขัดจังหวะ ให้เปิด PZ Tools อีกครั้งก่อนโหลดเซฟนี้ในเกม</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>กู้คืน</value></data>
@@ -666,6 +668,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>ตัวละครเสียชีวิต – รอการสำรอง</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>เกมหยุดอยู่ในดีบักเกอร์ Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ จึงสำรองโดยไม่บันทึกเกมก่อน</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>เกมหยุดอยู่ในดีบักเกอร์ Lua จึงสำรองสถานะที่บันทึกล่าสุดโดยไม่สั่งให้เกมบันทึก</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>ขณะนี้อ่านสถานะการหลับไม่ได้ จึงมีผลเฉพาะการหยุดชั่วคราว</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>สำรองครั้งถัดไป (ไม่ได้เชื่อมต่อกับเกม)</value></data>

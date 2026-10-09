@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Twórz kopię po śmierci postaci</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Po włączeniu tworzy jedną kopię zaraz po śmierci postaci.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Zapis ciągle się zmieniał, więc nie utworzono kopii. Spróbuj ponownie za chwilę.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Gra zatrzymała się w debugerze Lua podczas zapisywania, więc zapis na dysku może być niepełny. Kopia nie została utworzona. Wznów grę, pozwól jej dokończyć zapis i spróbuj ponownie.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Następna kopia: oczekiwanie</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Systemowy</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Jasny</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importuj archiwum</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Nie można zaimportować tego pliku. Sprawdź, czy wyeksportowano go z PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ręczna kopia</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Zapisano kopię ostatniego zapisanego stanu. Gra jest zatrzymana w debugerze Lua i nie mogła się wcześniej zapisać.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Przywrócić wybraną kopię?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Zastąpić bieżące pliki „{0}” kopią „{1}”. Postępy od czasu utworzenia tej kopii zostaną utracone. Jeśli przywracanie zostanie przerwane, otwórz ponownie PZ Tools przed wczytaniem tego zapisu w grze.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Przywróć</value></data>
@@ -659,6 +661,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postać nie żyje – kopie czekają</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Gra zatrzymana w debugerze Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nie udało się połączyć z grą; kopia jest tworzona bez wcześniejszego zapisu gry.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Gra jest zatrzymana w debugerze Lua; kopiowany jest ostatni zapisany stan bez prośby o zapis.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Obecnie nie można odczytać snu, więc działa tylko pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Obecnie nie działa, ponieważ nie ma połączenia z grą.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Następna kopia (brak połączenia z grą)</value></data>

@@ -254,6 +254,65 @@ public sealed class RuntimeDebuggerTests
         Assert.False(RuntimeExtensionCoordinator.KeepsWorldWhileStale(waiting, TimeSpan.Zero, sample.ProcessSession, Id()));
     }
 
+    [Fact]
+    public void Wire_SaysWhetherTheGameStoppedInsideItsSave()
+    {
+        string id = Id();
+        string frame = string.Join('\t', "STATE6", id, id, id, "1", "1", "7", "Ready", "Running", "LocalSinglePlayer", "1", "0",
+            "1500", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(@"C:\fixture\Saves\Sandbox\World")),
+            RuntimeSnapshot.Capabilities, "-", "Unknown", "-", "-", "-", "Awake", "8192", "DebuggerSaving");
+        var saving = RuntimeSnapshot.ParseWire(frame);
+        Assert.True(saving.InDebugger);
+        Assert.True(saving.StoppedWhileSaving);
+        Assert.False(RuntimeSnapshot.ParseWire(frame.Replace("DebuggerSaving", "Debugger")).StoppedWhileSaving);
+        // Inside a save is said only of a game thread in the debugger.
+        Assert.Throws<InvalidDataException>(() => (saving with { InDebugger = false }).Validate());
+    }
+
+    [Fact]
+    public void ABackupMeetsTheDebugger_OnlyForTheSaveTheGameHasOpen()
+    {
+        using var temp = new TempDirectory();
+        var played = temp.GetPath("played");
+        var other = temp.GetPath("other");
+        var waiting = InDebugger(World(played));
+        Assert.Equal(GameDebuggerStop.Stopped, waiting.DebuggerStopFor(played));
+        Assert.Equal(GameDebuggerStop.Stopped, waiting.DebuggerStopFor(played + Path.DirectorySeparatorChar));
+        // Another save is not being played: the game has nothing of it to save, and the backup goes as ever.
+        Assert.Equal(GameDebuggerStop.None, waiting.DebuggerStopFor(other));
+        Assert.Equal(GameDebuggerStop.StoppedWhileSaving,
+            (waiting with { Snapshot = waiting.Snapshot! with { StoppedWhileSaving = true } }).DebuggerStopFor(played));
+        // Outside a world (the menu, leaving one) the game may still have the save's files open, and cannot save either.
+        Assert.Equal(GameDebuggerStop.Stopped, InDebugger(World(played, WorldPhase.Menu)).DebuggerStopFor(other));
+        // A game that goes on, or one that is hung, is asked as before.
+        Assert.Equal(GameDebuggerStop.None, new RuntimeObservation(Id(), RuntimeQuality.Fresh, World(played)).DebuggerStopFor(played));
+        Assert.Equal(GameDebuggerStop.None, (waiting with { Reason = "stale-game-sample" }).DebuggerStopFor(played));
+    }
+
+    [Fact]
+    public void ManualBackupInTheDebugger_TakesTheLastSave_OrRefusesOneStoppedMidSave()
+    {
+        using var temp = new TempDirectory();
+        var save = temp.GetPath("save");
+        Directory.CreateDirectory(save);
+        File.WriteAllText(Path.Combine(save, "players.db"), "fixture");
+        File.WriteAllText(Path.Combine(save, "players.db-wal"), "a game in play always has its write-ahead log");
+        var taken = Zomboid.Backup.BackupGameSave.FromLastSave(save, stoppedWhileSaving: false);
+        Assert.Equal(Zomboid.Backup.BackupGameSave.GameInDebugger, taken.Outcome);
+
+        // Stopped inside the game's save: what is on disk may be half written.
+        var midSave = Assert.Throws<Zomboid.Backup.GameStoppedMidSaveException>(() =>
+            Zomboid.Backup.BackupGameSave.FromLastSave(save, stoppedWhileSaving: true));
+        Assert.Equal("OperationError.GameStoppedMidSave", UserFacingErrorCatalog.FromProcessError(midSave.Message));
+        // A database transaction left open in the save's folder says the same.
+        File.WriteAllText(Path.Combine(save, "vehicles.db-journal"), "open transaction");
+        var journal = Assert.Throws<Zomboid.Backup.GameStoppedMidSaveException>(() =>
+            Zomboid.Backup.BackupGameSave.FromLastSave(save, stoppedWhileSaving: false));
+        Assert.StartsWith(Zomboid.Backup.GameStoppedMidSaveException.Code + ":", journal.Message);
+        Assert.Equal("OperationError.GameStoppedMidSave",
+            UserFacingErrorCatalog.FromDiagnostics(Zomboid.Backup.GameStoppedMidSaveException.Code, null, null, null));
+    }
+
     private sealed class ManualClock : TimeProvider
     {
         private long value;

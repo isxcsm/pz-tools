@@ -235,7 +235,9 @@ public sealed class AppHost : IAsyncDisposable
             new RunIndexAllocator(paths.ControlDatabasePath),
             paths.OperationsRoot!, runtime, LogInbox,
             // A manual backup made with the game closed records the version the save was last played with.
-            VersionForNewBackup);
+            VersionForNewBackup,
+            // A game waiting in its Lua debugger cannot save: the backup takes its last completed save at once.
+            sourcePath => runtimeSnapshot.Read().DebuggerStopFor(sourcePath));
 
         supervisors.Add(RuntimeStateFeed.FollowAsync(scheduler.DatabasePath, runtimeSnapshot, lifetime.Token));
         supervisors.Add(RememberSaveVersionsAsync(lifetime.Token));
@@ -481,6 +483,8 @@ public sealed class AppHost : IAsyncDisposable
     public async Task<bool> NotifyGameAsync(IReadOnlyList<string> items, CancellationToken cancellationToken = default)
     {
         if (!runtime.HotKeyOptions.GameNotices) return false;
+        // Waiting in its Lua debugger, the game shows nothing until its player goes on, and a note would come late.
+        if (runtimeSnapshot.Read().IsInDebugger) return false;
         var language = Views.ReadIfChanged<SettingsView>(ViewKey.Settings, 0).Snapshot?.Language ?? "en-US";
         try
         {

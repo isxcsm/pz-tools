@@ -132,6 +132,51 @@ public sealed class ProcessPipelineIntegrationTests
         Assert.Equal("scheduled disk capture", await File.ReadAllTextAsync(Path.Combine(restored, "map.bin")));
     }
 
+    // A game waiting in its Lua debugger cannot save. A backup someone asks for then takes the last save at once, without
+    // asking the game, and refuses one the game stopped in the middle of writing.
+    [PublishedToolsOnlyFact]
+    public async Task ManualBackupInTheLuaDebugger_TakesTheLastSave_OrRefusesAHalfWrittenOne()
+    {
+        using var temp = new TempDirectory();
+        var tools = Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")!;
+        var source = temp.GetPath("source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllTextAsync(Path.Combine(source, "map.bin"), "last completed save");
+        var config = temp.GetPath("worker.toml");
+        await File.WriteAllTextAsync(config, "format_version = 1\n[telemetry]\nmode = 'phase'\n");
+        var runnerConfig = temp.GetPath("runner.toml");
+        await File.WriteAllTextAsync(runnerConfig, "[telemetry]\nenabled = false\n");
+        var repositoryPath = temp.GetPath("repository");
+        Task<ProcessOutput> BackupAsync(string stop) => RunProcessAsync(
+            Path.Combine(tools, "PzTools.Backup.Runner.exe"),
+            ["--repository", repositoryPath, "--source-id", "test", "--source", $"test={source}",
+             "--worker-directory", tools, "--worker-config", config, "--config", runnerConfig,
+             "--control-db", temp.GetPath("control.db"), "--save-game", "--game-in-debugger", stop]);
+
+        var taken = await BackupAsync("stopped");
+        Assert.True(taken.ExitCode == 0, taken.StandardOutput + taken.StandardError);
+        var envelope = ProcessResultJson.Deserialize<RunnerExecutionResult>(taken.StandardOutput);
+        Assert.Equal(ProcessOutcome.Succeeded, envelope.Outcome);
+        var telemetry = await PzTools.Backup.Storage.Telemetry.TelemetryStore.CreateOrOpenAsync(repositoryPath);
+        var prepared = Assert.Single(await telemetry.ReadEventsAsync(envelope.RunIndex), item => item.Name == "source.prepare.completed");
+        Assert.Equal("game-debugger", PzTools.Projections.LogDiagnostics.ReadOutcome(prepared.PayloadJson));
+
+        // Stopped inside the save, or with a save database's transaction open: refused, and nothing is kept.
+        foreach (var (stop, journal) in new[] { ("saving", false), ("stopped", true) })
+        {
+            if (journal) await File.WriteAllTextAsync(Path.Combine(source, "players.db-journal"), "open transaction");
+            await File.WriteAllTextAsync(Path.Combine(source, "map.bin"), "half written " + stop);
+            var refused = await BackupAsync(stop);
+            var failure = ProcessResultJson.Deserialize<RunnerExecutionResult>(refused.StandardOutput);
+            Assert.True(failure.Outcome == ProcessOutcome.Failed, refused.StandardOutput + refused.StandardError);
+            Assert.Equal("game-stopped-mid-save", failure.Error?.Code);
+            Assert.Equal("OperationError.GameStoppedMidSave", PzTools.App.Core.UserFacingErrorCatalog.FromProcessError(failure.Error?.Message));
+        }
+        var repository = await RepositoryDatabase.OpenExistingAsync(repositoryPath);
+        var revisions = (await repository.ReadCatalogIfChangedAsync(-1)).Sources.Single().Revisions;
+        Assert.Single(revisions);
+    }
+
     [PublishedToolsOnlyFact]
     public async Task PublishedBackupRunner_PreservesSchedulerOriginAcrossProcessBoundary()
     {

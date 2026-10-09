@@ -55,6 +55,7 @@
   <data name="DeathBackupSetting.Header" xml:space="preserve"><value>Zálohovat při smrti postavy</value></data>
   <data name="DeathBackupSetting.Description" xml:space="preserve"><value>Když je zapnuto, vytvoří jednu zálohu hned po smrti postavy.</value></data>
   <data name="OperationError.SaveChanged" xml:space="preserve"><value>Uložená hra se stále měnila, proto nebyla zálohována. Zkuste to za chvíli znovu.</value></data>
+  <data name="OperationError.GameStoppedMidSave" xml:space="preserve"><value>Hra se zastavila v ladicím programu Lua během ukládání, takže uložená hra na disku může být neúplná. Nebyla zálohována. Pokračujte ve hře, nechte ji dokončit ukládání a zkuste to znovu.</value></data>
   <data name="NextBackupWaiting.Text" xml:space="preserve"><value>Další záloha: čeká</value></data>
   <data name="ThemeSystem.Content" xml:space="preserve"><value>Systémový</value></data>
   <data name="ThemeLight.Content" xml:space="preserve"><value>Světlý</value></data>
@@ -94,6 +95,7 @@
   <data name="ImportArchiveTitle" xml:space="preserve"><value>Importovat archiv</value></data>
   <data name="InvalidArchiveFormat" xml:space="preserve"><value>Tento soubor nelze importovat. Ověřte, že ho exportoval PZ Tools.</value></data>
   <data name="ManualBackupTitle" xml:space="preserve"><value>Ruční záloha</value></data>
+  <data name="ManualBackupFromLastSave" xml:space="preserve"><value>Zálohován naposledy uložený stav. Hra je zastavena v ladicím programu Lua a nemohla se předtím uložit.</value></data>
   <data name="ConfirmRestoreTitle" xml:space="preserve"><value>Obnovit vybranou zálohu?</value></data>
   <data name="ConfirmRestoreBody" xml:space="preserve"><value>Nahradit aktuální soubory „{0}“ zálohou „{1}“. Postup od vytvoření této zálohy bude ztracen. Pokud se obnovení přeruší, znovu otevřete PZ Tools před načtením této uložené hry.</value></data>
   <data name="RestoreAction" xml:space="preserve"><value>Obnovit</value></data>
@@ -659,6 +661,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postava je mrtvá – zálohy čekají</value></data>
   <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Hra zastavena v ladicím programu Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nepodařilo se připojit ke hře; zálohuje se bez předchozího uložení hry.</value></data>
+  <data name="LogEvent.GameInDebugger" xml:space="preserve"><value>Hra je zastavena v ladicím programu Lua; zálohuje se naposledy uložený stav bez žádosti o uložení.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Nyní se nepoužívá, protože se nelze připojit ke hře.</value></data>
   <data name="RuntimeBackupFallback" xml:space="preserve"><value>Další záloha (hra nepřipojena)</value></data>

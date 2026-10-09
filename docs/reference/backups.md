@@ -115,6 +115,7 @@ game.
 | The game refuses the save (multiplayer, a mode without saving, another save loaded, a game build PZ Tools does not support) | No backup | No backup |
 | The game was asked to save and gave no clear answer | No backup | No backup, and **Skipping this backup** for one interval |
 | PZ Tools was updated while the game ran | Backs up the files on disk | Waits for a game restart |
+| The game (in debug mode) is stopped in its Lua debugger | At once, without asking the game: backs up its last saved state and says so. If it stopped while saving, no backup, with a message to resume the game and let it finish saving | Waits until you go on |
 | Two copies of the game are running | No backup of the save being played | Held |
 
 Once the game has been asked to save, an unclear answer is not treated as permission to
