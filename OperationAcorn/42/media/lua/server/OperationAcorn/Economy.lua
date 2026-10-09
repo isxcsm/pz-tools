@@ -1,7 +1,8 @@
 -- The economy's world events, on the side that owns the save (alone, the game is its own server):
 --   every day: the market's step, the new week's request lists, the shred counts' upkeep;
---   every ten minutes: the codex looks over what the characters carry (crafting, foraging, trades ...);
---   every minute: the building a character stands in, for "all containers searched";
+--   every ten minutes (at most each few real seconds): the codex looks over what the characters carry (crafting,
+--     foraging, trades ...);
+--   every minute (at most each few real seconds): the building a character stands in, for "all containers searched";
 --   a zombie's death: the killer's kill count;
 --   an item taken from a container, the floor or a corpse: the cell it came from (the new-region premium) and the
 --   codex. The pickup is caught by wrapping ISTransferAction:transferItem, the one place the game moves an item
@@ -54,10 +55,24 @@ local function baseOf(fullType)
     return base
 end
 
--- The codex looks at one item (and the items in it, to a depth of three bags). Known kinds cost one lookup.
+-- Item types the codex never counts, whatever the item: this mod's goods (by the type's module) and the body's
+-- overlays (by the display category, which the game sets on an item only as its type's script makes it, so it is the
+-- type's). Found by a first Value.info, then they cost one lookup like a known kind. By full type: as big as the game's
+-- item list at most. A shop's item is no loot by its own mark, not its type: it is told by that mark (bought).
+local notLoot = {}
+
+local function bought(item)
+    return item:hasModData() and item:getModData().OA_Bought ~= nil
+end
+
+-- The codex looks at one item (and the items in it, to a depth of three bags). Known kinds, types that are no loot and
+-- the shop's goods cost a lookup or two; only a kind not known yet is read whole (Value.info).
 local function acquireItem(record, kinds, item, depth)
-    if not kinds[baseOf(item:getFullType())] then
-        OA.Codex.acquire(record, OA.Value.info(item))
+    local fullType = item:getFullType()
+    if not kinds[baseOf(fullType)] and not notLoot[fullType] and not bought(item) then
+        local info = OA.Value.info(item)
+        OA.Codex.acquire(record, info)
+        if not info.bought and not OA.Categories.isLoot(info) then notLoot[fullType] = true end
     end
     if depth < 3 and instanceof(item, "InventoryContainer") then
         local items = item:getInventory():getItems()
@@ -65,7 +80,15 @@ local function acquireItem(record, kinds, item, depth)
     end
 end
 
-local function sweepInventory(character, record)
+-- Real milliseconds at least between two looks over a character's inventory. The look follows no game time (a kind is
+-- counted when it is first carried, and a pickup is counted as it happens), and ten game minutes are 25 s of real time
+-- at the default day length but some 0.6 s fast-forwarded (x40) and less asleep.
+Economy.SWEEP_MS = 5000
+
+local sweptAt = {}     -- by record id: the real time (ms) of the last look over the character's inventory
+
+local function sweepInventory(character, record, now)
+    if not OA.due(sweptAt, record.id, now, Economy.SWEEP_MS) then return end
     local kinds = OA.Codex.section(record).kinds
     local items = character:getInventory():getItems()
     for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), 1) end
@@ -132,11 +155,12 @@ function Economy.daily()
     OA.Value.reset()
 end
 
--- Every ten minutes: what the characters carry.
+-- Every ten minutes, at most once each SWEEP_MS of real time: what the characters carry.
 function Economy.tenMinutes()
+    local now = getTimestampMs()
     eachPlayer(function(character)
         local record = recordOf(character)
-        if record then sweepInventory(character, record) end
+        if record then sweepInventory(character, record, now) end
     end)
 end
 
