@@ -581,8 +581,15 @@ function Machines.accepts(kind, item)
     if kind == "bulkShredder" then return Machines.shreddable(item) ~= nil end
     if kind == "cutter" then return Machines.cutterPlan(item) ~= nil end
     if kind == "woodSaw" then return item:getFullType() == "Base.Log" end
-    if kind == "propaneRefiner" then return Machines.rottenFood(item) ~= nil or isPropaneTank(item) end
-    if kind == "oilRefiner" then return Machines.oilOf(item) ~= nil or item:getFullType() == "Base.PetrolCan" end
+    if kind == "propaneRefiner" then return Machines.rottenFood(item) ~= nil end
+    if kind == "oilRefiner" then return Machines.oilOf(item) ~= nil end
+    return false
+end
+
+-- Whether a refiner's tank container takes an item: the propane tanks, or the petrol cans, it fills.
+function Machines.acceptsTank(kind, item)
+    if kind == "propaneRefiner" then return isPropaneTank(item) end
+    if kind == "oilRefiner" then return item:getFullType() == "Base.PetrolCan" end
     return false
 end
 
@@ -595,6 +602,14 @@ function Machines.acceptInput(container, item)
     return Machines.accepts(state.kind, item)
 end
 
+-- The tank container's accept function (set by name, as acceptInput).
+function Machines.acceptTank(container, item)
+    local object = container:getParent()
+    local state = object and Machines.isMachineObject(object) and select(2, Machines.anchorOf(object))
+    if not state then return true end
+    return Machines.acceptsTank(state.kind, item)
+end
+
 -- The output container takes nothing from a player (the machine puts products in directly).
 function Machines.acceptNothing()
     return false
@@ -605,6 +620,7 @@ local function applyAccept(object, roles)
         local container = Machines.container(object, which)
         if container then
             if which == "in" then container:setAcceptItemFunction("OperationAcorn.Machines.acceptInput")
+            elseif which == "tank" then container:setAcceptItemFunction("OperationAcorn.Machines.acceptTank")
             elseif which == "out" then container:setAcceptItemFunction("OperationAcorn.Machines.acceptNothing") end
         end
     end
@@ -653,12 +669,12 @@ local function newQueue(container, accept, limit)
     return queue
 end
 
--- Moves what a refiner has made (state.buffer) into the tanks in its container: propane into tanks with room (as
--- the part of a full tank), petrol into cans (litres). Returns the amount left.
-local function deposit(inC, state, kind)
+-- Moves what a refiner has made (state.buffer) into the tanks in its tank container: propane into tanks with room
+-- (as the part of a full tank), petrol into cans (litres). Returns the amount left.
+local function deposit(tankC, state, kind)
     local buffer = state.buffer or 0
     if buffer <= 0 then return 0 end
-    local tanks = collect(inC, function(item)
+    local tanks = collect(tankC, function(item)
         if kind == "propaneRefiner" then return tankRoom(item) and true or nil end
         return canRoom(item) and true or nil
     end, 20)
@@ -685,9 +701,9 @@ local function deposit(inC, state, kind)
 end
 
 -- Whether the refiner has somewhere to put its product: a tank with room, or buffer room for one tank's worth.
-local function hasSink(inC, state, kind)
+local function hasSink(tankC, state, kind)
     if (state.buffer or 0) < (kind == "propaneRefiner" and 1 or 10) - 1e-6 then return true end
-    local tanks = collect(inC, function(item)
+    local tanks = collect(tankC, function(item)
         if kind == "propaneRefiner" then return tankRoom(item) and true or nil end
         return canRoom(item) and true or nil
     end, 1)
@@ -779,16 +795,17 @@ local function makeIO(object, state, record)
 
     elseif kind == "propaneRefiner" or kind == "oilRefiner" then
         local propane = kind == "propaneRefiner"
+        local tankC = Machines.container(object, "tank")
         local function reset()
             queue = newQueue(inC, ACCEPT[kind], Data.BATCH + 5)
         end
         reset()
         io.reset = reset
         io.next = function(fx, lane)
-            deposit(inC, state, kind)
+            if tankC then deposit(tankC, state, kind) end
             local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
-            if not hasSink(inC, state, kind) then return nil, "noTank" end
+            if not tankC or not hasSink(tankC, state, kind) then return nil, "noTank" end
             return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
@@ -797,7 +814,7 @@ local function makeIO(object, state, record)
             else gain = Logic.petrolGain(job.entry.data, fx) end
             takeOut(job.entry)
             state.buffer = (state.buffer or 0) + gain
-            deposit(inC, state, kind)
+            if tankC then deposit(tankC, state, kind) end
         end
     else
         return nil
@@ -1013,6 +1030,7 @@ function Machines.onChunk(chunk)
             if object then
                 local state = Machines.state(object)
                 Machines.ensureSpriteProperties()
+                Machines.addMissingContainers(object, square, rolesAt(state.kind, state.dir, 0, 0))
                 applyAccept(object, Data.KINDS[state.kind].containers)
                 if state.kind == "lure" then Machines.lureFx(object, not state.spent) end
                 local ok, err = pcall(Machines.update, object, { catchUp = true })
@@ -1172,6 +1190,29 @@ local function setupContainers(object, square, roles)
         container:setCapacity(raw)
         container:setExplored(true)
     end
+end
+
+-- The containers a machine's square should hold and does not (a machine of an older save, before its kind had them):
+-- made, as setupContainers makes them.
+function Machines.addMissingContainers(object, square, roles)
+    local missing = {}
+    for _, which in ipairs(roles) do
+        if not object:getContainerByType(Data.CONTAINERS[which].type) then missing[#missing + 1] = which end
+    end
+    if #missing == 0 then return end
+    if object:getContainer() then
+        for _, which in ipairs(missing) do
+            local spec = Data.CONTAINERS[which]
+            local container = ItemContainer.new(spec.type, square, object)
+            object:addSecondaryContainer(container)
+            container:setCapacity(math.min(spec.capacity, 100))
+            container:setExplored(true)
+        end
+    else
+        setupContainers(object, square, missing)
+    end
+    OA.log("machine", tostring(Machines.state(object) and Machines.state(object).id), "given its new containers:",
+        table.concat(missing, ", "))
 end
 
 -- One IsoThumpable of a machine on a square, with the sprite of its tile.

@@ -58,11 +58,11 @@ Data.KINDS = {
     },
     propaneRefiner = {
         item = "PropaneRefinery", weight = 50, power = true, load = 0.3, rate = 2, noise = 8,
-        slots = { "motor", "catalyst" }, containers = { "in" },
+        slots = { "motor", "catalyst" }, containers = { "in", "tank" },
     },
     oilRefiner = {
         item = "OilRefinery", weight = 55, power = true, load = 0.3, rate = 0.5, noise = 8,
-        slots = { "motor", "catalyst" }, containers = { "in" },
+        slots = { "motor", "catalyst" }, containers = { "in", "tank" },
     },
     woodSaw = {
         item = "LogSaw", weight = 55, power = true, load = 0.8, work = "saw", rate = rateOf("saw"), wear = wearOf("saw"), noise = 40,
@@ -113,6 +113,9 @@ end
 Data.CONTAINERS = {
     ["in"] = { type = "OAMachineIn", capacity = 100 },
     out = { type = "OAMachineOut", capacity = 100 },
+    -- a refiner's: the propane tanks or petrol cans it fills (apart from what it refines, so that what goes in and
+    -- what comes out are not mixed)
+    tank = { type = "OAMachineTank", capacity = 100 },
     -- 500 a square (NUMBERS 11): more than the biggest vanilla crate stacked three high (80 x 3). The vanilla cap of an
     -- object container is 100 (ItemContainer.MAX_CAPACITY, applied in getCapacity); the extension API lifts it.
     store = { type = "OAResearchStorage", capacity = 500 },
@@ -121,6 +124,7 @@ Data.CONTAINERS = {
 Data.TITLES = {
     OAMachineIn = "IGUI_ContainerTitle_OAMachineIn",
     OAMachineOut = "IGUI_ContainerTitle_OAMachineOut",
+    OAMachineTank = "IGUI_ContainerTitle_OAMachineTank",
     OAResearchStorage = "IGUI_ContainerTitle_OAResearchStorage",
 }
 
