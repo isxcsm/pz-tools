@@ -225,6 +225,25 @@ public final class ApiHooks {
         default float machineLoad(float vanilla, Object object) { return vanilla; }
     }
 
+    /**
+     * Set by the payload: the moodles mods define (docs/design/extension-api.md, "Moodles"). Every call gets a moodle type the
+     * game asks about and answers for the API's own types alone; any other type gets the game's answer. The calls come on the
+     * game's thread, the level once a tick for every moodle of every player; none allocates.
+     */
+    public interface Moodles {
+        /** {@code Moodle.Update()}: the level a moodle of this type of this character is to have, or -1 for the game's own update. */
+        default int level(Object type, Object character) { return -1; }
+
+        /** {@code Moodles.GoodBadNeutral(type)}: 0 neutral, 1 good, 2 bad; {@code vanilla} for a type that is not the API's. */
+        default int kind(int vanilla, Object type) { return vanilla; }
+
+        /**
+         * {@code MoodlesUI.render}: the picture of a type the game's {@code MoodleTextureSet} has none for, at that set's size, for
+         * the moodle column {@code ui}; null when the type is not the API's.
+         */
+        default Object picture(Object set, Object type, Object ui) { return null; }
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -237,6 +256,7 @@ public final class ApiHooks {
     private static volatile Power power;
     private static volatile Water water;
     private static volatile Formulas formulas;
+    private static volatile Moodles moodles;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -262,7 +282,8 @@ public final class ApiHooks {
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
-        MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS);
+        MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
+        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES);
 
         final String label;
         final Group group;
@@ -271,14 +292,15 @@ public final class ApiHooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
     private static final ClassDesc FLUID_CONTAINER = ClassDesc.of("zombie.entity.components.fluids.FluidContainer");
     private static final ClassDesc ARRAY_LIST = ClassDesc.of("java.util.ArrayList"), LIST = ClassDesc.of("java.util.List");
     private static final ClassDesc PLAYER = ClassDesc.of("zombie.characters.IsoPlayer"),
-        CHARACTER = ClassDesc.of("zombie.characters.IsoGameCharacter"), VECTOR2 = ClassDesc.of("zombie.iso.Vector2");
+        CHARACTER = ClassDesc.of("zombie.characters.IsoGameCharacter"), VECTOR2 = ClassDesc.of("zombie.iso.Vector2"),
+        MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
 
@@ -561,7 +583,43 @@ public final class ApiHooks {
                 code.labelBinding(done);
             }) }),
         Map.entry("zombie/characters/Moodles/Moodle", new Site[] {
-            Site.edit("Update", "()Z", overloadEdit(1)).named("overload") }),
+            Site.edit("Update", "()Z", overloadEdit(1)).named("overload"),
+            // The moodles mods define (docs/design/extension-api.md, "Moodles"): the level of one of the API's types goes through the
+            // game's own updateMoodleLevel, so that the moodle column refreshes and wiggles as for the game's; -1 runs the game's update.
+            Site.atStart("Update", "()Z", (code, owner) -> {
+                Label vanilla = code.newLabel();
+                code.aload(0);
+                code.aload(0);
+                code.getfield(owner, "moodleType", MOODLE_TYPE);
+                code.aload(0);
+                code.getfield(owner, "isoGameCharacter", CHARACTER);
+                code.invokestatic(HOOKS, "moodleLevel", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_Object, ConstantDescs.CD_Object));
+                code.dup();
+                code.iflt(vanilla);
+                code.invokespecial(owner, "updateMoodleLevel", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_int));
+                code.ireturn();
+                code.labelBinding(vanilla);
+                code.pop2();
+            }).named("level").reading("moodleType:Lzombie/scripting/objects/MoodleType;", "isoGameCharacter:Lzombie/characters/IsoGameCharacter;",
+                "updateMoodleLevel:(I)Z") }),
+        Map.entry("zombie/characters/Moodles/Moodles", new Site[] {
+            // Every character's moodles as they are made: a type defined later is added to them (see Moodles in the API).
+            Site.atReturns("<init>", "(Lzombie/characters/IsoGameCharacter;)V", 2, (code, owner) -> thisCall(code, "moodlesMade")),
+            Site.atReturns("GoodBadNeutral", "(Lzombie/scripting/objects/MoodleType;)I", 2, (code, owner) -> {
+                code.aload(1);
+                code.invokestatic(HOOKS, "moodleKind", MethodTypeDesc.of(ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_Object));
+            }) }),
+        // The picture the moodle column draws: the set's own, or for a type the set has none for, the API's (set, type -> texture).
+        Map.entry("zombie/ui/MoodlesUI", new Site[] {
+            Site.edit("render", "()V", new Edit(calls("zombie/ui/MoodleTextureSet", "getTexture",
+                "(Lzombie/scripting/objects/MoodleType;)Lzombie/core/textures/Texture;"), 1, null, (code, element, kind) -> {
+                    code.dup2();
+                    code.with(element);
+                    code.aload(0);
+                    code.invokestatic(HOOKS, "moodlePicture", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_Object));
+                    code.checkcast(TEXTURE);
+                })) }),
         // A bag clamps its capacity to what a bag can be (50 less its own weight), over the container's own.
         Map.entry("zombie/inventory/types/InventoryContainer", new Site[] {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
@@ -766,6 +824,9 @@ public final class ApiHooks {
             status.put(label, state);
             helicopterWatched = APPLIED.equals(status.get(HELICOPTER_WATCH));
             worldWatched = APPLIED.equals(status.get(WORLD_WATCH));
+            String pictures = status.get(MOODLE_PICTURES);
+            moodlePicturesHooked = pictures == null || APPLIED.equals(pictures);
+            moodlesFollowed = APPLIED.equals(status.get(MOODLES_MADE));
             if (TRACKING.contains(label)) {
                 boolean sound = true;
                 for (String needed : TRACKING) {
@@ -813,6 +874,30 @@ public final class ApiHooks {
 
     /** Whether the hook on the stores of the world's cell is in the class the game runs. */
     public static boolean worldWatched() { return worldWatched; }
+
+    // The moodle column's picture hook, and the hook that sees every character's moodles made.
+    private static final String MOODLE_PICTURES = "MoodlesUI.render", MOODLES_MADE = "Moodles.<init>";
+    // True until MoodlesUI was tried without its hook: the column then has no picture for a type the API defines.
+    private static volatile boolean moodlePicturesHooked = true, moodlesFollowed;
+    // Every character's moodles (Moodles) made since the game started, held weakly: a type defined later is added to them.
+    private static final Set<Object> madeMoodles = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+    /**
+     * Whether the moodle column can draw a picture for a type the API defines: its hook is in, or its class has not loaded yet
+     * (nothing draws then). Without it, the API shows none of its moodles: the game's column would fail to draw one.
+     */
+    public static boolean moodlePicturesHooked() { return moodlePicturesHooked; }
+
+    /** Whether {@link #madeMoodles()} holds every character's moodles: the hook in their constructor is in. */
+    public static boolean moodlesFollowed() { return moodlesFollowed; }
+
+    /** Put at the end of the constructor of {@code Moodles}, a character's moodles. */
+    public static void moodlesMade(Object moodles) { madeMoodles.add(moodles); }
+
+    /** The characters' moodles that are still about, in no order. */
+    public static List<Object> madeMoodles() {
+        synchronized (madeMoodles) { return new ArrayList<>(madeMoodles); }
+    }
 
     /** Whether every hook of {@link #TRACKING} that was tried went in (a class that has not loaded yet has nothing to track). */
     public static boolean weightTracked() { return weightTracked; }
@@ -980,7 +1065,7 @@ public final class ApiHooks {
         /** Told apart from another hook in the same method by {@code part}. */
         Site named(String part) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, fields, edit, mark); }
 
-        /** The hook reads these instance int fields of the class. */
+        /** The hook reads these instance fields of the class (int, or {@code name:descriptor}), or calls these methods ({@code name:(...)...}). */
         Site reading(String... names) { return new Site(method, type, returns, argumentSlots, emit, object, kind, at, part, List.of(names), edit, mark); }
 
         static boolean haveElectricity(CodeElement element) {
@@ -1009,9 +1094,15 @@ public final class ApiHooks {
                 if (element instanceof StoreInstruction store && store.slot() < argumentSlots)
                     return method + " reuses its argument slot " + store.slot();
             for (String declared : fields) {
-                // "name" is an instance int field; "name:descriptor" an instance field of that type.
+                // "name" is an instance int field; "name:descriptor" an instance field of that type; "name:(...)..." an instance method.
                 int colon = declared.indexOf(':');
                 String name = colon < 0 ? declared : declared.substring(0, colon), descriptor = colon < 0 ? "I" : declared.substring(colon + 1);
+                if (descriptor.startsWith("(")) {
+                    if (model.methods().stream().noneMatch(candidate -> candidate.methodName().equalsString(name)
+                            && candidate.methodType().equalsString(descriptor) && !candidate.flags().has(AccessFlag.STATIC)))
+                        return "expected the method " + className.substring(className.lastIndexOf('/') + 1) + "." + name + descriptor;
+                    continue;
+                }
                 if (model.fields().stream().noneMatch(field -> field.fieldName().equalsString(name)
                         && field.fieldType().equalsString(descriptor) && !field.flags().has(AccessFlag.STATIC)))
                     return "expected the field " + className.substring(className.lastIndexOf('/') + 1) + "." + name;
@@ -1603,6 +1694,47 @@ public final class ApiHooks {
         if (current == null) return vanilla;
         try { return current.foodHours(vanilla, food); }
         catch (Throwable problem) { reportOnce(Call.FOOD_HOURS, problem); return vanilla; }
+    }
+
+    /** Sets the moodles, replacing an earlier payload's; null gives every moodle question to the game alone. */
+    public static void setMoodles(Moodles next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.MOODLES); }
+        moodles = next;
+    }
+
+    /** Put at the start of {@code Moodle.Update()}: the level to update the moodle to, or -1 for the game's own update. */
+    public static int moodleLevel(Object type, Object character) {
+        Moodles current = moodles;
+        if (current == null) return -1;
+        try { return current.level(type, character); }
+        catch (Throwable problem) { reportOnce(Call.MOODLE_LEVEL, problem); return -1; }
+    }
+
+    /** Put before each return of {@code Moodles.GoodBadNeutral(type)}. */
+    public static int moodleKind(int vanilla, Object type) {
+        Moodles current = moodles;
+        if (current == null) return vanilla;
+        try { return current.kind(vanilla, type); }
+        catch (Throwable problem) { reportOnce(Call.MOODLE_KIND, problem); return vanilla; }
+    }
+
+    /**
+     * Put after {@code MoodlesUI.render} asks its texture set for a type's picture: the set's picture, or the API's for a type the
+     * set has none for. With none at all the game's column would fail to draw that moodle, so while no API can answer (it failed,
+     * or is being replaced, and the moodle's level has not gone back to 0 yet) the set's empty frame is drawn instead.
+     */
+    public static Object moodlePicture(Object set, Object type, Object vanilla, Object ui) {
+        if (vanilla != null) return vanilla;
+        Moodles current = moodles;
+        if (current == null) return frame(set);
+        try { return current.picture(set, type, ui); }
+        catch (Throwable problem) { reportOnce(Call.MOODLE_PICTURE, problem); return frame(set); }
+    }
+
+    // MoodleTextureSet.getBorder(), on the rare path where no API answers.
+    private static Object frame(Object set) {
+        try { return set.getClass().getMethod("getBorder").invoke(set); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) { return null; }
     }
 
     private static void reportOnce(Call call, Throwable problem) {

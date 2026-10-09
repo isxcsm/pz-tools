@@ -76,9 +76,10 @@ public final class GameApiTest {
         FormulasTest.run(api);
         HiddenZombiesTest.run(api);
         SystemsTest.run(api);
+        MoodlesTest.run(api);
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -2025,9 +2026,10 @@ public final class GameApiTest {
                 "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
                 "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "Helicopter.writes:flight",
-                "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change" })
+                "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change", "Moodle.Update:level", "Moodles.GoodBadNeutral",
+                "Moodles.<init>", "MoodlesUI.render" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 68, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 72, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

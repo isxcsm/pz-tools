@@ -7,7 +7,8 @@
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
 > speed points, the survival points, the [hidden zombies](#the-hidden-zombies) and the [machines](#machines)), the
-> [helicopter](#the-helicopter) and the [zombies near a point](#zombies-near-a-point). Planned: `"parallel"`. The first areas serve a separate power
+> [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point) and the [moodles](#moodles-mechanism) mods
+> define. Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
@@ -56,7 +57,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read. |
+| `buildings`, `networks`, `formulas`, `moodles`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` also in a game started by an install from before them). |
 
 Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -823,6 +824,138 @@ yet is not on it, and nor is one that is dead), once, asking each its position t
 loop, so that a bigger radius costs no more than the zombies in it, and a zombie that is not near costs a few nanoseconds and
 allocates nothing. The list is bounded: the `limit` nearest are kept as it goes. Other levels are other calls.
 
+## Moodles (mechanism)
+
+A mod defines a moodle of its own, and the game's moodle column draws it as it draws its own: in a slot of the column, at the
+player's moodle size, on the game's background tinted by good or bad and by level, with the game's mouse-over text, coming in
+and wiggling when its level changes. The mod says the level; the API holds no moodle's meaning. Mods that draw moodles of their
+own today (Moodle Framework, workshop 3396446795) put UI elements of their own beside the column instead.
+([`Moodles`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Moodles.java))
+
+### How the game does it
+
+Read from the bytecode of Build 42.21 (`projectzomboid.jar`; PZ Optimize overrides none of these classes):
+
+- **Types.** `MoodleType` is a registry, not an enum: `Registries.MOODLE_TYPE` holds the game's 26 types under the namespace
+  `base`. `MoodleType.register(id)` registers another; the id must name a namespace (`mymod:sense`), `base` is refused
+  (`Default namespace 'base:sense' is not allowed!`), and a name registered twice throws. The location is lower-cased
+  (`ResourceLocation`); the type's `translationName` is the id as given. `RegistryReset.resetAll()` removes every type of
+  another namespace: the game calls it as it leaves a world (`IngameState.exit`) and before it reloads its Lua
+  (`Core.ResetLua`, which then makes the moodle columns again and loads the mods' Lua).
+- **A character's moodles.** Only players have them (`IsoGameCharacter`'s constructor makes `Moodles` for an `IsoPlayer` that is
+  not an animal). `Moodles` makes a `Moodle` of every type the registry has *when it is made*, in a map. A type registered
+  later is not in a character's map, and `getMoodleLevel(type)` (and the display and description strings) then fail with a
+  `NullPointerException` (tried in the game). The game's own Lua and Java ask fixed types only; a mod that goes through the
+  registry (Moodle Framework does, for every type, to count the moodles shown) fails on such a type.
+- **The level.** `Moodles.Update()` calls `Moodle.Update()` for each moodle once a tick; it works the level out of the
+  character's stats in a chain of tests on the type (0 for a type it does not know, and 0 for a dead character but for the
+  `Dead` and `Zombie` moodles) and sets it through the private `updateMoodleLevel(level)`, which says whether it changed;
+  a change marks the moodles for the column (`setMoodlesStateChanged`).
+- **Good or bad.** `Moodles.getGoodBadNeutral(type)` asks the private `GoodBadNeutral(type)`: 1 (good) for `FoodEaten`, 2
+  (bad) for every other type. 0 is neutral.
+- **The column.** `MoodlesUI`, one for each local player (`UIManager.MoodleUI`, made again by `UIManager.init` and
+  `IsoCamera.SetCharacterToFollow`), keeps a slot of every type the registry had when it was made. When the moodles changed,
+  its `update()` asks every slot's level: a moodle above 0 takes the next place in the column (the column's own map order),
+  comes in from below when it was not shown, wiggles when its level changed and asks good or bad then; one at 0 leaves.
+  `render()` draws each placed moodle: the background (`_Moodles_BGsolid`) tinted from grey to the good or bad colour of the
+  game's options by level over 4 (grey for neutral), the outline, then the picture `MoodleTextureSet.getTexture(type)` at
+  its own size, and for the moodle under the mouse the display and description strings. A `MoodleTextureSet` has the
+  pictures of the game's own types at one size (32, 48, 64, 80, 96 or 128, the moodle size option), loaded by path; a type it
+  has none for fails there (`NullPointerException`). The column draws no chevrons in Build 42.21 (only the temperature
+  moodles set them, and nothing draws them); there is no joypad code of its own.
+- **Text.** The display string is the translation of `Moodles_<translationName>_lvl<level>`, the description
+  `Moodles_<translationName>_desc_lvl<level>`. The game's translations are JSON files,
+  `media/lua/shared/Translate/<language>/Moodles.json`, read from the game and from each mod's common and version folders
+  (`Translator.tryFillMapFromMods`); a key is any JSON string and is found as it is, so a key with a colon works.
+
+### Calls
+
+| Call | Effect |
+| --- | --- |
+| `moodles.define(handle, id, spec)` | Defines the mod's moodle `id` (1 to 64 letters, digits, `_`, `.` or `-`, not case sensitive), or changes the kind and pictures of one it defined. Returns the game's `MoodleType` and its translation name, `<handle name>:<id>`. `spec` is `{ kind = "good" | "bad" | "neutral", picture = path or { path1, path2, path3, path4 } }` (see [pictures](#what-a-mod-provides)). The type is registered once, as `MoodleType.register("<handle name>:<id>")`, so its location is `<handle name>:<id>` in lower case; defined again, by the same mod, by a newer API or in another world, it is the type the registry has under that name. A moodle another mod defined under that name, a wrong spec, or a name the game refuses (a handle named `base`) is a Lua error. |
+| `moodles.set(handle, id, level, playerIndex)` | The level (0 to 4) the local player of that index (0 to 3) shows; `nil` for every local player. 0 hides it. |
+| `moodles.level(handle, id, playerIndex)` | The level set for that player (0 when `nil`). |
+
+`handle:clear()` takes the mod's moodles back: they show no more (the type stays in the game's registry, at level 0, until the
+game resets it). A mod can call `define` as its Lua loads, before any character exists, or later, in a world: the API adds the
+type to every character's moodles and every moodle column made before (the characters' moodles it has seen made since the game
+started, through a hook in the constructor, and the local players'), so that every registered type can be asked of every
+character; characters and columns made after it have it from the registry. The levels are the API's, not saved: they go back to
+0 when a world is left, and a mod sets them again as a world loads (`OnGameStart`, `OnCreatePlayer`). The definitions stay with
+the Lua environment: when the game resets its registry while they stay (a world left without the Lua reloaded), the API
+registers them again at the next world and adds them as above. A newer API takes the definitions and levels over, as it takes
+over the formulas; a function a mod copied out of the table says the API was updated.
+
+Only a local player's moodle shows a level: another character's, a remote player's included, is 0. A dead player's is 0, as the
+game's update has it. Multiplayer is not blocked: on a client the local players' moodles are its own, and no message is sent.
+
+### What a mod provides
+
+- **Pictures.** `picture` is a path the game loads as it loads its own pictures (`Texture.getSharedTexture(path)`, mipmapped),
+  such as `media/ui/MyMod/Sense_{size}.png`. `{size}` is replaced by the column's size (32, 48, 64, 80, 96 or 128), so a mod
+  gives a file for each size as the game does (`media/ui/Moodles/<size>/`); a size it has no file for is drawn from the largest
+  it has, scaled to the size. A path without `{size}` is one picture, scaled to every size (the column draws a picture at its own
+  width and height; the API draws a copy of the game's texture that has the column's size). A list gives a picture for each level
+  from 1; a level above the list has the last. A picture the game has not read yet is drawn as it is until it has. A picture
+  that is not there is drawn as the empty frame, with one line in the game's log. Vanilla pictures are 32 to 128 pixels square
+  with a transparent background; the background and outline are the game's.
+- **Text.** In the mod's `media/lua/shared/Translate/EN/Moodles.json` (and other languages), for each level the mod uses:
+
+  ```json
+  {
+      "Moodles_MyMod:Sense_lvl1": "Uneasy",
+      "Moodles_MyMod:Sense_desc_lvl1": "Something is watching.",
+      "Moodles_MyMod:Sense_lvl2": "Watched",
+      "Moodles_MyMod:Sense_desc_lvl2": "It is close."
+  }
+  ```
+
+  The name is the translation name `define` returns, the handle's name and the id as the mod first defined it, cases kept.
+- **Good and bad.** A type is one kind. A mod whose state can be good or bad (as Moodle Framework's moodles are) defines two
+  moodles and shows one of them.
+
+### Moodle Framework
+
+Moodle Framework places its moodles below the game's column by counting the registered types whose level is above 0 for the
+player (`Registries.MOODLE_TYPE:values()` and `getMoodleLevel`, the `FoodEaten` moodle from level 3). The API's types are in the
+registry and in the player's moodles, so they are counted, and Moodle Framework's moodles stack below them; a type a mod registered
+itself after the player was made would make that count fail instead. Its moodles and the API's do not otherwise meet.
+
+### Hook sites
+
+| Hook | Where | What it does |
+| --- | --- | --- |
+| `Moodle.Update:level` | the start | For one of the API's types, `updateMoodleLevel(level)` with the API's level, and return; for any other type (`-1`), the game's update goes on. The same method as the load's `:overload` hook. |
+| `Moodles.GoodBadNeutral` | each return | The kind of one of the API's types; the game's answer for any other. |
+| `Moodles.<init>` | the return | The character's moodles are kept, held weakly, so that a type defined later is added to them. Without it, only the local players' are. |
+| `MoodlesUI.render` | the call of `MoodleTextureSet.getTexture(type)` | The set's picture; for a type the set has none for, the API's picture of the moodle's level at the set's size. While no API can answer, the set's outline, which keeps the column from failing. |
+
+A hook that fails gives the game's answer (the game's update sets the level of a type it does not know to 0, and kind 2). Without
+`MoodlesUI.render` the column could not draw an API moodle, so none shows (its level is 0) and `PZToolsAPI.hooks()` says why.
+The level hook is asked once a tick for every moodle of every player: a type of the game's costs one identity-map lookup, an API
+type also the local players' array and, while it is shown, `isDead()`; nothing allocates.
+
+### Verified
+
+Against the installed game (9 October 2026, Build 42.21): the four hooks were put into the real bytes of `Moodle`, `Moodles` and
+`MoodlesUI` (the jar's; PZ Optimize has none of them), checked by the ClassFile verifier, and the classes defined, linked and
+initialized by the JVM over the game's jar. In the synthetic game (the `api` suite, `MoodlesTest`): a type defined after a player,
+a remote player and the column were made is registered under the mod's name and is in all of them, so every registered type can
+be asked of every character; a level shows for the local player alone, through the game's update and column (placed, good, wiggled
+on a change and not on the same level), with the picture of the column's size, the largest scaled to a size without a file, one
+path scaled, one picture a level, a picture not read yet drawn as it is and then scaled, a missing one drawn as the frame and looked
+for once; a second local player has its own level, and a player and a column made after the definition have the type; a dead player
+shows none; defined again it is the same type with its new kind, another mod cannot take its name, and wrong arguments and a handle
+named `base` are Lua errors; a world left takes the levels and keeps the definitions; the registry reset makes a new type at the next
+world, added to the player and the column; a newer API takes the definitions and levels over and finds the type in the registry;
+a handler that fails gives the game's answers and the frame; `clear` hides it. The level hook cost 4 to 12 ns for a game's type and
+11 to 19 ns for an API type (runs of the synthetic game differ that much), and allocated nothing over 3,000,000 calls; a kept picture
+allocated nothing over 100,000 frames.
+
+Not tried in the game yet: the picture drawn (the scaled copy of a texture, mipmapped), the translation keys with a colon read from
+a mod's JSON, a define at load and one in a running world (the player's map and the column), the registry reset going back to the
+main menu and loading another save, a second local player, and Moodle Framework's moodles stacking below.
+
 ## How the game is answered
 
 | Game question | Vanilla method | With networks |
@@ -1015,6 +1148,10 @@ failure by hand, the app's next round logged a warning naming `IsoGenerator.upda
 - A producer that breaks before its fuel runs out stops at a random hour the API does not see. The
   next producer starts from the hour the first's fuel would have run out (or now, if that hour has not
   come), later than it broke; the hours between burn no fuel.
+- The moodles' types are registered again on the game's thread when the API finds the registry without them at a world change
+  (see [moodles](#calls)). The game resets it only as it leaves a world (the frame after, at the main menu, registers them again)
+  and as it reloads its Lua (which makes a new API with no definitions), so this never meets the thread that loads a world and
+  makes its player; a game that reset the registry at another moment could see the two meet.
 - User-defined buildings are removed and created again when walls change
   (`removeUserDefinedBuildingsFromCell`); a network follows its building from the square it was named
   by.

@@ -50,7 +50,11 @@ public class IsoGameCharacter extends IsoMovingObject {
     public float lookX = 1f, lookY;
     public boolean asleep, dead;
     public Object vehicle;
-    public IsoGameCharacter() { super(); }
+    /** A player's moodles (the game gives them to players alone); null for any other character. */
+    protected final zombie.characters.Moodles.Moodles moodles;
+    public IsoGameCharacter() { super(); moodles = this instanceof IsoPlayer ? new zombie.characters.Moodles.Moodles(this) : null; }
+
+    public zombie.characters.Moodles.Moodles getMoodles() { return moodles; }
 
     /** How near a player is heard, and the dot of the way to a point with where the character looks, as the game's. */
     public float detectionRange = 3.5f;

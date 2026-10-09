@@ -30,6 +30,8 @@ public final class GameApi {
     private static volatile Formulas formulas;
     // The helicopter of the Lua environment the game has now; null without one, or when the game cannot read it.
     private static volatile Helicopters helicopters;
+    // The moodles of the Lua environment the game has now; null without one, or when the game cannot run them.
+    private static volatile Moodles moodles;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -64,6 +66,8 @@ public final class GameApi {
         if (current != null) current.frame();
         Formulas declared = formulas;
         if (declared != null) declared.frame();
+        Moodles defined = moodles;
+        if (defined != null) defined.frame();
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -92,8 +96,10 @@ public final class GameApi {
             networks = null;
             formulas = null;
             helicopters = null;
+            moodles = null;
             Networks.unhook();
             Formulas.unhook();
+            Moodles.unhook();
             throw failure;
         }
     }
@@ -123,12 +129,14 @@ public final class GameApi {
             buildings.register(table(lua, api, "buildings"));
             networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
+            moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
             Networks.retire(lua, meta);
             Formulas.retire(lua, meta);
+            Moodles.retire(lua, meta);
             throw failure;
         }
     }
@@ -188,6 +196,33 @@ public final class GameApi {
     }
 
     /**
+     * {@code PZToolsAPI.moodles}, with the definitions an earlier API kept in this environment. Without it (a game started by an
+     * install from before the moodles, or a game this API cannot read), mods find no {@code moodles} and the game's moodles are
+     * its own.
+     */
+    private static void moodles(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
+            throws ReflectiveOperationException {
+        Moodles next;
+        try {
+            next = new Moodles(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            next.hook();
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PzTools API] Moodles are not in this game; restart it to use them: " + olderBootstrap);
+            next = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            Moodles.unhook();
+            next = null;
+        }
+        moodles = next;
+        if (next != null) next.register(table(lua, api, "moodles"));
+        else {
+            Moodles.retire(lua, meta);
+            lua.set(api, "moodles", null);
+        }
+    }
+
+    /**
      * {@code PZToolsAPI.zombies} and {@code PZToolsAPI.helicopter}. Each is left out, with a line in the game's log, in a
      * game that does not have what it reads: the others go on.
      */
@@ -243,6 +278,8 @@ public final class GameApi {
             if (current != null) current.clear(name, AREA + "client:clear");
             Formulas declared = formulas;
             if (declared != null) declared.clear(name, AREA + "client:clear");
+            Moodles defined = moodles;
+            if (defined != null) defined.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;
