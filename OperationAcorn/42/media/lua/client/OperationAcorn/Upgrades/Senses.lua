@@ -2,9 +2,10 @@
 -- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
 -- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
 -- of what made it), 경보 읽기 (a mark over alarmed houses and cars nearby) and 털이 기록 (how many containers of the
--- building are still unopened). The sounds come as they are made (the world sounds, the extension API's zombie
--- sounds); without the API's, the zombies' are told twice a second from the game's zombie list by the shared timer
--- (Pulse.lua). The drawing works out every mark's way from where the character stands, every frame.
+-- building are still unopened). The sounds come as they are made (the world sounds; the extension API's zombie
+-- sounds: a target taken, a lunge, a strike), and the zombies' groans and, without the API, the rest are told twice a
+-- second from the game's zombie list by the shared timer (Pulse.lua). The drawing works out every mark's way from
+-- where the character stands, every frame.
 require "ISUI/ISPanel"
 -- ISCoordConversion is a server-folder file, loaded after this one: it is used when drawing, not required here.
 require "OperationAcorn/Client"
@@ -48,12 +49,12 @@ end
 function Hud:prerender() end
 
 -- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing the place its
--- sound was made, on an ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where
--- the camera centres the character). The way is worked out every frame from where the character is, so it turns as
--- the character moves. Every size is in tiles of the default zoom (TILE_PX pixels): the marks keep their size on the
--- screen whatever the zoom, as the HUD does; their ellipse keeps the ground's slant. Every mark sits on the one ring,
--- overlapping where ways meet (layers outward hid more of the view and did not read plainly). A mark comes on over
--- FADE_IN_MS and fades out over its last FADE_MS.
+-- sound was made, on an ellipse laid as the ground lies round the body (BODY of a floor above the feet), RING tiles
+-- out: wide enough that a mark beside the character is not drawn over it. The way is worked out every frame from
+-- where the character is, so it turns as the character moves. Every size is in tiles of the default zoom (TILE_PX
+-- pixels): the marks keep their size on the screen whatever the zoom, as the HUD does; their ellipse keeps the
+-- ground's slant. Every mark sits on the one ring, overlapping where ways meet (layers outward hid more of the view
+-- and did not read plainly). A mark comes on over FADE_IN_MS and fades out over its last FADE_MS.
 --   Zombies: an arc. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); a zombie coming or
 --   striking is drawn brighter than one only groaning. Zombies beating on a door, a window or a wall (advanced rank 2)
 --   shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for another
@@ -63,13 +64,13 @@ function Hud:prerender() end
 --   Nearer (under Sense.NEAR tiles, then Sense.MID) is bigger and brighter. An alarm also beats: fast when near,
 --   slowly at mid, still when far.
 -- The pictures are white, tinted as they are drawn.
-local BODY = 0.3
+local BODY = 0.15
 local TILE_PX = 36
-local RING = 1.6
-local ZOMBIE_W = { 1.8, 1.55, 1.3 }
-local BANG_W = 0.85
-local FLOOR_W = 0.42
-local NOISE_W = { 2.1, 1.75, 1.4 }
+local RING = 3.0
+local ZOMBIE_W = { 2.7, 2.3, 1.95 }
+local BANG_W = 1.2
+local FLOOR_W = 0.55
+local NOISE_W = { 2.95, 2.45, 1.95 }
 local NOISE_A = { 1.0, 0.85, 0.65 }
 local ALARM_HZ = { 3, 1.5, 0 }
 local SHAKE_HZ = 4
@@ -371,7 +372,6 @@ local function zombieHeard(kind, key, x, y, z, now)
 end
 
 local voiceMemo, voiceOut = {}, {}
-local apiVoices = false   -- whether the extension API tells the zombies' sounds (then they are not told here)
 
 local function senseJob(now)
     local player = getPlayer()
@@ -406,7 +406,7 @@ local function senseJob(now)
         S.distance = Sense.distance(u)
         S.extended = extended
     end
-    local tell = active and not apiVoices and S.hearing > 0
+    local tell = active and S.hearing > 0
     local reach = math.max(sixthR, tell and S.radius or 0)
     if reach > 0 then
         local list = collect(player, reach, tell, sixthR * sixthR)
@@ -759,7 +759,9 @@ local soundHooked = false
 local zombiesListened = 0   -- the radius the API listens for zombie sounds within, 0 when it does not
 
 -- Has the extension API tell the zombies' sounds within the sense's reach (PZToolsAPI.zombies.listen and the event
--- OnPZToolsZombieSound), when it can; else they are told from the zombie list (apiVoices false).
+-- OnPZToolsZombieSound), when it can: taking a target, a lunge, a strike, a fall as they happen. A zombie's groan is
+-- one looping sound to the game (the API tells it once, as it starts: seen in game), so the groans now and then are
+-- still told from the zombie list (Sense.voices).
 local function listenZombies(want, u)
     local api, handle = OA.api(), OA.handle()
     local zombies = api and api.zombies
@@ -777,7 +779,6 @@ local function listenZombies(want, u)
     if radius > 0 and zombiesListened == 0 then Events.OnPZToolsZombieSound.Add(onZombieSound) end
     if radius == 0 and zombiesListened > 0 then Events.OnPZToolsZombieSound.Remove(onZombieSound) end
     zombiesListened = radius
-    apiVoices = radius > 0
 end
 
 -- Sets the sound hook by what the character has (called when ranks change); returns whether the shared timer is
