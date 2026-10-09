@@ -29,4 +29,8 @@ public final class LuaEventManager {
         lastThread = Thread.currentThread();
         raised.add(java.util.Arrays.asList(name, first, second, third, fourth));
     }
+    public static void triggerEvent(String name, Object first, Object second, Object third, Object fourth, Object fifth, Object sixth) {
+        lastThread = Thread.currentThread();
+        raised.add(java.util.Arrays.asList(name, first, second, third, fourth, fifth, sixth));
+    }
 }
