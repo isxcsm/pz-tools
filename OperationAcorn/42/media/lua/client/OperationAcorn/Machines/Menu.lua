@@ -8,7 +8,7 @@ require "OperationAcorn/Machines/Actions"
 require "OperationAcorn/Machines/Window"
 local OA = OperationAcorn
 local Machines = OA.Machines
-local Data, Actions = Machines.Data, Machines.Actions
+local Data = Machines.Data
 local Menu = {}
 Machines.Menu = Menu
 
@@ -56,19 +56,14 @@ local function onPickUp(playerObj, object)
     queueAt(playerObj, square, ISOAMachinePickUp:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
--- Queues shredding of entries (in actions of a few at a time) at the bench.
+-- Queues shredding of entries at the bench, an action an item.
 local function onShred(playerObj, object, entries)
     local state = Machines.state(object)
     local square = object:getSquare()
-    local rest = {}
-    for i, entry in ipairs(entries) do rest[i] = entry end
-    local actions = 0
-    while #rest > 0 and actions < 10 do
-        local picked = Actions.fit(rest)
-        for _ = 1, #picked do table.remove(rest, 1) end
-        queueAt(playerObj, square,
-            ISOAMachineShred:new(playerObj, state.id, square:getX(), square:getY(), square:getZ(), picked))
-        actions = actions + 1
+    if not luautils.walkAdj(playerObj, square, true) then return end
+    for _, entry in ipairs(entries) do
+        ISTimedActionQueue.add(
+            ISOAMachineShred:new(playerObj, state.id, square:getX(), square:getY(), square:getZ(), entry))
     end
 end
 

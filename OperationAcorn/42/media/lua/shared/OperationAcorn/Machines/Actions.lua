@@ -5,7 +5,6 @@ require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
 local Machines = OA.Machines
-local Data, Logic = Machines.Data, Machines.Logic
 local Actions = {}
 Machines.Actions = Actions
 
@@ -17,8 +16,6 @@ function Actions.ticksForMinutes(minutes)
     end
     return math.max(10, math.floor(minutes * day * 1.25))
 end
--- The most one shredding action takes: more items are left for the next one.
-Actions.MAX_TICKS = 2400
 
 -- An item of a character's inventory by id (inside bags too), or nil.
 function Actions.findItem(character, id)
@@ -171,36 +168,27 @@ end
 
 function ISOAMachineShred:complete()
     if not Machines.find(self.machineId) then return false end
-    local items = {}
-    for _, id in ipairs(self.itemIds) do
-        local item = Actions.findItem(self.character, id)
-        if item then items[#items + 1] = item end
-    end
+    local item = Actions.findItem(self.character, self.itemId)
+    if not item then return false end
     local record = OA.Store.ensure(self.playerId, self.character.getUsername and self.character:getUsername() or nil)
-    Machines.shredByHand(self.character, record, items)
+    Machines.shredByHand(self.character, record, { item })
     OA.Sync.changed("shred", self.playerId)
     return true
 end
 
--- Each item shows its own part of the action on its row, as the game's actions show on the item they work.
+-- The item shows the action on its row, as the game's actions show on the item they work.
 function ISOAMachineShred:update()
     self.character:faceLocation(self.x + 0.5, self.y + 0.5)
-    local done = self:getJobDelta() * self.total
-    for i, id in ipairs(self.itemIds) do
-        local item = Actions.findItem(self.character, id)
-        if item then
-            local share = (done - self.starts[i]) / self.lengths[i]
-            item:setJobType(getText("IGUI_OA_Machine_Job_shred"))
-            item:setJobDelta(math.max(0, math.min(1, share)))
-        end
+    local item = Actions.findItem(self.character, self.itemId)
+    if item then
+        item:setJobType(getText("IGUI_OA_Machine_Job_shred"))
+        item:setJobDelta(self:getJobDelta())
     end
 end
 
 function ISOAMachineShred:stop()
-    for _, id in ipairs(self.itemIds) do
-        local item = Actions.findItem(self.character, id)
-        if item then item:setJobDelta(0) end
-    end
+    local item = Actions.findItem(self.character, self.itemId)
+    if item then item:setJobDelta(0) end
     ISBaseTimedAction.stop(self)
 end
 
@@ -209,34 +197,16 @@ function ISOAMachineShred:getDuration()
     return self.ticks
 end
 
--- entries: the bench candidates ({ item, data = info }) to shred in this action. Returns the action.
-function ISOAMachineShred:new(character, id, x, y, z, entries)
+-- One item an action (as the game rips clothes one by one): it goes the moment its bar is full and the next starts.
+-- entry: a bench candidate ({ item, data = info }). Returns the action.
+function ISOAMachineShred:new(character, id, x, y, z, entry)
     local o = ISBaseTimedAction.new(self, character)
     o.machineId, o.x, o.y, o.z = id, x, y, z
     o.playerId = OA.Store.idOf(character)
-    o.itemIds, o.starts, o.lengths, o.total = {}, {}, {}, 0
-    for _, entry in ipairs(entries) do
-        local minutes = Logic.benchMinutes(math.max(entry.data.weight or 0, 0))
-        o.itemIds[#o.itemIds + 1] = entry.item:getID()
-        o.starts[#o.starts + 1] = o.total
-        o.lengths[#o.lengths + 1] = minutes
-        o.total = o.total + minutes
-    end
-    o.ticks = Actions.ticksForMinutes(Machines.benchMinutesFor(entries))
+    o.itemId = entry.item:getID()
+    o.ticks = Actions.ticksForMinutes(Machines.benchMinutesFor({ entry }))
     o.maxTime = o:getDuration()
     return o
-end
-
--- How many of the candidates (in order) fit in one action: their time is under MAX_TICKS, and at least one.
-function Actions.fit(entries)
-    local picked, minutes = {}, 0
-    for _, entry in ipairs(entries) do
-        local more = Logic.benchMinutes(math.max(entry.data.weight or 0, 0))
-        if #picked > 0 and Actions.ticksForMinutes(minutes + more) > Actions.MAX_TICKS then break end
-        picked[#picked + 1] = entry
-        minutes = minutes + more
-    end
-    return picked
 end
 
 return Actions

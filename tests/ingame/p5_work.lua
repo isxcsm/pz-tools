@@ -123,7 +123,7 @@ section("hand bench", function()
     local entries = M.benchCandidates(player, 20)
     check("the bench sees shreddable items", #entries > 0, #entries)
     local minutes = M.benchMinutesFor(entries)
-    check("time is 2 game minutes a weight, at least 15 seconds", minutes >= 0.25, minutes)
+    check("time is 10 game seconds a weight, at least 1 second", minutes >= 1 / 60, minutes)
     local record = OperationAcorn.Store.player(player:getModData().OA_Id)
     if not check("a record exists", record ~= nil) then return end
     local items = {}
