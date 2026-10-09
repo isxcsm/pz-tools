@@ -104,21 +104,6 @@ function OA.clamp(x, lo, hi)
     return x
 end
 
--- Puts an item in the character's inventory and in both hands, the way the game carries a generator it takes up:
--- whatever heavy item was in the hands is dropped first. The item's script tags it base:heavyitem, so it falls to the
--- floor when it leaves the hands and never goes into a bag.
-function OA.carry(character, item)
-    forceDropHeavyItems(character)
-    local inventory = character:getInventory()
-    inventory:AddItem(item)
-    character:setPrimaryHandItem(item)
-    character:setSecondaryHandItem(item)
-    sendAddItemToContainer(inventory, item)
-    sendEquip(character)
-    inventory:setDrawDirty(true)
-    return item
-end
-
 -- Kahlua's % gives wrong results for negative numbers and for large values such as getTimestampMs(): this is the
 -- remainder with the sign of b.
 function OA.remainder(a, b)

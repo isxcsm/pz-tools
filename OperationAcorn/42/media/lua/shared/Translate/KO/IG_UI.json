@@ -136,6 +136,7 @@
     "IGUI_OA_Machine_Reason_notMachine": "연구팀 기계가 아닙니다.",
     "IGUI_OA_Machine_Reason_armed": "아직 작동 중입니다. 다 쓴 껍데기만 치울 수 있습니다.",
     "IGUI_OA_Machine_Reason_notEmpty": "먼저 비워야 합니다.",
+    "IGUI_OA_Machine_Reason_hasParts": "부품을 먼저 빼야 합니다.",
     "IGUI_OA_Machine_Hint_bulkShredder": "투입함에 물건을 넣으면 산출함에 시료 묶음이 나옵니다.",
     "IGUI_OA_Machine_Hint_cutter": "투입함에 옷을 넣으면 산출함에 천, 데님, 가죽 조각이 나옵니다.",
     "IGUI_OA_Machine_Hint_propaneRefiner": "썩은 음식과 빈 프로판 통을 넣으세요.",

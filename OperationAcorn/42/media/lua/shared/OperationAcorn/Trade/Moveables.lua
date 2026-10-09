@@ -1,6 +1,7 @@
 -- The game's furniture tool takes the trade objects up (its 떼어내기, pick up mode) the way this mod's own taking
 -- does (Things.takeTerminal / takeBox / takeCrate): the terminal always, a delivery box or a supply crate when it is
--- not sealed and is empty, each into the hands as its heavy item with what it carries (the box's id and owner). Left
+-- not sealed and is empty, each into the hands as its item with what it carries (the box's id and owner), when it
+-- fits the inventory as the game asks of its own furniture of one tile. Left
 -- to itself the tool would not offer them (their tiles have no IsMoveAble property) or would make a generic Moveable;
 -- the trade sheet's object tiles are told they move and the tool's check and pick-up are this mod's. Its other modes
 -- leave them alone (no faces to rotate, nothing to scrap; a crate is broken down from its own menu).
@@ -66,6 +67,8 @@ function ISMoveableSpriteProps:canPickUpMoveable(character, square, object)
     if not kind then return canPickUp(self, character, square, object) end
     local thing = objectOf(square, kind, object)
     if not thing then return false end
+    -- the game's rule for a piece of furniture of one tile: it must fit the inventory
+    if not character:getInventory():hasRoomFor(character, self.weight) then return false end
     if kind == Objects.TERMINAL then return true end
     if thing:getModData()[Objects.SEALED] then return false end
     local container = thing:getContainer()
@@ -83,12 +86,4 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
         else Things.takeCrate(character, thing) end
     end
     return {}
-end
-
--- The tool's panel says the thing is too heavy for the inventory when it does not fit there; it is carried in the
--- hands instead (OA.carry), so that line is not shown for it.
-local flagsPerTile = ISMoveableSpriteProps.getInfoPanelFlagsPerTile
-function ISMoveableSpriteProps:getInfoPanelFlagsPerTile(square, object, player, mode)
-    flagsPerTile(self, square, object, player, mode)
-    if self.oaTrade then InfoPanelFlags.tooHeavy = false end
 end

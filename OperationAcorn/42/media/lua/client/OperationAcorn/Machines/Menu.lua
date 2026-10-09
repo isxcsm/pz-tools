@@ -125,9 +125,12 @@ local function addMachineOptions(context, playerObj, object)
     end
 end
 
+-- The lure is put down from its item; the machines are furniture, put down with the game's furniture tool.
+local PLACED_FROM_ITEM = { "lure" }
+
 local function addPlaceOptions(context, playerObj, square)
     local inventory = playerObj:getInventory()
-    for _, kind in ipairs(Data.ORDER) do
+    for _, kind in ipairs(PLACED_FROM_ITEM) do
         local item = inventory:getFirstTypeRecurse(Machines.itemFullType(kind))
         if item then
             local dir = Machines.facing(square, playerObj)

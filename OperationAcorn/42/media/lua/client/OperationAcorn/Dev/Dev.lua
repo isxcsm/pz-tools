@@ -202,7 +202,7 @@ local SHOW_ITEMS = {
     { "FilterNormal", 1 }, { "SoundproofCover", 1 },
     { "EvidenceEnvelope", 1 }, { "ClinicRecord", 1 }, { "WeatherLog", 1 }, { "SerumSheet", 1 }, { "HandoverFile", 1 },
 }
-local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "SupplyCrate", "ShredBench" }
+local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "SupplyCrate", "ShredBench" } -- the bench as its pieces
 -- The machines: kind and anchor (dx, dy) in the area, all facing south.
 local SHOW_MACHINES = {
     { "shredBench", 1, 4 }, { "bulkShredder", 4, 4 }, { "cutter", 7, 4 }, { "woodSaw", 10, 4 },
@@ -217,7 +217,10 @@ local function openArea(x, y)
     for dx = 0, SHOW_W - 1 do
         for dy = 0, SHOW_H - 1 do
             local sq = cell:getGridSquare(x + dx, y + dy, 0)
-            if not sq or not sq:isOutside() or sq:getBuilding() or sq:HasTree() or not OA.Trade.Objects.free(sq) then
+            -- a fence or a wall on a square's north or west side would split the area
+            local flags = sq and sq:getProperties()
+            if not sq or not sq:isOutside() or sq:getBuilding() or sq:HasTree() or not OA.Trade.Objects.free(sq)
+                or flags:has(IsoFlagType.collideN) or flags:has(IsoFlagType.collideW) then
                 return false
             end
         end
@@ -274,9 +277,11 @@ function Dev.showroom()
 
     -- the heavy items on the ground beside the terminal, to pick up and place
     for i, name in ipairs(SHOW_GROUND) do
-        local item = at(3 + (i - 1) % 2, 1 + math.floor((i - 1) / 2)):AddWorldInventoryItem("OperationAcorn." .. name,
-            0.5, 0.5, 0)
-        show.ground[#show.ground + 1] = item
+        local sq = at(3 + (i - 1) % 2, 1 + math.floor((i - 1) / 2))
+        local pieces = M.deliveryItems("OperationAcorn." .. name)
+        for _, item in ipairs(pieces or { "OperationAcorn." .. name }) do
+            show.ground[#show.ground + 1] = sq:AddWorldInventoryItem(item, 0.5, 0.5, 0)
+        end
     end
 
     for _, entry in ipairs(SHOW_ITEMS) do

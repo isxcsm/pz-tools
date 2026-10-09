@@ -8,15 +8,15 @@ local Machines = OA.Machines
 local Data = {}
 Machines.Data = Data
 
--- The key a machine's state has in its object's modData (and, as the item's, in the item's modData when carried).
+-- The key a machine's state has in its anchor object's modData.
 Data.KEY = "OA_Machine"
 -- The module the machine and part items are in.
 Data.MODULE = "OperationAcorn"
 
 -- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage and lure, which have one tile each).
 --   item: the item type (in module OperationAcorn) the shop delivers and the player puts down.
---   weight: the item's weight (scripts/OA_machines.txt says the same), never over 40: it is carried whole in both
---     hands, and the game lets nothing heavier be carried so (a generator, an anvil).
+--   weight: the whole machine's (scripts/OA_machines.txt and tools/tile_art.py say the same); the furniture tool's
+--     pieces share it, one a tile.
 --   power: true when it runs only with electricity. load: the generator load (NUMBERS 11: the unit is the vanilla
 --     generator's per-device consumption, a fridge is 0.13). rate: work units an hour with the old motor (what a unit
 --     is differs by kind: weight, clothes, litres, logs). noise: the radius of the sound it makes while it runs.
@@ -28,7 +28,7 @@ Data.KINDS = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
     },
     bulkShredder = {
-        item = "BulkShredder", weight = 40, power = true, load = 0.6, rate = 30, noise = 20,
+        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 30, noise = 20,
         slots = { "motor", "blade" }, containers = { "in", "out" },
     },
     cutter = {
@@ -36,15 +36,15 @@ Data.KINDS = {
         slots = { "motor", "blade" }, containers = { "in", "out" },
     },
     propaneRefiner = {
-        item = "PropaneRefinery", weight = 40, power = true, load = 0.3, rate = 2, noise = 8,
+        item = "PropaneRefinery", weight = 50, power = true, load = 0.3, rate = 2, noise = 8,
         slots = { "motor", "catalyst" }, containers = { "in" },
     },
     oilRefiner = {
-        item = "OilRefinery", weight = 40, power = true, load = 0.3, rate = 0.5, noise = 8,
+        item = "OilRefinery", weight = 55, power = true, load = 0.3, rate = 0.5, noise = 8,
         slots = { "motor", "catalyst" }, containers = { "in" },
     },
     woodSaw = {
-        item = "LogSaw", weight = 40, power = true, load = 0.8, rate = 12, noise = 40,
+        item = "LogSaw", weight = 55, power = true, load = 0.8, rate = 12, noise = 40,
         slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" },
     },
     researchStorage = {

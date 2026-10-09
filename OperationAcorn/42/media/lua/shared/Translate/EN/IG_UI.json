@@ -136,6 +136,7 @@
     "IGUI_OA_Machine_Reason_notMachine": "Not a research team machine.",
     "IGUI_OA_Machine_Reason_armed": "Still active. Only a spent shell can be cleared.",
     "IGUI_OA_Machine_Reason_notEmpty": "Empty it first.",
+    "IGUI_OA_Machine_Reason_hasParts": "Take its parts out first.",
     "IGUI_OA_Machine_Hint_bulkShredder": "Put things in the input tab. Sample bundles come out in the output tab.",
     "IGUI_OA_Machine_Hint_cutter": "Put clothes in the input tab. Rags, denim and leather come out in the output tab.",
     "IGUI_OA_Machine_Hint_propaneRefiner": "Put rotten food and an empty propane tank in it.",

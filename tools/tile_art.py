@@ -97,27 +97,34 @@ TRADE = (
 # The big machines. foot = (w along x, h along y) facing south; the east and west facings swap them. states: 1, or 2
 # (stopped, running). facings: 4 (S E N W), or 1 for the rain storage (it looks the same from every side).
 # props go on every tile of the machine; anchor_props on the anchor tile only (the footprint's min-x, min-y square,
-# grid position 0,0), the way vanilla puts a container on one square of a piece of multi-tile furniture.
+# grid position 0,0), the way vanilla puts a container on one square of a piece of multi-tile furniture. weight: the
+# whole machine's (Machines/Data.lua says the same).
+#
+# Every tile of a machine is a vanilla moveable (IsMoveAble, see moveable_props): the game's furniture tool takes it up
+# as one piece a tile, each piece weighing its share (PickUpWeight is ten times a piece's weight), and puts it down
+# whole, turned with R; the game builds the sprite grids and the facings' offsets from SpriteGridPos, Facing and the
+# name at load. A running look is its own group (GroupName OA_<key>On), so its tiles make grids of their own and never
+# mix with the stopped look's.
 KINDS = (
-    dict(key='shredBench', name='Shred Bench', foot=(2, 1), states=1, facings=4, props=dict(SOLID), anchor_props={},
+    dict(key='shredBench', weight=20, name='Shred Bench', foot=(2, 1), states=1, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B1.shred_bench(t)),
-    dict(key='bulkShredder', name='Bulk Shredder', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+    dict(key='bulkShredder', weight=60, name='Bulk Shredder', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B1.bulk_shredder(t, st)),
-    dict(key='cutter', name='Cutter', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+    dict(key='cutter', weight=35, name='Cutter', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B1.cutter(t, st)),
-    dict(key='woodSaw', name='Wood Saw', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
+    dict(key='woodSaw', weight=55, name='Wood Saw', foot=(2, 1), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B2.wood_saw(t, st)),
-    dict(key='researchStorage', name='Research Storage', foot=(2, 1), states=1, facings=4, props=dict(SOLID),
+    dict(key='researchStorage', weight=40, name='Research Storage', foot=(2, 1), states=1, facings=4, props=dict(SOLID),
          anchor_props=dict(container='locker', ContainerCapacity='100'),
          draw=lambda t, st: B2.research_storage(t)),
-    dict(key='propaneRefiner', name='Propane Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID),
+    dict(key='propaneRefiner', weight=50, name='Propane Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID),
          anchor_props={}, draw=lambda t, st: B3.propane_refiner(t, st)),
-    dict(key='oilRefiner', name='Oil Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID), anchor_props={},
+    dict(key='oilRefiner', weight=55, name='Oil Refiner', foot=(2, 2), states=2, facings=4, props=dict(SOLID), anchor_props={},
          draw=lambda t, st: B3.oil_refiner(t, st)),
     # four water levels are drawn (0 empty .. 3 full). The EMPTY tank is the object (134-137, what is placed, what the
     # entity's SpriteConfig names, with IsWaterCollector on the anchor); the full tank stays at 128-131 (the item
     # icon); levels 1-3 are overlay tiles at 146-157 (see rain_overlays). Places 138-145 are not used.
-    dict(key='rainStorage', name='Big Rain Storage', foot=(2, 2), states=4, facings=1, props=dict(IsLow='', **SOLID),
+    dict(key='rainStorage', weight=25, name='Big Rain Storage', foot=(2, 2), states=4, facings=1, props=dict(IsLow='', **SOLID),
          anchor_props=dict(IsWaterCollector=''), draw=lambda t, st: B2.rain_storage(st),
          state_bases={0: 134, 3: 128}),
 )
@@ -208,6 +215,18 @@ def assembled(key, state=0, facing='S', floor=False, background=(0, 0, 0, 0), ti
     return out
 
 
+def moveable_props(kind, state):
+    """What makes a machine's tile a vanilla moveable: none for the rain storage's full look (only its item's icon)."""
+    if 'state_bases' in kind and state != 0:
+        return {}
+    out = {'IsMoveAble': '', 'PickUpWeight': str(int(round(kind['weight'] * 10.0 / kind['tiles'])))}
+    if kind['facings'] == 1:
+        out['Facing'] = 'S'   # the game builds a sprite grid only for a faced moveable; one facing, nothing to turn
+    if state == 1:
+        out['GroupName'] = 'OA_' + kind['key'] + 'On'
+    return out
+
+
 def machine_entries():
     """(image, props) for every place of the machines sheet (None where it is empty)."""
     entries = [None] * (MACHINE_ROWS * COLS)
@@ -222,8 +241,14 @@ def machine_entries():
                 fw, fh = foot_of(kind, turns)
                 assert set(tiles) == {(i, j) for j in range(fh) for i in range(fw)}, (kind['key'], facing)
                 for (i, j), image in tiles.items():
-                    p = props(kind['name'], GroupName='OA_' + kind['key'], SpriteGridPos='%d,%d' % (i, j))
+                    p = props(kind['name'], GroupName='OA_' + kind['key'])
+                    # a grid position only on the moveable looks: the rain storage's full look (its icon) would make
+                    # the game's grid of that name ambiguous, and it builds none
+                    moveable = moveable_props(kind, st)
+                    if moveable:
+                        p['SpriteGridPos'] = '%d,%d' % (i, j)
                     p.update(kind['props'])
+                    p.update(moveable)
                     if (i, j) == (0, 0):
                         p.update(kind['anchor_props'])
                     if facing:

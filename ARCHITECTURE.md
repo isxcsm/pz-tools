@@ -204,22 +204,29 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 그을린 땅 13 | 없음 (바닥에 얹는 그림) |
 | 운석 바위 14 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
 | 낙하지 말뚝 15 | `IsLow` |
-| 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기의 모든 칸 | `BlocksPlacement`, `solidtrans`, `Facing`, `GroupName`, `SpriteGridPos` |
+| 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기의 모든 칸 | `BlocksPlacement`, `solidtrans`, `Facing`, `GroupName`, `SpriteGridPos`, `IsMoveAble`, `PickUpWeight` (도는 중인 모습은 `GroupName=OA_<종류>On`) |
 | 연구팀 보관함의 모든 칸 | 위와 같음. 앵커 칸(`SpriteGridPos=0,0`)에만 `container=locker`, `ContainerCapacity=100` 더 |
-| 대형 빗물 저장소 빈 통 134~137, 가득 찬 통 128~131 | 모든 칸 `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`, `SpriteGridPos` (`Facing` 없음). 앵커 칸(134, 128)에만 `IsWaterCollector` |
+| 대형 빗물 저장소 빈 통 134~137 | 모든 칸 `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`, `SpriteGridPos`, `Facing=S`, `IsMoveAble`, `PickUpWeight`. 앵커 칸(134)에만 `IsWaterCollector` |
+| 대형 빗물 저장소 가득 찬 통 128~131 (아이템 아이콘 그림) | `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`. 앵커 칸(128)에만 `IsWaterCollector`. `SpriteGridPos`가 없다: 같은 이름에 칸 위치가 겹치면 게임이 빈 통의 격자를 만들지 않는다 |
 | 빗물 저장소 덧그림 146~157 (물 높이 1, 2, 3 각각 네 칸) | 없음 (`BlocksPlacement`, `solidtrans`, `IsWaterCollector` 모두 없는 꾸밈 그림) |
 | 설치형 미끼 132(켜짐)·133(꺼짐) | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
 
-- **`IsMoveAble`은 어느 타일에도 없다.** 바닐라 집기/놓기는 오브젝트를 일반 `Moveable` 아이템으로 바꿔서 이 모드의 `modData`(상자 ID, 기계 상태, 마모)를
-  잃는다. 설치와 회수는 각 묶음의 자체 동작이 한다 (Building Utilities와 같은 방식). 그래서 `PickUpWeight`, `PickUpTool`, `CustomItem`도 없다.
-  바닐라 우클릭 '옮기기'를 막는 일(BU의 `Moveables.lua`처럼 `ISMoveableSpriteProps.fromObject`에서 `isMoveable=false`)은 이 묶음이 아니라 설치 코드가 한다.
+- **기계는 바닐라 가구다 (`IsMoveAble`, 미끼 제외).** 게임이 불러올 때 이름(`GroupName`+`CustomName`), `Facing`, `SpriteGridPos`로 칸 격자와
+  방향별 오프셋을 만든다 (격자는 방향이 있는 타일에만 만든다: 빗물 저장소에 `Facing=S`). 그래서 가구 도구가 기계를 칸마다 조각 하나("이름 (1/2)", 무게는
+  `PickUpWeight`/10 = 기계 무게를 칸 수로 나눈 것)로 그 칸 바닥에 떼어 놓고, 인벤토리나 근처 바닥(3칸)의 조각을 모아 통째로 놓으며 드래그로 돌린다.
+  `Machines/Moveables.lua`가 바닐라에 없는 것만 더한다: 부품이 끼워져 있거나 안에 뭐가 있으면 떼어내기를 막고 도구 창에 이유를 쓴다 (부품은 내용물처럼
+  먼저 뺀다), 떼어 내면 등록을 지우고 조각에 기계 상태를 남기지 않는다, 놓을 때 `Machines.canPlace` 규칙을 지키고 바닐라가 놓은 일반 오브젝트를
+  `Machines.place(..., bare)`(부품 없음)로 바꾼다. 상점에서 산 기계는 조각과 새 기계의 낡은 부품으로 배달된다 (`Machines.deliveryItems`).
+  보존할 상태가 부품뿐이고 부품은 아이템으로 빠지므로, 조각에는 실을 것이 없다.
+- **거래 물건(단말·상자)에는 `IsMoveAble`이 없다.** 납품 상자의 ID와 주인을 아이템에 실어야 해서 `Trade/Moveables.lua`가 가구 도구의 확인과 떼어내기를
+  이 모드의 것(`Things.take*`)으로 바꾼다. 바닐라의 한 칸 가구 규칙대로 인벤토리에 들어갈 자리가 있어야 하고, 놓기는 이 모드의 커서가 한다.
 - **컨테이너:** `IsoObject.new(cell, square, sprite)`로 만들면 바닐라가 `container`와 `ContainerCapacity`로 컨테이너를 만든다. 용량은 코드가 `ItemContainer:setCapacity`로 헬기 단계에 맞춰 다시 정한다
   (연구팀 보관함 300은 확장 API가 상한 100을 걷는다). 밀봉된 납품 상자(9)·봉인된 보급 상자(10)는 컨테이너 값을 그대로 두고, 못 열게 하는 일은 코드가 한다.
 - **빗물 저장소 (2×2, 열린 통):** 물 높이가 그림에 보인다 (0 빈 통: 마른 바닥에 흙과 낙엽, 1 사분의 일, 2 절반, 3 가득; 통 옆 수위 유리관에도 같은 높이). **놓는 물체와 엔티티의 `SpriteConfig`는 빈 통(134~137)이다. 물체의 스프라이트를 바꾸면 안 된다** (B42 `SpriteConfig`가 물체의 현재 스프라이트 이름을 엔티티 설정에서 찾아 없으면 컴포넌트를 무효로 표시한다). 물 높이는 덧그림이다: 높이 1~3이면 네 칸 각각에 `IsoObject.setOverlaySprite(Sprites.rainOverlayTiles(level)의 그 칸 이름)`, 높이 0이면 `setOverlaySprite(nil)`. 덧그림은 오브젝트와 함께 저장된다. 덧그림 타일은 빈 통과 달라지는 픽셀만 갖고 나머지는 투명이다. 빈 통 위에 덧그림을 알파 합성하면 그 높이의 완성 타일과 픽셀까지 같다 (`tile_art.py`가 열두 장 모두 단언한다). 앵커 타일(134)에만 `IsWaterCollector`를 둔다. B42의 비 모으기는 엔티티의 `FluidContainer` 컴포넌트가 한다 (`entity_raincollector.txt`). P5는 스크립트에
   `entity` 하나를 쓴다: `component FluidContainer { ContainerName = Collector, Capacity = 용량, RainFactor = 0.4 }`와
   `component SpriteConfig { face S { layer { row = oa_machines_01_134 oa_machines_01_135, row = oa_machines_01_136 oa_machines_01_137 } } }`
   (한 줄이 y 한 칸, 줄 안은 x 순서. 돌지 않으니 face S 하나). `Sprites.rainStorageTiles()`가 같은 네 칸을 준다. 바닐라 `waterMaxAmount`/`waterAmount` 타일 속성은 쓰지 않는다.
-- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSprite`를 한다 (칸 하나만 바꾸면 기계가 찢어진다).
+- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSpriteFromName`을 한다 (칸 하나만 바꾸면 기계가 찢어진다. 이름 문자열을 받는 `setSprite`는 이름도 속성도 없는 맨 그림을 만든다).
   돌아가는 모습이 없는 기계는 `running`을 무시한다.
 - 그을린 땅(13)은 바닥 위의 투명 그림이다. 바닥 타일을 바꾸지 말고 `IsoObject.new(cell, square, "oa_trade_01_13")`로 칸에 얹는다.
 

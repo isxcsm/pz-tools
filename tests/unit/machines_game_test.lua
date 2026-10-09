@@ -39,7 +39,6 @@ local function newContainer(kind, capacity)
     function c:getCapacity() return math.min(self.capacity, 100) end
     function c:setCapacity(n) self.capacity = n end
     function c:setExplored() end
-    function c:setDrawDirty() end
     function c:setAcceptItemFunction(f) self.accept = f end
     function c:getParent() return self.parent end
     function c:getCapacityWeight()
@@ -209,9 +208,6 @@ local function player()
     function p:getModData() return self.mod end
     function p:getUsername() return "tester" end
     function p:removeFromHands() end
-    function p:setPrimaryHandItem(item) self.primary = item end
-    function p:setSecondaryHandItem(item) self.secondary = item end
-    function p:getPrimaryHandItem() return self.primary end
     return p
 end
 
@@ -232,8 +228,6 @@ local function setup()
     end
     sendAddItemToContainer = function() end
     sendRemoveItemFromContainer = function() end
-    forceDropHeavyItems = function() end
-    sendEquip = function() end
     addSound = function(source, x, y, z, r, v) sounds[#sounds + 1] = { x = x, y = y, radius = r, volume = v } end
     ClothingRecipesDefinitions = { FabricType = {
         Cotton = { material = "Base.RippedSheets", materialDirty = "Base.RippedSheetsDirty" },
@@ -670,7 +664,8 @@ test("an armed lure cannot be picked up; a machine with things in it cannot", fu
     local ok, why = Machines.canPickUp(lure)
     eq(ok, nil)
     eq(why, "armed")
-    local obj = addMachine("cutter", 12, 12)
+    local obj, state = addMachine("cutter", 12, 12)
+    state.parts = {}
     truthy(Machines.canPickUp(obj))
     fill(Machines.container(obj, "in"), "Base.Hammer", 1, {})
     ok, why = Machines.canPickUp(obj)
@@ -1096,25 +1091,48 @@ test("the lure is one passable tile", function()
     cleanup()
 end)
 
-test("picking up removes every part and gives one item with the parts", function()
+test("parts count as contents: a machine is taken up only with its parts out", function()
     local square = worldSetup()
     local p = player()
     local sq = square(10, 10, 0)
     square(11, 10, 0)
     local anchor = Machines.place("woodSaw", sq, p, newItem("OperationAcorn.LogSaw"), "S")
     local state = Machines.state(anchor)
+    truthy(state.parts.motor and state.parts.blade, "a new machine has its parts")
+    local ok, why = Machines.canPickUp(anchor)
+    eq(ok, nil)
+    eq(why, "hasParts")
     state.parts.blade.cond = 61
+    truthy(Machines.removePart(anchor, "blade", p))
+    truthy(Machines.removePart(anchor, "motor", p))
+    eq(countOf(p.inv, "OperationAcorn.SawBladeOld"), 1, "the blade comes out as its item")
     truthy(Machines.canPickUp(anchor))
-    local item = Machines.pickUp(anchor, p)
-    truthy(item)
-    eq(item:getFullType(), "OperationAcorn.LogSaw")
-    eq(item.mod[Data.KEY].parts.blade.cond, 61)
+    cleanup()
+end)
+
+test("a machine put down from its pieces has no parts", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(10, 10, 0)
+    square(11, 10, 0)
+    local anchor = Machines.place("woodSaw", sq, p, nil, "S", true)
+    truthy(OA.isEmpty(Machines.state(anchor).parts))
+    truthy(Machines.canPickUp(anchor))
+    cleanup()
+end)
+
+test("clearing a spent lure removes it and gives nothing", function()
+    local square = worldSetup()
+    local p = player()
+    local sq = square(40, 40, 0)
+    local anchor = Machines.place("lure", sq, p, newItem("OperationAcorn.BaitTrap"), "S")
+    local state = Machines.state(anchor)
+    eq(Machines.pickUp(anchor), false, "an armed lure stays")
+    state.spent = true
+    eq(Machines.pickUp(anchor), true)
     eq(#sq.objects, 0)
-    eq(#square(11, 10, 0).objects, 0)
     eq(Machines.list()[state.id], nil)
-    eq(countOf(p.inv, "OperationAcorn.LogSaw"), 1)
-    eq(p.primary, item)
-    eq(p.secondary, item)
+    eq(#p.inv.items, 0)
     cleanup()
 end)
 

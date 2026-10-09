@@ -339,13 +339,20 @@ end
 -- Puts the specs' items into a container, telling the clients, and returns how many items were added.
 function Objects.fill(container, specs)
     local added = 0
+    local function put(item)
+        container:AddItem(item)
+        if isServer() then sendAddItemToContainer(container, item) end
+        added = added + 1
+    end
     for _, spec in ipairs(specs or {}) do
         for _ = 1, spec.count or 1 do
-            local item = Objects.makeItem(spec)
-            if item then
-                container:AddItem(item)
-                if isServer() then sendAddItemToContainer(container, item) end
-                added = added + 1
+            -- a machine comes as the furniture tool's pieces and its parts (Machines.deliveryItems)
+            local pieces = OA.Machines and OA.Machines.deliveryItems and OA.Machines.deliveryItems(spec.type)
+            if pieces then
+                for _, item in ipairs(pieces) do put(item) end
+            else
+                local item = Objects.makeItem(spec)
+                if item then put(item) end
             end
         end
     end
@@ -354,12 +361,20 @@ end
 
 -- Gives a character a heavy item to carry in both hands, as a generator is carried.
 function Objects.giveHeavy(character, fullType, mod)
+    forceDropHeavyItems(character)
     local item = instanceItem(fullType)
     if mod then
         local md = item:getModData()
         for k, v in pairs(mod) do md[k] = v end
     end
-    return OA.carry(character, item)
+    local inventory = character:getInventory()
+    inventory:AddItem(item)
+    character:setPrimaryHandItem(item)
+    character:setSecondaryHandItem(item)
+    sendAddItemToContainer(inventory, item)
+    sendEquip(character)
+    inventory:setDrawDirty(true)
+    return item
 end
 
 -- Takes an item that is put down away from the character.

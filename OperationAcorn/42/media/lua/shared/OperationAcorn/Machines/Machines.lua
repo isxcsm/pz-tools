@@ -966,12 +966,6 @@ function Machines.canPlace(kind, square, dir)
     return true
 end
 
-local function copyParts(parts)
-    local copy = {}
-    for slot, part in pairs(parts or {}) do copy[slot] = { tier = part.tier, cond = part.cond } end
-    return copy
-end
-
 -- The facing a machine put down by a character at a square takes: its front toward the character.
 function Machines.facing(square, character)
     local dx, dy = character:getX() - (square:getX() + 0.5), character:getY() - (square:getY() + 0.5)
@@ -1020,10 +1014,12 @@ local function newObject(kind, square, sprite)
 end
 
 -- Puts a machine down: one object on each square of its footprint (the anchor, at the smallest x and y, holds the
--- state, the containers and the rain storage's fluid; the others point to it), its state (the parts of a carried item
--- if it has them), the registry (the anchor only). `character` is the one who puts it down (owner), `dir` the facing
--- (the character's side of the square when not given). Returns the anchor object. The item is not removed here.
-function Machines.place(kind, square, character, item, dir)
+-- state, the containers and the rain storage's fluid; the others point to it), its state, the registry (the anchor
+-- only). `character` is the one who puts it down (owner), `dir` the facing (the character's side of the square when not
+-- given). A machine comes with the parts a new one has, or none when `bare` (put down from its pieces by the furniture
+-- tool: its parts were taken out before it was taken up, Moveables.lua). Returns the anchor object. The item (a
+-- lure's) is not removed here.
+function Machines.place(kind, square, character, item, dir, bare)
     Machines.ensureSpriteProperties()
     dir = dir or Machines.facing(square, character)
     local squares = Machines.footprintSquares(kind, square, dir)
@@ -1035,8 +1031,7 @@ function Machines.place(kind, square, character, item, dir)
     local ax, ay, az = square:getX(), square:getY(), square:getZ()
     local state = { id = id, kind = kind, dir = dir, owner = Store.idOf(character), on = true, last = OA.hours(),
         carry = 0, idle = true, running = false, buffer = 0, x = ax, y = ay, z = az }
-    local carried = item and item:getModData()[Data.KEY]
-    state.parts = carried and carried.parts and copyParts(carried.parts) or Logic.newParts(kind)
+    state.parts = bare and {} or Logic.newParts(kind)
     if kind == "lure" then
         state.start, state.slot, state.spent = OA.hours(), -1, false
         state.running = true
@@ -1068,7 +1063,7 @@ function Machines.place(kind, square, character, item, dir)
     return anchor
 end
 
--- Whether every container of a machine is empty (it can be picked up).
+-- Whether every container of a machine is empty (it can be taken up, Machines.canPickUp).
 function Machines.isEmpty(object)
     local state = Machines.state(object)
     for _, which in ipairs(Data.KINDS[state.kind].containers) do
@@ -1079,31 +1074,23 @@ function Machines.isEmpty(object)
     return true
 end
 
--- Whether a machine can be picked up: true, or nil and a reason. `object` is the anchor (Machines.at gives it).
+-- Whether a machine can be taken up (the furniture tool, Moveables.lua) or a spent lure cleared: true, or nil and a
+-- reason. Its parts count as contents: they are taken out first. `object` is the anchor (Machines.at gives it).
 function Machines.canPickUp(object)
     local state = Machines.state(object)
     if not state then return nil, "notMachine" end
     if state.kind == "lure" and not state.spent then return nil, "armed" end
     if not Machines.isEmpty(object) then return nil, "notEmpty" end
+    if state.kind ~= "lure" and not OA.isEmpty(state.parts or {}) then return nil, "hasParts" end
     return true
 end
 
--- Takes a machine up: gives the character the item (with the parts and their condition in its modData) to carry in
--- both hands as the game carries a generator, removes every part, the anchor and the registry entry. A spent lure
--- gives nothing. Returns the item or nil.
-function Machines.pickUp(object, character)
-    local state = Machines.state(object)
-    if not state or not Machines.canPickUp(object) then return nil end
-    local item
-    if state.kind ~= "lure" then
-        item = instanceItem(itemFullType(state.kind))
-        if item then
-            item:getModData()[Data.KEY] = { kind = state.kind, parts = copyParts(state.parts) }
-            OA.carry(character, item)
-        end
-    end
+-- Clears a spent lure's shell away (a machine is taken up by the furniture tool): every tile and the registry entry,
+-- nothing given. Returns whether it was cleared.
+function Machines.pickUp(object)
+    if not Machines.state(object) or not Machines.canPickUp(object) then return false end
     Machines.remove(object)
-    return item
+    return true
 end
 
 local function removeObject(object)

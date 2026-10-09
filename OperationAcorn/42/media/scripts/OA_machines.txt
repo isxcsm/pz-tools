@@ -12,7 +12,6 @@ module OperationAcorn
         Weight = 20.0,
         Icon = OA_ShredBench,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_shredBench,
     }
 
@@ -20,10 +19,9 @@ module OperationAcorn
     {
         DisplayCategory = Furniture,
         ItemType = base:normal,
-        Weight = 40.0,
+        Weight = 60.0,
         Icon = OA_BulkShredder,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_bulkShredder,
     }
 
@@ -34,7 +32,6 @@ module OperationAcorn
         Weight = 35.0,
         Icon = OA_Cutter,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_cutter,
     }
 
@@ -42,10 +39,9 @@ module OperationAcorn
     {
         DisplayCategory = Furniture,
         ItemType = base:normal,
-        Weight = 40.0,
+        Weight = 50.0,
         Icon = OA_PropaneRefiner,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_propaneRefiner,
     }
 
@@ -53,10 +49,9 @@ module OperationAcorn
     {
         DisplayCategory = Furniture,
         ItemType = base:normal,
-        Weight = 40.0,
+        Weight = 55.0,
         Icon = OA_OilRefiner,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_oilRefiner,
     }
 
@@ -64,10 +59,9 @@ module OperationAcorn
     {
         DisplayCategory = Furniture,
         ItemType = base:normal,
-        Weight = 40.0,
+        Weight = 55.0,
         Icon = OA_WoodSaw,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_woodSaw,
     }
 
@@ -78,7 +72,6 @@ module OperationAcorn
         Weight = 40.0,
         Icon = OA_ResearchStorage,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_researchStorage,
     }
 
@@ -89,7 +82,6 @@ module OperationAcorn
         Weight = 25.0,
         Icon = OA_RainStorage,
         RequiresEquippedBothHands = true,
-        Tags = base:heavyitem,
         Tooltip = Tooltip_OA_Machine_rainStorage,
     }
 

@@ -103,7 +103,7 @@ end
 function ISOAMachinePickUp:complete()
     local object = Machines.find(self.machineId)
     if not object or not Machines.canPickUp(object) then return false end
-    Machines.pickUp(object, self.character)
+    Machines.pickUp(object)
     return true
 end
 
