@@ -40,6 +40,18 @@ function OA.hours()
     return getGameTime():getWorldAgeHours()
 end
 
+-- A real-time throttle for work that follows no game time. The game-time events fire many times a real second when
+-- the game is fast-forwarded or everyone sleeps (ten game minutes are 25 s at the default day length, some 0.6 s at
+-- x40), so such work keeps to real time instead. `last` is the caller's table of the real time (ms) each key was last
+-- due, `now` is getTimestampMs(). True, and `now` noted, when `ms` have passed since the key was last due, the key
+-- never was, or the clock went back. Only subtraction on the timestamps: Kahlua's % is wrong at their size.
+function OA.due(last, key, now, ms)
+    local at = last[key]
+    if at and now >= at and now - at < ms then return false end
+    last[key] = now
+    return true
+end
+
 -- The game day a world age falls on: day 0 is the world's first (partial) day, and the day changes at 00:00.
 function OA.day(hours)
     local now = OA.hours()

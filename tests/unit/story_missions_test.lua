@@ -256,6 +256,108 @@ test("the swap waits only while the player stays near", function()
     eq(m.swap.stage, "waiting")
 end)
 
+-- The cooler mission open, with the fake game's cooler not yet in hand.
+local function coolerMission()
+    local record = setup(4)
+    Story.section(record).seenStage = 3
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "cooler")
+    return record, m
+end
+
+test("the cooler's clock starts as it is picked up, not at the next look", function()
+    local record, m = coolerMission()
+    M.game.holds = function(item, id) return item.mission == id end
+    TEST.hours = 10
+    M.pickedUp(record, { mission = "other" })
+    eq(m.carry.start, nil, "another item")
+    M.pickedUp(record, { mission = m.id })
+    eq(m.carry.start, 10)
+    TEST.hours = 11
+    M.game.cooler = {}
+    M.tick(record)
+    eq(m.carry.start, 10, "the look keeps the pickup's time")
+    M.pickedUp(record, { mission = m.id })
+    eq(m.carry.start, 10, "only the first pickup")
+end)
+
+test("a cooler the pickup did not see starts from the last look that missed it", function()
+    local record, m = coolerMission()
+    TEST.hours = 10
+    M.tick(record)
+    eq(m.carry.looked, 10)
+    TEST.hours = 11.5
+    M.game.cooler = {}
+    M.tick(record)
+    eq(m.carry.start, 10, "never later than it could have been taken")
+end)
+
+test("fast-forwarded, the look for the cooler runs at most once each CARRY_LOOK_MS of real time", function()
+    local record, m = coolerMission()
+    local looks = 0
+    M.game.findItem = function() looks = looks + 1; return M.game.cooler end
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    M.tick(record)
+    eq(looks, 1)
+    for _ = 1, 8 do
+        clock = clock + 600
+        TEST.hours = TEST.hours + 1 / 6
+        M.tick(record)
+    end
+    eq(looks, 1, "none within CARRY_LOOK_MS")
+    clock = clock + M.CARRY_LOOK_MS
+    M.tick(record)
+    eq(looks, 2)
+    truthy(M.CARRY_LOOK_MS < 25000, "the default speed (25 s for ten game minutes) looks every time")
+end)
+
+test("the swap's wait counts game time, not looks", function()
+    local record = setup(2)
+    Story.section(record).seenStage = 1
+    M.tick(record)
+    local m = M.active(record)
+    local p = OA.StoryData.PLACES[m.place]
+    M.game.px, M.game.py = p.x, p.y
+    TEST.hours = 100
+    truthy(M.swap(record, {}))
+    -- many looks in the same game minute (a batch) add nothing
+    for _ = 1, 30 do M.tick(record) end
+    eq(m.swap.stage, "waiting", "a batch of looks is no time")
+    near(m.swap.waited, 0)
+    -- skipped looks: two hours in one step are two hours
+    TEST.hours = 102
+    M.tick(record)
+    eq(m.swap.stage, "done")
+end)
+
+test("the swap's wait stops while the player is away and goes on when they are back", function()
+    local record = setup(2)
+    Story.section(record).seenStage = 1
+    M.tick(record)
+    local m = M.active(record)
+    local p = OA.StoryData.PLACES[m.place]
+    M.game.px, M.game.py = p.x, p.y
+    TEST.hours = 100
+    M.swap(record, {})
+    TEST.hours = 101
+    M.tick(record)
+    near(m.swap.waited, 1)
+    M.game.px = p.x + 5000
+    TEST.hours = 105
+    M.tick(record)
+    near(m.swap.waited, 1, 1e-9, "the away time is not counted")
+    M.game.px = p.x
+    TEST.hours = 106
+    M.tick(record)
+    near(m.swap.waited, 1, 1e-9, "counting again from here")
+    eq(m.swap.stage, "waiting")
+    TEST.hours = 107
+    M.tick(record)
+    eq(m.swap.stage, "done")
+end)
+
 test("the field call seals on the spot and the helicopter pays", function()
     local record = setup(5)
     Story.section(record).seenStage = 4

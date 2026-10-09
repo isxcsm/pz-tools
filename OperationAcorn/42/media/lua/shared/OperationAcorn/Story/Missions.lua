@@ -633,11 +633,33 @@ function Missions.coolerTemp(m, now)
     return Rewards.coolerTemp(now - start)
 end
 
+-- An item came into a character's things (the economy's pickup hook, as it happens): the sample cooler's clock
+-- starts now, whatever the rate of the ten-minute look below.
+function Missions.pickedUp(record, item)
+    local m = record.missions and record.missions.active
+    if not (m and m.carry) or m.carry.start then return end
+    local g = game()
+    if g and g.holds and g.holds(item, m.id) then m.carry.start = OA.hours() end
+end
+
+-- Real milliseconds at least between two looks for the sample cooler in a character's things. A look walks the whole
+-- inventory and only shows the warmth on the item (the warmth itself is counted from carry.start), and ten game
+-- minutes are 25 s of real time at the default day length but some 0.6 s fast-forwarded (x40) and less asleep.
+Missions.CARRY_LOOK_MS = 5000
+
+local carryLooks = {}  -- by record id: the real time (ms) of the last look for the cooler
+
+-- The look also starts the clock of a cooler that came into the player's hands some way the pickup hook does not see:
+-- from the last look that did not find it (carry.looked, world hours), so that the warming never loses time.
 function Missions.tickCarry(record, m, now)
+    if not OA.due(carryLooks, record.id, getTimestampMs(), Missions.CARRY_LOOK_MS) then return end
     local g = game()
     local item = g.findItem(record, m.id)
-    if not item then return end
-    if not m.carry.start then m.carry.start = now end
+    if not item then
+        if not m.carry.start then m.carry.looked = now end
+        return
+    end
+    if not m.carry.start then m.carry.start = m.carry.looked or now end
     if g.setCoolerText then g.setCoolerText(item, Missions.coolerTemp(m, now)) end
 end
 
@@ -654,18 +676,25 @@ function Missions.swap(record, character)
     if g.takeItem and not g.takeItem(character, "SampleCase") then return false end
     m.swap.stage = "waiting"
     m.swap.waited = 0
+    m.swap.at = OA.hours()
     OA.Sync.changed("missions", record.id)
     return true
 end
 
+-- The wait (waited, hours) adds up the game time from each look that found the player near (swap.at) to the next, not
+-- a sixth of an hour a look: the ten-minute event comes many times a real second fast-forwarded and may be skipped
+-- or come in a batch. A look that finds the player away (or nowhere) stops the count until one finds them near again.
 function Missions.tickSwap(record, m, now)
     local g = game()
     if not g then return end
     local x, y = g.playerPosition(record)
     local p = Data.PLACES[m.place]
-    if not x or not p then return end
-    if Places.distance(x, y, p.x, p.y) > Data.CASE_RANGE then return end
-    m.swap.waited = m.swap.waited + 1 / 6
+    if not x or not p or Places.distance(x, y, p.x, p.y) > Data.CASE_RANGE then
+        m.swap.at = nil
+        return
+    end
+    if m.swap.at and now > m.swap.at then m.swap.waited = m.swap.waited + (now - m.swap.at) end
+    m.swap.at = now
     if m.swap.waited >= Data.SWAP_WAIT_HOURS then
         m.swap.stage = "done"
         -- The record appears in the case (or in the player's hands when the case is gone).

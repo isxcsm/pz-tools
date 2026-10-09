@@ -104,6 +104,13 @@ function Game.findItem(record, missionId)
     return p:getInventory():getFirstEvalArgRecurse(predicateMission, missionId)
 end
 
+-- Whether an item is a mission's piece or holds one (a bag with it inside).
+function Game.holds(item, missionId)
+    if missionMatch(item, missionId) then return true end
+    return instanceof(item, "InventoryContainer")
+        and item:getInventory():getFirstEvalArgRecurse(predicateMission, missionId) ~= nil
+end
+
 function Game.hasItem(record, name)
     local p = Game.character(record)
     return p ~= nil and p:getInventory():containsTypeRecurse(Data.fullType(name))

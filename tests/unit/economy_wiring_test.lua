@@ -200,6 +200,25 @@ test("a bag taken from the world tags what is in it too, and the codex counts it
     truthy(record.codex.kinds.Satchel and record.codex.kinds.Pencil)
 end)
 
+test("a pickup tells the story's missions, for the sample cooler's clock", function()
+    ISTransferAction = { transferItem = function(self, ch, it) return it end }
+    boot()
+    OA.Economy.start()
+    local record = OA.Store.ensure("p", "P")
+    local told = {}
+    OA.Missions = { pickedUp = function(rec, it) told[#told + 1] = { record = rec, item = it } end }
+    local cooler = item("OperationAcorn.SampleCooler", { data = { OA_Mission = "M1-1" } })
+    ISTransferAction:transferItem(character("p"), cooler, container("shelves", { square = square(1, 1) }),
+        container("inventory", { mine = true }), nil)
+    eq(#told, 1)
+    eq(told[1].record, record)
+    eq(told[1].item, cooler)
+    -- a move inside the pack is no pickup
+    ISTransferAction:transferItem(character("p"), cooler, container("inventory", { mine = true }),
+        container("bag", { mine = true }), nil)
+    eq(#told, 1)
+end)
+
 test("a failing bookkeeping step never breaks the game's transfer", function()
     local moved = false
     ISTransferAction = { transferItem = function(self, ch, it) moved = true; return it end }
@@ -256,6 +275,96 @@ test("the ten minute look over the pack finds kinds a pickup missed", function()
     eq(record.codex.n, 3)
     TEST.fire("EveryTenMinutes")
     eq(record.codex.n, 3, "nothing new the second time")
+end)
+
+-- A character carrying `items` (a list the test may change), on a server that looks after it.
+local function carrier(id, items)
+    local ch = character(id)
+    ch.getInventory = function() return { getItems = function() return list(items) end } end
+    getOnlinePlayers = function() return list({ ch }) end
+    isServer = function() return true end
+    return ch
+end
+
+test("fast-forwarded, the look over the pack runs at most once each SWEEP_MS of real time", function()
+    boot()
+    local record = OA.Store.ensure("t", "T")
+    local items = { item("Base.Rope", { display = "Tool" }) }
+    carrier("t", items)
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    TEST.fire("EveryTenMinutes")
+    eq(record.codex.n, 1)
+    items[2] = item("Base.Pencil")
+    -- x40: ten game minutes some 0.6 s apart
+    for _ = 1, 8 do
+        clock = clock + 600
+        TEST.fire("EveryTenMinutes")
+    end
+    eq(record.codex.n, 1, "no look within SWEEP_MS")
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    eq(record.codex.n, 2, "the pencil, once SWEEP_MS passed")
+    truthy(OA.Economy.SWEEP_MS < 25000, "the default speed (25 s for ten game minutes) looks every time")
+end)
+
+test("each character has its own look", function()
+    boot()
+    local a, b = OA.Store.ensure("a", "A"), OA.Store.ensure("b", "B")
+    local chA, chB = character("a"), character("b")
+    chA.getInventory = function() return { getItems = function() return list({ item("Base.Rope") }) end } end
+    chB.getInventory = function() return { getItems = function() return list({ item("Base.Pencil") }) end } end
+    getOnlinePlayers = function() return list({ chA, chB }) end
+    isServer = function() return true end
+    getTimestampMs = function() return 1760000000000 end
+    TEST.fire("EveryTenMinutes")
+    eq(a.codex.n, 1); eq(b.codex.n, 1)
+end)
+
+test("an item the codex never counts is read whole once, then costs a lookup", function()
+    boot()
+    local record = OA.Store.ensure("t", "T")
+    local own = item("OperationAcorn.SampleBundle")
+    local wound = item("Base.Wound_Bite", { display = "Wound" })
+    local shop = item("Base.Hammer", { data = { OA_Bought = true } })
+    local items = { own, wound, shop }
+    carrier("t", items)
+    local reads = 0
+    local info = OA.Value.info
+    OA.Value.info = function(it) reads = reads + 1; return info(it) end
+    TEST.fire("EveryTenMinutes")
+    eq(reads, 2, "this mod's goods and the overlay are read once; the shop's hammer not at all")
+    eq(record.codex.n, 0)
+    -- another item of those types: no read
+    items[4] = item("OperationAcorn.SampleBundle")
+    items[5] = item("Base.Wound_Bite", { display = "Wound" })
+    TEST.fire("EveryTenMinutes")
+    TEST.fire("EveryTenMinutes")
+    eq(reads, 2, "no read on later looks")
+    -- a hammer not from the shop is loot: the shop's mark is the item's, not the type's
+    items[6] = item("Base.Hammer", { display = "Tool" })
+    TEST.fire("EveryTenMinutes")
+    eq(reads, 3)
+    truthy(record.codex.kinds.Hammer)
+    eq(record.codex.n, 1)
+end)
+
+test("a pickup of a type that is no loot is remembered for the look too", function()
+    ISTransferAction = { transferItem = function(self, ch, it) return it end }
+    boot()
+    OA.Economy.start()
+    OA.Store.ensure("p", "P")
+    local ch = carrier("p", {})
+    local reads = 0
+    local info = OA.Value.info
+    OA.Value.info = function(it) reads = reads + 1; return info(it) end
+    local bundle = item("OperationAcorn.SampleBundle")
+    ISTransferAction:transferItem(ch, bundle, container("shelves", { square = square(1, 1) }),
+        container("inventory", { mine = true }), nil)
+    eq(reads, 1)
+    ch.getInventory = function() return { getItems = function() return list({ bundle }) end } end
+    TEST.fire("EveryTenMinutes")
+    eq(reads, 1, "known as no loot")
 end)
 
 -- A fake building for the watch: rooms of squares with container objects.

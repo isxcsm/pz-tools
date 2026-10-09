@@ -87,6 +87,13 @@ local function resetGame()
         TEST.random = (TEST.random * 1103515245 + 12345) % 2147483648
         return a + (b - a) * (TEST.random / 2147483648)
     end
+    -- The real clock (ms): an hour on at each call, so a real-time throttle (OA.due) never holds back a test that does
+    -- not mean to try it. A test of a throttle sets its own getTimestampMs.
+    TEST.ms = 1000000000
+    getTimestampMs = function()
+        TEST.ms = TEST.ms + 3600000
+        return TEST.ms
+    end
     isServer = function() return false end
     isClient = function() return false end
     getText = function(key, ...)
