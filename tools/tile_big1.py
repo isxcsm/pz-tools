@@ -155,7 +155,9 @@ def bulk_shredder(turns, look):
     running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
     glows = []
-    x0, x1, y0, y1 = 0.10, 0.98, 0.12, 0.70
+    # the hopper's rim stands out 0.02 past the cabinet: the cabinet ends at 0.95 so that the whole hopper is on the
+    # input square (a pixel goes to the square its point stands on; at x 1.0 the rim was the output square's)
+    x0, x1, y0, y1 = 0.10, 0.95, 0.12, 0.70
     zb = 0.50
     s.box(x0 - 0.03, y0 - 0.03, 0.0, x1 + 0.03, y1 + 0.03, 0.07, GRAPHITE_DARK)
     s.box(x0, y0, 0.07, x1, y1, zb, OD, top=OD_LIGHT, shine=0.1)

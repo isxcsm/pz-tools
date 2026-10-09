@@ -140,7 +140,7 @@
     "IGUI_OA_Machine_Job_shred": "분해 중",
     "IGUI_OA_Machine_Job_bulkShredder": "분해 중",
     "IGUI_OA_Machine_Job_cutter": "자르는 중",
-    "IGUI_OA_Machine_Job_woodSaw": "켜는 중",
+    "IGUI_OA_Machine_Job_woodSaw": "톱질 중",
     "IGUI_OA_Machine_Job_propaneRefiner": "정제 중",
     "IGUI_OA_Machine_Job_oilRefiner": "정제 중",
     "IGUI_OA_Machine_Hint_bulkShredder": "투입함에 물건을 넣으면 산출함에 시료 묶음이 나옵니다.",
