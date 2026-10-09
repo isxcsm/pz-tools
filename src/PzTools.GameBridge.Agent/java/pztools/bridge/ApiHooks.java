@@ -178,13 +178,20 @@ public final class ApiHooks {
         default float darkness(float vanilla, Object character) { return vanilla; }
 
         /**
-         * The screen's ambient light {@code RenderSettings.PlayerRenderSettings.updateRenderSettings} works out for a player
-         * (vanilla's Cat's Eyes keeps it at 0.2 or more), before the sandbox's night darkness lifts it; the ambient to use.
+         * What {@code LightingJNI.getSquareLighting} handed for a player's square at x, y on floor z (the visibility, the
+         * light, two darknesses, the level, then the corner lights), before the game reads it; changed in place. On
+         * whatever thread reads the lighting.
          */
-        default float ambientFloor(float vanilla, Object player) { return vanilla; }
+        default void squareLit(int playerIndex, int x, int y, int z, int[] lit) { }
 
-        /** One of the night's tints on the world's objects ({@code rmod}, {@code gmod}, {@code bmod}) for a player; the tint to use. */
-        default float nightTint(float vanilla, Object player) { return vanilla; }
+        /**
+         * Whether a player's square at x, y on floor z, which the lighting says has not changed, is to be read again all
+         * the same (what was done to it as it was last read is out of date). On whatever thread reads the lighting.
+         */
+        default boolean squareStale(int playerIndex, int x, int y, int z) { return false; }
+
+        /** The light {@code FBORenderCell.sanitizeLightInfo} has the game draw a square's objects with, for a player; the light to use. */
+        default Object objectLight(Object info, int playerIndex) { return info; }
 
         /** Once a frame for each player's screen, on the main thread before it is drawn: night sight moves on. */
         default void nightSightFrame(int playerIndex) { }
@@ -269,6 +276,7 @@ public final class ApiHooks {
     // The payload loads beside the game's start; the first Lua environment may be made before it is ready.
     private static final long HANDLER_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
     private static final ClassDesc HOOKS = ClassDesc.of("pztools.bridge.ApiHooks");
+    private static final ClassDesc COLOR_INFO = ClassDesc.of("zombie.core.textures.ColorInfo");
     private static Handler handler;
     // A game the startup loader started, whose payload has not set the handler yet.
     private static boolean expected;
@@ -297,7 +305,7 @@ public final class ApiHooks {
         OVERLOAD("overload", Group.FORMULAS), RUN_PENALTY("runPenalty", Group.FORMULAS),
         COMBAT_PENALTY("combatPenalty", Group.FORMULAS), LOOT_CHANCE("lootChance", Group.FORMULAS),
         LOOT_AMMO("lootAmmo", Group.FORMULAS), DARKNESS("darkness", Group.FORMULAS), CONE_ADD("coneAdd", Group.FORMULAS),
-        AMBIENT_FLOOR("ambientFloor", Group.FORMULAS), NIGHT_SIGHT("nightSight", Group.FORMULAS),
+        NIGHT_SIGHT("nightSight", Group.FORMULAS),
         LANDING("landing", Group.FORMULAS), IMPACT("impact", Group.FORMULAS), TREE_SLOW("treeSlow", Group.FORMULAS),
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
@@ -419,35 +427,24 @@ public final class ApiHooks {
                     code.invokestatic(HOOKS, "coneAdd", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_float));
                     code.aload(0);
                 }) }),
-        // The night's screen brightness: ambient = lift + (1 - lift) x this.ambient, where vanilla's Cat's Eyes has just raised
-        // this.ambient to 0.2. Before that read (this on the stack), night sight keeps the field up to its floor. (The method's
-        // isExterior is set true for every player just after it is worked out, so the floor asks the player's square itself.)
-        Map.entry("zombie/core/opengl/RenderSettings$PlayerRenderSettings", new Site[] {
-            Site.before("updateRenderSettings", "(ILzombie/characters/IsoPlayer;)V", (second, first, element) -> element instanceof FieldInstruction field
-                && field.opcode() == Opcode.GETFIELD && field.name().equalsString("ambient")
-                && first instanceof LoadInstruction self && self.slot() == 0 && self.typeKind() == TypeKind.REFERENCE
-                && second instanceof OperatorInstruction sub && sub.opcode() == Opcode.FSUB, (code, owner) -> {
-                    code.dup();
-                    code.dup();
-                    code.getfield(owner, "ambient", ConstantDescs.CD_float);
-                    code.aload(2);
-                    code.invokestatic(HOOKS, "ambientFloor", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
-                    code.putfield(owner, "ambient", ConstantDescs.CD_float);
-                }).reading("ambient:F").named("ambient"),
-            // The tints the world's objects are multiplied by (a dark blue at night: walls and furniture go black in a dark
-            // room whatever the ambient), eased by night sight before the method returns.
-            Site.atReturns("updateRenderSettings", "(ILzombie/characters/IsoPlayer;)V", 3, (code, owner) -> {
-                for (String tint : new String[] { "rmod", "gmod", "bmod" }) {
-                    code.aload(0);
-                    code.dup();
-                    code.getfield(owner, tint, ConstantDescs.CD_float);
-                    code.aload(2);
-                    code.invokestatic(HOOKS, "nightTint", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
-                    code.putfield(owner, tint, ConstantDescs.CD_float);
-                }
-            }).reading("rmod:F", "gmod:F", "bmod:F").named("tint") }),
-        // Night sight's screen pass: a step put into the screen shader's world path (ScreenShader), its program kept when the
-        // shader compiles and its uniforms set each time it draws; the strength moves on once a frame before.
+        // Night sight's least light: each read of a square's lighting from the native lighting (the call hands it into an
+        // int[]) is followed by squareLit with the same player, square and array, before the game reads the corners out of
+        // it; and the lighting's answer whether a square changed is followed by squareStale's, so that a square raised to
+        // another least light is read again (the native lighting does not know of it).
+        Map.entry("zombie/iso/LightingJNI$JNILighting", new Site[] {
+            Site.edit("update", "()V", new Edit(squareLightingCall(), -1, null, ApiHooks::squareLighting)),
+            Site.edit("updateFBORenderChunk", "()V", new Edit(squareLightingCall(), -1, null, ApiHooks::squareLighting)),
+            Site.edit("update", "()V", new Edit(squareDirtyCall(), -1, null, ApiHooks::squareDirtyCheck)).named("stale"),
+            Site.edit("updateFBORenderChunk", "()V", new Edit(squareDirtyCall(), -1, null, ApiHooks::squareDirtyCheck)).named("stale") }),
+        // The light a square's objects are drawn with (the square's own, which the game also asks for its zombies and vision).
+        Map.entry("zombie/iso/fboRenderChunk/FBORenderCell", new Site[] {
+            Site.atReturns("sanitizeLightInfo", "(ILzombie/iso/IsoGridSquare;)Lzombie/core/textures/ColorInfo;", 3, (code, owner) -> {
+                code.iload(1);
+                code.invokestatic(HOOKS, "objectLight", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_int));
+                code.checkcast(COLOR_INFO);
+            }) }),
+        // Night sight's screen pass: a step put into the screen shader where it reads the world (ScreenShader), its program kept
+        // when the shader compiles and its uniforms set each time it draws; night sight moves on once a frame before.
         Map.entry("zombie/core/opengl/ShaderUnit", new Site[] {
             Site.atReturns("loadShaderFile", "(Ljava/lang/String;Ljava/util/ArrayList;)Ljava/lang/String;", 3, (code, owner) -> {
                 code.aload(1);
@@ -1629,7 +1626,6 @@ public final class ApiHooks {
         catch (Throwable problem) { reportOnce(Call.DARKNESS, problem); return vanilla; }
     }
 
-    /** Put before {@code updateRenderSettings} lifts the ambient by the sandbox's night darkness. */
     /** Put at the return of {@code ShaderUnit.loadShaderFile}: the screen shader gets night sight's step. */
     public static String shaderSource(String source, String fileName) {
         try { return ScreenShader.patch(source, fileName); }
@@ -1660,19 +1656,90 @@ public final class ApiHooks {
         catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
     }
 
-    /** Put before each return of {@code updateRenderSettings}, once for each of the night's tints. */
-    public static float nightTint(float vanilla, Object player) {
+    /**
+     * Put after each call of {@code LightingJNI.getSquareLighting} in the lighting's reads, with its arguments (the
+     * lighting's z is the floor + 32): whether it handed anything, as it was.
+     */
+    public static boolean squareLit(boolean lit, int playerIndex, int x, int y, int z, int[] ints) {
+        if (!lit) return false;
         Formulas current = formulas;
-        if (current == null) return vanilla;
-        try { return current.nightTint(vanilla, player); }
-        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return vanilla; }
+        if (current == null) return true;
+        try { current.squareLit(playerIndex, x, y, z - 32, ints); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); }
+        return true;
     }
 
-    public static float ambientFloor(float vanilla, Object player) {
+    /**
+     * Put after each call of {@code LightingJNI.getSquareDirty} in the lighting's reads, with its arguments (the
+     * lighting's z is the floor + 32): whether the square is read again.
+     */
+    public static boolean squareDirty(boolean dirty, int playerIndex, int x, int y, int z) {
+        if (dirty) return true;
         Formulas current = formulas;
-        if (current == null) return vanilla;
-        try { return current.ambientFloor(vanilla, player); }
-        catch (Throwable problem) { reportOnce(Call.AMBIENT_FLOOR, problem); return vanilla; }
+        if (current == null) return false;
+        try { return current.squareStale(playerIndex, x, y, z - 32); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return false; }
+    }
+
+    /** Put before each return of {@code FBORenderCell.sanitizeLightInfo}. */
+    public static Object objectLight(Object info, int playerIndex) {
+        Formulas current = formulas;
+        if (current == null) return info;
+        try { return current.objectLight(info, playerIndex); }
+        catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return info; }
+    }
+
+    // The call that hands a square's lighting into an int[]: its arguments are kept, the call made, and squareLit given
+    // them with the answer.
+    private static Predicate<CodeElement> squareLightingCall() { return calls("zombie/iso/LightingJNI", "getSquareLighting", "(IIII[I)Z"); }
+
+    // The lighting's answer whether a square changed: its arguments are kept, the call made, and squareDirty given them
+    // with the answer.
+    private static Predicate<CodeElement> squareDirtyCall() { return calls("zombie/iso/LightingJNI", "getSquareDirty", "(IIII)Z"); }
+
+    private static void squareDirtyCheck(CodeBuilder code, CodeElement call, int kind) {
+        int z = code.allocateLocal(TypeKind.INT), y = code.allocateLocal(TypeKind.INT), x = code.allocateLocal(TypeKind.INT);
+        int player = code.allocateLocal(TypeKind.INT);
+        // player, x, y, z -> player, x, y, z
+        code.istore(z);
+        code.istore(y);
+        code.istore(x);
+        code.dup();
+        code.istore(player);
+        code.iload(x);
+        code.iload(y);
+        code.iload(z);
+        code.with(call);
+        code.iload(player);
+        code.iload(x);
+        code.iload(y);
+        code.iload(z);
+        code.invokestatic(HOOKS, "squareDirty", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean, ConstantDescs.CD_int,
+            ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int));
+    }
+
+    private static void squareLighting(CodeBuilder code, CodeElement call, int kind) {
+        int ints = code.allocateLocal(TypeKind.REFERENCE), z = code.allocateLocal(TypeKind.INT), y = code.allocateLocal(TypeKind.INT);
+        int x = code.allocateLocal(TypeKind.INT), player = code.allocateLocal(TypeKind.INT);
+        // player, x, y, z, ints -> player
+        code.astore(ints);
+        code.istore(z);
+        code.istore(y);
+        code.istore(x);
+        code.dup();
+        code.istore(player);
+        code.iload(x);
+        code.iload(y);
+        code.iload(z);
+        code.aload(ints);
+        code.with(call);
+        code.iload(player);
+        code.iload(x);
+        code.iload(y);
+        code.iload(z);
+        code.aload(ints);
+        code.invokestatic(HOOKS, "squareLit", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean, ConstantDescs.CD_int,
+            ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int, ConstantDescs.CD_int.arrayType()));
     }
 
     /** Put before {@code calculateVisionCone} multiplies the degrees by what the worn items allow. */
@@ -1872,43 +1939,52 @@ public final class ApiHooks {
 
     /**
      * Night sight's step in the game's screen shader ({@code media/shaders/screen.frag}, the pass the whole world is drawn
-     * through): the source the game loads gets a uniform and a function, and the world path ({@code screenWorld}) returns its
-     * colour through the function. At strength 0 the function gives the colour back as it is. The night vision goggles' path
-     * is left alone. A source without the places the step goes (a mod's own shader, a newer game) is loaded as it is, and
-     * night sight then shows no screen pass.
+     * through): the source the game loads gets its uniforms and functions before {@code textureBicubic}, the sampling the
+     * pass reads the world with on every path (the stock one, and the ones PZ Optimization's colour grading and its other
+     * passes put in, which also read it), which returns its colour through the step; the pass's own reads of single texels
+     * of the world ({@code texture2D(DIFFUSE, ...)}, the blur's) are made through it too. The night vision goggles' path
+     * is left alone. At night sight off the step gives the colour back as it is. A source without the places the step goes
+     * (a mod's own shader, a newer game) is loaded as it is, and night sight then shows no screen pass.
      */
     static final class ScreenShader {
         static final String UNIFORM = "PZT_NightSight";
         private static final String FILE = "screen.frag";
-        private static final String WORLD = "vec3 screenWorld(";
-        private static final String RETURN = "return col;";
+        private static final String SAMPLING = "vec4 textureBicubic(";
+        private static final String GOGGLES = "uniform float NightVisionGoggles;";
+        private static final java.util.regex.Pattern TEXEL = java.util.regex.Pattern.compile("texture2D\\(\\s*DIFFUSE\\s*,");
 
         /**
-         * Dark tones are lifted, the darker the more (a gamma). What the eye saw without night sight keeps its colour, and
-         * what night sight adds is a cold grey, as the eye's rods see: a pixel's colour is kept by its square's share
-         * (PZT_SightLamps: the floor under the pixel is found from PZT_SightU and V; beyond it, PZT_SightKeep), which is
-         * the share a light source gives where one reaches; a light source's light (its second channel) is not lifted.
+         * What the eye saw without night sight keeps its colour and what it adds is a cold grey, as the eye's rods see: a
+         * pixel's colour is kept by its square's share (PZT_SightLamps, by the floor under the pixel, found from PZT_SightU
+         * and V; beyond it, PZT_SightKeep), and dark tones are lifted, the darker the more (a gamma, by PZT_NightSight), in
+         * grey too, but for the light a light source gives (its second channel).
          */
         static final String STEP = """
 
             uniform float PZT_NightSight;
+            uniform float PZT_SightOn;
             uniform float PZT_SightKeep;
             uniform sampler2D PZT_SightLamps;
             uniform vec3 PZT_SightU;
             uniform vec3 PZT_SightV;
 
             vec3 pztNightSight(in vec3 col) {
-            	float s = clamp(PZT_NightSight, 0.0, 1.0);
-            	if (s <= 0.0) return col;
+            	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return col;
             	vec3 at = vec3(gl_FragCoord.xy, 1.0);
             	vec2 uv = vec2(dot(PZT_SightU, at), dot(PZT_SightV, at));
             	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
             	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) square = texture(PZT_SightLamps, uv).rg;
             	float l = dot(col, vec3(0.299, 0.587, 0.114));
-            	float lifted = mix(pow(max(l, 0.0), 1.0 - 0.7 * s), l, square.y);
+            	float s = clamp(PZT_NightSight, 0.0, 1.0);
+            	float lifted = s > 0.0 ? mix(pow(max(l, 0.0), 1.0 - 0.7 * s), l, square.y) : l;
             	vec3 kept = col * square.x;
             	float grey = max(lifted - dot(kept, vec3(0.299, 0.587, 0.114)), 0.0);
             	return clamp(kept + grey * vec3(0.84, 0.92, 1.08), 0.0, 1.0);
+            }
+
+            vec4 pztDiffuse(in vec2 uv) {
+            	vec4 texel = texture(DIFFUSE, uv);
+            	return vec4(pztNightSight(texel.rgb), texel.a);
             }
 
             """;
@@ -1917,16 +1993,21 @@ public final class ApiHooks {
 
         /** The source with night sight's step, or the source as it is (another file, already patched, or no place for it). */
         static String patch(String source, String fileName) {
-            if (source == null || fileName == null || !fileName.replace('\\', '/').endsWith(FILE) || source.contains(UNIFORM)) return source;
-            int world = source.indexOf(WORLD);
-            if (world < 0) return source;
-            int body = source.indexOf('{', world);
+            if (source == null || fileName == null || !fileName.replace('\\', '/').endsWith(FILE) || source.contains(UNIFORM)
+                || !source.contains(GOGGLES)) return source;
+            int sampling = source.indexOf(SAMPLING);
+            if (sampling < 0) return source;
+            int body = source.indexOf('{', sampling);
             int end = body < 0 ? -1 : closing(source, body);
             if (end < 0) return source;
-            int ret = source.lastIndexOf(RETURN, end);
-            if (ret < body) return source;
-            return source.substring(0, world) + STEP + source.substring(world, ret) + "return pztNightSight(col);"
-                + source.substring(ret + RETURN.length());
+            int ret = source.lastIndexOf("return ", end);
+            int semicolon = ret < body ? -1 : source.indexOf(';', ret);
+            if (semicolon < 0 || semicolon > end) return source;
+            String value = source.substring(ret + "return ".length(), semicolon);
+            String sampled = source.substring(0, ret) + "vec4 pztSampled = " + value + ";\n\treturn vec4(pztNightSight(pztSampled.rgb), pztSampled.a);"
+                + source.substring(semicolon + 1);
+            String head = sampled.substring(0, sampling), rest = sampled.substring(sampling);
+            return head + STEP + TEXEL.matcher(rest).replaceAll("pztDiffuse(");
         }
 
         /** The index of the brace that closes the one at {@code open}, or -1. */

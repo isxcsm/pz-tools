@@ -81,9 +81,12 @@ final class FormulasTest {
     }
 
     /**
-     * Night sight's screen pass as it draws: the strength, the shares of the squares' light that light sources give (a lamp's
-     * falling off to its radius, a room's light whole, none without one) in a texture on its own unit, the unit that was
-     * active made active again, and where a pixel is on the shares.
+     * Night sight's least light and screen pass: the squares' corners as the lighting hands them are raised to the least
+     * light for a local player, and the light their objects are drawn with (a copy: the square's own is the game's), the
+     * game's lighting is worked again when it changes; the screen pass gets the strength, each square's share of its
+     * colour kept (the game's light against the least) and its light sources' share (a lamp's falling off to its radius,
+     * a room's light whole, none without one) in a texture on its own unit, the unit that was active made active again,
+     * and where a pixel is on the floor.
      */
     private static void lamps(Formulas formulas, zombie.iso.weather.WeatherShader pass, IsoPlayer player) {
         IsoCell home = IsoWorld.instance.currentCell;
@@ -92,59 +95,88 @@ final class FormulasTest {
         player.x = 100.5f;
         player.y = 200.5f;
         player.z = 0f;
+        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
+        formulas.nightSightFrame(0);
+        int least = Math.round(Formulas.FLOOR_FULL * 0.8f * 255f);
+        check(formulas.nightLamps().floorLight() == least, "The least light was not set: " + formulas.nightLamps().floorLight());
+
+        // the corners: each colour raised, the alpha kept, for a local player alone, in both of the lighting's reads
+        int[] handed = { 7, 0x00102030, 500, 500, 3, 0xFF0A0B0C, 0xFFFFFFFF, 0xFF00FF00, 0x80000000, 0, 0, 0, 0, 2 };
+        LightingJNI.squares.put("100,200,0", handed.clone());
+        LightingJNI.changed.add("100,200,0");
+        var square = cell.load(100, 200, 0);
+        for (boolean chunks : new boolean[] { true, false }) {
+            var mine = new LightingJNI.JNILighting(0, square);
+            var theirs = new LightingJNI.JNILighting(1, square);
+            mine.read(chunks);
+            theirs.read(chunks);
+            int raised = 0xFF000000 | least << 16 | least << 8 | least;
+            check(mine.lightverts(0) == raised && mine.lightverts(1) == 0xFFFFFFFF && mine.lightverts(2) == (0xFF00FF00 | least << 16 | least)
+                && mine.lightverts(3) == (0x80000000 | least << 16 | least << 8 | least) && mine.lightverts(7) == (least << 16 | least << 8 | least)
+                && theirs.lightverts(0) == 0xFF0A0B0C && theirs.lightverts(3) == 0x80000000,
+                "The corners were not raised for the local player alone: " + Integer.toHexString(mine.lightverts(0)) + " " + Integer.toHexString(theirs.lightverts(0)));
+        }
+        check(java.util.Arrays.equals(LightingJNI.squares.get("100,200,0"), handed), "What the lighting handed was changed");
+        // a square the lighting says has not changed: read again only when it was raised to another least light (or not
+        // read since squares are raised), and for a local player alone
+        LightingJNI.changed.clear();
+        var unchanged = new LightingJNI.JNILighting(0, square);
+        unchanged.read(true);
+        check(unchanged.lightverts(0) == 0, "A square raised to the least light was read again");
+        LightingJNI.squares.put("101,201,0", handed.clone());
+        var unseen = new LightingJNI.JNILighting(0, cell.load(101, 201, 0));
+        var unseenTheirs = new LightingJNI.JNILighting(1, cell.load(101, 201, 0));
+        unseen.read(false);
+        unseenTheirs.read(false);
+        check(unseen.lightverts(1) == 0xFFFFFFFF && unseenTheirs.lightverts(1) == 0, "A square not read since squares are raised was not read, or for another player");
+        formulas.nightLamps().floorLight(40);
+        unchanged.read(false);
+        check(unchanged.lightverts(0) == (0xFF000000 | 40 << 16 | 40 << 8 | 40), "A square raised to another least light was not read again: "
+            + Integer.toHexString(unchanged.lightverts(0)));
+        formulas.nightLamps().floorLight(least);
+        unchanged.read(true);
+        unseen.read(true);
+        LightingJNI.squares.remove("101,201,0");
+        // the game's light of the square, as its corners were handed: their mean (its own light, 0.95 below, is not what it is drawn with)
+        double seen = Math.round((NightLamps.luma(12, 11, 10) + 255 + 0.587f * 255) * 1000 / 8000f) / 255.0;
+        // the objects' light: a raised copy, the square's own left as it is; a light square's as it is
+        var renderer = new zombie.iso.fboRenderChunk.FBORenderCell();
+        square.setLight(0, 0.1f);
+        var own = square.lighting[0].lightInfo();
+        square.lighting[0] = () -> own;
+        var drawn = renderer.objectLight(0, square);
+        check(drawn != own && near(drawn.r, least / 255.0) && near(drawn.b, least / 255.0) && own.r == 0.1f,
+            "The objects' light was not a raised copy: " + drawn.r + " " + own.r);
+        square.setLight(0, 0.95f);
+        check(renderer.objectLight(0, square).r == 0.95f, "A light square's objects' light changed");
+        LightingJNI.squares.clear();
+
         var lamp = new zombie.iso.IsoGridSquare.ResultLight(104, 203, 7, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE);
-        cell.load(100, 203, 0).setLight(0, 0.5f, lamp);
+        cell.load(100, 203, 0).setLight(0, 0.9f, lamp);
         cell.load(101, 200, 0).setLight(0, 0.3f);
         cell.load(102, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(90, 190, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_ROOMLIGHT));
         cell.load(103, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(110, 200, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE));
         cell.load(104, 203, 0).setLight(0, 1f, lamp);
-        for (var square : cell.squares.values()) square.inRoom = true;
-        // outdoors, away from light sources
-        cell.load(99, 199, 0).setLight(0, 0.4f);
-        // how dark the player's square is by its light sources alone: what night sight follows while its floor lights it
-        try {
-            check(formulas.nightLamps().sourceDark(0) == 1f, "A square with no light sources is not dark: " + formulas.nightLamps().sourceDark(0));
-            cell.load(100, 200, 0).setLight(0, 0.6f, lamp);
-            check(Math.abs(formulas.nightLamps().sourceDark(0) - 5 / 7.0) < 1e-5, "A lamp's square is not as dark as its falloff: " + formulas.nightLamps().sourceDark(0));
-        } catch (Throwable failure) { throw new AssertionError(failure); }
-        // the player in a room
-        cell.getGridSquare(100, 200, 0).inRoom = true;
-        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
-        formulas.nightSightFrame(0);
-        pass.startRenderThread(new zombie.core.textures.TextureDraw());
-        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8), "The screen pass did not get the strength: " + org.lwjgl.opengl.GL20.values);
-        check(org.lwjgl.opengl.GL20.integers.get(5) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
+        frameLater(formulas, pass);
+        IsoWorld.instance.setCell(home);
+        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8) && org.lwjgl.opengl.GL20.values.get(4) == 1f,
+            "The screen pass did not get the strength, or is not on: " + org.lwjgl.opengl.GL20.values);
+        check(org.lwjgl.opengl.GL20.integers.get(6) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
             && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == NightLamps.SIZE,
-            "The shares' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
+            "The values' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
         int x0 = 100 - NightLamps.SIZE / 2, y0 = 200 - NightLamps.SIZE / 2;
-        // a square's colour kept (in a room the light sources' share, outdoors at least the game's tint's), and its light sources' share
         java.util.function.BiFunction<Integer, Integer, Double> kept = (x, y) ->
             (org.lwjgl.opengl.GL11.pixels[2 * ((y - y0) * NightLamps.SIZE + (x - x0))] & 0xFF) / 255.0;
         java.util.function.BiFunction<Integer, Integer, Double> share = (x, y) ->
             (org.lwjgl.opengl.GL11.pixels[2 * ((y - y0) * NightLamps.SIZE + (x - x0)) + 1] & 0xFF) / 255.0;
-        double lampShare = (1 - 4 / 7.0) / 0.5;
-        check(Math.abs(share.apply(100, 203) - lampShare) < 0.01 && Math.abs(kept.apply(100, 203) - lampShare) < 0.01
-            && share.apply(104, 203) == 1.0 && share.apply(101, 200) == 0.0 && kept.apply(101, 200) == 0.0
-            && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(103, 200) == 0.0,
-            "The light sources' shares: " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + share.apply(103, 200));
-        check(share.apply(99, 199) == 0.0 && kept.apply(99, 199) == 0.0 && org.lwjgl.opengl.GL20.values.get(4) == 0f,
-            "In a room with the game's light outdoors not known yet, outdoors is not grey: " + kept.apply(99, 199));
-        // the player outdoors: every square keeps the game's tint's share at least, and the game's light outdoors is
-        // known (the squares outdoors less their light sources': 0.4, and 0.6 less the lamp's 2/7)
-        cell.getGridSquare(100, 200, 0).inRoom = false;
-        frameLater(formulas, pass);
-        double keep = formulas.nightSightKeep(), outdoors = (0.4 + 0.6 - 2 / 7.0) / 2;
-        check(Math.abs(kept.apply(99, 199) - keep) < 0.01 && Math.abs(kept.apply(101, 200) - keep) < 0.01 && Math.abs(kept.apply(90, 180) - keep) < 0.01
-            && near(org.lwjgl.opengl.GL20.values.get(4), keep),
-            "Outdoors, or off the loaded squares, the colour is not kept by the game's tint: " + kept.apply(99, 199));
-        // back in a room: outdoors keeps the game's light against the square's (and beyond, against the squares' mean)
-        cell.getGridSquare(100, 200, 0).inRoom = true;
-        frameLater(formulas, pass);
-        check(Math.abs(kept.apply(99, 199) - outdoors / 0.4 * keep) < 0.01 && kept.apply(101, 200) == 0.0
-            && Math.abs(org.lwjgl.opengl.GL20.values.get(4) - Math.min(1, outdoors / 0.4) * keep) < 0.01,
-            "Outdoors seen from a room does not keep the game's own light: " + kept.apply(99, 199) + " " + org.lwjgl.opengl.GL20.values.get(4));
-        IsoWorld.instance.setCell(home);
-        float[] u = org.lwjgl.opengl.GL20.vectors.get(6), v = org.lwjgl.opengl.GL20.vectors.get(7);
+        double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
+        check(kept.apply(100, 203) == 1.0 && Math.abs(share.apply(100, 203) - lampShare) < 0.01 && kept.apply(104, 203) == 1.0
+            && share.apply(104, 203) == 1.0 && Math.abs(kept.apply(101, 200) - 0.3 / floor) < 0.01 && share.apply(101, 200) == 0.0
+            && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(99, 199) == 0.0
+            && Math.abs(kept.apply(100, 200) - seen / floor) < 0.01,
+            "The squares' values: " + kept.apply(101, 200) + " " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + kept.apply(100, 200));
+        check(org.lwjgl.opengl.GL20.values.get(5) == 0f, "Beyond the values the colour is not kept as on their edge: " + org.lwjgl.opengl.GL20.values.get(5));
+        float[] u = org.lwjgl.opengl.GL20.vectors.get(7), v = org.lwjgl.opengl.GL20.vectors.get(8);
         float wx = 103.25f, wy = 197.5f;
         float fx = zombie.Lua.LuaManager.GlobalObject.isoToScreenX(0, wx, wy, 0f);
         float fy = zombie.core.Core.getInstance().getScreenHeight() - zombie.Lua.LuaManager.GlobalObject.isoToScreenY(0, wx, wy, 0f);
@@ -153,7 +185,7 @@ final class FormulasTest {
         player.x = player.y = 0f;
     }
 
-    // A frame after the shares are due to be worked out again, and a draw.
+    // A frame after the values are due to be worked out again, and a draw.
     private static void frameLater(Formulas formulas, zombie.iso.weather.WeatherShader pass) {
         try { Thread.sleep(NightLamps.REFRESH_NS / 1_000_000L + 10); }
         catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); }
@@ -178,9 +210,10 @@ final class FormulasTest {
         CorpseCount.instance.getCorpseCount(null);
         new BodyDamage(new IsoPlayer());
         new BodyPart(new IsoPlayer());
-        new zombie.core.opengl.RenderSettings.PlayerRenderSettings();
         new zombie.core.opengl.ShaderUnit();
         new zombie.iso.weather.WeatherShader();
+        new LightingJNI.JNILighting(0, null);
+        new zombie.iso.fboRenderChunk.FBORenderCell();
         var points = (KahluaTable)call(formulas, "points").get(0);
         for (String applied : new String[] { "body.discomfortMultiplier", "body.stiffnessMultiplier", "body.fatigueMultiplier",
                 "body.enduranceDrainMultiplier", "body.poisonMultiplier", "carry.categoryEfficiency", "carry.itemEfficiency",
@@ -338,20 +371,28 @@ final class FormulasTest {
         player.luma = other.luma = 1f;
         call(mod, "clear");
 
-        // Night sight: the screen shader gets its step (screen.frag alone, once), its uniforms are found when the screen pass
-        // compiles and set when it draws.
-        String world = "uniform float NightValue;\nvec3 screenWorld(in vec3 pixel, in vec3 noise) {\n\tvec3 col = pixel;\n"
-            + "\tif (pixel.r > 0.5) { col = col * 0.5; }\n\treturn col;\n}\nvoid main() { }\n";
+        // Night sight: the screen shader gets its step (screen.frag alone, once): the world's sampling returns through it, and
+        // its single texels of the world are read through it; its uniforms are found when the screen pass compiles and set
+        // when it draws.
+        String world = "#version 330\nuniform sampler2D DIFFUSE;\nuniform float NightVisionGoggles;\n"
+            + "vec4 textureBicubic(sampler2D sampler, vec2 texCoords)\n{\n\tvec4 a = texture2D(sampler, texCoords);\n\tif (a.r > 0.5) { a = a * 0.5; }\n"
+            + "\treturn mix(a, a, 0.5);\n}\nvec3 blur(in vec2 uv) {\n\tvec3 c = texture2D(DIFFUSE, uv).rgb;\n\tc += texture2D( DIFFUSE , uv).rgb;\n\treturn c;\n}\n"
+            + "void main() { gl_FragColor = textureBicubic(DIFFUSE, vec2(0.0)); }\n";
         String patched = ApiHooks.shaderSource(world, "media/shaders/screen.frag");
-        check(patched.contains("uniform float PZT_NightSight;") && patched.contains("return pztNightSight(col);")
-            && patched.indexOf("vec3 pztNightSight(") < patched.indexOf("vec3 screenWorld(") && patched.contains("col = col * 0.5; }"),
+        check(patched.contains("uniform float PZT_NightSight;") && patched.contains("vec4 pztSampled = mix(a, a, 0.5);")
+            && patched.contains("return vec4(pztNightSight(pztSampled.rgb), pztSampled.a);")
+            && patched.indexOf("vec3 pztNightSight(") < patched.indexOf("vec4 textureBicubic(") && patched.contains("if (a.r > 0.5) { a = a * 0.5; }")
+            && patched.contains("vec3 c = pztDiffuse( uv).rgb;") && patched.contains("c += pztDiffuse( uv).rgb;")
+            && patched.contains("texture2D(sampler, texCoords)") && patched.contains("textureBicubic(DIFFUSE, vec2(0.0))"),
             "The screen shader did not get night sight's step: " + patched);
         check(ApiHooks.shaderSource(patched, "media/shaders/screen.frag").equals(patched), "The step went in twice");
         check(ApiHooks.shaderSource(world, "media/shaders/blur.frag").equals(world), "Another shader was changed");
-        check(ApiHooks.shaderSource("void main() { }", "media/shaders/screen.frag").equals("void main() { }"), "A screen shader with no world path was changed");
+        check(ApiHooks.shaderSource("void main() { }", "media/shaders/screen.frag").equals("void main() { }"), "A screen shader with no sampling was changed");
+        String noGoggles = world.replace("uniform float NightVisionGoggles;\n", "");
+        check(ApiHooks.shaderSource(noGoggles, "media/shaders/screen.frag").equals(noGoggles), "A screen shader with no goggles' uniform was changed");
         zombie.core.opengl.ShaderUnit.text = world;
         check(new zombie.core.opengl.ShaderUnit().load("media/shaders/screen.frag").contains("PZT_NightSight"), "The loaded screen shader has no step");
-        String[] uniforms = { "PZT_NightSight", "PZT_SightKeep", "PZT_SightLamps", "PZT_SightU", "PZT_SightV" };
+        String[] uniforms = { "PZT_NightSight", "PZT_SightOn", "PZT_SightKeep", "PZT_SightLamps", "PZT_SightU", "PZT_SightV" };
         for (int i = 0; i < uniforms.length; i++) {
             check(patched.contains(uniforms[i] + ";"), "The step has no " + uniforms[i]);
             org.lwjgl.opengl.GL20.uniforms.put(uniforms[i], 3 + i);
@@ -359,7 +400,7 @@ final class FormulasTest {
         var pass = new zombie.iso.weather.WeatherShader();
         pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
 
-        // It eases in as it gets dark, for the local player alone, and leaves in the light; none in daylight.
+        // The lift eases in as it gets dark, for the local player alone, and leaves in the light; none in daylight.
         var formulasObject = GameApi.formulas();
         check(Formulas.darkGate(0.2f) == 0f && Formulas.darkGate(0.54f) == 1f && Formulas.darkGate(0.4f) > 0.4f && Formulas.darkGate(0.4f) < 0.6f,
             "The darkness gate");
@@ -373,38 +414,24 @@ final class FormulasTest {
         for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
         lamps(formulasObject, pass, player);
-        // its least screen light: more in a room than outside, never darker than the game's
-        var screen = new zombie.core.opengl.RenderSettings.PlayerRenderSettings();
-        var stranger = new IsoPlayer();
-        player.climateAmbient = stranger.climateAmbient = 0.05f;
-        check(near(screen.ambientFor(player), 0.8 * 0.8 * Formulas.OUTSIDE_FULL) && near(screen.ambientFor(stranger), 0.05),
-            "The screen light outside was not kept up for the local player alone: " + screen.ambientFor(player));
-        var standing = player.getCurrentSquare();
-        var room = new zombie.iso.IsoGridSquare(0, 0, 0);
-        room.inRoom = true;
-        player.square = room;
-        check(near(screen.ambientFor(player), Formulas.ROOM_FROM + (Formulas.ROOM_FULL - Formulas.ROOM_FROM) * 0.8), "The screen light in a room: " + screen.ambientFor(player));
-        player.square = standing;
-        // the night's tint on objects eases towards a light one
-        player.nightTint = stranger.nightTint = 0.25f;
-        check(near(screen.tintFor(player), 0.25 + (Formulas.TINT_FULL - 0.25) * 0.8) && near(screen.tintFor(stranger), 0.25),
-            "The night's tint was not eased for the local player alone: " + screen.tintFor(player));
-        // the game's share of it is what keeps the colour outdoors away from light sources
-        formulasObject.nightSightStep(t += 1_000_000L);
-        check(near(formulasObject.nightSightKeep(), 0.25 / (0.25 + (Formulas.TINT_FULL - 0.25) * 0.8)), "The share of the tint kept: " + formulasObject.nightSightKeep());
-        player.nightTint = stranger.nightTint = 1f;
-        player.climateAmbient = 0.9f;
-        check(near(screen.ambientFor(player), 0.9), "A day screen changed: " + screen.ambientFor(player));
         // in the light it leaves
         player.luma = 0.9f;
         LightingJNI.darkness(player);
         for (int i = 0; i < 4; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(formulasObject.nightSightScreen() == 0f, "Night sight did not leave in the light: " + formulasObject.nightSightScreen());
         rejects(formulas, "set", "vision.nightSight must be a number from 0.0 to 1.0", mod, "vision.nightSight", 1.5);
-        player.climateAmbient = stranger.climateAmbient = 1f;
         player.luma = 1f;
         call(second, "clear");
         call(mod, "clear");
+        // with no night sight declared, no least light: the squares raised are read again as they were, and the screen pass is off
+        formulasObject.nightSightFrame(0);
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        LightingJNI.squares.put("100,200,0", new int[] { 7, 0, 0, 0, 0, 0x01020304, 0, 0, 0, 0, 0, 0, 0 });
+        var unraised = new LightingJNI.JNILighting(0, new zombie.iso.IsoGridSquare(100, 200, 0));
+        unraised.read(true);
+        LightingJNI.squares.clear();
+        check(formulasObject.nightLamps().floorLight() == 0 && org.lwjgl.opengl.GL20.values.get(4) == 0f && unraised.lightverts(0) == 0x01020304,
+            "Night sight did not go off: " + formulasObject.nightLamps().floorLight() + " " + Integer.toHexString(unraised.lightverts(0)));
 
         // A fall: the floors forgiven, never from a height that kills, and the damage by a multiplier.
         float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f), twoFloors = FallingConstants.getIsoImpactSpeedFromHeight(2f);
@@ -1471,7 +1498,9 @@ final class FormulasTest {
             @Override public float lootAmmo(float vanilla) { throw new IllegalStateException("broken"); }
             @Override public float darkness(float vanilla, Object character) { throw new IllegalStateException("broken"); }
             @Override public float coneAdd(Object character, float degrees) { throw new IllegalStateException("broken"); }
-            @Override public float ambientFloor(float vanilla, Object player) { throw new IllegalStateException("broken"); }
+            @Override public void squareLit(int playerIndex, int x, int y, int z, int[] lit) { throw new IllegalStateException("broken"); }
+            @Override public boolean squareStale(int playerIndex, int x, int y, int z) { throw new IllegalStateException("broken"); }
+            @Override public Object objectLight(Object info, int playerIndex) { throw new IllegalStateException("broken"); }
             @Override public float landing(float speed, Object character) { throw new IllegalStateException("broken"); }
             @Override public float impact(float speed, Object character) { throw new IllegalStateException("broken"); }
             @Override public float treeSlow(float vanilla, Object mover) { throw new IllegalStateException("broken"); }
@@ -1492,10 +1521,19 @@ final class FormulasTest {
         check(near(LightingJNI.darkness(player), 0.75) && near(LightingJNI.calculateVisionCone(player), (144 - 126 * 0.75 - 180) / 180),
             "A vision hook that failed did not give the game's answer");
         player.luma = 1f;
-        player.climateAmbient = 0.05f;
-        check(near(new zombie.core.opengl.RenderSettings.PlayerRenderSettings().ambientFor(player), 0.05),
-            "A screen light hook that failed did not give the game's answer");
-        player.climateAmbient = 1f;
+        LightingJNI.squares.put("5,5,0", new int[] { 0, 0, 0, 0, 0, 0x01020304, 0, 0, 0, 0, 0, 0, 0 });
+        LightingJNI.changed.add("5,5,0");
+        var stale = new LightingJNI.JNILighting(0, new zombie.iso.IsoGridSquare(6, 6, 0));
+        stale.read(false);
+        check(stale.lightverts(0) == 0, "A square was read again when the hook that says whether to failed");
+        var unlit = new LightingJNI.JNILighting(0, new zombie.iso.IsoGridSquare(5, 5, 0));
+        unlit.read(true);
+        var dim = new zombie.iso.IsoGridSquare(5, 5, 0);
+        dim.setLight(0, 0.05f);
+        check(unlit.lightverts(0) == 0x01020304 && new zombie.iso.fboRenderChunk.FBORenderCell().objectLight(0, dim).r == 0.05f,
+            "A night sight hook that failed did not give the game's light");
+        LightingJNI.squares.clear();
+        LightingJNI.changed.clear();
         float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f);
         player.DoLand(oneFloor);
         check(player.landedAt == oneFloor && nearly(player.impactDamage, 115 / 1.5), "A fall hook that failed did not give the game's answer");

@@ -15,8 +15,6 @@ public class IsoPlayer extends IsoGameCharacter {
     public boolean seeEveryone;
     public final java.util.ArrayList<zombie.iso.IsoMovingObject> spotted = new java.util.ArrayList<>();
 
-    /** The climate's ambient light, the sandbox's night lift and Cat's Eyes, for the screen's light (RenderSettings). */
-    public float climateAmbient = 1.0f, nightLift, nightTint = 1.0f;
     public boolean catsEyes;
 
     public boolean isSeeEveryone() { return seeEveryone; }

@@ -127,9 +127,9 @@ final class Formulas implements ApiHooks.Formulas {
         live("loot.ammoMultiplier", Shape.MULTIPLIER, "ItemPickerJava.getLootModifierFromType"),
         live("vision.darknessRestore", Shape.REDUCTION, "LightingJNI.getLumaInverted"),
         live("vision.coneAdd", Shape.NUMBER, "LightingJNI.calculateVisionCone"),
-        screen("vision.nightSight", Shape.LEVEL, "LightingJNI.getLumaInverted", "RenderSettings$PlayerRenderSettings.updateRenderSettings:ambient",
-            "RenderSettings$PlayerRenderSettings.updateRenderSettings:tint",
-            "ShaderUnit.loadShaderFile", "WeatherShader.onCompileSuccess", "WeatherShader.startMainThread", "WeatherShader.startRenderThread"),
+        screen("vision.nightSight", Shape.LEVEL, "LightingJNI.getLumaInverted", "LightingJNI$JNILighting.update",
+            "LightingJNI$JNILighting.updateFBORenderChunk", "FBORenderCell.sanitizeLightInfo", "ShaderUnit.loadShaderFile",
+            "WeatherShader.onCompileSuccess", "WeatherShader.startMainThread", "WeatherShader.startRenderThread"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"));
@@ -172,41 +172,25 @@ final class Formulas implements ApiHooks.Formulas {
     /** Seconds night sight takes to come in whole, or to leave. */
     static final float SIGHT_EASE = 0.3f;
     /**
-     * The darkness the game reads (0 light to 1 dark) where night sight starts, and where it is whole. Measured in a
-     * night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day). Its own light
-     * makes a basement read 0.63: whole stays whole, so that it does not turn itself down and back up.
+     * The darkness the game reads (0 light to 1 dark) where the screen pass's lift starts, and where it is whole.
+     * Measured in a night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day).
      */
     static final float DARK_FROM = 0.3f, DARK_FULL = 0.5f;
     /**
-     * The least ambient light of the screen with night sight: the screen pass needs some light to lift (a black square
-     * stays black). Outdoors it grows with the square of the strength up to {@link #OUTSIDE_FULL}; a room with no light is black up to
-     * about 0.6 (measured in a basement), so there it starts from {@link #ROOM_FROM} and grows to {@link #ROOM_FULL}.
+     * The least light of a square on the player's screen at night sight 1, of the full light: the screen pass needs some
+     * light to lift (a black square stays black), and a room the game gives no light (a sealed one) needs all of it.
      */
-    static final float OUTSIDE_FULL = 0.3f, ROOM_FROM = 0.6f, ROOM_FULL = 1f;
-    /** The night's tint on the world's objects at full night sight (the goggles' is 0.7 at night; 1 is none). */
-    static final float TINT_FULL = 0.7f;
+    static final float FLOOR_FULL = 0.9f;
 
     /** The animation of walking through trees plays at most this many times as fast as the game's, whatever slowdown is taken away. */
     static final double MAX_TREE_ANIMATION = 2;
 
-    // Night sight: the darkness last read for a local player (the game's main thread), and the strength the screen is
-    // worked with now (written on the main thread, read on the render thread).
+    // Night sight: the darkness last read for a local player (the game's main thread), and the strength of the screen
+    // pass's lift now (written on the main thread, read on the render thread).
     private volatile float seenDark, sight;
-    // Whether night sight's floor raised the screen's ambient light the last time it was worked out; how dark the
-    // player's square is by its light sources alone (the game thread's). While the floor lights the squares, the game's
-    // darkness reads its light too, and night sight would turn itself down and back up (a flicker): it then follows
-    // the light sources.
-    private volatile boolean floorRaised;
-    private float sourceDark = 1f;
     private long sightAt;
-    // How much of the brightness of what stands outdoors is the game's (its tint on the world's objects against night
-    // sight's: 1 the game's own), as the last frame's screen settings had it; what the screen pass keeps the colour of
-    // outdoors away from light sources. (Outdoors the night's light is the sky's, which the floor barely adds to; in a
-    // room with no light the game's is black, so all of it is night sight's.)
-    private volatile float keep = 1f;
-    private float tintKept = 1f;
-    // The screen pass's uniforms and the light sources' shares of the squares' light; null, with the reason, in a game
-    // that changed what they read. A fault in the shares stops them alone (the reason is then set).
+    // The least light of the squares on the screen, the screen pass's uniforms and the values it keeps colour by; null,
+    // with the reason, in a game that changed what they read. A fault in the values stops them alone (the reason is then set).
     private final NightLamps lamps;
     private String lampsProblem;
     private final Kahlua lua;
@@ -959,44 +943,55 @@ final class Formulas implements ApiHooks.Formulas {
     }
 
     /**
-     * Night sight: the strength the screen is worked with now goes towards the point's value times how dark it is for
-     * the player (none in daylight or by a lamp), over {@link #SIGHT_EASE} seconds so that it never pops. Worked once a
-     * frame on the main thread, before the screen is drawn.
+     * Night sight, once a frame on the main thread before the screen is drawn: the least light of the squares follows
+     * the point (a constant for a value, so that the game bakes its chunks again only when it changes), and the strength
+     * of the screen pass's lift goes towards the point's value times how dark it is for the player (none in daylight or
+     * by a lamp), over {@link #SIGHT_EASE} seconds so that it never pops. The game's darkness reads the squares' own
+     * light, which night sight leaves as it is.
      */
     @Override public void nightSightFrame(int playerIndex) {
         long now = System.nanoTime();
-        if (lamps == null || lampsProblem != null) { nightSightStep(now); return; }
-        try {
-            if (floorRaised) sourceDark = lamps.sourceDark(playerIndex);
-            nightSightStep(now);
-            lamps.frame(playerIndex, sight > 0f, keep, now);
-        }
+        nightSightStep(now);
+        if (lamps == null) return;
+        try { lamps.floorLight(Math.round(FLOOR_FULL * active.nightSight * 255f)); }
+        catch (Throwable failure) { throw new IllegalStateException("night sight's least light", failure); }
+        if (lampsProblem != null) return;
+        try { lamps.frame(playerIndex, now); }
         catch (Throwable failure) {
             lampsProblem = "stopped: " + failure;
             lamps.stop();
-            System.err.println("[PzTools API] formulas: night sight's light sources " + lampsProblem);
+            System.err.println("[PzTools API] formulas: night sight's values " + lampsProblem);
         }
     }
 
     /** Each time the screen pass draws, on the render thread with its program bound. */
     @Override public void nightSightDraw(int program) {
         if (lamps == null) return;
-        try { lamps.draw(program, sight, keep); }
+        try { lamps.draw(program, sight); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's screen pass", failure); }
     }
 
     /** When the screen pass compiles. */
     @Override public void nightSightProgram(int program) { if (lamps != null) lamps.program(program); }
 
+    /** What the lighting handed for a square, before the game reads it: its corners get the least light. */
+    @Override public void squareLit(int playerIndex, int x, int y, int z, int[] lit) { if (lamps != null) lamps.squareLit(playerIndex, x, y, z, lit); }
+
+    /** Whether a square the lighting has not changed is read again: it was raised to another least light. */
+    @Override public boolean squareStale(int playerIndex, int x, int y, int z) { return lamps != null && lamps.squareStale(playerIndex, x, y, z); }
+
+    /** The light a square's objects are drawn with, for a player. */
+    @Override public Object objectLight(Object info, int playerIndex) {
+        if (lamps == null) return info;
+        try { return lamps.objectLight(info, playerIndex); }
+        catch (Throwable failure) { throw new IllegalStateException("night sight's light on objects", failure); }
+    }
+
     void nightSightStep(long now) {
-        keep = tintKept;
-        tintKept = 1f;
         // never backwards (a clock read elsewhere), never more than a quarter of a second at once
         float seconds = sightAt == 0 ? 0f : Math.max(0f, Math.min(0.25f, (now - sightAt) / 1e9f));
         sightAt = now;
-        // with the floor on and nothing to say how dark the light sources leave it, the game's reading
-        float dark = floorRaised && lamps != null && lampsProblem == null ? sourceDark : seenDark;
-        float target = active.nightSight * darkGate(dark);
+        float target = active.nightSight * darkGate(seenDark);
         float current = sight;
         current = target > current ? Math.min(target, current + seconds / SIGHT_EASE) : Math.max(target, current - seconds / SIGHT_EASE);
         sight = current;
@@ -1008,35 +1003,11 @@ final class Formulas implements ApiHooks.Formulas {
         return gate <= 0f ? 0f : gate >= 1f ? 1f : gate * gate * (3f - 2f * gate);
     }
 
-    /** The strength the screen pass works with now (for the tests). */
+    /** The strength of the screen pass's lift now (for the tests). */
     float nightSightScreen() { return sight; }
 
-    /** The screen pass's light sources, or null (for the tests). */
+    /** The least light of the squares and the screen pass's values, or null (for the tests). */
     NightLamps nightLamps() { return lamps; }
-
-    /** The share of the brightness outdoors away from light sources whose colour the screen pass keeps (for the tests). */
-    float nightSightKeep() { return keep; }
-
-    @Override public float nightTint(float vanilla, Object player) {
-        float current = sight;
-        if (current == 0f || vanilla >= TINT_FULL || !players.local(player)) return vanilla;
-        float tint = vanilla + (TINT_FULL - vanilla) * current;
-        tintKept = Math.min(tintKept, Math.max(vanilla, 0f) / tint);
-        return tint;
-    }
-
-    @Override public float ambientFloor(float vanilla, Object player) {
-        float current = sight;
-        if (!players.local(player)) return vanilla;
-        if (current == 0f) { floorRaised = false; return vanilla; }
-        boolean room;
-        try { room = players.inRoom(player); }
-        catch (Throwable problem) { throw new IllegalStateException("the player's square", problem); }
-        // outdoors by the square of the strength: a little night sight barely lifts a dark night, the whole of it a lot
-        float floor = room ? ROOM_FROM + (ROOM_FULL - ROOM_FROM) * current : OUTSIDE_FULL * current * current;
-        floorRaised = vanilla < floor;
-        return vanilla >= floor ? vanilla : floor;
-    }
 
     @Override public float landing(float speed, Object character) {
         float shift = active.landingShift;
