@@ -14,9 +14,10 @@ Data.KEY = "OA_Machine"
 Data.MODULE = "OperationAcorn"
 
 -- Shredding speed, one rule for the hand bench and the bulk shredder: game seconds for an item of weight 1, and the
--- least for one item (NUMBERS 11: 10 seconds a weight, never under 1 second). The bulk shredder works at this speed
--- with the old motor; a better motor is its bonus (the motor's speed below), besides working on its own.
-Data.SHRED_SECONDS = { perWeight = 10, least = 1 }
+-- least for one item (NUMBERS 11: 5 game minutes a weight, never under 30 game seconds; at the default day length a
+-- game minute is 2.5 real seconds, so some 12 real seconds a weight). The bulk shredder works at this speed with the old
+-- motor; a better motor is its bonus (the motor's speed below), besides working on its own.
+Data.SHRED_SECONDS = { perWeight = 300, least = 30 }
 
 -- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage and lure, which have one tile each).
 --   item: the item type (in module OperationAcorn) the shop delivers and the player puts down.
@@ -35,7 +36,7 @@ Data.KINDS = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
     },
     bulkShredder = {
-        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 3600 / Data.SHRED_SECONDS.perWeight, wear = 12, noise = 20,
+        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 3600 / Data.SHRED_SECONDS.perWeight, wear = 0.4, noise = 20,
         slots = { "motor", "blade" }, containers = { "in", "out" },
     },
     cutter = {

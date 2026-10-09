@@ -294,18 +294,18 @@ test("the progress a window shows: the first job's share by now, nil when it is 
     local obj, state, sq = addMachine("bulkShredder", 10, 10)
     powered(sq)
     local inC = Machines.container(obj, "in")
-    fill(inC, "Base.Hammer", 3, {})                   -- weight 1 each: ten seconds each at 360 an hour
+    fill(inC, "Base.Hammer", 3, {})                   -- weight 1 each: five minutes each at 12 an hour
     eq(Machines.progress(obj), nil, "idle until a step finds the input")
     TEST.hours = 1
     Machines.update(obj)
-    TEST.hours = 1 + 1 / 720
+    TEST.hours = 1 + 1 / 24
     local item, share = Machines.progress(obj)
     eq(item, inC.items[1])
-    truthy(math.abs(share - 0.5) < 1e-6, "five of ten seconds")
+    truthy(math.abs(share - 0.5) < 1e-6, "two and a half of five minutes")
     -- asked to work at that time (a watched window), half a hammer is kept, none done
     Machines.update(obj)
     eq(#inC.items, 3)
-    TEST.hours = 1 + 1 / 360
+    TEST.hours = 1 + 1 / 12
     Machines.update(obj)
     eq(#inC.items, 2, "the first is done the moment its share is full")
     eq(#sounds, 1, "worked twice in ten minutes: one noise")
@@ -322,7 +322,7 @@ test("catching up when the chunk loads does the work of the time away", function
     TEST.hours = 1
     Machines.update(obj)
     eq(state.idle, false)
-    -- Away for 10 minutes: 60 weight of hammers, 60 hammers.
+    -- Away for 10 minutes: 2 weight of hammers, 2 hammers.
     TEST.hours = 1 + 1 / 6
     local chunk = { getGridSquare = function(self, lx, ly, lz)
         return squares[(16 + lx) .. "," .. (0 + ly) .. "," .. lz]
@@ -331,8 +331,8 @@ test("catching up when the chunk loads does the work of the time away", function
     squares["16,0,0"] = newSquare(16, 0, 0)
     squares["18,3,0"] = sq
     Machines.onChunk(chunk)
-    eq(#inC.items, 40, "60 of 100 shredded")
-    eq(countOf(outC, "OperationAcorn.SampleBundle"), 300)
+    eq(#inC.items, 98, "2 of 100 shredded")
+    eq(countOf(outC, "OperationAcorn.SampleBundle"), 10)
     eq(#sounds, 0, "a catch-up makes no sound")
 end)
 
@@ -362,9 +362,9 @@ test("no power, no work; the clock restarts when power comes back", function()
     TEST.hours = 2
     Machines.update(obj)
     eq(state.idle, false, "found work, started")
-    TEST.hours = 2 + 2.5 / 60
+    TEST.hours = 3
     Machines.update(obj)
-    eq(#Machines.container(obj, "in").items, 25, "two and a half minutes: 15 weight")
+    eq(#Machines.container(obj, "in").items, 28, "an hour: 12 weight")
 end)
 
 test("a switched-off machine does not work", function()
@@ -425,7 +425,7 @@ test("parts wear while it runs and a worn-out motor stops it, with a note", func
     fill(Machines.container(obj, "in"), "Base.Hammer", 200, {})
     TEST.hours = 1
     Machines.update(obj)
-    TEST.hours = 2
+    TEST.hours = 4
     Machines.update(obj)
     eq(state.parts.motor.cond, 0)
     local broken = false
@@ -433,7 +433,7 @@ test("parts wear while it runs and a worn-out motor stops it, with a note", func
         if h.key == "IGUI_OA_Machine_PartBroken" then broken = true end
     end
     truthy(broken, "told the owner")
-    TEST.hours = 3
+    TEST.hours = 5
     Machines.update(obj)
     eq(state.reason, "stopped")
 end)
@@ -796,7 +796,7 @@ test("hand shredding takes the items and gives bundles, booked to the record", f
     eq(countOf(p.inv, "OperationAcorn.SampleBundle"), 5)
     eq(countOf(p.inv, "Base.Hammer"), 0)
     eq(#OA.Shred.committed, 1)
-    near(Machines.benchMinutesFor(entries), 10 / 60)
+    near(Machines.benchMinutesFor(entries), 5)
 end)
 
 test("sprites follow the state and the kind", function()
