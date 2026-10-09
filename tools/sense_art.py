@@ -34,8 +34,13 @@ OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "OperationAcorn", "42", "med
 PREVIEW_PATH = os.path.join(HERE, "sense_art_preview.png")
 
 
-def finish(big, w, h):
-    return big.resize((w, h), Image.LANCZOS)
+def finish(big, w, h, middle=None):
+    """The picture at its size. `middle`: where its line runs, above the picture's middle, of its height (Senses.lua
+    puts the line at the cue's distance and the marks laid on it on the line: the arcs' trails hang below it)."""
+    out = big.resize((w, h), Image.LANCZOS)
+    if middle is not None:
+        out.info["middle"] = middle
+    return out
 
 
 def glowing(shape, blur, core, glow):
@@ -95,7 +100,7 @@ def arc(w, sag, line, trail):
         rad = line * S / 2 * (0.6 + 0.4 * fade)
         dl.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
     core = ImageChops.lighter(core, line_im)
-    return finish(glowing(core, blur * S, 1.0, 0.25), w, h)
+    return finish(glowing(core, blur * S, 1.0, 0.25), w, h, (H / 2 - top) / H)
 
 
 def thump(size=32):
@@ -185,7 +190,7 @@ def noise_arc(style, w, h, sag):
             rad = S * 0.9 * (0.6 + 0.4 * fade)
             d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
         blur = S * 0.5
-    return finish(glowing(core, blur, 1.0, 0.35), w, h)
+    return finish(glowing(core, blur, 1.0, 0.35), w, h, (H / 2 - top) / H)
 
 
 # The alarm pictures (near, mid, far), in pixels of the picture: its width, the arc's radius, how many triangles, how
@@ -228,7 +233,9 @@ def alarm(w, radius, n, pitch, base, tall, fade):
     d = ImageDraw.Draw(core)
     for pts, shade in tris:
         d.polygon([(dx + S * scale * x, dy + S * scale * y) for x, y in pts], fill=int(255 * shade))
-    return finish(glowing(core, blur * S, 1.0, 0.3), w, h)
+    # the line is the middle triangle's middle
+    middle = dy + S * scale * (-radius - tall / 2)
+    return finish(glowing(core, blur * S, 1.0, 0.3), w, h, (H / 2 - middle) / H)
 
 
 def build():
@@ -266,6 +273,10 @@ def main():
         sheet = sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST)
         sheet.save(PREVIEW_PATH)
     print("wrote", len(images), "marks to", OUT_DIR)
+    print("line above the middle, of the height (Senses.lua LINE):")
+    for name, im in images.items():
+        if "middle" in im.info:
+            print("    %s = %.3f," % (name, im.info["middle"]))
 
 
 if __name__ == "__main__":

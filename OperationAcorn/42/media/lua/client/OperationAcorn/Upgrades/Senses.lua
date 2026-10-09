@@ -51,8 +51,9 @@ function Hud:prerender() end
 
 -- The presence marks, drawn as Visual Sounds draws its cues: its pictures (tools/sense_art.py copies them), its sizes,
 -- strengths and colours by its distance bands (Sense.cue), and its distance from the character (Sense.offset), all as
--- it has them: a UX many players have used. Each cue's middle is Sense.offset(d) screen pixels from the character's
--- middle (BODY of a floor above the feet), the way to the place its sound comes from, worked out every frame (the
+-- it has them: a UX many players have used. Each cue's line is Sense.offset(d) screen pixels from the character's
+-- middle (BODY of a floor above the feet), and the marks laid on a cue (a chevron, brackets, a wheel) sit on its line,
+-- the way to the place its sound comes from, worked out every frame (the
 -- way on the screen as the view projects it: Visual Sounds turns the world by 45 degrees, which is off by up to 18 on
 -- the game's 2:1 view), turned to face out. A zombie's sound follows the zombie (but its beating on something, which
 -- is where it beats), and so does an alarm clock ringing on one, as Visual Sounds' do. A zombie the character sees
@@ -108,6 +109,10 @@ local CUES = {
     },
 }
 CUES.vehicle.picture, CUES.device.picture, CUES.noise.picture = "OA_Sense_Line", "OA_Sense_Dots", "OA_Sense_Noise"
+-- Where each picture's line runs, above the picture's middle, of its height (tools/sense_art.py prints them): an arc's
+-- trail hangs below its line, so the picture is drawn that much further in.
+local LINE = { OA_Sense_Arc_Near = 0.354, OA_Sense_Arc_Mid = 0.364, OA_Sense_Arc_Far = 0.373, OA_Sense_Dots = 0.25,
+    OA_Sense_Noise = 0.281, OA_Sense_Alarm_L = 0.226, OA_Sense_Alarm_M = 0.183, OA_Sense_Alarm_S = 0.114 }
 local WHITE = { 1, 1, 1 }
 local CUE_TINT = { vehicle = WHITE, device = rgb(0, 186, 254), noise = WHITE, alarm = rgb(255, 0, 0) }
 -- The vehicle's wheel, the thump's brackets, the square's disc and the floor chevrons: one size each, upright.
@@ -143,6 +148,14 @@ local function quad(ui, tex, x, y, ux, uy, w, c, a)
     ui:DrawTexture(tex, x1 + SHADE, y1 + SHADE, x2 + SHADE, y2 + SHADE, x3 + SHADE, y3 + SHADE, x4 + SHADE,
         y4 + SHADE, 0, 0, 0, a * 0.55)
     ui:DrawTexture(tex, x1, y1, x2, y2, x3, y3, x4, y4, c[1], c[2], c[3], a)
+end
+
+-- Draws the picture `name` of a cue `w` pixels wide with its line at (x, y), facing out the way (ux, uy).
+local function cue(ui, name, x, y, ux, uy, w, c, a)
+    local tex = picture(name)
+    if not tex then return end
+    local back = (LINE[name] or 0) * w * tex:getHeight() / tex:getWidth()
+    quad(ui, tex, x - ux * back, y - uy * back, ux, uy, w, c, a)
 end
 
 -- Moves a cue that follows a zombie (m.follow) to where the zombie is now; a dead one leaves it where it was.
@@ -209,7 +222,7 @@ local function drawZombies(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
             if band == 1 then
                 quad(ui, picture("OA_Sense_Same"), x, y, 0, -1, SAME_W, SAME_TINT, a * SAME_A)
             else
-                quad(ui, picture(cues.pictures[band]), x, y, ux, uy, cues.w[band], c, a * cues.a[band])
+                cue(ui, cues.pictures[band], x, y, ux, uy, cues.w[band], c, a * cues.a[band])
             end
             if m.kind == "thump" then
                 quad(ui, picture("OA_Sense_Thump"), x, y, 0, -1, THUMP_W, THUMP_TINT, a * THUMP_A)
@@ -236,7 +249,7 @@ local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
                 quad(ui, picture("OA_Sense_Same"), x, y, 0, -1, SAME_W, SAME_TINT, a * SAME_A)
             else
                 local strength = a * cues.a[band]
-                quad(ui, picture(cues.pictures and cues.pictures[band] or cues.picture), x, y, ux, uy, cues.w[band],
+                cue(ui, cues.pictures and cues.pictures[band] or cues.picture, x, y, ux, uy, cues.w[band],
                     CUE_TINT[m.kind] or WHITE, strength)
                 if m.kind == "vehicle" then
                     quad(ui, picture("OA_Sense_Wheel"), x, y, 0, -1, WHEEL_W, WHITE, strength)
