@@ -356,9 +356,20 @@ end
 -- for that player 0, IsoGameCharacter.updateSeenVisibility), so that is one read and no sight line of ours.
 local lungeState, attackState
 local SEEN_ALPHA = 0.05
-local function plain(z, acts, n, look, lx, ly)
+
+-- The plain zombies of the last look, reused from one look to the next (a look is twice a second): `collected` holds
+-- `count` of them; the tables past it are kept for the next look and are not in the list.
+local collected, kept = {}, {}
+
+local function plain(count, z, acts, n, look, lx, ly)
+    local p = kept[count]
+    if not p then
+        p = {}
+        kept[count] = p
+    end
+    collected[count] = p
     local x, y = z:getX(), z:getY()
-    local p = { ref = z, x = x, y = y, z = z:getZ() }
+    p.ref, p.x, p.y, p.z, p.seen, p.hunt, p.attack = z, x, y, z:getZ(), nil, nil, nil
     if look > 0 then
         local dx, dy = x - lx, y - ly
         if dx * dx + dy * dy <= look then p.seen = z:getTargetAlpha(n) >= SEEN_ALPHA end
@@ -369,51 +380,57 @@ local function plain(z, acts, n, look, lx, ly)
         p.hunt = z:getTarget() ~= nil
         p.attack = z:isCurrentState(lungeState) or z:isCurrentState(attackState)
     end
-    return p
+end
+
+-- Ends a look of `count` zombies: the list holds them alone.
+local function ended(count)
+    for i = #collected, count + 1, -1 do collected[i] = nil end
+    return collected
 end
 
 -- The zombies near the character from the extension API's spatial query (PZToolsAPI.zombies.near: `count, list`, one
--- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none (then the
--- scan below does it).
+-- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none or its
+-- answer is not what it should be (then the scan below does it).
 local NEAR_LIMIT = 64
-local function collectFromApi(player, radius, acts, look)
-    local api = OA.api()
-    local zombies = api and api.zombies
-    if type(zombies) ~= "table" or type(zombies.near) ~= "function" then return nil end
-    local ok, found = pcall(function()
-        local list = {}
-        local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
-        local n = player:getPlayerNum()
-        for level = pz - 1, pz + 1 do
-            local _, result = zombies.near(px, py, level, radius, NEAR_LIMIT)
-            if type(result) ~= "table" then return nil end
-            for _, near in ipairs(result) do
-                local z = near.zombie
-                if z and not z:isDead() then list[#list + 1] = plain(z, acts, n, look, px, py) end
+local function fromApi(near, player, radius, acts, look)
+    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+    local n = player:getPlayerNum()
+    local count = 0
+    for level = pz - 1, pz + 1 do
+        local _, result = near(px, py, level, radius, NEAR_LIMIT)
+        if type(result) ~= "table" then return nil end
+        for k = 1, #result do
+            local z = result[k].zombie
+            if z and not z:isDead() then
+                count = count + 1
+                plain(count, z, acts, n, look, px, py)
             end
         end
-        return list
-    end)
-    if ok then return found end
-    return nil
+    end
+    return ended(count)
 end
 
--- The loaded zombies near the character as plain positions, for the pure parts.
+-- The loaded zombies near the character as plain positions, for the pure parts (the list is the one of every look).
 local function collect(player, radius, acts, look)
-    local fromApi = collectFromApi(player, radius, acts, look)
-    if fromApi then return fromApi end
-    local list = {}
+    local api = OA.api()
+    local zombies = api and api.zombies
+    if type(zombies) == "table" and type(zombies.near) == "function" then
+        local ok, list = pcall(fromApi, zombies.near, player, radius, acts, look)
+        if ok and list then return list end
+    end
     local zs = getCell():getZombieList()
     local px, py = player:getX(), player:getY()
     local n = player:getPlayerNum()
+    local count = 0
     for i = 0, zs:size() - 1 do
         local z = zs:get(i)
         local zx, zy = z:getX(), z:getY()
         if zx - px <= radius and px - zx <= radius and zy - py <= radius and py - zy <= radius and not z:isDead() then
-            list[#list + 1] = plain(z, acts, n, look, px, py)
+            count = count + 1
+            plain(count, z, acts, n, look, px, py)
         end
     end
-    return list
+    return ended(count)
 end
 
 -- The sixth sense shown as S.sixth says: the game's moodle, or the HUD's stand-in (S.sixthDrawn). Nothing is defined
@@ -652,6 +669,8 @@ local LEDGER_RETRY_MS = 1000
 local LEDGER_TRIES = 5
 local LEDGER_NEAR = 6
 local OUTLINE = { 1.00, 0.80, 0.40, 0.85 }
+-- How often the building's containers are listed again for the outlines (rooms load, containers come and go), ms.
+local BOXES_MS = 5000
 
 -- Counts a building's containers: total, opened, and whether every room was loaded (so that it can be judged).
 local function countBuilding(def)
@@ -703,11 +722,12 @@ local function clearOutlines()
 end
 Senses.clearOutlines = clearOutlines
 
--- The unopened containers' objects of the building within LEDGER_NEAR of the character on its floor.
-local function nearUnopened(def, player)
-    local want = {}
-    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
-    local r2 = LEDGER_NEAR * LEDGER_NEAR
+-- The building's containers for the outlines, listed every BOXES_MS rather than each look: boxes[1..boxCount] are
+-- { object, container, x, y, z } (the tables past boxCount are kept for the next listing).
+local boxes, boxCount, boxesOf, boxesAt = {}, 0, nil, 0
+
+local function listBoxes(def, now)
+    boxCount, boxesOf, boxesAt = 0, def:getID(), now
     local rooms = def:getRooms()
     for i = 0, rooms:size() - 1 do
         local iso = rooms:get(i):getIsoRoom()
@@ -715,15 +735,34 @@ local function nearUnopened(def, player)
             local containers = iso:getContainer()
             for j = 0, containers:size() - 1 do
                 local c = containers:get(j)
-                if c:getType() ~= "floor" and not c:isExplored() then
-                    local object = c:getParent()
-                    local square = object and object:getSquare()
-                    if square and square:getZ() == pz then
-                        local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
-                        if dx * dx + dy * dy <= r2 then want[object] = true end
+                local object = c:getType() ~= "floor" and c:getParent()
+                local square = object and object:getSquare()
+                if square then
+                    boxCount = boxCount + 1
+                    local b = boxes[boxCount]
+                    if not b then
+                        b = {}
+                        boxes[boxCount] = b
                     end
+                    b.object, b.container = object, c
+                    b.x, b.y, b.z = square:getX() + 0.5, square:getY() + 0.5, square:getZ()
                 end
             end
+        end
+    end
+end
+
+-- The unopened containers' objects within LEDGER_NEAR of the character on its floor, into a new set.
+local function nearUnopened(def, player, now)
+    if boxesOf ~= def:getID() or now - boxesAt >= BOXES_MS or now < boxesAt then listBoxes(def, now) end
+    local want = {}
+    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+    local r2 = LEDGER_NEAR * LEDGER_NEAR
+    for i = 1, boxCount do
+        local b = boxes[i]
+        if b.z == pz then
+            local dx, dy = b.x - px, b.y - py
+            if dx * dx + dy * dy <= r2 and not b.container:isExplored() then want[b.object] = true end
         end
     end
     return want
@@ -741,7 +780,7 @@ local function ledgerJob(now)
         clearOutlines()
         return
     end
-    if rank >= 2 then outlineOnly(nearUnopened(def, player), player:getPlayerNum()) else clearOutlines() end
+    if rank >= 2 then outlineOnly(nearUnopened(def, player, now), player:getPlayerNum()) else clearOutlines() end
     local key = def:getID()
     if key ~= ledger.key then
         ledger.key, ledger.done, ledger.told, ledger.tries = key, false, false, 0
