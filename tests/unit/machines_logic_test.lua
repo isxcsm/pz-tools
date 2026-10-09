@@ -6,14 +6,14 @@ local Data, Logic = OA.Machines.Data, OA.Machines.Logic
 
 -- A machine state for the tests.
 local function machine(kind, parts)
-    return { kind = kind, parts = parts or Logic.newParts(kind), last = 0, carry = 0, idle = false }
+    return { kind = kind, parts = parts or Logic.newParts(kind), last = 0, lanes = {}, idle = false }
 end
 
 -- An io of identical jobs: `count` jobs of `cost`, and a log of what finished.
 local function jobs(count, cost)
     local io = { left = count, finished = 0 }
-    io.next = function(fx)
-        if io.left <= 0 then return nil, "noInput" end
+    io.next = function(fx, lane)
+        if io.left < (lane or 1) then return nil, "noInput" end
         return { cost = cost }
     end
     io.finish = function(job, fx)
@@ -38,19 +38,25 @@ test("a new machine ships with old parts at full condition", function()
     eq(OA.isEmpty(Logic.newParts("shredBench")), true)
 end)
 
-test("motor tiers set speed and electricity", function()
+test("motor tiers set lanes, speed and electricity", function()
     local parts = Logic.newParts("bulkShredder")
     local fx = Logic.effects("bulkShredder", parts)
+    eq(fx.lanes, 1)
     near(fx.speed, 1.0)
     near(fx.power, 1.0)
     parts.motor = { tier = "normal", cond = 100 }
     fx = Logic.effects("bulkShredder", parts)
-    near(fx.speed, 1.5)
+    eq(fx.lanes, 2)
+    near(fx.speed, 1.15)
     near(fx.power, 1.25)
     parts.motor = { tier = "modern", cond = 100 }
     fx = Logic.effects("bulkShredder", parts)
-    near(fx.speed, 2.0)
+    eq(fx.lanes, 3)
+    near(fx.speed, 1.3)
     near(fx.power, 1.5)
+    -- no motor in the slot: one lane (the machine is stopped anyway)
+    parts.motor = nil
+    eq(Logic.effects("bulkShredder", parts).lanes, 1)
 end)
 
 test("blades and catalysts carry their numbers", function()
@@ -151,13 +157,14 @@ test("generator load: the kind's load times the motor's multiplier, only while r
 end)
 
 test("wear per running hour by tier", function()
+    -- the cutter works 36 weight an hour: its parts wear 36 / 30 = 1.2 times the parts' rule an hour
     local parts = { motor = { tier = "old", cond = 100 }, blade = { tier = "normal", cond = 100 } }
     Logic.wear("cutter", parts, 10)
-    near(parts.motor.cond, 80)
-    near(parts.blade.cond, 85)
+    near(parts.motor.cond, 76)
+    near(parts.blade.cond, 82)
     parts.motor = { tier = "modern", cond = 100 }
     Logic.wear("cutter", parts, 10)
-    near(parts.motor.cond, 90)
+    near(parts.motor.cond, 88)
     -- the bulk shredder wears its parts 0.4 times as fast an hour (it grinds 12 a hour, the parts' rule is for 30)
     local bulk = { motor = { tier = "old", cond = 100 } }
     Logic.wear("bulkShredder", bulk, 10)
@@ -191,35 +198,35 @@ test("work carries over steps: a job longer than a step finishes on a later one"
     local io = jobs(5, 1)
     local r = Logic.advance(state, 1 / 6, io, 80)
     eq(r.done, 0, "after 10 minutes")
-    near(state.carry, 2 / 6, 1e-6, "carry")
+    near(state.lanes[1], 2 / 6, 1e-6, "the work on the job in hand")
     r = Logic.advance(state, 2 / 6, io, 80)
     eq(r.done, 0, "after 20 minutes")
     r = Logic.advance(state, 3 / 6, io, 80)
     eq(r.done, 1, "after 30 minutes")
-    near(state.carry, 0, 1e-6)
+    near(state.lanes[1] or 0, 0, 1e-6)
     r = Logic.advance(state, 3, io, 80)
     eq(r.done, 5 - 1, "the rest in 2.5 more hours is 4 more")
 end)
 
 test("a long absence is caught up in one go (a few at a time)", function()
     local state = machine("cutter")
-    -- 20 clothes an hour; 300 clothes; away for 5 hours: 100 done.
+    -- 36 weight an hour; 300 clothes of weight 1; away for 3 hours: 108 done.
     local io = jobs(300, 1)
-    local r = Logic.advance(state, 5, io, 1000)
-    eq(r.done, 100)
-    eq(io.left, 200)
+    local r = Logic.advance(state, 3, io, 1000)
+    eq(r.done, 108)
+    eq(io.left, 192)
     eq(r.debt, nil)
     -- With a batch of 80 the rest of the time is left for the next step.
     state = machine("cutter")
     io = jobs(300, 1)
-    r = Logic.advance(state, 5, io, 80)
+    r = Logic.advance(state, 3, io, 80)
     eq(r.done, 80)
     truthy(r.debt and r.debt > 0, "debt")
-    near(state.last, 4, 1e-6, "80 clothes took four hours")
-    r = Logic.advance(state, 5, io, 80)
-    eq(r.done, 20)
+    near(state.last, 80 / 36, 1e-6, "80 clothes took 80/36 hours")
+    r = Logic.advance(state, 3, io, 80)
+    eq(r.done, 28)
     eq(r.debt, nil)
-    near(state.last, 5, 1e-6)
+    near(state.last, 3, 1e-6)
 end)
 
 test("time without input does not count: work starts when input comes", function()
@@ -237,9 +244,9 @@ test("time without input does not count: work starts when input comes", function
     eq(r.started, true)
     eq(state.idle, false)
     eq(state.last, 2)
-    -- The next hour does 20 clothes.
+    -- The next hour does 36 weight of clothes.
     r = Logic.advance(state, 3, io, 80)
-    eq(r.done, 20)
+    eq(r.done, 36)
 end)
 
 test("running out of input ends the run and the machine goes idle", function()
@@ -250,22 +257,53 @@ test("running out of input ends the run and the machine goes idle", function()
     eq(r.reason, "noInput")
     eq(state.idle, true)
     eq(state.last, 10)
-    -- Only the 15 minutes that the five clothes needed were worked (and worn).
-    near(r.hours, 0.25, 1e-6)
-    near(state.parts.motor.cond, 100 - 2 * 0.25, 1e-6)
+    -- Only the 5/36 hour that the five clothes needed was worked (and worn, 1.2 times the rule).
+    near(r.hours, 5 / 36, 1e-6)
+    near(state.parts.motor.cond, 100 - 2 * 1.2 * 5 / 36, 1e-6)
 end)
 
-test("a faster motor does the same work in less time and wears less per job", function()
+test("a better motor works on more things at once, a little faster, and wears less per job", function()
     local slow, fast = machine("cutter"), machine("cutter")
     fast.parts.motor = { tier = "modern", cond = 100 }
-    local a, b = jobs(100, 1), jobs(100, 1)
+    local a, b = jobs(1000, 1), jobs(1000, 1)
     local ra = Logic.advance(slow, 2, a, 1000)
     local rb = Logic.advance(fast, 2, b, 1000)
-    eq(ra.done, 40)
-    eq(rb.done, 80)
-    -- Per job: old wears 2 an hour at 20 an hour; modern wears 1 an hour at 40 an hour.
-    near(100 - slow.parts.motor.cond, 4, 1e-6)
-    near(100 - fast.parts.motor.cond, 2, 1e-6)
+    eq(ra.done, 72)
+    -- three lanes at 36 x 1.3 an hour: three things every 1/46.8 hour, 93 rounds in two hours
+    eq(rb.done, 279)
+    -- An hour wears the same however many lanes: old 2 x 1.2, modern 1 x 1.2.
+    near(100 - slow.parts.motor.cond, 4.8, 1e-6)
+    near(100 - fast.parts.motor.cond, 2.4, 1e-6)
+end)
+
+test("lanes: things of different weights finish on their own, the next moves up with its work", function()
+    local state = machine("bulkShredder")
+    state.parts.motor = { tier = "normal", cond = 100 }
+    -- weights 1, 2, 1, 1 at 12 x 1.15 = 13.8 an hour a lane
+    local costs = { 1, 2, 1, 1 }
+    local done = {}
+    local io = {}
+    io.next = function(fx, lane)
+        local n = 0
+        for i, c in ipairs(costs) do
+            if not done[i] then
+                n = n + 1
+                if n == lane then return { cost = c, i = i } end
+            end
+        end
+        return nil, "noInput"
+    end
+    io.finish = function(job) done[job.i] = true end
+    -- after 1/13.8 hour the first (weight 1) is done; the second has half of its 2 and moves to lane 1
+    local r = Logic.advance(state, 1 / 13.8, io, 80)
+    eq(r.done, 1)
+    truthy(done[1] and not done[2], "the light one first")
+    near(state.lanes[1], 1, 1e-6, "the heavy one keeps its work, now in lane 1")
+    near(state.lanes[2] or 0, 0, 1e-6, "the third starts in lane 2")
+    -- after another 1/13.8 hour both lanes finish: the heavy one (2) and the third (1)
+    r = Logic.advance(state, 2 / 13.8, io, 80)
+    eq(r.done, 2)
+    truthy(done[2] and done[3] and not done[4])
 end)
 
 test("a stopped machine does not work and keeps its clock current", function()
@@ -283,7 +321,7 @@ test("a worn part halves the speed", function()
     state.parts.blade.cond = 10
     local io = jobs(100, 1)
     local r = Logic.advance(state, 2, io, 1000)
-    eq(r.done, 20, "10 an hour for 2 hours")
+    eq(r.done, 36, "18 an hour for 2 hours")
 end)
 
 test("ripping: the vanilla range", function()
@@ -390,11 +428,11 @@ test("the saw: 6 planks from a log, 6.5 and 7 expected with better blades, 0.8 w
     near(total / 4000, 4.8, 0.1, "0.8 of 6")
 end)
 
-test("saw speed: a log every five minutes", function()
+test("saw speed: 180 weight an hour, a log of 9 every three minutes", function()
     local state = machine("woodSaw")
-    local io = jobs(100, 1)
+    local io = jobs(100, 9)
     local r = Logic.advance(state, 1, io, 1000)
-    eq(r.done, 12)
+    eq(r.done, 20)
 end)
 
 test("propane: weight 50 of rotten food fills a tank, a catalyst cuts the material", function()
@@ -540,14 +578,17 @@ test("numbers from NUMBERS 11", function()
     eq(k.bulkShredder.rate, 12, "the bench's five minutes a weight, with the old motor")
     eq(k.bulkShredder.load, 0.6)
     eq(k.bulkShredder.noise, 20)
-    eq(k.cutter.rate, 20)
+    eq(k.cutter.rate, 36, "vanilla's ripping, by weight")
+    near(k.cutter.wear, 1.2)
     eq(k.cutter.load, 0.4)
     eq(k.cutter.noise, 10)
     eq(k.propaneRefiner.rate, 2)
     eq(k.propaneRefiner.load, 0.3)
     eq(k.oilRefiner.rate, 0.5)
     eq(k.oilRefiner.load, 0.3)
-    eq(k.woodSaw.rate, 12)
+    eq(k.woodSaw.rate, 180, "vanilla's sawing, by weight")
+    near(k.woodSaw.wear, 6)
+    near(k.bulkShredder.wear, 0.4)
     eq(k.woodSaw.load, 0.8)
     eq(k.woodSaw.noise, 40)
     eq(Data.RAIN_CAPACITY, 4000)

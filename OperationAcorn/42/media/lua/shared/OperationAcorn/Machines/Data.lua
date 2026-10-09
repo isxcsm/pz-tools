@@ -13,21 +13,34 @@ Data.KEY = "OA_Machine"
 -- The module the machine and part items are in.
 Data.MODULE = "OperationAcorn"
 
--- Shredding speed, one rule for the hand bench and the bulk shredder: game seconds for an item of weight 1, and the
--- least for one item (NUMBERS 11: 5 game minutes a weight, never under 30 game seconds; at the default day length a
--- game minute is 2.5 real seconds, so some 12 real seconds a weight). The bulk shredder works at this speed with the old
--- motor; a better motor is its bonus (the motor's speed below), besides working on its own.
-Data.SHRED_SECONDS = { perWeight = 300, least = 30 }
+-- How fast the machines that work on things go, in one unit: game seconds a weight of what is put in, and the least
+-- for one thing (NUMBERS 11). With the old motor a machine goes as fast as the work by hand; a better motor is its
+-- bonus (the motor's lanes and speed below), besides working on its own. At the default day length a game minute is
+-- 2.5 real seconds; a vanilla action tick is 1/30 real second.
+--   shred: the hand bench's rule (the bulk shredder too): 5 game minutes a weight, some 12 real seconds.
+--   cut: vanilla's ripping of a garment, 40 ticks (some 30 game seconds), for a garment of the median weight 0.3.
+--   saw: vanilla's sawing of a log into planks, 230 ticks (some 3 game minutes), for a log of weight 9.
+Data.WORK_SECONDS = {
+    shred = { perWeight = 300, least = 30 },
+    cut = { perWeight = 100, least = 30 },
+    saw = { perWeight = 20, least = 30 },
+}
+-- The weight an hour the parts' wear (Data.PARTS wear, an hour) is for: a machine that works more an hour wears its
+-- parts that much faster, so a part lasts the same weight on every machine (an old motor about 1,500).
+Data.WEAR_WEIGHT = 30
+
+local function rateOf(work) return 3600 / Data.WORK_SECONDS[work].perWeight end
+local function wearOf(work) return rateOf(work) / Data.WEAR_WEIGHT end
 
 -- Every machine kind. The names are Sprites.MACHINE_KINDS' (plus rainStorage and lure, which have one tile each).
 --   item: the item type (in module OperationAcorn) the shop delivers and the player puts down.
 --   weight: the whole machine's (scripts/OA_machines.txt and tools/tile_art.py say the same); the furniture tool's
 --     pieces share it, one a tile.
 --   power: true when it runs only with electricity. load: the generator load (NUMBERS 11: the unit is the vanilla
---     generator's per-device consumption, a fridge is 0.13). rate: work units an hour with the old motor (what a unit
---     is differs by kind: weight, clothes, litres, logs). noise: the radius of the sound it makes while it runs. wear: the
---     multiplier of its parts' wear an hour (1 when missing): the bulk shredder works twelve times the 30 an hour its
---     parts were weighed for, and they last the same weight ground (NUMBERS 11: an old motor, about 1,500).
+--     generator's per-device consumption, a fridge is 0.13). work: the kind of work (Data.WORK_SECONDS) of a machine
+--     that works on things by weight. rate: work units an hour with the old motor (weight for those, litres for the
+--     refiners). noise: the radius of the sound it makes while it runs. wear: the multiplier of its parts' wear an hour
+--     (1 when missing; by weight, rate / Data.WEAR_WEIGHT).
 --   slots: the part slots, in the order a window lists them. A slot a machine ships without is in `empty`.
 --   inputs/outputs: the containers (titles IGUI_ContainerTitle_<type>); `in` is where things are put, `out` where
 --     the products come out. A refiner has `in` only: the tank it fills stays in it.
@@ -36,11 +49,11 @@ Data.KINDS = {
         item = "ShredBench", weight = 20, hand = true, slots = {}, containers = {},
     },
     bulkShredder = {
-        item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 3600 / Data.SHRED_SECONDS.perWeight, wear = 0.4, noise = 20,
+        item = "BulkShredder", weight = 60, power = true, load = 0.6, work = "shred", rate = rateOf("shred"), wear = wearOf("shred"), noise = 20,
         slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     cutter = {
-        item = "FabricCutter", weight = 35, power = true, load = 0.4, rate = 20, noise = 10,
+        item = "FabricCutter", weight = 35, power = true, load = 0.4, work = "cut", rate = rateOf("cut"), wear = wearOf("cut"), noise = 10,
         slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     propaneRefiner = {
@@ -52,7 +65,7 @@ Data.KINDS = {
         slots = { "motor", "catalyst" }, containers = { "in" },
     },
     woodSaw = {
-        item = "LogSaw", weight = 55, power = true, load = 0.8, rate = 12, noise = 40,
+        item = "LogSaw", weight = 55, power = true, load = 0.8, work = "saw", rate = rateOf("saw"), wear = wearOf("saw"), noise = 40,
         slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" },
         containerAt = { out = { 1, 0 } },
     },
@@ -141,7 +154,8 @@ Data.OILS = {
 Data.OIL_FOOD = { ["Base.OilVegetable"] = true, ["Base.OilOlive"] = true, ["Base.Lard"] = true }
 
 -- Parts (NUMBERS 11 'Part grades'). A part kind has the slot it fits and, by tier, what it does:
---   speed, power: the motor's multipliers (speed of work, and the electricity it draws).
+--   lanes, speed, power: the motor's lanes (how many things it works on at once, each at the machine's rate), and its
+--     multipliers (speed of work, and the electricity it draws).
 --   yield: a shredder blade's pack multiplier. pieces: a cutter blade's added pieces (expected). planks: a saw
 --   blade's planks from a log (expected). use: a catalyst's material use (less is better). noise, speed: a cover's
 --   multipliers on the machine's noise radius and speed.
@@ -157,9 +171,9 @@ Data.PARTS = {
     motor = {
         slot = "motor", name = "Motor", role = "speed",
         tiers = {
-            old = { speed = 1.0, power = 1.0, wear = 2 },
-            normal = { speed = 1.5, power = 1.25, wear = 1.5 },
-            modern = { speed = 2.0, power = 1.5, wear = 1 },
+            old = { lanes = 1, speed = 1.0, power = 1.0, wear = 2 },
+            normal = { lanes = 2, speed = 1.15, power = 1.25, wear = 1.5 },
+            modern = { lanes = 3, speed = 1.3, power = 1.5, wear = 1 },
         },
     },
     shredBlade = {

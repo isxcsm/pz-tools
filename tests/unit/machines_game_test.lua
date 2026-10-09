@@ -299,9 +299,10 @@ test("the progress a window shows: the first job's share by now, nil when it is 
     TEST.hours = 1
     Machines.update(obj)
     TEST.hours = 1 + 1 / 24
-    local item, share = Machines.progress(obj)
-    eq(item, inC.items[1])
-    truthy(math.abs(share - 0.5) < 1e-6, "two and a half of five minutes")
+    local jobs = Machines.progress(obj)
+    eq(#jobs, 1, "one lane with the old motor")
+    eq(jobs[1].item, inC.items[1])
+    truthy(math.abs(jobs[1].share - 0.5) < 1e-6, "two and a half of five minutes")
     -- asked to work at that time (a watched window), half a hammer is kept, none done
     Machines.update(obj)
     eq(#inC.items, 3)
@@ -309,6 +310,15 @@ test("the progress a window shows: the first job's share by now, nil when it is 
     Machines.update(obj)
     eq(#inC.items, 2, "the first is done the moment its share is full")
     eq(#sounds, 1, "worked twice in ten minutes: one noise")
+    -- a normal motor: the next two at once, a bar each
+    state.parts.motor = { tier = "normal", cond = 100 }
+    local two = Machines.progress(obj)
+    eq(#two, 2, "two lanes")
+    eq(two[1].item, inC.items[1])
+    eq(two[2].item, inC.items[2])
+    TEST.hours = TEST.hours + 1 / (12 * 1.15)
+    Machines.update(obj)
+    eq(#inC.items, 0, "both done together")
     Machines.setOn(obj, false)
     eq(Machines.progress(obj), nil, "switched off")
 end)
@@ -833,14 +843,20 @@ test("status for the window", function()
     obj.getFluidAmount = nil
     local st = Machines.status(obj)
     eq(st.kind, "woodSaw")
-    near(st.rate, 12)
+    near(st.rate, 180)
+    eq(st.lanes, 1)
     near(st.load, 0.8)
     eq(st.noise, 40)
     eq(st.stopped, false)
     state.parts.cover = { tier = "normal", cond = 100 }
     st = Machines.status(obj)
     eq(st.noise, 20)
-    near(st.rate, 12 * 0.85)
+    near(st.rate, 180 * 0.85)
+    state.parts.motor = { tier = "modern", cond = 100 }
+    st = Machines.status(obj)
+    eq(st.lanes, 3)
+    near(st.rate, 180 * 0.85 * 1.3 * 3, 1e-6, "every lane counts")
+    near(st.speed, 0.85 * 1.3 * 3, 1e-6)
 end)
 
 -- ---------------------------------------------------------------------------------------------------------------------

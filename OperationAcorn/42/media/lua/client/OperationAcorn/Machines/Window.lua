@@ -184,8 +184,9 @@ function OAMachineWindow:render()
     local kind = self.kind
     local def = Data.KINDS[kind]
     if def.rate then
-        -- the unit of work differs by kind (weight, clothes, logs, litres): each has its own line
-        line(getText("IGUI_OA_Machine_Speed"), getText("IGUI_OA_Machine_SpeedValue_" .. kind, number(status.rate), number(status.speed)))
+        -- what the work is differs by kind (weight of things, litres): each has its own line
+        line(getText("IGUI_OA_Machine_Speed"), getText("IGUI_OA_Machine_SpeedValue_" .. kind, number(status.rate),
+            number(status.speed), tostring(status.lanes)))
         line(getText("IGUI_OA_Machine_Load"), number(status.load))
         line(getText("IGUI_OA_Machine_Noise"), tostring(status.noise))
     elseif kind == "rainStorage" then

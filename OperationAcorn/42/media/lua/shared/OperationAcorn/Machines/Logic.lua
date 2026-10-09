@@ -65,7 +65,7 @@ end
 --   planks (planks from a log), use (a catalyst's material use).
 function Logic.effects(kind, parts)
     local def = Data.KINDS[kind]
-    local fx = { stopped = false, speed = 1, yield = 1, power = 1, noise = 1, worn = false,
+    local fx = { stopped = false, lanes = 1, speed = 1, yield = 1, power = 1, noise = 1, worn = false,
         shred = 1, pieces = 0, planks = 6, use = 1 }
     for _, slot in ipairs(def.slots) do
         local part = parts and parts[slot]
@@ -91,6 +91,7 @@ function Logic.effects(kind, parts)
             else
                 if part.cond < Data.WORN_BELOW then fx.worn = true end
                 if slot == "motor" then
+                    fx.lanes = tier.lanes or 1
                     fx.speed = fx.speed * tier.speed
                     fx.power = tier.power
                 elseif tier.yield then fx.shred = tier.yield
@@ -153,10 +154,13 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Work over time
 
--- Works on a machine from `state.last` to `now`, one job at a time, and returns what happened.
---   state: { kind, parts, last, carry, idle }. It is changed: last, carry, idle, and the parts' condition.
---   io.next(fx): the next job, { cost = work units, ... } (it is the game side's to keep, Logic only passes it on),
---     or nil and why (noInput, noTank, outputFull ...).
+-- Works on a machine from `state.last` to `now`, as many jobs at once as its motor has lanes (each at the machine's
+-- rate), and returns what happened.
+--   state: { kind, parts, last, lanes, idle }. lanes: the work done on the jobs in hand, by lane: lane i is the i-th
+--     job io.next gives (finishing one moves the later ones up a lane, with their work). It is changed: last, lanes,
+--     idle, and the parts' condition.
+--   io.next(fx, i): the i-th job waiting, { cost = work units, ... } (it is the game side's to keep, Logic only passes
+--     it on), or nil and why (noInput, noTank, outputFull ...).
 --   io.finish(job, fx): does the job (takes the input, puts out the product).
 --   maxJobs: the batch size. When it is reached with time left, `state.last` stays behind `now` (the rest is
 --     done by the next step); otherwise it is `now`.
@@ -167,16 +171,20 @@ function Logic.advance(state, now, io, maxJobs)
     local result = { done = 0, hours = 0 }
     local t = state.last or now
     if t > now then t = now end
+    -- (a machine saved before the lanes kept one `carry`)
+    local carries = state.lanes or { state.carry or 0 }
+    state.carry = nil
+    state.lanes = carries
 
     local fx = Logic.effects(state.kind, state.parts)
     if fx.stopped then
-        state.last, state.idle, state.carry = now, true, 0
+        state.last, state.idle, state.lanes = now, true, {}
         result.reason = "stopped"
         return result
     end
     if state.idle then
-        local job, why = io.next(fx)
-        state.last = now
+        local job, why = io.next(fx, 1)
+        state.last, state.lanes = now, {}
         if job then
             state.idle = false
             result.started = true
@@ -191,36 +199,53 @@ function Logic.advance(state, now, io, maxJobs)
         if fx.stopped then
             result.reason = "stopped"
             t = now
-            state.carry = 0
+            carries = {}
             break
         end
-        local job, why = io.next(fx)
-        if not job then
-            result.reason = why or "noInput"
+        local jobs = {}
+        for lane = 1, fx.lanes do
+            local job, why = io.next(fx, lane)
+            if not job then
+                if lane == 1 then result.reason = why or "noInput" end
+                break
+            end
+            jobs[lane] = job
+        end
+        if #jobs == 0 then
             state.idle = true
-            state.carry = 0
+            carries = {}
             t = now
             break
         end
+        for lane = #carries, #jobs + 1, -1 do carries[lane] = nil end
+        -- the time to the first job done
         local rate = def.rate * fx.speed
-        local need = math.max(0, job.cost - (state.carry or 0))
-        local hours = need / rate
-        if t + hours > now + EPS then
-            -- Not finished by now: what was worked is kept for the next step.
-            local spent = now - t
-            state.carry = (state.carry or 0) + rate * spent
-            result.hours = result.hours + spent
-            result.worn = Logic.merge(result.worn, Logic.wear(state.kind, state.parts, spent))
-            t = now
-            break
+        local need = math.huge
+        for lane, job in ipairs(jobs) do
+            need = math.min(need, math.max(0, job.cost - (carries[lane] or 0)))
         end
+        local hours = need / rate
+        local finishing = t + hours <= now + EPS
+        if not finishing then hours = now - t end
+        for lane = 1, #jobs do carries[lane] = (carries[lane] or 0) + rate * hours end
         t = t + hours
         result.hours = result.hours + hours
         result.worn = Logic.merge(result.worn, Logic.wear(state.kind, state.parts, hours))
-        state.carry = 0
-        io.finish(job, fx)
-        result.done = result.done + 1
+        if not finishing then
+            -- not done by now: what was worked is kept for the next step
+            t = now
+            break
+        end
+        -- every job done by now, the last lane first (finishing one moves the later ones up)
+        for lane = #jobs, 1, -1 do
+            if carries[lane] >= jobs[lane].cost - EPS then
+                io.finish(jobs[lane], fx)
+                table.remove(carries, lane)
+                result.done = result.done + 1
+            end
+        end
     end
+    state.lanes = carries
 
     if t < now - EPS and result.done >= maxJobs then
         result.debt = now - t
@@ -244,7 +269,7 @@ end
 
 -- The hand bench: minutes of game time to shred an item of this weight.
 function Logic.benchMinutes(weight)
-    local s = Data.SHRED_SECONDS
+    local s = Data.WORK_SECONDS.shred
     return math.max(s.least, s.perWeight * weight) / 60
 end
 

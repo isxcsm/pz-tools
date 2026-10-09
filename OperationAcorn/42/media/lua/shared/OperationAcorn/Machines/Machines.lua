@@ -9,7 +9,7 @@
 --     the smallest x and y, holds everything below, the containers and the rain storage's fluid; the other objects
 --     carry only modData OA_Anchor = { id, x, y, z }. Machines.at(square) gives the anchor for any of the squares.
 --   The anchor's object modData OA_Machine: { id, kind, dir, x, y, z (the anchor), owner (player id), parts = { [slot] = { tier, cond } },
---     on, last (world hours up to which it has worked), carry (work not yet a whole job), idle, running, reason,
+--     on, last (world hours up to which it has worked), lanes (the work done on each job in hand), idle, running, reason,
 --     buffer (a refiner's product not yet in a tank) ... }. It travels with the object when the chunk unloads, which
 --     is what lets a place catch up the time it was away (DESIGN 12, performance rules).
 --   Products go into the machine's own `out` container (a refiner's stay in the tank it fills, in `in`).
@@ -489,6 +489,7 @@ function Machines.cutterPlan(item)
     local fabric = defs and defs[plan.material]
     if not fabric then return nil end
     plan.clean, plan.dirty = fabric.material, fabric.materialDirty
+    plan.weight = item:getActualWeight()
     return plan
 end
 
@@ -588,13 +589,20 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The jobs of each kind, for Logic.advance
 
+-- The things a machine works on, in the order of its container; one taken out (done, or by a player) is skipped.
 local function newQueue(container, accept, limit)
-    local queue = { list = collect(container, accept, limit), i = 1 }
-    function queue.peek()
-        while queue.list[queue.i] and not present(queue.list[queue.i]) do queue.i = queue.i + 1 end
-        return queue.list[queue.i]
+    local queue = { list = collect(container, accept, limit) }
+    -- the n-th thing still there (1 when not given)
+    function queue.peek(n)
+        n = n or 1
+        for _, entry in ipairs(queue.list) do
+            if present(entry) then
+                n = n - 1
+                if n == 0 then return entry end
+            end
+        end
+        return nil
     end
-    function queue.pop() queue.i = queue.i + 1 end
     return queue
 end
 
@@ -644,19 +652,19 @@ end
 local ACCEPT = {
     bulkShredder = function(item) return Machines.shreddable(item) end,
     cutter = function(item) return Machines.cutterPlan(item) end,
-    woodSaw = function(item) return item:getFullType() == "Base.Log" and true or nil end,
+    woodSaw = function(item) return item:getFullType() == "Base.Log" and { weight = item:getActualWeight() } or nil end,
     propaneRefiner = function(item) return Machines.rottenFood(item) end,
     oilRefiner = function(item) return Machines.oilOf(item) end,
 }
 
 local function jobCost(kind, entry)
-    if kind == "bulkShredder" then
-        -- the shared shredding rule: never under its least time for one item
-        local s = Data.SHRED_SECONDS
+    local work = Data.KINDS[kind].work
+    if work then
+        -- by weight, never under the least time for one thing
+        local s = Data.WORK_SECONDS[work]
         return math.max(entry.data.weight or 0, s.least / s.perWeight)
     end
-    if kind == "propaneRefiner" or kind == "oilRefiner" then return entry.data end
-    return 1
+    return entry.data   -- a refiner: the litres (or weight) it makes from the thing
 end
 
 -- The io Logic.advance works through for a machine object. Returns nil when its containers are missing.
@@ -672,9 +680,9 @@ local function makeIO(object, state, record)
         local function reset() queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + 5) end
         reset()
         io.reset = reset
-        io.next = function(fx)
+        io.next = function(fx, lane)
             if not record then return nil, "noOwner" end
-            local entry = queue.peek()
+            local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
             if not outC or free(outC) < 1 then return nil, "outputFull" end
             return { cost = jobCost(kind, entry), entry = entry }
@@ -682,7 +690,6 @@ local function makeIO(object, state, record)
         io.finish = function(job, fx)
             local count = Machines.shredYield(record, job.entry.data, fx)
             takeOut(job.entry)
-            queue.pop()
             putInType(outC, Machines.SAMPLE, count)
         end
 
@@ -690,17 +697,16 @@ local function makeIO(object, state, record)
         local function reset() queue = newQueue(inC, ACCEPT.cutter, Data.BATCH + 5) end
         reset()
         io.reset = reset
-        io.next = function(fx)
-            local entry = queue.peek()
+        io.next = function(fx, lane)
+            local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
             if not outC or free(outC) < 1 then return nil, "outputFull" end
-            return { cost = 1, entry = entry }
+            return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
             local plan = job.entry.data
             local count, dirty = Logic.cutterPieces(plan, fx)
             takeOut(job.entry)
-            queue.pop()
             putInType(outC, plan.clean, count - dirty)
             putInType(outC, plan.dirty, dirty)
             if plan.buckle then putInType(outC, "Base.Buckle", 1) end
@@ -712,16 +718,15 @@ local function makeIO(object, state, record)
         end
         reset()
         io.reset = reset
-        io.next = function(fx)
-            local entry = queue.peek()
+        io.next = function(fx, lane)
+            local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
             if not outC or free(outC) < 3 * (fx.planks + 1) then return nil, "outputFull" end
-            return { cost = 1, entry = entry }
+            return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
             local count = Logic.sawPlanks(fx)
             takeOut(job.entry)
-            queue.pop()
             putInType(outC, "Base.Plank", count)
         end
 
@@ -732,9 +737,9 @@ local function makeIO(object, state, record)
         end
         reset()
         io.reset = reset
-        io.next = function(fx)
+        io.next = function(fx, lane)
             deposit(inC, state, kind)
-            local entry = queue.peek()
+            local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
             if not hasSink(inC, state, kind) then return nil, "noTank" end
             return { cost = jobCost(kind, entry), entry = entry }
@@ -744,7 +749,6 @@ local function makeIO(object, state, record)
             if propane then gain = Logic.propaneGain(job.entry.data, fx)
             else gain = Logic.petrolGain(job.entry.data, fx) end
             takeOut(job.entry)
-            queue.pop()
             state.buffer = (state.buffer or 0) + gain
             deposit(inC, state, kind)
         end
@@ -789,7 +793,7 @@ function Machines.update(object, opts)
 
     if state.on == false or not powered then
         -- Without power or switched off it does not work, and the time does not count: its clock starts again.
-        state.idle, state.running, state.last, state.carry = true, false, now, 0
+        state.idle, state.running, state.last, state.lanes = true, false, now, {}
         state.reason = state.on == false and "off" or "noPower"
         Machines.refreshLook(object, state)
         if isServer() then object:transmitModData() end
@@ -827,9 +831,10 @@ end
 -- Hours between the noises a working machine makes (the ten-minute step).
 Machines.NOISE_EVERY = 1 / 6
 
--- The job a working machine is on now, for the player watching it: the item, and the share of it done by now (more
--- than 1 when it is due and the machine has not worked since). nil when it is not on a job (idle, off, no power, a
--- part worn out). Light enough for a window that is open: the first thing it takes, and the time since it last worked.
+-- The jobs a working machine is on now, for the player watching it: a list, a lane each, of { item, share } (the
+-- share of it done by now, more than 1 when it is due and the machine has not worked since). nil when it is not on a
+-- job (idle, off, no power, a part worn out). Light enough for a window that is open: the first things it takes, and
+-- the time since it last worked.
 function Machines.progress(object)
     local state = Machines.state(object)
     if not state or state.idle ~= false or state.on == false or not ACCEPT[state.kind] then return nil end
@@ -837,11 +842,15 @@ function Machines.progress(object)
     local square = object:getSquare()
     if fx.stopped or not square or not Machines.hasPower(square) then return nil end
     local inC = Machines.container(object, "in")
-    local entry = inC and collect(inC, ACCEPT[state.kind], 1)[1]
-    if not entry then return nil end
-    local rate = Data.KINDS[state.kind].rate * fx.speed
-    local worked = (state.carry or 0) + rate * math.max(0, OA.hours() - (state.last or 0))
-    return entry.item, worked / jobCost(state.kind, entry)
+    local entries = inC and collect(inC, ACCEPT[state.kind], fx.lanes) or {}
+    if #entries == 0 then return nil end
+    local spent = Data.KINDS[state.kind].rate * fx.speed * math.max(0, OA.hours() - (state.last or 0))
+    local carries = state.lanes or { state.carry or 0 }
+    local list = {}
+    for lane, entry in ipairs(entries) do
+        list[lane] = { item = entry.item, share = ((carries[lane] or 0) + spent) / jobCost(state.kind, entry) }
+    end
+    return list
 end
 
 -- The lure: a sound every 15 minutes for 24 hours of world time, then a spent shell. Only a loaded lure does
@@ -968,8 +977,9 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The status (for windows and tooltips)
 
--- What a machine is doing now: { kind, name, on, running, reason, powered, speed, load, noise, stopped, missing,
--- broken, worn, parts = { [slot] = { tier, cond } } }.
+-- What a machine is doing now: { kind, name, on, running, reason, powered, speed, lanes, rate, load, noise, stopped,
+-- missing, broken, worn, parts = { [slot] = { tier, cond } } }. rate: work an hour on all its lanes; speed: that over
+-- the old motor's (lanes x the motor's speed).
 function Machines.status(object)
     local state = Machines.state(object)
     if not state then return nil end
@@ -978,9 +988,9 @@ function Machines.status(object)
     local status = {
         kind = state.kind, name = Machines.name(state.kind), on = state.on ~= false, running = state.running == true,
         reason = state.reason, powered = def.power and Machines.hasPower(object:getSquare()) or nil,
-        speed = fx.speed, load = Logic.load(state.kind, state.parts, true), noise = Logic.noiseRadius(state.kind, fx),
-        stopped = fx.stopped, missing = fx.missing, broken = fx.broken, worn = fx.worn, parts = state.parts,
-        rate = def.rate and def.rate * fx.speed or nil,
+        speed = fx.speed * fx.lanes, lanes = fx.lanes, load = Logic.load(state.kind, state.parts, true),
+        noise = Logic.noiseRadius(state.kind, fx), stopped = fx.stopped, missing = fx.missing, broken = fx.broken,
+        worn = fx.worn, parts = state.parts, rate = def.rate and def.rate * fx.speed * fx.lanes or nil,
     }
     if state.kind == "lure" then
         status.left = state.spent and 0 or Logic.lureLeft(state, OA.hours())
@@ -1120,7 +1130,7 @@ function Machines.place(kind, square, character, item, dir, bare)
 
     local ax, ay, az = square:getX(), square:getY(), square:getZ()
     local state = { id = id, kind = kind, dir = dir, owner = Store.idOf(character), on = true, last = OA.hours(),
-        carry = 0, idle = true, running = false, buffer = 0, x = ax, y = ay, z = az }
+        lanes = {}, idle = true, running = false, buffer = 0, x = ax, y = ay, z = az }
     state.parts = bare and {} or Logic.newParts(kind)
     if kind == "lure" then
         state.start, state.slot, state.spent = OA.hours(), -1, false
@@ -1305,7 +1315,7 @@ function Machines.installPart(object, slot, item, character)
     state.parts[slot] = { tier = info.tier, cond = itemCondition(item) }
     Machines.syncLoad(object, state)
     -- A fresh start: the machine looks at its work again from now.
-    state.idle, state.last, state.carry = true, OA.hours(), 0
+    state.idle, state.last, state.lanes = true, OA.hours(), {}
     if isServer() then object:transmitModData() end
     return true
 end
@@ -1317,7 +1327,7 @@ function Machines.removePart(object, slot, character)
     if not part then return false end
     state.parts[slot] = nil
     giveBack(character, state.kind, slot, part)
-    state.idle, state.running, state.last, state.carry = true, false, OA.hours(), 0
+    state.idle, state.running, state.last, state.lanes = true, false, OA.hours(), {}
     Machines.refreshLook(object, state)
     if isServer() then object:transmitModData() end
     return true
@@ -1328,7 +1338,7 @@ function Machines.setOn(object, on)
     local state = Machines.state(object)
     if not state or not Data.processes(state.kind) then return end
     state.on = on and true or false
-    state.idle, state.last, state.carry = true, OA.hours(), 0
+    state.idle, state.last, state.lanes = true, OA.hours(), {}
     if not state.on then state.running = false end
     Machines.refreshLook(object, state)
     if isServer() then object:transmitModData() end
