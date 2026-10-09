@@ -1,6 +1,8 @@
 -- Rooms built onto a map building (attached rooms) and the game's AllowExteriorGenerator option.
 --
--- Set up once, by hand, in a save with the test panel (bu_setup.lua, in a map building; the default exterior range 10):
+-- Set up once: RUN("bu_room.lua") builds all of this near the player (and the test panel in that building), and puts
+-- the player inside. By hand instead, in a save with the test panel (bu_setup.lua, in a map building; the default
+-- exterior range 10):
 --   1. Build a small room against the building from outside: floor, walls on all four sides (one side the building's
 --      own wall), a door, and a roof over it (floor tiles on the level above), so that it is enclosed and at least half
 --      roofed. Wait a few seconds for the game to settle.

@@ -56,12 +56,16 @@ look; `BU22_CLEAN()` takes them away.
   changed in play and back, taken once each. Each line "ok" or "BAD", ending with "done". Stand by the tower panel
   first (`RUN("bu_tptower.lua")`). Needs the tower panel: a tier 4 box on the ground floor of a building of 15 floors
   or more, its id in `ModData.getOrCreate("BUTOWER").panel`.
-- `bu_attached.lua`: a room built onto the test panel's building (set up by hand, the script's header says how) and the
-  game's `AllowExteriorGenerator`: what the game and the API give for the room (no room def, no API building, an
-  enclosed roofed region), the room found and counted as the building's, its devices inside, in the box's lists and
-  networks and switched off and on at the box; the device outside still outside; then the option on, off (outside
-  devices unsupplied and held, the connect menu's reason, the room's devices still supplied), on again and unset. Each
-  line "ok" or "BAD", ending with "done". Needs the test panel (`bu_setup.lua`); stand inside the room.
+- `bu_room.lua`: the scene of `bu_attached.lua`, built: a 3x3 room onto the east wall of a map building near the
+  player (wooden walls, a door frame and door, a floor, a roof of floor tiles above), a fridge and a sink in it, a
+  fridge in the yard, the test panel in that building; the player is put inside. The room stays. The game's regions
+  see a door only with its frame, and a roof only once the square below is told again; it does both.
+- `bu_attached.lua`: a room built onto the test panel's building (`bu_room.lua` builds it; by hand, the script's header
+  says how) and the game's `AllowExteriorGenerator`: what the game and the API give for the room (no room def, no API
+  building, an enclosed roofed region), the room found and counted as the building's, its devices inside, in the box's
+  lists and networks and switched off and on at the box; the device outside still outside; then the option on, off
+  (outside devices unsupplied and held, the connect menu's reason, the room's devices still supplied), on again and
+  unset. Each line "ok" or "BAD", ending with "done". Needs the test panel (`bu_setup.lua`); stand inside the room.
 - `bu_nearest.lua`: the water policy drawn for real at the tower panel: a barrel on the ground floor and one a floor
   up; a draw takes the own floor's first though the one above is fuller, one at 97 percent first (before it spills),
   then on up once the own floor's is empty. Needs an app whose API has `"nearest"` (else the mod falls back to
