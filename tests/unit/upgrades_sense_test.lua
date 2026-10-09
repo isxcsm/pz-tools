@@ -92,12 +92,22 @@ test("sense: screen directions and distance bands", function()
     x, y = Sense.screen(0, 0)
     eq(x, -1)
     eq(y, 0)
-    eq(Sense.band(0), 1)
-    eq(Sense.band(Sense.NEAR - 0.01), 1)
-    eq(Sense.band(Sense.NEAR), 2)
-    eq(Sense.band(Sense.MID - 0.01), 2)
-    eq(Sense.band(Sense.MID), 3)
-    eq(Sense.band(600), 3)
+end)
+
+test("sense cues: Visual Sounds' bands and distance from the character", function()
+    eq(Sense.cue(0), 1, "on the character's square")
+    eq(Sense.cue(1), 1)
+    eq(Sense.cue(1.01), 2)
+    eq(Sense.cue(4), 2)
+    eq(Sense.cue(6.5), 3)
+    eq(Sense.cue(20), 7)
+    eq(Sense.cue(20.01), 8)
+    eq(Sense.cue(600), 8)
+    eq(Sense.offset(0), 0)
+    near(Sense.offset(3), 75, 1e-9)
+    near(Sense.offset(8), 400 / 3, 1e-9)
+    truthy(Sense.offset(20) > Sense.offset(10) and Sense.offset(10) - Sense.offset(5) > Sense.offset(20) - Sense.offset(15),
+        "further out, ever slower")
 end)
 
 test("sense: a full list keeps a zombie coming or striking over one groaning, and keeps when a sound was first heard", function()
@@ -134,24 +144,35 @@ test("sense voices: a zombie in reach makes a sound soon, then now and then; tak
     local zs = { zed(a, 3, 0), zed(b, 0, 4), zed(far, 30, 0), zed(up, 2, 0, 1) }
     eq(scan(0, zs), "", "nothing at once")
     eq(scan(Sense.FIRST_MS, zs), "a:zombie,b:zombie", "both within the first spread; too far and another floor never")
-    -- quiet until their time comes again (three quarters of IDLE_MS at the least)
-    eq(scan(Sense.FIRST_MS + 500, zs), "")
+    -- quiet until their time comes again (three quarters of voiceMs at the least)
+    eq(scan(Sense.FIRST_MS + 300, zs), "")
     -- b takes a target: at once; then a strikes: at once
     zs[2] = zed(b, 0, 4, 0, true)
-    eq(scan(Sense.FIRST_MS + 1000, zs), "b:aggro")
+    eq(scan(Sense.FIRST_MS + 400, zs), "b:aggro")
     zs[1] = zed(a, 3, 0, 0, false, true)
-    eq(scan(Sense.FIRST_MS + 1500, zs), "a:attack")
-    -- a hunting zombie calls more often than an idle one
-    local t = Sense.FIRST_MS + 1000 + Sense.HUNT_MS * 1.25
-    eq(scan(t, zs), "b:zombie")
+    eq(scan(Sense.FIRST_MS + 600, zs), "a:attack")
+    -- then each again within a quarter of voiceMs of its distance either way
+    local t = Sense.FIRST_MS + 600 + Sense.voiceMs(3) * 1.25
+    eq(scan(t, zs), "a:zombie,b:zombie")
     -- one out of reach is forgotten: back in reach it starts again
     eq(scan(t + 10, { zs[2] }), "")
     eq(memo.by[a], nil, "forgotten")
-    eq(scan(t + 20, zs), "")
-    eq(scan(t + 20 + Sense.FIRST_MS, zs), "a:zombie")
+    eq(scan(t + 20, { zs[1] }), "")
+    eq(scan(t + 20 + Sense.FIRST_MS, { zs[1] }), "a:zombie")
     -- the advanced rank hears other floors
     local memo2 = {}
     eq(kinds(Sense.voices({ zed(up, 2, 0, 1) }, memo2, 0, 0, 0, 10, true, Sense.FIRST_MS, {})), "")
+end)
+
+test("sense voices: a near zombie calls more often than a far one, as Visual Sounds' do", function()
+    local memo, out = {}, {}
+    local zs = { zed("near", 2, 0), zed("far", 9, 0) }
+    local count = { near = 0, far = 0 }
+    for now = 0, 60000, 500 do
+        for _, e in ipairs(Sense.voices(zs, memo, 0, 0, 0, 10, false, now, out)) do count[e.key] = count[e.key] + 1 end
+    end
+    truthy(count.near > count.far * 1.8, "near " .. count.near .. ", far " .. count.far)
+    truthy(count.near >= 60, "near about every look or two, was " .. count.near)
 end)
 
 test("sense voices: a crowd does not call at once", function()
@@ -169,15 +190,16 @@ end)
 test("sense voices: past the groans a look allows, the rest wait; a strike is told at once", function()
     local memo, out = {}, {}
     local zs = {}
-    for k = 1, 10 do zs[k] = zed("z" .. k, 1, 0) end
+    -- far enough that none calls twice in these looks
+    for k = 1, 10 do zs[k] = zed("z" .. k, 9, 0) end
     Sense.voices(zs, memo, 0, 0, 0, 10, false, 0, out)
     local heard = #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS, out)
     eq(heard, Sense.VOICES_PER_LOOK, "the first look after they came in")
     heard = heard + #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 500, out)
     heard = heard + #Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 1000, out)
     eq(heard, 10, "the others on the next looks")
-    zs[10] = zed("z10", 1, 0, 0, false, true)
-    for k = 1, 9 do zs[k] = zed("z" .. k, 1, 0) end
+    zs[10] = zed("z10", 9, 0, 0, false, true)
+    for k = 1, 9 do zs[k] = zed("z" .. k, 9, 0) end
     local strike = Sense.voices(zs, memo, 0, 0, 0, 10, false, Sense.FIRST_MS + 1500, out)
     eq(#strike, 1)
     eq(strike[1].kind, "attack")

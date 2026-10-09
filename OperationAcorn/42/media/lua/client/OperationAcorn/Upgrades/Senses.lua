@@ -49,47 +49,76 @@ end
 
 function Hud:prerender() end
 
--- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing the place its
--- sound was made, on an ellipse laid as the ground lies round the body (BODY of a floor above the feet), RING tiles
--- out: wide enough that a mark beside the character is not drawn over it. The way is worked out every frame from
--- where the character is, so it turns as the character moves. Every size is in tiles of the default zoom (TILE_PX
--- pixels): the marks keep their size on the screen whatever the zoom, as the HUD does; their ellipse keeps the
--- ground's slant. Every mark sits on the one ring, overlapping where ways meet (layers outward hid more of the view
--- and did not read plainly). A mark comes on over FADE_IN_MS and fades out over its last FADE_MS.
---   Zombies: an arc. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); a zombie coming or
---   striking is drawn brighter than one only groaning. Zombies beating on a door, a window or a wall (advanced rank 2)
---   shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for another
---   floor (advanced rank 2), upright and white.
---   Noises (advanced rank 2): a thin arc, its kind in its pattern (plain, a wheel for a vehicle, dots for a radio, TV
---   or generator, spikes for an alarm), white but for alarms, which draw every zombie around and are a deep red.
---   Nearer (under Sense.NEAR tiles, then Sense.MID) is bigger and brighter. An alarm also beats: fast when near,
---   slowly at mid, still when far.
+-- The presence marks, drawn as Visual Sounds draws its cues: its pictures (tools/sense_art.py copies them), its sizes,
+-- strengths and colours by its distance bands (Sense.cue), and its distance from the character (Sense.offset), all as
+-- it has them: a UX many players have used. Each cue's middle is Sense.offset(d) screen pixels from the character's
+-- middle (BODY of a floor above the feet), the way to the place its sound comes from, worked out every frame (the
+-- way on the screen as the view projects it: Visual Sounds turns the world by 45 degrees, which is off by up to 18 on
+-- the game's 2:1 view), turned to face out. A zombie's sound follows the zombie (but its beating on something, which
+-- is where it beats), and so does an alarm clock ringing on one, as Visual Sounds' do. A zombie the character sees
+-- now is drawn faint (the cue is for what the eyes miss), whatever it is doing: as the game shows it (its target
+-- alpha), so that turning away from it brings its cue back at once (Visual Sounds can hide only one coming for the
+-- character, by its square, which leaves one behind the character hidden too). Sizes are screen pixels, as Visual Sounds draws them, whatever the zoom. A cue comes on over FADE_IN_MS
+-- and fades out over its last FADE_MS.
+--   Zombies: a thin arc with a soft trail on its inner side, red near through orange and yellow to green far, short
+--   and strong near, wide and faint far. Without the distance rank one pale arc at one distance (nothing tells how
+--   far). One beating on a door, a window or a wall (advanced rank 2) has brackets on it, ( ( ) ), orange.
+--   Noises (advanced rank 2): a vehicle a flat line with a wheel, a machine (radio, TV, generator) a dotted cyan arc,
+--   an alarm (it draws every zombie around) a row of red triangles, anything else a thin white arc.
+--   A sound on the character's square: a soft red disc. A chevron on a cue for another floor, upright and white.
 -- The pictures are white, tinted as they are drawn.
-local BODY = 0.15
-local TILE_PX = 36
-local RING = 3.0
-local ZOMBIE_W = { 2.7, 2.3, 1.95 }
-local BANG_W = 1.2
-local FLOOR_W = 0.55
-local NOISE_W = { 2.95, 2.45, 1.95 }
-local NOISE_A = { 1.0, 0.85, 0.65 }
-local ALARM_HZ = { 3, 1.5, 0 }
-local SHAKE_HZ = 4
+local BODY = 0.3
 local FADE_IN_MS = 180
 local FADE_MS = 700
--- How bright a zombie's sound is drawn, by kind (coming or striking the brightest).
-local ZOMBIE_A = { zombie = 0.8, thump = 1.0, aggro = 1.0, attack = 1.0 }
--- Zombies by distance, as Visual Sounds colours them: red near, amber at mid, green far; without the distance rank one
--- pale colour.
-local NEAR = { 1.00, 0.30, 0.22 }
-local MID = { 1.00, 0.70, 0.22 }
-local FAR = { 0.40, 0.92, 0.42 }
+-- A shadow under each cue, this many pixels down and right, so that a pale one reads on a pale floor.
+local SHADE = 1
+-- The cue of a band, from Visual Sounds' pictures: its picture, its width (pixels) and strength (its pictures' most
+-- opaque pixel), and its colour, for bands 2 .. 8 (band 1 is SAME). Each picture is drawn at the band's width.
+local function rgb(r, g, b) return { r / 255, g / 255, b / 255 } end
+local function strengths(list)
+    for i = 1, #list do list[i] = list[i] / 255 end
+    return list
+end
+local CUES = {
+    zombie = {
+        pictures = { nil, "OA_Sense_Arc_Near", "OA_Sense_Arc_Mid", "OA_Sense_Arc_Mid", "OA_Sense_Arc_Far",
+            "OA_Sense_Arc_Far", "OA_Sense_Arc_Far", "OA_Sense_Arc_Far" },
+        w = { 0, 83, 100, 110, 120, 130, 126, 126 },
+        a = strengths({ 0, 186, 173, 158, 143, 125, 107, 89 }),
+        c = { nil, rgb(255, 0, 0), rgb(255, 66, 0), rgb(255, 120, 0), rgb(255, 174, 0), rgb(255, 234, 0),
+            rgb(180, 255, 0), rgb(0, 255, 47) },
+    },
+    vehicle = {
+        w = { 0, 80, 70, 65, 60, 55, 48, 82 },
+        a = strengths({ 0, 243, 243, 243, 243, 243, 243, 243 }),
+    },
+    device = {
+        w = { 0, 140, 130, 120, 110, 93, 84, 139 },
+        a = strengths({ 0, 126, 151, 177, 202, 227, 252, 101 }),
+    },
+    noise = {
+        w = { 0, 140, 130, 120, 110, 93, 84, 139 },
+        a = strengths({ 0, 127, 147, 166, 181, 133, 209, 104 }),
+    },
+    alarm = {
+        pictures = { nil, "OA_Sense_Alarm_L", "OA_Sense_Alarm_L", "OA_Sense_Alarm_L", "OA_Sense_Alarm_M",
+            "OA_Sense_Alarm_M", "OA_Sense_Alarm_S", "OA_Sense_Alarm_S" },
+        w = { 0, 126, 121, 120, 110, 93, 84, 84 },
+        a = strengths({ 0, 128, 153, 179, 204, 230, 255, 255 }),
+    },
+}
+CUES.vehicle.picture, CUES.device.picture, CUES.noise.picture = "OA_Sense_Line", "OA_Sense_Dots", "OA_Sense_Noise"
+local WHITE = { 1, 1, 1 }
+local CUE_TINT = { vehicle = WHITE, device = rgb(0, 186, 254), noise = WHITE, alarm = rgb(255, 0, 0) }
+-- The vehicle's wheel, the thump's brackets, the square's disc and the floor chevrons: one size each, upright.
+local WHEEL_W = 16
+local THUMP_W, THUMP_A, THUMP_TINT = 32, 224 / 255, rgb(255, 106, 0)
+local SAME_W, SAME_A, SAME_TINT = 46, 83 / 255, rgb(255, 0, 0)
+local FLOOR_W = 22
+-- Without the distance rank: one pale arc, as a mid band's, at one distance.
 local PLAIN = { 0.80, 0.88, 1.00 }
-local NOISE_TINT = { 0.95, 0.95, 0.90 }
-local ALARM_TINT = { 0.95, 0.08, 0.06 }
-local ZOMBIE_PICTURE = { "OA_Sense_Arc_L", "OA_Sense_Arc_M", "OA_Sense_Arc_S" }
-local ZOMBIE_TINT = { NEAR, MID, FAR }
-local NOISE_PICTURE = { vehicle = "OA_Sense_Car", alarm = "OA_Sense_Alarm", device = "OA_Sense_Dots", noise = "OA_Sense_Noise" }
+local PLAIN_BAND = 4
+local PLAIN_D = 6.5
 local pictures = {}
 local function picture(name)
     local t = pictures[name]
@@ -100,32 +129,37 @@ local function picture(name)
     return t or nil
 end
 
--- A beat between 0 and 1, `hz` times a second, counted from when the file loaded (getTimestampMs as it is is too big
--- a number to make a phase of).
-local T0 = getTimestampMs()
-local function beat(now, hz)
-    return 0.5 + 0.5 * math.sin((now - T0) * 0.002 * math.pi * hz)
-end
-
 -- Draws a picture `w` pixels wide (as tall as its proportions say) centred at the screen point (x, y), turned so that
--- its top faces the screen direction (ux, uy), over a dark copy `shade` pixels lower and right so that a pale mark
--- still reads on a pale floor. UIElement.DrawTexture with four corners (top-left, top-right, bottom-right,
--- bottom-left, the order DrawTextureAngle passes them in) takes screen coordinates, not the panel's.
-local function quad(ui, tex, x, y, ux, uy, w, c, a, shade)
+-- its top faces the screen direction (ux, uy) (0, -1: upright), over a dark copy SHADE pixels lower and right.
+-- UIElement.DrawTexture with four corners (top-left, top-right, bottom-right, bottom-left, the order DrawTextureAngle
+-- passes them in) takes screen coordinates, not the panel's.
+local function quad(ui, tex, x, y, ux, uy, w, c, a)
     if not tex then return end
     local h = w * tex:getHeight() / tex:getWidth()
     local rx, ry = -uy * w / 2, ux * w / 2
     local tx, ty = ux * h / 2, uy * h / 2
     local x1, y1, x2, y2 = x - rx + tx, y - ry + ty, x + rx + tx, y + ry + ty
     local x3, y3, x4, y4 = x + rx - tx, y + ry - ty, x - rx - tx, y - ry - ty
-    if shade > 0 then
-        ui:DrawTexture(tex, x1 + shade, y1 + shade, x2 + shade, y2 + shade, x3 + shade, y3 + shade, x4 + shade,
-            y4 + shade, 0, 0, 0, a * 0.55)
-    end
+    ui:DrawTexture(tex, x1 + SHADE, y1 + SHADE, x2 + SHADE, y2 + SHADE, x3 + SHADE, y3 + SHADE, x4 + SHADE,
+        y4 + SHADE, 0, 0, 0, a * 0.55)
     ui:DrawTexture(tex, x1, y1, x2, y2, x3, y3, x4, y4, c[1], c[2], c[3], a)
 end
 
--- How much of a mark shows at `now`: coming on, then fading out at the end.
+-- Moves a cue that follows a zombie (m.follow) to where the zombie is now; a dead one leaves it where it was.
+local function follow(m)
+    local z = m.follow
+    if not z then return end
+    if z:isDead() then
+        m.follow = nil
+    else
+        m.x, m.y, m.z = z:getX(), z:getY(), z:getZ()
+    end
+end
+
+-- How faint the cue of a zombie the character sees is drawn (1 would hide it).
+local SEEN_DIM = 0.7
+
+-- How much of a cue shows at `now`: coming on, then fading out at the end.
 local function shown(m, now)
     local a = math.min(1, (now - m.born) / FADE_IN_MS)
     local left = m.untilMs - now
@@ -133,83 +167,82 @@ local function shown(m, now)
     return a
 end
 
--- Where on the ring a mark made at (x, y) sits, seen from the character at (px, py): the screen point on the ground's
--- ellipse round (cx, cy), RING tiles out, its unit way on the screen, and the distance in tiles. (exX, exY) and
--- (eyX, eyY) are the screen offsets of one tile east and south.
-local function onRing(x, y, px, py, cx, cy, exX, exY, eyX, eyY)
+-- The way on the screen from the character at (px, py) to the place (x, y), a unit vector, and the distance in tiles.
+-- (exX, exY) and (eyX, eyY) are the screen offsets of one tile east and south.
+local function way(x, y, px, py, exX, exY, eyX, eyY)
     local dx, dy = x - px, y - py
     local d = math.sqrt(dx * dx + dy * dy)
-    if d < 0.01 then dx, dy, d = -0.7071, 0.7071, 0 else dx, dy = dx / (d > 0 and d or 1), dy / (d > 0 and d or 1) end
-    local gx, gy = (dx * exX + dy * eyX) * RING, (dx * exY + dy * eyY) * RING
+    if d < 0.01 then return -1, 0, 0 end
+    local gx, gy = dx * exX + dy * eyX, dx * exY + dy * eyY
     local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
-    return cx + gx, cy + gy, gx / len, gy / len, d
+    return gx / len, gy / len, d
 end
 
--- The zombies' sounds. (cx, cy) is the ring's centre on the screen; `tile` a tile's length on it.
-local function drawZombies(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
+-- The chevron for a cue at (x, y) a floor above or below the character.
+local function floorMark(ui, x, y, z, pz, a)
+    if math.abs(z - pz) >= 0.5 then
+        quad(ui, picture(z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W, WHITE, a)
+    end
+end
+
+-- The zombies' sounds. (cx, cy) is the character's middle on the screen.
+local function drawZombies(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     local list = S.zombies
+    local cues = CUES.zombie
     for i = 1, #list do
         local m = list[i]
         local a = shown(m, now)
         if a > 0 then
-            local x, y, ux, uy, d = onRing(m.x, m.y, px, py, cx, cy, exX, exY, eyX, eyY)
-            -- without the distance rank: one middle size, pale
-            local band, c = 2, PLAIN
-            if S.distance and S.radius > 0 then
-                local t = math.min(1, d / S.radius)
-                band = (t < 0.34) and 1 or ((t < 0.67) and 2 or 3)
-                c, a = ZOMBIE_TINT[band], a * (1.0 - 0.45 * t)
+            follow(m)
+            -- one the character sees, faint (m.follow: a zombie's own sound, not its beating on something)
+            if m.follow then a = a * (1 - SEEN_DIM * math.min(1, m.follow:getTargetAlpha(n))) end
+            local ux, uy, d = way(m.x, m.y, px, py, exX, exY, eyX, eyY)
+            local band, c = PLAIN_BAND, PLAIN
+            if S.distance then
+                band = Sense.cue(d)
+                c = cues.c[band]
+            else
+                d = PLAIN_D
             end
-            a = a * (ZOMBIE_A[m.kind] or 0.8)
-            local tex = picture(ZOMBIE_PICTURE[band])
-            local w = ZOMBIE_W[band] * tile
-            local thump = m.kind == "thump"
-            if thump then w = w * (1 + 0.08 * beat(now, SHAKE_HZ)) end
-            quad(ui, tex, x, y, ux, uy, w, c, a, shade)
-            local bang = thump and picture("OA_Sense_Bang")
-            if bang and tex then
-                -- just past the arc's crest (about a quarter of the picture above its middle)
-                local bw = BANG_W * tile
-                local off = w * tex:getHeight() / tex:getWidth() * 0.3 + bw * bang:getHeight() / bang:getWidth() * 0.45
-                quad(ui, bang, x + ux * off, y + uy * off, ux, uy, bw, c, a, shade)
+            local r = Sense.offset(d)
+            local x, y = cx + ux * r, cy + uy * r
+            if band == 1 then
+                quad(ui, picture("OA_Sense_Same"), x, y, 0, -1, SAME_W, SAME_TINT, a * SAME_A)
+            else
+                quad(ui, picture(cues.pictures[band]), x, y, ux, uy, cues.w[band], c, a * cues.a[band])
             end
-            if S.extended and math.abs(m.z - pz) >= 0.5 then
-                -- white on the coloured arc (in the arc's colour it melted into it)
-                quad(ui, picture(m.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W * tile,
-                    NOISE_TINT, a, shade)
+            if m.kind == "thump" then
+                quad(ui, picture("OA_Sense_Thump"), x, y, 0, -1, THUMP_W, THUMP_TINT, a * THUMP_A)
             end
+            if S.extended then floorMark(ui, x, y, m.z, pz, a) end
         end
     end
 end
 
--- The noises' marks, seen from the character at (px, py, pz).
-local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
+-- The noises' cues, seen from the character at (px, py, pz).
+local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     local list = S.sounds
     for i = 1, #list do
         local m = list[i]
         local a = shown(m, now)
         if a > 0 then
-            local x, y, ux, uy, d = onRing(m.x, m.y, px, py, cx, cy, exX, exY, eyX, eyY)
-            local band = Sense.band(d)
-            local alarm = m.kind == "alarm"
-            a = a * NOISE_A[band]
-            local w = NOISE_W[band] * tile
-            if alarm and ALARM_HZ[band] > 0 then
-                local b = beat(now, ALARM_HZ[band])
-                a = a * (0.6 + 0.4 * b)
-                w = w * (1 + 0.1 * b)
+            follow(m)
+            local ux, uy, d = way(m.x, m.y, px, py, exX, exY, eyX, eyY)
+            local band = Sense.cue(d)
+            local r = Sense.offset(d)
+            local x, y = cx + ux * r, cy + uy * r
+            local cues = CUES[m.kind] or CUES.noise
+            if band == 1 then
+                quad(ui, picture("OA_Sense_Same"), x, y, 0, -1, SAME_W, SAME_TINT, a * SAME_A)
+            else
+                local strength = a * cues.a[band]
+                quad(ui, picture(cues.pictures and cues.pictures[band] or cues.picture), x, y, ux, uy, cues.w[band],
+                    CUE_TINT[m.kind] or WHITE, strength)
+                if m.kind == "vehicle" then
+                    quad(ui, picture("OA_Sense_Wheel"), x, y, 0, -1, WHEEL_W, WHITE, strength)
+                end
             end
-            local tex = picture(NOISE_PICTURE[m.kind])
-            local tint = alarm and ALARM_TINT or NOISE_TINT
-            quad(ui, tex, x, y, ux, uy, w, tint, a, shade)
-            if alarm then
-                -- drawn twice: one red pass is thin on a pale floor
-                quad(ui, tex, x, y, ux, uy, w, tint, a, 0)
-            end
-            if math.abs(m.z - pz) >= 0.5 then
-                quad(ui, picture(m.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W * tile,
-                    NOISE_TINT, a, shade)
-            end
+            floorMark(ui, x, y, m.z, pz, a)
         end
     end
 end
@@ -224,15 +257,10 @@ function Hud:render()
         local eyX, eyY = isoToScreenX(n, px, py + 1, pz) - ox, isoToScreenY(n, px, py + 1, pz) - oy
         -- screen coordinates, as isoToScreen gives them and the quads take them
         local cx, cy = ox, isoToScreenY(n, px, py, pz + BODY)
-        -- one tile's ways on the screen, at TILE_PX long whatever the zoom
-        local k = TILE_PX / math.max(0.01, math.sqrt(exX * exX + exY * exY))
-        exX, exY, eyX, eyY = exX * k, exY * k, eyX * k, eyY * k
-        local tile = TILE_PX
-        local shade = math.max(1, tile / 48)
         local now = getTimestampMs()
         local ui = self.javaObject
-        drawZombies(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
-        drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
+        drawZombies(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+        drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     end
     if #S.alarms > 0 then
         local zoom = getCore():getZoom(self.playerNum)
@@ -367,9 +395,11 @@ local function updateSixth()
     Moodles.set("sixth", S.sixth and 1 or 0)
 end
 
--- Puts a zombie's sound in the list, heard where it was made.
+-- Puts a zombie's sound in the list, heard where it was made; but for its beating on something (where it beats), it
+-- follows the zombie (`key`, when it is one) from then.
 local function zombieHeard(kind, key, x, y, z, now)
-    Sense.heard(S.zombies, key, kind, x, y, z, now, now + Sense.LIFE[kind], Sense.ZOMBIE_MARKS)
+    local _, _, m = Sense.heard(S.zombies, key, kind, x, y, z, now, now + Sense.LIFE[kind], Sense.ZOMBIE_MARKS)
+    m.follow = kind ~= "thump" and type(key) == "userdata" and key or nil
 end
 
 local voiceMemo, voiceOut = {}, {}
@@ -520,7 +550,9 @@ local function onWorldSound(x, y, z, radius, volume, source)
         return
     end
     if not S.extended then return end
-    Sense.heard(S.sounds, key, kind, x + 0.5, y + 0.5, z, now, now + Sense.LIFE[kind], Sense.NOISE_MARKS)
+    local _, _, m = Sense.heard(S.sounds, key, kind, x + 0.5, y + 0.5, z, now, now + Sense.LIFE[kind], Sense.NOISE_MARKS)
+    -- an alarm clock ringing on a zombie goes where it goes
+    m.follow = kind == "alarm" and type(key) == "userdata" and instanceof(key, "IsoZombie") and key or nil
 end
 
 -- The zombies' own sounds from the extension API (a groan, taking a target, a lunge or a strike, a fall): heard where

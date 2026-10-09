@@ -12,22 +12,24 @@ OA.Upgrades.Sense = Sense
 Sense.ZOMBIE_MARKS = 8
 Sense.NOISE_MARKS = 4
 -- How long a sound shows (ms), by kind; one heard again lasts from then. A zombie beating on something is heard at
--- every blow, about once a second, so it shows while it goes on.
-Sense.LIFE = { zombie = 2000, aggro = 2200, attack = 2200, thump = 1300, alarm = 2500, vehicle = 2500, device = 2500,
+-- every blow, about once a second, so it shows while it goes on. A machine's lasts longest, as Visual Sounds' does.
+Sense.LIFE = { zombie = 2000, aggro = 2200, attack = 2200, thump = 1300, alarm = 2500, vehicle = 2500, device = 4000,
     noise = 2500 }
--- Without the extension API's zombie sounds, how often a zombie is taken to make one (ms): idle, and after a target.
-Sense.IDLE_MS = 5000
-Sense.HUNT_MS = 2000
+-- How often a zombie `d` tiles away makes a sound (ms), on average: Visual Sounds' chance of 1 in 26 + 10 d at each of
+-- the zombie's updates, 60 a second (2 tiles: 0.8 s, 8: 1.8 s, 14: 2.8 s), so a near one is all but always shown.
+function Sense.voiceMs(d)
+    return (26 + 10 * d) * 1000 / 60
+end
+
 -- The first sound of a zombie newly in reach comes within this (ms), spread over the zombies.
 Sense.FIRST_MS = 1500
 -- At most this many groans a look (twice a second), the first zombies of the list (the nearest, from the API's query)
 -- first; the others' wait for the next look. Taking a target and striking are always told. As Visual Sounds caps the
 -- sounds it handles: a crowd does not flood the list (Sense.ZOMBIE_MARKS) nor the work.
 Sense.VOICES_PER_LOOK = 4
--- A noise's distance band (tiles): near below NEAR, mid below MID, far beyond. An alarm in the near band is one the
--- zombies around are coming to; past MID it draws another street's.
-Sense.NEAR = 12
-Sense.MID = 35
+-- Visual Sounds' distance bands (tiles): a sound within the first is on the character's square (band 1), then one a
+-- band up to each of the others, and past the last band 8. Each band has its cue's size, strength and colour.
+Sense.CUE_BANDS = { 1, 4, 6.5, 9, 11.5, 14, 20 }
 
 -- The unit screen direction of a world offset. The isometric view shows world x to the lower right and world y to the
 -- lower left, so the screen offset is (dx - dy, (dx + dy) / 2) (x right, y down). No offset counts as the screen's left.
@@ -38,11 +40,19 @@ function Sense.screen(dx, dy)
     return sx / len, sy / len
 end
 
--- The band of a noise `d` tiles away: 1 near, 2 mid, 3 far.
-function Sense.band(d)
-    if d < Sense.NEAR then return 1 end
-    if d < Sense.MID then return 2 end
-    return 3
+-- The band (1 .. 8) of a sound `d` tiles away.
+function Sense.cue(d)
+    local bands = Sense.CUE_BANDS
+    for i = 1, #bands do
+        if d <= bands[i] then return i end
+    end
+    return #bands + 1
+end
+
+-- How far from the character's middle the cue of a sound `d` tiles away is drawn (screen pixels): Visual Sounds'
+-- d * 50 / sqrt(d + 1), out quickly near and slower far (4 tiles: 89, 9: 142, 20: 218).
+function Sense.offset(d)
+    return d * 50 / math.sqrt(d + 1)
 end
 
 -- Whether the presence sense shows now, given how the character moves (TREES: crouched and not running; the
@@ -86,8 +96,8 @@ end
 -- Puts a heard sound in a list of sounds (in place), until `untilMs`. A source heard again (a running engine or a
 -- ringing alarm is, many times a second) keeps its one entry, moved and lasting longer (it keeps when it was first
 -- heard, `born`, so it does not come on again); sounds that ran out leave, and past `max` the one kept least and closest
--- to running out goes (goesBefore). `key` is what made it (the source, or its square). Returns the list and whether
--- the sound is a new entry.
+-- to running out goes (goesBefore). `key` is what made it (the source, or its square). Returns the list, whether the
+-- sound is a new entry, and its entry.
 function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
     local n = 0
     local found
@@ -113,12 +123,12 @@ function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
         list[#list + 1] = found
     end
     found.kind, found.x, found.y, found.z, found.untilMs = kind, x, y, z, untilMs
-    return list, new
+    return list, new, found
 end
 
 -- The zombie sounds told from the zombies around, without the extension API's: a zombie newly in reach makes one soon
--- (within FIRST_MS, spread by when it came), then one every IDLE_MS (HUNT_MS once it has a target), its time spread by
--- its number so that a crowd does not call at once; one that takes a target ("aggro") or lunges or strikes ("attack")
+-- (within FIRST_MS, spread by when it came), then one every voiceMs of its distance, its time spread by its number so
+-- that a crowd does not call at once; one that takes a target ("aggro") or lunges or strikes ("attack")
 -- makes one at once. `zombies` are { ref, x, y, z, hunt, attack } (ref: what stays the same for a zombie); only those
 -- within `radius` of (px, py), on the floor of pz unless `floors`, are heard. `memo` (kept by the caller) remembers
 -- each zombie; ones not in reach are forgotten. At most VOICES_PER_LOOK groans. Returns the sounds as { kind, key = ref,
@@ -153,7 +163,7 @@ function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
                 groans = groans + 1
             end
             if kind then
-                local every = z.hunt and Sense.HUNT_MS or Sense.IDLE_MS
+                local every = Sense.voiceMs(math.sqrt(dx * dx + dy * dy))
                 -- a quarter of the time either way, by the zombie's number
                 m.due = now + every * (0.75 + 0.5 * ((m.number * 0.618034) % 1))
                 n = n + 1

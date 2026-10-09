@@ -5,19 +5,22 @@ Usage:
     python tools/sense_art.py             write media/textures/OA_Sense_*.png
     python tools/sense_art.py --preview   also write tools/sense_art_preview.png
 
-The marks are white: the game tints them as it draws them (DrawTextureAngle with a colour) and turns them to face
-the way the zombies are. Each is drawn at 8x and downsampled with LANCZOS.
-  OA_Sense_Arc_L / _M / _S  a soft glowing arc, bulging up (outward once turned): near / mid / far
-  OA_Sense_Noise / _Car / _Dots / _Alarm
-                            thin arcs for a noise heard (rank 2), its kind in the pattern as Visual Sounds draws
-                            them: plain (anything), a wheel (a vehicle), dots (a radio, TV or generator), spikes
-                            (an alarm). White for all but alarms (deep red): the zombies' arcs keep the colours
-  OA_Sense_Bang             three short strokes fanning out, laid on the outer side of the arc of zombies beating on
-                            something (rank 2), in the arc's colour
-  OA_Sense_Up / _Down       a chevron, for zombies a floor above or below (rank 2)
-
-Senses.lua draws them stretched to a size in tiles (they follow the zoom), so they are made at twice the size they
-were first drawn at, near what a default zoom shows.
+The marks are white: the game tints them as it draws them and turns them to face the way the sound came from. They
+copy Visual Sounds' pictures (its media/textures), which Senses.lua draws at its sizes; each is drawn at 8x and
+downsampled with LANCZOS.
+  OA_Sense_Arc_Near / _Mid / _Far
+                            a zombie's arc (its Red .. Green): a thin sharp line bulging up (outward once turned),
+                            fading to both ends, with a soft trail on its inner side only (toward the character)
+  OA_Sense_Noise            a noise's thin arc (its lm)
+  OA_Sense_Dots             a machine's dotted arc (its meca: a radio, TV or generator)
+  OA_Sense_Line / _Wheel    a vehicle (its vehi): a flat line, and the wheel drawn on its middle at one size
+  OA_Sense_Alarm_L / _M / _S
+                            an alarm (its alert): sharp triangles standing apart along an arc, each pointing out from
+                            its centre, the middle one solid and the others fading to the ends (no line under them).
+                            Near: wide, many, fading gently; far: narrow, few, the middle one standing out
+  OA_Sense_Thump            a zombie beating on something (its thumpBehavior): two pairs of brackets, ( ( ) )
+  OA_Sense_Same             a sound on the character's square (its SameSquare): a soft disc with a thin ring
+  OA_Sense_Up / _Down       a chevron, for a sound a floor above or below (its arrows)
 """
 import math
 import os
@@ -26,10 +29,6 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 S = 8
-# The arcs' glow (a blur of this many strokes) and the room left round the stroke for it (half a stroke and three
-# blurs: nothing of the glow reaches the picture's edge).
-ARC_GLOW = 0.6
-ARC_MARGIN = 0.5 + 3 * ARC_GLOW
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "OperationAcorn", "42", "media", "textures"))
 PREVIEW_PATH = os.path.join(HERE, "sense_art_preview.png")
@@ -48,57 +47,95 @@ def glowing(shape, blur, core, glow):
     return out
 
 
-def arc(w, h, thick, dotted=False):
-    """An arc across the width, its middle at the top, fading out to both ends, with a soft glow. The stroke and its
-    glow stay MARGIN strokes inside every edge: one cut by the picture's edge draws a straight line along it."""
+# The zombies' arcs (near, mid, far), in pixels: the width, how far the ends sag below the crest, the line's thickness
+# and how far its trail reaches in. Visual Sounds' Red, Orange and Green.
+ARCS = {
+    "OA_Sense_Arc_Near": dict(w=84, sag=8, line=2.6, trail=9),
+    "OA_Sense_Arc_Mid": dict(w=104, sag=10, line=2.6, trail=9),
+    "OA_Sense_Arc_Far": dict(w=124, sag=12, line=2.6, trail=9),
+}
+def arc(w, sag, line, trail):
+    """A thin line on an arc across the width, its middle at the top, fading out to both ends, and under it (the arc's
+    inner side) a trail fading from a third of the line's strength to nothing over `trail` pixels. The line, its trail
+    and a thin glow stay inside every edge: one cut by the picture's edge draws a straight line along it."""
+    blur = 0.5
+    m = 3 * blur + 1
+    h = int(math.ceil(2 * m + line + sag + trail))
+    h += h % 2
     W, H = w * S, h * S
+    top = (m + line / 2) * S
+    half = (w / 2 - m - line / 2) * S
+    sg = sag * S
+    r = (half * half + sg * sg) / (2 * sg)
+    cx, cy = W / 2, top + r
+    span = math.asin(min(1.0, half / r))
     core = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(core)
-    m = thick * S * ARC_MARGIN
-    # a circle through the top middle and the two lower ends, all a margin inside the picture
-    sag = H - 2 * m
-    half = W / 2 - m
-    r = (half * half + sag * sag) / (2 * sag)
-    cx, cy = W / 2, m + r
-    span = math.asin(min(1.0, half / r))
-    steps = 400
+    steps = 500
+    # the trail first, from its far end in: each step a fainter copy of the line a little further in
+    k = trail * S
+    while k > 0:
+        rr = r - k
+        level = 0.33 * (1 - k / (trail * S)) ** 1.4
+        for i in range(0, steps + 1, 2):
+            a = -span + 2 * span * i / steps
+            fade = 1 - (abs(a) / span) ** 2.2
+            x, y = cx + rr * math.sin(a), cy - rr * math.cos(a)
+            rad = S * 0.6
+            v = int(255 * level * fade)
+            if v > 0:
+                d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=v)
+        k -= S * 0.5
+    line_im = Image.new("L", (W, H), 0)
+    dl = ImageDraw.Draw(line_im)
     for i in range(steps + 1):
         a = -span + 2 * span * i / steps
-        t = abs(a) / span
-        if dotted and (i // 22) % 2 == 1:
-            continue
-        fade = (1 - t ** 2.2)
+        fade = 1 - (abs(a) / span) ** 2.2
         x, y = cx + r * math.sin(a), cy - r * math.cos(a)
-        rad = thick * S / 2 * (0.55 + 0.45 * fade)
-        d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
-    return finish(glowing(core, thick * S * ARC_GLOW, 0.95, 0.55), w, h)
+        rad = line * S / 2 * (0.6 + 0.4 * fade)
+        dl.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
+    core = ImageChops.lighter(core, line_im)
+    return finish(glowing(core, blur * S, 1.0, 0.25), w, h)
 
 
-def bang(w, h, k=2):
-    """Three short strokes fanning out from a point below them, the middle one the longest: a blow. The strokes are
-    fitted (one scale, moved) inside the picture with room round them for their glow: nothing reaches the edge."""
-    W, H = w * S, h * S
-    P = S * k
-    width, blur = P * 2.2, P * 0.6
-    m = width / 2 + 3 * blur
-    strokes = []
-    for deg, inner, outer in ((-38, 0.62, 1.05), (0, 0.55, 1.18), (38, 0.62, 1.05)):
-        a = math.radians(deg)
-        nx, ny = math.sin(a), -math.cos(a)
-        strokes.append(((nx * inner, ny * inner), (nx * outer, ny * outer)))
-    xs = [p[0] for s_ in strokes for p in s_]
-    ys = [p[1] for s_ in strokes for p in s_]
-    scale = min((W - 2 * m) / (max(xs) - min(xs)), (H - 2 * m) / (max(ys) - min(ys)))
-    dx = W / 2 - scale * (max(xs) + min(xs)) / 2
-    dy = H / 2 - scale * (max(ys) + min(ys)) / 2
-    im = Image.new("L", (W, H), 0)
+def thump(size=32):
+    """Two pairs of brackets round the middle, ( ( ) ), the outer ones bolder: a blow, as Visual Sounds' thumpBehavior."""
+    W = size * S
+    im = Image.new("L", (W, W), 0)
     d = ImageDraw.Draw(im)
-    for (ax, ay), (bx, by) in strokes:
-        x0, y0, x1, y1 = dx + scale * ax, dy + scale * ay, dx + scale * bx, dy + scale * by
-        d.line((x0, y0, x1, y1), fill=255, width=int(width))
-        for x, y in ((x0, y0), (x1, y1)):
-            d.ellipse((x - width / 2, y - width / 2, x + width / 2, y + width / 2), fill=255)
-    return finish(glowing(im, blur, 1.0, 0.55), w, h)
+    for r, width, level in ((0.40, 0.085, 255), (0.25, 0.065, 190)):
+        R = W * r
+        box = (W / 2 - R, W / 2 - R, W / 2 + R, W / 2 + R)
+        for start in (130, -50):
+            d.arc(box, start, start + 100, fill=level, width=int(W * width))
+    return finish(glowing(im, S * 0.5, 1.0, 0.3), size, size)
+
+
+def same(size=46):
+    """A soft disc with a thin ring in it: a sound on the character's own square, as Visual Sounds' SameSquare."""
+    W = size * S
+    disc = Image.new("L", (W, W), 0)
+    d = ImageDraw.Draw(disc)
+    R = W * 0.3
+    d.ellipse((W / 2 - R, W / 2 - R, W / 2 + R, W / 2 + R), fill=170)
+    disc = disc.filter(ImageFilter.GaussianBlur(W * 0.08))
+    ring = Image.new("L", (W, W), 0)
+    d = ImageDraw.Draw(ring)
+    R = W * 0.24
+    d.ellipse((W / 2 - R, W / 2 - R, W / 2 + R, W / 2 + R), outline=255, width=int(S * 1.2))
+    out = Image.new("RGBA", (W, W), (255, 255, 255, 0))
+    out.putalpha(ImageChops.lighter(disc, ring))
+    return finish(out, size, size)
+
+
+def wheel(size=18):
+    """A ring: a vehicle's wheel, as Visual Sounds' vehi draws it on its line."""
+    W = size * S
+    im = Image.new("L", (W, W), 0)
+    d = ImageDraw.Draw(im)
+    R = W * 0.4
+    d.ellipse((W / 2 - R, W / 2 - R, W / 2 + R, W / 2 + R), outline=255, width=int(S * 1.6))
+    return finish(glowing(im, S * 0.5, 1.0, 0.3), size, size)
 
 
 def chevron(size, up, k=2):
@@ -111,69 +148,99 @@ def chevron(size, up, k=2):
     return finish(glowing(im, S * k, 1.0, 0.5), size, size)
 
 
-def noise_arc(style, w=96, h=36, k=2):
-    """A thin arc for a noise heard, its kind in its pattern as Visual Sounds draws them: "plain" (anything), "car" (a
-    wheel on its middle), "dots" (a machine: radio, TV, generator), "teeth" (an alarm: little spikes outward)."""
+def noise_arc(style, w, h, sag):
+    """A thin line for a noise heard, its kind in its pattern as Visual Sounds draws them: "plain" (an arc: anything),
+    "dots" (a dotted arc: a machine) or "flat" (a straight line under a vehicle's wheel). `sag` is how far its ends are
+    below its middle (pixels; 0 for the flat line)."""
     W, H = w * S, h * S
-    P = S * k
+    m = 2.5 * S
     core = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(core)
-    top = H * 0.42 if style in ("car", "teeth") else H * 0.2
-    sag = H - top - P * 2
-    half = W / 2 - P * 2
-    r = (half * half + sag * sag) / (2 * sag)
+    top = (H - sag * S) / 2
+    half = W / 2 - m
+    sg = max(0.01, sag * S)
+    r = (half * half + sg * sg) / (2 * sg)
     cx, cy = W / 2, top + r
     span = math.asin(min(1.0, half / r))
 
     def at(t):
         a = span * t
-        return cx + r * math.sin(a), cy - r * math.cos(a), a
+        return cx + r * math.sin(a), cy - r * math.cos(a)
 
     if style == "dots":
-        n = 15
+        n = 17
         for i in range(n):
             t = -1 + 2 * i / (n - 1)
-            x, y, _ = at(t)
-            fade = 1 - abs(t) ** 2.2
-            rad = P * 1.25
-            d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
-    elif style == "teeth":
-        n = 9
-        for i in range(n):
-            t = -1 + 2 * i / (n - 1)
-            x, y, a = at(t * 0.92)
-            fade = 1 - abs(t) ** 2.0
-            # a small triangle standing on the arc, pointing away from the centre
-            nx, ny = math.sin(a), -math.cos(a)
-            tx, ty = math.cos(a), math.sin(a)
-            base, tall = P * 2.2, P * 4.2 * (0.6 + 0.4 * fade)
-            pts = [(x - tx * base, y - ty * base), (x + tx * base, y + ty * base), (x + nx * tall, y + ny * tall)]
-            d.polygon(pts, fill=int(255 * fade))
+            x, y = at(t)
+            fade = 1 - abs(t) ** 1.6
+            rad = S * 1.9
+            d.rectangle((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
+        blur = S * 0.6
     else:
         steps = 400
         for i in range(steps + 1):
             t = -1 + 2 * i / steps
-            x, y, _ = at(t)
+            x, y = at(t)
             fade = 1 - abs(t) ** 2.2
-            rad = P * 0.75 * (0.6 + 0.4 * fade)
+            rad = S * 0.9 * (0.6 + 0.4 * fade)
             d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
-        if style == "car":
-            x, y, _ = at(0)
-            rad = P * 3.6
-            d.ellipse((x - rad, y - rad, x + rad, y + rad), outline=255, width=int(P * 1.2))
-    return finish(glowing(core, P * 0.8, 1.0, 0.4), w, h)
+        blur = S * 0.5
+    return finish(glowing(core, blur, 1.0, 0.35), w, h)
+
+
+# The alarm pictures (near, mid, far), in pixels of the picture: its width, the arc's radius, how many triangles, how
+# far apart along the arc (a third more than a base: they stand apart), a triangle's base and height, and how fast they
+# fade to the ends (a higher power keeps them brighter longer). Visual Sounds' alert2, alert5 and alert7, a little
+# bolder.
+ALARMS = {
+    "OA_Sense_Alarm_L": dict(w=128, radius=150, n=9, pitch=16, base=12, tall=12, fade=0.8),
+    "OA_Sense_Alarm_M": dict(w=112, radius=140, n=7, pitch=16, base=12, tall=12, fade=1.0),
+    "OA_Sense_Alarm_S": dict(w=88, radius=130, n=5, pitch=16, base=12, tall=12, fade=1.6),
+}
+
+
+def alarm(w, radius, n, pitch, base, tall, fade):
+    """Triangles standing apart on an arc, each pointing away from the arc's centre, the middle one solid and the
+    others fading to the ends: (1 - |t|) ** fade of the way out, never below a tenth. The arc is fitted across the
+    width with room round it for a thin glow; the picture is as tall as the arc needs."""
+    tris = []
+    spread = pitch * (n - 1) / 2 / radius
+    for i in range(n):
+        t = -1 + 2 * i / (n - 1)
+        a = spread * t
+        nx, ny = math.sin(a), -math.cos(a)
+        tx, ty = math.cos(a), math.sin(a)
+        x, y = radius * nx, radius * ny
+        pts = [(x - tx * base / 2, y - ty * base / 2), (x + tx * base / 2, y + ty * base / 2),
+               (x + nx * tall, y + ny * tall)]
+        tris.append((pts, max(0.1, (1 - abs(t)) ** fade)))
+    blur = 0.6
+    m = 3 * blur + 1
+    xs = [q[0] for pts, _ in tris for q in pts]
+    ys = [q[1] for pts, _ in tris for q in pts]
+    scale = (w - 2 * m) / (max(xs) - min(xs))
+    h = int(math.ceil((max(ys) - min(ys)) * scale + 2 * m))
+    h += h % 2
+    W, H = w * S, h * S
+    dx = W / 2 - S * scale * (max(xs) + min(xs)) / 2
+    dy = H / 2 - S * scale * (max(ys) + min(ys)) / 2
+    core = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(core)
+    for pts, shade in tris:
+        d.polygon([(dx + S * scale * x, dy + S * scale * y) for x, y in pts], fill=int(255 * shade))
+    return finish(glowing(core, blur * S, 1.0, 0.3), w, h)
 
 
 def build():
     return {
-        "OA_Sense_Arc_L": arc(112, 32, 3.6),
-        "OA_Sense_Arc_M": arc(84, 26, 3.0),
-        "OA_Sense_Arc_S": arc(60, 20, 2.4),
-        "OA_Sense_Dots": noise_arc("dots"),
-        "OA_Sense_Car": noise_arc("car"),
-        "OA_Sense_Alarm": noise_arc("teeth"),
-        "OA_Sense_Noise": noise_arc("plain"),
-        "OA_Sense_Bang": bang(48, 28),
+        **{name: arc(**spec) for name, spec in ARCS.items()},
+        "OA_Sense_Dots": noise_arc("dots", 112, 22, 11),
+        "OA_Sense_Noise": noise_arc("plain", 112, 16, 9),
+        "OA_Sense_Line": noise_arc("flat", 80, 8, 0),
+        "OA_Sense_Wheel": wheel(),
+        **{name: alarm(**spec) for name, spec in ALARMS.items()},
+        "OA_Sense_Thump": thump(),
+        "OA_Sense_Same": same(),
         "OA_Sense_Up": chevron(28, True),
         "OA_Sense_Down": chevron(28, False),
     }
@@ -184,10 +251,14 @@ def main():
     for name, im in images.items():
         im.save(os.path.join(OUT_DIR, name + ".png"))
     if "--preview" in sys.argv:
-        tints = [(255, 90, 60), (255, 180, 70), (200, 225, 255), (235, 235, 225)]
-        sheet = Image.new("RGBA", (980, 70), (34, 38, 34, 255))
+        tints = {"OA_Sense_Arc_Near": (255, 64, 51), "OA_Sense_Arc_Mid": (255, 217, 51),
+                 "OA_Sense_Arc_Far": (77, 242, 102), "OA_Sense_Alarm_L": (242, 20, 15), "OA_Sense_Alarm_M": (242, 20, 15),
+                 "OA_Sense_Alarm_S": (242, 20, 15), "OA_Sense_Dots": (0, 186, 254),
+                 "OA_Sense_Thump": (255, 106, 0), "OA_Sense_Same": (255, 0, 0)}
+        sheet = Image.new("RGBA", (sum(im.width + 10 for im in images.values()) + 8, 70), (34, 38, 34, 255))
         x = 8
-        for (name, im), tint in zip(images.items(), tints * 3):
+        for name, im in images.items():
+            tint = tints.get(name, (235, 235, 225))
             col = Image.new("RGBA", im.size, tint + (255,))
             col.putalpha(im.getchannel("A"))
             sheet.alpha_composite(col, (x, 12))
