@@ -162,28 +162,29 @@ def reload():
     return continue_save()
 
 
-# Whether the game logged anything but pzopt's input latch lines after `start` (a byte offset of console.txt): the menu
-# logs nothing else while it waits, and a load starts with the save's mods.
-def console_moved(start):
+# Whether a load started after `start` (a byte offset of console.txt): it lists the map groups and loads the save's mods
+# first. (The menu logs other lines while it settles, e.g. pzopt preloading the animation sets, when it takes no click.)
+def load_started(start):
     try:
         with open(CONSOLE, "rb") as f:
             f.seek(start)
             text = f.read().decode("utf-8", errors="replace")
     except OSError:
         return False
-    return any(line.strip() and "input latch" not in line for line in text.splitlines())
+    return any("MapGroup" in line or line.startswith("LOG  : Mod") for line in text.splitlines())
 
 
-# Presses Continue on the main menu (again while the game shows no sign of loading: a click can be missed) and returns
-# when the channel answers in the loaded save.
+# Presses Continue on the main menu (again while no load starts: the menu takes no click while it settles, e.g. for the
+# 20 seconds or so pzopt preloads the animation sets, and one right after the window comes to the front can be missed)
+# and returns when the channel answers in the loaded save.
 def continue_save():
-    for attempt in range(3):
+    for attempt in range(6):
         before = console_size()
         click(CONTINUE_AT)
         waited = time.time() + 12
-        while time.time() < waited and not console_moved(before):
+        while time.time() < waited and not load_started(before):
             time.sleep(1)
-        if console_moved(before):
+        if load_started(before):
             break
         print("Continue was not taken; pressing it again")
     else:
