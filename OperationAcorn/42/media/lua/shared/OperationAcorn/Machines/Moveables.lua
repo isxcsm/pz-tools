@@ -8,6 +8,7 @@
 --     machine as Machines.place makes it, with no parts: the game's plain objects are swapped for the machine's.
 -- The lure is not furniture: it is put down from its item's menu (Menu.lua).
 require "Moveables/ISMoveableSpriteProps"
+require "Fluids/ISFluidEmptyAction"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
@@ -146,6 +147,19 @@ function ISMoveableSpriteProps:getInfoPanelDescription(square, object, player, m
             c:getR() * 255, c:getG() * 255, c:getB() * 255)
     end
     return info
+end
+
+-- Pouring the rain storage out (the game's 비우기, needed before it is taken up) at Data.RAIN_POUR_SPEED: the game reads
+-- a FluidContainer's TransferRate only for an item, a world object always pours at 1.
+local pourDuration = ISFluidEmptyAction.getDuration
+function ISFluidEmptyAction:getDuration()
+    local time = pourDuration(self)
+    local owner = self.container and self.container:getOwner()
+    local state = owner and instanceof(owner, "IsoObject") and Machines.isMachineObject(owner) and Machines.state(owner)
+    if state and state.kind == "rainStorage" and time > 1 then
+        time = math.max(ISFluidUtil.getMinTransferActionTime(), time / Data.RAIN_POUR_SPEED)
+    end
+    return time
 end
 
 -- What a machine bought is delivered as: the game's furniture pieces of it facing south (one a tile, "Name (1/2)"...)

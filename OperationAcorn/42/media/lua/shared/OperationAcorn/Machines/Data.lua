@@ -106,6 +106,9 @@ Data.TITLES = {
 Data.RAIN_CAPACITY = 4000
 Data.RAIN_FACTOR = 4.0
 Data.RAIN_ENTITY = "OperationAcorn.RainStorageEntity"
+-- The game's largest rain barrel holds 600: pouring the rain storage out (the game's 비우기) goes this much faster, so a
+-- full one empties in that barrel's time (about 7 minutes at normal speed, not 45). It must be empty to be taken up.
+Data.RAIN_POUR_SPEED = Data.RAIN_CAPACITY / 600
 
 -- The installable lure: lasts `hours` of world time from when it is put down, one sound every `interval` hours with
 -- radius `radius` (vanilla NoiseTrap: 30 seconds and 17). After that only a spent shell is left.
