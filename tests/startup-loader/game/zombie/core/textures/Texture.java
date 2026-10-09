@@ -14,7 +14,9 @@ public class Texture {
     public static int loads;
     private final String name;
     private int width, height;
-    public boolean ready = true;
+    public boolean ready = true, failed;
+    /** Where it is drawn from the place it is drawn at, as the game's (a picture of a texture pack's has one). */
+    public float offsetX, offsetY;
     /** The picture a copy shows. */
     public final Texture source;
 
@@ -32,7 +34,8 @@ public class Texture {
         return FILES.get(name);
     }
 
-    public boolean isReady() { return ready; }
+    public boolean isReady() { return ready && !failed; }
+    public boolean isFailure() { return failed; }
     public String getName() { return name; }
     public int getWidth() { return width; }
     public int getHeight() { return height; }

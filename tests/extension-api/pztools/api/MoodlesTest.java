@@ -5,6 +5,7 @@ import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
 import zombie.characters.IsoPlayer;
 import zombie.core.textures.Texture;
+import zombie.gameStates.GameLoadingState;
 import zombie.iso.IsoCell;
 import zombie.iso.IsoWorld;
 import zombie.scripting.objects.MoodleType;
@@ -142,7 +143,13 @@ final class MoodlesTest {
             // The game resets its registries as it leaves a world: the type is registered again and added to what was made.
             RegistryReset.resetAll();
             check(MoodleType.get(ResourceLocation.of("moodle.mod:sense")) == null, "The registry kept a mod's type");
+            // Not while a world loads: its thread makes the player's moodles from the registry meanwhile.
+            GameLoadingState.loader = new Thread(() -> { });
             IsoWorld.instance.setCell(new IsoCell());
+            GameApi.frame(GAME);
+            GameApi.frame(GAME);
+            check(MoodleType.get(ResourceLocation.of("moodle.mod:sense")) == null, "The registry was changed while a world loaded");
+            GameLoadingState.loader = null;
             GameApi.frame(GAME);
             var again = MoodleType.get(ResourceLocation.of("moodle.mod:sense"));
             check(again != null && again != sense, "The type was not registered again");
@@ -154,15 +161,35 @@ final class MoodlesTest {
 
             takeover(api, moodles, mod, player, again);
             failing(api, player, again, column);
+            // Taken back while shown and the game paused (no update): the column still draws it, with its picture.
+            column.update();
             FormulasTest.call(mod, "clear");
+            column.render();
+            check(drawn(column, again) != null && drawn(column, again)[1] == Texture.FILES.get("media/ui/Sense_32.png"),
+                "A moodle taken back was not drawn by a column not updated since");
+            rejects(moodles, "the mod has no moodle Sense", "set", mod, "Sense", 1.0);
             player.getMoodles().Update();
             check(player.getMoodles().getMoodleLevel(again) == 0, "A cleared moodle stayed");
+            // Defined again in another case: the same type, and the id's case as first defined (the mod's text keys).
+            List<Object> redefined = FormulasTest.call(moodles, "define", mod, "sense", table("kind", "good", "picture", "media/ui/Sense_{size}.png"));
+            check(redefined.get(0) == again && "moodle.mod:Sense".equals(redefined.get(1)), "Defined again it was " + redefined);
+            RegistryReset.resetAll();
+            IsoWorld.instance.setCell(new IsoCell());
+            GameApi.frame(GAME);
+            var third = MoodleType.get(ResourceLocation.of("moodle.mod:sense"));
+            check(third != null && "moodle.mod:Sense".equals(third.getTranslationName()), "Registered again, the id lost its case: " + third);
+            FormulasTest.call(mod, "clear");
+            // A type no one has a picture for (a newer API that kept nothing, another mod's) is the frame, not a failing column.
+            var set = new MoodleTextureSet(64);
+            check(ApiHooks.moodlePicture(set, MoodleType.register("native.mod:other"), null, column) == set.getBorder(),
+                "A type no one has a picture for was not drawn as the frame");
         } finally {
             IsoWorld.instance.setCell(home);
             IsoPlayer.players[0] = null;
             IsoPlayer.players[1] = null;
             UIManager.MoodleUI[0] = null;
             MoodlesUI.option = 0;
+            GameLoadingState.loader = null;
         }
     }
 
@@ -211,7 +238,28 @@ final class MoodlesTest {
         int loads = Texture.loads;
         column.render();
         check(Texture.loads == loads, "A picture that is not there was looked for again");
-        for (String id : new String[] { "Calm", "Slow", "Lost" }) FormulasTest.call(moodles, "set", mod, id, 0.0);
+        // A file the game could not read never becomes ready: the frame, and not looked for again.
+        picture("media/ui/Broken.png", 64).failed = true;
+        var broken = (MoodleType)FormulasTest.call(moodles, "define", mod, "Broken", table("kind", "bad", "picture", "media/ui/Broken.png")).get(0);
+        FormulasTest.call(moodles, "set", mod, "Broken", 1.0);
+        player.getMoodles().Update();
+        column.update();
+        column.render();
+        check(((Texture)drawn(column, broken)[1]).getName().endsWith("_Moodles_BGoutline.png"), "A picture the game could not read was not drawn as the frame");
+        loads = Texture.loads;
+        column.render();
+        check(Texture.loads == loads, "A picture the game could not read was looked for again");
+        // Not square: scaled by its long side and centred in the slot.
+        Texture.FILES.put("media/ui/Wide.png", new Texture("media/ui/Wide.png", 64, 32));
+        var wide = (MoodleType)FormulasTest.call(moodles, "define", mod, "Wide", table("kind", "bad", "picture", "media/ui/Wide.png")).get(0);
+        FormulasTest.call(moodles, "set", mod, "Wide", 1.0);
+        player.getMoodles().Update();
+        column.update();
+        column.render();
+        Object[] centred = drawn(column, wide);
+        check((int)centred[2] == 32 && (int)centred[3] == 16 && (float)centred[4] == 0f && (float)centred[5] == 8f,
+            "A picture that is not square was not centred: " + centred[2] + "x" + centred[3] + " at " + centred[4] + "," + centred[5]);
+        for (String id : new String[] { "Calm", "Slow", "Lost", "Broken", "Wide" }) FormulasTest.call(moodles, "set", mod, id, 0.0);
         player.getMoodles().Update();
         column.update();
     }
@@ -246,8 +294,20 @@ final class MoodlesTest {
         rejects(moodles, "the mod has no moodle Other", "set", mod, "Other", 1.0);
         rejects(moodles, "the mod has no moodle Other", "level", mod, "Other");
         int size = Registries.MOODLE_TYPE.values().size();
-        rejects(moodles, "the game refused the moodle base:x", "define", FormulasTest.call(api, "client", "base").get(0), "x", table("kind", "good", "picture", "a.png"));
-        check(Registries.MOODLE_TYPE.values().size() == size, "A refused moodle was registered");
+        // A handle named base would name the game's own moodles: refused before anything is looked up.
+        Object base = FormulasTest.call(api, "client", "base").get(0);
+        rejects(moodles, "a handle named base cannot define moodles", "define", base, "Endurance", table("kind", "good", "picture", "a.png"));
+        rejects(moodles, "a handle named base cannot define moodles", "define", base, "x", table("kind", "good", "picture", "a.png"));
+        var player = IsoPlayer.players[0];
+        check(player.getMoodles().getGoodBadNeutral(MoodleType.ENDURANCE) == 2 && ApiHooks.moodleLevel(MoodleType.ENDURANCE, player) == -1,
+            "A handle named base took a game's moodle over");
+        // A type of a handle's name that another mod registered itself is not taken over.
+        var native_ = MoodleType.register("native.mod:thing");
+        Object nativeMod = FormulasTest.call(api, "client", "native.mod").get(0);
+        rejects(moodles, "the game already has a moodle native.mod:thing that this API did not define", "define", nativeMod, "thing",
+            table("kind", "good", "picture", "a.png"));
+        check(ApiHooks.moodleLevel(native_, player) == -1 && player.getMoodles().getGoodBadNeutral(native_) == 2, "Another mod's type was taken over");
+        check(Registries.MOODLE_TYPE.values().size() == size + 1, "A refused moodle was registered");
     }
 
     /**

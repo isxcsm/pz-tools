@@ -41,6 +41,8 @@ final class Moodles implements ApiHooks.Moodles {
     private static final Map<String, Integer> KINDS = Map.of("neutral", 0, "good", 1, "bad", 2);
     private static final String[] KIND_NAMES = { "neutral", "good", "bad" };
     private static final char SEPARATOR = '\u001f';
+    // The namespace of the game's own moodle types (ResourceLocation.DEFAULT_NAMESPACE).
+    private static final String GAME_NAMESPACE = "base";
 
     /** One mod's moodle. Changed on the game's thread; the hooks read it there. */
     private static final class Definition {
@@ -54,6 +56,9 @@ final class Moodles implements ApiHooks.Moodles {
         // By picture, then size: the texture drawn, MISSING when there is none; null until first drawn.
         Object[] textures;
         boolean reported;
+        // False once its mod took it back (handle:clear()): it shows no level, but keeps its type, so that its mod (and only its
+        // mod) can define it again, and its picture, which a column not updated since still draws.
+        boolean active = true;
 
         Definition(String owner, String location) { this.owner = owner; this.location = location; }
     }
@@ -77,7 +82,11 @@ final class Moodles implements ApiHooks.Moodles {
     private final MethodHandle columnCharacter;
     private final Constructor<?> newColumnData;
     // MoodleTextureSet.getSize(), getBorder(); Texture.getSharedTexture(path, flags), the copy, its size and whether it is read.
-    private final MethodHandle setSize, setBorder, sharedTexture, textureReady, textureWidth, textureHeight, setWidth, setHeight;
+    private final MethodHandle setSize, setBorder, sharedTexture, textureReady, textureFailed, textureWidth, textureHeight, setWidth, setHeight,
+        offsetX, offsetY, setOffsetX, setOffsetY;
+    // GameLoadingState.loader: the thread that loads a world (and makes its player) while it runs; null without one. Null when the
+    // game has no such field: the registry is then changed whenever a world changes.
+    private final Field loadingThread;
     private final Constructor<?> copyTexture;
     // By location (the game's name, lower case): every mod's moodles.
     private final TreeMap<String, Definition> definitions = new TreeMap<>();
@@ -86,6 +95,8 @@ final class Moodles implements ApiHooks.Moodles {
     private Object world;
     private final Watches.Seen moves = Watches.WORLD_CELL.user();
     private boolean dirty, reported;
+    // A world changed since the definitions were last found in the registry: looked at once no world is loading.
+    private boolean unchecked;
     private long generation;
 
     Moodles(Kahlua lua, Game game, ClassLoader loader, Object meta, Networks.Owners owners) throws ReflectiveOperationException {
@@ -120,11 +131,20 @@ final class Moodles implements ApiHooks.Moodles {
         Class<?> texture = Game.type(loader, "zombie.core.textures.Texture");
         sharedTexture = Game.exact(texture.getMethod("getSharedTexture", String.class, int.class), MethodType.methodType(Object.class, String.class, int.class));
         textureReady = Game.exact(texture.getMethod("isReady"), MethodType.methodType(boolean.class, Object.class));
+        textureFailed = Game.exact(texture.getMethod("isFailure"), MethodType.methodType(boolean.class, Object.class));
+        offsetX = MethodHandles.publicLookup().unreflectGetter(texture.getField("offsetX")).asType(MethodType.methodType(float.class, Object.class));
+        offsetY = MethodHandles.publicLookup().unreflectGetter(texture.getField("offsetY")).asType(MethodType.methodType(float.class, Object.class));
+        setOffsetX = MethodHandles.publicLookup().unreflectSetter(texture.getField("offsetX")).asType(MethodType.methodType(void.class, Object.class, float.class));
+        setOffsetY = MethodHandles.publicLookup().unreflectSetter(texture.getField("offsetY")).asType(MethodType.methodType(void.class, Object.class, float.class));
         textureWidth = Game.exact(texture.getMethod("getWidth"), MethodType.methodType(int.class, Object.class));
         textureHeight = Game.exact(texture.getMethod("getHeight"), MethodType.methodType(int.class, Object.class));
         setWidth = Game.exact(texture.getMethod("setWidth", int.class), MethodType.methodType(void.class, Object.class, int.class));
         setHeight = Game.exact(texture.getMethod("setHeight", int.class), MethodType.methodType(void.class, Object.class, int.class));
         copyTexture = texture.getConstructor(texture);
+        Field loading;
+        try { loading = Game.type(loader, "zombie.gameStates.GameLoadingState").getField("loader"); }
+        catch (ReflectiveOperationException absent) { loading = null; }
+        loadingThread = loading;
         // The API this one replaces writes its definitions where this one finds them.
         if (lua.get(meta, HANDOVER) instanceof Supplier<?> earlier) {
             try { earlier.get(); }
@@ -226,7 +246,7 @@ final class Moodles implements ApiHooks.Moodles {
         String owner = owner(arguments, call);
         String id = Arguments.name(arguments, 1, call, "id");
         Definition definition = definitions.get(locationOf(owner, id));
-        if (definition == null || !definition.owner.equals(owner))
+        if (definition == null || !definition.owner.equals(owner) || !definition.active)
             throw new IllegalArgumentException(call + ": the mod has no moodle " + id + "; define it first");
         return definition;
     }
@@ -258,19 +278,27 @@ final class Moodles implements ApiHooks.Moodles {
      * by its name (defined again, or by a newer API).
      */
     private Definition define(String owner, String id, int kind, String[] pictures, String call) throws ReflectiveOperationException {
+        // The game's own moodles are in the namespace base: a handle of that name would name one of them.
+        if (owner.toLowerCase(Locale.ENGLISH).equals(GAME_NAMESPACE))
+            throw new IllegalArgumentException(call + ": a handle named " + owner + " cannot define moodles: the game's own are named base:...");
         String name = locationOf(owner, id);
         Definition definition = definitions.get(name);
         if (definition != null && !definition.owner.equals(owner))
             throw new IllegalArgumentException(call + ": the moodle " + name + " is the mod " + definition.owner + "'s (the game's names of moodles are not case sensitive)");
         Object type = registeredType(name);
+        // A type of that name the API did not register (another mod's, through MoodleType.register) is not taken over.
+        if (type != null && (definition == null || definition.type != type))
+            throw new IllegalArgumentException(call + ": the game already has a moodle " + name + " that this API did not define");
         if (type == null) {
-            try { type = register.invoke(null, owner + ":" + id); }
+            // The id as first defined is the type's translation name (the keys of the mod's text), also when registered again.
+            String first = definition == null ? id : definition.id;
+            try { type = register.invoke(null, owner + ":" + first); }
             catch (InvocationTargetException refused) {
-                throw new IllegalArgumentException(call + ": the game refused the moodle " + owner + ":" + id + ": " + refused.getCause().getMessage());
+                throw new IllegalArgumentException(call + ": the game refused the moodle " + owner + ":" + first + ": " + refused.getCause().getMessage());
             }
         }
-        // The id as first defined: the type's translation name, also when the game's registry is reset and it is registered again.
         if (definition == null) { definition = new Definition(owner, name); definition.id = id; definitions.put(name, definition); }
+        definition.active = true;
         definition.kind = kind;
         if (!Arrays.equals(definition.pictures, pictures)) {
             definition.pictures = pictures;
@@ -292,12 +320,16 @@ final class Moodles implements ApiHooks.Moodles {
     /** {@code handle:clear()}: removes the mod's moodles. Their types stay in the game's registry, at level 0, until it is reset. */
     void clear(String owner, String call) throws ReflectiveOperationException {
         current(call);
-        if (definitions.values().removeIf(definition -> definition.owner.equals(owner))) { publish(); dirty = true; }
+        for (Definition definition : definitions.values()) if (definition.owner.equals(owner) && definition.active) {
+            definition.active = false;
+            Arrays.fill(definition.levels, 0);
+            dirty = true;
+        }
     }
 
     private void publish() {
         var next = new IdentityHashMap<Object, Definition>();
-        for (Definition definition : definitions.values()) next.put(definition.type, definition);
+        for (Definition definition : definitions.values()) if (definition.type != null) next.put(definition.type, definition);
         byType = next;
     }
 
@@ -341,7 +373,12 @@ final class Moodles implements ApiHooks.Moodles {
                 if (world != null) for (Definition definition : definitions.values())
                     if (Arrays.stream(definition.levels).anyMatch(level -> level != 0)) { Arrays.fill(definition.levels, 0); dirty = true; }
                 world = cell;
-                // The game resets its registries as it leaves a world: a definition kept since is registered again.
+                unchecked = true;
+            }
+            // The game resets its registries as it leaves a world: a definition kept since is registered again, but not while a
+            // world loads: its thread makes the player's moodles from the registry meanwhile.
+            if (unchecked && (loadingThread == null || loadingThread.get(null) == null)) {
+                unchecked = false;
                 registered();
             }
             if (dirty) write();
@@ -356,21 +393,28 @@ final class Moodles implements ApiHooks.Moodles {
     private void registered() throws ReflectiveOperationException {
         boolean changed = false;
         for (Definition definition : definitions.values()) {
+            if (!definition.active) continue;
             Object now = registeredType(definition.location);
             if (now == definition.type && now != null) continue;
-            if (now == null) {
-                try { now = register.invoke(null, definition.owner + ":" + definition.id); }
-                catch (InvocationTargetException refused) {
-                    System.err.println("[PzTools API] moodles: the game refused " + definition.location + " again: " + refused.getCause());
-                    continue;
-                }
+            if (now != null) {
+                // Registered meanwhile by someone else: not the API's to answer for.
+                System.err.println("[PzTools API] moodles: the game has another moodle " + definition.location + " now; the mod's is not shown");
+                definition.active = false;
+                definition.type = null;
+                changed = true;
+                continue;
+            }
+            try { now = register.invoke(null, definition.owner + ":" + definition.id); }
+            catch (InvocationTargetException refused) {
+                System.err.println("[PzTools API] moodles: the game refused " + definition.location + " again: " + refused.getCause());
+                continue;
             }
             definition.type = now;
             changed = true;
         }
         if (!changed) return;
         publish();
-        for (Definition definition : definitions.values()) if (definition.type != null) add(definition.type);
+        for (Definition definition : definitions.values()) if (definition.active && definition.type != null) add(definition.type);
     }
 
     // ---- kept for a newer API ----
@@ -382,6 +426,7 @@ final class Moodles implements ApiHooks.Moodles {
             text.append("\nM\t").append(definition.owner).append('\t').append(definition.id).append('\t').append(KIND_NAMES[definition.kind]).append('\t');
             for (int index = 0; index < PLAYERS; index++) text.append(index == 0 ? "" : ",").append(definition.levels[index]);
             text.append('\t').append(String.join(String.valueOf(SEPARATOR), definition.pictures));
+            if (!definition.active) text.append("\tcleared");
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -403,7 +448,7 @@ final class Moodles implements ApiHooks.Moodles {
             return;
         }
         for (int index = 1; index < lines.length; index++) {
-            String[] fields = lines[index].split("\t", 6);
+            String[] fields = lines[index].split("\t", 7);
             if (fields.length < 6 || !"M".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept moodles: " + lines[index]);
             var definition = new Definition(fields[1], locationOf(fields[1], fields[2]));
             definition.id = fields[2];
@@ -412,7 +457,13 @@ final class Moodles implements ApiHooks.Moodles {
             for (int player = 0; player < PLAYERS && player < levels.length; player++) definition.levels[player] = Integer.parseInt(levels[player]);
             definition.pictures = fields[5].split(String.valueOf(SEPARATOR), -1);
             definition.textures = new Object[definition.pictures.length * SIZES.length];
+            definition.active = fields.length < 7 || !"cleared".equals(fields[6]);
+            // The API kept it, so the type of its name is the one an earlier API registered; its translation name gives the id's case.
             definition.type = registeredType(definition.location);
+            if (definition.type != null) {
+                String translation = (String)translationName.invoke(definition.type);
+                definition.id = translation.substring(translation.indexOf(':') + 1);
+            }
             definitions.put(definition.location, definition);
         }
         publish();
@@ -422,7 +473,8 @@ final class Moodles implements ApiHooks.Moodles {
 
     @Override public int level(Object type, Object character) {
         Definition definition = byType.get(type);
-        if (definition == null) return -1;
+        // Not the API's, or taken back: the game's update (level 0 for a type it does not know).
+        if (definition == null || !definition.active) return -1;
         Object[] local = players.all();
         for (int index = 0; index < local.length && index < PLAYERS; index++) {
             if (local[index] != character || character == null) continue;
@@ -476,14 +528,25 @@ final class Moodles implements ApiHooks.Moodles {
             keep(definition, key, slot, MISSING);
             return null;
         }
+        // A file the game could not read never becomes ready: drawn as the empty frame, and not looked for again.
+        if ((boolean)textureFailed.invokeExact(found)) {
+            if (!definition.reported) System.err.println("[PzTools API] moodles: " + definition.location + " has a picture the game could not read: " + path);
+            definition.reported = true;
+            keep(definition, key, slot, MISSING);
+            return null;
+        }
         // Until the game has read it, its size is not known: drawn as it is, and worked out again next time.
         if (!(boolean)textureReady.invokeExact(found)) return found;
         int width = (int)textureWidth.invokeExact(found), height = (int)textureHeight.invokeExact(found);
         if (width == size && height == size || width <= 0 || height <= 0) return keep(definition, key, slot, found);
         double scale = (double)size / Math.max(width, height);
+        int drawnWidth = (int)Math.round(width * scale), drawnHeight = (int)Math.round(height * scale);
         Object scaled = copyTexture.newInstance(found);
-        setWidth.invokeExact(scaled, (int)Math.round(width * scale));
-        setHeight.invokeExact(scaled, (int)Math.round(height * scale));
+        setWidth.invokeExact(scaled, drawnWidth);
+        setHeight.invokeExact(scaled, drawnHeight);
+        // The column draws a picture from the slot's top left (plus the texture's offset): one that is not square is centred.
+        setOffsetX.invokeExact(scaled, (float)((float)offsetX.invokeExact(found) * scale + (size - drawnWidth) / 2.0));
+        setOffsetY.invokeExact(scaled, (float)((float)offsetY.invokeExact(found) * scale + (size - drawnHeight) / 2.0));
         return keep(definition, key, slot, scaled);
     }
 

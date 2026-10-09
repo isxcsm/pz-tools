@@ -12,6 +12,7 @@ import java.lang.classfile.instruction.StoreInstruction;
 import java.lang.constant.*;
 import java.lang.instrument.*;
 import java.lang.reflect.AccessFlag;
+import java.lang.reflect.Method;
 import java.security.ProtectionDomain;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -1720,21 +1721,31 @@ public final class ApiHooks {
 
     /**
      * Put after {@code MoodlesUI.render} asks its texture set for a type's picture: the set's picture, or the API's for a type the
-     * set has none for. With none at all the game's column would fail to draw that moodle, so while no API can answer (it failed,
-     * or is being replaced, and the moodle's level has not gone back to 0 yet) the set's empty frame is drawn instead.
+     * set has none for. With none at all the game's column would fail to draw that moodle, and go on failing every frame while
+     * the game is paused (no update takes its level back to 0), leaving the moodles below it undrawn: so for a type no one has a
+     * picture for (the API failed, is being replaced, or no longer knows the type) the set's empty frame is drawn instead.
      */
     public static Object moodlePicture(Object set, Object type, Object vanilla, Object ui) {
         if (vanilla != null) return vanilla;
         Moodles current = moodles;
-        if (current == null) return frame(set);
-        try { return current.picture(set, type, ui); }
-        catch (Throwable problem) { reportOnce(Call.MOODLE_PICTURE, problem); return frame(set); }
+        Object picture = null;
+        if (current != null) {
+            try { picture = current.picture(set, type, ui); }
+            catch (Throwable problem) { reportOnce(Call.MOODLE_PICTURE, problem); }
+        }
+        return picture != null ? picture : frame(set);
     }
 
-    // MoodleTextureSet.getBorder(), on the rare path where no API answers.
+    // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.
+    private static volatile Method border;
+    private static final Object[] NO_ARGUMENTS = {};
+
     private static Object frame(Object set) {
-        try { return set.getClass().getMethod("getBorder").invoke(set); }
-        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) { return null; }
+        try {
+            Method found = border;
+            if (found == null || found.getDeclaringClass() != set.getClass()) border = found = set.getClass().getMethod("getBorder");
+            return found.invoke(set, NO_ARGUMENTS);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) { return null; }
     }
 
     private static void reportOnce(Call call, Throwable problem) {

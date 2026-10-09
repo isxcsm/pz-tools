@@ -872,18 +872,20 @@ Read from the bytecode of Build 42.21 (`projectzomboid.jar`; PZ Optimize overrid
 
 | Call | Effect |
 | --- | --- |
-| `moodles.define(handle, id, spec)` | Defines the mod's moodle `id` (1 to 64 letters, digits, `_`, `.` or `-`, not case sensitive), or changes the kind and pictures of one it defined. Returns the game's `MoodleType` and its translation name, `<handle name>:<id>`. `spec` is `{ kind = "good" | "bad" | "neutral", picture = path or { path1, path2, path3, path4 } }` (see [pictures](#what-a-mod-provides)). The type is registered once, as `MoodleType.register("<handle name>:<id>")`, so its location is `<handle name>:<id>` in lower case; defined again, by the same mod, by a newer API or in another world, it is the type the registry has under that name. A moodle another mod defined under that name, a wrong spec, or a name the game refuses (a handle named `base`) is a Lua error. |
+| `moodles.define(handle, id, spec)` | Defines the mod's moodle `id` (1 to 64 letters, digits, `_`, `.` or `-`, not case sensitive), or changes the kind and pictures of one it defined. Returns the game's `MoodleType` and its translation name, `<handle name>:<id>`. `spec` is `{ kind = "good" | "bad" | "neutral", picture = path or { path1, path2, path3, path4 } }` (see [pictures](#what-a-mod-provides)). The type is registered once, as `MoodleType.register("<handle name>:<id>")`, so its location is `<handle name>:<id>` in lower case. Defined again by the same mod (also after `clear`), by a newer API that took the definitions over, or in another world, it is the type the API registered, with the id's case as first defined (the type's translation name). A handle named `base` (any case) is refused before anything is looked up: the game's own moodles are `base:...`. A type the registry has under that name that the API did not register (another mod's, through `MoodleType.register`) is never taken over. Either, a moodle another mod defined under that name, a wrong spec, or a name the game refuses is a Lua error. |
 | `moodles.set(handle, id, level, playerIndex)` | The level (0 to 4) the local player of that index (0 to 3) shows; `nil` for every local player. 0 hides it. |
 | `moodles.level(handle, id, playerIndex)` | The level set for that player (0 when `nil`). |
 
-`handle:clear()` takes the mod's moodles back: they show no more (the type stays in the game's registry, at level 0, until the
-game resets it). A mod can call `define` as its Lua loads, before any character exists, or later, in a world: the API adds the
+`handle:clear()` takes the mod's moodles back: they show no more (the game's next update sets them to 0; a column not updated
+since, the game paused, still draws them with their pictures), `set` and `level` say the mod has no such moodle, and the type
+stays in the game's registry, the mod's to define again, until the game resets it. A mod can call `define` as its Lua loads, before any character exists, or later, in a world: the API adds the
 type to every character's moodles and every moodle column made before (the characters' moodles it has seen made since the game
 started, through a hook in the constructor, and the local players'), so that every registered type can be asked of every
 character; characters and columns made after it have it from the registry. The levels are the API's, not saved: they go back to
 0 when a world is left, and a mod sets them again as a world loads (`OnGameStart`, `OnCreatePlayer`). The definitions stay with
 the Lua environment: when the game resets its registry while they stay (a world left without the Lua reloaded), the API
-registers them again at the next world and adds them as above. A newer API takes the definitions and levels over, as it takes
+registers them again after the world change, once no world is loading (`GameLoadingState.loader` is null: that thread makes the
+player's moodles from the registry), and adds them as above; one whose name another mod registered meanwhile is not shown. A newer API takes the definitions and levels over, as it takes
 over the formulas; a function a mod copied out of the table says the API was updated.
 
 Only a local player's moodle shows a level: another character's, a remote player's included, is 0. A dead player's is 0, as the
@@ -896,8 +898,9 @@ game's update has it. Multiplayer is not blocked: on a client the local players'
   gives a file for each size as the game does (`media/ui/Moodles/<size>/`); a size it has no file for is drawn from the largest
   it has, scaled to the size. A path without `{size}` is one picture, scaled to every size (the column draws a picture at its own
   width and height; the API draws a copy of the game's texture that has the column's size). A list gives a picture for each level
-  from 1; a level above the list has the last. A picture the game has not read yet is drawn as it is until it has. A picture
-  that is not there is drawn as the empty frame, with one line in the game's log. Vanilla pictures are 32 to 128 pixels square
+  from 1; a level above the list has the last. A picture that is not square is scaled by its long side and centred in the
+  slot. A picture the game has not read yet is drawn as it is until it has. A picture that is not there, or that the game could
+  not read (`isFailure()`), is drawn as the empty frame, with one line in the game's log, and not looked for again. Vanilla pictures are 32 to 128 pixels square
   with a transparent background; the background and outline are the game's.
 - **Text.** In the mod's `media/lua/shared/Translate/EN/Moodles.json` (and other languages), for each level the mod uses:
 
@@ -928,7 +931,7 @@ itself after the player was made would make that count fail instead. Its moodles
 | `Moodle.Update:level` | the start | For one of the API's types, `updateMoodleLevel(level)` with the API's level, and return; for any other type (`-1`), the game's update goes on. The same method as the load's `:overload` hook. |
 | `Moodles.GoodBadNeutral` | each return | The kind of one of the API's types; the game's answer for any other. |
 | `Moodles.<init>` | the return | The character's moodles are kept, held weakly, so that a type defined later is added to them. Without it, only the local players' are. |
-| `MoodlesUI.render` | the call of `MoodleTextureSet.getTexture(type)` | The set's picture; for a type the set has none for, the API's picture of the moodle's level at the set's size. While no API can answer, the set's outline, which keeps the column from failing. |
+| `MoodlesUI.render` | the call of `MoodleTextureSet.getTexture(type)` | The set's picture; for a type the set has none for, the API's picture of the moodle's level at the set's size. For a type no one has a picture for (no API answers, it failed, or it no longer knows the type), the set's outline: the column would otherwise fail on every frame while the game is paused, and draw none of the moodles below it. |
 
 A hook that fails gives the game's answer (the game's update sets the level of a type it does not know to 0, and kind 2). Without
 `MoodlesUI.render` the column could not draw an API moodle, so none shows (its level is 0) and `PZToolsAPI.hooks()` says why.
@@ -948,8 +951,11 @@ for once; a second local player has its own level, and a player and a column mad
 shows none; defined again it is the same type with its new kind, another mod cannot take its name, and wrong arguments and a handle
 named `base` are Lua errors; a world left takes the levels and keeps the definitions; the registry reset makes a new type at the next
 world, added to the player and the column; a newer API takes the definitions and levels over and finds the type in the registry;
-a handler that fails gives the game's answers and the frame; `clear` hides it. The level hook cost 4 to 12 ns for a game's type and
-11 to 19 ns for an API type (runs of the synthetic game differ that much), and allocated nothing over 3,000,000 calls; a kept picture
+a handler that fails gives the game's answers and the frame; `clear` hides it at the next update, and a column not updated since draws
+it with its picture; a handle named `base` and a type another mod registered under a handle's name are refused; the registry is not
+changed while a world loads; a picture the game could not read is the frame, looked for once; one that is not square is centred; and
+a type no one has a picture for is drawn as the frame. The level hook cost 4 to 12 ns for a game's type and
+8 to 22 ns for an API type (runs of the synthetic game differ that much), and allocated nothing over 3,000,000 calls; a kept picture
 allocated nothing over 100,000 frames.
 
 Not tried in the game yet: the picture drawn (the scaled copy of a texture, mipmapped), the translation keys with a colon read from
@@ -1148,10 +1154,10 @@ failure by hand, the app's next round logged a warning naming `IsoGenerator.upda
 - A producer that breaks before its fuel runs out stops at a random hour the API does not see. The
   next producer starts from the hour the first's fuel would have run out (or now, if that hour has not
   come), later than it broke; the hours between burn no fuel.
-- The moodles' types are registered again on the game's thread when the API finds the registry without them at a world change
-  (see [moodles](#calls)). The game resets it only as it leaves a world (the frame after, at the main menu, registers them again)
-  and as it reloads its Lua (which makes a new API with no definitions), so this never meets the thread that loads a world and
-  makes its player; a game that reset the registry at another moment could see the two meet.
+- The moodles' types are registered again on the game's thread when the API finds the registry without them after a world change
+  (see [moodles](#calls)), never while `GameLoadingState.loader` (the thread that loads a world and makes its player) is set. In
+  42.21 the game resets the registry only as it leaves a world (the next frame, at the main menu, registers them again) and as it
+  reloads its Lua (which makes a new API with no definitions). A game without that field gets the registration at the world change.
 - User-defined buildings are removed and created again when walls change
   (`removeUserDefinedBuildingsFromCell`); a network follows its building from the square it was named
   by.

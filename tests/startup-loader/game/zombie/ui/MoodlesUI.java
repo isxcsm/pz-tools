@@ -25,7 +25,7 @@ public final class MoodlesUI {
     private MoodleTextureSet currentTextureSet;
     private IsoGameCharacter isoGameCharacter;
     public int numUsedSlots;
-    /** What the last render drew: each moodle's type, its picture, and the width and height it was drawn at. */
+    /** What the last render drew: each moodle's type, its picture, the width and height it was drawn at, and its offset. */
     public final List<Object[]> drawn = new ArrayList<>();
 
     public static class MoodleUIData {
@@ -85,7 +85,7 @@ public final class MoodlesUI {
             MoodleType type = entry.getKey();
             if (entry.getValue().slotsPos == OFFSCREEN) continue;
             Texture picture = set.getTexture(type);
-            drawn.add(new Object[] { type, picture, picture.getWidth(), picture.getHeight() });
+            drawn.add(new Object[] { type, picture, picture.getWidth(), picture.getHeight(), picture.offsetX, picture.offsetY });
         }
     }
 }
