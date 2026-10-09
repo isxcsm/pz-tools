@@ -11,6 +11,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
 require "OperationAcorn/Upgrades/Api"
+require "OperationAcorn/Upgrades/Moodles"
 require "OperationAcorn/Upgrades/Actions"
 require "OperationAcorn/Upgrades/Texts"
 require "OperationAcorn/Upgrades/Window"
@@ -319,6 +320,18 @@ end
 -- ---- the infection, once a minute ------------------------------------------------------------------------------
 
 local lastMinute = nil
+local lastBiteLevel = nil   -- the bite shield moodle's level a minute ago (nil before the first minute)
+
+-- The bite shield's moodle while it rests, and a title as it is armed again (not when the game starts armed).
+local function biteShield(player, u, now)
+    local level = Rules.biteLevel(u, now)
+    OA.Upgrades.Moodles.set("biteShield", level)
+    if level == 0 and lastBiteLevel and lastBiteLevel > 0 and Rules.rank(u, "resistPlus") >= 2 then
+        OA.Titles.show(OA.Client.id(player), { key = "IGUI_OA_Title_BiteReady", style = "notice", tone = "green",
+            fallback = "good" })
+    end
+    lastBiteLevel = level
+end
 
 local function onMinute()
     local u, player = localSection()
@@ -327,6 +340,7 @@ local function onMinute()
     local from = lastMinute or now
     lastMinute = now
     Serums.slowInfection(player, u, from, now)
+    biteShield(player, u, now)
     -- until the API shield is there, the bite is undone from here
     if Rules.rank(u, "resistPlus") >= 2 and not Effects.biteShieldApplied() then
         if Serums.shieldBite(player, u, now) then

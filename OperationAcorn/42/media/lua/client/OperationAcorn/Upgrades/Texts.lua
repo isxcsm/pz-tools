@@ -165,6 +165,19 @@ function Texts.newLines(before, after)
     return list
 end
 
+-- The bite shield's state for the tooltip of the nodes that make it (상처 감염 저항 rank 2, the board's 물림 회복), or
+-- nil: armed, or how long it still rests (days and hours). `u` is the record's section, `now` the world age hours.
+function Texts.biteStatus(node, u, now)
+    if node.id ~= "resistPlus" and node.id ~= "bBite" then return nil end
+    if Rules.rank(u, "resistPlus") < 2 then return nil end
+    local wait = Rules.biteWait(u, now)
+    if wait <= 0 then return getText("IGUI_OA_Tree_BiteArmed"), true end
+    local days = math.floor(wait / 24)
+    local hours = math.floor(wait - days * 24)
+    if days > 0 then return getText("IGUI_OA_Tree_BiteRestDays", days, hours), false end
+    return getText("IGUI_OA_Tree_BiteRestHours", math.max(1, hours)), false
+end
+
 -- Why the API side of a node does nothing, or nil when it works.
 function Texts.apiNote(id)
     local status, detail = Effects.status(id)

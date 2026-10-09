@@ -408,6 +408,11 @@ function View:tipFor(id)
     for _, one in ipairs(#now > 0 and now or nextLines) do text = text .. line(one, 1, 1, 1) end
     local desc = Texts.desc(id)
     if desc then text = text .. line(desc, 0.7, 0.7, 0.72) end
+    -- the bite shield as it is now (the record's, not the plan's)
+    local bite, armed = Texts.biteStatus(node, self.u, OA.hours())
+    if bite then
+        if armed then text = text .. line(bite, 0.55, 0.85, 0.55) else text = text .. line(bite, 1.0, 0.75, 0.4) end
+    end
     if not maxed then
         if #now > 0 then
             for i, one in ipairs(nextLines) do

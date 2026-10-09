@@ -197,3 +197,16 @@ test("an adding rank text has no number when the first line shows it", function(
         end
     end
 end)
+
+test("the bite shield's state in its nodes' tooltips", function()
+    local u = Rules.blank()
+    eq(Texts.biteStatus(Data.byId.resistPlus, u, 0), nil, "not had")
+    u.ranks.resistPlus = 2
+    local text, armed = Texts.biteStatus(Data.byId.resistPlus, u, 0)
+    eq(text, "IGUI_OA_Tree_BiteArmed")
+    eq(armed, true)
+    u.biteAt = 10
+    eq(Texts.biteStatus(Data.byId.bBite, u, 10 + 24 + 0.5), "IGUI_OA_Tree_BiteRestDays 5 23")
+    eq(Texts.biteStatus(Data.byId.resistPlus, u, 10 + 168 - 0.2), "IGUI_OA_Tree_BiteRestHours 1")
+    eq(Texts.biteStatus(Data.byId.rich, u, 10), nil, "other nodes")
+end)

@@ -1,4 +1,12 @@
 {
     "Moodles_OperationAcorn:sixth_lvl1": "Hunch",
-    "Moodles_OperationAcorn:sixth_desc_lvl1": "A feeling that an unseen zombie is close."
+    "Moodles_OperationAcorn:sixth_desc_lvl1": "A feeling that an unseen zombie is close.",
+    "Moodles_OperationAcorn:biteShield_lvl1": "Bite Shield Recovering",
+    "Moodles_OperationAcorn:biteShield_desc_lvl1": "Almost ready to shrug off a bite again.",
+    "Moodles_OperationAcorn:biteShield_lvl2": "Bite Shield Recovering",
+    "Moodles_OperationAcorn:biteShield_desc_lvl2": "Less than half the wait is left.",
+    "Moodles_OperationAcorn:biteShield_lvl3": "Bite Shield Recovering",
+    "Moodles_OperationAcorn:biteShield_desc_lvl3": "More than half the wait is left.",
+    "Moodles_OperationAcorn:biteShield_lvl4": "Bite Shield Spent",
+    "Moodles_OperationAcorn:biteShield_desc_lvl4": "Just saved you from a bite. A bite now would infect you."
 }

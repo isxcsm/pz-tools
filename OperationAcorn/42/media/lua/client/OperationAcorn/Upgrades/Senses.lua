@@ -1,4 +1,4 @@
--- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (the sounds zombies make
+-- The scout tree's senses, drawn: 육감 (a moodle while an unseen zombie is near: Moodles.lua), 기척 감지 (the sounds zombies make
 -- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
 -- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
 -- of what made it), 경보 읽기 (a mark over alarmed houses and cars nearby) and 털이 기록 (how many containers of the
@@ -10,17 +10,19 @@ require "ISUI/ISPanel"
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Pulse"
+require "OperationAcorn/Upgrades/Moodles"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Sense = OA.Upgrades.Sense
 local Pulse = OA.Upgrades.Pulse
+local Moodles = OA.Upgrades.Moodles
 local Senses = {}
 OA.Upgrades.Senses = Senses
 
 -- What the last pulse found.
 local S = {
     radius = 0, distance = false, extended = false, hearing = 1,
-    sixth = false, sixthDrawn = false, alarms = {}, zombies = {}, sounds = {}, ring = false,
+    sixth = false, alarms = {}, zombies = {}, sounds = {}, ring = false,
 }
 Senses.state = S
 
@@ -44,80 +46,6 @@ function Hud:new(playerNum)
 end
 
 function Hud:prerender() end
-
--- ---- the sixth sense's moodle ----------------------------------------------------------------------------------
-
--- A moodle of the game's own column, through the extension API (PZToolsAPI.moodles): the game draws it, places it,
--- wiggles it and shows its tooltip (Translate/<lang>/Moodles.json). In a game without the API's moodle hooks the HUD
--- draws a stand-in beside the column instead (drawStandIn).
-local MOODLE = "sixth"
-local MOODLE_PICTURE = "media/textures/OA_Moodle_Sixth_{size}.png"
-local MOODLE_SIZES = { 32, 48, 64, 80, 96, 128 }
-local moodle = { state = nil, level = 0 }   -- state: nil until decided, "api" or "draw"
-
--- Whether the hooks the API's moodles need went in: true, false, or nil while their classes have not loaded.
-local function moodleHooks(api)
-    local ok, hooks = pcall(api.hooks)
-    if not ok or type(hooks) ~= "table" then return false end
-    local level, picture = hooks["Moodle.Update:level"], hooks["MoodlesUI.render"]
-    if level == "applied" and picture == "applied" then return true end
-    if level == "not-loaded" or picture == "not-loaded" then return nil end
-    return false
-end
-
--- Shows or hides the sixth sense's moodle. Returns whether the game's column shows it (else the HUD draws it).
-local function setSixth(on)
-    if moodle.state == nil then
-        local api, handle = OA.api(), OA.handle()
-        if not (api and handle and type(api.moodles) == "table") then
-            moodle.state = "draw"
-        else
-            local hooked = moodleHooks(api)
-            if hooked == nil then return false end
-            moodle.state = "draw"
-            if hooked then
-                local ok, err = pcall(api.moodles.define, handle, MOODLE, { kind = "neutral", picture = MOODLE_PICTURE })
-                if ok then moodle.state = "api" else OA.log("sixth sense moodle:", tostring(err)) end
-            end
-        end
-    end
-    if moodle.state ~= "api" then return false end
-    local level = on and 1 or 0
-    if level ~= moodle.level then
-        local ok, err = pcall(PZToolsAPI.moodles.set, OA.handle(), MOODLE, level)
-        if ok then moodle.level = level else OA.log("sixth sense moodle:", tostring(err)) end
-    end
-    return true
-end
-
--- The stand-in: the moodle's picture on the game's moodle background, at the moodle size option, left of the
--- game's column, with the moodle's name and text when the mouse is over it.
-local function drawStandIn(self)
-    local option = getCore():getOptionMoodleSize()
-    local size = MOODLE_SIZES[option] or ((getCore():getScreenHeight() > 1200) and 64 or 48)
-    local column = UIManager.getMoodleUI(self.playerNum)
-    local x, y = self.width - size - 8, size * 2
-    if column then
-        x = column:getX() - self.x - size - 6
-        y = column:getY() - self.y
-    end
-    local back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png")
-    local icon = getTexture(string.gsub(MOODLE_PICTURE, "{size}", tostring(size)))
-    if back then self:drawTextureScaled(back, x, y, size, size, 0.9, 0.42, 0.42, 0.42) end
-    if icon then self:drawTextureScaled(icon, x, y, size, size, 1, 1, 1, 1) end
-    local mx, my = getMouseX() - self.x, getMouseY() - self.y
-    if mx >= x and mx < x + size and my >= y and my < y + size then
-        local name = getText("Moodles_" .. OA.MOD .. ":" .. MOODLE .. "_lvl1")
-        local text = getText("Moodles_" .. OA.MOD .. ":" .. MOODLE .. "_desc_lvl1")
-        local tm = getTextManager()
-        local w = math.max(tm:MeasureStringX(UIFont.Small, name), tm:MeasureStringX(UIFont.Small, text)) + 16
-        local fh = tm:getFontHeight(UIFont.Small)
-        local tx = x - w - 6
-        self:drawRect(tx, y, w, fh * 2 + 12, 0.75, 0, 0, 0)
-        self:drawText(name, tx + 8, y + 4, 1, 1, 1, 1, UIFont.Small)
-        self:drawText(text, tx + 8, y + 6 + fh, 0.8, 0.8, 0.8, 1, UIFont.Small)
-    end
-end
 
 -- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing the place its
 -- sound was made, on an ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where
@@ -317,7 +245,6 @@ function Hud:render()
             end
         end
     end
-    if S.sixthDrawn then drawStandIn(self) end
 end
 
 local hud = nil
@@ -433,14 +360,9 @@ local function collect(player, radius, acts, look)
     return ended(count)
 end
 
--- The sixth sense shown as S.sixth says: the game's moodle, or the HUD's stand-in (S.sixthDrawn). Nothing is defined
--- for a character that never had it on.
+-- The sixth sense's moodle as S.sixth says (Moodles: the game's column, or a stand-in beside it).
 local function updateSixth()
-    if S.sixth or moodle.level > 0 then
-        S.sixthDrawn = S.sixth and not setSixth(S.sixth)
-    else
-        S.sixthDrawn = false
-    end
+    Moodles.set("sixth", S.sixth and 1 or 0)
 end
 
 -- Puts a zombie's sound in the list, heard where it was made.
@@ -499,7 +421,7 @@ local function senseJob(now)
         end
     end
     updateSixth()
-    showHud(S.ring or S.sixthDrawn or #S.alarms > 0)
+    showHud(S.ring or #S.alarms > 0)
 end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
@@ -663,7 +585,7 @@ local function alarmJob(now)
             HaloTextHelper.addBadText(player, getText(spot.car and "IGUI_OA_Tree_AlarmCar" or "IGUI_OA_Tree_AlarmHouse"))
         end
     end
-    showHud(S.ring or S.sixthDrawn or #S.alarms > 0)
+    showHud(S.ring or #S.alarms > 0)
 end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------

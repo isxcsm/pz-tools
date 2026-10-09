@@ -543,6 +543,13 @@ test("bite shield: armed at rank 2, rests for seven days, shorter with the board
     eq(Rules.biteReady(u, 100 + 168), true)
     near(Rules.biteWait(u, 120), 148, 1e-9)
     near(Rules.biteHours(u), 168, 1e-9)
+    -- the moodle's level: 4 for the first quarter of the rest, down to 1 in its last, 0 once armed
+    eq(Rules.biteLevel(u, 100), 4)
+    eq(Rules.biteLevel(u, 100 + 42.5), 3)
+    eq(Rules.biteLevel(u, 100 + 84.5), 2)
+    eq(Rules.biteLevel(u, 100 + 126.5), 1)
+    eq(Rules.biteLevel(u, 100 + 168), 0)
+    eq(Rules.biteLevel(fresh(), 100), 0, "no shield, no moodle")
     inject(u, "scout", 26)
     buy(u, ORDER.scout)
     buy(u, { "nightEye" }, { fragments = 1 })

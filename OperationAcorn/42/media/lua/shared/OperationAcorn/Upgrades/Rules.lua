@@ -520,6 +520,19 @@ function Rules.biteWait(u, now)
     return math.max(0, Rules.biteHours(u) - (now - u.biteAt))
 end
 
+-- The bite shield's moodle level while it rests (0 when it is armed or not had): 4 with more than three quarters of
+-- the rest ahead, then 3, 2, and 1 in its last quarter.
+function Rules.biteLevel(u, now)
+    if Rules.rank(u, "resistPlus") < 2 then return 0 end
+    local wait = Rules.biteWait(u, now)
+    if wait <= 0 then return 0 end
+    local share = wait / Rules.biteHours(u)
+    if share > 0.75 then return 4 end
+    if share > 0.5 then return 3 end
+    if share > 0.25 then return 2 end
+    return 1
+end
+
 -- The share of the time an item transfer takes that is left after the transfer node and the board's (a multiplier).
 function Rules.transferTime(u)
     local time = 1 - Rules.cut(u, "moveSpeed")

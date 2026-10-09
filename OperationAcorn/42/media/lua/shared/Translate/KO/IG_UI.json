@@ -1010,5 +1010,9 @@
     "IGUI_OA_Title_Marked": "지도에 표시됨",
     "IGUI_OA_Title_Dropped": "투하 완료",
     "IGUI_OA_Title_Refusal": "접수 중지",
-    "IGUI_OA_Title_RefusalSub": "%1 · %2일 동안"
+    "IGUI_OA_Title_RefusalSub": "%1 · %2일 동안",
+    "IGUI_OA_Tree_BiteArmed": "물림 방어: 준비됨",
+    "IGUI_OA_Tree_BiteRestDays": "물림 방어: %1일 %2시간 뒤 준비",
+    "IGUI_OA_Tree_BiteRestHours": "물림 방어: %1시간 뒤 준비",
+    "IGUI_OA_Title_BiteReady": "물림 내성 회복"
 }

@@ -1010,5 +1010,9 @@
     "IGUI_OA_Title_Marked": "Marked on the map",
     "IGUI_OA_Title_Dropped": "Drop complete",
     "IGUI_OA_Title_Refusal": "Intake suspended",
-    "IGUI_OA_Title_RefusalSub": "%1 · %2 days"
+    "IGUI_OA_Title_RefusalSub": "%1 · %2 days",
+    "IGUI_OA_Tree_BiteArmed": "Bite shield: ready",
+    "IGUI_OA_Tree_BiteRestDays": "Bite shield: ready in %1 d %2 h",
+    "IGUI_OA_Tree_BiteRestHours": "Bite shield: ready in %1 h",
+    "IGUI_OA_Title_BiteReady": "Bite shield ready"
 }
