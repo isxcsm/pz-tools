@@ -145,7 +145,8 @@ function Texts.conditions(sim, node, ctx)
         add(have >= 1, getText("IGUI_OA_Tree_NeedFragment", have))
     end
     if not Rules.maxed(sim, node.id) then
-        add(Rules.free(sim, node.tree) >= 1, getText("IGUI_OA_Tree_NeedPoints", 1, Rules.free(sim, node.tree)))
+        local free = Rules.free(sim, node.tree)
+        add(free >= 1, getText("IGUI_OA_Tree_NeedPoints", 1, math.min(free, Rules.treeRoom(sim, node.tree))))
     end
     return list
 end

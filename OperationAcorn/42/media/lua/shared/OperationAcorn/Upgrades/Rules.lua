@@ -125,6 +125,20 @@ function Rules.treeSpent(u, tree)
     return u.own[tree] + u.sharedUsed[tree]
 end
 
+-- The ranks a tree still has to take (its capstone with them): what more of its points it can use.
+function Rules.treeRoom(u, tree)
+    local n = 0
+    for _, node in ipairs(Data.treeNodes(tree)) do n = n + node.ranks - Rules.rank(u, node.id) end
+    return math.max(0, n)
+end
+
+-- A tree's own points split into what the tree can still take and the rest, which only the 2nd board can use.
+function Rules.ownSplit(u, tree)
+    local pool = Rules.ownPool(u, tree)
+    local usable = math.min(pool, Rules.treeRoom(u, tree))
+    return usable, pool - usable
+end
+
 -- Points a plan could spend in a tree now: the tree's own and the shared.
 function Rules.free(u, tree)
     return Rules.ownPool(u, tree) + Rules.sharedPool(u)

@@ -137,6 +137,12 @@ local function onNotice(playerId, detail)
     if playerId and OA.Client.id(player) ~= playerId then return end
     local args = localizedArgs(detail)
     local text = getText(detail.key, args[1], args[2], args[3])
+    -- the first research point: where the plan is made, once a character
+    if (detail.key == "IGUI_OA_Tree_PointGained" or detail.key == "IGUI_OA_Tree_SharedGained")
+        and not player:getModData().OA_ResearchHint then
+        player:getModData().OA_ResearchHint = true
+        Hooks.banner(getText("IGUI_OA_Tree_WhereHint"))
+    end
     if string.find(detail.key, "^IGUI_OA_Tree_Event_") then
         Hooks.banner(text)
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
@@ -253,7 +259,6 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     local player = getSpecificPlayer(playerNum)
     if not player or player:getVehicle() then return end
     if not OA.Client.record(player) then return end
-    context:addOption(getText("ContextMenu_OA_Tree_Open"), playerNum, Window.open)
     local seen = {}
     for _, object in ipairs(worldobjects) do
         if (instanceof(object, "IsoDoor") or instanceof(object, "IsoWindow")) and not seen[object] then

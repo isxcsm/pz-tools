@@ -91,8 +91,9 @@ test("data is consistent: prerequisites, values, places, api map", function()
         seen[n.id] = true
         truthy(n.kind == "lua" or n.kind == "api", n.id .. " kind")
         truthy(n.icon, n.id .. " icon")
+        truthy(n.iconGray, n.id .. " grey icon")
         if not n.board then
-            truthy(n.row >= 1 and n.row <= 5 and n.col >= 1 and n.col <= 5, n.id .. " place")
+            truthy(n.row >= 1 and n.row <= Data.ROWS and n.col >= 1 and n.col <= Data.COLS, n.id .. " place")
             if n.capstone then eq(n.row, 5, n.id) end
             if n.values then eq(#n.values, n.ranks, n.id .. " values") end
             if n.values2 then eq(#n.values2, n.ranks, n.id .. " values2") end
@@ -117,6 +118,45 @@ test("data is consistent: prerequisites, values, places, api map", function()
     end
 end)
 
+test("every prerequisite line runs around the other nodes", function()
+    require "OperationAcorn/Upgrades/Links"
+    local Links = OA.Upgrades.Links
+    local kinds = {}
+    for _, tree in ipairs(Data.TREES) do
+        local cells = Links.cells(tree)
+        for _, link in ipairs(Links.tree(tree)) do
+            local from, to = Data.byId[link.from], Data.byId[link.to]
+            kinds[link.to] = link.kind
+            -- the column a vertical part runs down: no node on the rows it passes
+            local function clearDown(c)
+                for r = from.row + 1, to.row - 1 do
+                    if cells[r .. "," .. c] then return false end
+                end
+                return true
+            end
+            if link.kind == "straight" then
+                eq(from.col, to.col, link.to)
+                truthy(clearDown(to.col), link.to .. " straight through a node")
+            elseif link.kind == "elbow" then
+                truthy(clearDown(to.col), link.to .. " elbow through a node")
+            else
+                eq(link.kind, "gutter", link.to)
+                local g = link.points[3].c
+                truthy(g >= 0 and g <= Data.COLS, link.to .. " gutter inside the grid")
+            end
+            eq(link.points[1].y, "bottom", link.to)
+            eq(link.points[#link.points].y, "top", link.to)
+        end
+    end
+    -- the trees are laid out so that every line is straight, and each capstone stands in the middle (column 2)
+    for id, kind in pairs(kinds) do eq(kind, "straight", id) end
+    for _, tree in ipairs(Data.TREES) do eq(Data.capstone(tree).col, 2, tree) end
+    -- the router itself, on cells made up for it: around a node in the way, and to another column
+    eq((Links.route({}, 1, 1, 2, 3)), "elbow")
+    eq((Links.route({ ["2,1"] = "x" }, 1, 1, 1, 3)), "gutter")
+    eq((Links.route({ ["2,2"] = "x" }, 1, 1, 2, 3)), "gutter")
+end)
+
 test("a tree opens with its first serum; each serum is a point of that tree", function()
     local u = fresh()
     truthy(not Rules.treeOpen(u, "scout"))
@@ -130,6 +170,21 @@ test("a tree opens with its first serum; each serum is a point of that tree", fu
     eq(Rules.rank(u, "sight"), 1)
     eq(Rules.ownPool(u, "scout"), 1)
     eq(Rules.treeSpent(u, "scout"), 1)
+end)
+
+test("a tree's own points beyond what it can still take are counted apart, for the 2nd board", function()
+    local u = fresh()
+    inject(u, "scout", 30)
+    eq(Rules.treeRoom(u, "scout"), 26, "25 points and the capstone")
+    eq(select(1, Rules.ownSplit(u, "scout")), 26)
+    eq(select(2, Rules.ownSplit(u, "scout")), 4)
+    buy(u, ORDER.scout)
+    eq(Rules.treeRoom(u, "scout"), 1)
+    eq(select(1, Rules.ownSplit(u, "scout")), 1)
+    eq(select(2, Rules.ownSplit(u, "scout")), 4)
+    inject(u, "load", 2)
+    eq(select(1, Rules.ownSplit(u, "load")), 2)
+    eq(select(2, Rules.ownSplit(u, "load")), 0)
 end)
 
 test("shared points go into any opened tree, after the tree's own", function()
