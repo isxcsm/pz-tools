@@ -1,5 +1,7 @@
 package pztools.api;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,12 +18,13 @@ import zombie.iso.IsoObject;
 import zombie.iso.IsoWorld;
 import zombie.iso.objects.IsoGenerator;
 import zombie.iso.sprite.IsoSprite;
+import zombie.iso.sprite.IsoSpriteInstance;
 import pztools.bridge.ApiHooks;
 
 /**
  * The systems points against the synthetic game: the machines a mod declares (what a generator is asked of an object, and the
- * objects that were in the world before the declaration), the helicopter's state and its event, and the query for the
- * zombies near a point.
+ * objects that were in the world before the declaration), the animations attached to objects that mods have stepped, the
+ * helicopter's state and its event, and the query for the zombies near a point.
  */
 final class SystemsTest {
     private static final ClassLoader GAME = SystemsTest.class.getClassLoader();
@@ -41,6 +44,7 @@ final class SystemsTest {
             Object mod = FormulasTest.call(api, "client", "systems.mod").get(0), second = FormulasTest.call(api, "client", "systems.second").get(0);
             var formulas = (KahluaTable)api.rawget("formulas");
             machines(formulas, mod, second, cell, player);
+            animations(formulas, mod, second, cell);
             helicopter(api, player);
             WatchesTest.run(api, player);
             zombies(api, cell);
@@ -154,6 +158,121 @@ final class SystemsTest {
         check(late.square.chunk.poweredObjects.contains(late), "A machine was not listed once a player was there");
         FormulasTest.call(mod, "clear");
         GameApi.frame(GAME);
+    }
+
+    // ---- attached animations ----
+
+    private static void animations(KahluaTable formulas, Object mod, Object second, IsoCell cell) {
+        var points = (KahluaTable)FormulasTest.call(formulas, "points").get(0);
+        check(ApiHooks.APPLIED.equals(points.rawget("anim.stepKey")), "anim.stepKey is " + points.rawget("anim.stepKey"));
+        // A press with a looping animation of 4 frames at half a frame a step, as a mod attaches one; a sign with one of its own.
+        var press = machine(cell, "acorn_press_0", 20, 22, 0);
+        var spin = new IsoSprite("acorn_press_spin");
+        IsoSpriteInstance wheel = press.attachAnim(spin);
+        wheel.setFrameSpeedPerFrame(0.5f);
+        var sign = machine(cell, "acorn_sign_0", 21, 22, 0);
+        var blink = new IsoSprite("acorn_sign_blink");
+        IsoSpriteInstance light = sign.attachAnim(blink);
+        GameApi.frame(GAME);
+        // Nothing declared: drawn twice a frame, and the game's update() called each time, as in vanilla; nothing steps.
+        press.render(); press.render();
+        check(spin.steps == 0 && wheel.frame == 0f && wheel.updates == 2, "An animation was stepped with nothing declared: " + spin.steps);
+        // Declared, but the press holds no key: not stepped, and no data table is made for it.
+        FormulasTest.call(formulas, "set", mod, "anim.stepKey", "acornSpin");
+        press.render();
+        check(spin.steps == 0 && !press.hasModData(), "An object without the key was stepped, or given a data table");
+        // The key held: stepped once a frame however many times it is drawn, at its own speed, and the game's call kept.
+        data(press, "acornSpin", 1.0);
+        int updates = wheel.updates;
+        press.render(); press.render(); press.render();
+        check(spin.steps == 1 && wheel.frame == 0.5f && wheel.updates == updates + 3, "Drawn three times in a frame, it was stepped " + spin.steps + " times");
+        GameApi.frame(GAME);
+        press.render(); press.render();
+        check(spin.steps == 2 && wheel.frame == 1f, "The next frame did not step it once: " + spin.steps);
+        // Looping: back to the first frame after the last (4 frames).
+        for (int frame = 0; frame < 6; frame++) { GameApi.frame(GAME); press.render(); }
+        check(spin.steps == 8 && wheel.frame == 0f, "The animation did not loop: frame " + wheel.frame);
+        // Not drawn in a frame: not stepped in it.
+        GameApi.frame(GAME);
+        GameApi.frame(GAME);
+        press.render();
+        check(spin.steps == 9, "An animation that was not drawn was stepped for its frame");
+        // A number other than 0 steps; 0, a string, a NaN and a key taken out leave it as in vanilla.
+        for (Object held : new Object[] { 0.0, "on", Double.NaN, null }) {
+            data(press, "acornSpin", held);
+            GameApi.frame(GAME);
+            press.render();
+            check(spin.steps == 9, "A press holding " + held + " was stepped");
+        }
+        data(press, "acornSpin", -2.0);
+        GameApi.frame(GAME);
+        press.render();
+        check(spin.steps == 10, "A negative number did not step it");
+        // Only the object that holds the key: the sign has none.
+        GameApi.frame(GAME);
+        sign.render();
+        check(blink.steps == 0 && light.updates == 1, "An object without the key was stepped beside one with it");
+        // Two mods' keys join: the sign holds the second's.
+        data(sign, "blinking", 1.0);
+        FormulasTest.call(formulas, "set", second, "anim.stepKey", table("blinking"));
+        GameApi.frame(GAME);
+        sign.render(); press.render();
+        check(blink.steps == 1 && spin.steps == 11, "Two mods' keys did not join: " + blink.steps + ", " + spin.steps);
+        check(((KahluaTable)FormulasTest.call(formulas, "get", "anim.stepKey").get(0)).len() == 2, "The keys of two mods did not join");
+        // A sprite whose step fails: reported once, the game's own call made, and the other objects stepped.
+        blink.failing = true;
+        var err = new ByteArrayOutputStream();
+        PrintStream original = System.err;
+        System.setErr(new PrintStream(err, true));
+        try {
+            for (int frame = 0; frame < 3; frame++) { GameApi.frame(GAME); sign.render(); press.render(); }
+        } finally { System.setErr(original); }
+        String log = err.toString();
+        String report = "[PzTools API] attachedAnim:";
+        check(log.contains(report) && log.indexOf(report) == log.lastIndexOf(report) && light.updates == 5 && spin.steps == 14,
+            "A failing step was not reported once, or stopped the drawing: " + log);
+        blink.failing = false;
+        // Allocation: drawing declared objects, stepped and not (the median of five rounds).
+        long bytes = Allocations.median(5, () -> {
+            for (int frame = 0; frame < 100; frame++) {
+                GameApi.frame(GAME);
+                for (int draw = 0; draw < 1000; draw++) { press.render(); sign.render(); }
+            }
+        });
+        System.out.println("attached animations: " + bytes + " bytes allocated by 100 frames of 1000 draws of two stepped objects");
+        check(bytes < 16384, "Drawing stepped animations allocated " + bytes + " bytes in 100 frames");
+        var plain = machine(cell, "acorn_plain_0", 22, 22, 0);
+        plain.attachAnim(new IsoSprite("acorn_plain_spin"));
+        double stepped = drawCost(press), keyless = drawCost(plain);
+        // Taken back: vanilla again.
+        FormulasTest.call(mod, "clear");
+        FormulasTest.call(second, "clear");
+        int steps = spin.steps;
+        GameApi.frame(GAME);
+        press.render();
+        check(spin.steps == steps, "An animation was stepped after the declaration went");
+        double undeclared = drawCost(press);
+        System.out.printf("attached animations: a draw of one costs %.1f ns with nothing declared, %.1f ns declared without the key, %.1f ns with it"
+            + " (a frame of 1000 draws, the first one stepping)%n", undeclared, keyless, stepped);
+        check(undeclared < 1000 && keyless < 1000 && stepped < 1000, "A draw is slow: " + undeclared + ", " + keyless + ", " + stepped + " ns");
+        rejects(formulas, "anim.stepKey must be a string or a list of strings", mod, "anim.stepKey", 1.0);
+    }
+
+    /** What drawing the object costs, in ns a draw: the best of 5 rounds of 1000 frames of 1000 draws (the synthetic draw included). */
+    private static double drawCost(IsoObject object) {
+        double best = Double.MAX_VALUE;
+        for (int round = 0; round < 6; round++) {
+            long time = 0;
+            for (int frame = 0; frame < 1000; frame++) {
+                GameApi.frame(GAME);
+                long start = System.nanoTime();
+                for (int draw = 0; draw < 1000; draw++) object.render();
+                time += System.nanoTime() - start;
+            }
+            // The first round warms up.
+            if (round > 0) best = Math.min(best, time / 1e6);
+        }
+        return best;
     }
 
     // ---- the helicopter ----

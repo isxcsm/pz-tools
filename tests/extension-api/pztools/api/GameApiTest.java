@@ -2027,12 +2027,12 @@ public final class GameApiTest {
                 "BodyDamage.GetBaseCorpseSickness", "BodyDamage.AddRandomDamageFromZombie", "BodyPart.generateZombieInfection",
                 "IsoGameCharacter.handleLandingImpact:impact", "IsoGameCharacter.DoLand", "IsoGameCharacter.damageWhileInTrees",
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
-                "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "Helicopter.writes:flight",
+                "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "IsoObject.renderAttachedSprites", "Helicopter.writes:flight",
                 "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change", "Moodle.Update:level", "Moodles.GoodBadNeutral",
                 "Moodles.<init>", "MoodlesUI.render", "UIManager.render:text",
                 "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 85, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 86, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);

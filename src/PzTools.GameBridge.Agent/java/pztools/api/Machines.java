@@ -26,8 +26,10 @@ final class Machines {
 
     private final Game game;
     private final Players players;
-    // IsoObject.getSpriteName(), getSprite(), hasModData(), getModData(); IsoSprite.getName(); KahluaTable.rawget(Object).
-    private final MethodHandle spriteName, spriteOf, nameOf, hasData, dataOf, rawget;
+    // IsoObject.getSpriteName(), getSprite(); IsoSprite.getName().
+    private final MethodHandle spriteName, spriteOf, nameOf;
+    // The numbers the objects' mod data holds under the load keys.
+    private final ObjectData data;
     // IsoPlayer.getX(), getY().
     private final MethodHandle xOf, yOf;
     // IsoCell.getChunk(wx, wy); IsoChunk.getMinLevel(), getMaxLevel(), getSquaresForLevel(level), addObjectPoweredByGenerator(object).
@@ -40,14 +42,12 @@ final class Machines {
         this.game = game;
         this.players = players;
         Class<?> object = game.objectType, sprite = Game.type(loader, "zombie.iso.sprite.IsoSprite");
-        Class<?> table = Game.type(loader, "se.krka.kahlua.vm.KahluaTable"), chunk = Game.type(loader, "zombie.iso.IsoChunk");
+        Class<?> chunk = Game.type(loader, "zombie.iso.IsoChunk");
         Class<?> moving = Game.type(loader, "zombie.iso.IsoMovingObject");
         spriteName = Game.exact(object.getMethod("getSpriteName"), MethodType.methodType(Object.class, Object.class));
         spriteOf = Game.exact(object.getMethod("getSprite"), MethodType.methodType(Object.class, Object.class));
         nameOf = Game.exact(sprite.getMethod("getName"), MethodType.methodType(Object.class, Object.class));
-        hasData = Game.exact(object.getMethod("hasModData"), MethodType.methodType(boolean.class, Object.class));
-        dataOf = Game.exact(object.getMethod("getModData"), MethodType.methodType(Object.class, Object.class));
-        rawget = Game.exact(table.getMethod("rawget", Object.class), MethodType.methodType(Object.class, Object.class, Object.class));
+        data = new ObjectData(loader, object);
         xOf = Game.exact(moving.getMethod("getX"), MethodType.methodType(float.class, Object.class));
         yOf = Game.exact(moving.getMethod("getY"), MethodType.methodType(float.class, Object.class));
         chunkAt = Game.type(loader, "zombie.iso.IsoCell").getMethod("getChunk", int.class, int.class);
@@ -82,15 +82,7 @@ final class Machines {
      * What the object's own load multiplies its consumption by: each of the keys the object's data table holds a number
      * under multiplies it (a number below 0 counts as 0, above 100 as 100; anything else is left out), 1 for none.
      */
-    float factor(String[] keys, Object object) throws Throwable {
-        if (keys.length == 0 || !(boolean)hasData.invokeExact(object)) return 1f;
-        Object table = (Object)dataOf.invokeExact(object);
-        double factor = 1;
-        for (String key : keys)
-            if ((Object)rawget.invokeExact(table, (Object)key) instanceof Number value && !Double.isNaN(value.doubleValue()))
-                factor *= Math.max(0, Math.min(MAX_FACTOR, value.doubleValue()));
-        return (float)factor;
-    }
+    float factor(String[] keys, Object object) throws Throwable { return (float)data.product(keys, object, MAX_FACTOR); }
 
     /**
      * Lists the machines of these sprite names that are on loaded squares in the game's lists of objects a generator

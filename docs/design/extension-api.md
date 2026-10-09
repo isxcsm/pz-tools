@@ -6,7 +6,8 @@
 > [buildings](#buildings-facts) area, power [networks](#networks-mechanism) under `"sequential"` and
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
-> speed points, the survival points, the [hidden zombies](#the-hidden-zombies) and the [machines](#machines)), the
+> speed points, the survival points, the [hidden zombies](#the-hidden-zombies), the [machines](#machines) and the
+[attached animations](#attached-animations)), the
 > [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [sounds zombies make](#zombie-sounds), the [moodles](#moodles-mechanism) mods
 > define and the [text](#text-mechanism) they show. Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
@@ -465,6 +466,7 @@ not have is a Lua error at `set`.
 | `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: every square on the screen is drawn with at least some light (0.9 x the value of the full light, a sealed room too), and in the dark the screen's dark tones are lifted (the darker the more); what the eye saw without it keeps its colour, and what it adds is a cold grey, as the eye's rods see (what a lamp or a fire lights keeps its colour and is not lifted). On the screen alone: the squares' own light, which the zombies, the vision cone and reading ask, is the game's. The lift follows how dark it is for the player (`LightingJNI.getLumaInverted`: none in daylight or under a lamp, partly at a lamp's edge, whole in a night or a basement with no light), easing in and out over 0.3 seconds. A step in the screen shader (`screen.frag`, see [night sight](#night-sight)); the night vision goggles' path is left alone. |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
+| `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused); see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
@@ -506,6 +508,33 @@ local player, the API goes through the loaded chunks around each local player (h
 that is taken back leaves the lists as they are: the game asks each listed object again, and no longer finds it a
 consumer. A mod that changes the load of an object calls `IsoGenerator.updateGenerator(square)` after, as the game's own
 Lua does when it moves an object; the API does not poll the machines.
+
+### Attached animations
+
+The game draws the animations attached to an object (`IsoObject.attachedAnimSprite`, which `AttachAnim` and
+`AttachExistingAnim` fill) in `IsoObject.renderAttachedSprites`, and after drawing each it calls the instance's
+`IsoSpriteInstance.update()`, which does nothing. A fire steps its own in `IsoFire.update`, and a character steps its sprite
+with `IsoSprite.update(instance)`; an ordinary object's attached animation stays on its frame unless a mod steps it from Lua
+every tick. With `anim.stepKey` declared, an object whose mod data holds a number other than 0 under one of the keys has each
+of its attached animations stepped right after that call, by the game's own `IsoSprite.update(instance)` of the instance's
+sprite: the frame moves by the instance's speed (`setFrameSpeedPerFrame`) times the game time since the last update, a
+looping animation starts again after its last frame, and nothing moves while the game is paused. A mod sets the number to
+start the animation and 0 to stop it, where it is (`PZToolsAPI.formulas.set(handle, "anim.stepKey", "acornSpin")`, then
+`object:getModData().acornSpin = 1`).
+
+- **Once a frame.** The game may draw an object more than once a frame (once for each player's screen), so the API keeps
+  the instances it stepped since the frame job last ran (at the start of `GameWindow.logic()`) in an identity table that the
+  frame empties. The table grows to the most instances stepped in a frame, its only allocation. Only the thread the frame job
+  runs on, the game's, steps.
+- **Only while drawn.** An object the game does not draw (off the screen) is not stepped; its animation goes on from where
+  it was.
+- **No table made.** The mod data is read only for an object that has it (`hasModData`). A string, a NaN, 0 or no key leave
+  the object as in vanilla.
+- **Not looping.** An animation attached not to loop stops on its last frame, as the game's update has it; one attached to
+  be deleted when it finishes (`AttachExistingAnim`'s `deleteWhenFinished`) has its sprite disposed by that update, so a mod
+  attaches a looping one or one that is kept.
+- **Faults.** A step that throws is reported once in the game's log and leaves that draw as in vanilla; the next draws try
+  again.
 
 ### The hidden zombies
 
@@ -598,6 +627,7 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `IsoTree.getSlowFactor` | each return | Passed through `move.treeSlowMultiplier`, for a local player. |
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
+| `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |
 | `IsoPlayer.calculateInTreesSpeed` | each return | The speed scale of the animation of walking through trees, passed through `move.treeSlowMultiplier`. |
 | `IsoGameCharacter.damageWhileInTrees` | the start | Returns at once, with the chance `move.treeScratchChance` leaves out. |
 | `IsoGameCharacter.addHole(BloodBodyPartType, boolean)` | the start | Returns false at once, with the chance `body.holeChance` leaves out. The one-argument `addHole` and `addHoleFromZombieAttacks` call it. |
@@ -795,6 +825,21 @@ is not listed again; with no player to say what is loaded nothing is listed unti
 questions allocated 3984 bytes (no call allocates). Not tried in the game yet: a machine declared at `OnGameStart` with a
 generator already running; the generator's fuel use following a load key; `buildings.objects` and a network reading a
 declared machine.
+
+The attached animations' hook was put into the real bytes of `IsoObject` (the jar's and PZ Optimize's loose class, each with
+one call of `IsoSpriteInstance.update()`, right after `IsoSprite.render`) and both classes passed the class-file verifier. Read
+from the bytes: `IsoSpriteInstance.update()` is empty; `IsoSprite.update(IsoSpriteInstance)` (the same in PZ Optimize's loose
+`IsoSprite`) moves `frame` by `animFrameIncrease` times `GameTime.getMultipliedSecondsSinceLastUpdate()` times 60 unless
+`GameTime.isGamePaused()`, and loops it; `AttachExistingAnim` sets the sprite's `animate` (more than one frame), `loop` and
+`deleteWhenFinished`, and a new instance is `looped`. In the synthetic game: nothing is stepped with nothing declared, nor an
+object without a key, which is given no data table; an object holding a key, drawn three times in a frame, is stepped once
+at its own speed with the game's call made each time, once again in the next frame, loops, and is not stepped in a frame it
+is not drawn; 0, a string, a NaN and a key taken out leave it, a negative number steps it; two mods' keys join; a sprite whose
+step throws is reported once in the log while the game's calls are made and the other objects step; `clear` gives vanilla
+back; 100 frames of 1000 draws of two stepped objects allocated 792 bytes (the measurement's own). A draw cost 7.6 ns with
+nothing declared, 16.6 ns declared but without the key and 41.9 ns with it (the synthetic draw included). Not tried in the game
+yet: a mod's animation stepped this way (its speed, a split screen), and whether the game draws such an object every frame
+with the chunk renderer on (`PerformanceSettings.fboRenderChunk`).
 
 The helicopter's state was read from the game's bytes (the state is a protected field of an enum the game does not make
 public, which the API reads by reflection) in the jar, and `LuaEventManager.triggerEvent` with four arguments is there. In the

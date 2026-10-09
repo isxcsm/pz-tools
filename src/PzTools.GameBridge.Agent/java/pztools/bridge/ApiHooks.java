@@ -249,6 +249,12 @@ public final class ApiHooks {
 
         /** {@code IsoObject.getGeneratorPowerConsumption()}: {@code vanilla}, or a declared machine's consumption times its own load. */
         default float machineLoad(float vanilla, Object object) { return vanilla; }
+
+        /**
+         * {@code IsoObject.renderAttachedSprites}: an animation attached to {@code object} was drawn, and the game called its
+         * {@code IsoSpriteInstance.update()}, which does nothing. The instance is stepped here when a mod declared it.
+         */
+        default void attachedAnim(Object instance, Object object) { }
     }
 
     /**
@@ -342,7 +348,8 @@ public final class ApiHooks {
         TREE_ANIMATION("treeAnimation", Group.FORMULAS), TREE_SCRATCH("treeScratch", Group.FORMULAS), WALK("walk", Group.FORMULAS),
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
-        MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
+        MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), ATTACHED_ANIM("attachedAnim", Group.FORMULAS),
+        MOODLE_LEVEL("moodleLevel", Group.MOODLES),
         MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
         ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
         ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS);
@@ -561,7 +568,18 @@ public final class ApiHooks {
             Site.atReturns("getGeneratorPowerConsumption", "()F", 1, (code, owner) -> {
                 code.aload(0);
                 code.invokestatic(HOOKS, "machineLoad", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_float, ConstantDescs.CD_Object));
-            }) }),
+            }),
+            // The animations attached to an object (docs/design/extension-api.md, "Attached animations"): the game draws each and
+            // then calls its update(), which does nothing. That call stays; after it the instance and the object go to the API.
+            Site.edit("renderAttachedSprites", "(Lzombie/iso/IsoDirections;FFFLzombie/core/textures/ColorInfo;ZLzombie/core/opengl/Shader;"
+                + "Ljava/util/function/Consumer;)V", new Edit(calls("zombie/iso/sprite/IsoSpriteInstance", "update", "()V"), 1, null,
+                    (code, element, kind) -> {
+                        // instance -> instance, instance -> instance; the call -> instance, this -> hook
+                        code.dup();
+                        code.with(element);
+                        code.aload(0);
+                        code.invokestatic(HOOKS, "attachedAnim", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_Object));
+                    })) }),
         Map.entry("zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
                 Label vanilla = code.newLabel();
@@ -1943,6 +1961,14 @@ public final class ApiHooks {
         if (current == null) return vanilla;
         try { return current.machineLoad(vanilla, object); }
         catch (Throwable problem) { reportOnce(Call.MACHINE_LOAD, problem); return vanilla; }
+    }
+
+    /** Put after the call of {@code IsoSpriteInstance.update()} in {@code IsoObject.renderAttachedSprites}: the instance and its object. */
+    public static void attachedAnim(Object instance, Object object) {
+        Formulas current = formulas;
+        if (current == null) return;
+        try { current.attachedAnim(instance, object); }
+        catch (Throwable problem) { reportOnce(Call.ATTACHED_ANIM, problem); }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */

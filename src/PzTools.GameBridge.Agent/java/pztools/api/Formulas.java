@@ -66,7 +66,9 @@ final class Formulas implements ApiHooks.Formulas {
         /** The game's sprites, data tables, chunks and generators ({@link Machines}). */
         MACHINES,
         /** The squares' lights, where the game draws the floor and GL ({@link NightLamps}). */
-        SCREEN
+        SCREEN,
+        /** The game's sprite instances and the objects' data tables ({@link Animations}). */
+        ANIMATIONS
     }
 
     /**
@@ -86,6 +88,8 @@ final class Formulas implements ApiHooks.Formulas {
     private static Point screen(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.SCREEN); }
 
     private static Point machine(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.MACHINES); }
+
+    private static Point anim(String name, Shape shape, String... hooks) { return new Point(name, shape, Names.ANY, List.of(hooks), Needs.ANIMATIONS); }
 
     // The load needs the game's weight to be followed exactly (see Inventory): every hook that tells the API of a change.
     private static final String[] CARRIED = { "IsoGameCharacter.getInventoryWeight", "ItemContainer.hasRoomFor", "ItemContainer.items:tracked",
@@ -132,7 +136,8 @@ final class Formulas implements ApiHooks.Formulas {
             "WeatherShader.onCompileSuccess", "WeatherShader.startMainThread", "WeatherShader.startRenderThread"),
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
-        machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"));
+        machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"),
+        anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites"));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -160,6 +165,8 @@ final class Formulas implements ApiHooks.Formulas {
         // The machines: base consumption by sprite name, and the keys of an object's data that scale it.
         Map<String, Float> machines = Map.of();
         String[] machineKeys = NO_NAMES;
+        // The keys of an object's data under which its attached animations are stepped.
+        String[] animKeys = NO_NAMES;
         float compress, runReduction, combatReduction;
         // The survival points: multipliers and chances as numbers, 1 (or 0) leaving the game's answer as it is.
         double lootChance = 1, lootAmmo = 1, cold = 1, corpseCount = 1, corpseSickness = 1, treeSlow = 1, treeScratch = 1, hole = 1, wound = 1;
@@ -241,6 +248,9 @@ final class Formulas implements ApiHooks.Formulas {
     // The machines mods declare; null, with the reason, in a game that changed what they read, or after a fault.
     private final Machines machines;
     private String machinesProblem;
+    // The attached animations mods have stepped; null, with the reason, in a game that changed what they read.
+    private final Animations animations;
+    private final String animationsProblem;
     // Sprite names declared as machines whose objects are to be put into the game's lists once the world has them loaded.
     private final Set<String> listing = new LinkedHashSet<>();
     // The CharacterStat constants Stats.add is asked about.
@@ -297,6 +307,15 @@ final class Formulas implements ApiHooks.Formulas {
         }
         machines = listed;
         machinesProblem = unlisted;
+        Animations stepping = null;
+        String still = null;
+        try { stepping = new Animations(loader, game); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            still = "the game's sprite instances or the objects' data tables could not be read: " + unreadable;
+            System.err.println("[PzTools API] formulas: " + still);
+        }
+        animations = stepping;
+        animationsProblem = still;
         NightLamps screen = null;
         String unlit = null;
         try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing); }
@@ -561,6 +580,8 @@ final class Formulas implements ApiHooks.Formulas {
     /** Each frame, on the game's thread. */
     void frame() {
         try {
+            // First, so that nothing that fails below leaves the animations stepped in an earlier frame marked.
+            if (animations != null) animations.frame();
             // The game's cell is looked at when the bootstrap counted a store of it (every frame while it does not count).
             if (moves.moved()) {
                 Object cell = game.cell();
@@ -704,6 +725,7 @@ final class Formulas implements ApiHooks.Formulas {
         for (var entry : table("machine.baseConsumption").entrySet()) declaredMachines.put(entry.getKey(), entry.getValue().floatValue());
         next.machines = Map.copyOf(declaredMachines);
         if (combined(BY_NAME.get("machine.loadKey")) instanceof List<?> loadKeys) next.machineKeys = loadKeys.toArray(String[]::new);
+        if (combined(BY_NAME.get("anim.stepKey")) instanceof List<?> stepKeys) next.animKeys = stepKeys.toArray(String[]::new);
         // A machine that draws power from now on is put into the game's lists in a frame with a world; one declared before is there.
         for (var entry : next.machines.entrySet())
             if (entry.getValue() > 0f && !(active.machines.getOrDefault(entry.getKey(), 0f) > 0f)) listing.add(entry.getKey());
@@ -747,6 +769,7 @@ final class Formulas implements ApiHooks.Formulas {
             case SIGHT -> { if (hiddenProblem != null) return "unavailable: " + hiddenProblem; }
             case MACHINES -> { if (machines == null || machinesProblem != null) return "unavailable: " + machinesProblem; }
             case SCREEN -> { if (lamps == null) return "unavailable: " + lampsProblem; }
+            case ANIMATIONS -> { if (animations == null) return "unavailable: " + animationsProblem; }
             case NONE -> { }
         }
         int applied = 0;
@@ -1142,6 +1165,13 @@ final class Formulas implements ApiHooks.Formulas {
             Float base = machines.base(now.machines, object);
             return base == null ? vanilla : base * machines.factor(now.machineKeys, object);
         } catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public void attachedAnim(Object instance, Object object) {
+        String[] keys = active.animKeys;
+        if (keys.length == 0 || animations == null) return;
+        try { animations.drawn(keys, instance, object); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
     @Override public void bite(Object bodyDamage, int index, boolean after) {

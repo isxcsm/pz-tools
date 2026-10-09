@@ -1,0 +1,79 @@
+package pztools.api;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
+import java.util.Arrays;
+
+/**
+ * The animations attached to objects that mods have stepped (see {@code anim.stepKey}). The game draws an object's attached
+ * animations ({@code IsoObject.renderAttachedSprites}) and calls each instance's {@code update()}, which does nothing; only a
+ * fire steps its own. For an object whose mod data holds a number other than 0 under a declared key, each instance is stepped
+ * there by the game's own {@code IsoSprite.update(instance)}, which moves its frame by its speed and the time since the last
+ * update, loops it, and leaves it while the game is paused.
+ *
+ * <p>The render path may draw an object more than once a frame (split screen), so each instance is stepped once a frame: the
+ * instances stepped are kept in an identity table that the frame empties. Only the game's thread, which runs the frames, steps;
+ * the table grows (the only allocation) to the most instances stepped in a frame.
+ */
+final class Animations {
+    // IsoSpriteInstance.getParentSprite(); IsoSprite.update(IsoSpriteInstance).
+    private final MethodHandle parentOf, update;
+    // The numbers the objects' mod data holds under the step keys.
+    private final ObjectData data;
+    // The thread that runs the frames, and the instances it stepped in this frame (open addressing, by identity; a power of 2 long).
+    private Thread thread;
+    private Object[] stepped = new Object[64];
+    private int count;
+
+    Animations(ClassLoader loader, Game game) throws ReflectiveOperationException {
+        Class<?> instance = Game.type(loader, "zombie.iso.sprite.IsoSpriteInstance"), sprite = Game.type(loader, "zombie.iso.sprite.IsoSprite");
+        parentOf = Game.exact(instance.getMethod("getParentSprite"), MethodType.methodType(Object.class, Object.class));
+        update = Game.exact(sprite.getMethod("update", instance), MethodType.methodType(void.class, Object.class, Object.class));
+        data = new ObjectData(loader, game.objectType);
+    }
+
+    /** Each frame, on the game's thread: what was stepped is forgotten. */
+    void frame() {
+        thread = Thread.currentThread();
+        if (count == 0) return;
+        Arrays.fill(stepped, null);
+        count = 0;
+    }
+
+    /** An animation attached to the object was drawn: stepped once this frame when the object holds one of the keys. */
+    void drawn(String[] keys, Object instance, Object object) throws Throwable {
+        if (Thread.currentThread() != thread || !data.holds(keys, object) || !first(instance)) return;
+        Object sprite = (Object)parentOf.invokeExact(instance);
+        if (sprite != null) update.invokeExact(sprite, instance);
+    }
+
+    /** Whether the instance was not stepped yet in this frame; it is marked. */
+    private boolean first(Object instance) {
+        int mask = stepped.length - 1;
+        for (int at = slot(instance, mask);; at = (at + 1) & mask) {
+            Object there = stepped[at];
+            if (there == instance) return false;
+            if (there != null) continue;
+            stepped[at] = instance;
+            if (++count * 2 > stepped.length) grow();
+            return true;
+        }
+    }
+
+    private void grow() {
+        Object[] old = stepped;
+        stepped = new Object[old.length * 2];
+        int mask = stepped.length - 1;
+        for (Object instance : old) {
+            if (instance == null) continue;
+            int at = slot(instance, mask);
+            while (stepped[at] != null) at = (at + 1) & mask;
+            stepped[at] = instance;
+        }
+    }
+
+    private static int slot(Object instance, int mask) {
+        int hash = System.identityHashCode(instance);
+        return (hash ^ (hash >>> 16)) & mask;
+    }
+}
