@@ -189,7 +189,8 @@ end
 -- south, a running generator among them (the terminal and most machines need power), the heavy items (terminal, box,
 -- crate, a bench) on the ground to try placing, and one of each usable item in the inventory (serums issued to this
 -- character, the cure among them, kits, parts, fuel cans, documents to read). The character is put south of it all.
--- Dev.clearShowroom() takes everything away again. Returns the area's corner, or nil when no clear ground is near.
+-- Dev.clearShowroom() takes everything away again, after a reload too (the area is kept in the character's modData).
+-- Returns the area's corner, or nil when no clear ground is near.
 local SHOW_W, SHOW_H = 16, 11
 local SHOW_ITEMS = {
     { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
@@ -225,7 +226,7 @@ local function openArea(x, y)
 end
 
 function Dev.showroom()
-    if show then Dev.clearShowroom() end
+    Dev.clearShowroom()
     local player = getPlayer()
     local record = Dev.record()
     if not record then say("showroom: no record yet") return nil end
@@ -291,6 +292,7 @@ function Dev.showroom()
         end
     end
 
+    player:getModData().OA_Showroom = { x = x0, y = y0 }
     -- the character south of it all, facing it
     player:setX(x0 + 8.5)
     player:setY(y0 + SHOW_H - 0.5)
@@ -303,10 +305,46 @@ function Dev.showroom()
 end
 
 -- Takes away what Dev.showroom made (the delivery box out of the record too) and the items it gave that are still
--- in the inventory.
+-- in the inventory. After a reload (its list gone) it sweeps the area it kept: the mod's objects and machines, the
+-- generators and the mod's items on the ground there; the items it gave stay in the inventory.
 function Dev.clearShowroom()
-    if not show then say("showroom: nothing to clear") return end
+    local player = getPlayer()
+    local area = player:getModData().OA_Showroom
+    player:getModData().OA_Showroom = nil
+    if not show and not area then return end
     local T = OA.Trade
+    if not show then
+        local cell, swept = getCell(), 0
+        for dx = 0, SHOW_W - 1 do
+            for dy = 0, SHOW_H - 1 do
+                local sq = cell:getGridSquare(area.x + dx, area.y + dy, 0)
+                local anchor = sq and OA.Machines.at(sq)
+                if anchor and OA.Machines.state(anchor) then
+                    OA.Machines.remove(anchor)
+                    swept = swept + 1
+                end
+                local objects = sq and sq:getObjects()
+                for i = (objects and objects:size() or 0) - 1, 0, -1 do
+                    local o = objects:get(i)
+                    if T.Objects.kindOf(o) then
+                        T.Things.destroyed(o)
+                        T.Objects.remove(o)
+                        swept = swept + 1
+                    elseif instanceof(o, "IsoGenerator") then
+                        o:setActivated(false)
+                        sq:transmitRemoveItemFromSquare(o)
+                        swept = swept + 1
+                    elseif instanceof(o, "IsoWorldInventoryObject") and o:getItem()
+                        and o:getItem():getModule() == "OperationAcorn" then
+                        sq:transmitRemoveItemFromSquare(o)
+                        swept = swept + 1
+                    end
+                end
+            end
+        end
+        say("showroom swept", swept)
+        return
+    end
     for _, object in ipairs(show.objects) do
         if object:getSquare() then
             T.Things.destroyed(object)
