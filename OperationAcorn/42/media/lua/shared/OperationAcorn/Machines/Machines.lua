@@ -217,7 +217,8 @@ local function showSprite(object, want)
     if not want then return end
     local sprite = object:getSprite()
     if sprite and sprite:getName() == want then return end
-    object:setSprite(want)
+    -- the tile the game knows by that name, with its properties (setSprite with a name makes a bare picture)
+    object:setSpriteFromName(want)
     if isServer() then object:transmitUpdatedSpriteToClients() end
 end
 
@@ -1087,8 +1088,9 @@ function Machines.canPickUp(object)
     return true
 end
 
--- Takes a machine up: gives the character the item (with the parts and their condition in its modData), removes
--- every part, the anchor and the registry entry. A spent lure gives nothing. Returns the item or nil.
+-- Takes a machine up: gives the character the item (with the parts and their condition in its modData) to carry in
+-- both hands as the game carries a generator, removes every part, the anchor and the registry entry. A spent lure
+-- gives nothing. Returns the item or nil.
 function Machines.pickUp(object, character)
     local state = Machines.state(object)
     if not state or not Machines.canPickUp(object) then return nil end
@@ -1097,9 +1099,7 @@ function Machines.pickUp(object, character)
         item = instanceItem(itemFullType(state.kind))
         if item then
             item:getModData()[Data.KEY] = { kind = state.kind, parts = copyParts(state.parts) }
-            local inventory = character:getInventory()
-            inventory:AddItem(item)
-            sendAddItemToContainer(inventory, item)
+            OA.carry(character, item)
         end
     end
     Machines.remove(object)

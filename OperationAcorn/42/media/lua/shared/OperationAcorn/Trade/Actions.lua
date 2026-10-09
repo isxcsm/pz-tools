@@ -84,37 +84,27 @@ function ISOAPlaceThing:new(character, kind, item, square, facing)
     return o
 end
 
--- Takes a thing up to carry it (or breaks a crate down with `breakDown`).
-ISOATakeThing = base("ISOATakeThing", 120)
+-- Breaks an empty supply crate down for its planks. (The terminal, the boxes and the crates are taken up with the
+-- game's furniture tool: Moveables.lua.)
+ISOABreakCrate = base("ISOABreakCrate", 200)
 
-function ISOATakeThing:isValid()
+function ISOABreakCrate:isValid()
     local square = squareOf(self)
-    return square ~= nil and Objects.find(square, self.kind) ~= nil
+    return square ~= nil and Objects.find(square, Objects.CRATE) ~= nil
 end
 
-function ISOATakeThing:complete()
-    local object = Objects.find(squareOf(self), self.kind)
+function ISOABreakCrate:complete()
+    local object = Objects.find(squareOf(self), Objects.CRATE)
     if not object then return false end
-    local ok, why
-    if self.kind == Objects.TERMINAL then
-        ok, why = Things.takeTerminal(self.character, object)
-    elseif self.kind == Objects.DELIVERY_BOX then
-        ok, why = Things.takeBox(self.character, object)
-    elseif self.breakDown then
-        ok, why = Things.breakCrate(self.character, object)
-    else
-        ok, why = Things.takeCrate(self.character, object)
-    end
+    local ok, why = Things.breakCrate(self.character, object)
     if not ok then refuse(self.character, why) end
     return true
 end
 
-function ISOATakeThing:new(character, kind, square, breakDown)
+function ISOABreakCrate:new(character, square)
     local o = ISBaseTimedAction.new(self, character)
-    o.kind, o.breakDown = kind, breakDown
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
-    o.maxTime = breakDown and 200 or o:getDuration()
-    if character:isTimedActionInstant() then o.maxTime = 1 end
+    o.maxTime = o:getDuration()
     return o
 end
 

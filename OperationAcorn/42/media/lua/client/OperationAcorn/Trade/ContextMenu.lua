@@ -28,13 +28,6 @@ local function crowbarOf(character)
     return nil
 end
 
--- Empties the hands for a carry (the terminal, a box or a crate takes both).
-local function freeHands(character)
-    local primary, secondary = character:getPrimaryHandItem(), character:getSecondaryHandItem()
-    if primary then ISTimedActionQueue.add(ISUnequipAction:new(character, primary, 50)) end
-    if secondary and secondary ~= primary then ISTimedActionQueue.add(ISUnequipAction:new(character, secondary, 50)) end
-end
-
 -- Doing things at a square ------------------------------------------------------------------------------------------
 
 function Menus.use(object, player)
@@ -45,12 +38,11 @@ function Menus.use(object, player)
     end
 end
 
-function Menus.take(object, player, kind, breakDown)
+function Menus.breakCrate(object, player)
     local character = getSpecificPlayer(player)
     local square = object:getSquare()
     if luautils.walkAdj(character, square) then
-        if not breakDown then freeHands(character) end
-        ISTimedActionQueue.add(ISOATakeThing:new(character, kind, square, breakDown))
+        ISTimedActionQueue.add(ISOABreakCrate:new(character, square))
     end
 end
 
@@ -114,7 +106,7 @@ local function terminalOptions(context, object, player)
         use.notAvailable = true
         tooltip(use, getText("ContextMenu_OA_Trade_NeedPower"))
     end
-    context:addOption(getText("ContextMenu_OA_Trade_TakeTerminal"), object, Menus.take, player, Objects.TERMINAL, false)
+    -- taken up with the game's furniture tool (Trade/Moveables.lua)
 end
 
 local function boxOptions(context, object, player)
@@ -133,12 +125,6 @@ local function boxOptions(context, object, player)
         load.notAvailable = true
         tooltip(load, getText("ContextMenu_OA_Trade_LoadNothing"))
     end
-    local take = context:addOption(getText("ContextMenu_OA_Trade_TakeBox"), object, Menus.take, player, Objects.DELIVERY_BOX, false)
-    local container = object:getContainer()
-    if container and not container:isEmpty() then
-        take.notAvailable = true
-        tooltip(take, getText("ContextMenu_OA_Trade_TakeBoxFull"))
-    end
 end
 
 local function crateOptions(context, object, player)
@@ -150,8 +136,7 @@ local function crateOptions(context, object, player)
         return
     end
     if Things.crateEmpty(object) then
-        context:addOption(getText("ContextMenu_OA_Trade_TakeCrate"), object, Menus.take, player, Objects.CRATE, false)
-        context:addOption(getText("ContextMenu_OA_Trade_BreakCrate"), object, Menus.take, player, Objects.CRATE, true)
+        context:addOption(getText("ContextMenu_OA_Trade_BreakCrate"), object, Menus.breakCrate, player)
     end
 end
 

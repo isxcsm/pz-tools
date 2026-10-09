@@ -39,6 +39,7 @@ local function newContainer(kind, capacity)
     function c:getCapacity() return math.min(self.capacity, 100) end
     function c:setCapacity(n) self.capacity = n end
     function c:setExplored() end
+    function c:setDrawDirty() end
     function c:setAcceptItemFunction(f) self.accept = f end
     function c:getParent() return self.parent end
     function c:getCapacityWeight()
@@ -151,7 +152,7 @@ local function newObject(square, kind)
         local name = self.sprite
         return name and { getName = function() return name end } or nil
     end
-    function obj:setSprite(name) self.sprite = name end
+    function obj:setSpriteFromName(name) self.sprite = name end
     function obj:transmitModData() end
     return obj
 end
@@ -208,6 +209,9 @@ local function player()
     function p:getModData() return self.mod end
     function p:getUsername() return "tester" end
     function p:removeFromHands() end
+    function p:setPrimaryHandItem(item) self.primary = item end
+    function p:setSecondaryHandItem(item) self.secondary = item end
+    function p:getPrimaryHandItem() return self.primary end
     return p
 end
 
@@ -228,6 +232,8 @@ local function setup()
     end
     sendAddItemToContainer = function() end
     sendRemoveItemFromContainer = function() end
+    forceDropHeavyItems = function() end
+    sendEquip = function() end
     addSound = function(source, x, y, z, r, v) sounds[#sounds + 1] = { x = x, y = y, radius = r, volume = v } end
     ClothingRecipesDefinitions = { FabricType = {
         Cotton = { material = "Base.RippedSheets", materialDirty = "Base.RippedSheetsDirty" },
@@ -1107,6 +1113,8 @@ test("picking up removes every part and gives one item with the parts", function
     eq(#square(11, 10, 0).objects, 0)
     eq(Machines.list()[state.id], nil)
     eq(countOf(p.inv, "OperationAcorn.LogSaw"), 1)
+    eq(p.primary, item)
+    eq(p.secondary, item)
     cleanup()
 end)
 

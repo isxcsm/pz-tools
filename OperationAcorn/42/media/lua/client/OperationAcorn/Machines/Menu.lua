@@ -117,11 +117,12 @@ local function addMachineOptions(context, playerObj, object)
     end
     if Data.KINDS[kind].hand then addShredMenu(sub, playerObj, object) end
 
-    -- picking it up is the game's own word for lifting furniture (떼어내기 / Pick up)
-    local label = (kind == "lure") and getText("ContextMenu_OA_Machine_RemoveShell") or getText("IGUI_Pickup")
-    local pick = sub:addOption(label, playerObj, onPickUp, object)
-    local ok, reason = Machines.canPickUp(object)
-    if not ok then unavailable(pick, getText("IGUI_OA_Machine_Reason_" .. reason)) end
+    -- a machine is taken up with the game's furniture tool (Moveables.lua); a spent lure's shell is cleared here
+    if kind == "lure" then
+        local pick = sub:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
+        local ok, reason = Machines.canPickUp(object)
+        if not ok then unavailable(pick, getText("IGUI_OA_Machine_Reason_" .. reason)) end
+    end
 end
 
 local function addPlaceOptions(context, playerObj, square)

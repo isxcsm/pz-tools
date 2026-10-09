@@ -13,6 +13,7 @@ module OperationAcorn
         Weight = 12.0,
         Icon = OA_CommTerminal,
         RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
     }
 
     /* The delivery box that is put down on open ground; its number is kept in the item's modData while it is carried. */
@@ -23,6 +24,7 @@ module OperationAcorn
         Weight = 8.0,
         Icon = OA_DeliveryBox,
         RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
     }
 
     /* The supply crate, empty and open: kept as a storage box or broken down for its wood and nails. */
@@ -33,6 +35,7 @@ module OperationAcorn
         Weight = 12.0,
         Icon = OA_SupplyCrate,
         RequiresEquippedBothHands = true,
+        Tags = base:heavyitem,
     }
 
     /* The assembly booklet from the first supply: reading it teaches the terminal recipe. */

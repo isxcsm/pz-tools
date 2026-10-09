@@ -215,8 +215,11 @@ end
 
 -- Changes an object's tile and tells the clients.
 function Objects.setSprite(object, name)
-    if object:getSpriteName() == name then return end
-    object:setSprite(name)
+    local sprite = object:getSprite()
+    if sprite and sprite:getName() == name then return end
+    -- the tile the game knows by that name, with its properties (setSprite with a name makes a bare picture: no name,
+    -- no properties, nothing solid)
+    object:setSpriteFromName(name)
     if isServer() then object:transmitUpdatedSpriteToClients() end
 end
 
@@ -351,20 +354,12 @@ end
 
 -- Gives a character a heavy item to carry in both hands, as a generator is carried.
 function Objects.giveHeavy(character, fullType, mod)
-    forceDropHeavyItems(character)
     local item = instanceItem(fullType)
     if mod then
         local md = item:getModData()
         for k, v in pairs(mod) do md[k] = v end
     end
-    local inventory = character:getInventory()
-    inventory:AddItem(item)
-    character:setPrimaryHandItem(item)
-    character:setSecondaryHandItem(item)
-    sendAddItemToContainer(inventory, item)
-    sendEquip(character)
-    inventory:setDrawDirty(true)
-    return item
+    return OA.carry(character, item)
 end
 
 -- Takes an item that is put down away from the character.
