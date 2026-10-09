@@ -100,95 +100,70 @@ test("sense: screen directions and distance bands", function()
     eq(Sense.band(600), 3)
 end)
 
-local function total(marks)
-    local n = 0
-    for _, m in ipairs(marks) do n = n + m.n end
-    return n
+test("sense: a full list keeps a zombie coming or striking over one groaning, and keeps when a sound was first heard", function()
+    local list = {}
+    Sense.heard(list, "a", "zombie", 0, 0, 0, 0, 2000, 2)
+    Sense.heard(list, "b", "attack", 0, 0, 0, 10, 1000, 2)
+    eq(list[1].born, 0)
+    Sense.heard(list, "a", "zombie", 1, 1, 0, 500, 2500, 2)
+    eq(list[1].born, 0, "heard again it does not come on again")
+    Sense.heard(list, "c", "thump", 0, 0, 0, 600, 1900, 2)
+    eq(#list, 2)
+    eq(list[1].key, "b", "the strike stays though it runs out first")
+    eq(list[2].key, "c", "the groan went for the zombie beating on a door")
+    eq(list[2].born, 600)
+end)
+
+-- A plain zombie for Sense.voices.
+local function zed(ref, x, y, z, hunt, attack)
+    return { ref = ref, x = x, y = y, z = z or 0, hunt = hunt or false, attack = attack or false }
 end
 
-test("sense scan: one mark a way, nearest first, flags of everyone in it", function()
-    local list = {
-        { x = 5, y = 0, z = 0 }, { x = 8, y = 0.5, z = 0, thump = true }, { x = 0, y = -6, z = 0 },
-        { x = 50, y = 0, z = 0 }, { x = 3, y = 0, z = 2 },
-    }
-    local out = Sense.scan(list, 0, 0, 0, 20, false)
-    eq(#out, 2, "east and north")
-    eq(out[1].n, 2, "the two east of the character are one mark")
-    near(out[1].d, 5, 1e-9)
-    near(out[1].wx, 1, 1e-9, "pointing at its nearest zombie")
-    near(out[1].wy, 0, 1e-9)
-    eq(out[1].thump, true, "the farther one beating on something marks it")
-    eq(out[2].n, 1)
-    near(out[2].d, 6, 1e-9)
-    eq(out[2].thump, false)
-    eq(total(out), 3, "one is too far, one is on another floor")
-    local all = Sense.scan(list, 0, 0, 0, 20, true)
-    eq(total(all), 4, "the advanced rank counts other floors")
-    eq(all[1].n, 3)
-    near(all[1].d, 3, 1e-9, "the one two floors up is the nearest east")
-    eq(all[1].up, true, "the one two floors up marks its way")
-    eq(all[1].down, nil)
-    eq(out[1].up, nil, "nothing above on the plain scan")
+local function kinds(out)
+    local list = {}
+    for i, e in ipairs(out) do list[i] = e.key .. ":" .. e.kind end
+    table.sort(list)
+    return table.concat(list, ",")
+end
+
+test("sense voices: a zombie in reach makes a sound soon, then now and then; taking a target or striking at once", function()
+    local memo, out = {}, {}
+    local a, b, far, up = "a", "b", "far", "up"
+    local function scan(now, list) return kinds(Sense.voices(list, memo, 0, 0, 0, 10, false, now, out)) end
+    -- first seen: within FIRST_MS, spread by the order they came in
+    local zs = { zed(a, 3, 0), zed(b, 0, 4), zed(far, 30, 0), zed(up, 2, 0, 1) }
+    eq(scan(0, zs), "", "nothing at once")
+    eq(scan(Sense.FIRST_MS, zs), "a:zombie,b:zombie", "both within the first spread; too far and another floor never")
+    -- quiet until their time comes again (three quarters of IDLE_MS at the least)
+    eq(scan(Sense.FIRST_MS + 500, zs), "")
+    -- b takes a target: at once; then a strikes: at once
+    zs[2] = zed(b, 0, 4, 0, true)
+    eq(scan(Sense.FIRST_MS + 1000, zs), "b:aggro")
+    zs[1] = zed(a, 3, 0, 0, false, true)
+    eq(scan(Sense.FIRST_MS + 1500, zs), "a:attack")
+    -- a hunting zombie calls more often than an idle one
+    local t = Sense.FIRST_MS + 1000 + Sense.HUNT_MS * 1.25
+    eq(scan(t, zs), "b:zombie")
+    -- one out of reach is forgotten: back in reach it starts again
+    eq(scan(t + 10, { zs[2] }), "")
+    eq(memo.by[a], nil, "forgotten")
+    eq(scan(t + 20, zs), "")
+    eq(scan(t + 20 + Sense.FIRST_MS, zs), "a:zombie")
+    -- the advanced rank hears other floors
+    local memo2 = {}
+    eq(kinds(Sense.voices({ zed(up, 2, 0, 1) }, memo2, 0, 0, 0, 10, true, Sense.FIRST_MS, {})), "")
 end)
 
-test("sense scan: ways closer than the merge angle are one mark; at most eight", function()
-    -- two zombies 20 degrees apart on the screen are one mark, 40 degrees apart two
-    local function at(deg, d)
-        -- a world offset whose screen direction is `deg` (screen x right, y down)
-        local sx, sy = math.cos(math.rad(deg)), math.sin(math.rad(deg))
-        -- screen (sx, sy) = (dx - dy, (dx + dy) / 2): dx = sy + sx / 2, dy = sy - sx / 2
-        local dx, dy = sy + sx / 2, sy - sx / 2
-        local len = math.sqrt(dx * dx + dy * dy)
-        return { x = dx / len * d, y = dy / len * d, z = 0 }
+test("sense voices: a crowd does not call at once", function()
+    local memo, out = {}, {}
+    local zs = {}
+    for k = 1, 20 do zs[k] = zed({}, k % 5, math.floor(k / 5)) end
+    local most = 0
+    for now = 0, 30000, 500 do
+        local n = #Sense.voices(zs, memo, 0, 0, 0, 10, false, now, out)
+        if now > Sense.FIRST_MS and n > most then most = n end
     end
-    eq(#Sense.scan({ at(0, 5), at(20, 6) }, 0, 0, 0, 20, false), 1)
-    eq(#Sense.scan({ at(0, 5), at(40, 6) }, 0, 0, 0, 20, false), 2)
-    local ring = {}
-    for k = 0, 23 do ring[#ring + 1] = at(k * 15, 2 + k * 0.5) end
-    local out = Sense.scan(ring, 0, 0, 0, 20, false)
-    eq(#out, Sense.ZOMBIE_MARKS, "a whole ring is eight marks")
-    eq(total(out), 24, "every zombie counts in some mark")
-    for i = 1, #out do
-        for j = i + 1, #out do
-            truthy(out[i].sx * out[j].sx + out[i].sy * out[j].sy < Sense.MERGE_COS, "no two marks within the angle")
-        end
-    end
-    local zero = Sense.scan({ { x = 0, y = 0, z = 0 } }, 0, 0, 0, 20, false)
-    eq(#zero, 1, "a zombie on the character's tile still has a way")
-    near(zero[1].wx * zero[1].wx + zero[1].wy * zero[1].wy, 1, 1e-9)
-end)
-
-test("sense marks: alarms first, merged by way within a distance band, four at most, run-out ones gone", function()
-    local sounds = {
-        { kind = "noise", x = 3, y = -3, z = 0, untilMs = 2000 },     -- right, near
-        { kind = "device", x = 4, y = -3.5, z = 0, untilMs = 3000 },  -- right, near: joins the noise
-        { kind = "alarm", x = 40, y = -40, z = 0, untilMs = 1500 },   -- right, far: its own band
-        { kind = "vehicle", x = -5, y = 5, z = 0, untilMs = 2500 },   -- left, near
-        { kind = "noise", x = 5.5, y = 5.5, z = 0, untilMs = 2500 },  -- down, near
-        { kind = "noise", x = -6, y = -6, z = 0, untilMs = 2500 },    -- up, near: past the cap
-        { kind = "alarm", x = 0, y = 20, z = 0, untilMs = 900 },      -- run out
-    }
-    local out = {}
-    Sense.marks(sounds, 0, 0, 1000, out)
-    eq(#out, Sense.NOISE_MARKS)
-    eq(out[1].kind, "alarm", "the alarm first, far as it is")
-    eq(out[1].band, 3)
-    eq(out[1].n, 1)
-    eq(out[2].kind, "noise", "then the nearest")
-    eq(out[2].band, 1)
-    eq(out[2].n, 2, "the radio beside it is the same mark")
-    eq(out[2].untilMs, 3000, "it lasts while the radio does")
-    eq(out[3].kind, "vehicle")
-    eq(out[4].kind, "noise")
-    eq(out[4].y, 5.5)
-    -- the table is reused: later, fewer marks leave no stale ones behind
-    local same = out[1]
-    Sense.marks(sounds, 0, 0, 2600, out)
-    eq(#out, 1, "only the radio is left")
-    eq(out[1], same, "the mark tables are reused")
-    eq(out[1].kind, "device")
-    Sense.marks(sounds, 0, 0, 5000, out)
-    eq(#out, 0)
+    truthy(most <= 8, "at most a few a half second, was " .. most)
 end)
 
 test("sense hunch: within the radius, on this floor or beside it", function()

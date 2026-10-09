@@ -1,8 +1,10 @@
--- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (glowing arcs on the
--- ground around the character, by direction and, at rank 2, by distance; the advanced rank 2 adds the noises around,
--- each with a sign of what made it and how far it is, as the Visual Sounds mod shows them), 경보 읽기 (a mark over alarmed houses and cars
--- nearby) and 털이 기록 (how many containers of the building are still unopened). The work is done twice a second
--- by the shared timer (Pulse.lua), from the game's loaded zombie list; the drawing only reads what that left.
+-- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (the sounds zombies make
+-- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
+-- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
+-- of what made it), 경보 읽기 (a mark over alarmed houses and cars nearby) and 털이 기록 (how many containers of the
+-- building are still unopened). The sounds come as they are made (the world sounds, the extension API's zombie
+-- sounds); without the API's, the zombies' are told twice a second from the game's zombie list by the shared timer
+-- (Pulse.lua). The drawing works out every mark's way from where the character stands, every frame.
 require "ISUI/ISPanel"
 -- ISCoordConversion is a server-folder file, loaded after this one: it is used when drawing, not required here.
 require "OperationAcorn/Client"
@@ -17,8 +19,8 @@ OA.Upgrades.Senses = Senses
 
 -- What the last pulse found.
 local S = {
-    dirs = {}, radius = 0, distance = false, extended = false, hearing = 1,
-    sixth = false, sixthDrawn = false, alarms = {}, sounds = {}, marks = {}, ring = false,
+    radius = 0, distance = false, extended = false, hearing = 1,
+    sixth = false, sixthDrawn = false, alarms = {}, zombies = {}, sounds = {}, ring = false,
 }
 Senses.state = S
 
@@ -117,20 +119,21 @@ local function drawStandIn(self)
     end
 end
 
--- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing its way, on an
--- ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where the camera centres
--- the character). Every size is in tiles of the default zoom (TILE_PX pixels): the marks keep their size on the
--- screen whatever the zoom, as the HUD does; their ellipse keeps the ground's slant.
---   Zombies: one arc for every way they come from (Sense.scan merges what lies within 30 degrees, eight at most) on
---   the inner ring. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2). Every mark sits on the one
---   ring, overlapping where ways meet (layers outward hid more of the view and did not read plainly). Zombies beating on a door, a window or a wall
---   (rank 2) shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for
---   another floor (rank 2), upright and white.
---   Noises (rank 2): a thin arc in its exact way, its kind in its pattern (plain, a wheel for a vehicle, dots for a
---   radio, TV or generator, spikes for an alarm), white but for alarms, which draw every zombie around and are a deep
---   red. Distance is how big and bright the mark is, on the same ring: near (under Sense.NEAR tiles) big and
---   bright, mid smaller, far small and dim. An alarm also beats: fast when near, slowly at mid, still when far. At most Sense.NOISE_MARKS of them,
---   alarms first; a noise fades out over its last FADE_MS.
+-- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing the place its
+-- sound was made, on an ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where
+-- the camera centres the character). The way is worked out every frame from where the character is, so it turns as
+-- the character moves. Every size is in tiles of the default zoom (TILE_PX pixels): the marks keep their size on the
+-- screen whatever the zoom, as the HUD does; their ellipse keeps the ground's slant. Every mark sits on the one ring,
+-- overlapping where ways meet (layers outward hid more of the view and did not read plainly). A mark comes on over
+-- FADE_IN_MS and fades out over its last FADE_MS.
+--   Zombies: an arc. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); a zombie coming or
+--   striking is drawn brighter than one only groaning. Zombies beating on a door, a window or a wall (advanced rank 2)
+--   shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for another
+--   floor (advanced rank 2), upright and white.
+--   Noises (advanced rank 2): a thin arc, its kind in its pattern (plain, a wheel for a vehicle, dots for a radio, TV
+--   or generator, spikes for an alarm), white but for alarms, which draw every zombie around and are a deep red.
+--   Nearer (under Sense.NEAR tiles, then Sense.MID) is bigger and brighter. An alarm also beats: fast when near,
+--   slowly at mid, still when far.
 -- The pictures are white, tinted as they are drawn.
 local BODY = 0.3
 local TILE_PX = 36
@@ -142,9 +145,10 @@ local NOISE_W = { 2.1, 1.75, 1.4 }
 local NOISE_A = { 1.0, 0.85, 0.65 }
 local ALARM_HZ = { 3, 1.5, 0 }
 local SHAKE_HZ = 4
+local FADE_IN_MS = 180
 local FADE_MS = 700
-local SOUND_MS = 2500
-local SOUND_MAX = 12
+-- How bright a zombie's sound is drawn, by kind (coming or striking the brightest).
+local ZOMBIE_A = { zombie = 0.8, thump = 1.0, aggro = 1.0, attack = 1.0 }
 -- Zombies by distance, as Visual Sounds colours them: red near, amber at mid, green far; without the distance rank one
 -- pale colour.
 local NEAR = { 1.00, 0.30, 0.22 }
@@ -191,64 +195,80 @@ local function quad(ui, tex, x, y, ux, uy, w, c, a, shade)
     ui:DrawTexture(tex, x1, y1, x2, y2, x3, y3, x4, y4, c[1], c[2], c[3], a)
 end
 
--- The zombies' arcs. (cx, cy) is the ring's centre on the screen; (exX, exY) and (eyX, eyY) the screen offsets of one
--- tile east and south; `tile` the length of the first.
-local function drawZombies(ui, now, cx, cy, exX, exY, eyX, eyY, tile, shade)
-    local dirs = S.dirs
-    for i = 1, #dirs do
-        local e = dirs[i]
-        local gx, gy = (e.wx * exX + e.wy * eyX) * RING, (e.wx * exY + e.wy * eyY) * RING
-        local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
-        local ux, uy = gx / len, gy / len
-        -- without the distance rank: one middle size, pale
-        local band, c, a = 2, PLAIN, 0.8
-        if S.distance and S.radius > 0 then
-            local t = math.min(1, e.d / S.radius)
-            band = (t < 0.34) and 1 or ((t < 0.67) and 2 or 3)
-            c, a = ZOMBIE_TINT[band], 1.0 - 0.45 * t
-        end
-        local tex = picture(ZOMBIE_PICTURE[band])
-        local w = ZOMBIE_W[band] * tile
-        if e.thump then w = w * (1 + 0.08 * beat(now, SHAKE_HZ)) end
-        local x, y = cx + gx, cy + gy
-        quad(ui, tex, x, y, ux, uy, w, c, a, shade)
-        local bang = e.thump and picture("OA_Sense_Bang")
-        if bang and tex then
-            -- just past the arc's crest (about a quarter of the picture above its middle)
-            local bw = BANG_W * tile
-            local off = w * tex:getHeight() / tex:getWidth() * 0.3
-                + bw * bang:getHeight() / bang:getWidth() * 0.45
-            quad(ui, bang, x + ux * off, y + uy * off, ux, uy, bw, c, 1, shade)
-        end
-        if e.up or e.down then
-            -- white on the coloured arc (in the arc's colour it melted into it)
-            quad(ui, picture(e.up and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W * tile, NOISE_TINT, 1, shade)
+-- How much of a mark shows at `now`: coming on, then fading out at the end.
+local function shown(m, now)
+    local a = math.min(1, (now - m.born) / FADE_IN_MS)
+    local left = m.untilMs - now
+    if left < FADE_MS then a = a * math.max(0, left / FADE_MS) end
+    return a
+end
+
+-- Where on the ring a mark made at (x, y) sits, seen from the character at (px, py): the screen point on the ground's
+-- ellipse round (cx, cy), RING tiles out, its unit way on the screen, and the distance in tiles. (exX, exY) and
+-- (eyX, eyY) are the screen offsets of one tile east and south.
+local function onRing(x, y, px, py, cx, cy, exX, exY, eyX, eyY)
+    local dx, dy = x - px, y - py
+    local d = math.sqrt(dx * dx + dy * dy)
+    if d < 0.01 then dx, dy, d = -0.7071, 0.7071, 0 else dx, dy = dx / (d > 0 and d or 1), dy / (d > 0 and d or 1) end
+    local gx, gy = (dx * exX + dy * eyX) * RING, (dx * exY + dy * eyY) * RING
+    local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
+    return cx + gx, cy + gy, gx / len, gy / len, d
+end
+
+-- The zombies' sounds. (cx, cy) is the ring's centre on the screen; `tile` a tile's length on it.
+local function drawZombies(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
+    local list = S.zombies
+    for i = 1, #list do
+        local m = list[i]
+        local a = shown(m, now)
+        if a > 0 then
+            local x, y, ux, uy, d = onRing(m.x, m.y, px, py, cx, cy, exX, exY, eyX, eyY)
+            -- without the distance rank: one middle size, pale
+            local band, c = 2, PLAIN
+            if S.distance and S.radius > 0 then
+                local t = math.min(1, d / S.radius)
+                band = (t < 0.34) and 1 or ((t < 0.67) and 2 or 3)
+                c, a = ZOMBIE_TINT[band], a * (1.0 - 0.45 * t)
+            end
+            a = a * (ZOMBIE_A[m.kind] or 0.8)
+            local tex = picture(ZOMBIE_PICTURE[band])
+            local w = ZOMBIE_W[band] * tile
+            local thump = m.kind == "thump"
+            if thump then w = w * (1 + 0.08 * beat(now, SHAKE_HZ)) end
+            quad(ui, tex, x, y, ux, uy, w, c, a, shade)
+            local bang = thump and picture("OA_Sense_Bang")
+            if bang and tex then
+                -- just past the arc's crest (about a quarter of the picture above its middle)
+                local bw = BANG_W * tile
+                local off = w * tex:getHeight() / tex:getWidth() * 0.3 + bw * bang:getHeight() / bang:getWidth() * 0.45
+                quad(ui, bang, x + ux * off, y + uy * off, ux, uy, bw, c, a, shade)
+            end
+            if S.extended and math.abs(m.z - pz) >= 0.5 then
+                -- white on the coloured arc (in the arc's colour it melted into it)
+                quad(ui, picture(m.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W * tile,
+                    NOISE_TINT, a, shade)
+            end
         end
     end
 end
 
 -- The noises' marks, seen from the character at (px, py, pz).
 local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
-    local marks = S.marks
-    for i = 1, #marks do
-        local m = marks[i]
-        local left = m.untilMs - now
-        if left > 0 then
-            local dx, dy = m.x - px, m.y - py
-            local band = m.band
-            local r = RING / math.max(0.01, math.sqrt(dx * dx + dy * dy))
-            local gx, gy = (dx * exX + dy * eyX) * r, (dx * exY + dy * eyY) * r
-            local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
-            local ux, uy = gx / len, gy / len
+    local list = S.sounds
+    for i = 1, #list do
+        local m = list[i]
+        local a = shown(m, now)
+        if a > 0 then
+            local x, y, ux, uy, d = onRing(m.x, m.y, px, py, cx, cy, exX, exY, eyX, eyY)
+            local band = Sense.band(d)
             local alarm = m.kind == "alarm"
-            local a = NOISE_A[band] * math.min(1, left / FADE_MS)
+            a = a * NOISE_A[band]
             local w = NOISE_W[band] * tile
             if alarm and ALARM_HZ[band] > 0 then
                 local b = beat(now, ALARM_HZ[band])
                 a = a * (0.6 + 0.4 * b)
                 w = w * (1 + 0.1 * b)
             end
-            local x, y = cx + gx, cy + gy
             local tex = picture(NOISE_PICTURE[m.kind])
             local tint = alarm and ALARM_TINT or NOISE_TINT
             quad(ui, tex, x, y, ux, uy, w, tint, a, shade)
@@ -258,7 +278,7 @@ local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile,
             end
             if math.abs(m.z - pz) >= 0.5 then
                 quad(ui, picture(m.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, FLOOR_W * tile,
-                    NOISE_TINT, 1, shade)
+                    NOISE_TINT, a, shade)
             end
         end
     end
@@ -267,7 +287,7 @@ end
 function Hud:render()
     local fh = getTextManager():getFontHeight(UIFont.Small)
     local player = getSpecificPlayer(self.playerNum)
-    if S.ring and player and (#S.dirs > 0 or #S.marks > 0) then
+    if S.ring and player and (#S.zombies > 0 or #S.sounds > 0) then
         local n, px, py, pz = self.playerNum, player:getX(), player:getY(), player:getZ()
         local ox, oy = isoToScreenX(n, px, py, pz), isoToScreenY(n, px, py, pz)
         local exX, exY = isoToScreenX(n, px + 1, py, pz) - ox, isoToScreenY(n, px + 1, py, pz) - oy
@@ -281,7 +301,7 @@ function Hud:render()
         local shade = math.max(1, tile / 48)
         local now = getTimestampMs()
         local ui = self.javaObject
-        drawZombies(ui, now, cx, cy, exX, exY, eyX, eyY, tile, shade)
+        drawZombies(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
         drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile, shade)
     end
     if #S.alarms > 0 then
@@ -330,32 +350,37 @@ local function section(player)
     return record and Rules.section(record) or nil
 end
 
--- A zombie as a plain position. It is beating on something while it is in ThumpState (IsoZombie.getThumpTimer is the
--- wait the state sets as it leaves: counting down, it is the blows that stopped, not the ones going on).
-local thumpState = nil
-local function plain(z)
-    thumpState = thumpState or ThumpState.instance()
-    return { x = z:getX(), y = z:getY(), z = z:getZ(), thump = z:isCurrentState(thumpState) }
+-- A zombie as a plain position, and (`acts`) whether it has a target and whether it lunges or strikes, for the zombie
+-- sounds told without the extension API's (Sense.voices).
+local lungeState, attackState
+local function plain(z, acts)
+    local p = { ref = z, x = z:getX(), y = z:getY(), z = z:getZ() }
+    if acts then
+        lungeState = lungeState or LungeState.instance()
+        attackState = attackState or AttackState.instance()
+        p.hunt = z:getTarget() ~= nil
+        p.attack = z:isCurrentState(lungeState) or z:isCurrentState(attackState)
+    end
+    return p
 end
 
--- The zombies near the character from the extension API's spatial query (PZToolsAPI.zombies.near), when it has one;
--- nil when it has not, or when the answer is not a list of zombies (then the scan below does it).
-local function collectFromApi(player, radius)
+-- The zombies near the character from the extension API's spatial query (PZToolsAPI.zombies.near: `count, list`, one
+-- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none (then the
+-- scan below does it).
+local NEAR_LIMIT = 64
+local function collectFromApi(player, radius, acts)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) ~= "table" or type(zombies.near) ~= "function" then return nil end
     local ok, found = pcall(function()
-        local result = zombies.near(player:getX(), player:getY(), player:getZ(), radius)
         local list = {}
-        if type(result) ~= "table" and type(result) ~= "userdata" then return nil end
-        if type(result) == "table" then
-            for _, z in ipairs(result) do
-                if instanceof(z, "IsoZombie") and not z:isDead() then list[#list + 1] = plain(z) end
-            end
-        else
-            for i = 0, result:size() - 1 do
-                local z = result:get(i)
-                if instanceof(z, "IsoZombie") and not z:isDead() then list[#list + 1] = plain(z) end
+        local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+        for level = pz - 1, pz + 1 do
+            local _, result = zombies.near(px, py, level, radius, NEAR_LIMIT)
+            if type(result) ~= "table" then return nil end
+            for _, near in ipairs(result) do
+                local z = near.zombie
+                if z and not z:isDead() then list[#list + 1] = plain(z, acts) end
             end
         end
         return list
@@ -364,9 +389,9 @@ local function collectFromApi(player, radius)
     return nil
 end
 
--- The loaded zombies near (px, py) as plain positions, for the pure scanners.
-local function collect(player, radius)
-    local fromApi = collectFromApi(player, radius)
+-- The loaded zombies near the character as plain positions, for the pure parts.
+local function collect(player, radius, acts)
+    local fromApi = collectFromApi(player, radius, acts)
     if fromApi then return fromApi end
     local list = {}
     local zs = getCell():getZombieList()
@@ -375,7 +400,7 @@ local function collect(player, radius)
         local z = zs:get(i)
         local zx, zy = z:getX(), z:getY()
         if zx - px <= radius and px - zx <= radius and zy - py <= radius and py - zy <= radius and not z:isDead() then
-            list[#list + 1] = plain(z)
+            list[#list + 1] = plain(z, acts)
         end
     end
     return list
@@ -391,6 +416,14 @@ local function updateSixth()
     end
 end
 
+-- Puts a zombie's sound in the list, heard where it was made.
+local function zombieHeard(kind, key, x, y, z, now)
+    Sense.heard(S.zombies, key, kind, x, y, z, now, now + Sense.LIFE[kind], Sense.ZOMBIE_MARKS)
+end
+
+local voiceMemo, voiceOut = {}, {}
+local apiVoices = false   -- whether the extension API tells the zombies' sounds (then they are not told here)
+
 local function senseJob(now)
     local player = getPlayer()
     if not player or player:isDead() then
@@ -404,34 +437,39 @@ local function senseJob(now)
     local sixthR = Rules.sixthRadius(u)
     local senseR = Rules.senseRadius(u)
     local active = senseR > 0 and Sense.active(u, player:isSneaking(), player:isRunning(), player:isSprinting())
+    if not active and S.ring then
+        -- off: what was heard goes with it
+        S.zombies, S.sounds = {}, {}
+        voiceMemo = {}
+    end
     S.ring = active
     S.sixth = false
     if sixthR <= 0 and not active then
-        S.dirs = {}
         updateSixth()
         showHud(#S.alarms > 0)
         return
     end
     local extended = Sense.extended(u)
-    local list = collect(player, math.max(sixthR, senseR))
-    local px, py, pz = player:getX(), player:getY(), player:getZ()
-    if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
     if active then
-        if extended then
-            S.hearing = Sense.hearing(player:hasTrait(CharacterTrait.DEAF), player:hasTrait(CharacterTrait.KEEN_HEARING),
-                player:hasTrait(CharacterTrait.HARD_OF_HEARING))
-        end
-        S.radius = senseR
+        S.hearing = Sense.hearing(player:hasTrait(CharacterTrait.DEAF), player:hasTrait(CharacterTrait.KEEN_HEARING),
+            player:hasTrait(CharacterTrait.HARD_OF_HEARING))
+        S.radius = senseR * S.hearing
         S.distance = Sense.distance(u)
         S.extended = extended
-        S.dirs = Sense.scan(list, px, py, pz, senseR, extended)
-        if not extended then
-            for _, e in ipairs(S.dirs) do e.thump = false end
+    end
+    local tell = active and not apiVoices and S.hearing > 0
+    local reach = math.max(sixthR, tell and S.radius or 0)
+    if reach > 0 then
+        local list = collect(player, reach, tell)
+        local px, py, pz = player:getX(), player:getY(), player:getZ()
+        if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
+        if tell then
+            local heard = Sense.voices(list, voiceMemo, px, py, pz, S.radius, extended, now, voiceOut)
+            for i = 1, #heard do
+                local e = heard[i]
+                zombieHeard(e.kind, e.key, e.x, e.y, e.z, now)
+            end
         end
-        -- the noises' marks follow the character (and drop what ran out)
-        if extended then Sense.marks(S.sounds, px, py, now, S.marks) end
-    else
-        S.dirs = {}
     end
     updateSixth()
     showHud(S.ring or S.sixthDrawn or #S.alarms > 0)
@@ -439,11 +477,13 @@ end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
 
--- What made a world sound, as Visual Sounds sorts them: "vehicle", "alarm" (a house alarm, a car alarm going off, an
--- alarm clock ringing on a zombie), "device" (a radio, a TV, a generator, a jukebox), "noise" (anything else: a
--- helicopter, a far shot, a smashed window), or nil for what the sense leaves out (zombies, which the arcs show, and
--- the character's own noise). Returns the kind and a key for the source (the source, or its square's place).
-local function soundKind(source, x, y, z, player)
+-- What made a world sound, as Visual Sounds sorts them: "thump" (a zombie beating on a door, a window or a wall: the
+-- sound is at the place it beats on), "vehicle", "alarm" (a house alarm, a car alarm going off, an alarm clock ringing
+-- on a zombie), "device" (a radio, a TV, a generator, a jukebox), "noise" (anything else: a helicopter, a far shot, a
+-- smashed window, a door broken down), or nil for what the sense leaves out (the character's own noise). Returns the
+-- kind and a key for the source (the source, or its square's place).
+local ALARM_CLOCK_VOLUME = 3
+local function soundKind(source, x, y, z, volume, player)
     if source == player then return nil end
     if source == nil then
         -- a source-less sound: what stands on its square (Visual Sounds looks the same way)
@@ -458,12 +498,13 @@ local function soundKind(source, x, y, z, player)
         end
         local vehicle = square:getVehicleContainer()
         if not vehicle then
-            -- an alarm clock rings with no source, on its carrier's square
+            -- an alarm clock rings with no source, on its carrier's square, at its own low volume (what breaks a door or
+            -- a window down has none either, and is louder)
             local movers = square:getMovingObjects()
             for i = 0, movers:size() - 1 do
                 local m = movers:get(i)
                 if m == player then return nil end
-                if instanceof(m, "IsoZombie") then return "alarm", m end
+                if volume == ALARM_CLOCK_VOLUME and instanceof(m, "IsoZombie") then return "alarm", m end
             end
             return "noise", x .. "," .. y .. "," .. z
         end
@@ -473,7 +514,7 @@ local function soundKind(source, x, y, z, player)
         if source:getSeat(player) ~= -1 then return nil end
         return source:isAlarmSounding() and "alarm" or "vehicle", source
     end
-    if instanceof(source, "IsoZombie") then return nil end
+    if instanceof(source, "IsoZombie") then return "thump", source end
     if instanceof(source, "IsoRadio") or instanceof(source, "IsoTelevision") or instanceof(source, "IsoGenerator")
         or instanceof(source, "IsoJukebox") then
         return "device", source
@@ -482,21 +523,57 @@ local function soundKind(source, x, y, z, player)
     return "noise", source
 end
 
+-- What a source is, kept for the sources that sound again and again (an alarm or an engine, every frame): the kind
+-- and key soundKind found. Emptied now and then so that it keeps no source long.
+local kindOf, kindKey, kindsAt = {}, {}, 0
+local KINDS_MS = 5000
+
 local function onWorldSound(x, y, z, radius, volume, source)
-    if not S.ring or not S.extended then return end
+    if not S.ring or S.hearing <= 0 then return end
     local player = getPlayer()
     if not player then return end
     -- heard at all (the hearing traits change how far), and not under the character's feet
-    local dx, dy = x - player:getX(), y - player:getY()
+    local px, py, pz = player:getX(), player:getY(), player:getZ()
+    local dx, dy = x - px, y - py
     local d2 = dx * dx + dy * dy
     local reach = radius * S.hearing
     if d2 >= reach * reach or d2 < 1 then return end
-    local kind, key = soundKind(source, x, y, z, player)
-    if not kind then return end
     local now = getTimestampMs()
-    local _, new = Sense.heard(S.sounds, key, kind, x + 0.5, y + 0.5, z, now, now + SOUND_MS, SOUND_MAX)
-    -- a new noise shows at once; one heard again is moved by the next pulse
-    if new then Sense.marks(S.sounds, player:getX(), player:getY(), now, S.marks) end
+    local kind, key
+    if source ~= nil then
+        if now - kindsAt > KINDS_MS then kindOf, kindKey, kindsAt = {}, {}, now end
+        kind, key = kindOf[source], kindKey[source]
+        if kind == nil then
+            kind, key = soundKind(source, x, y, z, volume, player)
+            kindOf[source], kindKey[source] = kind or false, key
+        end
+    else
+        kind, key = soundKind(nil, x, y, z, volume, player)
+    end
+    if not kind then return end
+    if kind == "thump" then
+        -- a zombie's: within the sense's reach, on the character's floor unless the advanced rank tells floors; beating
+        -- on something only with the advanced rank, else a zombie's sound
+        if d2 > S.radius * S.radius or (not S.extended and math.abs(z - pz) >= 0.5) then return end
+        zombieHeard(S.extended and "thump" or "zombie", key, x + 0.5, y + 0.5, z, now)
+        return
+    end
+    if not S.extended then return end
+    Sense.heard(S.sounds, key, kind, x + 0.5, y + 0.5, z, now, now + Sense.LIFE[kind], Sense.NOISE_MARKS)
+end
+
+-- The zombies' own sounds from the extension API (a groan, taking a target, a lunge or a strike, a fall): heard where
+-- the zombie was, within the sense's reach.
+local API_KIND = { voice = "zombie", aggro = "aggro", lunge = "attack", attack = "attack", hit = "zombie",
+    death = "zombie", fall = "zombie" }
+local function onZombieSound(kind, x, y, z, loudness, zombie)
+    if not S.ring or S.hearing <= 0 then return end
+    local player = getPlayer()
+    if not player then return end
+    local dx, dy = x - player:getX(), y - player:getY()
+    if dx * dx + dy * dy > S.radius * S.radius then return end
+    if not S.extended and math.abs(z - player:getZ()) >= 0.5 then return end
+    zombieHeard(API_KIND[kind] or "zombie", zombie or (x .. "," .. y .. "," .. z), x, y, z, getTimestampMs())
 end
 
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
@@ -553,7 +630,11 @@ end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
 
-local ledger = { key = nil, nextCount = 0, total = 0, opened = 0, done = false, complete = false }
+local ledger = { key = nil, nextCount = 0, total = 0, opened = 0, done = false, complete = false, told = true, tries = 0 }
+-- A building whose rooms are not all loaded yet is counted again this often (ms), at most LEDGER_TRIES times, before
+-- what it has is told on entering (a count of 0 then could be rooms not loaded, so it is not told).
+local LEDGER_RETRY_MS = 1000
+local LEDGER_TRIES = 5
 Senses.ledger = ledger
 
 -- Counts a building's containers: total, opened, and whether every room was loaded (so that it can be judged).
@@ -590,7 +671,12 @@ local function ledgerJob(now)
     if not def then ledger.key = nil return end
     local key = def:getID()
     local entering = key ~= ledger.key
-    if not entering and (rank < 2 or ledger.done or now < ledger.nextCount) then return end
+    if entering then
+        ledger.key, ledger.done, ledger.told, ledger.tries = key, false, false, 0
+    elseif ledger.told and (rank < 2 or ledger.done) then
+        return
+    end
+    if not entering and now < ledger.nextCount then return end
     ledger.nextCount = now + 5000
     local total, opened, complete = countBuilding(def)
     -- the economy part keeps its own count of the building (it leaves out what the player placed): use it when it has one
@@ -607,13 +693,21 @@ local function ledgerJob(now)
     end
     ledger.total, ledger.opened, ledger.complete = total, opened, complete
     local left = total - opened
-    if entering then
-        ledger.key = key
-        ledger.done = false
-        if complete and total > 0 and left == 0 then
-            ledger.done = true
-            if rank >= 3 then HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerAlreadyDone")) end
-        elseif rank >= 1 then
+    if not ledger.told then
+        -- told once on entering: how many are left, or that it is searched (never "0 left"); a building not all
+        -- loaded is counted again first, and one with no containers is not told
+        if not complete and ledger.tries < LEDGER_TRIES then
+            ledger.tries = ledger.tries + 1
+            ledger.nextCount = now + LEDGER_RETRY_MS
+            return
+        end
+        ledger.told = true
+        if total > 0 and left == 0 then
+            if complete then
+                ledger.done = true
+                HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerAlreadyDone"))
+            end
+        elseif left > 0 then
             HaloTextHelper.addText(player, getText("IGUI_OA_Tree_LedgerLeft", left))
         end
     elseif complete and total > 0 and left == 0 then
@@ -625,6 +719,29 @@ end
 -- ---- starting --------------------------------------------------------------------------------------------------
 
 local soundHooked = false
+local zombiesListened = 0   -- the radius the API listens for zombie sounds within, 0 when it does not
+
+-- Has the extension API tell the zombies' sounds within the sense's reach (PZToolsAPI.zombies.listen and the event
+-- OnPZToolsZombieSound), when it can; else they are told from the zombie list (apiVoices false).
+local function listenZombies(want, u)
+    local api, handle = OA.api(), OA.handle()
+    local zombies = api and api.zombies
+    local can = handle and type(zombies) == "table" and type(zombies.listen) == "function"
+        and Events.OnPZToolsZombieSound ~= nil
+    local radius = (want and can) and math.ceil(Rules.senseRadius(u) * 1.2) or 0
+    if radius == zombiesListened then return end
+    if can then
+        local ok, err = pcall(zombies.listen, handle, radius)
+        if not ok then
+            OA.log("zombie sounds:", tostring(err))
+            radius = 0
+        end
+    end
+    if radius > 0 and zombiesListened == 0 then Events.OnPZToolsZombieSound.Add(onZombieSound) end
+    if radius == 0 and zombiesListened > 0 then Events.OnPZToolsZombieSound.Remove(onZombieSound) end
+    zombiesListened = radius
+    apiVoices = radius > 0
+end
 
 -- Sets the sound hook by what the character has (called when ranks change); returns whether the shared timer is
 -- needed for the senses.
@@ -634,7 +751,7 @@ function Senses.refresh()
     if not u then return false end
     local need = Rules.rank(u, "sixth") > 0 or Rules.rank(u, "sense") > 0 or Rules.rank(u, "alarm") > 0
         or Rules.rank(u, "ledger") > 0
-    local wantSound = Sense.extended(u)
+    local wantSound = Rules.rank(u, "sense") > 0
     if wantSound and not soundHooked then
         soundHooked = true
         Events.OnWorldSound.Add(onWorldSound)
@@ -642,8 +759,9 @@ function Senses.refresh()
         soundHooked = false
         Events.OnWorldSound.Remove(onWorldSound)
     end
+    listenZombies(wantSound, u)
     if not need then
-        S.ring, S.sixth, S.alarms, S.dirs = false, false, {}, {}
+        S.ring, S.sixth, S.alarms, S.zombies, S.sounds = false, false, {}, {}, {}
         updateSixth()
         showHud(false)
     end

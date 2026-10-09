@@ -1,17 +1,25 @@
--- The senses as pure functions (육감, 기척 감지): which way and how far the zombies and the noises around are, from
--- plain lists of positions, so that the unit tests can run them. The screen part (Senses.lua in the client folder) feeds
--- them the game's zombie list twice a second and the world sounds as they are made.
+-- The senses as pure functions (육감, 기척 감지): the sounds heard around, kept where they were made for a while as
+-- Visual Sounds keeps its cues, and the zombie sounds told from plain lists of zombies, so that the unit tests can run
+-- them. The screen part (Senses.lua in the client folder) feeds them the world sounds as they are made, the extension
+-- API's zombie sounds, or the game's zombie list twice a second.
 require "OperationAcorn/Upgrades/Rules"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Sense = {}
 OA.Upgrades.Sense = Sense
 
--- How few marks the senses draw, as Visual Sounds caps its cues: things less than 30 degrees apart on the screen are
--- one mark (a crowd, or noises from one way), and at most this many marks show at once.
-Sense.MERGE_COS = math.cos(math.pi / 6)
+-- How many sounds are kept at once: zombies' and the other noises' (each one mark, on the one ring).
 Sense.ZOMBIE_MARKS = 8
 Sense.NOISE_MARKS = 4
+-- How long a sound shows (ms), by kind; one heard again lasts from then. A zombie beating on something is heard at
+-- every blow, about once a second, so it shows while it goes on.
+Sense.LIFE = { zombie = 2000, aggro = 2200, attack = 2200, thump = 1300, alarm = 2500, vehicle = 2500, device = 2500,
+    noise = 2500 }
+-- Without the extension API's zombie sounds, how often a zombie is taken to make one (ms): idle, and after a target.
+Sense.IDLE_MS = 5000
+Sense.HUNT_MS = 2000
+-- The first sound of a zombie newly in reach comes within this (ms), spread over the zombies.
+Sense.FIRST_MS = 1500
 -- A noise's distance band (tiles): near below NEAR, mid below MID, far beyond. An alarm in the near band is one the
 -- zombies around are coming to; past MID it draws another street's.
 Sense.NEAR = 12
@@ -33,20 +41,6 @@ function Sense.band(d)
     return 3
 end
 
--- Of marks[1..count] (only those of `band`, when it is given), the one whose screen direction is nearest (sx, sy), and
--- the cosine between the two (-2 when there is none).
-local function closest(marks, count, sx, sy, band)
-    local best, bestDot = nil, -2
-    for i = 1, count do
-        local m = marks[i]
-        if band == nil or m.band == band then
-            local dot = m.sx * sx + m.sy * sy
-            if dot > bestDot then best, bestDot = m, dot end
-        end
-    end
-    return best, bestDot
-end
-
 -- Whether the presence sense shows now, given how the character moves (TREES: crouched and not running; the
 -- advanced node lets it work walking upright at rank 1, running at rank 3).
 function Sense.active(u, sneaking, running, sprinting)
@@ -66,44 +60,6 @@ function Sense.distance(u)
     return Rules.rank(u, "sense") >= 2
 end
 
-local function nearerFirst(a, b) return a.d < b.d end
-
--- Scans zombies { x, y, z, thump } around (px, py, pz) within radius (only the character's own floor unless `floors`,
--- the advanced rank, lets the other floors count) into at most ZOMBIE_MARKS marks, nearest first: { wx, wy = the world
--- unit direction of the mark's nearest zombie, sx, sy = the same on the screen, n = zombies in it, d = the nearest's
--- distance, thump = any is breaking in, up / down = any is on a floor above / below }. A zombie within the merge angle
--- of a mark joins it; past the cap it joins the mark nearest its way. The plain positions are given d, dx and dy.
-function Sense.scan(zombies, px, py, pz, radius, floors)
-    local within = {}
-    local r2 = radius * radius
-    for i = 1, #zombies do
-        local z = zombies[i]
-        local dx, dy = z.x - px, z.y - py
-        local d2 = dx * dx + dy * dy
-        if d2 <= r2 and (floors or math.abs(z.z - pz) < 0.5) then
-            z.d, z.dx, z.dy = math.sqrt(d2), dx, dy
-            within[#within + 1] = z
-        end
-    end
-    table.sort(within, nearerFirst)
-    local out = {}
-    for i = 1, #within do
-        local z = within[i]
-        local sx, sy = Sense.screen(z.dx, z.dy)
-        local m, dot = closest(out, #out, sx, sy)
-        if not m or (dot < Sense.MERGE_COS and #out < Sense.ZOMBIE_MARKS) then
-            local wx, wy = -math.sqrt(0.5), math.sqrt(0.5)
-            if z.d > 0 then wx, wy = z.dx / z.d, z.dy / z.d end
-            m = { wx = wx, wy = wy, sx = sx, sy = sy, n = 0, d = z.d, thump = false }
-            out[#out + 1] = m
-        end
-        m.n = m.n + 1
-        if z.thump then m.thump = true end
-        if z.z - pz >= 0.5 then m.up = true elseif pz - z.z >= 0.5 then m.down = true end
-    end
-    return out
-end
-
 -- How far the character hears a world sound, as a share of its reach: the vanilla hearing traits (Visual Sounds
 -- uses the same shares).
 function Sense.hearing(deaf, keen, hard)
@@ -113,17 +69,21 @@ function Sense.hearing(deaf, keen, hard)
     return 1
 end
 
--- Whether noise `a` leaves the full list before `b`: any other noise before an alarm, else the one running out first.
+-- What a full list keeps longest: an alarm, then a zombie coming or striking, then one beating on something.
+local KEEP = { alarm = 4, aggro = 3, attack = 3, thump = 2 }
+
+-- Whether sound `a` leaves the full list before `b`: the one kept less, else the one running out first.
 local function goesBefore(a, b)
-    local aa, ba = a.kind == "alarm", b.kind == "alarm"
-    if aa ~= ba then return ba end
+    local ka, kb = KEEP[a.kind] or 1, KEEP[b.kind] or 1
+    if ka ~= kb then return ka < kb end
     return a.untilMs < b.untilMs
 end
 
--- Puts a heard noise in the list of noises (in place), until `untilMs`. A source heard again (a running engine or a
--- ringing alarm is, many times a second) keeps its one entry, moved and lasting longer; noises that ran out leave, and
--- past `max` the one closest to running out goes, an alarm last. `key` is what made it (the source, or its square).
--- Returns the list and whether the noise is a new entry.
+-- Puts a heard sound in a list of sounds (in place), until `untilMs`. A source heard again (a running engine or a
+-- ringing alarm is, many times a second) keeps its one entry, moved and lasting longer (it keeps when it was first
+-- heard, `born`, so it does not come on again); sounds that ran out leave, and past `max` the one kept least and closest
+-- to running out goes (goesBefore). `key` is what made it (the source, or its square). Returns the list and whether
+-- the sound is a new entry.
 function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
     local n = 0
     local found
@@ -145,55 +105,65 @@ function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
             end
             table.remove(list, drop)
         end
-        found = { key = key }
+        found = { key = key, born = now }
         list[#list + 1] = found
     end
     found.kind, found.x, found.y, found.z, found.untilMs = kind, x, y, z, untilMs
     return list, new
 end
 
-local live = {}
-local function alarmsThenNearer(a, b)
-    local aa, ba = a.kind == "alarm", b.kind == "alarm"
-    if aa ~= ba then return aa end
-    return a.d < b.d
-end
-
--- The marks of the noises heard (Sense.heard's list) as seen from (px, py) at `now`, into `out` (reused; returned):
--- at most NOISE_MARKS, alarms first, then the nearer. A noise within the merge angle of a mark of its own distance
--- band joins it (the mark lasts while any of them does); one that finds no room is left out. A mark is { kind, x, y,
--- z = its first noise's, d, band, n = noises in it, untilMs, sx, sy }. The noises are given d.
-function Sense.marks(sounds, px, py, now, out)
+-- The zombie sounds told from the zombies around, without the extension API's: a zombie newly in reach makes one soon
+-- (within FIRST_MS, spread by when it came), then one every IDLE_MS (HUNT_MS once it has a target), its time spread by
+-- its number so that a crowd does not call at once; one that takes a target ("aggro") or lunges or strikes ("attack")
+-- makes one at once. `zombies` are { ref, x, y, z, hunt, attack } (ref: what stays the same for a zombie); only those
+-- within `radius` of (px, py), on the floor of pz unless `floors`, are heard. `memo` (kept by the caller) remembers
+-- each zombie; ones not in reach are forgotten. Returns the sounds as { kind, key = ref, x, y, z } in `out` (reused).
+function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
     local n = 0
-    for i = 1, #sounds do
-        local s = sounds[i]
-        if s.untilMs > now then
-            local dx, dy = s.x - px, s.y - py
-            s.d = math.sqrt(dx * dx + dy * dy)
-            n = n + 1
-            live[n] = s
+    local r2 = radius * radius
+    memo.count = memo.count or 0
+    memo.seen = (memo.seen or 0) + 1
+    local seen = memo.seen
+    local by = memo.by or {}
+    memo.by = by
+    for i = 1, #zombies do
+        local z = zombies[i]
+        local dx, dy = z.x - px, z.y - py
+        if dx * dx + dy * dy <= r2 and (floors or math.abs(z.z - pz) < 0.5) then
+            local m = by[z.ref]
+            local kind
+            if not m then
+                memo.count = memo.count + 1
+                m = { number = memo.count, hunt = z.hunt, attack = z.attack }
+                m.due = now + (m.number * 397) % Sense.FIRST_MS
+                by[z.ref] = m
+            elseif z.attack and not m.attack then
+                kind = "attack"
+            elseif z.hunt and not m.hunt then
+                kind = "aggro"
+            end
+            m.hunt, m.attack, m.seen = z.hunt, z.attack, seen
+            if not kind and now >= m.due then kind = "zombie" end
+            if kind then
+                local every = z.hunt and Sense.HUNT_MS or Sense.IDLE_MS
+                -- a quarter of the time either way, by the zombie's number
+                m.due = now + every * (0.75 + 0.5 * ((m.number * 0.618034) % 1))
+                n = n + 1
+                local e = out[n] or {}
+                out[n] = e
+                e.kind, e.key, e.x, e.y, e.z = kind, z.ref, z.x, z.y, z.z
+            end
         end
     end
-    table.sort(live, alarmsThenNearer)
-    local count = 0
-    for i = 1, n do
-        local s = live[i]
-        local band = Sense.band(s.d)
-        local sx, sy = Sense.screen(s.x - px, s.y - py)
-        local m, dot = closest(out, count, sx, sy, band)
-        if m and dot >= Sense.MERGE_COS then
-            m.n = m.n + 1
-            if s.untilMs > m.untilMs then m.untilMs = s.untilMs end
-        elseif count < Sense.NOISE_MARKS then
-            count = count + 1
-            m = out[count] or {}
-            out[count] = m
-            m.kind, m.x, m.y, m.z, m.d, m.band = s.kind, s.x, s.y, s.z, s.d, band
-            m.n, m.untilMs, m.sx, m.sy = 1, s.untilMs, sx, sy
-        end
-        live[i] = nil
+    -- forgotten after the walk (the game's tables do not take a key taken away while they are walked)
+    local gone = memo.gone or {}
+    memo.gone = gone
+    local g = 0
+    for ref, m in pairs(by) do
+        if m.seen ~= seen then g = g + 1 gone[g] = ref end
     end
-    for i = #out, count + 1, -1 do out[i] = nil end
+    for i = 1, g do by[gone[i]] = nil gone[i] = nil end
+    for i = #out, n + 1, -1 do out[i] = nil end
     return out
 end
 

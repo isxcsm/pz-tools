@@ -21,13 +21,13 @@ OA.Upgrades.Hooks.refresh()
 P3T.check(say, "the shared timer is on", OA.Upgrades.Pulse.enabled())
 local S = Senses.state
 local marks = 0
-for _ in pairs(S.dirs or {}) do marks = marks + 1 end
+for _ in pairs(S.zombies or {}) do marks = marks + 1 end
 say("ring on", S.ring, "hunch on", S.sixth, "marks", marks, "alarms", #(S.alarms or {}))
 P3T.check(say, "ThumpState is exposed (zombies beating on a door shake their arc)",
     ThumpState ~= nil and ThumpState.instance() ~= nil)
 P3T.check(say, "at most eight zombie marks", marks <= OA.Upgrades.Sense.ZOMBIE_MARKS)
-for i, m in ipairs(S.dirs or {}) do say("zombie mark", i, "n", m.n, "d", m.d, "thump", m.thump) end
-for i, m in ipairs(S.marks or {}) do say("noise mark", i, m.kind, "band", m.band, "d", m.d, "n", m.n) end
+for i, m in ipairs(S.zombies or {}) do say("zombie sound", i, m.kind, "at", m.x, m.y, m.z, "until", m.untilMs) end
+for i, m in ipairs(S.sounds or {}) do say("noise", i, m.kind, "at", m.x, m.y, m.z, "until", m.untilMs) end
 say("look: arcs grow with the zoom; a zombie at a door shakes its arc with strokes outside it; an alarm near beats fast",
     "close round the body, a far one sits small and still on the outer ring")
 say("sneaking now", player:isSneaking(), "(check again while sneaking: ring should be true, marks > 0 near zombies)")
