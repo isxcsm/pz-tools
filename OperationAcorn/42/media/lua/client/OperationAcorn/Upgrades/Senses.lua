@@ -119,7 +119,8 @@ end
 
 -- The presence marks, as Visual Sounds draws its cues: glowing arcs round the character, each facing its way, on an
 -- ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where the camera centres
--- the character). Every size is in tiles, so the marks grow and shrink with the zoom as the character does.
+-- the character). Every size is in tiles of the default zoom (TILE_PX pixels): the marks keep their size on the
+-- screen whatever the zoom, as the HUD does; their ellipse keeps the ground's slant.
 --   Zombies: one arc for every way they come from (Sense.scan merges what lies within 30 degrees, eight at most) on
 --   the inner ring. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); one arc for a lone
 --   zombie, two for a few, three for a crowd, the echoes outward. Zombies beating on a door, a window or a wall
@@ -133,6 +134,7 @@ end
 --   alarms first; a noise fades out over its last FADE_MS.
 -- The pictures are white, tinted as they are drawn.
 local BODY = 0.3
+local TILE_PX = 36
 local RING = 1.6
 local ZOMBIE_W = { 1.8, 1.55, 1.3 }
 local ECHO = 0.2
@@ -279,7 +281,10 @@ function Hud:render()
         local eyX, eyY = isoToScreenX(n, px, py + 1, pz) - ox, isoToScreenY(n, px, py + 1, pz) - oy
         -- screen coordinates, as isoToScreen gives them and the quads take them
         local cx, cy = ox, isoToScreenY(n, px, py, pz + BODY)
-        local tile = math.sqrt(exX * exX + exY * exY)
+        -- one tile's ways on the screen, at TILE_PX long whatever the zoom
+        local k = TILE_PX / math.max(0.01, math.sqrt(exX * exX + exY * exY))
+        exX, exY, eyX, eyY = exX * k, exY * k, eyX * k, eyY * k
+        local tile = TILE_PX
         local shade = math.max(1, tile / 48)
         local now = getTimestampMs()
         local ui = self.javaObject
