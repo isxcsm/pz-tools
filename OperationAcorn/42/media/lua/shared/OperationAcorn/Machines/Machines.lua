@@ -354,16 +354,51 @@ end
 -- on every square (Data everyTile: the research storage).
 local function holders(object, state)
     local list = { object }
-    if Data.KINDS[state.kind].everyTile and state.x then
+    if state.x then
         for _, part in ipairs(Machines.partsOf(state)) do list[#list + 1] = part.object end
     end
     return list
 end
 
--- The machine's container of a role ("in", "out", "store"), or nil.
+-- anchor -> { role -> the square's object that holds it }, so that a container on another square is not looked for
+-- each time (a watched window asks ten times a second). An entry is checked before it is used: still on its square.
+local held = setmetatable({}, { __mode = "k" })
+
+-- The machine's container of a role ("in", "out", "store"), or nil. `object` is any square's object: its own container
+-- of the role, or, for the anchor, the one on the square that holds it (Data containerAt).
 function Machines.container(object, which)
     local def = Data.CONTAINERS[which]
-    return def and object:getContainerByType(def.type) or nil
+    if not def then return nil end
+    local own = object:getContainerByType(def.type)
+    if own then return own end
+    local state = Machines.state(object)
+    if not state or not state.x then return nil end
+    local cache = held[object]
+    local holder = cache and cache[which]
+    if holder and holder:getObjectIndex() >= 0 then return holder:getContainerByType(def.type) end
+    for _, part in ipairs(Machines.partsOf(state)) do
+        local found = part.object:getContainerByType(def.type)
+        if found then
+            cache = cache or {}
+            held[object] = cache
+            cache[which] = part.object
+            return found
+        end
+    end
+    return nil
+end
+
+-- The roles whose containers are on a square of a machine facing dir (dx, dy from the anchor).
+local function rolesAt(kind, dir, dx, dy)
+    local def = Data.KINDS[kind]
+    if def.everyTile then return def.containers end
+    local roles = {}
+    for _, which in ipairs(def.containers) do
+        local at = def.containerAt and def.containerAt[which] or { 0, 0 }
+        local x, y = Sprites.turnSquare(kind, dir, at[1], at[2])
+        if x == dx and y == dy then roles[#roles + 1] = which end
+    end
+    return roles
 end
 
 -- Walks the items of a container, into the bags and boxes in it (their contents are the machine's work, the bag stays),
@@ -507,7 +542,7 @@ end
 -- ItemContainer.setAcceptItemFunction("OperationAcorn.Machines.acceptInput").
 function Machines.acceptInput(container, item)
     local object = container:getParent()
-    local state = object and Machines.state(object)
+    local state = object and Machines.isMachineObject(object) and select(2, Machines.anchorOf(object))
     if not state then return true end
     return Machines.accepts(state.kind, item)
 end
@@ -517,9 +552,8 @@ function Machines.acceptNothing()
     return false
 end
 
-local function applyAccept(object, state)
-    local def = Data.KINDS[state.kind]
-    for _, which in ipairs(def.containers) do
+local function applyAccept(object, roles)
+    for _, which in ipairs(roles) do
         local container = Machines.container(object, which)
         if container then
             if which == "in" then container:setAcceptItemFunction("OperationAcorn.Machines.acceptInput")
@@ -923,7 +957,7 @@ function Machines.onChunk(chunk)
             if object then
                 local state = Machines.state(object)
                 Machines.ensureSpriteProperties()
-                applyAccept(object, state)
+                applyAccept(object, Data.KINDS[state.kind].containers)
                 local ok, err = pcall(Machines.update, object, { catchUp = true })
                 if not ok then OA.log("machine", id, "catch-up failed:", tostring(err)) end
             end
@@ -1030,9 +1064,8 @@ function Machines.facing(square, character)
     return dy > 0 and "S" or "N"
 end
 
-local function setupContainers(object, square, kind)
-    local def = Data.KINDS[kind]
-    for i, which in ipairs(def.containers) do
+local function setupContainers(object, square, roles)
+    for i, which in ipairs(roles) do
         local spec = Data.CONTAINERS[which]
         local container
         if i == 1 then
@@ -1105,18 +1138,21 @@ function Machines.place(kind, square, character, item, dir, bare)
                 if script then GameEntityFactory.CreateIsoObjectEntity(object, script, true)
                 else OA.log("no entity script", Data.RAIN_ENTITY) end
             end
-            setupContainers(object, entry.square, kind)
-            applyAccept(object, state)
             Machines.syncLoad(object, state)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
-            if Data.KINDS[kind].everyTile then setupContainers(object, entry.square, kind) end
         end
+        -- each container on the square the picture shows it on
+        local roles = rolesAt(kind, dir, entry.dx, entry.dy)
+        setupContainers(object, entry.square, roles)
+        applyAccept(object, roles)
         entry.square:AddSpecialObject(object)
         object:transmitCompleteItemToClients()
     end
     for _, entry in ipairs(squares) do entry.square:RecalcAllWithNeighbours(true) end
     register(state, ax, ay, az)
+    -- the look it is put down in: ready when it is on and has power (Machines.refreshLook)
+    if Data.processes(kind) then Machines.refreshLook(anchor, state) end
     OA.log("placed", kind, id, "at", ax, ay, az, dir, #squares, "squares")
     return anchor
 end
@@ -1126,7 +1162,7 @@ function Machines.isEmpty(object)
     local state = Machines.state(object)
     for _, holder in ipairs(holders(object, state)) do
         for _, which in ipairs(Data.KINDS[state.kind].containers) do
-            local container = Machines.container(holder, which)
+            local container = holder:getContainerByType(Data.CONTAINERS[which].type)
             if container and not container:getItems():isEmpty() then return false end
         end
     end
@@ -1182,7 +1218,7 @@ local function spill(object)
     if not state or not square then return end
     for _, holder in ipairs(holders(object, state)) do
         for _, which in ipairs(Data.KINDS[state.kind].containers) do
-            local container = Machines.container(holder, which)
+            local container = holder:getContainerByType(Data.CONTAINERS[which].type)
             if container then
                 local items = container:getItems()
                 for i = items:size() - 1, 0, -1 do

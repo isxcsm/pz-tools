@@ -966,8 +966,11 @@ test("a 2x1 machine takes two squares: the anchor holds the state, the other poi
     eq(part.mod[Data.ANCHOR_KEY].id, state.id)
     eq(part.sprite, "bulkShredderSS10")
     eq(anchor.sprite, "bulkShredderSS00")
-    eq(#anchor.containers, 2, "in and out, on the anchor only")
-    eq(#part.containers, 0)
+    eq(#anchor.containers, 1, "the input on the anchor (the hopper)")
+    eq(#part.containers, 1, "the output on the other square (the bin)")
+    eq(Machines.container(anchor, "in"), anchor.containers[1])
+    eq(Machines.container(anchor, "out"), part.containers[1], "the anchor finds its output on the other square")
+    eq(Machines.container(anchor, "out"), part.containers[1], "and again, from what it noted")
     -- Any part resolves to the anchor.
     eq(Machines.at(partSquare), anchor)
     eq(Machines.at(sq), anchor)

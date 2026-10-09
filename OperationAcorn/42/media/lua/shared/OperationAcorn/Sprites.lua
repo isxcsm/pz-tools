@@ -72,6 +72,20 @@ function Sprites.footprint(kind, dir)
     return f.w, f.h
 end
 
+-- Where a square of a machine's footprint facing south (sx, sy from its anchor) stands when it faces dir: dx, dy from
+-- the anchor of that facing (the picture turned as tools/tile_art.py turns it: S 0, E 3, N 2, W 1 quarter turns).
+local TURNS = { S = 0, E = 3, N = 2, W = 1 }
+function Sprites.turnSquare(kind, dir, sx, sy)
+    local f = Sprites.FOOTPRINT[kind]
+    if not f then return sx, sy end
+    local x, y, cw, ch = sx + 0.5, sy + 0.5, f.w, f.h
+    for _ = 1, TURNS[dir] or 0 do
+        x, y = ch - y, x
+        cw, ch = ch, cw
+    end
+    return math.floor(x), math.floor(y)
+end
+
 -- The looks of a machine with a running look, as machineTiles takes them: stopped (switched off or no power), running
 -- (working), "ready" (switched on and waiting: its lamps lit, nothing moving). The ready looks are at `ready`: facings
 -- x tiles, after the rain storage's overlays.

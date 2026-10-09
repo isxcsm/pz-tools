@@ -37,11 +37,11 @@ Data.KINDS = {
     },
     bulkShredder = {
         item = "BulkShredder", weight = 60, power = true, load = 0.6, rate = 3600 / Data.SHRED_SECONDS.perWeight, wear = 0.4, noise = 20,
-        slots = { "motor", "blade" }, containers = { "in", "out" },
+        slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     cutter = {
         item = "FabricCutter", weight = 35, power = true, load = 0.4, rate = 20, noise = 10,
-        slots = { "motor", "blade" }, containers = { "in", "out" },
+        slots = { "motor", "blade" }, containers = { "in", "out" }, containerAt = { out = { 1, 0 } },
     },
     propaneRefiner = {
         item = "PropaneRefinery", weight = 50, power = true, load = 0.3, rate = 2, noise = 8,
@@ -54,6 +54,7 @@ Data.KINDS = {
     woodSaw = {
         item = "LogSaw", weight = 55, power = true, load = 0.8, rate = 12, noise = 40,
         slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" },
+        containerAt = { out = { 1, 0 } },
     },
     researchStorage = {
         -- a locker on each of its two squares, as a double wardrobe has a compartment a square
@@ -145,6 +146,9 @@ Data.OIL_FOOD = { ["Base.OilVegetable"] = true, ["Base.OilOlive"] = true, ["Base
 --   blade's planks from a log (expected). use: a catalyst's material use (less is better). noise, speed: a cover's
 --   multipliers on the machine's noise radius and speed.
 --   wear: condition lost for each hour of running.
+--   containers: its containers' roles (Data.CONTAINERS); containerAt: the square (sx, sy facing south) a role's container
+--     is on, where the picture shows it (the bin the products fall in); the anchor when not given. everyTile: every
+--     square has all its containers (the research storage's lockers).
 -- Part items are `<Name><Tier>` in module OperationAcorn, with ConditionMax 100: MotorOld, MotorNormal, MotorModern,
 -- ShredBladeOld ..., FilterOld ...; the cover has one item, SoundproofCover. (The shop, P1, names the same.)
 Data.TIERS = { "old", "normal", "modern" }

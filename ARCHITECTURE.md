@@ -225,6 +225,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   보존할 상태가 부품뿐이고 부품은 아이템으로 빠지므로, 조각에는 실을 것이 없다.
 - **거래 물건(단말·상자)에는 `IsMoveAble`이 없다.** 납품 상자의 ID와 주인을 아이템에 실어야 해서 `Trade/Moveables.lua`가 가구 도구의 확인과 떼어내기를
   이 모드의 것(`Things.take*`)으로 바꾼다. 바닐라의 한 칸 가구 규칙대로 인벤토리에 들어갈 자리가 있어야 하고, 놓기는 이 모드의 커서가 한다.
+- **기계 컨테이너의 칸:** 그림이 보여 주는 칸에 있다 (`Data.KINDS[kind].containerAt`, 남쪽 보기 기준 칸을 `Sprites.turnSquare`로 돌린다). 대량 분해기·재단기·목재 절단기의 산출함은 통·수레·판재 쪽 칸, 투입함은 다른 칸이다. 연구팀 보관함은 칸마다 보관함이 있다 (`everyTile`). `Machines.container(앵커, 역할)`이 그 칸의 것을 찾아 준다 (찾은 칸은 기억한다).
 - **컨테이너:** `IsoObject.new(cell, square, sprite)`로 만들면 바닐라가 `container`와 `ContainerCapacity`로 컨테이너를 만든다. 용량은 코드가 `ItemContainer:setCapacity`로 헬기 단계에 맞춰 다시 정한다
   (연구팀 보관함 300은 확장 API가 상한 100을 걷는다). 밀봉된 납품 상자(9)·봉인된 보급 상자(10)는 컨테이너 값을 그대로 두고, 못 열게 하는 일은 코드가 한다.
 - **빗물 저장소 (2×2, 열린 통):** 물 높이가 그림에 보인다 (0 빈 통: 마른 바닥에 흙과 낙엽, 1 사분의 일, 2 절반, 3 가득; 통 옆 수위 유리관에도 같은 높이). **놓는 물체와 엔티티의 `SpriteConfig`는 빈 통(134~137)이다. 물체의 스프라이트를 바꾸면 안 된다** (B42 `SpriteConfig`가 물체의 현재 스프라이트 이름을 엔티티 설정에서 찾아 없으면 컴포넌트를 무효로 표시한다). 물 높이는 덧그림이다: 높이 1~3이면 네 칸 각각에 `IsoObject.setOverlaySprite(Sprites.rainOverlayTiles(level)의 그 칸 이름)`, 높이 0이면 `setOverlaySprite(nil)`. 덧그림은 오브젝트와 함께 저장된다. 덧그림 타일은 빈 통과 달라지는 픽셀만 갖고 나머지는 투명이다. 빈 통 위에 덧그림을 알파 합성하면 그 높이의 완성 타일과 픽셀까지 같다 (`tile_art.py`가 열두 장 모두 단언한다). 앵커 타일(134)에만 `IsWaterCollector`를 둔다. B42의 비 모으기는 엔티티의 `FluidContainer` 컴포넌트가 한다 (`entity_raincollector.txt`). P5는 스크립트에

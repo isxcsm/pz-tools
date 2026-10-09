@@ -122,6 +122,28 @@ test("running changes only the machines that run; the rain storage does not turn
     end
 end)
 
+local function turned(kind, dir, sx, sy)
+    local x, y = Sprites.turnSquare(kind, dir, sx, sy)
+    return x .. "," .. y
+end
+
+test("a square of the south footprint turned with the machine: the picture's turns", function()
+    -- the 2x1 bulk shredder's bin end (1, 0 facing south)
+    eq(turned("bulkShredder", "S", 1, 0), "1,0")
+    eq(turned("bulkShredder", "W", 1, 0), "0,1")
+    eq(turned("bulkShredder", "N", 1, 0), "0,0")
+    eq(turned("bulkShredder", "E", 1, 0), "0,0")
+    -- and its hopper end, always the other square
+    eq(turned("bulkShredder", "S", 0, 0), "0,0")
+    eq(turned("bulkShredder", "W", 0, 0), "0,0")
+    eq(turned("bulkShredder", "N", 0, 0), "1,0")
+    eq(turned("bulkShredder", "E", 0, 0), "0,1")
+    -- a 2x2 corner goes round
+    eq(turned("oilRefiner", "W", 1, 0), "1,1")
+    eq(turned("oilRefiner", "N", 1, 0), "0,1")
+    eq(turned("oilRefiner", "E", 1, 0), "0,0")
+end)
+
 test("every tile is its own: no place is used by two looks", function()
     local owner, count = {}, 0
     for _, kind in ipairs(KINDS) do
