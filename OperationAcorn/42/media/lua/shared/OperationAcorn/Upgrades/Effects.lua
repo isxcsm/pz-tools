@@ -47,6 +47,7 @@ Effects.POINTS = {
     ammo = "loot.ammoMultiplier",
     darkness = "vision.darknessRestore",
     cone = "vision.coneAdd",
+    nightSight = "vision.nightSight",
     hiddenZombie = "vision.hiddenZombieFix",
 }
 local P = Effects.POINTS
@@ -55,7 +56,8 @@ Effects.CAPACITY_KEY = "OA_Capacity"
 
 -- Which points each API node feeds (node id -> list of point keys). Lua-only nodes are not here.
 Effects.MAP = {
-    sight = { "cone" }, rich = { "loot" }, night = { "darkness" }, ammo = { "ammo" }, nightEye = { "darkness" },
+    sight = { "cone" }, rich = { "loot" }, night = { "darkness", "nightSight" }, ammo = { "ammo" },
+    nightEye = { "darkness", "nightSight" },
     overload = { "overload" }, keyring = { "carryTag" }, furniture = { "carryItem" },
     materials = { "carryCategory" }, materialsPlus = { "carryCategory" }, runSpeed = { "runPenalty" },
     capacity = { "maxWeightAdd", "limitAdd" }, combatSpeed = { "combatPenalty" }, storage = { "storage" },
@@ -72,6 +74,11 @@ Effects.MAP = {
 
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
 local MAX_CONE = 90
+-- Night sight (PZ Tools: in the dark the screen is lifted and drained to grey; what a light lights keeps its colour) by
+-- the rank of 밤눈, and with 야행성 눈. Measured at 2 a.m. outdoors and in an unlit basement: 0.1 barely lifts a dark night,
+-- 0.3 lets you walk without a light, 0.5 shows the whole basement dimly.
+local NIGHT_SIGHT = { 0.1, 0.2, 0.3 }
+local NIGHT_SIGHT_EYE = 0.5
 
 -- Whether the Zombie Visibility Fix mod is active: then the hidden zombie fix stands aside (DESIGN 7).
 function Effects.visibilityModActive()
@@ -111,8 +118,10 @@ function Effects.compute(u, now, options)
     if rank("sight") > 0 then out[P.cone] = math.min(R.value(u, "sight"), MAX_CONE) end
     if rank("nightEye") > 0 then
         out[P.darkness] = 1
+        out[P.nightSight] = NIGHT_SIGHT_EYE
     elseif rank("night") > 0 then
         out[P.darkness] = OA.clamp(R.fraction(u, "night"), 0, 1)
+        out[P.nightSight] = NIGHT_SIGHT[rank("night")]
     end
 
     -- loot
