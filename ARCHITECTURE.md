@@ -34,7 +34,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 - **단위 테스트:** 게임 객체를 만지지 않는 로직(값 매기기, 시세, 신뢰도, 상점 한도, 분해 산출, 트리 규칙, 임무 장소 고르기,
   기계 따라잡기)은 순수 함수로 쓰고 `tests/unit/<이름>_test.lua`로 시험한다. 하네스(`tests/unit/harness.lua`)가
-  `SandboxVars`(sandbox-options.txt의 기본값), `ModData`, `getGameTime`, `ZombRand`, `Events`, `getText`를 흉내 낸다.
+  `SandboxVars`(sandbox-options.txt의 기본값), `ModData`, `getGameTime`, `ZombRand`, `Events`, `getText`, `getTimestampMs`(부를 때마다 한 시간씩 가서
+  간격 제한이 막지 않는다. 제한을 시험할 때는 테스트가 바꾼다)를 흉내 낸다.
   테스트 하나마다 모드와 저장이 새로 시작한다. 게임 객체가 필요한 부분은 얇은 어댑터 함수로 떼어 내고 로직에는 표만 넘긴다.
 - **Kahlua 주의:** `%`는 음수와 큰 수(`getTimestampMs`)에서 틀린다 (`OA.remainder`). 정수 나눗셈 연산자, `goto`, 비트 연산이
   없다. `string.format("%d")`에 소수를 넘기지 않는다.
@@ -43,7 +44,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 | 파일 | 하는 일 |
 | --- | --- |
-| `shared/OperationAcorn/Core.lua` | `OperationAcorn`(=`OA`) 이름공간, `OA.log`, `OA.api()`/`OA.handle()`(확장 API), `OA.option(name)`(샌드박스), `OA.hours()`(세계 나이, 시간), `OA.day()`(00시에 바뀌는 날 번호), `OA.week()`, `OA.random(a, b)`(둘 다 포함), `OA.randomFloat`, `OA.round`, `OA.clamp`, `OA.remainder` |
+| `shared/OperationAcorn/Core.lua` | `OperationAcorn`(=`OA`) 이름공간, `OA.log`, `OA.api()`/`OA.handle()`(확장 API), `OA.option(name)`(샌드박스), `OA.hours()`(세계 나이, 시간), `OA.day()`(00시에 바뀌는 날 번호), `OA.week()`, `OA.random(a, b)`(둘 다 포함), `OA.randomFloat`, `OA.round`, `OA.clamp`, `OA.remainder`, `OA.due(last, key, now, ms)`(실제 시간 간격 제한) |
 | `shared/OperationAcorn/Store.lua` | 저장 데이터. 전역 ModData `OA_World` 하나에 모두 둔다. `Store.world(section)`, `Store.player(id)`, `Store.section(record, section)`, `Store.players()`, `Store.ensure(id, name)`(기록과 네 자리 채집점 번호를 만든다), `Store.idOf(character)`(캐릭터 modData `OA_Id`) |
 | `shared/OperationAcorn/Sync.lua` | 바뀐 것 알리기. `Sync.changed(what, playerId, detail)`, `Sync.notice(playerId, key, args)`, `Sync.send(character, command, args)`(클라이언트 → 서버, `args.id`를 붙인다), `Sync.listen(what, fn)`(클라이언트 쪽) |
 | `shared/OperationAcorn/Chunks.lua` | 칸이 불러질 때 할 일의 대기 표 (`LoadChunk`, 청크 키). `Chunks.handle(kind, fn)`, `Chunks.add(entry)`, `Chunks.remove(predicate)`, `Chunks.list(kind)`. `LoadGridsquare`는 쓰지 않는다 |
@@ -56,6 +57,9 @@ python tools/check_translations.py                          # 번역 키, 샌드
 - **기록은 캐릭터마다 하나다.** 연구팀은 그 생존자와 거래한다. 캐릭터가 죽고 새로 시작하면 새 채집점 번호와 새 기록이다.
   강화, 신뢰도, 크레딧 모두 새로 시작한다. 이전 캐릭터의 상자와 기록은 세계에 남는다.
 - **매 틱·매 프레임 처리 금지** (DESIGN 12장 성능 규칙). 시각 비교는 `EveryTenMinutes`, 날 바뀜은 `EveryDays`, 칸 일은 `Chunks`.
+  게임 시간 이벤트는 빨리 감기(x40)나 잠잘 때 실제 1초에 여러 번 온다. 게임 시간을 따르지 않는 일(세계 훑기, 인벤토리 훑기, 표시 갱신)은
+  `OA.due`로 실제 시간 간격(모듈 상수 `..._MS`, 기본 속도에서 게임 10분이 걸리는 실제 25초보다 짧게)을 두고, 게임 시간을 따르는 일은 부른 횟수가 아니라
+  지난 게임 시간(`OA.hours()`의 차)으로 센다.
 
 ## 4. 저장 데이터와 주인
 
