@@ -169,7 +169,7 @@ final class Formulas implements ApiHooks.Formulas {
         float nightSight, darkness, coneAdd, landingShift, impact = 1, walk = 1, treeAnimation = 1;
     }
 
-    /** Seconds night sight takes to come in whole, or to leave. */
+    /** Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease). */
     static final float SIGHT_EASE = 0.3f;
     /**
      * The darkness the game reads (0 light to 1 dark) where the screen pass's lift starts, and where it is whole.
@@ -181,6 +181,36 @@ final class Formulas implements ApiHooks.Formulas {
      * light to lift (a black square stays black), and a room the game gives no light (a sealed one) needs all of it.
      */
     static final float FLOOR_FULL = 0.9f;
+    /** What a dark place adds to the least light (a basement, a room with no light: see NightLamps), of the full light. */
+    static final float DARK_EXTRA = 0.1f;
+    /** How much the screen pass lifts dark tones at night sight 1: their gamma is 1 - this x the strength. */
+    static final float SIGHT_LIFT = 0.7f;
+
+    // The numbers above as night sight works with them: each a tuning, its default the constant (FLOOR_FULL and the rest
+    // are the defaults; PZToolsAPI.formulas.tune changes them while the game runs).
+    private final Tunings tunings = new Tunings();
+    private final Tunings.Tuning floorFull = tunings.add("nightSight.floorFull", FLOOR_FULL, 0, 1,
+        "the least light of a square on the screen at night sight 1, of the full light");
+    private final Tunings.Tuning darkExtra = tunings.add("nightSight.darkExtra", DARK_EXTRA, 0, 1,
+        "what a dark place adds to the least light, of the full light");
+    private final Tunings.Tuning lift = tunings.add("nightSight.lift", SIGHT_LIFT, 0, 1,
+        "how much the screen pass lifts dark tones at night sight 1 (their gamma is 1 - this x the strength)");
+    private final Tunings.Tuning ease = tunings.add("nightSight.ease", SIGHT_EASE, 0.01f, 10,
+        "seconds night sight takes to come in whole, or to leave");
+    private final Tunings.Tuning darkFrom = tunings.add("nightSight.darkFrom", DARK_FROM, 0, 1,
+        "the darkness the game reads (0 light to 1 dark) where the lift starts");
+    private final Tunings.Tuning darkFull = tunings.add("nightSight.darkFull", DARK_FULL, 0, 1,
+        "the darkness the game reads where the lift is whole (at darkFrom or below it, whole from darkFrom)");
+    private final Tunings.Tuning darkLight = tunings.add("nightSight.darkLight", NightLamps.DARK_LIGHT, 0, 1,
+        "a square with less of the game's own light than this counts as dark, for a dark place");
+    private final Tunings.Tuning darkIn = tunings.add("nightSight.darkIn", NightLamps.DARK_IN, 0, 1,
+        "the share of dark squares around the player at which a dark place starts");
+    private final Tunings.Tuning darkOut = tunings.add("nightSight.darkOut", NightLamps.DARK_OUT, 0, 1,
+        "the share of dark squares around the player at which a dark place ends (below darkIn, so that it does not flicker)");
+    private final Tunings.Tuning darkRadius = tunings.add("nightSight.darkRadius", NightLamps.DARK_RADIUS, 0, NightLamps.SIZE / 2 - 1,
+        "squares around the player counted for a dark place (a whole number)");
+    private final Tunings.Tuning standing = tunings.add("nightSight.standing", NightLamps.STANDING, 0, 8,
+        "squares behind a standing character, where it is drawn, that keep its square's colour (a whole number)");
 
     /** The animation of walking through trees plays at most this many times as fast as the game's, whatever slowdown is taken away. */
     static final double MAX_TREE_ANIMATION = 2;
@@ -269,7 +299,7 @@ final class Formulas implements ApiHooks.Formulas {
         machinesProblem = unlisted;
         NightLamps screen = null;
         String unlit = null;
-        try { screen = new NightLamps(loader, game, players); }
+        try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             unlit = "the game's square lights, screen placement or GL could not be read: " + unreadable;
             System.err.println("[PzTools API] formulas: " + unlit);
@@ -376,6 +406,28 @@ final class Formulas implements ApiHooks.Formulas {
             Object item = item(arguments, call);
             try { return new Object[] { (double)inventory.unequipped(active, item) }; }
             catch (Throwable failure) { throw Game.failed(Game.thrown(failure)); }
+        });
+        function(table, "tune", (call, arguments) -> {
+            String name = Arguments.string(arguments, 0, call, "tuning");
+            Tunings.Tuning tuning = tunings.find(name);
+            if (tuning == null)
+                throw new IllegalArgumentException(call + ": there is no tuning " + name + "; PZToolsAPI.formulas.tunings() lists them");
+            if (arguments.length < 2 || arguments[1] == null) tuning.reset();
+            else tuning.set((float)Arguments.number(arguments, 1, call, name, tuning.min, tuning.max));
+            return new Object[] { (double)tuning.value() };
+        });
+        function(table, "tunings", (call, arguments) -> {
+            Object result = lua.table();
+            for (Tunings.Tuning tuning : tunings.all()) {
+                Object one = lua.table();
+                lua.set(one, "value", (double)tuning.value());
+                lua.set(one, "default", (double)tuning.initial);
+                lua.set(one, "min", (double)tuning.min);
+                lua.set(one, "max", (double)tuning.max);
+                lua.set(one, "about", tuning.about);
+                lua.set(result, tuning.name, one);
+            }
+            return new Object[] { result };
         });
         function(table, "points", (call, arguments) -> {
             Object result = lua.table();
@@ -953,7 +1005,8 @@ final class Formulas implements ApiHooks.Formulas {
         long now = System.nanoTime();
         nightSightStep(now);
         if (lamps == null) return;
-        try { lamps.floorLight(Math.round(FLOOR_FULL * active.nightSight * 255f)); }
+        float least = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight + (lamps.darkPlace() ? darkExtra.value() : 0f));
+        try { lamps.floorLight(Math.round(least * 255f)); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's least light", failure); }
         if (lampsProblem != null) return;
         try { lamps.frame(playerIndex, now); }
@@ -967,7 +1020,7 @@ final class Formulas implements ApiHooks.Formulas {
     /** Each time the screen pass draws, on the render thread with its program bound. */
     @Override public void nightSightDraw(int program) {
         if (lamps == null) return;
-        try { lamps.draw(program, sight); }
+        try { lamps.draw(program, sight, lift.value()); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's screen pass", failure); }
     }
 
@@ -991,15 +1044,16 @@ final class Formulas implements ApiHooks.Formulas {
         // never backwards (a clock read elsewhere), never more than a quarter of a second at once
         float seconds = sightAt == 0 ? 0f : Math.max(0f, Math.min(0.25f, (now - sightAt) / 1e9f));
         sightAt = now;
-        float target = active.nightSight * darkGate(seenDark);
-        float current = sight;
-        current = target > current ? Math.min(target, current + seconds / SIGHT_EASE) : Math.max(target, current - seconds / SIGHT_EASE);
+        float target = active.nightSight * darkGate(seenDark, darkFrom.value(), darkFull.value());
+        float current = sight, step = seconds / ease.value();
+        current = target > current ? Math.min(target, current + step) : Math.max(target, current - step);
         sight = current;
     }
 
-    /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for. */
-    static float darkGate(float dark) {
-        float gate = (dark - DARK_FROM) / (DARK_FULL - DARK_FROM);
+    /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for, from `from` to whole at `full`. */
+    static float darkGate(float dark, float from, float full) {
+        if (full <= from) return dark >= from ? 1f : 0f;
+        float gate = (dark - from) / (full - from);
         return gate <= 0f ? 0f : gate >= 1f ? 1f : gate * gate * (3f - 2f * gate);
     }
 

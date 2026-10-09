@@ -159,7 +159,7 @@ final class FormulasTest {
         cell.load(104, 203, 0).setLight(0, 1f, lamp);
         frameLater(formulas, pass);
         IsoWorld.instance.setCell(home);
-        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8) && org.lwjgl.opengl.GL20.values.get(4) == 1f,
+        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8) && org.lwjgl.opengl.GL20.values.get(4) == 1f && near(org.lwjgl.opengl.GL20.values.get(9), Formulas.SIGHT_LIFT),
             "The screen pass did not get the strength, or is not on: " + org.lwjgl.opengl.GL20.values);
         check(org.lwjgl.opengl.GL20.integers.get(6) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
             && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == NightLamps.SIZE,
@@ -172,16 +172,87 @@ final class FormulasTest {
         double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
         check(kept.apply(100, 203) == 1.0 && Math.abs(share.apply(100, 203) - lampShare) < 0.01 && kept.apply(104, 203) == 1.0
             && share.apply(104, 203) == 1.0 && Math.abs(kept.apply(101, 200) - 0.3 / floor) < 0.01 && share.apply(101, 200) == 0.0
-            && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(99, 199) == 0.0
+            && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(95, 195) == 0.0
             && Math.abs(kept.apply(100, 200) - seen / floor) < 0.01,
             "The squares' values: " + kept.apply(101, 200) + " " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + kept.apply(100, 200));
         check(org.lwjgl.opengl.GL20.values.get(5) == 0f, "Beyond the values the colour is not kept as on their edge: " + org.lwjgl.opengl.GL20.values.get(5));
+        // the player stands on its square: the squares behind it it is drawn over, and their sides, keep at least its values
+        // (its square lit by the corners handed, the ones behind it not loaded)
+        double standing = kept.apply(100, 200);
+        check(kept.apply(99, 199) == standing && kept.apply(97, 197) == standing && kept.apply(98, 199) == standing && kept.apply(100, 199) == standing
+            && kept.apply(96, 196) == 0.0 && !formulas.nightLamps().darkPlace(),
+            "The squares a standing player is drawn over do not keep its colour: " + kept.apply(99, 199) + " " + kept.apply(96, 196));
         float[] u = org.lwjgl.opengl.GL20.vectors.get(7), v = org.lwjgl.opengl.GL20.vectors.get(8);
         float wx = 103.25f, wy = 197.5f;
         float fx = zombie.Lua.LuaManager.GlobalObject.isoToScreenX(0, wx, wy, 0f);
         float fy = zombie.core.Core.getInstance().getScreenHeight() - zombie.Lua.LuaManager.GlobalObject.isoToScreenY(0, wx, wy, 0f);
         check(near(u[0] * fx + u[1] * fy + u[2], (wx - x0) / (double)NightLamps.SIZE) && near(v[0] * fx + v[1] * fy + v[2], (wy - y0) / (double)NightLamps.SIZE),
             "A pixel is not found where it is on the floor: " + java.util.Arrays.toString(u) + " " + java.util.Arrays.toString(v));
+        IsoWorld.instance.setCell(cell);
+        bench(formulas, pass, handed);
+        IsoWorld.instance.setCell(home);
+        player.x = player.y = 0f;
+    }
+
+    // What night sight's paths cost (printed): the game asks squareStale of every square it reads, squareLit of each it
+    // reads again, objectLight of each object it draws; the values are worked out 10 times a second.
+    private static void bench(Formulas formulas, zombie.iso.weather.WeatherShader pass, int[] handed) {
+        var lamps = formulas.nightLamps();
+        var info = new zombie.core.textures.ColorInfo(0.1f, 0.1f, 0.1f);
+        int[] lit = handed.clone();
+        int rounds = 2_000_000;
+        boolean any = false;
+        try {
+            for (int warm = 0; warm < 2; warm++) {
+                long start = System.nanoTime();
+                for (int n = 0; n < rounds; n++) lamps.squareLit(0, 100 + (n & 63), 200 + (n >> 6 & 63), 0, lit);
+                long litTook = System.nanoTime() - start;
+                start = System.nanoTime();
+                for (int n = 0; n < rounds; n++) any ^= lamps.squareStale(0, 100 + (n & 63), 200 + (n >> 6 & 63), 0);
+                long staleTook = System.nanoTime() - start;
+                start = System.nanoTime();
+                for (int n = 0; n < rounds; n++) any ^= lamps.objectLight(info, 0) == info;
+                long objectTook = System.nanoTime() - start;
+                long at = System.nanoTime();
+                start = System.nanoTime();
+                for (int n = 0; n < 200; n++) {
+                    lamps.frame(0, at += NightLamps.REFRESH_NS);
+                    pass.startRenderThread(new zombie.core.textures.TextureDraw());
+                }
+                long valuesTook = System.nanoTime() - start;
+                if (warm == 1)
+                    System.out.printf("night sight: squareLit %.1f ns, squareStale %.1f ns, objectLight %.1f ns a call; the values %.3f ms each, with their draw (the synthetic cell: 7 squares lit)%s%n",
+                        litTook / (double)rounds, staleTook / (double)rounds, objectTook / (double)rounds, valuesTook / 200 / 1e6, any ? "" : " ");
+            }
+        } catch (Throwable failure) { throw new AssertionError(failure); }
+    }
+
+    /**
+     * A dark place: with most squares around the player without the game's own light, the least light is
+     * {@link Formulas#DARK_EXTRA} more (a frame after the values say so); lit, it is not.
+     */
+    private static void darkPlace(Formulas formulas, zombie.iso.weather.WeatherShader pass, IsoPlayer player) {
+        IsoCell home = IsoWorld.instance.currentCell;
+        var cell = new IsoCell();
+        IsoWorld.instance.setCell(cell);
+        player.x = player.y = 300.5f;
+        player.z = 0f;
+        for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0f);
+        int plain = Math.round(Formulas.FLOOR_FULL * 0.2f * 255f), dark = Math.round((Formulas.FLOOR_FULL * 0.2f + Formulas.DARK_EXTRA) * 255f);
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        check(formulas.nightLamps().darkPlace() && formulas.nightLamps().floorLight() == dark,
+            "In a dark place the least light is not more: " + formulas.nightLamps().floorLight());
+        // a few lit squares do not end it
+        for (int dx = -6; dx <= -2; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0.5f);
+        frameLater(formulas, pass);
+        check(formulas.nightLamps().darkPlace(), "A dark place ended with a few lit squares");
+        for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0.5f);
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        check(!formulas.nightLamps().darkPlace() && formulas.nightLamps().floorLight() == plain,
+            "Lit, the least light is still more: " + formulas.nightLamps().floorLight());
+        IsoWorld.instance.setCell(home);
         player.x = player.y = 0f;
     }
 
@@ -392,7 +463,7 @@ final class FormulasTest {
         check(ApiHooks.shaderSource(noGoggles, "media/shaders/screen.frag").equals(noGoggles), "A screen shader with no goggles' uniform was changed");
         zombie.core.opengl.ShaderUnit.text = world;
         check(new zombie.core.opengl.ShaderUnit().load("media/shaders/screen.frag").contains("PZT_NightSight"), "The loaded screen shader has no step");
-        String[] uniforms = { "PZT_NightSight", "PZT_SightOn", "PZT_SightKeep", "PZT_SightLamps", "PZT_SightU", "PZT_SightV" };
+        String[] uniforms = { "PZT_NightSight", "PZT_SightOn", "PZT_SightKeep", "PZT_SightLamps", "PZT_SightU", "PZT_SightV", "PZT_SightLift" };
         for (int i = 0; i < uniforms.length; i++) {
             check(patched.contains(uniforms[i] + ";"), "The step has no " + uniforms[i]);
             org.lwjgl.opengl.GL20.uniforms.put(uniforms[i], 3 + i);
@@ -402,7 +473,9 @@ final class FormulasTest {
 
         // The lift eases in as it gets dark, for the local player alone, and leaves in the light; none in daylight.
         var formulasObject = GameApi.formulas();
-        check(Formulas.darkGate(0.2f) == 0f && Formulas.darkGate(0.54f) == 1f && Formulas.darkGate(0.4f) > 0.4f && Formulas.darkGate(0.4f) < 0.6f,
+        float from = Formulas.DARK_FROM, full = Formulas.DARK_FULL;
+        check(Formulas.darkGate(0.2f, from, full) == 0f && Formulas.darkGate(0.54f, from, full) == 1f && Formulas.darkGate(0.4f, from, full) > 0.4f
+            && Formulas.darkGate(0.4f, from, full) < 0.6f && Formulas.darkGate(0.4f, 0.5f, 0.5f) == 0f && Formulas.darkGate(0.5f, 0.5f, 0.5f) == 1f,
             "The darkness gate");
         call(formulas, "set", mod, "vision.nightSight", 0.8);
         player.luma = 0.05f;
@@ -414,6 +487,27 @@ final class FormulasTest {
         for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
         lamps(formulasObject, pass, player);
+        // in a dark place the least light is more
+        call(formulas, "set", mod, "vision.nightSight", 0.2);
+        darkPlace(formulasObject, pass, player);
+        call(formulas, "set", mod, "vision.nightSight", 0.8);
+        // its numbers are tuned while the game runs, and back to their defaults with no value
+        var tunings = (KahluaTable)call(formulas, "tunings").get(0);
+        var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");
+        check(floorTuning != null && near((Double)floorTuning.rawget("default"), Formulas.FLOOR_FULL) && tunings.rawget("nightSight.lift") != null
+            && tunings.rawget("nightSight.standing") != null, "The tunings are not listed");
+        check(near((Double)call(formulas, "tune", "nightSight.floorFull", 0.5).get(0), 0.5), "A tuning did not answer its value");
+        call(formulas, "tune", "nightSight.lift", 0.4);
+        formulasObject.nightSightFrame(0);
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        check(formulasObject.nightLamps().floorLight() == Math.round(0.5f * 0.8f * 255f) && near(org.lwjgl.opengl.GL20.values.get(9), 0.4),
+            "A tuning did not take: " + formulasObject.nightLamps().floorLight());
+        rejects(formulas, "tune", "nightSight.floorFull must be a number from 0.0 to 1.0", "nightSight.floorFull", 1.5);
+        rejects(formulas, "tune", "there is no tuning nightSight.nothing", "nightSight.nothing", 0.5);
+        call(formulas, "tune", "nightSight.floorFull");
+        call(formulas, "tune", "nightSight.lift");
+        formulasObject.nightSightFrame(0);
+        check(formulasObject.nightLamps().floorLight() == Math.round(Formulas.FLOOR_FULL * 0.8f * 255f), "A tuning was not back to its default");
         // in the light it leaves
         player.luma = 0.9f;
         LightingJNI.darkness(player);

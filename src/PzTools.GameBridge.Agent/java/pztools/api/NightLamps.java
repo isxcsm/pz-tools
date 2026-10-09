@@ -6,6 +6,7 @@ import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -33,7 +34,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * which puts them into a small texture the shader reads, smoothly between squares. Beyond them, the mean of the ones
  * on their edge. Where a pixel is on the floor is worked out from where the game draws three points of it
  * ({@code isoToScreenX}, {@code isoToScreenY}), every frame. A wall or a thing standing on a square is drawn above it
- * and read as the squares behind. Split screen gets the least light but no values (the pass does not say whose screen it
+ * and read as the squares behind; so a character standing on a square (a player of this machine, a zombie) has the
+ * {@link #STANDING} squares behind it, where it is drawn, and their sides keep at least its square's values, and keeps
+ * the colour its square does. Whether the player is in a dark place (most of the squares within {@link #DARK_RADIUS}
+ * with almost none of the game's own light) is worked out with the values, for the least light. Split screen gets the
+ * least light but no values (the pass does not say whose screen it
  * draws): the colour is kept there.
  *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
@@ -48,19 +53,32 @@ final class NightLamps {
     static final int UNIT = 16;
     /** Where the corner lights start in what {@code getSquareLighting} hands (the visibility, the light, two darknesses, the level). */
     static final int CORNERS = 5;
+    /** Squares behind a standing character that it is drawn over (the default of nightSight.standing). */
+    static final int STANDING = 3;
+    /**
+     * A dark place: of the squares within DARK_RADIUS of the player that the game lights, the share with less than
+     * DARK_LIGHT of its own light; at DARK_IN or more the player is in one, at DARK_OUT or less no longer (between, as it was).
+     * The defaults of the nightSight tunings of the same names.
+     */
+    static final int DARK_RADIUS = 6;
+    static final float DARK_LIGHT = 0.03f, DARK_IN = 0.75f, DARK_OUT = 0.55f;
     static final String STRENGTH = "PZT_NightSight", ON = "PZT_SightOn", KEEP = "PZT_SightKeep", LAMPS = "PZT_SightLamps", U = "PZT_SightU",
-        V = "PZT_SightV";
+        V = "PZT_SightV", LIFT = "PZT_SightLift";
 
     private static final int TEXTURE_2D = 0x0DE1, TEXTURE0 = 0x84C0, ACTIVE_TEXTURE = 0x84E0, RG8 = 0x822B, RG = 0x8227, UNSIGNED_BYTE = 0x1401,
         MIN_FILTER = 0x2801, MAG_FILTER = 0x2800, LINEAR = 0x2601, WRAP_S = 0x2802, WRAP_T = 0x2803, CLAMP_TO_EDGE = 0x812F;
 
     private final Game game;
     private final Players players;
-    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int); ColorInfo.r, g, b, a and
-    // their setters, its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
-    private final MethodHandle lighting, lightInfo, lightCount, light, infoR, infoG, infoB, infoA, setR, setG, setB, setA, newInfo,
+    // The dark place's and the standing characters' numbers, as tuned.
+    private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares;
+    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int); ColorInfo.r, g, b, a,
+    // set(r, g, b, a) and its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
+    private final MethodHandle lighting, lightInfo, lightCount, light, infoR, infoG, infoB, infoA, setAll, newInfo,
         lightX, lightY, lightRadius, lightFlags, lightR, lightG, lightB, xOf, yOf, zOf;
     private final int roomLight;
+    // IsoCell.getZombieList().
+    private final MethodHandle zombieList;
     // LuaManager.GlobalObject.isoToScreenX and Y (player, x, y, z); Core.getInstance().getScreenHeight().
     private final MethodHandle screenX, screenY, core, screenHeight;
     // GL: glGetUniformLocation, glUniform1f, glUniform1i, glUniform3f, glGenTextures, glBindTexture, glTexParameteri,
@@ -80,9 +98,13 @@ final class NightLamps {
     private final int[][][] seen = new int[PLAYERS][FLOORS][];
     // Whether squares were ever raised: until then the lighting's reads are left alone.
     private volatile boolean raising;
-    // The light objects are drawn with when it is raised: four for each thread that asks (the game draws with it at once).
-    private final ThreadLocal<Object[]> raised;
-    private final ThreadLocal<int[]> nextRaised = ThreadLocal.withInitial(() -> new int[1]);
+    // The light objects are drawn with when it is raised: four for each thread that asks (the game draws with it at once),
+    // used in turn.
+    private static final class Raised {
+        final Object[] four = new Object[4];
+        int next;
+    }
+    private final ThreadLocal<Raised> raised;
 
     private static final class Values {
         final ByteBuffer data = ByteBuffer.allocateDirect(SIZE * SIZE * 2);
@@ -95,19 +117,27 @@ final class NightLamps {
     private long valuesAt;
     // The colour kept beyond the values worked out, as the last ones had it; 1 until then.
     private volatile float beyond = 1f;
+    // Whether the player is in a dark place, as the last values had it (the game's thread's).
+    private boolean darkPlace;
     // Where a pixel of the screen (x, y up from the bottom, 1) is on the floor: world x and y, as the game thread last
     // worked it out (written whole, then published).
     private volatile double[] onFloor;
     private double[] nextFloor = new double[6], lastFloor = new double[6];
 
     // The render thread's: the program the locations are of, the locations, the texture and where its values start.
-    private int program = -1, strengthAt = -1, onAt = -1, keepAt = -1, lampsAt = -1, uAt = -1, vAt = -1, texture;
+    private int program = -1, strengthAt = -1, onAt = -1, keepAt = -1, lampsAt = -1, uAt = -1, vAt = -1, liftAt = -1, texture;
     private int shownX, shownY;
     private boolean shown;
 
-    NightLamps(ClassLoader loader, Game game, Players players) throws ReflectiveOperationException {
+    NightLamps(ClassLoader loader, Game game, Players players, Tunings.Tuning darkLight, Tunings.Tuning darkIn, Tunings.Tuning darkOut,
+            Tunings.Tuning darkRadius, Tunings.Tuning standing) throws ReflectiveOperationException {
         this.game = game;
         this.players = players;
+        this.darkLight = darkLight;
+        this.darkIn = darkIn;
+        this.darkOut = darkOut;
+        this.darkRadius = darkRadius;
+        this.standingSquares = standing;
         var lookup = MethodHandles.publicLookup();
         Class<?> square = Game.type(loader, "zombie.iso.IsoGridSquare"), lights = Game.type(loader, "zombie.iso.IsoGridSquare$ILighting");
         Class<?> result = Game.type(loader, "zombie.iso.IsoGridSquare$ResultLight"), info = Game.type(loader, "zombie.core.textures.ColorInfo");
@@ -119,10 +149,8 @@ final class NightLamps {
         infoG = getter(lookup, info, "g", float.class);
         infoB = getter(lookup, info, "b", float.class);
         infoA = getter(lookup, info, "a", float.class);
-        setR = setter(lookup, info, "r", float.class);
-        setG = setter(lookup, info, "g", float.class);
-        setB = setter(lookup, info, "b", float.class);
-        setA = setter(lookup, info, "a", float.class);
+        setAll = Game.exact(info.getMethod("set", float.class, float.class, float.class, float.class),
+            MethodType.methodType(void.class, Object.class, float.class, float.class, float.class, float.class));
         newInfo = lookup.unreflectConstructor(info.getConstructor()).asType(MethodType.methodType(Object.class));
         lightX = getter(lookup, result, "x", int.class);
         lightY = getter(lookup, result, "y", int.class);
@@ -137,6 +165,7 @@ final class NightLamps {
         xOf = Game.exact(moving.getMethod("getX"), number);
         yOf = Game.exact(moving.getMethod("getY"), number);
         zOf = Game.exact(moving.getMethod("getZ"), number);
+        zombieList = Game.exact(Game.type(loader, "zombie.iso.IsoCell").getMethod("getZombieList"), MethodType.methodType(ArrayList.class, Object.class));
         Class<?> global = Game.type(loader, "zombie.Lua.LuaManager$GlobalObject");
         var toScreen = MethodType.methodType(float.class, int.class, float.class, float.class, float.class);
         screenX = Game.exact(global.getMethod("isoToScreenX", int.class, float.class, float.class, float.class), toScreen);
@@ -166,21 +195,16 @@ final class NightLamps {
         activeTexture = Game.exact(gl13.getMethod("glActiveTexture", int.class), MethodType.methodType(void.class, int.class));
         MethodHandle make = newInfo;
         raised = ThreadLocal.withInitial(() -> {
-            Object[] four = new Object[4];
-            try { for (int index = 0; index < four.length; index++) four[index] = (Object)make.invokeExact(); }
+            var made = new Raised();
+            try { for (int index = 0; index < made.four.length; index++) made.four[index] = (Object)make.invokeExact(); }
             catch (Throwable failure) { throw new IllegalStateException("a ColorInfo could not be made", failure); }
-            return four;
+            return made;
         });
     }
 
     private static MethodHandle getter(MethodHandles.Lookup lookup, Class<?> owner, String name, Class<?> type) throws ReflectiveOperationException {
         Field field = owner.getField(name);
         return lookup.unreflectGetter(field).asType(MethodType.methodType(type, Object.class));
-    }
-
-    private static MethodHandle setter(MethodHandles.Lookup lookup, Class<?> owner, String name, Class<?> type) throws ReflectiveOperationException {
-        Field field = owner.getField(name);
-        return lookup.unreflectSetter(field).asType(MethodType.methodType(void.class, Object.class, type));
     }
 
     /**
@@ -279,13 +303,9 @@ final class NightLamps {
         float lowest = least / 255f;
         float r = (float)infoR.invokeExact(info), g = (float)infoG.invokeExact(info), b = (float)infoB.invokeExact(info);
         if (r >= lowest && g >= lowest && b >= lowest) return info;
-        int[] next = nextRaised.get();
-        Object[] four = raised.get();
-        Object copy = four[next[0]++ & 3];
-        setR.invokeExact(copy, Math.max(r, lowest));
-        setG.invokeExact(copy, Math.max(g, lowest));
-        setB.invokeExact(copy, Math.max(b, lowest));
-        setA.invokeExact(copy, (float)infoA.invokeExact(info));
+        Raised mine = raised.get();
+        Object copy = mine.four[mine.next++ & 3];
+        setAll.invokeExact(copy, Math.max(r, lowest), Math.max(g, lowest), Math.max(b, lowest), (float)infoA.invokeExact(info));
         return copy;
     }
 
@@ -294,9 +314,9 @@ final class NightLamps {
      * now and then the values around the player. Nothing while night sight is not declared.
      */
     void frame(int playerIndex, long now) throws Throwable {
-        if (floor == 0) { valuesAt = 0; return; }
+        if (floor == 0) { valuesAt = 0; darkPlace = false; return; }
         Object[] local = players.all();
-        if (playerIndex < 0 || playerIndex >= local.length || local[playerIndex] == null || alone(local) != playerIndex) { onFloor = null; return; }
+        if (playerIndex < 0 || playerIndex >= local.length || local[playerIndex] == null || alone(local) != playerIndex) { onFloor = null; darkPlace = false; return; }
         Object player = local[playerIndex];
         float px = (float)xOf.invokeExact(player), py = (float)yOf.invokeExact(player);
         int z = (int)Math.floor((float)zOf.invokeExact(player));
@@ -347,8 +367,9 @@ final class NightLamps {
         into.x0 = x0;
         into.y0 = y0;
         ByteBuffer data = into.data;
-        float least = floor / 255f;
+        float least = floor / 255f, darkBelow = darkLight.value();
         double edge = 0;
+        int near = 0, dark = 0, radius = darkRadius.whole();
         for (int j = 0; j < SIZE; j++) {
             for (int i = 0; i < SIZE; i++) {
                 Object square = cell == null ? null : game.square(cell, x0 + i, y0 + j, z);
@@ -366,11 +387,50 @@ final class NightLamps {
                 float kept = whole >= least ? 1f : whole / least;
                 float lamp = whole > 0.004f ? sources / whole : 0f;
                 if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) edge += kept;
+                if (lit != null && Math.abs(i - SIZE / 2) <= radius && Math.abs(j - SIZE / 2) <= radius) {
+                    near++;
+                    if (whole < darkBelow) dark++;
+                }
                 data.put(2 * (j * SIZE + i), (byte)Math.round(kept * 255f));
                 data.put(2 * (j * SIZE + i) + 1, (byte)Math.round(lamp * 255f));
             }
         }
         beyond = (float)(edge / (4 * SIZE - 4));
+        if (near > 0 && dark >= darkIn.value() * near) darkPlace = true;
+        else if (near == 0 || dark <= darkOut.value() * near) darkPlace = false;
+        standing(data, cell, x0, y0, z);
+    }
+
+    /** Whether the player is in a dark place, as the last values had it (on the game's thread). */
+    boolean darkPlace() { return darkPlace; }
+
+    // The characters standing on the floor: the squares they are drawn over keep at least their squares' values.
+    private void standing(ByteBuffer data, Object cell, int x0, int y0, int z) throws Throwable {
+        for (Object one : players.all()) if (one != null) stand(data, one, x0, y0, z);
+        if (cell == null) return;
+        ArrayList<?> zombies = (ArrayList<?>)zombieList.invokeExact(cell);
+        for (int index = 0, count = zombies.size(); index < count; index++) stand(data, zombies.get(index), x0, y0, z);
+    }
+
+    private void stand(ByteBuffer data, Object character, int x0, int y0, int z) throws Throwable {
+        if (character == null || (int)Math.floor((float)zOf.invokeExact(character)) != z) return;
+        int i = (int)Math.floor((float)xOf.invokeExact(character)) - x0, j = (int)Math.floor((float)yOf.invokeExact(character)) - y0;
+        if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
+        int kept = data.get(2 * (j * SIZE + i)) & 0xFF, lamp = data.get(2 * (j * SIZE + i) + 1) & 0xFF;
+        int behind = standingSquares.whole();
+        for (int k = 0; k <= behind; k++) {
+            if (k > 0) atLeast(data, i - k, j - k, kept, lamp);
+            // its sides, half a square either way on the screen
+            atLeast(data, i - k - 1, j - k, kept, lamp);
+            atLeast(data, i - k, j - k - 1, kept, lamp);
+        }
+    }
+
+    private static void atLeast(ByteBuffer data, int i, int j, int kept, int lamp) {
+        if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
+        int at = 2 * (j * SIZE + i);
+        if ((data.get(at) & 0xFF) < kept) data.put(at, (byte)kept);
+        if ((data.get(at + 1) & 0xFF) < lamp) data.put(at + 1, (byte)lamp);
     }
 
     private Object lit(Object square, int playerIndex) throws Throwable {
@@ -407,7 +467,7 @@ final class NightLamps {
      * Each time the screen pass draws, on the render thread with its program bound: whether night sight is on, the
      * strength of its lift and, while it is declared, the values and where the pixels are on them.
      */
-    void draw(int id, float strength) throws Throwable {
+    void draw(int id, float strength, float lift) throws Throwable {
         if (program != id) {
             program = id;
             strengthAt = (int)uniformAt.invokeExact(id, (CharSequence)STRENGTH);
@@ -416,12 +476,14 @@ final class NightLamps {
             lampsAt = (int)uniformAt.invokeExact(id, (CharSequence)LAMPS);
             uAt = (int)uniformAt.invokeExact(id, (CharSequence)U);
             vAt = (int)uniformAt.invokeExact(id, (CharSequence)V);
+            liftAt = (int)uniformAt.invokeExact(id, (CharSequence)LIFT);
         }
         if (onAt < 0) return;
         boolean on = floor > 0;
         uniform1f.invokeExact(onAt, on ? 1f : 0f);
         if (!on) return;
         uniform1f.invokeExact(strengthAt, strength);
+        uniform1f.invokeExact(liftAt, lift);
         uniform1f.invokeExact(keepAt, beyond);
         Values next = ready.getAndSet(null);
         if (next != null || texture == 0) {

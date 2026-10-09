@@ -5,4 +5,5 @@ public class ColorInfo {
     public float r, g, b, a = 1.0f;
     public ColorInfo() { }
     public ColorInfo(float r, float g, float b) { this.r = r; this.g = g; this.b = b; }
+    public ColorInfo set(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; return this; }
 }

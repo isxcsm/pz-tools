@@ -407,6 +407,8 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 | `formulas.efficiency(item)` | The factor the current `carry.*` declarations put on the item's own weight (1 for none, 0.5 for +100%): what a mod's tooltip shows. `item` is an `InventoryItem`; anything else is a Lua error. |
 | `formulas.weight(item)` | The item's weight as the load counts it with nothing equipped (a bag with what is in it), under the current declarations. |
 | `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"unavailable: ..."` when the game lacks what a point reads. A mod shows the player what is not applied. |
+| `formulas.tune(name, value)` | Changes one of the numbers the formulas work with while the game runs (a tuning: one value for the game, not declared by a mod, not saved; a game starts with the defaults), and answers its value; with no value it goes back to its default. Read as a formula works, so the next frame has it. For tuning in the game rather than by a build: the defaults are then made the tuned values. |
+| `formulas.tunings()` | `{ [name] = { value, default, min, max, about } }` for every tuning. Now night sight's: `nightSight.floorFull` (0.9), `.darkExtra` (0.1), `.lift` (0.7), `.ease` (0.3 s), `.darkFrom` (0.3), `.darkFull` (0.5), `.darkLight` (0.03), `.darkIn` (0.75), `.darkOut` (0.55), `.darkRadius` (6), `.standing` (3); see [night sight](#night-sight). |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
 loads (`OnGameStart`), as it defines its networks: they belong to the world they were made in, and are gone when the player
@@ -638,7 +640,10 @@ pass that greys what that light and the pass add.
   reads change. So each square keeps the least light it was raised to (in a table for each player and floor, by x and y
   modulo 256), and `getSquareDirty`'s answer is followed by whether it was raised to another, or not read since squares
   are raised: a new least light (a rank changed, or night sight declared or cleared) has each square read again as the game
-  next asks for it. The least light is one value for a value of the point, so this is rare. PZ Optimization's per-pixel lighting reads the same corners.
+  next asks for it. The least light is one value for a value of the point and a place, so this is rare. In a dark place it is 0.1
+  more (of the full light): with the values, the squares within 6 of the player that the game lights are counted, and at
+  75% or more of them with less than 0.03 of the game's own light (a basement, a room with no light) the player is in
+  one, at 55% or less no longer. PZ Optimization's per-pixel lighting reads the same corners.
 - **The screen pass.** The game draws the world into a buffer and then through one screen pass (`WeatherShader`,
   `media/shaders/screen.frag`), which reads the world through `textureBicubic` on every path (the stock one, and the ones
   PZ Optimization's colour grading, god rays and HDR put in), and single texels of it with `texture2D(DIFFUSE, ...)`. The
@@ -657,7 +662,10 @@ pass that greys what that light and the pass add.
     thread. The shader finds the floor under each pixel from where the game draws three points of it (`isoToScreenX` and
     `Y`, every frame, in the window's pixels, which the pass draws to with PZ Optimization's upscaling too) and reads the
     square's values, smoothly between squares. Beyond them, the mean colour kept on their edge (`PZT_SightKeep`). A wall
-    or a thing standing on a square is drawn above it and read as the squares behind.
+    or a thing standing on a square is drawn above it and read as the squares behind; a character standing on a square
+    (a player of this machine, a zombie) has the 3 squares behind it, where it is drawn, and their sides keep at least
+    its square's values, so that it keeps the colour its square does (a player in a torch's light is drawn in colour, a
+    zombie in the dark in grey).
   - The strength follows how dark it is for the player (`getLumaInverted`, which reads the square's own light: the least
     light does not make it lighter, so night sight never turns itself down and back up).
 

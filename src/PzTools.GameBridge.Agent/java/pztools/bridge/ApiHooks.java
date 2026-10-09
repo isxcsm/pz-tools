@@ -1967,6 +1967,7 @@ public final class ApiHooks {
             uniform sampler2D PZT_SightLamps;
             uniform vec3 PZT_SightU;
             uniform vec3 PZT_SightV;
+            uniform float PZT_SightLift;
 
             vec3 pztNightSight(in vec3 col) {
             	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return col;
@@ -1976,7 +1977,7 @@ public final class ApiHooks {
             	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) square = texture(PZT_SightLamps, uv).rg;
             	float l = dot(col, vec3(0.299, 0.587, 0.114));
             	float s = clamp(PZT_NightSight, 0.0, 1.0);
-            	float lifted = s > 0.0 ? mix(pow(max(l, 0.0), 1.0 - 0.7 * s), l, square.y) : l;
+            	float lifted = s > 0.0 ? mix(pow(max(l, 0.0), 1.0 - clamp(PZT_SightLift, 0.0, 1.0) * s), l, square.y) : l;
             	vec3 kept = col * square.x;
             	float grey = max(lifted - dot(kept, vec3(0.299, 0.587, 0.114)), 0.0);
             	return clamp(kept + grey * vec3(0.84, 0.92, 1.08), 0.0, 1.0);
