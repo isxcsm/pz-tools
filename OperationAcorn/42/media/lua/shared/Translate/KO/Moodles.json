@@ -2,11 +2,11 @@
     "Moodles_OperationAcorn:sixth_lvl1": "육감",
     "Moodles_OperationAcorn:sixth_desc_lvl1": "보이지 않는 곳에 좀비가 있는 것 같음.",
     "Moodles_OperationAcorn:biteShield_lvl1": "물림 내성 회복 중",
-    "Moodles_OperationAcorn:biteShield_desc_lvl1": "곧 다시 물림을 버틸 수 있음.",
+    "Moodles_OperationAcorn:biteShield_desc_lvl1": "거의 회복됨. 그 전에 물리면 감염됨.",
     "Moodles_OperationAcorn:biteShield_lvl2": "물림 내성 회복 중",
-    "Moodles_OperationAcorn:biteShield_desc_lvl2": "회복 기간이 절반도 안 남았음.",
+    "Moodles_OperationAcorn:biteShield_desc_lvl2": "회복 기간이 절반도 안 남았음. 지금 물리면 감염됨.",
     "Moodles_OperationAcorn:biteShield_lvl3": "물림 내성 회복 중",
-    "Moodles_OperationAcorn:biteShield_desc_lvl3": "회복 기간이 절반 넘게 남았음.",
+    "Moodles_OperationAcorn:biteShield_desc_lvl3": "회복 기간이 절반 넘게 남았음. 지금 물리면 감염됨.",
     "Moodles_OperationAcorn:biteShield_lvl4": "물림 내성 소진",
-    "Moodles_OperationAcorn:biteShield_desc_lvl4": "방금 물림을 버텼음. 지금 물리면 감염됨."
+    "Moodles_OperationAcorn:biteShield_desc_lvl4": "물림을 버티느라 내성을 다 씀. 회복에 며칠 걸림. 지금 물리면 감염됨."
 }
