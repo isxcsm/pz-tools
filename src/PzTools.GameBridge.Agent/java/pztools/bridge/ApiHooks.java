@@ -270,6 +270,16 @@ public final class ApiHooks {
         default Object picture(Object set, Object type, Object ui) { return null; }
     }
 
+    /**
+     * Set by the payload: the text mods show on the screen (docs/design/extension-api.md, "Text"). Called once each time the game
+     * draws its interface ({@code UIManager.render}, on the main thread), after the interface's windows and before the tooltip,
+     * the paused message and the fade drawn over the interface. With nothing shown it returns at once.
+     */
+    public interface Text {
+        /** Draws what is shown now. */
+        void draw();
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -284,6 +294,7 @@ public final class ApiHooks {
     private static volatile Water water;
     private static volatile Formulas formulas;
     private static volatile Moodles moodles;
+    private static volatile Text text;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -311,7 +322,7 @@ public final class ApiHooks {
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
         MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
-        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES);
+        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT);
 
         final String label;
         final Group group;
@@ -320,7 +331,7 @@ public final class ApiHooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -331,6 +342,8 @@ public final class ApiHooks {
         MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
+    // UIManager.getToolTip(), which render asks after it has drawn the interface's windows.
+    private static final Predicate<CodeElement> TOOLTIP = calls("zombie/ui/UIManager", "getToolTip", "()Lzombie/ui/ObjectTooltip;");
 
     private ApiHooks() { }
 
@@ -686,6 +699,18 @@ public final class ApiHooks {
                         ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_Object));
                     code.checkcast(TEXTURE);
                 })) }),
+        // The text mods show (docs/design/extension-api.md, "Text"): drawn once the interface's windows are, before the tooltip,
+        // the paused message and the fade the game draws over the interface. That is where render first asks for the tooltip
+        // (it asks twice: whether there is one, and to draw it), on every path that draws the interface.
+        Map.entry("zombie/ui/UIManager", new Site[] {
+            Site.edit("render", "()V", new Edit(TOOLTIP, 2, (elements, index) -> {
+                int before = 0;
+                for (int earlier = 0; earlier < index; earlier++) if (TOOLTIP.test(elements.get(earlier))) before++;
+                return before;
+            }, (code, element, order) -> {
+                if (order == 0) code.invokestatic(HOOKS, "uiDrawn", MethodTypeDesc.of(ConstantDescs.CD_void));
+                code.with(element);
+            })).named("text") }),
         // A bag clamps its capacity to what a bag can be (50 less its own weight), over the container's own.
         Map.entry("zombie/inventory/types/InventoryContainer", new Site[] {
             Site.atReturns("getCapacity", "()I", 1, (code, owner) -> {
@@ -1915,6 +1940,20 @@ public final class ApiHooks {
             catch (Throwable problem) { reportOnce(Call.MOODLE_PICTURE, problem); }
         }
         return picture != null ? picture : frame(set);
+    }
+
+    /** Sets the text, replacing an earlier payload's; null draws none. */
+    public static void setText(Text next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.TEXT); }
+        text = next;
+    }
+
+    /** Put in {@code UIManager.render}, once the interface's windows are drawn: the text mods show is drawn over them. */
+    public static void uiDrawn() {
+        Text current = text;
+        if (current == null) return;
+        try { current.draw(); }
+        catch (Throwable problem) { reportOnce(Call.TEXT, problem); }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

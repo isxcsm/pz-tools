@@ -77,9 +77,10 @@ public final class GameApiTest {
         HiddenZombiesTest.run(api);
         SystemsTest.run(api);
         MoodlesTest.run(api);
+        TextsTest.run(api);
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -2027,9 +2028,9 @@ public final class GameApiTest {
                 "IsoGameCharacter.addHole", "IsoPlayer.calculateInTreesSpeed", "IsoPlayer.getDeferredMovement",
                 "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "Helicopter.writes:flight",
                 "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change", "Moodle.Update:level", "Moodles.GoodBadNeutral",
-                "Moodles.<init>", "MoodlesUI.render" })
+                "Moodles.<init>", "MoodlesUI.render", "UIManager.render:text" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 81, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 82, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
