@@ -1,5 +1,6 @@
 -- The scout tree's senses, drawn: 육감 (a moodle-like widget when zombies are near), 기척 감지 (glowing arcs on the
--- ground around the character, by direction and, at rank 2, by distance), 경보 읽기 (a mark over alarmed houses and cars
+-- ground around the character, by direction and, at rank 2, by distance; the advanced rank 2 adds the noises around,
+-- each with a sign of what made it, as the Visual Sounds mod shows them), 경보 읽기 (a mark over alarmed houses and cars
 -- nearby) and 털이 기록 (how many containers of the building are still unopened). The work is done twice a second
 -- by the shared timer (Pulse.lua), from the game's loaded zombie list; the drawing only reads what that left.
 require "ISUI/ISPanel"
@@ -16,7 +17,7 @@ OA.Upgrades.Senses = Senses
 
 -- What the last pulse found.
 local S = {
-    dirs = {}, radius = 0, distance = false, thumpSeen = false, extended = false,
+    dirs = {}, radius = 0, distance = false, thumpSeen = false, extended = false, hearing = 1,
     sixth = false, sixthDrawn = false, alarms = {}, sounds = {}, ring = false,
 }
 Senses.state = S
@@ -121,16 +122,21 @@ end
 -- floor above the feet, where the camera centres the character (as Visual Sounds centres on the screen): round the
 -- feet it all hung low. Nearer is bigger, warmer and brighter; one arc for a
 -- lone zombie, two for a few, three for a crowd; rings for zombies beating on something and a chevron for another
--- floor (rank 2). The arcs are white pictures tinted as they are drawn.
+-- floor (rank 2), drawn upright on the mark itself as Visual Sounds draws its arrows. A noise heard (rank 2) is a
+-- thin arc on a wider ring, its kind in its pattern as Visual Sounds draws them (plain, a wheel for a vehicle, dots for
+-- a radio, TV or generator, spikes for an alarm), all in one white: colour belongs to the zombies' arcs. The pictures
+-- are white, tinted as they are drawn.
 local RING = 1.7
 local BODY = 0.3
-local SOUND_RING = 2.5
+local SOUND_RING = 2.6
+local SOUND_MS = 2500
+local SOUND_MAX = 8
 local NEAR = { 1.00, 0.36, 0.24 }
 local MID = { 1.00, 0.72, 0.28 }
 local FAR = { 0.80, 0.88, 1.00 }
 local THUMP = { 1.00, 0.58, 0.18 }
-local CAR = { 0.70, 0.85, 1.00 }
-local ALARM = { 1.00, 0.30, 0.30 }
+local NOISE_TINT = { 0.95, 0.95, 0.90 }
+local NOISE_PICTURE = { vehicle = "OA_Sense_Car", alarm = "OA_Sense_Alarm", device = "OA_Sense_Dots", noise = "OA_Sense_Noise" }
 local pictures = {}
 local function picture(name)
     local t = pictures[name]
@@ -196,17 +202,27 @@ function Hud:render()
                 turned(self, picture("OA_Sense_Thump"), cx + gx - ux * step * 1.4, cy + gy - uy * step * 1.4, 0, -1, THUMP, 0.95)
             end
             if e.up or e.down then
-                local x = cx + gx + ux * step * arcs + ux * 8
-                local y = cy + gy + uy * step * arcs + uy * 8
-                turned(self, picture(e.up and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, c, a)
+                -- white on the coloured arc (in the arc's colour it melted into it)
+                turned(self, picture(e.up and "OA_Sense_Up" or "OA_Sense_Down"), cx + gx, cy + gy, 0, -1, NOISE_TINT, 1)
             end
         end
         local now = getTimestampMs()
+        local reach = S.radius > 0 and S.radius or 1
         for _, sound in ipairs(S.sounds) do
             if sound.untilMs > now then
-                local gx, gy = onGround(sound.sector, SOUND_RING, exX, exY, eyX, eyY)
-                local c = (sound.kind == "alarm") and ALARM or CAR
-                turned(self, picture("OA_Sense_Dots"), cx + gx, cy + gy, gx, gy, c, 0.9)
+                local dx, dy = sound.x - px, sound.y - py
+                local d = math.max(0.01, math.sqrt(dx * dx + dy * dy))
+                -- its own direction (not the zombies' sectors), on the ground ellipse
+                local wx, wy = dx / d * SOUND_RING, dy / d * SOUND_RING
+                local gx, gy = wx * exX + wy * eyX, wx * exY + wy * eyY
+                local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
+                local ux, uy = gx / len, gy / len
+                local a = S.distance and (1.0 - 0.45 * math.min(1, d / (reach * 2))) or 0.9
+                local x, y = cx + gx, cy + gy
+                turned(self, picture(NOISE_PICTURE[sound.kind]), x, y, ux, uy, NOISE_TINT, a)
+                if math.abs(sound.z - pz) >= 0.5 then
+                    turned(self, picture(sound.z > pz and "OA_Sense_Up" or "OA_Sense_Down"), x, y, 0, -1, NOISE_TINT, a)
+                end
             end
         end
     end
@@ -339,6 +355,10 @@ local function senseJob(now)
     local px, py, pz = player:getX(), player:getY(), player:getZ()
     if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
     if active then
+        if extended then
+            S.hearing = Sense.hearing(player:hasTrait(CharacterTrait.DEAF), player:hasTrait(CharacterTrait.KEEN_HEARING),
+                player:hasTrait(CharacterTrait.HARD_OF_HEARING))
+        end
         S.radius = senseR
         S.distance = Sense.distance(u)
         S.extended = extended
@@ -355,28 +375,62 @@ end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
 
+-- What made a world sound, as Visual Sounds sorts them: "vehicle", "alarm" (a house alarm, a car alarm going off, an
+-- alarm clock ringing on a zombie), "device" (a radio, a TV, a generator, a jukebox), "noise" (anything else: a
+-- helicopter, a far shot, a smashed window), or nil for what the sense leaves out (zombies, which the arcs show, and
+-- the character's own noise). Returns the kind and a key for the source (the source, or its square's place).
+local function soundKind(source, x, y, z, player)
+    if source == player then return nil end
+    if source == nil then
+        -- a source-less sound: what stands on its square (Visual Sounds looks the same way)
+        local square = getCell():getGridSquare(x, y, z)
+        if not square then return "noise", x .. "," .. y .. "," .. z end
+        local objects = square:getObjects()
+        for i = 0, objects:size() - 1 do
+            local o = objects:get(i)
+            if instanceof(o, "IsoRadio") or instanceof(o, "IsoTelevision") or instanceof(o, "IsoGenerator") then
+                return "device", o
+            end
+        end
+        local vehicle = square:getVehicleContainer()
+        if not vehicle then
+            -- an alarm clock rings with no source, on its carrier's square
+            local movers = square:getMovingObjects()
+            for i = 0, movers:size() - 1 do
+                local m = movers:get(i)
+                if m == player then return nil end
+                if instanceof(m, "IsoZombie") then return "alarm", m end
+            end
+            return "noise", x .. "," .. y .. "," .. z
+        end
+        source = vehicle
+    end
+    if instanceof(source, "BaseVehicle") then
+        if source:getSeat(player) ~= -1 then return nil end
+        return source:isAlarmSounding() and "alarm" or "vehicle", source
+    end
+    if instanceof(source, "IsoZombie") then return nil end
+    if instanceof(source, "IsoRadio") or instanceof(source, "IsoTelevision") or instanceof(source, "IsoGenerator")
+        or instanceof(source, "IsoJukebox") then
+        return "device", source
+    end
+    if string.find(tostring(source), "iso.Alarm", 1, true) then return "alarm", source end
+    return "noise", source
+end
+
 local function onWorldSound(x, y, z, radius, volume, source)
     if not S.ring or not S.extended then return end
     local player = getPlayer()
     if not player then return end
-    local kind
-    if instanceof(source, "BaseVehicle") then
-        kind = "vehicle"
-    elseif radius >= 40 and not instanceof(source, "IsoZombie") and not instanceof(source, "IsoPlayer") then
-        kind = "alarm"
-    else
-        return
-    end
+    -- heard at all (the hearing traits change how far), and not under the character's feet
     local dx, dy = x - player:getX(), y - player:getY()
-    if dx * dx + dy * dy > S.radius * S.radius * 2.25 then return end
+    local d2 = dx * dx + dy * dy
+    local reach = radius * S.hearing
+    if d2 >= reach * reach or d2 < 1 then return end
+    local kind, key = soundKind(source, x, y, z, player)
+    if not kind then return end
     local now = getTimestampMs()
-    local list = {}
-    for _, s in ipairs(S.sounds) do
-        if s.untilMs > now then list[#list + 1] = s end
-    end
-    if #list >= 8 then table.remove(list, 1) end
-    list[#list + 1] = { sector = Sense.sector(dx, dy), kind = kind, untilMs = now + 4000 }
-    S.sounds = list
+    Sense.heard(S.sounds, key, kind, x + 0.5, y + 0.5, z, now, now + SOUND_MS, SOUND_MAX)
 end
 
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------

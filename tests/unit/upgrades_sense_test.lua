@@ -39,6 +39,35 @@ end
 local SCOUT = cat(rep("sight", 3), rep("sixth", 2), rep("alarm", 1), rep("night", 3), rep("rich", 3), rep("ledger", 3),
     rep("sense", 2), rep("keen", 3), rep("ammo", 2), rep("sensePlus", 3))
 
+test("sense: hearing shares follow the vanilla traits", function()
+    eq(Sense.hearing(true, true, false), 0)
+    eq(Sense.hearing(false, true, false), 1.2)
+    eq(Sense.hearing(false, false, true), 0.8)
+    eq(Sense.hearing(false, false, false), 1)
+end)
+
+test("sense: a noise heard again keeps one entry; the oldest goes past the cap; run-out ones leave", function()
+    local list = {}
+    Sense.heard(list, "car", "vehicle", 1, 2, 0, 0, 1000, 3)
+    Sense.heard(list, "car", "alarm", 5, 6, 0, 500, 3000, 3)
+    eq(#list, 1)
+    eq(list[1].kind, "alarm")
+    eq(list[1].x, 5)
+    eq(list[1].untilMs, 3000)
+    Sense.heard(list, "radio", "device", 0, 0, 0, 600, 2000, 3)
+    Sense.heard(list, "bang", "noise", 0, 0, 0, 700, 2000, 3)
+    Sense.heard(list, "tv", "device", 0, 0, 0, 800, 2000, 3)
+    eq(#list, 3)
+    eq(list[1].key, "radio")
+    eq(list[3].key, "tv")
+    -- the TV heard again lasts to 3000: at 2500 it is left besides the new one
+    Sense.heard(list, "tv", "device", 0, 0, 0, 900, 3000, 3)
+    Sense.heard(list, "gen", "device", 0, 0, 0, 2500, 4000, 3)
+    eq(#list, 2)
+    eq(list[1].key, "tv")
+    eq(list[2].key, "gen")
+end)
+
 test("sense sectors: twelve around the screen, opposite worlds opposite sectors", function()
     local right = Sense.sector(1, -1)
     local left = Sense.sector(-1, 1)

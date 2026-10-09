@@ -198,7 +198,7 @@
     "IGUI_OA_Tree_Node_ammo_Rank": "Containers and zombie corpses are %1 more likely to hold ammunition.",
     "IGUI_OA_Tree_Node_sensePlus_Name": "Improved Presence Sense",
     "IGUI_OA_Tree_Node_sensePlus_Rank1": "Also works while walking upright.",
-    "IGUI_OA_Tree_Node_sensePlus_Rank2": "Also tells apart zombies breaking in, cars, alarms, and presences on the floors above and below.",
+    "IGUI_OA_Tree_Node_sensePlus_Rank2": "Also tells apart zombies breaking in and presences on the floors above and below, and shows nearby noises: cars, alarms, radios, TVs and generators.",
     "IGUI_OA_Tree_Node_sensePlus_Rank3": "Also works while running and sprinting.",
     "IGUI_OA_Tree_Node_nightEye_Name": "Nocturnal Eye",
     "IGUI_OA_Tree_Node_nightEye_Note": "Day 14. Read a can label in an unlit basement, no flashlight.",

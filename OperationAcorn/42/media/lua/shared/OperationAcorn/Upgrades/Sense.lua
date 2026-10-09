@@ -37,7 +37,7 @@ function Sense.active(u, sneaking, running, sprinting)
     return sneaking or plus >= 1
 end
 
--- Whether the sense also tells breaking-in, other floors and vehicle or alarm noises (advanced rank 2).
+-- Whether the sense also tells breaking-in, other floors and the noises around (advanced rank 2).
 function Sense.extended(u)
     return Rules.rank(u, "sensePlus") >= 2
 end
@@ -72,6 +72,39 @@ function Sense.scan(zombies, px, py, pz, radius, floors)
         end
     end
     return out
+end
+
+-- How far the character hears a world sound, as a share of its reach: the vanilla hearing traits (Visual Sounds
+-- uses the same shares).
+function Sense.hearing(deaf, keen, hard)
+    if deaf then return 0 end
+    if keen then return 1.2 end
+    if hard then return 0.8 end
+    return 1
+end
+
+-- Puts a heard noise in the list of noises shown (in place), until `untilMs`. A source heard again (a running engine
+-- or a ringing alarm is, many times a second) keeps its one entry, moved and lasting longer; past `max` the oldest
+-- goes, and noises that ran out leave. `key` is what made it (the source, or its square). Returns the list.
+function Sense.heard(list, key, kind, x, y, z, now, untilMs, max)
+    local n = 0
+    local found
+    for i = 1, #list do
+        local s = list[i]
+        if s.untilMs > now then
+            n = n + 1
+            list[n] = s
+            if s.key == key then found = s end
+        end
+    end
+    for i = #list, n + 1, -1 do list[i] = nil end
+    if not found then
+        if n >= max then table.remove(list, 1) end
+        found = { key = key }
+        list[#list + 1] = found
+    end
+    found.kind, found.x, found.y, found.z, found.untilMs = kind, x, y, z, untilMs
+    return list
 end
 
 -- The sixth sense: whether any zombie is within radius on the character's floor or the one beside it.

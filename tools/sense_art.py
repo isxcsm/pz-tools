@@ -8,7 +8,10 @@ Usage:
 The marks are white: the game tints them as it draws them (DrawTextureAngle with a colour) and turns them to face
 the way the zombies are. Each is drawn at 8x and downsampled with LANCZOS.
   OA_Sense_Arc_L / _M / _S  a soft glowing arc, bulging up (outward once turned): near / mid / far
-  OA_Sense_Dots             a dotted arc, for a vehicle or an alarm heard (rank 2)
+  OA_Sense_Noise / _Car / _Dots / _Alarm
+                            thin arcs for a noise heard (rank 2), its kind in the pattern as Visual Sounds draws
+                            them: plain (anything), a wheel (a vehicle), dots (a radio, TV or generator), spikes
+                            (an alarm). One white tint for all: the zombies' arcs keep the colours
   OA_Sense_Thump            two small rings, for zombies beating on something (rank 2)
   OA_Sense_Up / _Down       a chevron, for zombies a floor above or below (rank 2)
 """
@@ -81,12 +84,67 @@ def chevron(size, up):
     return finish(glowing(im, S, 1.0, 0.5), size, size)
 
 
+def noise_arc(style, w=48, h=18):
+    """A thin arc for a noise heard, its kind in its pattern as Visual Sounds draws them: "plain" (anything), "car" (a
+    wheel on its middle), "dots" (a machine: radio, TV, generator), "teeth" (an alarm: little spikes outward)."""
+    W, H = w * S, h * S
+    core = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(core)
+    top = H * 0.42 if style in ("car", "teeth") else H * 0.2
+    sag = H - top - S * 2
+    half = W / 2 - S * 2
+    r = (half * half + sag * sag) / (2 * sag)
+    cx, cy = W / 2, top + r
+    span = math.asin(min(1.0, half / r))
+
+    def at(t):
+        a = span * t
+        return cx + r * math.sin(a), cy - r * math.cos(a), a
+
+    if style == "dots":
+        n = 15
+        for i in range(n):
+            t = -1 + 2 * i / (n - 1)
+            x, y, _ = at(t)
+            fade = 1 - abs(t) ** 2.2
+            rad = S * 1.25
+            d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
+    elif style == "teeth":
+        n = 9
+        for i in range(n):
+            t = -1 + 2 * i / (n - 1)
+            x, y, a = at(t * 0.92)
+            fade = 1 - abs(t) ** 2.0
+            # a small triangle standing on the arc, pointing away from the centre
+            nx, ny = math.sin(a), -math.cos(a)
+            tx, ty = math.cos(a), math.sin(a)
+            base, tall = S * 2.2, S * 4.2 * (0.6 + 0.4 * fade)
+            pts = [(x - tx * base, y - ty * base), (x + tx * base, y + ty * base), (x + nx * tall, y + ny * tall)]
+            d.polygon(pts, fill=int(255 * fade))
+    else:
+        steps = 400
+        for i in range(steps + 1):
+            t = -1 + 2 * i / steps
+            x, y, _ = at(t)
+            fade = 1 - abs(t) ** 2.2
+            rad = S * 0.75 * (0.6 + 0.4 * fade)
+            d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
+        if style == "car":
+            x, y, _ = at(0)
+            rad = S * 3.6
+            d.ellipse((x - rad, y - rad, x + rad, y + rad), outline=255, width=int(S * 1.2))
+    return finish(glowing(core, S * 0.8, 1.0, 0.4), w, h)
+
+
 def build():
     return {
         "OA_Sense_Arc_L": arc(56, 16, 3.2),
         "OA_Sense_Arc_M": arc(42, 13, 2.6),
         "OA_Sense_Arc_S": arc(30, 10, 2.0),
-        "OA_Sense_Dots": arc(48, 14, 2.4, dotted=True),
+        "OA_Sense_Dots": noise_arc("dots"),
+        "OA_Sense_Car": noise_arc("car"),
+        "OA_Sense_Alarm": noise_arc("teeth"),
+        "OA_Sense_Noise": noise_arc("plain"),
         "OA_Sense_Thump": rings(20),
         "OA_Sense_Up": chevron(14, True),
         "OA_Sense_Down": chevron(14, False),
@@ -98,8 +156,8 @@ def main():
     for name, im in images.items():
         im.save(os.path.join(OUT_DIR, name + ".png"))
     if "--preview" in sys.argv:
-        tints = [(255, 90, 60), (255, 180, 70), (200, 225, 255)]
-        sheet = Image.new("RGBA", (420, 90), (34, 38, 34, 255))
+        tints = [(255, 90, 60), (255, 180, 70), (200, 225, 255), (235, 235, 225)]
+        sheet = Image.new("RGBA", (520, 90), (34, 38, 34, 255))
         x = 8
         for (name, im), tint in zip(images.items(), tints * 3):
             col = Image.new("RGBA", im.size, tint + (255,))

@@ -198,7 +198,7 @@
     "IGUI_OA_Tree_Node_ammo_Rank": "용기와 좀비 시체에서 탄약이 나올 확률이 %1 높아집니다.",
     "IGUI_OA_Tree_Node_sensePlus_Name": "기척 감지 강화",
     "IGUI_OA_Tree_Node_sensePlus_Rank1": "서서 걸을 때도 기척이 보입니다.",
-    "IGUI_OA_Tree_Node_sensePlus_Rank2": "문을 부수는 좀비와 차량, 경보 소리, 위아래 층의 기척도 구분해서 보입니다.",
+    "IGUI_OA_Tree_Node_sensePlus_Rank2": "문을 부수는 좀비와 위아래 층의 기척을 구분하고, 차량, 경보, 라디오와 TV, 발전기 같은 주변 소음도 보입니다.",
     "IGUI_OA_Tree_Node_sensePlus_Rank3": "뛰거나 전력질주할 때도 기척이 보입니다.",
     "IGUI_OA_Tree_Node_nightEye_Name": "야행성 눈",
     "IGUI_OA_Tree_Node_nightEye_Note": "관찰 14일차. 정전된 지하실에서 손전등 없이 통조림 상표를 읽었다.",

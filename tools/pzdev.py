@@ -10,6 +10,8 @@ Usage:
                                                               whole screen with --full) after waiting
     python tools/pzdev.py reload                              leaves the save to the main menu and continues it (Lua and
                                                               translations are read again; textures need a restart)
+    python tools/pzdev.py continue                            from the main menu (after a game start), continues the
+                                                              latest save and waits for it
     python tools/pzdev.py resume                            presses Resume in the game's Lua debugger (with Break On
                                                               Error, any Lua error, even one a pcall catches, stops the
                                                               game there, and the channel with it)
@@ -155,13 +157,30 @@ def reload():
     if send("getCore():exitToMenu()", 15) != 0:
         return 1
     time.sleep(25)
+    return continue_save()
+
+
+# Presses Continue on the main menu and returns when the channel answers in the loaded save.
+def continue_save():
     click(CONTINUE_AT)
     end = time.time() + 180
+    seen = console_size()
     while time.time() < end:
         time.sleep(5)
         if send('print("loaded")', 5, quiet=True) == 0:
             print("reloaded")
             return 0
+        # a Lua error while loading (vanilla's too) stops the load in the debugger: report it and go on
+        size = console_size()
+        if size > seen:
+            with open(CONSOLE, "rb") as f:
+                f.seek(seen)
+                new = f.read().decode("utf-8", errors="replace")
+            seen = size
+            thrown = [l.strip() for l in new.splitlines() if "Exception thrown" in l]
+            if thrown:
+                print("a Lua error stopped the load:", thrown[0])
+                click(RESUME_AT)
     print("the save did not come back in 3 minutes")
     return 1
 
@@ -186,6 +205,8 @@ def main():
         return resume()
     if len(sys.argv) == 2 and sys.argv[1] == "reload":
         return reload()
+    if len(sys.argv) == 2 and sys.argv[1] == "continue":
+        return continue_save()
     if len(sys.argv) < 3:
         print(__doc__)
         return 2
