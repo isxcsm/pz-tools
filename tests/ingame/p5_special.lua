@@ -69,15 +69,20 @@ end)
 section("research storage", function()
     local object, reason = P5T.place("researchStorage", 3, 6, "S")
     if not check("placed", object ~= nil, reason) then return end
-    check("the anchor asks the API for the rest of 300 (OA_Capacity 200 over the raw 100)",
-        object:getModData().OA_Capacity == 200, tostring(object:getModData().OA_Capacity))
-    local container = M.container(object, "store")
-    check("it has the storage container", container ~= nil)
-    if container then
-        -- 100 raw and OA_Capacity 200: getCapacity says 300 where the API adds it, 100 without
-        local lifted = OperationAcorn.api() ~= nil
-        check("it holds 300 with the API, 100 without", container:getCapacity() == (lifted and 300 or 100),
-            container:getCapacity())
+    local lifted = OperationAcorn.api() ~= nil
+    local holders = { object }
+    for _, part in ipairs(M.partsOf(M.state(object))) do holders[#holders + 1] = part.object end
+    check("two squares", #holders == 2, #holders)
+    for i, holder in ipairs(holders) do
+        check("square " .. i .. " asks the API for the rest of 500 (OA_Capacity 400 over the raw 100)",
+            holder:getModData().OA_Capacity == 400, tostring(holder:getModData().OA_Capacity))
+        local container = M.container(holder, "store")
+        check("square " .. i .. " has a locker", container ~= nil)
+        if container then
+            -- 100 raw and OA_Capacity 400: getCapacity says 500 where the API adds it, 100 without
+            check("it holds 500 with the API, 100 without", container:getCapacity() == (lifted and 500 or 100),
+                container:getCapacity())
+        end
     end
 end)
 

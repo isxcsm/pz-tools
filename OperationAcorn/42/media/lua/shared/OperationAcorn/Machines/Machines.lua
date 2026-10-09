@@ -345,6 +345,16 @@ local function free(container)
     return container:getCapacity() - container:getCapacityWeight()
 end
 
+-- The objects of a machine that hold its containers: the anchor, and its other squares' for a kind with containers
+-- on every square (Data everyTile: the research storage).
+local function holders(object, state)
+    local list = { object }
+    if Data.KINDS[state.kind].everyTile and state.x then
+        for _, part in ipairs(Machines.partsOf(state)) do list[#list + 1] = part.object end
+    end
+    return list
+end
+
 -- The machine's container of a role ("in", "out", "store"), or nil.
 function Machines.container(object, which)
     local def = Data.CONTAINERS[which]
@@ -1095,6 +1105,7 @@ function Machines.place(kind, square, character, item, dir, bare)
             Machines.syncLoad(object, state)
         else
             object:getModData()[Data.ANCHOR_KEY] = { id = id, x = ax, y = ay, z = az }
+            if Data.KINDS[kind].everyTile then setupContainers(object, entry.square, kind) end
         end
         entry.square:AddSpecialObject(object)
         object:transmitCompleteItemToClients()
@@ -1108,9 +1119,11 @@ end
 -- Whether every container of a machine is empty (it can be taken up, Machines.canPickUp).
 function Machines.isEmpty(object)
     local state = Machines.state(object)
-    for _, which in ipairs(Data.KINDS[state.kind].containers) do
-        local container = Machines.container(object, which)
-        if container and not container:getItems():isEmpty() then return false end
+    for _, holder in ipairs(holders(object, state)) do
+        for _, which in ipairs(Data.KINDS[state.kind].containers) do
+            local container = Machines.container(holder, which)
+            if container and not container:getItems():isEmpty() then return false end
+        end
     end
     if state.kind == "rainStorage" and object.getFluidAmount and object:getFluidAmount() > 0.01 then return false end
     return true
@@ -1162,14 +1175,16 @@ local function spill(object)
     local state = Machines.state(object)
     local square = object:getSquare()
     if not state or not square then return end
-    for _, which in ipairs(Data.KINDS[state.kind].containers) do
-        local container = Machines.container(object, which)
-        if container then
-            local items = container:getItems()
-            for i = items:size() - 1, 0, -1 do
-                local held = items:get(i)
-                container:Remove(held)
-                square:AddWorldInventoryItem(held, 0.5, 0.5, 0)
+    for _, holder in ipairs(holders(object, state)) do
+        for _, which in ipairs(Data.KINDS[state.kind].containers) do
+            local container = Machines.container(holder, which)
+            if container then
+                local items = container:getItems()
+                for i = items:size() - 1, 0, -1 do
+                    local held = items:get(i)
+                    container:Remove(held)
+                    square:AddWorldInventoryItem(held, 0.5, 0.5, 0)
+                end
             end
         end
     end

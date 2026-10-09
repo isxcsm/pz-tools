@@ -155,7 +155,7 @@ test("the machines tiles are defined in oa_machines.tiles, with matching propert
                     truthy(p and p.CustomName, t.sprite .. " is defined")
                     eq(p.SpriteGridPos, t.dx .. "," .. t.dy, t.sprite .. " grid position")
                     if kind == "rainStorage" then
-                        eq(p.Facing, nil, t.sprite .. " has no facing")
+                        eq(p.Facing, "S", t.sprite .. " faces S (the game builds a grid only for a facing tile)")
                     else
                         eq(p.Facing, dir, t.sprite .. " facing")
                     end
@@ -164,8 +164,8 @@ test("the machines tiles are defined in oa_machines.tiles, with matching propert
                     eq(p.GroupName, group, t.sprite .. " one group for the machine")
                     local anchor = t.dx == 0 and t.dy == 0
                     if kind == "researchStorage" then
-                        eq(p.container, anchor and "locker" or nil, t.sprite .. " container only on the anchor")
-                        eq(p.ContainerCapacity, anchor and "100" or nil, t.sprite .. " capacity only on the anchor")
+                        eq(p.container, "locker", t.sprite .. " a locker on every square")
+                        eq(p.ContainerCapacity, "100", t.sprite .. " capacity on every square")
                     else
                         eq(p.container, nil, t.sprite .. " no container")
                     end
@@ -205,7 +205,7 @@ test("rain storage: the empty tank is the object, the water levels are overlays"
         eq(p.CustomName, "Big Rain Storage")
         eq(p.GroupName, "OA_rainStorage")
         eq(p.SpriteGridPos, t.dx .. "," .. t.dy)
-        eq(p.Facing, nil)
+        eq(p.Facing, "S", "one facing: it does not turn")
         eq(p.IsWaterCollector, (t.dx == 0 and t.dy == 0) and "" or nil, t.sprite .. " collector only on the anchor")
         eq(p.IsLow, "")
         truthy(p.solidtrans ~= nil and p.BlocksPlacement ~= nil, t.sprite .. " solid")

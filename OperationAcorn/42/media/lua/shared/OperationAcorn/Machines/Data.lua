@@ -55,7 +55,8 @@ Data.KINDS = {
         slots = { "motor", "blade", "cover" }, empty = { cover = true }, containers = { "in", "out" },
     },
     researchStorage = {
-        item = "TeamLocker", weight = 40, slots = {}, containers = { "store" },
+        -- a locker on each of its two squares, as a double wardrobe has a compartment a square
+        item = "TeamLocker", weight = 40, slots = {}, containers = { "store" }, everyTile = true,
     },
     rainStorage = {
         item = "RainCistern", weight = 25, slots = {}, containers = {},
@@ -97,9 +98,9 @@ end
 Data.CONTAINERS = {
     ["in"] = { type = "OAMachineIn", capacity = 100 },
     out = { type = "OAMachineOut", capacity = 100 },
-    -- 300 (NUMBERS 11). The vanilla cap of an object container is 100 (ItemContainer.MAX_CAPACITY, applied in
-    -- getCapacity); it stays until the extension API lifts it, so the effective capacity is 100 for now.
-    store = { type = "OAResearchStorage", capacity = 300 },
+    -- 500 a square (NUMBERS 11): more than the biggest vanilla crate stacked three high (80 x 3). The vanilla cap of an
+    -- object container is 100 (ItemContainer.MAX_CAPACITY, applied in getCapacity); the extension API lifts it.
+    store = { type = "OAResearchStorage", capacity = 500 },
 }
 -- The translation keys of the container titles (written out so that tools/check_translations.py sees them used).
 Data.TITLES = {

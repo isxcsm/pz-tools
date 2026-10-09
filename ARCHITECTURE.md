@@ -210,7 +210,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 운석 바위 14 | `IsLow`, `BlocksPlacement` (걸어 지나갈 수 있다) |
 | 낙하지 말뚝 15 | `IsLow` |
 | 분해대·대량 분해기·재단기·프로판 정제기·오일 정제기·목재 절단기의 모든 칸 | `BlocksPlacement`, `solidtrans`, `Facing`, `GroupName`, `SpriteGridPos`, `IsMoveAble`, `PickUpWeight` (도는 중인 모습은 `GroupName=OA_<종류>On`) |
-| 연구팀 보관함의 모든 칸 | 위와 같음. 앵커 칸(`SpriteGridPos=0,0`)에만 `container=locker`, `ContainerCapacity=100` 더 |
+| 연구팀 보관함의 모든 칸 | 위와 같음. 칸마다 `container=locker`, `ContainerCapacity=100` 더 (칸마다 보관함 하나, 용량은 코드가 500으로) |
 | 대형 빗물 저장소 빈 통 134~137 | 모든 칸 `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`, `SpriteGridPos`, `Facing=S`, `IsMoveAble`, `PickUpWeight`. 앵커 칸(134)에만 `IsWaterCollector` |
 | 대형 빗물 저장소 가득 찬 통 128~131 (아이템 아이콘 그림) | `IsLow`, `BlocksPlacement`, `solidtrans`, `GroupName`. 앵커 칸(128)에만 `IsWaterCollector`. `SpriteGridPos`가 없다: 같은 이름에 칸 위치가 겹치면 게임이 빈 통의 격자를 만들지 않는다 |
 | 빗물 저장소 덧그림 146~157 (물 높이 1, 2, 3 각각 네 칸) | 없음 (`BlocksPlacement`, `solidtrans`, `IsWaterCollector` 모두 없는 꾸밈 그림) |

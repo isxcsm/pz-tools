@@ -131,7 +131,7 @@ for _, kind in ipairs(KINDS) do
                         solidtrans = true,
                         SpriteGridPos = t.dx .. "," .. t.dy,
                         GroupName = true,
-                        container = (kind == "researchStorage" and anchor) and "locker" or false,
+                        container = kind == "researchStorage" and "locker" or false,
                         IsWaterCollector = (kind == "rainStorage" and anchor) and true or false,
                         Facing = dir,
                     }
