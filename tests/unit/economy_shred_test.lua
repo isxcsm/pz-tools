@@ -1,4 +1,4 @@
--- Shred: 5 sample bundles per weight, repeat decay, the extras cap, the first-shred bonus.
+-- Shred: half a sample bundle per weight, repeat decay, the extras cap, the first-shred bonus.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Value"
@@ -17,33 +17,33 @@ local function record()
     return OA.Store.ensure("s", "S")
 end
 
-test("5 sample bundles for every weight, as an expected value", function()
+test("half a sample bundle for every weight", function()
     local r = record()
-    near((Sh.yield(thing("Pencil", 0.2), r)), 1.0, 1e-9)
-    near((Sh.yield(thing("Pan", 1.0, "Cooking"), r)), 5.0, 1e-9)
-    near((Sh.yield(thing("Anvil", 12.0, "Tool"), r)), 60.0, 1e-9)
+    near((Sh.yield(thing("Pencil", 0.2), r)), 0.1, 1e-9)
+    near((Sh.yield(thing("Pan", 1.0, "Cooking"), r)), 0.5, 1e-9)
+    near((Sh.yield(thing("Anvil", 12.0, "Tool"), r)), 6.0, 1e-9)
     near((Sh.yield(thing("Ghost", 0), r)), 0)
 end)
 
 test("the state of the thing does not matter", function()
     local r = record()
-    near((Sh.yield(thing("Radio", 1.0, "Electronics", { condition = 0 }), r)), 5.0, 1e-9)
+    near((Sh.yield(thing("Radio", 1.0, "Electronics", { condition = 0 }), r)), 0.5, 1e-9)
 end)
 
 test("rotten food gives half", function()
     local r = record()
-    near((Sh.yield(thing("Steak", 1.0, "Food", { food = "rotten" }), r)), 2.5, 1e-9)
-    near((Sh.yield(thing("Steak", 1.0, "Food", { food = "fresh" }), r)), 5.0, 1e-9)
+    near((Sh.yield(thing("Steak", 1.0, "Food", { food = "rotten" }), r)), 0.25, 1e-9)
+    near((Sh.yield(thing("Steak", 1.0, "Food", { food = "fresh" }), r)), 0.5, 1e-9)
 end)
 
 test("repeats decay: 1 / (1 + c / 50)", function()
     local r = record()
     local pan = thing("Pan", 1.0, "Cooking")
-    near((Sh.yield(pan, r, nil, 0)), 5.0, 1e-9)
-    near((Sh.yield(pan, r, nil, 50)), 2.5, 1e-9, "50 recent shreds halve it")
-    near((Sh.yield(pan, r, nil, 150)), 1.25, 1e-9)
+    near((Sh.yield(pan, r, nil, 0)), 0.5, 1e-9)
+    near((Sh.yield(pan, r, nil, 50)), 0.25, 1e-9, "50 recent shreds halve it")
+    near((Sh.yield(pan, r, nil, 150)), 0.125, 1e-9)
     SandboxVars.OperationAcorn.ShredDecay = 10
-    near((Sh.yield(pan, r, nil, 10)), 2.5, 1e-9, "ShredDecay sets the half point")
+    near((Sh.yield(pan, r, nil, 10)), 0.25, 1e-9, "ShredDecay sets the half point")
 end)
 
 test("five a day halve the yield in the long run", function()
@@ -56,7 +56,7 @@ test("five a day halve the yield in the long run", function()
     end
     TEST.hours = 79 * 24 + 1
     near(Sh.count(r, "Pan"), 50, 0.5)
-    near((Sh.yield(pan, r)), 2.5, 0.05)
+    near((Sh.yield(pan, r)), 0.25, 0.005)
 end)
 
 test("the daily decay is 0.9", function()
@@ -72,47 +72,42 @@ end)
 
 test("extras add up and cannot pass the base", function()
     local r = record()
-    local pan = thing("Pan", 1.0, "Cooking")               -- base 5
-    near((Sh.yield(pan, r, { keen = 1 })), 6.0, 1e-9)
-    near((Sh.yield(pan, r, { keen = 3 })), 8.0, 1e-9)
-    near((Sh.yield(pan, r, { board = 5 })), 6.0, 1e-9, "0.2 per point")
-    near((Sh.yield(pan, r, { blade = 1.2 })), 6.0, 1e-9, "base * 0.2")
-    near((Sh.yield(pan, r, { keen = 3, board = 5, blade = 1.2 })), 10.0, 1e-9, "3 + 1 + 1 = 5, exactly the cap")
-    near((Sh.yield(pan, r, { keen = 3, board = 100, blade = 1.2 })), 10.0, 1e-9, "never more than twice the base")
-    local light = thing("Pencil", 0.2)                      -- base 1
-    near((Sh.yield(light, r, { keen = 3 })), 2.0, 1e-9, "a light thing cannot make many bundles")
+    local pan = thing("Pan", 1.0, "Cooking")               -- base 0.5
+    near((Sh.yield(pan, r, { keen = 0.1 })), 0.6, 1e-9)
+    near((Sh.yield(pan, r, { keen = 0.3 })), 0.8, 1e-9)
+    near((Sh.yield(pan, r, { board = 5 })), 0.6, 1e-9, "0.02 per point")
+    near((Sh.yield(pan, r, { blade = 1.2 })), 0.6, 1e-9, "base * 0.2")
+    near((Sh.yield(pan, r, { keen = 0.3, board = 5, blade = 1.2 })), 1.0, 1e-9, "0.3 + 0.1 + 0.1 = 0.5, exactly the cap")
+    near((Sh.yield(pan, r, { keen = 0.3, board = 100, blade = 1.2 })), 1.0, 1e-9, "never more than twice the base")
+    local light = thing("Pencil", 0.2)                      -- base 0.1
+    near((Sh.yield(light, r, { keen = 0.3 })), 0.2, 1e-9, "a light thing cannot make many bundles")
 end)
 
 test("the cap works on the base after the decay", function()
     local r = record()
     local pan = thing("Pan", 1.0, "Cooking")
-    near((Sh.yield(pan, r, { keen = 3 }, 50)), 5.0, 1e-9, "base 2.5, extra capped at 2.5")
+    near((Sh.yield(pan, r, { keen = 0.3 }, 50)), 0.5, 1e-9, "base 0.25, extra capped at 0.25")
 end)
 
-test("roll turns an expected value into a count", function()
-    OA.randomFloat = function() return 0.0 end
-    eq(Sh.roll(1.0), 1)
-    eq(Sh.roll(1.3), 2, "0.0 < 0.3")
-    OA.randomFloat = function() return 0.5 end
-    eq(Sh.roll(1.3), 1)
-    eq(Sh.roll(0.7), 1)
-    eq(Sh.roll(0.0), 0)
-    OA.randomFloat = function() return 0.999 end
-    eq(Sh.roll(2.0), 2)
-    eq(Sh.roll(2.99), 2)
-end)
-
-test("rolled counts average out to the expected value", function()
-    local sum, n = 0, 4000
-    for _ = 1, n do sum = sum + Sh.roll(1.3) end
-    near(sum / n, 1.3, 0.05)
-end)
-
-test("a light thing gives a bundle, a heavy one five", function()
-    OA.randomFloat = function() return 0.0 end
+test("carry gives the whole bundles and keeps the rest on the record", function()
     local r = record()
-    eq(Sh.roll((Sh.yield(thing("Pencil", 0.2), r))), 1)
-    eq(Sh.roll((Sh.yield(thing("Pan", 1.0, "Cooking"), r))), 5)
+    eq(Sh.carry(r, 0.5), 0, "half a bundle: none yet")
+    eq(Sh.carry(r, 0.75), 1, "with the half kept: one, a quarter kept")
+    near(r.shred.rest, 0.25, 1e-9)
+    eq(Sh.carry(r, 2.75), 3)
+    near(r.shred.rest, 0, 1e-9)
+    eq(Sh.carry(r, 0), 0)
+    eq(Sh.carry(r, -1), 0, "nothing negative")
+end)
+
+test("ten pencils make one bundle, two pans one", function()
+    local r = record()
+    local made = 0
+    for _ = 1, 10 do made = made + Sh.carry(r, (Sh.yield(thing("Pencil", 0.2), r, nil, 0))) end
+    eq(made, 1)
+    made = 0
+    for _ = 1, 2 do made = made + Sh.carry(r, (Sh.yield(thing("Pan", 1.0, "Cooking"), r, nil, 0))) end
+    eq(made, 1)
 end)
 
 test("the first shred of a kind pays 200 and enters the codex", function()
@@ -149,10 +144,10 @@ test("a batch of the same kind decays as it goes", function()
     local r = record()
     local pan = thing("Pan", 1.0, "Cooking")
     local total, bonus = Sh.yieldMany(pan, r, 3)
-    near(total, 5 + 5 / (1 + 1 / 50) + 5 / (1 + 2 / 50), 1e-9)
+    near(total, 0.5 + 0.5 / (1 + 1 / 50) + 0.5 / (1 + 2 / 50), 1e-9)
     eq(bonus, 200)
     local expected = 0
-    for i = 0, 99 do expected = expected + 5 / (1 + i / 50) end
+    for i = 0, 99 do expected = expected + 0.5 / (1 + i / 50) end
     near((Sh.yieldMany(pan, r, 100)), expected, 1e-9)
 end)
 

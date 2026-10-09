@@ -1,11 +1,12 @@
 -- Shredding (NUMBERS 3): what a thing yields in sample bundles. The machines (the hand bench, the bulk shredder)
--- ask here: they never keep their own formula. The yield is an expected count (a fraction); the machine rolls the
--- fraction with Shred.roll.
---   base  = weight * 5 / (1 + c / ShredDecay)         c: shreds of this kind lately (x0.9 a day)
---   extra = keen eye + 0.2 * 2nd-board points + base * (blade multiplier - 1)
+-- ask here: they never keep their own formula. The yield is a count with a fraction; what is not a whole bundle yet is
+-- kept on the record and adds up (Shred.carry), so every bit of weight counts.
+--   base  = weight * 0.5 / (1 + c / ShredDecay)       c: shreds of this kind lately (x0.9 a day)
+--   extra = keen eye + 0.02 * 2nd-board points + base * (blade multiplier - 1)
 --   final = base + min(extra, base)                   so never more than twice the base
 -- Rotten food gives half the base. A kind shredded for the first time pays 200 credits (and enters the codex).
--- The record's `shred` section: counts { [base type] = { c, day } }, first { [base type] = true }.
+-- The record's `shred` section: counts { [base type] = { c, day } }, first { [base type] = true }, rest (the part of a
+-- bundle made and not given yet).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
@@ -15,11 +16,11 @@ local OA = OperationAcorn
 local Shred = {}
 OA.Shred = Shred
 
-Shred.PER_WEIGHT = 5
+Shred.PER_WEIGHT = 0.5      -- a bundle is 600 credits at weight 1: half a bundle a weight is 300 credits
 Shred.FIRST_BONUS = 200
 Shred.DAILY = 0.9
 Shred.ROTTEN = 0.5
-Shred.BOARD_PER_POINT = 0.2
+Shred.BOARD_PER_POINT = 0.02
 Shred.FORGET_BELOW = 0.05    -- counts decayed to less than this are dropped
 
 function Shred.section(record)
@@ -87,11 +88,13 @@ function Shred.yieldMany(info, record, n, extras)
     return total, bonus
 end
 
--- A whole number from an expected count: the whole part, and one more with the chance of the fraction.
-function Shred.roll(expected)
-    local whole = math.floor(expected)
-    local fraction = expected - whole
-    if fraction > 0 and OA.randomFloat(0, 1) < fraction then whole = whole + 1 end
+-- The whole bundles a yield gives now: it is added to what the record kept from before, the whole bundles are given and
+-- the rest stays for the next shred.
+function Shred.carry(record, amount)
+    local s = Shred.section(record)
+    local total = (s.rest or 0) + math.max(0, amount or 0)
+    local whole = math.floor(total + 1e-9)
+    s.rest = math.max(0, total - whole)
     return whole
 end
 

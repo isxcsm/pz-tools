@@ -577,11 +577,11 @@ local function shredExtras(record, fx)
 end
 
 -- Shreds one item for a record: books it (the repeat count, the first-shred bonus) and returns how many sample
--- bundles it gives (rolled from the expected count, times the wear multiplier). The item is not taken here.
+-- bundles it gives now (its yield times the wear multiplier, with what the record kept from before; the rest is kept).
+-- The item is not taken here.
 function Machines.shredYield(record, info, fx)
-    local expected = OA.Shred.yield(info, record, shredExtras(record, fx))
-    expected = expected * (fx and fx.yield or 1)
-    local count = OA.Shred.roll(expected)
+    local amount = OA.Shred.yield(info, record, shredExtras(record, fx))
+    local count = OA.Shred.carry(record, amount * (fx and fx.yield or 1))
     OA.Shred.commit(record, info, 1)
     return count
 end

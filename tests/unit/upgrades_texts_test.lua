@@ -82,7 +82,7 @@ test("rank line numbers: a percentage carries its sign, a count does not", funct
     local keen = Data.byId.keen
     local keenArgs = Texts.args(keen, 2, u)
     eq(keenArgs[1], "100%")
-    eq(keenArgs[2], "2")
+    eq(keenArgs[2], "0.2", "bundles for each thing: a fifth of a bundle")
 end)
 
 test("rank line numbers follow the effect option", function()

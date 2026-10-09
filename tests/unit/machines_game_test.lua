@@ -15,7 +15,7 @@ local nextId = 1
 local ITEMS = {
     ["Base.Log"] = { weight = 9 },
     ["Base.Plank"] = { weight = 3 },
-    ["OperationAcorn.SampleBundle"] = { weight = 0.1 },
+    ["OperationAcorn.SampleBundle"] = { weight = 1.0 },
     ["Base.RippedSheets"] = { weight = 0.1 },
     ["Base.RippedSheetsDirty"] = { weight = 0.1 },
     ["Base.LeatherStrips"] = { weight = 0.1 },
@@ -237,7 +237,8 @@ local function setup()
     FluidType = { Petrol = "Petrol" }
     getPlayer = function() return nil end
     ItemTag = { BUCKLE = "buckle" }
-    -- P1's pieces, simplified: every item yields its weight times 5, a kind shredded before is not first.
+    -- P1's pieces, simplified: every item yields half its weight, the rest of a bundle is kept on the record, a kind
+    -- shredded before is not first.
     OA.Value = { info = function(item)
         return { fullType = item:getFullType(), baseType = item:getFullType(), weight = item:getActualWeight() }
     end }
@@ -245,9 +246,14 @@ local function setup()
         committed = {},
         can = function(info) return info.weight < 100 end,
         yield = function(info, record, extras)
-            return info.weight * 5 * (extras and extras.blade or 1), 0
+            return info.weight * 0.5 * (extras and extras.blade or 1), 0
         end,
-        roll = function(x) return math.floor(x + 0.5) end,
+        carry = function(record, x)
+            local total = (record.rest or 0) + x
+            local whole = math.floor(total + 1e-9)
+            record.rest = total - whole
+            return whole
+        end,
         commit = function(record, info, n)
             OA.Shred.committed[#OA.Shred.committed + 1] = { record = record, type = info.fullType, n = n }
             return 0
@@ -279,7 +285,7 @@ test("a bulk shredder shreds a box of items into sample bundles over time", func
     TEST.hours = 2
     Machines.update(obj)
     eq(#box.inner.items, 0, "box is empty")
-    eq(countOf(outC, "OperationAcorn.SampleBundle"), 50, "10 items of weight 1: 5 bundles each")
+    eq(countOf(outC, "OperationAcorn.SampleBundle"), 5, "10 items of weight 1: half a bundle each")
     eq(state.idle, true)
     eq(state.running, false)
     eq(#OA.Shred.committed, 10, "each shred was booked")
@@ -342,7 +348,7 @@ test("catching up when the chunk loads does the work of the time away", function
     squares["18,3,0"] = sq
     Machines.onChunk(chunk)
     eq(#inC.items, 98, "2 of 100 shredded")
-    eq(countOf(outC, "OperationAcorn.SampleBundle"), 10)
+    eq(countOf(outC, "OperationAcorn.SampleBundle"), 1)
     eq(#sounds, 0, "a catch-up makes no sound")
 end)
 
@@ -418,13 +424,13 @@ test("a better blade yields more, a worn one less", function()
     local obj, state, sq = addMachine("bulkShredder", 10, 10)
     powered(sq)
     state.parts.blade = { tier = "modern", cond = 100 }
-    fill(Machines.container(obj, "in"), "Base.Hammer", 1, {})
+    fill(Machines.container(obj, "in"), "Base.Hammer", 5, {})
     TEST.hours = 1
     Machines.update(obj)
     TEST.hours = 2
     Machines.update(obj)
-    -- The fake yield multiplies by the blade: 5 * 1.2 = 6.
-    eq(countOf(Machines.container(obj, "out"), "OperationAcorn.SampleBundle"), 6)
+    -- The fake yield multiplies by the blade: 5 x 0.5 x 1.2 = 3.
+    eq(countOf(Machines.container(obj, "out"), "OperationAcorn.SampleBundle"), 3)
 end)
 
 test("parts wear while it runs and a worn-out motor stops it, with a note", function()
@@ -794,7 +800,7 @@ end)
 test("hand shredding takes the items and gives bundles, booked to the record", function()
     setup()
     local p = player()
-    local hammer = newItem("Base.Hammer", {})
+    local hammer = newItem("Base.Hammer", { weight = 2 })
     p.inv:AddItem(hammer)
     local anvil = newItem("Base.Anvil", { weight = 300 })
     p.inv:AddItem(anvil)
@@ -802,11 +808,11 @@ test("hand shredding takes the items and gives bundles, booked to the record", f
     eq(#entries, 1, "the anvil is refused by P1's rule")
     local record = OA.Store.player("p1")
     local n = Machines.shredByHand(p, record, { hammer })
-    eq(n, 5)
-    eq(countOf(p.inv, "OperationAcorn.SampleBundle"), 5)
+    eq(n, 1, "weight 2: one bundle")
+    eq(countOf(p.inv, "OperationAcorn.SampleBundle"), 1)
     eq(countOf(p.inv, "Base.Hammer"), 0)
     eq(#OA.Shred.committed, 1)
-    near(Machines.benchMinutesFor(entries), 5)
+    near(Machines.benchMinutesFor(entries), 10)
 end)
 
 test("sprites follow the state and the kind", function()

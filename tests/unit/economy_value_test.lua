@@ -37,8 +37,8 @@ test("the example box: 20 clothing, 10 documents, 10 household, 10 food is 18,50
     near(trust, 185, 1e-6)
 end)
 
-test("a box of sample bundles: 500 of them are 30,000 credits and 300 trust", function()
-    local line = V.appraiseLine(info("OperationAcorn.SampleBundle", "Junk", 0.1, { own = "SampleBundle" }), 500, ctx())
+test("a box of sample bundles: 50 of them are 30,000 credits and 300 trust", function()
+    local line = V.appraiseLine(info("OperationAcorn.SampleBundle", "Junk", 1.0, { own = "SampleBundle" }), 50, ctx())
     near(line.credits, 30000, 1e-6)
     near(line.trust, 300, 1e-6)
 end)

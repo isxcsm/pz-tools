@@ -32,7 +32,7 @@ Value.CASH = { ["Base.Money"] = 1, ["Base.MoneyBundle"] = 100 }
 -- machines, parts, gear) are shop goods and not taken. "MissionItem" is worth what its mission pays (the story
 -- part settles it); "ExpiredMission" is a mission item past its time.
 Value.OWN = {
-    SampleBundle = { credits = 60, trust = 0.6 },
+    SampleBundle = { credits = 600, trust = 6 },
     MeteorFragment = { credits = 30000, trust = 10 },
     ExpiredMission = { credits = 1000, trust = 5 },
     MissionItem = { credits = 0, trust = 0 },
