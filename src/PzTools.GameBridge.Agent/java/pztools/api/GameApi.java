@@ -32,6 +32,8 @@ public final class GameApi {
     private static volatile Helicopters helicopters;
     // The moodles of the Lua environment the game has now; null without one, or when the game cannot run them.
     private static volatile Moodles moodles;
+    // The text of the Lua environment the game has now; null without one, or when the game cannot draw it.
+    private static volatile Texts texts;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -39,6 +41,9 @@ public final class GameApi {
 
     /** The formulas of the Lua environment the game has now, or null (for the tests of this package). */
     static Formulas formulas() { return formulas; }
+
+    /** The text of the Lua environment the game has now, or null (for the tests of this package). */
+    static Texts texts() { return texts; }
 
     /**
      * In a game the startup loader started, once each time its jar is loaded (the payload's ApiHost): the game's Lua
@@ -71,6 +76,8 @@ public final class GameApi {
         if (declared != null) declared.frame();
         Moodles defined = moodles;
         if (defined != null) defined.frame();
+        Texts shown = texts;
+        if (shown != null) shown.frame();
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -100,9 +107,11 @@ public final class GameApi {
             formulas = null;
             helicopters = null;
             moodles = null;
+            texts = null;
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
+            Texts.unhook();
             throw failure;
         }
     }
@@ -133,6 +142,7 @@ public final class GameApi {
             networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
+            texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
@@ -140,6 +150,7 @@ public final class GameApi {
             Networks.retire(lua, meta);
             Formulas.retire(lua, meta);
             Moodles.retire(lua, meta);
+            Texts.retire(lua, meta);
             throw failure;
         }
     }
@@ -226,6 +237,32 @@ public final class GameApi {
     }
 
     /**
+     * {@code PZToolsAPI.text}, with what an earlier API showed. Without it (a game started by an install from before the text, or
+     * a game whose drawing this API cannot reach), mods find no {@code text}.
+     */
+    private static void texts(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
+            throws ReflectiveOperationException {
+        Texts next;
+        try {
+            next = new Texts(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            next.hook();
+        } catch (LinkageError olderBootstrap) {
+            System.err.println("[PzTools API] Text is not in this game; restart it to use it: " + olderBootstrap);
+            next = null;
+        } catch (ReflectiveOperationException | RuntimeException unreadable) {
+            report(unreadable);
+            Texts.unhook();
+            next = null;
+        }
+        texts = next;
+        if (next != null) next.register(table(lua, api, "text"));
+        else {
+            Texts.retire(lua, meta);
+            lua.set(api, "text", null);
+        }
+    }
+
+    /**
      * {@code PZToolsAPI.zombies} and {@code PZToolsAPI.helicopter}. Each is left out, with a line in the game's log, in a
      * game that does not have what it reads: the others go on.
      */
@@ -283,6 +320,8 @@ public final class GameApi {
             if (declared != null) declared.clear(name, AREA + "client:clear");
             Moodles defined = moodles;
             if (defined != null) defined.clear(name, AREA + "client:clear");
+            Texts shown = texts;
+            if (shown != null) shown.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;

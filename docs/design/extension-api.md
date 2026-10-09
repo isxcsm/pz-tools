@@ -7,8 +7,8 @@
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
 > speed points, the survival points, the [hidden zombies](#the-hidden-zombies) and the [machines](#machines)), the
-> [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point) and the [moodles](#moodles-mechanism) mods
-> define. Planned: `"parallel"`. The first areas serve a separate power
+> [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [moodles](#moodles-mechanism) mods
+> define and the [text](#text-mechanism) they show. Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
@@ -57,7 +57,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas`, `moodles`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` also in a game started by an install from before them). |
+| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
 
 Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -1021,6 +1021,187 @@ allocated nothing over 100,000 frames.
 Not tried in the game yet: the picture drawn (the scaled copy of a texture, mipmapped), the translation keys with a colon read from
 a mod's JSON, a define at load and one in a running world (the player's map and the column), the registry reset going back to the
 main menu and loading another save, a second local player, and Moodle Framework's moodles stacking below.
+
+## Text (mechanism)
+
+A mod shows text on the screen: a line in a font, a colour and a size, that comes on, stays and goes with an effect; or a
+title, a large line in the middle of the screen with a smaller one under it, in one of a few styles, one title after another.
+The mod says what and when, from its own events (a quest done, a search done); the API draws it with the game's own text
+drawing, once a frame, with no Lua running for it.
+([`Texts`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Texts.java))
+
+### How the game does it
+
+Read from the bytecode of Build 42 (`projectzomboid.jar`, and PZ Optimize's loose `UIManager`, `IsoCamera` and `IndieGL`,
+which override the jar's; it overrides none of the text classes):
+
+- **Drawing.** `TextManager.instance.DrawString(UIFont, x, y, zoom, text, r, g, b, a)` draws a string at a zoom: the font's
+  `AngelCodeFont.drawString` puts each character's quad at its size times the zoom (`CharDef.draw`). This is what
+  `ISUIElement:drawTextZoomed` calls in the game's Lua. A string has no line breaks of its own here: the API draws each
+  line by itself. `MeasureStringX(font, text)` and `getFontHeight(font)` measure at zoom 1.
+- **Fonts.** `UIFont` names the fonts. The usual ones (`Small`, `Medium`, `Large`, `Title`, ...) are the language's bitmap
+  fonts (`media/fonts/<language>/fonts.txt`; Korean's `Large` is `zomboidLargeKorean`, 11821 characters), of a fixed
+  size (`Large` is 33 to 50 pixels high by the font size option, `Small` 19 to 38), which blur when zoomed. `Massive` is 47 high and has 99 characters, Latin alone. The distance-field fonts
+  (`SdfRegular`, `SdfBold`, `SdfItalic`, `SdfBoldItalic`, `SdfRobertoSans`, `SdfCaveat` and the `SdfOld...` ones;
+  `media/fonts/*.fnt`, 873 to 1116 characters: Latin, Cyrillic and some signs, no Hangul) stay sharp at any zoom, but
+  only through the game's shader: their pictures hold distances, not letters, and drawn as they are they show as a blur. The game's own new interface (`AtomUIText`) draws them as
+  `TextManager.sdfShader.updateThreshold(0.125 / scale)`, `updateShadow`, `updateOutline`, then `IndieGL.StartShader`, the
+  characters, `IndieGL.EndShader()`; the updates go into the render queue (`IndieGL.ShaderUpdate1f`), so each text has
+  its own. A font's characters are `AngelCodeFont.chars`, by code: one beyond the array is drawn as `?`, one the array has
+  no entry for is left out.
+- **When.** `UIManager.render()` draws the interface on the main thread, as the game's state draws its frame: `OnPreUIDraw`,
+  the windows (`UIElementInterface.render` for each), then the tooltip (`getToolTip()`, asked twice: whether there is
+  one, then to draw it), the paused message, the fade drawn over the interface, and `OnPostUIDraw`. With the interface
+  drawn into its own buffer, not on every frame (`useUiFbo`, `Core.uiRenderThisFrame`), it returns at once on the frames
+  it is not drawn. PZ Optimize's loose class draws its windows through a retained cache
+  (`UiRetained`) and has the same order and the same two tooltip calls.
+- **Where.** `IsoCamera.getScreenLeft`, `getScreenTop`, `getScreenWidth` and `getScreenHeight(player)` give each local
+  player's part of the window in the interface's pixels (half or a quarter of it in split screen). PZ Optimize's
+  `IsoCamera` gives its scaled view's size instead only on the render thread during the world's pass, never on the main
+  thread the interface is drawn on. Without a local player (the main menu), `Core.getScreenWidth()` and
+  `getScreenHeight()` are the window.
+
+### Calls
+
+| Call | Effect |
+| --- | --- |
+| `text.show(handle, spec)` | Shows a text; returns its key (a number). `spec` below. |
+| `text.title(handle, spec)` | Shows a title in a style, queued on each player's screen; returns its key. `spec` below. |
+| `text.hide(handle, key, now)` | The mod's text (or title, with its line) leaves with its effect; with `now` true it goes at once, and a title still waiting leaves the queue. `true` when there was one. |
+| `text.shown(handle, key)` | Whether it is on the screen or waiting. |
+| `text.styles()` | The titles' styles: `{ "stamp", "discovery", "notice" }`. |
+| `text.status()` | Whether the hook that draws is in the game: `"applied"`, `"not-loaded"` (the interface's class has not loaded), or why not, worded as `PZToolsAPI.hooks()` is. A mod shows the player what is not applied. |
+
+`show`'s spec; every field but `text` may be left out:
+
+| Field | Value | Meaning |
+| --- | --- | --- |
+| `text` | 1 to 512 characters | The text; `\n` breaks it into at most 8 lines. |
+| `font` | a name, or a list of 1 to 8 | One of the game's `UIFont` names (`"Large"` when left out). In a list, the first that has every character of the text is used, the last when none has: `{ "SdfBold", "Large" }` is the sharp font for Latin text and the language's for the rest. |
+| `size` | 0.005 to 0.5 | The height of a line as a share of the player's screen's height, whatever the font and the resolution. |
+| `scale` | 0.05 to 20 | The zoom of the font instead (1 when left out), when there is no `size`. |
+| `color` | `{ r, g, b, a }` or `{ r = , g = , b = , a = }`, 0 to 1 | White when left out; `a` is 1 when left out. |
+| `x`, `y` | 0 to 1 | Where on the player's screen, as shares of its width and height (0.5, 0.5: the middle). The text's lines are centred on `y`. |
+| `align` | `"left"`, `"center"`, `"right"` | Which side of the text is at `x` (`"center"`). |
+| `shadow` | boolean | A dark copy a little below and to the right. |
+| `outline` | 0 to 8 pixels | Copies around the text, in `outlineColor` (black). |
+| `delay` | 0 to 30 seconds | Before it comes on. |
+| `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"rise"`, `"drop"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; rises, or drops, three quarters of a line into its place as it fades in. |
+| `hold` | 0 to 3600 seconds | How long it stays once on; left out, until the mod hides it. |
+| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"none"` goes at once. |
+| `player` | 0 to 3 | The local player whose screen it is on; left out, every local player's. |
+| `queue` | boolean | It waits for the titles and queued texts before it on its screen (see titles). |
+
+`title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"stamp"` when left out), and to change the style's
+`color`, `subtitleColor`, `hold` (seconds), `y`, `player`, and `now`. A style is a pair of `show` specs:
+
+| Style | Title | Line under it |
+| --- | --- | --- |
+| `"stamp"` | White, `SdfBold` (or `Large`), a line 8.5% of the screen high at `y` 0.4, a shadow and a faint dark outline; slams on in 0.22 s, stays 2.4 s, swells away in 0.7 s. For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 3.2%; fades in 0.2 s after the title, goes with it. |
+| `"discovery"` | Amber (1, 0.8, 0.38), `SdfRobertoSans` (bold italic; or `Large`), 6%, a shadow; rises into place in 0.6 s, stays 2.4 s, drifts up as it fades in 0.9 s. For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 3%; rises 0.25 s after the title, goes with it. |
+| `"notice"` | Cool white, `SdfBold` (or `Medium`), 3.6% at `y` 0.2; drops in in 0.35 s, stays 2.6 s, fades in 0.6 s. For news that is not an event of its own. | Grey-blue, `SdfRegular` (or `Small`), 2.6%. |
+
+Each local player's screen has a queue of titles: one shows at a time (the title and its line), and the next starts when it
+has gone. A title for every player goes into each player's queue. `now` lets a title go first: the one on that screen leaves
+within 0.25 s and this one follows, before those waiting. At most 8 wait on a screen; a ninth makes the oldest waiting go. A
+text with `queue` waits in the same queue.
+
+A text's time starts when it is first drawn, not when it is shown: one shown while nothing is drawn (a loading screen) comes
+on as the screen does. The time is the interface's (`System.nanoTime`), which goes on while the game is paused. A mod has at
+most 64 texts shown or waiting, all mods 256; more is a Lua error. `handle:clear()` takes the mod's texts away at once. A text
+belongs to the world it was shown in: leaving it takes the text away. A text for a player who is not there waits for them. A
+newer API takes what is shown over at the moment it was at, keys included; a function a mod copied out of the table says the
+API was updated.
+
+Multiplayer is not blocked: the text is drawn on the machine that shows it, for its local players; nothing is sent.
+
+### Drawing
+
+The hook calls `Texts.draw()` once a frame from the interface's drawing (below). With nothing shown it returns after one
+read of an array. Otherwise, for each local player's screen (or the window, without one), it lets the first title waiting
+go when none is on that screen, then works out each text's moment from the clock (its delay, enter, hold and leave, and
+when its mod hid it) and draws each line: `x` and `y` on the screen, the line's width and the font's height measured once
+for the font the game has (the font size option makes the fonts again, and they are measured again), the zoom from `size`
+or `scale` times the effect's, the effect's shift in lines, the alpha the effect gives times the colour's. A shadow is one
+copy offset by a 24th of a line (at least a pixel) at 55% of the alpha; an outline is 8 copies at `outline` pixels. A font
+the game says is a distance-field font (`TextManager.isSdf`) is drawn inside the game's shader, as `AtomUIText` does it, with
+the threshold for the zoom, no shadow and no outline of the shader's own. A text hidden while it comes on leaves from where
+it was. Drawing allocates nothing.
+
+| Hook | Where | What it does |
+| --- | --- | --- |
+| `UIManager.render:text` | before the first of the method's two calls of `getToolTip()` | Draws the text: over the windows, under the tooltip, the paused message and the fade over the interface. The two calls are counted: a method with another number of them gets no hook. |
+
+The text is drawn as often as the interface is: with the interface drawn at a lower rate, it moves at that rate. A hook that
+is not in gives no text and `text.status()` says why; a fault while drawing is reported once in the game's log, and the
+interface goes on being drawn (the tooltip and what follows it).
+
+### A mod's use
+
+```lua
+-- Operation Acorn: a quest done stamps its title, a search done shows what was found.
+local function textApi()
+    local api = PZToolsAPI
+    return api and api.version == 1 and api.text or nil
+end
+
+local function onQuestComplete(questName)
+    local text = textApi()
+    if not text then return end -- without the API, the mod's own message instead
+    text.title(PZToolsAPI.client("OperationAcorn"), {
+        text = getText("IGUI_OA_QuestComplete"),
+        subtitle = questName,
+    })
+end
+
+local function onSearchComplete(found)
+    local text = textApi()
+    if not text then return end
+    text.title(PZToolsAPI.client("OperationAcorn"), {
+        style = "discovery",
+        text = getText("IGUI_OA_SearchComplete"),
+        subtitle = getText("IGUI_OA_ItemsFound", found),
+    })
+end
+
+-- A text of its own: a counter at the top right that stays until the mod hides it.
+local key = PZToolsAPI.text.show(PZToolsAPI.client("OperationAcorn"), {
+    text = "Credits: 120", font = { "SdfBold", "Medium" }, size = 0.03, x = 0.97, y = 0.06, align = "right",
+    color = { 1, 0.9, 0.6 }, shadow = true, enter = "fade", enterTime = 0.3, leave = "fade", leaveTime = 0.3,
+})
+-- later: PZToolsAPI.text.hide(PZToolsAPI.client("OperationAcorn"), key)
+```
+
+In Korean, `getText` gives Hangul: the styles' lists fall back to the language's fonts (`Large`, `Medium`), which have it,
+zoomed to the same share of the screen.
+
+### Verified
+
+Against the installed game (9 October 2026, Build 42): the hook was put into the real bytes of `UIManager` (the jar's, and PZ
+Optimize's loose class), once each, before the first `getToolTip()` (in the jar after the windows' loop and its handler; in the
+loose class after `UiRetained.loopEnd`), checked by the ClassFile verifier with the game's classes, and the class defined,
+linked and initialized by the JVM over the game's jar. Every member `Texts` reads is public in the jar, and in the loose
+`IsoCamera` and `IndieGL`. In the synthetic game (the `api` suite, `TextsTest`): with nothing shown the interface is drawn as
+before, and 100,000 frames draw and allocate nothing; a text is drawn between the windows and the tooltip, centred, zoomed and
+coloured as asked, and goes after its hold; fades are at their alpha halfway in and out; the time starts at the first frame drawn;
+`hide` lets it leave as its effect says, at once with `now`, and not another mod's; lines, left and right alignment, a size as a
+share of the screen, a shadow and an 8-copy outline are placed to the pixel; a font list takes the first font with every
+character (Hangul to `Large`, Cyrillic to `SdfBold`, the last when none has them), a distance-field font is drawn inside the
+shader with the threshold for its zoom and the others outside it, and a font made again is measured again; slam, rise, grow and pop
+are where they should be at known moments, and a text hidden as it comes leaves from where it was; a stamp title and its line are
+placed under one another, go together after 3.32 s, and the discovery after it waits, then shows amber in its font; `now` has the
+title on the screen leave within 0.25 s and the new one follow; a Hangul title takes `Large`; a ninth waiting title makes the
+oldest go; in split screen a text for every player is on both players' parts, one for a player on theirs alone, and titles queue
+on each; without a player the window is used; `clear` takes one mod's texts, a world left takes its texts and a new world's stay;
+wrong arguments and a 65th text are Lua errors; a drawing that fails leaves the windows, the tooltip and what follows drawn, and
+draws again once it can; a newer API takes a text over at the alpha it was at, with its key, and the old functions refuse. A
+frame with a stamp title and its line (12 strings) took about 0.4 us to place in the synthetic game and allocated nothing over
+100,000 frames.
+
+Not tried in the game yet: how the titles look (the sizes, the colours, the effects' timing, a zoomed `SdfBold` and
+`SdfRobertoSans` through the shader, and the copies of the outline at that zoom); a Hangul title in `Large` zoomed (bitmap, so
+softer); split screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
+the text too; and the text over the main menu.
 
 ## How the game is answered
 
