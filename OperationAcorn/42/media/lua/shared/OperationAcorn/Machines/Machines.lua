@@ -265,34 +265,18 @@ end
 -- The working lure's sound rings (Data.LURE_FX) on its object, or off. Drawn where the game draws (not on a dedicated
 -- server). The game would save the animation with the object, but drops it on load (it has no tile id), so a loaded
 -- lure gets it again (Machines.onChunk). Each lure has its own instance of the shared frames, so that two in sight do
--- not step one another's frames. The game steps the frames of its own fires only: the lures' are stepped here, each
--- tick, while one is loaded (IsoSprite.update moves an instance on by its speed and the time since the last tick).
+-- not step one another's frames. The game steps the frames of no ordinary object: the extension API steps those of an
+-- object with Data.ANIM_KEY set, while it is drawn (anim.stepKey, Machines.declareAnim). Without the API the rings
+-- stand still.
 local whiteTint
--- object -> its rings' instance, for the lures loaded with their rings on
-local playing = setmetatable({}, { __mode = "k" })
-local stepping = false
-
-local function stepRings()
-    local any = false
-    for object, instance in pairs(playing) do
-        if object:getObjectIndex() < 0 then
-            playing[object] = nil
-        else
-            instance:getParentSprite():update(instance)
-            any = true
-        end
-    end
-    if not any then
-        Events.OnTick.Remove(stepRings)
-        stepping = false
-    end
-end
 
 function Machines.lureFx(object, on)
     if isServer() then return end
     if object:hasAttachedAnimSprites() then object:RemoveAttachedAnims() end
-    playing[object] = nil
-    if not on then return end
+    if not on then
+        if object:hasModData() then object:getModData()[Data.ANIM_KEY] = nil end
+        return
+    end
     local fx = Data.LURE_FX
     local sprite = IsoSprite.CreateSpriteUsingCache(fx.name, fx.anim, fx.frames)
     whiteTint = whiteTint or ColorInfo.new(1, 1, 1, 1)
@@ -301,11 +285,18 @@ function Machines.lureFx(object, on)
     local mine = list and list:size() > 0 and list:get(list:size() - 1)
     if not mine then return end
     mine:setFrameSpeedPerFrame(fx.speed)
-    playing[object] = mine
-    if not stepping then
-        stepping = true
-        Events.OnTick.Add(stepRings)
-    end
+    object:getModData()[Data.ANIM_KEY] = 1
+end
+
+-- Tells the extension API to step the attached animations of the objects with Data.ANIM_KEY set (the lures' rings).
+-- Where the game draws, once a game; returns true when the API took it.
+function Machines.declareAnim()
+    local api = OA.api()
+    local handle = OA.handle()
+    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
+    local ok, err = pcall(api.formulas.set, handle, "anim.stepKey", Data.ANIM_KEY)
+    if not ok then OA.log("lure rings not declared:", tostring(err)) end
+    return ok
 end
 
 -- Shows the look the state calls for on every loaded square of the machine, where it is not already shown. Also

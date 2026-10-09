@@ -1,5 +1,6 @@
--- A lure taken back while it worked says in its tooltip how long it has left (it goes on from there when it is put
--- down again). The line is put on the item while its tooltip is drawn and taken off after, as the gear's lines are.
+-- The lure where it is drawn: the extension API is told to step the working lures' rings (Machines.declareAnim), and a
+-- lure taken back while it worked says in its tooltip how long it has left (it goes on from there when it is put down
+-- again). The line is put on the item while its tooltip is drawn and taken off after, as the gear's lines are.
 require "ISUI/ISToolTipInv"
 require "OperationAcorn/Machines/Machines"
 local OA = OperationAcorn
@@ -24,3 +25,5 @@ function ISToolTipInv:render()
     item:setTooltip(old)
     if not ok then error(err, 0) end
 end
+
+Events.OnGameStart.Add(Machines.declareAnim)

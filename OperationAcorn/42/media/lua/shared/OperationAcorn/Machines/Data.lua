@@ -147,6 +147,8 @@ Data.LURE_LEFT_KEY = "OA_LureLeft"
 -- <name>_<anim>_0 ..; they are in the machines texture pack, tools/tile_art.py lure_fx_frames). speed: frames a
 -- sixtieth of a second (IsoSprite.update): 0.08, the six frames in some 1.25 seconds.
 Data.LURE_FX = { name = "oa_lurefx", anim = "01", frames = 6, speed = 0.08 }
+-- The object modData key the extension API steps attached animations by (anim.stepKey): 1 while the rings play.
+Data.ANIM_KEY = "OA_Anim"
 
 
 -- Conversions (NUMBERS 11).

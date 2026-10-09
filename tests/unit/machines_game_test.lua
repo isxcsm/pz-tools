@@ -158,9 +158,8 @@ local function newObject(square, kind)
     function obj:hasAttachedAnimSprites() return #self.anims > 0 end
     function obj:RemoveAttachedAnims() self.anims = {} end
     function obj:AttachExistingAnim(sprite)
-        local instance = { sprite = sprite, steps = 0 }
+        local instance = { sprite = sprite }
         function instance:setFrameSpeedPerFrame(v) self.speed = v end
-        function instance:getParentSprite() return { update = function(_, inst) inst.steps = inst.steps + 1 end } end
         table.insert(self.anims, instance)
     end
     function obj:getAttachedAnimSprite()
@@ -1240,14 +1239,27 @@ test("a working lure plays its sound rings, once, and a spent one does not", fun
     eq(#anchor.anims, 1, "placed: the rings")
     eq(anchor.anims[1].sprite.name, Machines.Data.LURE_FX.name)
     eq(anchor.anims[1].speed, Machines.Data.LURE_FX.speed)
-    TEST.fire("OnTick")
-    eq(anchor.anims[1].steps, 1, "stepped each tick")
+    eq(anchor.mod[Machines.Data.ANIM_KEY], 1, "the API steps it")
     Machines.refreshLook(anchor, state)
     eq(#anchor.anims, 1, "shown again: still one")
     state.spent = true
     Machines.refreshLook(anchor, state)
     eq(#anchor.anims, 0, "spent: none")
+    eq(anchor.mod[Machines.Data.ANIM_KEY], nil, "nothing to step")
     cleanup()
+end)
+
+test("the lures' rings are declared to the API's attached animation stepping", function()
+    local sets = {}
+    PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end,
+        formulas = { set = function(handle, point, value) sets[point] = { handle = handle, value = value } end } }
+    truthy(Machines.declareAnim())
+    eq(sets["anim.stepKey"].value, Machines.Data.ANIM_KEY)
+    eq(sets["anim.stepKey"].handle, "h")
+    PZToolsAPI.formulas.set = function() error("unknown point") end
+    eq(Machines.declareAnim(), false, "an API without the point")
+    PZToolsAPI = nil
+    eq(Machines.declareAnim(), false, "no API")
 end)
 
 test("a working lure is taken back with the hours it has left, and goes on from there", function()
