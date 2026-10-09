@@ -72,6 +72,10 @@ def props(name, **more):
 TERMINAL = props('Communication Terminal', **SOLID)
 DELIVERY = props('Delivery Box', IsLow='', container='crate', ContainerCapacity='50', **SOLID)
 SUPPLY = props('Supply Crate', IsLow='', container='militarycrate', ContainerCapacity='100', **SOLID)
+# a sealed box or crate has no container: the game makes one from a tile's container property again on load (a
+# sealed crate opened in the loot window as vanilla's empty 'military crate'); opening one makes it in code
+DELIVERY_SEALED = props('Delivery Box', IsLow='', **SOLID)
+SUPPLY_SEALED = props('Supply Crate', IsLow='', **SOLID)
 PARACHUTE = props('Parachute Crate', **SOLID)
 DECAL = {}
 ROCKS = props('Meteorite', IsLow='', BlocksPlacement='')
@@ -88,8 +92,8 @@ TRADE = (
     # 0-3, 4-7: the terminal, off and on
     facings2(O.terminal, TERMINAL, False) + facings2(O.terminal, TERMINAL, True)
     # 8, 9: the delivery box, open and sealed; 10, 11: the supply crate, sealed and opened
-    + [(lambda: T.delivery_box(False), DELIVERY), (lambda: T.delivery_box(True), DELIVERY),
-       (lambda: T.supply_crate(False), SUPPLY), (lambda: T.supply_crate(True), SUPPLY)]
+    + [(lambda: T.delivery_box(False), DELIVERY), (lambda: T.delivery_box(True), DELIVERY_SEALED),
+       (lambda: T.supply_crate(False), SUPPLY_SEALED), (lambda: T.supply_crate(True), SUPPLY)]
     # 12: the crate on its parachute; 13: the scorched ground; 14: the meteor rocks; 15: the stake
     + [(T.parachute_crate, PARACHUTE), (T.scorched_ground, DECAL), (T.meteor_rocks, ROCKS), (T.site_stake, STAKE)]
 )

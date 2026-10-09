@@ -62,8 +62,10 @@ end
 -- The 1x1 trade tiles (and the lure): each loaded, its properties as the sheet defines them, then placed two squares apart.
 local TRADE = {
     { "oa_trade_01", 0, 8, "terminal", { Facing = true, solidtrans = true } },
-    { "oa_trade_01", 8, 2, "delivery box", { container = "crate" } },
-    { "oa_trade_01", 10, 2, "supply crate", { container = "militarycrate" } },
+    { "oa_trade_01", 8, 1, "delivery box", { container = "crate" } },
+    { "oa_trade_01", 9, 1, "sealed delivery box", { container = false } },
+    { "oa_trade_01", 10, 1, "sealed supply crate", { container = false } },
+    { "oa_trade_01", 11, 1, "supply crate", { container = "militarycrate" } },
     { "oa_trade_01", 12, 1, "parachute crate", { solidtrans = true } },
     { "oa_trade_01", 13, 1, "scorched ground", {} },
     { "oa_trade_01", 14, 1, "meteor rocks", { IsLow = true } },
