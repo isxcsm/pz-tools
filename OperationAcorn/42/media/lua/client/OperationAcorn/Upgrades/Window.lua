@@ -788,19 +788,22 @@ function Window.open(playerNum)
     local info = getPlayerInfoPanel(playerNum)
     local view = views[playerNum]
     if not info or not view then return nil end
+    local shown
     if view.parent == info.panel then
         info:toggleView(tabName())
+        shown = info:getIsVisible() and info.panel:getActiveView() == view
     elseif view.parent then
         -- torn off into a window of its own
         local window = view.parent
-        local show = not window:getIsVisible()
-        window:setVisible(show)
-        if show then
+        shown = not window:getIsVisible()
+        window:setVisible(shown)
+        if shown then
             window:addToUIManager()
             window:bringToTop()
         end
     end
-    if not view:isReallyVisible() then return nil end
+    -- (not isReallyVisible: a window added outside the UI's own update joins the UI manager only on the next frame)
+    if not shown then return nil end
     view:refresh()
     if getJoypadData(playerNum) then setJoypadFocus(playerNum, view) end
     return view

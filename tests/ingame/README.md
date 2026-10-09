@@ -9,7 +9,14 @@ The game reads them through a junction: `C:\Users\<you>\Zomboid\Lua\oa` points a
 New-Item -ItemType Junction -Path "$env:USERPROFILE\Zomboid\Lua\oa" -Target <this folder>
 ```
 
-After each save load, define the loader in the Lua console (it reads `Zomboid\Lua\oa\<file>`):
+With the game started with `-debug`, the mod's command channel (`client/OperationAcorn/Dev/Remote.lua`) runs them
+without the console: `python tools/pzdev.py check p3_window.lua` prints the check's lines. `pzdev.py run "<lua>"` runs
+any Lua, and the helpers of `OperationAcorn.Dev` (`client/OperationAcorn/Dev/Dev.lua`) set up a scene: research ranks,
+points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, closing the
+windows and the console. `pzdev.py shot out.png` takes a picture of the game window. With Break On Error on, a Lua
+error stops the game in the debugger (the channel too): `pzdev.py resume`.
+
+Without the channel, define the loader in the Lua console after each save load (it reads `Zomboid\Lua\oa\<file>`):
 
 ```lua
 function RUN(f) local r,t=getFileReader("oa/"..f,false),{} local l=r:readLine() while l do t[#t+1]=l l=r:readLine() end r:close() loadstring(table.concat(t,"\n"))() end

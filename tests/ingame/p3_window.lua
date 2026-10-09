@@ -9,10 +9,11 @@ local OA = OperationAcorn
 local say = P3T.say("p3window")
 
 -- from the tab hidden (open() shows it or hides it)
-local shown = OA.Upgrades.Window.view(0)
-if shown and shown:isReallyVisible() then OA.Upgrades.open(0) end
+local info = getPlayerInfoPanel(0)
+if info:getIsVisible() and info.panel:getActiveView() == OA.Upgrades.Window.view(0) then OA.Upgrades.open(0) end
 local view = OA.Upgrades.open(0)
-P3T.check(say, "OA.Upgrades.open() shows the research tab", view ~= nil and view:isReallyVisible())
+P3T.check(say, "OA.Upgrades.open() shows the research tab", view ~= nil and info:getIsVisible()
+    and info.panel:getActiveView() == view)
 if not view then return end
 local info = getPlayerInfoPanel(0)
 say("tab size", view:getWidth(), view:getHeight(), "window", info:getWidth(), info:getHeight())
@@ -86,6 +87,6 @@ later(3, function()
         P3T.check(say, "it hides when nothing is hovered",
             not (tip and (tip:getIsVisible() or UIManager.getUI():contains(tip.javaObject))))
         local second = OA.Upgrades.open(0)
-        P3T.check(say, "a second call hides the tab", second == nil and not view:isReallyVisible())
+        P3T.check(say, "a second call hides the tab", second == nil and not info:getIsVisible())
     end)
 end)
