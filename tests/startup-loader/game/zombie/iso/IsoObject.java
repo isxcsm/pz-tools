@@ -2,12 +2,17 @@ package zombie.iso;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.function.Consumer;
 import se.krka.kahlua.vm.KahluaTable;
 import zombie.Lua.LuaManager;
+import zombie.core.opengl.Shader;
+import zombie.core.textures.ColorInfo;
+import zombie.core.textures.TextureDraw;
 import zombie.entity.components.fluids.Fluid;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.entity.components.fluids.FluidSample;
 import zombie.iso.sprite.IsoSprite;
+import zombie.iso.sprite.IsoSpriteInstance;
 
 /**
  * Synthetic: what the game says about an object's power use comes from the object. Its water questions branch on
@@ -25,6 +30,11 @@ public class IsoObject {
     public IsoObject externalWaterSource;
     public FluidContainer fluidContainer;
     public KahluaTable modData;
+    /** The animations attached to the object, drawn over it; null for none. */
+    public ArrayList<IsoSpriteInstance> attachedAnimSprite;
+    /** An animation of the object's own plays (a door opening): the chunk renderer draws it every frame. */
+    public boolean animating;
+    private final ColorInfo light = new ColorInfo();
     public int syncs;
     /** The alpha the object fades to, for each local player, and how many times it was set. */
     public final float[] targetAlpha = { 1f, 1f, 1f, 1f };
@@ -115,6 +125,31 @@ public class IsoObject {
     public KahluaTable getModData() {
         if (modData == null) modData = LuaManager.platform.newTable();
         return modData;
+    }
+
+    /** Like the game's AttachExistingAnim, without the offsets and the tint: the instance drawn over the object. */
+    public IsoSpriteInstance attachAnim(IsoSprite sprite) {
+        if (attachedAnimSprite == null) attachedAnimSprite = new ArrayList<>();
+        var instance = new IsoSpriteInstance(sprite);
+        attachedAnimSprite.add(instance);
+        return instance;
+    }
+
+    public boolean hasAttachedAnimSprites() { return attachedAnimSprite != null && !attachedAnimSprite.isEmpty(); }
+    public boolean isAnimating() { return animating; }
+
+    /** The game draws the object (the render path, once for each player's screen). */
+    public void render() { renderAttachedSprites(IsoDirections.N, 0f, 0f, 0f, light, false, null, null); }
+
+    // Like the game's: each attached animation is drawn, and its update() called after, which does nothing.
+    private void renderAttachedSprites(IsoDirections dir, float x, float y, float z, ColorInfo color, boolean wallLighting, Shader shader,
+            Consumer<TextureDraw> draws) {
+        if (attachedAnimSprite == null) return;
+        int count = attachedAnimSprite.size();
+        for (int index = 0; index < count; index++) {
+            IsoSpriteInstance instance = attachedAnimSprite.get(index);
+            instance.update();
+        }
     }
 
     /** The game sends the object to multiplayer clients. */
