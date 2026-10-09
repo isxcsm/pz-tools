@@ -167,13 +167,16 @@ function Sense.voices(zombies, memo, px, py, pz, radius, floors, now, out)
     return out
 end
 
--- The sixth sense: whether any zombie is within radius on the character's floor or the one beside it.
+-- The sixth sense: whether any zombie the character does not see (`seen` not true) is within radius on its floor or
+-- the one beside it.
 function Sense.hunch(zombies, px, py, pz, radius)
     local r2 = radius * radius
     for i = 1, #zombies do
         local z = zombies[i]
-        local dx, dy = z.x - px, z.y - py
-        if dx * dx + dy * dy <= r2 and math.abs(z.z - pz) <= 1.01 then return true end
+        if not z.seen then
+            local dx, dy = z.x - px, z.y - py
+            if dx * dx + dy * dy <= r2 and math.abs(z.z - pz) <= 1.01 then return true end
+        end
     end
     return false
 end

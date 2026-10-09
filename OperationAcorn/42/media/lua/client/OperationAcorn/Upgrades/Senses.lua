@@ -351,10 +351,18 @@ local function section(player)
 end
 
 -- A zombie as a plain position, and (`acts`) whether it has a target and whether it lunges or strikes, for the zombie
--- sounds told without the extension API's (Sense.voices).
+-- sounds told without the extension API's (Sense.voices). Within `look` (a squared distance from (lx, ly); 0 for
+-- none), whether player `n` sees it, for the sixth sense: the game fades a zombie it finds unseen out (its target alpha
+-- for that player 0, IsoGameCharacter.updateSeenVisibility), so that is one read and no sight line of ours.
 local lungeState, attackState
-local function plain(z, acts)
-    local p = { ref = z, x = z:getX(), y = z:getY(), z = z:getZ() }
+local SEEN_ALPHA = 0.05
+local function plain(z, acts, n, look, lx, ly)
+    local x, y = z:getX(), z:getY()
+    local p = { ref = z, x = x, y = y, z = z:getZ() }
+    if look > 0 then
+        local dx, dy = x - lx, y - ly
+        if dx * dx + dy * dy <= look then p.seen = z:getTargetAlpha(n) >= SEEN_ALPHA end
+    end
     if acts then
         lungeState = lungeState or LungeState.instance()
         attackState = attackState or AttackState.instance()
@@ -368,19 +376,20 @@ end
 -- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none (then the
 -- scan below does it).
 local NEAR_LIMIT = 64
-local function collectFromApi(player, radius, acts)
+local function collectFromApi(player, radius, acts, look)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) ~= "table" or type(zombies.near) ~= "function" then return nil end
     local ok, found = pcall(function()
         local list = {}
         local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+        local n = player:getPlayerNum()
         for level = pz - 1, pz + 1 do
             local _, result = zombies.near(px, py, level, radius, NEAR_LIMIT)
             if type(result) ~= "table" then return nil end
             for _, near in ipairs(result) do
                 local z = near.zombie
-                if z and not z:isDead() then list[#list + 1] = plain(z, acts) end
+                if z and not z:isDead() then list[#list + 1] = plain(z, acts, n, look, px, py) end
             end
         end
         return list
@@ -390,17 +399,18 @@ local function collectFromApi(player, radius, acts)
 end
 
 -- The loaded zombies near the character as plain positions, for the pure parts.
-local function collect(player, radius, acts)
-    local fromApi = collectFromApi(player, radius, acts)
+local function collect(player, radius, acts, look)
+    local fromApi = collectFromApi(player, radius, acts, look)
     if fromApi then return fromApi end
     local list = {}
     local zs = getCell():getZombieList()
     local px, py = player:getX(), player:getY()
+    local n = player:getPlayerNum()
     for i = 0, zs:size() - 1 do
         local z = zs:get(i)
         local zx, zy = z:getX(), z:getY()
         if zx - px <= radius and px - zx <= radius and zy - py <= radius and py - zy <= radius and not z:isDead() then
-            list[#list + 1] = plain(z, acts)
+            list[#list + 1] = plain(z, acts, n, look, px, py)
         end
     end
     return list
@@ -460,7 +470,7 @@ local function senseJob(now)
     local tell = active and not apiVoices and S.hearing > 0
     local reach = math.max(sixthR, tell and S.radius or 0)
     if reach > 0 then
-        local list = collect(player, reach, tell)
+        local list = collect(player, reach, tell, sixthR * sixthR)
         local px, py, pz = player:getX(), player:getY(), player:getZ()
         if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
         if tell then
