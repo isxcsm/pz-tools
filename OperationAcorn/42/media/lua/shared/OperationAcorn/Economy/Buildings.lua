@@ -218,6 +218,13 @@ function Buildings.tick(character)
     return walk.key, walk.explored, walk.total, walk.complete
 end
 
+-- The containers of the character's building not opened yet as the last look found them (a list kept by the walk:
+-- read it, do not change it), or nil outside a building. The search ledger outlines the near ones.
+function Buildings.unopened(character)
+    local walk = states[character:getPlayerNum()]
+    return walk and walk.open or nil
+end
+
 -- The key of the building at a square (the room is its vanilla room, or nil), or nil outside a building or in one
 -- the player built.
 function Buildings.keyAt(square, room)

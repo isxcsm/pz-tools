@@ -12,6 +12,7 @@ require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Pulse"
 require "OperationAcorn/Upgrades/Moodles"
+require "OperationAcorn/Economy/Buildings"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Sense = OA.Upgrades.Sense
@@ -592,40 +593,16 @@ end
 -- Rank 1: on entering a building, how many containers are left unopened, or that it was searched (the title of a
 -- building searched comes from the economy, with its bonus). Rank 2: the unopened containers within LEDGER_NEAR on the
 -- character's floor are outlined (the game's own object outline, for this player). Rank 3 is the economy's (a bigger
--- bonus).
+-- bonus). The building and its containers are the economy's walk (OA.Buildings: square by square, a part a look; the
+-- game's IsoRoom:getContainer() lists none in B42), looked at from here every LEDGER_MS.
 
-local ledger = { key = nil, nextCount = 0, total = 0, opened = 0, done = false, complete = false, told = true, tries = 0 }
+local ledger = { key = nil, total = 0, opened = 0, done = false, complete = false, told = true, since = 0 }
 Senses.ledger = ledger
--- A building whose rooms are not all loaded yet is counted again this often (ms), at most LEDGER_TRIES times, before
--- what it has is told on entering (a count of 0 then could be rooms not loaded, so it is not told).
-local LEDGER_RETRY_MS = 1000
-local LEDGER_TRIES = 5
+-- A building not all counted yet is told once it is, or after LEDGER_WAIT_MS with what was found (a count of 0 then is
+-- not told: it could be squares not loaded).
+local LEDGER_WAIT_MS = 5000
 local LEDGER_NEAR = 6
 local OUTLINE = { 1.00, 0.80, 0.40, 0.85 }
--- How often the building's containers are listed again for the outlines (rooms load, containers come and go), ms.
-local BOXES_MS = 5000
-
--- Counts a building's containers: total, opened, and whether every room was loaded (so that it can be judged).
-local function countBuilding(def)
-    local total, opened, complete = 0, 0, true
-    local rooms = def:getRooms()
-    for i = 0, rooms:size() - 1 do
-        local iso = rooms:get(i):getIsoRoom()
-        if not iso then
-            complete = false
-        else
-            local containers = iso:getContainer()
-            for j = 0, containers:size() - 1 do
-                local c = containers:get(j)
-                if c:getType() ~= "floor" then
-                    total = total + 1
-                    if c:isExplored() then opened = opened + 1 end
-                end
-            end
-        end
-    end
-    return total, opened, complete
-end
 
 -- The objects outlined now (object -> true) and for which player.
 local outlined, outlinedFor = {}, 0
@@ -655,47 +632,17 @@ local function clearOutlines()
 end
 Senses.clearOutlines = clearOutlines
 
--- The building's containers for the outlines, listed every BOXES_MS rather than each look: boxes[1..boxCount] are
--- { object, container, x, y, z } (the tables past boxCount are kept for the next listing).
-local boxes, boxCount, boxesOf, boxesAt = {}, 0, nil, 0
-
-local function listBoxes(def, now)
-    boxCount, boxesOf, boxesAt = 0, def:getID(), now
-    local rooms = def:getRooms()
-    for i = 0, rooms:size() - 1 do
-        local iso = rooms:get(i):getIsoRoom()
-        if iso then
-            local containers = iso:getContainer()
-            for j = 0, containers:size() - 1 do
-                local c = containers:get(j)
-                local object = c:getType() ~= "floor" and c:getParent()
-                local square = object and object:getSquare()
-                if square then
-                    boxCount = boxCount + 1
-                    local b = boxes[boxCount]
-                    if not b then
-                        b = {}
-                        boxes[boxCount] = b
-                    end
-                    b.object, b.container = object, c
-                    b.x, b.y, b.z = square:getX() + 0.5, square:getY() + 0.5, square:getZ()
-                end
-            end
-        end
-    end
-end
-
--- The unopened containers' objects within LEDGER_NEAR of the character on its floor, into a new set.
-local function nearUnopened(def, player, now)
-    if boxesOf ~= def:getID() or now - boxesAt >= BOXES_MS or now < boxesAt then listBoxes(def, now) end
+-- The objects of the unopened containers within LEDGER_NEAR of the character on its floor, into a new set.
+local function nearUnopened(open, player)
     local want = {}
     local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
     local r2 = LEDGER_NEAR * LEDGER_NEAR
-    for i = 1, boxCount do
-        local b = boxes[i]
-        if b.z == pz then
-            local dx, dy = b.x - px, b.y - py
-            if dx * dx + dy * dy <= r2 and not b.container:isExplored() then want[b.object] = true end
+    for i = 1, #open do
+        local object = open[i]:getParent()
+        local square = object and object:getSquare()
+        if square and square:getZ() == pz then
+            local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
+            if dx * dx + dy * dy <= r2 then want[object] = true end
         end
     end
     return want
@@ -704,43 +651,23 @@ end
 local function ledgerJob(now)
     local player = getPlayer()
     local record = player and not player:isDead() and OA.Client.record(player)
-    if not record then clearOutlines() return end
-    local u = Rules.section(record)
-    local rank = Rules.rank(u, "ledger")
-    local def = rank >= 1 and player:getCurrentBuildingDef()
-    if not def then
+    local rank = record and Rules.rank(Rules.section(record), "ledger") or 0
+    local key, opened, total, complete
+    if rank >= 1 then key, opened, total, complete = OA.Buildings.tick(player) end
+    if not key then
         ledger.key = nil
         clearOutlines()
         return
     end
-    if rank >= 2 then outlineOnly(nearUnopened(def, player, now), player:getPlayerNum()) else clearOutlines() end
-    local key = def:getID()
+    if rank >= 2 then outlineOnly(nearUnopened(OA.Buildings.unopened(player) or none, player), player:getPlayerNum())
+    else clearOutlines() end
     if key ~= ledger.key then
-        ledger.key, ledger.done, ledger.told, ledger.tries = key, false, false, 0
-    elseif ledger.told or now < ledger.nextCount then
-        return
-    end
-    local total, opened, complete = countBuilding(def)
-    -- the economy part keeps its own count of the building (it leaves out what the player placed): use it when it has one
-    if OA.Codex and OA.Codex.buildingProgress and OA.Buildings and OA.Buildings.keyAt then
-        local ok, searched, all = pcall(function()
-            local square = player:getCurrentSquare()
-            local buildingKey = square and OA.Buildings.keyAt(square)
-            if not buildingKey then return nil, nil end
-            return OA.Codex.buildingProgress(record, buildingKey)
-        end)
-        if ok and type(searched) == "number" and type(all) == "number" then
-            total, opened = all, searched
-        end
+        ledger.key, ledger.done, ledger.told, ledger.since = key, false, false, now
     end
     ledger.total, ledger.opened, ledger.complete = total, opened, complete
-    -- told once on entering: how many are left, or that it is searched (never "0 left"); a building not all loaded is
-    -- counted again first, and one with no containers is not told
-    if not complete and ledger.tries < LEDGER_TRIES then
-        ledger.tries = ledger.tries + 1
-        ledger.nextCount = now + LEDGER_RETRY_MS
-        return
-    end
+    if ledger.told then return end
+    -- told once on entering: how many are left, or that it is searched (never "0 left"); one with no containers is not
+    if not complete and now - ledger.since < LEDGER_WAIT_MS and now >= ledger.since then return end
     ledger.told = true
     local left = total - opened
     if total > 0 and left == 0 then
