@@ -657,6 +657,7 @@ GC працює: частка відрізка, коли працював зби
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Гра завантажується</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Гра повертається до головного меню</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мертвий – копії чекають</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Гру зупинено в налагоджувачі Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не вдалося підключитися до гри; копія створюється без збереження гри.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Стан сну зараз недоступний, тому враховується лише пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Зараз не застосовується: немає зв’язку з грою.</value></data>

@@ -108,7 +108,8 @@ public sealed class GameActivityLane(Func<RuntimeObservation?>? runtime = null)
         if (observation is not null && !observation.IsLinkUnusable)
         {
             if (observation.Quality == RuntimeQuality.Offline) return (ActivityState.Inactive, LaneStatus.Succeeded, null);
-            if (!observation.IsFresh || observation.Snapshot is not { } sample)
+            // A game waiting in its Lua debugger still has open the world of its last sample.
+            if (!observation.IsFresh && !observation.IsInDebugger || observation.Snapshot is not { } sample)
                 return (ActivityState.Unknown, LaneStatus.Unavailable, "runtime-unavailable");
             if (sample.Phase is WorldPhase.Menu or WorldPhase.Unloading)
                 return (ActivityState.Inactive, LaneStatus.Succeeded, null);

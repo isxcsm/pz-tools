@@ -43,8 +43,7 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
         {
             if (latest.StreamEpoch != stream || latest.IsExtensionFresh) return false;
             staleSince ??= DateTimeOffset.UtcNow;
-            return DateTimeOffset.UtcNow - staleSince < TransientStaleGrace
-                && (latest.Snapshot is null || latest.Snapshot.ProcessSession == process && latest.Snapshot.WorldSession == world);
+            return KeepsWorldWhileStale(latest, DateTimeOffset.UtcNow - staleSince.Value, process, world);
         }
 
         bool IsCurrent(string process, string world)
@@ -283,6 +282,15 @@ internal sealed class RuntimeExtensionCoordinator(string bridgeDirectory, string
 
     /// <summary>How long a game whose state has stopped arriving keeps its extensions before they are released.</summary>
     internal static readonly TimeSpan TransientStaleGrace = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Whether extensions bound to this process and world stay as they are while the game's state is not fresh: for
+    /// <see cref="TransientStaleGrace"/> (a long save, a stall), and for as long as the game waits in its Lua debugger,
+    /// which is the same world, frozen while its player reads the error.
+    /// </summary>
+    internal static bool KeepsWorldWhileStale(RuntimeObservation latest, TimeSpan staleFor, string? process, string? world) =>
+        (latest.IsInDebugger || staleFor < TransientStaleGrace)
+        && (latest.Snapshot is null || latest.Snapshot.ProcessSession == process && latest.Snapshot.WorldSession == world);
 
     /// <summary>The modules the deployed catalogue runs continuously; the built-in list when that file cannot be read.</summary>
     private IReadOnlyList<string> ContinuousModules()

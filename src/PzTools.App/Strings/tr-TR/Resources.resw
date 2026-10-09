@@ -657,6 +657,7 @@ Bellek bekleme: bellek dolu olduğu için bir iş parçacığının bellek boşa
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Oyun yükleniyor</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Oyun ana menüye dönüyor</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Karakter öldü – yedekler bekliyor</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Oyun Lua hata ayıklayıcısında durdu</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Oyuna bağlanılamadı; oyun kaydedilmeden yedek alınıyor.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Uyku durumu şu anda okunamıyor; yalnızca duraklatma uygulanıyor.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Oyuna ulaşılamadığı için şu anda uygulanmıyor.</value></data>

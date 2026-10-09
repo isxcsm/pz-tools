@@ -114,23 +114,37 @@ final class PzRuntimeAdapter {
         pause = yielded ? "Paused" : controls == null ? "Unknown" : (boolean)paused.invoke(null, none) ? "Paused" : "Running";
     }
 
+    /** Where the game thread is, looked at from another thread; nothing when it cannot be seen. */
+    static StackTraceElement[] stack(Thread game) {
+        try { return game.getStackTrace(); }
+        catch (RuntimeException unavailable) { return new StackTraceElement[0]; /* Then the stall reads as before. */ }
+    }
+
     /**
      * Whether the game thread is leaving its world for the main menu: saving it on the way out, from the playing
-     * state's update, or unloading it and reloading the mods as that state ends. Read from another thread.
+     * state's update, or unloading it and reloading the mods as that state ends.
      */
-    static boolean leavingWorld(Thread game) {
-        try {
-            StackTraceElement[] frames = game.getStackTrace();
-            for (int i = 0; i < frames.length; i++) {
-                if (!frames[i].getClassName().equals("zombie.gameStates.IngameState")) continue;
-                if (frames[i].getMethodName().equals("exit")) return true;
-                if (i > 0 && frames[i].getMethodName().equals("updateInternal")) {
-                    String called = frames[i - 1].getClassName() + "." + frames[i - 1].getMethodName();
-                    if (called.equals("zombie.GameWindow.save") || called.equals("zombie.savefile.PlayerDB.saveLocalPlayersForce"))
-                        return true;
-                }
+    static boolean leavingWorld(StackTraceElement[] frames) {
+        for (int i = 0; i < frames.length; i++) {
+            if (!frames[i].getClassName().equals("zombie.gameStates.IngameState")) continue;
+            if (frames[i].getMethodName().equals("exit")) return true;
+            if (i > 0 && frames[i].getMethodName().equals("updateInternal")) {
+                String called = frames[i - 1].getClassName() + "." + frames[i - 1].getMethodName();
+                if (called.equals("zombie.GameWindow.save") || called.equals("zombie.savefile.PlayerDB.saveLocalPlayersForce"))
+                    return true;
             }
-        } catch (RuntimeException unavailable) { /* Then the stall reads as before. */ }
+        }
+        return false;
+    }
+
+    /**
+     * Whether the game thread is stopped in the game's Lua debugger: a Lua error with Break On Error on (debug mode),
+     * a breakpoint or a step. {@code UIManager.debugBreakpoint} then runs a loop of its own that draws only the
+     * debugger, on the game thread, until the player resumes; the game's own frames, and with them its samples, wait.
+     */
+    static boolean inLuaDebugger(StackTraceElement[] frames) {
+        for (StackTraceElement frame : frames)
+            if (frame.getMethodName().equals("debugBreakpoint") && frame.getClassName().equals("zombie.ui.UIManager")) return true;
         return false;
     }
 

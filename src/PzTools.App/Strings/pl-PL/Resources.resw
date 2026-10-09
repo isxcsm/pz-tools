@@ -657,6 +657,7 @@ Czekanie na pamięć: ile razy wątek stanął, aż zwolniono pamięć, bo była
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Wczytywanie gry</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Gra wraca do menu głównego</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postać nie żyje – kopie czekają</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Gra zatrzymana w debugerze Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nie udało się połączyć z grą; kopia jest tworzona bez wcześniejszego zapisu gry.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Obecnie nie można odczytać snu, więc działa tylko pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Obecnie nie działa, ponieważ nie ma połączenia z grą.</value></data>

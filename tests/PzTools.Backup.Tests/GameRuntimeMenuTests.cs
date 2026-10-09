@@ -110,7 +110,42 @@ public sealed partial class GameSaveClientTests
         var hung = await watch.WaitAsync(s => s.SampleAgeMilliseconds > 3000);
         Assert.Equal(WorldPhase.Ready, hung.Phase);
         Assert.Equal(world.WorldSession, hung.WorldSession);
+        Assert.False(hung.InDebugger);
         File.Delete(temp.GetPath("hold-frame"));
+    }
+
+    // Seen in the game: a Lua error with Break On Error on stops the game thread in the Lua debugger, and the app took
+    // the old sample for a lost link. The bridge tells it apart from a hang by where the game thread is.
+    [BridgeFact]
+    public async Task RuntimeSubscription_SaysTheGameWaitsInTheLuaDebugger()
+    {
+        using var temp = new TempDirectory();
+        await using var game = await FakeGame.StartAsync(temp.Path, "normal");
+        await using var watch = new RuntimeWatchCapture(game.Pid);
+        var world = await watch.WaitAsync(s => s.IsWorldReady && s.ActiveMilliseconds > 0 && s.SampleAgeMilliseconds < 1000);
+        Assert.False(world.InDebugger);
+
+        await File.WriteAllTextAsync(temp.GetPath("hold-debugger"), "hold");
+        await File.WriteAllTextAsync(temp.GetPath("break-on-error"), "break");
+        var stopped = await watch.WaitAsync(s => s.InDebugger);
+        // The world as it was, said once with a new sequence, and its sample keeps ageing.
+        Assert.True(stopped.Sequence > world.Sequence);
+        Assert.Equal(world.WorldSession, stopped.WorldSession);
+        Assert.Equal(world.ClockEpoch, stopped.ClockEpoch);
+        Assert.True(stopped.IsWorldReady);
+        Assert.True(stopped.SampleAgeMilliseconds >= 1000);
+        var waited = await watch.WaitAsync(s => s.SampleAgeMilliseconds > 3000);
+        Assert.True(waited.InDebugger);
+        Assert.Equal(stopped.Sequence, waited.Sequence);
+
+        // The player goes on: the game's own sample ends it, in a new clock epoch after the gap.
+        File.Delete(temp.GetPath("hold-debugger"));
+        var resumed = await watch.WaitAsync(s => s.Sequence > stopped.Sequence && s.SampleAgeMilliseconds < 1000);
+        Assert.False(resumed.InDebugger);
+        Assert.True(resumed.IsWorldReady);
+        Assert.Equal(world.WorldSession, resumed.WorldSession);
+        Assert.True(resumed.ClockEpoch > world.ClockEpoch);
+        Assert.False(File.Exists(temp.GetPath("calls.txt")));
     }
 
     private static void AssertNonPlaying(RuntimeSnapshot value)

@@ -12,21 +12,32 @@ public final class RuntimeObserver {
     private static volatile Context context;
     private static String id() { return UUID.randomUUID().toString().replace("-", ""); }
 
+    /**
+     * @param debugger the game thread has stopped in the game's Lua debugger since this sample: said by a stream thread,
+     *                 never by the game thread, whose next sample ends it
+     */
     public record Snapshot(String process, String observer, String world, long clock, long eligibility,
-        long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path, String gameVersion, LiveCharacter.Facts character, SaveExecution.Report execution) {
+        long sequence, String phase, String pause, String mode, int speed, long activeMillis, String path, String gameVersion, LiveCharacter.Facts character, SaveExecution.Report execution,
+        boolean debugger) {
         String wire(long age) {
             String encoded = path == null ? "-" : Base64.getEncoder().encodeToString(path.getBytes(StandardCharsets.UTF_8));
             // STATE5 adds the most the game's Java heap may grow to, in megabytes: the memory the game was started with.
-            return String.join("\t", "STATE5", process, observer, world, Long.toString(clock),
+            // STATE6 adds whether the game thread is stopped in the Lua debugger.
+            return String.join("\t", "STATE6", process, observer, world, Long.toString(clock),
                 Long.toString(eligibility), Long.toString(sequence), phase, pause, mode,
                 Integer.toString(speed), Long.toString(activeMillis), Long.toString(age), encoded,
                 "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1,runtime.version.v1,runtime.character.v1,runtime.save-result.v1,runtime.sleep.v1,runtime.heap.v1", gameVersion == null ? "-" : Base64.getEncoder().encodeToString(gameVersion.getBytes(StandardCharsets.UTF_8)), character.life(), character.character() == null ? "-" : character.character(), character.death() == null ? "-" : character.death(), execution == null ? "-" : execution.wire(), character.sleep(),
-                Long.toString(Runtime.getRuntime().maxMemory() >> 20));
+                Long.toString(Runtime.getRuntime().maxMemory() >> 20), debugger ? "Debugger" : "-");
         }
         /** This sample as the game's own sample reads once it is leaving its world. */
         Snapshot leaving(long next) {
             return new Snapshot(process, observer, world, clock, eligibility, next, "Unloading", "Unknown", mode, -1,
-                activeMillis, null, gameVersion, LiveCharacter.Facts.UNKNOWN, execution);
+                activeMillis, null, gameVersion, LiveCharacter.Facts.UNKNOWN, execution, false);
+        }
+        /** This sample, unchanged but for saying the game thread has stopped in the Lua debugger since. */
+        Snapshot inDebugger(long next) {
+            return new Snapshot(process, observer, world, clock, eligibility, next, phase, pause, mode, speed,
+                activeMillis, path, gameVersion, character, execution, true);
         }
     }
     /** A stopped generation is never mutated/reused by the next subscription. */
@@ -42,21 +53,22 @@ public final class RuntimeObserver {
         volatile Thread gameThread;
         String world = id(), phase = "Unknown", pause = "Unknown", mode = "Unsupported";
         Object lastCell;
-        // The sequence is also taken by a stream thread when the game is leaving its world (noticeLeaving): guarded by this.
+        // The sequence is also taken by a stream thread when the game is leaving its world or has stopped in the Lua
+        // debugger (noticeStall): guarded by this.
         long clockEpoch, eligibility, sequence, activeNanos, lastTick, published;
         // Stream threads only, guarded by this.
-        long leavingChecked;
+        long stallChecked;
         boolean wasRunning;
         Context(Class<?> window) throws Exception {
             adapter = PzRuntimeAdapter.of(window);
             characterReader = new LiveCharacter(window.getClassLoader());
-            lastSample = System.nanoTime(); published = lastSample; leavingChecked = lastSample - 1_000_000_000L;
+            lastSample = System.nanoTime(); published = lastSample; stallChecked = lastSample - 1_000_000_000L;
             snapshot = exact();
         }
         Snapshot exact() {
             return new Snapshot(PROCESS, observer, world, clockEpoch, eligibility, sequence,
                 phase, pause, mode, adapter.speedLevel, activeNanos / 1_000_000L,
-                phase.equals("Ready") ? adapter.path : null, adapter.gameVersion, phase.equals("Ready") && mode.equals("LocalSinglePlayer") ? character : LiveCharacter.Facts.UNKNOWN, SaveExecution.latest());
+                phase.equals("Ready") ? adapter.path : null, adapter.gameVersion, phase.equals("Ready") && mode.equals("LocalSinglePlayer") ? character : LiveCharacter.Facts.UNKNOWN, SaveExecution.latest(), false);
         }
         void sample() {
             if (!active) return;
@@ -101,23 +113,32 @@ public final class RuntimeObserver {
         }
         private synchronized void publish(long now) { sequence++; snapshot = exact(); published = now; }
         /**
-         * Leaving a world for the main menu saves it, unloads it and reloads every mod in one long frame, which starts
-         * after that frame's sample: the last sample still says the world is ready, as a hung game's would. Where the
-         * game thread is tells them apart, looked at at most once a second while it has not sampled for a second.
+         * A game thread that has stopped sampling is told apart by where it is, looked at at most once a second while
+         * it has not sampled for a second, and said once per stop:
+         * <ul>
+         * <li>Stopped in the Lua debugger (Break On Error, in any phase): the game waits for the player, alive. The
+         * sample is kept, saying so.</li>
+         * <li>Leaving a world for the main menu, which saves it, unloads it and reloads every mod in one long frame
+         * that starts after that frame's sample: the last sample still says the world is ready, as a hung game's
+         * would. The sample becomes the one the game would give once leaving.</li>
+         * </ul>
+         * Anywhere else it may be hung, and its sample is left to age.
          */
-        void noticeLeaving() {
+        void noticeStall() {
             Thread game = gameThread;
             Snapshot seen = snapshot;
             long sampled = lastSample, now = System.nanoTime();
-            if (game == null || !seen.phase().equals("Ready") || now - sampled < 1_000_000_000L) return;
+            if (game == null || seen.debugger() || now - sampled < 1_000_000_000L) return;
             synchronized (this) {
-                if (now - leavingChecked < 1_000_000_000L) return;
-                leavingChecked = now;
+                if (now - stallChecked < 1_000_000_000L) return;
+                stallChecked = now;
             }
-            if (!PzRuntimeAdapter.leavingWorld(game)) return;
+            StackTraceElement[] frames = PzRuntimeAdapter.stack(game);
+            boolean debugger = PzRuntimeAdapter.inLuaDebugger(frames);
+            if (!debugger && !(seen.phase().equals("Ready") && PzRuntimeAdapter.leavingWorld(frames))) return;
             synchronized (this) {
                 // A sample taken meanwhile is the game's own word, and newer.
-                if (snapshot == seen && lastSample == sampled) snapshot = seen.leaving(++sequence);
+                if (snapshot == seen && lastSample == sampled) snapshot = debugger ? seen.inDebugger(++sequence) : seen.leaving(++sequence);
             }
         }
     }
@@ -144,7 +165,7 @@ public final class RuntimeObserver {
     static String frame() {
         Context value = context;
         if (value == null || !value.active) throw new Deferred("runtime-unavailable");
-        value.noticeLeaving();
+        value.noticeStall();
         return value.snapshot.wire(Math.max(0, (System.nanoTime() - value.lastSample) / 1_000_000L));
     }
     public static Snapshot currentOnGameThread() {

@@ -23,6 +23,8 @@ public static class ActiveTimeSchedulePolicy
         if (observation.Quality == RuntimeQuality.Offline) hold |= ScheduleHold.GameOffline | ScheduleHold.NoWorld;
         else if (observation.Quality == RuntimeQuality.Ambiguous) hold |= ScheduleHold.Ambiguous;
         else if (observation.Quality == RuntimeQuality.Unsupported) hold |= ScheduleHold.Unsupported;
+        // Stopped in the Lua debugger, the game is known to stand still: its time is not counted, as for a pause.
+        else if (observation.IsInDebugger) hold |= ScheduleHold.GameDebugger;
         else if (!observation.IsFresh) hold |= ScheduleHold.Unknown;
         var sample = observation.Snapshot;
         if (!observation.IsFresh || sample is null)

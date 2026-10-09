@@ -657,6 +657,7 @@ Auf Speicher gewartet: wie oft ein Thread anhielt, bis Speicher frei wurde, weil
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Spiel wird geladen</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Spiel kehrt ins Hauptmenü zurück</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Charakter tot – Sicherungen warten</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Spiel im Lua-Debugger angehalten</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Keine Verbindung zum Spiel; es wird ohne vorheriges Speichern gesichert.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Der Schlafzustand ist derzeit nicht lesbar; es gilt nur die Pause.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Derzeit nicht aktiv, weil das Spiel nicht erreichbar ist.</value></data>

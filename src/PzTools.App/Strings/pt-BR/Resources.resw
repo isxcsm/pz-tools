@@ -657,6 +657,7 @@ Esperas por memória: quantas vezes uma thread parou até a memória ser liberad
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Carregando o jogo</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Jogo voltando ao menu principal</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Personagem morto – backups em espera</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Jogo parado no depurador Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Não foi possível conectar ao jogo; fazendo backup sem salvar o jogo antes.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>No momento não é possível ler o sono, então só a pausa se aplica.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Não se aplica no momento porque não há conexão com o jogo.</value></data>

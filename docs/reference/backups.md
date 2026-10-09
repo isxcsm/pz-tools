@@ -75,6 +75,7 @@ The sidebar shows when the next automatic backup is due. Where a time is shown, 
 | **Game starting** | No | The game has just been started and has not loaded yet. |
 | **Checking game status** | No | The game's state has been unknown for more than about 3 seconds. Shorter gaps keep the previous text. |
 | **Character dead – backups waiting** | No | Automatic backups wait for a new character or a revival. |
+| **Game stopped in Lua debugger** | Yes, held | The game (in debug mode) stopped on a Lua error or a breakpoint and waits in its Lua debugger. Automatic backups wait until you go on. With **Delay scheduled backups while paused or asleep** off, the time keeps running, and a backup that falls due waits too. |
 | **Skipping this backup** | Yes | The last game save may not have finished. This interval is skipped; backups resume when the time runs out. |
 | **Next backup (game not connected)** | Yes | The game cannot be read. Backups follow the clock and still try to save the game first. |
 | **Automatic backups after a game restart** | No | PZ Tools was updated while the game ran. Automatic backups wait until the game is restarted. |

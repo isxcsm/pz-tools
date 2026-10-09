@@ -657,6 +657,7 @@ GC работает: доля отрезка, когда работал сбор
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Игра загружается</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Игра возвращается в главное меню</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Персонаж мёртв – копии ждут</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Игра остановлена в отладчике Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Не удалось подключиться к игре; копия создаётся без сохранения игры.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Состояние сна сейчас недоступно, поэтому учитывается только пауза.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Сейчас не применяется: нет связи с игрой.</value></data>

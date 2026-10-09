@@ -664,6 +664,7 @@ GC ทำงาน: สัดส่วนของช่วงที่ตัว
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>กำลังโหลดเกม</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>เกมกำลังกลับไปที่เมนูหลัก</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>ตัวละครเสียชีวิต – รอการสำรอง</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>เกมหยุดอยู่ในดีบักเกอร์ Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>เชื่อมต่อกับเกมไม่ได้ จึงสำรองโดยไม่บันทึกเกมก่อน</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>ขณะนี้อ่านสถานะการหลับไม่ได้ จึงมีผลเฉพาะการหยุดชั่วคราว</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>ขณะนี้ไม่มีผลเพราะเชื่อมต่อกับเกมไม่ได้</value></data>

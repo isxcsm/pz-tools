@@ -130,6 +130,8 @@ public final class GameWindow {
             }
             if (consumeSignal(Path.of(args[0], "quit-to-menu")))
                 ((zombie.gameStates.IngameState)states.current).updateInternal(Path.of(args[0]));
+            // A Lua error with Break On Error on: the game thread waits in the Lua debugger.
+            if (consumeSignal(Path.of(args[0], "break-on-error"))) zombie.ui.UIManager.debugBreakpoint(args[0], 1);
             // A game hung in its world: the game thread stops elsewhere.
             while (Files.exists(Path.of(args[0], "hold-frame"))) Thread.sleep(20);
             if (Files.exists(Path.of(args[0], "leave-world"))) states.current = new zombie.gameStates.MainScreenState();

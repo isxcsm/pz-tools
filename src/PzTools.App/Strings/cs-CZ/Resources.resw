@@ -657,6 +657,7 @@ Podrobný: zaznamenává každých 0,001 až 0,0015 s a ukládá i čekání a z
   <data name="RuntimeBackupLoading" xml:space="preserve"><value>Hra se načítá</value></data>
   <data name="RuntimeBackupLeavingWorld" xml:space="preserve"><value>Hra se vrací do hlavní nabídky</value></data>
   <data name="RuntimeBackupCharacterDead" xml:space="preserve"><value>Postava je mrtvá – zálohy čekají</value></data>
+  <data name="RuntimeBackupDebugger" xml:space="preserve"><value>Hra zastavena v ladicím programu Lua</value></data>
   <data name="LogEvent.GameSaveUnavailable" xml:space="preserve"><value>Nepodařilo se připojit ke hře; zálohuje se bez předchozího uložení hry.</value></data>
   <data name="SettingSleepUnavailable" xml:space="preserve"><value>Spánek teď nelze přečíst, proto platí jen pauza.</value></data>
   <data name="SettingUnavailableGameLink" xml:space="preserve"><value>Nyní se nepoužívá, protože se nelze připojit ke hře.</value></data>

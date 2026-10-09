@@ -56,9 +56,11 @@ public sealed class StateProjector(
         if (observation is not null && !observation.IsLinkUnusable)
         {
             var world = observation.Snapshot;
-            bool ready = observation.IsFresh && world?.IsWorldReady == true;
+            // A game waiting in its Lua debugger still has open the world of its last sample.
+            bool known = observation.IsFresh || observation.IsInDebugger;
+            bool ready = known && world?.IsWorldReady == true;
             bool offline = observation.Quality == RuntimeQuality.Offline
-                || observation.IsFresh && world?.Phase is WorldPhase.Menu or WorldPhase.Unloading;
+                || known && world?.Phase is WorldPhase.Menu or WorldPhase.Unloading;
             game = ready ? GameState.Playing : offline ? GameState.NotPlaying
                 : observation.Quality == RuntimeQuality.Ambiguous ? GameState.Ambiguous : GameState.Unknown;
             for (int i = 0; i < mapped.Count; i++)
@@ -246,7 +248,9 @@ public sealed class SchedulerProjector(
             snapshot.PendingRuns,
             periodicInProgress,
             Hold: offline ? ScheduleHold.GameOffline | ScheduleHold.NoWorld
-                : observation.IsCharacterDead ? ScheduleHold.CharacterDead : ScheduleHold.None,
+                : observation.IsCharacterDead ? ScheduleHold.CharacterDead
+                // Periodic backups on the clock wait too (BackupScheduler.WaitsForDebugger).
+                : observation.IsInDebugger ? ScheduleHold.GameDebugger : ScheduleHold.None,
             GamePhase: RuntimeScheduleProjection.ObservedGamePhase(observation));
         views.Publish(
             ViewKey.ScheduleStatus, model, cursor,

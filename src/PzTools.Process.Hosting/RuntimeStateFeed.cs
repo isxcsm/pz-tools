@@ -31,9 +31,11 @@ public sealed class RuntimeSnapshotStore(TimeProvider? timeProvider = null)
         // Frames still arrive but the game thread has not sampled. Outside a world that is the game loading or
         // unloading, not a lost link; in a world it may be a hung game, and backups must not wait on it for good.
         // Unknown is included: reloading the mods on the way back to the menu reports no phase for a while.
-        bool busy = age <= 2000 && result.Snapshot!.Phase != WorldPhase.Ready;
+        // A game thread the bridge sees waiting in the Lua debugger is neither, in any phase: the game waits for its player.
+        bool arriving = age <= 2000;
         return result with { Quality = RuntimeQuality.Stale,
-            Reason = busy ? RuntimeObservation.GameBusyReason : "stale-game-sample" };
+            Reason = arriving && result.Snapshot!.InDebugger ? RuntimeObservation.GameDebuggerReason
+                : arriving && result.Snapshot!.Phase != WorldPhase.Ready ? RuntimeObservation.GameBusyReason : "stale-game-sample" };
     }
 }
 

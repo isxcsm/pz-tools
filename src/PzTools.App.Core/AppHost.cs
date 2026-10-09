@@ -267,7 +267,8 @@ public sealed class AppHost : IAsyncDisposable
             // nothing: started again once the link is back.
             if (observation.Quality == Process.Contracts.GameRuntime.RuntimeQuality.Offline) linkLost = null;
             else if (observation.IsFresh || observation.Reason is Process.Contracts.GameRuntime.RuntimeObservation.GameStartingReason
-                or Process.Contracts.GameRuntime.RuntimeObservation.GameBusyReason)
+                or Process.Contracts.GameRuntime.RuntimeObservation.GameBusyReason
+                or Process.Contracts.GameRuntime.RuntimeObservation.GameDebuggerReason)
             {
                 if (linkLost is { } lost && System.Diagnostics.Stopwatch.GetElapsedTime(lost) >= ProfileRecordingService.LeaseTerm)
                     Profiles.RollingLeaseLapsed();

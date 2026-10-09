@@ -42,9 +42,8 @@ public sealed class BackupScheduler(
         }
         if (now < busyRetryAt)
             return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
-        if (WaitsForGameRestart(admission))
+        if (WaitsForGameRestart(admission) || WaitsForDebugger(admission))
             return new BackupTickResult(false, null, null, null, null, ProcessOutcome.Skipped);
-
 
         var repository = await RepositoryDatabase.CreateOrOpenAsync(
             admission.RepositoryPath, cancellationToken);
@@ -114,7 +113,7 @@ public sealed class BackupScheduler(
             // Rechecked at the tick's own time (not the controller's clock read above), as when admitted.
             var currentAdmission = currentSelection.Enabled ? currentSelection.Admission
                 : await schedulerDatabase.PrepareBackupTickAsync(now, cancellationToken, preparationLead);
-            bool valid = currentAdmission?.AdmissionId == admission.AdmissionId && !WaitsForGameRestart(admission)
+            bool valid = currentAdmission?.AdmissionId == admission.AdmissionId && !WaitsForGameRestart(admission) && !WaitsForDebugger(admission)
                 && (currentSelection.Enabled && !RuntimeScheduleController.IsFallback(admission)
                     || (isTargetActive is null || isTargetActive(admission.Target)) && !WaitsForNewCharacter(admission));
             if (!valid) backup = new WorkerInvocation(false, ProcessOutcome.Skipped,
@@ -273,6 +272,12 @@ public sealed class BackupScheduler(
     }
 
     private bool restartHeld;
+
+    // The game waits in its Lua debugger, its world frozen where the error stopped it, possibly in the middle of writing
+    // the save; it cannot save first either. Nothing in the world moves meanwhile, so a periodic backup, on game time or
+    // on the clock, stays due until the player goes on (or leaves the game). A backup the user asks for still runs.
+    private bool WaitsForDebugger(BackupTickAdmission admission) =>
+        admission.Kind == BackupAdmissionKind.Periodic && runtimeSchedule?.Observation is { IsInDebugger: true };
 
     private async Task TryRecordTelemetryAsync(
         long runIndex,

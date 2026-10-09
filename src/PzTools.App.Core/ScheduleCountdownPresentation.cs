@@ -25,6 +25,14 @@ public static class ScheduleCountdownPresentation
         if (schedule.Fallback && schedule.NextDueUtc is { } fallbackDue)
             return fallbackDue <= now ? new(WaitingKey(schedule))
                 : new("RuntimeBackupFallback", (long)Math.Ceiling((fallbackDue - now).TotalSeconds));
+        // Stopped in the Lua debugger: backups wait for the game to go on. On game time the time left stands still, as
+        // in a pause; on the clock it runs, and a backup that falls due waits.
+        if ((schedule.Hold & ScheduleHold.GameDebugger) != 0)
+            return schedule.PauseAware
+                ? new("RuntimeBackupDebugger", (schedule.Hold & ScheduleHold.NoWorld) == 0 && schedule.RemainingMilliseconds is { } frozen
+                    ? (long)Math.Ceiling(Math.Max(0, frozen) / 1000d) : null, true)
+                : new("RuntimeBackupDebugger", schedule.NextDueUtc is { } next && next > now
+                    ? (long)Math.Ceiling((next - now).TotalSeconds) : null);
         // The skipped interval keeps counting down; backups resume when it ends.
         if (schedule.PauseAware && schedule.CompletionUncertain)
             return new("RuntimeBackupCompletionUnknown", schedule.RemainingMilliseconds is { } left

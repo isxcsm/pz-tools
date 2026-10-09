@@ -61,9 +61,9 @@ Leaving a world for the main menu happens in one frame. The quit button sets `Co
 state then ends: `IngameState.exit` unloads the world and reloads every mod. All of this comes after that
 frame's sample, which therefore still says `Ready`. On its own, that looks like a game hung in its world.
 
-When the game thread has not sampled for a second and the last sample says `Ready`, the stream thread
-(`RuntimeObserver.Context.noticeLeaving`) looks at the game thread's stack, at most once a second
-(`PzRuntimeAdapter.leavingWorld`). The game is leaving when the stack has either:
+When the game thread has not sampled for a second, the stream thread (`RuntimeObserver.Context.noticeStall`)
+looks at the game thread's stack, at most once a second and once per stop. When the last sample says `Ready`, the
+game is leaving (`PzRuntimeAdapter.leavingWorld`) when the stack has either:
 
 - `IngameState.exit`;
 - `IngameState.updateInternal` calling `GameWindow.save` or `PlayerDB.saveLocalPlayersForce`.
@@ -72,6 +72,28 @@ In that case the snapshot becomes the `Unloading` sample the game would have giv
 number. A sample the game thread took meanwhile wins. The app then shows **Game is returning to main menu**. Once the game
 thread has not sampled for 2 s, the snapshot counts as `game-busy`, not as a link to fall back from. A game
 thread stopped anywhere else in a world stays `Ready`, and then stale.
+
+<a id="the-lua-debugger"></a>
+The game thread can also wait in the game's Lua debugger, in any phase: in debug mode, a Lua error with **Break On
+Error** on, a breakpoint or a step calls `UIManager.debugBreakpoint`. That method runs a loop of its own on the game
+thread, drawing only the debugger, until the player resumes; `GameWindow.logic`, and with it the sample, does not run.
+When the stack has `UIManager.debugBreakpoint` (`PzRuntimeAdapter.inLuaDebugger`, looked at before leaving), the
+snapshot is kept with its debugger flag set (`STATE6`), again with a new sequence number. The game thread's next sample
+clears it; after a stop of more than 2 s that sample starts a new clock epoch, as any gap does.
+
+On the app's side, once the sample is older than 2 s while frames still arrive, the observation is `Stale` with
+`game-debugger` (`RuntimeObservation.IsInDebugger`): a known state, not a lost link. The game is alive and its world as
+it was, frozen. So:
+
+- the countdown holds (`GameDebugger`) without counting the wait, and resumes where it stood;
+- no clock-time fallback starts, however long the player reads the error;
+- periodic backups on the clock (game-aware timing off) wait as well (`BackupScheduler.WaitsForDebugger`): the game
+  cannot save first, and it may have stopped in the middle of writing its save. A backup the user asks for still runs;
+- the save stays the one in play (`GameActivityLane`, `StateProjector`), and the game extensions keep their world
+  (`RuntimeExtensionCoordinator.KeepsWorldWhileStale`), past the 30 s a stall otherwise gets;
+- the schedule line shows **Game stopped in Lua debugger**.
+
+Frames that stop arriving are a lost link wherever the game thread was, and a game that exits is offline.
 
 Transport and SQLite work stay off the game thread. `state.db` is written only on a semantic change; the
 schedule checkpoint on a boundary change and at most every 10 s while the countdown moves.
@@ -90,6 +112,7 @@ during the break is never counted. Game speed does not matter: the clock counts 
 | Asleep | `Sleeping` | Kept |
 | Sleep unreadable | None | Counts down |
 | Character dead | `CharacterDead` | Reset to a full interval while dead ([death backups](runtime-character-death.md)) |
+| Waiting in the game's [Lua debugger](#the-lua-debugger) | `GameDebugger` | Kept |
 | Before the first frame, loading, stale, `Unknown` phase | `Unknown` | Kept |
 | Several game processes | `Ambiguous` | Kept |
 | Multiplayer, a mode without saving, or a save outside the configured saves root (`outside-configured-save-root`; the [game extensions](game-extensions.md#delivery) still run) | `Unsupported` | Kept |
@@ -159,7 +182,7 @@ unrecognised state. Each game-dependent feature stops only for what it needs.
 - `Unknown` quality, except before the game's first frame (`game-starting`);
 - `Stale` quality, except `game-busy`: frames still arrive, the game thread has not sampled for 2 s, and its
   last sample is outside a world or [leaving one](#leaving-a-world), as when returning to the main menu
-  reloads every mod;
+  reloads every mod; and except `game-debugger`: the game thread waits in the [Lua debugger](#the-lua-debugger);
 - a fresh frame whose phase is `Unknown` (the game answers without a recognisable state).
 
 A game still starting is a known state however long its first load takes: its observer samples on the main

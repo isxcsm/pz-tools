@@ -12,7 +12,9 @@ public enum RuntimeSleep { Unknown, Awake, Asleep }
 public enum RuntimeMode { Unsupported, LocalSinglePlayer, Networked }
 public enum RuntimeQuality { Unknown, Fresh, Stale, Unsupported, Ambiguous, Offline }
 [Flags]
-public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32, Sleeping = 64, GameOffline = 128, CharacterDead = 256 }
+public enum ScheduleHold { None = 0, Disabled = 1, NoWorld = 2, GamePaused = 4, Unknown = 8, Unsupported = 16, Ambiguous = 32, Sleeping = 64, GameOffline = 128, CharacterDead = 256,
+    /// <summary>The game is stopped in its Lua debugger (<see cref="RuntimeObservation.IsInDebugger"/>).</summary>
+    GameDebugger = 512 }
 public enum ScheduleDisposition { Default, Preserve, Consume, CompletionUnknown }
 
 /// <summary>Durations belong to one observer/clock epoch, never to the host's UTC clock.</summary>
@@ -23,7 +25,12 @@ public sealed record RuntimeSnapshot(
     string? SavePath, string? GameVersion = null, RuntimeCharacterLife CharacterLife = RuntimeCharacterLife.Unknown, string? CharacterSession = null, string? DeathId = null, RuntimeSaveExecution? LastSave = null, RuntimeSleep Sleep = RuntimeSleep.Unknown,
     // The most the game's Java heap may grow to, in megabytes (STATE5 on): the memory it was started with. Not part of
     // the semantic key, as it does not change while the game runs.
-    long? HeapMaximumMegabytes = null)
+    long? HeapMaximumMegabytes = null,
+    // The game thread has stopped in the game's Lua debugger since this sample (STATE6 on): a Lua error with Break On
+    // Error on, a breakpoint or a step. Said by the bridge's stream thread from where the game thread is; the game's
+    // next sample ends it. Not part of the semantic key: the observation's reason says it once the sample is old
+    // (RuntimeObservation.GameDebuggerReason).
+    bool InDebugger = false)
 {
     public const string Capabilities = "runtime.snapshot.v1,runtime.active-clock.v1,save.guarded.v1";
     public string SemanticKey => $"{ProcessSession}/{ObserverEpoch}/{WorldSession}/{ClockEpoch}/{EligibilityEpoch}/{Phase}/{Pause}/{Mode}/{SavePath}/{GameVersion}/{CharacterLife}/{CharacterSession}/{DeathId}/{LastSave?.SemanticKey}/{Sleep}";
@@ -78,7 +85,7 @@ public sealed record RuntimeSnapshot(
     {
         var p = line.Split('\t');
         if (!(p.Length == 15 && p[0] == "STATE1" || p.Length == 16 && p[0] == "STATE2" || p.Length == 20 && p[0] == "STATE3" || p.Length == 21 && p[0] == "STATE4"
-            || p.Length == 22 && p[0] == "STATE5")) throw new InvalidDataException("Unsupported runtime frame.");
+            || p.Length == 22 && p[0] == "STATE5" || p.Length == 23 && p[0] == "STATE6")) throw new InvalidDataException("Unsupported runtime frame.");
         static long Number(string value) => long.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture);
         static T Kind<T>(string value) where T : struct, Enum =>
             Enum.TryParse<T>(value, false, out var result) && Enum.IsDefined(result)
@@ -87,7 +94,12 @@ public sealed record RuntimeSnapshot(
             Kind<WorldPhase>(p[7]), Kind<GamePause>(p[8]), Kind<RuntimeMode>(p[9]),
             int.Parse(p[10], CultureInfo.InvariantCulture), Number(p[11]), Number(p[12]),
             p[13] == "-" ? null : new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[13])), p.Length >= 16 && p[15] != "-" ? new UTF8Encoding(false, true).GetString(Convert.FromBase64String(p[15])) : null, p.Length >= 19 ? Kind<RuntimeCharacterLife>(p[16]) : RuntimeCharacterLife.Unknown, p.Length >= 19 && p[17] != "-" ? p[17] : null, p.Length >= 19 && p[18] != "-" ? p[18] : null, p.Length >= 20 && p[19] != "-" ? RuntimeSaveExecution.Parse(p[19]) : null, p.Length >= 21 ? Kind<RuntimeSleep>(p[20]) : RuntimeSleep.Unknown,
-            p.Length >= 22 ? Heap(p[21]) : null)
+            p.Length >= 22 ? Heap(p[21]) : null, p.Length >= 23 && p[22] switch
+            {
+                "-" => false,
+                "Debugger" => true,
+                _ => throw new InvalidDataException("Unknown runtime stall."),
+            })
             .RequireCapabilities(p[14]).Validate();
     }
     // Only said for the player to see: a heap Java reports as having no limit (Long.MAX_VALUE, shifted) is no heap
@@ -146,6 +158,14 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     /// Returning to the main menu reloads every mod, which can take minutes. A known state, not a lost link.
     /// </summary>
     public const string GameBusyReason = "game-busy";
+    /// <summary>
+    /// Connected, and the game has stopped sampling because its game thread waits in the game's Lua debugger (a Lua
+    /// error with Break On Error on, in debug mode). The game is alive and its world as it was, frozen until the player
+    /// goes on: a known state, not a lost link. Nothing in the world moves meanwhile, so backups wait for it.
+    /// </summary>
+    public const string GameDebuggerReason = "game-debugger";
+    /// <summary>The game waits in its Lua debugger (<see cref="GameDebuggerReason"/>); its last sample says where.</summary>
+    public bool IsInDebugger => Quality == RuntimeQuality.Stale && Reason == GameDebuggerReason && Snapshot is not null;
     /// <summary>The game still runs a bridge older than this app's; it connects again after a game restart.</summary>
     public const string RestartRequiredReason = "runtime-restart-required";
     /// <summary>The game was started with connecting turned off by a launch option.</summary>
@@ -153,10 +173,11 @@ public sealed record RuntimeObservation(string StreamEpoch, RuntimeQuality Quali
     /// <summary>
     /// A game is running but its state cannot be read: the connection failed, or it answers without
     /// a recognisable game state (for example after a game update). An absent game, a second game,
-    /// multiplayer, a game still starting and a loading world are known states, not an unusable link.
+    /// multiplayer, a game still starting, a loading world and a game waiting in its Lua debugger are known
+    /// states, not an unusable link.
     /// </summary>
     public bool IsLinkUnusable => Quality is RuntimeQuality.Unknown && Reason != GameStartingReason
-        || Quality is RuntimeQuality.Stale && Reason != GameBusyReason
+        || Quality is RuntimeQuality.Stale && Reason is not (GameBusyReason or GameDebuggerReason)
         || Quality == RuntimeQuality.Fresh && Snapshot is { Phase: WorldPhase.Unknown };
     /// <summary>The running game's version, only while it has this save loaded; a save records no version itself.</summary>
     public string? GameVersionFor(string savePath) =>
