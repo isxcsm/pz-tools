@@ -61,8 +61,10 @@ FACINGS = (('S', 0), ('E', 3), ('N', 2), ('W', 1))
 SOLID = {'BlocksPlacement': '', 'solidtrans': ''}
 
 
+# A named tile's display name is the Moveables translation of GroupName + CustomName (spaces to underscores, as
+# OA_bulkShredder_Bulk_Shredder): every named tile has a group (OA, or a machine's own), so the keys are the mod's.
 def props(name, **more):
-    out = {'CustomName': name}
+    out = {'CustomName': name, 'GroupName': 'OA'}
     out.update(more)
     return out
 

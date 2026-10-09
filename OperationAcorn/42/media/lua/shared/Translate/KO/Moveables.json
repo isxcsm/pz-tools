@@ -1,0 +1,17 @@
+{
+    "OA_shredBench_Shred_Bench": "분해대",
+    "OA_bulkShredder_Bulk_Shredder": "대량 분해기",
+    "OA_cutter_Cutter": "재단기",
+    "OA_woodSaw_Wood_Saw": "목재 절단기",
+    "OA_researchStorage_Research_Storage": "연구팀 보관함",
+    "OA_propaneRefiner_Propane_Refiner": "프로판 정제기",
+    "OA_oilRefiner_Oil_Refiner": "오일 정제기",
+    "OA_rainStorage_Big_Rain_Storage": "대형 빗물 저장소",
+    "OA_Lure": "설치형 미끼",
+    "OA_Communication_Terminal": "통신 단말",
+    "OA_Delivery_Box": "납품 상자",
+    "OA_Supply_Crate": "보급 상자",
+    "OA_Parachute_Crate": "낙하산 상자",
+    "OA_Meteorite": "운석",
+    "OA_Site_Stake": "측량 말뚝"
+}

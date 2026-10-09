@@ -24,7 +24,7 @@ import sys
 MEDIA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'OperationAcorn', '42', 'media')
 ROOT = os.path.join(MEDIA, 'lua')
 UI_FILES = ['IG_UI.json', 'ContextMenu.json', 'Tooltip.json']
-FILES = UI_FILES + ['Sandbox.json', 'ItemName.json', 'Recipes.json']
+FILES = UI_FILES + ['Sandbox.json', 'ItemName.json', 'Recipes.json', 'Moveables.json']
 LANGS = ['EN', 'KO']
 KEY = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_OA_\w*|IGUI_ContainerTitle_OA\w*)["\'](?!\s*\.\.)')
 PREFIX = re.compile(r'["\']((?:IGUI|ContextMenu|Tooltip)_OA_\w+)["\']\s*\.\.')
