@@ -175,7 +175,7 @@
     "IGUI_OA_Tree_Node_sight_Name": "Sight Correction",
     "IGUI_OA_Tree_Node_sight_Rank": "Your field of view is %1° wider.",
     "IGUI_OA_Tree_Node_sixth_Name": "Hunch",
-    "IGUI_OA_Tree_Node_sixth_Rank": "The Hunch moodle shows while a zombie is within %1 tiles.",
+    "IGUI_OA_Tree_Node_sixth_Rank": "The Hunch moodle shows while a zombie you cannot see is within %1 tiles.",
     "IGUI_OA_Tree_Node_alarm_Name": "Alarm Reading",
     "IGUI_OA_Tree_Node_alarm_Rank": "Houses and cars fitted with an alarm are marked as you pass them.",
     "IGUI_OA_Tree_Node_ledger_Name": "Search Ledger",
