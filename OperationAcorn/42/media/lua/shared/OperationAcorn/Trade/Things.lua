@@ -51,8 +51,9 @@ Things.watch, Things.unwatch = watch, unwatch
 function Things.placeTerminal(character, square, facing, item, record)
     local ok, why = Objects.free(square)
     if not ok then return false, why end
-    local object = Objects.create(square, Objects.terminalSprite(facing, Objects.powered(square)),
-        Objects.TERMINAL, { OA_Facing = facing })
+    local upgraded = item and item:getModData()[Objects.UPGRADED] == true
+    local object = Objects.create(square, Objects.terminalSprite(facing, Objects.powered(square), upgraded),
+        Objects.TERMINAL, { OA_Facing = facing, [Objects.UPGRADED] = upgraded or nil })
     Objects.consume(character, item)
     watch("trade.terminal", square:getX(), square:getY(), square:getZ())
     Objects.showTerminal(object)
@@ -76,8 +77,26 @@ function Things.takeTerminal(character, object)
     local square = object:getSquare()
     if not square then return false end
     unwatch("trade.terminal", square:getX(), square:getY(), square:getZ())
+    local upgraded = Objects.isUpgraded(object)
     Objects.remove(object)
-    Objects.giveHeavy(character, Objects.ITEMS.terminal)
+    Objects.giveHeavy(character, Objects.ITEMS.terminal, upgraded and { [Objects.UPGRADED] = true } or nil)
+    return true
+end
+
+-- Upgrades a terminal with the kit the character carries: the team's own terminal from now on (its look, and the
+-- price graph in its market tab). The kit is used up.
+function Things.upgradeTerminal(character, object)
+    if Objects.kindOf(object) ~= Objects.TERMINAL then return false, "noTerminal" end
+    if Objects.isUpgraded(object) then return false, "upgraded" end
+    local square = object:getSquare()
+    if not square or not near(character, square:getX(), square:getY()) then return false, "far" end
+    local kit = character:getInventory():getFirstTypeRecurse(Objects.ITEMS.kit)
+    if not kit then return false, "noKit" end
+    Objects.consume(character, kit)
+    object:getModData()[Objects.UPGRADED] = true
+    if isServer() then object:transmitModData() end
+    Objects.showTerminal(object)
+    square:playSound(Things.LATCH_SOUND)
     return true
 end
 

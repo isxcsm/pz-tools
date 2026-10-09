@@ -15,6 +15,8 @@
     "ContextMenu_OA_Tree_Pry": "빠루로 열기 (%1)",
     "ContextMenu_OA_Tree_Pick": "자물쇠 따기 (%1)",
     "ContextMenu_OA_Trade_UseTerminal": "통신 단말 사용",
+    "ContextMenu_OA_Trade_UpgradeTerminalTip": "연구팀 정식 단말로 바꿉니다. 시세 탭에 가격 그래프가 나옵니다. 키트는 사라집니다.",
+    "ContextMenu_OA_Trade_UpgradeTerminal": "단말 개량 키트 달기",
     "ContextMenu_OA_Trade_NeedPower": "단말에는 전기가 필요합니다.",
     "ContextMenu_OA_Trade_SealBox": "납품 상자 밀봉...",
     "ContextMenu_OA_Trade_LoadBox": "근처 물건 담기 (%1점)",

@@ -6,8 +6,10 @@ their footprint (tile_big1/2/3.py).
 
 The sheets (8 tiles a row; the code names a tile by its place: see Sprites.lua):
 
-    oa_trade_01     the communication terminal (off, on; S E N W each), the delivery box, the supply crate, the
-                    parachute crate, the scorched ground, the meteor rocks, the drop-site stake (16 tiles)
+    oa_trade_01     the communication terminal, the upgraded one (off, on; S E N W each: 0-7), the delivery box, the
+                    supply crate, the parachute crate, the scorched ground, the meteor rocks, the drop-site stake (8-15),
+                    the crude terminal, the first-day one made of a home computer and a ham radio (off, on; S E N W
+                    each: 16-23): 24 tiles in three rows, places 24-31 free
     oa_machines_01  the shred bench, bulk shredder, cutter, wood saw, research storage (2x1), the propane and oil
                     refiners (2x2), the big rain storage (2x2, four water levels: full 128-131, the lure 132-133, then empty,
                     a quarter, a half at 134-145), the lure (1x1): 146 tiles. A machine takes
@@ -96,6 +98,8 @@ TRADE = (
        (lambda: T.supply_crate(False), SUPPLY_SEALED), (lambda: T.supply_crate(True), SUPPLY)]
     # 12: the crate on its parachute; 13: the scorched ground; 14: the meteor rocks; 15: the stake
     + [(T.parachute_crate, PARACHUTE), (T.scorched_ground, DECAL), (T.meteor_rocks, ROCKS), (T.site_stake, STAKE)]
+    # 16-19, 20-23: the crude terminal (the first-day one; the terminal above is its upgrade), off and on
+    + facings2(T.crude_terminal, TERMINAL, False) + facings2(T.crude_terminal, TERMINAL, True)
 )
 
 # The big machines. foot = (w along x, h along y) facing south; the east and west facings swap them. states: 1, or 2
@@ -298,7 +302,7 @@ def trade_entries():
 
 
 SHEETS = {
-    'trade': dict(sheet='oa_trade_01', file='oa_trade.tiles', pack='OperationAcornTrade', make=trade_entries, rows=2),
+    'trade': dict(sheet='oa_trade_01', file='oa_trade.tiles', pack='OperationAcornTrade', make=trade_entries, rows=3),
     'machines': dict(sheet='oa_machines_01', file='oa_machines.tiles', pack='OperationAcornMachines',
                      make=machine_entries, rows=MACHINE_ROWS, extra=lambda: lure_fx_frames()),
 }

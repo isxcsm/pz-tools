@@ -204,7 +204,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 | 타일 | 속성 |
 | --- | --- |
-| 통신 단말 0~7 | `BlocksPlacement`, `solidtrans`, `Facing` |
+| 통신 단말 0~7(개량), 16~23(조립) | `BlocksPlacement`, `solidtrans`, `Facing` |
 | 납품 상자 8·9 | `container=crate`, `ContainerCapacity=50`, `IsLow`, `BlocksPlacement`, `solidtrans` |
 | 보급 상자 10·11 | `container=militarycrate`, `ContainerCapacity=100`, `IsLow`, `BlocksPlacement`, `solidtrans` |
 | 낙하산 상자 12 | `BlocksPlacement`, `solidtrans` |

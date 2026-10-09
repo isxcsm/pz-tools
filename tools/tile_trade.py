@@ -1,5 +1,5 @@
 """The trade sheet's objects (besides the terminal): the delivery box, the supply crate, the parachute crate, the scorched
-ground, the meteor rocks and the drop-site stake."""
+ground, the meteor rocks, the drop-site stake, and the crude terminal (the first-day one the terminal upgrades)."""
 import math
 import random
 
@@ -10,7 +10,7 @@ from tile_engine import (Scene, shadow, compose, unit, rotation, apply, add, sub
                          IDENTITY, project, SS, W, H, UP)
 from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GREY, STEEL, STEEL_DARK, PIPE, WHITE,
                           STENCIL, YELLOW, RED, BRASS, WOOD, WOOD_DARK, lamp, stick, flat_decal, front_decal,
-                          side_decal, noise_texture, face_frame)
+                          side_decal, noise_texture, face_frame, lamp_y, knob_y, dial_image)
 
 FOAM = (58, 64, 56)
 STRAW = (190, 168, 110)
@@ -343,3 +343,206 @@ def site_stake():
                col, (0, -1, -0.2))
     ground = shadow((0.5, 0.5), 0.22, 0.16, 100)
     return compose(s, ground=ground, seed=71)
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# The crude terminal: the first-day communication terminal the player puts together from a home computer and a ham
+# radio. The polished terminal (tile_objects.terminal) is the upgrade bought later; this one stands on the same square
+# with about the same height, so it reads as the same object, only jury-rigged.
+
+BEIGE = (198, 188, 160)          # an old home computer's yellowed plastic
+BEIGE_DARK = (162, 152, 124)
+BEIGE_LIGHT = (214, 206, 180)
+HAM = (56, 58, 60)               # the ham radio's black case
+HAM_FACE = (178, 180, 176)       # its brushed front panel
+TAPE = (172, 174, 170)           # duct tape
+CRATE = (160, 126, 82)           # a fruit crate's raw boards
+CRATE_DARK = (118, 90, 56)
+PHOSPHOR = (90, 255, 120)        # a green monochrome monitor's glow
+
+
+def crt_image(on, w=64, h=48):
+    """The CRT's glass: on, a green monochrome screen of lines of text with a prompt and a cursor, the corners dimmed
+    by the tube's curve; off, dark grey glass with a pale reflection."""
+    if not on:
+        img = Image.new('RGBA', (w, h), (44, 48, 46, 255))
+        d = ImageDraw.Draw(img)
+        d.polygon([(w * 0.08, 0), (w * 0.42, 0), (w * 0.12, h * 0.7)], fill=(62, 68, 64, 255))
+        d.polygon([(w * 0.5, 0), (w * 0.58, 0), (w * 0.3, h), (w * 0.22, h)], fill=(54, 60, 56, 255))
+    else:
+        img = Image.new('RGBA', (w, h), (8, 34, 14, 255))
+        d = ImageDraw.Draw(img)
+        bright, dim = (150, 255, 160, 255), (60, 190, 80, 255)
+        rnd = random.Random(23)
+        for row in range(6):
+            y = 4 + row * 7
+            x = 4
+            limit = rnd.randint(w // 2, w - 6)
+            while x < limit:
+                word = rnd.randint(2, 6) * 3
+                d.rectangle([x, y, min(limit, x + word), y + 2], fill=bright if row % 2 == 0 else dim)
+                x += word + 4
+        d.rectangle([4, h - 7, 8, h - 4], fill=bright)       # the prompt
+        d.rectangle([12, h - 7, 15, h - 4], fill=bright)     # the cursor
+    a = np.asarray(img).astype(np.float64)
+    yy, xx = np.mgrid[0:h, 0:w]
+    r = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
+    a[..., :3] *= np.clip(1.25 - r * 0.45, 0.45, 1.0)[..., None]
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGBA')
+
+
+def tower_front_image(w=32, h=72):
+    """The computer tower's front: two 5.25-inch drive bays, a floppy slot, the badge and the vents."""
+    img = Image.new('RGBA', (w, h), BEIGE + (255,))
+    d = ImageDraw.Draw(img)
+    for i in range(2):
+        y = 6 + i * 11
+        d.rectangle([3, y, w - 4, y + 8], fill=BEIGE_DARK + (255,))
+        d.rectangle([6, y + 3, w - 7, y + 5], fill=(40, 40, 38, 255))
+    d.rectangle([7, 31, w - 8, 36], fill=BEIGE_DARK + (255,))
+    d.rectangle([9, 33, w - 10, 34], fill=(40, 40, 38, 255))
+    d.rectangle([4, 42, 13, 46], fill=(70, 90, 150, 255))      # the maker's badge
+    for i in range(5):
+        d.line([(5, 54 + i * 3), (w - 6, 54 + i * 3)], fill=BEIGE_DARK + (255,), width=1)
+    return img
+
+
+def tape_x_image(w=48, h=48):
+    """Two crossed strips of duct tape."""
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = TAPE + (255,)
+    d.polygon([(2, 8), (8, 2), (46, 40), (40, 46)], fill=c)
+    d.polygon([(40, 2), (46, 8), (8, 46), (2, 40)], fill=c)
+    d.line([(9, 4), (44, 39)], fill=(196, 198, 194, 255), width=1)
+    return img
+
+
+def note_image(w=40, h=32):
+    """A sheet of notepaper with a frequency and a call sign scrawled on it, taped at the top."""
+    img = Image.new('RGBA', (w, h), (236, 232, 206, 255))
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(5)
+    for row in range(4):
+        y = 9 + row * 6
+        x = 4
+        while x < w - 8:
+            seg = rnd.randint(3, 8)
+            d.line([(x, y + rnd.randint(-1, 1)), (x + seg, y + rnd.randint(-1, 1))], fill=(40, 50, 120, 255), width=1)
+            x += seg + 3
+    d.rectangle([w // 2 - 8, 0, w // 2 + 8, 4], fill=TAPE + (255,))
+    return img
+
+
+def cable(s, pts, r, colour):
+    """A loose cable through the points: a chain of thin tubes with round joints."""
+    for a, b in zip(pts, pts[1:]):
+        s.tube(a, b, r, colour, segments=8)
+    for p in pts[1:-1]:
+        s.sphere(p, (r, r, r), colour, rings=3, segments=6)
+
+
+def crude_terminal(turns, on):
+    """The crude communication terminal: a beige home computer (tower, CRT monitor, keyboard) and a ham radio set on a
+    fruit crate, joined with loose cables and duct tape; the radio sits on a phone book, its whip antenna taped on, the
+    frequency on a note taped to the crate. Its front (the screen) is south. Lit: the monitor glows green with text, the
+    radio's meter glows amber, its lamp and the computer's power lamp are lit."""
+    s = Scene(turns)
+    glows = []
+    # The crate: raw boards with gaps on every side, darker corner posts, the top's boards across.
+    x0, x1, y0, y1, zt = 0.12, 0.88, 0.25, 0.77, 0.40
+    s.box(x0, y0, 0.0, x1, y1, zt, CRATE, top=CRATE, shine=0.03)
+    centre, size = ((x0 + x1) / 2, (y0 + y1) / 2, zt / 2), (x1 - x0, y1 - y0, zt)
+    for face, seed in (('+y', 81), ('-y', 82), ('+x', 83), ('-x', 84)):
+        stick(s, centre, IDENTITY, size, face, plank_lines(96, 40, seed, CRATE, lines=4, spread=12), offset=0.001)
+    flat_decal(s, x0, y0, x1, y1, zt, plank_lines(96, 64, 85, CRATE, lines=5, vertical=True, spread=12), offset=0.001)
+    for cx, cy in ((x0, y0), (x1 - 0.035, y0), (x0, y1 - 0.035), (x1 - 0.035, y1 - 0.035)):
+        s.box(cx - 0.006, cy - 0.006, 0.0, cx + 0.041, cy + 0.041, zt + 0.004, CRATE_DARK)
+    # a faded stencil of the crate's first life, and the note with the frequency taped beside it
+    front_decal(s, x0 + 0.08, x0 + 0.40, 0.08, 0.17, y1 + 0.002, stencil_text('APPLES', 60, 18, (88, 62, 36)))
+    front_decal(s, x1 - 0.30, x1 - 0.10, 0.17, 0.33, y1 + 0.004, note_image())
+
+    # The tower on the west, standing on the crate; tape crossed on its side where the panel came loose.
+    tx0, tx1, ty0, ty1, tz1 = 0.15, 0.29, 0.31, 0.69, 0.82
+    s.box(tx0, ty0, zt, tx1, ty1, tz1, BEIGE, top=BEIGE_LIGHT, shine=0.15)
+    front_decal(s, tx0 + 0.01, tx1 - 0.01, zt + 0.03, tz1 - 0.02, ty1 + 0.001, tower_front_image())
+    side_decal(s, ty0 + 0.08, ty0 + 0.24, tz1 - 0.24, tz1 - 0.08, tx1 + 0.001, tape_x_image())
+    lamp_y(s, glows, tx0 + 0.035, ty1, zt + 0.08, 0.009, 'green', on)
+    s.box(tx1 - 0.05, ty1, zt + 0.06, tx1 - 0.02, ty1 + 0.012, zt + 0.10, BEIGE_DARK)
+
+    # The CRT monitor in the middle: the beige front with the glass, the tube's housing behind, a swivel foot.
+    mx0, mx1, my1, mz0, mz1 = 0.30, 0.63, 0.67, 0.445, 0.77
+    s.box(0.40, 0.44, zt, 0.54, 0.62, mz0, BEIGE_DARK, top=BEIGE)
+    s.box(mx0, 0.50, mz0, mx1, my1, mz1, BEIGE, top=BEIGE_LIGHT, shine=0.15)
+    s.box(mx0 + 0.04, 0.34, mz0 + 0.03, mx1 - 0.04, 0.50, mz1 - 0.03, BEIGE_DARK, top=BEIGE, shine=0.1)
+    # the vents on the tube's back: the screen's green shows through them when it is on (seen from behind)
+    vents = Image.new('RGBA', (40, 24), (0, 0, 0, 0))
+    vd = ImageDraw.Draw(vents)
+    for i in range(6):
+        vd.rectangle([3 + i * 6, 3, 6 + i * 6, 20], fill=(70, 200, 96, 255) if on else (52, 50, 44, 255))
+    s.decal((mx1 - 0.06, 0.34, mz1 - 0.06), (-(mx1 - mx0 - 0.12), 0, 0), (0, 0, -0.14), vents, (0, -1, 0), 0.003, on)
+    front_decal(s, mx0 + 0.02, mx1 - 0.02, mz0 + 0.025, mz1 - 0.015, my1 + 0.001,
+                Image.new('RGBA', (8, 8), (70, 68, 60, 255)))
+    front_decal(s, mx0 + 0.03, mx1 - 0.03, mz0 + 0.045, mz1 - 0.025, my1 + 0.003, crt_image(on), emit=on)
+    s.box(mx1 - 0.06, my1, mz0 + 0.005, mx1 - 0.035, my1 + 0.01, mz0 + 0.02, BEIGE_DARK)
+    # a strip of tape over the top front corner
+    s.box(mx0 + 0.03, 0.56, mz1, mx0 + 0.08, my1 + 0.004, mz1 + 0.004, TAPE, shine=0.3)
+    s.box(mx0 + 0.03, my1, mz1 - 0.03, mx0 + 0.08, my1 + 0.004, mz1, TAPE, shine=0.3)
+    # the keyboard in front of it
+    s.box(0.31, 0.685, zt, 0.62, 0.765, zt + 0.018, BEIGE, top=BEIGE_LIGHT)
+    kb = Image.new('RGBA', (60, 16), BEIGE_LIGHT + (255,))
+    kd = ImageDraw.Draw(kb)
+    for row in range(3):
+        for col in range(13):
+            kd.rectangle([2 + col * 4.4, 2 + row * 4.4, 4.8 + col * 4.4, 4.8 + row * 4.4], fill=(150, 142, 118, 255))
+    flat_decal(s, 0.32, 0.695, 0.61, 0.755, zt + 0.018, kb)
+    if on:
+        glows.append(((0.47, my1 + 0.05, (mz0 + mz1) / 2), PHOSPHOR, 0.20, (0, 1, 0)))
+        glows.append(((0.47, 0.72, zt + 0.03), PHOSPHOR, 0.12, (0, 1, 0.6)))   # seen only from the front
+
+    # The ham radio on the east, on a phone book: black case, a brushed front with the meter, the tuning knob, two
+    # small knobs, the lamp, handles; a whip antenna taped to its back corner.
+    s.box(0.63, 0.40, zt, 0.87, 0.72, zt + 0.045, (200, 190, 90), top=(226, 222, 206))   # the phone book
+    s.box(0.632, 0.402, zt + 0.006, 0.868, 0.718, zt + 0.04, (236, 232, 214))
+    rx0, rx1, ry0, ry1, rz0, rz1 = 0.645, 0.87, 0.42, 0.70, zt + 0.045, zt + 0.20
+    s.box(rx0, ry0, rz0, rx1, ry1, rz1, HAM, top=(72, 74, 76), shine=0.25)
+    s.box(rx0, ry1, rz0, rx1, ry1 + 0.008, rz1, HAM_FACE, shine=0.45)
+    front_decal(s, rx0 + 0.02, rx0 + 0.11, rz1 - 0.06, rz1 - 0.02, ry1 + 0.008, dial_image(on), emit=on)
+    knob_y(s, rx0 + 0.16, ry1 + 0.008, rz0 + 0.065, 0.032, BLACK, 0.025)
+    knob_y(s, rx0 + 0.04, ry1 + 0.008, rz0 + 0.03, 0.013, BLACK, 0.02)
+    knob_y(s, rx0 + 0.085, ry1 + 0.008, rz0 + 0.03, 0.013, BLACK, 0.02)
+    lamp_y(s, glows, rx1 - 0.025, ry1 + 0.008, rz1 - 0.025, 0.011, 'green', on)
+    for hx in (rx0 - 0.004, rx1 - 0.008):
+        s.box(hx, ry1 + 0.008, rz0 + 0.01, hx + 0.012, ry1 + 0.03, rz1 - 0.01, STEEL, shine=0.6)
+    lamp(s, glows, rx0 + 0.04, ry0 + 0.06, rz1, 0.014, 'green', on)   # the power lamp on top, seen from every side
+    if on:
+        glows.append(((rx0 + 0.065, ry1 + 0.02, rz1 - 0.04), (255, 170, 60), 0.10, (0, 1, 0)))
+    # the telescoping whip: three sections, a ball at the tip, leaning a little; tape round its foot
+    base = (rx1 - 0.03, ry0 + 0.04, rz1)
+    tip = (rx1 - 0.06, ry0 + 0.0, rz1 + 0.62)
+    sec = [base, add(base, mul(sub(tip, base), 0.38)), add(base, mul(sub(tip, base), 0.7)), tip]
+    for (a, b), r in zip(zip(sec, sec[1:]), (0.011, 0.008, 0.005)):
+        s.tube(a, b, r, STEEL, shine=0.6, segments=8)
+    s.sphere(tip, (0.012, 0.012, 0.012), STEEL, rings=4, segments=8, shine=0.6)
+    s.tube((base[0], base[1], rz1 - 0.04), (base[0], base[1], rz1 + 0.05), 0.026, TAPE, cap=(150, 152, 148), shine=0.3,
+           segments=12)
+    # a strap of tape over the radio's east end and down onto the crate
+    s.box(rx1 - 0.075, ry0 - 0.004, rz1, rx1 - 0.035, ry1 + 0.012, rz1 + 0.005, TAPE, shine=0.3)
+    s.box(rx1 - 0.075, ry1 + 0.008, zt - 0.06, rx1 - 0.035, ry1 + 0.014, rz1 + 0.005, TAPE, shine=0.3)
+    s.box(rx1 - 0.075, ry1 + 0.008, zt, rx1 - 0.035, y1 + 0.004, zt + 0.004, TAPE, shine=0.3)
+    s.box(rx1 - 0.075, y1, zt - 0.08, rx1 - 0.035, y1 + 0.006, zt + 0.004, TAPE, shine=0.3)
+
+    # The cables: the computer to the radio behind them, a red and a yellow lead draped over the crate's front with a
+    # tape splice, the power leads down the east side and the back to the floor.
+    cable(s, [(0.24, ty0, 0.60), (0.27, 0.27, 0.46), (0.40, 0.30, 0.43), (0.47, 0.34, 0.55)], 0.009, BLACK)
+    cable(s, [(0.52, 0.34, 0.52), (0.58, 0.31, 0.43), (0.70, 0.36, 0.45), (0.74, ry0, rz0 + 0.06)], 0.009, BLACK)
+    for dz, colour in ((0.0, (190, 44, 36)), (0.018, (220, 186, 50))):
+        cable(s, [(rx0, ry1 - 0.03, rz0 + 0.05 + dz), (0.62, 0.775, zt - 0.05 + dz), (0.47, 0.785, zt - 0.11 + dz),
+                  (0.32, 0.775, zt - 0.05 + dz), (tx1, ty1 - 0.04, zt + 0.10 + dz)], 0.007, colour)
+    s.tube((0.50, 0.787, zt - 0.10), (0.44, 0.787, zt - 0.10), 0.02, TAPE, cap=(150, 152, 148), shine=0.3, segments=10)
+    cable(s, [(rx1, 0.56, rz0 + 0.05), (x1 + 0.02, 0.58, zt - 0.02), (x1 + 0.03, 0.62, 0.15), (x1 + 0.04, 0.66, 0.008),
+              (x1 + 0.05, 0.80, 0.008)], 0.011, BLACK)
+    cable(s, [(0.20, y0, 0.45), (0.19, y0 - 0.02, 0.30), (0.18, y0 - 0.03, 0.008), (0.30, y0 - 0.06, 0.008)], 0.011,
+          BLACK)
+    ground = shadow((0.5, 0.5), 0.48, 0.34, 120)
+    return compose(s, ground=ground, seed=90 + turns + (4 if on else 0), glows=glows)

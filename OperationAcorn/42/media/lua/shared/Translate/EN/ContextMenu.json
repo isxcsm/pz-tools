@@ -15,6 +15,8 @@
     "ContextMenu_OA_Tree_Pry": "Pry open (%1)",
     "ContextMenu_OA_Tree_Pick": "Pick lock (%1)",
     "ContextMenu_OA_Trade_UseTerminal": "Use the terminal",
+    "ContextMenu_OA_Trade_UpgradeTerminalTip": "Makes it the team's own terminal. The market tab shows a price graph. The kit is used up.",
+    "ContextMenu_OA_Trade_UpgradeTerminal": "Fit the terminal upgrade kit",
     "ContextMenu_OA_Trade_NeedPower": "The terminal needs electricity.",
     "ContextMenu_OA_Trade_SealBox": "Seal the delivery box...",
     "ContextMenu_OA_Trade_LoadBox": "Load nearby items (%1)",

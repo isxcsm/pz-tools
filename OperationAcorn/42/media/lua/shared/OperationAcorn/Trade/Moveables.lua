@@ -15,7 +15,10 @@ local Objects, Things = OA.Trade.Objects, OA.Trade.Things
 
 -- The trade sheet's tiles that are objects to take up, by their kind.
 local KIND = {}
-for dir = 0, 7 do KIND[Sprites.TRADE .. "_" .. dir] = Objects.TERMINAL end
+for dir = 0, 7 do
+    KIND[Sprites.TRADE .. "_" .. dir] = Objects.TERMINAL          -- upgraded
+    KIND[Sprites.TRADE .. "_" .. (16 + dir)] = Objects.TERMINAL   -- as assembled
+end
 KIND[Sprites.deliveryBox(false)], KIND[Sprites.deliveryBox(true)] = Objects.DELIVERY_BOX, Objects.DELIVERY_BOX
 local NAME = { [Objects.TERMINAL] = "CommTerminal", [Objects.DELIVERY_BOX] = "DeliveryBox" }
 

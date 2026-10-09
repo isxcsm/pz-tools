@@ -38,6 +38,14 @@ function Menus.use(object, player)
     end
 end
 
+function Menus.upgrade(object, player)
+    local character = getSpecificPlayer(player)
+    local square = object:getSquare()
+    if luautils.walkAdj(character, square) then
+        ISTimedActionQueue.add(ISOAUpgradeTerminal:new(character, square))
+    end
+end
+
 function Menus.unseal(object, player)
     local character = getSpecificPlayer(player)
     local square = object:getSquare()
@@ -97,6 +105,11 @@ local function terminalOptions(context, object, player)
     if not Objects.powered(square) then
         use.notAvailable = true
         tooltip(use, getText("ContextMenu_OA_Trade_NeedPower"))
+    end
+    -- the upgrade kit, when the player carries one and the terminal is not upgraded yet
+    if not Objects.isUpgraded(object) and getSpecificPlayer(player):getInventory():getFirstTypeRecurse(Objects.ITEMS.kit) then
+        local upgrade = context:addOption(getText("ContextMenu_OA_Trade_UpgradeTerminal"), object, Menus.upgrade, player)
+        tooltip(upgrade, getText("ContextMenu_OA_Trade_UpgradeTerminalTip"))
     end
     -- taken up with the game's furniture tool (Trade/Moveables.lua)
 end

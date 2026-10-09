@@ -69,7 +69,11 @@ function OATabMarket:refresh()
             index = OA.Market.index(letter), arrow = arrow })
     end
     if selected and selected <= self.categories.count then self.categories.selected = selected end
-    self.graphOpen = rewards.terminalGraph and true or false
+    -- the graph is the upgraded terminal's (its kit is sold from trust stage 2)
+    local square = self.window and getCell():getGridSquare(self.window.tx, self.window.ty, self.window.tz)
+    local terminal = square and OA.Trade.Objects.find(square, OA.Trade.Objects.TERMINAL)
+    self.graphOpen = terminal ~= nil and OA.Trade.Objects.isUpgraded(terminal)
+    self.graphKit = rewards.terminalGraph and true or false
     self:refreshGraph()
 end
 
@@ -90,7 +94,8 @@ function OATabMarket:render()
     self:drawRect(x, y, w, h, 0.35, 0, 0, 0)
     self:drawRectBorder(x, y, w, h, 0.9, 0.4, 0.4, 0.4)
     if not self.graphOpen then
-        self:drawText(getText("IGUI_OA_Trade_Market_GraphLocked"), x + 8, y + 8, 0.7, 0.7, 0.7, 1, UIFont.Small)
+        self:drawText(getText(self.graphKit and "IGUI_OA_Trade_Market_GraphKit" or "IGUI_OA_Trade_Market_GraphLocked"),
+            x + 8, y + 8, 0.7, 0.7, 0.7, 1, UIFont.Small)
         return
     end
     local history = self.history
@@ -105,15 +110,15 @@ function OATabMarket:render()
     end
     local left, right, top, bottom = x + 8, x + w - 8, y + 8, y + h - 8
     local function py(index) return bottom - (index - lo) / (hi - lo) * (bottom - top) end
-    -- The line of 1.0, where the market rests.
-    self:drawLine2(left, py(1.0), right, py(1.0), 0.5, 0.6, 0.6, 0.6)
+    -- The line of 1.0, where the market rests (drawLine: drawLine2 draws nothing in B42 panels).
+    self:drawLine(nil, left, py(1.0), right, py(1.0), 1, 0.5, 0.6, 0.6, 0.6)
     local first, last = history[1].d, history[#history].d
     local span = math.max(1, last - first)
     local px, pyy
     for _, point in ipairs(history) do
         local nx = left + (point.d - first) / span * (right - left)
         local ny = py(point.i)
-        if px then self:drawLine2(px, pyy, nx, ny, 1, 0.95, 0.85, 0.45) end
+        if px then self:drawLine(nil, px, pyy, nx, ny, 2, 1, 0.95, 0.85, 0.45) end
         px, pyy = nx, ny
     end
 end

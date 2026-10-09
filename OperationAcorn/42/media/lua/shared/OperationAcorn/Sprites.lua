@@ -23,7 +23,11 @@ local function facing(dir)
 end
 
 -- Trade sheet.
-function Sprites.terminal(dir, on) return tile(Sprites.TRADE, (on and 4 or 0) + facing(dir)) end
+-- The terminal: the one assembled from a desktop computer and a ham radio (16-23), or the team's own once upgraded
+-- with its kit (0-7); each off (dark) or on, in its facing.
+function Sprites.terminal(dir, on, upgraded)
+    return tile(Sprites.TRADE, (upgraded and 0 or 16) + (on and 4 or 0) + facing(dir))
+end
 function Sprites.deliveryBox(sealed) return tile(Sprites.TRADE, sealed and 9 or 8) end
 function Sprites.supplyCrate(opened) return tile(Sprites.TRADE, opened and 11 or 10) end
 Sprites.PARACHUTE_CRATE = tile(Sprites.TRADE, 12)

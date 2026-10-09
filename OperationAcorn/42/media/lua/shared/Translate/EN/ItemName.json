@@ -32,6 +32,7 @@
     "OperationAcorn.CureSerum": "Cure Serum",
     "OperationAcorn.DelayDrug": "Infection Delay Drug",
     "OperationAcorn.CommTerminal": "Communication Terminal",
+    "OperationAcorn.TerminalUpgradeKit": "Terminal Upgrade Kit",
     "OperationAcorn.DeliveryBox": "Delivery Box",
     "OperationAcorn.TerminalManual": "Terminal Booklet",
     "OperationAcorn.SupplyManifest": "Supply Manifest",

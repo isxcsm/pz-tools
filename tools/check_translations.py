@@ -115,6 +115,12 @@ def main():
     langs = {lang: load(lang, UI_FILES) for lang in LANGS}
     lua = code()
     named = set(KEY.findall(lua))
+    # an item script's Tooltip = <key> uses its key too
+    for folder, _, files in os.walk(os.path.join(MEDIA, 'scripts')):
+        for f in files:
+            if f.endswith('.txt'):
+                with open(os.path.join(folder, f), encoding='utf-8') as fh:
+                    named |= set(re.findall(r'\bTooltip\s*=\s*(Tooltip_OA_\w+)', fh.read()))
     prefixes = set(PREFIX.findall(lua)) - {'IGUI_OA_'}
     every = set().union(*langs.values())
     for key in sorted(named - every):

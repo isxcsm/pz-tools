@@ -29,7 +29,11 @@ Objects.TERMINAL, Objects.DELIVERY_BOX, Objects.CRATE = "terminal", "box", "crat
 Objects.ITEMS = {
     terminal = "OperationAcorn.CommTerminal",
     box = "OperationAcorn.DeliveryBox",
+    kit = "OperationAcorn.TerminalUpgradeKit",
 }
+-- The modData key of a terminal upgraded with its kit (the object's, and its item's while it is carried): the team's
+-- own terminal, whose market tab has the price graph.
+Objects.UPGRADED = "OA_Upgraded"
 Objects.BOX_CONTAINER, Objects.CRATE_CONTAINER = "OADeliveryBox", "OASupplyCrate"
 -- The texts of those titles; named here so that the translation check sees them used.
 Objects.TITLE_KEYS = {
@@ -225,8 +229,13 @@ function Objects.setSprite(object, name)
 end
 
 -- The terminal's tile for a facing and for power on or off.
-function Objects.terminalSprite(facing, on)
-    return Sprites.terminal(facing or "S", on)
+function Objects.terminalSprite(facing, on, upgraded)
+    return Sprites.terminal(facing or "S", on, upgraded)
+end
+
+-- Whether a terminal object is upgraded with its kit.
+function Objects.isUpgraded(object)
+    return object:getModData()[Objects.UPGRADED] == true
 end
 
 -- Shows a terminal's power: its lit or dark tile, when that changed.
@@ -234,7 +243,7 @@ function Objects.showTerminal(object)
     local square = object:getSquare()
     if not square then return end
     local facing = object:getModData().OA_Facing or "S"
-    Objects.setSprite(object, Objects.terminalSprite(facing, Objects.powered(square)))
+    Objects.setSprite(object, Objects.terminalSprite(facing, Objects.powered(square), Objects.isUpgraded(object)))
 end
 
 -- What the delivery box's container takes: items the team accepts (P1's rule), nothing otherwise.

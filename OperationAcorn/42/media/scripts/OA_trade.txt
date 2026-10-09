@@ -15,6 +15,16 @@ module OperationAcorn
         RequiresEquippedBothHands = true,
     }
 
+    /* The kit that upgrades an assembled terminal into the team's own (its look, and the market tab's price graph). */
+    item TerminalUpgradeKit
+    {
+        DisplayCategory = Electronics,
+        ItemType = base:normal,
+        Weight = 3.0,
+        Icon = OA_TerminalUpgradeKit,
+        Tooltip = Tooltip_OA_TerminalUpgradeKit,
+    }
+
     /* The delivery box that is put down on open ground; its number is kept in the item's modData while it is carried. */
     item DeliveryBox
     {

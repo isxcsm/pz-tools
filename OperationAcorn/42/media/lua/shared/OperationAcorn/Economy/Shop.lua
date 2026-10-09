@@ -35,6 +35,7 @@ Shop.TYPES = {
     sawBladeNormal = "OperationAcorn.SawBladeNormal", sawBladeModern = "OperationAcorn.SawBladeModern",
     filterNormal = "OperationAcorn.FilterNormal", filterModern = "OperationAcorn.FilterModern",
     muffler = "OperationAcorn.SoundproofCover",
+    terminalKit = "OperationAcorn.TerminalUpgradeKit",
 }
 
 -- Upgrade serum trees. The ids are the names the upgrades part uses.
@@ -113,6 +114,7 @@ local function build()
     -- Machines.
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
+    add({ id = "terminal_kit", group = "machine", tier = 2, price = 50000, give = { give("terminalKit") } })
     add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
     add({ id = "fabric_cutter", group = "machine", tier = 2, price = 80000, give = { give("cutter") } })
     add({ id = "log_saw", group = "machine", tier = 2, price = 100000, give = { give("logSaw") } })
