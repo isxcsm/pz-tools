@@ -181,11 +181,12 @@ test("a tooltip lists what every rank taken gives, and of the next rank only wha
     eq(keys(Texts.newLines(Texts.lines(Data.byId.crowbar, 1, u), crowbar)), P .. "crowbar_Rank1," .. P .. "crowbar_Rank2")
 end)
 
-test("an adding rank text has no number of its own (the first line shows it)", function()
+test("an adding rank text has no number when the first line shows it", function()
     for _, lang in ipairs({ "EN", "KO" }) do
         local text = file(lang, "IG_UI.json")
         for _, node in ipairs(Data.nodes) do
-            if node.adds then
+            local first = string.match(text, '"' .. Data.key(node.id, "Rank1") .. '": "([^"]*)"')
+            if node.adds and first and string.find(first, "%1", 1, true) then
                 for r = 2, node.ranks do
                     if node.adds == true or node.adds[r] then
                         local line = string.match(text, '"' .. Data.key(node.id, "Rank" .. r) .. '": "([^"]*)"')

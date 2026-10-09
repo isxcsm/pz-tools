@@ -130,9 +130,10 @@ function Codex.categoryProgress(record, letter)
 end
 
 -- A building whose containers were all searched (once per building): 100 credits and 10 for each container, 600
--- at most, and the building count milestones. `key` names the building (the API's key or the map's), `containers`
--- how many it has. Returns the credits it made (before BonusMultiplier) or nil if it was counted before.
-function Codex.buildingSearched(record, key, containers)
+-- at most, times `mult` (the search ledger's rank 3: more; 1 when left out), and the building count milestones. `key`
+-- names the building (the API's key or the map's), `containers` how many it has. Returns the credits it made (before
+-- BonusMultiplier) or nil if it was counted before.
+function Codex.buildingSearched(record, key, containers, mult)
     local c = Codex.section(record)
     key = tostring(key)
     if c.buildings[key] then return nil end
@@ -140,6 +141,7 @@ function Codex.buildingSearched(record, key, containers)
     c.buildings[key] = containers
     c.nb = c.nb + 1
     local credits = math.min(Codex.BUILDING_MAX, Codex.BUILDING_BASE + Codex.BUILDING_PER_CONTAINER * containers)
+        * (mult or 1)
     pay(record, credits)
     local events = {}
     while c.paid.buildings < #Codex.BUILDING_STEPS and c.nb >= Codex.BUILDING_STEPS[c.paid.buildings + 1] do

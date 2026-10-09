@@ -629,13 +629,19 @@ local function alarmJob(now)
 end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
+-- Rank 1: on entering a building, how many containers are left unopened, or that it was searched (the title of a
+-- building searched comes from the economy, with its bonus). Rank 2: the unopened containers within LEDGER_NEAR on the
+-- character's floor are outlined (the game's own object outline, for this player). Rank 3 is the economy's (a bigger
+-- bonus).
 
 local ledger = { key = nil, nextCount = 0, total = 0, opened = 0, done = false, complete = false, told = true, tries = 0 }
+Senses.ledger = ledger
 -- A building whose rooms are not all loaded yet is counted again this often (ms), at most LEDGER_TRIES times, before
 -- what it has is told on entering (a count of 0 then could be rooms not loaded, so it is not told).
 local LEDGER_RETRY_MS = 1000
 local LEDGER_TRIES = 5
-Senses.ledger = ledger
+local LEDGER_NEAR = 6
+local OUTLINE = { 1.00, 0.80, 0.40, 0.85 }
 
 -- Counts a building's containers: total, opened, and whether every room was loaded (so that it can be judged).
 local function countBuilding(def)
@@ -659,25 +665,79 @@ local function countBuilding(def)
     return total, opened, complete
 end
 
+-- The objects outlined now (object -> true) and for which player.
+local outlined, outlinedFor = {}, 0
+
+local function setOutline(object, on, playerNum)
+    if on then
+        object:setOutlineHighlightCol(playerNum, OUTLINE[1], OUTLINE[2], OUTLINE[3], OUTLINE[4])
+    end
+    object:setOutlineHighlight(playerNum, on)
+end
+
+-- Outlines the objects in `want` (object -> true) and no others.
+local function outlineOnly(want, playerNum)
+    for object in pairs(outlined) do
+        if not want[object] or playerNum ~= outlinedFor then setOutline(object, false, outlinedFor) end
+    end
+    for object in pairs(want) do
+        if not outlined[object] or playerNum ~= outlinedFor then setOutline(object, true, playerNum) end
+    end
+    outlined, outlinedFor = want, playerNum
+end
+
+local none = {}
+local function clearOutlines()
+    if outlinedFor ~= nil then outlineOnly(none, outlinedFor) end
+    outlined = {}
+end
+Senses.clearOutlines = clearOutlines
+
+-- The unopened containers' objects of the building within LEDGER_NEAR of the character on its floor.
+local function nearUnopened(def, player)
+    local want = {}
+    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
+    local r2 = LEDGER_NEAR * LEDGER_NEAR
+    local rooms = def:getRooms()
+    for i = 0, rooms:size() - 1 do
+        local iso = rooms:get(i):getIsoRoom()
+        if iso then
+            local containers = iso:getContainer()
+            for j = 0, containers:size() - 1 do
+                local c = containers:get(j)
+                if c:getType() ~= "floor" and not c:isExplored() then
+                    local object = c:getParent()
+                    local square = object and object:getSquare()
+                    if square and square:getZ() == pz then
+                        local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
+                        if dx * dx + dy * dy <= r2 then want[object] = true end
+                    end
+                end
+            end
+        end
+    end
+    return want
+end
+
 local function ledgerJob(now)
     local player = getPlayer()
-    if not player or player:isDead() then return end
-    local record = OA.Client.record(player)
-    if not record then return end
+    local record = player and not player:isDead() and OA.Client.record(player)
+    if not record then clearOutlines() return end
     local u = Rules.section(record)
     local rank = Rules.rank(u, "ledger")
-    if rank < 1 then ledger.key = nil return end
-    local def = player:getCurrentBuildingDef()
-    if not def then ledger.key = nil return end
-    local key = def:getID()
-    local entering = key ~= ledger.key
-    if entering then
-        ledger.key, ledger.done, ledger.told, ledger.tries = key, false, false, 0
-    elseif ledger.told and (rank < 2 or ledger.done) then
+    local def = rank >= 1 and player:getCurrentBuildingDef()
+    if not def then
+        ledger.key = nil
+        clearOutlines()
         return
     end
-    if not entering and now < ledger.nextCount then return end
-    ledger.nextCount = now + 5000
+    if rank >= 2 then outlineOnly(nearUnopened(def, player), player:getPlayerNum()) else clearOutlines() end
+    local key = def:getID()
+    if key ~= ledger.key then
+        ledger.key, ledger.done, ledger.told, ledger.tries = key, false, false, 0
+    elseif ledger.told or now < ledger.nextCount then
+        return
+    end
     local total, opened, complete = countBuilding(def)
     -- the economy part keeps its own count of the building (it leaves out what the player placed): use it when it has one
     if OA.Codex and OA.Codex.buildingProgress and OA.Buildings and OA.Buildings.keyAt then
@@ -692,27 +752,22 @@ local function ledgerJob(now)
         end
     end
     ledger.total, ledger.opened, ledger.complete = total, opened, complete
+    -- told once on entering: how many are left, or that it is searched (never "0 left"); a building not all loaded is
+    -- counted again first, and one with no containers is not told
+    if not complete and ledger.tries < LEDGER_TRIES then
+        ledger.tries = ledger.tries + 1
+        ledger.nextCount = now + LEDGER_RETRY_MS
+        return
+    end
+    ledger.told = true
     local left = total - opened
-    if not ledger.told then
-        -- told once on entering: how many are left, or that it is searched (never "0 left"); a building not all
-        -- loaded is counted again first, and one with no containers is not told
-        if not complete and ledger.tries < LEDGER_TRIES then
-            ledger.tries = ledger.tries + 1
-            ledger.nextCount = now + LEDGER_RETRY_MS
-            return
+    if total > 0 and left == 0 then
+        if complete then
+            ledger.done = true
+            HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerAlreadyDone"))
         end
-        ledger.told = true
-        if total > 0 and left == 0 then
-            if complete then
-                ledger.done = true
-                HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerAlreadyDone"))
-            end
-        elseif left > 0 then
-            HaloTextHelper.addText(player, getText("IGUI_OA_Tree_LedgerLeft", left))
-        end
-    elseif complete and total > 0 and left == 0 then
-        ledger.done = true
-        HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerDone"))
+    elseif left > 0 then
+        HaloTextHelper.addText(player, getText("IGUI_OA_Tree_LedgerLeft", left))
     end
 end
 
@@ -770,6 +825,6 @@ end
 
 Pulse.job("senses", 500, senseJob)
 Pulse.job("alarms", 1000, alarmJob)
-Pulse.job("ledger", 1000, ledgerJob)
+Pulse.job("ledger", 500, ledgerJob)
 
 return Senses

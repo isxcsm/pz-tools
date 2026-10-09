@@ -20,6 +20,7 @@ require "OperationAcorn/Economy/Codex"
 require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Economy/Shred"
 require "OperationAcorn/Economy/Buildings"
+require "OperationAcorn/Upgrades/Rules"
 local OA = OperationAcorn
 local Economy = {}
 OA.Economy = Economy
@@ -168,6 +169,21 @@ function Economy.tenMinutes()
     end)
 end
 
+-- A building all searched by a record's character: counted once, its bonus more with the search ledger's rank 3, and
+-- told with a title from rank 1 (what the bonus will be, BonusMultiplier in).
+function Economy.searched(record, key, total)
+    local Rules = OA.Upgrades.Rules
+    local u = Rules.section(record)
+    local rank = Rules.rank(u, "ledger")
+    local credits = OA.Codex.buildingSearched(record, key, total, rank >= 3 and 1 + Rules.fraction(u, "ledger") or 1)
+    if credits and rank >= 1 then
+        local bonus = math.floor(credits * (OA.option("BonusMultiplier") or 1.0) + 0.5)
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Searched", sub = "IGUI_OA_Title_SearchedBonus",
+            subArgs = { tostring(bonus) }, style = "discovery", fallback = "good" })
+    end
+    return credits
+end
+
 -- Every minute, at most once each Buildings.LOOK_MS of real time (the minute fires many times a second fast-forwarded):
 -- the building each character stands in. All of a building's containers searched: it is counted once.
 function Economy.minute()
@@ -179,7 +195,7 @@ function Economy.minute()
         OA.Codex.setBuildingProgress(key, searched, total)
         if complete and total > 0 and searched >= total then
             local record = recordOf(character)
-            if record then OA.Codex.buildingSearched(record, key, total) end
+            if record then Economy.searched(record, key, total) end
         end
     end)
 end
