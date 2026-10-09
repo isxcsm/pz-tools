@@ -135,13 +135,15 @@ def click(at):
     user32 = ctypes.windll.user32
     left, top, _, _ = window_rect(False)
     hwnd = user32.FindWindowW(None, "Project Zomboid")
+    # a window that was not in front: the game draws a few frames a second until it is, and misses a click in one
+    settle = 0.3 if user32.GetForegroundWindow() == hwnd else 1.5
     user32.SetForegroundWindow(hwnd)
-    time.sleep(0.3)
+    time.sleep(settle)
     user32.SetCursorPos(left + at[0], top + at[1])
     time.sleep(0.15)
-    # down and up a few frames apart: the game reads the mouse once a frame and misses a click within one
+    # down and up several frames apart: the game reads the mouse once a frame and misses a click within one
     user32.mouse_event(0x0002, 0, 0, 0, 0)
-    time.sleep(0.08)
+    time.sleep(0.25)
     user32.mouse_event(0x0004, 0, 0, 0, 0)
 
 
@@ -160,9 +162,33 @@ def reload():
     return continue_save()
 
 
-# Presses Continue on the main menu and returns when the channel answers in the loaded save.
+# Whether the game logged anything but pzopt's input latch lines after `start` (a byte offset of console.txt): the menu
+# logs nothing else while it waits, and a load starts with the save's mods.
+def console_moved(start):
+    try:
+        with open(CONSOLE, "rb") as f:
+            f.seek(start)
+            text = f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return False
+    return any(line.strip() and "input latch" not in line for line in text.splitlines())
+
+
+# Presses Continue on the main menu (again while the game shows no sign of loading: a click can be missed) and returns
+# when the channel answers in the loaded save.
 def continue_save():
-    click(CONTINUE_AT)
+    for attempt in range(3):
+        before = console_size()
+        click(CONTINUE_AT)
+        waited = time.time() + 12
+        while time.time() < waited and not console_moved(before):
+            time.sleep(1)
+        if console_moved(before):
+            break
+        print("Continue was not taken; pressing it again")
+    else:
+        print("the game did not take Continue (is it on the main menu?)")
+        return 1
     end = time.time() + 180
     seen = console_size()
     while time.time() < end:
