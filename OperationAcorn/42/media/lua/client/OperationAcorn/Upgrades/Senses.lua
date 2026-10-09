@@ -122,25 +122,22 @@ end
 -- the character). Every size is in tiles of the default zoom (TILE_PX pixels): the marks keep their size on the
 -- screen whatever the zoom, as the HUD does; their ellipse keeps the ground's slant.
 --   Zombies: one arc for every way they come from (Sense.scan merges what lies within 30 degrees, eight at most) on
---   the inner ring. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); one arc for a lone
---   zombie, two for a few, three for a crowd, the echoes outward. Zombies beating on a door, a window or a wall
+--   the inner ring. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2). Every mark sits on the one
+--   ring, overlapping where ways meet (layers outward hid more of the view and did not read plainly). Zombies beating on a door, a window or a wall
 --   (rank 2) shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for
 --   another floor (rank 2), upright and white.
 --   Noises (rank 2): a thin arc in its exact way, its kind in its pattern (plain, a wheel for a vehicle, dots for a
 --   radio, TV or generator, spikes for an alarm), white but for alarms, which draw every zombie around and are a deep
---   red. Distance is where and how big the mark is, as Visual Sounds puts a far sound farther out: near (under
---   Sense.NEAR tiles) close round the body, big and bright; mid farther out and smaller; far on the outer ring, small
---   and dim. An alarm also beats: fast when near, slowly at mid, still when far. At most Sense.NOISE_MARKS of them,
+--   red. Distance is how big and bright the mark is, on the same ring: near (under Sense.NEAR tiles) big and
+--   bright, mid smaller, far small and dim. An alarm also beats: fast when near, slowly at mid, still when far. At most Sense.NOISE_MARKS of them,
 --   alarms first; a noise fades out over its last FADE_MS.
 -- The pictures are white, tinted as they are drawn.
 local BODY = 0.3
 local TILE_PX = 36
 local RING = 1.6
 local ZOMBIE_W = { 1.8, 1.55, 1.3 }
-local ECHO = 0.2
 local BANG_W = 0.85
 local FLOOR_W = 0.42
-local NOISE_RING = { 2.4, 3.2, 4.0 }
 local NOISE_W = { 2.1, 1.75, 1.4 }
 local NOISE_A = { 1.0, 0.85, 0.65 }
 local ALARM_HZ = { 3, 1.5, 0 }
@@ -214,16 +211,12 @@ local function drawZombies(ui, now, cx, cy, exX, exY, eyX, eyY, tile, shade)
         local w = ZOMBIE_W[band] * tile
         if e.thump then w = w * (1 + 0.08 * beat(now, SHAKE_HZ)) end
         local x, y = cx + gx, cy + gy
-        local arcs = (e.n >= 4) and 3 or ((e.n >= 2) and 2 or 1)
-        local step = ECHO * tile
-        for k = 0, arcs - 1 do
-            quad(ui, tex, x + ux * step * k, y + uy * step * k, ux, uy, w, c, a * (1 - 0.25 * k), shade)
-        end
+        quad(ui, tex, x, y, ux, uy, w, c, a, shade)
         local bang = e.thump and picture("OA_Sense_Bang")
         if bang and tex then
-            -- just past the crest of the outermost echo (the crest is about a quarter of the picture above its middle)
+            -- just past the arc's crest (about a quarter of the picture above its middle)
             local bw = BANG_W * tile
-            local off = step * (arcs - 1) + w * tex:getHeight() / tex:getWidth() * 0.3
+            local off = w * tex:getHeight() / tex:getWidth() * 0.3
                 + bw * bang:getHeight() / bang:getWidth() * 0.45
             quad(ui, bang, x + ux * off, y + uy * off, ux, uy, bw, c, 1, shade)
         end
@@ -243,7 +236,7 @@ local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY, tile,
         if left > 0 then
             local dx, dy = m.x - px, m.y - py
             local band = m.band
-            local r = NOISE_RING[band] / math.max(0.01, math.sqrt(dx * dx + dy * dy))
+            local r = RING / math.max(0.01, math.sqrt(dx * dx + dy * dy))
             local gx, gy = (dx * exX + dy * eyX) * r, (dx * exY + dy * eyY) * r
             local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
             local ux, uy = gx / len, gy / len
