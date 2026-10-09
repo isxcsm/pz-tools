@@ -590,6 +590,26 @@ local function hasSink(inC, state, kind)
     return #tanks > 0
 end
 
+-- What each working kind takes from its in-container (the data the job needs, or nil), and the work units one job
+-- costs (Data rate is units an hour). The work and the progress the player sees ask the same.
+local ACCEPT = {
+    bulkShredder = function(item) return Machines.shreddable(item) end,
+    cutter = function(item) return Machines.cutterPlan(item) end,
+    woodSaw = function(item) return item:getFullType() == "Base.Log" and true or nil end,
+    propaneRefiner = function(item) return Machines.rottenFood(item) end,
+    oilRefiner = function(item) return Machines.oilOf(item) end,
+}
+
+local function jobCost(kind, entry)
+    if kind == "bulkShredder" then
+        -- the shared shredding rule: never under its least time for one item
+        local s = Data.SHRED_SECONDS
+        return math.max(entry.data.weight or 0, s.least / s.perWeight)
+    end
+    if kind == "propaneRefiner" or kind == "oilRefiner" then return entry.data end
+    return 1
+end
+
 -- The io Logic.advance works through for a machine object. Returns nil when its containers are missing.
 local function makeIO(object, state, record)
     local kind = state.kind
@@ -600,7 +620,7 @@ local function makeIO(object, state, record)
     local queue
 
     if kind == "bulkShredder" then
-        local function reset() queue = newQueue(inC, Machines.shreddable, Data.BATCH + 5) end
+        local function reset() queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + 5) end
         reset()
         io.reset = reset
         io.next = function(fx)
@@ -608,9 +628,7 @@ local function makeIO(object, state, record)
             local entry = queue.peek()
             if not entry then return nil, "noInput" end
             if not outC or free(outC) < 1 then return nil, "outputFull" end
-            -- the shared shredding rule: never under its least time for one item
-            local s = Data.SHRED_SECONDS
-            return { cost = math.max(entry.data.weight or 0, s.least / s.perWeight), entry = entry }
+            return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
             local count = Machines.shredYield(record, job.entry.data, fx)
@@ -620,7 +638,7 @@ local function makeIO(object, state, record)
         end
 
     elseif kind == "cutter" then
-        local function reset() queue = newQueue(inC, Machines.cutterPlan, Data.BATCH + 5) end
+        local function reset() queue = newQueue(inC, ACCEPT.cutter, Data.BATCH + 5) end
         reset()
         io.reset = reset
         io.next = function(fx)
@@ -641,7 +659,7 @@ local function makeIO(object, state, record)
 
     elseif kind == "woodSaw" then
         local function reset()
-            queue = newQueue(inC, function(item) return item:getFullType() == "Base.Log" and true or nil end, Data.BATCH + 5)
+            queue = newQueue(inC, ACCEPT.woodSaw, Data.BATCH + 5)
         end
         reset()
         io.reset = reset
@@ -661,7 +679,7 @@ local function makeIO(object, state, record)
     elseif kind == "propaneRefiner" or kind == "oilRefiner" then
         local propane = kind == "propaneRefiner"
         local function reset()
-            queue = newQueue(inC, propane and Machines.rottenFood or Machines.oilOf, Data.BATCH + 5)
+            queue = newQueue(inC, ACCEPT[kind], Data.BATCH + 5)
         end
         reset()
         io.reset = reset
@@ -670,7 +688,7 @@ local function makeIO(object, state, record)
             local entry = queue.peek()
             if not entry then return nil, "noInput" end
             if not hasSink(inC, state, kind) then return nil, "noTank" end
-            return { cost = entry.data, entry = entry }
+            return { cost = jobCost(kind, entry), entry = entry }
         end
         io.finish = function(job, fx)
             local gain
@@ -745,7 +763,9 @@ function Machines.update(object, opts)
     state.running = state.idle ~= true
     state.reason = result.reason
     Machines.refreshLook(object, state)
-    if worked > 0 and not catchUp then
+    -- the noise of its work once a step: a machine watched works more often (Watch.lua), not louder
+    if worked > 0 and not catchUp and (not state.heard or now - state.heard >= Machines.NOISE_EVERY or now < state.heard) then
+        state.heard = now
         sound(object, Logic.noiseRadius(kind, Logic.effects(kind, state.parts)))
     end
     if worn then
@@ -753,6 +773,26 @@ function Machines.update(object, opts)
     end
     if isServer() then object:transmitModData() end
     return result
+end
+
+-- Hours between the noises a working machine makes (the ten-minute step).
+Machines.NOISE_EVERY = 1 / 6
+
+-- The job a working machine is on now, for the player watching it: the item, and the share of it done by now (more
+-- than 1 when it is due and the machine has not worked since). nil when it is not on a job (idle, off, no power, a
+-- part worn out). Light enough for a window that is open: the first thing it takes, and the time since it last worked.
+function Machines.progress(object)
+    local state = Machines.state(object)
+    if not state or state.idle ~= false or state.on == false or not ACCEPT[state.kind] then return nil end
+    local fx = Logic.effects(state.kind, state.parts)
+    local square = object:getSquare()
+    if fx.stopped or not square or not Machines.hasPower(square) then return nil end
+    local inC = Machines.container(object, "in")
+    local entry = inC and collect(inC, ACCEPT[state.kind], 1)[1]
+    if not entry then return nil end
+    local rate = Data.KINDS[state.kind].rate * fx.speed
+    local worked = (state.carry or 0) + rate * math.max(0, OA.hours() - (state.last or 0))
+    return entry.item, worked / jobCost(state.kind, entry)
 end
 
 -- The lure: a sound every 15 minutes for 24 hours of world time, then a spent shell. Only a loaded lure does

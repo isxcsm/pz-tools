@@ -289,6 +289,30 @@ test("a bulk shredder shreds a box of items into sample bundles over time", func
     eq(sounds[1].radius, 20)
 end)
 
+test("the progress a window shows: the first job's share by now, nil when it is not working", function()
+    setup()
+    local obj, state, sq = addMachine("bulkShredder", 10, 10)
+    powered(sq)
+    local inC = Machines.container(obj, "in")
+    fill(inC, "Base.Hammer", 3, {})                   -- weight 1 each: ten seconds each at 360 an hour
+    eq(Machines.progress(obj), nil, "idle until a step finds the input")
+    TEST.hours = 1
+    Machines.update(obj)
+    TEST.hours = 1 + 1 / 720
+    local item, share = Machines.progress(obj)
+    eq(item, inC.items[1])
+    truthy(math.abs(share - 0.5) < 1e-6, "five of ten seconds")
+    -- asked to work at that time (a watched window), half a hammer is kept, none done
+    Machines.update(obj)
+    eq(#inC.items, 3)
+    TEST.hours = 1 + 1 / 360
+    Machines.update(obj)
+    eq(#inC.items, 2, "the first is done the moment its share is full")
+    eq(#sounds, 1, "worked twice in ten minutes: one noise")
+    Machines.setOn(obj, false)
+    eq(Machines.progress(obj), nil, "switched off")
+end)
+
 test("catching up when the chunk loads does the work of the time away", function()
     setup()
     local obj, state, sq = addMachine("bulkShredder", 18, 3)

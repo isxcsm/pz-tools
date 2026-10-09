@@ -60,6 +60,11 @@ python tools/check_translations.py                          # 번역 키, 샌드
   게임 시간 이벤트는 빨리 감기(x40)나 잠잘 때 실제 1초에 여러 번 온다. 게임 시간을 따르지 않는 일(세계 훑기, 인벤토리 훑기, 표시 갱신)은
   `OA.due`로 실제 시간 간격(모듈 상수 `..._MS`, 기본 속도에서 게임 10분이 걸리는 실제 25초보다 짧게)을 두고, 게임 시간을 따르는 일은 부른 횟수가 아니라
   지난 게임 시간(`OA.hours()`의 차)으로 센다.
+- **지켜보는 기계는 바로 일한다.** 기계는 `EveryTenMinutes`마다 지난 시간만큼 일하지만, 루팅 창이 기계 컨테이너를 그리는 동안(`Machines/Watch.lua`,
+  `ISInventoryPane:renderdetails` 감싸기) 첫 대상 줄에 바닐라 작업 막대(`setJobType`/`setJobDelta`, 그리는 동안만)를 보이고, 그 막대가 차거나
+  새 물건이 들어오면 `machineWork` 명령으로 그 자리에서 일하게 한다 (`OA.due`로 읽기 100ms, 부탁 400ms 간격). 일한 양은 어느 쪽이든 지난 게임
+  시간이라 지켜봐도 더 만들지 않는다. 소리는 10분에 한 번만 낸다 (`Machines.NOISE_EVERY`). 켜기/끄기 버튼은 오븐처럼 루팅 창 아래 버튼 줄에 있다
+  (`Machines/LootControls.lua`, `ISLootWindowContainerControls.AddHandler`).
 
 ## 4. 저장 데이터와 주인
 

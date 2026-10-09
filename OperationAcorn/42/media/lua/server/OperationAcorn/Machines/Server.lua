@@ -15,6 +15,14 @@ OA.Server.on("machineSwitch", function(character, record, args)
     OA.Sync.changed("machines", args.id, { machine = args.machine })
 end)
 
+-- A window watching a machine: its job is due (or something new was put in), so it works now instead of at the next
+-- ten-minute step. The work is the time since it last worked, as at a step, so asking often changes nothing else.
+OA.Server.on("machineWork", function(character, record, args)
+    if type(args.machine) ~= "string" then return end
+    local object = Machines.find(args.machine)
+    if object then Machines.update(object) end
+end)
+
 -- The generator load of the machines, declared to the extension API once the game runs.
 Events.OnGameStart.Add(Machines.declarePower)
 -- Every ten game minutes the loaded machines work on what is in them.

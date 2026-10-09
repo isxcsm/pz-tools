@@ -182,6 +182,28 @@ function ISOAMachineShred:complete()
     return true
 end
 
+-- Each item shows its own part of the action on its row, as the game's actions show on the item they work.
+function ISOAMachineShred:update()
+    self.character:faceLocation(self.x + 0.5, self.y + 0.5)
+    local done = self:getJobDelta() * self.total
+    for i, id in ipairs(self.itemIds) do
+        local item = Actions.findItem(self.character, id)
+        if item then
+            local share = (done - self.starts[i]) / self.lengths[i]
+            item:setJobType(getText("IGUI_OA_Machine_Job_shred"))
+            item:setJobDelta(math.max(0, math.min(1, share)))
+        end
+    end
+end
+
+function ISOAMachineShred:stop()
+    for _, id in ipairs(self.itemIds) do
+        local item = Actions.findItem(self.character, id)
+        if item then item:setJobDelta(0) end
+    end
+    ISBaseTimedAction.stop(self)
+end
+
 function ISOAMachineShred:getDuration()
     if self.character:isTimedActionInstant() then return 1 end
     return self.ticks
@@ -192,8 +214,14 @@ function ISOAMachineShred:new(character, id, x, y, z, entries)
     local o = ISBaseTimedAction.new(self, character)
     o.machineId, o.x, o.y, o.z = id, x, y, z
     o.playerId = OA.Store.idOf(character)
-    o.itemIds = {}
-    for _, entry in ipairs(entries) do o.itemIds[#o.itemIds + 1] = entry.item:getID() end
+    o.itemIds, o.starts, o.lengths, o.total = {}, {}, {}, 0
+    for _, entry in ipairs(entries) do
+        local minutes = Logic.benchMinutes(math.max(entry.data.weight or 0, 0))
+        o.itemIds[#o.itemIds + 1] = entry.item:getID()
+        o.starts[#o.starts + 1] = o.total
+        o.lengths[#o.lengths + 1] = minutes
+        o.total = o.total + minutes
+    end
     o.ticks = Actions.ticksForMinutes(Machines.benchMinutesFor(entries))
     o.maxTime = o:getDuration()
     return o
