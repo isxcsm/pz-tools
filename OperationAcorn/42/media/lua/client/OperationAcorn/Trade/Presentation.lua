@@ -24,7 +24,7 @@ local function charactersOf(playerId)
 end
 
 -- The parts that show their own notices; this shows the trade part's and the economy's.
-local SHOWN_ELSEWHERE = { "^IGUI_OA_Machine_", "^IGUI_OA_Story_", "^IGUI_OA_Tree_" }
+local SHOWN_ELSEWHERE = { "^IGUI_OA_Machine_", "^IGUI_OA_Story_", "^IGUI_OA_Tree_", "^IGUI_OA_Gear_" }
 
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
