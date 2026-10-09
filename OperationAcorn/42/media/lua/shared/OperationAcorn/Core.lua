@@ -104,6 +104,37 @@ function OA.clamp(x, lo, hi)
     return x
 end
 
+-- The widest line of an item's tooltip text, in pixels of the small font (about the width of the game's own).
+OA.TOOLTIP_WIDTH = 330
+
+-- Text already translated, made ready for InventoryItem:setTooltip. The item tooltip is one plain label: a <LINE>
+-- becomes a new line, a line wider than OA.TOOLTIP_WIDTH is wrapped at its spaces (on the client, where the font is
+-- measured), and a % is doubled (the game formats the text again when it draws it: a % left by getText, as 10%% in a
+-- translation, would be read as a format code and throw).
+function OA.tooltipText(text)
+    local measure = getTextManager and UIFont and function(s) return getTextManager():MeasureStringX(UIFont.Small, s) end
+    local out = {}
+    for line in string.gmatch(text .. "<LINE>", "(.-)<LINE>") do
+        line = string.match(line, "^%s*(.-)%s*$")
+        if not measure or measure(line) <= OA.TOOLTIP_WIDTH then
+            out[#out + 1] = line
+        else
+            local current = nil
+            for word in string.gmatch(line, "%S+") do
+                local longer = current and (current .. " " .. word) or word
+                if current and measure(longer) > OA.TOOLTIP_WIDTH then
+                    out[#out + 1] = current
+                    current = word
+                else
+                    current = longer
+                end
+            end
+            if current then out[#out + 1] = current end
+        end
+    end
+    return (string.gsub(table.concat(out, "\n"), "%%", "%%%%"))
+end
+
 -- Kahlua's % gives wrong results for negative numbers and for large values such as getTimestampMs(): this is the
 -- remainder with the sign of b.
 function OA.remainder(a, b)

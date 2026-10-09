@@ -82,7 +82,7 @@ function ISToolTipInv:render()
         local old = item:getTooltip()
         local text = join(lines)
         if old and old ~= "" then text = getText(old) .. " <LINE> " .. text end
-        item:setTooltip(text)
+        item:setTooltip(OA.tooltipText(text))
         local ok, err = pcall(originalRender, self)
         item:setTooltip(old)
         if not ok then error(err, 0) end

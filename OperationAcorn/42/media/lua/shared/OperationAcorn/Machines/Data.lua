@@ -114,9 +114,9 @@ Data.RAIN_POUR_SPEED = Data.RAIN_CAPACITY / 600
 -- radius `radius` (vanilla NoiseTrap: 30 seconds and 17). After that only a spent shell is left.
 Data.LURE = { hours = 24, interval = 0.25, radius = 60 }
 
--- The hand bench: minutes of game time for an item of weight 1, and the least for one item (NUMBERS 11: 2 minutes a
--- weight, never under 15 seconds).
-Data.BENCH = { minutesPerWeight = 2, minMinutes = 0.25 }
+-- The hand bench: minutes of game time for an item of weight 1, and the least for one item (NUMBERS 11: 12 seconds a
+-- weight, never under 1.5 seconds).
+Data.BENCH = { minutesPerWeight = 0.2, minMinutes = 0.025 }
 
 -- Conversions (NUMBERS 11).
 Data.PROPANE_WEIGHT = 50 -- weight of rotten food that fills one empty tank (5 for each 10%)

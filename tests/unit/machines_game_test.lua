@@ -772,7 +772,7 @@ test("hand shredding takes the items and gives bundles, booked to the record", f
     eq(countOf(p.inv, "OperationAcorn.SampleBundle"), 5)
     eq(countOf(p.inv, "Base.Hammer"), 0)
     eq(#OA.Shred.committed, 1)
-    near(Machines.benchMinutesFor(entries), 2)
+    near(Machines.benchMinutesFor(entries), 0.2)
 end)
 
 test("sprites follow the state and the kind", function()

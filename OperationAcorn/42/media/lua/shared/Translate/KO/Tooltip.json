@@ -1,5 +1,5 @@
 {
-    "Tooltip_OA_Machine_shredBench": "손으로 쓰는 분해대. 물건을 갈아 시료 묶음을 만듭니다. 전기가 필요 없고, 무게 1마다 2분쯤 걸립니다.",
+    "Tooltip_OA_Machine_shredBench": "손으로 쓰는 분해대. 물건을 갈아 시료 묶음을 만듭니다. 전기가 필요 없고, 무게 1마다 12초쯤 걸립니다.",
     "Tooltip_OA_Machine_bulkShredder": "상자째 넣은 물건을 시간당 무게 30씩 시료 묶음으로 갑니다. 전기가 필요하고 시끄럽습니다.",
     "Tooltip_OA_Machine_cutter": "옷을 시간당 20벌씩 천, 데님, 가죽 조각으로 자릅니다. 전기가 필요합니다.",
     "Tooltip_OA_Machine_propaneRefiner": "썩은 음식으로 프로판을 만들어 빈 통을 채웁니다. 전기가 필요합니다.",

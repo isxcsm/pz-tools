@@ -174,7 +174,7 @@ end
 
 -- The cooler's warmth where the player can see it: its tooltip.
 function Game.setCoolerText(item, temp)
-    item:setTooltip(getText("Tooltip_OA_Story_CoolerTemp", string.format("%.1f", temp)))
+    item:setTooltip(OA.tooltipText(getText("Tooltip_OA_Story_CoolerTemp", string.format("%.1f", temp))))
 end
 
 -- The helicopter's noise, as the economy's option says how far it carries.

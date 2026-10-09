@@ -308,7 +308,7 @@ function ISToolTipInv:render()
     local player = getPlayer()
     if item and player and item:getModule() == OA.MOD and Serums.kind(item:getType()) then
         local old = item:getTooltip()
-        item:setTooltip(tipText(item, player))
+        item:setTooltip(OA.tooltipText(tipText(item, player)))
         local ok, err = pcall(originalRender, self)
         item:setTooltip(old)
         if not ok then error(err, 0) end
