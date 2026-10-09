@@ -26,6 +26,10 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 S = 8
+# The arcs' glow (a blur of this many strokes) and the room left round the stroke for it (half a stroke and three
+# blurs: nothing of the glow reaches the picture's edge).
+ARC_GLOW = 0.6
+ARC_MARGIN = 0.5 + 3 * ARC_GLOW
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "OperationAcorn", "42", "media", "textures"))
 PREVIEW_PATH = os.path.join(HERE, "sense_art_preview.png")
@@ -45,15 +49,17 @@ def glowing(shape, blur, core, glow):
 
 
 def arc(w, h, thick, dotted=False):
-    """An arc across the width, its middle at the top, fading out to both ends, with a soft glow."""
+    """An arc across the width, its middle at the top, fading out to both ends, with a soft glow. The stroke and its
+    glow stay MARGIN strokes inside every edge: one cut by the picture's edge draws a straight line along it."""
     W, H = w * S, h * S
     core = Image.new("L", (W, H), 0)
     d = ImageDraw.Draw(core)
-    # a circle through the two lower corners and the top middle
-    sag = H - thick * S * 2.2
-    half = W / 2 - thick * S
+    m = thick * S * ARC_MARGIN
+    # a circle through the top middle and the two lower ends, all a margin inside the picture
+    sag = H - 2 * m
+    half = W / 2 - m
     r = (half * half + sag * sag) / (2 * sag)
-    cx, cy = W / 2, thick * S * 1.1 + r
+    cx, cy = W / 2, m + r
     span = math.asin(min(1.0, half / r))
     steps = 400
     for i in range(steps + 1):
@@ -65,26 +71,34 @@ def arc(w, h, thick, dotted=False):
         x, y = cx + r * math.sin(a), cy - r * math.cos(a)
         rad = thick * S / 2 * (0.55 + 0.45 * fade)
         d.ellipse((x - rad, y - rad, x + rad, y + rad), fill=int(255 * fade))
-    return finish(glowing(core, thick * S * 0.9, 0.95, 0.55), w, h)
+    return finish(glowing(core, thick * S * ARC_GLOW, 0.95, 0.55), w, h)
 
 
 def bang(w, h, k=2):
-    """Three short strokes fanning out from below the picture, the middle one the longest: a blow."""
+    """Three short strokes fanning out from a point below them, the middle one the longest: a blow. The strokes are
+    fitted (one scale, moved) inside the picture with room round them for their glow: nothing reaches the edge."""
     W, H = w * S, h * S
     P = S * k
-    im = Image.new("L", (W, H), 0)
-    d = ImageDraw.Draw(im)
-    ox, oy = W / 2, H * 1.35
+    width, blur = P * 2.2, P * 0.6
+    m = width / 2 + 3 * blur
+    strokes = []
     for deg, inner, outer in ((-38, 0.62, 1.05), (0, 0.55, 1.18), (38, 0.62, 1.05)):
         a = math.radians(deg)
         nx, ny = math.sin(a), -math.cos(a)
-        x0, y0 = ox + nx * H * inner, oy + ny * H * inner
-        x1, y1 = ox + nx * H * outer, oy + ny * H * outer
-        width = P * 2.2
+        strokes.append(((nx * inner, ny * inner), (nx * outer, ny * outer)))
+    xs = [p[0] for s_ in strokes for p in s_]
+    ys = [p[1] for s_ in strokes for p in s_]
+    scale = min((W - 2 * m) / (max(xs) - min(xs)), (H - 2 * m) / (max(ys) - min(ys)))
+    dx = W / 2 - scale * (max(xs) + min(xs)) / 2
+    dy = H / 2 - scale * (max(ys) + min(ys)) / 2
+    im = Image.new("L", (W, H), 0)
+    d = ImageDraw.Draw(im)
+    for (ax, ay), (bx, by) in strokes:
+        x0, y0, x1, y1 = dx + scale * ax, dy + scale * ay, dx + scale * bx, dy + scale * by
         d.line((x0, y0, x1, y1), fill=255, width=int(width))
         for x, y in ((x0, y0), (x1, y1)):
             d.ellipse((x - width / 2, y - width / 2, x + width / 2, y + width / 2), fill=255)
-    return finish(glowing(im, P * 0.9, 1.0, 0.55), w, h)
+    return finish(glowing(im, blur, 1.0, 0.55), w, h)
 
 
 def chevron(size, up, k=2):
@@ -152,9 +166,9 @@ def noise_arc(style, w=96, h=36, k=2):
 
 def build():
     return {
-        "OA_Sense_Arc_L": arc(112, 32, 6.4),
-        "OA_Sense_Arc_M": arc(84, 26, 5.2),
-        "OA_Sense_Arc_S": arc(60, 20, 4.0),
+        "OA_Sense_Arc_L": arc(112, 32, 3.6),
+        "OA_Sense_Arc_M": arc(84, 26, 3.0),
+        "OA_Sense_Arc_S": arc(60, 20, 2.4),
         "OA_Sense_Dots": noise_arc("dots"),
         "OA_Sense_Car": noise_arc("car"),
         "OA_Sense_Alarm": noise_arc("teeth"),

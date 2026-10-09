@@ -121,9 +121,10 @@ end
 -- ellipse laid as the ground lies round the body's middle (BODY of a floor above the feet, where the camera centres
 -- the character). Every size is in tiles, so the marks grow and shrink with the zoom as the character does.
 --   Zombies: one arc for every way they come from (Sense.scan merges what lies within 30 degrees, eight at most) on
---   the inner ring. Nearer is bigger, warmer and brighter (rank 2); one arc for a lone zombie, two for a few, three for
---   a crowd, the echoes outward. Zombies beating on a door, a window or a wall (rank 2) shake their arc and put a burst
---   of strokes on its outer side, in its colour. A chevron on the arc for another floor (rank 2), upright and white.
+--   the inner ring. Nearer is bigger and brighter, red near, amber at mid, green far (rank 2); one arc for a lone
+--   zombie, two for a few, three for a crowd, the echoes outward. Zombies beating on a door, a window or a wall
+--   (rank 2) shake their arc and put a burst of strokes on its outer side, in its colour. A chevron on the arc for
+--   another floor (rank 2), upright and white.
 --   Noises (rank 2): a thin arc in its exact way, its kind in its pattern (plain, a wheel for a vehicle, dots for a
 --   radio, TV or generator, spikes for an alarm), white but for alarms, which draw every zombie around and are a deep
 --   red. Distance is where and how big the mark is, as Visual Sounds puts a far sound farther out: near (under
@@ -145,9 +146,12 @@ local SHAKE_HZ = 4
 local FADE_MS = 700
 local SOUND_MS = 2500
 local SOUND_MAX = 12
-local NEAR = { 1.00, 0.36, 0.24 }
-local MID = { 1.00, 0.72, 0.28 }
-local FAR = { 0.80, 0.88, 1.00 }
+-- Zombies by distance, as Visual Sounds colours them: red near, amber at mid, green far; without the distance rank one
+-- pale colour.
+local NEAR = { 1.00, 0.30, 0.22 }
+local MID = { 1.00, 0.70, 0.22 }
+local FAR = { 0.40, 0.92, 0.42 }
+local PLAIN = { 0.80, 0.88, 1.00 }
 local NOISE_TINT = { 0.95, 0.95, 0.90 }
 local ALARM_TINT = { 0.95, 0.08, 0.06 }
 local ZOMBIE_PICTURE = { "OA_Sense_Arc_L", "OA_Sense_Arc_M", "OA_Sense_Arc_S" }
@@ -198,7 +202,7 @@ local function drawZombies(ui, now, cx, cy, exX, exY, eyX, eyY, tile, shade)
         local len = math.max(0.01, math.sqrt(gx * gx + gy * gy))
         local ux, uy = gx / len, gy / len
         -- without the distance rank: one middle size, pale
-        local band, c, a = 2, FAR, 0.8
+        local band, c, a = 2, PLAIN, 0.8
         if S.distance and S.radius > 0 then
             local t = math.min(1, e.d / S.radius)
             band = (t < 0.34) and 1 or ((t < 0.67) and 2 or 3)
