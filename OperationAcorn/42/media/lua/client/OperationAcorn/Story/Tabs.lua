@@ -38,16 +38,9 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- The mission tab.
 
--- Keys of a mission's title and brief by kind (the title is the story id, the item or the contract id).
+-- Keys of a mission's title and brief by kind (the missions' own, which their titles use too).
 function Tabs.keys(info)
-    local prefix = "Title_"
-    local brief = "Brief_"
-    if info.kind == "regular" then
-        prefix, brief = "RegTitle_", "RegBrief_"
-    elseif info.kind == "contract" then
-        prefix, brief = "ConTitle_", "ConBrief_"
-    end
-    return "IGUI_OA_Story_" .. prefix .. tostring(info.title), "IGUI_OA_Story_" .. brief .. tostring(info.title)
+    return Missions.keys(info)
 end
 
 local function daysText(hours)

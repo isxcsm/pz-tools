@@ -65,7 +65,8 @@ function FirstSupply.check()
                     OA.log("first supply failed:", tostring(done))
                 elseif done then
                     plan.done = true
-                    OA.Sync.notice(record.id, "IGUI_OA_Trade_Notice_First")
+                    OA.Sync.title(record.id, { key = "IGUI_OA_Title_FirstSupply", sub = "IGUI_OA_Title_Marked",
+                        style = "discovery", fallback = "good" })
                 end
             end
         end

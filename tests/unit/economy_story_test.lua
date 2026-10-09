@@ -58,6 +58,8 @@ test("a refusal starts with the story part's line for every record", function()
     OA.Store.player("a").trade = { stage = 1 }
     local st = OA.Market.state()
     st.nextRefusal = 0
+    local titles = {}
+    OA.Sync.listen("title", function(id, detail) titles[#titles + 1] = { id = id, detail = detail } end)
     OA.Market.update(OA.day() + 1)
     local refusals = {}
     for _, h in ipairs(heard) do
@@ -66,6 +68,13 @@ test("a refusal starts with the story part's line for every record", function()
     eq(#refusals, 2, "one line for each record")
     truthy(string.find(refusals[1].key, "_start$"), refusals[1].key)
     eq(refusals[1].args, nil)
+    eq(#titles, 2, "and a title for each record")
+    local cat = string.match(refusals[1].key, "^STORY_(%u)_start$")
+    eq(titles[1].detail.key, "IGUI_OA_Title_Refusal")
+    eq(titles[1].detail.style, "notice")
+    eq(titles[1].detail.subArgs[1].key, OA.Categories.nameKey(cat), "the category, translated on the player's side")
+    eq(titles[1].detail.subArgs[2], 7)
+    truthy(titles[1].id ~= titles[2].id)
 end)
 
 test("without the story part the refusal line is this part's own, with the category", function()

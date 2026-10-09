@@ -39,8 +39,9 @@ end
 -- A title over a player's screen for an event (a request done, a building searched): `detail` is { key, args (the
 -- title's translation and its arguments), sub, subArgs (the line under it, optional), style ("stamp", "discovery" or
 -- "notice", as PZToolsAPI.text.title has them), tone ("gold", "green", "red" or nil for the style's own colour),
--- fallback ("good", "bad" or nil) }. Shown by client/OperationAcorn/Titles.lua; without the extension API's text, as a
--- text over the character in the fallback's colour.
+-- fallback ("good", "bad" or nil) }. An argument may itself be a text, { key, args }, translated on the player's side
+-- (a name the server cannot put in the player's language). Shown by client/OperationAcorn/Titles.lua; without the
+-- extension API's text, as a text over the character in the fallback's colour.
 function Sync.title(playerId, detail)
     if isServer() then
         sendServerCommand(OA.MOD, "title", { player = playerId, detail = detail })

@@ -203,7 +203,8 @@ function Sites.replace(site, bounds, accept, int)
     return true
 end
 
--- Has the player been near a site (within `range`): the soil sample mission may then use it.
+-- Has the player been near a site (within `range`): the soil sample mission may then use it. A site seen for the first
+-- time has a title (one, however many came into range at once).
 function Sites.visit(record, x, y, range)
     local s = OA.Story.section(record)
     local changed = false
@@ -213,6 +214,10 @@ function Sites.visit(record, x, y, range)
             s.sitesSeen[site.n] = true
             changed = true
         end
+    end
+    if changed then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Site", sub = "IGUI_OA_Title_SiteSub", style = "discovery",
+            fallback = "good" })
     end
     return changed
 end

@@ -80,10 +80,17 @@ test("a player near a site has seen it", function()
     local list = Sites.ensure(BOUNDS, function() return true end)
     list[2].state = "placed"
     local record = OA.Store.ensure("p1", "P")
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
     eq(Sites.visit(record, list[2].x + 200, list[2].y), false)
+    eq(#told, 0)
     truthy(Sites.visit(record, list[2].x + 20, list[2].y))
     eq(Story.section(record).sitesSeen[2], true)
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_Site")
+    eq(told[1].style, "discovery")
     eq(Sites.visit(record, list[2].x, list[2].y), false, "once")
+    eq(#told, 1, "a title the first time only")
 end)
 
 test("documents of an item: its own id first, its data ones, a field note", function()

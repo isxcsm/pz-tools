@@ -32,9 +32,10 @@ local function fakeTrust(events)
 end
 
 -- Notices the client would hear.
-local function listenNotices()
+-- The titles the player is shown (the stage's replaces the old new-items notice).
+local function listenTitles()
     local heard = {}
-    OA.Sync.listen("notice", function(playerId, detail) heard[#heard + 1] = detail.key end)
+    OA.Sync.listen("title", function(playerId, detail) heard[#heard + 1] = detail end)
     return heard
 end
 
@@ -48,11 +49,11 @@ local function radioKeys(record)
     return keys
 end
 
-test("a stage passed is dealt with once: story told, one radio line, one notice, serums stay in the account", function()
+test("a stage passed is dealt with once: story told, one radio line, one title, serums stay in the account", function()
     local record = OA.Store.ensure("rec", "T")
     fakeTrust({ { kind = "stage", stage = 2, sharedSerums = 1 } })
     fakeStory()
-    local heard = listenNotices()
+    local heard = listenTitles()
     local events = Trade.addTrust(record, 900, "mission")
     eq(#events, 1)
     eq(events[1].kind, "stage")
@@ -61,6 +62,10 @@ test("a stage passed is dealt with once: story told, one radio line, one notice,
     eq(#radioKeys(record), 1)
     eq(radioKeys(record)[1], "IGUI_OA_Trade_Radio_NewItems")
     eq(#heard, 1)
+    eq(heard[1].key, "IGUI_OA_Title_Stage")
+    eq(heard[1].args[1], 2)
+    eq(heard[1].sub, "IGUI_OA_Title_NewItems")
+    eq(heard[1].style, "stamp")
     eq(Trade.account(record).sharedSerums, 1, "the economy put it there; the next crate carries it")
     eq(Trade.account(record).trust, 900)
 end)
@@ -69,7 +74,7 @@ test("trust that passes nothing tells nobody", function()
     local record = OA.Store.ensure("rec", "T")
     fakeTrust({})
     fakeStory()
-    local heard = listenNotices()
+    local heard = listenTitles()
     eq(#Trade.addTrust(record, 50, "mission"), 0)
     eq(OA.Story.stages, 0)
     eq(#radioKeys(record), 0)
@@ -82,11 +87,25 @@ test("a milestone is a new-items event too", function()
     local record = OA.Store.ensure("rec", "T")
     fakeTrust({ { kind = "milestone", index = 1, sharedSerums = 1 } })
     fakeStory()
+    local heard = listenTitles()
     local events = Trade.addTrust(record, 9000, "settle")
     eq(events[1].kind, "milestone")
     eq(events[1].n, 1)
     eq(OA.Story.stages, 1)
     eq(#radioKeys(record), 1)
+    eq(#heard, 1)
+    eq(heard[1].key, "IGUI_OA_Title_Milestone")
+    eq(heard[1].args[1], 1)
+end)
+
+test("trust that passes a stage and a milestone at once has one title, the last one's", function()
+    local record = OA.Store.ensure("rec", "T")
+    fakeTrust({ { kind = "stage", stage = 5, sharedSerums = 1 }, { kind = "milestone", index = 1, sharedSerums = 1 } })
+    fakeStory()
+    local heard = listenTitles()
+    eq(#Trade.addTrust(record, 20000, "settle"), 2)
+    eq(#heard, 1)
+    eq(heard[1].key, "IGUI_OA_Title_Milestone")
 end)
 
 test("a mission's pay and a settlement give the same events, each handled once", function()

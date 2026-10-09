@@ -49,6 +49,51 @@ local function setup(stage, milestones)
     return record
 end
 
+-- The titles the missions show the player.
+local function listenTitles()
+    local told = {}
+    OA.Sync.listen("title", function(id, detail) told[#told + 1] = detail end)
+    return told
+end
+
+test("a new request, its pay and its expiry each have a title; the pay names it, with the credits", function()
+    local record = setup(2)
+    record.story = nil
+    local told = listenTitles()
+    M.tick(record)
+    local m = M.active(record)
+    eq(#told, 1)
+    eq(told[1].key, "IGUI_OA_Title_NewRequest")
+    eq(told[1].style, "notice")
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
+    M.onSettled(record, { credits = 1000, trust = 5 })
+    eq(told[2].key, "IGUI_OA_Title_Paid")
+    eq(told[2].style, "stamp")
+    eq(told[2].sub, "IGUI_OA_Title_PaidSub")
+    eq(told[2].subArgs[1].key, (M.keys(m)))
+    eq(told[2].subArgs[1].key, "IGUI_OA_Story_Title_" .. m.title)
+    eq(told[2].subArgs[2], 30000)
+    -- the next one runs out
+    TEST.hours = TEST.hours + 3 * 24 + 1
+    M.tick(record)
+    local n = M.active(record)
+    eq(told[#told].key, "IGUI_OA_Title_NewRequest")
+    TEST.hours = TEST.hours + 10 * 24
+    M.tick(record)
+    eq(M.active(record), nil)
+    eq(told[#told].key, "IGUI_OA_Title_Expired")
+    eq(told[#told].tone, "red")
+    eq(told[#told].sub, (M.keys(n)))
+end)
+
+test("a mission's keys follow its kind", function()
+    eq((M.keys({ kind = "regular", title = "MissionTape" })), "IGUI_OA_Story_RegTitle_MissionTape")
+    local title, brief = M.keys({ kind = "contract", title = "stake" })
+    eq(title, "IGUI_OA_Story_ConTitle_stake")
+    eq(brief, "IGUI_OA_Story_ConBrief_stake")
+    eq((M.keys({ kind = "story", title = "clinic" })), "IGUI_OA_Story_Title_clinic")
+end)
+
 test("nothing starts before the first stage", function()
     local record = setup(0)
     M.tick(record)

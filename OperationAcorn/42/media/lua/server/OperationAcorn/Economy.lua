@@ -218,11 +218,15 @@ local function onItemFound(character, itemType)
 end
 
 -- The market's events as lines in every record's radio log (the trade part keeps the log). A category refused for a
--- while has the story part's line (or this part's own); the others are this part's.
+-- while has the story part's line (or this part's own), and a title for each of those records; the others are this
+-- part's.
 local function onMarketEvent(event)
-    local key, args
+    local key, args, title
     if event.kind == "refusal" then
         key, args = OA.Market.refusalLine(event.cat, "start")
+        title = { key = "IGUI_OA_Title_Refusal", sub = "IGUI_OA_Title_RefusalSub",
+            subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
+            fallback = "bad" }
     else
         key = event.key
         if not key then
@@ -230,7 +234,10 @@ local function onMarketEvent(event)
         end
         args = { getText(OA.Categories.nameKey(event.cat)) }
     end
-    for _, record in pairs(OA.Store.players()) do OA.Market.radioTo(record, key, args) end
+    for _, record in pairs(OA.Store.players()) do
+        OA.Market.radioTo(record, key, args)
+        if title then OA.Sync.title(record.id, title) end
+    end
 end
 
 -- A refused category that has come back as a request: its line, once, to the record whose list it joined.

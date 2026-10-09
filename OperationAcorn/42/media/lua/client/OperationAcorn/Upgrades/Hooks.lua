@@ -1,7 +1,7 @@
 -- Where the upgrades meet the game's screens and clocks: the right-click entries (serums in the bag, the research
--- plan, locked doors, windows and cars), the item tooltip of the cure serum, the notices and the banner of a tree's
--- opening, declaring the effects to the API, the once-a-minute infection work (the delay drug, the stand-in bite
--- shield), the terminal tab. Other mods' menus and tooltips are wrapped, never replaced.
+-- plan, locked doors, windows and cars), the item tooltip of the cure serum, the notices and the title (or banner) of
+-- a tree's opening, declaring the effects to the API, the once-a-minute infection work (the delay drug, the stand-in
+-- bite shield), the terminal tab. Other mods' menus and tooltips are wrapped, never replaced.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISPanel"
@@ -9,6 +9,7 @@ require "ISUI/ISButton"
 require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
+require "OperationAcorn/Titles"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Actions"
 require "OperationAcorn/Upgrades/Texts"
@@ -116,6 +117,15 @@ function Hooks.banner(text)
     banner:addToUIManager()
 end
 
+-- A tree opened (its first serum): a title with the tree's line under it, or the banner when the API cannot draw it.
+function Hooks.treeOpened(playerId, tree)
+    local name = "IGUI_OA_Tree_Name_" .. tree
+    local line = "IGUI_OA_Tree_Event_" .. tree
+    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "stamp" }
+    if OA.Titles.show(playerId, detail, true) == "title" then return end
+    Hooks.banner(getText("IGUI_OA_Title_TreeOpened", getText(name)) .. "<LINE>" .. getText(line))
+end
+
 local function localizedArgs(detail)
     local args = {}
     local raw = detail.args or {}
@@ -143,8 +153,9 @@ local function onNotice(playerId, detail)
         player:getModData().OA_ResearchHint = true
         Hooks.banner(getText("IGUI_OA_Tree_WhereHint"))
     end
-    if string.find(detail.key, "^IGUI_OA_Tree_Event_") then
-        Hooks.banner(text)
+    local tree = string.match(detail.key, "^IGUI_OA_Tree_Event_(.+)$")
+    if tree then
+        Hooks.treeOpened(playerId, tree)
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
         or string.find(detail.key, "NotOwner$") or string.find(detail.key, "NotInfected$") then
         HaloTextHelper.addBadText(player, text)

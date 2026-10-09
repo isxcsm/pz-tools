@@ -12,10 +12,15 @@ Titles.TONES = {
     red = { { 1.00, 0.55, 0.50 }, { 0.95, 0.75, 0.72 } },
 }
 
+-- A text by key and arguments; an argument that is itself a text ({ key, args }: a mission's or a capstone's name) is
+-- translated here, on the player's side.
 local function text(key, args)
     if type(key) ~= "string" then return nil end
-    args = args or {}
-    return getText(key, unpack(args))
+    local list = {}
+    for i, arg in ipairs(args or {}) do
+        if type(arg) == "table" then list[i] = text(arg.key, arg.args) or "" else list[i] = arg end
+    end
+    return getText(key, unpack(list))
 end
 
 -- The local characters the title is for (every one for a nil playerId).
@@ -39,8 +44,8 @@ local function textApi()
 end
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
--- "halo" or nil.
-function Titles.show(playerId, detail)
+-- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
+function Titles.show(playerId, detail, noHalo)
     if type(detail) ~= "table" then return nil end
     local title = text(detail.key, detail.args)
     if not title then return nil end
@@ -49,6 +54,7 @@ function Titles.show(playerId, detail)
     if #characters == 0 then return nil end
     local t = textApi()
     local handle = t and OA.handle()
+    if noHalo and not handle then return nil end
     local shown
     for _, character in ipairs(characters) do
         local done = false
@@ -61,7 +67,7 @@ function Titles.show(playerId, detail)
         end
         if done then
             shown = "title"
-        else
+        elseif not noHalo then
             local line = sub and (title .. " - " .. sub) or title
             if detail.fallback == "good" then HaloTextHelper.addGoodText(character, line)
             elseif detail.fallback == "bad" then HaloTextHelper.addBadText(character, line)
