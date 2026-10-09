@@ -1,5 +1,6 @@
 -- What the server answers and watches for the trade part: the terminal's commands, the ten-minute work (arrivals, the
--- first supply, marks, lost boxes, the terminal's light) and the work that waits for a chunk to load.
+-- first supply, marks, lost boxes, the terminal's light; the last three at most once each few real seconds) and the
+-- work that waits for a chunk to load.
 require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Heli"
 require "OperationAcorn/Trade/FirstSupply"
@@ -93,12 +94,32 @@ local function reconcileAll()
     end
 end
 
+-- Real milliseconds at least between two runs of the ten-minute work that only looks at the world and follows no game
+-- time. Ten game minutes are 25 s of real time at the default day length but some 0.6 s fast-forwarded (x40), and
+-- less asleep: this work then ran over and over for nothing. Each interval is below 25 s, so the default speed is as
+-- before. The arrivals and the first supply compare game times and stay every ten minutes.
+--   TERMINALS_MS: the terminal's light follows its power (a generator running dry while fast-forwarded shows soon).
+--   BOXES_MS: the lost-box look is only a fallback to OnObjectAboutToBeRemoved; a few seconds late costs nothing.
+--   MARKS_MS: a mark goes when its thing is gone, and its smoke is lit again (the game lights none on a square that
+--     already smokes, so smoke did not pile up; the look was only wasted).
+Handlers.TERMINALS_MS = 5000
+Handlers.BOXES_MS = 10000
+Handlers.MARKS_MS = 10000
+
+local lastRun = {}     -- by work name: the real time (ms) it last ran
+
+-- Runs a piece of the ten-minute work when its real-time interval has passed.
+local function throttled(name, ms, fn, now)
+    if OA.due(lastRun, name, now, ms) then guarded(name, fn) end
+end
+
 local function everyTenMinutes()
     guarded("arrivals", Heli.check)
     guarded("first supply", Trade.FirstSupply.check)
-    guarded("marks", Trade.Markers.checkAll)
-    guarded("lost boxes", reconcileAll)
-    guarded("terminal light", refreshTerminals)
+    local now = getTimestampMs()
+    throttled("marks", Handlers.MARKS_MS, Trade.Markers.checkAll, now)
+    throttled("lost boxes", Handlers.BOXES_MS, reconcileAll, now)
+    throttled("terminal light", Handlers.TERMINALS_MS, refreshTerminals, now)
 end
 Events.EveryTenMinutes.Add(everyTenMinutes)
 
