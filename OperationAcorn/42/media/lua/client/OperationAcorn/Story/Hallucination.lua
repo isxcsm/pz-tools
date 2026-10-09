@@ -1,8 +1,8 @@
 -- The serum's hallucination (LORE 7, TREES 159): a brief wash of light along the screen's edges, longer for the first
 -- three doses, and where a drop site lies within the loaded squares the light stays longer on the edge that faces
 -- it. It does not replay the reference night, makes no sound of rotors, shows no map mark and tells no distance. A
--- full-screen ISUI element that does not consume mouse events, so the game stays playable beneath it; a client
--- option turns it off.
+-- one-pixel ISUI element drawing over the whole screen, so the game stays playable beneath it (a full-screen element
+-- takes every click in the world, consuming events or not); a client option turns it off.
 require "ISUI/ISPanel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
@@ -22,8 +22,8 @@ Hallucination.SHORT_MS = 5000
 ISOAHallucination = ISPanel:derive("ISOAHallucination")
 
 function ISOAHallucination:new(playerNum)
-    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum),
-        getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum))
+    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum), 1, 1)
+    o.screenW, o.screenH = getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum)
     o.background = false
     o.borderColor = { r = 0, g = 0, b = 0, a = 0 }
     o.playerNum = playerNum
@@ -39,7 +39,7 @@ end
 -- One glow along an edge: strips from the border inward, brighter at the border.
 function ISOAHallucination:glow(edge, strength)
     if strength <= 0.01 then return end
-    local w, h = self.width, self.height
+    local w, h = self.screenW, self.screenH
     local depth = math.floor(math.min(w, h) * Hallucination.DEPTH)
     local n = Hallucination.STRIPS
     local step = math.max(1, math.floor(depth / n))

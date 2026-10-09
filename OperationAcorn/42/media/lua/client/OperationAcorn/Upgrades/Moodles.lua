@@ -54,9 +54,12 @@ end
 
 local Panel = ISPanel:derive("ISOAMoodleStandIns")
 
+-- The element is one pixel at the screen's corner and draws past its bounds (as Visual Sounds' does): the game gives a
+-- click on any element under the mouse to it and not to the world, consuming events or not, so a full-screen one took
+-- every click in the world. screenW and screenH are the player's screen it draws over.
 function Panel:new(playerNum)
-    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum),
-        getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum))
+    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum), 1, 1)
+    o.screenW, o.screenH = getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum)
     o.playerNum = playerNum
     o.background = false
     o.borderColor = { r = 0, g = 0, b = 0, a = 0 }
@@ -84,7 +87,7 @@ function Panel:render()
     local option = getCore():getOptionMoodleSize()
     local size = SIZES[option] or ((getCore():getScreenHeight() > 1200) and 64 or 48)
     local column = UIManager.getMoodleUI(self.playerNum)
-    local x, y = self.width - size - 8, size * 2
+    local x, y = self.screenW - size - 8, size * 2
     if column then
         x = column:getX() - self.x - size - 6
         y = column:getY() - self.y

@@ -37,9 +37,12 @@ local announced = {}
 local Hud = ISPanel:derive("ISOASenseHud")
 ISOASenseHud = Hud
 
+-- The element is one pixel at the screen's corner and draws past its bounds (as Visual Sounds' does): the game gives a
+-- click on any element under the mouse to it and not to the world, consuming events or not, so a full-screen one took
+-- every click in the world. screenW and screenH are the player's screen it draws over.
 function Hud:new(playerNum)
-    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum),
-        getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum))
+    local o = ISPanel.new(self, getPlayerScreenLeft(playerNum), getPlayerScreenTop(playerNum), 1, 1)
+    o.screenW, o.screenH = getPlayerScreenWidth(playerNum), getPlayerScreenHeight(playerNum)
     o.playerNum = playerNum
     o.background = false
     o.borderColor = { r = 0, g = 0, b = 0, a = 0 }
@@ -280,7 +283,7 @@ function Hud:render()
         for _, spot in ipairs(S.alarms) do
             local sx, sy = ISCoordConversion.ToScreen(spot.x, spot.y, spot.z)
             sx, sy = sx / zoom - self.x, sy / zoom - self.y
-            if sx > 0 and sy > 0 and sx < self.width and sy < self.height then
+            if sx > 0 and sy > 0 and sx < self.screenW and sy < self.screenH then
                 local w = getTextManager():MeasureStringX(UIFont.Small, "!") + 8
                 self:drawRect(sx - w / 2, sy - fh - 6, w, fh + 2, 0.7, 0.6, 0.05, 0.05)
                 self:drawRectBorder(sx - w / 2, sy - fh - 6, w, fh + 2, 0.9, 1, 0.5, 0.5)
@@ -307,8 +310,7 @@ local function showHud(on)
         if on then
             hud:setX(getPlayerScreenLeft(0))
             hud:setY(getPlayerScreenTop(0))
-            hud:setWidth(getPlayerScreenWidth(0))
-            hud:setHeight(getPlayerScreenHeight(0))
+            hud.screenW, hud.screenH = getPlayerScreenWidth(0), getPlayerScreenHeight(0)
         end
     end
 end
@@ -472,8 +474,8 @@ end
 
 -- What made a world sound, as Visual Sounds sorts them: "thump" (a zombie beating on a door, a window or a wall: the
 -- sound is at the place it beats on), "vehicle", "alarm" (a house alarm, a car alarm going off, an alarm clock ringing
--- on a zombie), "device" (a radio, a TV, a generator, a jukebox), "noise" (anything else: a helicopter, a far shot, a
--- smashed window, a door broken down), or nil for what the sense leaves out (the character's own noise). Returns the
+-- on a zombie), "device" (a radio or a TV), "noise" (anything else: a generator, a jukebox, a helicopter, a far shot,
+-- a smashed window, a door broken down: Visual Sounds shows a generator so too), or nil for what the sense leaves out (the character's own noise). Returns the
 -- kind and a key for the source (the source, or its square's place).
 local ALARM_CLOCK_VOLUME = 3
 local function soundKind(source, x, y, z, volume, player)
@@ -485,9 +487,8 @@ local function soundKind(source, x, y, z, volume, player)
         local objects = square:getObjects()
         for i = 0, objects:size() - 1 do
             local o = objects:get(i)
-            if instanceof(o, "IsoRadio") or instanceof(o, "IsoTelevision") or instanceof(o, "IsoGenerator") then
-                return "device", o
-            end
+            if instanceof(o, "IsoRadio") or instanceof(o, "IsoTelevision") then return "device", o end
+            if instanceof(o, "IsoGenerator") then return "noise", o end
         end
         local vehicle = square:getVehicleContainer()
         if not vehicle then
@@ -508,10 +509,7 @@ local function soundKind(source, x, y, z, volume, player)
         return source:isAlarmSounding() and "alarm" or "vehicle", source
     end
     if instanceof(source, "IsoZombie") then return "thump", source end
-    if instanceof(source, "IsoRadio") or instanceof(source, "IsoTelevision") or instanceof(source, "IsoGenerator")
-        or instanceof(source, "IsoJukebox") then
-        return "device", source
-    end
+    if instanceof(source, "IsoRadio") or instanceof(source, "IsoTelevision") then return "device", source end
     if string.find(tostring(source), "iso.Alarm", 1, true) then return "alarm", source end
     return "noise", source
 end
