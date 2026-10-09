@@ -29,7 +29,6 @@ Objects.TERMINAL, Objects.DELIVERY_BOX, Objects.CRATE = "terminal", "box", "crat
 Objects.ITEMS = {
     terminal = "OperationAcorn.CommTerminal",
     box = "OperationAcorn.DeliveryBox",
-    crate = "OperationAcorn.SupplyCrate",
 }
 Objects.BOX_CONTAINER, Objects.CRATE_CONTAINER = "OADeliveryBox", "OASupplyCrate"
 -- The texts of those titles; named here so that the translation check sees them used.
@@ -41,6 +40,8 @@ Objects.TITLE_KEYS = {
 -- A box takes only what the team takes: the container's accept function is looked up by this global name each time
 -- (the game does not keep it in the save, so every place a box shows up sets it again).
 Objects.ACCEPT = "OperationAcorn.Trade.Objects.acceptItem"
+-- The accept function of an opened supply crate: things are only taken out of it (it is not a storage box).
+Objects.TAKE_ONLY = "OperationAcorn.Trade.Objects.acceptNothing"
 
 -- Clear space around a delivery box (tiles): no building and no tree within this, so that a helicopter can come down.
 Objects.CLEAR_RADIUS = 3
@@ -242,6 +243,10 @@ function Objects.acceptItem(container, item)
     local ok, info = pcall(OA.Value.info, item)
     if not ok or not info then return false end
     return OA.Value.accepts(info) == true
+end
+
+function Objects.acceptNothing()
+    return false
 end
 
 -- The capacity a record's box has now: the trust rewards' box capacity (the vanilla cap of 100 for a container stays

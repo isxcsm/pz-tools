@@ -25,16 +25,6 @@ module OperationAcorn
         RequiresEquippedBothHands = true,
     }
 
-    /* The supply crate, empty and open: kept as a storage box or broken down for its wood and nails. */
-    item SupplyCrate
-    {
-        DisplayCategory = Furniture,
-        ItemType = base:normal,
-        Weight = 12.0,
-        Icon = OA_SupplyCrate,
-        RequiresEquippedBothHands = true,
-    }
-
     /* The assembly booklet from the first supply: reading it teaches the terminal recipe. */
     item TerminalManual
     {

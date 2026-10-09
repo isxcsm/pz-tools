@@ -202,7 +202,7 @@ local SHOW_ITEMS = {
     { "FilterNormal", 1 }, { "SoundproofCover", 1 },
     { "EvidenceEnvelope", 1 }, { "ClinicRecord", 1 }, { "WeatherLog", 1 }, { "SerumSheet", 1 }, { "HandoverFile", 1 },
 }
-local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "SupplyCrate", "ShredBench" } -- the bench as its pieces
+local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "ShredBench" } -- the bench as its pieces
 -- The machines: kind and anchor (dx, dy) in the area, all facing south.
 local SHOW_MACHINES = {
     { "shredBench", 1, 4 }, { "bulkShredder", 4, 4 }, { "cutter", 7, 4 }, { "woodSaw", 10, 4 },

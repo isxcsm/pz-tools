@@ -381,7 +381,8 @@ function Things.makeCrate(square, cargo, parachute)
     return object
 end
 
--- The crate's container (made when missing).
+-- The crate's container (made when missing). Things are only taken out of it: the game does not keep a container's
+-- accept function, so the loot window sets it again each time it shows the crate (client Trade/Crate.lua).
 function Things.crateContainer(object)
     local container = object:getContainer()
     if not container then
@@ -392,6 +393,7 @@ function Things.crateContainer(object)
     if not container:isExplored() then container:setExplored(true) end
     Objects.nameContainer(container, Objects.CRATE_CONTAINER)
     container:setCapacity(100)
+    if container:getAcceptItemFunction() ~= Objects.TAKE_ONLY then container:setAcceptItemFunction(Objects.TAKE_ONLY) end
     return container
 end
 
@@ -417,7 +419,7 @@ function Things.unseal(character, object)
     return true
 end
 
--- Whether an opened crate is empty and so can be carried or broken.
+-- Whether an opened crate is empty (and so breaks).
 function Things.crateEmpty(object)
     local md = object:getModData()
     if md[Objects.SEALED] then return false end
@@ -425,31 +427,24 @@ function Things.crateEmpty(object)
     return container == nil or container:isEmpty()
 end
 
--- Puts a crate item down: an empty open crate.
-function Things.placeCrate(character, square, item)
-    local ok, why = Objects.free(square)
-    if not ok then return false, why end
-    local object = Things.makeCrate(square, nil, false)
-    Objects.consume(character, item)
-    return true, object
-end
-
--- Takes an empty open crate up to carry.
-function Things.takeCrate(character, object)
-    if not Things.crateEmpty(object) then return false, "notEmpty" end
-    Objects.remove(object)
-    Objects.giveHeavy(character, Objects.ITEMS.crate)
-    return true
-end
-
--- What a crate gives when it is broken down.
+-- What an emptied crate leaves on the floor, and the sound it breaks with.
 Things.CRATE_MATERIALS = { { "Base.Plank", 3 }, { "Base.Nails", 6 } }
+Things.BREAK_SOUND = "BreakFurniture"
 
--- Breaks an empty open crate for its materials.
-function Things.breakCrate(character, object)
-    if not Things.crateEmpty(object) then return false, "notEmpty" end
+-- An opened crate that is empty breaks: it is taken away and its wood and nails fall where it stood. Returns whether
+-- it broke.
+function Things.breakEmptyCrate(object)
+    if Objects.kindOf(object) ~= Objects.CRATE or not Things.crateEmpty(object) then return false end
+    local square = object:getSquare()
+    if not square then return false end
     Objects.remove(object)
-    for _, m in ipairs(Things.CRATE_MATERIALS) do Objects.give(character, m[1], m[2]) end
+    for _, m in ipairs(Things.CRATE_MATERIALS) do
+        for _ = 1, m[2] do
+            local item = instanceItem(m[1])
+            if item then square:AddWorldInventoryItem(item, 0.2 + OA.randomFloat(0, 0.6), 0.2 + OA.randomFloat(0, 0.6), 0) end
+        end
+    end
+    square:playSound(Things.BREAK_SOUND)
     return true
 end
 

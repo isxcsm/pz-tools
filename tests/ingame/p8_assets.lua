@@ -189,7 +189,7 @@ end
 
 -- Items: given where their script exists; their icon texture must be there either way.
 local ITEMS = {
-    "CommTerminal", "DeliveryBox", "SupplyCrate", "TerminalManual", "SupplyManifest", "SampleBundle",
+    "CommTerminal", "DeliveryBox", "TerminalManual", "SupplyManifest", "SampleBundle",
     "MeteorFragment", "UpgradeSerumScout", "UpgradeSerumLoad", "UpgradeSerumSurvival", "UpgradeSerumShared",
     "CureSerum", "DelayDrug", "ShredBench", "BulkShredder", "Cutter", "PropaneRefiner", "OilRefiner", "WoodSaw",
     "ResearchStorage", "RainStorage", "Lure", "Motor", "MotorOld", "MotorNormal", "MotorModern", "ShredderBlade",

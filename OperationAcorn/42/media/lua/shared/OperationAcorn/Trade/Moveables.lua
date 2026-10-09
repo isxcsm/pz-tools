@@ -1,10 +1,10 @@
 -- The game's furniture tool takes the trade objects up (its 떼어내기, pick up mode) the way this mod's own taking
--- does (Things.takeTerminal / takeBox / takeCrate): the terminal always, a delivery box or a supply crate when it is
--- not sealed and is empty, each into the hands as its item with what it carries (the box's id and owner), when it
--- fits the inventory as the game asks of its own furniture of one tile. Left
+-- does (Things.takeTerminal / takeBox): the terminal always, a delivery box when it is not sealed and is empty, each
+-- into the hands as its item with what it carries (the box's id and owner), when it fits the inventory as the game
+-- asks of its own furniture of one tile. (A supply crate is not taken up: it breaks once it is emptied.) Left
 -- to itself the tool would not offer them (their tiles have no IsMoveAble property) or would make a generic Moveable;
 -- the trade sheet's object tiles are told they move and the tool's check and pick-up are this mod's. Its other modes
--- leave them alone (no faces to rotate, nothing to scrap; a crate is broken down from its own menu).
+-- leave them alone (no faces to rotate, nothing to scrap).
 require "Moveables/ISMoveableSpriteProps"
 require "OperationAcorn/Sprites"
 require "OperationAcorn/Trade/Objects"
@@ -13,12 +13,11 @@ local OA = OperationAcorn
 local Sprites = OA.Sprites
 local Objects, Things = OA.Trade.Objects, OA.Trade.Things
 
--- The trade sheet's tiles that are objects to take up, by their kind (the parachute crate is sealed: never taken).
+-- The trade sheet's tiles that are objects to take up, by their kind.
 local KIND = {}
 for dir = 0, 7 do KIND[Sprites.TRADE .. "_" .. dir] = Objects.TERMINAL end
 KIND[Sprites.deliveryBox(false)], KIND[Sprites.deliveryBox(true)] = Objects.DELIVERY_BOX, Objects.DELIVERY_BOX
-KIND[Sprites.supplyCrate(false)], KIND[Sprites.supplyCrate(true)] = Objects.CRATE, Objects.CRATE
-local NAME = { [Objects.TERMINAL] = "CommTerminal", [Objects.DELIVERY_BOX] = "DeliveryBox", [Objects.CRATE] = "SupplyCrate" }
+local NAME = { [Objects.TERMINAL] = "CommTerminal", [Objects.DELIVERY_BOX] = "DeliveryBox" }
 
 local items = {}
 local function itemOf(kind)
@@ -82,8 +81,7 @@ function ISMoveableSpriteProps:pickUpMoveable(character, square, createItem, for
     local thing = objectOf(square, kind, self.object)
     if thing then
         if kind == Objects.TERMINAL then Things.takeTerminal(character, thing)
-        elseif kind == Objects.DELIVERY_BOX then Things.takeBox(character, thing)
-        else Things.takeCrate(character, thing) end
+        else Things.takeBox(character, thing) end
     end
     return {}
 end

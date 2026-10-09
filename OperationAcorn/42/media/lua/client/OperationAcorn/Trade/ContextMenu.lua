@@ -38,14 +38,6 @@ function Menus.use(object, player)
     end
 end
 
-function Menus.breakCrate(object, player)
-    local character = getSpecificPlayer(player)
-    local square = object:getSquare()
-    if luautils.walkAdj(character, square) then
-        ISTimedActionQueue.add(ISOABreakCrate:new(character, square))
-    end
-end
-
 function Menus.unseal(object, player)
     local character = getSpecificPlayer(player)
     local square = object:getSquare()
@@ -133,10 +125,6 @@ local function crateOptions(context, object, player)
         local crowbar = crowbarOf(getSpecificPlayer(player))
         local option = context:addOption(getText("ContextMenu_OA_Trade_Unseal"), object, Menus.unseal, player)
         tooltip(option, getText(crowbar and "ContextMenu_OA_Trade_UnsealFast" or "ContextMenu_OA_Trade_UnsealSlow"))
-        return
-    end
-    if Things.crateEmpty(object) then
-        context:addOption(getText("ContextMenu_OA_Trade_BreakCrate"), object, Menus.breakCrate, player)
     end
 end
 
@@ -162,7 +150,6 @@ Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
 local PLACE_KEY = {
     [Objects.ITEMS.terminal] = { kind = Objects.TERMINAL, key = "ContextMenu_OA_Trade_PlaceTerminal" },
     [Objects.ITEMS.box] = { kind = Objects.DELIVERY_BOX, key = "ContextMenu_OA_Trade_PlaceBox" },
-    [Objects.ITEMS.crate] = { kind = Objects.CRATE, key = "ContextMenu_OA_Trade_PlaceCrate" },
 }
 
 -- The cursor (server/OperationAcorn/Trade/PlaceCursor.lua) derives from ISBuildingObject, which the game loads with

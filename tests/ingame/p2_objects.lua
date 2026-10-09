@@ -12,7 +12,7 @@ P2T.check(say, "the character has a record", record ~= nil)
 if not record then return end
 
 -- Items and the recipe.
-for _, type in ipairs({ "CommTerminal", "DeliveryBox", "SupplyCrate", "TerminalManual", "SupplyManifest" }) do
+for _, type in ipairs({ "CommTerminal", "DeliveryBox", "TerminalManual", "SupplyManifest" }) do
     local item = instanceItem("OperationAcorn." .. type)
     P2T.check(say, "item " .. type, item ~= nil)
     P2T.check(say, "name " .. type, item and item:getDisplayName() ~= "OperationAcorn." .. type, item and item:getDisplayName())
@@ -86,6 +86,9 @@ if crateSquare then
     local c = crate:getContainer()
     P2T.check(say, "opened crate holds the cargo", c ~= nil and c:getItems():size() == 2)
     P2T.check(say, "the opened crate is explored", c ~= nil and c:isExplored())
-    P2T.check(say, "not empty so it cannot be carried", Things.crateEmpty(crate) == false)
+    P2T.check(say, "not empty so it does not break", Things.breakEmptyCrate(crate) == false)
+    P2T.check(say, "the opened crate takes nothing in", c ~= nil and not c:isItemAllowed(instanceItem("Base.Hammer")))
+    c:removeAllItems()
+    P2T.check(say, "emptied, it breaks", Things.breakEmptyCrate(crate) == true and crate:getObjectIndex() < 0)
 end
 say("done; call P2_CLEAN() to remove what was made")

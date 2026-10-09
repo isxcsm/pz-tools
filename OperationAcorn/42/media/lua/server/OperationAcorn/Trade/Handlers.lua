@@ -57,6 +57,14 @@ Server.on("tradeCall", function(character, record, args)
     if not ok then refuse(record, reason) end
 end)
 
+-- A crate a loot window shows empty: it breaks (the server looks for itself; a crate not empty here stays).
+Server.on("crateEmptied", function(character, record, args)
+    local x, y, z = tonumber(args.x), tonumber(args.y), tonumber(args.z)
+    if not (x and y and z) or not Things.near(character, x, y) then return end
+    local object = Objects.find(Objects.square(x, y, z), Objects.CRATE)
+    if object then Things.breakEmptyCrate(object) end
+end)
+
 -- The first time a terminal is used the team answers (LORE: the first radio line says the number once more). A world
 -- where the first supply did not come with the vanilla helicopter gets the late line.
 Server.on("tradeUsed", function(character, record, args)

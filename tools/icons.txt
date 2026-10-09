@@ -3,7 +3,7 @@
 # Tiered parts: <Part>Old / <Part>Normal / <Part>Modern by colour (rust brown / steel grey / anodised blue); plain <Part> = the normal look.
 CommTerminal	terminal	communication terminal (P2)
 DeliveryBox	delivery_box	delivery box, sealed look (P2)
-SupplyCrate	supply_crate	supply crate, sealed look (P2)
+SupplyCrate	supply_crate	supply crate, sealed look (P2; no item: the drop notice's picture)
 TerminalManual	manual	assembly manual booklet (P2)
 SupplyManifest	manifest	supply manifest on a clipboard (P2)
 SampleBundle	bundle	sample bundle (P5)
