@@ -7,7 +7,7 @@
 > water networks under `"fullest"` and `"nearest"`, with children, and food aged across supply changes
 > ([built so far](#built-so-far)), and the [formulas](#formulas-mechanism) area (the body points, the load tree, the
 > speed points, the survival points, the [hidden zombies](#the-hidden-zombies) and the [machines](#machines)), the
-> [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [moodles](#moodles-mechanism) mods
+> [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [sounds zombies make](#zombie-sounds), the [moodles](#moodles-mechanism) mods
 > define and the [text](#text-mechanism) they show. Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
@@ -621,6 +621,9 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `WeatherShader.startRenderThread` | each return | Sets night sight's uniforms, the program being bound: whether it is on, the strength, the colour kept beyond the values, the values' texture (put in on its own unit) and where a pixel is on it. |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
 | `IsoWorld.writes:currentCell` | after every store of `IsoWorld.currentCell` (`init`, `KillCell`; outside the constructors) | Counts the store; the same. |
+| `ParameterZombieState.setState` | before the store of the new state, which comes after the game's early return for the same state | The new state (from the stack), the zombie and the old state (the parameter's `zombie` and `state`, which the hook reads; a class without them, or with another number of stores of `state` in the method than one, loses the hook) go to the [zombie sounds](#zombie-sounds) while a mod listens. |
+| `ZombieVocalsManager$Slot.playSound` | before the one call of `BaseCharacterSoundEmitter.playVocals` | The zombie's voice starts: the zombie (the method's argument; a method that stores over it loses the hook) goes to the zombie sounds. |
+| `IsoZombie.handleLandingImpact` | the start | A zombie lands from a fall (the zombie's own method, which `DoLand` calls for a landing it counts as a fall): to the zombie sounds. |
 
 #### Night sight
 
@@ -820,10 +823,32 @@ level, the limit, a dead zombie, no world and wrong arguments. Over 10000 zombie
 about 60 us for a radius of 5 and 170 to 220 us for a radius of 1000 (every zombie within it, the nearest 8 kept), and
 allocated 649 bytes whatever the number of zombies.
 
+The zombie sounds' three hooks were put into the real bytes of `ParameterZombieState` and `ZombieVocalsManager$Slot` (the jar's;
+PZ Optimize has no loose ones) and `IsoZombie` (the jar's and PZ Optimize's loose class), each applied, and the classes passed the
+JVM's verifier (`-Xverify:all`). `ParameterZombieState$State` has `Idle`, `Eating`, `SearchTarget`, `LockTarget`, `AttackScratch`,
+`AttackLacerate`, `AttackBite`, `Hit`, `Death`, `Reanimate`, `Pushed`, `GettingUp`, `Attack` and `RunOver`; `IsoZombie$ZombieSound`
+gives Idle 15, Lunge 40, and Hurt, Burned, DeadCloseKilled and DeadNotCloseKilled 10; `LuaEventManager.triggerEvent` with six
+arguments is in the jar and in PZ Optimize's class. In the synthetic game (the game's own `setState`, `calculateCurrentValue`,
+`playSound` and `DoLand` called, with the hooks in): nothing is noted or raised with nobody listening; each kind is raised with
+where the zombie was and its loudness (the aggravation from the game's own `calculateCurrentValue` with a target), a searching
+zombie after a lunge is not an aggravation, the same state again and the states with no sound of their own note nothing; the
+voice is raised once while it plays and again once it stopped; a fall upstairs keeps its floor, a player's landing is not raised;
+a zombie beyond the radius is not noted, one exactly at it is, and so is one near a second player; the largest radius of two mods
+is used and a mod's 0, nil or `clear()` takes its own away; the same kind from a zombie within a second is raised once (in the
+same frame or the next), another kind or zombie is not a repeat, and 40 zombies' hits are all raised; 20 moments are raised 8,
+8 and 4 a frame, oldest first, and 100 leave the newest 64; a hook on another thread is raised once by the frame, and two threads
+noting 40000 moments against the frames tear none; a handler that throws leaves the game's three methods as they are; a newer API
+takes the listening over and the function a mod kept refuses; a world left takes the listening with it. A voice state change (the
+hooked `setState`) cost 4.6 ns with nobody listening (a call that returns early before the hook: 5.5 ns, the same within the
+noise), 8.6 ns listening with the zombie beyond the radius, and 17.9 ns on average when every other change was noted (the ring
+written over); the hooks allocated nothing (792 bytes over 4,000,000 changes, the measurement's own). Not tried in the game yet:
+how often the voice starts in a real horde (whether the game's voice event loops; see [below](#zombie-sounds)), and how often a
+chasing zombie is aggravated again.
+
 ## Systems
 
-Two areas that are not formulas: the game's helicopter, which the game's Lua cannot reach, and a query over the zombies the
-cell holds. Neither declares anything; a mod reads them.
+Areas that are not formulas: the game's helicopter, which the game's Lua cannot reach, a query over the zombies the cell holds,
+and the sounds zombies make that the game hands to FMOD alone. None declares anything: a mod reads them, or listens.
 
 ### The helicopter
 
@@ -883,6 +908,71 @@ It goes through the zombies the cell holds (`IsoCell.getZombieList()`, the loade
 yet is not on it, and nor is one that is dead), once, asking each its position through handles the compiler builds into the
 loop, so that a bigger radius costs no more than the zombies in it, and a zombie that is not near costs a few nanoseconds and
 allocates nothing. The list is bounded: the `limit` nearest are kept as it goes. Other levels are other calls.
+
+### Zombie sounds
+
+For a mod that shows where a zombie was heard, for a while, instead of following the zombies (a "presence sense", a direction
+indicator): the moments a zombie makes a sound that the game hands to FMOD alone and never tells Lua of. A zombie's thumps on a
+door or a window and the breaking of one already reach Lua as `OnWorldSound`, and are not repeated here. Footsteps are not
+hooked: every zombie makes them all the time, and an event for each would be following the zombies.
+
+| Call | Effect |
+| --- | --- |
+| `zombies.listen(handle, radius)` | The mod (its handle from `PZToolsAPI.client`) listens for the sounds of zombies within `radius` squares (0 to 1000) of a local player, across the ground; 0 or nil stops it, as `handle:clear()` does. Returns the radius in effect: the largest any mod listens with. |
+
+One event, `OnPZToolsZombieSound(kind, x, y, z, loudness, zombie)`, raised through `LuaEventManager` on the game's thread at the
+start of a frame after the sound: `kind` below, where the zombie was when it made it (`z` its level, as a number, which the mod
+judges: a sound on another floor is not left out), how far the game would have it heard in squares, and the game's `IsoZombie`.
+Every handler of the event gets it, at the largest radius any mod listens with; a mod that listens closer leaves out the rest.
+
+| `kind` | When | `loudness` |
+| --- | --- | --- |
+| `voice` | `ZombieVocalsManager$Slot.playSound` starts the zombie's voice (`playVocals`) | 15 (`ZombieSound.Idle`) |
+| `aggro` | the state its voice is played in goes to `SearchTarget` from a calm one (`Idle`, `Eating`, `GettingUp`, `Reanimate`) | 15 (`Idle`) |
+| `lunge` | to `LockTarget` (the second tick of `LungeState`) | 40 (`Lunge`) |
+| `attack` | to `Attack` (`AttackState`'s animation event) or to `AttackScratch`, `AttackLacerate` or `AttackBite` (set on the zombie by `BodyDamage.AddRandomDamageFromZombie` as it wounds) | 15 (the game gives an attack none; `Idle`'s) |
+| `hit` | to `Hit` (its hurt sound, its hit reaction), `Pushed` (staggered back) or `RunOver` | 10 (`Hurt`) |
+| `death` | to `Death` (`IsoGameCharacter.playDeadSound`) | 10 (`DeadCloseKilled`) |
+| `fall` | `IsoZombie.handleLandingImpact`: a landing the game counts as a fall | 10 (`Hurt`) |
+
+The loudness is the radius the game gives the zombie's sound in `IsoZombie$ZombieSound` (what a server tells its clients to play
+it over), read from the game; the numbers above are the API's own should the game not have them. A change to `Idle`, `Eating`,
+`GettingUp` or `Reanimate` makes no event, nor does a state set again (the game returns early, before the hook).
+
+How the game makes these sounds, from its bytecode:
+
+- **The voice.** Every 500 ms `ZombieVocalsManager` takes the 20 zombies nearest a listener that should play and gives each a
+  slot; the slot starts the zombie's voice (`playVocals`, an FMOD event) only when the zombie has none playing (`vocalEvent` 0).
+  `IsoZombie.updateVocalProperties` sets `vocalEvent` back to 0 when the event no longer plays, and a zombie that leaves the 20
+  has its voice stopped. So `voice` comes when a zombie becomes one of the 20 nearest (again each time it comes back), and again
+  each time its voice event ended and the next 500 ms round starts it: at most twice a second for each of 20 zombies, and once a
+  second after the repeats are left out. Whether the game's voice event loops (one `voice` for as long as the zombie stays near) or
+  ends after each moan is in the FMOD bank, not the bytecode.
+- **The voice's state.** `ParameterZombieState` is the FMOD parameter of the zombie's voice (`IsoZombie.parameterZombieState`);
+  `setState` returns at once for the same state, so the hook after that return sees changes only. The states that walk towards
+  or look for a target (`WalkTowardState`, `PathFindState`, `ZombieIdleState`) set `Idle` on their second tick, and
+  `calculateCurrentValue`, which FMOD asks while the voice plays, turns `Idle` into `SearchTarget` while the zombie has a target
+  (and back without one): so the aggravation is heard only from a zombie whose voice plays (one of the 20), and a chasing zombie
+  that enters those states again is aggravated again (once a second at most, after the repeats). `LungeState` sets `LockTarget`;
+  `AttackState` (and `AttackNetworkState`) `Attack`; the wound a zombie makes `AttackScratch`, `AttackLacerate` or `AttackBite`;
+  `IsoZombie.playHurtSound` and `ZombieHitReactionState` `Hit` (and `RunOver`); `StaggerBackState` `Pushed`; the climbing states
+  set a state an animation event names.
+- **The fall.** `DoLand` calls `handleLandingImpact` for a landing it counts as a fall (not while climbing or in a ragdoll fall);
+  the zombie's own, which the hook starts, plays its hurt sound when the fall is one that damages (which is also a `hit`).
+
+The hooks run on the thread that updates the zombie: the game's thread in vanilla, the world's worker with the debug option
+`Threading.World` (off by default), and PZ Optimize's workers, several at once, as it updates the zombies in batches
+(`pzopt.UpdateBatch`). So a hook notes the moment, never raises it: under a lock (one that nobody else holds is a
+few nanoseconds) it writes the zombie, the kind and its position into a ring of 64 places, and the ring is written over from its
+oldest when the frames fall behind. A moment no local player is within the radius of (squares across the ground, from each
+player's position as it is then) is not noted. Nothing is allocated. While no mod listens the bootstrap holds no handler, and a
+hook is one volatile read. The frame job raises at most 8 events a frame, oldest first, and leaves out the same kind from the same
+zombie within a second of the last one raised (it keeps the last 32 it raised); what it leaves for the next frame waits there.
+
+What a mod listens with is kept in the API table's metatable: a newer API takes it over, and the function a mod kept from an older
+one refuses to be called. It belongs to the world it was made in: a world left drops it, and the mods listen again in the next
+(at `OnGameStart`, say). A fault in the frame job stops the zombie sounds alone, once, with a line in the game's log (the hooks are
+given back and `listen` answers 0); a fault in a hook gives the game's method back as it would be, logged once.
 
 ## Moodles (mechanism)
 
