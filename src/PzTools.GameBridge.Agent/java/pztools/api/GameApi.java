@@ -34,6 +34,8 @@ public final class GameApi {
     private static volatile Moodles moodles;
     // The text of the Lua environment the game has now; null without one, or when the game cannot draw it.
     private static volatile Texts texts;
+    // The zombies' sounds of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
+    private static volatile ZombieSounds sounds;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -44,6 +46,9 @@ public final class GameApi {
 
     /** The text of the Lua environment the game has now, or null (for the tests of this package). */
     static Texts texts() { return texts; }
+
+    /** The zombies' sounds of the Lua environment the game has now, or null (for the tests of this package). */
+    static ZombieSounds sounds() { return sounds; }
 
     /**
      * In a game the startup loader started, once each time its jar is loaded (the payload's ApiHost): the game's Lua
@@ -78,6 +83,16 @@ public final class GameApi {
         if (defined != null) defined.frame();
         Texts shown = texts;
         if (shown != null) shown.frame();
+        ZombieSounds heard = sounds;
+        if (heard != null) {
+            try { heard.frame(); }
+            catch (Throwable failure) {
+                // Once, as the helicopter's: the hooks are given back and the rest of the API goes on.
+                sounds = null;
+                heard.stop();
+                System.err.println("[PzTools API] zombie sounds stopped: " + failure);
+            }
+        }
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -108,10 +123,12 @@ public final class GameApi {
             helicopters = null;
             moodles = null;
             texts = null;
+            sounds = null;
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
             Texts.unhook();
+            ZombieSounds.unhook();
             throw failure;
         }
     }
@@ -143,7 +160,7 @@ public final class GameApi {
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
-            systems(lua, api, game, luaManager.getClassLoader());
+            systems(lua, api, meta, handles, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -151,6 +168,7 @@ public final class GameApi {
             Formulas.retire(lua, meta);
             Moodles.retire(lua, meta);
             Texts.retire(lua, meta);
+            ZombieSounds.retire(lua, meta);
             throw failure;
         }
     }
@@ -263,14 +281,39 @@ public final class GameApi {
     }
 
     /**
-     * {@code PZToolsAPI.zombies} and {@code PZToolsAPI.helicopter}. Each is left out, with a line in the game's log, in a
-     * game that does not have what it reads: the others go on.
+     * {@code PZToolsAPI.zombies} (with {@code listen} for the zombies' sounds) and {@code PZToolsAPI.helicopter}. Each is left
+     * out, with a line in the game's log, in a game that does not have what it reads: the others go on.
      */
-    private static void systems(Kahlua lua, Object api, Game game, ClassLoader loader) throws ReflectiveOperationException {
-        try { new Zombies(lua, game, loader).register(table(lua, api, "zombies")); }
-        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+    private static void systems(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
+            throws ReflectiveOperationException {
+        Object zombies = null;
+        try {
+            zombies = table(lua, api, "zombies");
+            new Zombies(lua, game, loader).register(zombies);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             report(unreadable);
             lua.set(api, "zombies", null);
+            zombies = null;
+        }
+        ZombieSounds heard = null;
+        if (zombies != null) {
+            try {
+                heard = new ZombieSounds(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+                heard.hook();
+            } catch (LinkageError olderBootstrap) {
+                System.err.println("[PzTools API] Zombie sounds are not in this game; restart it to use them: " + olderBootstrap);
+                heard = null;
+            } catch (ReflectiveOperationException | RuntimeException unreadable) {
+                report(unreadable);
+                ZombieSounds.unhook();
+                heard = null;
+            }
+        }
+        sounds = heard;
+        if (heard != null) heard.register(zombies);
+        else {
+            ZombieSounds.retire(lua, meta);
+            if (zombies != null) lua.set(zombies, "listen", null);
         }
         Helicopters next;
         try {
@@ -322,6 +365,8 @@ public final class GameApi {
             if (defined != null) defined.clear(name, AREA + "client:clear");
             Texts shown = texts;
             if (shown != null) shown.clear(name, AREA + "client:clear");
+            ZombieSounds heard = sounds;
+            if (heard != null) heard.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;

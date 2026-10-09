@@ -81,12 +81,8 @@ final class TextsTest {
         check(names().equals(List.of("windows", "tooltip", "post")), "The interface was not drawn as it was: " + names());
         TextManager.record = false;
         int drawn = TextManager.drawn;
-        long bytes = 0;
-        for (int round = 0; round < 3; round++) {
-            long start = allocated();
-            for (int frame = 0; frame < 100_000; frame++) UIManager.render();
-            bytes = allocated() - start;
-        }
+        // The median of 5 rounds: one round alone may count the JIT's move of the measuring loop to C2 (see Allocations).
+        long bytes = Allocations.median(5, () -> { for (int frame = 0; frame < 100_000; frame++) UIManager.render(); });
         TextManager.record = true;
         check(TextManager.drawn == drawn && bytes < 1024, "With nothing shown the drawing drew " + (TextManager.drawn - drawn) + " and allocated " + bytes + " bytes");
     }
@@ -445,18 +441,19 @@ final class TextsTest {
         render();
         check(draws().size() == 12, "The title and its line are not drawn with their copies: " + draws().size());
         TextManager.record = false;
-        long bytes = 0, time = 0;
+        long bytes;
+        long[] time = new long[1];
         int frames = 100_000;
         try {
-            for (int round = 0; round < 3; round++) {
-                long start = allocated(), clock = System.nanoTime();
+            // The median of 5 rounds (see Allocations); the time is the last round's.
+            bytes = Allocations.median(5, () -> {
+                long clock = System.nanoTime();
                 for (int frame = 0; frame < frames; frame++) UIManager.render();
-                time = System.nanoTime() - clock;
-                bytes = allocated() - start;
-            }
+                time[0] = System.nanoTime() - clock;
+            });
         } finally { TextManager.record = true; }
         System.out.printf("text: a title with its line (12 strings) costs %.0f ns a frame to place, allocating %d bytes over %d frames%n",
-            time / (double)frames, bytes, frames);
+            time[0] / (double)frames, bytes, frames);
         check(bytes < 4096, "Drawing a title allocated " + bytes + " bytes");
         FormulasTest.call(text, "hide", mod, key, true);
     }
@@ -556,10 +553,6 @@ final class TextsTest {
             return;
         }
         throw new AssertionError(name + " accepted bad arguments: " + message);
-    }
-
-    private static long allocated() {
-        return ((com.sun.management.ThreadMXBean)java.lang.management.ManagementFactory.getThreadMXBean()).getThreadAllocatedBytes(Thread.currentThread().threadId());
     }
 
     private static void check(boolean condition, String message) { if (!condition) throw new AssertionError(message); }

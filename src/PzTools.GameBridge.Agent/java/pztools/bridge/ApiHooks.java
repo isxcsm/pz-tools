@@ -280,6 +280,26 @@ public final class ApiHooks {
         void draw();
     }
 
+    /**
+     * Set by the payload while a mod listens for the sounds zombies make (docs/design/extension-api.md, "Zombie sounds"): the
+     * moments the game hands a zombie's voice to FMOD alone, which Lua never hears of. Null while nobody listens, so that a hook
+     * costs one volatile read. The calls come on the thread that updates the zombies (the game's, or the world's worker when the
+     * game threads the world), must not allocate, and only note the moment: the event is raised later, on the game's thread.
+     */
+    public interface ZombieSounds {
+        /**
+         * {@code ParameterZombieState.setState(to)} changes the state the zombie's voice is played in (the game returns early when
+         * it is the same): {@code from} and {@code to} are {@code ParameterZombieState$State} constants.
+         */
+        default void state(Object zombie, Object from, Object to) { }
+
+        /** {@code ZombieVocalsManager$Slot.playSound}: the zombie's voice is started ({@code BaseCharacterSoundEmitter.playVocals}). */
+        default void voice(Object zombie) { }
+
+        /** {@code IsoZombie.handleLandingImpact}: the zombie lands from a fall. */
+        default void landed(Object zombie) { }
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -295,6 +315,7 @@ public final class ApiHooks {
     private static volatile Formulas formulas;
     private static volatile Moodles moodles;
     private static volatile Text text;
+    private static volatile ZombieSounds zombieSounds;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -322,7 +343,9 @@ public final class ApiHooks {
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
         MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
-        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT);
+        MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
+        ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
+        ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS);
 
         final String label;
         final Group group;
@@ -331,7 +354,7 @@ public final class ApiHooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -339,7 +362,9 @@ public final class ApiHooks {
     private static final ClassDesc ARRAY_LIST = ClassDesc.of("java.util.ArrayList"), LIST = ClassDesc.of("java.util.List");
     private static final ClassDesc PLAYER = ClassDesc.of("zombie.characters.IsoPlayer"),
         CHARACTER = ClassDesc.of("zombie.characters.IsoGameCharacter"), VECTOR2 = ClassDesc.of("zombie.iso.Vector2"),
-        MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture");
+        MOODLE_TYPE = ClassDesc.of("zombie.scripting.objects.MoodleType"), TEXTURE = ClassDesc.of("zombie.core.textures.Texture"),
+        ZOMBIE_STATE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState"), ZOMBIE = ClassDesc.of("zombie.characters.IsoZombie"),
+        ZOMBIE_STATE_VALUE = ClassDesc.of("zombie.audio.parameters.ParameterZombieState$State");
     // Whether IsoObject, as last transformed, has both hooks that keep a fixture's water tainted.
     private static volatile boolean purifyHooked;
     // UIManager.getToolTip(), which render asks after it has drawn the interface's windows.
@@ -798,7 +823,40 @@ public final class ApiHooks {
                 code.invokestatic(HOOKS, "statDelta", MethodTypeDesc.of(ConstantDescs.CD_float, ConstantDescs.CD_Object, ConstantDescs.CD_Object,
                     ConstantDescs.CD_float));
                 code.fstore(2);
-            }) }));
+            }) }),
+        // The sounds zombies make that the game hands to FMOD alone (docs/design/extension-api.md, "Zombie sounds"). The state a
+        // zombie's voice is played in: the store of the new state, which comes after the game's early return for the same one (the
+        // new state from the stack, the zombie and the old state read from the parameter).
+        Map.entry("zombie/audio/parameters/ParameterZombieState", new Site[] {
+            Site.edit("setState", "(Lzombie/audio/parameters/ParameterZombieState$State;)V", new Edit(field(Opcode.PUTFIELD,
+                "zombie/audio/parameters/ParameterZombieState", "state"), 1, null, (code, element, kind) -> {
+                    // this, to -> this, to, to, zombie, from -> this, to
+                    code.dup();
+                    code.aload(0);
+                    code.getfield(ZOMBIE_STATE, "zombie", ZOMBIE);
+                    code.aload(0);
+                    code.getfield(ZOMBIE_STATE, "state", ZOMBIE_STATE_VALUE);
+                    code.invokestatic(HOOKS, "zombieState", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object));
+                    code.with(element);
+                })).reading("zombie:Lzombie/characters/IsoZombie;", "state:Lzombie/audio/parameters/ParameterZombieState$State;") }),
+        // A zombie's voice starting: the one call of playVocals, which the slot makes when the zombie has no voice playing (the
+        // zombie is the method's argument, which the method never stores over).
+        Map.entry("zombie/characters/ZombieVocalsManager$Slot", new Site[] {
+            Site.edit("playSound", "(Lzombie/characters/IsoZombie;)V", new Edit(calls("zombie/characters/BaseCharacterSoundEmitter", "playVocals",
+                "(Ljava/lang/String;)J"), 1, (elements, index) -> {
+                    for (CodeElement element : elements)
+                        if (element instanceof StoreInstruction store && store.slot() == 1)
+                            throw new IllegalArgumentException("the zombie argument is stored over");
+                    return 0;
+                }, (code, element, kind) -> {
+                    code.aload(1);
+                    code.invokestatic(HOOKS, "zombieVoice", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object));
+                    code.with(element);
+                })) }),
+        // A zombie landing from a fall: the zombie's own handleLandingImpact, which DoLand calls for a landing the game counts as a fall.
+        Map.entry("zombie/characters/IsoZombie", new Site[] {
+            Site.atStart("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", (code, owner) -> thisCall(code, "zombieLanded")) }));
 
     /** {@code this}, passed to the static call {@code name(Object)}. */
     private static void thisCall(CodeBuilder code, String name) {
@@ -1954,6 +2012,36 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.draw(); }
         catch (Throwable problem) { reportOnce(Call.TEXT, problem); }
+    }
+
+    /** Sets what hears the sounds zombies make, replacing an earlier payload's; null while nobody listens (the hooks then return at once). */
+    public static void setZombieSounds(ZombieSounds next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.ZOMBIE_SOUNDS); }
+        zombieSounds = next;
+    }
+
+    /** Put before the store of the new state in {@code ParameterZombieState.setState}: the state changes. */
+    public static void zombieState(Object to, Object zombie, Object from) {
+        ZombieSounds current = zombieSounds;
+        if (current == null) return;
+        try { current.state(zombie, from, to); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_STATE, problem); }
+    }
+
+    /** Put before the call of {@code playVocals} in {@code ZombieVocalsManager$Slot.playSound}. */
+    public static void zombieVoice(Object zombie) {
+        ZombieSounds current = zombieSounds;
+        if (current == null) return;
+        try { current.voice(zombie); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_VOICE, problem); }
+    }
+
+    /** Put at the start of {@code IsoZombie.handleLandingImpact}. */
+    public static void zombieLanded(Object zombie) {
+        ZombieSounds current = zombieSounds;
+        if (current == null) return;
+        try { current.landed(zombie); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_LANDED, problem); }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

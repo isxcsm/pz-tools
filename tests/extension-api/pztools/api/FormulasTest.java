@@ -900,10 +900,6 @@ final class FormulasTest {
         return (Formulas)field.get(null);
     }
 
-    private static long allocated() {
-        return ((com.sun.management.ThreadMXBean)java.lang.management.ManagementFactory.getThreadMXBean()).getThreadAllocatedBytes(Thread.currentThread().threadId());
-    }
-
     // ---- the account of the load, kept ----
 
     /**
@@ -933,14 +929,13 @@ final class FormulasTest {
         check(near(other.getInventoryWeight(), 30), "Another character's weight is not the game's: " + other.getInventoryWeight());
 
         // A question with nothing changed is a few field reads: no item looked at, nothing allocated.
-        float sink = 0;
-        for (int index = 0; index < 50000; index++) sink += player.getInventoryWeight();
-        long bytes = allocated();
-        for (int index = 0; index < 200000; index++) sink += player.getInventoryWeight();
-        bytes = allocated() - bytes;
+        float[] sink = { 0 };
+        for (int index = 0; index < 50000; index++) sink[0] += player.getInventoryWeight();
+        // The median of 5 rounds: one round alone may count the JIT's move of the measuring loop to C2 (see Allocations).
+        long bytes = Allocations.median(5, () -> { for (int index = 0; index < 200000; index++) sink[0] += player.getInventoryWeight(); });
         check(game.inventoryVisits() == visits && game.inventoryRebuilds() == rebuilds, "A question with nothing changed looked at items");
         check(bytes < 4096, "A question with nothing changed allocated " + bytes + " bytes in 200000 calls");
-        check(player.getInventoryWeight() == first && sink > 0, "The weight changed with nothing changed");
+        check(player.getInventoryWeight() == first && sink[0] > 0, "The weight changed with nothing changed");
 
         // Items added and taken out, in the character's list, in a bag, in a bag in a bag.
         var nail = item("Material", 0.5f);
