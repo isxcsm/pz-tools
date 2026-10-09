@@ -82,7 +82,7 @@ public sealed class ProcessStopSignalTests
     /// A maintenance lane asked to stop while it waits for the repository's writer closes its workflow as cancelled,
     /// as a yield to a backup does, instead of leaving it running for the next recovery to find abandoned.
     /// </summary>
-    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR")]
+    [RequiresEnvironmentFact("PZTOOLS_TOOLS_DIR", NoGame = true)]
     public async Task AMaintenanceLaneAskedToStop_ClosesItsWorkflowAsCancelled()
     {
         using var temp = new TempDirectory();
@@ -105,7 +105,7 @@ public sealed class ProcessStopSignalTests
             var give = DateTime.UtcNow.AddSeconds(30);
             while (await RunningLaneStageAsync(repository) is null)
             {
-                if (lane.HasExited) Assert.Fail("The lane ended before it reserved its workflow: " + await output);
+                if (lane.HasExited) Assert.Fail(NoGameRunning.Explain("The lane ended before it reserved its workflow: " + await output));
                 Assert.True(DateTime.UtcNow < give, "The lane did not reserve its workflow.");
                 await Task.Delay(50);
             }

@@ -399,7 +399,6 @@ public sealed class ProcessPipelineIntegrationTests
         }
     }
 
-    // Lanes are deferred while any game runs, so a game on this machine would leave no lane to watch.
     [PublishedToolsOnlyFact(NoGame = true)]
     public async Task MaintenanceLane_DispatchesChildWithoutWaitingForIt()
     {
@@ -431,9 +430,7 @@ public sealed class ProcessPipelineIntegrationTests
                 await Task.Delay(50);
             Assert.True(await MaintenanceLaneSignal.IsRunningAsync(
                 repository.RepositoryPath, "ArtifactCleanup"),
-                GameplayWorkGate.ShouldDeferMaintenance()
-                    ? "A game process started during the test, so the lane was deferred."
-                    : "The dispatched lane did not start.");
+                NoGameRunning.Explain("The dispatched lane did not start."));
         }
         var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
         (long RunIndex, string Pipeline, string Status)? workflow = null;
@@ -658,15 +655,13 @@ public sealed class ProcessPipelineIntegrationTests
             }
         }
 
-        /// <summary>The test needs maintenance lanes to run, which they never do while a game is open.</summary>
+        /// <summary>The test needs maintenance work to run, which it never does while a game is open.</summary>
         public bool NoGame
         {
             get => false;
             set
             {
-                if (!value || Skip is not null) return;
-                if (GameplayWorkGate.ShouldDeferMaintenance())
-                    Skip = "Close Project Zomboid: maintenance lanes are deferred while a game runs.";
+                if (value) Skip ??= NoGameRunning.SkipReason();
             }
         }
     }

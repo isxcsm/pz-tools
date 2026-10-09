@@ -9,6 +9,27 @@ public sealed class RequiresEnvironmentFactAttribute : FactAttribute
         else if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variable)))
             Skip = $"Set {variable} to run this integration test.";
     }
+
+    /// <summary>The test needs maintenance work to run, which it never does while a game is open.</summary>
+    public bool NoGame
+    {
+        get => false;
+        set { if (value) Skip ??= NoGameRunning.SkipReason(); }
+    }
+}
+
+/// <summary>
+/// Maintenance work (lanes, orphan cleanup) is deferred while any game process runs, by design. A test that needs
+/// that work to run skips then, instead of failing on a machine where someone is playing.
+/// </summary>
+internal static class NoGameRunning
+{
+    public static string? SkipReason() => PzTools.Process.Hosting.GameplayWorkGate.ShouldDeferMaintenance()
+        ? "Close Project Zomboid: maintenance work is deferred while a game runs." : null;
+
+    /// <summary>Names a game that appeared after the test started, so it does not read as a product bug.</summary>
+    public static string Explain(string failure) => PzTools.Process.Hosting.GameplayWorkGate.ShouldDeferMaintenance()
+        ? failure + " A game process is running now, so maintenance work was deferred." : failure;
 }
 
 public sealed class RequiresEnvironmentTheoryAttribute : TheoryAttribute

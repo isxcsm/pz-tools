@@ -240,6 +240,8 @@ public sealed class OrphanBackupCleanupTests
         {
             if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("PZTOOLS_TOOLS_DIR")))
                 Skip = "Set PZTOOLS_TOOLS_DIR to run the published maintenance worker.";
+            // Every published lane test here needs the lane to run, which it never does while a game is open.
+            else Skip = NoGameRunning.SkipReason();
         }
     }
 }
