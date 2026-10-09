@@ -182,6 +182,161 @@ function Dev.sound(dx, dy, radius, volume)
     say("sound at", dx, dy)
 end
 
+-- ---- a place to try everything by hand ------------------------------------------------------------------------
+
+-- One of each thing the mod puts in the world, working, on clear open ground near the character, for a person to try
+-- the windows and menus by hand: a terminal with power, a delivery box, a sealed supply crate, every machine facing
+-- south, a running generator among them (the terminal and most machines need power), the heavy items (terminal, box,
+-- crate, a bench) on the ground to try placing, and one of each usable item in the inventory (serums issued to this
+-- character, the cure among them, kits, parts, fuel cans, documents to read). The character is put south of it all.
+-- Dev.clearShowroom() takes everything away again. Returns the area's corner, or nil when no clear ground is near.
+local SHOW_W, SHOW_H = 16, 11
+local SHOW_ITEMS = {
+    { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
+    { "CureSerum", 1, issued = true }, { "DelayDrug", 2 },
+    { "KitBagCapacity", 1 }, { "KitBagWeight", 1 }, { "KitTrunk", 1 }, { "KitEngine", 1 }, { "KitVoucher", 1 },
+    { "TeamBackpack", 1 }, { "FuelCanMk1", 1 }, { "FuelCanMk2", 1 }, { "FuelCanMk3", 1 },
+    { "TerminalManual", 1 }, { "SupplyManifest", 1 }, { "SampleBundle", 3 }, { "MeteorFragment", 3 },
+    { "MotorNormal", 1 }, { "ShredBladeNormal", 1 }, { "CutBladeNormal", 1 }, { "SawBladeNormal", 1 },
+    { "FilterNormal", 1 }, { "SoundproofCover", 1 },
+    { "EvidenceEnvelope", 1 }, { "ClinicRecord", 1 }, { "WeatherLog", 1 }, { "SerumSheet", 1 }, { "HandoverFile", 1 },
+}
+local SHOW_GROUND = { "CommTerminal", "DeliveryBox", "SupplyCrate", "ShredBench" }
+-- The machines: kind and anchor (dx, dy) in the area, all facing south.
+local SHOW_MACHINES = {
+    { "shredBench", 1, 4 }, { "bulkShredder", 4, 4 }, { "cutter", 7, 4 }, { "woodSaw", 10, 4 },
+    { "researchStorage", 13, 4 }, { "propaneRefiner", 1, 7 }, { "oilRefiner", 5, 7 }, { "rainStorage", 9, 7 },
+    { "lure", 13, 7 },
+}
+local show = nil   -- what Dev.showroom made: { objects, machines, generator, ground, items }
+
+-- Whether the area with its corner at (x, y) on the ground floor is open ground with nothing on it.
+local function openArea(x, y)
+    local cell = getCell()
+    for dx = 0, SHOW_W - 1 do
+        for dy = 0, SHOW_H - 1 do
+            local sq = cell:getGridSquare(x + dx, y + dy, 0)
+            if not sq or not sq:isOutside() or sq:getBuilding() or sq:HasTree() or not OA.Trade.Objects.free(sq) then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function Dev.showroom()
+    if show then Dev.clearShowroom() end
+    local player = getPlayer()
+    local record = Dev.record()
+    if not record then say("showroom: no record yet") return nil end
+    local px, py = math.floor(player:getX()), math.floor(player:getY())
+    local corner = OA.Trade.Objects.search(px, py, 0, 40, function(sq) return openArea(sq:getX(), sq:getY()) end)
+    if not corner then say("showroom: no clear", SHOW_W, "x", SHOW_H, "ground within 40") return nil end
+    local cell = getCell()
+    local x0, y0 = corner:getX(), corner:getY()
+    local function at(dx, dy) return cell:getGridSquare(x0 + dx, y0 + dy, 0) end
+    local inv = player:getInventory()
+    show = { objects = {}, machines = {}, ground = {}, items = {} }
+
+    -- power first: a generator, fuelled and running, in the middle of the first row
+    local gen = IsoGenerator.new(instanceItem("Base.Generator"), cell, at(7, 1))
+    gen:setConnected(true)
+    gen:setFuel(100)
+    gen:setActivated(true)
+    show.generator = gen
+
+    local T = OA.Trade
+    local okT, terminal = T.Things.placeTerminal(player, at(1, 1), "S", inv:AddItem("OperationAcorn.CommTerminal"))
+    if okT then show.objects[#show.objects + 1] = terminal end
+    local okB, box = T.Things.placeBox(player, record, at(13, 1), inv:AddItem("OperationAcorn.DeliveryBox"))
+    if okB then show.objects[#show.objects + 1] = box end
+    show.objects[#show.objects + 1] = T.Things.makeCrate(at(10, 1),
+        { { type = "Base.Battery", count = 2 }, { type = "OperationAcorn.SampleBundle", count = 2 } }, false)
+
+    local M = OA.Machines
+    local placed = 0
+    for _, m in ipairs(SHOW_MACHINES) do
+        local sq = at(m[2], m[3])
+        local ok, why = M.canPlace(m[1], sq, "S")
+        if ok then
+            local item = inv:AddItem(M.itemFullType(m[1]))
+            local object = M.place(m[1], sq, player, item, "S")
+            if item:getContainer() then item:getContainer():Remove(item) end
+            if object then
+                show.machines[#show.machines + 1] = object
+                placed = placed + 1
+            end
+        else
+            say("showroom:", m[1], "not placed:", tostring(why))
+        end
+    end
+
+    -- the heavy items on the ground beside the terminal, to pick up and place
+    for i, name in ipairs(SHOW_GROUND) do
+        local item = at(3 + (i - 1) % 2, 1 + math.floor((i - 1) / 2)):AddWorldInventoryItem("OperationAcorn." .. name,
+            0.5, 0.5, 0)
+        show.ground[#show.ground + 1] = item
+    end
+
+    for _, entry in ipairs(SHOW_ITEMS) do
+        for _ = 1, entry[2] do
+            local item = inv:AddItem("OperationAcorn." .. entry[1])
+            if item then
+                if entry.issued then
+                    item:getModData().OA_Issued = OA.hours()
+                    item:getModData().OA_Owner = record.id
+                end
+                show.items[#show.items + 1] = item
+            end
+        end
+    end
+
+    -- the character south of it all, facing it
+    player:setX(x0 + 8.5)
+    player:setY(y0 + SHOW_H - 0.5)
+    player:setLastX(player:getX())
+    player:setLastY(player:getY())
+    player:setDir(IsoDirections.N)
+    say("showroom at", x0, y0, "terminal", tostring(okT), "box", tostring(okB), "machines", placed, "of",
+        #SHOW_MACHINES, "items", #show.items, "powered", tostring(OA.Trade.Objects.powered(at(1, 1))))
+    return x0, y0
+end
+
+-- Takes away what Dev.showroom made (the delivery box out of the record too) and the items it gave that are still
+-- in the inventory.
+function Dev.clearShowroom()
+    if not show then say("showroom: nothing to clear") return end
+    local T = OA.Trade
+    for _, object in ipairs(show.objects) do
+        if object:getSquare() then
+            T.Things.destroyed(object)
+            T.Objects.remove(object)
+        end
+    end
+    for _, object in ipairs(show.machines) do
+        if OA.Machines.state(object) then OA.Machines.remove(object) end
+    end
+    local gen = show.generator
+    if gen and gen:getSquare() then
+        gen:setActivated(false)
+        gen:getSquare():transmitRemoveItemFromSquare(gen)
+    end
+    for _, item in ipairs(show.ground) do
+        local world = item:getWorldItem()
+        if world and world:getSquare() then world:getSquare():transmitRemoveItemFromSquare(world) end
+    end
+    local taken = 0
+    for _, item in ipairs(show.items) do
+        local container = item:getContainer()
+        if container then
+            container:Remove(item)
+            taken = taken + 1
+        end
+    end
+    show = nil
+    say("showroom cleared, items taken back", taken)
+end
+
 -- ---- screens ---------------------------------------------------------------------------------------------------
 
 -- Shows or hides the game's Lua console (the channel needs none; a picture should not have it).
