@@ -140,9 +140,12 @@ function Economy.tenMinutes()
     end)
 end
 
--- Every minute: the building each character stands in. All of a building's containers searched: it is counted once.
+-- Every minute, at most once each Buildings.LOOK_MS of real time (the minute fires many times a second fast-forwarded):
+-- the building each character stands in. All of a building's containers searched: it is counted once.
 function Economy.minute()
+    local now = getTimestampMs()
     eachPlayer(function(character)
+        if not OA.Buildings.due(character, now) then return end
         local key, searched, total, complete = OA.Buildings.tick(character)
         if not key then return end
         OA.Codex.setBuildingProgress(key, searched, total)

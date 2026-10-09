@@ -2,7 +2,8 @@
 -- A container counts as searched when the player has opened it (ItemContainer:isExplored). The containers of a
 -- building are counted when the character comes into it, a part at a time (Buildings.BUDGET squares a look), and
 -- kept; after that a look only asks the ones not opened yet. Nothing runs per tick: the server wiring calls
--- Buildings.tick for each player once a game minute, and a window may call it as it likes.
+-- Buildings.tick for each player once a game minute, at most once each LOOK_MS of real time (Buildings.due), and a
+-- window may call it as it likes.
 --
 -- With the PZ Tools API the building and its rooms come from it (buildings.at, buildings.rooms: a stable key and
 -- the squares of every room, player-built buildings known as such); without it, from the game's BuildingDef and
@@ -17,11 +18,27 @@ OA.Buildings = Buildings
 local MOD_KIND = "OA_Kind"
 
 local states = {}      -- by player number: the walk over the building the character is in (see newWalk)
+local lookedAt = {}    -- by player number: the real time (ms) of the last look the minute check made
 
 -- Squares one look visits at most. A big building (an office of some 20,000 squares and 1,900 containers) is counted
 -- over several minutes instead of in one long frame: found in game, 120 ms for a look, and every minute while part of
 -- it was not loaded, because the whole building was counted again.
 Buildings.BUDGET = 200
+
+-- Real milliseconds at least between two looks from the minute check. A look walks the building and follows no game
+-- time, and a game minute is 2.5 s of real time at the default day length but a few hundredths of a second
+-- fast-forwarded (x40) or asleep: then the minute check fires many times a second.
+Buildings.LOOK_MS = 2000
+
+-- Whether the minute check looks at a character's building now (`now`: getTimestampMs()), and if so notes it. A clock
+-- that went back looks at once.
+function Buildings.due(character, now)
+    local number = character:getPlayerNum()
+    local last = lookedAt[number]
+    if last and now >= last and now - last < Buildings.LOOK_MS then return false end
+    lookedAt[number] = now
+    return true
+end
 
 -- A walk over the squares of the building at a square, counted a part at a time (stepWalk): nil outside any building
 -- or in one the player built. `room` is the square's vanilla room (the caller has it), used when the API is missing.
@@ -222,6 +239,7 @@ end
 -- Forget what is cached (a new character, a test).
 function Buildings.reset()
     states = {}
+    lookedAt = {}
 end
 
 return Buildings
