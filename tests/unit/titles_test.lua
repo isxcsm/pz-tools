@@ -55,3 +55,26 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(halo[1], "plain:IGUI_OA_Title_Capstone")
     PZToolsAPI = nil
 end)
+
+test("an argument that is a text is translated on the player's side", function()
+    local halo = world()
+    PZToolsAPI = nil
+    OA.Sync.title("p1", { key = "IGUI_OA_Title_Paid", sub = "IGUI_OA_Title_PaidSub",
+        subArgs = { { key = "IGUI_OA_Story_Title_x", args = { 2 } }, 300 } })
+    eq(halo[1], "plain:IGUI_OA_Title_Paid - IGUI_OA_Title_PaidSub IGUI_OA_Story_Title_x 2 300")
+end)
+
+test("with noHalo a title the API cannot draw is not shown, for the caller's own way", function()
+    local halo = world()
+    PZToolsAPI = nil
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil)
+    eq(#halo, 0)
+    PZToolsAPI = {
+        version = OA.API_VERSION,
+        client = function() return "handle" end,
+        text = { status = function() return "applied" end, title = function() error("broken") end },
+    }
+    eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_TreeOpened" }, true), nil, "a failed draw is not a title")
+    eq(#halo, 0)
+    PZToolsAPI = nil
+end)
