@@ -102,7 +102,7 @@ for _, on in ipairs({ true, false }) do
 end
 
 -- The machines, each placed whole: its tiles on the squares of its footprint from the anchor (the min-x, min-y square),
--- a stopped look and a running look side by side, the four directions along each, three squares apart. The
+-- the stopped, ready and running looks side by side, the four directions along each, three squares apart. The
 -- sheet's rules for them: facing and grid position on every tile, one group, the container (research storage) and the
 -- rain collector flag on the anchor only; the rain storage is the empty tank with the water level set as overlay.
 local DIRS = { "S", "E", "N", "W" }
@@ -112,7 +112,7 @@ local RUNS = { bulkShredder = true, cutter = true, woodSaw = true, propaneRefine
 local look = 0
 local machines = 0
 for _, kind in ipairs(KINDS) do
-    for _, running in ipairs(RUNS[kind] and { false, true } or { false }) do
+    for _, running in ipairs(RUNS[kind] and { false, "ready", true } or { false }) do
         -- the rain storage does not turn: its four looks are the water levels, empty to full (the empty tank, 1 to 3 with the overlay)
         for d, dir in ipairs(kind == "rainStorage" and { 0, 1, 2, 3 } or DIRS) do
             local level
@@ -135,7 +135,7 @@ for _, kind in ipairs(KINDS) do
                         IsWaterCollector = (kind == "rainStorage" and anchor) and true or false,
                         Facing = dir,
                     }
-                    if kind == "rainStorage" then want.Facing = false end   -- (cond and false or x) would give x
+                    if kind == "rainStorage" then want.Facing = "S" end   -- one facing: the game builds its grid
                     if checkProps(t.sprite, kind .. " " .. dir, want) then
                         local g = prop(sprite(t.sprite), "GroupName")
                         group = group or g

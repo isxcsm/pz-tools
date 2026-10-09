@@ -145,11 +145,14 @@ def conveyor_belt_image(running, w=200, h=48, phase=0):
     return img
 
 
-def bulk_shredder(turns, running):
+def bulk_shredder(turns, look):
     """The bulk shredder (2 x 1): an olive cabinet with a motor on its front and a funnel hopper with a yellow-black
     rim over twin shafts, a discharge chute on its east side onto a belt conveyor that runs on to a collecting bin; a
-    control box with lamps, a stop button and a beacon on a post. Running: the green lamp and the beacon are lit and
-    shredded pieces ride the belt and fill the bin."""
+    control box with lamps, a stop button and a beacon on a post. On: the green lamp and the beacon are lit. Running:
+    shredded pieces ride the belt and fill the bin as well.
+    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    moves), 1 running (working)."""
+    running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
     glows = []
     x0, x1, y0, y1 = 0.10, 0.98, 0.12, 0.70
@@ -223,15 +226,15 @@ def bulk_shredder(turns, running):
                   0.29 + rn.random() * 0.03, rn.choice([(170, 160, 130), (150, 70, 50), (70, 100, 150), (200, 190, 170), (120, 124, 128), (90, 130, 80)]))
     # the control box at the cabinet's west front, lamps and the stop button
     s.box(0.14, y1, 0.22, 0.24, y1 + 0.05, 0.44, GRAPHITE_DARK, top=GRAPHITE, shine=0.2)
-    lamp_y(s, glows, 0.17, y1 + 0.05, 0.38, 0.014, 'green', running)
-    lamp_y(s, glows, 0.21, y1 + 0.05, 0.38, 0.014, 'red', not running)
+    lamp_y(s, glows, 0.165, y1 + 0.05, 0.39, 0.022, 'green', on)
+    lamp_y(s, glows, 0.215, y1 + 0.05, 0.39, 0.022, 'red', not on)
     s.tube((0.19, y1 + 0.05, 0.29), (0.19, y1 + 0.085, 0.29), 0.026, YELLOW, segments=16)
     s.tube((0.19, y1 + 0.085, 0.29), (0.19, y1 + 0.102, 0.29), 0.022, RED, cap=(220, 70, 56), segments=16, shine=0.3)
     # the beacon on a post at the hopper's north-west corner
     bx_, by_ = x0 + 0.0, y0 - 0.02
     s.tube((bx_, by_, zh), (bx_, by_, zh + 0.3), 0.009, STEEL_DARK, segments=8)
     s.tube((bx_, by_, zh + 0.3), (bx_, by_, zh + 0.32), 0.03, BEZEL, segments=14)
-    if running:
+    if on:
         s.tube((bx_, by_, zh + 0.32), (bx_, by_, zh + 0.38), 0.026, LIT['amber'], cap=(255, 240, 200), segments=14, emit=True)
         glows.append(((bx_, by_, zh + 0.36), LIT['amber'], 0.2))
     else:
@@ -239,14 +242,17 @@ def bulk_shredder(turns, running):
     front_decal(s, 0.30, 0.78, 0.16, 0.30, y1 + 0.001, stencil_text('SHREDDER', 100, 22, STENCIL))
     front_decal(s, 0.84, 0.96, 0.18, 0.40, y1 + 0.001, acorn_mark(26, STENCIL))
     ground = shadow((1.0, 0.45), 1.0, 0.4, 125)
-    return compose(s, ground=ground, seed=110 + turns + (4 if running else 0), glows=glows)
+    return compose(s, ground=ground, seed=110 + turns + 4 * int(look), glows=glows)
 
 
-def cutter(turns, running):
+def cutter(turns, look):
     """The cutter (2 x 1): a long cutting table with a green grid mat, a roll of canvas on arms at its west end, a
     gantry with a blade carriage over the mat, a vacuum blower under the table and a cart of cut pieces at the east end.
     Stopped: the carriage waits at the west and the cloth is whole. Running: the carriage is mid-table with its lamp
-    lit, the cloth behind it is cut and the first pieces lie stacked on the cart."""
+    lit, the cloth behind it is cut and the first pieces lie stacked on the cart. The lamps say on (green) or off (red).
+    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    moves), 1 running (working)."""
+    running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
     glows = []
     x0, x1, y0, y1 = 0.20, 1.92, 0.22, 0.78
@@ -288,7 +294,7 @@ def cutter(turns, running):
     s.box(gx - 0.06, cy - 0.07, 0.62, gx + 0.06, cy + 0.07, 0.78, GRAPHITE_DARK, top=GRAPHITE, shine=0.2)
     s.box(gx - 0.014, cy - 0.018, cloth_z, gx + 0.014, cy + 0.018, 0.62, STEEL, shine=0.7)
     s.poly([(gx - 0.014, cy + 0.019, cloth_z), (gx + 0.014, cy + 0.019, cloth_z), (gx + 0.014, cy + 0.019, 0.60), (gx - 0.014, cy + 0.019, 0.60)], (220, 224, 226), (0, 1, 0), shine=0.8)
-    lamp_y(s, glows, gx, cy + 0.07, 0.73, 0.015, 'green', running)
+    lamp_y(s, glows, gx, cy + 0.07, 0.73, 0.018, 'green', on)
     lamp_y(s, glows, gx, cy + 0.07, 0.67, 0.013, 'amber', False)
     # the cart of cut pieces at the east end
     s.box(1.68, 0.2, 0.08, 1.98, 0.8, 0.12, GRAPHITE_DARK)
@@ -301,9 +307,9 @@ def cutter(turns, running):
                   (190, 70, 56) if i % 2 else CANVAS, top=(210, 100, 80) if i % 2 else (176, 166, 128))
     # a control pedestal at the east end of the table's front
     s.box(1.5, y1, 0.0, 1.62, y1 + 0.12, 0.60, OD, top=OD_LIGHT, shine=0.1)
-    lamp_y(s, glows, 1.56, y1 + 0.12, 0.52, 0.015, 'green', running)
-    lamp_y(s, glows, 1.56, y1 + 0.12, 0.45, 0.015, 'red', not running)
+    lamp_y(s, glows, 1.56, y1 + 0.12, 0.52, 0.024, 'green', on)
+    lamp_y(s, glows, 1.56, y1 + 0.12, 0.44, 0.024, 'red', not on)
     s.box(1.51, y1 + 0.12, 0.26, 1.61, y1 + 0.124, 0.38, GRAPHITE_DARK)
     front_decal(s, 0.5, 1.2, 0.20, 0.34, y1 + 0.001, stencil_text('CUTTER', 100, 24, STENCIL))
     ground = shadow((1.0, 0.5), 1.0, 0.36, 120)
-    return compose(s, ground=ground, seed=120 + turns + (4 if running else 0), glows=glows)
+    return compose(s, ground=ground, seed=120 + turns + 4 * int(look), glows=glows)

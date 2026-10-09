@@ -95,7 +95,8 @@ TRADE = (
 )
 
 # The big machines. foot = (w along x, h along y) facing south; the east and west facings swap them. states: 1, or 2
-# (stopped, running). facings: 4 (S E N W), or 1 for the rain storage (it looks the same from every side).
+# (stopped, running); a machine with two also has a ready look (switched on and waiting: lamps lit, nothing moves),
+# state 2, placed after the rain overlays (READY). facings: 4 (S E N W), or 1 for the rain storage.
 # props go on every tile of the machine; anchor_props on the anchor tile only (the footprint's min-x, min-y square,
 # grid position 0,0), the way vanilla puts a container on one square of a piece of multi-tile furniture. weight: the
 # whole machine's (Machines/Data.lua says the same).
@@ -146,7 +147,19 @@ def _layout():
 LURE_ON = _layout()          # 132
 LURE_OFF = LURE_ON + 1       # 133
 RAIN_OVERLAY = 146           # the rain storage's overlays of levels 1, 2, 3: 4 tiles each, 146-157
-MACHINE_TILES = RAIN_OVERLAY + 12
+READY = 160                  # the ready looks, from the first row after the overlays: per kind, facings x tiles
+
+
+def _ready_layout():
+    base = READY
+    for kind in KINDS:
+        if kind['states'] == 2:
+            kind['ready_base'] = base
+            base += kind['facings'] * kind['tiles']
+    return base
+
+
+MACHINE_TILES = _ready_layout()  # 216
 MACHINE_ROWS = (MACHINE_TILES + COLS - 1) // COLS
 
 
@@ -168,7 +181,7 @@ def render(key, state, facing):
     turns = dict(FACINGS).get(facing, 0)
     token = (key, state, facing)
     if token not in _RENDERED:
-        done = kind['draw'](turns, state if 'state_bases' in kind else bool(state))
+        done = kind['draw'](turns, state)
         _RENDERED[token] = done if isinstance(done, dict) else {(0, 0): done}
     return _RENDERED[token]
 
@@ -224,6 +237,8 @@ def moveable_props(kind, state):
         out['Facing'] = 'S'   # the game builds a sprite grid only for a faced moveable; one facing, nothing to turn
     if state == 1:
         out['GroupName'] = 'OA_' + kind['key'] + 'On'
+    elif state == 2:
+        out['GroupName'] = 'OA_' + kind['key'] + 'Ready'
     return out
 
 
@@ -233,7 +248,7 @@ def machine_entries():
     for kind in KINDS:
         n = kind['tiles']
         nf = kind['facings']
-        for st in range(kind['states']):
+        for st in list(range(kind['states'])) + ([2] if 'ready_base' in kind else []):
             if 'state_bases' in kind and st not in kind['state_bases']:
                 continue
             for fi, (facing, turns) in enumerate(facing_list(kind)):
@@ -253,7 +268,12 @@ def machine_entries():
                         p.update(kind['anchor_props'])
                     if facing:
                         p['Facing'] = facing
-                    first = kind['state_bases'][st] if 'state_bases' in kind else kind['base'] + st * nf * n
+                    if 'state_bases' in kind:
+                        first = kind['state_bases'][st]
+                    elif st == 2:
+                        first = kind['ready_base']
+                    else:
+                        first = kind['base'] + st * nf * n
                     place = first + (fi * n if 'state_bases' not in kind else 0) + j * fw + i
                     assert entries[place] is None, (kind['key'], place)
                     entries[place] = (image, p)

@@ -169,10 +169,10 @@ Machines.itemFullType = itemFullType
 -- The tiles of a machine facing dir, running or not: { { dx, dy, sprite } ... }, one for each square of its footprint,
 -- dx and dy counted from the anchor (the footprint's smallest x and y; always the tile at 0, 0), as Sprites has them
 -- (a lure is one tile, on or off; the rain storage 2x2, and it does not turn).
-function Machines.tiles(kind, dir, running)
-    if kind == "lure" then return { { dx = 0, dy = 0, sprite = Sprites.lure(running) } } end
+function Machines.tiles(kind, dir, look)
+    if kind == "lure" then return { { dx = 0, dy = 0, sprite = Sprites.lure(look) } } end
     if kind == "rainStorage" then return Sprites.rainStorageTiles() end
-    return Sprites.machineTiles(kind, dir or "S", running == true)
+    return Sprites.machineTiles(kind, dir or "S", look)
 end
 
 -- The size of a machine's footprint facing dir: w squares along x, h along y.
@@ -186,8 +186,8 @@ function Machines.footprint(kind, dir)
 end
 
 -- The sprite of the anchor (the tile at 0, 0): the one the rain storage's entity script is attached to.
-function Machines.spriteName(kind, dir, running)
-    for _, tile in ipairs(Machines.tiles(kind, dir, running)) do
+function Machines.spriteName(kind, dir, look)
+    for _, tile in ipairs(Machines.tiles(kind, dir, look)) do
         if tile.dx == 0 and tile.dy == 0 then return tile.sprite end
     end
     return nil
@@ -249,8 +249,8 @@ function Machines.declarePower()
     for kind, def in pairs(Data.KINDS) do
         if def.load and Sprites.MACHINE_KINDS[kind] then
             for _, dir in ipairs(Sprites.DIRECTIONS) do
-                for _, running in ipairs({ false, true }) do
-                    local name = Machines.spriteName(kind, dir, running)
+                for _, look in ipairs(Sprites.LOOKS) do
+                    local name = Machines.spriteName(kind, dir, look)
                     if name then base[name] = def.load end
                 end
             end
@@ -266,10 +266,15 @@ end
 -- brings the load multiplier up to date (every change of running goes through here).
 function Machines.refreshLook(object, state)
     Machines.syncLoad(object, state)
-    local running = state.running == true
-    if state.kind == "lure" then running = not state.spent end
+    local look = state.running == true
+    if state.kind == "lure" then
+        look = not state.spent
+    elseif not look and Data.processes(state.kind) and state.on ~= false
+        and not Logic.effects(state.kind, state.parts).stopped and Machines.hasPower(object:getSquare()) then
+        look = "ready"   -- switched on and waiting: the lamps lit, nothing moving
+    end
     local parts
-    for _, tile in ipairs(Machines.tiles(state.kind, state.dir, running)) do
+    for _, tile in ipairs(Machines.tiles(state.kind, state.dir, look)) do
         if tile.dx == 0 and tile.dy == 0 then
             showSprite(object, tile.sprite)
         elseif state.x then
@@ -1288,10 +1293,8 @@ function Machines.setOn(object, on)
     if not state or not Data.processes(state.kind) then return end
     state.on = on and true or false
     state.idle, state.last, state.carry = true, OA.hours(), 0
-    if not state.on then
-        state.running = false
-        Machines.refreshLook(object, state)
-    end
+    if not state.on then state.running = false end
+    Machines.refreshLook(object, state)
     if isServer() then object:transmitModData() end
 end
 

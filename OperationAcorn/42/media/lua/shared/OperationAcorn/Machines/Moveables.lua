@@ -26,8 +26,8 @@ local function kindOf(spriteName)
         for _, kind in ipairs(Data.ORDER) do
             if kind ~= "lure" then
                 for _, dir in ipairs({ "S", "E", "N", "W" }) do
-                    for _, running in ipairs({ false, true }) do
-                        for _, t in ipairs(Sprites.machineTiles(kind, dir, running) or {}) do kinds[t.sprite] = kind end
+                    for _, look in ipairs(Sprites.LOOKS) do
+                        for _, t in ipairs(Sprites.machineTiles(kind, dir, look) or {}) do kinds[t.sprite] = kind end
                     end
                 end
             end

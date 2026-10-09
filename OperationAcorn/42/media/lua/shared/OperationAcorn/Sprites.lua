@@ -38,12 +38,12 @@ Sprites.SITE_STAKE = tile(Sprites.TRADE, 15)
 -- footprint's min-x, min-y square, and the only one with the container (research storage) or the rain collector flag.
 local KINDS = {
     shredBench = { base = 0, w = 2, h = 1, states = 1, facings = 4 },
-    bulkShredder = { base = 8, w = 2, h = 1, states = 2, facings = 4 },
-    cutter = { base = 24, w = 2, h = 1, states = 2, facings = 4 },
-    woodSaw = { base = 40, w = 2, h = 1, states = 2, facings = 4 },
+    bulkShredder = { base = 8, w = 2, h = 1, states = 2, facings = 4, ready = 160 },
+    cutter = { base = 24, w = 2, h = 1, states = 2, facings = 4, ready = 168 },
+    woodSaw = { base = 40, w = 2, h = 1, states = 2, facings = 4, ready = 176 },
     researchStorage = { base = 56, w = 2, h = 1, states = 1, facings = 4 },
-    propaneRefiner = { base = 64, w = 2, h = 2, states = 2, facings = 4 },
-    oilRefiner = { base = 96, w = 2, h = 2, states = 2, facings = 4 },
+    propaneRefiner = { base = 64, w = 2, h = 2, states = 2, facings = 4, ready = 184 },
+    oilRefiner = { base = 96, w = 2, h = 2, states = 2, facings = 4, ready = 200 },
     rainStorage = { base = 128, w = 2, h = 2, states = 1, facings = 1 },
 }
 
@@ -72,17 +72,27 @@ function Sprites.footprint(kind, dir)
     return f.w, f.h
 end
 
+-- The looks of a machine with a running look, as machineTiles takes them: stopped (switched off or no power), running
+-- (working), "ready" (switched on and waiting: its lamps lit, nothing moving). The ready looks are at `ready`: facings
+-- x tiles, after the rain storage's overlays.
+Sprites.LOOKS = { false, true, "ready" }
+
 -- The tiles of one machine standing in direction dir: a list of { dx =, dy =, sprite = }, one per square of its
--- footprint, dx and dy from the anchor (the min-x, min-y square), row by row. running is ignored for a machine that has
--- no running look. nil for a kind that is not a machine of this sheet.
-function Sprites.machineTiles(kind, dir, running)
+-- footprint, dx and dy from the anchor (the min-x, min-y square), row by row. look: false (stopped), true (running) or
+-- "ready"; a machine without a running look has only the stopped one. nil for a kind that is not a machine of this sheet.
+function Sprites.machineTiles(kind, dir, look)
     local k = KINDS[kind]
     if not k then return nil end
     if kind == "rainStorage" then return Sprites.rainStorageTiles() end
     local f = k.facings == 4 and facing(dir) or 0
-    local state = (running and k.states == 2) and 1 or 0
     local w, h = Sprites.footprint(kind, k.facings == 4 and dir or "S")
-    local first = k.base + (state * k.facings + f) * w * h
+    local first
+    if look == "ready" and k.ready then
+        first = k.ready + f * w * h
+    else
+        local state = (look == true and k.states == 2) and 1 or 0
+        first = k.base + (state * k.facings + f) * w * h
+    end
     local tiles = {}
     for dy = 0, h - 1 do
         for dx = 0, w - 1 do

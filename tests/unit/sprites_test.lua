@@ -79,7 +79,7 @@ end)
 test("one tile for each square of the footprint, from the anchor", function()
     for _, kind in ipairs(KINDS) do
         for _, dir in ipairs(DIRS) do
-            for _, running in ipairs({ false, true }) do
+            for _, running in ipairs(Sprites.LOOKS) do
                 local tiles = Sprites.machineTiles(kind, dir, running)
                 local w, h = Sprites.footprint(kind, kind == "rainStorage" and "S" or dir)
                 eq(#tiles, w * h, kind .. dir)
@@ -103,11 +103,14 @@ test("running changes only the machines that run; the rain storage does not turn
         for _, dir in ipairs(DIRS) do
             local a = Sprites.machineTiles(kind, dir, false)
             local b = Sprites.machineTiles(kind, dir, true)
+            local c = Sprites.machineTiles(kind, dir, "ready")
             for i = 1, #a do
                 if RUNS[kind] then
                     truthy(a[i].sprite ~= b[i].sprite, kind .. dir .. " running look")
+                    truthy(c[i].sprite ~= a[i].sprite and c[i].sprite ~= b[i].sprite, kind .. dir .. " ready look")
                 else
                     eq(a[i].sprite, b[i].sprite, kind .. dir .. " no running look")
+                    eq(a[i].sprite, c[i].sprite, kind .. dir .. " no ready look")
                 end
             end
         end
@@ -123,7 +126,7 @@ test("every tile is its own: no place is used by two looks", function()
     local owner, count = {}, 0
     for _, kind in ipairs(KINDS) do
         for _, dir in ipairs(DIRS) do
-            for _, running in ipairs({ false, true }) do
+            for _, running in ipairs(Sprites.LOOKS) do
                 for _, t in ipairs(Sprites.machineTiles(kind, dir, running)) do
                     local look = kind .. (RUNS[kind] and tostring(running) or "") .. (kind == "rainStorage" and "" or dir)
                     if owner[t.sprite] then
@@ -136,17 +139,17 @@ test("every tile is its own: no place is used by two looks", function()
             end
         end
     end
-    eq(count, 132, "tiles of the machines")
+    eq(count, 188, "tiles of the machines (132, and the ready looks 56)")
     truthy(Sprites.lure(true) ~= Sprites.lure(false), "lure looks")
     truthy(not owner[Sprites.lure(true)] and not owner[Sprites.lure(false)], "lure places are free")
 end)
 
 test("the machines tiles are defined in oa_machines.tiles, with matching properties", function()
     local places, count = readTiles("oa_machines.tiles", "oa_machines_01")
-    eq(count, 160, "20 rows of 8")
+    eq(count, 216, "27 rows of 8")
     for _, kind in ipairs(KINDS) do
         for _, dir in ipairs(DIRS) do
-            for _, running in ipairs({ false, true }) do
+            for _, running in ipairs(Sprites.LOOKS) do
                 local group
                 for _, t in ipairs(Sprites.machineTiles(kind, dir, running)) do
                     local index = indexOf(t.sprite)
@@ -242,7 +245,7 @@ test("rain storage: the empty tank is the object, the water levels are overlays"
     local used = {}
     for _, kind in ipairs(KINDS) do
         for _, dir in ipairs(DIRS) do
-            for _, running in ipairs({ false, true }) do
+            for _, running in ipairs(Sprites.LOOKS) do
                 for _, t in ipairs(Sprites.machineTiles(kind, dir, running)) do used[t.sprite] = true end
             end
         end

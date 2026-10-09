@@ -28,22 +28,26 @@ def skid(s, x0, y0, x1, y1):
     s.poly([(x1, y0, 0.0), (x1, y1, 0.0), (x1, y1, 0.08), (x1, y0, 0.08)], YELLOW, (1, 0, 0))
 
 
-def control_cabinet(s, glows, x0, x1, y, z1, running, lamps=('green', 'amber', 'red')):
-    """A control cabinet standing at the skid's front (its face looks south at y): lamps along its head."""
+def control_cabinet(s, glows, x0, x1, y, z1, look, lamps=('green', 'amber', 'red')):
+    """A control cabinet standing at the skid's front (its face looks south at y): lamps along its head. Off: red. On:
+    green. Running: green and amber."""
     s.box(x0, y - 0.26, 0.08, x1, y, z1, OD, top=OD_LIGHT, shine=0.1)
     s.box(x0 + 0.03, y, 0.14, x1 - 0.03, y + 0.004, z1 - 0.2, GRAPHITE_DARK)
     n = len(lamps)
     for i, c in enumerate(lamps):
-        lit = running and c in ('green', 'amber') or (not running and c == 'red')
-        lamp_y(s, glows, x0 + (i + 0.5) * (x1 - x0) / n, y, z1 - 0.1, 0.017, c, lit)
+        lit = {'green': look >= 1, 'amber': look == 1, 'red': look == 0}.get(c, False)
+        lamp_y(s, glows, x0 + (i + 0.5) * (x1 - x0) / n, y, z1 - 0.1, 0.026, c, lit)
     front_decal(s, x0 + 0.04, x1 - 0.04, z1 - 0.18, z1 - 0.12, y + 0.001, stencil_text('OAK', 40, 9, STENCIL))
 
 
-def propane_refiner(turns, running):
+def propane_refiner(turns, look):
     """The propane refiner (2 x 2): a tall cream process column with a railed platform, a ladder and a gauge, a
     horizontal bullet tank on saddles, a rack of four bottles, red valve wheels, a flare stack and a control cabinet on
-    a skid with a yellow-black edge. Running: a flare burns at the stack's tip, the gauge stands high, the lamp is
-    green."""
+    a skid with a yellow-black edge. Running: a flare burns at the stack's tip, the gauge stands high. The cabinet's
+    lamps say off, on or running.
+    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    moves), 1 running (working)."""
+    running = look == 1
     s = Scene(turns, foot=(2, 2))
     glows = []
     skid(s, 0.08, 0.08, 1.92, 1.92)
@@ -116,7 +120,7 @@ def propane_refiner(turns, running):
         s.tube((sx + 0.4 * math.cos(a), sy + 0.4 * math.sin(a), 0.08), (sx, sy, 1.4), 0.004, STEEL_DARK, segments=4)
     pipe(s, [(cx + r, cy, 1.4), (1.1, cy, 1.4), (1.1, sy, 1.4), (sx, sy, 1.4)], 0.016)
     # the control cabinet at the front-left
-    control_cabinet(s, glows, 0.14, 0.58, 1.9, 0.92, running)
+    control_cabinet(s, glows, 0.14, 0.58, 1.9, 0.92, look)
     front_decal(s, 0.18, 0.54, 0.2, 0.34, 1.9 + 0.001, stencil_text('LPG UNIT', 80, 18, STENCIL))
     # a small compressor beside it: a blue motor and a receiver
     s.tube((0.70, 1.7, 0.2), (0.92, 1.7, 0.2), 0.1, BLUE, cap=(34, 66, 94), segments=24, shine=0.2)
@@ -132,14 +136,17 @@ def propane_refiner(turns, running):
     if running:
         glows.append(((sx, sy, 2.2), FLAME, 0.32))
     ground = shadow((1.0, 1.0), 1.0, 1.0, 125)
-    return compose(s, ground=ground, over=flame if running else None, seed=130 + turns + (4 if running else 0), glows=glows)
+    return compose(s, ground=ground, over=flame if running else None, seed=130 + turns + 4 * int(look), glows=glows)
 
 
-def oil_refiner(turns, running):
+def oil_refiner(turns, look):
     """The oil refiner (2 x 2): a graphite horizontal vessel on a frame, a tall fractionating column with yellow bands,
     a pipe rack between them with hand wheels, draw-off pipes down to a row of drums at the front, a blue pump, a
     heat exchanger, a control cabinet, on a skid. Running: lamps lit, steam rising from the column, oil running into
-    the drums."""
+    the drums.
+    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    moves), 1 running (working)."""
+    running = look == 1
     s = Scene(turns, foot=(2, 2))
     glows = []
     skid(s, 0.08, 0.08, 1.92, 1.92)
@@ -211,7 +218,7 @@ def oil_refiner(turns, running):
     s.tube((0.46, 1.15, 0.24), (0.58, 1.15, 0.24), 0.07, STEEL_DARK, segments=16, shine=0.4)
     pipe(s, [(0.6, 1.15, 0.24), (0.6, 0.8, 0.24), (0.6, 0.8, 0.6)], 0.02)
     # the control cabinet at the front-right
-    control_cabinet(s, glows, 1.56, 1.9, 1.9, 0.9, running, lamps=('green', 'amber', 'red'))
+    control_cabinet(s, glows, 1.56, 1.9, 1.9, 0.9, look, lamps=('green', 'amber', 'red'))
     front_decal(s, 1.6, 1.86, 0.2, 0.32, 1.9 + 0.001, stencil_text('OIL UNIT', 70, 16, STENCIL))
     s.box(0.14, 1.8, 0.08, 0.5, 1.9, 0.5, OD_DARK)
     front_decal(s, 0.16, 0.48, 0.24, 0.4, 1.9 + 0.001, acorn_mark(24, STENCIL))
@@ -227,4 +234,4 @@ def oil_refiner(turns, running):
             a = max(30, 185 - i * 24)
             d.ellipse([px + ox - r_, py + oy - r_, px + ox + r_, py + oy + r_], fill=STEAM + (a,))
     ground = shadow((1.0, 1.0), 1.0, 1.0, 125)
-    return compose(s, ground=ground, over=steam if running else None, seed=140 + turns + (4 if running else 0), glows=glows)
+    return compose(s, ground=ground, over=steam if running else None, seed=140 + turns + 4 * int(look), glows=glows)

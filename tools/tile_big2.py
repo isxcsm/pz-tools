@@ -29,11 +29,14 @@ def blade(s, cx, y, cz, r, colour, teeth=36):
                     for i in range(seg)], col, (0, sign, 0), 0.5)
 
 
-def wood_saw(turns, running):
+def wood_saw(turns, look):
     """The wood saw (2 x 1): a sawmill. A log on a roller bed at the west end feeds into a big circular blade standing
     in a heavy frame; sawn boards come out on a bed at the east end and stack. A blue motor and the switch box with its
     lamps sit in the base under the blade, sawdust piles on the floor. Running: the blade is a bright blur with sparks,
-    chips and sawdust flying, the lamp is green and the log has moved up to the blade."""
+    chips and sawdust flying and the log has moved up to the blade. The lamps say on (green) or off (red).
+    look: 0 stopped (switched off or no power: the red lamp), 2 ready (switched on and waiting: the green lamp, nothing
+    moves), 1 running (working)."""
+    running, on = look == 1, look >= 1
     s = Scene(turns, foot=(2, 1))
     glows = []
     rn = random.Random(6)
@@ -103,9 +106,9 @@ def wood_saw(turns, running):
         s.box(px, py, 0.0, px + 0.07, py + 0.05, 0.02 + rn.random() * 0.02, (214, 176, 118))
     # the switch box on the base's front, lamps and buttons
     s.box(0.98, y1 + 0.02, 0.18, 1.10, y1 + 0.07, 0.38, GRAPHITE_DARK, top=GRAPHITE, shine=0.2)
-    lamp_y(s, glows, 1.02, y1 + 0.07, 0.34, 0.014, 'green', running)
-    lamp_y(s, glows, 1.06, y1 + 0.07, 0.34, 0.014, 'red', not running)
-    s.tube((1.04, y1 + 0.07, 0.24), (1.04, y1 + 0.09, 0.24), 0.022, RED if not running else (70, 70, 70), segments=14, shine=0.3)
+    lamp_y(s, glows, 1.015, y1 + 0.07, 0.33, 0.022, 'green', on)
+    lamp_y(s, glows, 1.065, y1 + 0.07, 0.33, 0.022, 'red', not on)
+    s.tube((1.04, y1 + 0.07, 0.24), (1.04, y1 + 0.09, 0.24), 0.022, RED if not on else (70, 70, 70), segments=14, shine=0.3)
     front_decal(s, 0.04, 0.86, 0.14, 0.30, y1 + 0.001, stencil_text('OAK SAWMILL', 120, 18, STENCIL))
     s.box(0.04, y1 - 0.06, 0.30, 0.86, y1 - 0.01, 0.38, OD_DARK)
     if running:
@@ -119,7 +122,7 @@ def wood_saw(turns, running):
         glows.append(((1.06, 0.5, bz), (255, 230, 170), 0.3, (0, 1, 0)))
         glows.append(((1.06, 0.5, bz), (255, 230, 170), 0.3, (0, -1, 0)))
     ground = shadow((1.0, 0.55), 1.05, 0.42, 125)
-    return compose(s, ground=ground, seed=150 + turns + (4 if running else 0), glows=glows)
+    return compose(s, ground=ground, seed=150 + turns + 4 * int(look), glows=glows)
 
 
 def research_storage(turns):

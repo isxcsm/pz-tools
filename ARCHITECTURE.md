@@ -182,20 +182,20 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 종류 (`kind`) | 발자국 (w×h, 남쪽) | 보기 | 첫 칸 | 칸 수 |
 | --- | --- | --- | --- | --- |
 | `shredBench` | 2×1 | 멈춤만 | 0 | 8 |
-| `bulkShredder` | 2×1 | 멈춤, 도는 중 | 8 | 16 |
-| `cutter` | 2×1 | 멈춤, 도는 중 | 24 | 16 |
-| `woodSaw` | 2×1 | 멈춤, 도는 중 | 40 | 16 |
+| `bulkShredder` | 2×1 | 멈춤, 도는 중, 대기(160~) | 8 | 16 + 8 |
+| `cutter` | 2×1 | 멈춤, 도는 중, 대기(168~) | 24 | 16 + 8 |
+| `woodSaw` | 2×1 | 멈춤, 도는 중, 대기(176~) | 40 | 16 + 8 |
 | `researchStorage` | 2×1 | 멈춤만 | 56 | 8 |
-| `propaneRefiner` | 2×2 | 멈춤, 도는 중 | 64 | 32 |
-| `oilRefiner` | 2×2 | 멈춤, 도는 중 | 96 | 32 |
+| `propaneRefiner` | 2×2 | 멈춤, 도는 중, 대기(184~) | 64 | 32 + 16 |
+| `oilRefiner` | 2×2 | 멈춤, 도는 중, 대기(200~) | 96 | 32 + 16 |
 | `rainStorage` | 2×2 | 돌지 않음. 물체는 빈 통(134~137). 가득 찬 통 그림 128~131(아이콘용), 물 높이 1~3은 덧그림 146~157 | 134 (+128, +146) | 4 + 4 + 12 |
 | 미끼 (켜짐, 꺼짐) | 1×1 | 돌지 않음 | 132, 133 | 2 |
 
 한 기계의 자리: 상태(멈춤, 도는 중) → 방향(S, E, N, W) → 그 방향 발자국의 칸을 y 바깥, x 안쪽 순서. 곧 `첫 칸 + (상태 × 방향수 + 방향) × w×h + dy × w + dx`
-(방향수는 4). 빗물 저장소만 이 식을 따르지 않고 위 표의 자리에 있다 (네 칸의 순서는 앵커 `0,0`, `1,0`, `0,1`, `1,1`; 138~145는 쓰지 않는 빈 자리). 코드는 이 계산을 하지 말고 `Sprites.machineTiles`, `Sprites.rainStorageTiles`, `Sprites.rainOverlayTiles`를 쓴다. 1×1 물체(통신 단말, 납품 상자, 보급 상자, 낙하산 상자, 미끼, 낙하지 소품)는 그대로 한 칸이다.
+(방향수는 4). 대기 모습(켜져서 기다림: 등만 켜지고 움직이는 것은 없다)은 오버레이 뒤 160부터 기계마다 `대기 첫 칸 + 방향 × w×h + dy × w + dx`에 있다 (`GroupName=OA_<kind>Ready`). 빗물 저장소만 이 식을 따르지 않고 위 표의 자리에 있다 (네 칸의 순서는 앵커 `0,0`, `1,0`, `0,1`, `1,1`; 138~145는 쓰지 않는 빈 자리). 코드는 이 계산을 하지 말고 `Sprites.machineTiles`, `Sprites.rainStorageTiles`, `Sprites.rainOverlayTiles`를 쓴다. 1×1 물체(통신 단말, 납품 상자, 보급 상자, 낙하산 상자, 미끼, 낙하지 소품)는 그대로 한 칸이다.
 
 **칸마다의 속성:** 기계의 모든 칸이 `CustomName`, `GroupName`(기계마다 하나, `OA_<kind>`), `SpriteGridPos`(`gx,gy`, 그 방향 발자국 안의 자리), `BlocksPlacement`, `solidtrans`,
-`Facing`(돌지 않는 빗물 저장소는 없음)을 갖는다. **컨테이너(연구팀 보관함)와 `IsWaterCollector`(빗물 저장소)는 앵커 칸에만 있다.** 앵커 = 발자국의 최소 x, 최소 y 칸이고 `SpriteGridPos=0,0`이다.
+`Facing`(돌지 않는 빗물 저장소는 `S`)을 갖는다. 연구팀 보관함의 컨테이너는 모든 칸에, **`IsWaterCollector`(빗물 저장소)는 앵커 칸에만 있다.** 앵커 = 발자국의 최소 x, 최소 y 칸이고 `SpriteGridPos=0,0`이다.
 바닐라 여러 칸 가구와 같은 약속이다 (`newtiledefinitions`의 `SpriteGridPos`와 `GroupName`, 엔티티 스크립트 `SpriteConfig`의 `face X { layer { row = ... } }`; 피아노 `entity_piano.txt`가 예).
 
 모든 타일이 공통으로 갖는 값: `CustomName`(영어 이름, 우클릭 메뉴 제목). 번역은 모드 번역 키로 한다.
@@ -231,7 +231,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   `entity` 하나를 쓴다: `component FluidContainer { ContainerName = Collector, Capacity = 용량, RainFactor = 0.4 }`와
   `component SpriteConfig { face S { layer { row = oa_machines_01_134 oa_machines_01_135, row = oa_machines_01_136 oa_machines_01_137 } } }`
   (한 줄이 y 한 칸, 줄 안은 x 순서. 돌지 않으니 face S 하나). `Sprites.rainStorageTiles()`가 같은 네 칸을 준다. 바닐라 `waterMaxAmount`/`waterAmount` 타일 속성은 쓰지 않는다.
-- **켜짐/꺼짐, 멈춤/도는 중:** 속성이 아니라 그림만 다르다. 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSpriteFromName`을 한다 (칸 하나만 바꾸면 기계가 찢어진다. 이름 문자열을 받는 `setSprite`는 이름도 속성도 없는 맨 그림을 만든다).
+- **꺼짐 / 대기 / 도는 중:** 속성이 아니라 그림만 다르다. 꺼졌거나 전기가 없으면 멈춤(빨간 등), 켜져 있고 일감을 기다리면 대기(초록 등, 대량 분해기는 경광등도), 일하면 도는 중이다 (`Machines.refreshLook`). 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSpriteFromName`을 한다 (칸 하나만 바꾸면 기계가 찢어진다. 이름 문자열을 받는 `setSprite`는 이름도 속성도 없는 맨 그림을 만든다).
   돌아가는 모습이 없는 기계는 `running`을 무시한다.
 - 그을린 땅(13)은 바닥 위의 투명 그림이다. 바닥 타일을 바꾸지 말고 `IsoObject.new(cell, square, "oa_trade_01_13")`로 칸에 얹는다.
 
