@@ -637,7 +637,9 @@ end
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
 -- Rank 1: on entering a building, how many containers are left unopened, or that it was searched (the title of a
 -- building searched comes from the economy, with its bonus). Rank 2: the unopened containers within LEDGER_NEAR on the
--- character's floor are outlined (the game's own object outline, for this player). Rank 3 is the economy's (a bigger
+-- character's floor, on squares in its line of sight (whichever way it faces: no outline comes and goes as it turns),
+-- are outlined (the game's own object outline, for this player). One behind a wall is not: the game draws its outline
+-- through the wall, in another colour, and it told what the eyes cannot. Rank 3 is the economy's (a bigger
 -- bonus). The building and its containers are the economy's walk (OA.Buildings: square by square, a part a look; the
 -- game's IsoRoom:getContainer() lists none in B42), looked at from here every LEDGER_MS.
 
@@ -677,9 +679,11 @@ local function clearOutlines()
 end
 Senses.clearOutlines = clearOutlines
 
--- The objects of the unopened containers within LEDGER_NEAR of the character on its floor, into a new set.
+-- The objects of the unopened containers within LEDGER_NEAR of the character on its floor, in its line of sight, into
+-- a new set.
 local function nearUnopened(open, player)
     local want = {}
+    local n = player:getPlayerNum()
     local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
     local r2 = LEDGER_NEAR * LEDGER_NEAR
     for i = 1, #open do
@@ -687,7 +691,7 @@ local function nearUnopened(open, player)
         local square = object and object:getSquare()
         if square and square:getZ() == pz then
             local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
-            if dx * dx + dy * dy <= r2 then want[object] = true end
+            if dx * dx + dy * dy <= r2 and square:isCouldSee(n) then want[object] = true end
         end
     end
     return want
