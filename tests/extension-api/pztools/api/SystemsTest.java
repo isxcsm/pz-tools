@@ -177,15 +177,19 @@ final class SystemsTest {
         // Nothing declared: drawn twice a frame, and the game's update() called each time, as in vanilla; nothing steps.
         press.render(); press.render();
         check(spin.steps == 0 && wheel.frame == 0f && wheel.updates == 2, "An animation was stepped with nothing declared: " + spin.steps);
+        check(!press.isAnimating(), "An object with nothing declared asked to be drawn every frame");
         // Declared, but the press holds no key: not stepped, and no data table is made for it.
         FormulasTest.call(formulas, "set", mod, "anim.stepKey", "acornSpin");
         press.render();
         check(spin.steps == 0 && !press.hasModData(), "An object without the key was stepped, or given a data table");
+        check(!press.isAnimating() && !press.hasModData(), "An object without the key asked to be drawn every frame");
         // The key held: stepped once a frame however many times it is drawn, at its own speed, and the game's call kept.
         data(press, "acornSpin", 1.0);
         int updates = wheel.updates;
         press.render(); press.render(); press.render();
         check(spin.steps == 1 && wheel.frame == 0.5f && wheel.updates == updates + 3, "Drawn three times in a frame, it was stepped " + spin.steps + " times");
+        // The chunk renderer draws an object every frame only when it is animating (else into the chunk's texture, once): the press is.
+        check(press.isAnimating(), "An object holding the key did not ask to be drawn every frame");
         GameApi.frame(GAME);
         press.render(); press.render();
         check(spin.steps == 2 && wheel.frame == 1f, "The next frame did not step it once: " + spin.steps);
@@ -202,7 +206,7 @@ final class SystemsTest {
             data(press, "acornSpin", held);
             GameApi.frame(GAME);
             press.render();
-            check(spin.steps == 9, "A press holding " + held + " was stepped");
+            check(spin.steps == 9 && !press.isAnimating(), "A press holding " + held + " was stepped, or drawn every frame");
         }
         data(press, "acornSpin", -2.0);
         GameApi.frame(GAME);
@@ -211,7 +215,14 @@ final class SystemsTest {
         // Only the object that holds the key: the sign has none.
         GameApi.frame(GAME);
         sign.render();
-        check(blink.steps == 0 && light.updates == 1, "An object without the key was stepped beside one with it");
+        check(blink.steps == 0 && light.updates == 1 && !sign.isAnimating(), "An object without the key was stepped beside one with it");
+        // The key on an object with no attached animation: nothing to draw every frame. An object animating of its own stays so.
+        var bare = machine(cell, "acorn_bare_0", 23, 22, 0);
+        data(bare, "acornSpin", 1.0);
+        check(!bare.isAnimating(), "An object without attached animations asked to be drawn every frame");
+        bare.animating = true;
+        check(bare.isAnimating(), "The game's own animating was taken away");
+        bare.animating = false;
         // Two mods' keys join: the sign holds the second's.
         data(sign, "blinking", 1.0);
         FormulasTest.call(formulas, "set", second, "anim.stepKey", table("blinking"));
@@ -236,7 +247,10 @@ final class SystemsTest {
         long bytes = Allocations.median(5, () -> {
             for (int frame = 0; frame < 100; frame++) {
                 GameApi.frame(GAME);
-                for (int draw = 0; draw < 1000; draw++) { press.render(); sign.render(); }
+                for (int draw = 0; draw < 1000; draw++) {
+                    press.render(); sign.render();
+                    if (!press.isAnimating() || bare.isAnimating()) throw new AssertionError("isAnimating changed");
+                }
             }
         });
         System.out.println("attached animations: " + bytes + " bytes allocated by 100 frames of 1000 draws of two stepped objects");
@@ -250,7 +264,7 @@ final class SystemsTest {
         int steps = spin.steps;
         GameApi.frame(GAME);
         press.render();
-        check(spin.steps == steps, "An animation was stepped after the declaration went");
+        check(spin.steps == steps && !press.isAnimating(), "An animation was stepped, or drawn every frame, after the declaration went");
         double undeclared = drawCost(press);
         System.out.printf("attached animations: a draw of one costs %.1f ns with nothing declared, %.1f ns declared without the key, %.1f ns with it"
             + " (a frame of 1000 draws, the first one stepping)%n", undeclared, keyless, stepped);

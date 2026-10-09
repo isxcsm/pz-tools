@@ -32,6 +32,8 @@ public class IsoObject {
     public KahluaTable modData;
     /** The animations attached to the object, drawn over it; null for none. */
     public ArrayList<IsoSpriteInstance> attachedAnimSprite;
+    /** An animation of the object's own plays (a door opening): the chunk renderer draws it every frame. */
+    public boolean animating;
     private final ColorInfo light = new ColorInfo();
     public int syncs;
     /** The alpha the object fades to, for each local player, and how many times it was set. */
@@ -132,6 +134,9 @@ public class IsoObject {
         attachedAnimSprite.add(instance);
         return instance;
     }
+
+    public boolean hasAttachedAnimSprites() { return attachedAnimSprite != null && !attachedAnimSprite.isEmpty(); }
+    public boolean isAnimating() { return animating; }
 
     /** The game draws the object (the render path, once for each player's screen). */
     public void render() { renderAttachedSprites(IsoDirections.N, 0f, 0f, 0f, light, false, null, null); }

@@ -137,7 +137,7 @@ final class Formulas implements ApiHooks.Formulas {
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"),
-        anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites"));
+        anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites", "IsoObject.isAnimating"));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -1171,6 +1171,14 @@ final class Formulas implements ApiHooks.Formulas {
         String[] keys = active.animKeys;
         if (keys.length == 0 || animations == null) return;
         try { animations.drawn(keys, instance, object); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
+    }
+
+    @Override public boolean animating(boolean vanilla, Object object) {
+        if (vanilla) return true;
+        String[] keys = active.animKeys;
+        if (keys.length == 0 || animations == null) return false;
+        try { return animations.stepped(keys, object); }
         catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 

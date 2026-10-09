@@ -466,7 +466,7 @@ not have is a Lua error at `set`.
 | `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: every square on the screen is drawn with at least some light (0.9 x the value of the full light, a sealed room too), and in the dark the screen's dark tones are lifted (the darker the more); what the eye saw without it keeps its colour, and what it adds is a cold grey, as the eye's rods see (what a lamp or a fire lights keeps its colour and is not lifted). On the screen alone: the squares' own light, which the zombies, the vision cone and reading ask, is the game's. The lift follows how dark it is for the player (`LightingJNI.getLumaInverted`: none in daylight or under a lamp, partly at a lamp's edge, whole in a night or a basement with no light), easing in and out over 0.3 seconds. A step in the screen shader (`screen.frag`, see [night sight](#night-sight)); the night vision goggles' path is left alone. |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
-| `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused); see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
+| `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused), and the object drawn every frame as a fire is; see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
 The load counts an item of the character's inventory as the game does (unequipped, equipped, or on the hotbar, with a worn
@@ -521,6 +521,27 @@ sprite: the frame moves by the instance's speed (`setFrameSpeedPerFrame`) times 
 looping animation starts again after its last frame, and nothing moves while the game is paused. A mod sets the number to
 start the animation and 0 to stop it, where it is (`PZToolsAPI.formulas.set(handle, "anim.stepKey", "acornSpin")`, then
 `object:getModData().acornSpin = 1`).
+
+Stepping alone is not enough with the chunk renderer (`PerformanceSettings.fboRenderChunk`, Build 42's default): it draws an
+ordinary object, its attached animations with it, into the chunk level's texture, and draws it again only when that level is
+invalidated (`FBORenderLevels.invalidateLevel`), so `renderAttachedSprites` runs now and then, not every frame. The renderer
+sorts each object into a layer as it redraws the level (`FBORenderCell.calculateObjectRenderLayer`), and an object in the
+`Translucent` layer is drawn every frame (`renderTranslucent`): a fire, and an object for which `IsoObject.isAnimating()` is true,
+which the game sets while a door's model animation plays. The API answers yes to `isAnimating()` for an object that has
+attached animations and holds a number other than 0 under a key, so the renderer draws it every frame and the step runs with
+each draw. (The chunk renderer's other per-frame path, `renderAnimatedAttachments`, draws only clock hands and a light's
+overlay, not attached animations.)
+
+- **When it takes effect.** The renderer asks `isAnimating()` as it redraws the object's chunk level. Attaching or removing an
+  animation on the game's thread redraws it (`addAttachedAnimSpriteInstance`, `RemoveAttachedAnims`: `DIRTY_OBJECT_MODIFY`),
+  so a mod that sets the key just after attaching, in the same tick, has the object drawn every frame from the next frame; one
+  that sets or clears the key alone, or declares the point after the object was drawn, calls
+  `object:invalidateRenderChunkLevel(256)` after. An object whose key was cleared is no longer stepped at once, and leaves
+  the per-frame layer at the level's next redraw.
+- **A wall.** An object standing on a south or east wall is sorted before `isAnimating()` is asked (`MinusFloorSE`), and stays
+  in the level's texture: stepped only as it is redrawn.
+- **What else sees it.** `isAnimating()` is read by the chunk renderer alone in the game (and PZ Optimize's), and by a Lua mod
+  that asks; such a mod sees true for a stepped object.
 
 - **Once a frame.** The game may draw an object more than once a frame (once for each player's screen), so the API keeps
   the instances it stepped since the frame job last ran (at the start of `GameWindow.logic()`) in an identity table that the
@@ -628,6 +649,7 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `IsoObject.couldBePoweredByGenerator` | each return | True for an object of a sprite declared in `machine.baseConsumption` above 0, besides the game's answer. |
 | `IsoObject.getGeneratorPowerConsumption` | each return | An object of a declared sprite gives its declared consumption times the load its mod data holds under `machine.loadKey`, in place of the game's. |
 | `IsoObject.renderAttachedSprites` | after the one call of `IsoSpriteInstance.update()` (the method is private; it is found by its signature) | The instance just drawn and the object go to `anim.stepKey`'s step; the game's own call stays. Another number of such calls makes the hook not go in. |
+| `IsoObject.isAnimating` | each return | True also for an object with attached animations that holds a key of `anim.stepKey`, so that the chunk renderer draws it every frame. |
 | `IsoPlayer.calculateInTreesSpeed` | each return | The speed scale of the animation of walking through trees, passed through `move.treeSlowMultiplier`. |
 | `IsoGameCharacter.damageWhileInTrees` | the start | Returns at once, with the chance `move.treeScratchChance` leaves out. |
 | `IsoGameCharacter.addHole(BloodBodyPartType, boolean)` | the start | Returns false at once, with the chance `body.holeChance` leaves out. The one-argument `addHole` and `addHoleFromZombieAttacks` call it. |
@@ -826,8 +848,11 @@ questions allocated 3984 bytes (no call allocates). Not tried in the game yet: a
 generator already running; the generator's fuel use following a load key; `buildings.objects` and a network reading a
 declared machine.
 
-The attached animations' hook was put into the real bytes of `IsoObject` (the jar's and PZ Optimize's loose class, each with
-one call of `IsoSpriteInstance.update()`, right after `IsoSprite.render`) and both classes passed the class-file verifier. Read
+The attached animations' two hooks were put into the real bytes of `IsoObject` (the jar's and PZ Optimize's loose class, each
+with one call of `IsoSpriteInstance.update()`, right after `IsoSprite.render`) and both classes passed the class-file verifier.
+`isAnimating()` is read in the jar only by `FBORenderCell.isObjectRenderLayer_MinusFloor` and `_Translucent`, and in PZ Optimize's
+loose `FBORenderCell` by the same two and its count of translucent objects; neither renderer draws attached animations on
+another per-frame path. Read
 from the bytes: `IsoSpriteInstance.update()` is empty; `IsoSprite.update(IsoSpriteInstance)` (the same in PZ Optimize's loose
 `IsoSprite`) moves `frame` by `animFrameIncrease` times `GameTime.getMultipliedSecondsSinceLastUpdate()` times 60 unless
 `GameTime.isGamePaused()`, and loops it; `AttachExistingAnim` sets the sprite's `animate` (more than one frame), `loop` and
@@ -836,10 +861,17 @@ object without a key, which is given no data table; an object holding a key, dra
 at its own speed with the game's call made each time, once again in the next frame, loops, and is not stepped in a frame it
 is not drawn; 0, a string, a NaN and a key taken out leave it, a negative number steps it; two mods' keys join; a sprite whose
 step throws is reported once in the log while the game's calls are made and the other objects step; `clear` gives vanilla
-back; 100 frames of 1000 draws of two stepped objects allocated 792 bytes (the measurement's own). A draw cost 7.6 ns with
-nothing declared, 16.6 ns declared but without the key and 41.9 ns with it (the synthetic draw included). Not tried in the game
-yet: a mod's animation stepped this way (its speed, a split screen), and whether the game draws such an object every frame
-with the chunk renderer on (`PerformanceSettings.fboRenderChunk`).
+back; `isAnimating()` is true for an object with attached animations and a key, and false with nothing declared, without a
+key or with 0, a string or a NaN under it, for an object with a key and no attached animation, and after `clear`, while the
+game's own true stays; 100 frames of 1000 draws of two stepped objects (and their `isAnimating()`) allocated 792 bytes (the
+measurement's own). A draw cost 7.8 ns with nothing declared, 18.3 ns declared but without the key and 37.8 ns with it (the
+synthetic draw included).
+
+In the game (10 October 2026, the chunk renderer on, PZ Optimize installed), with only the step hook: a lure (an
+`IsoThumpable` with one attached animation of 6 frames at 0.08 a frame, the key held) stood on one frame for seconds and moved
+a step now and then, as its chunk level happened to be redrawn. Invalidating the level each tick from Lua
+(`invalidateRenderChunkLevel(256)`) stepped it about once a tick; so did `setAnimating(true)` with one invalidation: 2.56 frames in
+30 ticks, one step each. Not tried in the game yet: the `isAnimating` hook itself, and a split screen.
 
 The helicopter's state was read from the game's bytes (the state is a protected field of an enum the game does not make
 public, which the API reads by reflection) in the jar, and `LuaEventManager.triggerEvent` with four arguments is there. In the

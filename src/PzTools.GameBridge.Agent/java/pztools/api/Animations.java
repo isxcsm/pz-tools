@@ -11,13 +11,16 @@ import java.util.Arrays;
  * there by the game's own {@code IsoSprite.update(instance)}, which moves its frame by its speed and the time since the last
  * update, loops it, and leaves it while the game is paused.
  *
+ * <p>The chunk renderer draws an ordinary object into the chunk's texture and again only when the chunk changes, so such an
+ * object also answers yes to {@code isAnimating()}: the renderer then draws it every frame, as it draws a fire.
+ *
  * <p>The render path may draw an object more than once a frame (split screen), so each instance is stepped once a frame: the
  * instances stepped are kept in an identity table that the frame empties. Only the game's thread, which runs the frames, steps;
  * the table grows (the only allocation) to the most instances stepped in a frame.
  */
 final class Animations {
-    // IsoSpriteInstance.getParentSprite(); IsoSprite.update(IsoSpriteInstance).
-    private final MethodHandle parentOf, update;
+    // IsoSpriteInstance.getParentSprite(); IsoSprite.update(IsoSpriteInstance); IsoObject.hasAttachedAnimSprites().
+    private final MethodHandle parentOf, update, hasAttached;
     // The numbers the objects' mod data holds under the step keys.
     private final ObjectData data;
     // The thread that runs the frames, and the instances it stepped in this frame (open addressing, by identity; a power of 2 long).
@@ -29,7 +32,13 @@ final class Animations {
         Class<?> instance = Game.type(loader, "zombie.iso.sprite.IsoSpriteInstance"), sprite = Game.type(loader, "zombie.iso.sprite.IsoSprite");
         parentOf = Game.exact(instance.getMethod("getParentSprite"), MethodType.methodType(Object.class, Object.class));
         update = Game.exact(sprite.getMethod("update", instance), MethodType.methodType(void.class, Object.class, Object.class));
+        hasAttached = Game.exact(game.objectType.getMethod("hasAttachedAnimSprites"), MethodType.methodType(boolean.class, Object.class));
         data = new ObjectData(loader, game.objectType);
+    }
+
+    /** Whether the object has attached animations that are stepped: the renderer is to draw it every frame. */
+    boolean stepped(String[] keys, Object object) throws Throwable {
+        return (boolean)hasAttached.invokeExact(object) && data.holds(keys, object);
     }
 
     /** Each frame, on the game's thread: what was stepped is forgotten. */

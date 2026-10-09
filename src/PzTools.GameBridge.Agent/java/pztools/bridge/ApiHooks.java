@@ -255,6 +255,12 @@ public final class ApiHooks {
          * {@code IsoSpriteInstance.update()}, which does nothing. The instance is stepped here when a mod declared it.
          */
         default void attachedAnim(Object instance, Object object) { }
+
+        /**
+         * {@code IsoObject.isAnimating()}, which the chunk renderer asks as it sorts an object into a layer: {@code vanilla}, or true
+         * for an object whose attached animations are stepped, so that it is drawn every frame instead of into the chunk's texture.
+         */
+        default boolean animating(boolean vanilla, Object object) { return vanilla; }
     }
 
     /**
@@ -349,7 +355,7 @@ public final class ApiHooks {
         COLD("cold", Group.FORMULAS), CORPSE_COUNT("corpseCount", Group.FORMULAS), CORPSE_SICKNESS("corpseSickness", Group.FORMULAS),
         HOLE("hole", Group.FORMULAS), WOUND("wound", Group.FORMULAS), BITE("bite", Group.FORMULAS),
         MACHINE("machine", Group.FORMULAS), MACHINE_LOAD("machineLoad", Group.FORMULAS), ATTACHED_ANIM("attachedAnim", Group.FORMULAS),
-        MOODLE_LEVEL("moodleLevel", Group.MOODLES),
+        ANIMATING("animating", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
         MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
         ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
         ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS);
@@ -579,7 +585,13 @@ public final class ApiHooks {
                         code.with(element);
                         code.aload(0);
                         code.invokestatic(HOOKS, "attachedAnim", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_Object, ConstantDescs.CD_Object));
-                    })) }),
+                    })),
+            // The chunk renderer draws an object into the chunk's texture, again only when the chunk changes, unless it asks to be drawn
+            // every frame (FBORenderCell's layers: a fire, or an object isAnimating says yes to). A stepped object says yes.
+            Site.atReturns("isAnimating", "()Z", 1, (code, owner) -> {
+                code.aload(0);
+                code.invokestatic(HOOKS, "animating", MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean, ConstantDescs.CD_Object));
+            }) }),
         Map.entry("zombie/iso/objects/IsoGenerator", new Site[] {
             Site.atStart("setSurroundingElectricity", "()V", (code, owner) -> {
                 Label vanilla = code.newLabel();
@@ -1969,6 +1981,15 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.attachedAnim(instance, object); }
         catch (Throwable problem) { reportOnce(Call.ATTACHED_ANIM, problem); }
+    }
+
+    /** Put before each return of {@code IsoObject.isAnimating()}. */
+    public static boolean animating(boolean vanilla, Object object) {
+        if (vanilla) return true;
+        Formulas current = formulas;
+        if (current == null) return false;
+        try { return current.animating(false, object); }
+        catch (Throwable problem) { reportOnce(Call.ANIMATING, problem); return false; }
     }
 
     /** Put at the start of {@code IsoGenerator.update()}. */
