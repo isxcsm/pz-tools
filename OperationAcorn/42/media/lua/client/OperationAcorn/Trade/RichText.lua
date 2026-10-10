@@ -2,7 +2,8 @@
 -- in the game's font, so this one takes its place, in design units and our faces (Trade/UI.lua). It reads the commands
 -- the mod's texts use: <LINE>, <BR>, <TEXT> (the panel's own font, grey), <H1> (Large, white, centred), <H2> (Medium,
 -- light grey), <RGB:r,g,b>, <PUSHRGB:r,g,b> and <POPRGB>, <CENTRE>, <LEFT>, <RIGHT>, <SPACE>, <SIZE:small|medium|large>,
--- &lt; and &gt;, and a line end as <LINE>. It lays the text out as the game's does, piece for piece (a "chunk" is
+-- &lt; and &gt;, and a line end as <LINE>; and two of ours for the documents' marks (Typing.rich): <HALF> (half a row
+-- down) and <HANG> (the rows the line wraps into start where the text after it does: a bullet's hanging indent). It lays the text out as the game's does, piece for piece (a "chunk" is
 -- the text between two commands on one row; Story/TypedText reveals them a character at a time): the text is cut at
 -- its spaces, a word goes to the next row when the row would grow past the width, and a word wider than the row by
 -- itself stays whole on its own row. A row is as high as its font's face.
@@ -74,9 +75,16 @@ local GREY_TEXT, GREY_H2, WHITE = { 0.7, 0.7, 0.7 }, { 0.8, 0.8, 0.8 }, { 1, 1, 
 function OARichText:command(cmd, x, y, lineHeight)
     local at = self.currentLine
     if cmd == "LINE" then
+        self.hang = 0
         return 0, y + lineHeight
     elseif cmd == "BR" then
+        self.hang = 0
         return 0, y + 2 * lineHeight
+    elseif cmd == "HALF" then
+        return x, y + lineHeight / 2
+    elseif cmd == "HANG" then
+        self.hang = x + self:measure(" ", self.font)
+        return self.hang, y
     elseif cmd == "H1" then
         self.orient[at], self.rgb[at], self.font = "centre", WHITE, UIFont.Large
         self.fonts[at] = self.font
@@ -118,6 +126,7 @@ function OARichText:paginate()
     self.font = self.defaultFont
     self.fonts, self.rgb, self.orient = {}, {}, {}
     self.rgbCurrent, self.rgbStack = WHITE, {}
+    self.hang = 0
     local lines, lineX, lineY = {}, {}, {}
     self.lines, self.lineX, self.lineY = lines, lineX, lineY
     local maxW = self.width - self.marginLeft - self.marginRight - OARichText.BAR_ROOM
@@ -164,8 +173,8 @@ function OARichText:paginate()
                 if lines[n] and lines[n] ~= "" then n = n + 1 end
                 y = y + self:lineHeightOf(self.font)
                 lines[n] = token
-                lineX[n], lineY[n] = 0, y
-                x = self:measure(token, self.font)
+                lineX[n], lineY[n] = self.hang, y
+                x = self.hang + self:measure(token, self.font)
             else
                 if not lines[n] then lineX[n], lineY[n] = x, y end
                 lines[n] = chunk
@@ -179,7 +188,8 @@ function OARichText:paginate()
 end
 
 -- What each chunk is drawn in (the font, the colour and the side carried on from the chunks before, as the game's
--- render does) and its x: a centred row is centred as a whole, its chunks side by side.
+-- render does) and its x: a centred row is centred as a whole, a row on the right ends at the text's right edge (short
+-- of the bar), their chunks side by side.
 function OARichText:place()
     local lines, lineX, lineY = self.lines, self.lineX, self.lineY
     local font, rgb, orient = self.defaultFont, WHITE, "left"
@@ -194,13 +204,19 @@ function OARichText:place()
     local inner = self.width - self.marginLeft - self.marginRight - OARichText.BAR_ROOM
     local c = 1
     while c <= #lines do
-        if cOrient[c] == "centre" and lines[c] ~= "" then
+        local side = cOrient[c]
+        if (side == "centre" or side == "right") and lines[c] ~= "" then
             local row, last, w = lineY[c], c, 0
             while last <= #lines and lineY[last] == row do
-                w = w + self:measure(lines[last], cFont[last])
+                if side == "centre" then
+                    w = w + self:measure(lines[last], cFont[last])
+                elseif lines[last] ~= "" then
+                    w = lineX[last] - lineX[c] + self:measure(lines[last], cFont[last])
+                end
                 last = last + 1
             end
-            local x0 = self.marginLeft + (inner - w) / 2
+            local x0
+            if side == "centre" then x0 = self.marginLeft + (inner - w) / 2 else x0 = self.marginLeft + inner - w - lineX[c] end
             for k = c, last - 1 do cX[k] = x0 + lineX[k] end
             c = last
         else
@@ -281,11 +297,7 @@ function OARichText:render()
         local font = cFont[c]
         if v ~= "" and ly + self:lineHeightOf(font) > 0 then
             local rgb = cRGB[c]
-            if cOrient[c] == "right" then
-                self:drawTextRight(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
-            else
-                self:drawText(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
-            end
+            self:drawText(v, cX[c], ly, rgb[1], rgb[2], rgb[3], a, font)
         end
     end
     if self.clip then self:clearStencilRect() end

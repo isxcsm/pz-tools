@@ -465,6 +465,36 @@ test("rich text: the commands the mod's texts use, and a row as high as its face
     truthy(panel.lineX[red] > UI.textWidth("four"), "a space asked for between the colours")
 end)
 
+test("rich text: the documents' half rows, hanging bullets and a sign-off on the right", function()
+    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    UI.refreshScale()
+    -- 7 a character, the text area 100 - 14 = 86
+    local panel = rich(UI, 100, 300, " <TEXT> head <LINE> <HALF> x <LINE> - <HANG> aaa bbb ccc ddd eee fff <LINE> "
+        .. "<HALF> <RIGHT> sign <LINE> <LEFT> after")
+    local byText = {}
+    for c, s in ipairs(panel.lines) do byText[s] = c end
+    eq(panel.lineY[byText["head"]], 0)
+    eq(panel.lineY[byText["x"]], 16 + 8, "half a row above")
+    local first = byText["aaa bbb"]
+    truthy(first, lineList(panel))
+    eq(panel.lineX[first], 7 + 7, "after the bullet and its space")
+    local rows = 0
+    for c, s in ipairs(panel.lines) do
+        if s ~= "" and c > first and panel.lineY[c] > panel.lineY[first] and panel.lineY[c] < panel.lineY[byText["sign"]] then
+            rows = rows + 1
+            eq(panel.lineX[c], 14, "'" .. s .. "' hangs under the text, not the bullet")
+            truthy(panel.lineX[c] + UI.textWidth(s) <= 86, "and keeps to the room")
+        end
+    end
+    truthy(rows >= 2, "the bullet's line wrapped: " .. lineList(panel))
+    local sign = byText["sign"]
+    near(panel.cX[sign] + UI.textWidth("sign"), 86, 1e-9, "the sign-off ends at the text's right edge")
+    local after = byText["after"]
+    eq(panel.lineX[after], 0, "a line end ends the hang")
+    eq(panel.cX[after], 0, "and <LEFT> the right side")
+    eq(panel.lineY[after], panel.lineY[sign] + 16)
+end)
+
 test("rich text draws the rows on show in their faces, scrolls by the wheel and keeps inside its text", function()
     local UI = load(16, { "OperationAcorn/Trade/RichText" })
     local seen = stubApi()

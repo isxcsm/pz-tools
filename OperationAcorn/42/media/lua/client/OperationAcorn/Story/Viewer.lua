@@ -6,6 +6,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Markup"
+require "OperationAcorn/Story/Typing"
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/RichText"
 require "OperationAcorn/Trade/Button"
@@ -82,14 +83,20 @@ function ISOAViewer:update()
     if self.era ~= UI.era then self:close() end
 end
 
--- The reading text: a title line, a rule, the body with its line ends turned into the panel's line commands.
+-- The body's colour where its text has none of its own; heads and dim lines take the field palette's.
+local BODY = { 0.88, 0.88, 0.82 }
+
+-- The reading text: a title line, a rule, the body as the folder shows a document (Typing.rich): its colours, its
+-- line ends, and its own marks (Typing.marks: heads, bullets, dim lines, the sign-off).
 local function formatText(title, body)
-    local text = " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE> <TEXT> <RGB:0.88,0.88,0.82> "
-    local lines = {}
     -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
     body = string.gsub(body, "\\n", "\n")
-    for line in string.gmatch(body .. "\n", "(.-)\n") do lines[#lines + 1] = line end
-    return text .. table.concat(lines, " <LINE> ")
+    local marked, styles = OA.Typing.marks(body)
+    -- a text the markup reader refuses is shown as its plain characters
+    local read = OA.Markup.parse(marked) or { plain = OA.Markup.strip(marked), runs = {} }
+    local p = UI.palette("field")
+    return " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE>"
+        .. OA.Typing.rich(read, BODY, styles, { head = p.head, dim = p.dim })
 end
 
 function ISOAViewer:show(i)
@@ -100,7 +107,6 @@ function ISOAViewer:show(i)
     local title = getText(Docs.titleKey(entry.id))
     local body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
     if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
-    body = OA.Markup.strip(body)
     self.rich.text = formatText(title, body)
     self.rich:paginate()
     self.rich:setYScroll(0)

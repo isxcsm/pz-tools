@@ -179,7 +179,7 @@ end)
 
 -- The clock and the record ----------------------------------------------------------------------------------------
 
-test("the speeds are for the new kinds of text only, and the field terminal types a little slower", function()
+test("the speeds are for the kinds of text, a scene typed a character at a time and a paper printed a row at a time", function()
     eq(Typing.speed("scene", "crude"), 30)
     truthy(Typing.speed("scene", "field") < Typing.speed("scene", "crude"))
     truthy(Typing.speed("document", "crude") >= 60 and Typing.speed("document", "crude") <= 80)
@@ -187,8 +187,11 @@ test("the speeds are for the new kinds of text only, and the field terminal type
     eq(Typing.speed("manifest", "crude"), nil)
     eq(Typing.KIND_OF_GROUP.radio, "scene")
     eq(Typing.KIND_OF_GROUP.request, "document")
-    eq(Typing.KIND_OF_GROUP.manifest, nil)
-    eq(Typing.KIND_OF_GROUP.field, nil)
+    eq(Typing.KIND_OF_GROUP.manifest, "document")
+    eq(Typing.KIND_OF_GROUP.field, "document")
+    eq(Typing.KIND_OF_GROUP.research, "document")
+    eq(Typing.MODE.scene, "chars")
+    eq(Typing.MODE.document, "lines")
 end)
 
 test("a document left half typed goes on by the game time that passed, turned into real seconds of the day's length", function()
@@ -272,6 +275,88 @@ test("the panel's text has the colours and line ends, and keeps the space where 
     eq(plain, " <TEXT> <RGB:1.000,1.000,1.000> one <LINE>  <LINE> two")
     -- the panel's own markup characters are escaped
     truthy(string.find(Typing.rich(Markup.parse("a<b>c"), { 1, 1, 1 }), "a&lt;b&gt;c", 1, true))
+end)
+
+-- The documents' own marks ------------------------------------------------------------------------------------
+
+local DOT = string.char(183)
+local Folder = OA.StoryFolder
+
+test("a document's marks go out of its text, and each marked line has its style", function()
+    local text = "## Findings\n~ Dr. Hale, day 12\nplain line\n" .. DOT .. " a bullet\n2. a number\n3) another\n> Hale"
+    local clean, styles = Typing.marks(text)
+    eq(clean, "Findings\nDr. Hale, day 12\nplain line\n" .. DOT .. " a bullet\n2. a number\n3) another\nHale",
+        "head, meta and sign-off marks gone; bullet and number markers kept")
+    eq(styles[1].kind, "head")
+    eq(styles[2].kind, "meta")
+    eq(styles[3], nil, "a line with no mark has no style")
+    eq(styles[4].kind, "bullet")
+    eq(styles[4].hang, 2, "the bullet and its space")
+    eq(styles[5].kind, "num")
+    eq(styles[5].hang, 3)
+    eq(styles[6].hang, 3)
+    eq(styles[7].kind, "sign")
+    -- a mark only counts at the start of a line, with its space
+    local same, none = Typing.marks("a ## b\n##c\n>d\n~e\n12 x")
+    eq(same, "a ## b\n##c\n>d\n~e\n12 x")
+    eq(none[1], nil)
+    eq(none[2], nil)
+    eq(none[5], nil)
+    -- the marks are never typed: the reading of the clean text has none of them
+    local read = Markup.parse(clean, 10)
+    truthy(not string.find(read.plain, "## ", 1, true))
+    truthy(not string.find(read.plain, "> ", 1, true))
+    eq(Typing.marks(nil), nil)
+end)
+
+test("the panel's text of a marked document: head and dim colours, half a line above a head and the sign-off, the sign-off on the right, bullets hung", function()
+    local clean, styles = Typing.marks("## One\nbody\n## Two\n" .. DOT .. " wrapped item\n~ meta\n> sign")
+    local rich = Typing.rich(Markup.parse(clean), { 1, 1, 1 }, styles, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
+    truthy(string.find(rich, "^ <TEXT> <RGB:1.000,1.000,1.000>  <RGB:0.000,1.000,0.000> One"), rich)
+    truthy(not string.find(rich, "^[^O]*<HALF>"), "no half line above the first line")
+    truthy(string.find(rich, "<LINE>  <HALF>  <RGB:0.000,1.000,0.000> Two", 1, true), "a later head has its half line")
+    truthy(string.find(rich, DOT .. " <HANG> wrapped item", 1, true), "the bullet hangs")
+    truthy(string.find(rich, "<RGB:0.500,0.500,0.500> meta", 1, true), "the meta line is dim")
+    truthy(string.find(rich, "<HALF>  <RIGHT> sign", 1, true), "the sign-off: half a line, on the right, dim")
+    -- a number hangs too, and a colour of the text's own wins over the line's
+    local c2, s2 = Typing.marks("## {c:FF0000}red{/c} head\n10. long item")
+    local r2 = Typing.rich(Markup.parse(c2), { 1, 1, 1 }, s2, { head = { 0, 1, 0 }, dim = { 0.5, 0.5, 0.5 } })
+    truthy(string.find(r2, "<RGB:1.000,0.000,0.000> red", 1, true), r2)
+    truthy(string.find(r2, "10. <HANG>", 1, true), r2)
+    -- with no styles the text is as it was
+    eq(Typing.rich(Markup.parse("one\ntwo"), { 1, 1, 1 }, nil, nil), " <TEXT> <RGB:1.000,1.000,1.000> one <LINE> two")
+end)
+
+test("a paper's content has its marks out and its styles; a radio copy keeps its text as written", function()
+    getText = function(key, ...)
+        if key == "IGUI_OA_Story_Radio_s1_a" then return "## not a head" end
+        return key
+    end
+    local record = setup(1)
+    local paper = Folder.content(record, { title = "M", group = "manifest",
+        ref = { kind = "manifest", manifest = { text = "## Cargo\\n" .. DOT .. " flour" } } })
+    eq(paper.body, "Cargo\n" .. DOT .. " flour")
+    eq(paper.styles[1].kind, "head")
+    eq(paper.styles[2].kind, "bullet")
+    eq(paper.kind, "document")
+    local copy = Folder.content(record, { title = "C", group = "radio",
+        ref = { kind = "copy", copy = { id = "s1", stage = 1, keys = { "s1_a" } } } })
+    eq(copy.body, "## not a head")
+    eq(copy.styles, nil)
+end)
+
+test("a document's rows end at the characters of the panel's rows, and come on a step apart", function()
+    -- three chunks on two rows, then a blank row, then a row
+    local ends = Typing.rowEnds({ { 1, 2 }, { 4, 5 }, {}, { 7, 8, 9 } }, { 0, 0, 29, 58 })
+    eq(#ends, 2)
+    eq(ends[1], 5)
+    eq(ends[2], 9)
+    eq(Typing.rowsAt(0, 4, 0.2), 1, "the first at once")
+    eq(Typing.rowsAt(0.19, 4, 0.2), 1)
+    eq(Typing.rowsAt(0.2, 4, 0.2), 2)
+    eq(Typing.rowsAt(0.6, 4, 0.2), 4)
+    eq(Typing.rowsAt(9, 4, 0.2), 4)
+    eq(Typing.rowsAt(-1, 4, 0.2), 0)
 end)
 
 test("the characters of the panel's rows are matched to the text's, less the spaces it dropped", function()

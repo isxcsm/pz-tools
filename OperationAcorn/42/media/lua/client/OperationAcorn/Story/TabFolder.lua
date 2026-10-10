@@ -173,7 +173,8 @@ function OATabFolder:show(entry, record)
     local run = self:runFor(entry, content, record)
     local read = (run and run.parse) or Markup.parse(content.marked) or { plain = content.body, runs = {} }
     self.body.run = run
-    self.body.text = Typing.rich(read, self:palette().text)
+    local p = self:palette()
+    self.body.text = Typing.rich(read, p.text, content.styles, { head = p.head, dim = p.dim })
     self.body:paginate()
     self.body:setYScroll(0)
     self.body:setVisible(true)
@@ -198,7 +199,12 @@ function OATabFolder:runFor(entry, content, record)
     if not parse then return nil end
     local state = Typing.latest(OA.Story.typedState(record, key), self.kept[key])
     local clock = Typing.start(state, OA.hours(), getGameTime():getMinutesPerDay(), content.kind)
-    local run = { key = key, parse = parse, clock = clock, seen = Typing.seenOf(state, parse), done = clock >= parse.total }
+    -- a document is printed a row at a time (TypedText): its rows are the panel's, so whether it is over is known when
+    -- it is laid out; past a step a character it is over whatever its rows
+    local step = Typing.MODE[content.kind] == "lines" and Typing.LINE_STEP or nil
+    local over = step and parse.n * step or parse.total
+    local run = { key = key, parse = parse, step = step, clock = clock, seen = Typing.seenOf(state, parse),
+        done = clock >= over }
     if run.done then
         -- Left so long that the terminal has printed all of it: shown whole.
         run.seen = parse.n

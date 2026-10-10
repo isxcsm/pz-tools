@@ -2,11 +2,14 @@
 -- copy in the terminal's folder, laid out at once for the whole text so that nothing moves as it comes on, and drawn
 -- with the characters that have come on. What a frame does is: add the real time since the last frame to the text's
 -- clock, look up how many characters that is (Markup.count), and when the number has changed hand the panel's rows
--- their new beginnings (Typing.reveal, which keeps each beginning once made). No Lua timer runs per character, and a text that is not typed,
--- or is typed to its end, is the plain panel.
+-- their new beginnings (Typing.reveal, which keeps each beginning once made). No Lua timer runs per character, and a
+-- text that is not typed, or is typed to its end, is the plain panel. A document is printed instead (Typing.MODE): a row at a time, whole, every
+-- `run.step` seconds; the rows are the panel's own (Typing.rowEnds: the character each row ends at), so the same
+-- reveal shows them and what is kept of a showing is counted in characters either way.
 --
 -- The text's state is its `run` (made by the folder tab for each showing of an entry): { parse = the reading of the text
--- (Markup.parse), clock = seconds typed, last = the time of the last frame (ms), seen = the furthest character that has
+-- (Markup.parse), step = the seconds between printed rows (a document; nil: typed a character at a time), clock = seconds
+-- typed, last = the time of the last frame (ms), seen = the furthest character that has
 -- come on in any showing (it grows as the typing does), done = the typing is over }. A click on the text brings it at once
 -- to the furthest point seen before (the whole of it when it was seen to the end) and no further: what the player has
 -- never seen is typed in its time and cannot be skipped. The click is anywhere on the panel (no coordinates are read, so
@@ -33,13 +36,28 @@ end
 -- over the new rows.
 function OATypedText:paginate()
     OARichText.paginate(self)
-    self.reveal, self.n, self.tipChunk = nil, nil, nil
+    self.reveal, self.n, self.tipChunk, self.rowEnds = nil, nil, nil, nil
     local run = self.run
     if run and run.parse and not run.done then
         local chunks = {}
         for c, line in ipairs(self.lines or {}) do chunks[c] = unescape(line) end
         self.reveal = Typing.reveal(chunks, run.parse.plain, self.lines)
+        if run.step then self.rowEnds = Typing.rowEnds(self.reveal.src, self.lineY) end
     end
+end
+
+-- Where a text on its way stands at its clock: how many characters have come on, and whether it is over. A document
+-- comes a row at a time and is over a step after its last row.
+function OATypedText:countAt(run)
+    local parse = run.parse
+    local ends = self.rowEnds
+    if ends then
+        local rows = #ends
+        if rows == 0 or run.clock >= rows * run.step then return parse.n, true end
+        return ends[Typing.rowsAt(run.clock, rows, run.step)], false
+    end
+    if run.clock >= parse.total then return parse.n, true end
+    return Markup.count(parse, run.clock), false
 end
 
 -- A frame of a text on its way: the clock, the number of characters, and the rows when it has changed.
@@ -49,16 +67,16 @@ function OATypedText:advance(run)
         run.clock = run.clock + (now - run.last) / 1000
     end
     run.last = now
-    local parse = run.parse
-    local finished = run.clock >= parse.total
-    local n = finished and parse.n or Markup.count(parse, run.clock)
+    local n, finished = self:countAt(run)
     if n ~= self.n then
         self.n = n
         if n > (run.seen or 0) then run.seen = n end
-        local c, k = self.reveal:show(n)
-        self.tipChunk = c
-        if c then
-            self.tipX = self.lineX[c] + self.marginLeft + self:measure(self.lines[c], self.defaultFont)
+        local c = self.reveal:show(n)
+        -- the cursor follows a text typed a character at a time; a printed row comes whole
+        self.tipChunk = (c and not self.rowEnds) and c or nil
+        if self.tipChunk then
+            local x = self.cX and self.cX[c] or (self.lineX[c] + self.marginLeft)
+            self.tipX = x + self:measure(self.lines[c], self.defaultFont)
         end
     end
     if finished then
@@ -69,12 +87,24 @@ function OATypedText:advance(run)
 end
 
 -- The furthest point the player has seen of this text, at once: the clock goes on to the moment that character comes
--- (the whole text's end when it was seen to the end). Nothing happens at or past it, so a click cannot skip what was
--- never seen. The next frame draws it.
+-- (the whole text's end when it was seen to the end; for a document, the last row seen whole). Nothing happens at or
+-- past it, so a click cannot skip what was never seen. The next frame draws it.
 function OATypedText:hurry(run)
     local parse = run.parse
     local seen = run.seen or 0
-    local at = seen >= parse.n and parse.total or parse.times[seen]
+    local at
+    local ends = self.rowEnds
+    if ends then
+        if seen >= parse.n then
+            at = #ends * run.step
+        else
+            local rows = 0
+            while rows < #ends and ends[rows + 1] <= seen do rows = rows + 1 end
+            if rows > 0 then at = (rows - 1) * run.step end
+        end
+    else
+        at = seen >= parse.n and parse.total or parse.times[seen]
+    end
     if at and at > run.clock then run.clock = at end
 end
 
