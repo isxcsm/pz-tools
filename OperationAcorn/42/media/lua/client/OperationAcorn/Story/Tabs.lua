@@ -83,9 +83,9 @@ local function missionLines(info)
         end
         if info.compare then add(getText("IGUI_OA_Story_UI_Compare", tostring(info.compare)) .. " <LINE> ") end
         if info.stakeNo then add(getText("IGUI_OA_Story_UI_Stake", tostring(info.stakeNo)) .. " <LINE> ") end
-        if info.area and info.anchor then
-            local point = Places.bearing(info.anchor.x, info.anchor.y, info.area.x, info.area.y)
-            if point then add(getText("IGUI_OA_Story_UI_Bearing_" .. point) .. " <LINE> ") end
+        local c = character()
+        if info.area and c then
+            add(Places.whereText(c:getX(), c:getY(), info.area.x, info.area.y, info.area.r) .. " <LINE> ")
         end
         if info.credits then
             add(getText("IGUI_OA_Story_UI_Reward", tostring(info.credits), tostring(info.trust or 0)) .. " <LINE> ")

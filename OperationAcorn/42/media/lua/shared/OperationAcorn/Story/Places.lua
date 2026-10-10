@@ -162,4 +162,28 @@ function Places.bearing(ax, ay, x, y)
     return POINTS[sector + 1]
 end
 
+-- Where a place is from the player, in words (DESIGN-terminal 6.5): "현재 위치에서 북동쪽 약 2.4km". A square counts as
+-- a metre. Inside `radius` (a mission's area) the player is told so; under 100 m it is "close by"; then 50 m steps up to
+-- a kilometre, 0.1 km steps up to 10 km, whole kilometres beyond. Returns the translation key and its arguments: the
+-- compass point's key (translated by the caller) and the distance as a string.
+function Places.whereKey(px, py, x, y, radius)
+    local dx, dy = x - px, y - py
+    local d = math.sqrt(dx * dx + dy * dy)
+    if radius and d <= radius then return "IGUI_OA_Place_Inside", {} end
+    if d < 100 then return "IGUI_OA_Place_Near", {} end
+    local point = "IGUI_OA_Place_Dir_" .. Places.bearing(px, py, x, y)
+    local metres = math.floor(d / 50 + 0.5) * 50
+    if metres < 1000 then return "IGUI_OA_Place_Metres", { point, tostring(metres) } end
+    local tenths = math.floor(d / 100 + 0.5)
+    if tenths < 100 then return "IGUI_OA_Place_Km", { point, string.format("%.1f", tenths / 10) } end
+    return "IGUI_OA_Place_Km", { point, tostring(math.floor(d / 1000 + 0.5)) }
+end
+
+-- The same as a text (the compass point translated too).
+function Places.whereText(px, py, x, y, radius)
+    local key, args = Places.whereKey(px, py, x, y, radius)
+    if args[1] then return getText(key, getText(args[1]), args[2]) end
+    return getText(key)
+end
+
 return Places

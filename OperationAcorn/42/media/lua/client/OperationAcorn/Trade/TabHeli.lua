@@ -2,6 +2,7 @@
 -- is possible, the expected balance, and the buttons that call the helicopter or ask for a new delivery box.
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Estimate"
+require "OperationAcorn/Story/Places"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Rules, Boxes, Estimate = Trade.Rules, Trade.Boxes, Trade.Estimate
@@ -29,15 +30,15 @@ local function whenText(hours)
     return getText("IGUI_OA_Trade_When", day, string.format("%02d:%02d", h, m))
 end
 
--- The box line: where the active box stands, or why there is none.
+-- The box line: the active box's state, or why there is none.
 local function boxText(record)
     local box = Boxes.active(record)
     if not box then return getText("IGUI_OA_Trade_Heli_NoBox") end
     if box.state == "carried" then return getText("IGUI_OA_Trade_Heli_BoxCarried") end
     if box.state == "sealed" then
-        return getText("IGUI_OA_Trade_Heli_BoxSealed", box.x, box.y, box.sealed and box.sealed.count or 0)
+        return getText("IGUI_OA_Trade_Heli_BoxSealed", box.sealed and box.sealed.count or 0)
     end
-    return getText("IGUI_OA_Trade_Heli_BoxPlaced", box.x, box.y)
+    return getText("IGUI_OA_Trade_Heli_BoxPlaced")
 end
 
 function OATabHeli:state(record)
@@ -78,7 +79,9 @@ function OATabHeli:refresh()
     if #marks > 0 then
         add("head", getText("IGUI_OA_Trade_Heli_Left"))
         for _, mark in ipairs(marks) do
-            add("note", getText(mark.kind == "first" and "IGUI_OA_Trade_Heli_LeftFirst" or "IGUI_OA_Trade_Heli_LeftCrate", mark.x, mark.y))
+            local c = self:character()
+            add("note", getText(mark.kind == "first" and "IGUI_OA_Trade_Heli_LeftFirst" or "IGUI_OA_Trade_Heli_LeftCrate",
+                OA.Places.whereText(c:getX(), c:getY(), mark.x, mark.y)))
         end
     end
     UI.setRich(self.info, UI.richLines(lines))

@@ -807,7 +807,6 @@ function Missions.describe(record)
     info.place = m.place
     info.area = m.area
     info.area2 = m.area2
-    info.anchor = m.anchor
     info.left = m.deadline - now
     info.credits = (m.pay and m.pay.credits) or m.credits
     info.trust = (m.pay and m.pay.trust) or m.trust

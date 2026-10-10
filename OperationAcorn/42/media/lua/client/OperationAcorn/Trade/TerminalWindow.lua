@@ -199,6 +199,7 @@ end
 
 -- Redraws what is on show: the dots, then the active tab.
 function OATerminalWindow:refresh()
+    self.atX, self.atY = self.character:getX(), self.character:getY()
     local record = OA.Client.record(self.character)
     self:updateMarks(record)
     local view = self.views[self.activeId]
@@ -238,12 +239,21 @@ function OATerminalWindow:render()
     end
 end
 
--- Every half second or so: the terminal still stands, the player is still near it and it still has power.
+-- How far (squares) the player walks before the directions on show are worked out again (DESIGN-terminal 6.5).
+OATerminalWindow.MOVED = 10
+
+-- Every half second or so: the terminal still stands, the player is still near it and it still has power; a player
+-- who has walked a few squares gets the directions again.
 function OATerminalWindow:update()
     ISCollapsableWindow.update(self)
     self.ticks = (self.ticks or 0) + 1
     if self.ticks < 30 then return end
     self.ticks = 0
+    local px, py = self.character:getX(), self.character:getY()
+    if self.atX then
+        local dx, dy = px - self.atX, py - self.atY
+        if dx * dx + dy * dy > OATerminalWindow.MOVED * OATerminalWindow.MOVED then self:refresh() end
+    end
     local square = getCell():getGridSquare(self.tx, self.ty, self.tz)
     local object = square and Objects.find(square, Objects.TERMINAL)
     if not object or self.character:isDead() then return self:close() end
