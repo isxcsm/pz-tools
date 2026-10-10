@@ -8,6 +8,7 @@
 -- nine tenths of the screen.
 -- An open window reads the machine a few times a second (WindowModel.read: the status once), lays it out again only
 -- when what it shows changed (WindowLayout), and each frame only paints that list. Nothing runs when it is closed.
+-- It opens as the terminal's tabs do after its boot: the body fades in from black (usable through it).
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISPanel"
 require "ISUI/ISInventoryPage"
@@ -16,6 +17,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
+require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
 require "OperationAcorn/Machines/WindowModel"
@@ -252,7 +254,19 @@ function OAMachineWindow:prerender()
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
 end
 
+-- The fade-in: black under the title bar, thinning out over the terminal's fade time from the first frame drawn.
 function OAMachineWindow:render()
+    if self.fading then
+        local now = getTimestampMs()
+        self.fadeStart = self.fadeStart or now
+        local t = (now - self.fadeStart) / OA.Trade.BootSeq.FADE_MS
+        if t >= 1 or t < 0 then
+            self.fading = nil
+        else
+            local th = self:titleBarHeight()
+            UI.fill(self, 0, th, self.width, self.height - th, { 0, 0, 0 }, 1 - t)
+        end
+    end
     UI.frame(self, 0, 0, self.width, self.height, self.palette.border)
 end
 
@@ -404,6 +418,7 @@ function OAMachineWindow:new(x, y, character, object)
     o.footW, o.footH = Machines.footprint(state.kind, state.dir)
     o.title = Machines.name(state.kind)
     o:setResizable(false)
+    o.fading = true
     return o
 end
 
