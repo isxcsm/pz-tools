@@ -2,15 +2,19 @@
 -- the palette of the terminal it is open at (the crude one built from the kit, or the field terminal ordered from the
 -- shop). The part that owns a tab gives its view with OA.Terminal.addTab. The window opens on the status tab every
 -- time, when the using action completes (OA.Terminal.open), and shows the player's own record, redrawn when the
--- record changes.
+-- record changes. Every open starts with a short boot sequence over the body (Trade/BootSeq, Trade/TerminalBoot)
+-- and ends with the tabs fading in; the window is usable from the start of the fade.
 require "ISUI/ISCollapsableWindow"
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/Terminal"
 require "OperationAcorn/Trade/Things"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/BootSeq"
+require "OperationAcorn/Trade/TerminalBoot"
 local OA = OperationAcorn
 local Trade, Terminal, UI = OA.Trade, OA.Terminal, OA.Trade.UI
 local Objects, Things = Trade.Objects, Trade.Things
+local Seq = Trade.BootSeq
 
 OATerminalWindow = ISCollapsableWindow:derive("OATerminalWindow")
 OATerminalWindow.instances = {}
@@ -24,6 +28,15 @@ OATerminalWindow.PAD = 10
 OATerminalWindow.SCREEN_SHARE = 0.9
 
 local SCANLINE = "media/textures/OA_Scanline.png"
+local BLACK = { 0, 0, 0 }
+
+-- When each terminal's window last closed (real ms, kept for the session only), by player and square: a terminal opened
+-- again within Seq.REOPEN_MS skips the console.
+OATerminalWindow.closedAt = {}
+
+local function closedKey(playerNum, x, y, z)
+    return playerNum .. ":" .. x .. "," .. y .. "," .. z
+end
 
 -- A tab's base: a panel that knows its window and the player's record. Tabs derive from it and build their widgets in
 -- createChildren; `refresh` redraws them from the record.
@@ -149,6 +162,59 @@ function OATerminalWindow:createChildren()
     self:addChild(self.strip)
     self.views = {}
     self:activate("status")
+    self:startBoot()
+end
+
+-- The boot sequence ----------------------------------------------------------------------------------------------
+
+-- The console goes over the strip and the body, from under the title bar to above the resize bar (design units).
+function OATerminalWindow:startBoot()
+    local run = self.boot
+    if not run or #run.lines == 0 then return end
+    local top = UI.dp(self:titleBarHeight())
+    local bottom = UI.dp(self:resizeWidgetHeight())
+    local overlay = OATerminalBoot:new(0, top, UI.dp(self.width), UI.dp(self.height) - top - bottom, self, run)
+    overlay:initialise()
+    overlay:instantiate()
+    overlay:setAnchorRight(true)
+    overlay:setAnchorBottom(true)
+    self:addChild(overlay)
+    self.bootOverlay = overlay
+end
+
+-- Each frame while the sequence lasts (from prerender): when the console is over the panel comes off and the status tab
+-- hears of it, then the fade-in is the window's own black over the tabs, until it is done and the run is let go.
+function OATerminalWindow:bootTick()
+    local run = self.boot
+    local phase, _, t = Seq.state(run, getTimestampMs())
+    if phase == "fade" or phase == "done" then
+        if not self.consoleDone then
+            self.consoleDone = true
+            if self.bootOverlay then
+                self:removeChild(self.bootOverlay)
+                self.bootOverlay = nil
+            end
+            local status = self.views.status
+            if status and status.consoleOver then status:consoleOver() end
+        end
+    end
+    if phase == "fade" then
+        self.bootAlpha = 1 - t
+    elseif phase == "done" then
+        self.boot, self.bootAlpha = nil, nil
+        self:setWantKeyEvents(false)
+    end
+end
+
+-- A click on the console, or a key: the fade-in starts now.
+function OATerminalWindow:bootSkip()
+    if not self.boot then return end
+    Seq.skip(self.boot, getTimestampMs())
+    self:bootTick()
+end
+
+function OATerminalWindow:onKeyPress()
+    if self.boot then self:bootSkip() end
 end
 
 -- The bars are as high as our Small face (the game's would follow its own font).
@@ -253,6 +319,7 @@ function OATerminalWindow:refresh()
 end
 
 function OATerminalWindow:prerender()
+    if self.boot then self:bootTick() end
     local p = self.palette
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
@@ -273,6 +340,12 @@ function OATerminalWindow:render()
     UI.fill(self, 0, h - rh, w, 1, p.border, 0.6)
     for i = 0, 2 do
         for j = 0, i do UI.fill(self, w - 5 - 4 * j, h - rh + 3 + 4 * (2 - i), 2, 2, p.dim) end
+    end
+    -- The fade-in: black over the strip and the body, thinning out (over the tabs, which take clicks through it).
+    local fade = self.bootAlpha
+    if fade and fade > 0 then
+        local th = self:titleBarHeight()
+        UI.fill(self, 0, th, w, h - th - rh, BLACK, fade)
     end
     UI.frame(self, 0, 0, w, h, p.border)
 end
@@ -310,6 +383,7 @@ function OATerminalWindow:close()
     for _, view in pairs(self.views or {}) do
         if view.onWindowClose then view:onWindowClose() end
     end
+    OATerminalWindow.closedAt[closedKey(self.playerNum, self.tx, self.ty, self.tz)] = getTimestampMs()
     OATerminalWindow.instances[self.playerNum] = nil
     self:setVisible(false)
     self:removeFromUIManager()
@@ -325,8 +399,21 @@ function OATerminalWindow.sizes()
         math.min(UI.px(W.MIN_WIDTH), maxW), math.min(UI.px(W.MIN_HEIGHT), maxH)
 end
 
--- `tier` is "crude" or "field": which terminal the window is open at.
-function OATerminalWindow:new(character, x, y, z, tier)
+-- Whether this is the first open of a field terminal (its modData OA_Booted is not set yet): sets it, so that it is the
+-- first once. The crude terminal has no first boot: an upgrade is the same object, and its first open as a field
+-- terminal is the one that shows what the field terminal opened.
+function OATerminalWindow.claimFirst(object, tier)
+    if tier ~= "field" or not object then return false end
+    local data = object:getModData()
+    if data.OA_Booted then return false end
+    data.OA_Booted = true
+    if isClient() then object:transmitModData() end
+    return true
+end
+
+-- `tier` is "crude" or "field": which terminal the window is open at. `first`: its first open as a field terminal (the
+-- long boot, then the board of what it opened); `quick`: opened again within a minute (only the fade-in).
+function OATerminalWindow:new(character, x, y, z, tier, first, quick)
     UI.refreshScale()
     local width, height, minW, minH = OATerminalWindow.sizes()
     local sx = (getCore():getScreenWidth() - width) / 2
@@ -343,6 +430,9 @@ function OATerminalWindow:new(character, x, y, z, tier)
     o.character = character
     o.playerNum = character:getPlayerNum()
     o.tx, o.ty, o.tz = x, y, z
+    o.firstBoot = first and true or false
+    o.boot = Seq.new(first, tier == "crude", quick)
+    o.wantKeyEvents = #o.boot.lines > 0
     o.marks = {}
     o.blink = {}
     o.told = {}
@@ -361,7 +451,9 @@ function Terminal.open(character, x, y, z)
     local square = getCell():getGridSquare(x, y, z)
     local object = square and Objects.find(square, Objects.TERMINAL)
     local tier = object and Objects.isUpgraded(object) and "field" or "crude"
-    window = OATerminalWindow:new(character, x, y, z, tier)
+    local first = OATerminalWindow.claimFirst(object, tier)
+    local quick = not first and Seq.reopened(OATerminalWindow.closedAt[closedKey(playerNum, x, y, z)], getTimestampMs())
+    window = OATerminalWindow:new(character, x, y, z, tier, first, quick)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)

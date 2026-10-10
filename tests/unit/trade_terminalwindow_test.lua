@@ -137,3 +137,114 @@ test("what the tab on show has seen is told to the server once a value, and by t
     eq(#sent, 2); eq(sent[2].key, "tier")
     Terminal.clear()
 end)
+
+-- The boot sequence's part in the window (the timing itself is trade_bootseq_test) ---------------------------------
+
+require "OperationAcorn/Trade/BootSeq"
+local Seq = OperationAcorn.Trade.BootSeq
+
+local function bootWindow(first, crude, quick)
+    local window, Window = makeWindow({})
+    local now = 1000
+    _G.getTimestampMs = function() return now end
+    window.boot = Seq.new(first, crude, quick)
+    window.views = {}
+    local heard = 0
+    window.views.status = { consoleOver = function() heard = heard + 1 end }
+    window.overlay = { gone = false }
+    window.bootOverlay = window.overlay
+    window.removeChild = function(self, child) child.gone = true end
+    window.keys = true
+    window.setWantKeyEvents = function(self, want) self.keys = want end
+    return window, function(ms) now = ms end, function() return heard end
+end
+
+test("the first open of a field terminal is claimed once, in the object's modData", function()
+    local data = {}
+    local object = { getModData = function() return data end, transmitModData = function() end }
+    _G.isClient = function() return false end
+    local Window = loadWindow()
+    eq(Window.claimFirst(object, "field"), true)
+    eq(data.OA_Booted, true)
+    eq(Window.claimFirst(object, "field"), false, "only the first")
+    local crudeData = {}
+    local crude = { getModData = function() return crudeData end }
+    eq(Window.claimFirst(crude, "crude"), false, "the crude terminal has none (an upgrade is the same object)")
+    eq(crudeData.OA_Booted, nil, "and leaves the flag for the upgrade's first open")
+    eq(Window.claimFirst(nil, "field"), false)
+end)
+
+test("the window keeps the console up, takes it off when the fade starts, and lets the run go when it is over", function()
+    local window, setNow, heard = bootWindow(false, false, false)
+    setNow(1000)
+    window:bootTick()
+    eq(window.overlay.gone, false, "the first frame starts the run")
+    eq(window.bootAlpha, nil)
+    setNow(1000 + 919)
+    window:bootTick()
+    eq(window.overlay.gone, false)
+    setNow(1000 + 1000)
+    window:bootTick()
+    eq(window.overlay.gone, false, "still the switch-off")
+    setNow(1000 + 1070 + 125)
+    window:bootTick()
+    eq(window.overlay.gone, true, "the fade started: the console is off and the tabs are usable")
+    eq(window.bootOverlay, nil)
+    eq(heard(), 1, "the status tab is told")
+    near(window.bootAlpha, 0.5, 1e-9)
+    window:bootTick()
+    eq(heard(), 1, "once")
+    setNow(1000 + 1070 + 250)
+    window:bootTick()
+    eq(window.boot, nil, "over: nothing left to run")
+    eq(window.bootAlpha, nil)
+    eq(window.keys, false, "and no keys wanted")
+end)
+
+test("a click or a key skips the console and starts the fade at once", function()
+    local window, setNow, heard = bootWindow(true, false, false)
+    setNow(1000)
+    window:bootTick()
+    setNow(1300)
+    window:bootSkip()
+    eq(window.overlay.gone, true)
+    eq(heard(), 1)
+    eq(window.bootAlpha, 1, "the fade starts from black")
+    -- a key does the same
+    local other, set2 = bootWindow(false, true, false)
+    set2(2000)
+    other:bootTick()
+    set2(2100)
+    other:onKeyPress(30)
+    eq(other.overlay.gone, true)
+    -- and after it is over a key does nothing
+    set2(9999)
+    other:bootTick()
+    eq(other.boot, nil)
+    other:onKeyPress(30)
+    other:bootSkip()
+end)
+
+test("a terminal reopened within a minute has no console, only the fade-in", function()
+    local window, setNow, heard = bootWindow(false, false, true)
+    setNow(1000)
+    window:bootTick()
+    eq(heard(), 1, "the first frame is already the fade")
+    eq(window.bootAlpha, 1)
+    setNow(1250)
+    window:bootTick()
+    eq(window.boot, nil)
+end)
+
+test("closing the window notes when, per terminal, for the one-minute rule", function()
+    local window, Window = makeWindow({})
+    _G.getTimestampMs = function() return 777000 end
+    window.playerNum, window.tx, window.ty, window.tz = 0, 10, 20, 0
+    window.setVisible = function() end
+    window.removeFromUIManager = function() end
+    Window.closedAt = {}
+    window:close()
+    eq(Window.closedAt["0:10,20,0"], 777000)
+    eq(Seq.reopened(Window.closedAt["0:10,20,0"], 777000 + 30000), true)
+    eq(Window.closedAt["0:11,20,0"], nil, "another terminal is not it")
+end)

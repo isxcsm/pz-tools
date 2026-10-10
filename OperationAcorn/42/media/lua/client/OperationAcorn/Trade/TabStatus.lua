@@ -1,7 +1,7 @@
 -- The terminal's status tab (DESIGN-terminal 2): a fixed strip at the top (which terminal this is, the trust level
 -- and its bar, the balance) and under it four sub-tabs, one screen each: the helicopter, progress, upgrades and the
--- record. The window opens on it, at the helicopter. A field terminal opened for the first time shows its boot screen
--- and the board of what it opened first (DESIGN-terminal 12).
+-- record. The window opens on it, at the helicopter. A field terminal opened for the first time shows the board of
+-- what it opened, after the window's long boot (DESIGN-terminal 12).
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
@@ -13,7 +13,7 @@ require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
-local Trust, Objects = OA.Trust, Trade.Objects
+local Trust = OA.Trust
 local Draw, M = Trade.Draw, Trade.StatusModel
 
 OATabStatus = OATab:derive("OATabStatus")
@@ -180,19 +180,13 @@ function OATabStatus:prerender()
 end
 
 -- The first open of a field terminal (DESIGN-terminal 12) ----------------------------------------------------------
--- Once per terminal object (its modData OA_Booted): about 1.5 s of a black screen with three lines, then the board of
--- what the field terminal opened, over the status tab. A click skips the boot screen; the board's button closes it,
--- and the shop and missions tabs blink until they are looked at.
+-- Once per terminal object (its modData OA_Booted, which the window claims as it opens): the window's long boot
+-- sequence, then the board of what the field terminal opened, over the status tab. The board is made with the tab and
+-- lies under the boot console; the board's button closes it, and the shop and missions tabs blink until they are
+-- looked at.
 
 function OATabStatus:startBoot()
-    if self.window.tier ~= "field" then return end
-    local square = getCell():getGridSquare(self.window.tx, self.window.ty, self.window.tz)
-    local object = square and Objects.find(square, Objects.TERMINAL)
-    if not object then return end
-    local data = object:getModData()
-    if data.OA_Booted then return end
-    data.OA_Booted = true
-    if isClient() then object:transmitModData() end
+    if not self.window.firstBoot then return end
     local boot = OAStatusBoot:new(0, 0, self.width, self.height, self)
     boot:initialise()
     boot:instantiate()
@@ -200,6 +194,11 @@ function OATabStatus:startBoot()
     boot:setAnchorBottom(true)
     self:addChild(boot)
     self.boot = boot
+end
+
+-- The window's console is over and the tabs fade in: the board is on show, and the character says a line.
+function OATabStatus:consoleOver()
+    if self.boot then OA.Say.say(self.window.character, "TerminalFirst") end
 end
 
 function OATabStatus:bootDone()
@@ -219,15 +218,7 @@ function OAStatusBoot:new(x, y, width, height, tab)
     self.__index = self
     o.tab = tab
     o.background = false
-    o.start = getTimestampMs()
-    o.phase = "boot"
     return o
-end
-
--- The boot is over (it ran out, or a click skipped it): the board of news shows, and the character says a line.
-function OAStatusBoot:bootOver()
-    self.phase = "news"
-    OA.Say.say(self.tab.window.character, "TerminalFirst")
 end
 
 -- The board's words, worked out again when the record changes.
@@ -277,34 +268,12 @@ function OAStatusBoot:layoutBoard()
 end
 
 function OAStatusBoot:prerender()
-    local p = self.tab:palette()
-    if self.phase == "boot" then
-        -- Timed by subtracting timestamps only (Kahlua's % is wrong at their size), and only while it shows.
-        local shown, over = M.bootLines(getTimestampMs() - self.start)
-        if over then
-            self:bootOver()
-        else
-            self:drawRect(-10, -10, self.width + 20, self.height + 20, 1, 0, 0, 0)
-            local record = self.tab:record()
-            local number = string.format("%04d", record and record.number or 0)
-            local texts = { getText("IGUI_OA_Status_Boot_1"), getText("IGUI_OA_Status_Boot_2", number),
-                getText("IGUI_OA_Title_LineOpened") }
-            local mid = math.floor(self.height / 2) - 40
-            for i = 1, shown do
-                local c = i == 3 and p.value or p.text
-                self:drawTextCentre(texts[i], self.width / 2, mid + 26 * (i - 1), c[1], c[2], c[3], 1, UIFont.Medium)
-            end
-            local skip = getText("IGUI_OA_Status_Boot_Skip")
-            self:drawTextRight(skip, self.width, self.height - 18, p.dim[1], p.dim[2], p.dim[3], 1, UIFont.Small)
-            return
-        end
-    end
     if not self.list or self.laidW ~= self.width or self.laidH ~= self.height then self:layoutBoard() end
     Draw.paint(self, self.list)
 end
 
 function OAStatusBoot:render()
-    if self.phase ~= "news" or not self.list or not self:isMouseOver() then return end
+    if not self.list or not self:isMouseOver() then return end
     local hit = Draw.hitAt(self.list, self:getMouseX(), self:getMouseY())
     if hit and hit.button then
         local p = self.tab:palette()
@@ -313,10 +282,6 @@ function OAStatusBoot:render()
 end
 
 function OAStatusBoot:onMouseDown(x, y)
-    if self.phase == "boot" then
-        self:bootOver()
-        return true
-    end
     local hit = Draw.hitAt(self.list, x, y)
     if hit and hit.id == "ok" then self.tab:bootDone() end
     return true
