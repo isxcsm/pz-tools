@@ -24,7 +24,10 @@ Highlight.lit = lit
 -- The loot panes whose item names are painted: pane -> true (weak: a pane that is gone drops out).
 local tinted = setmetatable({}, { __mode = "k" })
 
+-- The look runs on the extension API's timer when it has one (`slot`: OA.timerOn), else on a handler of OnTick
+-- (`ticking`) that compares the clock each frame. The look only outlines and paints: it may go on while the game is paused.
 local ticking = false
+local slot = {}
 local last = {}
 local EMPTY = {}
 
@@ -154,9 +157,7 @@ local function openMissions(record)
     return list
 end
 
-local function tick()
-    local now = getTimestampMs()
-    if not OA.due(last, "look", now, View.EVERY_MS) then return end
+local function look()
     for n = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(n)
         local record = player and not player:isDead() and OA.Client.record(player)
@@ -180,6 +181,10 @@ local function tick()
     end
 end
 
+local function tick()
+    if OA.due(last, "look", getTimestampMs(), View.EVERY_MS) then look() end
+end
+
 -- Takes everything back (the mission ended, or the character is gone).
 local function clear()
     for n, mine in pairs(lit) do
@@ -197,12 +202,23 @@ local function update()
         local record = player and OA.Client.record(player)
         if #openMissions(record) > 0 then want = true end
     end
-    if want and not ticking then
-        ticking = true
-        Events.OnTick.Add(tick)
-    elseif not want and ticking then
+    if want then
+        local timed, fresh = OA.timerOn(slot, { ms = View.EVERY_MS }, look)
+        if timed then
+            if ticking then
+                ticking = false
+                Events.OnTick.Remove(tick)
+            end
+            -- (the first look at the next frame, as the handler's)
+            if fresh then OA.timerAfter(1, look) end
+        elseif not ticking then
+            ticking = true
+            Events.OnTick.Add(tick)
+        end
+    elseif ticking or slot.id ~= nil then
+        if ticking then Events.OnTick.Remove(tick) end
         ticking = false
-        Events.OnTick.Remove(tick)
+        OA.timerOff(slot)
         clear()
     end
 end

@@ -360,3 +360,38 @@ test("the container is walked once for what it holds, not at every look", functi
     for _ = 1, 3 do tick() end
     eq(reads, 3 + 4, "an item came: read again, once")
 end)
+
+test("with the API's timers the look is a timer, not a handler of OnTick, and goes with the mission", function()
+    local m = setup(regular())
+    local desk = furniture({ container({ item("M1-1") }) })
+    state.squares["100,100,0"] = square({ desk })
+    local timers, cancelled = {}, 0
+    PZToolsAPI = { version = 1, client = function() return "h" end, timers = {
+        every = function(handle, spec, fn)
+            timers[#timers + 1] = { spec = spec, fn = fn }
+            return #timers
+        end,
+        cancel = function(handle, id) cancelled = cancelled + 1 timers[id].gone = true return true end,
+    } }
+    load()
+    H.update()
+    local handlers = 0
+    for _ in pairs(state.handlers) do handlers = handlers + 1 end
+    eq(handlers, 0, "nothing wakes each frame")
+    eq(timers[1].spec.ms, OA.StoryView.EVERY_MS)
+    eq(timers[2].spec.once, true, "the first look at the next frame")
+    eq(desk.on, false, "not looked at yet")
+    timers[2].fn()
+    eq(desk.on, true)
+    desk.on = false
+    timers[1].fn()
+    eq(desk.on, true, "and at each period")
+    local count = #timers
+    H.update()
+    eq(#timers, count, "updated again with the mission still open: the same timer")
+    state.record.missions.active = nil
+    H.update()
+    eq(cancelled, 1, "the mission over: the timer cancelled")
+    eq(desk.on, false, "and the outline taken back")
+    PZToolsAPI = nil
+end)
