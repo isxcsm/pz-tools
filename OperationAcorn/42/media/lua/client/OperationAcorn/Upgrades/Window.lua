@@ -175,12 +175,19 @@ local function iconPx(size)
     return math.max(16, 8 * floor(size * S / 8))
 end
 
--- An item icon's texture for a pixel size: the 32 px inventory icon, or its high-res copy (tools/icon_art.py) when it
--- is drawn larger.
+-- An item icon's texture for a pixel size: the 32 px inventory icon, or its 64 px copy (tools/icon_art.py) when it is
+-- drawn larger; each found once.
+local smallIcons, bigIcons = {}, {}
 local function itemTexture(name, px)
-    if px <= 34 then return getTexture("media/textures/Item_OA_" .. name .. ".png") end
-    local size = px <= 66 and 64 or 128
-    return getTexture("media/textures/OA_ItemHi/OA_" .. name .. "_" .. size .. ".png")
+    local big = px > 34
+    local known = big and bigIcons or smallIcons
+    local tex = known[name]
+    if tex == nil then
+        tex = getTexture(big and ("media/textures/OA_ItemHi/OA_" .. name .. "_64.png")
+            or ("media/textures/Item_OA_" .. name .. ".png")) or false
+        known[name] = tex
+    end
+    return tex or nil
 end
 
 -- A frame `t` pixels thick around a design box, `out` design units outside it.

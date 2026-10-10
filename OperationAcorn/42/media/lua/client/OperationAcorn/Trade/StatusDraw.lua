@@ -153,10 +153,11 @@ end
 
 -- Textures ---------------------------------------------------------------------------------------------------------
 
-local textures, hires, hiTex = {}, {}, { [64] = {}, [128] = {} }
--- The icon of an item type for `px` pixels across (nil: its own size), found once a size: the script's 32 px icon, or
--- for one of ours drawn larger its high-res copy (media/textures/OA_ItemHi, 64 or 128 px, made by tools/icon_art.py),
--- so that a 64 px icon is not the 32 px one blown up.
+local textures, hires, hiTex = {}, {}, {}
+-- The icon of an item type for `px` pixels across (nil: its own size), found once: the script's 32 px icon, or for one
+-- of ours drawn larger its 64 px copy (media/textures/OA_ItemHi, made by tools/icon_art.py), so that a 64 px icon is
+-- not the 32 px one blown up. No icon of ours is laid out larger than 32 design units: 64 px at 1080p, a little more
+-- (the 64 px copy drawn up) only above it.
 function Draw.itemTexture(fullType, px)
     if not fullType then return nil end
     local tex = textures[fullType]
@@ -169,12 +170,10 @@ function Draw.itemTexture(fullType, px)
     end
     local icon = hires[fullType]
     if icon and px and px > 34 then
-        local size = px <= 66 and 64 or 128
-        local bySize = hiTex[size]
-        local hi = bySize[fullType]
+        local hi = hiTex[fullType]
         if hi == nil then
-            hi = getTexture("media/textures/OA_ItemHi/" .. icon .. "_" .. size .. ".png") or false
-            bySize[fullType] = hi
+            hi = getTexture("media/textures/OA_ItemHi/" .. icon .. "_64.png") or false
+            hiTex[fullType] = hi
         end
         if hi then return hi end
     end

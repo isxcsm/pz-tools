@@ -11,11 +11,11 @@ finds media/textures/Item_OA_<ItemName>.png.
 
 The 32 px icons are the game's (its inventory, its tooltips) and stay 32. The mod's own windows draw icons larger as the
 screen grows (their scale S = floor(screenH / 540 * 4) / 4: a 32 unit icon is 40 px at 720p, 64 at 1080p, 128 at 4K),
-so every icon is also written in HIGH-RES copies from the same picture before it was shrunk:
-    media/textures/OA_ItemHi/OA_<ItemName>_64.png and _128.png
-(no "Item_" prefix: they are not inventory icons). A window takes the smallest copy at least as big as it draws the
-icon (32, 64, 128): the game loads media/textures without mipmaps, so a texture shrunk much more than 2x shimmers.
-Cost: 16 + 64 KiB of VRAM an icon, loaded only when a window first draws it.
+so every icon is also written in a HIGH-RES copy from the same picture before it was shrunk:
+    media/textures/OA_ItemHi/OA_<ItemName>_64.png
+(no "Item_" prefix: they are not inventory icons). A window draws the 32 px icon up to 34 px and the 64 px copy above
+it: no window lays an icon out larger than 32 design units (64 px at 1080p; above 1080p the copy is drawn up a little).
+Cost: 16 KiB of VRAM an icon, loaded only when a window first draws it.
 
 The pictures are small solids drawn with the tile engine (tile_engine.py), in the same light and palette as the tiles:
 the machines are their tiles shrunk, the parts are tiered by colour (old: rust brown, normal: steel grey, modern:
@@ -43,7 +43,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEXTURES = os.path.join(HERE, '..', 'OperationAcorn', '42', 'media', 'textures')
 SIZE = 32
 # The high-res copies for the mod's own windows (see the top), in their own folder.
-HIRES = (64, 128)
+HIRES = (64,)
 HIRES_DIR = os.path.join(TEXTURES, 'OA_ItemHi')
 
 TIERS = {
@@ -328,7 +328,7 @@ def vial(tree, cross=False):
     s.tube((cx, cy, 0.58), (cx, cy, 0.66), 0.115, (206, 208, 212), cap=(226, 228, 232), segments=24, shine=0.8)
     s.tube((cx, cy, 0.66), (cx, cy, 0.72), 0.07, t['cap'], cap=(28, 28, 30), segments=18, shine=0.2)
     # the label
-    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.168, pictogram('cross' if cross else 'clock', 40, 44, bg=(236, 232, 212)) if cross else label_image(t), offset=0.0)
+    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.172, pictogram('cross' if cross else 'clock', 40, 44, bg=(236, 232, 212)) if cross else label_image(t), offset=0.0)
     return from_scene(s)
 
 
@@ -360,7 +360,7 @@ def cure_vial(kind='cure'):
     s.tube((cx, cy, 0.5), (cx, cy, 0.58), 0.1, t['dark'], segments=24, shine=0.5)
     s.tube((cx, cy, 0.58), (cx, cy, 0.66), 0.115, (206, 208, 212), cap=(226, 228, 232), segments=24, shine=0.8)
     s.tube((cx, cy, 0.66), (cx, cy, 0.72), 0.07, t['cap'], cap=(28, 28, 30), segments=18, shine=0.2)
-    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.168, cross_label() if kind == 'cure' else rewind_label(), offset=0.0)
+    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.172, cross_label() if kind == 'cure' else rewind_label(), offset=0.0)
     return from_scene(s)
 
 
@@ -395,7 +395,7 @@ def delay_drug(long=False):
         a = 2 * math.pi * i / 10
         s.tube((cx + 0.205 * math.cos(a), cy + 0.205 * math.sin(a), 0.49), (cx + 0.205 * math.cos(a), cy + 0.205 * math.sin(a), 0.61), 0.01,
                (206, 204, 196), segments=4)
-    front_decal(s, cx - 0.17, cx + 0.17, 0.08, 0.42, cy + 0.198, delay_label(long), offset=0.0)
+    front_decal(s, cx - 0.17, cx + 0.17, 0.08, 0.42, cy + 0.202, delay_label(long), offset=0.0)
     return from_scene(s)
 
 

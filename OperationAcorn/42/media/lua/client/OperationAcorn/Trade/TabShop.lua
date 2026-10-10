@@ -435,7 +435,7 @@ function OATabShop:layout()
     local fh = UI.fontHeight()
     local cols = ShopView.columns(w)
     local d = self.detail
-    local descLines = d and ShopView.wrap(d.desc, cols.cw - 78, UI.textWidth, 3) or {}
+    local descLines = d and ShopView.wrap(d.desc, cols.cw - ShopView.DETAIL_TEXT - 10, UI.textWidth, 3) or {}
     local bandLines = self.band and ShopView.wrap(self.band.text, cols.cw - 16, UI.textWidth) or {}
     local hintLines = ShopView.wrap(getText("IGUI_OA_Terminal_Shop_PayNote"), cols.cartw - 16, UI.textWidth, 2)
     local shortLines = self.sum.shortText and ShopView.wrap(self.sum.shortText, cols.cartw - 16, UI.textWidth, 4) or {}
@@ -468,7 +468,7 @@ function OATabShop:layout()
     self.detailRow = row
     if d then
         d.nameFit = UI.fit(d.name, det.w - 160, UIFont.Medium)
-        d.infoFit = UI.fit(d.info, det.w - 78)
+        d.infoFit = UI.fit(d.info, det.w - ShopView.DETAIL_TEXT - 10)
     end
     -- The description under the name: at 26, or lower when the Medium font is taller than the design's.
     self.descY = math.max(26, 3 + UI.fontHeight(UIFont.Medium))
@@ -566,18 +566,18 @@ function OATabShop:drawDetail(p)
     end
     local fh = UI.fontHeight()
     local open = d.state.open
-    drawIcon(self, d.entry, r.x + 10, r.y + 10, 48, p, open and 1 or 0.4)
-    UI.text(self, d.nameFit, r.x + 68, r.y + 3, p.bright, UIFont.Medium)
+    drawIcon(self, d.entry, r.x + 10, r.y + 8, ShopView.DETAIL_ICON, p, open and 1 or 0.4)
+    UI.text(self, d.nameFit, r.x + ShopView.DETAIL_TEXT, r.y + 3, p.bright, UIFont.Medium)
     local unit = UI.creditsUnit()
     UI.textRight(self, unit, r.x + r.w - 10, r.y + 7, p.dim)
     UI.textRight(self, d.price, r.x + r.w - 10 - UI.textWidth(unit) - UI.UNIT_GAP, r.y + 7, p.value, p.numberFont)
     local y = r.y + self.descY
     for _, line in ipairs(self.descLines) do
-        UI.text(self, line, r.x + 68, y, p.text)
+        UI.text(self, line, r.x + ShopView.DETAIL_TEXT, y, p.text)
         y = y + fh
     end
     if d.info ~= "" then
-        UI.text(self, d.infoFit, r.x + 68, y, open and p.dim or p[TONE[d.state.tone]])
+        UI.text(self, d.infoFit, r.x + ShopView.DETAIL_TEXT, y, open and p.dim or p[TONE[d.state.tone]])
     end
     local row = self.detailRow
     if row.combo and row.combo.label then UI.text(self, getText(d.comboLabel), r.x + 10, r.y + row.y + 2, p.dim) end
