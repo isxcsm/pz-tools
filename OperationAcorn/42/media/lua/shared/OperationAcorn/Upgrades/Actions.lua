@@ -4,10 +4,12 @@
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Serums"
+require "OperationAcorn/Upgrades/First"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Serums = OA.Upgrades.Serums
+local First = OA.Upgrades.First
 local Actions = {}
 OA.Upgrades.Actions = Actions
 
@@ -241,6 +243,7 @@ function ISOAPryOpen:complete()
     if roll(Rules.crowbarChance(u)) then
         Actions.unlock(self.target, true)
         OA.Sync.notice(self.oaId, "IGUI_OA_Tree_PrySuccess", {})
+        First.grant(record, "crowbar")
         return true
     end
     local stats = self.character:getStats()

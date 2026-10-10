@@ -6,6 +6,9 @@
 -- "research approval" sends it to the server. What a node gives now and next, and what it needs, shows in a tooltip
 -- beside it (the mouse) or beside the cursor (a gamepad, which also reaches the buttons). Sizes come from the font,
 -- so the game's UI size option works; the tab sizes its window while it shows, as the game's own tabs do.
+-- When the server's approval comes back while the tab is open, the planned nodes light one by one with a short sound and
+-- a red seal is pressed on the plan for a moment (Plan.stamp has the timing; the tab's own render draws it, so it costs
+-- nothing when the tab is closed).
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISButton"
 require "ISUI/ISToolTip"
@@ -321,6 +324,8 @@ end
 
 function View:onApprove()
     if #self.steps == 0 then return end
+    -- what the plan was, for the stamp that plays when the approval comes back (alone, that is at once, inside the send)
+    self.approved = { steps = self.steps, at = getTimestampMs() }
     OA.Sync.send(self.player, "upgrades.approve", { steps = self.steps })
     self.steps = {}
     self.refusal = nil
@@ -510,6 +515,91 @@ local function drawBorder(self, x, y, w, h, t, c, a)
     self:drawRect(x + w - t, y, t, h, a, c[1], c[2], c[3])
 end
 
+-- ---- the approval stamp ----------------------------------------------------------------------------------------
+
+-- Milliseconds an approval may take to come back and still be stamped.
+View.STAMP_WAIT_MS = 10000
+
+-- The approval came back: starts the stamp on the nodes of the plan that are on the screen. Not when the tab is closed.
+function View:startStamp()
+    local approved = self.approved
+    self.approved = nil
+    if not approved or not self:getIsVisible() or not self.sim then return end
+    if getTimestampMs() - approved.at > View.STAMP_WAIT_MS then return end
+    local shown = {}
+    for _, item in ipairs(self.items) do
+        if item.id then shown[item.id] = true end
+    end
+    local order = Plan.stampOrder(approved.steps, shown)
+    self.stamp = { order = order, start = getTimestampMs(), lit = 0, pressed = false }
+end
+
+local RED = { 0.88, 0.16, 0.12 }
+
+-- The red seal (the 2반's `[직인 ORDWAY]`) over the middle of the plan, `age` ms after it was pressed: it lands from a
+-- little larger and fades at the end.
+function View:drawSeal(age)
+    local tm, pad = getTextManager(), self.pad
+    local word, mark = getText("IGUI_OA_Tree_Seal"), getText("IGUI_OA_Tree_SealMark")
+    local fl = tm:getFontHeight(UIFont.Large)
+    local w = math.max(tm:MeasureStringX(UIFont.Large, word), tm:MeasureStringX(UIFont.Small, mark)) + pad * 4
+    local h = fl + self.fh + pad * 3
+    local cx = self.width / 2
+    local cy = self.panelY + (self.headH + self.gridH) / 2
+    local a = 1
+    local left = Plan.SEAL_MS - age
+    if left < Plan.SEAL_FADE_MS then a = math.max(0, left / Plan.SEAL_FADE_MS) end
+    local grow = 0
+    if age < Plan.SEAL_PRESS_MS then grow = math.floor((1 - age / Plan.SEAL_PRESS_MS) * pad * 2) end
+    local x, y, bw, bh = cx - w / 2 - grow, cy - h / 2 - grow, w + grow * 2, h + grow * 2
+    self:drawRect(x, y, bw, bh, 0.6 * a, 0.02, 0.02, 0.03)
+    drawBorder(self, x, y, bw, bh, 3, RED, 0.95 * a)
+    drawBorder(self, x + 6, y + 6, bw - 12, bh - 12, 1, RED, 0.8 * a)
+    self:drawTextCentre(word, cx, y + pad + grow, RED[1], RED[2], RED[3], a, UIFont.Large)
+    self:drawTextCentre(mark, cx, y + pad * 2 + fl + grow, RED[1], RED[2], RED[3], 0.9 * a, UIFont.Small)
+end
+
+-- One frame of the stamp: the nodes not lit yet keep their plan frame, a node lit flashes (with a short sound), and the
+-- seal is pressed over the plan.
+function View:drawStamp()
+    local stamp = self.stamp
+    local n = #stamp.order
+    local t = getTimestampMs() - stamp.start
+    local state = Plan.stamp(n, t)
+    if state.over then
+        self.stamp = nil
+        return
+    end
+    local tile = self.tile
+    local step = Plan.stampStep(n)
+    for i, id in ipairs(stamp.order) do
+        local item = self:itemOf(id)
+        if item then
+            if i > state.lit then
+                drawBorder(self, item.x, item.y, tile, tile, 2, CYAN, 1)
+            else
+                local age = t - (i - 1) * step
+                local a = 1 - age / Plan.STAMP_FLASH_MS
+                if a > 0 then
+                    self:drawRect(item.x, item.y, tile, tile, 0.45 * a, GOLD[1], GOLD[2], GOLD[3])
+                    drawBorder(self, item.x - 2, item.y - 2, tile + 4, tile + 4, 2, GOLD, a)
+                end
+            end
+        end
+    end
+    if state.lit > stamp.lit then
+        stamp.lit = state.lit
+        getSoundManager():playUISound("UISelectListItem")
+    end
+    if state.sealAge then
+        if not stamp.pressed then
+            stamp.pressed = true
+            getSoundManager():playUISound("UIObjectMenuObjectPlace")
+        end
+        self:drawSeal(state.sealAge)
+    end
+end
+
 -- A badge at the right of the top bar: its text in a frame, right-aligned at x; returns the x left of it.
 function View:badge(text, right, color)
     local w = getTextManager():MeasureStringX(UIFont.Small, text) + self.pad * 2
@@ -633,6 +723,7 @@ function View:render()
             end
         end
     end
+    if self.stamp then self:drawStamp() end
     -- the gamepad cursor on a button
     if self.joypad and self.cursor and type(self.cursor) == "table" then
         local b = self.cursor
@@ -655,7 +746,10 @@ end
 
 function View:setVisible(visible, joypadData)
     ISPanelJoypad.setVisible(self, visible, joypadData)
-    if visible then self:refresh() else self:hideTip() end
+    if visible then self:refresh() else
+        self:hideTip()
+        self.stamp, self.approved = nil, nil
+    end
 end
 
 -- ---- mouse -----------------------------------------------------------------------------------------------------
@@ -827,9 +921,13 @@ end
 OA.Upgrades.open = Window.open
 
 -- The record changed (an approval, a reset, a serum): the tabs read it again.
-local function onChanged()
+local function onChanged(playerId, detail)
+    local approved = type(detail) == "table" and detail.kind == "approve"
     for _, view in pairs(views) do
-        if view:getIsVisible() then view:refresh() end
+        if view:getIsVisible() then
+            view:refresh()
+            if approved then view:startStamp() end
+        end
     end
 end
 OA.Sync.listen("upgrades", onChanged)

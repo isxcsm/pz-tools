@@ -2,7 +2,10 @@
 -- three doses, and where a drop site lies within the loaded squares the light stays longer on the edge that faces
 -- it. It does not replay the reference night, makes no sound of rotors, shows no map mark and tells no distance. A
 -- one-pixel ISUI element drawing over the whole screen, so the game stays playable beneath it (a full-screen element
--- takes every click in the world, consuming events or not); a client option turns it off.
+-- takes every click in the world, consuming events or not); a client option turns it off. A ringing in the ears sounds
+-- once at the start, on the same option: the game has no tinnitus sound, so the steady test tone of its television
+-- (`TelevisionTestBeep`, Object/Television/TestTone, which the game loops when a set has no signal) is played low and
+-- faded out by the overlay's own drawing, which stops it.
 require "ISUI/ISPanel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
@@ -18,6 +21,10 @@ Hallucination.DEPTH = 0.16
 -- Milliseconds: the long run (first doses) and the short one, the site edge staying 1.5 times as long.
 Hallucination.LONG_MS = 14000
 Hallucination.SHORT_MS = 5000
+-- The ringing: the vanilla sound, how loud it gets (0 to 1), and the milliseconds it takes to rise, to hold and to fade.
+Hallucination.RING_SOUND = "TelevisionTestBeep"
+Hallucination.RING_VOLUME = 0.35
+Hallucination.RING_MS = { 400, 1200, 1800 }
 
 ISOAHallucination = ISPanel:derive("ISOAHallucination")
 
@@ -55,6 +62,22 @@ function ISOAHallucination:glow(edge, strength)
     end
 end
 
+-- The ringing of a run at `t` ms: its volume follows the rise, the hold and the fade, and it is stopped at the end.
+function ISOAHallucination:ring(run, t)
+    local ring = run.ring
+    if not ring then return end
+    local rise, hold, fade = Hallucination.RING_MS[1], Hallucination.RING_MS[2], Hallucination.RING_MS[3]
+    if t >= rise + hold + fade then
+        ring.emitter:stopSound(ring.id)
+        run.ring = nil
+        return
+    end
+    local volume = 1
+    if t < rise then volume = t / rise
+    elseif t >= rise + hold then volume = 1 - (t - rise - hold) / fade end
+    ring.emitter:setVolume(ring.id, volume * Hallucination.RING_VOLUME)
+end
+
 function ISOAHallucination:prerender()
     local now = getTimestampMs()
     local alive = {}
@@ -62,6 +85,7 @@ function ISOAHallucination:prerender()
         local t = now - run.start
         local base = OA.Glow.envelope(t, run.total)
         local site = run.edge and OA.Glow.envelope(t, run.total * 1.5) or 0
+        self:ring(run, t)
         if t < run.total * 1.5 then
             alive[#alive + 1] = run
             -- A faint light on all four edges, and the stronger one where the site is.
@@ -103,7 +127,19 @@ function Hallucination.start(playerNum, detail)
         total = detail.long and Hallucination.LONG_MS or Hallucination.SHORT_MS,
         edge = (detail.dx and detail.dy) and OA.Glow.edge(detail.dx, detail.dy) or nil,
     }
+    run.ring = Hallucination.startRing(playerNum)
     table.insert(ui.runs, run)
+end
+
+-- Starts the ringing on the player's own sound emitter; returns { emitter, id } or nil when it cannot sound.
+function Hallucination.startRing(playerNum)
+    local player = getSpecificPlayer(playerNum)
+    local emitter = player and player:getEmitter()
+    if not emitter then return nil end
+    local id = emitter:playSound(Hallucination.RING_SOUND)
+    if not id or id == 0 then return nil end
+    emitter:setVolume(id, 0)
+    return { emitter = emitter, id = id }
 end
 
 OA.Sync.listen("hallucinate", function(playerId, detail)

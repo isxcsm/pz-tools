@@ -67,7 +67,7 @@ test("the minute's infection work runs every game minute, whatever the real time
     eq(calls, 5)
 end)
 
-test("a tree opened is a title with the tree's line under it, or the banner without the API's text", function()
+test("a tree opened is a title with the folder line under it when a memo came, or the banner without the API's text", function()
     local Hooks = loadHooks()
     local banners, called, halo = {}, {}, {}
     Hooks.banner = function(text) banners[#banners + 1] = text end
@@ -77,9 +77,9 @@ test("a tree opened is a title with the tree's line under it, or the banner with
     getSpecificPlayer = function() return character end
     HaloTextHelper = { addText = function(_, t) halo[#halo + 1] = t end }
     PZToolsAPI = nil
-    Hooks.treeOpened("p1", "scout")
+    Hooks.treeOpened("p1", "scout", true)
     eq(#banners, 1)
-    eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Tree_Event_scout")
+    eq(banners[1], "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_scout<LINE>IGUI_OA_Title_GuideSub")
     eq(#halo, 0, "the banner, not a text over the character")
     PZToolsAPI = {
         version = OA.API_VERSION,
@@ -89,9 +89,44 @@ test("a tree opened is a title with the tree's line under it, or the banner with
             title = function(handle, spec) called[#called + 1] = spec end,
         },
     }
-    Hooks.treeOpened("p1", "load")
+    Hooks.treeOpened("p1", "load", true)
     eq(#banners, 1, "no banner when the title is drawn")
     eq(called[1].text, "IGUI_OA_Title_TreeOpened IGUI_OA_Tree_Name_load")
-    eq(called[1].subtitle, "IGUI_OA_Tree_Event_load")
+    eq(called[1].subtitle, "IGUI_OA_Title_GuideSub")
+    -- no memo (the story part is not there): nothing under the title
+    Hooks.treeOpened("p1", "survival", false)
+    eq(called[2].subtitle, nil)
     PZToolsAPI = nil
+end)
+
+test("the notices of an adaptation and a first effect are said over the head with their names", function()
+    local Hooks = loadHooks()
+    local banners, good, opened = {}, {}, {}
+    Hooks.banner = function(text) banners[#banners + 1] = text end
+    Hooks.treeOpened = function(id, tree, guide) opened[#opened + 1] = { tree, guide } end
+    local data = { OA_Id = "p1" }
+    local character = { getModData = function() return data end, getPlayerNum = function() return 0 end }
+    getPlayer = function() return character end
+    HaloTextHelper = { addGoodText = function(_, t) good[#good + 1] = t end, addBadText = function() end,
+                       addText = function() end }
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Adapted", args = { "scout", 2 } })
+    -- (the test's getText adds a "nil" for each argument the call leaves out)
+    local function said(text, prefix) return string.sub(text, 1, #prefix) == prefix end
+    truthy(said(good[1], "IGUI_OA_Tree_Adapted IGUI_OA_Tree_Name_scout 2"), good[1])
+    eq(#banners, 1, "the first point tells where the plan is made")
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_AdaptedShared", args = { 1 } })
+    eq(#banners, 1, "once a character")
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "load", "guide" } })
+    eq(#opened, 1)
+    eq(opened[1][1], "load")
+    eq(opened[1][2], true)
+    eq(#good, 2, "an opening is a title, not a text over the head")
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_Opened", args = { "survival", "" } })
+    eq(opened[2][2], false)
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_FirstEffect", args = { "sense", 1 } })
+    truthy(said(good[3], "IGUI_OA_Tree_FirstEffect IGUI_OA_Tree_Node_sense_Name 1"), good[3])
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_FirstEffectSingle", args = { "dash", 1 } })
+    truthy(said(good[4], "IGUI_OA_Tree_FirstEffectSingle IGUI_OA_Tree_Node_dash_Name 1"), good[4])
+    OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_GuideSent", args = {} })
+    truthy(said(good[5], "IGUI_OA_Tree_GuideSent"), good[5])
 end)

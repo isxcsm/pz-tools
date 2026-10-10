@@ -13,6 +13,9 @@
 --                   board's points came from, so the pools stay right when the board closes and gives them back
 --                   as "points left")
 --   biteAt          the world age hour the bite shield last saved a bite
+--   adapt           doses injected and not yet adapted to: { endsAt = world age hour, doses = { [tree or "shared"] = n } },
+--                   gone when the adaptation ends and the points come (nil when there is none)
+--   firstEffect     [id] = true for each node that has told its first effect (once each)
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Upgrades/Data"
@@ -58,6 +61,8 @@ function Rules.fill(u)
     fillTree(u.own, 0)
     u.sharedUsed = u.sharedUsed or perTree(0)
     fillTree(u.sharedUsed, 0)
+    u.firstEffect = u.firstEffect or {}
+    if type(u.adapt) ~= "table" or type(u.adapt.doses) ~= "table" then u.adapt = nil end
     local b = u.board
     if not b then
         b = {}
@@ -324,6 +329,64 @@ function Rules.noteBought(u, tree, count, paid)
         paid = Rules.serumTotal(before + count) - Rules.serumTotal(before)
     end
     u.spend[tree] = u.spend[tree] + paid
+end
+
+-- ---- adaptation -----------------------------------------------------------------------------------------------
+
+-- A dose of an upgrade serum of a tree (or "shared") is taken at world age hour `now`: it adapts for Data.ADAPT_HOURS,
+-- and doses taken meanwhile share the time (the end is the latest dose's, not a sum). The point comes at the end
+-- (finishAdapt).
+function Rules.startAdapt(u, key, now)
+    local a = u.adapt
+    if not a then
+        a = { endsAt = 0, doses = {} }
+        u.adapt = a
+    end
+    a.doses[key] = (a.doses[key] or 0) + 1
+    a.endsAt = math.max(a.endsAt or 0, now + Data.ADAPT_HOURS)
+end
+
+-- Hours of adaptation left at `now` (0 when it is over), or nil when no dose is adapting.
+function Rules.adaptLeft(u, now)
+    if not u.adapt then return nil end
+    return math.max(0, (u.adapt.endsAt or 0) - now)
+end
+
+function Rules.adaptDone(u, now)
+    return u.adapt ~= nil and now >= (u.adapt.endsAt or 0)
+end
+
+-- The adaptation is over: every dose becomes its point (the first of a tree opens it). Returns { trees = { [tree] = n },
+-- shared = n, opened = { tree... } } in the trees' order, or nil when there was no adaptation.
+function Rules.finishAdapt(u)
+    local a = u.adapt
+    if not a then return nil end
+    local result = { trees = {}, shared = 0, opened = {} }
+    for _, tree in ipairs(Data.TREES) do
+        local n = a.doses[tree] or 0
+        for _ = 1, n do
+            if Rules.inject(u, tree) then result.opened[#result.opened + 1] = tree end
+        end
+        if n > 0 then result.trees[tree] = n end
+    end
+    for _ = 1, a.doses.shared or 0 do Rules.injectShared(u) end
+    result.shared = a.doses.shared or 0
+    u.adapt = nil
+    return result
+end
+
+-- ---- first effects --------------------------------------------------------------------------------------------
+
+-- A node of Data.FIRST_EFFECT has just had its effect in the game. True the first time only (with a rank taken, and
+-- noted for good in u.firstEffect).
+function Rules.firstEffect(u, id)
+    local listed = false
+    for _, one in ipairs(Data.FIRST_EFFECT) do
+        if one == id then listed = true end
+    end
+    if not listed or Rules.rank(u, id) < 1 or u.firstEffect[id] then return false end
+    u.firstEffect[id] = true
+    return true
 end
 
 -- ---- reset ----------------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
--- P3: the serums. Injects each serum through the code the timed action runs, checks the points and the "event" notice,
--- then the cure serum (owner, shelf life, expired) and the delay drug against a real infection.
+-- P3: the serums. Injects each serum through the code the timed action runs, checks that the point waits for the
+-- adaptation and comes when it is over (Adapt.finish, which the server runs once the record's end has passed), then the cure serum (owner, shelf life, expired) and the delay drug against a real infection.
 -- Setup: a single-player world, the mod on. Changes the record and the character's infection: use a throwaway save.
 -- Prints "[p3serums]" lines; the on-screen notices and the banner of a tree opening are for you to look at.
 RUN("p3_lib.lua")
@@ -17,6 +17,9 @@ for tree, item in pairs(OA.Upgrades.Data.SERUM_ITEM) do
     if serum then
         local ok = Serums.use(player, serum, id)
         P3T.check(say, item .. " used", ok)
+        P3T.check(say, item .. " gives no point before the adaptation is over", Rules.ownPool(u, tree) == before)
+        P3T.check(say, item .. " is adapting", u.adapt ~= nil and (u.adapt.doses[tree] or 0) >= 1)
+        OA.Upgrades.Adapt.finish(record, OA.hours() + OA.Upgrades.Data.ADAPT_HOURS + 0.01)
         P3T.check(say, item .. " gave a point", Rules.ownPool(u, tree) == before + 1)
         P3T.check(say, item .. " opened the tree", Rules.treeOpen(u, tree), "was open: " .. tostring(opened))
         P3T.check(say, item .. " is gone from the bag", not player:getInventory():contains(serum))
@@ -26,6 +29,7 @@ local shared = P3T.give("OperationAcorn.UpgradeSerumShared")
 if shared then
     local before = Rules.sharedPool(u)
     Serums.use(player, shared, id)
+    OA.Upgrades.Adapt.finish(record, OA.hours() + OA.Upgrades.Data.ADAPT_HOURS + 0.01)
     P3T.check(say, "a shared serum adds a shared point", Rules.sharedPool(u) == before + 1)
 end
 

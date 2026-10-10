@@ -12,6 +12,7 @@ require "OperationAcorn/Titles"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Moodles"
 require "OperationAcorn/Upgrades/Watch"
+require "OperationAcorn/Upgrades/Adapting"
 require "OperationAcorn/Upgrades/Actions"
 require "OperationAcorn/Upgrades/Texts"
 require "OperationAcorn/Upgrades/Window"
@@ -31,6 +32,7 @@ local Pulse = OA.Upgrades.Pulse
 local Senses = OA.Upgrades.Senses
 local Dash = OA.Upgrades.Dash
 local Watch = OA.Upgrades.Watch
+local Adapting = OA.Upgrades.Adapting
 local Hooks = {}
 OA.Upgrades.Hooks = Hooks
 
@@ -52,6 +54,7 @@ function Hooks.refresh()
     if not u then return end
     local need = Senses.refresh() or Dash.needs(u)
     Pulse.enable(need)
+    Adapting.moodle(u)
 end
 
 local function onChanged() Hooks.refresh() end
@@ -119,13 +122,16 @@ function Hooks.banner(text)
     banner:addToUIManager()
 end
 
--- A tree opened (its first serum): a title with the tree's line under it, or the banner when the API cannot draw it.
-function Hooks.treeOpened(playerId, tree)
+-- A tree opened (its first serum adapted to): a title, with a line under it saying a paper came to the terminal's folder
+-- (`guide`: the tree's memo did), or the banner when the API cannot draw it.
+function Hooks.treeOpened(playerId, tree, guide)
     local name = "IGUI_OA_Tree_Name_" .. tree
-    local line = "IGUI_OA_Tree_Event_" .. tree
+    local line = guide and "IGUI_OA_Title_GuideSub" or nil
     local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "stamp" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
-    Hooks.banner(getText("IGUI_OA_Title_TreeOpened", getText(name)) .. "<LINE>" .. getText(line))
+    local text = getText("IGUI_OA_Title_TreeOpened", getText(name))
+    if line then text = text .. "<LINE>" .. getText(line) end
+    Hooks.banner(text)
 end
 
 local function localizedArgs(detail)
@@ -133,8 +139,10 @@ local function localizedArgs(detail)
     local raw = detail.args or {}
     for i = 1, #raw do args[i] = raw[i] end
     local key = detail.key
-    if (key == "IGUI_OA_Tree_PointGained" or key == "IGUI_OA_Tree_ResetDone") and args[1] then
+    if (key == "IGUI_OA_Tree_Adapted" or key == "IGUI_OA_Tree_Opened" or key == "IGUI_OA_Tree_ResetDone") and args[1] then
         args[1] = Texts.treeName(tostring(args[1]))
+    elseif (key == "IGUI_OA_Tree_FirstEffect" or key == "IGUI_OA_Tree_FirstEffectSingle") and args[1] then
+        args[1] = Texts.nodeName(tostring(args[1]))
     elseif (key == "IGUI_OA_Tree_ApproveFailed" or key == "IGUI_OA_Tree_ResetFailed") and args[1] then
         args[1] = Texts.reason(args[1])
     elseif key == "IGUI_OA_Tree_DrugLost" and args[1] then
@@ -152,14 +160,14 @@ local function onNotice(playerId, detail)
     local args = localizedArgs(detail)
     local text = getText(detail.key, args[1], args[2], args[3])
     -- the first research point: where the plan is made, once a character
-    if (detail.key == "IGUI_OA_Tree_PointGained" or detail.key == "IGUI_OA_Tree_SharedGained")
+    if (detail.key == "IGUI_OA_Tree_Adapted" or detail.key == "IGUI_OA_Tree_AdaptedShared")
         and not player:getModData().OA_ResearchHint then
         player:getModData().OA_ResearchHint = true
         Hooks.banner(getText("IGUI_OA_Tree_WhereHint"))
     end
-    local tree = string.match(detail.key, "^IGUI_OA_Tree_Event_(.+)$")
-    if tree then
-        Hooks.treeOpened(playerId, tree)
+    if detail.key == "IGUI_OA_Tree_Opened" then
+        local raw = detail.args or {}
+        Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide")
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
         or string.find(detail.key, "NotOwner$") or string.find(detail.key, "Lost$") then
         HaloTextHelper.addBadText(player, text)
@@ -353,6 +361,7 @@ local function onMinute()
     if not u or not player or player:isDead() then return end
     local now = OA.hours()
     Watch.minute(player, now)
+    Adapting.minute(player, u, now)
     biteShield(player, u, now)
     -- until the API shield is there, the bite is undone from here
     if Rules.rank(u, "resistPlus") >= 2 and not Effects.biteShieldApplied() then

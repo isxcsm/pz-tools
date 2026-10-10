@@ -12,12 +12,14 @@ require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Pulse"
 require "OperationAcorn/Upgrades/Moodles"
+require "OperationAcorn/Upgrades/First"
 require "OperationAcorn/Economy/Buildings"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Sense = OA.Upgrades.Sense
 local Pulse = OA.Upgrades.Pulse
 local Moodles = OA.Upgrades.Moodles
+local First = OA.Upgrades.First
 local Senses = {}
 OA.Upgrades.Senses = Senses
 
@@ -415,6 +417,7 @@ end
 local function zombieHeard(kind, key, x, y, z, now)
     local _, _, m = Sense.heard(S.zombies, key, kind, x, y, z, now, now + Sense.LIFE[kind], Sense.ZOMBIE_MARKS)
     m.follow = kind ~= "thump" and type(key) == "userdata" and key or nil
+    First.report("sense")
 end
 
 local voiceMemo, voiceOut = {}, {}
@@ -708,7 +711,13 @@ local function ledgerJob(now)
         clearOutlines()
         return
     end
-    if rank >= 2 then outlineOnly(nearUnopened(OA.Buildings.unopened(player) or none, player), player:getPlayerNum())
+    if rank >= 2 then
+        local want = nearUnopened(OA.Buildings.unopened(player) or none, player)
+        outlineOnly(want, player:getPlayerNum())
+        for _ in pairs(want) do
+            First.report("ledger", player)
+            break
+        end
     else clearOutlines() end
     if key ~= ledger.key then
         ledger.key, ledger.done, ledger.told, ledger.since = key, false, false, now
@@ -726,6 +735,7 @@ local function ledgerJob(now)
         end
     elseif left > 0 then
         HaloTextHelper.addText(player, getText("IGUI_OA_Tree_LedgerLeft", left))
+        First.report("ledger", player)
     end
 end
 
