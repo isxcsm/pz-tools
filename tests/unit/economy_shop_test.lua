@@ -5,10 +5,14 @@ require "OperationAcorn/Economy/Shop"
 local OA = OperationAcorn
 local S = OA.Shop
 
-local function record(stage, milestones, credits)
+-- A record at a stage with the flight support levels trust alone used to give there (the discount is an upgrade now),
+-- or the levels it is given.
+local function record(stage, milestones, credits, levels)
     local r = OA.Store.ensure("s", "S")
     r.trade = { credits = credits or 100000, trust = 0, stage = stage or 0, milestones = milestones or 0,
-        bonus = 0, sharedSerums = 0 }
+        bonus = 0, sharedSerums = 0,
+        levels = levels or OA.Support.levelsForTier((stage or 0) + (milestones or 0)) }
+    OA.Trust.reset()
     return r
 end
 
@@ -83,6 +87,15 @@ test("the price is the base times the multiplier and the stage discount", functi
     eq(S.price(find("battery_pack"), r), 3800, "5% off from stage 4")
     r = record(5, 2)
     eq(S.price(find("battery_pack"), r), 3600, "10% off from the second milestone")
+end)
+
+test("the discount is an upgrade: the stage alone gives none", function()
+    local r = record(5, 2, nil, {})
+    eq(S.price(find("battery_pack"), r), 4000)
+    r = record(5, 2, nil, { discount = 1 })
+    eq(S.price(find("battery_pack"), r), 3800, "level 1 is 5% off")
+    r = record(5, 2, nil, { discount = 2 })
+    eq(S.price(find("battery_pack"), r), 3600, "level 2 is 10% off")
 end)
 
 test("the cure serum price is a sandbox option", function()
@@ -209,45 +222,37 @@ test("the next week begins at midnight of its first day", function()
     eq(OA.day(), 6)
 end)
 
-test("the cure serum waits out its purchase interval", function()
+test("cure serums and delay drugs have no purchase interval and no count limit", function()
     local r = record(1)
-    local e = find("cure_serum")
-    eq(S.available(e, r), 1)
+    local cure, delay = find("cure_serum"), find("delay_drug")
+    eq(S.available(cure, r), 99)
+    eq(S.available(delay, r), 99)
     TEST.hours = 100
-    S.bought(e, r, 1)
-    local n, why, opens = S.available(e, r)
-    eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Interval")
-    near(opens, 100 + 14 * 24)
-    TEST.hours = 100 + 14 * 24 - 1
-    eq(S.available(e, r), 0)
-    TEST.hours = 100 + 14 * 24
-    eq(S.available(e, r), 1)
+    S.bought(cure, r, 1)
+    S.bought(delay, r, 3)
+    eq(S.available(cure, r), 99, "bought at once again")
+    eq(S.available(delay, r), 99)
+    S.bought(cure, r, 5)
+    local n, why = S.available(cure, r)
+    eq(n, 99); eq(why, nil)
+    eq(S.available(cure, record(5, 3)), 99, "the same at a high tier")
 end)
 
-test("trust shortens the interval and widens the order", function()
-    local r = record(5, 0)
-    local e = find("cure_serum")
-    TEST.hours = 100
-    S.bought(e, r, 1)
-    TEST.hours = 100 + 7 * 24
-    eq(S.available(e, r), 1, "7 days at stage 5")
-    r = record(5, 1)
-    eq(S.available(e, r), 2, "two at a time from the first milestone")
-    local d = find("delay_drug")
-    r = record(5, 2)
-    eq(S.available(d, r), 3, "three delay drugs from the second milestone")
-    S.bought(d, r, 3)
-    eq(S.available(d, r), 0)
-    TEST.hours = TEST.hours + 24
-    eq(S.available(d, r), 3, "one day at stage 5")
+test("the cure serum and the delay drug still need the tier, stock and no debt", function()
+    local n, why = S.available(find("cure_serum"), record(0))
+    eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Locked")
+    n, why = S.available(find("cure_serum"), record(1, 0, -1))
+    eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Debt")
+    n, why = S.available(find("delay_drug"), record(1, 0, -1))
+    eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Debt")
 end)
 
-test("a zero interval means no waiting", function()
-    SandboxVars.OperationAcorn.CureSerumInterval = 0
-    local r = record(1)
-    local e = find("cure_serum")
-    S.bought(e, r, 1)
-    eq(S.available(e, r), 1)
+test("rewards no longer carry the serum intervals and counts, and the sandbox options are gone", function()
+    local rewards = OA.Trust.rewards(record(5, 3))
+    eq(rewards.cureInterval, nil); eq(rewards.cureCount, nil)
+    eq(rewards.delayInterval, nil); eq(rewards.delayCount, nil)
+    eq(SandboxVars.OperationAcorn.CureSerumInterval, nil)
+    eq(SandboxVars.OperationAcorn.DelayDrugInterval, nil)
 end)
 
 test("opensAt lists what a tier brings", function()
@@ -257,11 +262,11 @@ test("opensAt lists what a tier brings", function()
     truthy(not ids.propane_tank)
 end)
 
-test("a purchase is remembered with its time", function()
+test("a purchase is remembered by the week, not by its time", function()
     local r = record(3)
     TEST.hours = 55
     S.bought(find("battery_pack"), r, 2)
-    eq(r.shop.last.battery_pack, 55)
+    eq(r.shop.last, nil, "the time of the last purchase is no longer kept")
     eq(r.shop.week.battery_pack.n, 2)
     eq(S.available(find("battery_pack"), r), 3)
 end)

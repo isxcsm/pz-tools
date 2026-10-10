@@ -7,6 +7,7 @@ require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Ledger"
 require "OperationAcorn/Trade/Rules"
 require "OperationAcorn/Trade/Settle"
+require "OperationAcorn/Economy/Trust"
 local OA = OperationAcorn
 local Trade, Boxes, Ledger, Settle = OA.Trade, OA.Trade.Boxes, OA.Trade.Ledger, OA.Trade.Settle
 
@@ -266,4 +267,87 @@ test("the note providers write the team's line", function()
     local plan = Settle.run(record, services({ credits = 70, trust = 1 }))
     eq(plan.receipt.note.key, "IGUI_OA_Trade_Note_Test")
     eq(plan.receipt.note.args[1], 1)
+end)
+
+test("flight support requests are paid after the orders, from what is left", function()
+    local record = newRecord(0)
+    seal(record, 10, nil, true)
+    record.trade.stage = 5
+    OA.Support.request(record, "box", 1, true)       -- 30,000
+    OA.Support.request(record, "reqcount", 1, true)  -- 20,000
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = { { id = "cheap", count = 3 } } }
+    local plan = Settle.run(record, services({ credits = 100000, trust = 5 }))
+    eq(plan.receipt.spent, 300)
+    eq(record.trade.credits, 100000 - 300 - 30000 - 20000)
+    eq(plan.receipt.balance, record.trade.credits)
+    eq(#plan.support, 2)
+    eq(#plan.receipt.support, 2)
+    local s = plan.receipt.support[1]
+    eq(s.id, "box"); eq(s.from, 0); eq(s.to, 1); eq(s.price, 30000); eq(s.paid, true)
+    eq(plan.receipt.support[2].id, "reqcount"); eq(plan.receipt.support[2].paid, true)
+    eq(record.trade.levels.box, 1); eq(record.trade.levels.reqcount, 1)
+    eq(#OA.Support.requests(record), 0)
+    eq(plan.support[1].id, "box")
+end)
+
+test("a support request only gets what the orders left: an order that eats the balance leaves it waiting", function()
+    local record = newRecord(0)
+    Boxes.add(record, { x = 7, y = 0, z = 0 })
+    record.trade.stage = 5
+    OA.Support.request(record, "reqcount", 1, true)  -- 20,000
+    record.trade.credits = 20250
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = { { id = "cheap", count = 3 } } }
+    local plan = Settle.run(record, services())
+    eq(record.trade.credits, 19950, "the orders were paid first")
+    eq(#plan.receipt.support, 1)
+    eq(plan.receipt.support[1].paid, false)
+    eq(record.trade.pendingLevels.reqcount, 1, "it waits for the next settlement")
+    eq(OA.Support.level(record, "reqcount"), 0, "nothing was bought")
+end)
+
+test("a support request the balance cannot pay waits; the one after it is still paid", function()
+    local record = newRecord(25000)
+    Boxes.add(record, { x = 7, y = 0, z = 0 })
+    record.trade.stage = 5
+    OA.Support.request(record, "box", 1, true)       -- 30,000
+    OA.Support.request(record, "reqcount", 1, true)  -- 20,000
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    local plan = Settle.run(record, services())
+    eq(plan.receipt.support[1].id, "box"); eq(plan.receipt.support[1].paid, false)
+    eq(plan.receipt.support[2].id, "reqcount"); eq(plan.receipt.support[2].paid, true)
+    eq(record.trade.credits, 5000)
+    eq(record.trade.pendingLevels.box, 1)
+    eq(record.trade.levels.reqcount, 1)
+end)
+
+test("the credits of the sealed boxes pay for the support too", function()
+    local record = newRecord(0)
+    seal(record, 10, nil, true)
+    record.trade.stage = 5
+    OA.Support.request(record, "call", 1, true)      -- 40,000
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    local plan = Settle.run(record, services({ credits = 45000, trust = 1 }))
+    eq(plan.receipt.support[1].paid, true)
+    eq(record.trade.credits, 5000)
+end)
+
+test("a settlement without support requests has no support in the receipt", function()
+    local record = newRecord(500)
+    seal(record, 10, nil, true)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    local plan = Settle.run(record, services({ credits = 10 }))
+    eq(plan.receipt.support, nil)
+    eq(#plan.support, 0)
+    eq(record.trade.credits, 510)
+end)
+
+test("a settlement that applies support changes the rewards the same flight reads", function()
+    local record = newRecord(100000)
+    Boxes.add(record, { x = 7, y = 0, z = 0 })
+    eq(OA.Trust.rewards(record).boxCapacity, 50)
+    record.trade.stage = 3
+    OA.Support.request(record, "box", 1, true)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    Settle.run(record, services())
+    eq(OA.Trust.rewards(record).boxCapacity, 100)
 end)

@@ -271,6 +271,8 @@ function Heli.arrive(record)
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice",
             tone = "red", fallback = "bad" })
     end
+    local applied = OA.Support and OA.Support.appliedTitle(plan.support)
+    if applied then OA.Sync.title(record.id, applied) end
     Heli.keepManifest(record, plan.receipt)
     Heli.deliver(record, plan, call)
     Heli.refreshBoxes(record)

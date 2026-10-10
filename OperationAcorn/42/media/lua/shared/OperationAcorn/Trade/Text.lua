@@ -31,6 +31,13 @@ function Text.credits(n)
     return sign .. out
 end
 
+-- A text { key, args } (args may be such texts) by the translate function.
+function Text.trText(text)
+    local args = {}
+    for i, a in ipairs(text.args or {}) do args[i] = type(a) == "table" and Text.trText(a) or a end
+    return Text.tr(text.key, unpack(args))
+end
+
 -- Why an order was cut short: the shop's own reasons are translation keys; the helicopter's are short words.
 function Text.orderReason(reason)
     if not reason then return nil end
@@ -99,10 +106,21 @@ function Text.receipt(receipt)
         if why and kind == "bad" then text = text .. "  - " .. why end
         raw(kind, text)
     end
+    local applied = 0
+    for _, s in ipairs(receipt.support or {}) do
+        local change = OA.Support and Text.trText(OA.Support.changeText(s.id, s.from, s.to)) or s.id
+        if s.paid then
+            applied = applied + 1
+            add("line", "IGUI_OA_Trade_Rc_Support", change, Text.credits(s.price))
+        else
+            add("bad", "IGUI_OA_Trade_Rc_SupportWait", change)
+        end
+    end
     for _, gift in ipairs(receipt.gifts or {}) do
         raw("good", Text.tr("IGUI_OA_Trade_Rc_Gift", Text.itemName(gift.type), gift.count or 1))
     end
     if receipt.bonusNote then add("good", receipt.bonusNote) end
+    if applied > 0 then add("note", "IGUI_OA_Trade_Rc_SupportNote", applied) end
     for _, e in ipairs(receipt.events or {}) do
         if e.kind == "stage" then add("good", "IGUI_OA_Trade_Rc_NewItems", e.n or e.stage or 0) end
     end

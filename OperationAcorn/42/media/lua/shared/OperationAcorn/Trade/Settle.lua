@@ -1,7 +1,7 @@
 -- What a helicopter does when it arrives, apart from the world: it settles every sealed box, repays a debt, adds
--- credits and trust, pays the orders in order, loads the crate and works out what to take away and put down. The
--- game's economy (P1) and shop come in as services so that the whole can be tested outside the game; the world
--- objects are the helicopter's physical part (server/Trade/Heli).
+-- credits and trust, pays the orders in order and then the flight support requests, loads the crate and works out
+-- what to take away and put down. The game's economy (P1) and shop come in as services so that the whole can be
+-- tested outside the game; the world objects are the helicopter's physical part (server/Trade/Heli).
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
 require "OperationAcorn/Trade/Boxes"
@@ -115,6 +115,11 @@ function Settle.run(record, svc)
     local balance, spent, orderResults, items = Rules.payOrders(account.credits, call.orders or {}, svc.shop)
     account.credits = balance
 
+    -- 3b. The flight support requests: paid from what is left and applied at once (a box this settlement returns
+    -- already has the new capacity). One the balance cannot pay waits for the next settlement.
+    local support = {}
+    if OA.Support then account.credits, support = OA.Support.settle(record, account.credits) end
+
     -- 4. The crate: what was bought, shared serums, what others queued, and now and then a small extra.
     local cargo = {}
     for _, spec in ipairs(items) do cargo[#cargo + 1] = Settle.markBought(spec, record, now) end
@@ -176,6 +181,7 @@ function Settle.run(record, svc)
         bonusNote = bonusKey,
         events = events,
         cashTrust = result.cashTrust,
+        support = #support > 0 and support or nil,
     }
     local key, args = Trade.noteFor(record, receipt)
     if key then receipt.note = { key = key, args = args } end
@@ -190,6 +196,7 @@ function Settle.run(record, svc)
         reissue = reissue,
         events = events,
         result = result,
+        support = support,
     }
     Trade.fireSettled(record, { receipt = receipt, credits = result.credits, trust = result.trust,
         lines = result.lines, events = events, boxes = #sealed })

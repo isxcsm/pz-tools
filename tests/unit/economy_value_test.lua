@@ -227,7 +227,9 @@ end)
 test("settle uses the record's rate and the sandbox multiplier", function()
     SandboxVars.OperationAcorn.CreditMultiplier = 2.0
     local record = OA.Store.ensure("m", "M")
-    OA.Trust.add(record, 5500)           -- stage 3: rate +5%
+    OA.Trust.add(record, 5500)           -- stage 3
+    near(OA.Trust.rewards(record).rate, 0, 1e-9, "trust alone gives no rate")
+    OA.Support.setLevel(record, "rate", 1)   -- the upgrade: rate +5%
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
     OA.Market.state()
     for _, c in ipairs(OA.Categories.LETTERS) do OA.Market.state().M[c] = 1.0 end

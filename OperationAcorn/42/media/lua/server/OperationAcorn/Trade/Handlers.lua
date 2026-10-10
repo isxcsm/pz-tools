@@ -6,6 +6,7 @@ require "OperationAcorn/Trade/Heli"
 require "OperationAcorn/Trade/FirstSupply"
 require "OperationAcorn/Trade/Markers"
 require "OperationAcorn/Trade/Terminal"
+require "OperationAcorn/Economy/Support"
 local OA = OperationAcorn
 local Store, Chunks, Server, Trade = OA.Store, OA.Chunks, OA.Server, OA.Trade
 local Objects, Things, Boxes, Heli, Orders = Trade.Objects, Trade.Things, Trade.Boxes, Trade.Heli, Trade.Orders
@@ -83,6 +84,23 @@ Server.on("tradeUsed", function(character, record, args)
     heli.greeted = true
     local late = record.first ~= nil and record.first.mode ~= "window"
     if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
+end)
+
+-- Flight support (DESIGN-terminal 2.6): a request for the next level of an upgrade, made at a field terminal (the
+-- server looks at the terminal it was sent at), paid at the next settlement; and taking one back before that. The
+-- upgrade goes as args.upgrade (args.id is the character's).
+Server.on("tradeUpgrade", function(character, record, args)
+    local object, why = Handlers.terminalFor(character, args)
+    if not object then return refuse(record, why) end
+    local ok, reason = OA.Support.request(record, args.upgrade, tonumber(args.level), Objects.isUpgraded(object))
+    if not ok then return OA.Sync.notice(record.id, "IGUI_OA_Support_Why_" .. tostring(reason)) end
+    OA.Sync.changed("trade", record.id)
+end)
+
+Server.on("tradeUpgradeCancel", function(character, record, args)
+    local object, why = Handlers.terminalFor(character, args)
+    if not object then return refuse(record, why) end
+    if OA.Support.cancel(record, args.upgrade) then OA.Sync.changed("trade", record.id) end
 end)
 
 -- A tab of the terminal has been looked at: its dot goes (what it has seen is a number, DESIGN-terminal 1.1).

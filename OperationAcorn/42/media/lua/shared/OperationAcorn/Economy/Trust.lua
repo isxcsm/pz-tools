@@ -1,9 +1,11 @@
--- Trust (NUMBERS 5 and 6): the stage thresholds, the milestones after the last stage, and the rewards each brings.
--- A reward's number is the total at that stage and replaces the earlier one (NUMBERS 5: +5% then +10% is +10%).
+-- Trust (NUMBERS 5 and 6): the stage thresholds, the milestones after the last stage (the levels 6, 7, 8 ... the
+-- player sees), and what they open. The numbers trust used to raise by itself are flight support upgrades bought
+-- with credits (Economy/Support); the rewards below put both together.
 -- The record's `trade` section holds trust (with decimals), stage (0..5), milestones, and the shared serums waiting
 -- for the next supply drop; this file changes those and nothing else.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
+require "OperationAcorn/Economy/Support"
 local OA = OperationAcorn
 local Trust = {}
 OA.Trust = Trust
@@ -62,17 +64,17 @@ function Trust.tier(record)
     return (t.stage or 0) + (t.milestones or 0)
 end
 
--- The translation key of a stage's name (0 is the start), and of a milestone's ("Milestone %1").
+-- The translation key of a stage's name (0 is the start), and of a level past the last stage ("%1단계").
 function Trust.stageNameKey(stage)
     return "IGUI_OA_Econ_Stage_" .. tostring(stage)
 end
 
 Trust.MILESTONE_NAME_KEY = "IGUI_OA_Econ_Stage_Milestone"
 
--- The name a record's level goes by: the stage's, or "Milestone n" once past the last stage.
+-- The name a record's level goes by: the stage's, or its number once past the last stage (milestone k is level 5 + k).
 function Trust.label(record)
     local t = record.trade or {}
-    if (t.milestones or 0) > 0 then return getText(Trust.MILESTONE_NAME_KEY, t.milestones) end
+    if (t.milestones or 0) > 0 then return getText(Trust.MILESTONE_NAME_KEY, Trust.STAGES + t.milestones) end
     return getText(Trust.stageNameKey(t.stage or 0))
 end
 
@@ -133,21 +135,10 @@ function Trust.add(record, amount)
     return events
 end
 
--- Rewards (NUMBERS 5). Each is { from = the first tier it applies at, value }, the last one reached wins; the tier
--- is stage + milestones. Values are the defaults of the sandbox options; the options scale them (below).
-local BOX = { { 0, 50 }, { 3, 100 }, { 5, 200 }, { 6, 250 }, { 7, 300 }, { 8, 350 } }
-local CALL = { { 0, 3 }, { 2, 2 }, { 4, 1.5 }, { 7, 1 } }
-local ARRIVE_MIN = { { 0, 4 }, { 3, 3 }, { 8, 2 } }
-local ARRIVE_MAX = { { 0, 6 }, { 3, 4 }, { 8, 3 } }
-local RATE = { { 0, 0 }, { 3, 0.05 }, { 5, 0.10 }, { 7, 0.15 } }
+-- What trust raises by itself (NUMBERS 5). Each is { from = the first tier it applies at, value }, the last one
+-- reached wins; the tier is stage + milestones.
 local REQUEST_BONUS = { { 0, 0.50 }, { 3, 0.65 }, { 5, 0.80 }, { 7, 1.00 } }
-local REQUEST_COUNT = { { 0, 6 }, { 2, 8 }, { 5, 10 }, { 7, 12 } }
-local DISCOUNT = { { 0, 0 }, { 4, 0.05 }, { 7, 0.10 } }
 local ACCEL = { { 0, 1.0 }, { 6, 1.1 }, { 8, 1.2 } }
-local CURE_INTERVAL = { { 0, 14 }, { 2, 12 }, { 3, 10 }, { 4, 8 }, { 5, 7 } }
-local CURE_COUNT = { { 0, 1 }, { 6, 2 } }
-local DELAY_INTERVAL = { { 0, 3 }, { 3, 2 }, { 5, 1 } }
-local DELAY_COUNT = { { 0, 1 }, { 7, 3 } }
 
 local function at(line, tier)
     local value = line[1][2]
@@ -157,57 +148,57 @@ local function at(line, tier)
     return value
 end
 
--- The rewards of a stage and a number of milestones (no record needed; the options at the time scale them).
-function Trust.rewardsFor(stage, milestones)
+-- The rewards of a stage and a number of milestones with the flight support levels { id = level } (none: all at
+-- the start). No record needed; the sandbox options at the time scale the starting values, and later values keep
+-- their proportion to them.
+function Trust.rewardsFor(stage, milestones, levels)
     milestones = milestones or 0
+    levels = levels or {}
     local tier = stage + milestones
-    local box = at(BOX, tier)
-    if milestones > 3 then box = box + 50 * (milestones - 3) end
-    -- The options set the starting values; later values keep their proportion to them.
+    local function value(id) return OA.Support.step(id, levels[id] or 0).value end
     local call = (OA.option("CallInterval") or 3.0) / 3.0
     local arriveMin = (OA.option("HelicopterArrivalMin") or 4) / 4
     local arriveMax = (OA.option("HelicopterArrivalMax") or 6) / 6
     local requestBonus = (OA.option("RequestBonus") or 50) / 50
-    local cure = (OA.option("CureSerumInterval") or 14) / 14
-    local delay = (OA.option("DelayDrugInterval") or 3) / 3
-    local lo, hi = at(ARRIVE_MIN, tier) * arriveMin, at(ARRIVE_MAX, tier) * arriveMax
+    local arrive = value("arrive")
+    local lo, hi = arrive[1] * arriveMin, arrive[2] * arriveMax
     if lo > hi then lo = hi end
     return {
         stage = stage, milestones = milestones, tier = tier,
-        boxCapacity = box,
-        callInterval = at(CALL, tier) * call,
+        boxCapacity = value("box"),
+        callInterval = value("call") * call,
         arrival = { min = lo, max = hi },
-        nightDrop = stage >= 5,
-        rate = at(RATE, tier),
+        nightDrop = value("night"),
+        rate = value("rate"),
         requestBonus = at(REQUEST_BONUS, tier) * requestBonus,
-        requestCount = at(REQUEST_COUNT, tier),
-        discount = at(DISCOUNT, tier),
+        requestPrice = value("reqprice"),
+        requestCount = value("reqcount"),
+        discount = value("discount"),
         trustAccel = at(ACCEL, tier),
-        cureInterval = at(CURE_INTERVAL, tier) * cure,
-        cureCount = at(CURE_COUNT, tier),
-        delayInterval = at(DELAY_INTERVAL, tier) * delay,
-        delayCount = at(DELAY_COUNT, tier),
-        softerSupply = stage >= 4,
-        marketForecast = stage >= 3,
+        softerSupply = value("softer"),
+        marketForecast = value("forecast"),
         backpack = stage >= 5,
         kits = milestones >= 1,
         transferred = milestones >= 3,
     }
 end
 
--- The record's rewards: the table above for its stage and milestones (cached until either changes).
+-- The record's rewards: the table above for its stage, milestones and levels (worked out again when one of them
+-- changes; Support bumps trade.levelsRev with each level).
 local cache = {}
 function Trust.rewards(record)
     local t = record.trade
     local stage = t and t.stage or 0
     local milestones = t and t.milestones or 0
-    local key = stage * 10000 + milestones
+    local rev = t and t.levelsRev or 0
+    local key = record.id or record
     local hit = cache[key]
-    if not hit then
-        hit = Trust.rewardsFor(stage, milestones)
+    if not hit or hit.stage ~= stage or hit.milestones ~= milestones or hit.rev ~= rev then
+        hit = { stage = stage, milestones = milestones, rev = rev,
+            value = Trust.rewardsFor(stage, milestones, t and t.levels) }
         cache[key] = hit
     end
-    return hit
+    return hit.value
 end
 
 -- Drops the cache (a test that changes the options).

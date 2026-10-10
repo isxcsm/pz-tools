@@ -27,11 +27,11 @@ function Trade.addTrust(record, amount, source)
     end
     if #events > 0 then
         OA.log("trust from", tostring(source), "passed", #events, "stage or milestone events for", tostring(record.number))
-        -- one title for the whole change: the last stage or milestone reached
+        -- one title for the whole change: the last level reached (milestone k is level 5 + k)
         local last = events[#events]
-        local key = last.kind == "milestone" and "IGUI_OA_Title_Milestone" or "IGUI_OA_Title_Stage"
-        OA.Sync.title(record.id, { key = key, args = { last.n }, sub = "IGUI_OA_Title_NewItems", style = "stamp",
-            fallback = "good" })
+        local level = last.kind == "milestone" and 5 + last.n or last.n
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems",
+            style = "stamp", fallback = "good" })
         if OA.Story and OA.Story.onStage then
             local ok, err = pcall(OA.Story.onStage, record)
             if not ok then OA.log("story onStage failed:", tostring(err)) end

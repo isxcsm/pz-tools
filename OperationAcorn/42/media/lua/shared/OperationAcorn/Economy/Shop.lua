@@ -220,7 +220,6 @@ end
 -- The shop section of a record.
 function Shop.section(record)
     local s = OA.Store.section(record, "shop")
-    s.last = s.last or {}       -- [entry id] = world age of the last purchase
     s.week = s.week or {}       -- [entry id] = { week, n }
     s.kits = s.kits or {}       -- [kit kind] = { [target] = kits bought for it }
     s.serums = s.serums or {}   -- [tree] = serums bought
@@ -317,17 +316,7 @@ function Shop.available(entry, record)
     if entry.kits and not OA.option("KitsForSale") then return 0, "IGUI_OA_Econ_Shop_KitsOff" end
     if (t.credits or 0) < 0 and not entry.allowDebt then return 0, "IGUI_OA_Econ_Shop_Debt" end
     local shop = Shop.section(record)
-    local now = OA.hours()
-    local rewards = OA.Trust.rewards(record)
     local most = 99
-    if entry.special == "cure" or entry.special == "delay" then
-        local interval = entry.special == "cure" and rewards.cureInterval or rewards.delayInterval
-        local last = shop.last[entry.id]
-        if last and interval > 0 and now < last + interval * 24 then
-            return 0, "IGUI_OA_Econ_Shop_Interval", last + interval * 24
-        end
-        most = entry.special == "cure" and rewards.cureCount or rewards.delayCount
-    end
     if entry.week then
         local week = OA.week()
         local w = shop.week[entry.id]
@@ -344,7 +333,6 @@ end
 function Shop.bought(entry, record, count, target)
     count = count or 1
     local shop = Shop.section(record)
-    shop.last[entry.id] = OA.hours()
     if entry.week then
         local week = OA.week()
         local w = shop.week[entry.id]

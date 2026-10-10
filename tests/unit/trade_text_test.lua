@@ -8,6 +8,7 @@ require "OperationAcorn/Trade/Orders"
 require "OperationAcorn/Trade/Text"
 require "OperationAcorn/Trade/Estimate"
 require "OperationAcorn/Trade/Terminal"
+require "OperationAcorn/Economy/Support"
 local OA = OperationAcorn
 local Text, Estimate, Boxes, Terminal = OA.Trade.Text, OA.Trade.Estimate, OA.Trade.Boxes, OA.Terminal
 
@@ -50,6 +51,63 @@ test("a receipt is written as lines with the cut-short orders marked", function(
     for _, line in ipairs(lines) do if line.kind == "bad" then cut = line.text end end
     truthy(string.find(cut, "IGUI_OA_Trade_OrderReason_credits", 1, true), "the reason follows")
     OA.Shop = nil
+end)
+
+test("a text with nested texts is translated from the inside out", function()
+    eq(Text.trText({ key = "A" }), "A")
+    eq(Text.trText({ key = "A", args = { "x", 3 } }), "A x 3")
+    eq(Text.trText({ key = "A", args = { { key = "B", args = { "y" } }, "z" } }), "A B y z")
+    local change = Text.trText(OA.Support.changeText("box", 0, 1))
+    eq(change, "IGUI_OA_Support_Change IGUI_OA_Support_Name_box IGUI_OA_Support_V_box 50 IGUI_OA_Support_V_box 100")
+end)
+
+test("a receipt has a line for each flight support entry and a note with the count of those applied", function()
+    local lines = Text.receipt({
+        id = 7, day = 12, kind = "settle", boxes = 0, credits = 0, trust = 0, balanceBefore = 90000, balance = 20000,
+        support = {
+            { id = "box", from = 0, to = 1, price = 30000, paid = true },
+            { id = "night", from = 0, to = 1, price = 100000, paid = false },
+            { id = "call", from = 0, to = 1, price = 40000, paid = true },
+        },
+    })
+    local change = function(id) return Text.trText(OA.Support.changeText(id, 0, 1)) end
+    local paid, waiting, note = {}, {}, {}
+    for i, line in ipairs(lines) do
+        if string.find(line.text, "IGUI_OA_Trade_Rc_Support ", 1, true) == 1 then paid[#paid + 1] = { i, line }
+        elseif string.find(line.text, "IGUI_OA_Trade_Rc_SupportWait", 1, true) == 1 then waiting[#waiting + 1] = { i, line }
+        elseif string.find(line.text, "IGUI_OA_Trade_Rc_SupportNote", 1, true) == 1 then note[#note + 1] = { i, line } end
+    end
+    eq(#paid, 2)
+    eq(paid[1][2].text, "IGUI_OA_Trade_Rc_Support " .. change("box") .. " 30,000")
+    eq(paid[1][2].kind, "line")
+    eq(paid[2][2].text, "IGUI_OA_Trade_Rc_Support " .. change("call") .. " 40,000")
+    eq(#waiting, 1)
+    eq(waiting[1][2].text, "IGUI_OA_Trade_Rc_SupportWait " .. change("night"))
+    eq(waiting[1][2].kind, "bad", "an unpaid request is marked")
+    eq(#note, 1)
+    eq(note[1][2].text, "IGUI_OA_Trade_Rc_SupportNote 2", "two were applied")
+    eq(note[1][2].kind, "note")
+    truthy(paid[1][1] < waiting[1][1] and waiting[1][1] < paid[2][1], "in the order of the entries")
+    truthy(note[1][1] > paid[2][1], "the note comes after the lines")
+    eq(lines[#lines].kind, "total", "the balance closes the receipt")
+end)
+
+test("a receipt with only unpaid support entries has no applied note", function()
+    local lines = Text.receipt({ id = 1, day = 1, balanceBefore = 0, balance = 0,
+        support = { { id = "box", from = 0, to = 1, price = 30000, paid = false } } })
+    local waiting, note = 0, 0
+    for _, line in ipairs(lines) do
+        if string.find(line.text, "IGUI_OA_Trade_Rc_SupportWait", 1, true) then waiting = waiting + 1 end
+        if string.find(line.text, "IGUI_OA_Trade_Rc_SupportNote", 1, true) then note = note + 1 end
+    end
+    eq(waiting, 1); eq(note, 0)
+end)
+
+test("a receipt without support entries has no support lines", function()
+    local lines = Text.receipt({ id = 1, day = 1, balanceBefore = 0, balance = 0 })
+    for _, line in ipairs(lines) do
+        eq(string.find(line.text, "Rc_Support", 1, true), nil, line.text)
+    end
 end)
 
 -- An economy with the counting of the real one: a request item is worth a bonus for its first 20 units a week, and the

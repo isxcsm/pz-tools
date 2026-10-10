@@ -132,12 +132,14 @@ test("the list grows with the stage and gains rarer items", function()
     local record = OA.Store.ensure("p", "P")
     local first = {}
     for i, t in ipairs(R.list(record)) do first[i] = t end
-    OA.Trust.add(record, 2300)            -- stage 2: 8 items, all scores
-    OA.Trust.reset()
+    OA.Trust.add(record, 2300)            -- stage 2
+    eq(#R.list(record), 6, "trust alone does not lengthen it")
+    OA.Support.setLevel(record, "reqcount", 1)   -- the flight support upgrade: 8 items, all scores
     local list = R.list(record)
     eq(#list, 8)
     for i = 1, 6 do eq(list[i], first[i], "the first six stay") end
-    OA.Trust.add(record, 3200 + 17500 + 14000 + 21000)   -- up to milestone 2: 12 items
+    OA.Trust.add(record, 3200 + 17500 + 14000 + 21000)   -- up to milestone 2
+    OA.Support.setLevel(record, "reqcount", 3)           -- 12 items
     eq(#R.list(record), 12)
 end)
 

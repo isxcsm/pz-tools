@@ -64,12 +64,20 @@ end)
 test("the softer supply reward turns 0.97 into 0.9775", function()
     fix()
     M.update(0)
-    local record = { id = "r", trade = { stage = 4, milestones = 0 } }
+    local record = { id = "r", trade = { stage = 4, milestones = 0, levels = { softer = 1 } } }
     M.ship("A", 10, record)
     near(M.state().S.A, 0.9775, 1e-9)
     local plain = { id = "p", trade = { stage = 3, milestones = 0 } }
     M.ship("B", 10, plain)
     near(M.state().S.B, 0.97, 1e-9)
+end)
+
+test("the softer supply is a flight support upgrade: the stage alone does not bring it", function()
+    fix()
+    M.update(0)
+    local record = { id = "r", trade = { stage = 5, milestones = 2 } }
+    M.ship("A", 10, record)
+    near(M.state().S.A, 0.97, 1e-9, "stage 5 without the level")
 end)
 
 test("the supply recovers 0.03 a day up to 1", function()
