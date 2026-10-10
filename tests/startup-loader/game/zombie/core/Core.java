@@ -6,4 +6,7 @@ public final class Core {
     public static Core getInstance() { return INSTANCE; }
     public int getScreenWidth() { return 1600; }
     public int getScreenHeight() { return 1000; }
+    /** The option of the dyslexic font, as a test sets it. */
+    public static boolean dyslexicFont;
+    public boolean getOptionEnableDyslexicFont() { return dyslexicFont; }
 }

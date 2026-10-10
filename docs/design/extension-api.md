@@ -1209,7 +1209,7 @@ which override the jar's; it overrides none of the text classes):
   line by itself. `MeasureStringX(font, text)` and `getFontHeight(font)` measure at zoom 1.
 - **Fonts.** `UIFont` names the fonts. The usual ones (`Small`, `Medium`, `Large`, `Title`, ...) are the language's bitmap
   fonts (`media/fonts/<language>/fonts.txt`; Korean's `Large` is `zomboidLargeKorean`, 11821 characters), of a fixed
-  size (`Large` is 33 to 50 pixels high by the font size option, `Small` 19 to 38), which blur when zoomed. `Massive` is 47 high and has 99 characters, Latin alone. The distance-field fonts
+  size (`Large` is 26 to 50 pixels high by the font size option, `Small` 16 to 38; [below](#text-at-a-height)), which blur when zoomed. `Massive` is 47 high and has 99 characters, Latin alone. The distance-field fonts
   (`SdfRegular`, `SdfBold`, `SdfItalic`, `SdfBoldItalic`, `SdfRobertoSans`, `SdfCaveat` and the `SdfOld...` ones;
   `media/fonts/*.fnt`, 873 to 1116 characters: Latin, Cyrillic and some signs, no Hangul) stay sharp at any zoom, but
   only through the game's shader: their pictures hold distances, not letters, and drawn as they are they show as a blur. The game's own new interface (`AtomUIText`) draws them as
@@ -1239,6 +1239,10 @@ which override the jar's; it overrides none of the text classes):
 | `text.shown(handle, key)` | Whether it is on the screen or waiting. |
 | `text.styles()` | The titles' styles: `{ "stamp", "discovery", "notice" }`. |
 | `text.status()` | Whether the hook that draws is in the game: `"applied"`, `"not-loaded"` (the interface's class has not loaded), or why not, worded as `PZToolsAPI.hooks()` is. A mod shows the player what is not applied. |
+| `text.font(handle, px)` | A key for text a line of `px` pixels high in the mod's own windows, or nil; see [text at a height](#text-at-a-height). |
+| `text.fontHeight(handle, key)` | The line's height to lay out with, as `getFontHeight` is for the game's fonts. |
+| `text.measure(handle, key, text)` | The text's width in pixels, as `MeasureStringX` is. |
+| `text.draw(handle, key, text, x, y, r, g, b, a)` | Draws the text at screen pixels from a window's `prerender` or `render`, as `drawText` would. |
 
 `show`'s spec; every field but `text` may be left out:
 
@@ -1377,7 +1381,7 @@ interface goes on being drawn (the tooltip and what follows it).
 
 ### The embedded font
 
-The game's fonts for most languages are bitmaps made at fixed sizes: Korean `Large` is 33 to 45 pixels high by the font size
+The game's fonts for most languages are bitmaps made at fixed sizes: Korean `Large` is 26 to 45 pixels high by the font size
 option, and only the folder of the current option is loaded. Drawn larger, they are zoomed and blur. The distance-field fonts
 stay sharp but have no Hangul, kana or Han. So the API carries a font of its own for large text: Noto Sans SemiBold, the
 typeface the game's own language fonts are made from, baked into a distance-field atlas that the game's `AngelCodeFont` draws
@@ -1479,6 +1483,101 @@ characters the game's `CH` translation uses. The first start draws with the game
 the bake (in practice the next world loaded); a language changed in the game keeps the pack loaded until the game restarts,
 as the game's fonts do. Advances are whole texels at the base size, as in the game's fonts.
 
+### Text at a height
+
+A mod that draws its own windows and sizes them by the screen instead of by the font size option (Operation Acorn: a scale of
+the screen's height over 540, in quarters, so 1.25 at 720 lines and 2 at 1080) needs text of a height in pixels, 16, 20 or 24
+times its scale, that the fonts the game has loaded are not. The game ships each language's bitmap fonts for every option but
+loads only the option's; these calls load the others' as the game loads its own, and draw with the one nearest the height
+([`SizedFonts`](../../src/PzTools.GameBridge.Agent/java/pztools/api/SizedFonts.java)).
+
+| Call | Effect |
+| --- | --- |
+| `text.font(handle, px)` | A key (a number) for lines `px` pixels high: 1 to 1024, rounded to a whole pixel. The same height gives the same key for the whole session (the key is the height), through API updates and the game making its fonts again. Nil when the language has no font the API can read. It chooses the font and reads it now (below): ask when the window is made or laid out. |
+| `text.fontHeight(handle, key)` | The height of a line to lay the text out with, the same measure as `getTextManager():getFontHeight(UIFont.Small)` is for the game's fonts: the chosen font's own line (19 for 20 pixels in Korean), or the key's height where the font is zoomed to it. Nil without a font. |
+| `text.measure(handle, key, text)` | The text's width in pixels, as `getTextManager():MeasureStringX(font, text)` is: the sum of the characters' advances and kerning, the last one's width; a zoomed width rounded up. |
+| `text.draw(handle, key, text, x, y, r, g, b, a)` | Draws the text with the top left of its line at `x`, `y` in screen pixels, colour parts 0 to 1. Call it from a window's `prerender` or `render`: it goes through the game's drawing in that order, inside the window's clip, where `self:drawText(text, x, y, ...)` of a game font would be with `x = self:getAbsoluteX() + x` and `y = self:getAbsoluteY() + y` (and the window's scroll, which `drawText` adds). |
+
+Measuring and drawing a text choose the font the same way, within a frame: what `measure` gave is what `draw` covers. A wrong
+argument is a Lua error naming it (a key that is not a whole number from 1 to 1024, a text that is not a string, a colour part
+outside 0 to 1). The game's font steps a `\n` down by its own line at zoom 1, also when zoomed: a mod draws and measures each
+line by itself, `fontHeight` apart.
+
+**How the game names its fonts.** Read from the bytecode of Build 42 (`TextManager.Init`, `getFontFilePath`,
+`Core.getOptionFontSizeReal`, `AngelCodeFont`):
+
+- `Init` reads `media/fonts/<language>/fontsDyslexic.txt` when the dyslexic option is on; when that gives nothing,
+  `media/fonts/EN/fonts.txt` and then the language's `fonts.txt` over it. Each is found through the game's file system
+  (`ZomboidFileSystem.getString`), which gives a mod's file in the place of the game's: a font mod for a language is one that
+  ships these files.
+- The font size option picks the folder: 1 none, 2 `1x`, 3 `2x`, 4 `3x`, 5 `4x`. Auto (6) is the option
+  `floor((screen height - 1080) / 132) + 1` (0 below 0) sorted into options: the smallest below 1080 lines, `1x` from 1080, `2x`
+  from 1212 (1440 lines too), `3x` from 1476, `4x` from 1872 (2160 lines).
+  A font's file is the first there is of `media/fonts/<language>/<folder>/<file>`, `media/fonts/<language>/<file>`, English's two,
+  `media/fonts/<file>`, else `media/<file>`. The game ships the smallest option's fonts in `media/fonts` itself, not in the
+  language's folder: so a 1280 x 720 screen on auto has Korean's `Small` 16 pixels high, though `1x`'s is 19.
+- `getFontHeight(font)` is the font's `getLineHeight()`: the lowest bottom (`yoffset + height`) of any of its characters but the
+  space, found as the text file is read. The file's own `common lineHeight` is not read; in every font the game ships the two are
+  the same.
+
+Korean's `Small`, `Medium` and `Large` by option, in pixels (the pages of 512 x 512 in brackets); English's are the same to the
+`4x` `Large` (50), Chinese's and Japanese's too:
+
+| Option | Folder | `Small` | `Medium` | `Large` |
+| --- | --- | --- | --- | --- |
+| 1 | `media/fonts` | 16 (6) | 23 (11) | 26 (14) |
+| 2 | `1x` | 19 (8) | 29 (17) | 33 (22) |
+| 3 | `2x` | 26 (14) | 33 (22) | 40 (30) |
+| 4 | `3x` | 33 (22) | 40 (30) | 45 (37) |
+| 5 | `4x` | 38 (28) | 45 (37) | 45 (37) |
+
+**The choice.** The API lists the language's `Small`, `Medium` and `Large` for each of the five options as `Init` would name them
+were the option that one (the same `fonts.txt`, folders and fallbacks), a file named twice once, one that is not there left
+out; Korean has 13. A font's height is its text file's `common lineHeight` until it is read, then the game's `getLineHeight`.
+For a height:
+
+| Height | Drawn with |
+| --- | --- |
+| Up to an eighth above the tallest font (50 for Korean's 45) | The font whose line is nearest; of two as near, the smaller (it does not overflow what was laid out with it); of fonts of one height, one already read. At its own size, as the game draws its own fonts: crisp. |
+| More than that | The height itself: the [embedded font](#the-embedded-font) at the height, in the game's shader, for a text it has every character of, once its atlas is in video memory; any other text in the tallest font zoomed to the height. |
+
+For Operation Acorn's 16, 20 and 24 times its scale in Korean: 1.25 gives 19, 26 and 29; 1.5 gives 16, 29 and 38 (24 is 23); 2 gives
+33, 40 and 45 (48 is 45); 2.5 gives 40, 45 and the embedded font at 60; 4 gives the embedded font at 64, 80 and 96. A font the
+game has loaded (the option's) is the game's own object, read no more. A distance-field font that a `fonts.txt` names for these
+(`type = sdf`) is drawn zoomed to the height in the shader.
+
+**Reading a font.** `text.font` reads the chosen font at once, on the game's thread, as `Init` reads the game's: `new
+AngelCodeFont(fnt, img)` (the text file, parsed by the game), marked a distance-field font when `fonts.txt` says so. Its pages are
+the game's shared textures (`Texture.getSharedTexture`), read on the game's file thread and sent by its render thread, as when
+`Init` runs again after the option changes (the game draws on while they come; only at its start does it wait). Measured with the
+game's runtime and its own reader, a Korean font's text file (1.4 MB, 11,821 characters) takes 23 to 37 ms, 124 ms the first time
+(the file from the disk, the reader not compiled yet); English's 2 ms. Decoding the 22 pages of `1x`'s `Large` took 60 ms (190 ms
+the first time) off the game's thread. A font is measured from the moment it is read; `draw` draws nothing with it until its
+pages are in, a few frames later. The game's log says when each was read and when its pages were in.
+
+| Chosen | Rejected, and why |
+| --- | --- |
+| Read when `text.font` first asks for a height, on the game's thread | Reading every option's fonts as a Lua environment starts: 13 Korean fonts, 300 ms or more at each load, and the video memory of all of them, for the two or three a mod uses. Reading on another thread: `AngelCodeFont` asks for its pages from the game's texture table and asset manager, which only the game's thread may touch. |
+| The pages through the game's shared textures | Pages of the API's own: a page the game also loads (the option changed to that folder) would be in video memory twice. |
+| Choosing by the text file's header before reading | Reading 13 files of 1.4 MB to know their heights. |
+
+**Memory.** Only a height asked for reads a font, and only the one it is drawn with (the tallest of a height drawn in the
+embedded font only when a text needs it, or at once while the embedded font cannot draw). A font read costs what the game's
+own of that option costs: its pages in video memory, as shared textures (Korean: 6 to 37 pages of 512 x 512), and its
+characters in the heap. The fonts read are kept in the bootstrap's kept objects, so a new Lua environment (a world loaded, the
+main menu) or a newer API reads none again; when the language changes, those it can no longer choose are let go
+(`AngelCodeFont.destroy`, as `Init` lets the game's go). The game's own fonts are never let go here.
+
+**When the game makes its fonts again** (the option changed, the language, the dyslexic font or the mods, through
+`Core.ResetLua` or leaving a world: the game's `Small` is another object), the next call lists the fonts again and chooses each
+height again: the keys stay valid, and `fontHeight` may give another height. A mod lays its windows out again when its own scale
+or `fontHeight` changes. The embedded font's choice is made by whether its atlas was in video memory as the frame began; it
+changes once, as the atlas arrives just after a Lua environment starts.
+
+**The cost.** `measure` and `draw` look the choice up by the height (an array) and compare the game's `Small` with the one the
+list was made for; they allocate nothing beyond what Kahlua's call does. The embedded font's check of the characters is one pass
+over the text, as the measuring is.
+
 ### A mod's use
 
 ```lua
@@ -1563,7 +1662,20 @@ height bytes, `A` with texels inside and outside its outline, no page line, kern
 bake and a dead bake's old part but not a recent part or another pack's, refuses a second bake while one runs, and a bake of a
 name already there leaves it as it was. The Latin pack baked in 1.7 s.
 
-Not tried in the game yet: how typed text looks (the cursor's underscore in each font, the width of the rows and the places of
+Text at a height (`TextsTest`, Korean's fonts as the game ships them in a synthetic file system): 20 pixels is the game's own
+`Small` (19) at the option 2, read no more, drawn as `DrawText` draws it where it was asked; 25 is the smallest option's `Large`
+(26) from `media/fonts`, read once and not again; 30 and 31 are the game's `Medium` (29); 48 is `3x`'s `Large` (45) at its size;
+60 is 60 high, the tallest zoomed to it without the embedded font, the embedded font in the shader with its edge with it, the
+tallest for a character it lacks, and the switch waits for the next frame; a font loading its pages is measured but not drawn,
+and drawn once they are in; when the game makes its fonts again the keys stay, 20 is read from `1x` and 33 is the game's new
+`Medium`; English with the dyslexic font has its three, and Korean's fonts read are let go but not the game's; a language with
+fonts in `media/fonts` alone has the closest of its two, 40 pixels the taller zoomed; without fonts there is no key, height,
+width or drawing; wrong arguments are Lua errors; measuring and drawing allocate nothing over 100,000 rounds, and a measure
+with its draw took about 80 ns in the synthetic game.
+
+Not tried in the game yet: how text at a height looks (the fonts of other options next to the game's, the embedded font's
+lines beside the bitmap fonts' in one window, the switch at 51 pixels), the times in the game's log for reading a font and its
+pages, a font option or language changed with a window open, and a font mod's files. Also not tried: how typed text looks (the cursor's underscore in each font, the width of the rows and the places of
 colour runs as the game's fonts measure them, with kerning if they have it, the Korean fonts' widths); how the titles look (the sizes, the colours, the effects' timing, a zoomed `SdfBold` and
 `SdfRobertoSans` through the shader, and the copies of the outline at that zoom); the embedded font (the bake on the first start, its
 log and `console.txt`'s lines for the read and the send to video memory, the swizzle in the game's OpenGL context, how sharp a

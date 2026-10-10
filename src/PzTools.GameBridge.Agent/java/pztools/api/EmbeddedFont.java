@@ -74,6 +74,16 @@ final class EmbeddedFont {
                 }
             return true;
         }
+
+        /** Whether the font has every character of the text (spaces aside). Allocates nothing. */
+        boolean covers(String text) {
+            for (int index = 0; index < text.length(); index++) {
+                char letter = text.charAt(index);
+                if (letter <= ' ') continue;
+                if (letter >= chars.length || chars[letter] == null) return false;
+            }
+            return true;
+        }
     }
 
     // This API's: the pack loaded, and the bake running (one at a time).

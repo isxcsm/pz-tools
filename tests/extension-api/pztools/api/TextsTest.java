@@ -1,12 +1,23 @@
 package pztools.api;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import se.krka.kahlua.vm.JavaFunction;
 import se.krka.kahlua.vm.KahluaTable;
 import se.krka.kahlua.vm.LuaCallFrame;
 import zombie.Lua.LuaManager;
+import zombie.ZomboidFileSystem;
+import zombie.core.Core;
+import zombie.core.Language;
+import zombie.core.Translator;
+import zombie.core.fonts.AngelCodeFont;
 import zombie.characters.IsoPlayer;
 import zombie.iso.IsoCamera;
 import zombie.iso.IsoCell;
@@ -22,7 +33,9 @@ import pztools.bridge.ApiHooks;
  * its effects on the clock of the interface, the first font that has its characters, the distance-field shader around the fonts
  * made for it; titles in their styles, one after another on each screen; text typed with pauses, speed changes, colours and a
  * cursor, and fitted to a width on each screen; hidden, cleared, gone with the world, taken over by a
- * newer API; a drawing that fails leaves the interface drawn; and nothing is done, nor allocated, with nothing shown.
+ * newer API; a drawing that fails leaves the interface drawn; and nothing is done, nor allocated, with nothing shown. Text a mod
+ * draws in its own windows at a height: the language's font of the nearest size, read once, the game's own where it is the one,
+ * the embedded font well above them, kept through the game making its fonts again.
  */
 final class TextsTest {
     private static final double SECOND = 1e9;
@@ -49,6 +62,7 @@ final class TextsTest {
             layout(text, mod);
             fonts(text, mod);
             embedded(text, mod);
+            sized(text, mod);
             effects(text, mod);
             typing(text, mod);
             titles(text, mod);
@@ -323,6 +337,252 @@ final class TextsTest {
         render();
         check(draws().get(0)[1] == UIFont.Large, "Without the embedded font, the game's did not draw");
         FormulasTest.call(text, "hide", mod, key, true);
+    }
+
+    /**
+     * Text at a height (text.font, fontHeight, measure, draw): the language's fonts of every font size option, named as the game
+     * names them (its folders and their fallbacks, through its file system), the nearest chosen and read once, the game's own used
+     * where it is the one, a height well above the tallest drawn in the embedded font (or the tallest zoomed where that cannot),
+     * a font still loading its pictures not drawn, the keys kept as the game makes its fonts again and the language changes, the
+     * fonts of a language no longer used let go, and measuring and drawing allocating nothing.
+     */
+    private static void sized(KahluaTable text, Object mod) throws Exception {
+        Path root = Files.createTempDirectory("pztools-sized-fonts");
+        Texts texts = GameApi.texts();
+        ClassLoader loader = TextsTest.class.getClassLoader();
+        check(texts.sized != null, "text.font has no fonts in the synthetic game");
+        try {
+            // Korean's fonts, by option: the smallest in the fonts' folder itself, then 1x to 4x, as the game ships them; English's.
+            int[][] korean = { { 16, 23, 26 }, { 19, 29, 33 }, { 26, 33, 40 }, { 33, 40, 45 }, { 38, 45, 45 } };
+            int[][] english = { { 16, 23, 26 }, { 19, 29, 33 }, { 26, 33, 40 }, { 33, 40, 45 }, { 38, 45, 50 } };
+            String[] slots = { "Small", "Medium", "Large" }, folders = { "", "1x/", "2x/", "3x/", "4x/" };
+            write(root, "media/fonts/EN/fonts.txt", "Small fnt=zomboidSmall.fnt\nMedium fnt=zomboidMedium.fnt\nLarge fnt=zomboidLarge.fnt\n");
+            write(root, "media/fonts/KO/fonts.txt", "Small fnt=zomboidSmallKorean.fnt\nMedium fnt=zomboidMediumKorean.fnt\nLarge fnt=zomboidLargeKorean.fnt\n");
+            for (int folder = 0; folder < 5; folder++)
+                for (int slot = 0; slot < 3; slot++) {
+                    fnt(root, (folder == 0 ? "media/fonts/" : "media/fonts/KO/" + folders[folder]) + "zomboid" + slots[slot] + "Korean.fnt", korean[folder][slot]);
+                    fnt(root, (folder == 0 ? "media/fonts/" : "media/fonts/EN/" + folders[folder]) + "zomboid" + slots[slot] + ".fnt", english[folder][slot]);
+                }
+            var files = new HashMap<>(ZomboidFileSystem.FILES);
+            Translator.language = new Language("KO");
+            // The game at the font size option 2 (a 1080-pixel screen on auto): the 1x folder's fonts are its own.
+            game("media/fonts/KO/1x/zomboid%sKorean.fnt");
+            var gameSmall = (AngelCodeFont)TextManager.instance.fonts.get(UIFont.Small);
+            var gameMedium = (AngelCodeFont)TextManager.instance.fonts.get(UIFont.Medium);
+            int made = AngelCodeFont.made;
+
+            // 20 pixels: the game's own Small (19), read no more, drawn as DrawText draws it (no zoom) where it is asked.
+            check(sizedKey(text, mod, 20) == 20 && sizedKey(text, mod, 20.3) == 20, "text.font gave another key for 20 pixels");
+            check(sizedHeight(text, mod, 20) == 19 && sizedWidth(text, mod, 20, "가나다") == 27, "20 pixels is not the 19 of the game's Small");
+            Object[] drawn = sizedDraw(text, mod, 20, "가나다", 100.5, 40.25).get(0);
+            check(drawn[1] == gameSmall && zoom(drawn) == 0 && near((Double)drawn[2], 100.5) && near((Double)drawn[3], 40.25) && "가나다".equals(drawn[5])
+                && near((Double)drawn[6], 1) && near((Double)drawn[7], 0.5) && near((Double)drawn[8], 0.25) && near((Double)drawn[9], 1),
+                "20 pixels was not drawn in the game's Small at its size: " + Arrays.toString(drawn));
+            check(AngelCodeFont.made == made, "The game's own font was read again");
+            // 25: 26, the smallest option's Large (in the fonts' folder: Korean has no folder of its own for it), read once.
+            check(sizedHeight(text, mod, 25) == 26 && AngelCodeFont.made == made + 1, "25 pixels is not 26, read once");
+            var rootLarge = (AngelCodeFont)sizedDraw(text, mod, 25, "가", 0, 0).get(0)[1];
+            check(file(rootLarge).endsWith("/media/fonts/zomboidLargeKorean.fnt") && sizedWidth(text, mod, 25, "가") == 13, "26 is not the fonts' folder's Large: " + file(rootLarge));
+            check(sizedKey(text, mod, 25) == 25 && AngelCodeFont.made == made + 1, "Asking for 25 again read a font");
+            // 30 and 31: the game's Medium (29); between 29 and 33, the smaller.
+            check(sizedHeight(text, mod, 30) == 29 && sizedHeight(text, mod, 31) == 29 && sizedDraw(text, mod, 31, "가", 0, 0).get(0)[1] == gameMedium,
+                "30 and 31 pixels are not the game's Medium");
+            // 48: under an eighth above the tallest (45): 3x's Large, at its size.
+            check(sizedHeight(text, mod, 48) == 45, "48 pixels is not 45");
+            drawn = sizedDraw(text, mod, 48, "가", 0, 0).get(0);
+            check(file(drawn[1]).endsWith("/KO/3x/zomboidLargeKorean.fnt") && zoom(drawn) == 0, "48 pixels was not 3x's Large at its size: " + Arrays.toString(drawn));
+
+            // 60: the height itself. Without the embedded font, the tallest zoomed to it, outside the shader.
+            texts.embedded = null;
+            GameApi.frame(loader);
+            made = AngelCodeFont.made;
+            check(sizedKey(text, mod, 60) == 60 && sizedHeight(text, mod, 60) == 60 && AngelCodeFont.made == made, "60 pixels is not its own height");
+            check(sizedWidth(text, mod, 60, "가나") == 59, "60 pixels in the tallest zoomed is " + sizedWidth(text, mod, 60, "가나") + " wide");
+            List<Object[]> calls = sizedDraw(text, mod, 60, "가나", 10, 20);
+            check(calls.size() == 1 && file(calls.get(0)[1]).endsWith("/KO/3x/zomboidLargeKorean.fnt") && near(zoom(calls.get(0)), 60 / 45.0),
+                "60 pixels was not the tallest zoomed: " + Arrays.toString(calls.get(0)));
+            // With it: the embedded font at 60 / 90 in the shader with its edge; a character it lacks, the tallest zoomed.
+            var face = new AngelCodeFont(0xD7A3, 90, 50, true);
+            face.chars['똠'] = null;
+            var ready = new java.util.concurrent.atomic.AtomicBoolean(true);
+            texts.embedded = new EmbeddedFont.Loaded("test", face, face.chars, 90, 8, ready);
+            GameApi.frame(loader);
+            check(sizedWidth(text, mod, 60, "수색") == 67 && sizedWidth(text, mod, 60, "똠방") == 59, "60 pixels was not measured in the embedded font");
+            calls = sizedDraw(text, mod, 60, "수색", 10, 20);
+            check(names(calls).equals(List.of("threshold", "shadow", "outline", "start", "text", "end")) && calls.get(4)[1] == face
+                && near(zoom(calls.get(4)), 60 / 90.0) && near((Float)calls.get(0)[1], 0.75 / (2 * 8 * (60 / 90.0))) && near((Double)calls.get(4)[2], 10),
+                "60 pixels was not drawn in the embedded font: " + names(calls));
+            calls = sizedDraw(text, mod, 60, "똠방", 10, 20);
+            check(calls.size() == 1 && file(calls.get(0)[1]).endsWith("/KO/3x/zomboidLargeKorean.fnt"), "A character the embedded font lacks was not the tallest's");
+            // Its atlas gone or come: the choice follows at the next frame, not between a measure and a draw.
+            ready.set(false);
+            check(sizedWidth(text, mod, 60, "수색") == 67, "The choice changed within a frame");
+            GameApi.frame(loader);
+            check(sizedWidth(text, mod, 60, "수색") == 59, "An embedded font not in video memory measured");
+            ready.set(true);
+            GameApi.frame(loader);
+            check(sizedWidth(text, mod, 60, "수색") == 67 && sizedHeight(text, mod, 60) == 60, "The embedded font did not take over");
+
+            // A font still loading its pictures is measured but not drawn; once they are in, it is.
+            AngelCodeFont.loadingNew = true;
+            made = AngelCodeFont.made;
+            check(sizedKey(text, mod, 38) == 38 && AngelCodeFont.made == made + 1, "38 pixels read no font");
+            AngelCodeFont.loadingNew = false;
+            AngelCodeFont loading = AngelCodeFont.lastMade;
+            check(sizedDraw(text, mod, 38, "가나", 0, 0).isEmpty() && sizedWidth(text, mod, 38, "가나") == 38, "A font still loading was drawn, or not measured");
+            loading.loading = false;
+            check(sizedDraw(text, mod, 38, "가나", 0, 0).get(0)[1] == loading, "A font whose pictures came was not drawn");
+
+            // The game makes its fonts again (the option 3): the keys stay; 20 is 1x's Small, read now; 33 is the game's new Medium.
+            game("media/fonts/KO/2x/zomboid%sKorean.fnt");
+            made = AngelCodeFont.made;
+            check(sizedHeight(text, mod, 20) == 19 && AngelCodeFont.made == made + 1, "20 pixels was not read again once the game's fonts changed");
+            drawn = sizedDraw(text, mod, 20, "가", 0, 0).get(0);
+            check(drawn[1] != gameSmall && file(drawn[1]).endsWith("/KO/1x/zomboidSmallKorean.fnt"), "20 pixels still drew the game's font it made again");
+            check(sizedDraw(text, mod, 33, "가", 0, 0).get(0)[1] == TextManager.instance.fonts.get(UIFont.Medium), "33 pixels is not the game's new Medium");
+            check(!gameSmall.destroyed && !rootLarge.destroyed, "A font was let go while the language could still use it");
+
+            // English with the dyslexic font: its fontsDyslexic.txt, its one folder; Korean's fonts let go, the game's own not.
+            write(root, "media/fonts/EN/fontsDyslexic.txt", "Small fnt=zomboidSmallDyslexic.fnt\nMedium fnt=zomboidMediumDyslexic.fnt\nLarge fnt=zomboidLargeDyslexic.fnt\n");
+            fnt(root, "media/fonts/EN/zomboidSmallDyslexic.fnt", 17);
+            fnt(root, "media/fonts/EN/zomboidMediumDyslexic.fnt", 24);
+            fnt(root, "media/fonts/EN/zomboidLargeDyslexic.fnt", 27);
+            Core.dyslexicFont = true;
+            Translator.language = new Language("EN");
+            game("media/fonts/EN/zomboid%sDyslexic.fnt");
+            check(sizedHeight(text, mod, 20) == 17 && texts.sized.faces().length == 3, "The dyslexic fonts were not English's three");
+            check(rootLarge.destroyed && loading.destroyed && !gameSmall.destroyed, "Korean's fonts were not let go, or the game's was");
+            Core.dyslexicFont = false;
+
+            // A language with its fonts in the fonts' folder alone: the same files for every option, the closest of them.
+            write(root, "media/fonts/ZZ/fonts.txt", "Small fnt=zz.fnt\nMedium fnt=zz.fnt\nLarge fnt=zzLarge.fnt\n");
+            fnt(root, "media/fonts/zz.fnt", 16);
+            fnt(root, "media/fonts/zzLarge.fnt", 26);
+            Translator.language = new Language("ZZ");
+            game("media/fonts/zz.fnt", "media/fonts/zz.fnt", "media/fonts/zzLarge.fnt");
+            texts.embedded = null;
+            GameApi.frame(loader);
+            check(sizedHeight(text, mod, 18) == 16 && texts.sized.faces().length == 2, "A language without folders did not have its two fonts");
+            check(sizedHeight(text, mod, 40) == 40 && sizedWidth(text, mod, 40, "가") == 20, "40 pixels was not the tallest (26) zoomed");
+
+            // No fonts at all: no key, no height, no width, nothing drawn.
+            ZomboidFileSystem.FILES.clear();
+            TextManager.instance.fonts.put(UIFont.Small, new AngelCodeFont(0xD7A3, 18, 8, false));
+            check(sizedKey(text, mod, 20) == 0 && sizedHeight(text, mod, 20) == 0 && sizedWidth(text, mod, 20, "가") == 0
+                && sizedDraw(text, mod, 20, "가", 0, 0).isEmpty(), "A language without fonts gave one");
+
+            rejects(text, "px must be a number from 1 to 1024", "font", mod, 0.5);
+            rejects(text, "px must be a number from 1 to 1024", "font", mod, 1025.0);
+            rejects(text, "px must be a number from 1 to 1024", "font", mod, "20");
+            rejects(text, "the first argument must be a handle", "font", table("name", "text.mod"), 20.0);
+            rejects(text, "key must be what text.font returned", "measure", mod, 20.5, "x");
+            rejects(text, "key must be what text.font returned", "fontHeight", mod, 0.0);
+            rejects(text, "text must be a string", "measure", mod, 20.0, 5.0);
+            rejects(text, "text must be a string", "draw", mod, 20.0, null, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0);
+            rejects(text, "y must be a number", "draw", mod, 20.0, "x", 0.0, Double.NaN, 1.0, 1.0, 1.0, 1.0);
+            rejects(text, "a must be a number from 0 to 1", "draw", mod, 20.0, "x", 0.0, 0.0, 1.0, 1.0, 1.0, 2.0);
+            rejects(text, "r must be a number from 0 to 1", "draw", mod, 20.0, "x", 0.0, 0.0);
+
+            // Korean again at the option 2: measuring and drawing allocate nothing, at a font's size, zoomed, and in the embedded font.
+            ZomboidFileSystem.FILES.putAll(files);
+            Translator.language = new Language("KO");
+            game("media/fonts/KO/1x/zomboid%sKorean.fnt");
+            texts.embedded = new EmbeddedFont.Loaded("test", face, face.chars, 90, 8, ready);
+            GameApi.frame(loader);
+            SizedFonts sized = texts.sized;
+            EmbeddedFont.Loaded own = texts.embedded;
+            try {
+                check(sized.prepare(20, own) && sized.prepare(60, own), "The heights to time had no font");
+                // The fonts read and their pictures found in before the count: the tallest, for the character the embedded font lacks.
+                sized.draw(20, "가나다", 10, 10, 1, 1, 1, 1, own);
+                sized.draw(60, "똠방", 10, 10, 1, 1, 1, 1, own);
+            } catch (Throwable failure) { throw new AssertionError(failure); }
+            TextManager.record = false;
+            long[] time = new long[1];
+            int rounds = 100_000;
+            long bytes;
+            try {
+                bytes = Allocations.median(5, () -> {
+                    long clock = System.nanoTime();
+                    try {
+                        for (int round = 0; round < rounds; round++) {
+                            sized.draw(20, "가나다", 10, 10, 1, 1, 1, 1, own);
+                            sized.measure(20, "가나다", own);
+                            sized.draw(60, "수색", 10, 10, 1, 1, 1, 1, own);
+                            sized.measure(60, "수색", own);
+                            sized.draw(60, "똠방", 10, 10, 1, 1, 1, 1, own);
+                        }
+                    } catch (Throwable failure) { throw new AssertionError(failure); }
+                    time[0] = System.nanoTime() - clock;
+                });
+            } finally { TextManager.record = true; }
+            System.out.printf("text: text.draw and text.measure cost %.0f ns a pair to place at a font's size, about as much zoomed and in the embedded font;"
+                + " %d bytes allocated over %d rounds of five calls%n", time[0] / (double)rounds / 2.5, bytes, rounds);
+            check(bytes < 1024, "Measuring and drawing at a height allocated " + bytes + " bytes");
+        } finally {
+            Translator.language = null;
+            Core.dyslexicFont = false;
+            AngelCodeFont.loadingNew = false;
+            ZomboidFileSystem.FILES.clear();
+            TextManager.instance.reset();
+            texts.embedded = null;
+            GameApi.frame(loader);
+            try (var walk = Files.walk(root)) { for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); }
+        }
+    }
+
+    /** The game's Small, Medium and Large made again from these files ({@code %s} the font's name), as the game does as it starts. */
+    private static void game(String pattern) throws IOException {
+        game(String.format(pattern, "Small"), String.format(pattern, "Medium"), String.format(pattern, "Large"));
+    }
+
+    private static void game(String small, String medium, String large) throws IOException {
+        TextManager.instance.fonts.put(UIFont.Small, new AngelCodeFont(small, null));
+        TextManager.instance.fonts.put(UIFont.Medium, new AngelCodeFont(medium, null));
+        TextManager.instance.fonts.put(UIFont.Large, new AngelCodeFont(large, null));
+    }
+
+    /** A file of the game's, there for its file system by its path. */
+    private static void write(Path root, String path, String content) throws IOException {
+        Path file = root.resolve(path);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+        ZomboidFileSystem.FILES.put(path.toLowerCase(Locale.ENGLISH), file.toString());
+    }
+
+    /** A font's text file: its line's height, every character to Hangul's last, each half its line wide. */
+    private static void fnt(Path root, String path, int height) throws IOException {
+        write(root, path, "info face=\"test\" size=" + height + "\ncommon lineHeight=" + height + " base=" + height * 3 / 4 + "\npztools-test last=" + 0xD7A3
+            + " advance=" + height / 2 + "\n");
+    }
+
+    private static String file(Object font) { return ((AngelCodeFont)font).path.replace('\\', '/'); }
+
+    private static double sizedKey(KahluaTable text, Object mod, double px) {
+        Object key = FormulasTest.call(text, "font", mod, px).get(0);
+        return key == null ? 0 : (Double)key;
+    }
+
+    private static int sizedHeight(KahluaTable text, Object mod, double key) {
+        Object height = FormulasTest.call(text, "fontHeight", mod, key).get(0);
+        return height == null ? 0 : ((Double)height).intValue();
+    }
+
+    private static int sizedWidth(KahluaTable text, Object mod, double key, String words) {
+        return ((Double)FormulasTest.call(text, "measure", mod, key, words).get(0)).intValue();
+    }
+
+    /** What text.draw drew, in white-orange (1, 0.5, 0.25, 1). */
+    private static List<Object[]> sizedDraw(KahluaTable text, Object mod, double key, String words, double x, double y) {
+        TextManager.calls.clear();
+        FormulasTest.call(text, "draw", mod, key, words, x, y, 1.0, 0.5, 0.25, 1.0);
+        return new ArrayList<>(TextManager.calls);
+    }
+
+    private static List<String> names(List<Object[]> calls) {
+        var names = new ArrayList<String>();
+        for (Object[] call : calls) names.add((String)call[0]);
+        return names;
     }
 
     /** The effects, at known moments. */

@@ -20,6 +20,9 @@ import pztools.bridge.ApiHooks;
  *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
  * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing.
+ *
+ * <p>A mod also draws text of its own in its windows at a height in pixels ({@code font}, {@code fontHeight}, {@code measure},
+ * {@code draw}): {@link SizedFonts} chooses and loads the language's font for the height.
  */
 final class Texts implements ApiHooks.Text {
     private static final String AREA = "PZToolsAPI.text.";
@@ -246,6 +249,11 @@ final class Texts implements ApiHooks.Text {
     private float nativeLargest;
     /** The embedded font for large text, or null: the game's fonts draw everything (package-private for the tests). */
     EmbeddedFont.Loaded embedded;
+    // Whether the embedded font's atlas was in video memory as this frame began: text.measure and text.draw choose by it, so that
+    // a text measured and drawn in one frame is in one font.
+    private boolean embeddedReady;
+    /** The fonts of text.font, measure and draw; null in a game this cannot read them in (package-private for the tests). */
+    final SizedFonts sized;
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
     private final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
@@ -318,6 +326,14 @@ final class Texts implements ApiHooks.Text {
         dirty = false;
         // As the Lua environment starts (a loading screen): the language's pack into video memory, or its bake started.
         embedded = faceDraw == null || faceWidth == null ? null : EmbeddedFont.current(loader);
+        embeddedReady = embedded != null && embedded.ready.get();
+        SizedFonts readable;
+        try { readable = new SizedFonts(loader, textManager); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            readable = null;
+            System.err.println("[PzTools API] text: text.font has no fonts in this game: " + unreadable);
+        }
+        sized = readable;
     }
 
     /** Gives the game's interface drawing to this text. Throws a LinkageError in a game whose bootstrap has no text hook. */
@@ -400,6 +416,67 @@ final class Texts implements ApiHooks.Text {
         });
         function(table, "styles", (call, arguments) -> new Object[] { lua.list(List.copyOf(Styles.ALL.keySet())) });
         function(table, "status", (call, arguments) -> new Object[] { status() });
+        // Text a mod draws in its own windows, at a height in pixels: the key is the height.
+        function(table, "font", (call, arguments) -> {
+            owner(arguments, call);
+            Object value = arguments.length > 1 ? arguments[1] : null;
+            if (!(value instanceof Double number) || !(number >= 1 && number <= SizedFonts.MAX))
+                throw new IllegalArgumentException(call + ": px must be a number from 1 to " + SizedFonts.MAX);
+            int px = (int)Math.round(number);
+            try { return new Object[] { sized != null && sized.prepare(px, drawable()) ? (Object)(double)px : null }; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+        function(table, "fontHeight", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            int height;
+            try { height = sized == null ? 0 : sized.height(px); }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+            return new Object[] { height > 0 ? (Object)(double)height : null };
+        });
+        function(table, "measure", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof String words)) throw new IllegalArgumentException(call + ": text must be a string");
+            try { return new Object[] { (double)(sized == null ? 0 : sized.measure(px, words, drawable())) }; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+        function(table, "draw", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof String words)) throw new IllegalArgumentException(call + ": text must be a string");
+            double x = place(arguments, 3, call, "x"), y = place(arguments, 4, call, "y");
+            float red = part(arguments, 5, call, "r"), green = part(arguments, 6, call, "g"), blue = part(arguments, 7, call, "b"), alpha = part(arguments, 8, call, "a");
+            if (sized == null) return Game.NONE;
+            try { sized.draw(px, words, x, y, red, green, blue, alpha, drawable()); }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+            return Game.NONE;
+        });
+    }
+
+    /** The embedded font when it can draw this frame (its atlas was in video memory as the frame began), else null. */
+    private EmbeddedFont.Loaded drawable() { return embeddedReady ? embedded : null; }
+
+    /** A key text.font gave: the height in pixels it was asked for. */
+    private static int sizedKey(Object[] arguments, String call) {
+        Object value = arguments.length > 1 ? arguments[1] : null;
+        if (!(value instanceof Double number) || number != Math.rint(number) || number < 1 || number > SizedFonts.MAX)
+            throw new IllegalArgumentException(call + ": key must be what text.font returned");
+        return number.intValue();
+    }
+
+    /** A place on the screen, in pixels: any number. */
+    private static double place(Object[] arguments, int index, String call, String name) {
+        Object value = index < arguments.length ? arguments[index] : null;
+        if (!(value instanceof Double number) || !Double.isFinite(number)) throw new IllegalArgumentException(call + ": " + name + " must be a number");
+        return number;
+    }
+
+    /** A colour's part, 0 to 1. */
+    private static float part(Object[] arguments, int index, String call, String name) {
+        Object value = index < arguments.length ? arguments[index] : null;
+        if (!(value instanceof Double number) || !(number >= 0 && number <= 1)) throw new IllegalArgumentException(call + ": " + name + " must be a number from 0 to 1");
+        return (float)(double)number;
     }
 
     private String owner(Object[] arguments, String call) throws ReflectiveOperationException {
@@ -852,6 +929,8 @@ final class Texts implements ApiHooks.Text {
 
     /** Each frame, on the game's thread: a world left takes its texts away; what is shown is written for a newer API when it changed. */
     void frame() {
+        EmbeddedFont.Loaded own = embedded;
+        embeddedReady = own != null && own.ready.get();
         try {
             if (moves.moved() && game.cell() != world) {
                 Object cell = game.cell();
