@@ -9,7 +9,9 @@
 > speed points, the survival points, the [hidden zombies](#the-hidden-zombies), the [machines](#machines) and the
 [attached animations](#attached-animations)), the
 > [helicopter](#the-helicopter), the [zombies near a point](#zombies-near-a-point), the [sounds zombies make](#zombie-sounds), the [moodles](#moodles-mechanism) mods
-> define and the [text](#text-mechanism) they show. Planned: `"parallel"`. The first areas serve a separate power
+> define and the [text](#text-mechanism) they show, with the [zombies' hits](#zombie-hits), the [containers](#containers) of buildings,
+> [timers](#timers), [chunk watches](#chunk-watches), [wrapping and fitting text](#wrapping-and-fitting-a-width) and
+> [many shapes at once](#drawing-many-shapes). Planned: `"parallel"`. The first areas serve a separate power
 > and water mod, the formulas the
 > talent mod. The game facts below were read from the
 > bytecode and Lua of Build 42 (7 October 2026); the ones under [measured](#measured-in-the-game)
@@ -36,7 +38,7 @@ nothing and says why.
 | --- | --- |
 | No content | The API speaks the game's terms and neutral ones: squares, buildings, objects, networks, producers, consumers, power, water. It never names a mod's concept and enforces no gameplay rule (how many of anything, how far, what joins what). |
 | Facts and mechanisms | A call reads a game fact, or configures a mechanism that the API runs. The mechanism's policies are parameters chosen by the mod. |
-| Declarative | A mod states what a network contains. It never registers a Lua callback that the game calls per square or per frame; hot questions are answered in Java. |
+| Declarative | A mod states what a network contains. It never registers a Lua callback that the game calls per square or per frame; hot questions are answered in Java. The callbacks the API does call are few and never per square: an event for something rare (a zombie hit, a chunk loaded) or a [timer](#timers) at a period the mod chose, raised from the frame job on the game's thread, with the counting, looking and filtering done in Java. |
 | Independent of chunks | A network works whether or not its squares are loaded. Its state is computed from time, not simulated frame by frame. |
 | Narrow | No general reflection, file or process access. Any Lua mod can call the API, so nothing in it may reach outside the game. |
 | PZ Tools owns the hooks | One owner per vanilla method, so two areas that touch the same class do not conflict. Mods see areas, not hooks. |
@@ -58,7 +60,7 @@ functions are Kahlua `JavaFunction`s, so no class has to be exposed to Lua.
 | `PZToolsAPI.version` | Integer, raised on any incompatible change. A mod refuses a version it was not written for. Now 1. |
 | `PZToolsAPI.hooks()` | A table of the API's hooks in this game, by game class and method (`IsoGridSquare.haveElectricity`): `"applied"`, `"not-loaded"` (its class has not loaded yet; most load with the first world), or why it did not go in. Where a hook is missing, that question gets the game's own answer. |
 | `PZToolsAPI.client(name)` | A handle for one mod; everything it defines belongs to it. `handle:clear()` removes it all. The name is 1 to 64 letters, digits, `_`, `.` or `-`; the same name gives the same handle. |
-| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
+| `buildings`, `networks`, `formulas`, `moodles`, `text`, `zombies`, `helicopter`, `timers`, `chunks`, `draw` | The areas below. Later areas are added as fields; an area a mod does not use is ignored. `moodles`, `text`, `zombies` and `helicopter` are left out, with a line in the game's log, in a game that lacks what they read (`moodles` and `text` also in a game started by an install from before them). |
 
 Functions are called with a dot (`PZToolsAPI.buildings.at(x, y, z)`); a handle's functions with a
 colon (`handle:clear()`). A wrong argument is a Lua error that names the function and the argument.
@@ -161,6 +163,39 @@ attached rooms once, and keeps both, while the world's meta grid and the region 
 objects; `version` counts the changes. It looks each frame and as each call that reads buildings
 starts, so no swap goes unseen (one frame holds one swap). A game whose region data cannot be read
 gives a new `version` at every call, keeps nothing, and has no attached rooms.
+
+### Containers
+
+The containers that world objects hold (shelves, counters, fridges, crates; not a vehicle's trunk, which belongs to no square),
+walked in Java over the loaded squares of a building or around a point, and handed back flat and compact, for a mod that would
+otherwise ask every object of every square for its containers each time it looks
+([`Containers`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Containers.java)).
+
+| Call | Returns |
+| --- | --- |
+| `buildings.containers(key, options)` | `list, complete, stamp, total, opened` for the building named by `key`; `nil, false` for a key that names no building. |
+| `buildings.containersNear(x, y, z, radius, options)` | The same for the squares within `radius` (0 to 32) of `(x, y)` on level `z`, in a box, whether or not they belong to a building. |
+
+`list` is one flat table, 7 values for each container: the game's container (`ItemContainer`), the square's `x`, `y` and `z`, the
+container's type (`"shelves"`, `"counter"`; the game's own string), how many items it holds, and whether the player opened it
+(`isExplored`). A mod reads it with a stride of 7 and makes no table for a container. A container that two squares reach (an object
+that spans them) is listed once. `complete` is false when some of the squares were not loaded (the walk skips them); `total` and
+`opened` count the containers that match the filters, changed since the stamp or not; `stamp` is a number for `options.since`.
+
+| Option | Meaning |
+| --- | --- |
+| `type` | A container type, or a list of up to 16: only those. |
+| `skipClasses` | The name of one of the game's object classes (`"IsoThumpable"`), or a list of up to 16: objects of those classes are left out. A name that is no class of the game is an error. |
+| `skipData` | A mod data key, or a list of up to 16: objects whose mod data has one are left out. |
+| `since` | A `stamp` an earlier call returned for the same question (the same key or square and radius, the same filters): only the containers that changed since, and those that call did not see, are in `list`. A stamp of another question, or one past the last 16 kept, lists everything. |
+| `into` | A table to put the list in. It is written from index 1, with what an earlier call left past the end taken away, so a mod that calls every minute allocates only the numbers. |
+
+The game keeps no change stamp for a container, so a call keeps what it saw: for each container its item count and whether it was
+opened, under the stamp it returns (the last 16 stamps, and only for walks of at most 50,000 containers; the world left drops
+them). `since` lists the containers whose count or flag differ. So an item replaced by another (the same count) is not seen, nor is
+a container that vanished (its square unloaded or the object removed). A mod that needs those keeps its own list and calls without
+`since` now and then. The walk asks each square for its objects once, and each object that has containers for them, through
+handles the compiler builds into the loop: a square with none allocates nothing.
 
 ## Networks (mechanism)
 
@@ -698,6 +733,7 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `ParameterZombieState.setState` | before the store of the new state, which comes after the game's early return for the same state | The new state (from the stack), the zombie and the old state (the parameter's `zombie` and `state`, which the hook reads; a class without them, or with another number of stores of `state` in the method than one, loses the hook) go to the [zombie sounds](#zombie-sounds) while a mod listens. |
 | `ZombieVocalsManager$Slot.playSound` | before the one call of `BaseCharacterSoundEmitter.playVocals` | The zombie's voice starts: the zombie (the method's argument; a method that stores over it loses the hook) goes to the zombie sounds. |
 | `IsoZombie.handleLandingImpact` | the start | A zombie lands from a fall (the zombie's own method, which `DoLand` calls for a landing it counts as a fall): to the zombie sounds. |
+| `IsoZombie.Hit` | after the one call of `IsoGameCharacter.Hit` (the weapon, the wielder, the damage multiplier) that its method makes, whose float result is the damage dealt | A hit the zombie takes: the damage and the arguments (a method that stores over them loses the hook) go to the [zombie hits](#zombie-hits). |
 
 #### Night sight
 
@@ -1006,7 +1042,26 @@ for a hook that did not go in.
 It goes through the zombies the cell holds (`IsoCell.getZombieList()`, the loaded real ones: a zombie that has not been made
 yet is not on it, and nor is one that is dead), once, asking each its position through handles the compiler builds into the
 loop, so that a bigger radius costs no more than the zombies in it, and a zombie that is not near costs a few nanoseconds and
-allocates nothing. The list is bounded: the `limit` nearest are kept as it goes. Other levels are other calls.
+allocates nothing. The list is bounded: the `limit` nearest are kept as it goes. Other levels are other calls, or one call
+with `options.levels`.
+
+`zombies.near(x, y, z, radius, limit, options)` takes a sixth argument, a table that narrows the zombies and adds what the game says
+of each. Without it the call is the one above, unchanged (the zombies in the list carry only `zombie`, `x`, `y`, `z`, `distance`).
+
+| Option | Meaning |
+| --- | --- |
+| `levels` | A list of 1 to 16 whole numbers: zombies on any of those levels (a zombie's level is the floor of its `z`). `z` is then not needed and may be `nil`. |
+| `seenBy` | A player of this machine (as `getPlayer()` gives it). Each zombie in the list then has `seen`: whether the game shows it to that player (the visibility the game keeps for each local player, which a mod cannot read quickly from Lua). |
+| `seen` | `true` or `false`, with `seenBy`: only the zombies the player sees, or does not see. |
+| `targeting` | A character: only the zombies whose target is it. |
+| `hunting` | `true`: only zombies with a target; `false`: only those without. |
+| `crawling` | `true` or `false`: only crawling zombies, or only those that are not. |
+| `state` | The name of one of the game's zombie states (a class of `zombie.ai.states`, with or without `State`: `"LungeState"` or `"Lunge"`), or a list of up to 16: only zombies in one of them. A name that is none is an error. |
+| `into` | A table to put the list in, whose entries are used again, so a call every frame makes no table. |
+
+With any option, each zombie in the list also has `state` (the name of its state's class, or nil), `crawling` and `hunting`
+(booleans), and with `seenBy`, `seen`. The count is of the zombies that match every option. The filters read the game's fields
+through the same handles as the position, so a zombie that fails one costs a few nanoseconds more and allocates nothing.
 
 ### Zombie sounds
 
@@ -1072,6 +1127,85 @@ What a mod listens with is kept in the API table's metatable: a newer API takes 
 one refuses to be called. It belongs to the world it was made in: a world left drops it, and the mods listen again in the next
 (at `OnGameStart`, say). A fault in the frame job stops the zombie sounds alone, once, with a line in the game's log (the hooks are
 given back and `listen` answers 0); a fault in a hook gives the game's method back as it would be, logged once.
+
+### Zombie hits
+
+For a mod that reacts to a wound a zombie takes (counts it, shows it, scores it) instead of following the zombies. The game raises
+`OnHitZombie` for the weapon hits of its own Lua, with the arguments of the swing; this event comes from the zombie's own `Hit`, so
+it covers every hit that reaches the zombie and carries what the game dealt.
+
+| Call | Effect |
+| --- | --- |
+| `zombies.watchHits(handle, on)` | The mod (its handle from `PZToolsAPI.client`) watches hits with `on` true; false or nil stops it, as `handle:clear()` does. Returns whether any mod watches. |
+
+One event, `OnPZToolsZombieHit(zombie, attacker, weapon, part, damage, killed)`, raised through `LuaEventManager` on the game's
+thread at the start of a frame after the hit: the zombie (`IsoZombie`), the attacker (`IsoGameCharacter`, or nil), the weapon as
+the game passed it (`HandWeapon`; nil for a hit with none), the name of the body part the hit was on (`zombie.lastHitPart`'s name,
+such as `"Head"`, or nil), the damage the game dealt as a number, and whether the zombie was dead after it.
+
+The hook is in `IsoZombie.Hit` after the call of `IsoGameCharacter.Hit` that works the damage out and applies it, so `damage` is
+what was dealt, after the game's own reductions, and 0 for a hit that was turned away; and `killed` and `part` are as the hit left
+the zombie. The hook runs on the thread that updates the zombie (see [the sounds](#zombie-sounds)), so it only notes the hit: under a
+lock it writes the five values into a ring of 64 places, written over from its oldest when the frames fall behind, and the frame
+job raises at most 16 events a frame, oldest first. While no mod watches, the bootstrap holds no handler and the hook is one volatile
+read. Who watches belongs to the world: it is kept in the API table's metatable (a newer API takes it over; the function a mod kept
+from an older one refuses to be called), and a world left drops it. A fault in the frame job stops the hits alone, once, with a line
+in the game's log.
+
+### Timers
+
+A Lua function called every so many milliseconds, or so many minutes of the game's time, counted in Java, instead of a handler on
+`OnTick` or `EveryOneMinute` that counts for itself and wakes every frame.
+([`Timers`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Timers.java))
+
+| Call | Effect |
+| --- | --- |
+| `timers.every(handle, spec, fn)` | Calls `fn(id, periods)` every period, from the frame job on the game's thread; returns the timer's `id`. `spec` is `{ ms = 250 }` (1 to 86,400,000 of the interface's real time, which goes on while the game is paused) or `{ minutes = 10 }` (0.01 to 1440 minutes of the world's age, which does not), and optionally `once = true` to call it once and drop it. |
+| `timers.cancel(handle, id)` | Stops the mod's own timer; `true` when there was one. |
+
+The first call comes one period after `every`. A frame with nothing due costs one clock read and a comparison; a timer that falls
+behind (a long frame, a game sped up) is called once, with `periods` saying how many periods it covers, and then goes on in step:
+nothing is called in a burst. A function may make and cancel timers, its own included. A function that fails is reported once in the
+game's log and called again at its next period. A mod has at most 64 timers and all mods 256. The timers belong to the world: leaving
+it drops them, so a mod makes them again at `OnGameStart`. `handle:clear()` stops all of a mod's. They are kept in the API table's
+metatable, where a newer API takes them over at the moment they were at.
+
+### Chunk watches
+
+A Lua function called when the map chunks under an area are loaded, instead of a handler of the game's `LoadChunk` event that is
+called for every chunk and left to find out whether it is one it cares for.
+([`ChunkWatches`](../../src/PzTools.GameBridge.Agent/java/pztools/api/ChunkWatches.java))
+
+| Call | Effect |
+| --- | --- |
+| `chunks.watch(handle, area, fn, options)` | Calls `fn(id, kind, x, y)` for each chunk under `area` that is loaded, and returns the watch's `id`. `area` is `{ x, y, w, h }` in squares (`w` and `h` 1 when left out, at most 4096, covering at most 256 chunks). `kind` is `"load"` (or `"unload"`); `x` and `y` are the chunk's first square (a multiple of 8). |
+| `chunks.unwatch(handle, id)` | Stops the mod's own watch; `true` when there was one. |
+
+Options: `unload = true` also calls `fn` with `"unload"` when a chunk is let go (default false); `current = false` leaves out the chunks
+that are loaded when the watch is made (default true: they are told as loads, at the next frame). A chunk is loaded when the cell finds
+it and its `loaded` flag is set. The frame job looks at the watched chunks, and only those, ten times a second (one lookup each in
+the game's chunk maps and a read of the flag): a watch of a hundred chunks costs a few microseconds a look, and none costs a check
+of an empty list. A chunk reloaded between two looks is a new chunk: an unload (if asked) and a load. At most 64 calls are made a frame;
+the rest are called in the next frames, none lost. A mod has at most 32 watches and all mods 128. Watches belong to the world and are
+kept in the API table's metatable like the timers.
+
+### Drawing many shapes
+
+For the interface that draws hundreds of rectangles or quads a frame (a ring of dashes, a graph, a grid) and would make a Lua call
+for each. The shapes are in one flat table of numbers, read by the call without allocating, and drawn as the game draws them from
+a window's `prerender`, `render` or `postrender`.
+([`Quads`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Quads.java))
+
+| Call | Effect |
+| --- | --- |
+| `draw.rects(element, list, count)` | Draws `count` rectangles (as many as `list` holds when `count` is left out; at most 16,384): 8 numbers each, `x, y, w, h, r, g, b, a`, in the element's own pixels, as `drawRect` takes them (the colour parts 0 to 1). |
+| `draw.quads(element, texture, list, count)` | Draws `count` quads of the texture: 12 numbers each, the four corners `x1, y1, x2, y2, x3, y3, x4, y4` in the screen's pixels and `r, g, b, a`, as `UIElement:DrawTexture` takes them. |
+
+`element` is a window of the game's interface (or its `javaObject`). A rectangle is placed like `DrawTextureScaledColor`: at the
+element's place plus its scroll, in whole pixels (cut), skipped when above the screen or below 4096 pixels; nothing is drawn for a
+hidden element. The element's place is asked once for the call, not once for each rectangle. Every number is checked before
+anything is drawn: a bad one (not a number, infinite, NaN) is a Lua error naming its place (`list[12] must be a number`) and no
+shape is drawn. The numbers are read into a buffer kept between calls, so a call allocates nothing for the shapes.
 
 ## Moodles (mechanism)
 
@@ -1265,6 +1399,8 @@ which override the jar's; it overrides none of the text classes):
 | `text.fontHeight(handle, key)` | The line's height to lay out with, as `getFontHeight` is for the game's fonts. |
 | `text.measure(handle, key, text)` | The text's width in pixels, as `MeasureStringX` is. |
 | `text.draw(handle, key, text, x, y, r, g, b, a)` | Draws the text at screen pixels from a window's `prerender` or `render`, as `drawText` would. |
+| `text.wrap(handle, font, text, width)` | `lines, widest`: the text broken into lines no wider than `width` pixels in a font; see [wrapping and fitting a width](#wrapping-and-fitting-a-width). |
+| `text.fit(handle, font, text, width, ellipsis)` | `fitted, cut`: the text cut to `width` pixels with an ellipsis; the same section. |
 
 `show`'s spec; every field but `text` may be left out:
 
@@ -1682,6 +1818,33 @@ changes once, as the atlas arrives just after a Lua environment starts.
 **The cost.** `measure` and `draw` look the choice up by the height (an array) and compare the game's `Small` with the one the
 list was made for; they allocate nothing beyond what Kahlua's call does. The embedded font's check of the characters is one pass
 over the text, as the measuring is.
+
+### Wrapping and fitting a width
+
+Laying out text in a window (a caption in a box, a list of names in a column) needs the same two answers every frame: where a
+text breaks into lines of a width, and how much of a line fits with an ellipsis. Asked a character at a time from Lua, each costs a
+measure per word; `text.wrap` and `text.fit` do it in Java and keep the answer
+([`TextFits`](../../src/PzTools.GameBridge.Agent/java/pztools/api/TextFits.java)).
+
+| Call | Returns |
+| --- | --- |
+| `text.wrap(handle, font, text, width)` | `lines, widest`: a list of the text's lines, none wider than `width` pixels (1 to 100,000), and the width of the widest. |
+| `text.fit(handle, font, text, width, ellipsis)` | `fitted, cut`: the text when it fits, else its beginning and the ellipsis (`"..."` when left out; at most 8 characters), the most characters that go with the ellipsis within `width`, and `true` when it was cut. Only the first line of a text with `\n` is taken. When not even the ellipsis fits, `fitted` is empty. |
+
+`font` is what `text.font` returned (a font at a height, from the language's own fonts or the embedded font, measured as
+`text.measure` is) or the name of one of the game's `UIFont`s (`"Small"`, `"Large"`), measured as `MeasureStringX` is. A font the API
+cannot measure (a key, in a game with no fonts for the language) gives nil. `text` is a string of at most 8192 characters.
+
+The breaking is the one `text.show` uses for its `width`: at `\n` (an empty paragraph is an empty line); before a word that follows spaces
+(the spaces at the break are dropped, those inside a row stay); between two characters of the scripts written without spaces (Han,
+kana, full-width forms), but not beside a space; and for a word alone wider than a row, after as many of its characters as fit, one at
+least (a pair of surrogates is one character). There is no hyphenation. A text that makes more than 512 lines is an error.
+
+The answers are kept for the last 512 calls (the owner, the font, the width, which call, the ellipsis and the text are the key), so a
+mod that lays out the same text each frame measures it once. A kept answer is measured again when the game makes its fonts again (the
+font size option) or the embedded font becomes ready, since the key then names another font. The list in `lines` is the kept one, the
+same table every time: a mod reads it and does not change it. `handle:clear()` drops what the mod's calls kept. A call that is not
+kept costs about one measure for each word; one that is, a hash lookup and the arguments.
 
 ### A mod's use
 
