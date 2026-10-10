@@ -4,8 +4,8 @@
 -- bin opened in the loot window, a part put in, swapped or taken out with a timed action, the water poured or moved,
 -- the lure taken back or cleared).
 -- The window is the game's and in pixels; its body is ours, in design units and our faces (Trade/UI.lua), and grows
--- with the scale. A body taller than the screen allows (the saw's three parts at 900p) scrolls in a window kept to
--- nine tenths of the screen.
+-- with the scale. A machine with parts is wide, in two columns (WindowLayout.lua), so that no kind is taller than the
+-- screen allows; a body that still is (a huge font) scrolls in a window kept to nine tenths of the screen.
 -- An open window reads the machine a few times a second (WindowModel.read: the status once), lays it out again only
 -- when what it shows changed (WindowLayout), and each frame only paints that list. Nothing runs when it is closed.
 -- It opens as the terminal's tabs do after its boot: the body fades in from black (usable through it).
@@ -180,7 +180,7 @@ function OAMachineWindow:createChildren()
         if b then b:setVisible(false) end
     end
     UI.closeBox(self, p)
-    self.body = OAMachineBody:new(0, UI.dp(self:titleBarHeight()), Layout.WIDTH, 100, self)
+    self.body = OAMachineBody:new(0, UI.dp(self:titleBarHeight()), Layout.widthOf(self.kind), 100, self)
     self.body:initialise()
     self:addChild(self.body)
     self:refresh(true)
@@ -201,7 +201,7 @@ function OAMachineWindow:refresh(force)
     if not force and key == self.key then return end
     self.key = key
     local L = Draw.list(self.palette)
-    local h = Layout.build(L, model, Layout.WIDTH)
+    local h = Layout.build(L, model, Layout.widthOf(model.kind))
     Draw.bake(L)
     local body = self.body
     body.list, body.contentH = L, h
@@ -403,7 +403,7 @@ end
 
 function OAMachineWindow:new(x, y, character, object)
     local state = Machines.state(object)
-    local o = ISCollapsableWindow:new(x, y, UI.px(Layout.WIDTH), 200)
+    local o = ISCollapsableWindow:new(x, y, UI.px(Layout.widthOf(state.kind)), 200)
     setmetatable(o, self)
     self.__index = self
     o.palette = UI.palette("field")
@@ -429,7 +429,7 @@ function OAMachineWindow.open(character, object)
     local old = OAMachineWindow.windows[state.id]
     if old then old:close() end
     UI.refreshScale()
-    local width = UI.px(Layout.WIDTH)
+    local width = UI.px(Layout.widthOf(state.kind))
     local window = OAMachineWindow:new((getCore():getScreenWidth() - width) / 2, 0, character, object)
     window:initialise()
     window:addToUIManager()
