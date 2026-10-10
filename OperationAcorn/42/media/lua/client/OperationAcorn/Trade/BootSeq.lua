@@ -1,7 +1,8 @@
 -- The terminal window's boot sequence (DESIGN-terminal 12): the timing and the state of it, with no drawing and no
 -- game calls (Trade/TerminalBoot draws it, Trade/TerminalWindow runs it). Every open the window body is black and
 -- console lines print one at a time; then the content collapses into a bright line that shrinks to a dot (the switch-off
--- of a tube), and the tabs fade in from black. The first open of a field terminal is the long version, with a few more
+-- of a tube), and the tabs fade in from black. Each check line prints its words, a cursor blinks after them, and then
+-- what it ends with stands where the cursor was. The first open of a field terminal is the long version, with a few more
 -- self-test lines; the crude terminal reads rougher (an extra line, garbled letters that settle, a flicker). It plays on
 -- every open, slow enough to be read; a click or a key skips the console. Nothing is saved.
 --
@@ -16,11 +17,12 @@ OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 
--- The console: a black beat, a line every `step`, a beat more before the welcome, and `hold` after it before the
--- switch-off. The long one is the first open of a field terminal.
-Seq.SHORT = { black = 300, step = 300, hold = 800 }
-Seq.LONG = { black = 400, step = 300, hold = 1000 }
-Seq.WELCOME_MS = 350
+-- The console: a black beat, then each line: its words, the cursor blinking WAIT_MS (the crude terminal's weak signal
+-- WEAK_WAIT_MS), what it ends with, GAP_MS to the next line; a beat more before the welcome, and `hold` after it
+-- before the switch-off. The long one is the first open of a field terminal. The cursor is on and off BLINK_MS each.
+Seq.SHORT = { black = 400, hold = 1200 }
+Seq.LONG = { black = 500, hold = 1400 }
+Seq.WAIT_MS, Seq.WEAK_WAIT_MS, Seq.GAP_MS, Seq.WELCOME_MS, Seq.BLINK_MS = 700, 1800, 250, 600, 175
 -- The switch-off and the fade-in. The tabs are usable as soon as the fade starts.
 Seq.COLLAPSE_MS, Seq.FADE_MS = 280, 350
 -- The share of the switch-off the content takes to become the line (the rest is the line shrinking to a dot).
@@ -32,7 +34,7 @@ local LINES = {
     check = { key = "IGUI_OA_Boot_Check", status = "IGUI_OA_Boot_Normal" },
     storage = { key = "IGUI_OA_Boot_Storage", status = "IGUI_OA_Boot_Normal" },
     clock = { key = "IGUI_OA_Boot_Clock", status = "IGUI_OA_Boot_Done" },
-    weak = { key = "IGUI_OA_Boot_Weak", status = "IGUI_OA_Boot_Done" },
+    weak = { key = "IGUI_OA_Boot_Weak", status = "IGUI_OA_Boot_Done", weak = true },
     link = { key = "IGUI_OA_Boot_Link", status = "IGUI_OA_Boot_Done" },
     server = { key = "IGUI_OA_Boot_Server", status = "IGUI_OA_Boot_Done" },
     point = { key = "IGUI_OA_Boot_Point", status = "IGUI_OA_Boot_Done", number = true },
@@ -63,17 +65,39 @@ function Seq.new(first, crude)
     local run = { first = first and true or false, crude = crude and true or false }
     local t = first and Seq.LONG or Seq.SHORT
     run.lines = Seq.lines(first, crude)
-    run.black, run.step = t.black, t.step
-    run.consoleEnd = Seq.appearAt(run, #run.lines) + t.hold
+    -- when each line appears and when what it ends with replaces the cursor (ms after the start)
+    run.at, run.statusAt = {}, {}
+    local now = t.black
+    for i, line in ipairs(run.lines) do
+        if line.status then
+            run.at[i] = now
+            run.statusAt[i] = now + (line.weak and Seq.WEAK_WAIT_MS or Seq.WAIT_MS)
+            now = run.statusAt[i] + Seq.GAP_MS
+        else
+            run.at[i] = now - Seq.GAP_MS + Seq.WELCOME_MS
+            run.statusAt[i] = run.at[i]
+            now = run.at[i]
+        end
+    end
+    run.consoleEnd = run.at[#run.lines] + t.hold
     run.collapse = Seq.COLLAPSE_MS
     run.fadeAt = run.consoleEnd + run.collapse
     run.endAt = run.fadeAt + Seq.FADE_MS
     return run
 end
 
--- When line i appears (ms after the start).
+-- When line i appears, and when what it ends with stands in place of the cursor (ms after the start).
 function Seq.appearAt(run, i)
-    return run.black + (i - 1) * run.step + (run.lines[i].bright and Seq.WELCOME_MS or 0)
+    return run.at[i]
+end
+
+function Seq.statusAt(run, i)
+    return run.statusAt[i]
+end
+
+-- Whether the cursor shows `age` ms after its line appeared (it starts on).
+function Seq.cursorOn(age)
+    return floor(age / Seq.BLINK_MS) % 2 == 0
 end
 
 -- The phase `now` is in: "console" (and how many lines are printed), "collapse", "fade" (usable) or "done"; how far

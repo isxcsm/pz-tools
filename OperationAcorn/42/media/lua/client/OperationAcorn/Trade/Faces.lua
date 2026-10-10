@@ -1,7 +1,8 @@
 -- The faces our windows' texts are drawn in (Trade/UI.lua's rule block): a face is one of the game's font names
 -- (UIFont.Small, Medium, Large) at the scale now. With the extension API's UI fonts (PZToolsAPI.text) a face is the
 -- API's font of the name's design height times the scale (Small 16, Medium 20, Large 24 design units: 32, 40 and 48
--- pixels at 1080p), whatever the game's font option says; without them it is the game's own font of that name, as the
+-- pixels at 1080p; Massive 32, for a title, only through UI.titleFont: the game's Massive has no Korean letters),
+-- whatever the game's font option says; without them it is the game's own font of that name, as the
 -- font option made it. This file only finds the faces, measures and draws with them; UI.lua decides the scale and
 -- where a text goes.
 --
@@ -111,7 +112,7 @@ local scale = 1
 function Faces.build(s, useApi)
     if not designed then
         designed = true
-        design("Small", 16); design("Medium", 20); design("Large", 24)
+        design("Small", 16); design("Medium", 20); design("Large", 24); design("Massive", 32)
         design("NewSmall", 16); design("NewMedium", 20); design("NewLarge", 24)
     end
     scale = s

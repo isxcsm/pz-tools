@@ -45,6 +45,12 @@ UI.S = 1
 -- the old ones).
 UI.era = 0
 UI.facesOn = false
+
+-- The face for a screen's one big line (a welcome, a title): the API's Massive (32 design units) while our faces are
+-- on, the game's Large otherwise (the game's Massive has no Korean letters).
+function UI.titleFont()
+    return UI.facesOn and UIFont.Massive or UIFont.Large
+end
 -- The scale as a local too: the drawing below reads it on every call. `on`: whether our classes convert (a scale that
 -- is not 1, or the API's faces, which only our classes draw).
 local S = 1

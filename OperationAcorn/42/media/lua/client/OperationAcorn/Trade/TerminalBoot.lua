@@ -1,5 +1,6 @@
 -- The console of the terminal window's boot sequence (DESIGN-terminal 12, Trade/BootSeq): a black panel over the strip
--- and the body, the lines printed one at a time with their dotted leaders, then the switch-off. The window owns the
+-- and the body, the lines printed one at a time (the words, a blinking cursor, then what the line ends with), then
+-- the switch-off. The window owns the
 -- run and takes this panel off when the fade-in starts (the fade itself is drawn by the window, over its tabs, so
 -- that the tabs are usable through it). A click or a key skips it.
 require "ISUI/ISPanel"
@@ -13,12 +14,11 @@ local BLACK = { 0, 0, 0 }
 
 OATerminalBoot = ISPanel:derive("OATerminalBoot")
 
--- The widest the lines go, the gap between rows, and the extra gap above the welcome, in design units. The welcome is
--- in a larger face, centred under the lines.
-OATerminalBoot.WIDTH = 380
-OATerminalBoot.ROW_GAP = 5
+-- The face of the lines (the welcome is in UI.titleFont), the gap between rows, the extra gap above the welcome (design
+-- units).
+OATerminalBoot.FONT = UIFont.Large
+OATerminalBoot.ROW_GAP = 6
 OATerminalBoot.LAST_GAP = 16
-OATerminalBoot.WELCOME_FONT = UIFont.Large
 -- The bright line's thickness and the dot's width.
 OATerminalBoot.LINE = 2
 OATerminalBoot.DOT = 4
@@ -35,55 +35,60 @@ function OATerminalBoot:new(x, y, width, height, window, run)
     return o
 end
 
--- The rows, worked out when the panel is laid out (the words, the dotted leader that fills the room between a row's
--- words and what it ends with, and where each goes): the leaders are measured in the face, so that what each row ends
--- with stands at the same column.
+-- The rows, worked out when the panel is laid out: the words, where what the line ends with (and the cursor before
+-- it) stands, and the row's place; the block is as wide as its widest row and stands in the middle.
 function OATerminalBoot:layout()
     if self.laidW == self.width and self.laidH == self.height then return end
-    local fh = UI.fontHeight()
-    local gap = UI.spaceWidth()
-    local bw = math.min(OATerminalBoot.WIDTH, self.width - 40)
+    local font = OATerminalBoot.FONT
+    local fh = UI.fontHeight(font)
+    local gap = UI.spaceWidth(font)
     local rowH = fh + OATerminalBoot.ROW_GAP
-    local rows = {}
+    local rows, bw = {}, 0
     for i, line in ipairs(self.run.lines) do
         local row = { text = getText(line.key, self.number), bright = line.bright }
-        if line.status then
-            row.status = getText(line.status)
-            local room = bw - UI.textWidth(row.text) - UI.textWidth(row.status) - gap * 2
-            local dot = math.max(1, UI.textWidth("."))
-            local n = math.max(0, math.floor(room / dot))
-            while n > 0 and UI.textWidth(string.rep(".", n)) > room do n = n - 1 end
-            row.leader = string.rep(".", n)
-            row.leaderX = UI.textWidth(row.text) + gap
+        local w
+        if line.bright then
+            w = UI.textWidth(row.text, UI.titleFont())
+            row.h = UI.fontHeight(UI.titleFont())
+        else
+            row.status = line.status and getText(line.status) or nil
+            row.statusX = UI.textWidth(row.text, font) + gap
+            w = row.statusX + (row.status and UI.textWidth(row.status, font) or 0)
+            row.h = fh
         end
+        bw = math.max(bw, w)
         row.y = (i - 1) * rowH + (line.bright and OATerminalBoot.LAST_GAP or 0)
-        row.h = line.bright and UI.fontHeight(OATerminalBoot.WELCOME_FONT) or fh
         rows[i] = row
     end
     local last = rows[#rows]
     self.rows = rows
     self.fh = fh
+    self.cursorW = math.max(2, math.floor(fh * 0.45))
     self.blockH = last and last.y + last.h or 0
-    self.bx = math.floor((self.width - bw) / 2)
-    self.bw = bw
+    self.bw = math.min(bw, self.width - 40)
+    self.bx = math.floor((self.width - self.bw) / 2)
     self.by = math.max(0, math.floor((self.height - self.blockH) / 2))
     self.skipText = self.run.first and getText("IGUI_OA_Status_Boot_Skip") or nil
     self.laidW, self.laidH = self.width, self.height
 end
 
--- One row at y, in the palette: the words, the leader dim, what it ends with in the value colour; the last line
--- bright. `a` the brightness, `age` ms since the row appeared (the crude terminal's letters settle).
-function OATerminalBoot:drawRow(row, i, y, a, age)
+-- One row at y, in the palette: the words, then the cursor while it blinks or what the line ends with in the value
+-- colour; the welcome bright, larger and centred. `a` the brightness, `age` ms since the row appeared, `ended` whether
+-- what it ends with is up.
+function OATerminalBoot:drawRow(row, i, y, a, age, ended)
     local p = self.window.palette
     local text = row.text
     if self.run.crude then text = Seq.garble(text, i, age) end
     if row.bright then
-        UI.textCentre(self, text, self.bx + self.bw / 2, y, p.bright, OATerminalBoot.WELCOME_FONT, a)
+        UI.textCentre(self, text, self.bx + self.bw / 2, y, p.bright, UI.titleFont(), a)
         return
     end
-    UI.text(self, text, self.bx, y, p.text, nil, a)
-    UI.text(self, row.leader, self.bx + row.leaderX, y, p.dim, nil, a)
-    UI.textRight(self, row.status, self.bx + self.bw, y, p.value, nil, a)
+    UI.text(self, text, self.bx, y, p.text, OATerminalBoot.FONT, a)
+    if ended then
+        if row.status then UI.text(self, row.status, self.bx + row.statusX, y, p.value, OATerminalBoot.FONT, a) end
+    elseif Seq.cursorOn(age) then
+        UI.fill(self, self.bx + row.statusX, y + self.fh * 0.12, self.cursorW, self.fh * 0.76, p.text, a)
+    end
 end
 
 function OATerminalBoot:prerender()
@@ -103,7 +108,7 @@ function OATerminalBoot:prerender()
         for i = 1, shown do
             local row = self.rows[i]
             local y = cy + (self.by + row.y + row.h / 2 - cy) * k - row.h / 2
-            self:drawRow(row, i, y, a * k, 1e9)
+            self:drawRow(row, i, y, a * k, 1e9, true)
         end
         self:clearStencilRect()
         local w = math.max(OATerminalBoot.DOT, self.width * lineW)
@@ -111,10 +116,10 @@ function OATerminalBoot:prerender()
         return
     end
     for i = 1, shown do
-        self:drawRow(self.rows[i], i, self.by + self.rows[i].y, a, e - Seq.appearAt(run, i))
+        self:drawRow(self.rows[i], i, self.by + self.rows[i].y, a, e - Seq.appearAt(run, i), e >= Seq.statusAt(run, i))
     end
     if self.skipText then
-        UI.textRight(self, self.skipText, self.width - 8, self.height - self.fh - 6, p.dim, nil, a)
+        UI.textRight(self, self.skipText, self.width - 8, self.height - UI.fontHeight() - 6, p.dim, nil, a)
     end
 end
 
