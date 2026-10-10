@@ -53,7 +53,7 @@ final class TextsTest {
             check(text != null, "The API has no text");
             UIManager.getToolTip();
             check(ApiHooks.APPLIED.equals(FormulasTest.call(text, "status").get(0)), "The text hook is " + FormulasTest.call(text, "status").get(0));
-            check(List.of("stamp", "discovery", "notice").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
+            check(List.of("stamp", "discovery", "notice", "dust").equals(list(FormulasTest.call(text, "styles").get(0))), "The styles are wrong");
             useClock();
             Object mod = FormulasTest.call(api, "client", "text.mod").get(0), other = FormulasTest.call(api, "client", "other.mod").get(0);
             idle();
@@ -74,6 +74,7 @@ final class TextsTest {
             typingCost(text, mod);
             takeover(api, text, mod);
             takeoverTyped(api, text, mod);
+            DustTest.run(api, text, mod);
             System.out.println("PASS: text a mod shows is drawn with the interface, zoomed, faded and moved on each player's screen; titles follow one another; text types, fits a width and carries colours");
         } finally {
             System.arraycopy(before, 0, IsoPlayer.players, 0, before.length);

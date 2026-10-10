@@ -18,15 +18,20 @@ import pztools.bridge.ApiHooks;
  * to a width. {@link Script} reads its markup once, when it is shown, and {@link Layout} breaks it into rows once for each screen's
  * size and font; each frame then only compares the clock with the time of each character.
  *
+ * <p>A text that leaves as dust ({@code leave = "dust"}) is drawn once into a picture of its own as it stands still, and then
+ * breaks into cells of that picture that drift away, swept across it ({@link Dust}); without the game's frame buffers it fades.
+ *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
- * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing.
+ * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing (the dust
+ * queues a little for the render thread).
  *
  * <p>A mod also draws text of its own in its windows at a height in pixels ({@code font}, {@code fontHeight}, {@code measure},
  * {@code draw}): {@link SizedFonts} chooses and loads the language's font for the height.
  */
 final class Texts implements ApiHooks.Text {
     private static final String AREA = "PZToolsAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pztools-texts 2", FORMAT_BEFORE_TYPING = "pztools-texts 1", GENERATION = "textsGeneration", HANDOVER = "textsHandover";
+    private static final String MIRROR = "texts", FORMAT = "pztools-texts 3", FORMAT_BEFORE_DUST = "pztools-texts 2", FORMAT_BEFORE_TYPING = "pztools-texts 1",
+        GENERATION = "textsGeneration", HANDOVER = "textsHandover";
     /** The hook that draws, as {@code PZToolsAPI.hooks()} names it. */
     static final String HOOK = "UIManager.render:text";
     static final int PLAYERS = 4, MAX_LINES = 8, MAX_LENGTH = 512, MAX_PER_MOD = 64, MAX_ALL = 256, MAX_WAITING = 8;
@@ -34,6 +39,10 @@ final class Texts implements ApiHooks.Text {
     // Typing: the characters a second (DEFAULT_SPEED when left out), the narrowest width to fit, the longest pause, the longest a
     // text may take to type, and the time a cursor is on, and then off.
     static final double DEFAULT_SPEED = 30, MAX_SPEED = 1000, MIN_WIDTH = 0.05, MAX_PAUSE = 30, MAX_TYPING = 300, BLINK = 0.5;
+    // Dust: the size of its cells and the reach of its drift, as shares of the default.
+    static final double MIN_DUST_SIZE = 0.25, MAX_DUST_SIZE = 8, MAX_DUST_DRIFT = 4;
+    // Frames a picture let go from the render queue is given before it is let go on the render thread's own turn.
+    private static final int BURIAL_FRAMES = 120;
     private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("[0-9]{1,4}(\\.[0-9]{1,3})?");
     private static final java.util.regex.Pattern HEX = java.util.regex.Pattern.compile("[0-9A-Fa-f]{6}");
     private static final String CURSOR = "_";
@@ -47,7 +56,7 @@ final class Texts implements ApiHooks.Text {
     enum Enter { NONE, FADE, POP, SLAM, RISE, DROP, TYPE }
 
     /** How it goes. */
-    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK }
+    enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK, DUST }
 
     private static final Map<String, Integer> ALIGN = Map.of("left", -1, "center", 0, "right", 1);
     private static final String[] ALIGN_NAMES = { "left", "center", "right" };
@@ -100,6 +109,10 @@ final class Texts implements ApiHooks.Text {
         Object face;
         Object coveredBy;
         boolean covered;
+        // Dust: its cells' size and its drift (shares of the default), the way its front goes; its piece on each screen.
+        double dustSize = 1, dustDrift = 1;
+        Dust.Sweep dustSweep = Dust.Sweep.RIGHT;
+        Dust.Piece[] pieces;
 
         Shown(String owner, long key) { this.owner = owner; this.key = key; }
     }
@@ -264,6 +277,22 @@ final class Texts implements ApiHooks.Text {
     private long generation;
     /** The clock the effects run on (System.nanoTime: the interface's time, which goes on while the game is paused); for the tests. */
     java.util.function.LongSupplier clock = System::nanoTime;
+    /** The game's frame buffers and sprites for dust, or null: dust fades (package-private for the tests). */
+    Dust.Gl dust;
+    // The texts' pieces of dust that hold a picture, or will; and the pictures to let go, from the render queue at the next drawing.
+    private final ArrayList<Dust.Piece> pieces = new ArrayList<>();
+    private final ArrayList<Grave> dying = new ArrayList<>();
+
+    /** A picture to let go: queued with the sprites once, then let go on the render thread's turn should the queue have lost it. */
+    static final class Grave {
+        final Runnable destroy;
+        Object drawer;
+        int frames = -1;
+
+        Grave(Runnable destroy, Object drawer) { this.destroy = destroy; this.drawer = drawer; }
+
+        boolean done() { return destroy instanceof Dust.Piece piece && piece.destroyed.get(); }
+    }
 
     Texts(Kahlua lua, Game game, ClassLoader loader, Object meta, Networks.Owners owners) throws ReflectiveOperationException {
         this.lua = lua;
@@ -321,6 +350,9 @@ final class Texts implements ApiHooks.Text {
                 System.err.println("[PzTools API] text: the earlier API did not hand it over: " + failure);
             }
         }
+        dust = Dust.Gl.open(loader);
+        // The pictures the API before this one held: let go from this one's drawing, after what that one drew.
+        for (Runnable destroy : Dust.orphans()) dying.add(new Grave(destroy, null));
         world = game.cell();
         load(lua.get(meta, MIRROR));
         dirty = false;
@@ -511,6 +543,7 @@ final class Texts implements ApiHooks.Text {
      * Reads a text's spec, its fields named under {@code prefix} in the messages; a field the call does not take is a Lua error.
      */
     private void read(Shown text, Object spec, String call, String prefix) throws ReflectiveOperationException {
+        String dusty = null;
         for (var entry : lua.entries(spec)) {
             if (!(entry.getKey() instanceof String field)) throw new IllegalArgumentException(call + ": " + prefix + " has a field that is not a name");
             Object value = entry.getValue();
@@ -555,16 +588,28 @@ final class Texts implements ApiHooks.Text {
                 case "width" -> text.width = number(value, call, name, MIN_WIDTH, 1);
                 case "speed" -> text.speed = number(value, call, name, 1, MAX_SPEED);
                 case "cursor" -> text.cursor = flag(value, call, name);
+                case "dustSize", "dustSweep", "dustDrift" -> { dust(text, field, value, call, name); dusty = field; }
                 default -> throw new IllegalArgumentException(call + ": " + prefix + " has no field " + field + "; it takes text, font, scale, size,"
                     + " color, x, y, align, shadow, outline, outlineColor, delay, enter, enterTime, hold, leave, leaveTime, player, queue,"
-                    + " markup, width, speed and cursor");
+                    + " markup, width, speed, cursor, dustSize, dustSweep and dustDrift");
             }
         }
         if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
             throw new IllegalArgumentException(call + ": " + prefix + ".speed and " + prefix + ".cursor go with " + prefix + ".enter = \"type\"");
+        if (dusty != null && text.leave != Leave.DUST)
+            throw new IllegalArgumentException(call + ": " + prefix + "." + dusty + " goes with " + prefix + ".leave = \"dust\"");
         if (text.source != null) compose(text, call, prefix);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
+    }
+
+    /** One of the dust's fields: the cells' size and the drift as shares of the default, the way the front goes. */
+    private static void dust(Shown text, String field, Object value, String call, String name) {
+        switch (field) {
+            case "dustSize" -> text.dustSize = number(value, call, name, MIN_DUST_SIZE, MAX_DUST_SIZE);
+            case "dustDrift" -> text.dustDrift = number(value, call, name, 0, MAX_DUST_DRIFT);
+            default -> text.dustSweep = effect(Dust.Sweep.class, value, call, name);
+        }
     }
 
     private static boolean flag(Object value, String call, String name) {
@@ -757,14 +802,74 @@ final class Texts implements ApiHooks.Text {
         if (shown.removeIf(text -> text.owner.equals(owner))) { publish(); dirty = true; }
     }
 
-    private void publish() { drawn = shown.toArray(new Shown[0]); }
+    private void publish() {
+        drawn = shown.toArray(new Shown[0]);
+        // A text gone lets its dust's pictures go.
+        for (int index = pieces.size() - 1; index >= 0; index--) {
+            Dust.Piece piece = pieces.get(index);
+            if (piece.owner.done || !shown.contains(piece.owner)) letGo(piece);
+        }
+    }
+
+    // ---- dust ----
+
+    /** The text's piece of dust on the screen, made the first time it is asked for. */
+    private Dust.Piece piece(Shown text, int screen) {
+        if (text.pieces == null) text.pieces = new Dust.Piece[PLAYERS];
+        Dust.Piece piece = text.pieces[screen];
+        if (piece == null) {
+            long seed = text.key * 0x9E3779B97F4A7C15L ^ (long)screen << 40 ^ String.join("\n", text.lines).hashCode();
+            piece = text.pieces[screen] = new Dust.Piece(text, screen, seed);
+            pieces.add(piece);
+        }
+        return piece;
+    }
+
+    /** The piece is no longer needed: its picture goes, from the render queue at the next drawing. The text fades if it still shows. */
+    private void letGo(Dust.Piece piece) {
+        pieces.remove(piece);
+        piece.released = true;
+        if (piece.texture != null) dying.add(new Grave(piece, piece.burial));
+    }
+
+    /**
+     * At the start of the interface's drawing: the pictures let go are queued with the sprites, after the frames that drew them
+     * (a picture is not drawn in the frame it is let go).
+     */
+    private void bury() throws Throwable {
+        Dust.Gl gl = dust;
+        for (int index = 0; index < dying.size(); index++) {
+            Grave grave = dying.get(index);
+            if (grave.frames >= 0) continue;
+            grave.frames = 0;
+            if (gl == null) continue;
+            if (grave.drawer == null) grave.drawer = gl.drawer(grave.destroy);
+            gl.buryDrawer(grave.drawer);
+        }
+    }
+
+    /** Each frame: a picture its queue let go is forgotten; one the queue lost (or never drew) is let go on the render thread. */
+    private void graves() {
+        for (int index = dying.size() - 1; index >= 0; index--) {
+            Grave grave = dying.get(index);
+            if (grave.done()) { dying.remove(index); continue; }
+            if (grave.frames < 0 || ++grave.frames < BURIAL_FRAMES) continue;
+            dying.remove(index);
+            Dust.Gl gl = dust;
+            try { if (gl != null) gl.onRenderThread(grave.destroy); }
+            catch (Throwable failure) { if (!reported) System.err.println("[PzTools API] text: " + failure); reported = true; }
+        }
+    }
 
     // ---- titles ----
 
     /** The styles of {@code text.title}: how the title and the line under it look and move. */
     static final class Styles {
-        /** One style: the title's text and the line's, as specs of {@code show}. */
-        record Style(Map<String, Object> title, Map<String, Object> line, double gap) { }
+        /**
+         * One style: the title's text and the line's, as specs of {@code show}; the gap between them in the title's lines, and how
+         * many seconds after the title the line starts to leave.
+         */
+        record Style(Map<String, Object> title, Map<String, Object> line, double gap, double trail) { }
 
         static final Map<String, Style> ALL = new LinkedHashMap<>();
 
@@ -778,7 +883,7 @@ final class Texts implements ApiHooks.Text {
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.045), Map.entry("color", List.of(0.88, 0.88, 0.88, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.2), Map.entry("enter", "fade"), Map.entry("enterTime", 0.35),
                     Map.entry("leave", "fade"), Map.entry("leaveTime", 0.7)),
-                0.25));
+                0.25, 0));
             // Found: warm amber letters that rise into view and drift up as they go, for something found (a search complete).
             ALL.put("discovery", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfRobertoSans", "Large")), Map.entry("size", 0.08), Map.entry("color", List.of(1.0, 0.8, 0.38, 1.0)),
@@ -787,7 +892,7 @@ final class Texts implements ApiHooks.Text {
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.042), Map.entry("color", List.of(1.0, 0.93, 0.78, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.25), Map.entry("enter", "rise"), Map.entry("enterTime", 0.6),
                     Map.entry("leave", "rise"), Map.entry("leaveTime", 0.9)),
-                0.3));
+                0.3, 0));
             // A notice: a smaller line that drops in near the top of the screen and fades, for news that is not an event of its own.
             ALL.put("notice", new Style(
                 Map.ofEntries(Map.entry("font", List.of("SdfBold", "Medium")), Map.entry("size", 0.036), Map.entry("color", List.of(0.92, 0.95, 1.0, 1.0)),
@@ -796,7 +901,18 @@ final class Texts implements ApiHooks.Text {
                 Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Small")), Map.entry("size", 0.026), Map.entry("color", List.of(0.8, 0.84, 0.9, 1.0)),
                     Map.entry("shadow", true), Map.entry("delay", 0.1), Map.entry("enter", "fade"), Map.entry("enterTime", 0.35),
                     Map.entry("leave", "fade"), Map.entry("leaveTime", 0.6)),
-                0.3));
+                0.3, 0));
+            // Dust: a quiet title that fades in slowly, stays, and crumbles into fine dust that drifts away; its line crumbles a
+            // moment after it.
+            ALL.put("dust", new Style(
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Large")), Map.entry("size", 0.085), Map.entry("color", List.of(0.97, 0.95, 0.9, 1.0)),
+                    Map.entry("shadow", true), Map.entry("outline", 1.0), Map.entry("outlineColor", List.of(0.0, 0.0, 0.0, 0.35)),
+                    Map.entry("y", 0.28), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2), Map.entry("hold", 2.6),
+                    Map.entry("leave", "dust"), Map.entry("leaveTime", 2.4)),
+                Map.ofEntries(Map.entry("font", List.of("SdfRegular", "Medium")), Map.entry("size", 0.04), Map.entry("color", List.of(0.86, 0.85, 0.82, 1.0)),
+                    Map.entry("shadow", true), Map.entry("delay", 0.35), Map.entry("enter", "fade"), Map.entry("enterTime", 1.2),
+                    Map.entry("leave", "dust"), Map.entry("leaveTime", 2.4)),
+                0.3, 0.3));
         }
 
         private Styles() { }
@@ -808,7 +924,8 @@ final class Texts implements ApiHooks.Text {
      */
     private long title(String owner, Object spec, String call) throws ReflectiveOperationException {
         String style = "stamp", line = null;
-        Object text = null, color = null, lineColor = null, hold = null, player = null, y = null;
+        Object text = null, color = null, lineColor = null, hold = null, player = null, y = null, leave = null, leaveTime = null;
+        var dusts = new LinkedHashMap<String, Object>();
         boolean now = false;
         for (var entry : lua.entries(spec)) {
             if (!(entry.getKey() instanceof String field)) throw new IllegalArgumentException(call + ": spec has a field that is not a name");
@@ -830,12 +947,15 @@ final class Texts implements ApiHooks.Text {
                 case "hold" -> hold = value;
                 case "player" -> player = value;
                 case "y" -> y = value;
+                case "leave" -> leave = value;
+                case "leaveTime" -> leaveTime = value;
+                case "dustSize", "dustSweep", "dustDrift" -> dusts.put(field, value);
                 case "now" -> {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": spec.now must be true or false");
                     now = on;
                 }
                 default -> throw new IllegalArgumentException(call + ": spec has no field " + field
-                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player and now");
+                    + "; it takes text, subtitle, style, color, subtitleColor, hold, y, player, leave, leaveTime, dustSize, dustSweep, dustDrift and now");
             }
         }
         if (text == null) throw new IllegalArgumentException(call + ": spec.text must be a string of 1 to " + MAX_LENGTH + " characters");
@@ -848,15 +968,25 @@ final class Texts implements ApiHooks.Text {
         if (hold != null) big.hold = number(hold, call, "spec.hold", 0, MAX_HOLD);
         if (y != null) big.y = number(y, call, "spec.y", 0, 1);
         if (player != null) big.player = player(player, call, "spec.player");
+        // The way out, for the title and its line alike.
+        if (leave != null) big.leave = effect(Leave.class, leave, call, "spec.leave");
+        if (leaveTime != null) big.leaveTime = number(leaveTime, call, "spec.leaveTime", 0, MAX_SECONDS);
+        for (var field : dusts.entrySet()) {
+            if (big.leave != Leave.DUST) throw new IllegalArgumentException(call + ": spec." + field.getKey() + " goes with leave = \"dust\"");
+            dust(big, field.getKey(), field.getValue(), call, "spec." + field.getKey());
+        }
         if (small != null) {
+            if (leave != null) small.leave = big.leave;
+            if (leaveTime != null) small.leaveTime = big.leaveTime;
+            small.dustSize = big.dustSize; small.dustDrift = big.dustDrift; small.dustSweep = big.dustSweep;
             small.lines = lines(line, call, "spec.subtitle");
             font(small, chosen.line().get("font"), call, "spec.font");
             if (lineColor != null) { float[] parts = color(lineColor, call, "spec.subtitleColor"); small.red = parts[0]; small.green = parts[1]; small.blue = parts[2]; small.alpha = parts[3]; }
             small.player = big.player;
             // Under the title: its block, a gap, then the line's block, as shares of the screen's height.
             small.y = Math.min(1, big.y + big.size * big.lines.length / 2 + big.size * chosen.gap() + small.size * small.lines.length / 2);
-            // It goes as the title goes.
-            small.hold = Math.max(0, big.enterTime + big.hold - small.delay - small.enterTime);
+            // It goes as the title goes, or the style's moment after it.
+            small.hold = Math.max(0, big.enterTime + big.hold - small.delay - small.enterTime + chosen.trail());
         }
         big.queued = true;
         if (small != null) small.queued = true;
@@ -909,6 +1039,7 @@ final class Texts implements ApiHooks.Text {
         to.leaveTime = from.leaveTime; to.player = from.player; to.queued = from.queued; to.cell = from.cell;
         to.source = from.source; to.markup = from.markup; to.width = from.width; to.speed = from.speed; to.cursor = from.cursor;
         to.script = from.script;
+        to.dustSize = from.dustSize; to.dustDrift = from.dustDrift; to.dustSweep = from.dustSweep;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -938,6 +1069,7 @@ final class Texts implements ApiHooks.Text {
                 if (shown.removeIf(text -> text.cell != cell)) { publish(); dirty = true; }
             }
             if (dirty) write();
+            if (!dying.isEmpty()) graves();
         } catch (Throwable failure) {
             // Once: a fault that recurs each frame must not flood the game's log. The drawing goes on.
             if (!reported) System.err.println("[PzTools API] text: " + failure);
@@ -949,6 +1081,9 @@ final class Texts implements ApiHooks.Text {
 
     @Override public void draw() {
         Shown[] all = drawn;
+        if (all.length == 0 && dying.isEmpty()) return;
+        try { if (!dying.isEmpty()) bury(); }
+        catch (Throwable failure) { throw Texts.<RuntimeException>sneaky(failure); }
         if (all.length == 0) return;
         long now = clock.getAsLong();
         Object[] local = players.all();
@@ -1034,9 +1169,10 @@ final class Texts implements ApiHooks.Text {
             case SINK -> { alpha *= 1 - out; shift += DRIFT * out; }
             case GROW -> { alpha *= 1 - out; scale *= 1 + 0.3 * out; }
             case SHRINK -> { alpha *= 1 - out; scale *= 1 - 0.5 * out; }
+            case DUST -> { } // Below, once the text is placed: as dust, or a fade.
         }
         float shownAlpha = (float)(alpha * text.alpha);
-        if (shownAlpha <= INVISIBLE) return true;
+        if (shownAlpha <= INVISIBLE && text.leave != Leave.DUST) return true;
         Object font = text.font;
         Object angel = (Object)fontOf.invokeExact(textManager, font);
         if (angel != text.gameFont) {
@@ -1069,7 +1205,77 @@ final class Texts implements ApiHooks.Text {
             if (laid == null || laid.font != face || laid.width != width || laid.height != height) laid = text.layouts[screen] = layout(text, face, width, height, base);
             typed = script.shown(Math.min(t, leaving));
         }
-        double firstY = anchorY - line * (laid == null ? text.lines.length : laid.rows.length) / 2;
+        int rowCount = laid == null ? text.lines.length : laid.rows.length;
+        double firstY = anchorY - line * rowCount / 2;
+        if (text.leave == Leave.DUST) {
+            Dust.Gl gl = dust;
+            Dust.Piece piece = gl == null ? null : piece(text, screen);
+            if (piece != null && !piece.released && (t >= text.enterTime || t >= leaving)) {
+                // The text stands still: its picture is made, drawn into, read back and cut, a frame or so each.
+                try { dust(gl, piece, text, laid, typed, t, anchorX, firstY, zoom, line, rowCount, large, own, font, shownAlpha, alpha); }
+                catch (Throwable failure) {
+                    if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
+                    gl.report("the dust could not be made", failure);
+                    piece.phase = Dust.FAILED;
+                }
+                if (piece.phase == Dust.FAILED) letGo(piece);
+            }
+            if (out > 0) {
+                boolean usable = piece != null && !piece.released;
+                if (usable && piece.phase == Dust.CUT) {
+                    gl.draw(piece, out, 1, text.dustDrift);
+                    return true;
+                }
+                // Its picture on its way: the text as it was for a moment, then a fade.
+                if (!(usable && piece.pending() && out < Dust.PENDING)) alpha *= 1 - smooth(out);
+                shownAlpha = (float)(alpha * text.alpha);
+            }
+            if (shownAlpha <= INVISIBLE) return true;
+        }
+        paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, shownAlpha, alpha, true);
+        return true;
+    }
+
+    /**
+     * A step of the text's dust once it stands still, at its place now: the picture made for its box, the text drawn into it, the
+     * picture read back cut into cells. A box that moved since (the screen's size changed) gives up the dust: the text fades.
+     */
+    private void dust(Dust.Gl gl, Dust.Piece piece, Shown text, Layout laid, int typed, double t, double anchorX, double firstY, double zoom,
+            double line, int rowCount, boolean large, EmbeddedFont.Loaded own, Object font, float shownAlpha, double alpha) throws Throwable {
+        double low = Double.POSITIVE_INFINITY, high = Double.NEGATIVE_INFINITY;
+        for (int index = 0; index < rowCount; index++) {
+            double lineWidth = (laid == null ? text.widths[index] : laid.rows[index].width) * zoom;
+            if (lineWidth <= 0) continue;
+            double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
+            low = Math.min(low, x);
+            high = Math.max(high, x + lineWidth);
+        }
+        if (!(low <= high)) { piece.phase = Dust.FAILED; return; }
+        // Glyphs reach past their advance; the shadow and outline past the glyphs.
+        double margin = Math.ceil(line * Dust.MARGIN + text.outline + Math.max(1, Math.round(line / 24)) + 2);
+        int boxX = (int)Math.floor(low - margin), boxY = (int)Math.floor(firstY - margin);
+        int boxWidth = (int)Math.ceil(high + margin) - boxX, boxHeight = (int)Math.ceil(firstY + line * rowCount + margin) - boxY;
+        switch (piece.phase) {
+            case Dust.NEW -> { if (!gl.make(piece, boxX, boxY, boxWidth, boxHeight, line)) piece.phase = Dust.FAILED; }
+            case Dust.READY -> {
+                if (!piece.at(boxX, boxY, boxWidth, boxHeight)) { piece.phase = Dust.FAILED; return; }
+                // Drawn once more, into the picture, as it is now (no cursor): what the dust is made of.
+                Object before = gl.beginCapture(piece);
+                try { paintAll(text, laid, typed, t, anchorX, firstY, zoom, line, large, own, font, shownAlpha, alpha, false); }
+                finally { gl.endCapture(piece, before); }
+            }
+            case Dust.CAPTURED -> {
+                if (!piece.at(boxX, boxY, boxWidth, boxHeight) || !Dust.Gl.cut(piece, Dust.cell(line, text.dustSize), text.dustSweep)) piece.phase = Dust.FAILED;
+            }
+            case Dust.CUT -> { if (!piece.at(boxX, boxY, boxWidth, boxHeight)) piece.phase = Dust.FAILED; }
+            default -> { }
+        }
+    }
+
+    /** The text's lines or rows as they are at {@code t}, in the shader for a distance-field font; the cursor with {@code cursor}. */
+    private void paintAll(Shown text, Layout laid, int typed, double t, double anchorX, double firstY, double zoom, double line, boolean large,
+            EmbeddedFont.Loaded own, Object font, float shownAlpha, double alpha, boolean cursor) throws Throwable {
+        Script script = text.script;
         boolean distance = large || (boolean)sdf.invokeExact(textManager, font);
         Object shader = distance ? sdfShader.get(null) : null;
         if (shader != null) {
@@ -1106,7 +1312,7 @@ final class Texts implements ApiHooks.Text {
                     }
                 }
                 // The cursor sits after the last character that came on and stays on while characters come on; it blinks while it waits.
-                if (text.cursor && (t - (typed > 0 ? script.at[typed - 1] : 0)) % (2 * BLINK) < BLINK) {
+                if (cursor && text.cursor && (t - (typed > 0 ? script.at[typed - 1] : 0)) % (2 * BLINK) < BLINK) {
                     int at = 0;
                     while (at + 1 < rows.length && rows[at + 1].from < typed) at++;
                     Row row = rows[at];
@@ -1122,7 +1328,6 @@ final class Texts implements ApiHooks.Text {
         } finally {
             if (shader != null) endShader.invokeExact();
         }
-        return true;
     }
 
     /** One string with the text's shadow and outline, and then in the colour given. */
@@ -1345,7 +1550,7 @@ final class Texts implements ApiHooks.Text {
                 .append('\t').append(s.enterTime).append('\t').append(s.hold).append('\t').append(s.leave.name()).append('\t').append(s.leaveTime)
                 .append('\t').append(s.player).append('\t').append(s.queued).append('\t').append(s.waiting).append('\t').append(s.start)
                 .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
-                .append('\t').append(s.cursor);
+                .append('\t').append(s.cursor).append('\t').append(s.dustSize).append('\t').append(s.dustSweep.name()).append('\t').append(s.dustDrift);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -1369,6 +1574,13 @@ final class Texts implements ApiHooks.Text {
     private String handover() {
         try {
             write();
+            // The newer API draws from now on: it lets this one's pictures go from its drawing, after this one's last frames.
+            var destroys = new ArrayList<Runnable>();
+            for (Dust.Piece piece : pieces) { piece.released = true; if (piece.texture != null) destroys.add(piece); }
+            pieces.clear();
+            for (Grave grave : dying) if (!grave.done()) destroys.add(grave.destroy);
+            dying.clear();
+            Dust.orphan(destroys);
             return (String)lua.get(meta, MIRROR);
         } catch (ReflectiveOperationException failure) { throw Game.failed(failure); }
     }
@@ -1377,16 +1589,17 @@ final class Texts implements ApiHooks.Text {
     private void load(Object kept) {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
-        // The format before typing has the fields up to hidden; the text of those has no markup, typing or width.
-        boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]);
-        if (!before && !FORMAT.equals(lines[0])) {
+        // The format before typing has the fields up to hidden; the text of those has no markup, typing or width. The format
+        // before dust has the fields up to cursor; its texts have no dust.
+        boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]), beforeDust = before || FORMAT_BEFORE_DUST.equals(lines[0]);
+        if (!beforeDust && !FORMAT.equals(lines[0])) {
             System.err.println("[PzTools API] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != (before ? 31 : 35) || !"T".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
+            if (fields.length != (before ? 31 : beforeDust ? 35 : 38) || !"T".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
             s.fontName = fields[4];
@@ -1404,6 +1617,9 @@ final class Texts implements ApiHooks.Text {
             if (!before) {
                 s.markup = Boolean.parseBoolean(fields[31]); s.width = Double.parseDouble(fields[32]); s.speed = Double.parseDouble(fields[33]);
                 s.cursor = Boolean.parseBoolean(fields[34]);
+                if (!beforeDust) {
+                    s.dustSize = Double.parseDouble(fields[35]); s.dustSweep = Dust.Sweep.valueOf(fields[36]); s.dustDrift = Double.parseDouble(fields[37]);
+                }
                 if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
                     // Read again: the script is not kept, and gives the same as when it was shown.
                     s.source = unescape(fields[3]);

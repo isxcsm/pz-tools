@@ -1259,7 +1259,7 @@ which override the jar's; it overrides none of the text classes):
 | `text.title(handle, spec)` | Shows a title in a style, queued on each player's screen; returns its key. `spec` below. |
 | `text.hide(handle, key, now)` | The mod's text (or title, with its line) leaves with its effect; with `now` true it goes at once, and a title still waiting leaves the queue. `true` when there was one. |
 | `text.shown(handle, key)` | Whether it is on the screen or waiting. |
-| `text.styles()` | The titles' styles: `{ "stamp", "discovery", "notice" }`. |
+| `text.styles()` | The titles' styles: `{ "stamp", "discovery", "notice", "dust" }`. |
 | `text.status()` | Whether the hook that draws is in the game: `"applied"`, `"not-loaded"` (the interface's class has not loaded), or why not, worded as `PZToolsAPI.hooks()` is. A mod shows the player what is not applied. |
 | `text.font(handle, px)` | A key for text a line of `px` pixels high in the mod's own windows, or nil; see [text at a height](#text-at-a-height). |
 | `text.fontHeight(handle, key)` | The line's height to lay out with, as `getFontHeight` is for the game's fonts. |
@@ -1282,22 +1282,28 @@ which override the jar's; it overrides none of the text classes):
 | `delay` | 0 to 30 seconds | Before it comes on. |
 | `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"rise"`, `"drop"`, `"type"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; rises, or drops, three quarters of a line into its place as it fades in; or types (see [typing](#typing-markup-and-fitting-a-width)), which takes as long as its text and speed do, so it takes no `enterTime`. |
 | `hold` | 0 to 3600 seconds | How long it stays once on; left out, until the mod hides it. |
-| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"none"` goes at once. |
+| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`, `"dust"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"dust"` breaks it into fine dust that drifts away, swept across it from one side (see [dust](#dust)). `"none"` goes at once. |
 | `player` | 0 to 3 | The local player whose screen it is on; left out, every local player's. |
 | `queue` | boolean | It waits for the titles and queued texts before it on its screen (see titles). |
 | `markup` | boolean | The text has [markup](#typing-markup-and-fitting-a-width): pauses, speed changes and colours (false when left out: braces are braces). |
 | `width` | 0.05 to 1 | The longest a line may be, as a share of the player's screen's width: longer lines are broken at spaces. Left out, a line is as long as it is. |
 | `speed` | 1 to 1000 | With `enter = "type"`: the characters a second (30 when left out). |
 | `cursor` | boolean | With `enter = "type"`: a blinking underscore after the last character typed. |
+| `dustSize` | 0.25 to 8 | With `leave = "dust"`: the size of the dust's cells, as a share of the usual (1: 2.5% of the line's height, 2.7 pixels for a line a tenth of a 1080-pixel screen). |
+| `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"` | With `leave = "dust"`: the way the front goes (`"right"` when left out: the text breaks from its left side first). |
+| `dustDrift` | 0 to 4 | With `leave = "dust"`: how far the dust drifts, as a share of the usual (1: about a line up, and up to four fifths of a line to the side; 0: the cells fade where they are). |
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"stamp"` when left out), and to change the style's
-`color`, `subtitleColor`, `hold` (seconds), `y`, `player`, and `now`. A style is a pair of `show` specs:
+`color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
+can leave as dust), `dustSize`, `dustSweep` and `dustDrift` (with `leave = "dust"`, the style's or the spec's), and `now`. A
+style is a pair of `show` specs:
 
 | Style | Title | Line under it |
 | --- | --- | --- |
 | `"stamp"` | White, `SdfBold` (or `Large`), a line 10% of the screen high at `y` 0.28 (above the player), a shadow and a faint dark outline; slams on in 0.22 s, stays 2.4 s, swells away in 0.7 s. For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 4.5%; fades in 0.2 s after the title, goes with it. |
 | `"discovery"` | Amber (1, 0.8, 0.38), `SdfRobertoSans` (bold italic; or `Large`), 8% at `y` 0.28, a shadow; rises into place in 0.6 s, stays 2.4 s, drifts up as it fades in 0.9 s. For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 4.2%; rises 0.25 s after the title, goes with it. |
 | `"notice"` | Cool white, `SdfBold` (or `Medium`), 3.6% at `y` 0.2; drops in in 0.35 s, stays 2.6 s, fades in 0.6 s. For news that is not an event of its own. | Grey-blue, `SdfRegular` (or `Small`), 2.6%. |
+| `"dust"` | Warm white (0.97, 0.95, 0.9), `SdfRegular` (or `Large`), 8.5% at `y` 0.28, a shadow and a faint dark outline; fades in over 1.2 s, stays 2.6 s, crumbles into dust from the left over 2.4 s. A quiet title. | Pale grey, `SdfRegular` (or `Medium`), 4%; fades in over 1.2 s, 0.35 s after the title, and crumbles 0.3 s after it. |
 
 Each local player's screen has a queue of titles: one shows at a time (the title and its line), and the next starts when it
 has gone. A title for every player goes into each player's queue. `now` lets a title go first: the one on that screen leaves
@@ -1400,6 +1406,81 @@ typed, with no colour and no width, takes the plain path above, as it always did
 The text is drawn as often as the interface is: with the interface drawn at a lower rate, it moves at that rate. A hook that
 is not in gives no text and `text.status()` says why; a fault while drawing is reported once in the game's log, and the
 interface goes on being drawn (the tooltip and what follows it).
+
+### Dust
+
+`leave = "dust"` breaks the text into fine dust as it goes: a front crosses it from one side (`dustSweep`), and where it has
+passed the text comes apart into small square cells that drift up and to the side, swirl a little, wear down and fade; the part
+the front has not reached stays as it was. The cells are pieces of the text as it was drawn, shadow, outline and colours with
+them, not copies of its letters
+([`Dust`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Dust.java)).
+
+**How the game draws into a picture.** Read from the bytecode of Build 42 (the jar's classes, and PZ Optimize's loose
+`TextureFBO`, `TextureDraw`, `RenderThread` and `SpriteRendererStates`, which keep the same members):
+
+- `new Texture(width, height, 16)` makes a texture on the main thread; its storage is made on the render thread
+  (`TextureID` queues it with `RenderThread.queueInvokeOnRenderContext`). `new TextureFBO(texture)` makes a frame buffer over it
+  through `RenderThread.invokeOnRenderContext`, which runs at once on the render thread itself. This is how `UIManager.CreateFBO`
+  makes the buffer the interface is drawn into.
+- `TextureFBO.startDrawing(true, true)` binds the frame buffer and clears it to transparent; `endDrawing()` binds the one bound
+  before it (a stack). Both are GL calls: they run on the render thread.
+- The main thread does not draw: `SpriteRenderer` keeps what it is given for the render thread, which draws it a frame later.
+  `SpriteRenderer.drawGeneric(GenericDrawer)` puts a drawer of one's own in that queue, run on the render thread in order with
+  the sprites around it, as the game's atlases and model views do. `render(texture, the four corners, their texture coordinates,
+  r, g, b, a)` puts a quad that shows any part of a texture.
+- How sprites blend is the style each is queued with, the queue state's `defaultStyle`: `UIFBOStyle` blends the colours as
+  usual and adds the alpha (the interface's buffer is drawn in it, its colours premultiplied by their alpha), and
+  `AdditiveStyle` (one, one minus the source's alpha) is how the game draws that buffer onto the screen.
+
+**What the API does.** A text that leaves as dust is drawn as before until it stands still: its enter is over, or it began to
+leave. Then, a frame or so apart, on each screen it is on:
+
+1. Its box is worked out: its lines' or rows' extent at their place, and a margin of a fifth of a line, the outline and the
+   shadow's offset, and 2 pixels, in whole pixels. A box larger than 4096 pixels on a side, or a game without frame buffers
+   (`TextureFBO.checkFBOSupport`), fades instead. The texture is made the box's size, and the frame buffer over it on the
+   render thread.
+2. Once the frame buffer is there, the text is drawn once more in the frame, into it: a drawer of the render queue saves the
+   viewport and the scissor test, turns the scissor test off, starts the frame buffer and moves the viewport so that the box's
+   top left is its corner (the interface's projection is its pixels, from the top left); then the text is queued as it is drawn
+   on the screen (the shader, the shadow, the outline, the colours; no cursor), in `UIFBOStyle`; then another drawer reads the
+   box's pixels back (`glReadPixels`, once, with the pack state saved and put back), ends the frame buffer and puts the
+   viewport and the scissor test back. The style queued before is put back. The text is also drawn on the screen as usual in
+   that frame.
+3. The next frame, the main thread cuts the picture into square cells of `2.5% of the line's height times dustSize` (at least
+   1.5 pixels) and keeps those with a texel of an alpha of 10 or more (of 255). With more than 4,500 of them, the cells are
+   made larger until there are at most 4,500. The pixels read back are let go.
+
+As it leaves, the text is drawn from the picture, in `AdditiveStyle`, with nothing else of the text drawn: in each lane
+across the sweep (a row of cells, or a column for `"up"` and `"down"`), the part from the first cell the front has not reached
+to the far side is one quad, the cells before it that have not started are each a quad in place, and the cells on their way are
+each a quad at their place on their path. Every quad is a part of the one texture, so the game sends them to the card together.
+At the start of the leave the text is a quad for each lane and looks as it did.
+
+**The schedule**, in shares of `leaveTime`, the same for the same text (a seed from its key, screen and lines):
+
+| Part | Value |
+| --- | --- |
+| The front | Crosses the box in 0.45 of the leave. A cell starts as the front reaches its place (its column, or row, in the box's grid), later by up to 0.12: 65% of that from a slow wave across the sweep (three bumps over the text's height, so the front is not straight), 35% its own. |
+| A cell's life | 0.32 to 0.43 of the leave, its own, from its start; every cell has gone by the end of the leave. |
+| Its path | At its age `a` (0 to 1): up by `1.1 x (0.6 to 1.4) x (1 - (1 - a)^2)` line heights and to the side (the sweep's way; either way for `"up"` and `"down"`) by `0.8 x (0.35 to 1)` of that ease, times `dustDrift`; and a swirl of `0.12 a` line heights to the side and `0.07 a` up and down, 0.6 to 1.5 turns over its life. |
+| Its size and alpha | Its size wears from the cell's to 55%; its alpha is `1 - (3a^2 - 2a^3)`. |
+
+**When it cannot.** Dust fades as `"fade"` does when the game has no frame buffers, the box is too large or has no ink, a step
+fails (once in the game's log), or the text's box moved after its picture was made (the screen's size changed). While the
+picture is on its way (it comes a frame or two after the text stands still), the text is drawn as it was, for at most 15% of
+the leave: a text that leaves at once is held whole that long, and fades if the picture has not come by then.
+
+**Letting the picture go.** A piece's picture goes when its text has gone, is hidden or taken away (`hide`, `clear`, the world
+left), or gives up the dust: at the start of the next drawing of the interface, a drawer queued after everything drawn before it
+lets the frame buffer and its texture go (`TextureFBO.destroy`) on the render thread, so no frame that still draws it is behind
+it. Should the queue never run it, it is let go on the render thread's own turn 120 frames later. A newer API lets the pictures
+of the one it replaces go from its own drawing, the same way. A picture let go before its frame buffer was made is not made.
+
+**The cost.** Nothing while no text is shown, and nothing more than before while a dust text comes on or holds but the one
+frame that draws it into its picture (its strings twice) and the one that cuts it (a pass over the box's texels: about 47,000
+for a title a tenth of a 1080-pixel screen high). While it leaves, a frame is a pass over its cells (a few multiplications each,
+no sine) and a quad for each lane and each cell on its way, up to 4,500; nothing is allocated. Video memory: a texture the box's
+size (rounded up to powers of two), for one text, from when it stands still until it has gone.
 
 ### The embedded font
 
@@ -1603,7 +1684,7 @@ over the text, as the measuring is.
 ### A mod's use
 
 ```lua
--- Operation Acorn: a quest done stamps its title, a search done shows what was found.
+-- A quest mod: a quest done stamps its title, a search done shows what was found, a chapter ends in dust.
 local function textApi()
     local api = PZToolsAPI
     return api and api.version == 1 and api.text or nil
@@ -1612,8 +1693,8 @@ end
 local function onQuestComplete(questName)
     local text = textApi()
     if not text then return end -- without the API, the mod's own message instead
-    text.title(PZToolsAPI.client("OperationAcorn"), {
-        text = getText("IGUI_OA_QuestComplete"),
+    text.title(PZToolsAPI.client("MyQuests"), {
+        text = getText("IGUI_MyQuests_QuestComplete"),
         subtitle = questName,
     })
 end
@@ -1621,19 +1702,32 @@ end
 local function onSearchComplete(found)
     local text = textApi()
     if not text then return end
-    text.title(PZToolsAPI.client("OperationAcorn"), {
+    text.title(PZToolsAPI.client("MyQuests"), {
         style = "discovery",
-        text = getText("IGUI_OA_SearchComplete"),
-        subtitle = getText("IGUI_OA_ItemsFound", found),
+        text = getText("IGUI_MyQuests_SearchComplete"),
+        subtitle = getText("IGUI_MyQuests_ItemsFound", found),
     })
 end
 
+-- A chapter's end: the quiet style, in the mod's own colour; or any style, crumbling from the right.
+local function onChapterEnd(chapterName)
+    local text = textApi()
+    if not text then return end
+    text.title(PZToolsAPI.client("MyQuests"), {
+        style = "dust",
+        text = chapterName,
+        subtitle = getText("IGUI_MyQuests_ChapterEnd"),
+        color = { 1, 0.84, 0.45 },
+    })
+    -- text.title(PZToolsAPI.client("MyQuests"), { text = chapterName, style = "notice", leave = "dust", leaveTime = 2, dustSweep = "left" })
+end
+
 -- A text of its own: a counter at the top right that stays until the mod hides it.
-local key = PZToolsAPI.text.show(PZToolsAPI.client("OperationAcorn"), {
+local key = PZToolsAPI.text.show(PZToolsAPI.client("MyQuests"), {
     text = "Credits: 120", font = { "SdfBold", "Medium" }, size = 0.03, x = 0.97, y = 0.06, align = "right",
     color = { 1, 0.9, 0.6 }, shadow = true, enter = "fade", enterTime = 0.3, leave = "fade", leaveTime = 0.3,
 })
--- later: PZToolsAPI.text.hide(PZToolsAPI.client("OperationAcorn"), key)
+-- later: PZToolsAPI.text.hide(PZToolsAPI.client("MyQuests"), key)
 ```
 
 In Korean, `getText` gives Hangul: the styles' lists fall back to the language's fonts (`Large`, `Medium`), which have it.
@@ -1695,6 +1789,27 @@ fonts in `media/fonts` alone has the closest of its two, 40 pixels the taller zo
 width or drawing; wrong arguments are Lua errors; measuring and drawing allocate nothing over 100,000 rounds, and a measure
 with its draw took about 80 ns in the synthetic game.
 
+Dust: against the installed game (11 October 2026, Build 42, PZ Optimize's loose classes before the jar), every member `Dust`
+reads was found with the types it uses, and its drawer class was defined beside `TextureDraw.GenericDrawer` in the game's class
+loader, made and run (a second API finds it there and does not define it again). In the synthetic game (`DustTest`, with a
+sprite renderer, frame buffers, a render thread and a picture read back of its own): the schedule is bounded, ordered along the
+sweep by the sweep's share alone, the same twice and another for another seed; every cell has gone by the end of the leave; the
+alpha, size, ease and path are as computed, the cells rise and go their sweep's way, and the swirl's wave is within 3% of a sine;
+a picture is cut into the cells with ink, by lanes in the sweep's order for each of the four ways, with the starts' suffix
+ordered, larger cells for a picture that would have more than the most, and none without ink. The `"dust"` title fades in (at
+alpha 0.5 after 0.6 s), its picture is made once it stands still (the frame buffer on the render thread), drawn into from the
+render queue in `UIFBOStyle` with the style put back, in a box of 382 by 122 pixels with the viewport moved to its corner and
+put back, and read back; it holds as itself, then turns into strips of its picture that show the parts of it where they are
+(their texture coordinates checked corner by corner), and at 0.4 of the leave what is whole is past the front and cells fade and
+rise; the line under it stays text until 0.3 s after the title and then crumbles from its own picture; each picture is let go
+from the render queue the frame after its text has gone. A sweep from the right keeps the left whole, and with no drift no cell
+leaves its place. Without the dust's drawing, and without frame buffers, the text fades (alpha 0.5 halfway) and nothing is made;
+a picture that is late holds the text whole for 15% of the leave and then fades it, and one hidden before its frame buffer was made
+is not made; a text hidden or cleared as it crumbles, and one whose screen changed size, lets its picture go (the last fades);
+wrong dust fields are Lua errors, and a stamp title takes `leave = "dust"`; a newer API takes the fields over and lets the older
+one's picture go. A title and its line crumbling (3,426 quads) took about 160 us a frame to place in the synthetic game (the game's own work for each quad
+comes on top) and allocated nothing over 20,000 frames.
+
 Not tried in the game yet: how text at a height looks (the fonts of other options next to the game's, the embedded font's
 lines beside the bitmap fonts' in one window, the switch at 51 pixels), the times in the game's log for reading a font and its
 pages, a font option or language changed with a window open, and a font mod's files. Also not tried: how typed text looks (the cursor's underscore in each font, the width of the rows and the places of
@@ -1703,7 +1818,10 @@ colour runs as the game's fonts measure them, with kerning if they have it, the 
 log and `console.txt`'s lines for the read and the send to video memory, the swizzle in the game's OpenGL context, how sharp a
 Hangul title is at 1080p and 4K, the switch at 33 pixels, the frame time when a title first shows, the video memory); split
 screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
-the text too; and the text over the main menu.
+the text too; and the text over the main menu. Dust has not been seen in the game yet: the picture drawn and read back on a real
+card (its blending, the viewport moved, with the interface drawn into its own buffer and without), how fine the cells look at 1080p
+and 4K, the frame time while 4,500 cells go, a window resized or the game left while a text crumbles, and a newer API taking over
+then.
 
 ## How the game is answered
 
