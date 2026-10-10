@@ -140,6 +140,28 @@ removed or rebuilt. A player-built building changes key when the game rebuilds i
 change, so a mod finds its building again from a square it remembers, and a network names its
 buildings by such a square.
 
+| Call | Returns |
+| --- | --- |
+| `buildings.version()` | A number that stays the same while no building and none of the game's region data can have changed: a mod keeps what it read of buildings until it differs. |
+| `buildings.attached(key)` | The rooms players built onto the building, which the game leaves out of it: a list of `level`, `host` (the id of the building's room the space touches most), `count` (squares), `extent` (the larger side of its box) and `rects`; empty for a building players built; `nil` without such a building, without the game's region data, or where a space grows past 1500 squares. |
+| `buildings.attachedObjects(key, filter)` | The objects on those rooms' squares that belong to no building, as `near` gives them, each with the `room` and `roomId` of its space's host; and whether every square was loaded. `nil, false` when `attached` is `nil`. |
+
+A room a player builds against a map building belongs to no building: the game drops a player-built
+building that touches a map one (`WorldRegionToMetaGrid`), so its squares have no room. `attached`
+finds such rooms from the game's region data (`IsoRegions`): a space is a region, or regions joined
+by doors and windows, that is enclosed and at least half roofed (what the game takes for a room a
+player built) and shares a side with a room of the building on the same level, at or above the
+ground.
+
+The game's thread reads the region data its worker thread last handed over, and swaps in new data
+once the worker has worked out what changed (`IsoRegions.update`, once a frame at most); with the
+swap it makes, changes and drops the buildings players build (`DataRoot.clientProcessBuildings`). A
+map building is made as its world loads. So the API describes each building once and finds its
+attached rooms once, and keeps both, while the world's meta grid and the region data are the same
+objects; `version` counts the changes. It looks each frame and as each call that reads buildings
+starts, so no swap goes unseen (one frame holds one swap). A game whose region data cannot be read
+gives a new `version` at every call, keeps nothing, and has no attached rooms.
+
 ## Networks (mechanism)
 
 A network carries one utility, power or water, from producers to consumers.
@@ -1573,5 +1595,6 @@ failure by hand, the app's next round logged a warning naming `IsoGenerator.upda
 ## Open questions
 
 - How soon after the last wall or roof a player-built space becomes a building.
-- Whether `buildings.at` should report an extension room that vanilla discards, and as what.
+- Whether `buildings.at` should report an extension room that vanilla discards, and as what
+  (`buildings.attached` reports them beside it, without changing `at`).
 - The name of an event that says the API appeared or went away.

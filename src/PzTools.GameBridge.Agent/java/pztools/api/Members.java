@@ -48,7 +48,8 @@ final class Members {
 
     /**
      * The member buildings as the map data has them now; a player-built one is made again when its walls change. A
-     * building named by rooms alone, and not as a whole, is narrowed to those rooms.
+     * building named by rooms alone, and not as a whole, is narrowed to those rooms. Asked once a second: a building is
+     * described once for each version of the buildings (Buildings.observe), so each room named costs two lookups.
      */
     void resolve(Network network) throws ReflectiveOperationException {
         var found = new ArrayList<Buildings.Building>();

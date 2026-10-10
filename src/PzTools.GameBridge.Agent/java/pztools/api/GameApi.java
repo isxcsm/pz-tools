@@ -36,6 +36,9 @@ public final class GameApi {
     private static volatile Texts texts;
     // The zombies' sounds of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
     private static volatile ZombieSounds sounds;
+    // The buildings of the Lua environment the game has now, watched each frame for what changes them (Buildings.observe).
+    private static volatile Buildings buildings;
+    private static boolean buildingsReported;
     // What writeStatus last wrote; on ResidentApi's thread only.
     private static String written;
 
@@ -74,6 +77,15 @@ public final class GameApi {
             pending = false;
             try { register(Class.forName("zombie.Lua.LuaManager", false, game)); }
             catch (Throwable failure) { report(failure); }
+        }
+        Buildings watched = buildings;
+        if (watched != null) {
+            try { watched.observe(); }
+            catch (Throwable failure) {
+                // Once: the calls that read buildings observe too, and fail on their own.
+                if (!buildingsReported) System.err.println("[PzTools API] buildings: " + failure);
+                buildingsReported = true;
+            }
         }
         Networks current = networks;
         if (current != null) current.frame();
@@ -118,6 +130,7 @@ public final class GameApi {
     static void register(Class<?> luaManager) throws ReflectiveOperationException {
         try { install(luaManager); }
         catch (Throwable failure) {
+            buildings = null;
             networks = null;
             formulas = null;
             helicopters = null;
@@ -154,9 +167,10 @@ public final class GameApi {
             }));
             Object handles = clients(lua, api, meta);
             var game = new Game(luaManager.getClassLoader());
-            var buildings = new Buildings(lua, game, luaManager.getClassLoader());
-            buildings.register(table(lua, api, "buildings"));
-            networks(lua, api, meta, handles, game, buildings, luaManager.getClassLoader());
+            var read = new Buildings(lua, game, luaManager.getClassLoader());
+            read.register(table(lua, api, "buildings"));
+            buildings = read;
+            networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
