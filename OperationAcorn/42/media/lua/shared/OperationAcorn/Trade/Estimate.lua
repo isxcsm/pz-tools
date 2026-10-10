@@ -4,6 +4,7 @@
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Orders"
+require "OperationAcorn/Upgrades/Infection"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Boxes, Orders = Trade.Boxes, Trade.Orders
@@ -41,7 +42,10 @@ function Estimate.infos(record, infos)
 end
 
 -- The whole flight a call would make: the sealed boxes' worth, the bonus waiting, the cart's cost and the balance
--- that would be left. { sealed, boxes, bonus, orders, before, after, debt }.
+-- that would be left. { sealed, fee, feeRate, net, boxes, bonus, orders, cart, before, after, blocked }: sealed is the
+-- worth before the infection handling fee, fee the credits it withholds (0 or more; the same before a test as after, so
+-- the estimate does not tell whether there is an infection), feeRate its share (0 when none applies), net sealed
+-- less fee; after is what is left with the fee and the orders taken.
 function Estimate.flight(record)
     local account = Trade.account(record)
     local entries = Boxes.sealedEntries(record)
@@ -50,12 +54,14 @@ function Estimate.flight(record)
     local bonus = OA.round(account.bonus or 0)
     local cost = Orders.estimate(record, 0)
     local balance = account.credits
-    local gain = credits + bonus
+    local fee, feeRate = OA.Infection.fee(record, credits)
+    local gain = credits - fee + bonus
     -- A debt takes the gain first, then the orders are paid from what is left.
     local after = balance + gain
     local orders = (after >= 0) and cost or 0
     return {
-        boxes = #Boxes.sealed(record), sealed = credits, bonus = bonus, orders = orders, cart = cost,
+        boxes = #Boxes.sealed(record), sealed = credits, fee = fee, feeRate = feeRate, net = credits - fee,
+        bonus = bonus, orders = orders, cart = cost,
         before = balance, after = after - orders, blocked = after < 0 and cost > 0,
     }
 end

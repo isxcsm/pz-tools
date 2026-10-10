@@ -1047,5 +1047,6 @@
     "IGUI_OA_Wound_cut": "laceration",
     "IGUI_OA_Title_TestPositive": "Infection: positive",
     "IGUI_OA_Title_TestNegative": "Infection: negative",
-    "IGUI_OA_Title_TestNegativeSub": "No handling fee"
+    "IGUI_OA_Title_TestNegativeSub": "No handling fee",
+    "IGUI_OA_Trade_Rc_Fee": "Infection handling fee %1%%: -%2 credits."
 }

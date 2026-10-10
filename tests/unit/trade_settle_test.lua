@@ -351,3 +351,72 @@ test("a settlement that applies support changes the rewards the same flight read
     Settle.run(record, services())
     eq(OA.Trust.rewards(record).boxCapacity, 100)
 end)
+
+-- ---- the infection handling fee (DESIGN-terminal 17.3) ---------------------------------------------------------------
+
+local function flight(record, options)
+    seal(record, 10, nil, true)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    return Settle.run(record, services(options))
+end
+
+test("an untested zombie wound or a known infection takes 30% of the delivery credits, on the receipt", function()
+    for i, set in ipairs({ function(r) OA.Infection.wounded(r, "scratch", 0) end,
+                           function(r) OA.Infection.tested(r, true, 0.4) end }) do
+        local record = OA.Store.ensure("fee" .. i, "Tester")
+        OA.Trade.account(record).credits = 500
+        set(record)
+        local plan = flight(record, { credits = 1000, trust = 10 })
+        eq(record.trade.credits, 500 + 700, "the credits less the fee")
+        eq(plan.receipt.credits, 1000, "the receipt keeps what was settled")
+        eq(plan.receipt.fee, 300)
+        eq(plan.receipt.feeRate, 0.3)
+        eq(record.trade.trust, 10, "the trust is not touched")
+        eq(plan.receipt.balance, 1200)
+    end
+end)
+
+test("no fee without an untested wound or a known infection, and none after a negative test", function()
+    local record = newRecord(500)
+    local plan = flight(record, { credits = 1000 })
+    eq(record.trade.credits, 1500)
+    eq(plan.receipt.fee, nil)
+    eq(plan.receipt.feeRate, nil)
+    local other = OA.Store.ensure("rec2", "Tester")
+    OA.Trade.account(other).credits = 0
+    OA.Infection.wounded(other, "cut", 0)
+    OA.Infection.tested(other, false)
+    plan = flight(other, { credits = 1000 })
+    eq(other.trade.credits, 1000)
+    eq(plan.receipt.fee, nil)
+end)
+
+test("the fee comes off the delivery credits before a debt and not off the bonus or the orders-only call", function()
+    local record = newRecord(-800)
+    OA.Infection.wounded(record, "bite", 0)
+    record.trade.bonus = 100
+    local plan = flight(record, { credits = 1000, trust = 10 })
+    eq(plan.receipt.fee, 300)
+    eq(record.trade.credits, -800 + 700 + 100, "700 of the delivery and the whole bonus")
+    eq(plan.receipt.debtPaid, 800)
+    local orders = OA.Store.ensure("rec3", "Tester")
+    OA.Trade.account(orders).credits = 450
+    OA.Infection.wounded(orders, "scratch", 0)
+    Boxes.add(orders, { x = 7, y = 0, z = 0 })
+    Trade.heli(orders).call = { at = 90, arrive = 100, kind = "normal", orders = { { id = "cheap", count = 3 } } }
+    plan = Settle.run(orders, services({ credits = 999 }))
+    eq(plan.receipt.fee, nil, "nothing was delivered: nothing to take a share of")
+    eq(orders.trade.credits, 150)
+end)
+
+test("the fee is the same before and after a test shows the infection, so the receipt tells nothing", function()
+    local a, b = newRecord(0), OA.Store.ensure("rec2", "Tester")
+    OA.Trade.account(b).credits = 0
+    OA.Infection.wounded(a, "scratch", 0)           -- untested, perhaps no infection at all
+    OA.Infection.wounded(b, "scratch", 0)
+    OA.Infection.tested(b, true, 0.2)               -- known
+    local planA = flight(a, { credits = 1000 })
+    local planB = flight(b, { credits = 1000 })
+    eq(planA.receipt.fee, planB.receipt.fee)
+    eq(a.trade.credits, b.trade.credits)
+end)

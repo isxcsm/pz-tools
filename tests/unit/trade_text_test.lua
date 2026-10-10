@@ -161,6 +161,68 @@ test("the flight estimate puts the sealed boxes, the bonus and the cart together
     OA.Shop = nil
 end)
 
+test("the flight estimate withholds the infection handling fee: sealed is gross, fee and net are given", function()
+    fakeValue()
+    OA.Shop = {
+        catalog = function() return { { id = "a" } } end,
+        price = function() return 1000 end,
+    }
+    local record = OA.Store.ensure("rec", "T")
+    local box = Boxes.add(record, { x = 1, y = 1, z = 0 })
+    Boxes.seal(record, box.id, { { info = { fullType = "Base.Rag" }, count = 2 } })
+    OA.Trade.account(record).credits = 500
+    OA.Trade.account(record).bonus = 100
+    OA.Trade.Orders.set(record, { { id = "a", count = 2 } })
+    local plain = Estimate.flight(record)
+    eq(plain.fee, 0)
+    eq(plain.feeRate, 0)
+    eq(plain.net, 300)
+    OA.Infection.wounded(record, "scratch", 0)
+    local flight = Estimate.flight(record)
+    eq(flight.sealed, 300, "the worth before the fee")
+    eq(flight.fee, 90)
+    eq(flight.feeRate, 0.3)
+    eq(flight.net, 210)
+    eq(flight.bonus, 100)
+    eq(flight.after, 500 + 210 + 100 - 2000)
+    eq(flight.after, plain.after - 90)
+    OA.Infection.tested(record, true, 0.1)
+    eq(Estimate.flight(record).fee, 90, "the same once the infection is known")
+    OA.Infection.tested(record, false)
+    eq(Estimate.flight(record).fee, 0, "none after a negative test")
+    OA.Shop = nil
+end)
+
+test("a fee on a debt that the rest does not clear still blocks the orders", function()
+    fakeValue()
+    OA.Shop = { catalog = function() return { { id = "a" } } end, price = function() return 1000 end }
+    local record = OA.Store.ensure("rec", "T")
+    local box = Boxes.add(record, { x = 1, y = 1, z = 0 })
+    Boxes.seal(record, box.id, { { info = { fullType = "Base.Rag" }, count = 2 } })
+    OA.Trade.account(record).credits = -400
+    OA.Infection.wounded(record, "cut", 0)
+    OA.Trade.Orders.set(record, { { id = "a", count = 1 } })
+    local flight = Estimate.flight(record)
+    eq(flight.after, -400 + 300 - 90)
+    eq(flight.blocked, true)
+    eq(flight.orders, 0)
+    OA.Shop = nil
+end)
+
+test("a receipt with a fee has a marked line with the share and the credits withheld", function()
+    local lines = Text.receipt({ id = 1, day = 2, boxes = 1, credits = 1000, fee = 300, feeRate = 0.3, trust = 5,
+        balanceBefore = 0, balance = 700 })
+    local found
+    for _, line in ipairs(lines) do
+        if string.find(line.text, "IGUI_OA_Trade_Rc_Fee", 1, true) then found = line end
+    end
+    truthy(found, "a fee line")
+    eq(found.text, "IGUI_OA_Trade_Rc_Fee 30 300")
+    eq(found.kind, "bad")
+    lines = Text.receipt({ id = 1, day = 2, boxes = 1, credits = 1000, trust = 5, balanceBefore = 0, balance = 1000 })
+    for _, line in ipairs(lines) do eq(string.find(line.text, "Rc_Fee", 1, true), nil) end
+end)
+
 test("a debt that the flight does not clear blocks the orders in the estimate", function()
     fakeValue()
     OA.Shop = { catalog = function() return { { id = "a" } } end, price = function() return 1000 end }

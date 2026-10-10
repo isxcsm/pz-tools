@@ -95,6 +95,9 @@ function Text.receipt(receipt)
     elseif receipt.kind ~= "reissue" then
         add("line", "IGUI_OA_Trade_Rc_NoBoxes")
     end
+    if (receipt.fee or 0) > 0 then
+        add("bad", "IGUI_OA_Trade_Rc_Fee", math.floor((receipt.feeRate or 0) * 100 + 0.5), Text.credits(receipt.fee))
+    end
     if (receipt.bonus or 0) ~= 0 then add("good", "IGUI_OA_Trade_Rc_Bonus", Text.credits(receipt.bonus)) end
     if (receipt.debtPaid or 0) > 0 then add("line", "IGUI_OA_Trade_Rc_DebtPaid", Text.credits(receipt.debtPaid)) end
     for _, order in ipairs(receipt.orders or {}) do
