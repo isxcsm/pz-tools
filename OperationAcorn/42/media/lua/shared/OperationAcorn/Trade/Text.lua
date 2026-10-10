@@ -97,6 +97,8 @@ function Text.receipt(receipt)
     end
     if (receipt.fee or 0) > 0 then
         add("bad", "IGUI_OA_Trade_Rc_Fee", math.floor((receipt.feeRate or 0) * 100 + 0.5), Text.credits(receipt.fee))
+    elseif receipt.feeReleased then
+        add("good", "IGUI_OA_Trade_Rc_FeeReleased")
     end
     for _, fill in ipairs(receipt.filled or {}) do
         add("good", "IGUI_OA_Trade_Rc_Filled", Text.itemName(fill.fullType), Text.credits(fill.trust))

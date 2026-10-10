@@ -118,13 +118,17 @@ Server.on("upgrades.bite", function(character, record, args)
 end)
 
 -- A new wound from a zombie (the watch found it): the wound is untested from now, and a delay drug ends, whether or
--- not the body is infected.
+-- not the body is infected. The drug going is told (red text over the head, and a line at most once a day); the wound
+-- itself is not: the player learns of an infection only from a test and the body.
 Server.on("infection.wound", function(character, record, args)
     local kind = args.kind
     if not Infection.WOUNDS[kind] then return end
     local lost = Infection.wounded(record, kind, OA.hours())
     OA.Sync.changed("infection", record.id, { kind = "wound" })
-    if lost then OA.Sync.notice(record.id, "IGUI_OA_Tree_DrugLost", { kind }) end
+    if lost then
+        OA.Sync.notice(record.id, "IGUI_OA_Tree_DrugLost", { kind })
+        OA.Say.tell(record.id, "DrugLost")
+    end
 end)
 
 -- What the body shows once a minute, when the record lacks it: an infection found, a known one gone, the progress.

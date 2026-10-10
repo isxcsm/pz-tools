@@ -249,6 +249,32 @@ test("a receipt with a fee has a marked line with the share and the credits with
     for _, line in ipairs(lines) do eq(string.find(line.text, "Rc_Fee", 1, true), nil) end
 end)
 
+test("a receipt after a cure has the lifted-fee line, a good one, and one with a fee has not", function()
+    local lines = Text.receipt({ id = 1, day = 2, boxes = 1, credits = 1000, feeReleased = true, trust = 5,
+        balanceBefore = 0, balance = 1000 })
+    local found
+    for _, line in ipairs(lines) do
+        if line.text == "IGUI_OA_Trade_Rc_FeeReleased" then found = line end
+    end
+    truthy(found, "a lifted-fee line")
+    eq(found.kind, "good")
+    lines = Text.receipt({ id = 1, day = 2, boxes = 1, credits = 1000, fee = 300, feeRate = 0.3, feeReleased = true,
+        trust = 5, balanceBefore = 0, balance = 700 })
+    for _, line in ipairs(lines) do eq(line.text == "IGUI_OA_Trade_Rc_FeeReleased", false) end
+end)
+
+test("the flight estimate carries the lifted fee for a flight with credits only", function()
+    fakeValue()
+    local record = OA.Store.ensure("rec", "T")
+    local box = Boxes.add(record, { x = 1, y = 1, z = 0 })
+    Boxes.seal(record, box.id, { { info = { fullType = "Base.Rag" }, count = 2 } })
+    OA.Infection.tested(record, true, 0.1)
+    OA.Infection.cured(record)
+    eq(Estimate.flight(record).feeReleased, true)
+    OA.Infection.wounded(record, "scratch", 0)
+    eq(Estimate.flight(record).feeReleased, false, "a fee is taken again")
+end)
+
 test("a debt that the flight does not clear blocks the orders in the estimate", function()
     fakeValue()
     OA.Shop = { catalog = function() return { { id = "a" } } end, price = function() return 1000 end }

@@ -8,6 +8,7 @@
 -- mod data for self-talk, a record's section for what the server sends).
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Trade/Later"
 local OA = OperationAcorn
 local Say = {}
 OA.Say = Say
@@ -126,19 +127,27 @@ function Say.say(character, id, ctx)
     return key
 end
 
--- Self-talk the server's side asks for (a mission's place reached, a drop site stood at): the player's own client
--- says it, alone at once. ctx is the context the bundle's tags are matched against.
-function Say.tell(playerId, id, ctx)
+-- Self-talk the server's side asks for (a mission's place reached, a drop site stood at, a cure that took): the
+-- player's own client says it, alone at once. ctx is the context the bundle's tags are matched against; `delay` is
+-- real seconds to wait first (a stamp on the screen is let be read), the line is drawn when it is said.
+function Say.tell(playerId, id, ctx, delay)
     if isServer() then
-        sendServerCommand(OA.MOD, "say", { player = playerId, id = id, ctx = ctx })
+        sendServerCommand(OA.MOD, "say", { player = playerId, id = id, ctx = ctx, delay = delay })
     else
-        OA.Sync.deliver("say", playerId, { id = id, ctx = ctx })
+        OA.Sync.deliver("say", playerId, { id = id, ctx = ctx, delay = delay })
     end
 end
 
 OA.Sync.listen("say", function(playerId, detail)
     local player = getPlayer and getPlayer()
     if not (player and detail) or OA.Store.idOf(player) ~= playerId then return end
+    if type(detail.delay) == "number" and detail.delay > 0 then
+        OA.Trade.Later.after(detail.delay, function()
+            local now = getPlayer and getPlayer()
+            if now and not now:isDead() and OA.Store.idOf(now) == playerId then Say.say(now, detail.id, detail.ctx) end
+        end)
+        return
+    end
     Say.say(player, detail.id, detail.ctx)
 end)
 

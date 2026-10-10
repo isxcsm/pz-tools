@@ -854,9 +854,10 @@ test("a cure serum that works has a green title in place of its notice", functio
     local container = { DoRemoveItem = function() end }
     local item = { getType = function() return "CureSerum" end, getContainer = function() return container end }
     truthy(Serums.cure({}, item, "cure1"))
-    eq(#told, 1)
+    eq(#told, 2, "the stamp and the notice that a certificate is in the folder")
     eq(told[1].key, "IGUI_OA_Title_Cured")
     eq(told[1].tone, "green")
+    eq(told[2].key, "IGUI_OA_Story_DocTitle_cure_cert_short")
     eq(#notices, 0)
     Serums.cureStatus, Serums.infected, Serums.cureBody = real.status, real.infected, real.body
 end)

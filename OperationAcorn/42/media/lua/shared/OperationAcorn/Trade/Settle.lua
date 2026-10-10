@@ -104,6 +104,8 @@ function Settle.run(record, svc)
     -- The infection handling fee (a zombie wound not yet tested for, or a known infection) comes off this flight's
     -- delivery credits, the requests' among them, before a debt takes its share.
     local fee, feeRate = OA.Infection.fee(record, result.credits or 0)
+    -- The first flight after a cure says the fee is lifted (once).
+    local feeReleased = OA.Infection.takeRelease(record, result.credits or 0)
     local gain = (result.credits or 0) - fee + bonus
     local balanceBefore = account.credits
     local debtPaid
@@ -195,6 +197,7 @@ function Settle.run(record, svc)
         credits = result.credits or 0,
         fee = fee > 0 and fee or nil,
         feeRate = fee > 0 and feeRate or nil,
+        feeReleased = feeReleased or nil,
         trust = result.trust or 0,
         bonus = bonus,
         debtPaid = debtPaid,

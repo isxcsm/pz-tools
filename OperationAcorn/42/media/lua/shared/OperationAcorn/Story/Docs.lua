@@ -26,6 +26,9 @@ Docs.STAKE_LOG = "stake_log"
 -- memos, the infection handling notice, the cure certificate): the guide documents add their ids with Docs.addGuide
 -- (Story.deliverDocument puts one in a record's folder, new until opened).
 Docs.GUIDE = {}
+-- A guide document that is made from the record when it is read (the cure certificate tells the days it took) has its
+-- text made by a function: Docs.GUIDE_BODY[id](record, variant, extra).
+Docs.GUIDE_BODY = {}
 
 local known = {}
 for _, id in ipairs(Docs.FOUND) do known[id] = "found" end
@@ -37,11 +40,12 @@ function Docs.kind(id)
     return known[id]
 end
 
--- A guide document's id, added to the ones the folder knows.
-function Docs.addGuide(id)
+-- A guide document's id, added to the ones the folder knows; `body` (optional) makes its text.
+function Docs.addGuide(id, body)
     if known[id] then return end
     Docs.GUIDE[#Docs.GUIDE + 1] = id
     known[id] = "guide"
+    Docs.GUIDE_BODY[id] = body
 end
 
 -- Every document id (for the folder's order and for checks).
@@ -111,7 +115,7 @@ local NO_EXTRA = { soil_slip = "soil_slip_plain" }
 -- The text of a document for a record. `variant` is a place id (changes the place wording), `extra` a number the
 -- text uses (a stake number, a serial).
 function Docs.body(record, id, variant, extra)
-    local dynamic = DYNAMIC[id]
+    local dynamic = DYNAMIC[id] or Docs.GUIDE_BODY[id]
     if dynamic then return dynamic(record, variant, extra) end
     local place, note = placeTexts(variant)
     local text = id
