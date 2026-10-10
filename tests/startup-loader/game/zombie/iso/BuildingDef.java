@@ -7,6 +7,8 @@ public final class BuildingDef {
     public final ArrayList<RoomDef> rooms = new ArrayList<>();
     private final boolean userDefined;
     public BuildingDef(boolean userDefined) { this.userDefined = userDefined; }
-    public ArrayList<RoomDef> getRooms() { return rooms; }
+    /** Test: how many times the building's rooms were asked for. */
+    public int asked;
+    public ArrayList<RoomDef> getRooms() { asked++; return rooms; }
     public boolean isUserDefined() { return userDefined; }
 }

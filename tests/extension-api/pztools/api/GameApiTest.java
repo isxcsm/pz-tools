@@ -23,6 +23,8 @@ import zombie.inventory.ItemContainer;
 import zombie.inventory.types.Food;
 import zombie.iso.*;
 import zombie.iso.SpriteDetails.IsoFlagType;
+import zombie.iso.areas.isoregion.IsoRegions;
+import zombie.iso.areas.isoregion.regions.IsoWorldRegion;
 import zombie.iso.objects.IsoGenerator;
 import zombie.iso.objects.IsoLightSwitch;
 import zombie.iso.objects.IsoRadio;
@@ -53,6 +55,7 @@ public final class GameApiTest {
         near(buildings);
         wallLamps(api, buildings);
         callerErrors(buildings);
+        attached(buildings);
         clients(api);
         networks(api);
         sequence(api);
@@ -205,6 +208,90 @@ public final class GameApiTest {
         int count = 0;
         for (boolean value : ring) if (value) count++;
         check(count == 9 && ring[6] && ring[18] && !ring[0], "Dilation is not a square");
+    }
+
+    /**
+     * Rooms players built onto a map building, from the game's region data: enclosed and half roofed beside its rooms,
+     * with what doors join to them, counted in the room they touch most; kept while the region data is the one the game
+     * has (the buildings' version), seen again once the game swaps in new data. None for a building players built, and
+     * nil where a space grows past what a room has.
+     */
+    private static void attached(KahluaTable buildings) {
+        var grid = IsoWorld.instance.metaGrid;
+        var barn = new BuildingDef(false);
+        var hall = new RoomDef(700, "hall", 0, barn);
+        var store = new RoomDef(701, "store", 0, barn);
+        room(grid, hall, 200, 200, 4, 4);
+        room(grid, store, 204, 200, 2, 4);
+        String key = "200,200,0";
+        // A shed against the store, a porch through a door from it, a closet beside the porch with no door to it, and a
+        // yard north of the hall, fenced but hardly roofed.
+        var shed = new IsoWorldRegion(true, 1f);
+        var porch = new IsoWorldRegion(true, 0.6f);
+        shed.joined.add(porch);
+        porch.joined.add(shed);
+        var closet = new IsoWorldRegion(true, 1f);
+        var yard = new IsoWorldRegion(true, 0.2f);
+        IsoRegions.set(shed, 206, 200, 2, 2, 0);
+        IsoRegions.set(porch, 208, 200, 1, 2, 0);
+        IsoRegions.set(closet, 209, 200, 1, 2, 0);
+        IsoRegions.set(yard, 200, 196, 4, 4, 0);
+        IsoRegions.swap();
+        for (int x = 206; x <= 209; x++) for (int y = 200; y <= 201; y++) square(x, y, 0);
+        double version = (Double)call(buildings, "version").get(0);
+        check(call(buildings, "version").get(0).equals(version), "The version changed with nothing changed");
+        // Described once a version, whatever asks: the rooms' rectangles are many calls into the game.
+        call(buildings, "rooms", key);
+        int asked = barn.asked;
+        call(buildings, "rooms", key);
+        call(buildings, "at", 201.0, 201.0, 0.0);
+        call(buildings, "near", key, 2.0);
+        call(buildings, "attached", key);
+        check(barn.asked == asked, "The barn was described again with nothing changed");
+        KahluaTable spaces = (KahluaTable)call(buildings, "attached", key).get(0);
+        check(spaces != null && spaces.len() == 1, "Not one built-on room");
+        KahluaTable space = (KahluaTable)spaces.rawget(1.0);
+        check(space.rawget("level").equals(0.0) && space.rawget("host").equals("701") && space.rawget("count").equals(6.0)
+            && space.rawget("extent").equals(3.0), "The shed and porch were misdescribed");
+        KahluaTable rects = (KahluaTable)space.rawget("rects");
+        KahluaTable rect = (KahluaTable)rects.rawget(1.0);
+        check(rects.len() == 1 && rect.rawget("x").equals(206.0) && rect.rawget("y").equals(200.0) && rect.rawget("w").equals(3.0)
+            && rect.rawget("h").equals(2.0), "The shed and porch are not one rectangle");
+        place(207, 201, 0, powered("shed lamp", 0.01f));
+        place(209, 201, 0, powered("closet lamp", 0.01f));
+        var inside = call(buildings, "attachedObjects", key);
+        check(sprites(inside.get(0)).equals(Set.of("shed lamp")) && inside.get(1).equals(true),
+            "Wrong objects in the built-on rooms: " + sprites(inside.get(0)));
+        KahluaTable lamp = find(inside.get(0), "shed lamp");
+        check(lamp.rawget("roomId").equals("701") && lamp.rawget("room").equals("store"), "The shed's lamp is not in the store");
+        check(sprites(call(buildings, "attachedObjects", key, "water").get(0)).isEmpty(), "The water filter let a lamp through");
+        check(((KahluaTable)call(buildings, "attached", "20,20,0").get(0)).len() == 0, "The shack, built by a player, has built-on rooms");
+        check(call(buildings, "attached", "1,1,0").get(0) == null, "A key of no building has built-on rooms");
+        // The game reads only the region data its worker handed over: until it is swapped in, the shed is as it was.
+        shed.roofed = 0.1f;
+        check(((KahluaTable)call(buildings, "attached", key).get(0)).len() == 1, "Region data not swapped in was read");
+        IsoRegions.swap();
+        frame();
+        check(!call(buildings, "version").get(0).equals(version), "The version stayed as the region data changed");
+        call(buildings, "rooms", key);
+        check(barn.asked == asked + 1, "The barn was not described again for the new version");
+        check(((KahluaTable)call(buildings, "attached", key).get(0)).len() == 0, "A shed with its roof gone is still a room");
+        // A hangar of 1600 squares against a silo is no room anyone built.
+        var silo = new BuildingDef(false);
+        var bins = new RoomDef(702, "silo", 0, silo);
+        room(grid, bins, 300, 300, 2, 2);
+        var hangar = new IsoWorldRegion(true, 1f);
+        IsoRegions.set(hangar, 302, 280, 40, 40, 0);
+        IsoRegions.swap();
+        check(call(buildings, "attached", "300,300,0").get(0) == null, "A space larger than any room was taken for one");
+        var none = call(buildings, "attachedObjects", "300,300,0");
+        check(none.get(0) == null && none.get(1).equals(false), "A space larger than any room has objects");
+        square(207, 201, 0).objects.clear();
+        square(209, 201, 0).objects.clear();
+        for (var region : new Object[][] { { 206, 200, 4, 2 }, { 200, 196, 4, 4 }, { 302, 280, 40, 40 } })
+            IsoRegions.set(null, (int)region[0], (int)region[1], (int)region[2], (int)region[3], 0);
+        IsoRegions.swap();
+        grid.rooms.removeAll(List.of(hall, store, bins));
     }
 
     /**
