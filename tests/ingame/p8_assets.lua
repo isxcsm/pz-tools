@@ -278,7 +278,7 @@ if pack then
     check("backpack is a container", item and item:IsInventoryContainer())
     function P8_WEAR()
         ISTimedActionQueue.add(ISWearClothing:new(player, item, 50))
-        say("wearing the backpack: look at its fit on the back (male and female), then drop it and look at the ground model, hold it in each hand")
+        say("wearing the backpack: look at its fit on the back (male and female): straps on the shoulders in walk, run, aim and sneak, the canteens on the sides; then drop it and look at the ground model, hold it in each hand")
     end
 else
     say("info", "no TeamBackpack item script; the backpack model is checked once it exists")

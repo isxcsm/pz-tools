@@ -1149,7 +1149,7 @@
     "IGUI_OA_Terminal_Shop_Desc_ammo_pistol": "One box, to pick from 9mm, .38, .357, .44 and .45.",
     "IGUI_OA_Terminal_Shop_Desc_ammo_shotgun": "One box of 12-gauge shells.",
     "IGUI_OA_Terminal_Shop_Desc_ammo_rifle": "One box, to pick from 5.56, .308 and .30-30.",
-    "IGUI_OA_Terminal_Shop_Desc_team_backpack": "The team's issue backpack and two empty canteens.",
+    "IGUI_OA_Terminal_Shop_Desc_team_backpack": "The team's issue backpack. The canteens built into its sides are its water storage and hold 1.8L. It comes empty.",
     "IGUI_OA_Terminal_Shop_Desc_shred_bench": "A hand-powered shred bench. It grinds items into sample bundles and needs no power.",
     "IGUI_OA_Terminal_Shop_Desc_bait_trap": "Makes a noise every 15 minutes for a day to draw distant zombies.",
     "IGUI_OA_Terminal_Shop_Desc_field_terminal": "A research team field terminal. It comes by helicopter and you set it up wherever you like. Research team orders, special requests and flight support applications open up. The crude terminal stays usable.",

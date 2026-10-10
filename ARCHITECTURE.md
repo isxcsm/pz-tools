@@ -292,15 +292,21 @@ ReplaceInSecondHand = OA_Bag_ResearchPack_LHand holdingbagleft,
 WorldStaticModel = OA_ResearchPack_Ground,      (이름을 못 찾으면 OperationAcorn.OA_ResearchPack_Ground)
 AttachmentsProvided = WebbingLeft;WebbingRight,
 AttachmentReplacement = Bag,
+component FluidContainer { ContainerName = OA_WaterStorage, Capacity = 1.8, ... }   (양옆 수통 = 물 저장소)
 ```
 
 | 이름 | 파일 |
 | --- | --- |
 | 옷 항목 `OA_Bag_ResearchPack`, `_LHand`, `_RHand` | `media/clothing/clothingItems/OA_Bag_ResearchPack*.xml` (GUID는 `media/fileGuidTable.xml`에 등록. 새 옷 XML을 더하는 묶음은 이 표에도 더한다) |
-| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (모든 꼭짓점이 `Bip01_BackPack`에 100%) |
+| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (배낭 몸통은 `Bip01_BackPack`에 100%, 어깨끈은 바닐라 몸(`MaleBody.x`/`FemaleBody.x`) 표면에 맞춰 놓고 그 아래 몸의 가중치(Spine, Spine1, 쇄골, 위팔 최대 35%)를 받아 배낭에 닿는 끝에서 `Bip01_BackPack`으로 넘어간다. 꼭짓점당 뼈 최대 3개) |
 | 손에 든 모습 | `OA_ResearchPack_LHand.x` (`Bip01_Prop2`), `OA_ResearchPack_RHand.x` (`Bip01_Prop1`) |
 | 바닥 모델 `OA_ResearchPack_Ground` | `models_X/WorldItems/Clothing/OA_ResearchPack_Ground.fbx`, 정의는 `scripts/OA_backpack_models.txt` |
-| 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (256×256) |
+| 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (1024×1024, 주변 차폐를 구워 넣음) |
+| 물 저장소 이름 | `Fluid_Container_OA_WaterStorage` (`Translate/<언어>/Fluids.json`) |
 
-수통 걸이 자리(`WebbingLeft/Right`)는 캐릭터의 `ISHotbarAttachDefinition`이 정하므로 배낭 모델의 양옆 웨빙 띠는 모양일 뿐이다. 생성기는 `python tools/backpack_mesh.py`
-(`--check`는 다시 읽어 검사만, 게임 폴더는 환경 변수 `PZ_DIR`).
+모델의 양옆 수통 두 개가 배낭의 물 저장소(`FluidContainer`, 군용 수통 둘과 같은 1.8 L)다. 상점은 수통을 따로 주지 않는다.
+이미 가진 배낭도 불러올 때 물 저장소가 생긴다: 게임은 아이템을 스크립트로 만든 뒤 저장된 컴포넌트가 있을 때만 그 목록에 없는
+컴포넌트를 지우는데, 예전 배낭에는 컴포넌트가 없었다. 핫바 걸이(`WebbingLeft/Right`)는 캐릭터의 `ISHotbarAttachDefinition`이
+가슴 앞 어깨끈 자리(Spine1 기준)에 놓으므로 그대로 둔다 (무전기·칼. 양옆 수통과 겹치지 않는다).
+생성기는 `python tools/backpack_mesh.py` (`--check`는 다시 읽어 검사만, `--old <폴더>`는 이전 모델과 나란히 그린 비교 그림,
+게임 폴더는 환경 변수 `PZ_DIR`). 그림은 `tools/backpack_preview.png`와 `../mockups/backpack/`.

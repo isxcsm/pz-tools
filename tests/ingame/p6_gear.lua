@@ -4,7 +4,7 @@
 -- has a trunk), and P6_CLEAN() takes back what it can (the kits it fitted to the vehicle, the items it made).
 --
 -- What it checks: every item of OA_gear.txt against the vanilla item it is modelled on (the fuel cans' fluid container,
--- the backpack's capacity and reduction); the shop stocks all of them; a bag kit and a weight
+-- the backpack's capacity, reduction and water storage); the shop stocks all of them; a bag kit and a weight
 -- kit on a vanilla bag and on the research backpack, with and without the extension API (it reads which one is there);
 -- a trunk kit and an engine kit on the nearest vehicle against the game's own getters; the voucher through the server
 -- command, and the shop's count unchanged by it; that a kit ordered for one bag or one vehicle (its item id, the id in
@@ -14,7 +14,9 @@
 -- see the kit lines; right-click a kit and a bag; fit a bag kit and a vehicle kit with the real timed action (the
 -- progress bar, the notice), from the inventory menu and from the mechanics window (right-click the trunk and the engine
 -- part); save, quit and load: the bag's capacity and reduction, the trunk, the engine power and loudness are as left;
--- drive the car with a full trunk; wear the backpack and hang two canteens on its sides; order a kit for one of two
+-- drive the car with a full trunk; wear the backpack, fill its water storage at a tap and drink from it (right-click),
+-- hang a radio on a shoulder-strap hanger; load a save made before the water storage (a pack bought then has it,
+-- empty, and keeps its contents and kits); order a kit for one of two
 -- bags of the same kind (the shop's target list names them #1, #2) and see that only that bag takes it; save, quit and
 -- load, and see the kit still finds its car (the id is in the car's parts).
 local OA = OperationAcorn
@@ -77,6 +79,12 @@ section("the items against the vanilla ones", function()
     check("backpack weight reduction 85", pack:getWeightReduction() == 85, pack:getWeightReduction())
     check("backpack is worn on the back", string.find(string.lower(tostring(pack:canBeEquipped())), "back", 1, true) ~= nil,
         tostring(pack:canBeEquipped()))
+    local water = pack:getFluidContainer()
+    check("backpack has its water storage", water ~= nil)
+    if water then
+        check("water storage holds 1.8 L (two military canteens)", near(water:getCapacity(), 1.8), water:getCapacity())
+        check("water storage comes empty", water:isEmpty(), water:getAmount())
+    end
     local alice = give("Base.Bag_ALICEpack")
     check("the vanilla pack for comparison: 28 and 85", alice:getItemContainer():getCapacity() == 28 and alice:getWeightReduction() == 85)
 

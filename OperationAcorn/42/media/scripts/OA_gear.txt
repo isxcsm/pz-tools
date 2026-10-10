@@ -13,8 +13,15 @@ module OperationAcorn
         Base
     }
 
-    /* The research team backpack: 35 capacity and 85 weight reduction, the vanilla maxima, with two webbing
-       hangers on the sides (WebbingLeft/Right) for the two military canteens the shop gives with it. */
+    /* The research team backpack: 35 capacity and 85 weight reduction, the vanilla maxima. Two military canteens
+       are built into its side pouches (they are part of the model): together they are the pack's water storage, the
+       FluidContainer below, as much as the two canteens (CanteenMilitary, 0.9 each) and empty when bought. Like the
+       canteen it takes any fluid. A pack bought before the water storage existed gets it when the save loads: the
+       game makes an item's components from its script and only drops them for an item saved with components of its
+       own, which the old pack never had.
+       WebbingLeft/Right are the hotbar hangers the game places on the shoulder straps at the chest (a radio, a knife;
+       the ALICE suspenders have the same two), where this pack's straps run, so they stay; they are clear of the
+       canteens on the sides. */
     item TeamBackpack
     {
         DisplayCategory = Bag,
@@ -38,6 +45,12 @@ module OperationAcorn
         WorldStaticModel = OperationAcorn.OA_ResearchPack_Ground,
         AttachmentsProvided = WebbingLeft;WebbingRight,
         Tags = base:ignorezombiedensity,
+        component FluidContainer
+        {
+            ContainerName = OA_WaterStorage,
+            Capacity = 1.8,
+            CustomDrinkSound = DrinkingFromBottlePlastic,
+        }
     }
 
     /* The improved fuel cans: the vanilla petrol can with a larger tank and the same empty weight. The shop sends
