@@ -174,7 +174,7 @@ the old one is deleted later, so a path into the app folder would break at the n
 | File | Content |
 | --- | --- |
 | Install folder | `%ProgramData%\PzTools\startup\s-<account digest>`, one per user: only the player's account and the administrators may change it |
-| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) and the app's `extensions` folder (the extension API, the extension runtime, the modules, the catalogue), named by content digest |
+| `bridge-<digest>\` | Copies of the bootstrap jar, the payload, the native loader (`pztools-attach-bootstrap.dll`) the app's `extensions` folder (the extension API, the extension runtime, the modules, the catalogue) and its `fonts` folder (the extension API's [embedded font](extension-api.md#the-embedded-font)), named by content digest |
 | `current` | Which `bridge-<digest>` the next game start loads, with the bootstrap's SHA-256 |
 | `resident.tsv` | The [resident request](#resident-extensions): the settings revision and each continuous module, on or off, with its configuration as the app would send it in `APPLY` |
 | `install.tsv` | The game's folder and the entry's SHA-256 (while an earlier version's jar patch is still in place: the jar's SHA-256 before and after it) |

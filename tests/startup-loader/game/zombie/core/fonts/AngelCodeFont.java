@@ -21,6 +21,13 @@ public final class AngelCodeFont {
     }
 
     public int getLineHeight() { return lineHeight; }
+
+    /** Draws as the game's does at a zoom; recorded as TextManager.DrawString is, with this font in the place of the UIFont. */
+    public void drawString(float x, float y, float scale, String text, float r, float g, float b, float a) {
+        if (zombie.ui.TextManager.fail) throw new IllegalStateException("the drawing failed");
+        zombie.ui.TextManager.drawn++;
+        if (zombie.ui.TextManager.record) zombie.ui.TextManager.log("text", this, (double)x, (double)y, (double)scale, text, (double)r, (double)g, (double)b, (double)a);
+    }
     public int getWidth(String text) { return text.length() * advance; }
     public boolean isSdf() { return sdf; }
 }

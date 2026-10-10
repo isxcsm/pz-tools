@@ -36,6 +36,9 @@
       <Content Include="@(_BridgeExtension)" Link="game-bridge\extensions\%(_BridgeExtension.Filename)%(_BridgeExtension.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\catalog.tsv" Link="game-bridge\extensions\catalog.tsv" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <Content Include="$(GameBridgeRepositoryRoot)\config\game-extensions\vehicle-drivetrain.toml" Link="game-bridge\extensions\vehicle-drivetrain.toml" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+      <!-- The extension API's embedded fonts and their license: beside the payload, where the API finds them. -->
+      <_BridgeFont Include="$(BridgeOutputPath)\fonts\pztools-font-*.ttf;$(BridgeOutputPath)\fonts\OFL.txt" />
+      <Content Include="@(_BridgeFont)" Link="game-bridge\fonts\%(_BridgeFont.Filename)%(_BridgeFont.Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
       <!-- Import libraries are for linking native programs, not running the bridge. -->
       <_BridgeRuntime Include="$(BridgeOutputPath)\runtime\**\*"
                       Exclude="$(BridgeOutputPath)\runtime\lib\jvm.lib" />

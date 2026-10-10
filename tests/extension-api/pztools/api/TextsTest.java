@@ -48,6 +48,7 @@ final class TextsTest {
             timeline(text, mod, other);
             layout(text, mod);
             fonts(text, mod);
+            embedded(text, mod);
             effects(text, mod);
             typing(text, mod);
             titles(text, mod);
@@ -222,6 +223,105 @@ final class TextsTest {
         render();
         check(near(first, 800 - 15) && near((Double)draws().get(0)[2], 800 - 20) && near((Double)draws().get(0)[3], 430), "A new font was not measured again");
         TextManager.instance.reset();
+        FormulasTest.call(text, "hide", mod, key, true);
+    }
+
+    /**
+     * The embedded font: it draws a line taller than any the language's own fonts are made at (Large, 33), when it has every
+     * character and the game's font for the text is not a distance-field one; inside the shader, with the edge for its spread; it
+     * measures and breaks the rows; the game's font draws at or below 33, with a character the embedded font lacks, before the
+     * atlas is in video memory, and without it. Allocates nothing as it draws.
+     */
+    private static void embedded(KahluaTable text, Object mod) {
+        var face = new zombie.core.fonts.AngelCodeFont(0xD7A3, 90, 50, true);
+        face.chars['똠'] = null;
+        var ready = new java.util.concurrent.atomic.AtomicBoolean(true);
+        Texts texts = GameApi.texts();
+        texts.embedded = new EmbeddedFont.Loaded("test", face, face.chars, 90, 8, ready);
+        try {
+            // A tenth of the screen (90 of 900): the embedded font at zoom 1, 2 characters of 50, in the shader with its edge.
+            double key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Large"), "size", 0.1)).get(0);
+            render();
+            check(names().equals(List.of("windows", "threshold", "shadow", "outline", "start", "text", "end", "tooltip", "post")),
+                "The embedded font was not drawn in the shader: " + names());
+            Object[] draw = draws().get(0);
+            check(draw[1] == face && near((Double)draw[2], 750) && near((Double)draw[3], 405) && near(zoom(draw), 1) && "수색".equals(draw[5]),
+                "The embedded font drew " + Arrays.toString(draw));
+            check(near((Float)call("threshold")[1], 0.75 / 16), "The embedded font's edge is " + call("threshold")[1]);
+            FormulasTest.call(text, "hide", mod, key, true);
+            // 27 high, and 33 (the tallest of Small, Medium and Large): the game's font, zoomed, outside the shader.
+            for (Object[] spec : new Object[][] { { "size", 0.03 }, { "scale", 1.0 } }) {
+                key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "font", list("SdfBold", "Large"), spec[0], spec[1])).get(0);
+                render();
+                check(draws().get(0)[1] == UIFont.Large && call("start") == null, "A line of " + spec[0] + " " + spec[1] + " was not the game's font");
+                FormulasTest.call(text, "hide", mod, key, true);
+            }
+            // A zoom of 1.1 on Large: 36.3 high, the embedded font at 36.3 / 90.
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "scale", 1.1)).get(0);
+            render();
+            check(draws().get(0)[1] == face && near(zoom(draws().get(0)), 36.3 / 90), "A zoomed Large was not the embedded font: " + Arrays.toString(draws().get(0)));
+            FormulasTest.call(text, "hide", mod, key, true);
+            // A character it lacks: the game's font draws the whole text, no character left out.
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "똠방", "size", 0.1)).get(0);
+            render();
+            check(draws().get(0)[1] == UIFont.Large && "똠방".equals(draws().get(0)[5]), "A character the embedded font lacks was not drawn by the game's");
+            FormulasTest.call(text, "hide", mod, key, true);
+            // Latin in a list with the game's distance-field font: that font, sharp already.
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "Quest", "font", list("SdfBold", "Large"), "size", 0.1)).get(0);
+            render();
+            check(draws().get(0)[1] == UIFont.SdfBold, "The game's distance-field font gave way to the embedded font");
+            FormulasTest.call(text, "hide", mod, key, true);
+            // Rows fitted to a width are measured in the embedded font: 8 characters of 50 do not fit 320 pixels.
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색 완료 수색", "size", 0.1, "width", 0.2, "markup", true)).get(0);
+            render();
+            check(draws().size() == 2 && draws().get(0)[1] == face && "수색 완료".equals(draws().get(0)[5]) && near((Double)draws().get(0)[2], 675)
+                && near((Double)draws().get(0)[3], 360) && "수색".equals(draws().get(1)[5]) && near((Double)draws().get(1)[3], 450),
+                "The rows were not broken in the embedded font: " + draws().stream().map(Arrays::toString).toList());
+            // It allocates nothing as it draws, and costs what the game's font does (the same strings, the same calls).
+            long[] time = new long[2];
+            long bytes = 0;
+            TextManager.record = false;
+            try {
+                for (int round = 0; round < 2; round++) {
+                    ready.set(round == 0);
+                    int which = round;
+                    long measured = Allocations.median(5, () -> {
+                        long clock = System.nanoTime();
+                        for (int frame = 0; frame < 100_000; frame++) UIManager.render();
+                        time[which] = System.nanoTime() - clock;
+                    });
+                    if (round == 0) bytes = measured;
+                }
+            } finally { TextManager.record = true; ready.set(true); }
+            System.out.printf("text: two rows fitted to a width cost %.0f ns a frame to place in the embedded font, %.0f ns in the game's; %d bytes allocated over 100000 frames%n",
+                time[0] / 1e5, time[1] / 1e5, bytes);
+            check(bytes < 4096, "Drawing in the embedded font allocated " + bytes + " bytes");
+            FormulasTest.call(text, "hide", mod, key, true);
+            // The first frame of a large title in the embedded font: the characters looked up once, the lines measured once.
+            key = (Double)FormulasTest.call(text, "title", mod, table("text", "임무 완료", "subtitle", "우물이 깨끗해졌다", "hold", 100.0)).get(0);
+            TextManager.record = false;
+            long first = System.nanoTime();
+            UIManager.render();
+            first = System.nanoTime() - first;
+            long next = System.nanoTime();
+            UIManager.render();
+            next = System.nanoTime() - next;
+            TextManager.record = true;
+            System.out.printf("text: a Korean stamp title's first frame in the embedded font took %.1f us to place, the next %.1f us%n", first / 1e3, next / 1e3);
+            FormulasTest.call(text, "hide", mod, key, true);
+            // Not in video memory yet: the game's font.
+            ready.set(false);
+            key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "size", 0.1)).get(0);
+            render();
+            check(draws().get(0)[1] == UIFont.Large, "The embedded font drew before it was in video memory");
+            ready.set(true);
+            render();
+            check(draws().get(0)[1] == face, "The embedded font did not take over once in video memory");
+            FormulasTest.call(text, "hide", mod, key, true);
+        } finally { texts.embedded = null; }
+        double key = (Double)FormulasTest.call(text, "show", mod, table("text", "수색", "size", 0.1)).get(0);
+        render();
+        check(draws().get(0)[1] == UIFont.Large, "Without the embedded font, the game's did not draw");
         FormulasTest.call(text, "hide", mod, key, true);
     }
 

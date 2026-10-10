@@ -130,7 +130,9 @@ $suites = [ordered]@{
         $apiAgent = Join-Path $fixtureOutput 'extension-api-agent.jar'
         & $jar --create --file $apiAgent --manifest (Join-Path $repositoryRoot 'tests/extension-api/API-TEST-AGENT.MF') -C $apiOutput pztools/bridge/ApiTestAgent.class
         if ($LASTEXITCODE -ne 0) { throw 'Extension API test agent packaging failed' }
-        Invoke-Java 'Extension API tests failed' @("-javaagent:$apiAgent", '-ea', '-cp', $apiClasspath, 'pztools.api.GameApiTest')
+        # The embedded font's tests read the packs from the repository and bake one with the API's jar.
+        Invoke-Java 'Extension API tests failed' @("-javaagent:$apiAgent", '-ea', "-Dpztools.test.repository=$repositoryRoot",
+            "-Dpztools.test.apiJar=$(Join-Path $bridgeRoot 'extensions/pztools-extension-api.jar')", '-cp', $apiClasspath, 'pztools.api.GameApiTest')
     }
     # The app's side against a synthetic JVM that imitates the game.
     dotnet = {

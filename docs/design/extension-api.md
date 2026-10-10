@@ -1245,7 +1245,7 @@ which override the jar's; it overrides none of the text classes):
 | Field | Value | Meaning |
 | --- | --- | --- |
 | `text` | 1 to 512 characters | The text; `\n` breaks it into at most 8 lines (counted after the markup, with `markup`, is read). |
-| `font` | a name, or a list of 1 to 8 | One of the game's `UIFont` names (`"Large"` when left out). In a list, the first that has every character of the text is used, the last when none has: `{ "SdfBold", "Large" }` is the sharp font for Latin text and the language's for the rest. |
+| `font` | a name, or a list of 1 to 8 | One of the game's `UIFont` names (`"Large"` when left out). In a list, the first that has every character of the text is used, the last when none has: `{ "SdfBold", "Large" }` is the sharp font for Latin text and the language's for the rest. A line taller than the language's own fonts are made is drawn in the API's [embedded font](#the-embedded-font) instead of a zoomed game font. |
 | `size` | 0.005 to 0.5 | The height of a line as a share of the player's screen's height, whatever the font and the resolution. |
 | `scale` | 0.05 to 20 | The zoom of the font instead (1 when left out), when there is no `size`. |
 | `color` | `{ r, g, b, a }` or `{ r = , g = , b = , a = }`, 0 to 1 | White when left out; `a` is 1 when left out. |
@@ -1375,6 +1375,110 @@ The text is drawn as often as the interface is: with the interface drawn at a lo
 is not in gives no text and `text.status()` says why; a fault while drawing is reported once in the game's log, and the
 interface goes on being drawn (the tooltip and what follows it).
 
+### The embedded font
+
+The game's fonts for most languages are bitmaps made at fixed sizes: Korean `Large` is 33 to 45 pixels high by the font size
+option, and only the folder of the current option is loaded. Drawn larger, they are zoomed and blur. The distance-field fonts
+stay sharp but have no Hangul, kana or Han. So the API carries a font of its own for large text: Noto Sans SemiBold, the
+typeface the game's own language fonts are made from, baked into a distance-field atlas that the game's `AngelCodeFont` draws
+through the game's distance-field shader
+([`EmbeddedFont`](../../src/PzTools.GameBridge.Agent/java/pztools/api/EmbeddedFont.java),
+[`FontBaker`](../../src/PzTools.GameBridge.Agent/java/pztools/api/FontBaker.java)).
+
+**When it draws.** A text is drawn in the embedded font when all of these hold, else in the game's font as before:
+
+| Condition | Why |
+| --- | --- |
+| The line asked for (`size` times the screen's height, or the game font's line times `scale`) is taller than the tallest line of the language's `Small`, `Medium` and `Large` (33 pixels for Korean at the 1x option) | At or below that, the game's font is drawn at about its own size: hinted, crisp, and it follows a font mod for an unofficial language. The tallest is measured again when the game makes its fonts again. |
+| The game's font the text's list picked is not a distance-field font | Those are sharp at any size already; `{ "SdfBold", "Large" }` keeps `SdfBold` for Latin text. |
+| The embedded font has every character of the text, and the cursor's | Otherwise the game's font draws the whole text: no character is left out or drawn as a box, and a line is never in two fonts. |
+| Its atlas is in video memory | Until then, and on a failure, the game's font draws. |
+
+The choice is made each frame from the size before the effects, so a slam or a growth does not change fonts on the way; it
+allocates nothing (the characters are looked up once a text). The lines, the rows of a width and the place of the cursor are
+measured in the font that draws, again when the choice changes. The embedded font's line is the font's Windows ascent and
+descent at its base size, as the game's bitmap fonts' are, so a text is the same height in either font. Its edge in the shader
+is `0.75 / (2 * spread * zoom)`: a soft edge 1.5 screen pixels wide at any zoom (the game's `0.125 / zoom` is for its fonts'
+spread of 4 at 32).
+
+**The packs.** One font file a script, in the payload's `fonts` folder (`pztools-font-<pack>.ttf`, with `OFL.txt`); only the
+current language's is read.
+
+| Pack | Game languages | Characters | File | Base size | Atlas, one channel |
+| --- | --- | --- | --- | --- | --- |
+| `latin` | All but those below | Latin (to Latin Extended-B), Greek, Cyrillic, punctuation and common signs; 1,030 | 182 KB | 64 | 2048 x 2048, 4 MB |
+| `ko` | `KO` | The 2,350 Hangul syllables of KS X 1001, the compatibility jamo, the signs; 3,074 | 549 KB | 64 | 4096 x 4096, 16 MB |
+| `ja` | `JP` | Kana, the 2,965 kanji of JIS X 0208's first level, the signs; 3,932 | 1.1 MB | 64 | 4096 x 8192, 32 MB |
+| `sc` | `CN` | The 3,755 hanzi of GB 2312's first level, the signs; 4,701 | 1.3 MB | 64 | 4096 x 8192, 32 MB |
+| `tc` | `CH` | The 5,401 frequent hanzi of Big5, the signs; 6,111 | 2.0 MB | 60 | 4096 x 8192, 32 MB |
+| none | `TH` | The game's font draws Thai at every size | | | |
+
+Each pack also has every character of the game's translations for its languages and of Operation Acorn's
+(`scripts/fonts/in-use/<pack>.txt`) that its typeface has: the Korean translation uses 1,497 syllables, 9 of them outside KS X
+1001 (`깄`, `떄`, `쫒` and others). Han glyphs differ by region, so the Chinese and Japanese packs are separate fonts. The CJK
+packs' Latin is their own typeface's, as in the game's fonts.
+
+[`build-api-fonts.py`](../../scripts/fonts/build-api-fonts.py) makes the packs from Google Fonts' variable fonts (not kept in
+the repository): it cuts each down to its characters, pins the weight at SemiBold (600; Noto Sans's width at 100), drops the
+hinting (a distance field needs none), the vertical metrics, the glyph names, the layout tables and `DSIG`, and keeps the pair
+kerning of the non-CJK characters as a `kern` table. The same inputs give the same bytes. `--scan` writes the characters in use
+from a game folder and mod folders.
+
+**Baking.** As a Lua environment starts (a loading screen), the API names the bake
+`<pack>-<first 16 hex digits of the font file's SHA-256>-v<baker version>-<base size>-<spread>` and looks for it in
+`<Zomboid user folder>\PZTools\fonts`. Without it, it starts the bake and draws with the game's font:
+
+1. A process of its own: the game's Java runtime (`javaw`, so no console window), headless, at most 768 MB of heap, with the
+   API's jar as its class path, running `FontBaker`. Nothing of AWT runs in the game's process, and the bake's memory and
+   garbage are not the game's. One runs at a time; one that runs over 10 minutes is ended. Its output goes to `bake-<pack>.log`
+   beside the cache.
+2. Every character the font has (the ones it would draw as its missing glyph left out) is drawn 4 times larger than the base
+   size without anti-aliasing. An exact Euclidean distance transform of that picture gives each pixel's distance to the
+   outline, sampled at each texel's centre and stored as `0.5 - distance / (2 * spread)` in a byte, with a spread of 8 texels.
+3. The characters go into rows, tallest first, in an atlas 4096 wide at most, as tall as the next power of two.
+4. It writes `font.fnt` (the game's AngelCode text format, with the font's kerning, and a `pztools` line with the sizes, which
+   the game's reader passes over) and `atlas.r8` (width times height bytes, the top row first) into a new folder
+   `<name>.part-<random>`, and renames that folder into place. A folder of that name is there only once complete; a folder
+   without both files is not a bake.
+5. It deletes the pack's other bakes (an older font file or baker), and parts more than an hour old.
+
+Measured with the game's runtime on a 12-thread processor (the bake uses half the threads, at most 4): `latin` 1.6 s, `ko` 4.3 s, `ja` 6.6
+s, `sc` 8.1 s, `tc` 9.0 s.
+
+**Into video memory.** When the bake is there, at the start of a Lua environment, on the game's thread:
+
+1. `atlas.r8` is read into memory outside the heap (16 MB in about 10 ms).
+2. The game makes a texture of that size with one channel (`new Texture(width, height, flags, GL_RED, GL_R8)`, flags
+   `0x10 | 0x20`: no copy of the picture kept and no mipmaps, clamped at the edges); its storage is made on the render thread.
+3. A job on the render thread after it sends the picture (`glTexSubImage2D`) and sets the texture's swizzle so that red,
+   green and blue read 1 and alpha reads the byte: the game's `sdf.frag` reads the distance from alpha, so its shader draws
+   the atlas unchanged. Without OpenGL 3.3 or `ARB_texture_swizzle`, the picture is sent as an alpha texture (`GL_ALPHA8`)
+   instead. The job puts back the texture binding, the unpack settings and any unpack buffer it found, and logs the time it
+   took. The copy in memory is let go.
+4. The game's `AngelCodeFont(fnt, texture)` reads the text file (25 ms for the Korean pack's 3,137 characters and kerning,
+   130 ms the first time the reader runs) and is marked a distance-field font. Its characters are regions of the one texture.
+
+A newer API takes the font over from the bootstrap's kept objects while the name is the same, so an update does not send it
+again. From then on the API calls `AngelCodeFont.drawString(x, y, zoom, ...)` as `TextManager.DrawString` does for the game's
+fonts: a quad a character, every character of a text from one texture, and nothing more a frame than the game's own
+distance-field text.
+
+**Decisions.**
+
+| Chosen | Rejected, and why |
+| --- | --- |
+| Bake once in a separate process, cache under the user folder | Baking as needed in the game: AWT in the game's process, and stalls when a new character first shows. Shipping baked atlases: 4 to 32 MB each for every language. |
+| One channel with a swizzle | RGBA: four times the video memory (64 MB for the Korean pack). A shader of our own: the game's shader already reads one channel, alpha. |
+| The game's `AngelCodeFont` over a texture of the API's | The vanilla path (`fonts.txt` or `AngelCodeFont(fnt, png)`): pages are loaded as RGBA PNGs, which the game may also compress (`TextureID.useCompression`), and compression ruins a distance field; `fonts.txt` is read only from `media` at the game's start. |
+| Base size 64 (60 for `tc`), 4 times larger to find the outline | 48: the corners of dense syllables are rounder at 400 pixels. 8 times larger: no difference to see, and twice as slow. `tc` at 64 needs 4096 x 16384 (64 MB). |
+| One atlas a pack | Several pages: a texture change between characters of one text. |
+
+**Limits.** `뷁`, `똠` and `쀏` are not in KS X 1001: a text with them is drawn in the game's font. Noto Sans has no arrows or
+block elements, so a Latin-language text with `→` or `█` is too. The Traditional Chinese typeface lacks 16 simplified
+characters the game's `CH` translation uses. The first start draws with the game's font until a Lua environment starts after
+the bake (in practice the next world loaded); a language changed in the game keeps the pack loaded until the game restarts,
+as the game's fonts do. Advances are whole texels at the base size, as in the game's fonts.
+
 ### A mod's use
 
 ```lua
@@ -1411,8 +1515,9 @@ local key = PZToolsAPI.text.show(PZToolsAPI.client("OperationAcorn"), {
 -- later: PZToolsAPI.text.hide(PZToolsAPI.client("OperationAcorn"), key)
 ```
 
-In Korean, `getText` gives Hangul: the styles' lists fall back to the language's fonts (`Large`, `Medium`), which have it,
-zoomed to the same share of the screen.
+In Korean, `getText` gives Hangul: the styles' lists fall back to the language's fonts (`Large`, `Medium`), which have it.
+The title (10% of the screen) and its line (4.5%) are taller than those fonts, so the [embedded font](#the-embedded-font) draws
+them, sharp; a notice's line at 2.6% of a 1080-pixel screen (28 pixels) stays in the game's `Small`.
 
 ### Verified
 
@@ -1446,10 +1551,24 @@ a typed text with colours and rows allocates nothing once its characters are the
 frame with a stamp title and its line (12 strings) took about 0.4 us to place in the synthetic game and allocated nothing over
 100,000 frames.
 
+The embedded font (`TextsTest` with a font put in its place, and `FontsTest`): a line of 90 pixels in a list of `SdfBold` and
+`Large` is drawn in it, centred, inside the shader with its edge; lines of 27 and 33 pixels, a text with a character it lacks,
+Latin that `SdfBold` has, and a font not yet in video memory are drawn in the game's font, and the embedded font takes over
+once it is; a zoom of 1.1 on `Large` (36.3 pixels) switches to it at the zoom for its own line; rows fitted to a width are
+broken by its widths; drawing it allocates nothing over 100,000 frames and costs what the game's font does (193 and 216 ns a
+frame to place two rows); a Korean stamp title's first frame took 65 us to place and the next 10 us. The Korean pack has all
+2,350 KS X 1001 syllables and every character of `in-use/ko.txt`; each pack has the printable ASCII, Cyrillic and accented
+Latin; the cache's name follows the file's bytes; the real bake, in its own process, writes a whole folder (the atlas width times
+height bytes, `A` with texels inside and outside its outline, no page line, kerning), leaves no part, deletes the pack's older
+bake and a dead bake's old part but not a recent part or another pack's, refuses a second bake while one runs, and a bake of a
+name already there leaves it as it was. The Latin pack baked in 1.7 s.
+
 Not tried in the game yet: how typed text looks (the cursor's underscore in each font, the width of the rows and the places of
 colour runs as the game's fonts measure them, with kerning if they have it, the Korean fonts' widths); how the titles look (the sizes, the colours, the effects' timing, a zoomed `SdfBold` and
-`SdfRobertoSans` through the shader, and the copies of the outline at that zoom); a Hangul title in `Large` zoomed (bitmap, so
-softer); split screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
+`SdfRobertoSans` through the shader, and the copies of the outline at that zoom); the embedded font (the bake on the first start, its
+log and `console.txt`'s lines for the read and the send to video memory, the swizzle in the game's OpenGL context, how sharp a
+Hangul title is at 1080p and 4K, the switch at 33 pixels, the frame time when a title first shows, the video memory); split
+screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
 the text too; and the text over the main menu.
 
 ## How the game is answered

@@ -84,10 +84,19 @@ final class Texts implements ApiHooks.Text {
         // When it was first drawn (System.nanoTime), 0 before; when its mod hid it, 0 if it did not.
         long start, hidden;
         boolean done;
-        // The widths of the lines and the height of one at zoom 1, as measured with the game's font (AngelCodeFont) they were for.
+        // The widths of the lines and the height of one at zoom 1, as measured with the font (AngelCodeFont) they were for: the
+        // game's, or the embedded font's.
         Object measuredWith;
         float[] widths;
         float lineHeight;
+        // The game's font (AngelCodeFont) of the text's UIFont as last read, and the height of its line at zoom 1.
+        Object gameFont;
+        float gameLineHeight;
+        // The embedded font's AngelCodeFont while it draws the text (null: the game's font draws it); whether that font has every
+        // character of the text, as found for the font it was looked up in.
+        Object face;
+        Object coveredBy;
+        boolean covered;
 
         Shown(String owner, long key) { this.owner = owner; this.key = key; }
     }
@@ -228,6 +237,15 @@ final class Texts implements ApiHooks.Text {
     private final MethodHandle threshold, shaderShadow, shaderOutline, startShader, endShader;
     // IsoCamera.getScreenLeft, getScreenTop, getScreenWidth, getScreenHeight of a player; Core.getInstance(), its screen's size.
     private final MethodHandle screenLeft, screenTop, screenWidth, screenHeight, core, coreWidth, coreHeight;
+    // AngelCodeFont.drawString(x, y, zoom, text, r, g, b, a) and getWidth(text), for the embedded font; null in a game without them.
+    private final MethodHandle faceDraw, faceWidth;
+    // The language's own fonts that are made for a size (Small, Medium, Large), and the tallest of their lines, for the Large font
+    // it was measured with (the font size option makes them again).
+    private final Object[] natives;
+    private Object nativeOf;
+    private float nativeLargest;
+    /** The embedded font for large text, or null: the game's fonts draw everything (package-private for the tests). */
+    EmbeddedFont.Loaded embedded;
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
     private final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
@@ -257,7 +275,18 @@ final class Texts implements ApiHooks.Text {
         fontHeight = Game.exact(manager.getMethod("getFontHeight", font), MethodType.methodType(int.class, Object.class, Object.class));
         sdf = Game.exact(manager.getMethod("isSdf", font), MethodType.methodType(boolean.class, Object.class, Object.class));
         fontOf = Game.exact(manager.getMethod("getFontFromEnum", font), MethodType.methodType(Object.class, Object.class, Object.class));
-        glyphs = Game.type(loader, "zombie.core.fonts.AngelCodeFont").getField("chars");
+        Class<?> angelCode = Game.type(loader, "zombie.core.fonts.AngelCodeFont");
+        glyphs = angelCode.getField("chars");
+        MethodHandle draws = null, widths = null;
+        try {
+            draws = Game.exact(angelCode.getMethod("drawString", float.class, float.class, float.class, String.class, float.class, float.class,
+                float.class, float.class), MethodType.methodType(void.class, Object.class, float.class, float.class, float.class, String.class,
+                float.class, float.class, float.class, float.class));
+            widths = Game.exact(angelCode.getMethod("getWidth", String.class), MethodType.methodType(int.class, Object.class, String.class));
+        } catch (NoSuchMethodException older) { draws = null; } // The game's fonts alone.
+        faceDraw = draws;
+        faceWidth = widths;
+        natives = new Object[] { fonts.get("Small"), fonts.get("Medium"), fonts.get("Large") };
         sdfShader = manager.getField("sdfShader");
         Class<?> distance = Game.type(loader, "zombie.core.opengl.SDFShader"), shader = Game.type(loader, "zombie.core.opengl.Shader");
         threshold = Game.exact(distance.getMethod("updateThreshold", float.class), MethodType.methodType(void.class, Object.class, float.class));
@@ -287,6 +316,8 @@ final class Texts implements ApiHooks.Text {
         world = game.cell();
         load(lua.get(meta, MIRROR));
         dirty = false;
+        // As the Lua environment starts (a loading screen): the language's pack into video memory, or its bake started.
+        embedded = faceDraw == null || faceWidth == null ? null : EmbeddedFont.current(loader);
     }
 
     /** Gives the game's interface drawing to this text. Throws a LinkageError in a game whose bootstrap has no text hook. */
@@ -929,9 +960,23 @@ final class Texts implements ApiHooks.Text {
         if (shownAlpha <= INVISIBLE) return true;
         Object font = text.font;
         Object angel = (Object)fontOf.invokeExact(textManager, font);
-        if (angel != text.measuredWith || text.script == null && text.widths == null) measure(text, angel);
+        if (angel != text.gameFont) {
+            text.gameFont = angel;
+            text.gameLineHeight = (int)fontHeight.invokeExact(textManager, font);
+        }
+        if (text.gameLineHeight <= 0) return true;
+        // A line's height in pixels before the effects: the embedded font draws it when that is more than the game's fonts are made
+        // for (and the game's font would be zoomed past its size).
+        double requested = text.size > 0 ? text.size * height : text.gameLineHeight * text.scale;
+        EmbeddedFont.Loaded own = embedded;
+        boolean large = large(text, own, font, requested);
+        Object face = large ? own.font : angel;
+        if (face != text.measuredWith || text.script == null && text.widths == null) {
+            text.face = large ? own.font : null;
+            measure(text, face, large ? own.lineHeight : 0);
+        }
         if (text.lineHeight <= 0) return true;
-        double base = text.size > 0 ? text.size * height / text.lineHeight : text.scale;
+        double base = large ? requested / text.lineHeight : text.size > 0 ? text.size * height / text.lineHeight : text.scale;
         double zoom = base * scale;
         double line = text.lineHeight * zoom;
         double anchorX = left + text.x * width, anchorY = top + text.y * height + shift * line;
@@ -942,15 +987,16 @@ final class Texts implements ApiHooks.Text {
             // The rows are those of the text at its own size, not the effect's: a growing text is not broken again.
             if (text.layouts == null) text.layouts = new Layout[PLAYERS];
             laid = text.layouts[screen];
-            if (laid == null || laid.font != angel || laid.width != width || laid.height != height) laid = text.layouts[screen] = layout(text, angel, width, height, base);
+            if (laid == null || laid.font != face || laid.width != width || laid.height != height) laid = text.layouts[screen] = layout(text, face, width, height, base);
             typed = script.shown(Math.min(t, leaving));
         }
         double firstY = anchorY - line * (laid == null ? text.lines.length : laid.rows.length) / 2;
-        boolean distance = (boolean)sdf.invokeExact(textManager, font);
+        boolean distance = large || (boolean)sdf.invokeExact(textManager, font);
         Object shader = distance ? sdfShader.get(null) : null;
         if (shader != null) {
-            // As the game's own distance-field text (AtomUIText): an edge as sharp as the zoom, no outline, no shadow of its own.
-            threshold.invokeExact(shader, (float)(0.125 / zoom));
+            // As the game's own distance-field text (AtomUIText): an edge as sharp as the zoom, no outline, no shadow of its own. The
+            // embedded font's atlas spans its own distance: its edge is a pixel and a half wide on the screen at any zoom.
+            threshold.invokeExact(shader, (float)(large ? EmbeddedFont.EDGE / (2 * own.spread * zoom) : 0.125 / zoom));
             shaderShadow.invokeExact(shader, 0f);
             shaderOutline.invokeExact(shader, 0f, 0f, 0f, 0f, 0f);
             startShader.invokeExact(shader);
@@ -1003,6 +1049,7 @@ final class Texts implements ApiHooks.Text {
     /** One string with the text's shadow and outline, and then in the colour given. */
     private void paint(Shown text, String words, double x, double y, double zoom, double line, float red, float green, float blue, float shownAlpha, double alpha)
         throws Throwable {
+        if (text.face != null) { paintFace(text, words, x, y, zoom, line, red, green, blue, shownAlpha, alpha); return; }
         Object font = text.font;
         if (text.shadow) {
             double offset = Math.max(1, Math.round(line / 24));
@@ -1020,6 +1067,59 @@ final class Texts implements ApiHooks.Text {
         drawString.invokeExact(textManager, font, x, y, zoom, words, (double)red, (double)green, (double)blue, (double)shownAlpha);
     }
 
+    /** {@link #paint} in the embedded font: its AngelCodeFont draws as TextManager.DrawString has the game's draw. */
+    private void paintFace(Shown text, String words, double x, double y, double zoom, double line, float red, float green, float blue, float shownAlpha,
+            double alpha) throws Throwable {
+        Object face = text.face;
+        if (text.shadow) {
+            double offset = Math.max(1, Math.round(line / 24));
+            faceDraw.invokeExact(face, (float)(x + offset), (float)(y + offset), (float)zoom, words, 0f, 0f, 0f, shownAlpha * 0.55f);
+        }
+        if (text.outline > 0) {
+            double o = text.outline;
+            float a = (float)(alpha * text.outlineAlpha);
+            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                faceDraw.invokeExact(face, (float)(x + dx * o), (float)(y + dy * o), (float)zoom, words, text.outlineRed, text.outlineGreen,
+                    text.outlineBlue, a);
+            }
+        }
+        faceDraw.invokeExact(face, (float)x, (float)y, (float)zoom, words, red, green, blue, shownAlpha);
+    }
+
+    /**
+     * Whether the embedded font draws the text now: it is in video memory, the line asked for is taller than any the language's
+     * own fonts (Small, Medium, Large) are made at, the game's font for the text is not a distance-field one (those are sharp at
+     * any size), and the embedded font has every character of the text (else the game's font draws all of it: no character is
+     * missing). Allocates nothing.
+     */
+    private boolean large(Shown text, EmbeddedFont.Loaded own, Object font, double requested) throws Throwable {
+        if (own == null || !own.ready.get() || requested <= nativeLargest()) return false;
+        if ((boolean)sdf.invokeExact(textManager, font)) return false;
+        if (text.coveredBy != own) {
+            text.covered = own.covers(text.lines, text.cursor, CURSOR.charAt(0));
+            text.coveredBy = own;
+        }
+        return text.covered;
+    }
+
+    /** The tallest line of the language's own fonts, measured again when the game makes its fonts again. */
+    private float nativeLargest() throws Throwable {
+        Object large = (Object)fontOf.invokeExact(textManager, natives[2]);
+        if (large != nativeOf) {
+            float most = 0;
+            for (Object font : natives) if (font != null) most = Math.max(most, (int)fontHeight.invokeExact(textManager, font));
+            nativeLargest = most;
+            nativeOf = large;
+        }
+        return nativeLargest;
+    }
+
+    /** The width at zoom 1 of these characters in the font that draws the text. */
+    private int width(Shown text, String words) throws Throwable {
+        return text.face != null ? (int)faceWidth.invokeExact(text.face, words) : (int)measure.invokeExact(textManager, text.font, words);
+    }
+
     /** The first {@code count} characters of a run, made the first time they are asked for (one string for each character typed). */
     private static String part(Seg seg, int count) {
         if (count >= seg.text.length()) return seg.text;
@@ -1033,7 +1133,7 @@ final class Texts implements ApiHooks.Text {
         count = Math.min(count, seg.text.length());
         float known = seg.partWidth[count];
         if (known > 0) return known;
-        return seg.partWidth[count] = (int)measure.invokeExact(textManager, text.font, part(seg, count));
+        return seg.partWidth[count] = width(text, part(seg, count));
     }
 
     // ---- the rows of a text with markup, typing or a width ----
@@ -1089,7 +1189,7 @@ final class Texts implements ApiHooks.Text {
     }
 
     private boolean fits(Shown text, String words, double limit) throws Throwable {
-        return (int)measure.invokeExact(textManager, text.font, words) <= limit;
+        return width(text, words) <= limit;
     }
 
     /** Whether the character is of a script written without spaces between words (Han, kana, full-width forms): a row may break beside it. */
@@ -1104,7 +1204,7 @@ final class Texts implements ApiHooks.Text {
         var row = new Row();
         row.from = from;
         row.to = to;
-        row.width = from == to ? 0 : (int)measure.invokeExact(textManager, text.font, plain.substring(from, to));
+        row.width = from == to ? 0 : width(text, plain.substring(from, to));
         var segs = new ArrayList<Seg>();
         for (int at = from; at < to;) {
             int tint = script.tint == null ? -1 : script.tint[at], stop = at + 1;
@@ -1114,7 +1214,7 @@ final class Texts implements ApiHooks.Text {
             seg.to = stop;
             seg.tint = tint;
             seg.text = plain.substring(at, stop);
-            seg.x = at == from ? 0 : (int)measure.invokeExact(textManager, text.font, plain.substring(from, at));
+            seg.x = at == from ? 0 : width(text, plain.substring(from, at));
             if (script.at != null) {
                 seg.part = new String[seg.text.length()];
                 seg.partWidth = new float[seg.text.length() + 1];
@@ -1126,14 +1226,17 @@ final class Texts implements ApiHooks.Text {
         return row;
     }
 
-    /** The lines' widths (of a plain text) and the line height at zoom 1, for the game's font now (it changes with the font size option). */
-    private void measure(Shown text, Object angel) throws Throwable {
+    /**
+     * The lines' widths (of a plain text) and the line height at zoom 1, for the font that draws it now: the game's (it changes with
+     * the font size option), or the embedded font, whose line is {@code faceLine} high (its own fonts' lines run to their padding).
+     */
+    private void measure(Shown text, Object angel, int faceLine) throws Throwable {
         if (text.script == null) {
             if (text.widths == null || text.widths.length != text.lines.length) text.widths = new float[text.lines.length];
             for (int index = 0; index < text.lines.length; index++)
-                text.widths[index] = text.lines[index].isEmpty() ? 0 : (int)measure.invokeExact(textManager, text.font, text.lines[index]);
+                text.widths[index] = text.lines[index].isEmpty() ? 0 : width(text, text.lines[index]);
         }
-        text.lineHeight = (int)fontHeight.invokeExact(textManager, text.font);
+        text.lineHeight = text.face != null ? faceLine : (int)fontHeight.invokeExact(textManager, text.font);
         text.measuredWith = angel;
     }
 
