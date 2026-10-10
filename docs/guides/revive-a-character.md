@@ -68,6 +68,10 @@ skills.
 
 None of these change the save.
 
+A character revived with their belongings by PZ Tools 0.2.4 may be unable to pick up more than
+8 or 12, whatever the inventory shows. Quit to the main menu and press **Heal character** once
+with 0.2.5 or later: it fixes the character's inventory.
+
 If you already started a new character, go back to a backup from before that. Restoring it
 brings back the save as it was then, dead character included, and you can revive them from
 there.

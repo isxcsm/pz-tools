@@ -22,6 +22,7 @@ public static class PlayerHealthEditor
         var edits = new List<Edit>();
         var inventoryStart = SkipPrefix(ref r);
         var inventoryEnd = r.Offset;
+        RepairInventoryContainer(blob, inventoryStart, inventoryEnd, edits);
         Replace(ref r, edits, 1 + 4, new byte[5]); // wake up; clear forced wake-up timer
         for (var stat = 0; stat < 24; stat++)
         {
@@ -130,6 +131,26 @@ public static class PlayerHealthEditor
             skin += 1 + length;
         }
         return washed;
+    }
+
+    // The game makes a character's own inventory container of kind "none", explored, not looted, with capacity 50, and
+    // never sets its capacity again; what the character can pick up is checked against that capacity, while the
+    // inventory shows the carry weight. A corpse's container is of kind inventorymale or inventoryfemale with capacity
+    // 8 or 12 (IsoDeadBody). PZ Tools 0.2.4 copied those fields onto a revived character along with the items, who then
+    // could pick up no more than 8 or 12. A container of a corpse's kind is put back as the character's own; any other
+    // stays as it is, so a mod's own capacity is kept.
+    internal const int PlayerInventoryCapacity = 50;
+    private static readonly byte[] PlayerInventoryKind = [0, 4, (byte)'n', (byte)'o', (byte)'n', (byte)'e'];
+
+    private static void RepairInventoryContainer(byte[] blob, int start, int end, List<Edit> edits)
+    {
+        var r = new BlobReader(blob);
+        r.Skip(start);
+        if (r.Text() is not ("inventorymale" or "inventoryfemale")) return;
+        edits.Add(new(start, r.Offset + 1 - start, [.. PlayerInventoryKind, 1])); // kind, explored
+        var trailer = new byte[5]; // not looted, capacity
+        BinaryPrimitives.WriteInt32BigEndian(trailer.AsSpan(1), PlayerInventoryCapacity);
+        edits.Add(new(end - trailer.Length, trailer.Length, trailer));
     }
 
     internal static int SkipPrefix(ref BlobReader r) => SkipPrefix(ref r, out _);
