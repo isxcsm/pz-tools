@@ -39,26 +39,26 @@ end
 -- The window opens once the character has walked up to the machine (it closes again when they walk away).
 local function onOpen(playerObj, object)
     local state = Machines.state(object)
-    local square = object:getSquare()
+    local square = Machines.nearSquare(object, playerObj)
     queueAt(playerObj, square, ISOAMachineOpen:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
 local function onPickUp(playerObj, object)
     local state = Machines.state(object)
-    local square = object:getSquare()
+    local square = Machines.nearSquare(object, playerObj)
     queueAt(playerObj, square, ISOAMachinePickUp:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
 local function onTakeLure(playerObj, object)
     local state = Machines.state(object)
-    local square = object:getSquare()
+    local square = Machines.nearSquare(object, playerObj)
     queueAt(playerObj, square, ISOAMachineTakeLure:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
 -- Queues shredding of entries at the bench, an action an item.
 local function onShred(playerObj, object, entries)
     local state = Machines.state(object)
-    local square = object:getSquare()
+    local square = Machines.nearSquare(object, playerObj)
     if not luautils.walkAdj(playerObj, square, true) then return end
     for _, entry in ipairs(entries) do
         ISTimedActionQueue.add(

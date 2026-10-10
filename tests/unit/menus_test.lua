@@ -347,6 +347,7 @@ test("a machine with a window is one option, its name, that opens the window; a 
     local kind = "bulkShredder"
     Machines.state = function() return { kind = kind, id = "m1", on = true } end
     Machines.canTakeLure = function() return true end
+    Machines.nearSquare = function(o) return o:getSquare() end
     OAMachineWindow.open = function(character, machine) TEST.window = { character, machine } end
     local menu = newMenu()
     menu:addOption("Vanilla")

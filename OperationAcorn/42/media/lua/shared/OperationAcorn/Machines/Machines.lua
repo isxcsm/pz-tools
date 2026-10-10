@@ -185,6 +185,27 @@ function Machines.footprint(kind, dir)
     return w, h
 end
 
+-- The loaded square of a machine's footprint nearest to a character: where they walk up to it. The anchor is the
+-- footprint's back corner on screen, and walking up to it would take them round the machine. Asked when the player
+-- picks something to do, not per tick.
+function Machines.nearSquare(object, character)
+    local anchor = object:getSquare()
+    local state = Machines.state(object)
+    if not anchor or not state then return anchor end
+    local ax, ay, z = anchor:getX(), anchor:getY(), anchor:getZ()
+    local px, py = character:getX(), character:getY()
+    local best, bestD = anchor, nil
+    for _, tile in ipairs(Machines.tiles(state.kind, state.dir, false)) do
+        local square = getCell():getGridSquare(ax + tile.dx, ay + tile.dy, z)
+        if square then
+            local dx, dy = ax + tile.dx + 0.5 - px, ay + tile.dy + 0.5 - py
+            local d = dx * dx + dy * dy
+            if not bestD or d < bestD then best, bestD = square, d end
+        end
+    end
+    return best
+end
+
 -- The sprite of the anchor (the tile at 0, 0): the one the rain storage's entity script is attached to.
 function Machines.spriteName(kind, dir, look)
     for _, tile in ipairs(Machines.tiles(kind, dir, look)) do

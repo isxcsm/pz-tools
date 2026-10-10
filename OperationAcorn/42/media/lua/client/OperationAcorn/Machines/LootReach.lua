@@ -56,9 +56,6 @@ local function onRefresh(page, stage)
 end
 Events.OnRefreshInventoryWindowContainers.Add(onRefresh)
 
--- page -> { container = the one lit for, objects = the squares lit with it }
-local lit = setmetatable({}, { __mode = "k" })
-
 -- player number -> the objects other code lights (the game keeps its own record local to ISInventoryPage, given to it
 -- through OnObjectHighlighted; the same is kept here): those are left as they are, as the game leaves them
 local elsewhere = {}
@@ -88,80 +85,80 @@ local function machineSquares(object)
     return squaresOf(anchor, state)
 end
 
--- page -> { object = the square the mouse is over a button of, objects = its machine's squares, lit in the hover colour }
-local hovered = setmetatable({}, { __mode = "k" })
+-- What a page lights of the machines, as one state: the machine of the chosen container in the chosen colour, the
+-- machine of the button under the mouse in the hover colour (the chosen one keeps its own). The game switches single
+-- objects on and off from several places (the mouse over and out of a button, choosing, its update each frame), and
+-- following each of them left squares lit or dark (seen in game: a square left lit in the hover colour after the mouse
+-- went, the light jumping to one square when going between a machine's two bins). So the state is worked out from what
+-- the page shows, and when it changes, or when the game has switched one of its squares, every square is set again.
+-- page -> { chosen = container, hover = container, collapsed, objects = { [object] = "chosen" | "hover" }, dirty }
+local applied = setmetatable({}, { __mode = "k" })
 
-local function isLitFor(page, object)
-    local was = lit[page]
-    if not was then return false end
-    for _, o in ipairs(was.objects) do
-        if o == object then return true end
-    end
-    return false
+local function hoverContainer(page)
+    if page.isCollapsed then return nil end
+    local button = page.mouseOverButton
+    return button and button.inventory or nil
 end
 
-local function endHover(page)
-    local hover = hovered[page]
-    if not hover then return end
-    hovered[page] = nil
-    for _, object in ipairs(hover.objects) do
-        if not isLitFor(page, object) then light(page, object, false) end
+local function reconcile(page, chosen, hover)
+    local was = applied[page]
+    local objects = {}
+    local chosenSquares = (not page.isCollapsed) and machineSquares(chosen and page:getContainerParent(chosen)) or nil
+    if chosenSquares then
+        for _, o in ipairs(chosenSquares) do objects[o] = "chosen" end
     end
+    local hoverSquares = machineSquares(hover and page:getContainerParent(hover))
+    if hoverSquares then
+        for _, o in ipairs(hoverSquares) do objects[o] = objects[o] or "hover" end
+    end
+    if was then
+        for o in pairs(was.objects) do
+            if not objects[o] then light(page, o, false) end
+        end
+    end
+    local core = getCore()
+    for o, kind in pairs(objects) do
+        light(page, o, true, kind == "chosen" and core:getObjectHighlitedColor() or core:getWorldItemHighlightColor())
+    end
+    applied[page] = { chosen = chosen, hover = hover, collapsed = page.isCollapsed, objects = objects }
 end
 
+-- Each frame the game lights the chosen container's object again, outline and all: compared, and set again only when
+-- something changed; the outline it puts back on a machine's square is taken off.
 local original = ISInventoryPage.updateContainerHighlight
 function ISInventoryPage:updateContainerHighlight()
     original(self)
-    -- the container the game lights now (none while the window is collapsed)
-    local container = self.coloredInv
-    local was = lit[self]
-    if (was and was.container) == container then
-        -- the game outlines the chosen container's object again each time; a machine's stays without it
-        if was and was.parent then was.parent:setOutlineHighlight(self.player, false) end
+    local chosen = self.coloredInv
+    local hover = hoverContainer(self)
+    local was = applied[self]
+    if was and not was.dirty and was.chosen == chosen and was.hover == hover and was.collapsed == self.isCollapsed then
+        local parent = chosen and self:getContainerParent(chosen)
+        if parent and was.objects[parent] then
+            parent:setOutlineHighlight(self.player, false)
+            parent:setOutlineHlAttached(self.player, false)
+        end
         return
     end
-    if was then
-        for _, object in ipairs(was.objects) do light(self, object, false) end
-    end
-    local objects = {}
-    -- (kept for any container, so that the next frame asks nothing)
-    lit[self] = { container = container, objects = objects }
-    local parent = container and container:getParent()
-    local squares = machineSquares(parent)
-    if not squares then return end
-    lit[self].parent = parent
-    local colour = getCore():getObjectHighlitedColor()
-    for _, object in ipairs(squares) do
-        light(self, object, true, colour)
-        objects[#objects + 1] = object
-    end
+    reconcile(self, chosen, hover)
 end
 
--- The mouse over a container's button: the game outlines that container's object in the world; a machine's squares are
--- all lit instead, in the same colour (the chosen machine keeps its own light).
+-- The mouse over a container's button: the game outlines that object at once; a machine's square is not outlined
+-- (the next update lights its machine).
 local overButton = ISInventoryPage.onMouseOverButton
 function ISInventoryPage:onMouseOverButton(button, x, y)
     overButton(self, button, x, y)
-    local object = self.mouseOverColoredContainer
-    local hover = hovered[self]
-    if hover and hover.object ~= object then endHover(self) end
-    if not object or hovered[self] or self.isCollapsed then return end
-    local squares = machineSquares(object)
-    if not squares then return end
-    local colour = getCore():getWorldItemHighlightColor()
-    local objects = {}
-    for _, o in ipairs(squares) do
-        if not isLitFor(self, o) then
-            light(self, o, true, colour)
-            objects[#objects + 1] = o
-        end
+    local object = button and button.inventory and self:getContainerParent(button.inventory)
+    if object and machineSquares(object) then
+        object:setOutlineHighlight(self.player, false)
+        object:setOutlineHlAttached(self.player, false)
     end
-    hovered[self] = { object = object, objects = objects }
 end
 
+-- The game switches an object off as the mouse leaves it or another container is chosen: when it is one of a
+-- machine's squares the page lights, everything is set again at the next update.
 local stopHighlight = ISInventoryPage.stopHighlightContainer
 function ISInventoryPage:stopHighlightContainer(container)
     stopHighlight(self, container)
-    local hover = hovered[self]
-    if hover and hover.object == container then endHover(self) end
+    local was = applied[self]
+    if was and was.objects[container] then was.dirty = true end
 end

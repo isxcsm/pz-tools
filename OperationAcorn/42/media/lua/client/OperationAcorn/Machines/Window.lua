@@ -286,7 +286,7 @@ function OAMachineWindow:onHit(hit)
         if id == "rain:transfer" then ISWorldObjectContextMenu.onFluidTransfer(self.playerNum, fluid)
         else ISWorldObjectContextMenu.onFluidEmpty(self.playerNum, fluid) end
     elseif id == "lure:take" or id == "lure:clear" then
-        local square = self.object:getSquare()
+        local square = Machines.nearSquare(self.object, self.character)
         if not square then return end
         local class = id == "lure:take" and ISOAMachineTakeLure or ISOAMachinePickUp
         queueAt(self.character, square, class:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ()))
@@ -371,7 +371,7 @@ end
 
 -- Puts a part in (the one in the slot comes out to the character's bag).
 function OAMachineWindow:doInstall(slot, item)
-    local square = self.object:getSquare()
+    local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
     ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
     queueAt(self.character, square,
@@ -379,7 +379,7 @@ function OAMachineWindow:doInstall(slot, item)
 end
 
 function OAMachineWindow:doRemove(slot)
-    local square = self.object:getSquare()
+    local square = Machines.nearSquare(self.object, self.character)
     if not square then return end
     queueAt(self.character, square,
         ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot))

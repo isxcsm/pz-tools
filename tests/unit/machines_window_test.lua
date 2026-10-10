@@ -677,6 +677,31 @@ test("the window closes when the character walks away from the machine", functio
     truthy(window.removed, "gone once out of reach")
 end)
 
+test("a large machine is walked up to at the square of its footprint nearest the character", function()
+    openWindow(19)
+    local squares = {}
+    _G.getCell = function()
+        return { getGridSquare = function(_, x, y, z)
+            local key = x .. "," .. y
+            squares[key] = squares[key] or { x = x, y = y, getX = function(s) return s.x end,
+                getY = function(s) return s.y end, getZ = function() return z end }
+            return squares[key]
+        end }
+    end
+    local anchor = { x = 10, y = 20, getX = function(s) return s.x end, getY = function(s) return s.y end,
+        getZ = function() return 0 end }
+    local object = { getSquare = function() return anchor end }
+    Machines.state = function() return { kind = "propaneRefiner", dir = "S" } end
+    Machines.tiles = function() return { { dx = 0, dy = 0 }, { dx = 1, dy = 0 }, { dx = 0, dy = 1 }, { dx = 1, dy = 1 } } end
+    local character = { getX = function() return 12.5 end, getY = function() return 22.5 end }
+    local square = Machines.nearSquare(object, character)
+    eq(square.x, 11); eq(square.y, 21)
+    character.getX = function() return 9.5 end
+    character.getY = function() return 19.5 end
+    square = Machines.nearSquare(object, character)
+    eq(square.x, 10, "from the back corner's side, the anchor's square"); eq(square.y, 20)
+end)
+
 test("a machine's reach counts from the nearest square of its footprint", function()
     openWindow(19)
     local within = OAMachineWindow.within
