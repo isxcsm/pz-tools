@@ -5,8 +5,11 @@
 -- Buildings.tick for each player once a game minute, at most once each LOOK_MS of real time (Buildings.due), and a
 -- window may call it as it likes.
 --
--- With the PZ Tools API the building and its rooms come from it (buildings.at, buildings.rooms: a stable key and
--- the squares of every room, player-built buildings known as such); without it, from the game's BuildingDef and
+-- With the PZ Tools API the building comes from it (buildings.at: a stable key, player-built buildings known as such)
+-- and so do its containers (buildings.containers: the squares walked in Java in one call, which lists only the
+-- containers whose item count or opened flag changed since the last look, so a look makes next to no tables and a
+-- counted building costs no call into the game for each container). An API without that call gives the rooms'
+-- squares (buildings.rooms), walked in Lua a part at a time; without the API they come from the game's BuildingDef and
 -- rooms (the dev fallback; the mod itself needs the API). A building with a square not loaded is not judged. A
 -- player-built building is never counted, nor is a container the player made.
 require "OperationAcorn/Core"
@@ -36,15 +39,32 @@ function Buildings.due(character, now)
     return OA.due(lookedAt, character:getPlayerNum(), now, Buildings.LOOK_MS)
 end
 
+-- What the API's containers are asked for every look: not a player-built object (IsoThumpable), nor one of the mod's
+-- own (MOD_KIND). `since` and `into` change from look to look.
+local function apiOptions()
+    return { skipClasses = "IsoThumpable", skipData = MOD_KIND, into = {} }
+end
+
+-- Buildings (by key) the API's containers could not be used for, and whether the call itself failed: the Lua walk.
+local noContainers, containersFailed = {}, false
+
 -- A walk over the squares of the building at a square, counted a part at a time (stepWalk): nil outside any building
 -- or in one the player built. `room` is the square's vanilla room (the caller has it), used when the API is missing.
--- The API gives the rooms as rects; without it the walk goes over the vanilla rooms' squares.
+-- With the API's containers the walk is one call a look (stepApi) and keeps the unopened containers with the square
+-- each stands on (open, ox, oy, oz; `index` finds a container's place). With only the API's rooms (rects) the walk goes
+-- square by square; without the API it goes over the vanilla rooms' squares.
 local function newWalk(square, room)
     local walk = { seen = {}, list = {}, open = {}, total = 0, explored = 0, complete = false, part = 1, at = 0 }
     local api = OA.api()
     if api and api.buildings then
         local b = api.buildings.at(square:getX(), square:getY(), square:getZ())
         if not b or b.playerBuilt then return nil end
+        if type(api.buildings.containers) == "function" and not containersFailed and not noContainers[tostring(b.key)] then
+            walk.key, walk.raw = tostring(b.key), b.key
+            walk.api, walk.opts = true, apiOptions()
+            walk.ox, walk.oy, walk.oz, walk.index = {}, {}, {}, {}
+            return walk
+        end
         local rooms = api.buildings.rooms(b.key)
         if not rooms then return nil end
         local rects = {}
@@ -169,11 +189,95 @@ local function stepWalk(walk, budget)
     if walk.rects then stepRects(walk, budget) else stepRooms(walk, budget) end
 end
 
+-- The unopened containers by index (walk.open, with the square of each in ox, oy, oz): one is put in or has its square
+-- noted, one is taken out (the last takes its place).
+local function openAdd(walk, container, x, y, z)
+    local i = walk.index[container]
+    if not i then
+        i = #walk.open + 1
+        walk.open[i] = container
+        walk.index[container] = i
+    end
+    walk.ox[i], walk.oy[i], walk.oz[i] = x, y, z
+end
+
+local function openDrop(walk, container)
+    local i = walk.index[container]
+    if not i then return end
+    local last = #walk.open
+    local moved = walk.open[last]
+    walk.open[i], walk.ox[i], walk.oy[i], walk.oz[i] = moved, walk.ox[last], walk.oy[last], walk.oz[last]
+    walk.index[moved] = i
+    walk.open[last], walk.ox[last], walk.oy[last], walk.oz[last] = nil, nil, nil, nil
+    walk.index[container] = nil
+end
+
+-- Takes in what the API listed: the containers whose count or opened flag changed since the walk's last look (all of
+-- them at the first look, and when the API let its stamp go). Seven values each: the container, the square's x, y
+-- and z, the type, the item count and whether it was opened.
+local STRIDE = 7
+local function takeList(walk, list, total)
+    if #list >= total * STRIDE then
+        -- every container is listed: any kept that is not in the building now (its object was taken away) goes
+        walk.open, walk.ox, walk.oy, walk.oz, walk.index = {}, {}, {}, {}, {}
+    end
+    for i = 1, #list, STRIDE do
+        local container = list[i]
+        if list[i + 6] then
+            openDrop(walk, container)
+        else
+            openAdd(walk, container, list[i + 1], list[i + 2], list[i + 3])
+        end
+    end
+end
+
+-- A look through the API's containers (the building walked in Java): the counts and the unopened ones. A building
+-- counted whole with every container opened has nothing left to look at. False when the API cannot do this look (it
+-- failed, or knows no such building): the walk is made in Lua from then on (see tick).
+local function stepApi(walk)
+    if walk.complete and walk.looked and #walk.open == 0 then return true end
+    local api = OA.api()
+    local fn = api and api.buildings and api.buildings.containers
+    if type(fn) ~= "function" then
+        containersFailed = true
+        return false
+    end
+    local opts = walk.opts
+    opts.since = walk.stamp
+    local ok, list, complete, stamp, total, opened = pcall(fn, walk.raw, opts)
+    if not ok then
+        OA.log("building containers:", tostring(list))
+        containersFailed = true
+        return false
+    end
+    if type(list) ~= "table" then
+        noContainers[walk.key] = true
+        return false
+    end
+    walk.looked = true
+    walk.stamp, walk.total, walk.explored, walk.complete = stamp, total, opened, complete and true or false
+    takeList(walk, list, total)
+    return true
+end
+
 -- The building at a square, counted whole in one go: { key, containers, complete }, or nil (see newWalk). For checks
 -- and tools; the watch itself counts a part at a time (Buildings.tick).
 function Buildings.scan(square, room)
     local walk = newWalk(square, room)
     if not walk then return nil end
+    if walk.api then
+        walk.opts.since = nil
+        local api = OA.api()
+        local ok, list, complete = pcall(api.buildings.containers, walk.raw, walk.opts)
+        if ok and type(list) == "table" then
+            local found = {}
+            for i = 1, #list, STRIDE do found[#found + 1] = list[i] end
+            return { key = walk.key, containers = found, complete = complete and true or false }
+        end
+        -- the Lua walk instead
+        if ok then noContainers[walk.key] = true else containersFailed = true end
+        return Buildings.scan(square, room)
+    end
     stepWalk(walk, math.huge)
     return { key = walk.key, containers = walk.list, complete = walk.complete }
 end
@@ -206,23 +310,39 @@ function Buildings.tick(character)
         states[number] = walk
         if not walk then return nil end
     end
-    stepWalk(walk, Buildings.BUDGET)
-    local open = walk.open
-    for i = #open, 1, -1 do
-        if open[i]:isExplored() then
-            open[i] = open[#open]
-            open[#open] = nil
-            walk.explored = walk.explored + 1
+    if walk.api then
+        if not stepApi(walk) then
+            -- the API cannot walk this building: the Lua walk takes over (newWalk leaves the API's containers out now)
+            walk = newWalk(square, room)
+            states[number] = walk
+            if not walk then return nil end
+            stepWalk(walk, Buildings.BUDGET)
+        end
+    else
+        stepWalk(walk, Buildings.BUDGET)
+    end
+    if not walk.api then
+        -- (the API's walk lists the containers that were opened since the last look itself)
+        local open = walk.open
+        for i = #open, 1, -1 do
+            if open[i]:isExplored() then
+                open[i] = open[#open]
+                open[#open] = nil
+                walk.explored = walk.explored + 1
+            end
         end
     end
     return walk.key, walk.explored, walk.total, walk.complete
 end
 
 -- The containers of the character's building not opened yet as the last look found them (a list kept by the walk:
--- read it, do not change it), or nil outside a building. The search ledger outlines the near ones.
+-- read it, do not change it), or nil outside a building. The search ledger outlines the near ones. With the API's
+-- containers three more lists come with it: the x, y and z of the square each stands on (the first the walk found it
+-- on), so that the near ones are picked without asking the game about each.
 function Buildings.unopened(character)
     local walk = states[character:getPlayerNum()]
-    return walk and walk.open or nil
+    if not walk then return nil end
+    return walk.open, walk.ox, walk.oy, walk.oz
 end
 
 -- The key of the building at a square (the room is its vanilla room, or nil), or nil outside a building or in one
@@ -243,6 +363,7 @@ end
 function Buildings.reset()
     states = {}
     lookedAt = {}
+    noContainers, containersFailed = {}, false
 end
 
 return Buildings
