@@ -10,7 +10,7 @@ local ShopView = {}
 OA.Trade.ShopView = ShopView
 
 -- The serum shelf (DESIGN-terminal 4.1) in its fixed order: the treatments, then the upgrade serums. An id the
--- catalog does not have (yet) is skipped; any other entry of the serum or consumable group, or that is a serum, is
+-- catalog does not have is skipped; any other entry of the serum group, or that is a serum, is
 -- put after them in the catalog's order.
 ShopView.TREAT_IDS = { "cure_serum", "reversal", "delay_long", "delay_drug", "test_kit" }
 ShopView.ENHANCE_IDS = { "serum_scout", "serum_load", "serum_survival" }
@@ -32,13 +32,13 @@ function ShopView.listed(entry)
     return entry.special ~= "reissue"
 end
 
--- On the serum shelf: the serum and consumable groups, and any entry that is a serum.
+-- On the serum shelf: the serum group, and any entry that is a serum.
 function ShopView.onShelf(entry)
-    return entry.group == "serum" or entry.group == "consumable" or entry.special == "serum"
+    return entry.group == "serum" or entry.special == "serum"
 end
 
 local function isEnhance(entry)
-    return entry.group == "serum" or entry.special == "serum"
+    return entry.special == "serum"
 end
 
 -- The shelf as two blocks { { id = "treat", entries }, { id = "enhance", entries } } from a catalog (a list of entries).

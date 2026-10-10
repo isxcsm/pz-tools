@@ -18,8 +18,7 @@
     "Tooltip_OA_Tree_CureLeft": "%1 days of shelf life left. Only the person it was issued to can use it.",
     "Tooltip_OA_Tree_CureExpired": "Past its shelf life. It does nothing.",
     "Tooltip_OA_Tree_CureNotOwner": "Issued to someone else. It does nothing for you.",
-    "Tooltip_OA_Tree_NotInfected": "You are not infected.",
-    "Tooltip_OA_Tree_DelayInfo": "Infection runs at a quarter speed for %1 hours.",
+    "Tooltip_OA_Tree_DelayInfo": "Holds the infection's progress for %1 days. A new wound from a zombie ends it.",
     "Tooltip_OA_Tree_Reinforced": "A reinforced door. Needs rank 2 of this research.",
     "Tooltip_OA_Tree_NeedPryBar": "Needs a crowbar or pry bar.",
     "Tooltip_OA_Tree_NeedPickTools": "Needs a paperclip and a screwdriver.",
@@ -29,7 +28,7 @@
     "Tooltip_OA_Tree_Item_UpgradeSerumLoad": "Gives one point for Load Adaptation Research. The first one opens the research.",
     "Tooltip_OA_Tree_Item_UpgradeSerumSurvival": "Gives one point for Survival Adaptation Research. The first one opens the research.",
     "Tooltip_OA_Tree_Item_UpgradeSerumShared": "Gives one point usable in any research.",
-    "Tooltip_OA_Tree_Item_DelayDrug": "Slows infection. More doses add to the time, and it never expires.",
+    "Tooltip_OA_Tree_Item_DelayDrug": "Holds the infection's progress for 1 day. A new wound from a zombie ends it. It never expires.",
     "Tooltip_OA_Story_AnalysisReply": "An analysis reply sent by the team.",
     "Tooltip_OA_Story_Appendix": "An appendix to a reply.",
     "Tooltip_OA_Story_CellLog": "A cell block roll-call record. The pencil writing is faint.",
@@ -82,5 +81,9 @@
     "Tooltip_OA_Gear_NoBag": "No bag to fit it to. It was ordered for: %1",
     "Tooltip_OA_Gear_FitVehicle": "Fit it from the vehicle's mechanics window: right-click the trunk or the engine. Ordered for: %1",
     "Tooltip_OA_Gear_NoVehicleKit": "You have no %1 for this vehicle.",
-    "Tooltip_OA_Gear_RedeemInfo": "Trade it for one kit of your choice, for any bag or vehicle. It does not raise the shop's price of your next kit."
+    "Tooltip_OA_Gear_RedeemInfo": "Trade it for one kit of your choice, for any bag or vehicle. It does not raise the shop's price of your next kit.",
+    "Tooltip_OA_Tree_Item_DelayDrugLong": "Holds the infection's progress for 7 days. A new wound from a zombie ends it. It never expires.",
+    "Tooltip_OA_Tree_Item_InfectionReversal": "Sets the infection's progress back to nothing, so the nausea and the health limit ease. The infection stays: a delay drug is still needed.",
+    "Tooltip_OA_Tree_Item_InfectionTestKit": "Shows at once whether you are infected. Until a wound from a zombie is tested for, deliveries carry the infection handling fee.",
+    "Tooltip_OA_Tree_Progress": "Infection progress: %1%%"
 }

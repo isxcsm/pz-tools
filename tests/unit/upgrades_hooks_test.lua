@@ -54,7 +54,7 @@ end)
 test("the minute's infection work runs every game minute, whatever the real time", function()
     loadHooks()
     local calls = 0
-    OA.Upgrades.Serums.slowInfection = function() calls = calls + 1 end
+    OA.Upgrades.Watch.minute = function() calls = calls + 1 end
     local before = getPlayer
     getPlayer = function() return { isDead = function() return false end } end
     OA.Client.record = function() return OA.Store.ensure("p", "P") end

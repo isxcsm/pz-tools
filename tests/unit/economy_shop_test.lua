@@ -24,7 +24,8 @@ end
 
 test("every NUMBERS 7 price is in the catalog", function()
     local expect = {
-        cure_serum = { 30000, 1 }, delay_drug = { 6000, 0 }, battery_pack = { 4000, 1 }, seed_pack = { 3000, 1 },
+        cure_serum = { 500000, 1 }, reversal = { 50000, 1 }, delay_long = { 20000, 0 }, delay_drug = { 5000, 0 },
+        test_kit = { 2000, 0 }, battery_pack = { 4000, 1 }, seed_pack = { 3000, 1 },
         petrol_can = { 15000, 2 }, scrap_pack = { 6000, 2 }, propane_tank = { 25000, 3 }, car_battery = { 20000, 3 },
         car_part_normal = { 10000, 3 }, engine_parts = { 20000, 3 }, car_part_modern = { 25000, 5 },
         ammo_pistol = { 40000, 4 }, ammo_shotgun = { 50000, 4 }, ammo_rifle = { 60000, 4 },
@@ -101,6 +102,43 @@ end)
 test("the cure serum price is a sandbox option", function()
     SandboxVars.OperationAcorn.CureSerumPrice = 50000
     eq(S.price(find("cure_serum"), record(0)), 50000)
+end)
+
+test("the serum shelf: five infection items in the serum group, special and days as designed", function()
+    local want = { cure_serum = "cure", reversal = "reversal", delay_long = "delay", test_kit = "test", delay_drug = "delay" }
+    for id, special in pairs(want) do
+        local e = find(id)
+        eq(e.group, "serum", id .. " group")
+        eq(e.special, special, id .. " special")
+        eq(e.fixed, true, id .. " is fixed")
+        eq(S.fieldOnly(e), false, id .. " is ordered at the crude terminal too")
+    end
+    eq(find("delay_long").days, 7)
+    eq(find("delay_drug").days, 1)
+    eq(find("reversal").give[1].type, "OperationAcorn.InfectionReversal")
+    eq(find("test_kit").give[1].type, "OperationAcorn.InfectionTestKit")
+    eq(find("delay_long").give[1].type, "OperationAcorn.DelayDrugLong")
+end)
+
+test("the infection medicines ignore the multiplier and the discount", function()
+    SandboxVars.OperationAcorn.ShopPriceMultiplier = 2.0
+    local r = record(5, 2, nil, { discount = 2 })
+    eq(S.price(find("cure_serum"), r), 500000)
+    eq(S.price(find("reversal"), r), 50000)
+    eq(S.price(find("delay_long"), r), 20000)
+    eq(S.price(find("delay_drug"), r), 5000)
+    eq(S.price(find("test_kit"), r), 2000)
+end)
+
+test("the shelf opens as designed: the cure and the reversal at the first stage, the rest from the start", function()
+    local r = record(0)
+    for _, id in ipairs({ "delay_long", "delay_drug", "test_kit" }) do truthy(S.available(find(id), r) > 0, id) end
+    for _, id in ipairs({ "cure_serum", "reversal" }) do
+        local n, why = S.available(find(id), r)
+        eq(n, 0, id); eq(why, "IGUI_OA_Econ_Shop_Locked")
+    end
+    r = record(1)
+    for _, id in ipairs({ "cure_serum", "reversal" }) do truthy(S.available(find(id), r) > 0, id) end
 end)
 
 test("serums and the box ignore the multiplier and the discount", function()
@@ -225,6 +263,7 @@ end)
 test("cure serums and delay drugs have no purchase interval and no count limit", function()
     local r = record(1)
     local cure, delay = find("cure_serum"), find("delay_drug")
+    for _, id in ipairs({ "reversal", "delay_long", "test_kit" }) do eq(S.available(find(id), r), 99, id) end
     eq(S.available(cure, r), 99)
     eq(S.available(delay, r), 99)
     TEST.hours = 100
@@ -243,8 +282,10 @@ test("the cure serum and the delay drug still need the tier, stock and no debt",
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Locked")
     n, why = S.available(find("cure_serum"), record(1, 0, -1))
     eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Debt")
-    n, why = S.available(find("delay_drug"), record(1, 0, -1))
-    eq(n, 0); eq(why, "IGUI_OA_Econ_Shop_Debt")
+    for _, id in ipairs({ "delay_drug", "delay_long", "reversal", "test_kit" }) do
+        n, why = S.available(find(id), record(1, 0, -1))
+        eq(n, 0, id); eq(why, "IGUI_OA_Econ_Shop_Debt")
+    end
 end)
 
 test("rewards no longer carry the serum intervals and counts, and the sandbox options are gone", function()

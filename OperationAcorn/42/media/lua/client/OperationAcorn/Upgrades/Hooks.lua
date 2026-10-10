@@ -1,7 +1,7 @@
--- Where the upgrades meet the game's screens and clocks: the right-click entries (serums in the bag, the research
--- plan, locked doors, windows and cars), the item tooltip of the cure serum, the notices and the title (or banner) of
--- a tree's opening, declaring the effects to the API, the once-a-minute infection work (the delay drug, the stand-in
--- bite shield). Other mods' menus and tooltips are wrapped, never replaced.
+-- Where the upgrades meet the game's screens and clocks: the right-click entries (serums and infection medicines in the
+-- bag, the research plan, locked doors, windows and cars), the item tooltips of the serums, the notices and the title
+-- (or banner) of a tree's opening, declaring the effects to the API, the once-a-minute infection work (the delay drug's
+-- hold in Watch.lua, the stand-in bite shield). Other mods' menus and tooltips are wrapped, never replaced.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISPanel"
@@ -11,6 +11,7 @@ require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Moodles"
+require "OperationAcorn/Upgrades/Watch"
 require "OperationAcorn/Upgrades/Actions"
 require "OperationAcorn/Upgrades/Texts"
 require "OperationAcorn/Upgrades/Window"
@@ -23,11 +24,13 @@ local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
 local Serums = OA.Upgrades.Serums
+local Infection = OA.Infection
 local Actions = OA.Upgrades.Actions
 local Texts = OA.Upgrades.Texts
 local Pulse = OA.Upgrades.Pulse
 local Senses = OA.Upgrades.Senses
 local Dash = OA.Upgrades.Dash
+local Watch = OA.Upgrades.Watch
 local Hooks = {}
 OA.Upgrades.Hooks = Hooks
 
@@ -134,6 +137,8 @@ local function localizedArgs(detail)
         args[1] = Texts.treeName(tostring(args[1]))
     elseif (key == "IGUI_OA_Tree_ApproveFailed" or key == "IGUI_OA_Tree_ResetFailed") and args[1] then
         args[1] = Texts.reason(args[1])
+    elseif key == "IGUI_OA_Tree_DrugLost" and args[1] then
+        args[1] = getText("IGUI_OA_Wound_" .. tostring(args[1]))
     end
     return args
 end
@@ -156,7 +161,7 @@ local function onNotice(playerId, detail)
     if tree then
         Hooks.treeOpened(playerId, tree)
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
-        or string.find(detail.key, "NotOwner$") or string.find(detail.key, "NotInfected$") then
+        or string.find(detail.key, "NotOwner$") or string.find(detail.key, "Lost$") then
         HaloTextHelper.addBadText(player, text)
     else
         HaloTextHelper.addGoodText(player, text)
@@ -191,7 +196,8 @@ local function onFillInventory(playerNum, context, items)
     local done = {}
     for _, item in ipairs(actual) do
         local itemType = item:getType()
-        local kind = item:getModule() == OA.MOD and Serums.kind(itemType) or nil
+        local kind, length = nil, nil
+        if item:getModule() == OA.MOD then kind, length = Serums.kind(itemType) end
         if kind and not done[itemType] then
             done[itemType] = true
             local id = OA.Client.id(player)
@@ -204,18 +210,19 @@ local function onFillInventory(playerNum, context, items)
                     unavailable(option, getText("Tooltip_OA_Tree_CureExpired"))
                 elseif status == "notOwner" then
                     unavailable(option, getText("Tooltip_OA_Tree_CureNotOwner"))
-                elseif not Serums.infected(player) then
-                    unavailable(option, getText("Tooltip_OA_Tree_NotInfected"))
                 else
                     tip(option, getText("Tooltip_OA_Tree_CureLeft", Texts.number(left)))
                 end
             elseif kind == "delay" then
+                -- never refused for want of an infection: that would tell the player whether they have one
                 local option = context:addOption(getText("ContextMenu_OA_Tree_TakeDelay"), player, useItem, item)
-                if not Serums.infected(player) then
-                    unavailable(option, getText("Tooltip_OA_Tree_NotInfected"))
-                else
-                    tip(option, getText("Tooltip_OA_Tree_DelayInfo", OA.option("DelayDrugHours") or 24))
-                end
+                tip(option, getText("Tooltip_OA_Tree_DelayInfo", OA.Infection.DRUG_HOURS[length] / 24))
+            elseif kind == "reversal" then
+                local option = context:addOption(getText("ContextMenu_OA_Tree_UseReversal"), player, useItem, item)
+                tip(option, getText("Tooltip_OA_Tree_Item_InfectionReversal"))
+            elseif kind == "test" then
+                local option = context:addOption(getText("ContextMenu_OA_Tree_UseTest"), player, useItem, item)
+                tip(option, getText("Tooltip_OA_Tree_Item_InfectionTestKit"))
             end
         end
     end
@@ -288,10 +295,21 @@ Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
 
 -- ---- the serums' tooltips ---------------------------------------------------------------------------------------
 
--- The text under a serum's name. The cure serum's tells the days it has left; the others have one fixed text.
+-- The text under a serum's name. The cure serum's tells the days it has left; the others have one fixed text, and a
+-- delay drug's and a reversal's add the infection's progress once a test has shown the infection (not before).
 local function tipText(item, player)
     local itemType = item:getType()
-    if itemType ~= "CureSerum" then return getText("Tooltip_OA_Tree_Item_" .. itemType) end
+    if itemType ~= "CureSerum" then
+        local text = getText("Tooltip_OA_Tree_Item_" .. itemType)
+        local kind = Serums.kind(itemType)
+        if kind == "delay" or kind == "reversal" then
+            local state = Infection.state(OA.Client.record(player), OA.hours())
+            if state and state.progress then
+                text = text .. "<LINE>" .. getText("Tooltip_OA_Tree_Progress", math.floor(state.progress * 100))
+            end
+        end
+        return text
+    end
     local status, left = Serums.cureStatus(item, OA.Client.id(player))
     if status == "ok" then return getText("Tooltip_OA_Tree_CureLeft", Texts.number(left)) end
     if status == "expired" then return getText("Tooltip_OA_Tree_CureExpired") end
@@ -317,7 +335,6 @@ end
 
 -- ---- the infection, once a minute ------------------------------------------------------------------------------
 
-local lastMinute = nil
 local lastBiteLevel = nil   -- the bite shield moodle's level a minute ago (nil before the first minute)
 
 -- The bite shield's moodle while it rests, and a title as it is armed again (not when the game starts armed).
@@ -335,9 +352,7 @@ local function onMinute()
     local u, player = localSection()
     if not u or not player or player:isDead() then return end
     local now = OA.hours()
-    local from = lastMinute or now
-    lastMinute = now
-    Serums.slowInfection(player, u, from, now)
+    Watch.minute(player, now)
     biteShield(player, u, now)
     -- until the API shield is there, the bite is undone from here
     if Rules.rank(u, "resistPlus") >= 2 and not Effects.biteShieldApplied() then

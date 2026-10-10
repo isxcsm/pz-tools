@@ -35,8 +35,6 @@
     "Sandbox_OperationAcorn_CureSerumPrice_tooltip": "치료 혈청 한 개의 기본 크레딧 가격입니다.",
     "Sandbox_OperationAcorn_CureSerumShelfLife": "치료 혈청 유통 기한 (일)",
     "Sandbox_OperationAcorn_CureSerumShelfLife_tooltip": "치료 혈청을 받은 날부터 효과가 사라지기까지의 날 수입니다.",
-    "Sandbox_OperationAcorn_DelayDrugHours": "감염 지연제 지속 시간 (시간)",
-    "Sandbox_OperationAcorn_DelayDrugHours_tooltip": "감염 지연제 한 번으로 감염 진행이 느려지는 시간입니다.",
     "Sandbox_OperationAcorn_UpgradeSerumPrice": "강화 혈청 기본 가격",
     "Sandbox_OperationAcorn_UpgradeSerumPrice_tooltip": "트리마다 첫 강화 혈청의 크레딧 가격입니다.",
     "Sandbox_OperationAcorn_UpgradeSerumGrowth": "강화 혈청 가격 증가",

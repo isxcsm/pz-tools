@@ -30,7 +30,7 @@
     "OperationAcorn.UpgradeSerumSurvival": "Survival Adaptation Serum",
     "OperationAcorn.UpgradeSerumShared": "Shared Research Serum",
     "OperationAcorn.CureSerum": "Cure Serum",
-    "OperationAcorn.DelayDrug": "Infection Delay Drug",
+    "OperationAcorn.DelayDrug": "Infection Delay Drug (1 Day)",
     "OperationAcorn.CommTerminal": "Communication Terminal",
     "OperationAcorn.FieldTerminal": "Field Terminal",
     "OperationAcorn.DeliveryBox": "Delivery Box",
@@ -74,5 +74,8 @@
     "OperationAcorn.KitBagCapacity": "Bag Capacity Kit",
     "OperationAcorn.KitBagWeight": "Bag Weight Kit",
     "OperationAcorn.KitTrunk": "Trunk Kit",
-    "OperationAcorn.KitEngine": "Engine Tuning Kit"
+    "OperationAcorn.KitEngine": "Engine Tuning Kit",
+    "OperationAcorn.DelayDrugLong": "Infection Delay Drug (7 Days)",
+    "OperationAcorn.InfectionReversal": "Infection Reversal Drug",
+    "OperationAcorn.InfectionTestKit": "Infection Test Kit"
 }

@@ -8,5 +8,15 @@
     "Moodles_OperationAcorn:biteShield_lvl3": "Bite Shield Recovering",
     "Moodles_OperationAcorn:biteShield_desc_lvl3": "More than half the recovery is left. A bite now would infect you.",
     "Moodles_OperationAcorn:biteShield_lvl4": "Bite Shield Spent",
-    "Moodles_OperationAcorn:biteShield_desc_lvl4": "Used up by a bite you shrugged off; it takes days to recover. A bite now would infect you."
+    "Moodles_OperationAcorn:biteShield_desc_lvl4": "Used up by a bite you shrugged off; it takes days to recover. A bite now would infect you.",
+    "Moodles_OperationAcorn:suppressed_lvl1": "Suppressed",
+    "Moodles_OperationAcorn:suppressed_desc_lvl1": "A delay drug holds the infection back for a day or less more. A new wound from a zombie ends it.",
+    "Moodles_OperationAcorn:suppressed_lvl2": "Suppressed",
+    "Moodles_OperationAcorn:suppressed_desc_lvl2": "A delay drug holds the infection back for up to 3 more days. A new wound from a zombie ends it.",
+    "Moodles_OperationAcorn:suppressed_lvl3": "Suppressed",
+    "Moodles_OperationAcorn:suppressed_desc_lvl3": "A delay drug holds the infection back for up to 5 more days. A new wound from a zombie ends it.",
+    "Moodles_OperationAcorn:suppressed_lvl4": "Suppressed",
+    "Moodles_OperationAcorn:suppressed_desc_lvl4": "A delay drug holds the infection back for up to 7 more days. A new wound from a zombie ends it.",
+    "Moodles_OperationAcorn:untested_lvl1": "Untested",
+    "Moodles_OperationAcorn:untested_desc_lvl1": "A wound from a zombie that has not been tested for infection. Until it is, 30%% of each delivery goes to the infection handling fee."
 }

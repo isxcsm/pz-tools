@@ -1,11 +1,14 @@
 -- The server side of the upgrades: the research approval (a plan of ranks, paid in points and meteor fragments), the
--- reset of a tree, and the bite shield's rest. The screen asks, the server decides and saves, then tells what
--- changed. Alone, the game is its own server and the same code runs at once.
+-- reset of a tree, the bite shield's rest, and what the client's watch saw of the infection (a zombie's wound, the body's
+-- state). The screen asks, the server decides and saves, then tells what changed. Alone, the game is its own server and
+-- the same code runs at once.
 require "OperationAcorn/Server"
 require "OperationAcorn/Upgrades/Api"
+require "OperationAcorn/Upgrades/Infection"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
+local Infection = OA.Infection
 local Server = OA.Server
 local UpgradesServer = {}
 OA.Upgrades.Server = UpgradesServer
@@ -112,6 +115,24 @@ Server.on("upgrades.bite", function(character, record, args)
     OA.Sync.changed("upgrades", record.id, { kind = "bite" })
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_BiteSaved", sub = "IGUI_OA_Title_BiteSavedSub",
         subArgs = { math.floor(Rules.biteHours(u) / 24 + 0.5) }, style = "stamp", tone = "green", fallback = "good" })
+end)
+
+-- A new wound from a zombie (the watch found it): the wound is untested from now, and a delay drug ends, whether or
+-- not the body is infected.
+Server.on("infection.wound", function(character, record, args)
+    local kind = args.kind
+    if not Infection.WOUNDS[kind] then return end
+    local lost = Infection.wounded(record, kind, OA.hours())
+    OA.Sync.changed("infection", record.id, { kind = "wound" })
+    if lost then OA.Sync.notice(record.id, "IGUI_OA_Tree_DrugLost", { kind }) end
+end)
+
+-- What the body shows once a minute, when the record lacks it: an infection found, a known one gone, the progress.
+Server.on("infection.seen", function(character, record, args)
+    local progress = tonumber(args.progress)
+    if Infection.seen(record, args.infected == true, progress, OA.hours()) then
+        OA.Sync.changed("infection", record.id, { kind = "seen" })
+    end
 end)
 
 return UpgradesServer

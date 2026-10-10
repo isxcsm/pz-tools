@@ -201,7 +201,7 @@ local function clickCard(tab, id)
     return false
 end
 
-test("the shop opens on the serum shelf with the consumables and the three serums, and a card selected", function()
+test("the shop opens on the serum shelf with the five treatments and the three serums, and a card selected", function()
     local tab = open("crude")
     local seen = draw(tab)
     eq(tab.cat, "serums")
@@ -213,7 +213,7 @@ test("the shop opens on the serum shelf with the consumables and the three serum
     truthy(has(seen.cards, "IGUI_OA_Econ_Shop_Item_cure_serum"))
     truthy(has(seen.cards, "IGUI_OA_Econ_Shop_Item_serum_load"))
     truthy(has(seen.cards, "IGUI_OA_Terminal_Shop_Nth 1"), "the first serum of a tree")
-    eq(#tab.cards.rows, 2 + 1 + 1 + 1, "two heads, two card rows for the two treatments... and the serums")
+    eq(#tab.cards.rows, 2 + 3 + 2, "two heads, three card rows for the five treatments and two for the three serums")
 end)
 
 test("the sections list the groups, the locked ones with a padlock, on the crude terminal", function()

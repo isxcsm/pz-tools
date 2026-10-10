@@ -20,22 +20,18 @@ local function entry(id, group, extra)
     return e
 end
 
-test("the shelf holds the serum, consumable and serum-special entries in the fixed order, skipping missing ids", function()
-    -- before the catalog change: the consumables and the three serums only
-    local catalog = {
-        entry("cure_serum", "consumable", { special = "cure" }),
-        entry("delay_drug", "consumable", { special = "delay" }),
+test("the shelf holds the serum group and the serum-special entries in the fixed order, skipping missing ids", function()
+    local blocks = V.shelf({
+        entry("cure_serum", "serum", { special = "cure" }),
+        entry("delay_drug", "serum", { special = "delay" }),
         entry("battery_pack", "resource"),
         entry("serum_load", "serum", { special = "serum" }),
-        entry("serum_scout", "serum", { special = "serum" }),
-        entry("serum_survival", "serum", { special = "serum" }),
         entry("box_reissue", "box", { special = "reissue" }),
-    }
-    local blocks = V.shelf(catalog)
+    })
     eq(ids(blocks[1].entries), "cure_serum,delay_drug")
-    eq(ids(blocks[2].entries), "serum_scout,serum_load,serum_survival")
-    eq(V.shelfCount(blocks), 5)
-    -- after it: five treatments, the order is the fixed one whatever the catalog's
+    eq(ids(blocks[2].entries), "serum_load")
+    eq(V.shelfCount(blocks), 3)
+    -- five treatments: the order is the fixed one whatever the catalog's
     local full = {
         entry("serum_scout", "serum", { special = "serum" }),
         entry("delay_drug", "serum", { special = "delay" }),
@@ -55,7 +51,7 @@ end)
 test("an entry the order does not name still lands on the shelf, by what it is", function()
     local blocks = V.shelf({
         entry("cure_serum", "serum", { special = "cure" }),
-        entry("new_drug", "consumable"),
+        entry("new_drug", "serum"),
         entry("serum_extra", "resource", { special = "serum" }),
     })
     eq(ids(blocks[1].entries), "cure_serum,new_drug")
@@ -70,9 +66,9 @@ test("the sections leave out the shelf and the box reissue and keep the catalog'
         truthy(e.special ~= "reissue", "no reissue")
     end
     eq(#sections.byGroup.machine, 10)
-    -- the real catalog's shelf: the consumables today, plus the three serums
+    -- the real catalog's shelf: the five treatments and the three serums
     local blocks = V.shelf(OA.Shop.catalog())
-    eq(ids(blocks[1].entries), "cure_serum,delay_drug")
+    eq(ids(blocks[1].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
     eq(ids(blocks[2].entries), "serum_scout,serum_load,serum_survival")
 end)
 

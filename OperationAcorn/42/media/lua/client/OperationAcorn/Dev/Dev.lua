@@ -194,7 +194,8 @@ end
 local SHOW_W, SHOW_H = 16, 11
 local SHOW_ITEMS = {
     { "UpgradeSerumScout", 2 }, { "UpgradeSerumLoad", 2 }, { "UpgradeSerumSurvival", 2 }, { "UpgradeSerumShared", 2 },
-    { "CureSerum", 1, issued = true }, { "DelayDrug", 2 },
+    { "CureSerum", 1, issued = true }, { "DelayDrug", 2 }, { "DelayDrugLong", 2 }, { "InfectionReversal", 1 },
+    { "InfectionTestKit", 2 },
     { "KitBagCapacity", 1 }, { "KitBagWeight", 1 }, { "KitTrunk", 1 }, { "KitEngine", 1 }, { "KitVoucher", 1 },
     { "TeamBackpack", 1 }, { "FuelCanMk1", 1 }, { "FuelCanMk2", 1 }, { "FuelCanMk3", 1 },
     { "TerminalManual", 1 }, { "SupplyManifest", 1 }, { "SampleBundle", 3 }, { "MeteorFragment", 3 },

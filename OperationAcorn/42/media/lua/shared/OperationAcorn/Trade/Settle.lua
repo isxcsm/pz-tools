@@ -6,6 +6,7 @@ require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
 require "OperationAcorn/Trade/Boxes"
 require "OperationAcorn/Trade/Ledger"
+require "OperationAcorn/Upgrades/Infection"
 local OA = OperationAcorn
 local Trade = OA.Trade
 local Rules, Boxes, Ledger = Trade.Rules, Trade.Boxes, Trade.Ledger
@@ -100,7 +101,10 @@ function Settle.run(record, svc)
     end
     local bonus = OA.round(account.bonus or 0)
     account.bonus = 0
-    local gain = (result.credits or 0) + bonus
+    -- The infection handling fee (a zombie wound not yet tested for, or a known infection) comes off this flight's
+    -- delivery credits, the requests' among them, before a debt takes its share.
+    local fee, feeRate = OA.Infection.fee(record, result.credits or 0)
+    local gain = (result.credits or 0) - fee + bonus
     local balanceBefore = account.credits
     local debtPaid
     account.credits, debtPaid = Rules.applyGain(account.credits, gain)
@@ -169,6 +173,8 @@ function Settle.run(record, svc)
         number = record.number,
         boxes = #sealed,
         credits = result.credits or 0,
+        fee = fee > 0 and fee or nil,
+        feeRate = fee > 0 and feeRate or nil,
         trust = result.trust or 0,
         bonus = bonus,
         debtPaid = debtPaid,
