@@ -34,8 +34,11 @@ function OATabProgress:model(record)
         }
     end
     local terminal = Shop.entry("field_terminal")
+    -- The level entered since the screen was last looked at stays lit while the window is open (the window keeps it
+    -- as seen at once, and the sub-tab's dot goes with that).
+    self.fresh = M.roadFresh(record) or self.fresh
     return {
-        cur = cur, frac = frac, levels = levels, field = self.window.tier == "field",
+        cur = cur, frac = frac, levels = levels, field = self.window.tier == "field", fresh = self.fresh,
         cta = self.window.tier ~= "field" and Trust.tier(record) >= 2,
         ctaPrice = terminal and Text.credits(Shop.price(terminal, record)) or nil,
         terminalType = Shop.TYPES.fieldTerminal,
@@ -125,6 +128,11 @@ function OATabProgress:build(L, w, h)
         local x = cx(t)
         local mid = x + half
         local past, now = t < cur, t == cur
+        if t == d.fresh then
+            -- The level just entered (DESIGN-terminal 11.1 priority 4): amber box and a small mark by the name.
+            Draw.box(L, x + 2, 0, colw - 4, R.trackH, p.warn, 0.08, p.warn, 0.9)
+            Draw.rect(L, x + colw - 10, 4, 4, 4, p.warn)
+        end
         if t == sel then
             Draw.box(L, x + 2, 0, colw - 4, R.trackH, p.sel, 0.10, p.sel, 0.9)
         elseif now then

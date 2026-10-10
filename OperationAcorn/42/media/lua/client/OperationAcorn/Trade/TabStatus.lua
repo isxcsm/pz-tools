@@ -39,6 +39,7 @@ function OATabStatus:createChildren()
     for _, id in ipairs(OATabStatus.SUBS) do self:subView(id) end
     self:startBoot()
     self:showSub("heli")
+    self:refresh()
 end
 
 function OATabStatus:subView(id)
@@ -61,27 +62,29 @@ function OATabStatus:showSub(id)
     for sid, view in pairs(self.subViews) do view:setVisible(sid == id) end
     self.sub = id
     self:subView(id):setVisible(true)
-    self:refresh()
 end
 
+-- A sub-tab clicked: the window redraws (the marks follow what is on show, and what the screen shows is seen).
 function OATabStatus.onSub(self, id)
-    if id ~= self.sub then self:showSub(id) end
+    if id == self.sub then return end
+    self:showSub(id)
+    self.window:refresh()
 end
 
 function OATabStatus:refresh()
     local record = self:record()
     if not record then return end
     local field = self.window.tier == "field"
+    local marks = M.subMarks(record, field, self.sub)
     local items = {}
     for _, id in ipairs(OATabStatus.SUBS) do
         local item = { id = id, label = getText("IGUI_OA_Terminal_Sub_" .. id) }
-        if id == "progress" and not field and M.fieldTerminalBuyable(record) then item.dot = "new" end
+        if id == "progress" then item.dot = marks.progress end
         if id == "upgrades" then
             if not field then
                 item.lock = true
-            else
-                local n = M.countAvail(record, true)
-                if n > 0 then item.badge = getText("IGUI_OA_Status_Avail", n) end
+            elseif marks.avail > 0 then
+                item.badge = getText("IGUI_OA_Status_Avail", marks.avail)
             end
         end
         items[#items + 1] = item
@@ -199,9 +202,8 @@ function OATabStatus:bootDone()
         self:removeChild(self.boot)
         self.boot = nil
     end
-    local w = self.window
-    w.blink = w.blink or {}
-    w.blink.shop, w.blink.missions = true, true
+    self.window:blinkTab("shop")
+    self.window:blinkTab("missions")
 end
 
 OAStatusBoot = ISPanel:derive("OAStatusBoot")
@@ -314,9 +316,14 @@ function OAStatusBoot:onMouseWheel()
 end
 
 -- The tab's dot: red while the balance is a debt, or there is an infection or a wound not tested (DESIGN-terminal
--- 11.1).
+-- 11.1 priority 1). The new level of the progress screen is seen when that screen is on show (priority 4); the dots of
+-- the sub-tabs are M.subMarks.
 OA.Terminal.addTab("status", function(x, y, w, h, window)
     return OATabStatus:new(x, y, w, h, window)
 end, {
     mark = function(record) return M.statusMark(record) end,
+    seen = function(record, window)
+        if window and window:subOn("status") == "progress" then return "road", Trust.tier(record) end
+        return nil
+    end,
 })

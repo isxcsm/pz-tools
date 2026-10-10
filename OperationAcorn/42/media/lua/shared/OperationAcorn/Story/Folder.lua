@@ -265,22 +265,40 @@ function Folder.unreadCount(record)
     return n
 end
 
+-- The id of a guide document a folder key stands for ("d:<id>" of a guide kind), or nil.
+local function guideId(key)
+    local id = string.match(key, "^d:(.+)$")
+    if id and Docs.kind(id) == "guide" then return id end
+    return nil
+end
+
 -- The newest guide document (the team's own notices for the terminal) not opened yet: { key, id, title } or nil. The
--- status tab's 'new document' card shows it.
+-- status tab's 'new document' card shows it (11.1 priority 2).
 function Folder.newGuide(record)
     local unread = record and record.story and record.story.unread
     local best
     if unread then
         for key, seq in pairs(unread) do
-            local id = string.match(key, "^d:(.+)$")
-            if id and Docs.kind(id) == "guide" and (not best or seq > best.seq) then
-                best = { key = key, id = id, seq = seq }
-            end
+            local id = guideId(key)
+            if id and (not best or seq > best.seq) then best = { key = key, id = id, seq = seq } end
         end
     end
     if not best then return nil end
     best.title = Story.text(Docs.titleKey(best.id))
     return best
+end
+
+-- How many things in the folder are new apart from the guide documents, which the status tab's card carries (11.1
+-- priority 3: 'other new documents').
+function Folder.newCount(record)
+    local unread = record and record.story and record.story.unread
+    local n = 0
+    if unread then
+        for key in pairs(unread) do
+            if not guideId(key) then n = n + 1 end
+        end
+    end
+    return n
 end
 
 -- The number of the mission on show, which the tab's dot compares with ui.seen.mission (0 when there is none). A new
@@ -291,10 +309,16 @@ function Folder.missionSeq(record)
     return active and active.seq or 0
 end
 
--- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder.
+-- Whether the mission on show has not been looked at yet.
+function Folder.freshMission(record)
+    return Folder.missionSeq(record) > (Terminal.seenValue(record, "mission") or 0)
+end
+
+-- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder but the guide
+-- documents (the card on the status tab has those).
 function Folder.mark(record)
-    if Folder.missionSeq(record) > (Terminal.seenValue(record, "mission") or 0) then return "new" end
-    if Folder.unreadCount(record) > 0 then return "new" end
+    if Folder.freshMission(record) then return "new" end
+    if Folder.newCount(record) > 0 then return "new" end
     return nil
 end
 
@@ -302,8 +326,7 @@ end
 -- on show. The folder's news is kept per entry, as each is opened. Returns the ui.seen key and value, or nil.
 function Folder.seen(record, sub)
     if sub ~= "missions" then return nil end
-    local seq = Folder.missionSeq(record)
-    if seq > (Terminal.seenValue(record, "mission") or 0) then return "mission", seq end
+    if Folder.freshMission(record) then return "mission", Folder.missionSeq(record) end
     return nil
 end
 

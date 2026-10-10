@@ -12,6 +12,7 @@ require "OperationAcorn/Economy/Support"
 require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Economy/Codex"
 require "OperationAcorn/Economy/Categories"
+require "OperationAcorn/Trade/Terminal"
 require "OperationAcorn/Trade/Trade"
 require "OperationAcorn/Trade/Rules"
 require "OperationAcorn/Trade/Boxes"
@@ -22,7 +23,7 @@ require "OperationAcorn/Trade/Text"
 require "OperationAcorn/Story/Places"
 local OA = OperationAcorn
 local Trade = OA.Trade
-local Trust, Support, Shop, Codex = OA.Trust, OA.Support, OA.Shop, OA.Codex
+local Trust, Support, Shop, Codex, Terminal = OA.Trust, OA.Support, OA.Shop, OA.Codex, OA.Terminal
 local Rules, Boxes, Orders, Estimate, Ledger, Text = Trade.Rules, Trade.Boxes, Trade.Orders, Trade.Estimate, Trade.Ledger,
     Trade.Text
 local M = {}
@@ -475,6 +476,25 @@ function M.fieldTerminalBuyable(record)
     return (Shop.available(entry, record)) > 0
 end
 
+-- The trust level whose entry the progress screen has not shown yet (DESIGN-terminal 11.1, priority 4: the road's
+-- node is lit and the sub-tab has a dot until the screen is looked at), or nil. The window keeps it as seen (ui.seen.road).
+function M.roadFresh(record)
+    local tier = Trust.tier(record)
+    if tier > 0 and tier > (Terminal.seenValue(record, "road") or 0) then return tier end
+    return nil
+end
+
+-- The marks of the status tab's sub-tabs, worked out when the record changes (the sub-tab on show is `sub`):
+--   progress "new" (priority 4): a new level not shown yet, or on the crude terminal the field terminal can be bought;
+--   avail (priority 5): how many upgrades may be asked for now (the badge `신청 가능 N`; none on the crude terminal).
+function M.subMarks(record, field, sub)
+    local marks = { avail = field and M.countAvail(record, true) or 0 }
+    if (not field and M.fieldTerminalBuyable(record)) or (sub ~= "progress" and M.roadFresh(record)) then
+        marks.progress = "new"
+    end
+    return marks
+end
+
 -- The waybill's sums (the settlement's order, Trade/Settle): the gain repays a debt first, the orders are paid when
 -- the balance is not a debt after it (Estimate.flight's rule), then each flight support request the balance can pay.
 -- Returns { after, orders (paid), support (paid) }.
@@ -712,24 +732,35 @@ function M.heroWidth(w)
     return w >= 680 and 250 or 214
 end
 
+-- The new-document card at the foot of the helicopter column, over the buttons (DESIGN-terminal 11.1 priority 2): its
+-- height, and the gap above it.
+M.GUIDE_H, M.GUIDE_GAP = 38, 6
+
 -- The hero's spacing: whether the last settlement and the crates take a label line and a value line each (roomy),
--- the gap between the blocks, and whether the four values fit (a short window with the infection box leaves them to
--- the upgrades screen). `top` is the height the state, its lines, the arrival bar and the infection box take (from 46
--- down), `facts` how many fact blocks there are; the buttons keep the bottom 72.
-function M.heroSpacing(h, top, facts)
+-- the gap between the blocks, whether the four values fit (a short window with the infection box leaves them to the
+-- upgrades screen) and whether the last settlement and the crates fit at all (the infection box and the card are what
+-- the player has to see, so they take the room first: the four values go, then the facts). `top` is the height the
+-- state, its lines, the arrival bar and the infection box take (from 46 down), `facts` how many fact blocks there are,
+-- `card` whether the new-document card stands over the buttons; the buttons keep the bottom 72.
+function M.heroSpacing(h, top, facts, card)
+    local reserve = 72 + (card and M.GUIDE_H + M.GUIDE_GAP or 0)
     local roomy = h >= 300
-    local spec = true
+    local spec, showFacts = true, true
     local used = 46 + top + 54 + 8 + facts * 36
-    if used > h - 72 then
+    if used > h - reserve then
         roomy = false
         used = used - facts * 18
     end
-    if used > h - 72 then
+    if used > h - reserve then
         spec = false
         used = used - 54
     end
-    local gap = OA.clamp(math.floor((h - 72 - used) / 3), 4, 18)
-    return roomy, gap, spec
+    if used > h - reserve then
+        showFacts = false
+        used = used - facts * 18
+    end
+    local gap = OA.clamp(math.floor((h - reserve - used) / 3), 4, 18)
+    return roomy, gap, spec, showFacts
 end
 
 -- The road: { lx (lane labels' width), colw, roomy, nodeH, laneH, ya, yb, trackH }.

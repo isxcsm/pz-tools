@@ -1395,5 +1395,7 @@
     "IGUI_OA_Title_TestPositive": "감염 양성",
     "IGUI_OA_Title_TestNegative": "음성",
     "IGUI_OA_Title_TestNegativeSub": "수수료 없음",
-    "IGUI_OA_Trade_Rc_Fee": "감염 처리 수수료 %1%%: -%2 크레딧."
+    "IGUI_OA_Trade_Rc_Fee": "감염 처리 수수료 %1%%: -%2 크레딧.",
+    "IGUI_OA_Status_Guide_New": "새 문서",
+    "IGUI_OA_Status_Guide_Read": "읽기"
 }

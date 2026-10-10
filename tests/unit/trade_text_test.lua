@@ -306,6 +306,22 @@ test("a tab keeps one thing as seen, or several: the pairs come by key", functio
     Terminal.clear()
 end)
 
+test("a tab's seen rule gets the window, to ask which of its screens is on show", function()
+    Terminal.clear()
+    local window = { subOn = function(_, id) return id == "status" and "progress" or nil end }
+    Terminal.addTab("status", function() end, { seen = function(record, w)
+        if w and w:subOn("status") == "progress" then return "road", 3 end
+        return nil
+    end })
+    local list = Terminal.seenPairs("status", {}, window)
+    eq(#list, 1); eq(list[1].key, "road"); eq(list[1].value, 3)
+    eq(#Terminal.seenPairs("status", {}, nil), 0, "no window: nothing is on show")
+    local record = {}
+    truthy(Terminal.setSeen(record, "road", 3), "road is a key the record keeps")
+    eq(Terminal.seenValue(record, "road"), 3)
+    Terminal.clear()
+end)
+
 test("what a tab has seen is kept as a number under a known key", function()
     local record = {}
     eq(Terminal.seenValue(record, "tier"), nil)
