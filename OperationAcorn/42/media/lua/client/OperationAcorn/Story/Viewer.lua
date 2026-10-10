@@ -8,13 +8,19 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Markup"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
 local Docs = OA.StoryDocs
+local UI = OA.Trade.UI
 local Viewer = {}
 OA.StoryViewer = Viewer
 
+-- Sizes in design units: the window is the game's, in pixels, so they are made pixels with the terminal's scale
+-- (Trade/UI.lua) as the window is made.
 local PAD = 12
 local BUTTON_H = 26
+local BUTTON_W = 90
+local WIDTH, HEIGHT = 520, 560
 
 ISOAViewer = ISCollapsableWindow:derive("ISOAViewer")
 
@@ -31,7 +37,8 @@ end
 function ISOAViewer:createChildren()
     ISCollapsableWindow.createChildren(self)
     local th = self:titleBarHeight()
-    self.rich = ISRichTextPanel:new(PAD, th + PAD, self.width - PAD * 2, self.height - th - PAD * 3 - BUTTON_H)
+    local pad, bh, w = UI.px(PAD), UI.px(BUTTON_H), UI.px(BUTTON_W)
+    self.rich = ISRichTextPanel:new(pad, th + pad, self.width - pad * 2, self.height - th - pad * 3 - bh)
     self.rich:initialise()
     self.rich.autosetheight = false
     self.rich.clip = true
@@ -42,14 +49,13 @@ function ISOAViewer:createChildren()
     self.rich:setAnchorRight(true)
     self.rich:setAnchorBottom(true)
     self:addChild(self.rich)
-    local w = 90
-    self.prev = ISButton:new(PAD, self.height - PAD - BUTTON_H, w, BUTTON_H, getText("IGUI_OA_Story_UI_Prev"), self, ISOAViewer.onPrev)
+    self.prev = ISButton:new(pad, self.height - pad - bh, w, bh, getText("IGUI_OA_Story_UI_Prev"), self, ISOAViewer.onPrev)
     self.prev:initialise()
     self.prev:instantiate()
     self.prev:setAnchorTop(false)
     self.prev:setAnchorBottom(true)
     self:addChild(self.prev)
-    self.next = ISButton:new(PAD + w + 8, self.height - PAD - BUTTON_H, w, BUTTON_H, getText("IGUI_OA_Story_UI_Next"), self, ISOAViewer.onNext)
+    self.next = ISButton:new(pad + w + UI.px(8), self.height - pad - bh, w, bh, getText("IGUI_OA_Story_UI_Next"), self, ISOAViewer.onNext)
     self.next:initialise()
     self.next:instantiate()
     self.next:setAnchorTop(false)
@@ -103,8 +109,9 @@ function Viewer.open(character, docs)
     if not docs or #docs == 0 then return end
     if Viewer.instance then Viewer.instance:close() end
     local core = getCore()
-    local w = math.min(520, core:getScreenWidth() - 40)
-    local h = math.min(560, core:getScreenHeight() - 80)
+    UI.refreshScale()
+    local w = math.min(UI.px(WIDTH), core:getScreenWidth() - 40, math.floor(core:getScreenWidth() * 0.9))
+    local h = math.min(UI.px(HEIGHT), core:getScreenHeight() - 80, math.floor(core:getScreenHeight() * 0.9))
     local ui = ISOAViewer:new((core:getScreenWidth() - w) / 2, (core:getScreenHeight() - h) / 2, w, h, character)
     ui:initialise()
     ui:addToUIManager()

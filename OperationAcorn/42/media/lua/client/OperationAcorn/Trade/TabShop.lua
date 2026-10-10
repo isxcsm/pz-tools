@@ -116,6 +116,8 @@ function OAShopScroll:onMouseMoveOutside(dx, dy) self:drag(dy) end
 function OAShopScroll:onMouseUp() self.dragging = false end
 function OAShopScroll:onMouseUpOutside() self.dragging = false end
 
+UI.scaled(OAShopScroll, ISPanel)
+
 -- A button in the terminal's palette. An "off" button looks dimmed, does nothing when clicked and says why in its
 -- tooltip (the game's own disabled look is a flat grey that belongs to no palette).
 OAShopButton = ISButton:derive("OAShopButton")
@@ -505,6 +507,8 @@ function OATabShop:layout()
         d.nameFit = UI.fit(d.name, det.w - 160, UIFont.Medium)
         d.infoFit = UI.fit(d.info, det.w - 78)
     end
+    -- The description under the name: at 26, or lower when the Medium font is taller than the design's.
+    self.descY = math.max(26, 3 + UI.fontHeight(UIFont.Medium))
     -- the cart's clear button
     self:place(self.clearButton, rect.cart.x + 8, cartRect.clearY, rect.cart.w - 16, 22)
     -- the totals' places along their lines
@@ -518,10 +522,9 @@ function OATabShop:layout()
     s.afterX = s.arrowX + 17
 end
 
+-- The lists are ours, the buttons and the combo box the game's: UI.place takes design units for both.
 function OATabShop:place(element, x, y, w, h)
-    element:setX(x)
-    element:setY(y)
-    UI.size(element, w, h)
+    UI.place(element, x, y, w, h)
 end
 
 -- Drawing -------------------------------------------------------------------------------------------------------
@@ -594,7 +597,7 @@ function OATabShop:drawDetail(p)
     local unit = UI.creditsUnit()
     UI.textRight(self, unit, r.x + r.w - 10, r.y + 7, p.dim)
     UI.textRight(self, d.price, r.x + r.w - 10 - UI.textWidth(unit) - UI.UNIT_GAP, r.y + 7, p.value, p.numberFont)
-    local y = r.y + 26
+    local y = r.y + self.descY
     for _, line in ipairs(self.descLines) do
         UI.text(self, line, r.x + 68, y, p.text)
         y = y + fh

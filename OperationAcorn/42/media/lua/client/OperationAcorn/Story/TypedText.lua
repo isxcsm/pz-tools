@@ -74,7 +74,8 @@ function OATypedText:render()
     if self.tipChunk and self.cursorColor then self:drawCursor() end
 end
 
--- A block after the last character that has come on, blinking.
+-- A block after the last character that has come on, blinking. The panel is the game's, in pixels: the block is the
+-- row's font high (less 3 at each end) and a quarter of that wide, 6 at least, so it keeps to the text in any font.
 function OATypedText:drawCursor()
     local c = self.tipChunk
     local fh = getTextManager():getFontHeight(self.defaultFont)
@@ -82,7 +83,7 @@ function OATypedText:drawCursor()
     if y < 0 or y + fh > self.height then return end
     local col = self.cursorColor
     local a = 0.55 + 0.45 * math.sin(getTimestampMs() / 160)
-    self:drawRect(self.tipX + 1, y + 3, 6, fh - 6, a, col[1], col[2], col[3])
+    self:drawRect(self.tipX + 1, y + 3, math.max(6, math.floor(fh / 4)), fh - 6, a, col[1], col[2], col[3])
 end
 
 return OATypedText

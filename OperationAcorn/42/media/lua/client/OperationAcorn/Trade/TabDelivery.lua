@@ -60,14 +60,15 @@ function OATabDelivery:createChildren()
     list:initialise()
     list:instantiate()
     list.font = UIFont.Small
-    list.itemheight = OATabDelivery.ROW_H
     list.drawBorder = false
     list.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
-    list.doDrawItem = OATabDelivery.drawRow
+    -- The game's list, its rows drawn in design units (Trade/UI.lua); the layout places it.
+    list.doDrawItem = UI.rowPainter(OATabDelivery.drawRow)
     -- The rows are for reading: a click on one selects nothing and makes no sound.
     list.onMouseDown = function() end
     list.tab = self
     self:addChild(list)
+    UI.rowHeight(list, OATabDelivery.ROW_H)
     self.list = list
     self.data = nil
     self.stamp = nil
@@ -238,8 +239,7 @@ function OATabDelivery:layout()
     m.listW = w - 8
     m.noteY = m.listY + listH + 4
     m.expectY = m.noteY + noteH
-    self.list:setY(m.listY)
-    UI.size(self.list, w, listH)
+    UI.place(self.list, nil, m.listY, w, listH)
     self.list:setVisible(#d.rows > 0)
     -- The index chips, six and five in two rows.
     local perRow = 6
@@ -264,7 +264,7 @@ local function kindColor(p, kind)
     return p.text
 end
 
--- One row of the list (the list's own doDrawItem, in the content's coordinates).
+-- One row of the list (through the list's doDrawItem, in the content's coordinates).
 function OATabDelivery.drawRow(list, y, item, alt)
     local tab = list.tab
     local m = tab.metrics

@@ -325,6 +325,8 @@ function OAStatusBoot:onMouseWheel()
     return true
 end
 
+UI.scaled(OAStatusBoot, ISPanel)
+
 -- The tab's dot: red while the balance is a debt, or there is an infection or a wound not tested (DESIGN-terminal
 -- 11.1 priority 1). The new level of the progress screen is seen when that screen is on show (priority 4); the dots of
 -- the sub-tabs are M.subMarks.

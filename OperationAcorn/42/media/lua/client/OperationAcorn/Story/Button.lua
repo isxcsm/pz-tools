@@ -10,6 +10,8 @@ OAMButton = ISButton:derive("OAMButton")
 -- `style`: "normal" or "strong".
 function OAMButton:new(x, y, width, height, title, palette, target, onclick, style)
     local o = ISButton.new(self, x, y, width, height, title, target, onclick)
+    -- The game's button widens to its title measured in pixels; this one is in design units (Trade/UI.lua).
+    o.width = math.max(width, UI.textWidth(title) + 10)
     o.palette = palette
     o.style = style or "normal"
     return o
@@ -46,5 +48,18 @@ function OAMButton:render()
     end
     UI.textCentre(self, self.title, self.width / 2, (self.height - fh) / 2, c, nil, a)
 end
+
+-- The game's tooltip goes under the button by its height, which is in design units here: put back in pixels.
+function OAMButton:updateTooltip()
+    ISButton.updateTooltip(self)
+    local tip = self.tooltipUI
+    if tip and self.tooltip and tip:getIsVisible() then
+        local x = self:isMouseOver() and getMouseX() or self:getAbsoluteX()
+        tip:setDesiredPosition(x, self:getAbsoluteY() + UI.px(self.height) + 8)
+    end
+end
+
+-- The button is ours: in design units (Trade/UI.lua), placed and sized as the screens' other parts.
+UI.scaled(OAMButton, ISButton)
 
 return OAMButton

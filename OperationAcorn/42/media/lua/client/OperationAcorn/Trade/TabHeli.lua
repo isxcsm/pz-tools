@@ -235,6 +235,7 @@ function OATabHeli:moveEta()
     if not e then return end
     local span = math.max(0.01, e.to - e.from)
     e.op[4] = math.floor(e.w * OA.clamp((OA.hours() - e.from) / span, 0, 1))
+    Draw.bakeOp(e.op)
 end
 
 -- Every second or so: the arrival bar moves on; the screen is worked out again once the next call is possible and

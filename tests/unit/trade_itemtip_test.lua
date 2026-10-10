@@ -14,7 +14,7 @@ local panel, original
 local function setup()
     calls = {}
     UIFont = { Small = "Small" }
-    OA.Trade.UI = { fontHeight = function() return 14 end, textWidth = function(text) return #text * 6 end }
+    OA.Trade.UI = { fontHeightPx = function() return 14 end, textWidthPx = function(text) return #text * 6 end }
     ISContextMenu = { instance = nil }
     getCore = function() return { getScreenHeight = function() return 1080 end } end
     original = function(self)

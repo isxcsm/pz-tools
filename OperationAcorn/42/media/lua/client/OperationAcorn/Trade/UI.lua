@@ -1,5 +1,25 @@
 -- Small helpers for the trade part's windows: the same few widgets (a label, a button, a list, a rich text) with the
 -- sizes the game's own windows use.
+--
+-- Sizes: design units and one scale (DESIGN-terminal 1.2) ---------------------------------------------------------
+-- The game's font option defaults to following the window's height, so the Small font is 16 pixels high on a small
+-- screen, 19 at 1080p, 26 at 1440p and 38 at 4K. The terminal's screens are laid out in DESIGN UNITS: the numbers
+-- written in the code, made for a 16 pixel Small font. UI.S is the scale from them to the screen's pixels: the Small
+-- font's height / 16 (never under 1), worked out again when a window opens (UI.refreshScale). The rule:
+--   * Layout code writes plain design numbers and never multiplies by UI.S itself. Text is measured in design units
+--     too (UI.textWidth, UI.fontHeight give the pixels / UI.S), so the Small font is always 16 high in them.
+--   * Our own elements (OATab and every tab and screen derived from it, the tab strip, OASubTabs, OAShopScroll,
+--     OAMButton, the status board: each class made with UI.scaled) are in design units through and through: their
+--     x, y, width and height, every draw* call and stencil, getMouseX/Y and the coordinates their mouse handlers get.
+--     The class converts at the boundary with the game (the javaObject); the code in it does not.
+--   * The game's own widgets (ISButton, ISScrollingListBox, ISRichTextPanel, ISLabel, ISComboBox, scroll bars) draw
+--     their own text and stay in pixels. Inside our elements they are made and moved with the helpers below
+--     (UI.list, UI.rich, UI.button, UI.label, UI.place, UI.size, UI.rowHeight), which take design numbers and convert.
+--     A game list's rows are drawn in design units through UI.list or UI.rowPainter.
+--   * A game window (the terminal window, the readers, the confirm dialog) is in pixels: its sizes are design sizes
+--     made pixels with UI.px, and the terminal window hands its body to the tabs in design units.
+-- At UI.S == 1 nothing is converted: the scaled classes are the plain game classes, and every number is as written.
+-- Lines and borders stay one pixel wide at any scale (the game's own windows keep them so).
 require "ISUI/ISPanel"
 require "ISUI/ISButton"
 require "ISUI/ISLabel"
@@ -9,6 +29,321 @@ require "OperationAcorn/Trade/Text"
 local OA = OperationAcorn
 local UI = {}
 OA.Trade.UI = UI
+
+-- The Small font's height the design units are made for.
+UI.BASE_FONT = 16
+UI.S = 1
+-- The scale as a local too: the drawing below reads it on every call.
+local S = 1
+local floor = math.floor
+
+-- A design number in pixels (rounded to whole pixels when scaled), and pixels in design units.
+function UI.px(v)
+    if S == 1 then return v end
+    return floor(v * S + 0.5)
+end
+
+function UI.dp(v)
+    if S == 1 then return v end
+    return v / S
+end
+
+-- A design start and length as pixels: both ends rounded, so that rectangles side by side still meet.
+local function span(a, len)
+    local r = floor(a * S + 0.5)
+    return r, floor((a + len) * S + 0.5) - r
+end
+
+-- What a class made with UI.scaled does while the scale is not 1 (at 1 the class is the plain game class).
+local SCALED = {}
+
+-- A table's own field. The game's Kahlua rawget looks through the metatable's __index as well (found running the
+-- tests on the game's VM), so this goes through pairs.
+local function own(t, key)
+    for k, v in pairs(t) do
+        if k == key then return v end
+    end
+    return nil
+end
+
+-- The mouse handlers the game calls with coordinates (local pixels, or pixels moved): an element of a scaled class
+-- gets them in design units.
+local MOUSE = { "onMouseDown", "onMouseUp", "onMouseDownOutside", "onMouseUpOutside", "onMouseMove",
+    "onMouseMoveOutside", "onRightMouseDown", "onRightMouseUp", "onRightMouseDownOutside", "onRightMouseUpOutside", "onMouseDoubleClick" }
+
+-- As ISUIElement.instantiate, with the place and size in pixels (the children are made after them, so that the
+-- game's anchors start from the right size), and the mouse handlers given design coordinates.
+function SCALED:instantiate()
+    local jo = UIElement.new(self)
+    self.javaObject = jo
+    self.oaRX, self.oaRY = floor(self.x * S + 0.5), floor(self.y * S + 0.5)
+    self.oaRW, self.oaRH = floor(self.width * S + 0.5), floor(self.height * S + 0.5)
+    jo:setX(self.oaRX)
+    jo:setY(self.oaRY)
+    jo:setHeight(self.oaRH)
+    jo:setWidth(self.oaRW)
+    jo:setAnchorLeft(self.anchorLeft)
+    jo:setAnchorRight(self.anchorRight)
+    jo:setAnchorTop(self.anchorTop)
+    jo:setAnchorBottom(self.anchorBottom)
+    jo:setWantKeyEvents(self.wantKeyEvents or false)
+    jo:setConsumeMouseEvents(self.wantMouseEvents or false)
+    jo:setWantExtraMouseEvents(self.wantExtraMouseEvents or false)
+    jo:setForceCursorVisible(self.forceCursorVisible or false)
+    for _, name in ipairs(MOUSE) do
+        local fn = self[name]
+        if fn and own(self, name) == nil then
+            self[name] = function(o, x, y) return fn(o, x / S, y / S) end
+        end
+    end
+    self:createChildren()
+end
+
+-- The place and the size: kept in design units in the Lua fields, given to the game in pixels. A getter answers the
+-- design number it was given while the game has not moved the element itself (an anchor following its parent).
+function SCALED:setX(x)
+    self.x = x
+    local jo = self.javaObject
+    if jo then
+        self.oaRX = floor(x * S + 0.5)
+        jo:setX(self.oaRX)
+    end
+end
+
+function SCALED:setY(y)
+    self.y = y
+    local jo = self.javaObject
+    if jo then
+        self.oaRY = floor(y * S + 0.5)
+        jo:setY(self.oaRY)
+    end
+end
+
+function SCALED:setWidth(w)
+    self.width = w
+    local jo = self.javaObject
+    if jo then
+        self.oaRW = floor(w * S + 0.5)
+        jo:setWidth(self.oaRW)
+    end
+end
+
+function SCALED:setHeight(h)
+    self.height = h
+    local jo = self.javaObject
+    if jo then
+        self.oaRH = floor(h * S + 0.5)
+        jo:setHeight(self.oaRH)
+    end
+end
+
+local function javaOf(self)
+    if self.javaObject == nil then self:instantiate() end
+    return self.javaObject
+end
+
+function SCALED:getX()
+    local r = javaOf(self):getX()
+    if r == self.oaRX then return self.x end
+    return r / S
+end
+
+function SCALED:getY()
+    local r = javaOf(self):getY()
+    if r == self.oaRY then return self.y end
+    return r / S
+end
+
+function SCALED:getWidth()
+    local r = javaOf(self):getWidth()
+    if r == self.oaRW then return self.width end
+    return r / S
+end
+
+function SCALED:getHeight()
+    local r = javaOf(self):getHeight()
+    if r == self.oaRH then return self.height end
+    return r / S
+end
+
+function SCALED:getRight() return self:getX() + self:getWidth() end
+function SCALED:getBottom() return self:getY() + self:getHeight() end
+function SCALED:getMouseX() return self.oaBase.getMouseX(self) / S end
+function SCALED:getMouseY() return self.oaBase.getMouseY(self) / S end
+
+-- Drawing: rectangles by their rounded edges, texts at their rounded place in their own (pixel) font.
+function SCALED:drawRect(x, y, w, h, a, r, g, b)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.drawRect(self, rx, ry, rw, rh, a, r, g, b)
+end
+
+function SCALED:drawRectBorder(x, y, w, h, a, r, g, b)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.drawRectBorder(self, rx, ry, rw, rh, a, r, g, b)
+end
+
+-- The "static" ones (the panel's own background and border, which do not scroll with its content).
+function SCALED:drawRectStatic(x, y, w, h, a, r, g, b)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.drawRectStatic(self, rx, ry, rw, rh, a, r, g, b)
+end
+
+function SCALED:drawRectBorderStatic(x, y, w, h, a, r, g, b)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.drawRectBorderStatic(self, rx, ry, rw, rh, a, r, g, b)
+end
+
+function SCALED:drawText(str, x, y, r, g, b, a, font)
+    return self.oaBase.drawText(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+end
+
+function SCALED:drawTextCentre(str, x, y, r, g, b, a, font)
+    return self.oaBase.drawTextCentre(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+end
+
+function SCALED:drawTextRight(str, x, y, r, g, b, a, font)
+    return self.oaBase.drawTextRight(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+end
+
+function SCALED:drawTextUntrimmed(str, x, y, r, g, b, a, font)
+    return self.oaBase.drawTextUntrimmed(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+end
+
+-- A texture at its own size is that many design units.
+function SCALED:drawTexture(texture, x, y, a, r, g, b)
+    if type(texture) == "string" then texture = getTexture(texture) end
+    if not texture then return end
+    local rx, rw = span(x, texture:getWidth())
+    local ry, rh = span(y, texture:getHeight())
+    return self.oaBase.drawTextureScaled(self, texture, rx, ry, rw, rh, a, r, g, b)
+end
+
+local function textureIn(name)
+    return function(self, texture, x, y, w, h, a, r, g, b)
+        local rx, rw = span(x, w)
+        local ry, rh = span(y, h)
+        return self.oaBase[name](self, texture, rx, ry, rw, rh, a, r, g, b)
+    end
+end
+SCALED.drawTextureScaled = textureIn("drawTextureScaled")
+SCALED.drawTextureScaledAspect = textureIn("drawTextureScaledAspect")
+SCALED.drawTextureScaledAspect2 = textureIn("drawTextureScaledAspect2")
+SCALED.drawTextureScaledAspect3 = textureIn("drawTextureScaledAspect3")
+
+function SCALED:drawTextureScaledUniform(texture, x, y, scale, a, r, g, b)
+    local rx, ry = floor(x * S + 0.5), floor(y * S + 0.5)
+    return self.oaBase.drawTextureScaledUniform(self, texture, rx, ry, scale * S, a, r, g, b)
+end
+
+-- A tiled texture keeps its tiles' own size; only the area is scaled.
+local function tiledIn(name)
+    return function(self, texture, x, y, w, h, r, g, b, a)
+        local rx, rw = span(x, w)
+        local ry, rh = span(y, h)
+        return self.oaBase[name](self, texture, rx, ry, rw, rh, r, g, b, a)
+    end
+end
+SCALED.drawTextureTiled = tiledIn("drawTextureTiled")
+SCALED.drawTextureTiledX = tiledIn("drawTextureTiledX")
+SCALED.drawTextureTiledY = tiledIn("drawTextureTiledY")
+
+function SCALED:setStencilRect(x, y, w, h)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.setStencilRect(self, rx, ry, rw, rh)
+end
+
+function SCALED:repaintStencilRect(x, y, w, h)
+    local rx, rw = span(x, w)
+    local ry, rh = span(y, h)
+    return self.oaBase.repaintStencilRect(self, rx, ry, rw, rh)
+end
+
+-- The drawing ones (a canvas over a game widget has these, and no place of its own).
+local DRAWS = { "drawRect", "drawRectBorder", "drawRectStatic", "drawRectBorderStatic", "drawText", "drawTextCentre",
+    "drawTextRight", "drawTextUntrimmed", "drawTexture", "drawTextureScaled", "drawTextureScaledAspect", "drawTextureScaledAspect2", "drawTextureScaledAspect3",
+    "drawTextureScaledUniform", "drawTextureTiled", "drawTextureTiledX", "drawTextureTiledY", "setStencilRect",
+    "repaintStencilRect" }
+
+-- The classes made with UI.scaled, and which of the names above each takes (not one it defines itself).
+local scaledClasses = {}
+
+local function install(entry)
+    local cls = entry.cls
+    for _, name in ipairs(entry.names) do
+        local now = own(cls, name)
+        if now == nil or now == SCALED[name] then cls[name] = S ~= 1 and SCALED[name] or nil end
+    end
+end
+
+-- Makes a class (derived from `base`, which keeps ISUIElement's instantiate: ISPanel, ISButton) work in design units,
+-- with every class derived from it. Called once its methods are defined; returns the class.
+function UI.scaled(cls, base)
+    cls.oaScaled, cls.oaBase = true, base
+    local names = {}
+    for name in pairs(SCALED) do
+        if own(cls, name) == nil then names[#names + 1] = name end
+    end
+    local entry = { cls = cls, names = names }
+    scaledClasses[#scaledClasses + 1] = entry
+    install(entry)
+    return cls
+end
+
+-- Sets the scale (1 or more). The windows open at the time keep the one they were made with: the terminal window
+-- closes when the scale changes under it.
+function UI.setScale(s)
+    s = s or 1
+    if s == S then return end
+    S = s
+    UI.S = s
+    for _, entry in ipairs(scaledClasses) do install(entry) end
+end
+
+-- The scale from the Small font in use now (a window calls this as it opens).
+function UI.refreshScale()
+    UI.setScale(math.max(1, UI.fontHeightPx(UIFont.Small) / UI.BASE_FONT))
+end
+
+-- Whether numbers for an element go in design units: inside one of our elements, while the scale is not 1.
+local function designParent(parent)
+    return S ~= 1 and parent ~= nil and parent.oaScaled == true
+end
+
+-- A canvas to draw on a game widget in design units (a row of a game list inside our element): the widget's fields
+-- show through it, its width and height are in design units and its drawing converts. At scale 1, or outside our
+-- elements, the widget itself.
+function UI.designCanvas(el)
+    if not designParent(el.parent) then return el end
+    local c = el.oaCanvas
+    if not c then
+        c = setmetatable({ oaBase = el }, { __index = el })
+        for _, name in ipairs(DRAWS) do c[name] = SCALED[name] end
+        el.oaCanvas = c
+    end
+    c.width, c.height = el.width / S, el.height / S
+    return c
+end
+
+-- A game list's doDrawItem drawing each row with drawRow(list, y, item, alt) in design units (the list as a canvas,
+-- y from its top); it gives the list where the next row starts.
+function UI.rowPainter(drawRow)
+    return function(list, y, item, alt)
+        local c = UI.designCanvas(list)
+        drawRow(c, c == list and y or y / S, item, alt)
+        return y + item.height
+    end
+end
+
+-- The height of a game list's rows (design units inside our elements).
+function UI.rowHeight(list, h)
+    if designParent(list.parent) then h = floor(h * S + 0.5) end
+    list.itemheight = h
+end
 
 UI.PAD = 10
 
@@ -68,8 +403,20 @@ function UI.textRight(el, text, x, y, c, font, a)
     el:drawTextRight(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
-function UI.fontHeight(font)
+-- Text measured in design units (the pixels / UI.S), and in pixels for what is drawn on the game's own widgets and
+-- windows outside the terminal (the item tooltip, the loot window's estimate).
+function UI.fontHeightPx(font)
     return getTextManager():getFontHeight(font or UIFont.Small)
+end
+
+function UI.textWidthPx(text, font)
+    return getTextManager():MeasureStringX(font or UIFont.Small, text)
+end
+
+function UI.fontHeight(font)
+    local h = getTextManager():getFontHeight(font or UIFont.Small)
+    if S == 1 then return h end
+    return h / S
 end
 
 function UI.buttonHeight()
@@ -77,18 +424,29 @@ function UI.buttonHeight()
 end
 
 function UI.textWidth(text, font)
-    return getTextManager():MeasureStringX(font or UIFont.Small, text)
+    local w = getTextManager():MeasureStringX(font or UIFont.Small, text)
+    if S == 1 then return w end
+    return w / S
 end
 
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
 -- never splits a letter.
-function UI.fit(text, width, font)
-    if UI.textWidth(text, font) <= width then return text end
+local function fitWith(measure, text, width, font)
+    if measure(text, font) <= width then return text end
     local cut = text
-    while #cut > 1 and UI.textWidth(cut .. "...", font) > width do
+    while #cut > 1 and measure(cut .. "...", font) > width do
         cut = string.sub(cut, 1, #cut - 1)
     end
     return cut .. "..."
+end
+
+function UI.fit(text, width, font)
+    return fitWith(UI.textWidth, text, width, font)
+end
+
+-- The same in pixels.
+function UI.fitPx(text, width, font)
+    return fitWith(UI.textWidthPx, text, width, font)
 end
 
 -- A small padlock drawn from rectangles (the fonts have no glyph for one), 8 wide and 9 high from x, y.
@@ -164,10 +522,22 @@ function OASubTabs:onMouseDown(x, y)
     return true
 end
 
+UI.scaled(OASubTabs, ISPanel)
+
+-- The numbers for a game widget in `parent`: design units made pixels inside our elements, else as they are.
+local function inParent(parent, ...)
+    if not designParent(parent) then return ... end
+    local out = { ... }
+    for i = 1, select("#", ...) do out[i] = floor(out[i] * S + 0.5) end
+    return unpack(out)
+end
+
 -- A label at x, y.
 function UI.label(parent, x, y, text, color, font)
     color = color or { r = 0.9, g = 0.9, b = 0.9, a = 1 }
-    local label = ISLabel:new(x, y, UI.fontHeight(font), text, color.r, color.g, color.b, color.a, font or UIFont.Small, true)
+    local lx, ly = inParent(parent, x, y)
+    local label = ISLabel:new(lx, ly, UI.fontHeightPx(font), text, color.r, color.g, color.b, color.a, font or UIFont.Small,
+        true)
     label:initialise()
     label:instantiate()
     parent:addChild(label)
@@ -176,7 +546,8 @@ end
 
 -- A button whose click calls onclick(target, button).
 function UI.button(parent, x, y, width, title, target, onclick)
-    local button = ISButton:new(x, y, width, UI.buttonHeight(), title, target, onclick)
+    local bx, by, bw, bh = inParent(parent, x, y, width, UI.buttonHeight())
+    local button = ISButton:new(bx, by, bw, bh, title, target, onclick)
     button:initialise()
     button:instantiate()
     button.borderColor = { r = 1, g = 1, b = 1, a = 0.3 }
@@ -184,10 +555,29 @@ function UI.button(parent, x, y, width, title, target, onclick)
     return button
 end
 
--- Sizes an element and places its vertical scroll bar along its right edge. The game moves a scroll bar by its anchors,
--- by the change since the element's size was last set; a layout that sets a size twice in a frame leaves that change
--- at nothing and the bar at its old height. So the bar is unanchored and placed here.
+-- Places and sizes an element (a nil leaves that number as it is): one of ours in its design units, a game widget
+-- inside ours from design units to pixels, any other as it is. The size goes through UI.size.
+function UI.place(el, x, y, w, h)
+    if not el.oaScaled and designParent(el.parent) then
+        if x then x = floor(x * S + 0.5) end
+        if y then y = floor(y * S + 0.5) end
+        if w then w = floor(w * S + 0.5) end
+        if h then h = floor(h * S + 0.5) end
+    end
+    if x then el:setX(x) end
+    if y then el:setY(y) end
+    if w then UI.sizePx(el, w, h) end
+end
+
+-- Sizes an element (design units for ours and for a game widget inside ours, as UI.place).
 function UI.size(el, w, h)
+    UI.place(el, nil, nil, w, h)
+end
+
+-- Sizes an element in its own numbers and places its vertical scroll bar along its right edge. The game moves a scroll
+-- bar by its anchors, by the change since the element's size was last set; a layout that sets a size twice in a frame
+-- leaves that change at nothing and the bar at its old height. So the bar is unanchored and placed here.
+function UI.sizePx(el, w, h)
     el:setWidth(w)
     el:setHeight(h)
     local bar = el.vscroll
@@ -244,14 +634,14 @@ function UI.styleScrollBar(bar)
     bar.render = renderBar
 end
 
--- A list with rows drawn by `drawRow(list, y, item, alt)`, which returns the y of the next row. The row's own height
--- is the list's itemheight.
+-- A list with rows drawn by `drawRow(list, y, item, alt)` (inside our elements in design units: the list is then a
+-- canvas over the game's list, UI.designCanvas). The row's own height is the list's itemheight (UI.rowHeight).
 function UI.list(parent, x, y, width, height, drawRow, target, onclick)
-    local list = ISScrollingListBox:new(x, y, width, height)
+    local list = ISScrollingListBox:new(inParent(parent, x, y, width, height))
     list:initialise()
     list:instantiate()
     list.font = UIFont.Small
-    list.fontHgt = UI.fontHeight(UIFont.Small)
+    list.fontHgt = UI.fontHeightPx(UIFont.Small)
     list.itemPadY = 3
     list.itemheight = list.fontHgt + list.itemPadY * 2 + 2
     list.drawBorder = true
@@ -264,7 +654,8 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
         elseif self.mouseoverselected == item.index and self:isMouseOver() and not self:isMouseOverScrollBar() then
             self:drawMouseOverHighlight(0, rowY, self:getWidth(), item.height - 1)
         end
-        drawRow(self, rowY, item, alt)
+        local c = UI.designCanvas(self)
+        drawRow(c, c == self and rowY or rowY / S, item, alt)
         return rowY + item.height
     end
     if onclick then list:setOnMouseDownFunction(target, onclick) end
@@ -272,17 +663,17 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     return list
 end
 
--- A scrolling rich text panel.
+-- A scrolling rich text panel (its margins are design units in any window).
 function UI.rich(parent, x, y, width, height, class)
-    local panel = (class or ISRichTextPanel):new(x, y, width, height)
+    local panel = (class or ISRichTextPanel):new(inParent(parent, x, y, width, height))
     panel:initialise()
     panel:instantiate()
     panel.autosetheight = false
     panel.clip = true
-    panel.marginLeft = 8
-    panel.marginRight = 8
-    panel.marginTop = 6
-    panel.marginBottom = 6
+    panel.marginLeft = UI.px(8)
+    panel.marginRight = UI.px(8)
+    panel.marginTop = UI.px(6)
+    panel.marginBottom = UI.px(6)
     panel:addScrollBars()
     panel.backgroundColor = { r = 0, g = 0, b = 0, a = 0.35 }
     panel.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 0.9 }
@@ -314,9 +705,10 @@ function UI.richLines(lines)
     return table.concat(parts)
 end
 
--- Asks yes or no; onYes(target, a, b) runs on yes.
+-- Asks yes or no; onYes(target, a, b) runs on yes. The game's dialog in the terminal's scale.
 function UI.confirm(character, text, target, onYes, a, b)
-    local modal = ISModalDialog:new(0, 0, 360, 150, text, true, nil, function(_, button)
+    UI.refreshScale()
+    local modal = ISModalDialog:new(0, 0, UI.px(360), UI.px(150), text, true, nil, function(_, button)
         if button.internal == "YES" then onYes(target, a, b) end
     end, character:getPlayerNum())
     modal:initialise()
