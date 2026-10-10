@@ -654,6 +654,7 @@ function OASubTabs:prerender()
     local fh = UI.fontHeight()
     local h = self.height
     local x = 0
+    local mx = self:isMouseOver() and self:getMouseX() or -1
     self.slots = {}
     for _, item in ipairs(self.items) do
         local on = item.id == self.active
@@ -662,13 +663,19 @@ function OASubTabs:prerender()
         if item.lock then bw = bw + 12 end
         local badgeW = item.badge and UI.textWidth(item.badge) + 10 or 0
         if item.badge then bw = bw + badgeW + 4 end
+        -- one under the mouse lights up, a clicked one flashes (the hover and press lights below)
+        local k = UI.hoverLight(self, item.id, not on and mx >= x and mx < x + bw)
+        local f = UI.flashLevel(self, item.id)
         if on then
             UI.fill(self, x, 0, bw, h, p.sel, 0.2)
             UI.frame(self, x, 0, bw, h, p.sel)
         else
             if p.panel then UI.fill(self, x, 0, bw, h, p.panel) end
+            if k > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.1 * k) end
             UI.frame(self, x, 0, bw, h, p.border)
+            if k > 0 then UI.frame(self, x, 0, bw, h, p.sel, 0.6 * k) end
         end
+        if f > 0 then UI.fill(self, x, 0, bw, h, p.sel, 0.3 * f) end
         local lx = x + 16
         if item.lock then
             UI.lock(self, lx, (h - 9) / 2, p.warn, 0.9)
@@ -689,6 +696,7 @@ end
 function OASubTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
+            UI.flash(self, slot.id)
             if self.onSelect then self.onSelect(self.target, slot.id) end
             return true
         end
@@ -967,6 +975,80 @@ function UI.live(el, frame)
         liveHooked = true
     end
     live[#live + 1] = { el = el, frame = frame }
+end
+
+-- Hover and press lights ----------------------------------------------------------------------------------------------
+-- What our clickable things show of the mouse: a light that comes up over HOVER_IN_MS when the mouse comes onto one and
+-- goes down over HOVER_OUT_MS when it leaves, and a flash on a click that dies out over FLASH_MS (easing out). Each light
+-- is kept on its element (el.fx[key] for the hover, el.fxFlash[key] for the flash, so that one key can have both:
+-- where it set off from, where it goes, when); its level is worked out from the
+-- clock when drawn. While one moves the element is followed each frame (UI.live: PZ Optimization draws the steps);
+-- once they are all still it is let go. Made only when a light changes; nothing is kept for an element never hovered.
+UI.HOVER_IN_MS, UI.HOVER_OUT_MS, UI.FLASH_MS = 90, 220, 260
+
+local function fxLevel(f, now)
+    local d = now - f.at
+    if d >= f.dur then return f.to end
+    local u = 1 - d / f.dur
+    return f.from + (f.to - f.from) * (1 - u * u)
+end
+
+-- The look for UI.live: the lights' levels together, nil once none moves.
+local function fxSum(lights, now, sum, moving)
+    if lights then
+        for _, f in pairs(lights) do
+            if now - f.at < f.dur then moving = true end
+            sum = sum + fxLevel(f, now)
+        end
+    end
+    return sum, moving
+end
+
+local function fxFrame(el, now)
+    local sum, moving = fxSum(el.fx, now, 0, false)
+    sum, moving = fxSum(el.fxFlash, now, sum, moving)
+    if not moving then return nil end
+    return floor(sum * 100)
+end
+UI.fxFrame = fxFrame
+
+local function fxOf(el, field)
+    local fx = el[field]
+    if not fx then
+        fx = {}
+        el[field] = fx
+    end
+    return fx
+end
+
+-- The light `key` of `el` heading up (`on`) or down: its level now, 0 to 1. Called as the element draws.
+function UI.hoverLight(el, key, on)
+    local f = el.fx and el.fx[key]
+    if not f and not on then return 0 end
+    local now = getTimestampMs()
+    if not f then
+        f = { from = 0, to = 0, at = now, dur = 1 }
+        fxOf(el, "fx")[key] = f
+    end
+    local to = on and 1 or 0
+    if f.to ~= to then
+        f.from, f.to, f.at, f.dur = fxLevel(f, now), to, now, on and UI.HOVER_IN_MS or UI.HOVER_OUT_MS
+        UI.live(el, fxFrame)
+    end
+    return fxLevel(f, now)
+end
+
+-- A click's flash on `el` (its `key`): full now, dying out.
+function UI.flash(el, key)
+    fxOf(el, "fxFlash")[key] = { from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
+    UI.live(el, fxFrame)
+end
+
+-- The flash's level now, 0 to 1.
+function UI.flashLevel(el, key)
+    local f = el.fxFlash and el.fxFlash[key]
+    if not f then return 0 end
+    return fxLevel(f, getTimestampMs())
 end
 
 return UI

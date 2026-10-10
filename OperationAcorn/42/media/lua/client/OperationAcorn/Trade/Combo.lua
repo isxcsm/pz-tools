@@ -47,7 +47,8 @@ function OACombo:prerender()
     local p = self.palette
     local w, h = self.width, self.height
     UI.fill(self, 0, 0, w, h, p.dark)
-    if self:isMouseOver() or self.list then UI.fill(self, 0, 0, w, h, p.sel, 0.3) end
+    local k = UI.hoverLight(self, "hover", self:isMouseOver() or self.list ~= nil)
+    if k > 0 then UI.fill(self, 0, 0, w, h, p.sel, 0.3 * k) end
     UI.frame(self, 0, 0, w, h, p.border)
     local o = self.options[self.selected]
     if o then

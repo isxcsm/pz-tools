@@ -68,10 +68,12 @@ function OATabStatus:showSub(id)
     self:subView(id):setVisible(true)
 end
 
--- A sub-tab clicked: the window redraws (the marks follow what is on show, and what the screen shows is seen).
+-- A sub-tab clicked: its screen comes up (OATerminalWindow:reveal) and the window redraws (the marks follow what is on
+-- show, and what the screen shows is seen).
 function OATabStatus.onSub(self, id)
     if id == self.sub then return end
     self:showSub(id)
+    self.window:reveal(self.subViews[id])
     self.window:refresh()
 end
 

@@ -375,3 +375,66 @@ test("the crude terminal's static scrolls and swaps its two tiles, counted from 
     for _ in pairs(looks) do n = n + 1 end
     truthy(n > 50, "a new look as it moves: " .. n)
 end)
+
+test("a screen put on show comes up over REVEAL_MS, drawn afresh every frame, then the window is let go", function()
+    local window, setNow = bootWindow(false, false)
+    window.tier = "field"
+    local Window = getmetatable(window).__index
+    window.boot = nil
+    setNow(5000)
+    local shown = true
+    local tab = { isVisible = function() return shown end }
+    local screen = { isVisible = function() return true end, parent = tab }
+    window:reveal(tab)
+    eq(window.revealT, 0)
+    window:reveal(screen)
+    eq(window.revealing.el, tab, "a tab opened on one of its screens: the whole tab comes up")
+    local looks, last = {}, nil
+    for t = 5000, 5000 + Window.REVEAL_MS - 1, 16 do
+        local look = Window.liveFrame(window, t)
+        truthy(look ~= nil and look ~= last, "a new look every frame")
+        truthy(window.revealT >= 0 and window.revealT < 1)
+        last = look
+    end
+    eq(Window.liveFrame(window, 5000 + Window.REVEAL_MS), nil, "over: the field window is let go")
+    eq(window.revealing, nil)
+    eq(window.revealT, nil)
+    -- a screen taken off before it is up stops at once
+    setNow(9000)
+    window:reveal(screen)
+    eq(window.revealing.el, screen, "later, a screen of its own")
+    shown = false
+    local tick = window:revealTick(9010)
+    eq(tick, nil)
+    -- not in the boot: its fade brings the first screen up
+    window.boot = Seq.new(false, false)
+    window:reveal(tab)
+    eq(window.revealing, nil)
+end)
+
+test("hover and press lights: eased, one key can have both, and the element is followed only while one moves", function()
+    loadWindow()
+    local UI = OperationAcorn.Trade.UI
+    local now = 1000
+    _G.getTimestampMs = function() return now end
+    _G.Events = _G.Events or { OnPreUIDraw = { Add = function() end } }
+    local el = {}
+    eq(UI.hoverLight(el, "a", false), 0)
+    eq(el.fx, nil, "nothing kept for an element never hovered")
+    eq(UI.hoverLight(el, "a", true), 0, "comes up from nothing")
+    now = now + UI.HOVER_IN_MS / 2
+    local mid = UI.hoverLight(el, "a", true)
+    truthy(mid > 0.5 and mid < 1, "eased out: past half at half the time " .. mid)
+    eq(UI.flashLevel(el, "a"), 0, "the hover is not a flash")
+    UI.flash(el, "a")
+    eq(UI.flashLevel(el, "a"), 1)
+    truthy(UI.fxFrame(el, now) ~= nil, "moving")
+    now = now + UI.FLASH_MS
+    eq(UI.hoverLight(el, "a", true), 1, "and the flash leaves the hover as it was")
+    eq(UI.flashLevel(el, "a"), 0)
+    eq(UI.fxFrame(el, now), nil, "all still: let go")
+    UI.hoverLight(el, "a", false)
+    now = now + UI.HOVER_OUT_MS / 2
+    local down = UI.hoverLight(el, "a", false)
+    truthy(down > 0 and down < 0.5, "going down " .. down)
+end)

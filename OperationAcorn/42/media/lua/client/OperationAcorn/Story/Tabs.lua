@@ -57,16 +57,21 @@ function OATabMissions:showSub(id)
     self:subView(id):setVisible(true)
 end
 
--- A sub-tab clicked: the window redraws (the dots follow what is on show).
+-- A sub-tab clicked: its screen comes up (OATerminalWindow:reveal) and the window redraws (the dots follow what is on
+-- show).
 function OATabMissions.onSub(self, id)
     if id == self.sub then return end
     self:showSub(id)
+    self.window:reveal(self.subViews[id])
     self.window:refresh()
 end
 
 -- Opens the folder at a document by its folder key (the status tab's card, the special request's link).
 function OATabMissions:showDocument(key)
-    self:showSub("docs")
+    if self.sub ~= "docs" then
+        self:showSub("docs")
+        self.window:reveal(self.subViews.docs)
+    end
     self.subViews.docs:showKey(key)
     self.window:refresh()
 end

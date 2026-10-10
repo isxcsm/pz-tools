@@ -92,24 +92,35 @@ function OATerminalTabs:prerender()
     local x = 8
     self.slots = {}
     local pulse = math.sin(getTimestampMs() / 220)
+    local mx = self:isMouseOver() and self:getMouseX() or -1
     for _, id in ipairs(Terminal.ORDER) do
         local name, tw = self.labels[id].name, self.labels[id].w
         local on = id == w.activeId
+        -- a tab under the mouse lights up, a clicked one flashes (Trade/UI hover and press lights)
+        local k = UI.hoverLight(self, id, not on and mx >= x and mx < x + tw)
+        local f = UI.flashLevel(self, id)
         if p.tabStrip then
             if on then
                 UI.fill(self, x, 2, tw, h - 2, p.bg)
                 UI.fill(self, x, 2, tw, 2, p.value)
+            elseif k > 0 then
+                UI.fill(self, x, 2, tw, h - 2, p.bg, 0.6 * k)
+                UI.fill(self, x, h - 3, tw, 2, p.value, 0.6 * k)
             end
-            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, on and p.value or p.text)
+            if f > 0 then UI.fill(self, x, 2, tw, h - 2, p.value, 0.25 * f) end
+            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.value or p.text)
         else
             if on then
                 UI.fill(self, x, 3, tw, h - 3, p.sel, 0.18)
                 UI.frame(self, x, 3, tw, h - 2, p.text)
                 UI.fill(self, x + 1, h - 1, tw - 2, 1, p.bg)
             else
+                if k > 0 then UI.fill(self, x, 4, tw, h - 5, p.sel, 0.1 * k) end
                 UI.frame(self, x, 4, tw, h - 5, p.border)
+                if k > 0 then UI.frame(self, x, 4, tw, h - 5, p.text, 0.6 * k) end
             end
-            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, on and p.bright or p.dim)
+            if f > 0 then UI.fill(self, x, 3, tw, h - 3, p.sel, 0.3 * f) end
+            UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, (on or k > 0.5) and p.bright or p.dim)
         end
         if w.blink[id] then
             UI.frame(self, x - 1, 1, tw + 2, h - 1, p.value, 0.5 + 0.5 * pulse)
@@ -129,6 +140,7 @@ end
 function OATerminalTabs:onMouseDown(x, y)
     for _, slot in ipairs(self.slots) do
         if x >= slot.x and x < slot.x + slot.w then
+            UI.flash(self, slot.id)
             self.window:activate(slot.id)
             return true
         end
@@ -167,8 +179,9 @@ end
 -- The console goes over the strip and the body, from under the title bar to above the resize bar (design units).
 -- Every frame, before the UI draws (Trade/UI live, so that it shows on time with PZ Optimization too): the boot while
 -- it runs, then the crude terminal's weak signal while the window is open (Seq.weakSignal, from the end of the boot);
--- what the window shows, nil when nothing on it moves by itself any more (the field terminal once booted).
-local function liveFrame(window, now)
+-- what the window shows, nil when nothing on it moves by itself any more (the field terminal once booted). A screen
+-- coming up (OATerminalWindow:reveal) is drawn afresh every frame while it lasts.
+local function ownFrame(window, now)
     if window.boot then
         local look = window:bootTick(now)
         if look ~= nil then return look end
@@ -190,7 +203,83 @@ local function liveFrame(window, now)
     end
     return fade and step + 1 or 0
 end
+
+local function liveFrame(window, now)
+    local look = ownFrame(window, now)
+    if window:revealTick(now) then
+        window.revealCount = (window.revealCount or 0) + 1
+        return -window.revealCount
+    end
+    return look
+end
 OATerminalWindow.liveFrame = liveFrame
+
+-- Switching screens ------------------------------------------------------------------------------------------------
+-- A screen just put on show (a tab, a sub-tab's screen) comes up out of the background over REVEAL_MS: a veil of the
+-- background over it thins out, thicker below a faint line that runs down it once (eased out), so that it reads as
+-- drawn in from the top. The window draws it over what it holds; clicks reach the screen at once. Not in the boot,
+-- whose own fade brings the first screen up.
+OATerminalWindow.REVEAL_MS = 220
+
+local function within(el, outer)
+    while el do
+        if el == outer then return true end
+        el = el.parent
+    end
+    return false
+end
+
+local function onShow(el)
+    while el do
+        if not el:isVisible() then return false end
+        el = el.parent
+    end
+    return true
+end
+
+function OATerminalWindow:reveal(el)
+    if self.boot or not el then return end
+    local now = getTimestampMs()
+    local r = self.revealing
+    -- a tab opened on one of its screens: the whole tab comes up
+    if r and r.at == now and within(el, r.el) then return end
+    self.revealing = { el = el, at = now }
+    self.revealT = 0
+    UI.live(self, liveFrame)
+end
+
+-- How far the screen coming up is (0 to 1) at `now`, nil when none is (over, or taken off the screen).
+function OATerminalWindow:revealTick(now)
+    local r = self.revealing
+    if not r then return nil end
+    local t = (now - r.at) / OATerminalWindow.REVEAL_MS
+    if t >= 1 or not onShow(r.el) then
+        self.revealing, self.revealT = nil, nil
+        return nil
+    end
+    self.revealT = math.max(0, t)
+    return self.revealT
+end
+
+-- The veil, in the window's pixels over the screen's place (kept to the body).
+function OATerminalWindow:drawReveal()
+    local r, t = self.revealing, self.revealT
+    local jo, ej = self.javaObject, r and r.el.javaObject
+    if not (t and jo and ej) then return end
+    local x, y = ej:getAbsoluteX() - jo:getAbsoluteX(), ej:getAbsoluteY() - jo:getAbsoluteY()
+    local top = math.max(y, self:titleBarHeight())
+    local bottom = math.min(y + ej:getHeight(), self.height - self:resizeWidgetHeight())
+    if bottom <= top then return end
+    local w = ej:getWidth()
+    local p = self.palette
+    local u = 1 - t
+    local line = top + math.floor((1 - u * u) * (bottom - top))
+    if line > top then UI.fill(self, x, top, w, line - top, p.bg, 0.55 * u) end
+    if line < bottom then
+        UI.fill(self, x, line, w, bottom - line, p.bg, 0.92 * u)
+        UI.fill(self, x, line, w, 1, p.text, 0.3 * u)
+    end
+end
 
 function OATerminalWindow:startBoot()
     local run = self.boot
@@ -299,10 +388,12 @@ function OATerminalWindow:activate(id)
     for vid, view in pairs(self.views) do
         if vid ~= id then view:setVisible(false) end
     end
+    local before = self.activeId
     self.activeId = id
     self:tabsChanged()
     local view = self:view(id)
     view:setVisible(true)
+    if before then self:reveal(view) end
     self:refresh()
 end
 
@@ -431,6 +522,7 @@ function OATerminalWindow:render()
         local th = self:titleBarHeight()
         UI.fill(self, 0, th, w, h - th - rh, BLACK, fade)
     end
+    if self.revealT then self:drawReveal() end
     if self.signalFade then self:drawWeakSignal(self:titleBarHeight(), rh) end
     UI.frame(self, 0, 0, w, h, p.border)
 end

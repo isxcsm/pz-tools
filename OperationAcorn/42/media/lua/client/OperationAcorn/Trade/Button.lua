@@ -25,7 +25,10 @@ function OAMButton:setStyle(style)
 end
 
 function OAMButton:onMouseDown(x, y)
-    if self.style ~= "off" then return ISButton.onMouseDown(self, x, y) end
+    if self.style ~= "off" then
+        if self.enable then UI.flash(self, "press") end
+        return ISButton.onMouseDown(self, x, y)
+    end
 end
 
 function OAMButton:onMouseUp(x, y)
@@ -34,23 +37,24 @@ function OAMButton:onMouseUp(x, y)
     if self.onOff then self.onOff(self.target) end
 end
 
+-- The mouse over it brings a light up (UI.hoverLight) and a click flashes it (UI.flash), both eased.
 function OAMButton:prerender()
     local p = self.palette
     local w, h = self.width, self.height
     local live = self.enable and self.style ~= "off"
-    local hover = live and (self.mouseOver or self.pressed) and self:isMouseOver()
+    local k = UI.hoverLight(self, "hover", live and (self.mouseOver or self.pressed) and self:isMouseOver())
+    local f = UI.flashLevel(self, "press")
     if not live then
         if p.panel then UI.fill(self, 0, 0, w, h, p.panel, 0.6) end
         UI.frame(self, 0, 0, w, h, p.border, 0.5)
     elseif self.style == "strong" then
-        UI.fill(self, 0, 0, w, h, p.sel, hover and 0.34 or 0.22)
+        UI.fill(self, 0, 0, w, h, p.sel, 0.22 + 0.12 * k + 0.3 * f)
         UI.frame(self, 0, 0, w, h, p.sel, 0.9)
-    elseif hover then
-        UI.fill(self, 0, 0, w, h, p.sel, 0.14)
-        UI.frame(self, 0, 0, w, h, p.sel, 0.7)
     else
         if p.panel then UI.fill(self, 0, 0, w, h, p.panel) else UI.fill(self, 0, 0, w, h, p.sel, 0.06) end
+        if k > 0 or f > 0 then UI.fill(self, 0, 0, w, h, p.sel, 0.12 * k + 0.3 * f) end
         UI.frame(self, 0, 0, w, h, p.border)
+        if k > 0 then UI.frame(self, 0, 0, w, h, p.sel, 0.7 * k) end
     end
     self:updateTooltip()
 end
