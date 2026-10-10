@@ -25,7 +25,7 @@ local function panelClass()
     local P = stub("ISPanel")
     function P.new(self, x, y, w, h)
         local o = { x = x, y = y, width = w, height = h, children = {}, visible = true, drawn = {} }
-        setmetatable(o, { __index = P })
+        setmetatable(o, { __index = self })
         return o
     end
     function P:initialise() if self.createChildren then self:createChildren() end end
@@ -55,7 +55,7 @@ local function buttonClass(P)
     function B.new(self, x, y, w, h, title, target, onclick)
         local o = P.new(P, x, y, w, h)
         o.title, o.target, o.onclick, o.enable, o.onClickArgs = title, target, onclick, true, {}
-        return setmetatable(o, { __index = B })
+        return setmetatable(o, { __index = self })
     end
     function B:onMouseDown() self.pressed = true end
     function B:onMouseUp()
@@ -237,7 +237,7 @@ test("a section on the crude terminal: the gate band and cards that name the ter
     truthy(has(seen.cards, "IGUI_OA_Terminal_Shop_FieldTier 3"), "the field terminal and the level, together")
     truthy(has(seen.cards, "IGUI_OA_Terminal_Shop_FieldTier 5"))
     eq(tab.detail.state.open, false)
-    eq(tab.addButton.off, true)
+    eq(tab.addButton.style, "off")
     -- the same section at the field terminal at stage 3: open and sold
     local field = open("field", 700, 408, 3)
     field:setCat("part")
@@ -269,7 +269,7 @@ test("a debt gives the red band over every card and no card opens", function()
         eq(card.state.open, false, card.id)
         eq(card.state.key, "IGUI_OA_Terminal_Shop_Debt", card.id)
     end
-    eq(tab.addButton.off, true)
+    eq(tab.addButton.style, "off")
 end)
 
 test("only what can be bought hides the locked cards", function()
@@ -299,7 +299,7 @@ test("a card is chosen with a click and the detail follows it", function()
     local seen = draw(tab)
     truthy(has(seen.tab, "IGUI_OA_Econ_Shop_Item_bulk_shredder"))
     truthy(has(seen.tab, "150,000"))
-    eq(tab.addButton.off, false)
+    eq(tab.addButton.style ~= "off", true)
 end)
 
 test("a weekly limit shows what is left and a week with none left shows when it opens again", function()
@@ -385,7 +385,7 @@ test("a locked card cannot be added: the button does nothing and the click gives
     local tab, window, _, notices = open("crude")
     tab:setCat("part")
     truthy(clickCard(tab, "motor_normal"))
-    eq(tab.addButton.off, true)
+    eq(tab.addButton.style, "off")
     tab.addButton:onMouseDown()
     tab.addButton:onMouseUp()
     eq(#window.sent, 0)
@@ -444,7 +444,7 @@ test("the cart's small buttons change, remove and clear", function()
     -- an empty cart has nothing to clear
     OA.Trade.Orders.set(record, {})
     tab:refresh()
-    eq(tab.clearButton.off, true)
+    eq(tab.clearButton.style, "off")
     tab.clearButton:onMouseDown()
     tab.clearButton:onMouseUp()
     eq(#window.sent, 4)

@@ -824,16 +824,18 @@ function Story.markNew(record, key)
 end
 
 -- What the terminal has shown of a folder entry (Typing): { seen = the furthest character, done = seen to the end,
--- start = world age in hours and t = seconds typed of a showing left half way }; `true` in a record from before (seen to
--- the end), or { start, t } (the clock only); nil for an entry it has not kept anything of, which was shown whole.
+-- t = seconds typed of a first presentation left half way }; `true` in a record from before (seen to the end), or
+-- { start, t } (the clock only; `start` is not read any more); nil for an entry it has not kept anything of, which was
+-- shown whole.
 function Story.typedState(record, key)
     local s = Story.section(record)
     return s.typed and s.typed[key] or nil
 end
 
 -- The window kept how far a showing of a text got: `seen` characters came on (the furthest only grows), `done` when that
--- is the whole text, `clock` the seconds typed when the showing was left before the end (nil when it ran to the end).
--- An entry that was never kept anything of takes a state; the key must be a folder key.
+-- is the whole text, `clock` the seconds typed when the showing was left before the end (nil when it ran to the end; not
+-- kept for a text seen to its end before). An entry that was never kept anything of takes a state; the key must be a
+-- folder key.
 function Story.saveTyped(record, key, seen, done, clock)
     if type(key) ~= "string" or #key > 64 or not string.find(key, "^[cdrm]:[%w_%.%-]+$") then return false end
     if seen ~= nil and not (type(seen) == "number" and seen >= 0 and seen < 100000) then return false end
@@ -841,7 +843,7 @@ function Story.saveTyped(record, key, seen, done, clock)
     if seen == nil and clock == nil and not done then return false end
     local s = Story.section(record)
     s.typed = s.typed or {}
-    s.typed[key] = OA.Typing.keep(s.typed[key], seen, done, clock, OA.hours())
+    s.typed[key] = OA.Typing.keep(s.typed[key], seen, done, clock)
     OA.Sync.changed("story", record.id)
     return true
 end

@@ -6,6 +6,8 @@
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Orders"
 require "OperationAcorn/Trade/ShopView"
+require "OperationAcorn/Trade/Button"
+require "OperationAcorn/Trade/Combo"
 require "OperationAcorn/Gear/Gear"
 local OA = OperationAcorn
 local Trade, UI, Orders, Text = OA.Trade, OA.Trade.UI, OA.Trade.Orders, OA.Trade.Text
@@ -118,50 +120,6 @@ function OAShopScroll:onMouseUpOutside() self.dragging = false end
 
 UI.scaled(OAShopScroll, ISPanel)
 
--- A button in the terminal's palette. An "off" button looks dimmed, does nothing when clicked and says why in its
--- tooltip (the game's own disabled look is a flat grey that belongs to no palette).
-OAShopButton = ISButton:derive("OAShopButton")
-
-function OAShopButton:new(title, target, onclick)
-    local o = ISButton:new(0, 0, 20, 20, title, target, onclick)
-    setmetatable(o, self)
-    self.__index = self
-    return o
-end
-
-function OAShopButton:onMouseDown(x, y)
-    if not self.off then ISButton.onMouseDown(self, x, y) end
-end
-
-function OAShopButton:onMouseUp(x, y)
-    if not self.off then return ISButton.onMouseUp(self, x, y) end
-    self.pressed = false
-    if self.onOff then self.onOff(self.target) end
-end
-
--- The colours of a button for a state: "normal", "strong" or "off" (DESIGN-terminal 1.3's palette).
-function OAShopButton:style(p, state)
-    local function color(c, a) return { r = c[1], g = c[2], b = c[3], a = a } end
-    self.off = state == "off"
-    if state == "off" then
-        local c = p.panel or p.bg
-        self.backgroundColor = color(c, p.panel and 0.6 or 0)
-        self.backgroundColorMouseOver = color(c, p.panel and 0.6 or 0)
-        self.borderColor = color(p.border, 0.5)
-        self.textColor = color(p.dim, 0.6)
-    elseif state == "strong" then
-        self.backgroundColor = color(p.sel, 0.22)
-        self.backgroundColorMouseOver = color(p.sel, 0.34)
-        self.borderColor = color(p.sel, 0.9)
-        self.textColor = color(p.bright, 1)
-    else
-        self.backgroundColor = p.panel and color(p.panel, 1) or color(p.sel, 0.06)
-        self.backgroundColorMouseOver = color(p.sel, 0.14)
-        self.borderColor = color(p.border, 1)
-        self.textColor = color(p.text, 1)
-    end
-end
-
 OATabShop = OATab:derive("OATabShop")
 
 -- The kinds of kit that are for a bag; the others are for a vehicle.
@@ -191,10 +149,7 @@ local function iconOf(entry)
 end
 
 local function drawIcon(el, entry, x, y, size, p, alpha)
-    local texture = entry and iconOf(entry)
-    if not texture then return end
-    local t = p.iconTint or { 1, 1, 1 }
-    el:drawTextureScaledAspect(texture, x, y, size, size, alpha or 1, t[1], t[2], t[3])
+    UI.icon(el, entry and iconOf(entry), x, y, size, alpha, p.iconTint)
 end
 
 -- A panel of the palette: its fill and a one pixel border.
@@ -241,22 +196,18 @@ function OATabShop:createChildren()
     self.addButton = self:makeButton(getText("IGUI_OA_Terminal_Shop_Add"), OATabShop.onAdd)
     self.addButton.onOff = function() self:refuse() end
     self.clearButton = self:makeButton(getText("IGUI_OA_Trade_Shop_Clear"), OATabShop.onClear)
-    local combo = ISComboBox:new(0, 0, 150, 20, self, OATabShop.onCombo)
+    local combo = OACombo:new(0, 0, 150, 20, p, self, OATabShop.onCombo)
     combo:initialise()
     combo:instantiate()
-    combo.backgroundColor = { r = p.dark[1], g = p.dark[2], b = p.dark[3], a = 1 }
-    combo.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.3 }
-    combo.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
-    combo.textColor = { r = p.text[1], g = p.text[2], b = p.text[3], a = 1 }
     self:addChild(combo)
     self.combo = combo
 end
 
+-- A button of the tab (Trade/Button): "off" looks dimmed, does nothing when clicked and says why in its tooltip.
 function OATabShop:makeButton(title, onclick)
-    local button = OAShopButton:new(title, self, onclick)
+    local button = OAMButton:new(0, 0, 20, 20, title, self:palette(), self, onclick)
     button:initialise()
     button:instantiate()
-    button:style(self:palette(), "normal")
     self:addChild(button)
     return button
 end
@@ -452,14 +403,13 @@ function OATabShop:lineName(entry, line)
 end
 
 function OATabShop:styleButtons()
-    local p = self:palette()
     local d = self.detail
     local open = d and d.state.open
-    self.addButton:style(p, open and "strong" or "off")
+    self.addButton:setStyle(open and "strong" or "off")
     self.addButton.tooltip = (d and not open and d.state.reason) and getText(d.state.reason) or nil
-    self.minusButton:style(p, open and "normal" or "off")
-    self.plusButton:style(p, open and "normal" or "off")
-    self.clearButton:style(p, #self.cartRows > 0 and "normal" or "off")
+    self.minusButton:setStyle(open and "normal" or "off")
+    self.plusButton:setStyle(open and "normal" or "off")
+    self.clearButton:setStyle(#self.cartRows > 0 and "normal" or "off")
 end
 
 -- Sizes ---------------------------------------------------------------------------------------------------------
@@ -522,7 +472,7 @@ function OATabShop:layout()
     s.afterX = s.arrowX + 17
 end
 
--- The lists are ours, the buttons and the combo box the game's: UI.place takes design units for both.
+-- The lists, the buttons and the combo box are ours: UI.place takes their design units.
 function OATabShop:place(element, x, y, w, h)
     UI.place(element, x, y, w, h)
 end

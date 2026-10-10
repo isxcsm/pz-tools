@@ -257,8 +257,10 @@ function Folder.stakeLog(record)
     return table.concat(lines, "\n")
 end
 
--- { title =, meta =, body =, marked =, kind = } of an entry for the reader: `body` is the text plain, `marked` the same
--- with its markup (pauses, colours) for the panel that types it, and `kind` how it is typed when it is new (Typing).
+-- { title =, meta =, body =, marked =, styles =, kind = } of an entry for the reader: `body` is the text plain, `marked`
+-- the same with its markup (pauses, colours) for the panel that types it, `styles` the look of the lines a paper's own
+-- marks gave (Typing.marks: the marks are out of `body` and `marked`; a radio copy has none), and `kind` how it comes
+-- on (Typing).
 function Folder.content(record, entry)
     local ref = entry.ref
     local marked
@@ -274,8 +276,10 @@ function Folder.content(record, entry)
         marked = Docs.body(record, ref.id, ref.variant, ref.extra)
     end
     marked = Folder.lines(marked)
+    local styles
+    if ref.kind ~= "copy" then marked, styles = Typing.marks(marked) end
     return { title = entry.title, meta = metaOf(record, entry), body = OA.Markup.strip(marked), marked = marked,
-        kind = Typing.KIND_OF_GROUP[entry.group] }
+        styles = styles, kind = Typing.KIND_OF_GROUP[entry.group] }
 end
 
 -- ---------------------------------------------------------------------------------------------------------------

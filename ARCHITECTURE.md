@@ -48,13 +48,13 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Store.lua` | 저장 데이터. 전역 ModData `OA_World` 하나에 모두 둔다. `Store.world(section)`, `Store.player(id)`, `Store.section(record, section)`, `Store.players()`, `Store.ensure(id, name)`(기록과 네 자리 채집점 번호를 만든다), `Store.idOf(character)`(캐릭터 modData `OA_Id`) |
 | `shared/OperationAcorn/Sync.lua` | 바뀐 것 알리기. `Sync.changed(what, playerId, detail)`, `Sync.notice(playerId, key, args)`, `Sync.title(playerId, detail)`(사건의 제목: 확장 API의 큰 글씨, 없으면 캐릭터 위 글. `client/OperationAcorn/Titles.lua`가 보인다. 인자는 `{ key, args }`이면 플레이어 쪽에서 번역한다), `Sync.send(character, command, args)`(클라이언트 → 서버, `args.id`를 붙인다), `Sync.listen(what, fn)`(클라이언트 쪽) |
 | `shared/OperationAcorn/Markup.lua` | 타이핑 글의 표시 문법 (확장 API의 `text.show` `markup = true`와 같다): `{p:초}` 멈춤, `{s:글자수}` / `{s}` 속도, `{c:RRGGBB}…{/c}` 색, `{{ }}` 이스케이프. `Markup.parse(text, speed)`(글자별 등장 시각 표, 오류는 nil과 이유), `Markup.strip(text)`(표시를 뺀 글, 표시가 없는 모든 곳에서 쓴다), `Markup.count(read, t)`(그 시각에 찍힌 글자 수, 이분 탐색), `Markup.lead`(타이틀 부제용 첫 문장들), `Markup.wrap` |
-| `shared/OperationAcorn/Story/Typing.lua` | 단말 안 타이핑의 순수 부분: 속도(`Typing.SPEED`, 장면 / 문서, 조립 / 정식), 기록에 남기는 시계(`Typing.start` / `Typing.saved`, 세계 나이로 이어 찍기), 글 패널용 글(`Typing.rich`), 패널의 줄과 글자 맞추기(`Typing.align`, `Typing.reveal`) |
+| `shared/OperationAcorn/Story/Typing.lua` | 단말 안 타이핑의 순수 부분: 속도(`Typing.SPEED`, 장면 / 문서, 조립 / 정식), 기록에 남기는 시계(`Typing.start` / `Typing.keep`: 끝까지 못 본 글은 멈춘 시계에서 이어 찍고, 다 본 글은 시계 없이 처음부터), 글 패널용 글(`Typing.rich`), 패널의 줄과 글자 맞추기(`Typing.align`, `Typing.reveal`) |
 | `shared/OperationAcorn/Chunks.lua` | 칸이 불러질 때 할 일의 대기 표 (`LoadChunk`, 청크 키). `Chunks.handle(kind, fn)`, `Chunks.add(entry)`, `Chunks.remove(predicate)`, `Chunks.list(kind)`. `LoadGridsquare`는 쓰지 않는다 |
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
 | `client/OperationAcorn/RadioScene.lua` | 큰 장면의 화면 타이핑 (`OA.RadioScene`): 첫 교신, 단계 진입, 이관의 교신 줄을 `PZToolsAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
-| `client/OperationAcorn/Story/TypedText.lua` | 수신함의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 글은 보일 때마다 처음 속도로 찍고, 클릭하면 이미 본 최대 지점(`seen`)까지 한 번에 보여 준다(처음 보는 부분은 넘기지 못한다). 항목을 떠나거나 창이 닫히면 `story_typed`(`seen`, `done`, 중간에 멈췄으면 `t`)로 서버 기록(`story.typed`)에 남기고, 반쯤 닫은 글은 종류별로(`Typing.RESUME`: 교신 사본은 처음부터, 요청서·연구 문서는 이어서) 다시 시작한다 |
+| `client/OperationAcorn/Story/TypedText.lua` | 수신함의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 글은 보일 때마다 같은 속도로 찍고, 클릭하면 이미 본 최대 지점(`seen`)까지 한 번에 보여 준다(처음 보는 부분은 넘기지 못한다). 항목을 떠나거나 창이 닫히면 `story_typed`(`seen`, `done`, 중간에 멈췄으면 `t`)로 서버 기록(`story.typed`)에 남기고, 끝까지 못 본 글은 교신 사본과 문서 모두 멈춘 시계에서 이어 찍는다(자리를 비운 동안 게임 시간은 치지 않는다). 다 본 글은 시계를 저장하지 않고 매번 처음부터 찍으며 클릭하면 끝까지 보인다 |
 
 - **변경은 서버에서만 한다.** 화면은 `OA.Sync.send`로 서버에 부탁하고, 서버 핸들러가 기록을 고친 뒤 `OA.Sync.changed`를 부른다.
   혼자 할 때는 같은 과정이 즉시 돈다. 멀티플레이는 검증하지 않지만 막지도 않는다 (이 구조만 지킨다).
@@ -69,7 +69,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
   `ISInventoryPane:renderdetails` 감싸기) 첫 대상 줄에 바닐라 작업 막대(`setJobType`/`setJobDelta`, 그리는 동안만)를 보이고, 그 막대가 차거나
   새 물건이 들어오면 `machineWork` 명령으로 그 자리에서 일하게 한다 (`OA.due`로 읽기 100ms, 부탁 400ms 간격). 일한 양은 어느 쪽이든 지난 게임
   시간이라 지켜봐도 더 만들지 않는다. 소리는 10분에 한 번만 낸다 (`Machines.NOISE_EVERY`). 켜기/끄기 버튼은 오븐처럼 루팅 창 아래 버튼 줄에 있다
-  (`Machines/LootControls.lua`, `ISLootWindowContainerControls.AddHandler`; 기계 창에는 없다). 필요한 부품이 없거나 망가졌으면 켤 수 없고
+  (`Machines/LootControls.lua`, `ISLootWindowContainerControls.AddHandler`)과 기계 창 이름판에 있다. 우클릭 메뉴에는 없다: 창이 있는 기계는
+  메뉴에 이름 한 줄만 두고 누르면 창이 열린다 (`Machines/Menu.lua`). 필요한 부품이 없거나 망가졌으면 켤 수 없고
   (`Machines.canSwitchOn`, 버튼은 꺼지고 이유를 툴팁으로), 부품을 분리하면 먼저 꺼진다. 일하지 않는 이유(꺼짐, 전기 없음, 산출함 가득 등)는
   투입함 첫 줄의 작업 이름 자리에 보인다 (`Machines.stopText`).
 
@@ -292,15 +293,21 @@ ReplaceInSecondHand = OA_Bag_ResearchPack_LHand holdingbagleft,
 WorldStaticModel = OA_ResearchPack_Ground,      (이름을 못 찾으면 OperationAcorn.OA_ResearchPack_Ground)
 AttachmentsProvided = WebbingLeft;WebbingRight,
 AttachmentReplacement = Bag,
+component FluidContainer { ContainerName = OA_WaterStorage, Capacity = 1.8, ... }   (양옆 수통 = 물 저장소)
 ```
 
 | 이름 | 파일 |
 | --- | --- |
 | 옷 항목 `OA_Bag_ResearchPack`, `_LHand`, `_RHand` | `media/clothing/clothingItems/OA_Bag_ResearchPack*.xml` (GUID는 `media/fileGuidTable.xml`에 등록. 새 옷 XML을 더하는 묶음은 이 표에도 더한다) |
-| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (모든 꼭짓점이 `Bip01_BackPack`에 100%) |
+| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (배낭 몸통은 `Bip01_BackPack`에 100%, 어깨끈은 어깨를 넘어 가슴 앞으로 곧게, 서로 나란히 내려오도록(여성은 가슴 바깥쪽) 바닐라 몸(`MaleBody.x`/`FemaleBody.x`) 표면에 맞춰 놓고 그 아래 몸의 가중치(Spine, Spine1, 쇄골, 위팔 최대 35%)를 받아 배낭에 닿는 끝에서 `Bip01_BackPack`으로 넘어간다. 꼭짓점당 뼈 최대 3개) |
 | 손에 든 모습 | `OA_ResearchPack_LHand.x` (`Bip01_Prop2`), `OA_ResearchPack_RHand.x` (`Bip01_Prop1`) |
 | 바닥 모델 `OA_ResearchPack_Ground` | `models_X/WorldItems/Clothing/OA_ResearchPack_Ground.fbx`, 정의는 `scripts/OA_backpack_models.txt` |
-| 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (256×256) |
+| 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (1024×1024, 주변 차폐를 구워 넣음) |
+| 물 저장소 이름 | `Fluid_Container_OA_WaterStorage` (`Translate/<언어>/Fluids.json`) |
 
-수통 걸이 자리(`WebbingLeft/Right`)는 캐릭터의 `ISHotbarAttachDefinition`이 정하므로 배낭 모델의 양옆 웨빙 띠는 모양일 뿐이다. 생성기는 `python tools/backpack_mesh.py`
-(`--check`는 다시 읽어 검사만, 게임 폴더는 환경 변수 `PZ_DIR`).
+모델의 양옆 수통 두 개가 배낭의 물 저장소(`FluidContainer`, 군용 수통 둘과 같은 1.8 L)다. 상점은 수통을 따로 주지 않는다.
+이미 가진 배낭도 불러올 때 물 저장소가 생긴다: 게임은 아이템을 스크립트로 만든 뒤 저장된 컴포넌트가 있을 때만 그 목록에 없는
+컴포넌트를 지우는데, 예전 배낭에는 컴포넌트가 없었다. 핫바 걸이(`WebbingLeft/Right`)는 캐릭터의 `ISHotbarAttachDefinition`이
+가슴 앞 어깨끈 자리(Spine1 기준)에 놓으므로 그대로 둔다 (무전기·칼. 양옆 수통과 겹치지 않는다).
+생성기는 `python tools/backpack_mesh.py` (`--check`는 다시 읽어 검사만, `--old <폴더>`는 이전 모델과 나란히 그린 비교 그림,
+게임 폴더는 환경 변수 `PZ_DIR`). 그림은 `tools/backpack_preview.png`와 `../mockups/backpack/`.

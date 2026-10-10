@@ -1,32 +1,35 @@
 -- What the player sees of a mission and of the supply crates out in the world (DESIGN-terminal 6.6, 8, 9): the colour
--- of a mission, the circle and the dots to it on the map, the zoom that shows the player and the circle together, the
--- pieces a mission left in the world and when one is near enough to be lit. Pure: tables in, tables out, so it is
--- tested outside the game. The client parts that put these on the map (Story/Maps) and on the objects
--- (Story/Highlight) only apply them.
+-- of a mission, what the maps show of it (its circle, the way to it, the crates), the zoom that shows the player and
+-- the circle together, the pieces a mission left in the world and when one is near enough to be lit. Pure: tables in,
+-- tables out, so it is tested outside the game. The client parts that draw these on the maps (Story/Maps, with the
+-- geometry of Story/MapFx) and on the objects (Story/Highlight) only apply them.
 require "OperationAcorn/Core"
 local OA = OperationAcorn
 local View = {}
 OA.StoryView = View
 
 -- The colours (6.6): the regular, contract and special missions are teal (the search ledger's amber outline is its
--- own), a story mission sky blue.
+-- own), a story mission sky blue. They light objects and names in the world and in the loot window.
 View.TEAL = { 0.30, 0.90, 0.85 }
 View.SKY = { 0.55, 0.78, 1.0 }
-View.CRATE = { 1.0, 0.62, 0.15 }
 
 function View.color(kind)
     if kind == "story" then return View.SKY end
     return View.TEAL
 end
 
--- The map markers' alphas: a circle is a pale area, a dot and a crate are solid. The second circle (the other copy)
--- is dimmer.
-View.CIRCLE_ALPHA, View.DIM = 0.55, 0.6
-View.DOT_ALPHA, View.CRATE_ALPHA = 0.85, 0.9
+-- The same two on the maps, deeper and more saturated: drawn over the pale paper map (and its darker styles) with a
+-- dark outline, the pale ones above washed out on it. The crates are orange, the player's own pin coral (near the
+-- game's red player dot, apart from both mission colours and the crates).
+View.MAP_TEAL = { 0.08, 0.84, 0.76 }
+View.MAP_SKY = { 0.30, 0.62, 1.0 }
+View.MAP_CRATE = { 1.0, 0.58, 0.12 }
+View.MAP_ME = { 1.0, 0.36, 0.38 }
 
--- Smallest size a marker keeps on the screen, in pixels of radius. The game's own is 64: a dot or a crate would be a
--- large disc, and a circle drawn far out would not be its size.
-View.CIRCLE_MIN_PX, View.DOT_MIN_PX, View.CRATE_MIN_PX = 12, 2, 8
+function View.mapColor(kind)
+    if kind == "story" then return View.MAP_SKY end
+    return View.MAP_TEAL
+end
 
 -- The mission whose area the map shows: the record's active one, once it is taken (not while it is offered or its
 -- field device is being called).
@@ -70,25 +73,6 @@ function View.circles(m)
     return list
 end
 
--- The dots from a player to the edge of a circle (8): COUNT of them, evenly spread, the last short of the edge. Each
--- is { x, y, r } with r in squares, a share of the distance, so that on the screen (the zoom is chosen from the
--- distance) it is about the same size for any mission. None inside the circle.
-View.DOT_COUNT, View.DOT_SHARE = 10, 0.006
-function View.dots(px, py, circle)
-    local list = {}
-    if not circle then return list end
-    local dx, dy = circle.x - px, circle.y - py
-    local d = math.sqrt(dx * dx + dy * dy)
-    if d <= circle.r then return list end
-    local reach = d - circle.r
-    local r = math.max(1, math.floor(View.DOT_SHARE * d + 0.5))
-    for i = 1, View.DOT_COUNT do
-        local f = (i / (View.DOT_COUNT + 0.5)) * reach / d
-        list[i] = { x = math.floor(px + dx * f + 0.5), y = math.floor(py + dy * f + 0.5), r = r }
-    end
-    return list
-end
-
 -- The crates and boxes the helicopter left that are not picked up (record.heli.markers): { { x, y, kind } }.
 function View.crates(record)
     local list = {}
@@ -100,42 +84,26 @@ function View.crates(record)
     return list
 end
 
--- Everything a map shows for a record, as markers: { kind = "circle" | "dot" | "crate", x, y, r (squares), color,
--- alpha, minPx }. The player stands at (px, py); the dots and the crates are for the world map only (`world`).
-function View.markers(record, px, py, world)
-    local list = {}
-    -- The dots lead to the first circle there is: the main mission's, else the special request's.
-    local lead, leadColor
+-- What the maps show for a record (8): the circles of the missions shown, each { x, y, r, color, dim } (the second
+-- circle of a swap mission dim), the circle the way from the player leads to (`lead`: the main mission's first one,
+-- else the special request's), the crates left ({ x, y }), and whether there is nothing (`empty`: the maps draw
+-- nothing then). Places are the middles of their squares. Worked out when a map opens and when the mission or the
+-- crates change; the maps draw it every frame (the way from where the player stands then).
+function View.scene(record)
+    local scene = { circles = {}, crates = {} }
     for _, m in ipairs(View.shownList(record)) do
-        local circles = View.circles(m)
-        local color = View.color(m.kind)
-        for _, c in ipairs(circles) do
-            list[#list + 1] = { kind = "circle", x = math.floor(c.x), y = math.floor(c.y), r = math.floor(c.r), color = color,
-                alpha = c.dim and View.CIRCLE_ALPHA * View.DIM or View.CIRCLE_ALPHA, minPx = View.CIRCLE_MIN_PX }
-        end
-        if not lead and circles[1] then lead, leadColor = circles[1], color end
-    end
-    if not world then return list end
-    if px and py then
-        for _, d in ipairs(View.dots(px, py, lead)) do
-            list[#list + 1] = { kind = "dot", x = d.x, y = d.y, r = d.r, color = leadColor, alpha = View.DOT_ALPHA,
-                minPx = View.DOT_MIN_PX }
+        local color = View.mapColor(m.kind)
+        for _, c in ipairs(View.circles(m)) do
+            local circle = { x = c.x + 0.5, y = c.y + 0.5, r = c.r, color = color, dim = c.dim == true }
+            scene.circles[#scene.circles + 1] = circle
+            if not scene.lead and not circle.dim then scene.lead = circle end
         end
     end
     for _, c in ipairs(View.crates(record)) do
-        list[#list + 1] = { kind = "crate", x = math.floor(c.x), y = math.floor(c.y), r = 1, color = View.CRATE,
-            alpha = View.CRATE_ALPHA, minPx = View.CRATE_MIN_PX }
+        scene.crates[#scene.crates + 1] = { x = c.x + 0.5, y = c.y + 0.5 }
     end
-    return list
-end
-
--- A text that is the same for the same markers: the map is not touched again when nothing changed.
-function View.signature(list)
-    local parts = {}
-    for i, k in ipairs(list) do
-        parts[i] = k.kind .. k.x .. "," .. k.y .. "," .. k.r .. "," .. k.color[1] .. k.color[2] .. k.color[3] .. "," .. k.alpha
-    end
-    return table.concat(parts, ";")
+    scene.empty = #scene.circles == 0 and #scene.crates == 0
+    return scene
 end
 
 -- The zoom the map takes to show the player and the circle together (8): the largest at which both, the circle to its

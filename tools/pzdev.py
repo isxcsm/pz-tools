@@ -163,9 +163,10 @@ def resume():
 
 
 # Leaves the save to the main menu (the game saves it) and continues it: Lua and translations are read again (not
-# textures). Returns when the channel answers in the loaded save.
+# textures). Returns when the channel answers in the loaded save. A paused game takes the command and never leaves (the
+# exit waits for a game frame), so the game is set going first.
 def reload():
-    if send("getCore():exitToMenu()", 15) != 0:
+    if send("if isGamePaused() then setGameSpeed(1) end getCore():exitToMenu()", 15) != 0:
         return 1
     time.sleep(25)
     return continue_save()

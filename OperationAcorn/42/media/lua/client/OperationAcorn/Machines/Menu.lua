@@ -1,5 +1,5 @@
--- The context menus of the base machines. In the world: open a machine's window, switch it, shred by hand at the bench,
--- take it back. In the inventory: install, on top of the item's menu, the one way to put a machine down (the lure with
+-- The context menus of the base machines. In the world: open a machine's window (switching it is there), shred by hand
+-- at the bench, take a lure back. In the inventory: install, on top of the item's menu, the one way to put a machine down (the lure with
 -- its own placing cursor, a machine's furniture pieces with the game's furniture cursor). And the halo notes for worn
 -- parts. A menu is built from the thing that was clicked: nothing here searches the inventory for it.
 require "ISUI/ISWorldObjectContextMenu"
@@ -23,11 +23,6 @@ local function tooltip(option, description)
     option.toolTip = tip
 end
 
-local function unavailable(option, description)
-    option.notAvailable = true
-    tooltip(option, description)
-end
-
 local function clickedSquare(worldobjects)
     for _, object in ipairs(worldobjects) do
         local square = object:getSquare()
@@ -41,13 +36,11 @@ local function queueAt(playerObj, square, action)
     if square and luautils.walkAdj(playerObj, square, true) then ISTimedActionQueue.add(action) end
 end
 
+-- The window opens once the character has walked up to the machine (it closes again when they walk away).
 local function onOpen(playerObj, object)
-    OAMachineWindow.open(playerObj, object)
-end
-
-local function onSwitch(playerObj, object, on)
     local state = Machines.state(object)
-    OA.Sync.send(playerObj, "machineSwitch", { machine = state.id, on = on })
+    local square = object:getSquare()
+    queueAt(playerObj, square, ISOAMachineOpen:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
 local function onPickUp(playerObj, object)
@@ -99,38 +92,37 @@ local function onShredMenu(playerObj, object)
     end
 end
 
+-- A lure is taken back while it works (with the hours it has left) or cleared away once it is spent; a machine is taken
+-- up with the game's furniture tool (Moveables.lua).
+local function lureOption(menu, playerObj, object, onTop)
+    local add = onTop and menu.addOptionOnTop or menu.addOption
+    if Machines.canTakeLure(object) then
+        add(menu, getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
+    else
+        add(menu, getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
+    end
+end
+
+-- A machine with a window is one option, its name, that opens the window: switching it and the rest are there. What is
+-- done to it by hand (a lure's taking back) is an option of its own under it. A machine without a window keeps its
+-- name with the things done to it in a submenu.
 local function addMachineOptions(context, playerObj, object)
     local state = Machines.state(object)
     local kind = state.kind
+    if Data.hasWindow(kind) then
+        -- added from the last, each on top: the name comes first
+        if kind == "lure" then lureOption(context, playerObj, object, true) end
+        local open = context:addOptionOnTop(Machines.name(kind), playerObj, onOpen, object)
+        tooltip(open, getText("Tooltip_OA_Machine_" .. kind))
+        return
+    end
     local option = context:addOptionOnTop(Machines.name(kind), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
-
-    if Data.hasWindow(kind) then
-        sub:addOption(getText("ContextMenu_OA_Machine_Open"), playerObj, onOpen, object)
-    end
-    if Data.processes(kind) then
-        local off = state.on == false
-        local switch = sub:addOption(getText(off and "ContextMenu_OA_Machine_SwitchOn" or "ContextMenu_OA_Machine_SwitchOff"),
-            playerObj, onSwitch, object, off)
-        if off then
-            local ok, why = Machines.canSwitchOn(object)
-            if not ok then unavailable(switch, why) end
-        end
-    end
     if Data.KINDS[kind].hand then
         sub:addOption(getText("ContextMenu_OA_Machine_Shred"), playerObj, onShredMenu, object)
     end
-
-    -- a machine is taken up with the game's furniture tool (Moveables.lua); a lure is taken back while it works (with
-    -- the hours it has left) or cleared away once it is spent
-    if kind == "lure" then
-        if Machines.canTakeLure(object) then
-            sub:addOption(getText("ContextMenu_OA_Machine_TakeLure"), playerObj, onTakeLure, object)
-        else
-            sub:addOption(getText("ContextMenu_OA_Machine_RemoveShell"), playerObj, onPickUp, object)
-        end
-    end
+    if kind == "lure" then lureOption(sub, playerObj, object, false) end
     -- what the machine is, on the first option of its submenu (on the machine's own option it would cover the submenu)
     local first = sub.options and sub.options[1]
     if first and not first.toolTip then tooltip(first, getText("Tooltip_OA_Machine_" .. kind)) end

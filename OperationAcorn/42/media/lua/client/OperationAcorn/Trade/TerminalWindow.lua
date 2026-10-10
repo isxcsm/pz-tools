@@ -135,16 +135,11 @@ UI.scaled(OATerminalTabs, ISPanel)
 function OATerminalWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local p = self.palette
-    -- Only the close box stays of the vanilla title bar, drawn in the palette.
+    -- Only the close box stays of the vanilla title bar, drawn in the palette and our face.
     for _, b in ipairs({ self.pinButton, self.collapseButton, self.infoButton }) do
         if b then b:setVisible(false) end
     end
-    local cb = self.closeButton
-    cb:setImage(nil)
-    cb:setTitle("x")
-    cb.textColor = { r = p.text[1], g = p.text[2], b = p.text[3], a = 1 }
-    cb.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
-    cb.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
+    UI.closeBox(self, p)
     local th = self:titleBarHeight()
     -- The strip and the views are ours, in design units: the title bar's pixels are given to them as such.
     self.tabHeight = UI.fontHeight() + 6
@@ -155,6 +150,10 @@ function OATerminalWindow:createChildren()
     self.views = {}
     self:activate("status")
 end
+
+-- The bars are as high as our Small face (the game's would follow its own font).
+function OATerminalWindow:titleBarHeight() return UI.titleBarHeight() end
+function OATerminalWindow:resizeWidgetHeight() return UI.resizeWidgetHeight() end
 
 -- Where the active tab's view goes: under the strip, inside the margin, above the resize bar (design units).
 function OATerminalWindow:bodyRect()
@@ -258,7 +257,7 @@ function OATerminalWindow:prerender()
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
     UI.fill(self, 0, 0, self.width, th, p.title)
-    UI.textCentre(self, self.title, self.width / 2, (th - UI.fontHeightPx()) / 2, p.text)
+    UI.windowTitle(self, self.title, p.text)
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
     if p.scanlines and self.scanline then
         local top = th + UI.px(self.tabHeight)
@@ -285,8 +284,9 @@ OATerminalWindow.MOVED = 10
 -- who has walked a few squares gets the directions again.
 function OATerminalWindow:update()
     ISCollapsableWindow.update(self)
-    -- Another window worked the scale out again from a font that changed: this one was made with the old one.
-    if self.scale ~= UI.S then return self:close() end
+    -- Another window worked the scale or the faces out again (the font or the screen changed): this one was made
+    -- with the old ones.
+    if self.era ~= UI.era then return self:close() end
     self.ticks = (self.ticks or 0) + 1
     if self.ticks < 30 then return end
     self.ticks = 0
@@ -335,7 +335,7 @@ function OATerminalWindow:new(character, x, y, z, tier)
     setmetatable(o, self)
     self.__index = self
     o.tier = tier
-    o.scale = UI.S
+    o.era = UI.era
     o.palette = UI.palette(tier)
     o.scanline = getTexture(SCANLINE)
     local record = OA.Client.record(character)

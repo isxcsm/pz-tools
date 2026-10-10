@@ -1,8 +1,12 @@
--- P4: the mission circle, the dots to it and the supply crates on the world map, and the circle on the minimap. Needs an
--- active mission (run p4_missions.lua first). Opens the world map the way the terminal's "show on map" does: it must
--- hold the character and the circle together, the circle teal (sky blue for a story mission) with ten small dots from
--- the character to its edge and an orange mark for each crate left. Close the map and open it again: all must come
--- back. Then look at the minimap: the circle only. The numbers are the zoom the fit chose and the game's own scale.
+-- P4: the map overlay (Story/Maps). Needs an active mission (run p4_missions.lua first). Opens the world map the way the
+-- terminal's "show on map" does: it must hold the character and the circle together. The circle: a soft teal disc (sky
+-- blue for a story mission) in a ring of outlined dashes slowly marching round, a pulse running out of it every couple
+-- of seconds, a pin dropping onto its middle with a bounce, then bobbing, a ripple at its tip each time it lands. The
+-- way: thick outlined dashes from the character to the circle's edge, marching toward it. The character: a coral pin
+-- with a person on it, ripples breathing out under it. Each crate left: a small orange crate badge. Zoom in and out:
+-- the dashes, pins and badges keep their size; switch the map to isometric: the circle becomes an ellipse, the pins
+-- stay upright. Close the map and open it again: the pin drops again. Then the minimap: the disc, the ring and the way
+-- (smaller, the pin still), clipped to the minimap. The numbers are the zoom the fit chose and the game's own scale.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p4map")

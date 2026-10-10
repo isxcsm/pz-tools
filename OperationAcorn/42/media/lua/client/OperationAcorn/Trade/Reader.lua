@@ -1,10 +1,12 @@
 -- A small reading window: the supply manifest that came in a crate, and the last page of the terminal manual.
 require "ISUI/ISCollapsableWindow"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/RichText"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 
 OAReaderWindow = ISCollapsableWindow:derive("OAReaderWindow")
+local WHITE = { 1, 1, 1 }
 OAReaderWindow.instances = {}
 -- The default size in design units: the window is the game's, in pixels, so these are times the terminal's scale
 -- (Trade/UI.lua), within 90% of the screen.
@@ -13,10 +15,29 @@ OAReaderWindow.WIDTH, OAReaderWindow.HEIGHT = 460, 420
 function OAReaderWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local top, bottom = self:titleBarHeight(), self:resizeWidgetHeight()
-    self.body = UI.rich(self, 0, top, self.width, self.height - top - bottom)
+    -- our rich text, in design units (the window is in pixels)
+    self.body = UI.rich(self, 0, UI.dp(top), UI.dp(self.width), UI.dp(self.height - top - bottom))
     self.body:setAnchorRight(true)
     self.body:setAnchorBottom(true)
     UI.setRich(self.body, self.richText)
+end
+
+-- The game's bars, as high as our Small face, the title drawn in it (UI.windowTitle).
+function OAReaderWindow:titleBarHeight() return UI.titleBarHeight() end
+function OAReaderWindow:resizeWidgetHeight() return UI.resizeWidgetHeight() end
+
+function OAReaderWindow:prerender()
+    local title = self.title
+    self.title = nil
+    ISCollapsableWindow.prerender(self)
+    self.title = title
+    UI.windowTitle(self, title, WHITE)
+end
+
+-- Another window worked the scale or the faces out again: this one was laid out in the old ones.
+function OAReaderWindow:update()
+    ISCollapsableWindow.update(self)
+    if self.era ~= UI.era then self:close() end
 end
 
 function OAReaderWindow:close()
@@ -39,6 +60,7 @@ function OAReaderWindow:new(character, title, richText)
     o.title = title
     o.richText = richText
     o.playerNum = character:getPlayerNum()
+    o.era = UI.era
     o:setResizable(true)
     return o
 end

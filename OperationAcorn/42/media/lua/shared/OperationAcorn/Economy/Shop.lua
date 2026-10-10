@@ -120,8 +120,8 @@ local function build()
     add({ id = "ammo_rifle", group = "resource", tier = 4, price = 60000, week = 2,
         choices = choiceList({ "556Box", "308Box", "3030Box" }) })
     -- Gear.
-    add({ id = "team_backpack", group = "gear", tier = 5, price = 300000,
-        give = { give("backpack"), vanilla("CanteenMilitary", 2, { empty = true }) } })
+    -- The backpack's water storage is built in (its two canteens are part of the pack), so no canteens come with it.
+    add({ id = "team_backpack", group = "gear", tier = 5, price = 300000, give = { give("backpack") } })
     -- Machines.
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })

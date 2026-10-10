@@ -1,9 +1,11 @@
 -- The missions tab's document folder (DESIGN-terminal 6.4): a list of what the record keeps, in groups with the newest
 -- on top, and the document open beside it inside the terminal's own window (no window of its own to hide behind the
 -- terminal). Choosing a row reads it: the text on the right, 'previous' and 'next' step through the list, and what was
--- new stops being new (the server is told). The list is built when the record changes; the frames only draw it.
+-- new stops being new (the server is told). The list is built again only when what it lists changed (not when the
+-- typing goes on or is hurried: the server's answer to that redraws the tab, and the list stays as it was); the frames
+-- only draw it.
 require "OperationAcorn/Trade/TerminalWindow"
-require "OperationAcorn/Story/Button"
+require "OperationAcorn/Trade/Button"
 require "OperationAcorn/Story/Folder"
 require "OperationAcorn/Story/TypedText"
 local OA = OperationAcorn
@@ -12,7 +14,9 @@ local Folder, Typing, Markup = OA.StoryFolder, OA.Typing, OA.Markup
 
 OATabFolder = OATab:derive("OATabFolder")
 
-OATabFolder.ROW_H = 18
+-- The list's font: the Medium, as the document's (the folder is for reading), its rows a line of it and a margin.
+OATabFolder.LIST_FONT = UIFont.Medium
+OATabFolder.ROW_PAD = 4
 -- The list's width: 232, 200 when the window is narrow (the minimum size).
 OATabFolder.LIST_W, OATabFolder.LIST_W_NARROW, OATabFolder.NARROW_BELOW = 232, 200, 680
 -- The document's font: one step over the other tabs' Small (DESIGN-terminal 6.4: the folder is for reading).
@@ -24,7 +28,9 @@ function OATabFolder:createChildren()
     local p = self:palette()
     self.listWidth = OATabFolder.LIST_W
     local list = UI.list(self, 0, 0, self.listWidth, self.height, OATabFolder.drawRow, self, OATabFolder.onPick)
-    UI.rowHeight(list, OATabFolder.ROW_H)
+    self.rowH = OATabFolder.rowHeight()
+    UI.rowHeight(list, self.rowH)
+    list.rowH = self.rowH
     list.itemPadY = 1
     list.palette = p
     list.backgroundColor = p.panel and { r = p.panel[1], g = p.panel[2], b = p.panel[3], a = 1 }
@@ -37,8 +43,8 @@ function OATabFolder:createChildren()
     local body = UI.rich(self, 0, 0, 100, 100, OATypedText)
     body.target, body.onFinished = self, OATabFolder.onTyped
     body.cursorColor = p.bright
-    body.backgroundColor.a = 0
-    body.borderColor.a = 0
+    body.background = false
+    body.palette = p
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 0, 0, 0, 0
     body.defaultFont = OATabFolder.BODY_FONT
     self.body = body
@@ -56,37 +62,90 @@ function OATabFolder:createChildren()
     self.kept = {}
 end
 
+-- A row of the list: a line of the list's font and the margin (design units).
+function OATabFolder.rowHeight()
+    return math.ceil(UI.fontHeight(OATabFolder.LIST_FONT)) + OATabFolder.ROW_PAD
+end
+
+-- The room on the right of a row: the label's margin, and the scroll bar's when the list scrolls.
+local function rightRoom(list)
+    return list:isVScrollBarVisible() and 22 or 10
+end
+
+-- How strong the list's rows are drawn next to the document (worklist 3-8): the list is for finding, the document for
+-- reading, so the rows other than the one shown are quieter than the document's text and its heads.
+OATabFolder.ROW_ALPHA, OATabFolder.LABEL_ALPHA = 0.7, 0.6
+
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
--- list is a canvas over the game's list, UI.list).
+-- list is a canvas over the game's list, UI.list). The group names are labels in the head colour, a size down and at
+-- the foot of their row so they sit on the entries under them; the entries read before are quieter than the one shown
+-- and the ones not read yet (which also keep their mark).
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
+    local font = OATabFolder.LIST_FONT
+    local ty = y + OATabFolder.ROW_PAD / 2
     if row.header then
-        UI.text(list, row.header, 8, y + 1, p.head)
+        local drop = UI.fontHeight(font) - UI.fontHeight(UIFont.Small)
+        UI.text(list, row.header, 8, ty + drop, p.head)
         return
     end
     local selected = list.selected == item.index
-    if row.entry.isNew then UI.fill(list, 10, y + 7, 4, 4, p.warn) end
-    UI.text(list, row.title, 18, y + 1, selected and p.bright or p.text)
-    if row.label ~= "" then UI.textRight(list, row.label, list.width - (list:isVScrollBarVisible() and 22 or 10), y + 1, p.dim) end
+    if row.entry.isNew then UI.fill(list, 10, y + math.floor((list.rowH - 4) / 2), 4, 4, p.warn) end
+    if selected then
+        UI.text(list, row.title, 18, ty, p.bright, font)
+    elseif row.entry.isNew then
+        UI.text(list, row.title, 18, ty, p.text, font)
+    else
+        UI.text(list, row.title, 18, ty, p.text, font, OATabFolder.ROW_ALPHA)
+    end
+    if row.label ~= "" then
+        UI.textRight(list, row.label, list.width - rightRoom(list), ty, p.dim, font, OATabFolder.LABEL_ALPHA)
+    end
 end
 
 -- What the folder holds ------------------------------------------------------------------------------------------
 
--- The list filled from the groups, the titles cut to the list's width.
+-- What the list shows of the groups, as one text: the list is built again only when it changes.
+local function listSignature(groups)
+    local parts = {}
+    for _, group in ipairs(groups) do
+        parts[#parts + 1] = group.id
+        for _, entry in ipairs(group.entries) do
+            parts[#parts + 1] = entry.key .. "|" .. tostring(entry.title) .. "|" .. tostring(entry.tier) .. "|"
+                .. (entry.isNew and "n" or "")
+        end
+    end
+    return table.concat(parts, ";")
+end
+
+-- The list filled from the groups, the titles cut to the room their row leaves (its tier on the right, the scroll bar).
+-- The game's list adds each row's height to the height it scrolls over and its clear keeps that height: it is put back
+-- to nothing first, else the list counts the old rows too until its next frame and its scroll bar (and the tiers by
+-- it) show for that frame.
 function OATabFolder:fillList()
     local list = self.list
     list:clear()
+    list:setScrollHeight(0)
     self.rowOf = {}
-    local reach = self.listWidth - 18 - 70
+    local font = OATabFolder.LIST_FONT
+    local rows = 0
+    for _, group in ipairs(self.groups) do rows = rows + 1 + #group.entries end
+    local scrolls = rows * self.rowH > self.height
+    local base = self.listWidth - 18 - (scrolls and 22 or 10)
     for _, group in ipairs(self.groups) do
         list:addItem(group.id, { header = getText("IGUI_OA_Story_Group_" .. group.id) })
         for _, entry in ipairs(group.entries) do
-            local item = list:addItem(entry.key, { entry = entry, title = UI.fit(entry.title, reach), label = Folder.tierLabel(entry.tier) })
+            local label = Folder.tierLabel(entry.tier)
+            -- a title that names its tier already (a radio copy's "6단계") shows it once
+            if label ~= "" and entry.title and string.find(entry.title, label, 1, true) then label = "" end
+            local reach = base - (label ~= "" and UI.textWidth(label, font) + 8 or 0)
+            local item = list:addItem(entry.key, { entry = entry, title = UI.fit(entry.title, reach, font), label = label })
             self.rowOf[entry.key] = item.itemindex
         end
     end
-    self.listW = self.listWidth
+    self.listW, self.listH = self.listWidth, self.height
+    self.listSig = listSignature(self.groups)
 end
 
 -- The entry to show when the folder is first looked at: the newest of the new ones, else the top one.
@@ -105,8 +164,9 @@ function OATabFolder:refresh()
     self.flat = Folder.flat(self.groups)
     self.index = {}
     for i, entry in ipairs(self.flat) do self.index[entry.key] = i end
-    self:layout()
-    self:fillList()
+    -- laid out for a new size only (the frames do it too); the list built again only when what it lists changed
+    if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
+    if self.listSig ~= listSignature(self.groups) then self:fillList() end
     local entry = (self.key and self.flat[self.index[self.key] or 0]) or self:firstEntry()
     if entry then
         local row = self.rowOf[entry.key]
@@ -120,6 +180,12 @@ function OATabFolder:refresh()
     self.nextButton:setVisible(entry ~= nil)
 end
 
+-- How a shown entry's heads come in (real seconds): the title slides in from the left as it shows, the line under it a
+-- little after, and the rule is drawn left to right with a bright tip; the body's print waits for the rule (ENTER).
+OATabFolder.TITLE_IN, OATabFolder.META_AFTER, OATabFolder.RULE_AFTER, OATabFolder.RULE_IN = 0.25, 0.08, 0.05, 0.3
+OATabFolder.ENTER = OATabFolder.RULE_AFTER + OATabFolder.RULE_IN
+OATabFolder.SLIDE = 10
+
 -- Reads an entry: the text on the right, and what was new is told to the server as seen.
 function OATabFolder:show(entry, record)
     self:leave()
@@ -129,8 +195,11 @@ function OATabFolder:show(entry, record)
     self.at = self.index[entry.key]
     local run = self:runFor(entry, content, record)
     local read = (run and run.parse) or Markup.parse(content.marked) or { plain = content.body, runs = {} }
+    if run then run.hold = OATabFolder.ENTER end
     self.body.run = run
-    self.body.text = Typing.rich(read, self:palette().text)
+    self.enterAt = getTimestampMs()
+    local p = self:palette()
+    self.body.text = Typing.rich(read, p.text, content.styles, { head = p.head, dim = p.dim })
     self.body:paginate()
     self.body:setYScroll(0)
     self.body:setVisible(true)
@@ -144,9 +213,10 @@ function OATabFolder:show(entry, record)
 end
 
 -- How an entry is typed: its run (the reading of its text, the clock and how far it has been seen) for a kind of text that
--- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed; where it starts
--- is its kind's way (Typing.RESUME): a scene from the beginning, a document from where it was left with the game time
--- that passed turned into the terminal's own work. A click brings it to the furthest point seen (TypedText).
+-- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed. Its first
+-- presentation goes on from exactly where it was left (Typing.start; the terminal does not print while the player is
+-- away); once it has been seen to its end every showing starts from the beginning and a click shows all of it. A click
+-- brings it to the furthest point seen (TypedText).
 function OATabFolder:runFor(entry, content, record)
     local key = entry.key
     local speed = Typing.speed(content.kind, self.window.tier)
@@ -154,15 +224,11 @@ function OATabFolder:runFor(entry, content, record)
     local parse = Markup.parse(content.marked, speed)
     if not parse then return nil end
     local state = Typing.latest(OA.Story.typedState(record, key), self.kept[key])
-    local clock = Typing.start(state, OA.hours(), getGameTime():getMinutesPerDay(), content.kind)
-    local run = { key = key, parse = parse, clock = clock, seen = Typing.seenOf(state, parse), done = clock >= parse.total }
-    if run.done then
-        -- Left so long that the terminal has printed all of it: shown whole.
-        run.seen = parse.n
-        self:report(run)
-        return nil
-    end
-    return run
+    local clock = Typing.start(state)
+    -- a document is printed a row at a time (TypedText): its rows are the panel's, so whether it is over is known when
+    -- it is laid out
+    local step = Typing.MODE[content.kind] == "lines" and Typing.LINE_STEP or nil
+    return { key = key, parse = parse, step = step, clock = clock, seen = Typing.seenOf(state, parse), done = false }
 end
 
 -- The server is told how far a showing got, and the window keeps the same (Typing.keep): when the typing ends, when
@@ -175,7 +241,7 @@ function OATabFolder:report(run)
     local all = seen >= n or nil
     local clock = (not run.done) and run.clock or nil
     local old = Typing.latest(OA.Story.typedState(self:record(), key), self.kept[key])
-    self.kept[key] = Typing.keep(old, seen, all, clock, OA.hours())
+    self.kept[key] = Typing.keep(old, seen, all, clock)
     self:send("story_typed", { key = key, seen = seen, done = all, t = clock })
 end
 
@@ -264,10 +330,19 @@ function OATabFolder:layout()
     body:paginate()
     self.prevButton:setX(rx + 12)
     self.prevButton:setY(h - bh - 8)
-    self.nextButton:setX(rx + 88)
+    self.nextButton:setX(rx + 12 + self.prevButton.width + 6)
     self.nextButton:setY(h - bh - 8)
+    self.countX = self.nextButton.x + self.nextButton.width + 12
     self:fitHeads()
-    if self.listW and self.listW ~= self.listWidth then self:fillList() end
+    if self.listW and (self.listW ~= self.listWidth or self.listH ~= h) then self:fillList() end
+end
+
+-- 0 to 1, fast at first and settling (a cubic ease out); below 0 is 0, above 1 is 1.
+local function easeOut(f)
+    if f <= 0 then return 0 end
+    if f >= 1 then return 1 end
+    local g = 1 - f
+    return 1 - g * g * g
 end
 
 function OATabFolder:prerender()
@@ -281,10 +356,27 @@ function OATabFolder:prerender()
         UI.textCentre(self, UI.fit(text, rw - 24), rx + rw / 2, rh / 2 - 8, p.dim)
         return
     end
-    UI.text(self, self.titleText, rx + 12, OATabFolder.TITLE_Y, p.bright, UIFont.Medium)
-    UI.text(self, self.metaText, rx + 12, self.metaY, p.dim)
-    UI.fill(self, rx + 12, self.ruleY, rw - 24, 1, p.border, 0.6)
-    UI.text(self, self.at .. " / " .. #self.flat, rx + 170, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
+    local title, meta, rule = 1, 1, 1
+    if self.enterAt then
+        local t = (getTimestampMs() - self.enterAt) / 1000
+        if t >= OATabFolder.ENTER + OATabFolder.META_AFTER then
+            self.enterAt = nil
+        else
+            local F = OATabFolder
+            title = easeOut((t) / F.TITLE_IN)
+            meta = easeOut((t - F.META_AFTER) / F.TITLE_IN)
+            rule = easeOut((t - F.RULE_AFTER) / F.RULE_IN)
+        end
+    end
+    local slide = OATabFolder.SLIDE
+    UI.text(self, self.titleText, rx + 12 - (1 - title) * slide, OATabFolder.TITLE_Y, p.bright, UIFont.Medium, title)
+    UI.text(self, self.metaText, rx + 12 - (1 - meta) * slide, self.metaY, p.dim, nil, meta)
+    local ruleW = (rw - 24) * rule
+    if ruleW > 0 then UI.fill(self, rx + 12, self.ruleY, ruleW, 1, p.border, 0.6) end
+    if rule < 1 and ruleW > 0 then
+        UI.fill(self, rx + 12 + ruleW - math.min(ruleW, 24), self.ruleY, math.min(ruleW, 24), 1, p.head, 0.9)
+    end
+    UI.text(self, self.at .. " / " .. #self.flat, self.countX, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
         p.dim, p.numberFont)
 end
 

@@ -4,17 +4,17 @@
 --
 -- How a text is typed: the window counts the time it has shown the text (real seconds, from the differences of
 -- getTimestampMs, which go on while the game is paused) and asks Markup.count how many characters have come on by then;
--- a frame in which the count has not changed does nothing more. A text is typed every time it is shown, at the same
--- speed as the first time. What the record keeps of each one is how far the player has SEEN it, so that a click can show
--- that much at once and never more:
+-- a frame in which the count has not changed does nothing more. What the record keeps of each text is how far the player
+-- has SEEN it, so that a click can show that much at once and never more:
 --   { seen = the furthest character that has come on, in any showing (a character count, so that it holds on a terminal
 --     of the other speed),
---     done = true once it was seen to its end (a click then shows all of it),
---     start, t = the world age in hours and the seconds typed, of a showing left half way }
--- A text left half way is shown again by its kind's way (Typing.RESUME): a scene starts over, a document goes on from
--- where it was with the game time that has passed turned into seconds of the terminal's own work, so a document left for
--- a night's sleep is all typed when the window opens. Older records kept `true` (typed to its end) or { start, t } (the
--- seconds typed): they are read as seen to the end, and as seen as far as that clock had come (Typing.seenOf). An entry
+--     done = true once it was seen to its end,
+--     t = the seconds typed, of a first presentation left half way }
+-- The first presentation of a text (not seen to its end yet) goes on from where it was left, scene and document alike, at
+-- exactly the clock it stopped at: nothing runs while the player is away, so no game time is made up for. Once a text
+-- has been seen to its end nothing of a showing is kept but that: every showing plays it again from the beginning, and a
+-- click shows all of it. Older records kept `true` (typed to its end) or { start, t } (the seconds typed; `start` is no
+-- longer read): they are read as seen to the end, and as seen as far as that clock had come (Typing.seenOf). An entry
 -- with no state at all was shown whole before, so it counts as seen to the end.
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
@@ -25,25 +25,33 @@ OA.Typing = Typing
 
 local sub, find = string.sub, string.find
 
+-- How a kind of text comes on: a scene (a radio copy, which carries its pauses) a character at a time, as a radio is
+-- read aloud; a document (a request copy, a guide, a field paper, a manifest) a row at a time, printed whole as a
+-- teleprinter prints a line (DESIGN-terminal 14 F2, worklist 3-2).
+Typing.MODE = { scene = "chars", document = "lines" }
+
+-- The seconds between two printed rows: four rows a second, so a guide of thirty rows is printed in under eight seconds,
+-- with a beat between rows that reads as a printer's (worklist 3-8: rows that ran into each other read as fast typing).
+Typing.LINE_STEP = 0.25
+-- The seconds a row takes to print, left to right under the print head (the cursor): quick, so the row is a stroke and
+-- the beat is the wait for the next one.
+Typing.LINE_PRINT = 0.05
+
 -- The characters a second of the two kinds of text and the two terminals (the crude one quick, the field terminal a little
--- slower and smoother): a scene (a radio copy, which carries its pauses) at the speed of a radio read aloud, a document
--- (a request copy, a guide) as fast as it can be followed. A first guess, to be set in the game.
+-- slower and smoother): a scene at the speed of a radio read aloud, a document as fast as it can be followed. A
+-- document is printed by rows (Typing.LINE_STEP); its speed here is what the records of before were kept in (a clock
+-- of seconds and the characters seen, Typing.seenOf). A first guess, to be set in the game.
 Typing.SPEED = {
     scene = { crude = 30, field = 25 },
     document = { crude = 80, field = 60 },
 }
--- What a kind of text does when it is shown again after being left half typed: "restart" types it from the beginning
--- (a scene keeps its pauses and its breath; a click then brings it to the furthest point seen), "resume" goes on from
--- where it was (a document: the terminal went on printing while the player was away). A kind of text that is typed
--- later (a mission briefing, a special request's offer) chooses its way here.
-Typing.RESUME = { scene = "restart", document = "resume" }
 
 -- The scenes' longest total pause (seconds): a story scene does not make the player wait longer than this.
 Typing.MAX_PAUSES = 6
 
--- Which kind a folder group is, when its entries are typed. The others (field papers, manifests) are read from items or
--- arrive with the crate, and are not typed here.
-Typing.KIND_OF_GROUP = { radio = "scene", request = "document", research = "document" }
+-- Which kind a folder group is: the radio copies are scenes, every other paper a document.
+Typing.KIND_OF_GROUP = { radio = "scene", request = "document", research = "document", field = "document",
+    manifest = "document" }
 
 -- The speed for a kind on a terminal ("crude" or "field"); nil for a kind that is not typed.
 function Typing.speed(kind, tier)
@@ -52,22 +60,12 @@ function Typing.speed(kind, tier)
     return speeds[tier] or speeds.crude
 end
 
--- The real seconds of one game hour at a day of `minutesPerDay` real minutes.
-function Typing.secondsPerHour(minutesPerDay)
-    return minutesPerDay * 60 / 24
-end
-
--- Where the clock of a text stands when the window shows it, in seconds typed: 0 for a kind that starts over
--- (Typing.RESUME) and for a text with nothing left half way; else where the last showing was left, with the game time
--- that has passed turned into seconds of the terminal's own work. `hours` is the world age now.
-function Typing.start(state, hours, minutesPerDay, kind)
-    if Typing.RESUME[kind] ~= "resume" or type(state) ~= "table" then return 0 end
-    local clock = tonumber(state.t)
-    if not clock then return 0 end
-    if state.start and hours and minutesPerDay and minutesPerDay > 0 then
-        clock = clock + math.max(0, hours - state.start) * Typing.secondsPerHour(minutesPerDay)
-    end
-    return clock
+-- Where the clock of a text stands when the window shows it, in seconds typed: where the first presentation was left,
+-- exactly (no game time is made up for); 0 for a text seen to its end (it plays again from the beginning, whatever clock
+-- an older record kept) and for one with nothing left half way.
+function Typing.start(state)
+    if type(state) ~= "table" or state.done then return 0 end
+    return math.max(0, tonumber(state.t) or 0)
 end
 
 -- How far a text has been seen, in characters of its reading (Markup.parse): all of it for a state of `true` or done, and
@@ -85,12 +83,15 @@ end
 -- The state to keep once a showing is left (or the window closes), from the one kept before (nil, `true` or a table), how
 -- far the text has been seen in this showing (`seen` characters), whether that is the whole of it, and `clock` (seconds
 -- typed) when the showing ended before the typing did, nil when it ran to its end. The furthest seen only grows and a
--- text seen to its end stays so.
-function Typing.keep(old, seen, done, clock, hours)
+-- text seen to its end stays so, and keeps no clock: a showing of it that is left half way is not kept.
+function Typing.keep(old, seen, done, clock)
     local was = type(old) == "table" and old or nil
     local state = { seen = math.max(was and tonumber(was.seen) or 0, seen or 0) }
-    if old == true or (was and was.done) or done then state.done = true end
-    if clock then state.start, state.t = hours, clock end
+    if old == true or (was and was.done) or done then
+        state.done = true
+    elseif clock then
+        state.t = clock
+    end
     return state
 end
 
@@ -100,9 +101,51 @@ function Typing.latest(recorded, kept)
     if kept == nil then return recorded end
     local done = recorded == true or (type(recorded) == "table" and recorded.done)
     if done and not kept.done then
-        return { seen = kept.seen, start = kept.start, t = kept.t, done = true }
+        return { seen = kept.seen, done = true }
     end
     return kept
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- The documents' own marks (the research team's papers write them; DESIGN-terminal 6.4). A line of a document's text
+-- that begins with:
+--   "## "  is a section head: the mark goes, the line is in the palette's head colour with half a line above it (none
+--          for the first line);
+--   "· "   is a bullet: the mark stays, and the rows the line wraps into hang under the text after it;
+--   "~ "   is a dim line (who, when): the mark goes;
+--   "> "   is the sign-off: the mark goes, the line is dim, on the right, with half a line above it.
+-- A numbered line ("1. ", "2) ") hangs its wrapped rows under its text as a bullet does. Lines without a mark are as
+-- they were. The marks are taken out of the text before it is read (Markup.parse), so they are never typed and never
+-- counted among its characters.
+
+local DOT = string.char(183)
+
+-- The text without its marks, and the style of each line that had one: styles[line] = { kind = "head", "bullet",
+-- "num", "meta" or "sign", hang = the characters its wrapped rows hang under }. Lines are counted from 1 at each "\n".
+function Typing.marks(text)
+    if type(text) ~= "string" then return text, {} end
+    local out, styles, li = {}, {}, 0
+    for line in string.gmatch(text .. "\n", "(.-)\n") do
+        li = li + 1
+        local head = sub(line, 1, 3)
+        if head == "## " then
+            styles[li] = { kind = "head" }
+            line = sub(line, 4)
+        elseif sub(line, 1, 2) == "~ " then
+            styles[li] = { kind = "meta" }
+            line = sub(line, 3)
+        elseif sub(line, 1, 2) == "> " then
+            styles[li] = { kind = "sign" }
+            line = sub(line, 3)
+        elseif sub(line, 1, 2) == DOT .. " " then
+            styles[li] = { kind = "bullet", hang = 2 }
+        else
+            local number = string.match(line, "^%d+[%.%)] ")
+            if number then styles[li] = { kind = "num", hang = #number } end
+        end
+        out[li] = line
+    end
+    return table.concat(out, "\n"), styles
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -136,39 +179,118 @@ local function piece(out, st, text, rgb)
         out[#out + 1] = rgb
         st.rgb = rgb
         if (lead or st.space) and not st.lineStart then out[#out + 1] = " <SPACE> " end
+    elseif not st.lineStart then
+        -- a piece of the same colour as the one before it on the line (a coloured run in a head's own colour): a space
+        -- between them is a space of the text, none keeps them one word
+        out[#out + 1] = (lead or st.space) and " " or ""
     end
     out[#out + 1] = escape(body)
     st.lineStart = false
     st.space = find(text, "%s$") ~= nil
-    -- A piece that follows another of the same colour on a line cannot happen (a line end comes between).
 end
 
-local function segment(out, st, text, rgb)
-    local from = 1
-    while true do
-        local nl = find(text, "\n", from, true)
-        piece(out, st, sub(text, from, nl and nl - 1 or #text), rgb)
-        if not nl then return end
-        out[#out + 1] = " <LINE> "
-        st.lineStart, st.space = true, false
-        from = nl + 1
-    end
-end
 
--- The text for an ISRichTextPanel from a reading (Markup.parse): the characters in colour, the line ends as <LINE>, in
--- the colour `c` ({ r, g, b }, 0 to 1) where the text has none of its own.
-function Typing.rich(read, c)
+-- The text for our rich text panel (Trade/RichText) from a reading (Markup.parse): the characters in colour, the line
+-- ends as <LINE>, in the colour `c` ({ r, g, b }, 0 to 1) where the text has none of its own. `styles` (Typing.marks,
+-- optional) gives lines their look, in `tones` = { head = { r, g, b }, dim = { r, g, b } }: a head and a dim line in
+-- those colours where their characters have none of their own, half a line above a head and the sign-off, the sign-off
+-- on the right, and the rows a bullet's or a number's line wraps into hung under its text.
+function Typing.rich(read, c, styles, tones)
     local default = rgbTag(c[1], c[2], c[3])
     local out = { " <TEXT>", default }
     local st = { rgb = default, lineStart = true, space = false }
-    local plain, pos = read.plain, 1
-    for _, run in ipairs(read.runs) do
-        if run.from > pos then segment(out, st, sub(plain, pos, run.from - 1), default) end
-        segment(out, st, sub(plain, run.from, run.to), rgbTag(run.r, run.g, run.b))
-        pos = run.to + 1
+    local plain = read.plain
+    local runs, ri = read.runs, 1
+    local headTag = tones and tones.head and rgbTag(tones.head[1], tones.head[2], tones.head[3]) or default
+    local dimTag = tones and tones.dim and rgbTag(tones.dim[1], tones.dim[2], tones.dim[3]) or default
+    local pos, li, total = 1, 1, #plain
+    while pos <= total + 1 do
+        local nl = find(plain, "\n", pos, true)
+        local last = nl and nl - 1 or total
+        local style = styles and styles[li]
+        local kind = style and style.kind
+        local lineTag = (kind == "head" and headTag) or ((kind == "meta" or kind == "sign") and dimTag) or default
+        if (kind == "head" or kind == "sign") and li > 1 then out[#out + 1] = " <HALF> " end
+        if kind == "sign" then out[#out + 1] = " <RIGHT> " end
+        local hangAt = style and style.hang and pos + style.hang - 1 or nil
+        local at = pos
+        while at <= last do
+            while runs[ri] and runs[ri].to < at do ri = ri + 1 end
+            local run = runs[ri]
+            local to, tag
+            if run and run.from <= at then
+                to, tag = math.min(run.to, last), rgbTag(run.r, run.g, run.b)
+            else
+                to, tag = math.min(run and run.from - 1 or last, last), lineTag
+            end
+            if hangAt and hangAt >= at and hangAt < to then to = hangAt end
+            piece(out, st, sub(plain, at, to), tag)
+            if hangAt and to == hangAt then
+                out[#out + 1] = " <HANG> "
+                st.lineStart, st.space = true, false
+                hangAt = nil
+            end
+            at = to + 1
+        end
+        if not nl then break end
+        out[#out + 1] = " <LINE> "
+        if kind == "sign" then out[#out + 1] = " <LEFT> " end
+        st.lineStart, st.space = true, false
+        pos, li = nl + 1, li + 1
     end
-    if pos <= #plain then segment(out, st, sub(plain, pos), default) end
     return table.concat(out)
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- A document printed a row at a time.
+
+-- The rows of a panel's chunks (Typing.align's src, and each chunk's row top): ends[r] = the reading's character that
+-- ends the r-th row that holds one, top to bottom. Blank rows take no turn.
+function Typing.rowEnds(src, lineY)
+    local ends, lastY = {}, nil
+    for c = 1, #src do
+        local list = src[c]
+        if #list > 0 then
+            local y = lineY[c]
+            if y ~= lastY then
+                ends[#ends + 1] = ends[#ends] or 0
+                lastY = y
+            end
+            if list[#list] > ends[#ends] then ends[#ends] = list[#list] end
+        end
+    end
+    return ends
+end
+
+-- How far the print of a text in rows (ends: Typing.rowEnds) has got at second `t`, a row started every `step` seconds
+-- and printed over `print` of them: the characters on (the row being printed has the part of its characters that its
+-- time gives, from the left), whether it is over, and whether a row is being printed.
+function Typing.printed(ends, t, step, print)
+    local rows = #ends
+    if rows == 0 or t >= rows * step then return nil, true, false end
+    local r = Typing.rowsAt(t, rows, step)
+    local before = ends[r - 1] or 0
+    local f = print > 0 and (t - (r - 1) * step) / print + 1e-9 or 1
+    if f >= 1 then return ends[r], false, false end
+    return before + math.floor((ends[r] - before) * math.max(0, f)), false, true
+end
+
+-- The first chunk of each of those rows (the same rows as Typing.rowEnds).
+function Typing.rowFirsts(src, lineY)
+    local first, lastY = {}, nil
+    for c = 1, #src do
+        if #src[c] > 0 and lineY[c] ~= lastY then
+            first[#first + 1] = c
+            lastY = lineY[c]
+        end
+    end
+    return first
+end
+
+-- How many of `count` rows have come on at second `t`, printed `step` seconds apart (the first at once).
+function Typing.rowsAt(t, count, step)
+    if t < 0 then return 0 end
+    return math.min(count, math.floor(t / step + 1e-9) + 1)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------

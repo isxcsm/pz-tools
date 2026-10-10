@@ -2,13 +2,14 @@
 -- titles. Reading a document tells the server (it is kept in the terminal's folder by id) and shows the text the
 -- translation files hold for it. Opened from an item's menu; the terminal's folder reads inside its own window.
 require "ISUI/ISCollapsableWindow"
-require "ISUI/ISRichTextPanel"
-require "ISUI/ISButton"
 require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Markup"
+require "OperationAcorn/Story/Typing"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/RichText"
+require "OperationAcorn/Trade/Button"
 local OA = OperationAcorn
 local Docs = OA.StoryDocs
 local UI = OA.Trade.UI
@@ -16,7 +17,7 @@ local Viewer = {}
 OA.StoryViewer = Viewer
 
 -- Sizes in design units: the window is the game's, in pixels, so they are made pixels with the terminal's scale
--- (Trade/UI.lua) as the window is made.
+-- (Trade/UI.lua) as the window is made; the text and the buttons in it are ours, in design units and our faces.
 local PAD = 12
 local BUTTON_H = 26
 local BUTTON_W = 90
@@ -30,47 +31,72 @@ function ISOAViewer:new(x, y, width, height, character)
     o.docs = {}
     o.index = 1
     o.resizable = true
+    o.era = UI.era
     o.backgroundColor = { r = 0.08, g = 0.08, b = 0.07, a = 0.95 }
     return o
 end
 
 function ISOAViewer:createChildren()
     ISCollapsableWindow.createChildren(self)
-    local th = self:titleBarHeight()
-    local pad, bh, w = UI.px(PAD), UI.px(BUTTON_H), UI.px(BUTTON_W)
-    self.rich = ISRichTextPanel:new(pad, th + pad, self.width - pad * 2, self.height - th - pad * 3 - bh)
+    -- the window's pixels as design units for our parts
+    local th, w, h = UI.dp(self:titleBarHeight()), UI.dp(self.width), UI.dp(self.height)
+    self.rich = OARichText:new(PAD, th + PAD, w - PAD * 2, h - th - PAD * 3 - BUTTON_H)
     self.rich:initialise()
-    self.rich.autosetheight = false
-    self.rich.clip = true
     self.rich.background = false
+    self.rich.marginLeft, self.rich.marginTop, self.rich.marginRight, self.rich.marginBottom = 20, 10, 10, 10
     -- a document is read: the body one size up from the panels' small text, the title above it
     self.rich.defaultFont = UIFont.Medium
-    self.rich:addScrollBars()
     self.rich:setAnchorRight(true)
     self.rich:setAnchorBottom(true)
     self:addChild(self.rich)
-    self.prev = ISButton:new(pad, self.height - pad - bh, w, bh, getText("IGUI_OA_Story_UI_Prev"), self, ISOAViewer.onPrev)
-    self.prev:initialise()
-    self.prev:instantiate()
-    self.prev:setAnchorTop(false)
-    self.prev:setAnchorBottom(true)
-    self:addChild(self.prev)
-    self.next = ISButton:new(pad + w + UI.px(8), self.height - pad - bh, w, bh, getText("IGUI_OA_Story_UI_Next"), self, ISOAViewer.onNext)
-    self.next:initialise()
-    self.next:instantiate()
-    self.next:setAnchorTop(false)
-    self.next:setAnchorBottom(true)
-    self:addChild(self.next)
+    local p = UI.palette("field")
+    self.prev = OAMButton:new(PAD, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Prev"), p, self,
+        ISOAViewer.onPrev)
+    self.next = OAMButton:new(PAD + BUTTON_W + 8, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Next"),
+        p, self, ISOAViewer.onNext)
+    for _, b in ipairs({ self.prev, self.next }) do
+        b:initialise()
+        b:instantiate()
+        b:setAnchorTop(false)
+        b:setAnchorBottom(true)
+        self:addChild(b)
+    end
 end
 
--- The reading text: a title line, a rule, the body with its line ends turned into the panel's line commands.
+-- The game's bars, as high as our Small face, the title drawn in it (UI.windowTitle).
+function ISOAViewer:titleBarHeight() return UI.titleBarHeight() end
+function ISOAViewer:resizeWidgetHeight() return UI.resizeWidgetHeight() end
+
+local WHITE = { 1, 1, 1 }
+
+function ISOAViewer:prerender()
+    local title = self.title
+    self.title = nil
+    ISCollapsableWindow.prerender(self)
+    self.title = title
+    UI.windowTitle(self, title, WHITE)
+end
+
+-- Another window worked the scale or the faces out again: this one was laid out in the old ones.
+function ISOAViewer:update()
+    ISCollapsableWindow.update(self)
+    if self.era ~= UI.era then self:close() end
+end
+
+-- The body's colour where its text has none of its own; heads and dim lines take the field palette's.
+local BODY = { 0.88, 0.88, 0.82 }
+
+-- The reading text: a title line, a rule, the body as the folder shows a document (Typing.rich): its colours, its
+-- line ends, and its own marks (Typing.marks: heads, bullets, dim lines, the sign-off).
 local function formatText(title, body)
-    local text = " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE> <TEXT> <RGB:0.88,0.88,0.82> "
-    local lines = {}
     -- A translation may carry its line ends as the two characters \n (the file reader keeps them).
     body = string.gsub(body, "\\n", "\n")
-    for line in string.gmatch(body .. "\n", "(.-)\n") do lines[#lines + 1] = line end
-    return text .. table.concat(lines, " <LINE> ")
+    local marked, styles = OA.Typing.marks(body)
+    -- a text the markup reader refuses is shown as its plain characters
+    local read = OA.Markup.parse(marked) or { plain = OA.Markup.strip(marked), runs = {} }
+    local p = UI.palette("field")
+    return " <H1> <RGB:1,1,1> " .. title .. " <LINE> <LINE>"
+        .. OA.Typing.rich(read, BODY, styles, { head = p.head, dim = p.dim })
 end
 
 function ISOAViewer:show(i)
@@ -81,7 +107,6 @@ function ISOAViewer:show(i)
     local title = getText(Docs.titleKey(entry.id))
     local body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
     if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
-    body = OA.Markup.strip(body)
     self.rich.text = formatText(title, body)
     self.rich:paginate()
     self.rich:setYScroll(0)

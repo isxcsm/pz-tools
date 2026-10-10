@@ -44,7 +44,7 @@
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier": "Upgrade effect size",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "Multiplies research effects that have a number.",
     "Sandbox_OperationAcorn_SharedSerumMilestones": "Shared serum every N milestones",
-    "Sandbox_OperationAcorn_SharedSerumMilestones_tooltip": "After the top stage, a shared research serum comes every this many trust milestones.",
+    "Sandbox_OperationAcorn_SharedSerumMilestones_tooltip": "After the top stage, a shared enhancement serum comes every this many trust milestones.",
     "Sandbox_OperationAcorn_ShredDecay": "Shredding repeat decay",
     "Sandbox_OperationAcorn_ShredDecay_tooltip": "How many recent shreds of one kind halve its yield. Lower makes repeats yield less sooner.",
     "Sandbox_OperationAcorn_MeteorSites": "Meteor drop sites",
