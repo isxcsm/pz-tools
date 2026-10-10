@@ -275,6 +275,7 @@ test("the waybill's sums: the gain repays a debt first, orders wait while it is 
     eq(r.support, 30000); eq(r.after, 12600)
     r = M.receipt(1000, 0, 0, { 30000, 500 })
     eq(r.support, 500, "a request the balance cannot pay waits"); eq(r.after, 500)
+    eq(r.paid[1], false); eq(r.paid[2], true)
 end)
 
 test("the waybill of a placed box, an order and a request", function()
@@ -294,6 +295,12 @@ test("the waybill of a placed box, an order and a request", function()
     eq(w.calc[1].label, "IGUI_OA_Status_Calc_Balance"); eq(w.calc[1].amount, "48,200")
     eq(w.calc[2].amount, "-15,000"); eq(w.calc[3].amount, "-30,000")
     eq(w.total.amount, "3,200"); eq(w.total.colour, "value")
+    eq(w.recv[2].waits, nil, "paid this flight")
+    -- a balance short of it: the line waits for the next settlement and the sums leave it out
+    r.trade.credits = 20000
+    w = M.waybill(r, OA.Trade.Estimate.flight(r))
+    eq(w.recv[2].waits, true)
+    eq(#w.calc, 2, "balance, orders")
 end)
 
 test("the waybill while a call flies: its own orders, not the cart for the next", function()

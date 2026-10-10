@@ -1188,6 +1188,7 @@
     "IGUI_OA_Status_RecvNone": "없음",
     "IGUI_OA_Status_RecvDebt": "없음 · 빚이 있는 동안은 주문할 수 없습니다",
     "IGUI_OA_Status_Support_Tag": "운항 지원",
+    "IGUI_OA_Status_SupportWaits": "잔고 부족 · 다음 정산에",
     "IGUI_OA_Status_Calc_Balance": "지금 잔고",
     "IGUI_OA_Status_Calc_Debt": "지금 빚",
     "IGUI_OA_Status_Calc_Settle": "예상 정산",

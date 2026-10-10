@@ -502,14 +502,15 @@ function M.receipt(balance, gain, orders, support)
     local after = balance + gain
     local paidOrders = after >= 0 and orders or 0
     after = after - paidOrders
-    local paidSupport = 0
-    for _, price in ipairs(support or {}) do
-        if after >= price then
+    local paidSupport, paid = 0, {}
+    for i, price in ipairs(support or {}) do
+        paid[i] = after >= price
+        if paid[i] then
             after = after - price
             paidSupport = paidSupport + price
         end
     end
-    return { after = after, orders = paidOrders, support = paidSupport }
+    return { after = after, orders = paidOrders, support = paidSupport, paid = paid }
 end
 
 -- The item type an order line's icon shows: the picked choice, the first thing the entry gives, or its first choice.
@@ -585,9 +586,10 @@ function M.waybill(record, flight)
                 name = tr("IGUI_OA_Status_ItemCount", name, line.count), price = credits(price) }
         end
     end
-    local prices = {}
+    local prices, plans = {}, {}
     for _, r in ipairs(M.requests(record)) do
         prices[#prices + 1] = r.price
+        plans[#plans + 1] = #w.recv + 1
         w.recv[#w.recv + 1] = { kind = "plan", name = tr("IGUI_OA_Support_Change", r.name, r.from, r.to),
             price = credits(r.price), from = r.from, to = r.to, label = r.name }
     end
@@ -600,6 +602,10 @@ function M.waybill(record, flight)
     local gain = sealed > 0 and (flight.net or (flight.sealed or 0) - fee) or 0
     local bonus = flight.bonus or OA.round(account.bonus or 0)
     local r = M.receipt(balance, gain + bonus, orders, prices)
+    -- A request the balance cannot pay waits for the next settlement (Support.settle): its line says so.
+    for i, at in ipairs(plans) do
+        if not r.paid[i] then w.recv[at].waits = true end
+    end
     if balance < 0 then
         w.calc[#w.calc + 1] = { label = tr("IGUI_OA_Status_Calc_Debt"), amount = credits(balance), colour = "bad" }
     else

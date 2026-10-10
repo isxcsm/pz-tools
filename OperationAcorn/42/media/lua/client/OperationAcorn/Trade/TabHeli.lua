@@ -192,7 +192,9 @@ function OATabHeli:buildWaybill(L, x, y, w, h)
         local top = yy
         for i = first + 1, first + show do
             local r = W.recv[i]
-            local pw = UI.textWidth(r.price, nf)
+            local priceText, priceFont, priceC = r.price, nf, p.text
+            if r.waits then priceText, priceFont, priceC = getText("IGUI_OA_Status_SupportWaits"), UIFont.Small, p.dim end
+            local pw = UI.textWidth(priceText, priceFont)
             if r.kind == "plan" then
                 Draw.frame(L, x + 12, yy + 1, 52, 15, p.warn)
                 Draw.fit(L, getText("IGUI_OA_Status_Support_Tag"), x + 12, yy, 52, p.warn, nil, 1, "centre")
@@ -202,7 +204,7 @@ function OATabHeli:buildWaybill(L, x, y, w, h)
                 if r.type then Draw.item(L, r.type, x + 14, yy, 16) end
                 Draw.fit(L, r.name, x + 36, yy, priceR - pw - 44, p.text)
             end
-            Draw.text(L, r.price, x + priceR - pw, yy, p.text, nf)
+            Draw.text(L, priceText, x + priceR - pw, yy, priceC, priceFont)
             yy = yy + row
         end
         if scrolled then

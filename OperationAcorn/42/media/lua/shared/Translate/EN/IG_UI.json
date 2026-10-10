@@ -1188,6 +1188,7 @@
     "IGUI_OA_Status_RecvNone": "Nothing",
     "IGUI_OA_Status_RecvDebt": "Nothing · no orders while in debt",
     "IGUI_OA_Status_Support_Tag": "Support",
+    "IGUI_OA_Status_SupportWaits": "Short · next settlement",
     "IGUI_OA_Status_Calc_Balance": "Balance now",
     "IGUI_OA_Status_Calc_Debt": "Debt now",
     "IGUI_OA_Status_Calc_Settle": "Expected settlement",
