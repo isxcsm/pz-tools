@@ -222,6 +222,7 @@ local function onSection(u)
     view.refresh = function(v)
         local sim, kept = Plan.simulate(v.u, v.steps, 0)
         v.sim, v.steps, v.counts, v.fragmentsLeft, v.revealed = sim, kept, Plan.counts(kept), 0, {}
+        v.spentPlan = Plan.spent(v.u, sim)
         View.workOut(v)
     end
     view:refresh()
@@ -278,7 +279,14 @@ test("a raised rank pops its node; the row it opens loses its padlocks just behi
     local fx = view.fx[last]
     eq(fx.kind, "pop")
     eq(fx.start, clock.now)
-    eq(fx.ms, math.max(Motion.POP_MS, Motion.RIPPLE_MS))
+    eq(fx.ms, Motion.fxMs("pop"))
+    local ranks = 0
+    for _, id in ipairs(steps) do
+        if id == last then ranks = ranks + 1 end
+    end
+    eq(fx.pip, ranks, "the pip just selected flashes")
+    eq(view.bump.tree, "scout", "the tree's points hop")
+    eq(view.bump.seg, #steps - 1, "with the bar's segment just selected")
     local opened = 0
     for id, at in pairs(view.unlocks) do
         opened = opened + 1
@@ -421,7 +429,7 @@ test("the padlocks an approval took off come off once its stamp is over, not on 
     truthy(opened > 0, "row 2 opened by the approval")
     eq(Motion.unlock(start - ends), 1, "drawn locked meanwhile")
     view.flowing = false
-    clock.now = start + Plan.sealAt(n) + Plan.SEAL_PRESS_MS + 500
+    clock.now = start + Plan.sealAt(n) + Plan.sealSettle() + 100
     UI.liveFrame()
     eq(body.liveLook, -1, "the seal holds still: nothing drawn afresh")
     clock.now = ends
@@ -449,6 +457,62 @@ test("the opening is followed while it plays and only then", function()
     UI.liveFrame()
     eq(body.liveLook, nil, "open")
     eq(view.openAt, nil)
+end)
+
+test("a switch between the trees and the board brings the new trees up at the switch's pace", function()
+    local UI = OA.Trade.UI
+    local Motion = OA.Upgrades.Motion
+    local view = laidOut("trees")
+    local body = shown(view)
+    View.onMode(view, { internal = "board" })
+    eq(view.openPace, Motion.SWITCH_PACE)
+    local ends = Motion.openEnd(#view.panels, Data.ROWS) * Motion.SWITCH_PACE
+    truthy(ends >= 300 and ends <= 450, "short: " .. ends)
+    UI.liveFrame()
+    eq(body.liveLook, clock.now, "followed")
+    clock.now = clock.now + ends
+    UI.liveFrame()
+    eq(body.liveLook, nil, "over at its pace")
+    View.onMode(view, { internal = "board" })
+    eq(view.openAt, nil, "the same mode again: nothing")
+end)
+
+test("the light under the mouse keeps the body followed while it comes up or goes down, then lets it go", function()
+    local UI = OA.Trade.UI
+    local view = laidOut("trees")
+    local body = shown(view)
+    body.rev = 0
+    view.asking = function() return false end
+    local item = view:firstNode()
+    View.setHover(view, item)
+    eq(body.fx.cur.place, item.id, "the node's light, by its id")
+    UI.liveFrame()
+    eq(body.liveLook, clock.now, "coming up: our frame function follows it (not replaced by the light's)")
+    clock.now = clock.now + UI.HOVER_IN_MS
+    UI.liveFrame()
+    eq(body.liveLook, nil, "up: let go")
+    View.setHover(view, nil)
+    eq(body.fx.fade.place, item.id, "going down")
+    UI.liveFrame()
+    eq(body.liveLook, clock.now)
+    clock.now = clock.now + UI.HOVER_OUT_MS
+    UI.liveFrame()
+    eq(body.liveLook, nil, "down: let go")
+end)
+
+test("a click's mark on the points is followed while it hops and dropped after", function()
+    local UI = OA.Trade.UI
+    local Motion = OA.Upgrades.Motion
+    local view = onSection(scoutSection())
+    local body = shown(view)
+    View.plan(view, rowTwoSteps()[1])
+    view.fx = nil
+    UI.liveFrame()
+    eq(body.liveLook, clock.now, "the hop")
+    clock.now = clock.now + Motion.BUMP_MS
+    UI.liveFrame()
+    eq(body.liveLook, nil)
+    eq(view.bump, nil)
 end)
 
 test("a hidden tab forgets what was moving", function()
@@ -489,8 +553,11 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     end }
     getTexture = function() return {} end
     getSoundManager = function() return { playUISound = function() end } end
-    local el = setmetatable({ drawRect = rect, oaBase = false, oaScaled = false, oaDesign = false },
-        { __index = function() return function() return 0 end end })
+    -- the body: its own fields set, the game's drawing answered by stand-ins
+    local el = view.body
+    el.drawRect, el.oaBase, el.oaScaled, el.oaDesign = rect, false, false, false
+    el.fx, el.fxFlash, el.rev, el.liveLook = false, false, 0, false
+    setmetatable(el, { __index = function() return function() return 0 end end })
     View.startOpen(view)
     View.paint(view, el)
     eq(covers, 3, "the opening starts with the columns hidden")
@@ -502,6 +569,9 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     for _, node in ipairs(Data.treeNodes("scout")) do
         if node.row == 3 then View.plan(view, node.id) end
     end
+    -- the mouse on a node (its tooltip aside), then off it, and a switch to the board and back
+    view.updateTip = function() end
+    View.setHover(view, view.byKey[steps[1]])
     local function frames(n)
         for _ = 1, n do
             clock.now = clock.now + 16
@@ -511,6 +581,11 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
         end
     end
     frames(30)
+    View.setHover(view, nil)
+    View.onMode(view, { internal = "board" })
+    frames(20)
+    View.onMode(view, { internal = "trees" })
+    frames(40)
     -- the approval and its answer, as in the test above; then the lit lines' lights for a while
     local Motion = OA.Upgrades.Motion
     local bead, beads = Motion.bead, 0
