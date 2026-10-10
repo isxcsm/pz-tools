@@ -82,7 +82,7 @@ module OperationAcorn
         Weight = 15.0,
         Icon = OA_MissionHeavyCase,
         Tooltip = Tooltip_OA_Story_MissionHeavyCase,
-        WorldStaticModel = ProtectiveCaseBulky_Ground,
+        WorldStaticModel = OperationAcorn.OA_HazardCase_Ground,
     }
 
     item EvidenceEnvelope
@@ -242,7 +242,7 @@ module OperationAcorn
         Weight = 3.0,
         Icon = OA_SampleCase,
         Tooltip = Tooltip_OA_Story_SampleCase,
-        WorldStaticModel = Briefcase_Ground,
+        WorldStaticModel = OperationAcorn.OA_Briefcase_Ground,
     }
 
     item DeadDropCase
@@ -255,7 +255,7 @@ module OperationAcorn
         Capacity = 2,
         WeightReduction = 0,
         CanHaveHoles = false,
-        WorldStaticModel = Briefcase_Ground,
+        WorldStaticModel = OperationAcorn.OA_Briefcase_Ground,
     }
 
     item FieldCallDevice
