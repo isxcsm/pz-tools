@@ -1,7 +1,7 @@
 -- This week's request list (NUMBERS 2) and the table it is drawn from.
 --
 -- A request is a group one level above the item type: "charcoal" takes the looted and the kiln-made kind, "skill
--- books" any skill book. The groups and how easy each is to come by are made from the game's files by
+-- books" any skill book, "canned food" any sealed tin, "hats" any hat. The groups and how easy each is to come by are made from the game's files by
 -- tools/request_groups.py (RequestGroups.lua; the rules head the tool): a group's key is its id, or the item type
 -- itself for a group of one. A type no group has (a strange item the story names) is a group of one with no score.
 -- The world save (`requests` section) keeps the candidates found at the first world start:

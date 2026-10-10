@@ -20,12 +20,15 @@ The rules (written out in mockups/terminal/request-groups-report.md):
 - Candidates: the kinds the house rooms' loot hands out and the boxes take (not cash), less the left-out kinds (keys,
   maps, specimens, containers posing as items, personal papers, newspapers, bulk cartons, trash: EXCLUDE below). A
   group may also take kinds no house hands out (the kiln's charcoal).
-- A group is, in this order: a family decided by hand (FAMILIES: the four book families), a narrow tag the recipes use
+- A group is, in this order: a family (FAMILIES: one ordinary noun above the kinds, "any can", "any hat", from the
+  game's fields first, then the ids and names, then a list by hand; the book families were decided with the user;
+  mockups/terminal/request-families.md has the table and what was kept apart), a narrow tag the recipes use
   for "any of these" (base:charcoal; TAG_MAX kinds at most, of one display category, not a BROAD_TAGS property), the
   variants (union-find: the Korean name before ' [' is the same, spaces and stray brackets aside; or the English name
   is the same, of one display category, the Korean names being near: the words of one inside the other), and a few
   groups by hand (MANUAL: one appliance of several brands). Everything else is a group of its own. Groups the list
-  would show under the same Korean name are then one group, so a week never shows a name twice.
+  would show under the same Korean name are then one group, so a week never shows a name twice (one that would show
+  a family's name joins the family).
   The ids of the name groups ('n:...') continue the previous table (this file, as the last run wrote it): a group
   keeps the id of the old group most of its kinds came from, and an old id that goes away is kept in the row that
   took over (`was`), so a saved list is moved to the new group (Requests.keyOf).
@@ -55,26 +58,250 @@ OUT = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'RequestGroup
 CATEGORIES = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Categories.lua')
 REQUESTS = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Requests.lua')
 VALUE = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Value.lua')
+UI_KO = os.path.join(MOD_LUA, 'shared', 'Translate', 'KO', 'IG_UI.json')
 
 COMMON, NORMAL = 1.0, 0.3          # Requests.COMMON_FROM, Requests.NORMAL_FROM
+BAND_PRICE = {'common': 600, 'normal': 1500, 'rare': 4000}   # Requests.BANDS (the report only)
 
-# The book families (decided with the user): DisplayCategory or tags -> family id. A family takes every member the
-# rule names, whatever its other tags; HollowBook is a container and newspapers are left out (EXCLUDE). The books are
-# the hardcovers, the softcovers and the leather-bound (base:fancybook) ones.
+# The families: one level above the kind, what the research team would write on a requisition as one ordinary noun
+# ("any can", "any hat"; not "food" or "clothing"). A family takes every member its rule names (taken and not left
+# out), whatever its other tags; the first rule that names a kind has it, so the narrow rules come before the wide ones.
+# A rule reads, in this order of preference, the game's own fields (DisplayCategory, CannedFood, BodyLocation,
+# FoodType, the fluid a bottle holds, tags, ItemType), then the item ids or names, then a list by hand. Each row:
+# (id, where the rule comes from: 'field' / 'pattern' / 'hand', test(item) -> bool). The name is the translation key
+# IGUI_OA_ReqGroup_<id> (KO and EN IG_UI.json); the reasons for each rule and what was kept apart are written out in
+# mockups/terminal/request-families.md. The book families were decided with the user: HollowBook is a container and
+# newspapers are left out (EXCLUDE); the books are the hardcovers, the softcovers and the leather-bound ones.
+FARM = set()                       # the farm crops (farm_items), read before the families are made
+
+
+def _f(it, key):
+    return it['f'].get(key, '')
+
+
+def _fluid(it):
+    return _f(it, 'fluid').split(':')[0]
+
+
+def _ids(*names):
+    names = set(names)
+    return lambda it: it['name'] in names
+
+
+def _plain_ko(it):
+    return strip_variant(it.get('ko', ''))
+
+
+# Kinds made from whatever is at hand (wrapped rags, tarp, garbage bags, raw hide, bone, scrap): a family of clothes or
+# gear never takes them, or a weekly line could be filled from a pile of rags.
+MAKESHIFT = re.compile(r'(Wrap|Garbage|Tarp|Rag(?![a-z])|Twine|Crude|Newspaper|TinFoil|Scrap|Bone|Hide|SheepSkin'
+                       r'|LeatherStrip|MetalHelmet|MetalArmour|DuctTape|Broken|Spike)')
+# Food that is no longer the thing bought: opened, dried, cooked into something, sliced, a seed, a dough or a dish.
+NOT_FRESH = re.compile(r'(Open|Dried|Canned|Fried|Seed|Frozen|Slice|Smashed|Rotten|Burnt|Cooked|Recipe|Dough'
+                       r'|Fingers|Nugget|Jerky|Dumpling|Calamari|Raw|Prep|tray)')
+
+
+def _fresh(it):
+    return not NOT_FRESH.search(it['name']) and _f(it, 'packaged') != 'true'
+
+
+def _wear(it, *locs):
+    """Clothes at one of the body locations, of the clothes and accessories (not protective gear), not makeshift."""
+    return it['body'] in locs and it['dc'] in ('Clothing', 'Accessory', 'Memento') and not MAKESHIFT.search(it['name'])
+
+
+HAT_NOT = re.compile(r'(Bandana|Shemagh|EarMuff|Sweatband|HeadMirror|HeadSack|Antlers|Joke|GoldStar|Ears|WeddingVeil'
+                     r'|Hat_Spiffo$|Cowboy_Plastic|HatDebug|SurgicalCap|DeerHeadress|Helmet|ArmyWWII)')
+SPIRITS = {'Brandy', 'Gin', 'Rum', 'Scotch', 'Tequila', 'Vodka', 'Whiskey', 'CoffeeLiqueur', 'Curacao'}
+WINES = {'Wine', 'Champagne', 'Port', 'Sherry', 'Vermouth'}
+SODAS = {'Cola', 'ColaDiet', 'GingerAle', 'SodaGrape', 'SodaStrewberry'}
+HERBS = ('Basil', 'Chives', 'Cilantro', 'Oregano', 'Parsley', 'Rosemary', 'Sage', 'Thyme')
+
 FAMILIES = [
-    ('skillbook', lambda it: it['dc'] == 'SkillBook'),
-    ('recipemag', lambda it: it['dc'] == 'RecipeResource'),
-    ('books', lambda it: it['dc'] == 'Literature' and ({'base:hardcover', 'base:softcover', 'base:fancybook'}
-                                                        & it['tags'])),
-    ('reading', lambda it: it['dc'] == 'Literature' and ({'base:magazine', 'base:picturebook'} & it['tags'])),
+    # Books (with the user).
+    # A boxed set of five skill books (BookCarpentrySet) is a store's bundle, as the bulk cartons are: kept apart,
+    # or every single book would fetch the set's price (the price floor is the dearest member's worth).
+    ('skillbook', 'field', lambda it: it['dc'] == 'SkillBook' and not it['name'].endswith('Set')),
+    ('recipemag', 'field', lambda it: it['dc'] == 'RecipeResource'),
+    ('books', 'field', lambda it: it['dc'] == 'Literature' and ({'base:hardcover', 'base:softcover', 'base:fancybook'}
+                                                                 & it['tags'])),
+    ('reading', 'field', lambda it: it['dc'] == 'Literature' and ({'base:magazine', 'base:picturebook'} & it['tags'])),
+    # Food in tins and jars. A sealed tin is CannedFood that cannot be eaten yet (CantEat: it has to be opened); the
+    # dog food tin is pet food, kept apart. The boxes of twelve tins are a store's stock, a family of their own. The
+    # jars (base:preservedfood) are put up at home: no can opener, a jar and a lid back, canned from the garden.
+    ('cans', 'field', lambda it: _f(it, 'cannedfood') == 'true' and (_f(it, 'canteat') == 'true'
+                                                                     or _f(it, 'openingrecipe') != '')
+     and it['name'] != 'Dogfood'),
+    ('cannedbox', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].endswith('_Box')
+     and re.match(r'(Canned|Tinned|TunaTin|MysteryCan|WaterRationCan)', it['name'])),
+    ('jarred', 'field', lambda it: 'base:preservedfood' in it['tags']),
+    # Frozen sweets and frozen bags.
+    ('icecream', 'field', lambda it: 'base:goodfrozen' in it['tags']),
+    ('frozen', 'pattern', lambda it: it['dc'] == 'Food' and (
+        it['name'].startswith('Frozen_') or it['name'] in ('CornFrozen', 'MixedVegetables', 'Peas'))),
+    # Drinks, by the fluid the bottle or can holds (opened bottles are not the thing bought).
+    ('beer', 'field', lambda it: it['dc'] == 'Food' and _fluid(it) == 'Beer'),
+    ('wine', 'field', lambda it: it['dc'] == 'Food' and _fluid(it) in WINES and not it['name'].endswith('Open')),
+    ('spirits', 'field', lambda it: it['dc'] == 'Food' and _fluid(it) in SPIRITS),
+    ('soda', 'field', lambda it: it['dc'] == 'Food' and _fluid(it) in SODAS),
+    ('juice', 'field', lambda it: it['dc'] == 'Food' and _fluid(it).startswith('Juice')),
+    ('milk', 'field', lambda it: it['dc'] == 'Food' and _fluid(it) in ('CowMilk', 'MilkChocolate')),
+    # Snacks and sweets. Chocolate before candy: the bars are FoodType Candy too.
+    ('chocolate', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].startswith('Chocolate')
+     and it['name'] not in ('ChocolateChips', 'Chocolate_Candy')),
+    ('candy', 'field', lambda it: it['dc'] == 'Food' and (it['food'] == 'Candy' or it['name'] == 'Lollipop')),
+    ('snacks', 'hand', _ids('Crisps', 'Crisps2', 'Crisps3', 'Crisps4', 'TortillaChips', 'TortillaChipsBaked',
+                            'Pretzel', 'PorkRinds', 'Popcorn', 'Crackers', 'GrahamCrackers')),
+    ('pie', 'pattern', lambda it: it['dc'] == 'Food' and re.match(r'Pie($|[A-Z])', it['name'])
+     and _fresh(it)),
+    ('donut', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].startswith('Doughnut')),
+    ('muffin', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].startswith('Muffin')),
+    ('bread', 'field', lambda it: it['dc'] == 'Food' and (it['food'] == 'Bread' or it['name'] in (
+        'BunsHamburger', 'BunsHotdog', 'Croissant')) and not re.search(r'(Slices|Dough|_single)', it['name'])),
+    ('cheese', 'field', lambda it: 'base:cheese' in it['tags']),
+    ('noodles', 'field', lambda it: it['dc'] == 'Food' and it['food'] == 'Pasta'),
+    ('beans', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].startswith('Dried')
+     and (it['food'] == 'Bean' or it['name'] in ('DriedLentils', 'DriedSplitPeas'))),
+    # The kitchen herbs: those the game also sells dried as a seasoning (Seasoning_<herb>), fresh, dried or ground.
+    ('herbs', 'field', lambda it: it['dc'] == 'Food' and re.match(r'(Seasoning_)?(%s)(Dried)?$' % '|'.join(HERBS),
+                                                                  it['name'])),
+    ('sauce', 'hand', _ids('Ketchup', 'Mustard', 'MayonnaiseFull', 'RemouladeFull', 'BBQSauce', 'Hotsauce',
+                           'Soysauce', 'Dip_NachoCheese', 'Dip_Ranch', 'Dip_Salsa', 'Marinara', 'Gravy')),
+    ('jam', 'pattern', lambda it: it['dc'] == 'Food' and it['name'].startswith('Jam')),
+    ('spices', 'hand', _ids('Pepper', 'PowderedGarlic', 'PowderedOnion', 'Cinnamon', 'SeasoningSalt')),
+    ('petfood', 'field', lambda it: it['dc'] == 'Food' and (it['food'] in ('CatFood', 'DogFood')
+                                                            or it['name'] in ('Dogfood', 'CatTreats'))),
+    # Fresh produce, meat and fish, by FoodType; fresh only.
+    ('fruit', 'field', lambda it: it['dc'] == 'Food' and (it['food'] in ('Fruits', 'Citrus')
+                                                          or it['name'] == 'Strewberrie') and _fresh(it)
+     and it['name'] != 'Watermelon'),           # three kilos: an apple would fetch a melon's price
+    ('vegetables', 'field', lambda it: it['dc'] == 'Food' and _fresh(it) and (
+        (it['food'] in ('Vegetables', 'Greens', 'HotPepper') and (it['full'] in FARM or it.get('cand')))
+        or it['name'] in ('Pumpkin', 'Squash', 'Garlic'))),
+    ('meat', 'field', lambda it: it['dc'] == 'Food' and it['food'] in ('Beef', 'Meat', 'Poultry', 'Game', 'Venison')
+     and _fresh(it) and not re.search(r'(Ham|Hotdog|Bacon)', it['name'])),
+    ('sausage', 'field', lambda it: it['dc'] == 'Food' and it['food'] == 'Sausage' and _fresh(it)),
+    ('fish', 'field', lambda it: it['dc'] == 'Food' and it['food'] == 'Fish' and _fresh(it)),
+    ('seafood', 'field', lambda it: it['dc'] == 'Food' and (it['food'] == 'Seafood' or it['name'] == 'Mussels')
+     and _fresh(it)),
+    # Smoking and fire.
+    ('tobacco', 'field', lambda it: {'base:smokable', 'base:tobacco', 'base:chewingtobacco'} & it['tags']
+     and it['dc'] == 'Junk'),
+    ('matches', 'pattern', lambda it: 'base:startfire' in it['tags'] and it['name'].startswith('Match')),
+    # Clothes, by BodyLocation (and the id where one location holds two things).
+    ('hats', 'field', lambda it: _wear(it, 'base:hat') and it['name'].startswith('Hat_')
+     and not HAT_NOT.search(it['name'])),
+    ('helmets', 'field', lambda it: it['dc'] in ('ProtectiveGear', 'Memento') and it['body'] in ('base:hat',
+     'base:fullhat') and re.search(r'(Helmet|HardHat|Hat_Fireman|Hat_Army|Hat_SWAT)', it['name'])
+     and not MAKESHIFT.search(it['name'])),
+    ('glasses', 'field', lambda it: _wear(it, 'base:eyes') and it['dc'] == 'Accessory'
+     and it['name'].startswith('Glasses') and not re.search(r'(Goggles|Monocle)', it['name'])),
+    ('gloves', 'field', lambda it: _wear(it, 'base:hands') and it['name'].startswith('Gloves_')),
+    ('shoes', 'field', lambda it: _wear(it, 'base:shoes')),
+    ('socks', 'field', lambda it: _wear(it, 'base:socks')),
+    ('stockings', 'field', lambda it: _wear(it, 'base:underwearextra1')),
+    ('swimwear', 'field', lambda it: _wear(it, 'base:underwear') and not it['name'].startswith('BunnySuit')
+     or it['name'].startswith('Briefs_SmallTrunks')),
+    ('underwear', 'field', lambda it: _wear(it, 'base:underweartop', 'base:underwearbottom')),
+    ('longjohns', 'field', lambda it: 'base:long_johns' in it['tags'] or it['name'] == 'LongJohns'),
+    ('tshirts', 'field', lambda it: _wear(it, 'base:tshirt')),
+    ('shirts', 'field', lambda it: _wear(it, 'base:shirt', 'base:shortsleeveshirt')),
+    ('sweaters', 'field', lambda it: _wear(it, 'base:sweater') and it['name'].startswith('Jumper_')),
+    ('jackets', 'field', lambda it: _wear(it, 'base:jacket', 'base:jacket_bulky', 'base:jacketsuit',
+                                          'base:jackethat_bulky') and re.match(r'(Jacket|Suit_Jacket)', it['name'])),
+    ('pants', 'field', lambda it: _wear(it, 'base:pants', 'base:pants_skinny')),
+    ('shorts', 'field', lambda it: _wear(it, 'base:shortpants', 'base:shortsshort') and it['name'].startswith('Shorts_')
+     and not re.search(r'(Football|Hockey)', it['name'])),
+    ('dresses', 'field', lambda it: _wear(it, 'base:dress', 'base:longdress') and it['name'].startswith('Dress')
+     and 'Negligee' not in it['name']),
+    ('skirts', 'pattern', lambda it: it['dc'] == 'Clothing' and it['name'].startswith('Skirt_')
+     and not MAKESHIFT.search(it['name'])),
+    ('vests', 'field', lambda it: _wear(it, 'base:torsoextravest') and it['name'].startswith('Vest_')),
+    ('ties', 'pattern', lambda it: it['dc'] == 'Accessory' and it['name'].startswith('Tie_')),
+    ('holsters', 'pattern', lambda it: it['name'].startswith('Holster') and not MAKESHIFT.search(it['name'])),
+    # The backpacks (one to two kilos); the home-made framepacks (four) are left to their own groups.
+    ('backpacks', 'pattern', lambda it: it['itype'] == 'base:container' and '배낭' in it.get('ko', '')
+     and not re.search(r'(Hydration|Crafted)', it['name']) and not MAKESHIFT.search(it['name'])),
+    # Jewellery and watches.
+    ('rings', 'pattern', lambda it: it['dc'] == 'Accessory' and it['name'].startswith('Ring_')),
+    ('necklaces', 'field', lambda it: _wear(it, 'base:necklace', 'base:necklace_long')
+     and it['name'].startswith('Necklace')),
+    ('earrings', 'pattern', lambda it: it['dc'] == 'Accessory' and it['name'].startswith('Earring')),
+    ('bracelets', 'pattern', lambda it: it['dc'] == 'Accessory' and it['name'].startswith('Bracelet')),
+    ('watches', 'field', lambda it: it['itype'] == 'base:alarmclockclothing'),
+    ('gems', 'hand', _ids('Diamond', 'Emerald', 'Ruby', 'Sapphire')),
+    # Protective pads.
+    # The light pads only (knee, elbow, soft shin pads, a neck guard; half a kilo): the hard shin guards, goalie
+    # pads and shoulder pads weigh four to ten times as much and stay their own groups.
+    ('pads', 'pattern', lambda it: it['dc'] == 'ProtectiveGear' and re.match(
+        r'(Kneepad|ElbowPad|Shinpad_[LR](_Blue|_White)?$|IceHockeyNeckGuard)', it['name'])),
+    # Toys, sport and play.
+    ('balls', 'hand', _ids('Baseball', 'Basketball', 'Football', 'GolfBall', 'PoolBall', 'SoccerBall', 'TennisBall')),
+    ('rackets', 'hand', _ids('BadmintonRacket', 'TennisRacket')),
+    # The dolls and plush toys of the hand's size; the five-kilo teddy bear and big Spiffo stay apart.
+    ('plush', 'pattern', lambda it: 'base:ismemento' in it['tags'] and _plain_ko(it).endswith('인형')
+     and it['weight'] < 2),
+    ('toys', 'hand', _ids('ToyCar', 'ToyPlane', 'Bricktoys', 'Yoyo', 'Cube', 'Revolver_CapGun', 'ToyBadge')),
+    ('cards', 'pattern', lambda it: it['name'].startswith('Card_') and 'base:ismemento' in it['tags']),
+    ('guitars', 'pattern', lambda it: it['name'].startswith('Guitar') and it['itype'] == 'base:weapon'
+     and not MAKESHIFT.search(it['name'])),
+    ('medals', 'pattern', lambda it: it['name'].startswith('Medal_')),
+    ('christmas', 'pattern', lambda it: it['name'].startswith('Christmas') and 'base:ismemento' in it['tags']),
+    ('videotapes', 'pattern', lambda it: it['name'].startswith('VHS_')),
+    ('bats', 'hand', _ids('BaseballBat', 'BaseballBat_Metal')),
+    # Household and kitchen.
+    ('pillows', 'field', lambda it: 'base:pillow' in it['tags'] and not MAKESHIFT.search(it['name'])),
+    ('tissues', 'hand', _ids('Tissue', 'TissueBox', 'ToiletPaper')),
+    ('kettles', 'pattern', lambda it: it['name'].startswith('Kettle') and it['dc'] == 'Cooking'),
+    ('buckets', 'field', lambda it: 'base:bucket' in it['tags'] and not re.search(r'(Debug|Large)', it['name'])),
+    ('firstaidkit', 'pattern', lambda it: it['name'].startswith('FirstAidKit')),
+    ('makeup', 'pattern', lambda it: it['dc'] == 'Appearance' and (it['name'].startswith('Makeup')
+                                                                   or it['name'] == 'Lipstick')),
+    ('pots', 'pattern', lambda it: _plain_ko(it) in ('요리용 냄비', '손잡이 냄비', '구리 손잡이 냄비')),
+    ('canopener', 'field', lambda it: 'base:canopener' in it['tags'] and it['dc'] in ('Cooking', 'CookingWeapon')),
+    ('bottleopener', 'field', lambda it: 'base:bottleopener' in it['tags'] and it['dc'] == 'Cooking'),
+    ('cuttingboard', 'pattern', lambda it: it['name'].startswith('CuttingBoard')),
+    ('glassware', 'field', lambda it: it['dc'] == 'WaterContainer' and 'base:glass' in it['tags']
+     and it['name'].startswith(('Glass', 'DrinkingGlass'))),
+    ('markers', 'pattern', lambda it: it['name'].startswith('Marker') and 'base:write' in it['tags']),
+    ('pills', 'pattern', lambda it: it['dc'] == 'FirstAid' and it['name'].startswith('Pills')),
+    ('cameras', 'field', lambda it: 'base:camera' in it['tags']),
+    ('flashlights', 'field', lambda it: 'base:flashlight' in it['tags'] and it['dc'] == 'LightSource'
+     and 'Crafted' not in it['name']),
+    # Garden, fishing, trapping.
+    ('sleepingbags', 'pattern', lambda it: it['name'].startswith('SleepingBag') and it['name'].endswith('_Packed')
+     and not MAKESHIFT.search(it['name'])),
+    ('lanterns', 'pattern', lambda it: it['dc'] == 'LightSource' and it['name'].startswith('Lantern')
+     and 'Crafted' not in it['name']),
+    ('shovels', 'field', lambda it: 'base:diggrave' in it['tags'] and not MAKESHIFT.search(it['name'])),
+    ('seeds', 'pattern', lambda it: it['itype'] == 'base:literature' and 'BagSeed' in it['name']
+     and not it['name'].endswith('_Empty')),
+    # The traps set for animals; the mouse trap (a tenth of their weight, in every kitchen) stays apart.
+    ('traps', 'pattern', lambda it: it['dc'] == 'Trapping' and it['name'].startswith('Trap')
+     and it['name'] != 'TrapMouse'),
+    ('lures', 'hand', _ids('JigLure', 'MinnowLure')),
+    ('fishingline', 'pattern', lambda it: it['dc'] == 'Fishing' and it['name'].endswith('FishingLine')),
+    ('wallpaper', 'field', lambda it: 'base:wallpaper' in it['tags']),
+    # Guns and their parts.
+    ('handguns', 'pattern', lambda it: 'base:firearm' in it['tags'] and it['dc'] == 'Weapon'
+     and re.match(r'(Pistol|Revolver)', it['name'])),
+    ('rifles', 'pattern', lambda it: 'base:firearm' in it['tags'] and it['dc'] == 'Weapon'
+     and re.search(r'(Rifle|Carbine)', it['name'])),
+    ('shotguns', 'pattern', lambda it: 'base:firearm' in it['tags'] and 'Shotgun' in it['name']),
+    ('scopes', 'field', lambda it: 'base:optics' in it['tags'] and it['dc'] == 'WeaponPart'),
+    ('chokes', 'pattern', lambda it: it['name'].startswith('ChokeTube')),
+    # Car parts: the old, the regular and the performance kind are one part (as the tyres and brakes are by their tag).
+    ('mufflers', 'pattern', lambda it: it['dc'] == 'VehicleMaintenance' and 'CarMuffler' in it['name']),
+    ('suspension', 'pattern', lambda it: it['dc'] == 'VehicleMaintenance' and 'Suspension' in it['name']),
 ]
-FAMILY_NAMES = {
-    'skillbook': 'IGUI_OA_ReqGroup_skillbook', 'recipemag': 'IGUI_OA_ReqGroup_recipemag',
-    'books': 'IGUI_OA_ReqGroup_books', 'reading': 'IGUI_OA_ReqGroup_reading',
-}
-# A family's picture (the member whose icon stands for it).
+FAMILY_NAMES = {fid: 'IGUI_OA_ReqGroup_' + fid for fid, _, _ in FAMILIES}
+# A family's picture (the member whose icon stands for it), where the most found member is not the plainest one.
 FAMILY_ICONS = {'skillbook': 'Base.BookCarpentry1', 'recipemag': 'Base.CookingMag1', 'books': 'Base.Book',
-                'reading': 'Base.Magazine'}
+                'reading': 'Base.Magazine', 'cans': 'Base.TinnedBeans', 'cannedbox': 'Base.TinnedBeans_Box',
+                'frozen': 'Base.Frozen_FrenchFries', 'soda': 'Base.Pop2', 'candy': 'Base.Lollipop',
+                'snacks': 'Base.Crisps', 'sauce': 'Base.Ketchup', 'vegetables': 'Base.Carrots', 'meat': 'Base.Steak',
+                'hats': 'Base.Hat_BaseballCap', 'tobacco': 'Base.CigarettePack', 'balls': 'Base.SoccerBall', 'toys': 'Base.ToyCar',
+                'jackets': 'Base.Jacket_WhiteTINT', 'shirts': 'Base.Shirt_FormalWhite'}
 
 # A tag groups only when it is narrow: at most this many taken kinds, all of one display category.
 TAG_MAX = 12
@@ -122,6 +349,10 @@ EXCLUDE = [
     ('bulk carton', lambda it: _id(it).endswith('Carton') and it['dc'] != 'Food'),
     # Trash: the junk the bins hand out, empties, wrappers and broken bits.
     ('trash', lambda it: it['trash']),
+    # A drink's empty can or bottle (the beer can someone drank): the drink is the thing, the empty is rubbish.
+    # The developers' test kinds (BucketWaterDebug, TestMug): no house has them on purpose.
+    ('debug', lambda it: re.search(r'(Debug|^Test[A-Z])', _id(it))),
+    ('empty drink', lambda it: it['dc'] == 'WaterContainer' and re.match(r'Beer(Can)?Empty$', _id(it))),
 ]
 
 ROOMS_HOUSE = None   # read from Requests.lua (Requests.HOUSE_ROOMS)
@@ -256,6 +487,7 @@ def read_items():
                 'itype': fields.get('itemtype', '').lower(), 'weight': float(re.match(r'[-\d.]*', fields.get('weight', '1')).group(0) or 1),
                 'tags': tags, 'icon': fields.get('icon'), 'trash': False, 'oneoff': False,
                 'obsolete': fields.get('obsolete', '').lower() == 'true',
+                'f': fields, 'body': fields.get('bodylocation', '').lower(), 'food': fields.get('foodtype', ''),
             }
     return items
 
@@ -881,9 +1113,13 @@ def main():
         g = groups.setdefault(gid, {'id': gid, 'how': how, 'items': []})
         g['items'].append(full)
 
-    # 0. the families decided by hand.
+    # 0. the families (one level above the kind).
+    FARM.update(farm_items())
+    cand_set = set(candidates)
+    for full, it in items.items():
+        it['ko'], it['en'], it['cand'] = names_ko.get(full, ''), names_en.get(full, ''), full in cand_set
     for full in sorted(members_ok):
-        for fid, test in FAMILIES:
+        for fid, _, test in FAMILIES:
             if test(items[full]):
                 add(fid, full, 'family')
                 break
@@ -974,8 +1210,10 @@ def main():
     cand_set = set(candidates)
     groups = {gid: g for gid, g in groups.items() if any(f in cand_set for f in g['items'])}
     # Groups the list would show under the same Korean name are one group (a week never shows a name twice).
+    # A group that would show a family's or a hand group's own name joins it.
     rank = {'family': 0, 'tag': 1, 'manual': 2, 'name': 3, 'single': 4}
-    shown = {}
+    ui_ko = json.load(open(UI_KO, encoding='utf-8'))
+    shown = {ui_ko[NAMED[gid]]: gid for gid in groups if gid in NAMED}
     for gid in sorted(groups, key=lambda g: (rank[groups[g]['how']], -len(groups[g]['items']), g)):
         g = groups[gid]
         if gid in NAMED:
@@ -1060,7 +1298,12 @@ def main():
         g['floor'] = max(floor_of(f) for f in g['items'])
         g['score'] = round(max(g['lootScore'], g['floor']), 3)
         g['items'].sort(key=lambda f: (-loot[f], f))
-        heavy = max(g['items'], key=lambda f: items[f]['weight'] * units.get(category(items[f]) or 'E', 0))
+        # The dearest member by weight, of the category most of the group's candidates are of (a family of hats
+        # with a few keepsake hats among them stays clothing: the row's dc is its category in the saved table).
+        cats = Counter(category(items[f]) for f in g['items'] if f in cand_set)
+        main = cats.most_common(1)[0][0] if cats else None
+        pool = [f for f in g['items'] if category(items[f]) == main] or g['items']
+        heavy = max(pool, key=lambda f: items[f]['weight'] * units.get(category(items[f]) or 'E', 0))
         g['wt'] = items[heavy]['weight']
         g['dc'] = items[heavy]['dc']
         if g['id'] in FAMILY_ICONS and FAMILY_ICONS[g['id']] in g['items']:
@@ -1070,11 +1313,13 @@ def main():
 
     bands_after = Counter(band(g['score']) for g in groups.values())
 
-    keep_ids(groups, read_previous(), items)
+    previous = read_previous()
+    keep_ids(groups, previous, items)
     write_lua(groups)
     if report_dir:
         write_report(report_dir, groups, excluded, before, med_before, bands_before, bands_after, items, names_ko,
                      names_en, loot, paths, med_groups, candidates)
+        write_family_report(report_dir, groups, previous, items, names_ko, cand_set, paths, units, category)
     print('candidates before: %d types (%s)' % (len(before), dict(bands_before)))
     print('groups after: %d (%s), from %d kinds' % (len(groups), dict(bands_after), len(candidates)))
     print('left out:', {k: len(v) for k, v in excluded.items()})
@@ -1115,6 +1360,49 @@ def write_lua(groups):
     ] + body + ['}']
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(out) + '\n')
+
+
+def write_family_report(folder, groups, previous, items, names_ko, cand_set, paths, units, category):
+    """The families, each with its members (C: a house candidate), and the earlier groups the families took apart."""
+    ui_ko = json.load(open(UI_KO, encoding='utf-8'))
+    ui_en = json.load(open(UI_KO.replace(os.sep + 'KO' + os.sep, os.sep + 'EN' + os.sep), encoding='utf-8'))
+    source = {fid: how for fid, how, _ in FAMILIES}
+    path = os.path.join(folder, 'request-families.txt')
+    where = {t: g['id'] for g in groups.values() for t in g['items']}
+    with open(path, 'w', encoding='utf-8') as f:
+        for fid, _, _ in FAMILIES:
+            g = groups.get(fid)
+            if not g:
+                f.write('%s: no candidate\n' % fid)
+                continue
+            key = FAMILY_NAMES[fid]
+            f.write('%s\t%s\t%s\t%s\t%s %.3f (loot %.3f, floor %.1f)\t%d kinds, %d candidates\ticon %s\n' % (
+                fid, ui_ko[key], ui_en[key], source[fid], band(g['score']), g['score'], g['lootScore'], g['floor'],
+                len(g['items']), sum(1 for t in g['items'] if t in cand_set), g['icon']))
+            worth = {t: items[t]['weight'] * units.get(category(items[t]) or 'E', 0) for t in g['items']}
+            price_floor = g['wt'] * units.get(category(dict(items[g['items'][0]], dc=g['dc'])) or 'E', 0)
+            price = BAND_PRICE[band(g['score'])]
+            cheapest = min(worth.values())
+            if price_floor > price and cheapest < price_floor / 3:
+                f.write('    !! price floor %d over the band price %d; cheapest member worth %d\n' % (
+                    price_floor, price, cheapest))
+            if g.get('merged'):
+                f.write('    joined by name: %s\n' % ', '.join(g['merged']))
+            seen = []
+            for t in g['items']:
+                label = strip_variant(names_ko.get(t, t))
+                mark = label + ('' if t in cand_set else '*')
+                if label not in [x.rstrip('*') for x in seen]:
+                    seen.append(mark)
+            f.write('    ' + ', '.join(seen) + '\n')
+        f.write('\nEARLIER GROUPS SPLIT (kind -> group now)\n')
+        fams = set(FAMILY_NAMES)
+        for oid, _, ms in previous:
+            now = Counter(where.get(t, '-') for t in ms)
+            if len(now) > 1 and any(k in fams for k in now) and any(k not in fams and k != '-' for k in now):
+                f.write('%s: %s\n' % (oid, ', '.join('%s %s->%s' % (t, names_ko.get(t, ''), where.get(t, '-'))
+                                                      for t in ms)))
+    print('report:', path)
 
 
 def write_report(folder, groups, excluded, before, med_before, bands_before, bands_after, items, names_ko, names_en,

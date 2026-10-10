@@ -320,24 +320,79 @@ test("a group is one level above the item type: a narrow tag, the book families,
     eq(R.keyOf("Base.Harmonica"), "Base.Harmonica", "a kind on its own is its own group")
 end)
 
-test("the bras are one group however vanilla's names misspell them: a stray bracket, 'frilly' in Korean only (names stood in for here)", function()
+test("the bras are underwear however vanilla's names misspell them; the hide bra is not", function()
     local key = R.keyOf("Base.Bra_Strapless_White")
-    eq(key, "n:Bra_Strapless")
+    eq(key, "underwear")
     for _, t in ipairs({ "Base.Bra_Strapless_Black", "Base.Bra_Strapless_AnimalPrint", "Base.Bra_Strapless_RedSpots",
-        "Base.Bra_Strapless_FrillyBlack", "Base.Bra_Strapless_FrillyPink", "Base.Bra_Strapless_FrillyRed" }) do
+        "Base.Bra_Strapless_FrillyBlack", "Base.Bra_Strapless_FrillyPink", "Base.Bra_Strapless_FrillyRed",
+        "Base.Bra_Straps_Black", "Base.Briefs_White", "Base.Boxers_White" }) do
         eq(R.keyOf(t), key, t)
     end
-    truthy(R.keyOf("Base.Bra_Strapless_Hide") ~= key, "the hide bra is another thing ('Bra - Strapless Hide')")
-    truthy(R.keyOf("Base.Bra_Straps_Black") ~= key, "a bra with straps is another group")
-    local names = { ["Base.Bra_Strapless_White"] = "Strapless Bra", ["Base.Bra_Strapless_Black"] = "Strapless Bra]",
-        ["Base.Bra_Strapless_AnimalPrint"] = "Strapless Bra [Spots]", ["Base.Bra_Strapless_RedSpots"] = "Strapless Bra [Dots]",
-        ["Base.Bra_Strapless_FrillyBlack"] = "Strapless Frilly Bra", ["Base.Bra_Strapless_FrillyPink"] = "Strapless Frilly Bra",
-        ["Base.Bra_Strapless_FrillyRed"] = "Strapless Frilly Bra" }
-    local was = getItemNameFromFullType
-    getItemNameFromFullType = function(t) return names[t] end
+    truthy(R.keyOf("Base.Bra_Strapless_Hide") ~= key, "made from raw hide: never a family's (MAKESHIFT)")
+    eq(R.group(key).name, "IGUI_OA_ReqGroup_underwear")
+end)
+
+test("a family is one ordinary noun above the kinds: any can, any ball, any hat", function()
+    for _, t in ipairs({ "Base.CannedPeas", "Base.CannedCarrots2", "Base.TinnedBeans", "Base.TunaTin",
+        "Base.MysteryCan", "Base.CannedMilk" }) do
+        eq(R.keyOf(t), "cans", t)
+    end
+    truthy(R.keyOf("Base.CannedPeasOpen") ~= "cans", "an opened tin is not the thing bought")
+    truthy(R.keyOf("Base.Dogfood") ~= "cans", "a tin of dog food is pet food")
+    eq(R.keyOf("Base.CannedCarrots"), "jarred", "a home-canned jar is not a tin")
+    eq(R.keyOf("Base.CannedPeas_Box"), "cannedbox", "a box of twelve tins is a store's stock")
+    for _, t in ipairs({ "Base.SoccerBall", "Base.Baseball", "Base.Basketball", "Base.GolfBall", "Base.TennisBall" }) do
+        eq(R.keyOf(t), "balls", t)
+    end
+    eq(R.keyOf("Base.Icecream"), "icecream"); eq(R.keyOf("Base.Popsicle"), "icecream")
+    eq(R.keyOf("Base.Hat_BaseballCap"), "hats"); eq(R.keyOf("Base.Hat_Beret"), "hats")
+    truthy(R.keyOf("Base.Hat_HardHat") ~= "hats", "a hard hat is a helmet")
+    eq(R.group("hats").dc, "Accessory", "a few keepsake hats do not make the hats keepsakes")
+    eq(R.iconType("cans"), "Base.TinnedBeans")
+end)
+
+test("any member of a family fills its line, and the units of all its kinds count together", function()
+    R.useGroups({
+        { id = "cans", score = 3, wt = 0.8, dc = "Food", name = "IGUI_OA_ReqGroup_cans",
+            items = { "Base.CannedPeas", "Base.CannedCarrots2", "Base.TinnedBeans" } },
+        { id = "Base.Item1", score = 2, wt = 0.1, dc = "Junk", items = { "Base.Item1" } },
+    })
+    R.install(R.build({}, infoOf, OA.RequestGroups))
+    local record = OA.Store.ensure("p", "P")
+    OA.Support.setLevel(record, "reqcount", 3)
+    local e = R.entry(record, "Base.CannedCarrots2")
+    truthy(e, "the family is on the list")
+    eq(e.key, "cans")
+    eq(R.entry(record, "Base.CannedPeas").key, "cans", "one line for all its kinds")
+    R.consume(record, R.keyOf("Base.CannedPeas"), 4)
+    R.consume(record, R.keyOf("Base.TinnedBeans"), 3)
+    eq(R.entry(record, "Base.CannedCarrots2").used, 7, "peas and beans fill the same line")
+    eq(R.memberNames("cans")[3], "Base.TinnedBeans", "the tooltip lists the kinds")
     R.useGroups(REAL_GROUPS)
-    eq(R.nameOf(key), "Strapless Bra", "a clean name: no stray bracket, not the frilly one")
-    getItemNameFromFullType = was
+end)
+
+test("a saved list holding the old variant ids moves to their family, once, the settled units summed", function()
+    R.useGroups(REAL_GROUPS)
+    R.install(R.build({}, infoOf, REAL_GROUPS))
+    local record = OA.Store.ensure("p", "P")
+    local codex = OA.Store.section(record, "codex")
+    codex.req = { week = OA.week(), extra = 0, groups = true,
+        items = { "n:Canned_Peas", "Base.Harmonica", "n:Canned_Carrots", "Base.TunaTin" },
+        used = { ["n:Canned_Peas"] = 2, ["n:Canned_Carrots"] = 3, ["Base.TunaTin"] = 1, ["Base.Harmonica"] = 1 },
+        strange = "n:Canned_Carrots" }
+    codex.reqPin = "n:Canned_Tuna"
+    local list = R.list(record)
+    eq(list[1], "cans", "the first old id's place is kept")
+    eq(list[2], "Base.Harmonica")
+    local n = 0
+    for _, key in ipairs(list) do if key == "cans" then n = n + 1 end end
+    eq(n, 1, "three old lines are one family line")
+    eq(R.used(record)["cans"], 6, "2 + 3 + 1")
+    eq(R.used(record)["n:Canned_Peas"], nil, "the old keys are gone")
+    eq(codex.req.strange, "cans")
+    eq(codex.reqPin, "cans")
+    eq(R.entry(record, "Base.CannedTomato2").used, 6, "found by any can")
+    R.useGroups(REAL_GROUPS)
 end)
 
 test("a group's name is the shortest name the others have inside them, else what they share", function()
@@ -372,8 +427,8 @@ test("the ids the table dropped are kept in the group that took them over", func
     end
     truthy(n > 0, "some groups were joined")
     R.useGroups(REAL_GROUPS)
-    eq(R.keyOf("n:Bra_Strapless_"), "n:Bra_Strapless", "the frilly strapless bras' old id")
-    eq(R.keyOf("n:Bra_Strapless"), "n:Bra_Strapless")
+    eq(R.keyOf("n:Bra_Strapless_"), "underwear", "an id two tables old (the frilly strapless bras') still finds it")
+    eq(R.keyOf("n:Bra_Strapless"), "underwear", "the variant group's id finds its family")
     eq(R.keyOf("n:Nothing_Like_It"), "n:Nothing_Like_It", "an id nobody knows stays what it is")
 end)
 
@@ -388,15 +443,15 @@ test("a saved week's list with ids the table no longer has is moved to their gro
         strange = "n:Bra_Strapless_" }
     codex.reqPin = "n:Bra_Strapless_"
     local list = R.list(record)
-    eq(list[1], "n:Bra_Strapless", "the old kind's place is kept")
+    eq(list[1], "underwear", "the old kind's place is kept")
     eq(list[2], "Base.Harmonica")
     local n = 0
-    for _, key in ipairs(list) do if key == "n:Bra_Strapless" then n = n + 1 end end
+    for _, key in ipairs(list) do if key == "underwear" then n = n + 1 end end
     eq(n, 1, "the three ids are one group, once")
-    eq(R.used(record)["n:Bra_Strapless"], 5, "what the week settled of each adds up")
+    eq(R.used(record)["underwear"], 5, "what the week settled of each adds up")
     eq(R.used(record)["Base.Harmonica"], 1)
-    eq(codex.req.strange, "n:Bra_Strapless")
-    eq(codex.reqPin, "n:Bra_Strapless")
+    eq(codex.req.strange, "underwear")
+    eq(codex.reqPin, "underwear")
     eq(R.entry(record, "Base.Bra_Strapless_FrillyRed").used, 5, "found by any kind of the group")
     eq(R.entry(record, "n:Bra_Strapless_").left, R.entry(record, "n:Bra_Strapless").left, "and by the old id")
     R.useGroups(REAL_GROUPS)
@@ -427,7 +482,9 @@ test("the band comes from how the group is come by: charcoal and watermelons are
     eq(bandOf("Base.CharcoalCrafted"), "common", "a kiln makes twelve from two logs")
     eq(bandOf("Base.Watermelon"), "common", "a farm grows them")
     eq(bandOf("Base.BookCarpentry3"), "common", "any skill book")
-    eq(bandOf("Base.TvBlack"), "normal", "a television (of any brand) comes out of a TV crate now and then")
+    eq(bandOf("Base.TvBlack"), "rare", "a television (of any brand) comes out of a TV crate now and then: less than a"
+        .. " third of the median group's loot, now that the median group is a family")
+    eq(bandOf("Base.CannedPeas"), "common", "one tin is normal; any tin is common")
 end)
 
 test("a group's price is never below its dearest member's value: a television is 6,000, not 600", function()
