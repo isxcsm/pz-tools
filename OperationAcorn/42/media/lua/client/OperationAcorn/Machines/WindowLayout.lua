@@ -5,8 +5,9 @@
 -- name, number, the light and the switch), the strip (what it does or what to do), then per kind: the jobs a lane each,
 -- the two bins, the three numbers of its performance, the water gauge, the lure's hours, and a card a part.
 -- A machine with parts is wide, in two columns under the plate and the strip (one column of the jobs, the bins, the
--- performance and three parts was taller than a 900p screen allows): on the left the jobs and the performance (its
--- three numbers one above the other), on the right the bins one above the other, then the parts. The others (no
+-- performance and three parts was taller than a 900p screen allows): on the left the jobs and under them the bins one
+-- above the other, on the right the performance (its three numbers on a row) and the parts, so that both columns begin
+-- with a heading on the same line. The others (no
 -- parts: the locker, the rain storage, the lure) are one column. The window's width is the layout's (Layout.widthOf).
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
@@ -20,11 +21,12 @@ Machines.WindowLayout = Layout
 
 -- The window's width of a machine without parts and of one with (two columns), its margin, the room between blocks
 -- and before a section, and between the two columns (design units). In the wide one the left column (the jobs and the
--- performance) is narrow and the right (the bins and the cards of the parts) is as wide as the single column's body:
--- a card needs it for a name, its tier, two buttons and the longest of its lines, in either language.
+-- bins) is as wide as a bin's longest note needs ("1200 things · goes on once the output is emptied"), and the right
+-- (the performance and the cards of the parts) about as wide as the single column's body: a card needs it for a name,
+-- its tier, two buttons and the longest of its lines, in either language.
 Layout.WIDTH = 420
 Layout.WIDE = 690
-Layout.LEFT = 250
+Layout.LEFT = 270
 Layout.PAD = 10
 Layout.GAP = 6
 Layout.SECTION = 8
@@ -183,21 +185,22 @@ local function boxes(L, list, x, y, w)
     return y + #list * h + (#list - 1) * BOX_GAP
 end
 
--- The performance: three cells one above the other, a number and a line under it; how each is made is in its
--- tooltip.
+-- The performance: three cells on a row, a number and a line under it; how each is made is in its tooltip.
 local function perf(L, pf, x, y, w)
     local p, fh = L.p, L.fh
     y = head(L, x, y, w, getText("IGUI_OA_Machine_Perf"), pf.right)
+    local n = #pf.cells
+    local cw = floor((w - (n - 1) * Layout.GAP) / n)
     local h = 5 + 2 * fh + 5
     for i, c in ipairs(pf.cells) do
-        local cy = y + (i - 1) * (h + Layout.GAP)
-        Draw.panel(L, x, cy, w, h)
-        Draw.fit(L, c.value, x + 7, cy + 5, w - 14, p.value)
-        Draw.fit(L, c.sub, x + 7, cy + 5 + fh, w - 14, colour(p, c.subTone))
-        local hit = Draw.hit(L, x, cy, w, h, nil, tipOf(p, c.tip))
+        local cx = x + (i - 1) * (cw + Layout.GAP)
+        Draw.panel(L, cx, y, cw, h)
+        Draw.fit(L, c.value, cx + 7, y + 5, cw - 14, p.value)
+        Draw.fit(L, c.sub, cx + 7, y + 5 + fh, cw - 14, colour(p, c.subTone))
+        local hit = Draw.hit(L, cx, y, cw, h, nil, tipOf(p, c.tip))
         hit.hover = true
     end
-    return y + #pf.cells * h + (#pf.cells - 1) * Layout.GAP
+    return y + h
 end
 
 -- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that make sense, its condition with the line under which
@@ -339,18 +342,18 @@ local function lure(L, u, x, y, w)
     return y + btn
 end
 
--- The two columns of a machine with parts, from y: the jobs and the performance (and the rain's or the lure's section,
--- which no kind with parts has) on the left, the bins and the parts on the right. Returns the lower end.
+-- The two columns of a machine with parts, from y: the jobs and the bins (and the rain's or the lure's section, which no
+-- kind with parts has) on the left, the performance and the parts on the right. Returns the lower end.
 local function columns(L, m, x, y, w)
     local lw = Layout.LEFT
     local rx = x + lw + Layout.COLUMN_GAP
     local rw = w - lw - Layout.COLUMN_GAP
     local ly, ry = y, y
     if m.jobs then ly = jobs(L, m.jobs, x, ly, lw) end
-    if m.perf then ly = perf(L, m.perf, x, ly + (m.jobs and Layout.SECTION or 0), lw) end
+    if m.boxes and #m.boxes > 0 then ly = boxes(L, m.boxes, x, ly + (ly > y and Layout.GAP or 0), lw) end
     if m.rain then ly = rain(L, m.rain, x, ly + Layout.SECTION, lw) end
     if m.lure then ly = lure(L, m.lure, x, ly + Layout.SECTION, lw) end
-    if m.boxes and #m.boxes > 0 then ry = boxes(L, m.boxes, rx, ry, rw) end
+    if m.perf then ry = perf(L, m.perf, rx, ry, rw) end
     if m.parts then ry = parts(L, m.parts, rx, ry + (ry > y and Layout.SECTION or 0), rw) end
     return math.max(ly, ry)
 end

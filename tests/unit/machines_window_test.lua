@@ -786,17 +786,18 @@ local function koApi()
     _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
         font = function(_, px) return px end,
         fontHeight = function(_, key) return key end,
-        -- a letter 7 wide at 16, a Hangul syllable 15
+        -- a letter 5.5 wide at 16, a Hangul syllable 10.5: the API's Small measured in game (a letter about 5.1 on
+        -- average in English text, a syllable about 9.8), with a margin
         measure = function(_, key, s)
             local w = 0
-            for i = 1, #tostring(s) do w = w + (string.byte(s, i) >= 0x1100 and 15 or 7) end
+            for i = 1, #tostring(s) do w = w + (string.byte(s, i) >= 0x1100 and 10.5 or 5.5) end
             return w * key / 16
         end,
         draw = function() end,
     } }
 end
 
-for _, screenH in ipairs({ 400, 720, 900, 1080, 1440 }) do
+for _, screenH in ipairs({ 300, 400, 720, 900, 1080, 1440 }) do
     test("with the API's fonts at " .. screenH .. "p the window keeps inside the screen, its body scrolling when taller", function()
         _G.getTimestampMs = function() return 1 end
         local UI = loadWindow(16)
@@ -813,7 +814,7 @@ for _, screenH in ipairs({ 400, 720, 900, 1080, 1440 }) do
         window:initialise()
         window:instantiate()
         truthy(window.height <= math.floor(screenH * 0.9), screenH .. ": " .. window.height .. " px high")
-        if screenH < 540 then truthy(window.body.contentH > window.body.height, "taller than a small screen allows") end
+        if screenH < 400 then truthy(window.body.contentH > window.body.height, "taller than a small screen allows") end
         local body = window.body
         if body.contentH > body.height then
             truthy(body:onMouseWheel(1), "the wheel scrolls it")
@@ -948,7 +949,7 @@ for _, lang in ipairs({ "EN", "KO" }) do
     end
 end
 
-test("in two columns: the jobs and the performance on the left, the bins and the parts on the right, none across", function()
+test("in two columns: the jobs and the bins on the left, the performance and the parts on the right, none across", function()
     local UI, Draw, Model, Layout = loadWindow(16)
     useFonts(UI, 16)
     for _, kind in ipairs(WIDE_KINDS) do
@@ -958,31 +959,34 @@ test("in two columns: the jobs and the performance on the left, the bins and the
         local w = width - 2 * Layout.PAD
         local leftEnd = Layout.PAD + Layout.LEFT
         local rightStart = leftEnd + Layout.COLUMN_GAP
-        truthy(rightStart < Layout.PAD + w and w - Layout.LEFT - Layout.COLUMN_GAP >= Layout.WIDTH - 2 * Layout.PAD,
-            kind .. ": the right column is as wide as the single one")
+        truthy(rightStart < Layout.PAD + w and w - Layout.LEFT - Layout.COLUMN_GAP >= 380,
+            kind .. ": the right column is wide enough for a part's card")
                 -- the columns start at the Jobs head; the plate and the strip above are the whole width
-        local top
+        local top, perfTop
         for _, t in ipairs(textBoxes(UI, L)) do
             if t.s == getText("IGUI_OA_Machine_Jobs") then top = t.y end
+            if t.s == getText("IGUI_OA_Machine_Perf") then perfTop = t.y end
         end
         truthy(top, kind .. ": the jobs head")
+        eq(perfTop, top, kind .. ": both columns begin with a head on the same line")
         for _, t in ipairs(textBoxes(UI, L)) do
             if t.y >= top then
                 truthy(t.x + t.w <= leftEnd + 0.5 or t.x >= rightStart - 0.5, kind .. ": '" .. t.s .. "' across the columns")
             end
         end
-        local perfs, opens, cards, ys = 0, 0, 0, {}
+        local perfs, opens, cards, ys, perfYs = 0, 0, 0, {}, {}
         for _, hit in ipairs(L.hits) do
             if hit.y >= top then
                 truthy(hit.x + hit.w <= leftEnd + 0.5 or hit.x >= rightStart - 0.5, kind .. ": a hit across the columns")
             end
             if hit.hover and not hit.id then
                 perfs = perfs + 1
-                truthy(hit.x + hit.w <= leftEnd + 0.5, kind .. ": a performance cell on the left")
+                perfYs[#perfYs + 1] = hit.y
+                truthy(hit.x >= rightStart, kind .. ": a performance cell on the right")
             elseif hit.id == "open" then
                 opens = opens + 1
                 ys[#ys + 1] = hit.y
-                truthy(hit.x >= rightStart, kind .. ": a bin on the right")
+                truthy(hit.x + hit.w <= leftEnd + 0.5, kind .. ": a bin on the left")
             elseif hit.id == "part" then
                 cards = cards + 1
                 truthy(hit.x >= rightStart, kind .. ": a part on the right")
@@ -992,6 +996,7 @@ test("in two columns: the jobs and the performance on the left, the bins and the
         eq(opens, 2, kind .. ": two bins")
         truthy(cards >= #Data.KINDS[kind].slots, kind .. ": a button a part")
         truthy(ys[2] > ys[1], kind .. ": the bins one above the other")
+        truthy(perfYs[1] == perfYs[2] and perfYs[2] == perfYs[3], kind .. ": the performance on one row")
         truthy(h > top, kind .. ": a body")
     end
 end)
