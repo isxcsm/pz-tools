@@ -27,7 +27,8 @@ local function setup()
     ISToolTipInv = { render = original }
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = 3, milestones = 0, serial = 1, levels = {} }
-    record.codex = { kinds = { Pen = true }, req = { week = 5, items = { "Base.Pencil" }, used = { ["Base.Pencil"] = 6 } } }
+    record.codex = { kinds = { Pen = true }, req = { week = 5, items = { "Base.Pencil" }, used = { ["Base.Pencil"] = 6 },
+        band = { ["Base.Pencil"] = "common" }, qty = { ["Base.Pencil"] = 10 } } }
     OA.Requests.install({ version = 1, types = { "Base.Pencil" }, score = { 2 }, kinds = {}, total = {}, n = 1 })
     getPlayer = function() return { getModData = function() return { OA_Id = "p1" } end } end
     getScriptManager = function() return { FindItem = function() return nil end } end

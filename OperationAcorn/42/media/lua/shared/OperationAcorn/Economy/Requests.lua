@@ -4,19 +4,22 @@
 -- books" any skill book, "canned food" any sealed tin, "hats" any hat. The groups and how easy each is to come by are made from the game's files by
 -- tools/request_groups.py (RequestGroups.lua; the rules head the tool): a group's key is its id, or the item type
 -- itself for a group of one. A type no group has (a strange item the story names) is a group of one with no score.
+-- A group's score is how many of its kinds an ordinary week turns up by every way the game has (looting, cars,
+-- foraging, farming, animals, fishing and trapping, making): the tool's availability profile.
 -- The world save (`requests` section) keeps the candidates found at the first world start:
---   types / score / cat (parallel lists): the candidate groups' keys, their commonness score and category;
+--   types / score / cat (parallel lists): the candidate groups' keys, their score and category;
 --   kinds: every house loot kind (by base type) with its category, and total: how many there are per category (the
 --   codex's category completion counts against these).
--- A record's list is drawn from the candidates by the stage it has reached: a score of 1 or more from the start,
--- 0.3 to 1 from stage 1, less than 0.3 from stage 2. The categories the team wants at that stage are twice as
--- likely. The list is the record's own, redrawn when the week changes, and grows (is topped up) with the stage. A
--- group is on it once.
--- A group on the list is bought at a fixed price for each unit, by its commonness (NUMBERS 2): the first `qty` units
--- of the week at `price` (times the request price reward), and a bonus of trust once the line is full. The price is
--- never below what the group's dearest member is worth by weight (Requests.floorOf), and a unit never fetches less
--- than it would unrequested at the day's index (Value.appraiseLine). Units over the quantity and items not on the
--- list are valued as any other item.
+-- The candidates are ranked by score into the bands (Requests.ranks: the commonest half common, the next 35% normal,
+-- the rest rare), and a group's weekly quantity follows its rank within its band. A record's list is drawn from the
+-- candidates by the stage it has reached: common from the start, normal from stage 1, rare from stage 2. The
+-- categories the team wants at that stage are twice as likely. The list is the record's own, redrawn when the week
+-- changes, and grows (is topped up) with the stage. A group is on it once, and keeps the band and quantity it was drawn
+-- with for the week (rq.band, rq.qty), whatever the table does meanwhile.
+-- A group on the list is bought at a fixed price for each unit (NUMBERS 2): the first `qty` units of the week, each at
+-- its band's price or, for a kind worth more by weight, its own worth (Requests.priceOf), times the request price
+-- reward, and a bonus of trust once the line is full. A unit never fetches less than it would unrequested at the day's
+-- index (Value.appraiseLine). Units over the quantity and items not on the list are valued as any other item.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
@@ -28,19 +31,24 @@ local Requests = {}
 OA.Requests = Requests
 
 -- 2: the candidates are groups (1 had item types). 3: the ids of the groups that vanilla's name typos split are joined
--- (the saved candidates hold the old ids). The table is made again too when RequestGroups.lua is (its stamp): a save
--- holds the group ids and scores of the table it was made from.
-Requests.VERSION = 3
+-- (the saved candidates hold the old ids). 4: the scores are the availability profile's (a week's rate), ranked into
+-- the bands. The table is made again too when RequestGroups.lua is (its stamp): a save holds the group ids and scores
+-- of the table it was made from.
+Requests.VERSION = 4
 Requests.DUE_PICKS = 2          -- items of a category that comes back after a refusal
 
--- The commonness bands: from this score up (1 and more common, 0.3 to 1 normal, less than 0.3 rare). A band has the
--- price of a unit, the units a week takes at it and the trust a full line gives (NUMBERS 2).
-Requests.COMMON_FROM, Requests.NORMAL_FROM = 1, 0.3
+-- The commonness bands, by rank (NUMBERS 2): the candidates ranked by score, the most available first; the first
+-- BAND_SHARE.common of them are common, the next BAND_SHARE.normal normal, the rest rare. A band has the price of a
+-- unit, the units a week takes (qtyMin for the least available group of the band up to qtyMax for the most, along the
+-- rank to the power QTY_CURVE, so the band's mean is about qty), and the trust a full line gives. A group that is no
+-- candidate (a strange item the story names) is rare and takes qty.
+Requests.BAND_SHARE = { common = 0.50, normal = 0.35 }
 Requests.BANDS = {
-    common = { price = 600, qty = 10, trust = 5 },
-    normal = { price = 1500, qty = 5, trust = 10 },
-    rare = { price = 4000, qty = 3, trust = 20 },
+    common = { price = 600, qtyMin = 5, qtyMax = 20, qty = 10, trust = 5 },
+    normal = { price = 1500, qtyMin = 3, qtyMax = 9, qty = 5, trust = 10 },
+    rare = { price = 4000, qtyMin = 2, qtyMax = 5, qty = 3, trust = 20 },
 }
+Requests.QTY_CURVE = 2
 Requests.BAND_ORDER = { "common", "normal", "rare" }
 
 -- The rooms that count as a house (NUMBERS 12): their containers' loot is the "house loot" of the design.
@@ -53,15 +61,16 @@ Requests.HOUSE_ROOMS = {
 -- The groups ------------------------------------------------------------------------------------------------
 
 -- The rows in use (RequestGroups.lua's, or a test's) and what is looked up in them, made once for the rows: byKey
--- (key -> row) and keyOfType (member type -> key); names, member names and floors are made once for a key.
+-- (key -> row) and keyOfType (member type -> key); names, member names and the dearest kind's worth are made once
+-- for a key.
 local rows, byKey, keyOfType, aliasOf
-local names, memberNames, floors = {}, {}, {}
+local names, memberNames, dearest = {}, {}, {}
 
 local function index()
     local now = OA.RequestGroups or {}
     if rows ~= now then
         rows, byKey, keyOfType, aliasOf = now, {}, {}, {}
-        names, memberNames, floors = {}, {}, {}
+        names, memberNames, dearest = {}, {}, {}
         for _, row in ipairs(rows) do
             byKey[row.id] = row
             for _, t in ipairs(row.items) do keyOfType[t] = row.id end
@@ -79,6 +88,7 @@ end
 -- Puts other rows in place of the generated ones (a test with its own item names; {} for none).
 function Requests.useGroups(list)
     OA.RequestGroups = list
+    Requests.forget()
     index()
 end
 
@@ -265,21 +275,62 @@ function Requests.memberNames(key)
     return hit
 end
 
--- What the group's dearest member is worth by weight at index 1 (its weight times its category's credits): the
--- request price is never below it (a television is worth 6,000; a common line pays 600). 0 for a type no group has.
-function Requests.floorOf(key)
-    index()
-    local hit = floors[key]
+-- What one of an item type is worth by weight at index 1 (its script's weight times its category's credits), made
+-- once for a type: a requested unit is paid at least that (a television is worth 6,000; a common line pays 600). 0 for
+-- a type the game has no script of, or one the boxes do not take.
+local worths = {}
+function Requests.worthOf(fullType)
+    local hit = worths[fullType]
     if hit == nil then
         hit = 0
-        local row = Requests.group(key)
-        if row and row.wt then
-            local cat = OA.Categories.of({ fullType = row.items[1], weight = row.wt, displayCategory = row.dc })
-            if cat then hit = row.wt * OA.Categories.UNIT[cat] end
+        local manager = getScriptManager and getScriptManager()
+        local script = manager and manager:FindItem(fullType)
+        if script and OA.Value then
+            local info = OA.Value.infoFromScript(script)
+            local cat = OA.Categories.of(info)
+            if cat then hit = math.max(info.weight or 0, 0) * OA.Categories.UNIT[cat] end
         end
-        floors[key] = hit
+        worths[fullType] = hit
     end
     return hit
+end
+
+-- What the cheapest and the dearest kind a group takes are worth (Requests.worthOf), made once for a key: the ends
+-- of the line's prices. lo, hi.
+function Requests.worthRange(key)
+    index()
+    local hit = dearest[key]
+    if hit == nil then
+        hit = {}
+        for _, t in ipairs(Requests.members(key)) do
+            local w = Requests.worthOf(t)
+            hit.lo = math.min(hit.lo or w, w)
+            hit.hi = math.max(hit.hi or w, w)
+        end
+        dearest[key] = hit
+    end
+    return hit.lo or 0, hit.hi or 0
+end
+
+-- Forgets the worths made (a test with its own scripts, or its own rows).
+function Requests.forget()
+    worths, dearest = {}, {}
+end
+
+-- The price of a requested unit worth `worth` by weight (at index 1) on a line of a band, for a record: the band's
+-- price or the worth, whichever is more, times the request price reward, to ten credits.
+function Requests.unitPrice(record, band, worth)
+    local base = math.max(Requests.BANDS[band].price, worth or 0)
+    return math.floor(base * OA.Trust.rewards(record).requestPrice / 10 + 0.5) * 10
+end
+
+-- The price of a requested unit worth `worth` on a line (as Requests.line makes it: `price` the band's, `base` the
+-- band's before the reward, `mult` the reward): the line's price, or the unit's own worth times the reward when that
+-- is more. Each kind of a group is paid its own worth, never the dearest kind's.
+function Requests.priceOf(line, worth)
+    local base = line.base or line.price
+    if not worth or worth <= base then return line.price end
+    return math.floor(worth * (line.mult or 1) / 10 + 0.5) * 10
 end
 
 -- The table -------------------------------------------------------------------------------------------------
@@ -380,6 +431,32 @@ function Requests.scan()
     return Requests.build(sums, infoOf, rows, function(t) return infoOf(t) ~= nil end)
 end
 
+-- The bands of a save from before the ranks (Requests.VERSION 3 and older): a score of 1 and more was common, 0.3 to
+-- 1 normal, less rare, and the week took 10, 5 or 3 units. Only a week's list drawn then is read by them.
+Requests.OLD_FROM = { common = 1, normal = 0.3 }
+Requests.OLD_QTY = { common = 10, normal = 5, rare = 3 }
+
+-- The lists of this week drawn before their band and quantity were kept on them (a save from before the ranks, its
+-- old table still in `world`) keep what they showed: the band of the old score and its quantity, for the rest of the
+-- week. The keys are the list's own (Requests.rekey moves them along with the list).
+local function keepOldLines(world)
+    if not (world.types and world.score) or (world.version or 0) >= 4 then return end
+    local old = {}
+    for i = 1, world.n or #world.types do old[world.types[i]] = world.score[i] end
+    for _, record in pairs(OA.Store.players()) do
+        local rq = record.codex and record.codex.req
+        if rq and rq.items and not rq.qty then
+            rq.band, rq.qty = {}, {}
+            for _, key in ipairs(rq.items) do
+                local s = old[key] or 0
+                local band = s >= Requests.OLD_FROM.common and "common"
+                    or (s >= Requests.OLD_FROM.normal and "normal" or "rare")
+                rq.band[key], rq.qty[key] = band, Requests.OLD_QTY[band]
+            end
+        end
+    end
+end
+
 -- The world's table, built the first time and again when a save from before the groups has one of item types or one
 -- made from another RequestGroups.lua (nil when the game's tables are not there, as on a client).
 function Requests.data()
@@ -387,6 +464,7 @@ function Requests.data()
     if world.version ~= Requests.VERSION or not world.types or (world.stamp and world.stamp ~= OA.RequestGroupsStamp) then
         local made = Requests.scan()
         if not made then return nil end
+        keepOldLines(world)
         for k in pairs(world) do world[k] = nil end
         for k, v in pairs(made) do world[k] = v end
         OA.log("request candidates:", world.n, "house loot kinds:", Requests.kindCount(world))
@@ -421,17 +499,74 @@ function Requests.categoryTotal(letter)
     return world and world.total and world.total[letter] or 0
 end
 
--- The band of a commonness score.
-function Requests.band(score)
-    if score >= Requests.COMMON_FROM then return "common" end
-    if score >= Requests.NORMAL_FROM then return "normal" end
-    return "rare"
+-- The bands and weekly quantities of a table's candidates (`world` as Requests.data keeps it): { band = { key = band },
+-- qty = { key = units } }. The candidates ranked by score, the most available first; the first BAND_SHARE.common of
+-- them common, the next BAND_SHARE.normal normal, the rest rare; within a band the quantity runs from qtyMin (its
+-- last) to qtyMax (its first) along the rank, to the power QTY_CURVE. Groups of an equal score are never told apart:
+-- all take the first one's band and quantity. tools/request_groups.py does the same for its report.
+function Requests.rank(world)
+    local n = world.n or #world.types
+    local order = {}
+    for i = 1, n do order[i] = i end
+    table.sort(order, function(a, b)
+        local sa, sb = world.score[a], world.score[b]
+        if sa ~= sb then return sa > sb end
+        return world.types[a] < world.types[b]
+    end)
+    local share = Requests.BAND_SHARE
+    local cutCommon = math.floor(n * share.common + 0.5)
+    local cutNormal = math.floor(n * (share.common + share.normal) + 0.5)
+    local spans = { { "common", 1, cutCommon }, { "normal", cutCommon + 1, cutNormal }, { "rare", cutNormal + 1, n } }
+    local out = { band = {}, qty = {} }
+    -- Groups of an equal score are one: they take the band and quantity of the first of them.
+    local lead, leadScore
+    for _, span in ipairs(spans) do
+        local band, lo, hi = span[1], span[2], span[3]
+        local def = Requests.BANDS[band]
+        for pos = lo, hi do
+            local key = world.types[order[pos]]
+            local score = world.score[order[pos]]
+            if lead and score == leadScore then
+                out.band[key], out.qty[key] = out.band[lead], out.qty[lead]
+            else
+                local t = hi == lo and 1 or (hi - pos) / (hi - lo)
+                out.band[key] = band
+                out.qty[key] = math.floor(def.qtyMin + (def.qtyMax - def.qtyMin) * t ^ Requests.QTY_CURVE + 0.5)
+                lead, leadScore = key, score
+            end
+        end
+    end
+    return out
 end
 
--- Whether a score may be drawn at a stage.
-function Requests.eligible(score, stage)
-    if score >= Requests.COMMON_FROM then return true end
-    if score >= Requests.NORMAL_FROM then return stage >= 1 end
+-- The world's ranks (Requests.rank), made once for its table; nil when there is no table.
+local ranked, rankedFrom
+function Requests.ranks()
+    local world = Requests.data()
+    if not world or not world.types then return nil end
+    if rankedFrom ~= world.types then
+        ranked, rankedFrom = Requests.rank(world), world.types
+    end
+    return ranked
+end
+
+-- The band of a group (by key) in the world's table: rare for one that is no candidate (a strange item the story
+-- names).
+function Requests.bandOf(key)
+    local r = Requests.ranks()
+    return r and r.band[key] or "rare"
+end
+
+-- The units a week takes of a group (by key) in the world's table; the band's qty for one that is no candidate.
+function Requests.qtyOf(key)
+    local r = Requests.ranks()
+    return r and r.qty[key] or Requests.BANDS[Requests.bandOf(key)].qty
+end
+
+-- Whether a band may be drawn at a stage.
+function Requests.eligible(band, stage)
+    if band == "common" then return true end
+    if band == "normal" then return stage >= 1 end
     return stage >= 2
 end
 
@@ -482,6 +617,17 @@ function Requests.rekey(codex, force)
         local key = Requests.keyOf(t)
         used[key] = (used[key] or 0) + n
     end
+    -- The band and quantity a line was drawn with go with it; two lines that became one keep the first one's.
+    if rq.qty then
+        local band, qty = {}, {}
+        for _, t in ipairs(rq.items or {}) do
+            local key = Requests.keyOf(t)
+            if not qty[key] and rq.qty[t] then
+                qty[key], band[key] = rq.qty[t], rq.band and rq.band[t] or nil
+            end
+        end
+        rq.band, rq.qty = band, qty
+    end
     rq.items, rq.used = items, used
     if rq.strange then rq.strange = Requests.keyOf(rq.strange) end
     checked[rq] = rows
@@ -498,10 +644,11 @@ local function state(record)
 end
 
 -- Draws `n` more groups for a record into rq.items. Groups already there, refused categories and (unless forced)
--- scores too rare for the stage are left out.
+-- bands too rare for the stage are left out.
 local function draw(record, rq, n, forcedCategory)
     local world = Requests.data()
     if not world or not world.types or world.n == 0 then return end
+    local ranks = Requests.ranks()
     local stage = record.trade and record.trade.stage or 0
     local wants = {}
     for _, c in ipairs(OA.Market.STAGE_WANTS[stage] or {}) do wants[c] = true end
@@ -516,7 +663,7 @@ local function draw(record, rq, n, forcedCategory)
             if forcedCategory then
                 ok = cat == forcedCategory
             else
-                ok = Requests.eligible(world.score[i], stage) and not (cat and OA.Market.refused(cat))
+                ok = Requests.eligible(ranks.band[t], stage) and not (cat and OA.Market.refused(cat))
             end
             if ok then
                 local w = (cat and wants[cat]) and 2 or 1
@@ -542,6 +689,19 @@ local function draw(record, rq, n, forcedCategory)
         sum = sum - weights[pick]
         table.remove(pool, pick)
         table.remove(weights, pick)
+    end
+end
+
+-- Puts the band and weekly quantity of each line on the list that has none yet (rq.band, rq.qty): a line keeps them
+-- for the week. The world's ranks come first (a save from before them keeps its old lines' there: Requests.data);
+-- without a table (nothing to rank) nothing is kept.
+local function keepLines(rq)
+    if not Requests.ranks() then return end
+    rq.band, rq.qty = rq.band or {}, rq.qty or {}
+    for _, key in ipairs(rq.items) do
+        if not rq.qty[key] then
+            rq.band[key], rq.qty[key] = Requests.bandOf(key), Requests.qtyOf(key)
+        end
     end
 end
 
@@ -581,6 +741,7 @@ function Requests.list(record)
     end
     local want = OA.Trust.rewards(record).requestCount + (rq.extra or 0)
     if #rq.items < want then draw(record, rq, want - #rq.items) end
+    keepLines(rq)
     return rq.items
 end
 
@@ -591,26 +752,36 @@ function Requests.used(record)
     return rq.used
 end
 
--- The price of a unit of a band for a record: the band's price (or `floor` when that is more) times the request
--- price reward, to ten credits.
-function Requests.unitPrice(record, band, floor)
-    local base = math.max(Requests.BANDS[band].price, floor or 0)
-    return math.floor(base * OA.Trust.rewards(record).requestPrice / 10 + 0.5) * 10
+-- The band and weekly quantity of a group on a record's list: those it was drawn with this week (rq.band, rq.qty),
+-- else the world table's.
+function Requests.kept(record, key)
+    Requests.ranks()
+    local rq = record.codex and record.codex.req
+    if rq and rq.qty and rq.qty[key] then
+        return rq.band and rq.band[key] or Requests.bandOf(key), rq.qty[key]
+    end
+    return Requests.bandOf(key), Requests.qtyOf(key)
 end
 
 -- The line of a group on the list (by key), its weekly count read from `used` (the list itself is not looked at, so
 -- the client can call it on its copy without drawing anything). `fullType` is the key too (the name the parts that
--- show a line have read it by).
+-- show a line have read it by). `price` is what a unit of the band fetches; each kind is paid Requests.priceOf its own
+-- worth, from `priceMin` (the group's cheapest kind) to `priceMax` (its dearest); `base` and `mult` are the band's price
+-- and the reward.
 function Requests.line(record, key, used)
-    local band = Requests.band(Requests.scoreOf(key))
+    local band, qty = Requests.kept(record, key)
     local def = Requests.BANDS[band]
     local n = used[key] or 0
-    return { key = key, fullType = key, band = band, price = Requests.unitPrice(record, band, Requests.floorOf(key)),
-        qty = def.qty, trust = def.trust, used = n, left = math.max(0, def.qty - n), full = n >= def.qty }
+    local lo, hi = Requests.worthRange(key)
+    return { key = key, fullType = key, band = band, price = Requests.unitPrice(record, band, 0),
+        priceMin = Requests.unitPrice(record, band, lo), priceMax = Requests.unitPrice(record, band, hi),
+        base = def.price, mult = OA.Trust.rewards(record).requestPrice, qty = qty, trust = def.trust, used = n,
+        left = math.max(0, qty - n), full = n >= qty }
 end
 
 -- The record's line of a group on this week's list, by its key or a member's type: { key, fullType (the key), band,
--- price (a unit), qty (the week's units), trust (for a full line), used, left, full }; nil when it is not on the list.
+-- price (a unit of the band), priceMin, priceMax, base, mult, qty (the week's units), trust (for a full line), used,
+-- left, full }; nil when it is not on the list.
 function Requests.entry(record, keyOrType)
     local key = Requests.keyOf(keyOrType)
     local items = Requests.list(record)

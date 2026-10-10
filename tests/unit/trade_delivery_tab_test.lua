@@ -92,6 +92,9 @@ local function world(stage)
     OA.Market.update(OA.day())
     local record = OA.Store.ensure("p", "P")
     OA.Store.section(record, "trade").stage = stage or 0
+    -- The week's lines as drawn, each kept at 10 units (the table's rank would ask 5 to 20).
+    OA.Requests.list(record)
+    for key in pairs(record.codex.req.qty) do record.codex.req.qty[key] = 10 end
     return record
 end
 
@@ -316,6 +319,34 @@ test("a group's row shows the group's name and picture, and the mouse over it li
     tab.drawn = {}
     tab:render()
     eq(texts(tab), "", "nothing when the mouse is off the list")
+end)
+
+test("a group whose dearer kind fetches its own worth shows the cheapest price with a plus, the range in the tip", function()
+    OA.Requests.useGroups({ { id = "sets", score = 2, wt = 10, dc = "Electronics", items = { "Base.RadioX", "Base.TvX" } } })
+    OA.Requests.install(OA.Requests.build({}, function() return nil end, OA.RequestGroups))
+    local record = OA.Store.ensure("p", "P")
+    local Tab = load()
+    getItemNameFromFullType = function(t) return t end
+    ItemType = ItemType or { MOVEABLE = 1 }
+    local weight = { ["Base.RadioX"] = 0.5, ["Base.TvX"] = 10 }
+    getScriptManager = function()
+        return { FindItem = function(_, t)
+            if not weight[t] then return nil end
+            return { getFullName = function() return t end, getActualWeight = function() return weight[t] end,
+                getDisplayCategory = function() return "Electronics" end, isItemType = function() return false end,
+                getNormalTexture = function() return nil end }
+        end }
+    end
+    OA.Requests.forget()
+    local window = { palette = OA.Trade.UI.palette("crude"), record = record, tier = "crude" }
+    local tab = Tab:new(0, 0, 700, 408, window)
+    tab:createChildren()
+    tab:refresh()
+    local row = tab.data.rows[1]
+    eq(row.key, "sets")
+    eq(row.price, "600+", "the radio fetches the band's 600; the television more")
+    eq(row.tip[#row.tip], "IGUI_OA_Terminal_Del_TakesPrices 600 6,000")
+    OA.Requests.forget()
 end)
 
 test("the day moving on, or an event, refreshes the tab", function()

@@ -90,8 +90,9 @@ local function refreshText()
     return getText("IGUI_OA_Terminal_Del_Refresh", left)
 end
 
--- The tooltip lines of a group: the kinds it takes (a group of one has none).
-local function tipOf(key)
+-- The tooltip lines of a group: the kinds it takes (a group of one has none), and when its kinds fetch different
+-- prices (each its own worth when that is more than the band's), the range.
+local function tipOf(key, line)
     local names = OA.Requests.memberNames(key)
     if #names < 2 then return nil end
     local lines = { getText("IGUI_OA_Terminal_Del_Takes") }
@@ -99,6 +100,10 @@ local function tipOf(key)
     if shown < #names then shown = shown - 1 end
     for i = 1, shown do lines[#lines + 1] = names[i] end
     if shown < #names then lines[#lines + 1] = getText("IGUI_OA_Terminal_Del_TakesMore", #names - shown) end
+    if line.priceMin and line.priceMax and line.priceMax > line.priceMin then
+        lines[#lines + 1] = getText("IGUI_OA_Terminal_Del_TakesPrices", Text.credits(line.priceMin),
+            Text.credits(line.priceMax))
+    end
     return lines
 end
 
@@ -114,9 +119,12 @@ local function rowsOf(record, worth)
         local key = line.key
         rows[#rows + 1] = {
             key = key, name = OA.Requests.nameOf(key), texture = itemTexture(OA.Requests.iconType(key)),
-            tip = tipOf(key),
+            tip = tipOf(key, line),
             band = line.band, bandText = getText("IGUI_OA_Terminal_Del_Band_" .. line.band),
-            price = Text.credits(line.price), used = line.used, qty = line.qty, sealed = sealed[key] or 0,
+            -- The cheapest kind's price; "+" when a dearer kind of the group fetches more.
+            price = Text.credits(line.priceMin or line.price)
+                .. ((line.priceMax or 0) > (line.priceMin or line.price) and "+" or ""),
+            used = line.used, qty = line.qty, sealed = sealed[key] or 0,
             progress = line.used .. "/" .. line.qty, full = line.full, trust = "+" .. line.trust,
         }
     end
