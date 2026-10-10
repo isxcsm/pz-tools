@@ -36,6 +36,12 @@ Data.LIMIT_PER_WEIGHT = 1.75
 Data.BITE_DAYS = 7
 -- The 2nd board's k-th rank of a node costs ceil(k / BOARD_STEP) points (NUMBERS 6).
 Data.BOARD_STEP = 5
+-- Game hours a dose of an upgrade serum takes to adapt (DESIGN-terminal 19): the point comes when it is over, and doses
+-- taken meanwhile share the time. A first guess.
+Data.ADAPT_HOURS = 0.5
+-- The nodes that tell their first effect, once each (the order of the lines in the self-talk bundle FirstEffect, two a
+-- node).
+Data.FIRST_EFFECT = { "sense", "ledger", "overload", "furniture", "crowbar", "dash" }
 
 -- Item display categories by family, for the 2nd board's family weight (NUMBERS 12). Materials and furniture are the
 -- heavy-load node's, so they are not here.

@@ -84,9 +84,11 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shop` | P1 | 품목별 구매 시각, 주간 구매 수, 키트 대상별 사용 수 |
 | `shred` | P1 | 종류별 최근 분해 수(날마다 ×0.9), 처음 분해한 종류 |
 | `boxes`, `heli`, `orders` | P2 | 상자, 헬기(`line`: 정식 회선이 열림), 주문 |
-| `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수 |
+| `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수, `adapt`(투여 뒤 적응 중인 병 `{ endsAt = 끝나는 세계 시각, doses = { [트리 또는 "shared"] = 개수 } }`, 끝나면 점이 되고 사라진다), `firstEffect`(첫 효과를 낸 노드, 한 번씩) |
 | `infection` | P3 | 감염과 치료 (`shared/.../Upgrades/Infection.lua`, `OA.Infection`): `untested`(좀비 상처 뒤 검사 전), `known`(검사 양성), `progress`(0~1, 양성 뒤에만 읽음), `drug`(`{ kind = "long"\|"short", till = 끝나는 세계 시각, age = 멈춰 둘 감염 나이(시간) }`). 서버가 고치고(`infection.wound`, `infection.seen` 명령, 약과 검사는 `Serums.lua`), 정산과 견적이 수수료를 이 칸에서 읽고, 상태 탭과 무들은 `OA.Infection.state(record)`로 읽는다 |
 | `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산). `missions`: `active`(지금 임무), `special`(특별 의뢰 칸 `{ nextAt, offer = { seq, a, b }, mission, last }`, `Missions.live(record)`가 둘을 함께 돌려준다), `streak`·`bestStreak`(연속 완료), `reroll`(`{ week }`, 바꿔 받은 주) |
+
+**강화 혈청 투여 뒤 (DESIGN-terminal 19).** 투여(`Serums.inject`)는 부작용만 주고 적응을 시작한다(`Rules.startAdapt`, `Adapt.lua`): 점은 `Data.ADAPT_HOURS`(가안 0.5) 뒤에 들어오고, 그 사이 맞은 병은 시간을 함께 쓰며, 끝나는 세계 시각이 기록(`upgrades.adapt`)에 있어 저장·불러오기에도 이어진다. 클라이언트가 한 게임 분마다(`client/Upgrades/Adapting.lua`) 무들 `적응 중`을 맞추고 끝이 지났으면 `upgrades.adapt` 명령을 보내며, 서버가 `Adapt.finish`로 점을 주고 트리를 열고 안내 문서(`research_guide`, 트리 메모)를 문서철에 넣는다 (`Story.deliverDocument`). 여섯 노드의 첫 효과(`First.lua`)는 매 틱 검사 없이 이미 도는 자리에서 알린다(클라이언트는 `First.report`가 `upgrades.first` 명령을, 서버에서 도는 자리는 `First.grant`를 부른다). 연구 탭은 승인 결과가 돌아오면 계획한 마디를 차례로 켜고 `승인` 직인을 찍는다(`Plan.stamp`의 시간표). 환각에 귀울림이 한 번 울린다(`Hallucination.lua`).
 
 기록의 `upgrades`는 옛 판의 세이브를 고친 단계 이름 목록이다. 각 부분이 `Store.addUpgrade(name, fn)`로 단계를 더하고, 서버가 시작할 때 `Store.upgradeAll()`이 기록마다 한 번씩 돌린다. 새 기록은 모든 단계를 한 것으로 시작한다.
 
@@ -105,7 +107,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | --- | --- | --- |
 | P1 경제 | 계열, 값 매기기, 시세, 요청 품목, 신뢰도와 단계 보상, 도감·털이·처치 보너스, 상점 목록과 한도와 가격, 분해 산출. 순수 로직 + 단위 테스트, 게임 어댑터는 얇게 | `shared/OperationAcorn/Economy/*.lua` |
 | P2 거래 | 통신 단말(설치물, 전기, 창과 탭), 납품 상자(설치, 허용 규칙, 밀봉, 파괴, 재발급과 빚), 헬기(호출, 도착, 정산, 보급 상자, 영수증, 명세서), 첫 보급, 한꺼번에 담기, 감정가 툴팁과 견적 창, 새 지역 표시, 주문과 결제 | `*/OperationAcorn/Trade/*.lua`, `scripts/OA_trade.txt` |
-| P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 감염 약과 검사(치료 혈청의 유통 기한과 본인만, 지연제 7일·1일의 멈춤, 역전제, 검사 키트, 새 좀비 상처 감지, 수수료 상태, 무들 `억제 중`·`검사 전`) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
+| P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 감염 약과 검사(치료 혈청의 유통 기한과 본인만, 지연제 7일·1일의 멈춤, 역전제, 검사 키트, 새 좀비 상처 감지, 수수료 상태, 무들 `억제 중`·`검사 전`, 투여 뒤 적응과 무들 `적응 중`, 연구 계획·트리 메모 문서, 연구 탭의 승인 도장, 여섯 노드의 첫 효과) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
 | P4 임무와 이야기 | 임무(장소 고르기, 아이템 넣기, 지도 원, 기한), 이야기 임무와 데드 드롭, 문서철, 무전 문구, 명세서 비고, 환각, 전용 주파수, 운석 낙하지(정하기, 실물 놓기, 파편), 이관 | `*/OperationAcorn/Story/*.lua`, `scripts/OA_story.txt` |
 | P5 아지트 기계 | 분해대, 대량 분해기, 재단기, 프로판·오일 정제기, 목재 절단기, 연구팀 보관함, 대형 빗물 저장소, 설치형 미끼, 기계 부품(달고 떼기, 닳기), 따라잡기 처리, 시료 묶음 | `*/OperationAcorn/Machines/*.lua`, `scripts/OA_machines.txt` |
 | P6 장비와 키트 | 연구팀 배낭, 개조 키트 넷(타이밍 액션으로 달기, 교환권), 개량 장비(Mk) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt` |

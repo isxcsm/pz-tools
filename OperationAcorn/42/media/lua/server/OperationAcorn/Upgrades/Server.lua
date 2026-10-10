@@ -5,10 +5,14 @@
 require "OperationAcorn/Server"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Infection"
+require "OperationAcorn/Upgrades/Adapt"
+require "OperationAcorn/Upgrades/First"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Infection = OA.Infection
+local Adapt = OA.Upgrades.Adapt
+local First = OA.Upgrades.First
 local Server = OA.Server
 local UpgradesServer = {}
 OA.Upgrades.Server = UpgradesServer
@@ -54,11 +58,13 @@ function UpgradesServer.approve(character, record, rawSteps)
     local ok, result, used = Rules.approve(u, steps, { fragments = UpgradesServer.fragments(character) })
     if not ok then return false, result end
     if used > 0 and not takeFragments(character, used) then return false, "fragment" end
-    local wasOpen, capstones = Rules.boardOpen(u), Rules.capstones(u)
+    local wasOpen, capstones, taken = Rules.boardOpen(u), Rules.capstones(u), Adapt.capstones(u)
     Rules.assign(u, result)
     OA.Sync.changed("upgrades", record.id, { kind = "approve" })
     OA.Sync.notice(record.id, "IGUI_OA_Tree_Approved", { #steps })
     UpgradesServer.titles(record.id, u, steps, wasOpen, capstones)
+    -- the follow-up memo of each tree whose capstone this plan took
+    Adapt.approved(record, taken)
     return true
 end
 
@@ -104,6 +110,16 @@ Server.on("upgrades.reset", function(character, record, args)
     if type(args.tree) ~= "string" then return end
     local ok, why = UpgradesServer.reset(record, args.tree)
     if not ok then OA.Sync.notice(record.id, "IGUI_OA_Tree_ResetFailed", { tostring(why) }) end
+end)
+
+-- The client saw the adaptation after a dose is over (its end passed): the points come if the record agrees.
+Server.on("upgrades.adapt", function(character, record, args)
+    Adapt.finish(record, OA.hours())
+end)
+
+-- A node did its work in the game for the first time (the client saw it): noted if the record agrees.
+Server.on("upgrades.first", function(character, record, args)
+    if type(args.node) == "string" then First.grant(record, args.node) end
 end)
 
 -- The polling bite shield saved a bite (the client undid the infection): the shield rests from now on.

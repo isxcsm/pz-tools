@@ -63,4 +63,54 @@ function Plan.spent(u, sim)
     return out
 end
 
+-- ---- the approval stamp (DESIGN-terminal 19) --------------------------------------------------------------------
+-- After the server's approval comes back, the research tab lights the planned nodes one by one and presses a seal on the
+-- plan. This is only the timing; the tab draws it, while it is open.
+
+-- Milliseconds: between two nodes lighting (shorter for a long plan, so that the nodes take STAMP_MAX_MS at most), how
+-- long a node's flash lasts, the pause before the seal, the seal's press, and how long the seal stays (the end fades).
+Plan.STAMP_STEP_MS = 160
+Plan.STAMP_MAX_MS = 2200
+Plan.STAMP_FLASH_MS = 450
+Plan.SEAL_WAIT_MS = 150
+Plan.SEAL_PRESS_MS = 140
+Plan.SEAL_MS = 1600
+Plan.SEAL_FADE_MS = 400
+
+-- The nodes the stamp lights: the plan's, in its order, each once. `shown` (id -> true) keeps the ones on the screen.
+function Plan.stampOrder(steps, shown)
+    local order, seen = {}, {}
+    for _, step in ipairs(steps) do
+        if not seen[step.id] and (shown == nil or shown[step.id]) then
+            seen[step.id] = true
+            order[#order + 1] = step.id
+        end
+    end
+    return order
+end
+
+-- Milliseconds between two nodes of a stamp of n nodes.
+function Plan.stampStep(n)
+    if n <= 0 then return Plan.STAMP_STEP_MS end
+    return math.min(Plan.STAMP_STEP_MS, math.floor(Plan.STAMP_MAX_MS / n))
+end
+
+-- When the seal is pressed, and when the whole stamp is over, for n nodes.
+function Plan.sealAt(n)
+    return n * Plan.stampStep(n) + Plan.SEAL_WAIT_MS
+end
+
+function Plan.stampEnd(n)
+    return Plan.sealAt(n) + Plan.SEAL_MS
+end
+
+-- The stamp at `t` ms: how many nodes have lit, how long ago the seal was pressed (nil before), and whether it is over.
+function Plan.stamp(n, t)
+    local step = Plan.stampStep(n)
+    local lit = math.min(n, math.floor(t / step) + 1)
+    if t < 0 then lit = 0 end
+    local sealAge = t >= Plan.sealAt(n) and (t - Plan.sealAt(n)) or nil
+    return { lit = lit, sealAge = sealAge, over = t >= Plan.stampEnd(n) }
+end
+
 return Plan

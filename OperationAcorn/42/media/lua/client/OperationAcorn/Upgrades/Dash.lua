@@ -4,9 +4,11 @@
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
 require "OperationAcorn/Upgrades/Pulse"
+require "OperationAcorn/Upgrades/First"
 local OA = OperationAcorn
 local Rules = OA.Upgrades.Rules
 local Pulse = OA.Upgrades.Pulse
+local First = OA.Upgrades.First
 local Dash = {}
 OA.Upgrades.Dash = Dash
 
@@ -77,6 +79,7 @@ local function onPlayerUpdate(player)
             stats:remove(CharacterStat.ENDURANCE, cost)
             data.OA_Dash = now
             zombie:knockDown(false)
+            First.report("dash", player)
         end
     end
 end

@@ -8,10 +8,12 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Upgrades/Data"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Infection"
+require "OperationAcorn/Upgrades/Adapt"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Infection = OA.Infection
+local Adapt = OA.Upgrades.Adapt
 local Serums = {}
 OA.Upgrades.Serums = Serums
 
@@ -65,8 +67,9 @@ function Serums.sideEffects(character, share)
     stats:set(CharacterStat.FATIGUE, tired)
 end
 
--- Injects an upgrade or shared serum: the item goes, the point is added, the tree opens with its first serum (the
--- event the player is told of), the body reacts. Returns true when it was done.
+-- Injects an upgrade or shared serum: the item goes, the body reacts, and the body adapts (Adapt.lua): the point comes,
+-- and the tree opens with its first serum, when the adaptation is over. The first dose ever brings the research
+-- plan to the terminal's folder. Returns true when it was done.
 function Serums.inject(character, item, id)
     local kind, tree = Serums.kind(item:getType())
     if kind ~= "upgrade" and kind ~= "shared" then return false end
@@ -75,19 +78,9 @@ function Serums.inject(character, item, id)
     local u = Rules.section(record)
     if not consume(item) then return false end
     local share = Rules.sideEffects(u)
-    local first = false
-    if kind == "upgrade" then
-        first = Rules.inject(u, tree)
-    else
-        Rules.injectShared(u)
-    end
     Serums.sideEffects(character, share)
-    if first then
-        OA.Sync.notice(id, "IGUI_OA_Tree_Event_" .. tree, {})
-    elseif kind == "upgrade" then
-        OA.Sync.notice(id, "IGUI_OA_Tree_PointGained", { tree })
-    else
-        OA.Sync.notice(id, "IGUI_OA_Tree_SharedGained", {})
+    if Adapt.start(record, kind == "upgrade" and tree or "shared") then
+        OA.Sync.notice(id, "IGUI_OA_Tree_GuideSent", {})
     end
     -- The hallucination at the meteor site (혈청 적응 rank 2): the story part shows it, if it is there.
     if Rules.rank(u, "serumAdapt") >= 2 and OA.Story and OA.Story.onSerum then

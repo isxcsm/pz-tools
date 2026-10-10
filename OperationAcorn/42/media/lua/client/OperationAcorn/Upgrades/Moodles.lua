@@ -1,4 +1,4 @@
--- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전): in the game's own column through the extension API (PZToolsAPI.moodles):
+-- The mod's moodles (육감, 물림 내성 회복 중, 억제 중, 검사 전, 적응 중): in the game's own column through the extension API (PZToolsAPI.moodles):
 -- the game draws them, places them, wiggles them and shows their tooltips (Translate/<lang>/Moodles.json, a name and
 -- a text for each level). In a game without the API's moodle hooks they are drawn as stand-ins left of the game's
 -- column instead, one under the other, on the game's moodle background tinted as the game tints it, with the name and
@@ -22,6 +22,8 @@ Moodles.DEFS = {
     -- a delay drug holds (the level: a day or less left, up to 3, 5 and 7 days) and a zombie wound waits for a test
     { id = "suppressed", kind = "neutral", picture = "media/textures/OA_Moodle_Suppressed_{size}.png" },
     { id = "untested", kind = "bad", picture = "media/textures/OA_Moodle_Untested_{size}.png" },
+    -- a dose of an upgrade serum is being adapted to (Adapting.lua)
+    { id = "adapting", kind = "neutral", picture = "media/textures/OA_Moodle_Adapting_{size}.png" },
 }
 local byId = {}
 for _, def in ipairs(Moodles.DEFS) do byId[def.id] = def end
