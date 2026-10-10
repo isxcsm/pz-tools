@@ -20,6 +20,10 @@ Docs.SUPPLY = { "serum_sheet", "reply_first", "reply_evidence", "reply_correctio
                 "reply_relapse", "appendix_2", "unresolved_1", "unresolved_2", "unresolved_3", "handover_notice",
                 "status_table" }
 Docs.STAKE = "stake"
+-- What the research team sends to the terminal's folder itself, with no item to read (the research guide, the tree
+-- memos, the infection handling notice, the cure certificate): the guide documents add their ids with Docs.addGuide
+-- (Story.deliverDocument puts one in a record's folder, new until opened).
+Docs.GUIDE = {}
 
 local known = {}
 for _, id in ipairs(Docs.FOUND) do known[id] = "found" end
@@ -29,6 +33,13 @@ for i = 1, Data.FIELD_NOTES do known["note_" .. i] = "note" end
 
 function Docs.kind(id)
     return known[id]
+end
+
+-- A guide document's id, added to the ones the folder knows.
+function Docs.addGuide(id)
+    if known[id] then return end
+    Docs.GUIDE[#Docs.GUIDE + 1] = id
+    known[id] = "guide"
 end
 
 -- Every document id (for the folder's order and for checks).

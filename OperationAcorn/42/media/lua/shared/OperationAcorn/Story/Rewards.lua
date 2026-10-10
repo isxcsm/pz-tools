@@ -16,6 +16,16 @@ Rewards.LEVELS = {
     { lo = 2000, hi = 8000, credits = 90000, trust = 500 },
 }
 Rewards.STORY_MULTIPLIER = 1.5
+-- The streak bonus (DESIGN-terminal 7.2): each mission finished in time in a row adds a tenth to the next one's credits,
+-- up to three tenths. The card shows it; the number of the streak is the record's.
+Rewards.STREAK_STEP = 0.10
+Rewards.STREAK_MAX = 3
+
+-- The streak's bonus as a fraction (0 to 0.3) for a streak of n missions.
+function Rewards.streakBonus(n)
+    return Rewards.STREAK_STEP * math.min(math.max(n or 0, 0), Rewards.STREAK_MAX)
+end
+
 -- A mission item delivered after the deadline is a plain item: this much, no penalty (NUMBERS 1, 9). The economy
 -- values every mission item at this, so a mission in time pays the rest on top.
 Rewards.EXPIRED_CREDITS = 1000

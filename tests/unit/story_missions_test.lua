@@ -3,6 +3,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Missions"
+require "OperationAcorn/Story/Folder"
 local OA = OperationAcorn
 local M = OA.Missions
 local Story = OA.Story
@@ -108,6 +109,8 @@ test("entering stage 1 starts the evidence story first, far from the base", func
     eq(m.story, "evidence")
     eq(m.kind, "story")
     eq(m.level, 1)
+    eq(m.seq, 1, "numbered, for the terminal's dot")
+    eq(OA.StoryFolder.missionSeq(record), 1)
     local p = OA.StoryData.PLACES[m.place]
     truthy(OA.Places.distance(p.x, p.y, 0, 0) >= 50, "not the base")
     eq(m.items[1].type, "OperationAcorn.EvidenceEnvelope")

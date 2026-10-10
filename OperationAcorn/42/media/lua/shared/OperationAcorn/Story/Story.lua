@@ -38,8 +38,13 @@ function Story.section(record)
         s.strangeWeek = nil  -- the week the strange request item is for
         s.sitesSeen = {}     -- drop sites the player has been near: site number -> true
         s.sitesSearched = {} -- stake numbers read
-        s.manifests = {}     -- the latest manifests, { serial =, text = }
+        s.manifests = {}     -- the latest manifests, { serial =, text =, tier = }
         s.regularsSince = 0
+        s.unread = {}        -- what arrived in the folder and is not opened yet: key -> arrival number (Story.markNew)
+        s.newSeq = 0         -- the arrivals counted
+        s.docStage = {}      -- the trust tier a document was read at: id -> tier (for the ones the data cannot place)
+        s.requests = {}      -- request copies kept (Story.addRequestCopy): { no =, form =, id =, tier =, day =, month = }
+        s.requestNo = Data.REQUEST_FIRST - 1
     end
     return s
 end
@@ -161,6 +166,7 @@ function Story.enterStage(record, stage)
     for _, entry in ipairs(def.supply or {}) do Story.queueSupply(record, entry[1], entry[2]) end
     requeueMissed(record)
     s.noteIndex = s.noteIndex or {}
+    if def.radio and #def.radio > 0 then Story.markNew(record, "c:s" .. stage) end
 end
 
 function Story.enterMilestone(record, k)
@@ -168,6 +174,7 @@ function Story.enterMilestone(record, k)
     local s = Story.section(record)
     if def then
         enterEvents(record, def)
+        if def.radio and #def.radio > 0 then Story.markNew(record, "c:m" .. k) end
         if k == 2 then Story.queueStory(record, "soil", false) end
     else
         -- From the 4th milestone on: one revisit story per milestone, in turn, and a new radio pool.
@@ -238,6 +245,7 @@ function Story.completeHandover(record)
     local s = Story.section(record)
     if s.handover then return end
     s.handover = true
+    Story.markNew(record, "c:handover")
     s.noteQueue[#s.noteQueue + 1] = "last_b"
     Story.queueSupply(record, "HandoverFile", nil)
     Story.queueSupply(record, "KitVoucher", nil)
@@ -280,6 +288,7 @@ function Story.firstContact(record, late)
     local s = Story.section(record)
     if s.firstContact then return false end
     s.firstContact = late and "late" or true
+    Story.markNew(record, "c:first")
     OA.Sync.changed("story", record.id)
     return true
 end
@@ -307,11 +316,23 @@ function Story.radioCopies(record)
     return list
 end
 
+-- A trust tier in words (DESIGN-terminal 2.3): the number and the stage's name up to the 5th stage, the handover's
+-- name at the 8th, the bare number between.
+function Story.tierText(tier)
+    if tier <= Data.LAST_STAGE then
+        return Story.text("IGUI_OA_Story_Copy_StageNamed", tier, Story.text("IGUI_OA_Econ_Stage_" .. tier))
+    end
+    if tier == Data.LAST_STAGE + 3 then
+        return Story.text("IGUI_OA_Story_Copy_StageNamed", tier, Story.text("IGUI_OA_Terminal_LevelHandover"))
+    end
+    return Story.text("IGUI_OA_Story_Copy_Stage", tier)
+end
+
 -- A radio copy's title and text.
 function Story.copyTitle(copy)
     local what
     if copy.stage then
-        what = Story.text("IGUI_OA_Story_Copy_Stage", copy.stage)
+        what = Story.tierText(copy.stage)
     else
         what = Story.text("IGUI_OA_Story_Copy_" .. copy.id)
     end
@@ -405,10 +426,21 @@ function Story.formLabel(record, id, default)
     return default
 end
 
--- Keeps a manifest's text in the document folder (the latest few). The trade part gives the serial and the finished text.
+-- Keeps a manifest's text in the document folder (the latest few), with the trust tier it came at. The trade part gives
+-- the serial and the finished text. A serial is kept once: the same one again replaces its entry (a number seen three
+-- times in the folder was an in-game test adding 1042 on every run, not the helicopter: the receipts are numbered by
+-- Ledger.add and each arrival keeps one).
 function Story.addManifest(record, serial, text)
     local s = Story.section(record)
-    s.manifests[#s.manifests + 1] = { serial = serial, text = text }
+    local stage, milestones = Story.progress(record)
+    local entry = { serial = serial, text = text, tier = stage + milestones }
+    for i, mf in ipairs(s.manifests) do
+        if mf.serial == serial then
+            s.manifests[i] = entry
+            return
+        end
+    end
+    s.manifests[#s.manifests + 1] = entry
     while #s.manifests > Data.MANIFESTS_KEPT do table.remove(s.manifests, 1) end
 end
 
@@ -460,6 +492,9 @@ function Story.markRead(record, docId, variant)
     local s = Story.section(record)
     if s.docs[docId] == nil then
         s.docs[docId] = variant or true
+        local stage, milestones = Story.progress(record)
+        s.docStage = s.docStage or {}
+        s.docStage[docId] = stage + milestones
         OA.Sync.changed("story", record.id)
         return true
     end
@@ -475,6 +510,77 @@ function Story.readDocuments(record)
     end
     table.sort(list, function(a, b) return a.id < b.id end)
     return list
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- What is new in the folder (DESIGN-terminal 11.1). Keys: "c:<radio copy id>", "d:<document id>", "r:<request number>";
+-- the value is the arrival's number, so that the newest is the highest. The terminal's folder shows them with a mark
+-- and the missions tab's dot and badge count them; opening one clears it.
+function Story.markNew(record, key)
+    local s = Story.section(record)
+    s.unread = s.unread or {}
+    if s.unread[key] then return false end
+    s.newSeq = (s.newSeq or 0) + 1
+    s.unread[key] = s.newSeq
+    OA.Sync.changed("story", record.id)
+    return true
+end
+
+function Story.clearNew(record, key)
+    local s = Story.section(record)
+    if not (s.unread and s.unread[key]) then return false end
+    s.unread[key] = nil
+    OA.Sync.changed("story", record.id)
+    return true
+end
+
+-- A document handed to the folder without being read from an item (a guide the team sends to the terminal): it is in
+-- the folder at once and new until opened. false when the folder has it already.
+function Story.deliverDocument(record, docId, variant)
+    local s = Story.section(record)
+    if s.docs[docId] ~= nil then return false end
+    s.docs[docId] = variant or true
+    local stage, milestones = Story.progress(record)
+    s.docStage = s.docStage or {}
+    s.docStage[docId] = stage + milestones
+    Story.markNew(record, "d:" .. docId)
+    OA.Sync.changed("story", record.id)
+    return true
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- The special request's copy (DESIGN-terminal 6.3.1): the staff's internal request, kept in the folder when a special
+-- request is accepted. Numbered per record (R-0117 first, then one more each); a text (Data.REQUESTS[form]) is never
+-- sent twice to a record. Military date from the game's calendar. Returns the copy { no, form, id, tier, day, month },
+-- or nil when every text of the form has been sent.
+local function gameDate()
+    local ok, day, month = pcall(function()
+        local time = getGameTime()
+        return time:getDay() + 1, time:getMonth() + 1
+    end)
+    if ok then return day, month end
+    return nil, nil
+end
+
+function Story.addRequestCopy(record, form)
+    local ids = Data.REQUESTS[form]
+    if not ids then return nil end
+    local s = Story.section(record)
+    s.requests = s.requests or {}
+    local used = {}
+    for _, req in ipairs(s.requests) do used[req.id] = true end
+    local id
+    for _, candidate in ipairs(ids) do
+        if not used[candidate] then id = candidate; break end
+    end
+    if not id then return nil end
+    local stage, milestones = Story.progress(record)
+    local day, month = gameDate()
+    s.requestNo = (s.requestNo or Data.REQUEST_FIRST - 1) + 1
+    local req = { no = s.requestNo, form = form, id = id, tier = stage + milestones, day = day, month = month }
+    s.requests[#s.requests + 1] = req
+    Story.markNew(record, "r:" .. req.no)
+    return req
 end
 
 -- ---------------------------------------------------------------------------------------------------------------

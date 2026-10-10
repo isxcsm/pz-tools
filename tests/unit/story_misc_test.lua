@@ -252,7 +252,12 @@ local function uiKeys()
     add("Radio_" .. Data.HANDOVER_RADIO)
     for _, id in ipairs({ "first", "first_late" }) do add("Radio_" .. id) end
     -- The radio copies' titles: the first contact and the handover have their own, the stages share one.
-    add("Copy_Title"); add("Copy_Stage"); add("Copy_first"); add("Copy_handover")
+    add("Copy_Title"); add("Copy_Stage"); add("Copy_StageNamed"); add("Copy_first"); add("Copy_handover")
+    -- The request copies a special request brings to the folder: the text of each, and the approvals.
+    for _, ids in pairs(Data.REQUESTS) do
+        for _, id in ipairs(ids) do add("Request_" .. id) end
+    end
+    add("Request_Title"); add("Request_Head"); add("Request_Approval_a"); add("Request_Approval_b")
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
     for m, pool in pairs(Data.AFTER) do
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end
