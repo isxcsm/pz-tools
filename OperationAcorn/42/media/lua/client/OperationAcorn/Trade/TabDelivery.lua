@@ -26,8 +26,6 @@ OATabDelivery.CHIP_HIGH, OATabDelivery.CHIP_LOW = 1.15, 0.85
 -- Frames between looking whether the day or the market has moved on while the tab is open.
 OATabDelivery.WATCH = 120
 
-local WHITE = { 1, 1, 1 }
-
 -- 1.5 as "1.5", 1.25 as "1.25", 1 as "1.0".
 local function trimmed(v)
     local s = string.format("%.2f", v)
@@ -296,10 +294,7 @@ function OATabDelivery.drawRow(list, y, item, alt)
     local ty = y + (OATabDelivery.ROW_H - fh) / 2
     local done = row.full
     if alt then UI.fill(list, 0, y, m.listW, OATabDelivery.ROW_H, p.text, 0.03) end
-    if row.texture then
-        local tint = p.iconTint or WHITE
-        list:drawTextureScaledAspect(row.texture, 2, y + 1, 24, 24, done and 0.5 or 1, tint[1], tint[2], tint[3])
-    end
+    UI.icon(list, row.texture, 2, y + 1, 24, done and 0.5 or 1, p.iconTint)
     UI.text(list, row.nameFit, m.NX, ty, done and p.dim or p.text)
     local band = row.band == "rare" and p.warn or (row.band == "normal" and p.text or p.dim)
     UI.text(list, row.bandText, m.RX, ty, band)

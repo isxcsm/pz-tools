@@ -42,6 +42,11 @@ local function javaObject()
     function j:getY() return self.y end
     function j:getWidth() return self.w end
     function j:getHeight() return self.h end
+    -- its place on the screen: where it was put, under its parent's (the tests set ax, ay)
+    function j:getAbsoluteX() return (self.ax or 0) + self.x end
+    function j:getAbsoluteY() return (self.ay or 0) + self.y end
+    function j:getXScroll() return 0 end
+    function j:getYScroll() return self.yscroll or 0 end
     for _, name in ipairs({ "setAnchorLeft", "setAnchorRight", "setAnchorTop", "setAnchorBottom", "setWantKeyEvents",
         "setConsumeMouseEvents", "setWantExtraMouseEvents", "setForceCursorVisible", "setVisible" }) do
         j[name] = function() end
@@ -140,6 +145,7 @@ end
 local function loadUI(px)
     stubFonts(px or 16)
     gameClasses()
+    _G.PZToolsAPI = nil
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") then return true end
@@ -149,6 +155,19 @@ local function loadUI(px)
     require = real
     if not ok then error(err, 0) end
     return OA.Trade.UI
+end
+
+-- Our rich text panel (Trade/RichText) on the stand-in classes.
+local function loadRich()
+    local real = require
+    require = function(name)
+        if string.find(name, "^ISUI/") then return true end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Trade/RichText")
+    require = real
+    if not ok then error(err, 0) end
+    return OARichText
 end
 
 -- A class of ours made with UI.scaled, as the terminal's are.
@@ -350,22 +369,17 @@ test("a game list inside ours: its rows are drawn in design units on a canvas, i
     eq(seen.y2, 29 / 1.625)
 end)
 
-test("a rich text panel's margins and a list made in a game window keep the game's numbers at scale 1", function()
+test("a rich text panel is ours: its place, size and margins design units in any window", function()
     local UI = loadUI(16)
+    loadRich()
     local window = ISPanel:new(0, 0, 400, 300)
     window:initialise()
     window:instantiate()
-    ISRichTextPanel.addScrollBars = function() end
-    ISRichTextPanel.new = function(self, x, y, w, h)
-        local o = ISPanel.new(self, x, y, w, h)
-        o.backgroundColor, o.borderColor = {}, {}
-        return o
-    end
     local rich = UI.rich(window, 0, 10, 300, 200)
     eq(rich.marginLeft, 8); eq(rich.marginTop, 6); eq(rich.y, 10)
     UI.setScale(1.5)
     rich = UI.rich(window, 0, 10, 300, 200)
-    eq(rich.marginLeft, 12, "the margins are the design's in any window"); eq(rich.y, 10, "the place is the window's pixels")
+    eq(rich.marginLeft, 8, "the margins are design units"); eq(rich.javaObject.y, 15, "the place too, made pixels")
 end)
 
 -- The status screens' drawing steps --------------------------------------------------------------------------------
@@ -557,12 +571,12 @@ end
 
 -- None on another more than at the design's own 16 px font (the smallest window packs a few lines a unit or two into
 -- each other by design): the same screen laid out at 16 px is the measure, text by text.
-local function noWorse(list, base, what)
+local function noWorse(list, base, what, slack)
     eq(#list, #base, what .. ": the same texts as at 16 px")
     for i = 1, #list do
         for j = i + 1, #list do
             local now, was = overlap(list[i], list[j]), overlap(base[i], base[j])
-            truthy(now <= math.max(was, 0) + 1, what .. ": '" .. list[i].s .. "' at " .. list[i].x .. "," .. list[i].y
+            truthy(now <= math.max(was, 0) + 1 + (slack or 0), what .. ": '" .. list[i].s .. "' at " .. list[i].x .. "," .. list[i].y
                 .. " and '" .. list[j].s .. "' at " .. list[j].x .. "," .. list[j].y .. " overlap " .. now .. " (" .. was .. " at 16 px)")
         end
     end
@@ -643,6 +657,55 @@ for _, px in ipairs({ 19, 26, 38 }) do
                     local now = statusTexts(UI, name, tier, size)
                     inside(now, size[1], size[2], what)
                     noWorse(now, base, what)
+                end
+            end
+        end
+    end)
+end
+
+-- The extension API's UI fonts as the Korean language has them: a size asked for is the nearest of its bitmap fonts'
+-- line heights within a few pixels, else drawn at that size; a character 7/16 of the line wide.
+local KO = { 19, 26, 29, 33, 38, 40, 45 }
+local function koApi()
+    local function pick(px)
+        local best
+        for _, h in ipairs(KO) do
+            if math.abs(h - px) <= 3 and (not best or math.abs(h - px) < math.abs(best - px)) then best = h end
+        end
+        return best or px
+    end
+    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
+        font = function(_, px) return pick(px) end,
+        fontHeight = function(_, key) return key end,
+        measure = function(_, key, s) return #tostring(s) * key * 7 / 16 end,
+        draw = function() end,
+    } }
+end
+
+for _, screenH in ipairs({ 720, 900, 1080, 1440 }) do
+    test("the status screens with the API's fonts at " .. screenH .. "p: every text inside, none on another more than at 16 px", function()
+        local UI = loadStatus(16)
+        for _, tier in ipairs({ "crude", "field" }) do
+            for _, size in ipairs({ { 700, 312 }, { 580, 252 } }) do
+                for _, name in ipairs(STATUS) do
+                    local what = screenH .. "p " .. tier .. " " .. name .. " " .. size[1]
+                    _G.PZToolsAPI = nil
+                    useFonts(UI, 16)
+                    local base = statusTexts(UI, name, tier, size)
+                    koApi()
+                    _G.getCore = function()
+                        return { getScreenWidth = function() return screenH * 16 / 9 end, getScreenHeight = function() return screenH end }
+                    end
+                    UI.refreshScale()
+                    eq(UI.facesOn, true)
+                    eq(UI.S, OA.Trade.Faces.screenScale(screenH))
+                    local now = statusTexts(UI, name, tier, size)
+                    inside(now, size[1], size[2], what)
+                    -- a bitmap font is a little larger than the design's at some sizes (33 pixels at 2x is 16.5
+                    -- units, its letters as much wider): texts the design packs into each other meet by that much
+                    -- more, a few percent of a text's size
+                    local grown = math.max(1, UI.fontHeight() / 16, UI.fontHeight(UIFont.Medium) / 20)
+                    noWorse(now, base, what, (grown - 1) * 40)
                 end
             end
         end
@@ -755,7 +818,7 @@ local function loadFolder(px)
         return real(name)
     end
     local ok, err = pcall(function()
-        real "OperationAcorn/Story/Button"
+        real "OperationAcorn/Trade/Button"
         real "OperationAcorn/Story/TabFolder"
     end)
     require = real

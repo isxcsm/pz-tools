@@ -1,4 +1,4 @@
--- The folder's text panel that types (client/Story/TypedText): with the game's rich text panel stood in for by one that
+-- The folder's text panel that types (client/Story/TypedText): with our rich text panel (Trade/RichText) stood in for by one that
 -- cuts the text at its commands into rows, what a frame does with the clock, the gaps, a click (it brings the typing to the furthest point seen), a layout in the middle of
 -- the typing, and the end of it.
 require "OperationAcorn/Core"
@@ -7,7 +7,7 @@ require "OperationAcorn/Story/Typing"
 local OA = OperationAcorn
 local Markup, Typing = OA.Markup, OA.Typing
 
--- A rich text panel with the parts TypedText uses: paginate makes `lines` (one for each stretch of text between the
+-- A rich text panel with the parts TypedText uses (OARichText's): paginate makes `lines` (one for each stretch of text between the
 -- commands, trimmed), at x and y places; render draws nothing.
 local function stubPanel()
     local c = {}
@@ -18,6 +18,7 @@ local function stubPanel()
             lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0, renders = 0 }, self)
     end
     function c:paginate()
+        self.laidW = self.width
         self.lines, self.lineX, self.lineY = {}, {}, {}
         local x, y = 0, 0
         local rest = self.text
@@ -43,13 +44,15 @@ local function stubPanel()
     end
     function c:render() self.renders = self.renders + 1 end
     function c:getYScroll() return self.yscroll end
+    function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
+    function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:drawRect(...) self.drawn[#self.drawn + 1] = { ... } end
     function c:onMouseDown() self.mouseDown = true end
     return c
 end
 
 local function load()
-    ISRichTextPanel = stubPanel()
+    OARichText = stubPanel()
     getTextManager = function()
         -- the folder's Medium font is a taller and wider one than the stub panel's own
         return {
@@ -59,7 +62,7 @@ local function load()
     end
     local real = require
     require = function(name)
-        if string.find(name, "^ISUI/") then return true end
+        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/RichText" then return true end
         return real(name)
     end
     local ok, err = pcall(real, "OperationAcorn/Story/TypedText")

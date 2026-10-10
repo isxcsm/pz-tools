@@ -20,7 +20,12 @@ Reports:
 - a search of the whole inventory or of a container (a *Recurse call, a loop over getItems()) in a function that runs
   while a right-click menu is built, every tick or frame, or at every refresh: see inventory_scans() for how they are
   found and what it cannot see. A search that is meant to be there (made once for a changed signature, or when the
-  player has acted) carries `-- oa-scan: ok (why)` on its line or within the two lines above.
+  player has acted) carries `-- oa-scan: ok (why)` on its line or within the two lines above;
+- a game widget that draws its text in the game's font (ISRichTextPanel, ISButton:new, ISComboBox, ISModalDialog,
+  ISLabel:new) in the client files of the mod's windows (Trade/, Story/, Machines/, less the files that draw on the
+  game's own windows and menus: WIDGET_EXCLUDED): the windows' texts are drawn in faces (Trade/UI.lua), so their
+  widgets are the mod's own (Trade/Button, RichText, Combo, Confirm). One that is meant to be there carries
+  `-- oa-widget: ok (why)` on its line or the line above.
 Exit code 1 when anything is found.
 
 Texts too long or too many for code (the radio log, documents, receipt notes) may live in other Translate files
@@ -289,6 +294,37 @@ def inventory_scans():
     return found
 
 
+# The game's widgets that draw their text in the game's font, the folders of the mod's windows, and the files there that
+# draw on the game's own windows and menus (the item tooltip, the loot window's estimate and controls, the menus).
+WIDGET = re.compile(r'\bISRichTextPanel\b|\bISButton:new\b|\bISComboBox\b|\bISModalDialog\b|\bISLabel:new\b')
+WIDGET_OK = re.compile(r'--\s*oa-widget:\s*ok')
+WIDGET_FOLDERS = ('Trade', 'Story', 'Machines')
+WIDGET_EXCLUDED = ('Trade/ItemTip.lua', 'Trade/Appraisal.lua', 'Trade/ContextMenu.lua', 'Story/Menus.lua',
+                   'Machines/Menu.lua', 'Machines/LootControls.lua', 'Machines/Lure.lua')
+
+
+def game_widgets(files):
+    """(file, line, widget) for each game text widget named in the code (not a comment) of the (path, lines) given,
+    the excluded files and the marked lines left out."""
+    found = []
+    for path, lines in files:
+        if path.replace(os.sep, '/').endswith(WIDGET_EXCLUDED):
+            continue
+        for n, line in enumerate(lines):
+            m = WIDGET.search(line.split('--')[0])
+            if m and not WIDGET_OK.search(line) and not (n > 0 and WIDGET_OK.search(lines[n - 1])):
+                found.append((path, n + 1, m.group(0)))
+    return found
+
+
+def window_files():
+    """The client files of the mod's windows."""
+    files = []
+    for folder in WIDGET_FOLDERS:
+        files += lua_files('client', 'OperationAcorn', folder)
+    return files
+
+
 def sandbox_keys():
     """The texts the sandbox options need: each page's name, and each option's name and tooltip."""
     with open(os.path.join(MEDIA, 'sandbox-options.txt'), encoding='utf-8') as f:
@@ -393,6 +429,10 @@ def main():
         problems.append('%s %s (%s:%d) searches the inventory or a container: %s at %s:%d, through %s (cache it under a '
                         'signature or do it when the player acts; mark a search that belongs -- oa-scan: ok)'
                         % (kind, name, path, n, call, where, line, ' > '.join(chain)))
+
+    for path, n, widget in game_widgets(window_files()):
+        problems.append("the game's %s in a window of the mod %s:%d (it draws in the game's font: use the mod's widget, "
+                        'or mark it -- oa-widget: ok)' % (widget, path, n))
 
     for line in problems:
         print(line)

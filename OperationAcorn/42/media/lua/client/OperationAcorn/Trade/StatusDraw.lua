@@ -318,30 +318,34 @@ function Draw.bake(L)
 end
 
 -- Draws a list on one of our elements (each frame): the baked pixels go to the game's drawing as they are (the
--- element's class without the scaling, el.oaBase).
-function Draw.paint(el, L)
+-- element's class without the scaling, el.oaBase), the texts in their faces (UI.textPx, the element's place on the
+-- screen asked once a frame), the icons through UI.iconPx. `dy`: pixels the whole list is moved down by (a list that
+-- scrolls in its element gives minus its scroll; nil: 0).
+function Draw.paint(el, L, dy)
     if not L then return end
     if L.scale ~= UI.S then Draw.bake(L) end
+    dy = dy or 0
     local B = el.oaBase or el
-    local rect, border, text, tex = B.drawRect, B.drawRectBorder, B.drawText, B.drawTextureScaledAspect
+    local rect, border, textPx, iconPx = B.drawRect, B.drawRectBorder, UI.textPx, UI.iconPx
+    local ox, oy
+    if UI.facesOn then ox, oy = UI.origin(el) end
     local ops = L.ops
     for i = 1, #ops do
         local op = ops[i]
         local k = op[1]
         if k == RECT then
             local c = op[6]
-            rect(el, op.rx, op.ry, op.rw, op.rh, op[7], c[1], c[2], c[3])
+            rect(el, op.rx, op.ry + dy, op.rw, op.rh, op[7], c[1], c[2], c[3])
         elseif k == FRAME then
             local c = op[6]
-            border(el, op.rx, op.ry, op.rw, op.rh, op[7], c[1], c[2], c[3])
+            border(el, op.rx, op.ry + dy, op.rw, op.rh, op[7], c[1], c[2], c[3])
         elseif k == TEXT then
             local c = op[5]
-            text(el, op[2], op.rx, op.ry, c[1], c[2], c[3], op[6], op[7])
+            textPx(el, B, op[2], op.rx, op.ry + dy, c[1], c[2], c[3], op[6], op[7], 0, ox, oy)
         elseif k == TEX then
-            local t = op[8]
-            tex(el, op[2], op.rx, op.ry, op.rw, op.rh, op[7], t[1], t[2], t[3])
+            iconPx(el, op[2], op.rx, op.ry + dy, op.rw, op.rh, op[7], op[8])
         elseif k == CLIP then
-            B.setStencilRect(el, op.rx, op.ry, op.rw, op.rh)
+            B.setStencilRect(el, op.rx, op.ry + dy, op.rw, op.rh)
         elseif k == UNCLIP then
             B.clearStencilRect(el)
         end

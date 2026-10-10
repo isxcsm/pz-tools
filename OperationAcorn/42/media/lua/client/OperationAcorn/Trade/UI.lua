@@ -1,44 +1,60 @@
--- Small helpers for the trade part's windows: the same few widgets (a label, a button, a list, a rich text) with the
--- sizes the game's own windows use.
+-- Small helpers for the windows of the mod (the terminal and its readers, the machine window): the scale, the faces of
+-- their texts, drawing in a palette, and the few game widgets left in them (a list, a scroll bar).
 --
--- Sizes: design units and one scale (DESIGN-terminal 1.2) ---------------------------------------------------------
--- The game's font option defaults to following the window's height, so the Small font is 16 pixels high on a small
--- screen, 19 at 1080p, 26 at 1440p and 38 at 4K. The terminal's screens are laid out in DESIGN UNITS: the numbers
--- written in the code, made for a 16 pixel Small font. UI.S is the scale from them to the screen's pixels: the Small
--- font's height / 16 (never under 1), worked out again when a window opens (UI.refreshScale). The rule:
+-- Sizes: design units and one scale (DESIGN-terminal 1.2, worklist 3-2) ------------------------------------------
+-- The terminal's screens are laid out in DESIGN UNITS: the numbers written in the code, made for a 16 unit Small font.
+-- UI.S is the scale from them to the screen's pixels, worked out again when a window opens (UI.refreshScale):
+--   * with the extension API's UI fonts (PZToolsAPI.text): by the SCREEN, its height / 540 down to an eighth
+--     (720p 1.25, 900p 1.625, 1080p 2, 1440p 2.625, 2160p 4), or by the game's font where that is larger, so that the
+--     windows look as big at the 16 pixel font as at the 26 pixel one;
+--   * without them: by the game's FONT, the Small font's height / 16 (the font option follows the window's height:
+--     16 pixels on a small screen, 19 at 1080p, 26 at 1440p, 38 at 4K). Never under 1.
+-- Our texts are drawn in FACES (Trade/Faces.lua): with the API, its font of the design height times the scale (Small 16,
+-- Medium 20, Large 24 units: 32, 40 and 48 pixels at 1080p); without, the game's own font of that name. The rule:
 --   * Layout code writes plain design numbers and never multiplies by UI.S itself. Text is measured in design units
---     too (UI.textWidth, UI.fontHeight give the pixels / UI.S), so the Small font is always 16 high in them.
+--     too, in its face (UI.textWidth, UI.fontHeight, UI.fit give the pixels / UI.S), so the Small font is 16 high in
+--     them, give or take the font's own line.
 --   * Our own elements (OATab and every tab and screen derived from it, the tab strip, OASubTabs, OAShopScroll,
---     OAMButton, the status board: each class made with UI.scaled) are in design units through and through: their
---     x, y, width and height, every draw* call and stencil, getMouseX/Y and the coordinates their mouse handlers get.
---     The class converts at the boundary with the game (the javaObject); the code in it does not.
---   * The game's own widgets (ISButton, ISScrollingListBox, ISRichTextPanel, ISLabel, ISComboBox, scroll bars) draw
---     their own text and stay in pixels. Inside our elements they are made and moved with the helpers below
---     (UI.list, UI.rich, UI.button, UI.label, UI.place, UI.size, UI.rowHeight), which take design numbers and convert.
---     A game list's rows are drawn in design units through UI.list or UI.rowPainter.
---   * A game window (the terminal window, the readers, the confirm dialog) is in pixels: its sizes are design sizes
---     made pixels with UI.px, and the terminal window hands its body to the tabs in design units.
--- At UI.S == 1 nothing is converted: the scaled classes are the plain game classes, and every number is as written.
--- Lines and borders stay one pixel wide at any scale (the game's own windows keep them so).
+--     OAMButton, OACombo, OARichText, the confirm, the status board, the machine window's body: each class made with
+--     UI.scaled) are in design units through and through: their x, y, width and height, every draw* call and stencil,
+--     getMouseX/Y and the coordinates their mouse handlers get. The class converts at the boundary with the game (the
+--     javaObject), and draws its texts in their faces; the code in it does not.
+--   * No game widget that draws text stands in our windows (it would draw in the game's font): buttons, combo boxes,
+--     rich text, the confirm are ours (Trade/Button, Trade/RichText, Trade/Confirm; tools/check_translations.py
+--     refuses the game's). The game's list (ISScrollingListBox) is kept for its scrolling, its rows drawn by us in
+--     design units through UI.list or UI.rowPainter; UI.place, UI.size and UI.rowHeight take design numbers for it.
+--   * A game window (the terminal window, the readers, the machine window) is in pixels: its sizes are design sizes
+--     made pixels with UI.px, its bars are as high as our Small face (UI.titleBarHeight), its title and close box are
+--     drawn in our face (UI.windowTitle, UI.closeBox), and it hands its body to our elements in design units.
+-- At UI.S == 1 without the API nothing is converted: the scaled classes are the plain game classes, and every number
+-- is as written. Lines and borders stay one pixel wide at any scale (the game's own windows keep them so). Item icons
+-- go through UI.icon / UI.iconPx.
 require "ISUI/ISPanel"
-require "ISUI/ISButton"
-require "ISUI/ISLabel"
 require "ISUI/ISScrollingListBox"
-require "ISUI/ISRichTextPanel"
 require "OperationAcorn/Trade/Text"
+require "OperationAcorn/Trade/Faces"
 local OA = OperationAcorn
+local Faces = OA.Trade.Faces
 local UI = {}
 OA.Trade.UI = UI
 
 -- The Small font's height the design units are made for.
 UI.BASE_FONT = 16
 UI.S = 1
--- The scale as a local too: the drawing below reads it on every call.
+-- A number that changes whenever the scale or the faces do: a window made before closes (its layout was measured in
+-- the old ones).
+UI.era = 0
+UI.facesOn = false
+-- The scale as a local too: the drawing below reads it on every call. `on`: whether our classes convert (a scale that
+-- is not 1, or the API's faces, which only our classes draw).
 local S = 1
+local on = false
 -- font -> { its space, the space between parts } (UI.fontSpace), until the scale changes: the status header asks
 -- each frame
 local spaces = {}
 local floor = math.floor
+local faceOf = Faces.face
+local WHITE = { 1, 1, 1 }
 
 -- A design number in pixels (rounded to whole pixels when scaled), and pixels in design units.
 function UI.px(v)
@@ -200,20 +216,64 @@ function SCALED:drawRectBorderStatic(x, y, w, h, a, r, g, b)
     return self.oaBase.drawRectBorderStatic(self, rx, ry, rw, rh, a, r, g, b)
 end
 
+-- The screen pixel an element's own pixel 0, 0 is drawn at: where UIElement.DrawText puts a text, its absolute place
+-- and its scroll.
+function UI.origin(el)
+    local jo = el.javaObject
+    return jo:getAbsoluteX() + jo:getXScroll(), jo:getAbsoluteY() + jo:getYScroll()
+end
+
+-- A text at pixels px, py of an element, in the face of `font` (nil: Small): left (align 0), centred on px (1), ending
+-- at px (2), or untrimmed (3). `base` draws in pixels in the game's font (the element's class without the scaling).
+-- ox, oy: UI.origin(el) when the caller has it (a list of many texts), else nil. An API face is drawn at the same
+-- screen pixel the game's text would be, a centred one by half its width as the game's (whole pixels).
+local function textPx(el, base, str, px, py, r, g, b, a, font, align, ox, oy)
+    local face = faceOf(font)
+    local key = face.key
+    if not key then
+        if align == 0 then return base.drawText(el, str, px, py, r, g, b, a, face.font) end
+        if align == 1 then return base.drawTextCentre(el, str, px, py, r, g, b, a, face.font) end
+        if align == 2 then return base.drawTextRight(el, str, px, py, r, g, b, a, face.font) end
+        return base.drawTextUntrimmed(el, str, px, py, r, g, b, a, face.font)
+    end
+    if align == 1 then
+        px = px - floor(Faces.measure(face, str) / 2)
+    elseif align == 2 then
+        px = px - Faces.measure(face, str)
+    end
+    if not ox then
+        local jo = el.javaObject
+        ox, oy = jo:getAbsoluteX() + jo:getXScroll(), jo:getAbsoluteY() + jo:getYScroll()
+    end
+    Faces.draw(key, str, ox + px, oy + py, r, g, b, a)
+end
+UI.textPx = textPx
+
+-- The faces from any element, in its own pixels (an element that is not one of our scaled classes, the game's window
+-- of another part): a text at px, py in colour `c` ({ r, g, b }), and a text's width and a line's height in a face.
+-- In design units, on our scaled classes, UI.text / textCentre / textRight and UI.textWidth / fontHeight are the same.
+function UI.textAtPx(el, text, px, py, c, font, a, align)
+    return textPx(el, el.oaBase or el, text, px, py, c[1], c[2], c[3], a or 1, font, align or 0)
+end
+
+function UI.faceWidthPx(text, font)
+    return Faces.measure(faceOf(font), text)
+end
+
 function SCALED:drawText(str, x, y, r, g, b, a, font)
-    return self.oaBase.drawText(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+    return textPx(self, self.oaBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 0)
 end
 
 function SCALED:drawTextCentre(str, x, y, r, g, b, a, font)
-    return self.oaBase.drawTextCentre(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+    return textPx(self, self.oaBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 1)
 end
 
 function SCALED:drawTextRight(str, x, y, r, g, b, a, font)
-    return self.oaBase.drawTextRight(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+    return textPx(self, self.oaBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 2)
 end
 
 function SCALED:drawTextUntrimmed(str, x, y, r, g, b, a, font)
-    return self.oaBase.drawTextUntrimmed(self, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font)
+    return textPx(self, self.oaBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 3)
 end
 
 -- A texture at its own size is that many design units.
@@ -279,7 +339,7 @@ local function install(entry)
     local cls = entry.cls
     for _, name in ipairs(entry.names) do
         local now = own(cls, name)
-        if now == nil or now == SCALED[name] then cls[name] = S ~= 1 and SCALED[name] or nil end
+        if now == nil or now == SCALED[name] then cls[name] = on and SCALED[name] or nil end
     end
 end
 
@@ -297,35 +357,52 @@ function UI.scaled(cls, base)
     return cls
 end
 
--- Sets the scale (1 or more). The windows open at the time keep the one they were made with: the terminal window
--- closes when the scale changes under it.
-function UI.setScale(s)
+-- Sets the scale (1 or more) and the faces: the API's (`useApi`, once Faces.available said yes), or the game's fonts
+-- (false; nil keeps the faces' kind as it is). Returns false when the API's faces were asked for and could not be made
+-- (the game's are set). The windows open at the time keep the scale they were made with: a window closes when UI.era
+-- changes under it.
+function UI.setScale(s, useApi)
     s = s or 1
-    if s == S then return end
-    S = s
-    UI.S = s
+    if useApi == nil then useApi = Faces.on end
+    local made = Faces.build(s, useApi)
+    local now = s ~= 1 or Faces.on
+    if s == S and now == on and Faces.on == UI.facesOn then return made end
+    S, on = s, now
+    UI.S, UI.facesOn = s, Faces.on
+    UI.era = UI.era + 1
     spaces = {}
     for _, entry in ipairs(scaledClasses) do install(entry) end
+    return made
 end
 
--- The scale from the Small font in use now (a window calls this as it opens).
+-- The scale for the screen and the font in use now (a window calls this as it opens): by the screen with the API's
+-- faces, by the Small font without (the rule block at the top).
 function UI.refreshScale()
-    UI.setScale(math.max(1, UI.fontHeightPx(UIFont.Small) / UI.BASE_FONT))
+    local byFont = math.max(1, UI.fontHeightPx(UIFont.Small) / UI.BASE_FONT)
+    if Faces.available() then
+        local byScreen = Faces.screenScale(getCore():getScreenHeight())
+        if UI.setScale(math.max(byScreen, byFont), true) then return end
+    end
+    UI.setScale(byFont, false)
 end
 
--- Whether numbers for an element go in design units: inside one of our elements, while the scale is not 1.
+-- A call of the API failed while drawing: the game's fonts and the font's scale (the open windows close by UI.era).
+Faces.onFail = function() UI.refreshScale() end
+
+-- Whether numbers for an element go in design units: inside one of our elements, while our classes convert.
 local function designParent(parent)
-    return S ~= 1 and parent ~= nil and parent.oaScaled == true
+    return on and parent ~= nil and parent.oaScaled == true
 end
 
 -- A canvas to draw on a game widget in design units (a row of a game list inside our element): the widget's fields
--- show through it, its width and height are in design units and its drawing converts. At scale 1, or outside our
+-- show through it, its width and height are in design units and its drawing converts (its texts in their faces). While
+-- our classes do not convert, or outside our
 -- elements, the widget itself.
 function UI.designCanvas(el)
     if not designParent(el.parent) then return el end
     local c = el.oaCanvas
     if not c then
-        c = setmetatable({ oaBase = el }, { __index = el })
+        c = setmetatable({ oaBase = el, oaDesign = true }, { __index = el })
         for _, name in ipairs(DRAWS) do c[name] = SCALED[name] end
         el.oaCanvas = c
     end
@@ -411,8 +488,8 @@ function UI.textRight(el, text, x, y, c, font, a)
     el:drawTextRight(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
--- Text measured in design units (the pixels / UI.S), and in pixels for what is drawn on the game's own widgets and
--- windows outside the terminal (the item tooltip, the loot window's estimate).
+-- Text measured in pixels in the game's fonts, for what is drawn on the game's own widgets and windows outside ours
+-- (the item tooltip, the loot window's estimate).
 function UI.fontHeightPx(font)
     return getTextManager():getFontHeight(font or UIFont.Small)
 end
@@ -421,10 +498,16 @@ function UI.textWidthPx(text, font)
     return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
+-- Text measured in design units in its face (the face's pixels / UI.S): what our elements draw.
 function UI.fontHeight(font)
-    local h = getTextManager():getFontHeight(font or UIFont.Small)
+    local h = Faces.height(font)
     if S == 1 then return h end
     return h / S
+end
+
+-- The same in pixels (our game windows' bars, a face's lines in pixels).
+function UI.faceHeightPx(font)
+    return Faces.height(font)
 end
 
 function UI.buttonHeight()
@@ -432,7 +515,7 @@ function UI.buttonHeight()
 end
 
 function UI.textWidth(text, font)
-    local w = getTextManager():MeasureStringX(font or UIFont.Small, text)
+    local w = Faces.measure(faceOf(font), text)
     if S == 1 then return w end
     return w / S
 end
@@ -469,6 +552,26 @@ function UI.spaceGaps(text, font)
     if lead + trail == 0 then return 0, 0 end
     local more = math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
     return lead * more, (lead + trail) * more
+end
+
+-- A text broken into lines no wider than `width` (design units) at its spaces, and at its line ends ("\n"). A word
+-- wider than the width by itself stays whole on its own line, as the game's rich text keeps it.
+function UI.wrap(text, width, font)
+    local lines = {}
+    for para in string.gmatch((text or "") .. "\n", "(.-)\n") do
+        local current
+        for word in string.gmatch(para, "%S+") do
+            local longer = current and (current .. " " .. word) or word
+            if current and UI.textWidth(longer, font) > width + 0.001 then
+                lines[#lines + 1] = current
+                current = word
+            else
+                current = longer
+            end
+        end
+        lines[#lines + 1] = current or ""
+    end
+    return lines
 end
 
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
@@ -585,29 +688,6 @@ local function inParent(parent, ...)
     return unpack(out)
 end
 
--- A label at x, y.
-function UI.label(parent, x, y, text, color, font)
-    color = color or { r = 0.9, g = 0.9, b = 0.9, a = 1 }
-    local lx, ly = inParent(parent, x, y)
-    local label = ISLabel:new(lx, ly, UI.fontHeightPx(font), text, color.r, color.g, color.b, color.a, font or UIFont.Small,
-        true)
-    label:initialise()
-    label:instantiate()
-    parent:addChild(label)
-    return label
-end
-
--- A button whose click calls onclick(target, button).
-function UI.button(parent, x, y, width, title, target, onclick)
-    local bx, by, bw, bh = inParent(parent, x, y, width, UI.buttonHeight())
-    local button = ISButton:new(bx, by, bw, bh, title, target, onclick)
-    button:initialise()
-    button:instantiate()
-    button.borderColor = { r = 1, g = 1, b = 1, a = 0.3 }
-    parent:addChild(button)
-    return button
-end
-
 -- Places and sizes an element (a nil leaves that number as it is): one of ours in its design units, a game widget
 -- inside ours from design units to pixels, any other as it is. The size goes through UI.size.
 function UI.place(el, x, y, w, h)
@@ -652,6 +732,7 @@ local function paletteOf(el)
     end
     return nil
 end
+UI.paletteOf = paletteOf
 
 -- A vertical scroll bar drawn in the window's palette: a thin track, the thumb and two small arrows, where the game's
 -- grey textures stood out on the terminal. The thumb's place and size are the game's own (barx, bary, barwidth and
@@ -687,8 +768,8 @@ function UI.styleScrollBar(bar)
     bar.render = renderBar
 end
 
--- A list with rows drawn by `drawRow(list, y, item, alt)` (inside our elements in design units: the list is then a
--- canvas over the game's list, UI.designCanvas). The row's own height is the list's itemheight (UI.rowHeight).
+-- A list with rows drawn by `drawRow(list, y, item, alt)` (inside our elements in design units and faces: the list is
+-- then a canvas over the game's list, UI.designCanvas). The row's own height is the list's itemheight (UI.rowHeight).
 function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     local list = ISScrollingListBox:new(inParent(parent, x, y, width, height))
     list:initialise()
@@ -716,29 +797,6 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     return list
 end
 
--- A scrolling rich text panel (its margins are design units in any window).
-function UI.rich(parent, x, y, width, height, class)
-    local panel = (class or ISRichTextPanel):new(inParent(parent, x, y, width, height))
-    panel:initialise()
-    panel:instantiate()
-    panel.autosetheight = false
-    panel.clip = true
-    panel.marginLeft = UI.px(8)
-    panel.marginRight = UI.px(8)
-    panel.marginTop = UI.px(6)
-    panel.marginBottom = UI.px(6)
-    panel:addScrollBars()
-    panel.backgroundColor = { r = 0, g = 0, b = 0, a = 0.35 }
-    panel.borderColor = { r = 0.4, g = 0.4, b = 0.4, a = 0.9 }
-    parent:addChild(panel)
-    return panel
-end
-
-function UI.setRich(panel, text)
-    panel.text = text
-    panel:paginate()
-end
-
 -- Rich text colors for the receipt kinds.
 UI.KIND_TAG = {
     head = " <H2> <RGB:1,1,1> ",
@@ -758,15 +816,65 @@ function UI.richLines(lines)
     return table.concat(parts)
 end
 
--- Asks yes or no; onYes(target, a, b) runs on yes. The game's dialog in the terminal's scale.
-function UI.confirm(character, text, target, onYes, a, b)
-    UI.refreshScale()
-    local modal = ISModalDialog:new(0, 0, UI.px(360), UI.px(150), text, true, nil, function(_, button)
-        if button.internal == "YES" then onYes(target, a, b) end
-    end, character:getPlayerNum())
-    modal:initialise()
-    modal:addToUIManager()
-    return modal
+-- Item icons ---------------------------------------------------------------------------------------------------------
+-- Every item icon in our windows is drawn through these two (so that one change can draw them at whole multiples of
+-- their 32 pixel pictures): UI.icon in design units on our elements (the pixels of others), UI.iconPx in the element's
+-- pixels (the status lists' baked steps). `tint` is { r, g, b } (nil: none), the picture kept to its aspect.
+
+function UI.iconPx(el, texture, px, py, pw, ph, a, tint)
+    if not texture then return end
+    local t = tint or WHITE
+    local base = el.oaBase or el
+    base.drawTextureScaledAspect(el, texture, px, py, pw, ph, a or 1, t[1], t[2], t[3])
+end
+
+function UI.icon(el, texture, x, y, size, a, tint)
+    if not texture then return end
+    if on and (el.oaScaled or el.oaDesign) then
+        local rx, rw = span(x, size)
+        local ry, rh = span(y, size)
+        return UI.iconPx(el, texture, rx, ry, rw, rh, a, tint)
+    end
+    UI.iconPx(el, texture, x, y, size, size, a, tint)
+end
+
+-- Our game windows' bars --------------------------------------------------------------------------------------------
+-- The terminal window, the readers and the machine window are the game's (ISCollapsableWindow), in pixels. Their bars
+-- are as high as our Small face, worked out as the game works its own out from its font (without the API's faces the
+-- same numbers), and what the game would draw on them in its font is drawn in ours.
+
+-- The title bar's height and the resize bar's (ISCollapsableWindow's titleBarHeight and resizeWidgetHeight).
+function UI.titleBarHeight()
+    return math.max(16, Faces.height() + 1)
+end
+
+function UI.resizeWidgetHeight()
+    return (Faces.height() + 6) / 2 + 2
+end
+
+-- A window's title centred on its bar in our face, colour `c` ({ r, g, b }).
+function UI.windowTitle(win, title, c, a)
+    if not title or title == "" then return end
+    local th = win:titleBarHeight()
+    textPx(win, win, title, floor(win.width / 2), floor((th - Faces.height()) / 2 + 0.5), c[1], c[2], c[3], a or 1,
+        nil, 1)
+end
+
+-- The close box: an "x" in our face (the game's button with its picture and title taken off), in the palette.
+local function closeBoxRender(self)
+    local c = self.oaGlyphColour
+    textPx(self, self, "x", floor(self.width / 2), floor((self.height - Faces.height()) / 2), c[1], c[2], c[3], 1, nil, 1)
+end
+
+function UI.closeBox(win, p)
+    local cb = win.closeButton
+    if not cb then return end
+    cb:setImage(nil)
+    cb:setTitle("")
+    cb.oaGlyphColour = p.text
+    cb.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
+    cb.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
+    cb.render = closeBoxRender
 end
 
 -- A context menu at the mouse for the player: returns it.
