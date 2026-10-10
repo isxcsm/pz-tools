@@ -22,6 +22,7 @@ local function stubPanel()
             lines = {}, lineX = {}, lineY = {}, text = "", drawn = {}, yscroll = 0 }, self)
     end
     function c:paginate()
+        self.laidW = self.width
         self.lines, self.lineX, self.lineY = {}, {}, {}
         local x, y, pos, rest = 0, 0, 1, self.text
         while pos <= #rest do
@@ -45,6 +46,8 @@ local function stubPanel()
     end
     function c:render() end
     function c:getYScroll() return self.yscroll end
+    function c:measure(s, font) return getTextManager():MeasureStringX(font, s) end
+    function c:lineHeightOf(font) return getTextManager():getFontHeight(font) end
     function c:setYScroll(v) self.yscroll = v end
     function c:setVisible(v) self.visible = v end
     function c:drawRect(...) end
@@ -57,7 +60,7 @@ local ms
 -- The tab, with the panel, the record and the characters of the test; `contents[key]` is what Folder.content gives.
 local function folder(opts)
     opts = opts or {}
-    ISRichTextPanel = stubPanel()
+    OARichText = stubPanel()
     UIFont = { Small = "Small", Medium = "Medium" }
     OATab ={ derive = function(self, name)
         local d = {}
@@ -80,7 +83,8 @@ local function folder(opts)
     end
     local real = require
     require = function(name)
-        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "OperationAcorn/Story/Button" then
+        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "OperationAcorn/Trade/Button"
+            or name == "OperationAcorn/Trade/RichText" then
             return true
         end
         return real(name)

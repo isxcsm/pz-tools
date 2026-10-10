@@ -42,6 +42,11 @@ local function javaObject()
     function j:getY() return self.y end
     function j:getWidth() return self.w end
     function j:getHeight() return self.h end
+    -- its place on the screen: where it was put, under its parent's (the tests set ax, ay)
+    function j:getAbsoluteX() return (self.ax or 0) + self.x end
+    function j:getAbsoluteY() return (self.ay or 0) + self.y end
+    function j:getXScroll() return 0 end
+    function j:getYScroll() return self.yscroll or 0 end
     for _, name in ipairs({ "setAnchorLeft", "setAnchorRight", "setAnchorTop", "setAnchorBottom", "setWantKeyEvents",
         "setConsumeMouseEvents", "setWantExtraMouseEvents", "setForceCursorVisible", "setVisible" }) do
         j[name] = function() end
@@ -140,6 +145,7 @@ end
 local function loadUI(px)
     stubFonts(px or 16)
     gameClasses()
+    _G.PZToolsAPI = nil
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") then return true end
@@ -149,6 +155,19 @@ local function loadUI(px)
     require = real
     if not ok then error(err, 0) end
     return OA.Trade.UI
+end
+
+-- Our rich text panel (Trade/RichText) on the stand-in classes.
+local function loadRich()
+    local real = require
+    require = function(name)
+        if string.find(name, "^ISUI/") then return true end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Trade/RichText")
+    require = real
+    if not ok then error(err, 0) end
+    return OARichText
 end
 
 -- A class of ours made with UI.scaled, as the terminal's are.
@@ -350,22 +369,17 @@ test("a game list inside ours: its rows are drawn in design units on a canvas, i
     eq(seen.y2, 29 / 1.625)
 end)
 
-test("a rich text panel's margins and a list made in a game window keep the game's numbers at scale 1", function()
+test("a rich text panel is ours: its place, size and margins design units in any window", function()
     local UI = loadUI(16)
+    loadRich()
     local window = ISPanel:new(0, 0, 400, 300)
     window:initialise()
     window:instantiate()
-    ISRichTextPanel.addScrollBars = function() end
-    ISRichTextPanel.new = function(self, x, y, w, h)
-        local o = ISPanel.new(self, x, y, w, h)
-        o.backgroundColor, o.borderColor = {}, {}
-        return o
-    end
     local rich = UI.rich(window, 0, 10, 300, 200)
     eq(rich.marginLeft, 8); eq(rich.marginTop, 6); eq(rich.y, 10)
     UI.setScale(1.5)
     rich = UI.rich(window, 0, 10, 300, 200)
-    eq(rich.marginLeft, 12, "the margins are the design's in any window"); eq(rich.y, 10, "the place is the window's pixels")
+    eq(rich.marginLeft, 8, "the margins are design units"); eq(rich.javaObject.y, 15, "the place too, made pixels")
 end)
 
 -- The status screens' drawing steps --------------------------------------------------------------------------------
@@ -755,7 +769,7 @@ local function loadFolder(px)
         return real(name)
     end
     local ok, err = pcall(function()
-        real "OperationAcorn/Story/Button"
+        real "OperationAcorn/Trade/Button"
         real "OperationAcorn/Story/TabFolder"
     end)
     require = real

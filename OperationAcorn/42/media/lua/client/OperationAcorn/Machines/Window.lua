@@ -129,23 +129,20 @@ UI.scaled(OAMachinePicker, ISPanel)
 function OAMachineWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local p = self.palette
-    -- Only the close box stays of the vanilla title bar, drawn in the palette (as the terminal's).
+    -- Only the close box stays of the vanilla title bar, drawn in the palette and our face (as the terminal's).
     for _, b in ipairs({ self.pinButton, self.collapseButton, self.infoButton }) do
         if b then b:setVisible(false) end
     end
-    local cb = self.closeButton
-    if cb then
-        cb:setImage(nil)
-        cb:setTitle("x")
-        cb.textColor = { r = p.text[1], g = p.text[2], b = p.text[3], a = 1 }
-        cb.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
-        cb.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
-    end
+    UI.closeBox(self, p)
     self.body = OAMachineBody:new(0, UI.dp(self:titleBarHeight()), Layout.WIDTH, 100, self)
     self.body:initialise()
     self:addChild(self.body)
     self:refresh(true)
 end
+
+-- The title bar is as high as our Small face (the game's would follow its own font).
+function OAMachineWindow:titleBarHeight() return UI.titleBarHeight() end
+function OAMachineWindow:resizeWidgetHeight() return UI.resizeWidgetHeight() end
 
 -- Reads the machine and lays the window out again when what it shows changed (or when `force`). The window takes the
 -- body's height.
@@ -179,8 +176,8 @@ end
 
 function OAMachineWindow:update()
     ISCollapsableWindow.update(self)
-    -- another window worked the scale out again from a font that changed: this one was made with the old one
-    if self.scale ~= UI.S then return self:close() end
+    -- another window worked the scale or the faces out again: this one was made with the old ones
+    if self.era ~= UI.era then return self:close() end
     if not self.object or self.object:getObjectIndex() == -1 or self.character:isDead() then return self:close() end
     local now = getTimestampMs()
     if OA.due(self.due, "read", now, OAMachineWindow.READ_MS) then
@@ -194,7 +191,7 @@ function OAMachineWindow:prerender()
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
     UI.fill(self, 0, 0, self.width, th, p.title)
-    UI.textCentre(self, self.title, self.width / 2, (th - UI.fontHeightPx()) / 2, p.text)
+    UI.windowTitle(self, self.title, p.text)
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
 end
 
@@ -339,7 +336,7 @@ function OAMachineWindow:new(x, y, character, object)
     setmetatable(o, self)
     self.__index = self
     o.palette = UI.palette("field")
-    o.scale = UI.S
+    o.era = UI.era
     o.due = {}
     o.character = character
     o.playerNum = character:getPlayerNum()

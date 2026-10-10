@@ -4,7 +4,7 @@
 -- the crude terminal, at the field terminal the two requests offered (one to choose), or the one taken. Everything is
 -- worked out when the record changes or the player has walked (`refresh`); the frames only draw it (`prerender`).
 require "OperationAcorn/Trade/TerminalWindow"
-require "OperationAcorn/Story/Button"
+require "OperationAcorn/Trade/Button"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Rewards"
@@ -562,10 +562,7 @@ function OATabMission:drawCard(p)
     local bonusRows = card.bonus and 1 or 0
     local low = cardH - 36 - 18 * bonusRows
     if card.item then
-        if card.item.tex then
-            self:drawTextureScaledAspect(card.item.tex, 12, yy, 24, 24, 1, p.iconTint and p.iconTint[1] or 1,
-                p.iconTint and p.iconTint[2] or 1, p.iconTint and p.iconTint[3] or 1)
-        end
+        UI.icon(self, card.item.tex, 12, yy, 24, 1, p.iconTint)
         drawRuns(self, 42, yy + 4, card.item.runs, p)
         yy = yy + 28
     end

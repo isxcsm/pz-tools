@@ -1,9 +1,11 @@
 -- The missions tab's document folder (DESIGN-terminal 6.4): a list of what the record keeps, in groups with the newest
 -- on top, and the document open beside it inside the terminal's own window (no window of its own to hide behind the
 -- terminal). Choosing a row reads it: the text on the right, 'previous' and 'next' step through the list, and what was
--- new stops being new (the server is told). The list is built when the record changes; the frames only draw it.
+-- new stops being new (the server is told). The list is built again only when what it lists changed (not when the
+-- typing goes on or is hurried: the server's answer to that redraws the tab, and the list stays as it was); the frames
+-- only draw it.
 require "OperationAcorn/Trade/TerminalWindow"
-require "OperationAcorn/Story/Button"
+require "OperationAcorn/Trade/Button"
 require "OperationAcorn/Story/Folder"
 require "OperationAcorn/Story/TypedText"
 local OA = OperationAcorn
@@ -12,7 +14,9 @@ local Folder, Typing, Markup = OA.StoryFolder, OA.Typing, OA.Markup
 
 OATabFolder = OATab:derive("OATabFolder")
 
-OATabFolder.ROW_H = 18
+-- The list's font: the Medium, as the document's (the folder is for reading), its rows a line of it and a margin.
+OATabFolder.LIST_FONT = UIFont.Medium
+OATabFolder.ROW_PAD = 4
 -- The list's width: 232, 200 when the window is narrow (the minimum size).
 OATabFolder.LIST_W, OATabFolder.LIST_W_NARROW, OATabFolder.NARROW_BELOW = 232, 200, 680
 -- The document's font: one step over the other tabs' Small (DESIGN-terminal 6.4: the folder is for reading).
@@ -24,7 +28,9 @@ function OATabFolder:createChildren()
     local p = self:palette()
     self.listWidth = OATabFolder.LIST_W
     local list = UI.list(self, 0, 0, self.listWidth, self.height, OATabFolder.drawRow, self, OATabFolder.onPick)
-    UI.rowHeight(list, OATabFolder.ROW_H)
+    self.rowH = OATabFolder.rowHeight()
+    UI.rowHeight(list, self.rowH)
+    list.rowH = self.rowH
     list.itemPadY = 1
     list.palette = p
     list.backgroundColor = p.panel and { r = p.panel[1], g = p.panel[2], b = p.panel[3], a = 1 }
@@ -37,8 +43,8 @@ function OATabFolder:createChildren()
     local body = UI.rich(self, 0, 0, 100, 100, OATypedText)
     body.target, body.onFinished = self, OATabFolder.onTyped
     body.cursorColor = p.bright
-    body.backgroundColor.a = 0
-    body.borderColor.a = 0
+    body.background = false
+    body.palette = p
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 0, 0, 0, 0
     body.defaultFont = OATabFolder.BODY_FONT
     self.body = body
@@ -56,37 +62,73 @@ function OATabFolder:createChildren()
     self.kept = {}
 end
 
+-- A row of the list: a line of the list's font and the margin (design units).
+function OATabFolder.rowHeight()
+    return math.ceil(UI.fontHeight(OATabFolder.LIST_FONT)) + OATabFolder.ROW_PAD
+end
+
+-- The room on the right of a row: the label's margin, and the scroll bar's when the list scrolls.
+local function rightRoom(list)
+    return list:isVScrollBarVisible() and 22 or 10
+end
+
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
 -- list is a canvas over the game's list, UI.list).
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
+    local font = OATabFolder.LIST_FONT
+    local ty = y + OATabFolder.ROW_PAD / 2
     if row.header then
-        UI.text(list, row.header, 8, y + 1, p.head)
+        UI.text(list, row.header, 8, ty, p.head, font)
         return
     end
     local selected = list.selected == item.index
-    if row.entry.isNew then UI.fill(list, 10, y + 7, 4, 4, p.warn) end
-    UI.text(list, row.title, 18, y + 1, selected and p.bright or p.text)
-    if row.label ~= "" then UI.textRight(list, row.label, list.width - (list:isVScrollBarVisible() and 22 or 10), y + 1, p.dim) end
+    if row.entry.isNew then UI.fill(list, 10, y + math.floor((list.rowH - 4) / 2), 4, 4, p.warn) end
+    UI.text(list, row.title, 18, ty, selected and p.bright or p.text, font)
+    if row.label ~= "" then UI.textRight(list, row.label, list.width - rightRoom(list), ty, p.dim, font) end
 end
 
 -- What the folder holds ------------------------------------------------------------------------------------------
 
--- The list filled from the groups, the titles cut to the list's width.
+-- What the list shows of the groups, as one text: the list is built again only when it changes.
+local function listSignature(groups)
+    local parts = {}
+    for _, group in ipairs(groups) do
+        parts[#parts + 1] = group.id
+        for _, entry in ipairs(group.entries) do
+            parts[#parts + 1] = entry.key .. "|" .. tostring(entry.title) .. "|" .. tostring(entry.tier) .. "|"
+                .. (entry.isNew and "n" or "")
+        end
+    end
+    return table.concat(parts, ";")
+end
+
+-- The list filled from the groups, the titles cut to the room their row leaves (its tier on the right, the scroll bar).
+-- The game's list adds each row's height to the height it scrolls over and its clear keeps that height: it is put back
+-- to nothing first, else the list counts the old rows too until its next frame and its scroll bar (and the tiers by
+-- it) show for that frame.
 function OATabFolder:fillList()
     local list = self.list
     list:clear()
+    list:setScrollHeight(0)
     self.rowOf = {}
-    local reach = self.listWidth - 18 - 70
+    local font = OATabFolder.LIST_FONT
+    local rows = 0
+    for _, group in ipairs(self.groups) do rows = rows + 1 + #group.entries end
+    local scrolls = rows * self.rowH > self.height
+    local base = self.listWidth - 18 - (scrolls and 22 or 10)
     for _, group in ipairs(self.groups) do
         list:addItem(group.id, { header = getText("IGUI_OA_Story_Group_" .. group.id) })
         for _, entry in ipairs(group.entries) do
-            local item = list:addItem(entry.key, { entry = entry, title = UI.fit(entry.title, reach), label = Folder.tierLabel(entry.tier) })
+            local label = Folder.tierLabel(entry.tier)
+            local reach = base - (label ~= "" and UI.textWidth(label, font) + 8 or 0)
+            local item = list:addItem(entry.key, { entry = entry, title = UI.fit(entry.title, reach, font), label = label })
             self.rowOf[entry.key] = item.itemindex
         end
     end
-    self.listW = self.listWidth
+    self.listW, self.listH = self.listWidth, self.height
+    self.listSig = listSignature(self.groups)
 end
 
 -- The entry to show when the folder is first looked at: the newest of the new ones, else the top one.
@@ -105,8 +147,9 @@ function OATabFolder:refresh()
     self.flat = Folder.flat(self.groups)
     self.index = {}
     for i, entry in ipairs(self.flat) do self.index[entry.key] = i end
-    self:layout()
-    self:fillList()
+    -- laid out for a new size only (the frames do it too); the list built again only when what it lists changed
+    if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
+    if self.listSig ~= listSignature(self.groups) then self:fillList() end
     local entry = (self.key and self.flat[self.index[self.key] or 0]) or self:firstEntry()
     if entry then
         local row = self.rowOf[entry.key]
@@ -264,10 +307,11 @@ function OATabFolder:layout()
     body:paginate()
     self.prevButton:setX(rx + 12)
     self.prevButton:setY(h - bh - 8)
-    self.nextButton:setX(rx + 88)
+    self.nextButton:setX(rx + 12 + self.prevButton.width + 6)
     self.nextButton:setY(h - bh - 8)
+    self.countX = self.nextButton.x + self.nextButton.width + 12
     self:fitHeads()
-    if self.listW and self.listW ~= self.listWidth then self:fillList() end
+    if self.listW and (self.listW ~= self.listWidth or self.listH ~= h) then self:fillList() end
 end
 
 function OATabFolder:prerender()
@@ -284,7 +328,7 @@ function OATabFolder:prerender()
     UI.text(self, self.titleText, rx + 12, OATabFolder.TITLE_Y, p.bright, UIFont.Medium)
     UI.text(self, self.metaText, rx + 12, self.metaY, p.dim)
     UI.fill(self, rx + 12, self.ruleY, rw - 24, 1, p.border, 0.6)
-    UI.text(self, self.at .. " / " .. #self.flat, rx + 170, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
+    UI.text(self, self.at .. " / " .. #self.flat, self.countX, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
         p.dim, p.numberFont)
 end
 
