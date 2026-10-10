@@ -77,6 +77,94 @@ public sealed class CharacterRecoveryTests
         Assert.False(RemainsFormat.IsBodyModel("Base.AlcoholBandage"));
     }
 
+    // Reported by a player: after a revival the character could pick up no more than 8 while the inventory showed 15.
+    // The game checks pickups against the inventory container's saved capacity, and a corpse's container has 8.
+    [Fact]
+    public void Revival_KeepsThePlayersOwnInventoryContainer()
+    {
+        var (player, layout) = WithContainer(EmptyPlayer(), "none", explored: true, looted: false, capacity: 50);
+        var zombie = WithZombieContainer(Zombie("Test"), "inventoryfemale", explored: false, looted: true, capacity: 12);
+
+        var result = ZombieInventoryRecovery.Recover(player, layout, "Test", ZombieFile(zombie), Registry);
+
+        Assert.Equal(3, result.Items);
+        Assert.Equal(result.Player, PlayerHealthEditor.Heal(result.Player, 249, out var after));
+        Assert.Equal(Container("none", true, false, 50), ContainerOf(result.Player, after));
+    }
+
+    [Fact]
+    public void Heal_PutsBackTheContainerOfACharacterRevivedWithACorpses()
+    {
+        foreach (var kind in new[] { "inventorymale", "inventoryfemale" })
+        {
+            var (broken, _) = WithContainer(DressedPlayer([(2, 21), (4, 25)], [("Torso", 0), ("Back", 1)], 1, -1),
+                kind, explored: false, looted: true, capacity: 8, heal: false);
+
+            var healed = PlayerHealthEditor.Heal(broken, 249, out var layout);
+
+            Assert.Equal(Container("none", true, false, PlayerHealthEditor.PlayerInventoryCapacity), ContainerOf(healed, layout));
+            Assert.Equal(["Base.Shirt", "Base.Bag"],
+                RemainsFormat.Inventory(new RemainsReader(healed, layout.Start), Registry).Groups.Select(g => g.Type));
+            var worn = new RemainsReader(healed, layout.WornStart);
+            Assert.Equal([new WornReference("Torso", 0), new WornReference("Back", 1)], RemainsFormat.Worn(worn, 2));
+            Assert.Equal(1, BinaryPrimitives.ReadInt32BigEndian(healed.AsSpan(layout.Hands)));
+            Assert.Equal(healed, PlayerHealthEditor.Heal(healed, 249));
+        }
+    }
+
+    [Fact]
+    public void Heal_KeepsAPlayersOwnContainerAsItIs()
+    {
+        // A capacity a mod set on the character's own container stays.
+        var (player, _) = WithContainer(EmptyPlayer(), "none", explored: true, looted: false, capacity: 30, heal: false);
+        var healed = PlayerHealthEditor.Heal(player, 249, out var layout);
+        Assert.Equal(Container("none", true, false, 30), ContainerOf(healed, layout));
+    }
+
+    // The container fields of an inventory as saved: its kind and explored flag, then its looted flag and capacity.
+    private static byte[] Container(string kind, bool explored, bool looted, int capacity)
+    {
+        var w = new BigEndianWriter(); w.String(kind); w.Byte(explored ? (byte)1 : (byte)0);
+        w.Byte(looted ? (byte)1 : (byte)0); w.Int(capacity); return w.ToArray();
+    }
+
+    private static byte[] ContainerOf(byte[] player, InventoryLayout layout)
+    {
+        var inventory = RemainsFormat.Inventory(new RemainsReader(player, layout.Start), null);
+        return [.. inventory.Header, .. inventory.Trailer];
+    }
+
+    // The player with its inventory's container fields replaced (healed again unless told not to).
+    private static (byte[] Player, InventoryLayout Layout) WithContainer((byte[] Player, InventoryLayout Layout) source,
+        string kind, bool explored, bool looted, int capacity, bool heal = true)
+    {
+        var (player, layout) = source;
+        var inventory = RemainsFormat.Inventory(new RemainsReader(player, layout.Start), null);
+        var fields = Container(kind, explored, looted, capacity);
+        var header = fields[..^5];
+        var w = new BigEndianWriter(); w.Bytes(header); w.Short(inventory.Groups.Count);
+        foreach (var group in inventory.Groups) w.Bytes(group.Encoded);
+        w.Bytes(fields[^5..]);
+        player = [.. player.AsSpan(0, layout.Start), .. w.ToArray(), .. player.AsSpan(layout.End)];
+        if (!heal) return (player, layout);
+        player = PlayerHealthEditor.Heal(player, 249, out layout);
+        return (player, layout);
+    }
+
+    private static byte[] WithZombieContainer(byte[] zombie, string kind, bool explored, bool looted, int capacity)
+    {
+        var r = new RemainsReader(zombie); r.Skip(2); RemainsFormat.Moving(r, out _);
+        if (r.Bool()) RemainsFormat.Descriptor(r);
+        RemainsFormat.HumanVisual(r);
+        var start = r.Position;
+        var inventory = RemainsFormat.Inventory(r, null);
+        var fields = Container(kind, explored, looted, capacity);
+        var w = new BigEndianWriter(); w.Bytes(fields[..^5]); w.Short(inventory.Groups.Count);
+        foreach (var group in inventory.Groups) w.Bytes(group.Encoded);
+        w.Bytes(fields[^5..]);
+        return [.. zombie.AsSpan(0, start), .. w.ToArray(), .. zombie.AsSpan(r.Position)];
+    }
+
     // A player carrying the given items (registry id, item id), wearing some of them, holding two by index.
     internal static (byte[] Player, InventoryLayout Layout) DressedPlayer((int Registry, int Id)[] items,
         (string Where, int Index)[] wearing, int primary, int secondary)
