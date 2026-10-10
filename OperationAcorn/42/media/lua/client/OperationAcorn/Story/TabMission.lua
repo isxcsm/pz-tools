@@ -393,7 +393,8 @@ function OATabMission:buildSpecial(record, info)
             special.bullets[#special.bullets + 1] = getText("IGUI_OA_Story_UI_SpecialBullet_" .. form)
         end
         local entry = OA.Shop and OA.Shop.entry("field_terminal")
-        special.cost = measure(runsOf("dim", "IGUI_OA_Story_UI_SpecialLockedCost", Text.credits(entry and entry.price or 50000)), p)
+        local price = entry and OA.Shop.price(entry, record) or 0
+        special.cost = measure(runsOf("dim", "IGUI_OA_Story_UI_SpecialLockedCost", Text.credits(price)), p)
     else
         special.text = getText("IGUI_OA_Story_UI_SpecialNone")
     end
