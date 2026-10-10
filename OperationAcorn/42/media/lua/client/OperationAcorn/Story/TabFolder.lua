@@ -210,9 +210,10 @@ function OATabFolder:show(entry, record)
 end
 
 -- How an entry is typed: its run (the reading of its text, the clock and how far it has been seen) for a kind of text that
--- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed; where it starts
--- is its kind's way (Typing.RESUME): a scene from the beginning, a document from where it was left with the game time
--- that passed turned into the terminal's own work. A click brings it to the furthest point seen (TypedText).
+-- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed. Its first
+-- presentation goes on from exactly where it was left (Typing.start; the terminal does not print while the player is
+-- away); once it has been seen to its end every showing starts from the beginning and a click shows all of it. A click
+-- brings it to the furthest point seen (TypedText).
 function OATabFolder:runFor(entry, content, record)
     local key = entry.key
     local speed = Typing.speed(content.kind, self.window.tier)
@@ -220,20 +221,11 @@ function OATabFolder:runFor(entry, content, record)
     local parse = Markup.parse(content.marked, speed)
     if not parse then return nil end
     local state = Typing.latest(OA.Story.typedState(record, key), self.kept[key])
-    local clock = Typing.start(state, OA.hours(), getGameTime():getMinutesPerDay(), content.kind)
+    local clock = Typing.start(state)
     -- a document is printed a row at a time (TypedText): its rows are the panel's, so whether it is over is known when
-    -- it is laid out; past a step a character it is over whatever its rows
+    -- it is laid out
     local step = Typing.MODE[content.kind] == "lines" and Typing.LINE_STEP or nil
-    local over = step and parse.n * step or parse.total
-    local run = { key = key, parse = parse, step = step, clock = clock, seen = Typing.seenOf(state, parse),
-        done = clock >= over }
-    if run.done then
-        -- Left so long that the terminal has printed all of it: shown whole.
-        run.seen = parse.n
-        self:report(run)
-        return nil
-    end
-    return run
+    return { key = key, parse = parse, step = step, clock = clock, seen = Typing.seenOf(state, parse), done = false }
 end
 
 -- The server is told how far a showing got, and the window keeps the same (Typing.keep): when the typing ends, when
@@ -246,7 +238,7 @@ function OATabFolder:report(run)
     local all = seen >= n or nil
     local clock = (not run.done) and run.clock or nil
     local old = Typing.latest(OA.Story.typedState(self:record(), key), self.kept[key])
-    self.kept[key] = Typing.keep(old, seen, all, clock, OA.hours())
+    self.kept[key] = Typing.keep(old, seen, all, clock)
     self:send("story_typed", { key = key, seen = seen, done = all, t = clock })
 end
 

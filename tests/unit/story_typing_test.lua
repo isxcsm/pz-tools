@@ -194,33 +194,24 @@ test("the speeds are for the kinds of text, a scene typed a character at a time 
     eq(Typing.MODE.document, "lines")
 end)
 
-test("a document left half typed goes on by the game time that passed, turned into real seconds of the day's length", function()
-    -- a 60 minute day: a game hour is 150 real seconds
-    near(Typing.secondsPerHour(60), 150)
-    near(Typing.secondsPerHour(24), 60)
-    eq(Typing.start(nil, 10, 60, "document"), 0, "no state: from the start (it is typed every time)")
-    eq(Typing.start(true, 10, 60, "document"), 0, "seen to the end before: from the start")
-    eq(Typing.start({ seen = 40, done = true }, 10, 60, "document"), 0, "a showing that ran to its end left no clock")
-    near(Typing.start({ seen = 0 }, 10, 60, "document"), 0, 1e-9, "never opened: from the start whenever it is opened")
-    near(Typing.start({ t = 0 }, 10, 60, "document"), 0, 1e-9)
-    near(Typing.start({ start = 10, t = 3 }, 10, 60, "document"), 3)
-    near(Typing.start({ start = 10, t = 3 }, 10.02, 60, "document"), 6, 1e-9, "a minute and a fifth of game time, 3 real seconds")
-    near(Typing.start({ start = 10, t = 3 }, 9, 60, "document"), 3, 1e-9, "the clock never runs back")
-    near(Typing.start({ start = 10, t = 3 }, 11, 24, "document"), 63)
-    -- a night's sleep finishes any text
-    local read = Markup.parse(string.rep("x", 300), 30)
-    truthy(Typing.start({ start = 22, t = 2 }, 30, 60, "document") >= read.total)
+test("a first presentation left half way goes on at exactly the clock it stopped at, a scene and a document alike", function()
+    eq(Typing.start(nil), 0, "no state: from the start")
+    eq(Typing.start(true), 0, "an old record's typed to its end: from the start")
+    near(Typing.start({ seen = 0 }), 0, 1e-9, "never opened: from the start whenever it is opened")
+    near(Typing.start({ t = 0 }), 0, 1e-9)
+    near(Typing.start({ seen = 12, t = 3 }), 3)
+    near(Typing.start({ seen = 12, t = 3.25 }), 3.25, 1e-9)
+    -- no game time is made up for: the old record's world age is not read
+    near(Typing.start({ seen = 12, start = 10, t = 3 }), 3, 1e-9, "an old { start, t } resumes at t, however long ago")
+    -- the scene / document split and the game-time conversion are gone
+    eq(Typing.RESUME, nil)
+    eq(Typing.secondsPerHour, nil)
 end)
 
-test("a scene left half typed starts over, whatever its record says; the way is a table by kind", function()
-    eq(Typing.RESUME.scene, "restart")
-    eq(Typing.RESUME.document, "resume")
-    eq(Typing.start({ start = 10, t = 3, seen = 20 }, 10.02, 60, "scene"), 0)
-    eq(Typing.start({ start = 10, t = 3 }, 10, 60, "scene"), 0)
-    eq(Typing.start({ start = 10, t = 3 }, 10, 60, "somethingnew"), 0, "a kind with no way chosen starts over")
-    eq(Typing.start({ start = 10, t = 3 }, 10, 60), 0)
-    -- every typed kind has a speed and a way
-    for kind in pairs(Typing.SPEED) do truthy(Typing.RESUME[kind], kind .. " chooses its way") end
+test("a text seen to its end plays again from the beginning, whatever clock an older record kept", function()
+    eq(Typing.start({ seen = 40, done = true }), 0)
+    eq(Typing.start({ seen = 40, done = true, t = 3 }), 0, "a clock left in a done state is not read")
+    eq(Typing.start({ done = true, start = 10, t = 3 }), 0)
 end)
 
 test("how far a text has been seen: all of it for what was shown whole, the record's count, or the old clock's characters", function()
@@ -236,27 +227,30 @@ test("how far a text has been seen: all of it for what was shown whole, the reco
     eq(Typing.seenOf({ start = 3, t = 50 }, read), 10)
 end)
 
-test("the state kept for a showing: the furthest seen only grows, done stays, the clock is kept for a showing left half way", function()
-    local state = Typing.keep(nil, 6, nil, 0.5, 12)
-    eq(state.seen, 6); eq(state.done, nil); eq(state.start, 12); near(state.t, 0.5)
-    state = Typing.keep(state, 3, nil, 0.2, 13)
+test("the state kept for a showing: the furthest seen only grows, done stays, the clock is kept for a first presentation only", function()
+    local state = Typing.keep(nil, 6, nil, 0.5)
+    eq(state.seen, 6); eq(state.done, nil); near(state.t, 0.5); eq(state.start, nil, "no world age is kept")
+    state = Typing.keep(state, 3, nil, 0.2)
     eq(state.seen, 6, "a shorter showing does not take the furthest back")
-    eq(state.start, 13); near(state.t, 0.2)
-    state = Typing.keep(state, 10, true, nil, 14)
+    near(state.t, 0.2)
+    state = Typing.keep(state, 10, true, nil)
     eq(state.done, true); eq(state.seen, 10)
-    eq(state.start, nil, "a showing that ran to its end leaves no clock"); eq(state.t, nil)
-    state = Typing.keep(state, 2, nil, 0.1, 15)
-    eq(state.done, true, "seen to the end stays so"); eq(state.seen, 10); near(state.t, 0.1)
-    eq(Typing.keep(true, 0, nil, nil, 1).done, true, "an old record's true is done")
-    local old = Typing.keep({ start = 3, t = 2 }, 5, nil, 1, 9)
-    eq(old.seen, 5, "an old { start, t } takes the count the window worked out"); eq(old.t, 1)
+    eq(state.t, nil, "a showing that ran to its end leaves no clock")
+    state = Typing.keep(state, 2, nil, 0.1)
+    eq(state.done, true, "seen to the end stays so"); eq(state.seen, 10)
+    eq(state.t, nil, "and a replay left half way keeps no clock")
+    eq(Typing.keep({ seen = 10, done = true, t = 3, start = 8 }, 4, nil, 1).t, nil, "an old clock in a done state goes")
+    eq(Typing.keep(true, 0, nil, 0.3).done, true, "an old record's true is done")
+    eq(Typing.keep(true, 0, nil, 0.3).t, nil)
+    local old = Typing.keep({ start = 3, t = 2 }, 5, nil, 1)
+    eq(old.seen, 5, "an old { start, t } takes the count the window worked out"); eq(old.t, 1); eq(old.start, nil)
     -- what the window kept and what the record says
-    local kept = { seen = 3, t = 1, start = 5 }
+    local kept = { seen = 3, t = 1 }
     eq(Typing.latest(nil, nil), nil)
     eq(Typing.latest({ seen = 1 }, nil).seen, 1)
     eq(Typing.latest({ seen = 1 }, kept), kept, "the window's own is the newer")
     local late = Typing.latest({ seen = 1, done = true }, kept)
-    eq(late.done, true, "read whole in the viewer meanwhile"); eq(late.seen, 3); eq(late.t, 1)
+    eq(late.done, true, "read whole in the viewer meanwhile"); eq(late.seen, 3); eq(late.t, nil, "and a done entry keeps no clock")
     eq(Typing.latest(true, kept).done, true)
 end)
 
@@ -440,12 +434,11 @@ test("what is new has nothing seen; the record keeps the furthest seen, and done
     eq(state.done, nil)
     eq(state.start, nil)
     eq(Story.typedState(record, "c:other"), nil, "what was never kept has no state: it was shown whole")
-    TEST.hours = 10
     truthy(Story.saveTyped(record, "c:s1", 12, false, 4.5))
     state = Story.typedState(record, "c:s1")
     eq(state.seen, 12)
     near(state.t, 4.5)
-    eq(state.start, 10)
+    eq(state.start, nil, "no world age is kept")
     truthy(Story.saveTyped(record, "c:s1", 5, false, 1))
     eq(Story.typedState(record, "c:s1").seen, 12, "the furthest seen does not go back")
     truthy(Story.saveTyped(record, "c:fresh", 3, false, 1), "an entry with no state takes one when it is left half way")
@@ -463,7 +456,7 @@ test("what is new has nothing seen; the record keeps the furthest seen, and done
     state = Story.typedState(record, "c:s1")
     eq(state.done, true, "seen to the end stays so")
     eq(state.seen, 40)
-    near(state.t, 1.5, 1e-9, "a document shown again and left half way keeps its place")
+    eq(state.t, nil, "a text seen to its end and left half way in a replay keeps no place")
     -- the same arrival again is not new, and does not start over
     eq(Story.markNew(record, "c:s1"), false)
     eq(Story.typedState(record, "c:s1").done, true)
@@ -477,16 +470,15 @@ test("records from before are read as they were: true is seen to the end, { star
     eq(Typing.seenOf(Story.typedState(record, "c:a"), read), 10)
     eq(Typing.seenOf(Story.typedState(record, "c:b"), read), 4)
     eq(Typing.seenOf(Story.typedState(record, "c:c"), read), 0)
-    -- a document goes on from the old clock, a scene starts over
-    near(Typing.start(Story.typedState(record, "c:b"), 3, 60, "document"), 0.35)
-    eq(Typing.start(Story.typedState(record, "c:b"), 3, 60, "scene"), 0)
+    -- both go on from the old clock, with no game time made up for
+    near(Typing.start(Story.typedState(record, "c:b")), 0.35)
+    eq(Typing.start(Story.typedState(record, "c:a")), 0, "seen to the end: from the start")
     -- the first thing the window tells is saved in the new form over the old
-    TEST.hours = 4
     truthy(Story.saveTyped(record, "c:a", 2, false, 1))
     eq(Story.typedState(record, "c:a").done, true, "true stays done")
     truthy(Story.saveTyped(record, "c:b", 4, false, 0.4))
     local b = Story.typedState(record, "c:b")
-    eq(b.seen, 4); near(b.t, 0.4); eq(b.start, 4); eq(b.done, nil)
+    eq(b.seen, 4); near(b.t, 0.4); eq(b.start, nil, "the world age of before is dropped"); eq(b.done, nil)
     -- an old record without the table takes the first new entry's state
     s.typed = nil
     eq(Story.typedState(record, "c:s1"), nil)
@@ -501,11 +493,10 @@ test("the window's commands keep what was seen; a paper read whole in its viewer
     local character = { getUsername = function() return "P" end }
     Story.markNew(record, "c:s1")
     Story.markNew(record, "d:police_card")
-    TEST.hours = 3
     sendClientCommand(character, OA.MOD, "story_typed", { id = "p1", key = "c:s1", seen = 17, t = 2.25 })
     eq(Story.typedState(record, "c:s1").seen, 17)
     eq(Story.typedState(record, "c:s1").t, 2.25)
-    eq(Story.typedState(record, "c:s1").start, 3)
+    eq(Story.typedState(record, "c:s1").start, nil)
     sendClientCommand(character, OA.MOD, "story_typed", { id = "p1", key = "c:s1", seen = 30, done = true })
     eq(Story.typedState(record, "c:s1").done, true)
     eq(Story.typedState(record, "c:s1").t, nil)
