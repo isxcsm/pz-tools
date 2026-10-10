@@ -72,6 +72,7 @@ Data.ITEMS = {
     FarmJournal = { docs = { "farm_journal" }, weight = 0.5 },
     SampleCooler = { docs = { "cooler_front", "cooler_back" }, weight = 25 },
     RosterPage = { docs = { "roster_page" }, weight = 0.1 },
+    HandoverPages = { docs = { "handover_pages" }, weight = 0.1 },
     ReviewMemo = { docs = { "review_memo" }, weight = 0.1 },
     WardRecord = { docs = { "ward_record" }, weight = 0.5 },
     CellLog = { docs = { "cell_log" }, weight = 0.6 },
@@ -167,16 +168,20 @@ Data.STORIES = {
         trigger = { milestone = 2 }, kind = "soil", item = "SoilSample", optional = true, late = true,
     },
     handover = {
-        trigger = { milestone = 3 }, kind = "field", item = "RosterPage", handover = true, far = true,
+        trigger = { milestone = 3 }, kind = "field", item = "HandoverPages", handover = true, far = true,
         places = { "louisville_airport", "louisville_police", "east_camp", "echo_surface" },
     },
 }
 -- After the handover (the 4th milestone on) each milestone has one story mission, a new purpose at a place the
--- player knew: these in turn.
+-- player knew: these in turn. `doc` is the paper the item carries (the new office's form: it takes the place of the
+-- item's own old paper).
 Data.REVISITS = {
-    revisit_ledger = { kind = "fetch", item = "PharmacyLedger", places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
-    revisit_roster = { kind = "fetch", item = "RosterLostPage", places = { "riverside_school", "westpoint_school", "marchridge_school" } },
-    revisit_police = { kind = "fetch", item = "EvidenceEnvelope", places = { "muldraugh_pd", "westpoint_pd", "rosewood_pd", "riverside_pd" } },
+    revisit_ledger = { kind = "fetch", item = "PharmacyLedger", doc = "revisit_ledger",
+        places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
+    revisit_roster = { kind = "fetch", item = "RosterLostPage", doc = "revisit_roster",
+        places = { "riverside_school", "westpoint_school", "marchridge_school" } },
+    revisit_police = { kind = "fetch", item = "EvidenceEnvelope", doc = "revisit_police",
+        places = { "muldraugh_pd", "westpoint_pd", "rosewood_pd", "riverside_pd" } },
 }
 Data.REVISIT_ORDER = { "revisit_ledger", "revisit_roster", "revisit_police" }
 
@@ -195,32 +200,59 @@ Data.CONTRACTS = {
 Data.LAST_STAGE = 5
 
 -- What each stage tells (LORE 4, 6, 7). Radio lines are in order (the stage's radio copy); notes are the manifest
--- notes that go out one per supply crate in this order (the rest of the crates get the trade package's general lines);
--- supply is what is put into the next supply crate once, on entering; the story ids are queued first (the next
--- mission slot).
+-- notes that go out one per supply crate in this order (the rest of the crates get the story's filler lines,
+-- Story.fillNoteKey); supply is the 2반 papers of the stage: { item, document, when, first }. They wait on entering and
+-- go one to a crate, in this order, when `when` holds ("done:<story id>" the story mission was delivered, "sent:<document>"
+-- that paper has gone, "fragment" a meteorite fragment has been on a receipt; none: at once). `first` ones go before the
+-- others. The story ids are queued first (the next mission slot).
 Data.STAGES = {
     [1] = { stories = { "evidence" }, radio = { "s1_a", "s1_b" }, notes = { "battery", "appendix_missing", "leave_site" },
             supply = { { "SerumSheet", "serum_sheet" } } },
     [2] = { stories = { "clinic" }, radio = { "s2_a", "s2_b" }, notes = { "bedding_back", "socks", "box_corner" },
-            supply = { { "AnalysisReply", "reply_first" }, { "AnalysisReply", "reply_evidence" },
-                       { "AnalysisReply", "reply_correction" } } },
+            supply = { { "AnalysisReply", "reply_first" }, { "AnalysisReply", "reply_correction", "sent:reply_first" },
+                       { "AnalysisReply", "reply_evidence", "done:evidence" } } },
     [3] = { stories = { "observation" }, radio = { "s3_a", "s3_b", "s3_c" }, notes = { "cards", "count_off", "dunnigan_pen" },
-            supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment" },
+            supply = { { "AnalysisReply", "reply_nomatch" }, { "AnalysisReply", "reply_fragment", "fragment" },
                        { "AnalysisReply", "reply_relapse" } } },
     [4] = { stories = { "cooler", "bunker" }, radio = { "s4_a" }, notes = { "proxy_signature", "old_form", "short_notice" },
-            supply = {} },
+            supply = { { "Appendix", "pending_list" } } },
     [5] = { stories = { "gym" }, radio = { "s5_first" }, notes = { "late_appendix", "no_greeting", "empty_slot" },
-            supply = { { "Appendix", "appendix_2" } } },
+            supply = { { "Appendix", "appendix_2", nil, true } } },
 }
 -- Milestones 1 and 2: the unresolved items list grows by a sheet each.
 Data.MILESTONES = {
     [1] = { stories = { "ward" }, radio = { "m1_a", "m1_b" }, notes = { "m1_a", "m1_b", "m1_c" },
-            supply = { { "UnresolvedList", "unresolved_1" } } },
+            supply = { { "UnresolvedList", "unresolved_1", nil, true } } },
     [2] = { stories = { "cells" }, radio = { "m2_a", "m2_b" }, notes = { "m2_a", "m2_b", "m2_c" },
-            supply = { { "UnresolvedList", "unresolved_2" } } },
+            supply = { { "UnresolvedList", "unresolved_2", nil, true } } },
     [3] = { stories = { "handover" }, radio = { "m3_a" }, notes = { "last_a", "last_b" },
-            supply = { { "UnresolvedList", "unresolved_3" } } },
+            supply = { { "UnresolvedList", "unresolved_3", nil, true } } },
 }
+-- Radio lines that tell of a paper before it is there are left out of the stage's copy until the paper has gone: the
+-- line's id -> { doc = the paper, copy = the folder key of the copy that gains the line }. (The correction is told
+-- of when the first reply has been sent, the fragment reply when it has.)
+Data.RADIO_AFTER = {
+    s2_b = { doc = "reply_first", copy = "c:s2" },
+    s3_b = { doc = "reply_fragment", copy = "c:s3" },
+}
+-- What a manifest remark encloses (it says "2 batteries enclosed": the crate has them), by note id: { { item, count } }.
+-- A lighter stands for the lighter flints the notes used to name (the game has none).
+local BATTERY = { { "Base.Battery", 2 } }
+local SOCKS = { { "Base.Socks_Ankle", 1 } }
+local CARDS = { { "Base.CardDeck", 1 } }
+local OPENER = { { "Base.TinOpener", 1 } }
+local LIGHTER = { { "Base.Lighter", 1 } }
+Data.NOTE_ITEMS = {
+    battery = BATTERY, socks = SOCKS, cards = CARDS, dunnigan_pen = { { "Base.Pencil", 2 } },
+    m1_b = CARDS, m1_c = LIGHTER, m2_b = OPENER,
+    after3_2 = BATTERY, after3_4 = SOCKS, after3_6 = OPENER, after3_8 = CARDS, after3_11 = LIGHTER,
+    after4_2 = BATTERY, after4_4 = SOCKS, after4_6 = CARDS, after4_8 = OPENER, after4_10 = LIGHTER,
+    after5_2 = BATTERY, after5_4 = SOCKS, after5_6 = CARDS, after5_8 = OPENER, after5_10 = LIGHTER,
+}
+-- Notes that are said only when the crate bears them out: "gap" the manifest number is not the one after the last
+-- (count_off says it is not), "orders" an order was loaded (the note counts them: %2).
+Data.NOTE_WHEN = { count_off = "gap", after3_2 = "orders", after4_1 = "orders" }
+
 -- The first radio line after the handover is the 12th of the sample lines.
 Data.HANDOVER_RADIO = "handover"
 -- The handover's last crate: the file, a kit voucher, and the note.

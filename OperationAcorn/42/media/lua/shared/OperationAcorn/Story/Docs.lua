@@ -14,12 +14,14 @@ OA.StoryDocs = Docs
 -- Document ids by kind. "found" ones come with a mission item, "supply" ones in a supply crate, "note" ones are
 -- the short field notes of regular missions, "stake" is a drop site's survey stake.
 Docs.FOUND = { "police_card", "clinic_log", "weather_log", "farm_journal", "cooler_front", "cooler_back", "review_memo",
-               "roster_page", "ward_record", "cell_log", "soil_slip", "con_stake", "con_roster", "con_filters",
-               "con_ledger", "con_compare" }
+               "roster_page", "ward_record", "cell_log", "soil_slip", "handover_pages", "con_stake", "con_roster",
+               "con_filters", "con_ledger", "con_compare", "revisit_ledger", "revisit_roster", "revisit_police" }
 Docs.SUPPLY = { "serum_sheet", "reply_first", "reply_evidence", "reply_correction", "reply_nomatch", "reply_fragment",
-                "reply_relapse", "appendix_2", "unresolved_1", "unresolved_2", "unresolved_3", "handover_notice",
-                "status_table" }
+                "reply_relapse", "pending_list", "appendix_2", "unresolved_1", "unresolved_2", "unresolved_3",
+                "handover_notice", "status_table" }
 Docs.STAKE = "stake"
+-- The stakes the player has read, kept in the folder as one record (the folder makes its text: Folder.stakeLog).
+Docs.STAKE_LOG = "stake_log"
 -- What the research team sends to the terminal's folder itself, with no item to read (the research guide, the tree
 -- memos, the infection handling notice, the cure certificate): the guide documents add their ids with Docs.addGuide
 -- (Story.deliverDocument puts one in a record's folder, new until opened).
@@ -123,17 +125,20 @@ function Docs.stakeBody(stakeNo, dateIndex)
 end
 
 -- What reading an item shows: { { id =, variant =, extra = }, ... } from the item's name (without module) and its
--- modData table (a supply item names its document in OA_Doc; the others have theirs in the data).
+-- modData table (a supply item names its document in OA_Doc; the others have theirs in the data; a mission item
+-- with OA_Only shows its OA_Doc alone, in the place of the item's own paper).
 function Docs.forItem(record, itemName, md)
     md = md or {}
     local def = Data.ITEMS[itemName]
     local list = {}
     local extra = md.OA_Stake or md.OA_Serial
     if md.OA_Doc then
-        list[#list + 1] = { id = md.OA_Doc }
+        list[#list + 1] = { id = md.OA_Doc, variant = md.OA_Only and md.OA_Variant or nil, extra = md.OA_Only and extra or nil }
     end
-    if def and def.docs then
-        for _, id in ipairs(def.docs) do list[#list + 1] = { id = id, variant = md.OA_Variant, extra = extra } end
+    if def and def.docs and not (md.OA_Doc and md.OA_Only) then
+        for _, id in ipairs(def.docs) do
+            if id ~= md.OA_Doc then list[#list + 1] = { id = id, variant = md.OA_Variant, extra = extra } end
+        end
     end
     if md.OA_Note and known[md.OA_Note] then list[#list + 1] = { id = md.OA_Note } end
     return list

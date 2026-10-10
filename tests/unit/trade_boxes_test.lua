@@ -136,32 +136,34 @@ end
 
 test("the ledger numbers receipts and keeps the last settlement as one summary", function()
     local record = newRecord("ledger")
-    eq(Ledger.nextSerial(record), 1)
+    local first = Ledger.nextSerial(record)
+    truthy(first >= Ledger.FIRST_MIN and first <= Ledger.FIRST_MAX, "the first number is a middle one")
     eq(Ledger.last(record), nil, "none before the first")
     local r1 = Ledger.add(record, receipt(1, 1000), 1)
-    eq(r1.id, 1)
+    eq(r1.id, first, "the number the status tab showed is the one the receipt gets")
     eq(r1.day, 1)
-    eq(record.trade.serial, 1)
-    eq(Ledger.nextSerial(record), 2)
+    eq(record.trade.serial, first)
+    local second = Ledger.nextSerial(record)
+    truthy(second > first and second <= first + Ledger.STEP_MAX)
     local first = Ledger.last(record)
     eq(first.at, 24)
     eq(first.credits, 1000)
     eq(first.trust, 10)
     eq(first.boxes, 1)
     local r2 = Ledger.add(record, receipt(10, 2000), 10)
-    eq(r2.id, 2)
+    eq(r2.id, second)
     eq(r2.day, 10)
-    eq(Ledger.nextSerial(record), 3)
+    local third = Ledger.nextSerial(record)
     local last = Ledger.last(record)
     eq(last.at, 240)
     eq(last.credits, 2000)
     eq(last.trust, 20)
     eq(last, record.trade.lastSettle)
     eq(record.ledger, nil, "no ledger section is kept")
-    eq(record.trade.serial, 2, "only the counter and the summary stay")
+    eq(record.trade.serial, second, "only the counter and the summary stay")
     -- Far later: the numbering goes on, and the summary is the newest one only.
     local r = Ledger.add(record, receipt(200, 5), 200)
-    eq(r.id, 3)
+    eq(r.id, third)
     eq(Ledger.last(record).credits, 5)
     -- A receipt without numbers gives zeros.
     Ledger.add(record, { at = 1 }, 201)
@@ -219,7 +221,7 @@ test("an old ledger becomes the serial and the newest receipt's summary, and goe
     upgrade(record, "trade.ledger")
     eq(record.ledger, nil)
     eq(record.trade.serial, 7)
-    eq(Ledger.nextSerial(record), 8)
+    truthy(Ledger.nextSerial(record) > 7 and Ledger.nextSerial(record) <= 7 + Ledger.STEP_MAX)
     local last = Ledger.last(record)
     eq(last.at, 200)
     eq(last.credits, 900)
@@ -244,11 +246,37 @@ test("an old ledger with no receipts keeps only its counter; a record without on
     upgrade(plain, "trade.ledger")
     eq(plain.ledger, nil)
     eq(Ledger.last(plain), nil)
-    eq(Ledger.nextSerial(plain), 1)
+    truthy(Ledger.nextSerial(plain) >= Ledger.FIRST_MIN, "a record with no ledger starts at a middle number")
     -- A serial the new code already has is not lowered.
     local newer = newRecord("newer")
     newer.trade = { serial = 10 }
     newer.ledger = { seq = 4, receipts = {} }
     upgrade(newer, "trade.ledger")
     eq(newer.trade.serial, 10)
+end)
+
+test("the manifest numbers start in the middle, step 1 to 5, and differ from one collection point to another", function()
+    local record = newRecord("serials")
+    record.number = 347
+    local last, steps, seen = nil, {}, {}
+    for i = 1, 300 do
+        local n = Ledger.serialAfter(record, last)
+        if last then
+            local step = n - last
+            truthy(step >= 1 and step <= Ledger.STEP_MAX, "step " .. step)
+            steps[step] = true
+        else
+            truthy(n >= Ledger.FIRST_MIN and n <= Ledger.FIRST_MAX)
+        end
+        eq(Ledger.serialAfter(record, last), n, "the same last number gives the same next one")
+        last = n
+    end
+    for step = 1, Ledger.STEP_MAX do truthy(steps[step], "a step of " .. step .. " comes") end
+    local starts = {}
+    for number = 1000, 1060 do
+        starts[Ledger.serialAfter({ number = number }, nil)] = true
+    end
+    local distinct = 0
+    for _ in pairs(starts) do distinct = distinct + 1 end
+    truthy(distinct > 20, "the first number differs by collection point (" .. distinct .. ")")
 end)

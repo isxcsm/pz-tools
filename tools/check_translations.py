@@ -3,7 +3,7 @@
 Reports:
 - keys one language has and the other lacks, in any file;
 - UI keys (IG_UI and ContextMenu) the code names that no language has, and UI keys no code names (directly, or by a
-  prefix the code builds keys from, as getText("IGUI_OA_Reason_" .. reason));
+  prefix the code builds keys from, as getText("IGUI_OA_Reason_" .. reason), or a quoted stem ending in _);
 - sandbox pages and options (media/sandbox-options.txt) without a name, options without a tooltip, and sandbox texts
   no page or option has;
 - items and craft recipes (media/scripts) without a name, and names no item or recipe has;
@@ -115,13 +115,16 @@ def main():
     langs = {lang: load(lang, UI_FILES) for lang in LANGS}
     lua = code()
     named = set(KEY.findall(lua))
+    # a quoted stem ending in _ (a bundle's prefix = "IGUI_OA_..._") is a prefix too: no key ends in _
+    stems = {k for k in named if k.endswith('_')}
+    named -= stems
     # an item script's Tooltip = <key> uses its key too
     for folder, _, files in os.walk(os.path.join(MEDIA, 'scripts')):
         for f in files:
             if f.endswith('.txt'):
                 with open(os.path.join(folder, f), encoding='utf-8') as fh:
                     named |= set(re.findall(r'\bTooltip\s*=\s*(Tooltip_OA_\w+)', fh.read()))
-    prefixes = set(PREFIX.findall(lua)) - {'IGUI_OA_'}
+    prefixes = (set(PREFIX.findall(lua)) | stems) - {'IGUI_OA_'}
     every = set().union(*langs.values())
     for key in sorted(named - every):
         problems.append('no text for %s' % key)

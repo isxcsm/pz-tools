@@ -136,8 +136,28 @@ function Settle.run(record, svc)
         cargo[#cargo + 1] = spec
         gifts[#gifts + 1] = { type = spec.type, count = spec.count }
     end
+    -- What the story sends for this crate alone (its papers, one a crate, when their time has come).
+    local draft = { kind = call.kind, boxes = #sealed, credits = result.credits or 0, trust = result.trust or 0,
+        orders = orderResults, cargo = cargo, lines = result.lines or {}, events = events,
+        serial = Ledger.nextSerial(record), lastSerial = record.trade and record.trade.serial or 0 }
+    for _, spec in ipairs(Trade.crateExtras(record, draft)) do
+        cargo[#cargo + 1] = spec
+        gifts[#gifts + 1] = { type = spec.type, count = spec.count }
+    end
+    -- The remark of the manifest is written now, because it may enclose things (the story's "2 batteries enclosed");
+    -- a flight with no crate has no manifest and no remark. What a remark encloses is the small extra of this crate:
+    -- the extra of the chance below is not added to it (the same lines would be twice on the paper).
+    local needCrate = #cargo > 0 or #sealed > 0 or #orderResults > 0
+    local noteKey, noteArgs, noteFx
+    if needCrate then noteKey, noteArgs, noteFx = Trade.noteFor(record, draft) end
+    local enclosed = false
+    for _, item in ipairs(noteFx and noteFx.items or {}) do
+        cargo[#cargo + 1] = { type = item.type, count = item.count or 1 }
+        enclosed = true
+    end
     local bonusKey
-    if (account.stage or 0) >= Settle.BONUS_FROM_STAGE and #cargo > 0 and svc.rnd(1, 100) <= Settle.BONUS_CHANCE then
+    if not enclosed and (account.stage or 0) >= Settle.BONUS_FROM_STAGE and #cargo > 0
+        and svc.rnd(1, 100) <= Settle.BONUS_CHANCE then
         local pick = Settle.BONUS_POOL[svc.rnd(1, #Settle.BONUS_POOL)]
         cargo[#cargo + 1] = { type = pick.type, count = pick.count }
         bonusKey = pick.key
@@ -190,8 +210,7 @@ function Settle.run(record, svc)
         filled = result.filled and #result.filled > 0 and result.filled or nil,
         support = #support > 0 and support or nil,
     }
-    local key, args = Trade.noteFor(record, receipt)
-    if key then receipt.note = { key = key, args = args } end
+    if noteKey then receipt.note = { key = noteKey, args = noteArgs } end
     receipt = Ledger.add(record, receipt, day)
 
     local plan = {

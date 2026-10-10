@@ -258,6 +258,12 @@ local function uiKeys()
         for _, id in ipairs(ids) do add("Request_" .. id) end
     end
     add("Request_Title"); add("Request_Head"); add("Request_Approval_a"); add("Request_Approval_b")
+    -- The stake record and where a delivered paper's copy came from, the one-off remark of a new region, and the filler
+    -- remarks (the bundles Story.fillNoteKey draws from, by their number of lines).
+    add("DocTitle_stake_log"); add("StakeLog_Line"); add("Meta_stakes"); add("Meta_copy"); add("Note_region")
+    for id, n in pairs({ s1 = 5, s2 = 5, s3 = 5, s4 = 5, s5 = 5, m = 4, a = 4, partial = 4, serum = 2 }) do
+        for i = 1, n do add("Fill_" .. id .. "_" .. i) end
+    end
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
     for m, pool in pairs(Data.AFTER) do
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end
@@ -289,6 +295,43 @@ test("every id in the data has its text, in both languages", function()
         need(lang, "ItemName.json", items)
         need(lang, "Tooltip.json", tips)
     end
+end)
+
+test("the filler bundles have no line past the last one the data counts, in either language", function()
+    for _, lang in ipairs({ "EN", "KO" }) do
+        local keys = keysOf(lang, "IG_UI.json")
+        for id, n in pairs({ s1 = 5, s2 = 5, s3 = 5, s4 = 5, s5 = 5, m = 4, a = 4, partial = 4, serum = 2 }) do
+            truthy(keys["IGUI_OA_Story_Fill_" .. id .. "_" .. n], lang .. " has the last line of " .. id)
+            eq(keys["IGUI_OA_Story_Fill_" .. id .. "_" .. (n + 1)], nil, lang .. " has no line after it")
+        end
+    end
+end)
+
+test("a remark of the ordered pools that says something is enclosed has its items in the data, and no other has", function()
+    local en = keysOf("EN", "IG_UI.json")
+    -- the list and appendix remarks name papers that are in the crate by the papers' own way, the last_a one is general
+    local papers = { m1_a = true, m2_a = true, late_appendix = true, last_a = true }
+    for key, value in pairs(en) do
+        local id = string.match(key, "^IGUI_OA_Story_Note_(.+)$")
+        if id then
+            local says = string.find(value, "enclosed", 1, true) and not string.find(value, "not enclosed", 1, true)
+            if says and not papers[id] then truthy(Data.NOTE_ITEMS[id], id .. " says enclosed and has no items") end
+            if Data.NOTE_ITEMS[id] then truthy(says, id .. " has items and does not say so") end
+        end
+    end
+end)
+
+test("a document that carries its own paper (OA_Doc with OA_Only) shows that one alone, with the place", function()
+    local record = OA.Store.ensure("p1", "P")
+    local list = Docs.forItem(record, "PharmacyLedger", { OA_Doc = "revisit_ledger", OA_Only = true, OA_Variant = "fallas_clinic" })
+    eq(#list, 1)
+    eq(list[1].id, "revisit_ledger")
+    eq(list[1].variant, "fallas_clinic")
+    list = Docs.forItem(record, "PharmacyLedger", { OA_Variant = "fallas_clinic" })
+    eq(list[1].id, "con_ledger", "the contract's item still has its own")
+    list = Docs.forItem(record, "SerumSheet", { OA_Doc = "serum_sheet" })
+    eq(#list, 1, "a supply item that names its paper is not shown twice")
+    eq(Docs.forItem(record, "HandoverPages", { OA_Variant = "east_camp" })[1].id, "handover_pages")
 end)
 
 test("the items script and the data name the same items", function()

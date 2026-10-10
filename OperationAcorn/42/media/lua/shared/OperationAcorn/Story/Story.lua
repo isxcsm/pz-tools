@@ -4,6 +4,7 @@
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
+require "OperationAcorn/Say"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Markup"
 local OA = OperationAcorn
@@ -48,6 +49,12 @@ function Story.section(record)
         s.requests = {}      -- request copies kept (Story.addRequestCopy): { no =, form =, id =, tier =, day =, month = }
         s.requestNo = Data.REQUEST_FIRST - 1
     end
+    -- Fields added later (a record made before has none).
+    s.papers = s.papers or {}       -- the 2반 papers waiting for a crate: { type =, doc =, when =, first = }
+    s.sent = s.sent or {}           -- the papers that have gone in a crate: document id -> true
+    s.copies = s.copies or {}       -- documents that came back as copies of what was delivered: id -> true
+    s.docExtra = s.docExtra or {}   -- the number a read document was read with (a stake, a serial): id -> value
+    s.noted = s.noted or {}         -- one-off remarks said: "serum", "region"
     return s
 end
 
@@ -101,6 +108,74 @@ function Story.flushSupply(record)
     end
 end
 
+-- The 2반 papers (replies, appendices, lists) go one to a crate, and only when their time has come (Data.STAGES): they
+-- wait here, in the record, and the trade part asks for them as it loads a crate (Trade.addCrateProvider). entry =
+-- { item, document, when, first }.
+function Story.queuePaper(record, entry)
+    local s = Story.section(record)
+    local doc = entry[2]
+    if s.sent[doc] then return end
+    for _, p in ipairs(s.papers) do
+        if p.doc == doc then return end
+    end
+    s.papers[#s.papers + 1] = { type = entry[1], doc = doc, when = entry[3], first = entry[4] or nil }
+end
+
+-- Whether a paper's time has come: "done:<story id>" the story mission was delivered, "sent:<document>" that paper has
+-- gone, "fragment" a meteorite fragment has been on a receipt. No condition: at once.
+function Story.paperReady(record, paper)
+    local s = Story.section(record)
+    if not paper.when then return true end
+    local kind, arg = string.match(paper.when, "^(%a+):?(.*)$")
+    if kind == "done" then return s.done[arg] == "done" end
+    if kind == "sent" then return s.sent[arg] == true end
+    if kind == "fragment" then return s.fragmentSeen == true end
+    return true
+end
+
+-- The paper for the crate being loaded: the first one that is ready, the ones marked `first` before the others.
+-- Takes it out of the queue and notes it as sent (the radio lines that tell of it come into their copy). Returns
+-- an item spec, or nil.
+function Story.takePaper(record)
+    local s = Story.section(record)
+    local at
+    for i, p in ipairs(s.papers) do
+        if p.first and Story.paperReady(record, p) then at = i; break end
+    end
+    if not at then
+        for i, p in ipairs(s.papers) do
+            if Story.paperReady(record, p) then at = i; break end
+        end
+    end
+    if not at then return nil end
+    local p = table.remove(s.papers, at)
+    s.sent[p.doc] = true
+    for _, held in pairs(Data.RADIO_AFTER) do
+        if held.doc == p.doc then Story.markNew(record, held.copy) end
+    end
+    OA.Sync.changed("story", record.id)
+    return { type = Data.fullType(p.type), count = 1, mod = { OA_Doc = p.doc } }
+end
+
+-- What the story puts in a crate (the trade part's crate provider): one paper, when one is ready.
+function Story.crateSpecs(record)
+    local spec = Story.takePaper(record)
+    return spec and { spec } or nil
+end
+
+-- The trade part tells the story what a settlement settled: a meteorite fragment on a receipt lets the fragment reply
+-- go in a later crate.
+function Story.onSettled(record, result)
+    local s = Story.section(record)
+    if s.fragmentSeen then return end
+    for _, line in ipairs(result and result.lines or {}) do
+        if line.marks and line.marks.fragment then
+            s.fragmentSeen = true
+            return
+        end
+    end
+end
+
 -- Adds trust and credits to a record at a settlement (or a field trade). The trade part's own function does the
 -- debt and the stage-up handling when it has one.
 function Story.addTrust(record, trust)
@@ -150,7 +225,7 @@ end
 
 local function enterEvents(record, def)
     for _, id in ipairs(def.stories or {}) do Story.queueStory(record, id, true) end
-    for _, entry in ipairs(def.supply or {}) do Story.queueSupply(record, entry[1], entry[2]) end
+    for _, entry in ipairs(def.supply or {}) do Story.queuePaper(record, entry) end
 end
 
 function Story.enterStage(record, stage)
@@ -165,7 +240,7 @@ function Story.enterStage(record, stage)
     end
     for i = #fresh, 1, -1 do Story.queueStory(record, fresh[i], true) end
     for _, id in ipairs(rest) do Story.queueStory(record, id, false) end
-    for _, entry in ipairs(def.supply or {}) do Story.queueSupply(record, entry[1], entry[2]) end
+    for _, entry in ipairs(def.supply or {}) do Story.queuePaper(record, entry) end
     requeueMissed(record)
     s.noteIndex = s.noteIndex or {}
     if def.radio and #def.radio > 0 then Story.markNew(record, "c:s" .. stage) end
@@ -307,6 +382,16 @@ end
 -- The radio copies in the document folder (DESIGN-terminal 11): the first contact, the lines of each stage entered
 -- (milestones count on as stages 6, 7 and 8), the handover. Worked out from the story's counters, so nothing is kept
 -- for them. { { id, stage (nil for the first contact and the handover), keys = { line ids } } }, oldest first.
+-- The lines of a copy that can be shown: the ones that tell of a paper wait until that paper has been sent.
+local function shownLines(s, keys)
+    local shown = {}
+    for _, key in ipairs(keys) do
+        local held = Data.RADIO_AFTER[key]
+        if not held or s.sent[held.doc] then shown[#shown + 1] = key end
+    end
+    return shown
+end
+
 function Story.radioCopies(record)
     local s = Story.section(record)
     local list = {}
@@ -315,12 +400,14 @@ function Story.radioCopies(record)
     end
     for st = 1, s.seenStage or 0 do
         local def = Data.STAGES[st]
-        if def and def.radio and #def.radio > 0 then list[#list + 1] = { id = "s" .. st, stage = st, keys = def.radio } end
+        if def and def.radio and #def.radio > 0 then
+            list[#list + 1] = { id = "s" .. st, stage = st, keys = shownLines(s, def.radio) }
+        end
     end
     for k = 1, s.seenMilestones or 0 do
         local def = Data.MILESTONES[k]
         if def and def.radio and #def.radio > 0 then
-            list[#list + 1] = { id = "m" .. k, stage = Data.LAST_STAGE + k, keys = def.radio }
+            list[#list + 1] = { id = "m" .. k, stage = Data.LAST_STAGE + k, keys = shownLines(s, def.radio) }
         end
     end
     if s.handover then list[#list + 1] = { id = "handover", keys = { Data.HANDOVER_RADIO } } end
@@ -435,20 +522,68 @@ local function notePool(record)
     return "s" .. stage, def and def.notes or {}
 end
 
+-- What a crate shows of the settlement (the trade part's draft): how many order lines there were and how many had
+-- something loaded, and the reason the first one that was cut short was cut short ("credits", "limit", "other"; nil
+-- when no order was cut short).
+local CUT_REASON = { credits = "credits", debt = "credits", limit = "limit" }
+local function orderCounts(ctx)
+    local total, loaded, cut = 0, 0, nil
+    for _, order in ipairs(ctx and ctx.orders or {}) do
+        total = total + 1
+        if (order.delivered or 0) > 0 then loaded = loaded + 1 end
+        if (order.delivered or 0) < (order.ordered or 0) and not cut then cut = CUT_REASON[order.reason] or "other" end
+    end
+    return total, loaded, cut
+end
+
+-- Is the remark true of this crate: some are said only when it bears them out (Data.NOTE_WHEN).
+local function noteFits(id, ctx)
+    local when = Data.NOTE_WHEN[id]
+    if not when then return true end
+    if not ctx then return false end
+    if when == "gap" then
+        return (ctx.lastSerial or 0) > 0 and (ctx.serial or 0) - ctx.lastSerial >= 2
+    elseif when == "orders" then
+        local _, loaded = orderCounts(ctx)
+        return loaded > 0
+    end
+    return true
+end
+
+-- What the remark encloses: { items = { { type, count } } } (Data.NOTE_ITEMS), or nil. The trade part puts them in
+-- the crate.
+local function noteItems(id)
+    local list = Data.NOTE_ITEMS[id]
+    if not list then return nil end
+    local items = {}
+    for i, entry in ipairs(list) do items[i] = { type = entry[1], count = entry[2] } end
+    return { items = items }
+end
+
+-- A remark's arguments: the collection point number, and the order lines loaded of the lines there were.
+local function noteArgs(record, ctx)
+    local total, loaded = orderCounts(ctx)
+    return { Story.number(record), loaded, total }
+end
+
 -- The next manifest note, by the order pool: the special ones first (a receipt remark waiting), then the stage's
--- own lines one per crate. nil when the story has nothing now (the trade part uses its general lines). Returns the
--- text and the id.
-function Story.manifestNoteKey(record)
+-- own lines one per crate. nil when the story has nothing now (the filler lines, Story.fillNoteKey, then the trade
+-- part's). `ctx` is the crate (the trade part's draft): a line that needs the crate to bear it out waits for one that
+-- does. Returns the text key, its arguments, the note id and what it encloses.
+function Story.manifestNoteKey(record, ctx)
     local s = Story.section(record)
-    local id = table.remove(s.noteQueue, 1)
-    if not id then
+    local id = s.noteQueue[1]
+    if id then
+        table.remove(s.noteQueue, 1)
+    else
         local key, ids = notePool(record)
         local used = s.noteIndex[key] or 0
         if used >= #ids then return nil end
+        if not noteFits(ids[used + 1], ctx) then return nil end
         s.noteIndex[key] = used + 1
         id = ids[used + 1]
     end
-    return "IGUI_OA_Story_Note_" .. id, { Story.number(record) }, id
+    return "IGUI_OA_Story_Note_" .. id, noteArgs(record, ctx), id, noteItems(id)
 end
 
 function Story.manifestNote(record)
@@ -464,9 +599,74 @@ function Story.queueNote(record, id)
     s.noteQueue[#s.noteQueue + 1] = id
 end
 
--- The serum remark (manifest note 6 of the sample lines) for crates that carry a serum.
-function Story.serumNote(record)
-    return Story.text("IGUI_OA_Story_Note_serum", Story.number(record))
+-- The filler remarks (DESIGN-terminal 18, story improvement 9): in the crates the ordered notes leave, Kiesling still
+-- has a line now and then, so that the weeks between the story's events are not silent. The stage's own bundle
+-- (Fill s1 to s5, m for the milestones, a after the handover), and lines for what the crate is: orders cut short
+-- (by the reason), a serum aboard. Each bundle is drawn from in turn (Say) and rests for a while after a line (game
+-- hours); the first serum and the first new-region sample have a remark of their own, said once.
+local FILL = "IGUI_OA_Story_Fill_"
+for stage = 1, Data.LAST_STAGE do OA.Say.define("s" .. stage, { prefix = FILL, cooldown = 72 }) end
+OA.Say.define("m", { prefix = FILL, cooldown = 72 })
+OA.Say.define("a", { prefix = FILL, cooldown = 72 })
+OA.Say.define("partial", { prefix = FILL, cooldown = 144, tags = {
+    [1] = { reason = "credits" }, [2] = { reason = "credits" }, [3] = { reason = "limit" }, [4] = { reason = "other" } } })
+OA.Say.define("serum", { prefix = FILL, cooldown = 336 })
+
+local function hasSerum(ctx)
+    for _, spec in ipairs(ctx and ctx.cargo or {}) do
+        if string.find(spec.type or "", "Serum", 1, true) then return true end
+    end
+    return false
+end
+
+local function hasNewRegion(ctx)
+    for _, line in ipairs(ctx and ctx.lines or {}) do
+        if line.marks and line.marks.newRegion then return true end
+    end
+    return false
+end
+
+-- The filler remark for a crate: the text key and its arguments, or nil (none now, or the language has no lines).
+function Story.fillNoteKey(record, ctx)
+    local stage, milestones = Story.progress(record)
+    if stage < 1 then return nil end
+    local s = Story.section(record)
+    local say = OA.Store.section(record, "say")
+    local args = noteArgs(record, ctx)
+    local function line(id, c)
+        local key = OA.Say.line(say, id, c)
+        if key then return key, args end
+        return nil
+    end
+    if ctx then
+        if not s.noted.region and hasNewRegion(ctx) then
+            s.noted.region = true
+            return "IGUI_OA_Story_Note_region", args
+        end
+        local serum = hasSerum(ctx)
+        if serum and not s.noted.serum then
+            s.noted.serum = true
+            return "IGUI_OA_Story_Note_serum", args
+        end
+        local _, _, cut = orderCounts(ctx)
+        if cut then
+            local key = line("partial", { reason = cut })
+            if key then return key, args end
+        end
+        if serum then
+            local key = line("serum")
+            if key then return key, args end
+        end
+    end
+    local id = "s" .. math.min(stage, Data.LAST_STAGE)
+    if Story.handedOver(record) then id = "a" elseif milestones >= 1 then id = "m" end
+    return line(id)
+end
+
+-- Does a manifest remark mean the manifest is kept in the folder past the usual few: the story's own ordered notes
+-- do, the filler lines do not.
+function Story.keepsManifest(key)
+    return type(key) == "string" and string.find(key, "^IGUI_OA_Story_Note_") ~= nil
 end
 
 -- The old form (from the 4th stage): the manifest keeps its fixed form with a few other column names. The trade part
@@ -484,14 +684,14 @@ function Story.formLabel(record, id, default)
     return default
 end
 
--- Keeps a manifest's text in the document folder (the latest few), with the trust tier it came at. The trade part gives
+-- Keeps a manifest's text in the document folder (the latest few, and all that carry a remark of the story's own), with the trust tier it came at. The trade part gives
 -- the serial and the finished text. A serial is kept once: the same one again replaces its entry (a number seen three
 -- times in the folder was an in-game test adding 1042 on every run, not the helicopter: the receipts are numbered by
 -- Ledger.add and each arrival keeps one).
-function Story.addManifest(record, serial, text)
+function Story.addManifest(record, serial, text, keep)
     local s = Story.section(record)
     local stage, milestones = Story.progress(record)
-    local entry = { serial = serial, text = text, tier = stage + milestones }
+    local entry = { serial = serial, text = text, tier = stage + milestones, keep = keep or nil }
     for i, mf in ipairs(s.manifests) do
         if mf.serial == serial then
             s.manifests[i] = entry
@@ -499,7 +699,20 @@ function Story.addManifest(record, serial, text)
         end
     end
     s.manifests[#s.manifests + 1] = entry
-    while #s.manifests > Data.MANIFESTS_KEPT do table.remove(s.manifests, 1) end
+    -- Only the latest few are kept, but not the ones that carry a remark of the story's own: they stay.
+    local plain = 0
+    for _, mf in ipairs(s.manifests) do
+        if not mf.keep then plain = plain + 1 end
+    end
+    local i = 1
+    while plain > Data.MANIFESTS_KEPT and i <= #s.manifests do
+        if s.manifests[i].keep then
+            i = i + 1
+        else
+            table.remove(s.manifests, i)
+            plain = plain - 1
+        end
+    end
 end
 
 -- After the handover the team's frequency carries a line of its own now and then: six lines and three questions per
@@ -545,11 +758,20 @@ end
 -- ---------------------------------------------------------------------------------------------------------------
 -- Documents.
 
--- Marks a document as read (kept by id). `variant` is the place id its text was for.
-function Story.markRead(record, docId, variant)
+-- The number a document is read with (a stake's, a serial) as it is kept: a number or a short text.
+local function cleanExtra(extra)
+    if type(extra) == "number" then return extra end
+    if type(extra) == "string" and #extra > 0 and #extra <= 24 then return extra end
+    return nil
+end
+
+-- Marks a document as read (kept by id). `variant` is the place id its text was for, `extra` the number its text uses
+-- (the folder shows the text again with them).
+function Story.markRead(record, docId, variant, extra)
     local s = Story.section(record)
     if s.docs[docId] == nil then
         s.docs[docId] = variant or true
+        s.docExtra[docId] = cleanExtra(extra)
         local stage, milestones = Story.progress(record)
         s.docStage = s.docStage or {}
         s.docStage[docId] = stage + milestones
@@ -559,12 +781,12 @@ function Story.markRead(record, docId, variant)
     return false
 end
 
--- The documents the record has read, in a stable order: { { id =, variant = }, ... }.
+-- The documents the record has read, in a stable order: { { id =, variant =, extra = }, ... }.
 function Story.readDocuments(record)
     local s = Story.section(record)
     local list = {}
     for id, v in pairs(s.docs) do
-        list[#list + 1] = { id = id, variant = v ~= true and v or nil }
+        list[#list + 1] = { id = id, variant = v ~= true and v or nil, extra = s.docExtra[id] }
     end
     table.sort(list, function(a, b) return a.id < b.id end)
     return list
@@ -621,16 +843,47 @@ end
 
 -- A document handed to the folder without being read from an item (a guide the team sends to the terminal): it is in
 -- the folder at once and new until opened. false when the folder has it already.
-function Story.deliverDocument(record, docId, variant)
+function Story.deliverDocument(record, docId, variant, extra)
     local s = Story.section(record)
     if s.docs[docId] ~= nil then return false end
     s.docs[docId] = variant or true
+    s.docExtra[docId] = cleanExtra(extra)
     local stage, milestones = Story.progress(record)
     s.docStage = s.docStage or {}
     s.docStage[docId] = stage + milestones
     Story.markNew(record, "d:" .. docId)
     OA.Sync.changed("story", record.id)
     return true
+end
+
+-- The papers of a delivered mission come back as copies (LORE: the 2반 sends a copy back once it has taken the paper): the
+-- ones the player has not read are in the folder from the settlement on, new until opened, with a note of where they
+-- came from. `docs` is { { id =, variant =, extra = } } (Missions.documentsOf).
+function Story.returnCopies(record, docs)
+    local s = Story.section(record)
+    for _, doc in ipairs(docs or {}) do
+        if Story.deliverDocument(record, doc.id, doc.variant, doc.extra) then s.copies[doc.id] = true end
+    end
+end
+
+-- The survey stakes the player has read, as one record: the stake number and the date on it (an index of the dates
+-- the stakes carry), by number. The server notes a stake when it is read (the site's own date).
+function Story.noteStake(record, stake, date)
+    local s = Story.section(record)
+    if type(stake) ~= "number" or type(date) ~= "number" then return false end
+    if s.sitesSearched[stake] == date then return false end
+    s.sitesSearched[stake] = date
+    OA.Sync.changed("story", record.id)
+    return true
+end
+
+function Story.stakeLog(record)
+    local list = {}
+    for stake, date in pairs(Story.section(record).sitesSearched) do
+        if type(date) == "number" then list[#list + 1] = { stake = stake, date = date } end
+    end
+    table.sort(list, function(a, b) return a.stake < b.stake end)
+    return list
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -717,6 +970,21 @@ function Story.strangeItem(record)
     end
     return nil
 end
+
+-- A save from before: the papers the stages sent on entering went to the crate at once, so they are sent.
+OA.Store.addUpgrade("story.papers", function(record)
+    local s = record.story
+    if not s then return end
+    s = Story.section(record)
+    for st = 1, s.seenStage or 0 do
+        local def = Data.STAGES[st]
+        for _, entry in ipairs(def and def.supply or {}) do s.sent[entry[2]] = true end
+    end
+    for k = 1, s.seenMilestones or 0 do
+        local def = Data.MILESTONES[k]
+        for _, entry in ipairs(def and def.supply or {}) do s.sent[entry[2]] = true end
+    end
+end)
 
 -- A save from before: the terminal's radio log goes; whether the first line was the late one stays for its copy.
 OA.Store.addUpgrade("story.radio", function(record)

@@ -202,7 +202,7 @@ local ITEMS = {
     "MissionEnvelope", "MissionSampleTin", "MissionLogbook", "MissionFilterCase", "MissionTape", "MissionFabricRoll", "EvidenceEnvelope", "ClinicRecord",
     "WeatherLog", "FarmJournal", "SampleCooler", "RosterPage", "ReviewMemo", "WardRecord", "CellLog", "SoilSample",
     "StakeTag", "RosterLostPage", "FilterBundle", "PharmacyLedger", "CopyOriginal", "SampleCase", "DeadDropCase", "FieldCallDevice",
-    "AnalysisReply", "Appendix", "SerumSheet", "UnresolvedList", "HandoverFile", "KitVoucher",
+    "AnalysisReply", "Appendix", "SerumSheet", "UnresolvedList", "HandoverFile", "HandoverPages", "KitVoucher",
 }
 -- The machines package's item names where they differ from the icon names (Item_OA_<icon>.png).
 local ALIAS = { Cutter = "FabricCutter", PropaneRefiner = "PropaneRefinery", OilRefiner = "OilRefinery", WoodSaw = "LogSaw",

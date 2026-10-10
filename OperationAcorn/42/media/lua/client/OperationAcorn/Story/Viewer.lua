@@ -85,7 +85,7 @@ function ISOAViewer:show(i)
     self.prev:setVisible(#self.docs > 1)
     self.next:setVisible(#self.docs > 1)
     if not entry.noRecord then
-        OA.Sync.send(self.character, "story_read", { doc = entry.id, variant = entry.variant })
+        OA.Sync.send(self.character, "story_read", { doc = entry.id, variant = entry.variant, extra = entry.extra })
     end
 end
 

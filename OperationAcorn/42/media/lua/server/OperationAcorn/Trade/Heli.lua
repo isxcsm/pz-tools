@@ -248,13 +248,15 @@ function Heli.deliver(record, plan, call)
     end
 end
 
--- The manifest written out goes to the story part's document folder too (the latest few are kept there).
+-- The manifest written out goes to the story part's document folder too (the latest few are kept there, and every
+-- one with a remark of the story's own).
 function Heli.keepManifest(record, receipt)
     if not (OA.Story and OA.Story.addManifest) then return end
     local ok, err = pcall(function()
         local words = {}
         for _, line in ipairs(Trade.Text.receipt(receipt)) do words[#words + 1] = line.text end
-        OA.Story.addManifest(record, receipt.id, table.concat(words, "\n"))
+        local keep = OA.Story.keepsManifest and receipt.note and OA.Story.keepsManifest(receipt.note.key) or false
+        OA.Story.addManifest(record, receipt.id, table.concat(words, "\n"), keep)
     end)
     if not ok then OA.log("manifest not kept:", tostring(err)) end
 end

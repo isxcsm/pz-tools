@@ -2,7 +2,8 @@
 -- settlement stays as one summary line. The receipts themselves are not kept: the manifest paper carries its own copy
 -- and the document folder the latest few (DESIGN-terminal 13).
 --
--- record.trade.serial = the last number given; record.trade.lastSettle = { at, credits, trust, boxes }
+-- record.trade.serial = the last number given (the first is a middle number and each next one is 1 to 5 on: the
+-- other receivers' manifests take the numbers between, LORE clue 2); record.trade.lastSettle = { at, credits, trust, boxes }
 -- receipt = { id, at, day, kind ("settle" | "reissue"), boxes, credits, trust, bonus, debtPaid, spent, balance,
 --   lines = { { name, count, credits, trust, marks } }, orders = { { id, target, ordered, delivered, paid, reason } },
 --   filled = { { fullType, band, trust } } (request lines made full), note = { key, args }, gifts = { { type, count } }, events = { { kind, n } }, extra = { ... } }
@@ -50,10 +51,24 @@ local function summary(receipt)
     return { at = receipt.at, credits = receipt.credits or 0, trust = receipt.trust or 0, boxes = receipt.boxes or 0 }
 end
 
+-- The number that follows `last` (nil or 0 before the first). It is worked out from the collection point number and
+-- the last number, so that the number the status tab shows for the manifest being written is the one the receipt
+-- gets, on the client and on the server alike, and only the last number is kept. The first is 90 to 480, each next
+-- one is 1 to 5 on.
+Ledger.FIRST_MIN, Ledger.FIRST_MAX, Ledger.STEP_MAX = 90, 480, 5
+function Ledger.serialAfter(record, last)
+    last = last or 0
+    local x = OA.remainder(record.number or 0, 10007) * 131 + OA.remainder(last, 10007) * 197 + 59
+    x = OA.remainder(x * x + 12345, 65537)
+    x = OA.remainder(x * 75 + 74, 65537)
+    if last <= 0 then return Ledger.FIRST_MIN + OA.remainder(x, Ledger.FIRST_MAX - Ledger.FIRST_MIN + 1) end
+    return last + 1 + OA.remainder(x, Ledger.STEP_MAX)
+end
+
 -- Numbers a receipt, shortens its lines and keeps its summary as the last settlement. Returns the receipt.
 function Ledger.add(record, receipt, nowDay)
     local t = Store.section(record, "trade")
-    t.serial = (t.serial or 0) + 1
+    t.serial = Ledger.nextSerial(record)
     receipt.id = t.serial
     receipt.day = nowDay
     if receipt.lines then receipt.lines = Ledger.compactLines(receipt.lines, Ledger.MAX_LINES) end
@@ -64,7 +79,7 @@ end
 -- The number the next receipt gets.
 function Ledger.nextSerial(record)
     local t = record.trade
-    return (t and t.serial or 0) + 1
+    return Ledger.serialAfter(record, t and t.serial)
 end
 
 -- The last settlement's summary, or nil before the first.

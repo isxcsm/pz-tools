@@ -390,7 +390,8 @@ test("a stage entered through a trust change gets its scene after the title; the
     eq(#scenes, 1)
     eq(scenes[1].player, "p1")
     eq(scenes[1].detail.id, "s3")
-    eq(table.concat(scenes[1].detail.keys, ","), "s3_a,s3_b,s3_c")
+    -- s3_b tells of the paper in the next crate: it joins the copy once that paper has gone (Data.RADIO_AFTER)
+    eq(table.concat(scenes[1].detail.keys, ","), "s3_a,s3_c")
     eq(scenes[1].detail.number, "0347")
     -- two stages at once: the last one's scene
     record.trade.stage = 5
