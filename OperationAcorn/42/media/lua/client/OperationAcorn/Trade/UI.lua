@@ -206,7 +206,52 @@ function UI.size(el, w, h)
         bar:setAnchorBottom(false)
         bar:setX(w - 16)
         bar:setHeight(h)
+        UI.styleScrollBar(bar)
     end
+end
+
+-- The palette of the window an element is in (the terminal window keeps it as a table), or nil.
+local function paletteOf(el)
+    local at = el
+    while at do
+        if type(at.palette) == "table" then return at.palette end
+        at = at.parent
+    end
+    return nil
+end
+
+-- A vertical scroll bar drawn in the window's palette: a thin track, the thumb and two small arrows, where the game's
+-- grey textures stood out on the terminal. The thumb's place and size are the game's own (barx, bary, barwidth and
+-- barheight are what its clicks and drags read).
+local function renderBar(self)
+    local p = self.oaPalette
+    local sh = self.parent:getScrollHeight()
+    local h = self:getHeight()
+    if sh <= h then
+        self.barx, self.bary, self.barwidth, self.barheight = 0, 0, 0, 0
+        return
+    end
+    local box = math.max(8, math.ceil(h / sh * (h - 32)))
+    local dif = math.ceil((h - 32 - box) * self.pos)
+    self.barx, self.bary, self.barwidth, self.barheight = 5, 16 + dif, 8, box
+    local over = self.scrolling or (self:isMouseOver() and self:isPointOverThumb(self:getMouseX(), self:getMouseY()))
+    local c, t = p.border, over and p.text or p.border
+    self:drawRect(7, 16, 4, h - 32, 0.25, c[1], c[2], c[3])
+    self:drawRect(6, self.bary, 6, box, 0.95, t[1], t[2], t[3])
+    -- the arrows: a small triangle at each end
+    for i = 0, 3 do
+        self:drawRect(9 - i, 5 + i, 1 + 2 * i, 1, 0.9, c[1], c[2], c[3])
+        self:drawRect(9 - i, h - 6 - i, 1 + 2 * i, 1, 0.9, c[1], c[2], c[3])
+    end
+end
+
+-- Draws a scroll bar in the palette of its window (once; a bar outside the terminal keeps the game's look).
+function UI.styleScrollBar(bar)
+    if bar.oaPalette or not bar.vertical then return end
+    local p = paletteOf(bar.parent)
+    if not p then return end
+    bar.oaPalette = p
+    bar.render = renderBar
 end
 
 -- A list with rows drawn by `drawRow(list, y, item, alt)`, which returns the y of the next row. The row's own height

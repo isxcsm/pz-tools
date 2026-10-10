@@ -70,15 +70,29 @@ function OATabUpgrades:build(L, w, h)
         hit.group = g
         gx = gx + bw + 4
     end
-    -- The cards, two columns.
+    -- The cards, two columns, scrolled (in pixels, a row at a time) when they do not fit.
     local sel
+    local maxScroll = math.max(0, lay.contentH - lay.areaH)
+    local first = OA.clamp(self.cardScroll or 0, 0, maxScroll)
+    self.cardScroll = first
+    self.cardBox = lay.scroll and { y = lay.top, h = lay.areaH, step = lay.ch + M.CARD_GAP, max = maxScroll } or nil
+    local bottom = lay.top + lay.areaH
+    if lay.scroll then Draw.clip(L, 0, lay.top, lay.lw, lay.areaH) end
     for i, c in ipairs(cards) do
-        local x = OA.remainder(i - 1, 2) * (lay.cw + 6)
-        local y = 26 + math.floor((i - 1) / 2) * (lay.ch + 6)
-        self:buildCard(L, x, y, lay.cw, lay.ch, c, c.id == selId)
-        local hit = Draw.hit(L, x, y, lay.cw, lay.ch, "card")
-        hit.card, hit.hover = c.id, c.id ~= selId
+        local x = OA.remainder(i - 1, 2) * (lay.cw + M.CARD_GAP)
+        local y = lay.top + math.floor((i - 1) / 2) * (lay.ch + M.CARD_GAP) - first
+        if y + lay.ch > lay.top and y < bottom then
+            self:buildCard(L, x, y, lay.cw, lay.ch, c, c.id == selId)
+            -- the part of the card in the area takes the clicks
+            local hy = math.max(y, lay.top)
+            local hit = Draw.hit(L, x, hy, lay.cw, math.min(y + lay.ch, bottom) - hy, "card")
+            hit.card, hit.hover = c.id, c.id ~= selId
+        end
         if c.id == selId then sel = c end
+    end
+    if lay.scroll then
+        Draw.unclip(L)
+        Draw.scrollbar(L, lay.lw - 6, lay.top, lay.areaH, first / math.max(1, maxScroll), lay.areaH / lay.contentH)
     end
     if sel then self:buildDetail(L, lay.lw + 8, 0, lay.rw, h - lay.formH - 6, sel) end
     self:buildForm(L, 0, h - lay.formH, w, lay.formH)
@@ -298,6 +312,17 @@ function OATabUpgrades:onHit(hit)
     elseif hit.id == "shop" then
         self.window:showShopEntry("field_terminal")
     end
+end
+
+-- The wheel over the cards scrolls them a row at a time.
+function OATabUpgrades:onMouseWheel(del)
+    local b = self.cardBox
+    if not b then return false end
+    local my = self:getMouseY()
+    if my < b.y or my >= b.y + b.h then return false end
+    self.cardScroll = OA.clamp((self.cardScroll or 0) + (del > 0 and b.step or -b.step), 0, b.max)
+    self:layout()
+    return true
 end
 
 function OATabUpgrades:doCancel(id)

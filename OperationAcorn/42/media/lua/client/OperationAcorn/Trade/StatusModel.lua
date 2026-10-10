@@ -790,16 +790,25 @@ function M.roadLayout(w, h)
         yb = yb, trackH = yb + laneH }
 end
 
--- The upgrades screen: { formH, rw (the detail column), lw (the cards), cw, ch (a card), rows } for n cards in two
--- columns under the group buttons (26 high).
+-- The upgrades screen: { formH, rw (the detail column), lw (the cards), cw, ch (a card), rows, top, areaH (the cards'
+-- area), contentH, scroll } for n cards in two columns under the group buttons (26 high). Every group has the same
+-- card, CARD_H high (what it does, a value under each pip); the cards that do not fit scroll, and the scroll bar takes
+-- SCROLL_W off their width.
+M.CARD_H, M.CARD_GAP, M.SCROLL_W = 104, 6, 10
+
 function M.upgradesLayout(w, h, n)
     local narrow = w < 680
     local formH = narrow and 40 or 46
     local rw = narrow and 236 or 268
     local lw = w - rw - 8
     local rows = math.max(1, math.floor((n + 1) / 2))
-    local ch = math.min(104, math.floor((h - formH - 6 - 26 - 6 * (rows - 1)) / rows))
-    return { formH = formH, rw = rw, lw = lw, cw = math.floor((lw - 6) / 2), ch = ch, rows = rows }
+    local top = 26
+    local areaH = math.max(M.CARD_H, h - formH - 6 - top)
+    local contentH = rows * (M.CARD_H + M.CARD_GAP) - M.CARD_GAP
+    local scroll = contentH > areaH
+    local cardsW = scroll and lw - M.SCROLL_W or lw
+    return { formH = formH, rw = rw, lw = lw, cw = math.floor((cardsW - M.CARD_GAP) / 2), ch = M.CARD_H, rows = rows,
+        top = top, areaH = areaH, contentH = contentH, scroll = scroll }
 end
 
 -- The record screen's category rows: 21 apart, 18 in a short window.
