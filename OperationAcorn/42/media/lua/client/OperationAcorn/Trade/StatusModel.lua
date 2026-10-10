@@ -689,8 +689,8 @@ end
 -- The field terminal's first open (DESIGN-terminal 12) -------------------------------------------------------------
 
 -- The "새로 열린 것" board: { { head, lines = { ... } } } for the team's goods, the special requests and flight support.
--- The goods open now are named up to NEWS_NAMES, the rest counted (a late stage opens twenty and more at once).
-M.NEWS_NAMES = 5
+-- The goods open now are named up to NEWS_NAMES (one line of the board), the rest counted (a late stage opens twenty and more at once).
+M.NEWS_NAMES = 4
 
 function M.news(record)
     local tier = Trust.tier(record)
