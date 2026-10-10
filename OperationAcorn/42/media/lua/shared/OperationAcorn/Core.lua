@@ -29,6 +29,16 @@ function OA.handle()
     return api and api.client(OA.MOD) or nil
 end
 
+-- One of the API's drawing calls (PZToolsAPI.draw.rects, draw.quads: many shapes from one flat list of numbers, drawn
+-- by a window's prerender, render or postrender), or nil when the API or an older one lacks it. Read again for each
+-- frame that uses it: a function kept from an API that was replaced refuses to be called.
+function OA.drawCall(name)
+    local api = OA.api()
+    local draw = api and api.draw
+    local fn = type(draw) == "table" and draw[name] or nil
+    return type(fn) == "function" and fn or nil
+end
+
 -- A sandbox option by name (media/sandbox-options.txt, page OperationAcorn...).
 function OA.option(name)
     local vars = SandboxVars and SandboxVars.OperationAcorn
@@ -50,6 +60,66 @@ function OA.due(last, key, now, ms)
     if at and now >= at and now - at < ms then return false end
     last[key] = now
     return true
+end
+
+-- ---- the API's timers ------------------------------------------------------------------------------------------
+-- A function called every so many milliseconds of real time (PZToolsAPI.timers.every), counted in Java: a frame with
+-- nothing due costs the API a clock read, where a handler of OnTick wakes Lua every frame to compare the clock. Unlike
+-- OnTick it goes on while the game is paused, so it is for work that only looks (and draws), never for work that
+-- changes the world. The timers belong to the world: leaving it drops them, so a slot (the caller's table, which keeps
+-- the timer's id) remembers the world it was made in (OA.world, counted up at each OnGameStart) and a timer of another
+-- world is made again by the next OA.timerOn.
+OA.world = 0
+if Events and Events.OnGameStart then
+    Events.OnGameStart.Add(function() OA.world = OA.world + 1 end)
+end
+
+-- The API's timers when it has them and this mod has its handle, else nil.
+local function timerApi()
+    local api = OA.api()
+    local timers = api and api.timers
+    if type(timers) ~= "table" or type(timers.every) ~= "function" or type(timers.cancel) ~= "function" then return nil end
+    return timers, OA.handle()
+end
+
+-- Whether OA.timerOn can start a timer now.
+function OA.canTimer()
+    local timers, handle = timerApi()
+    return timers ~= nil and handle ~= nil
+end
+
+-- Keeps a timer of `spec` ({ ms = ... }) calling fn(id, periods) in `slot`: true once it runs (and true again if it is
+-- new, a second value: it already ran when the slot's timer is of this world), false when the API has no timers or
+-- refused this one (the caller then does it its own way).
+function OA.timerOn(slot, spec, fn)
+    if slot.id and slot.world == OA.world then return true, false end
+    local timers, handle = timerApi()
+    if not timers or not handle then return false end
+    local ok, id = pcall(timers.every, handle, spec, fn)
+    if not ok or id == nil then
+        OA.log("timers:", tostring(id))
+        return false
+    end
+    slot.id, slot.world = id, OA.world
+    return true, true
+end
+
+-- Calls fn once, `ms` of real time from now, on the API's timers; false when it has none.
+function OA.timerAfter(ms, fn)
+    local timers, handle = timerApi()
+    if not timers or not handle then return false end
+    local ok, err = pcall(timers.every, handle, { ms = ms, once = true }, fn)
+    if not ok then OA.log("timers:", tostring(err)) end
+    return ok
+end
+
+-- Stops the slot's timer (one of another world is gone already).
+function OA.timerOff(slot)
+    local id = slot.id
+    slot.id = nil
+    if id == nil or slot.world ~= OA.world then return end
+    local timers, handle = timerApi()
+    if timers and handle then pcall(timers.cancel, handle, id) end
 end
 
 -- The game day a world age falls on: day 0 is the world's first (partial) day, and the day changes at 00:00.
