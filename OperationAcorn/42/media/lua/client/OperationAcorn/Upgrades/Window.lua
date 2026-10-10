@@ -538,7 +538,7 @@ function View:enabled(item)
 end
 
 function View:setHover(item)
-    local key = item and item.key or nil
+    local key = (item and not self:asking()) and item.key or nil
     if key ~= self.hover then
         self.hover = key
         self.tipDirty = true
@@ -732,9 +732,21 @@ function View:ask(text, onYes, arg)
         modal:setX(self:getAbsoluteX() + (self.width - modal.width) / 2)
         modal:setY(self:getAbsoluteY() + (self.height - modal.height) / 2)
         setJoypadFocus(self.playerNum, modal)
-        return
+        self.question = modal
+    else
+        self.question = UI.confirm(self.player, text, self, onYes, arg)
     end
-    UI.confirm(self.player, text, self, onYes, arg)
+    self:setHover(nil)
+    self:hideTip()
+end
+
+-- Whether a question of the tab's is on the screen: nothing under it is hovered or explained meanwhile (the tooltip,
+-- kept on top each frame, covered the question; seen in game, the reset's).
+function View:asking()
+    local q = self.question
+    if q and q:isVisible() then return true end
+    self.question = nil
+    return false
 end
 
 function View:onAnswer(button, onYes, arg)
@@ -911,7 +923,7 @@ end
 
 -- Shows the tooltip beside the focused item: on its right, or on its left where the screen ends; kept on the screen.
 function View:updateTip()
-    local item = self:focusItem()
+    local item = not self:asking() and self:focusItem()
     if not item or not self.sim or not self.body then return self:hideTip() end
     if item.key ~= self.tipKey or self.tipDirty then
         local rows

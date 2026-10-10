@@ -122,3 +122,21 @@ test("the buttons sit in the top bar and the bottom bar, inside the tab", functi
     truthy(view.byKey.approve.y >= L.PLAN_Y, "approve in the bottom bar")
     truthy(view.byKey.clear.x + view.byKey.clear.w <= view.byKey.approve.x, "clear left of approve")
 end)
+
+test("while the tab's question is on the screen nothing is hovered and the tooltip is hidden", function()
+    local view = laidOut("trees")
+    local shown = true
+    view.question = { isVisible = function() return shown end }
+    local hidden = 0
+    view.tip = { setVisible = function() end, removeFromUIManager = function() hidden = hidden + 1 end }
+    view.tipShown = true
+    view.sim, view.body = {}, {}
+    View.setHover(view, { key = "reset" })
+    eq(rawget(view, "hover"), nil, "not hovered under the question")
+    View.updateTip(view)
+    eq(hidden, 1, "the tooltip taken off")
+    shown = false
+    View.setHover(view, { key = "reset" })
+    eq(rawget(view, "hover"), "reset", "hovered again once the question is gone")
+    eq(rawget(view, "question"), nil, "forgotten")
+end)

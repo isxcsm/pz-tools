@@ -80,7 +80,7 @@
     "Tooltip_OA_Gear_NoKits": "단 키트 없음.",
     "Tooltip_OA_Gear_NoBag": "키트를 달 가방이 없습니다. 주문한 대상: %1",
     "Tooltip_OA_Gear_FitVehicle": "차의 정비 창에서 트렁크나 엔진을 우클릭해 답니다. 주문한 대상: %1",
-    "Tooltip_OA_Gear_NoVehicleKit": "이 차에 쓸 %1이(가) 없습니다.",
+    "Tooltip_OA_Gear_NoVehicleKit": "이 차에 쓸 %1가 없습니다.",
     "Tooltip_OA_Gear_RedeemInfo": "원하는 키트 하나로 바꿉니다. 어느 가방이나 차에든 쓸 수 있고, 이 키트로는 상점의 다음 키트 값이 오르지 않습니다.",
     "Tooltip_OA_Tree_Item_DelayDrugLong": "7일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다. 유통 기한이 없습니다.",
     "Tooltip_OA_Tree_Item_InfectionReversal": "감염 진행을 처음으로 되돌려 메스꺼움 같은 증상을 없앱니다. 감염은 남아 지연제는 계속 필요합니다.",
