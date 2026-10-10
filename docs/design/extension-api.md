@@ -541,8 +541,8 @@ every tick. With `anim.stepKey` declared, an object whose mod data holds a numbe
 of its attached animations stepped right after that call, by the game's own `IsoSprite.update(instance)` of the instance's
 sprite: the frame moves by the instance's speed (`setFrameSpeedPerFrame`) times the game time since the last update, a
 looping animation starts again after its last frame, and nothing moves while the game is paused. A mod sets the number to
-start the animation and 0 to stop it, where it is (`PZToolsAPI.formulas.set(handle, "anim.stepKey", "acornSpin")`, then
-`object:getModData().acornSpin = 1`).
+start the animation and 0 to stop it, where it is (`PZToolsAPI.formulas.set(handle, "anim.stepKey", "spinStep")`, then
+`object:getModData().spinStep = 1`).
 
 Stepping alone is not enough with the chunk renderer (`PerformanceSettings.fboRenderChunk`, Build 42's default): it draws an
 ordinary object, its attached animations with it, into the chunk level's texture, and draws it again only when that level is
@@ -1520,9 +1520,11 @@ current language's is read.
 | `tc` | `CH` | The 5,401 frequent hanzi of Big5, the signs; 6,111 | 2.0 MB | 60 | 4096 x 8192, 32 MB |
 | none | `TH` | The game's font draws Thai at every size | | | |
 
-Each pack also has every character of the game's translations for its languages and of Operation Acorn's
-(`scripts/fonts/in-use/<pack>.txt`) that its typeface has: the Korean translation uses 1,497 syllables, 9 of them outside KS X
-1001 (`깄`, `떄`, `쫒` and others). Han glyphs differ by region, so the Chinese and Japanese packs are separate fonts. The CJK
+Each pack also has every character in use (`scripts/fonts/in-use/<pack>.txt`) that its typeface has. The script's `--scan` writes
+those lists from the game's translations for the pack's languages, and from those of any mod folders it is given (`--mods`; all
+their languages for the Latin pack); the lists in the repository are the game's alone. The Korean translation uses 1,497
+syllables, 9 of them outside KS X 1001 (`깄`, `떄`, `쫒` and others). A mod whose text needs characters beyond the fixed sets
+and the game's is scanned with `--mods` and the packs built again. Han glyphs differ by region, so the Chinese and Japanese packs are separate fonts. The CJK
 packs' Latin is their own typeface's, as in the game's fonts.
 
 [`build-api-fonts.py`](../../scripts/fonts/build-api-fonts.py) makes the packs from Google Fonts' variable fonts (not kept in
@@ -1588,7 +1590,7 @@ as the game's fonts do. Advances are whole texels at the base size, as in the ga
 
 ### Text at a height
 
-A mod that draws its own windows and sizes them by the screen instead of by the font size option (Operation Acorn: a scale of
+A mod that draws its own windows and sizes them by the screen instead of by the font size option (for example, a scale of
 the screen's height over 540, in quarters, so 1.25 at 720 lines and 2 at 1080) needs text of a height in pixels, 16, 20 or 24
 times its scale, that the fonts the game has loaded are not. The game ships each language's bitmap fonts for every option but
 loads only the option's; these calls load the others' as the game loads its own, and draw with the one nearest the height
@@ -1644,7 +1646,7 @@ For a height:
 | Up to an eighth above the tallest font (50 for Korean's 45) | The font whose line is nearest; of two as near, the smaller (it does not overflow what was laid out with it); of fonts of one height, one already read. At its own size, as the game draws its own fonts: crisp. |
 | More than that | The height itself: the [embedded font](#the-embedded-font) at the height, in the game's shader, for a text it has every character of, once its atlas is in video memory; any other text in the tallest font zoomed to the height. |
 
-For Operation Acorn's 16, 20 and 24 times its scale in Korean: 1.25 gives 19, 26 and 29; 1.5 gives 16, 29 and 38 (24 is 23); 2 gives
+For that example's 16, 20 and 24 times its scale in Korean: 1.25 gives 19, 26 and 29; 1.5 gives 16, 29 and 38 (24 is 23); 2 gives
 33, 40 and 45 (48 is 45); 2.5 gives 40, 45 and the embedded font at 60; 4 gives the embedded font at 64, 80 and 96. A font the
 game has loaded (the option's) is the game's own object, read no more. A distance-field font that a `fonts.txt` names for these
 (`type = sdf`) is drawn zoomed to the height in the shader.

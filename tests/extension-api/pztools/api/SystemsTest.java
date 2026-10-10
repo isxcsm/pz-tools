@@ -72,14 +72,14 @@ final class SystemsTest {
         for (String point : new String[] { "machine.baseConsumption", "machine.loadKey" })
             check(ApiHooks.APPLIED.equals(points.rawget(point)), point + " is " + points.rawget(point));
         // A machine in the world before it is declared; a vanilla appliance; an object that is neither. The square holds 2 objects.
-        var press = machine(cell, "acorn_press_0", 20, 20, 1);
-        var saw = machine(cell, "acorn_saw_0", 21, 20, 1);
+        var press = machine(cell, "mymod_press_0", 20, 20, 1);
+        var saw = machine(cell, "mymod_saw_0", 21, 20, 1);
         var fridge = machine(cell, "appliances_refrigeration_01_0", 20, 21, 1);
         fridge.powered = true; fridge.consumption = 0.08f;
         var plain = machine(cell, "walls_01_0", 22, 22, 0);
         check(!press.couldBePoweredByGenerator() && press.getGeneratorPowerConsumption() == 0f, "An undeclared machine was a consumer");
         // Declared: asked of it, it is a consumer of the load; asked of anything else, the game answers.
-        FormulasTest.call(formulas, "set", mod, "machine.baseConsumption", table("acorn_press_0", 0.25, "acorn_saw_0", 0.5, "appliances_refrigeration_01_0", 0.0));
+        FormulasTest.call(formulas, "set", mod, "machine.baseConsumption", table("mymod_press_0", 0.25, "mymod_saw_0", 0.5, "appliances_refrigeration_01_0", 0.0));
         check(press.couldBePoweredByGenerator() && press.getGeneratorPowerConsumption() == 0.25f, "A declared machine was not a consumer: " + press.getGeneratorPowerConsumption());
         check(saw.couldBePoweredByGenerator() && saw.getGeneratorPowerConsumption() == 0.5f, "A second machine was not a consumer");
         check(!plain.couldBePoweredByGenerator() && plain.getGeneratorPowerConsumption() == 0f, "An object that was not declared changed");
@@ -102,27 +102,27 @@ final class SystemsTest {
         GameApi.frame(GAME);
         check(IsoGenerator.updates == updates + 2, "The machines were listed again");
         // The load of one machine: the keys of its data multiply the declared consumption.
-        FormulasTest.call(formulas, "set", mod, "machine.loadKey", "acornLoad");
+        FormulasTest.call(formulas, "set", mod, "machine.loadKey", "mymodLoad");
         check(press.getGeneratorPowerConsumption() == 0.25f, "A machine with no data did not keep its consumption");
-        data(press, "acornLoad", 0.5);
+        data(press, "mymodLoad", 0.5);
         check(press.getGeneratorPowerConsumption() == 0.125f, "The load of the machine was not applied: " + press.getGeneratorPowerConsumption());
-        data(press, "acornLoad", 0.0);
+        data(press, "mymodLoad", 0.0);
         check(press.getGeneratorPowerConsumption() == 0f && press.couldBePoweredByGenerator(), "A machine at no load was not idle");
-        data(press, "acornLoad", 1000.0);
+        data(press, "mymodLoad", 1000.0);
         check(press.getGeneratorPowerConsumption() == 25f, "A load above 100 was not held: " + press.getGeneratorPowerConsumption());
-        data(press, "acornLoad", -3.0);
+        data(press, "mymodLoad", -3.0);
         check(press.getGeneratorPowerConsumption() == 0f, "A load below 0 was not held");
-        data(press, "acornLoad", "heavy");
+        data(press, "mymodLoad", "heavy");
         check(press.getGeneratorPowerConsumption() == 0.25f, "A load that is not a number was not left out");
-        data(press, "acornLoad", Double.NaN);
+        data(press, "mymodLoad", Double.NaN);
         check(press.getGeneratorPowerConsumption() == 0.25f, "A load that is not a number (NaN) was not left out");
-        data(press, "acornLoad", 2.0);
-        data(press, "acornSpeed", 3.0);
-        FormulasTest.call(formulas, "set", second, "machine.loadKey", table("acornSpeed"));
+        data(press, "mymodLoad", 2.0);
+        data(press, "mymodSpeed", 3.0);
+        FormulasTest.call(formulas, "set", second, "machine.loadKey", table("mymodSpeed"));
         check(press.getGeneratorPowerConsumption() == 1.5f, "Two keys did not multiply: " + press.getGeneratorPowerConsumption());
         check(((KahluaTable)FormulasTest.call(formulas, "get", "machine.loadKey").get(0)).rawget(2.0) != null, "Two mods' keys did not join");
         // Two mods declaring one sprite add; one taking its declaration back leaves the other's.
-        FormulasTest.call(formulas, "set", second, "machine.baseConsumption", table("acorn_saw_0", 0.25));
+        FormulasTest.call(formulas, "set", second, "machine.baseConsumption", table("mymod_saw_0", 0.25));
         check(saw.getGeneratorPowerConsumption() == 0.75f, "Two declarations of a sprite did not add: " + saw.getGeneratorPowerConsumption());
         FormulasTest.call(second, "clear");
         check(saw.getGeneratorPowerConsumption() == 0.5f, "A declaration taken back left the other mod's changed");
@@ -145,12 +145,12 @@ final class SystemsTest {
         check(fridge.getGeneratorPowerConsumption() == 0.08f, "The game's load did not come back");
         // A rule about the declaration: a number from 0 to 1000 for each name, and the names are text.
         rejects(formulas, "machine.baseConsumption must be a table", mod, "machine.baseConsumption", 1.0);
-        rejects(formulas, "[acorn_press_0] must be a number from 0.0 to 1000.0", mod, "machine.baseConsumption", table("acorn_press_0", -1.0));
+        rejects(formulas, "[mymod_press_0] must be a number from 0.0 to 1000.0", mod, "machine.baseConsumption", table("mymod_press_0", -1.0));
         rejects(formulas, "machine.loadKey must be a string or a list of strings", mod, "machine.loadKey", 1.0);
         // A machine declared before any frame had a world: listed when there is one. No player yet, no listing.
         IsoPlayer.players[0] = null;
-        var late = machine(cell, "acorn_late_0", 30, 30, 0);
-        FormulasTest.call(formulas, "set", mod, "machine.baseConsumption", table("acorn_late_0", 1.0));
+        var late = machine(cell, "mymod_late_0", 30, 30, 0);
+        FormulasTest.call(formulas, "set", mod, "machine.baseConsumption", table("mymod_late_0", 1.0));
         GameApi.frame(GAME);
         check(!late.square.chunk.poweredObjects.contains(late), "A machine was listed with no player to say what is loaded");
         IsoPlayer.players[0] = player;
@@ -166,12 +166,12 @@ final class SystemsTest {
         var points = (KahluaTable)FormulasTest.call(formulas, "points").get(0);
         check(ApiHooks.APPLIED.equals(points.rawget("anim.stepKey")), "anim.stepKey is " + points.rawget("anim.stepKey"));
         // A press with a looping animation of 4 frames at half a frame a step, as a mod attaches one; a sign with one of its own.
-        var press = machine(cell, "acorn_press_0", 20, 22, 0);
-        var spin = new IsoSprite("acorn_press_spin");
+        var press = machine(cell, "mymod_press_0", 20, 22, 0);
+        var spin = new IsoSprite("mymod_press_spin");
         IsoSpriteInstance wheel = press.attachAnim(spin);
         wheel.setFrameSpeedPerFrame(0.5f);
-        var sign = machine(cell, "acorn_sign_0", 21, 22, 0);
-        var blink = new IsoSprite("acorn_sign_blink");
+        var sign = machine(cell, "mymod_sign_0", 21, 22, 0);
+        var blink = new IsoSprite("mymod_sign_blink");
         IsoSpriteInstance light = sign.attachAnim(blink);
         GameApi.frame(GAME);
         // Nothing declared: drawn twice a frame, and the game's update() called each time, as in vanilla; nothing steps.
@@ -179,12 +179,12 @@ final class SystemsTest {
         check(spin.steps == 0 && wheel.frame == 0f && wheel.updates == 2, "An animation was stepped with nothing declared: " + spin.steps);
         check(!press.isAnimating(), "An object with nothing declared asked to be drawn every frame");
         // Declared, but the press holds no key: not stepped, and no data table is made for it.
-        FormulasTest.call(formulas, "set", mod, "anim.stepKey", "acornSpin");
+        FormulasTest.call(formulas, "set", mod, "anim.stepKey", "mymodSpin");
         press.render();
         check(spin.steps == 0 && !press.hasModData(), "An object without the key was stepped, or given a data table");
         check(!press.isAnimating() && !press.hasModData(), "An object without the key asked to be drawn every frame");
         // The key held: stepped once a frame however many times it is drawn, at its own speed, and the game's call kept.
-        data(press, "acornSpin", 1.0);
+        data(press, "mymodSpin", 1.0);
         int updates = wheel.updates;
         press.render(); press.render(); press.render();
         check(spin.steps == 1 && wheel.frame == 0.5f && wheel.updates == updates + 3, "Drawn three times in a frame, it was stepped " + spin.steps + " times");
@@ -203,12 +203,12 @@ final class SystemsTest {
         check(spin.steps == 9, "An animation that was not drawn was stepped for its frame");
         // A number other than 0 steps; 0, a string, a NaN and a key taken out leave it as in vanilla.
         for (Object held : new Object[] { 0.0, "on", Double.NaN, null }) {
-            data(press, "acornSpin", held);
+            data(press, "mymodSpin", held);
             GameApi.frame(GAME);
             press.render();
             check(spin.steps == 9 && !press.isAnimating(), "A press holding " + held + " was stepped, or drawn every frame");
         }
-        data(press, "acornSpin", -2.0);
+        data(press, "mymodSpin", -2.0);
         GameApi.frame(GAME);
         press.render();
         check(spin.steps == 10, "A negative number did not step it");
@@ -217,8 +217,8 @@ final class SystemsTest {
         sign.render();
         check(blink.steps == 0 && light.updates == 1 && !sign.isAnimating(), "An object without the key was stepped beside one with it");
         // The key on an object with no attached animation: nothing to draw every frame. An object animating of its own stays so.
-        var bare = machine(cell, "acorn_bare_0", 23, 22, 0);
-        data(bare, "acornSpin", 1.0);
+        var bare = machine(cell, "mymod_bare_0", 23, 22, 0);
+        data(bare, "mymodSpin", 1.0);
         check(!bare.isAnimating(), "An object without attached animations asked to be drawn every frame");
         bare.animating = true;
         check(bare.isAnimating(), "The game's own animating was taken away");
@@ -255,8 +255,8 @@ final class SystemsTest {
         });
         System.out.println("attached animations: " + bytes + " bytes allocated by 100 frames of 1000 draws of two stepped objects");
         check(bytes < 16384, "Drawing stepped animations allocated " + bytes + " bytes in 100 frames");
-        var plain = machine(cell, "acorn_plain_0", 22, 22, 0);
-        plain.attachAnim(new IsoSprite("acorn_plain_spin"));
+        var plain = machine(cell, "mymod_plain_0", 22, 22, 0);
+        plain.attachAnim(new IsoSprite("mymod_plain_spin"));
         double stepped = drawCost(press), keyless = drawCost(plain);
         // Taken back: vanilla again.
         FormulasTest.call(mod, "clear");

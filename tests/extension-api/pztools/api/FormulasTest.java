@@ -1437,12 +1437,12 @@ final class FormulasTest {
         var plain = new InventoryContainer("Bag", 1f, 60);
         check(crate.getCapacity() == 100 && trunk.getCapacity() == 1000 && kit.getInventory().getCapacity() == 50 && kit.getCapacity() == 49
             && seat.getCapacity() == 200, "The game's limits are not the game's");
-        call(formulas, "set", mod, "capacity.modDataKey", "OA_CapacityAdd");
+        call(formulas, "set", mod, "capacity.modDataKey", "MyMod_CapacityAdd");
         check(crate.getCapacity() == 100 && trunk.getCapacity() == 1000 && kit.getCapacity() == 49, "A key nobody declares in changed a capacity");
-        crate.parent.getModData().rawset("OA_CapacityAdd", 0.0);
-        part.getModData().rawset("OA_CapacityAdd", 250.0);
-        kit.getModData().rawset("OA_CapacityAdd", 20.0);
-        seatPart.getModData().rawset("OA_CapacityAdd", 25.0);
+        crate.parent.getModData().rawset("MyMod_CapacityAdd", 0.0);
+        part.getModData().rawset("MyMod_CapacityAdd", 250.0);
+        kit.getModData().rawset("MyMod_CapacityAdd", 20.0);
+        seatPart.getModData().rawset("MyMod_CapacityAdd", 25.0);
         check(crate.getCapacity() == 300 && other_crate.getCapacity() == 100, "A container that declares was not lifted, or another was");
         check(crate.getEffectiveCapacity(player) == 300, "The effective capacity of a lifted container: " + crate.getEffectiveCapacity(player));
         check(trunk.getCapacity() == 1750 && seat.getCapacity() == 225, "A vehicle part's key: " + trunk.getCapacity() + ", " + seat.getCapacity());
@@ -1450,10 +1450,10 @@ final class FormulasTest {
         check(kit.getInventory().getCapacity() == 80 && kit.getCapacity() == 80 && kit.getEffectiveCapacity(player) == 80
             && plain.getCapacity() == 49 && plain.getEffectiveCapacity(player) == 49, "A bag's kit: " + kit.getCapacity());
         // A second mod's key joins the first's; a key without a number is not a declaration.
-        call(formulas, "set", second, "capacity.modDataKey", list("OA_Other", "OA_CapacityAdd"));
-        other_crate.parent.getModData().rawset("OA_Other", "yes");
+        call(formulas, "set", second, "capacity.modDataKey", list("MyMod_Other", "MyMod_CapacityAdd"));
+        other_crate.parent.getModData().rawset("MyMod_Other", "yes");
         check(other_crate.getCapacity() == 100, "A key that is not a number lifted a container");
-        other_crate.parent.getModData().rawset("OA_Other", 5.0);
+        other_crate.parent.getModData().rawset("MyMod_Other", 5.0);
         check(other_crate.getCapacity() == 305, "A second mod's key did not lift: " + other_crate.getCapacity());
         check(((KahluaTable)call(formulas, "get", "capacity.modDataKey").get(0)).len() == 2, "The keys of two mods did not join");
         call(mod, "clear");
