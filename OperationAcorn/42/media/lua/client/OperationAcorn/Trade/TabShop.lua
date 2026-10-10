@@ -521,8 +521,7 @@ end
 function OATabShop:place(element, x, y, w, h)
     element:setX(x)
     element:setY(y)
-    element:setWidth(w)
-    element:setHeight(h)
+    UI.size(element, w, h)
 end
 
 -- Drawing -------------------------------------------------------------------------------------------------------

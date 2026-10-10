@@ -228,15 +228,13 @@ function OATabFolder:layout()
     local w, h = self.width, self.height
     self.laidW, self.laidH = w, h
     local list = self.list
-    list:setWidth(w >= OATabFolder.NARROW_BELOW and OATabFolder.LIST_W or OATabFolder.LIST_W_NARROW)
-    list:setHeight(h)
+    UI.size(list, w >= OATabFolder.NARROW_BELOW and OATabFolder.LIST_W or OATabFolder.LIST_W_NARROW, h)
     local rx, _, rw = self:readerRect()
     local bh = UI.buttonHeight()
     local body = self.body
     body:setX(rx + 12)
     body:setY(58)
-    body:setWidth(rw - 24)
-    body:setHeight(math.max(20, h - 58 - bh - 16))
+    UI.size(body, rw - 24, math.max(20, h - 58 - bh - 16))
     body:paginate()
     self.prevButton:setX(rx + 12)
     self.prevButton:setY(h - bh - 8)

@@ -239,8 +239,7 @@ function OATabDelivery:layout()
     m.noteY = m.listY + listH + 4
     m.expectY = m.noteY + noteH
     self.list:setY(m.listY)
-    self.list:setWidth(w)
-    self.list:setHeight(listH)
+    UI.size(self.list, w, listH)
     self.list:setVisible(#d.rows > 0)
     -- The index chips, six and five in two rows.
     local perRow = 6

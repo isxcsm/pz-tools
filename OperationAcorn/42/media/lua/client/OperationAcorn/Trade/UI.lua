@@ -194,6 +194,21 @@ function UI.button(parent, x, y, width, title, target, onclick)
     return button
 end
 
+-- Sizes an element and places its vertical scroll bar along its right edge. The game moves a scroll bar by its anchors,
+-- by the change since the element's size was last set; a layout that sets a size twice in a frame leaves that change
+-- at nothing and the bar at its old height. So the bar is unanchored and placed here.
+function UI.size(el, w, h)
+    el:setWidth(w)
+    el:setHeight(h)
+    local bar = el.vscroll
+    if bar then
+        bar:setAnchorRight(false)
+        bar:setAnchorBottom(false)
+        bar:setX(w - 16)
+        bar:setHeight(h)
+    end
+end
+
 -- A list with rows drawn by `drawRow(list, y, item, alt)`, which returns the y of the next row. The row's own height
 -- is the list's itemheight.
 function UI.list(parent, x, y, width, height, drawRow, target, onclick)
