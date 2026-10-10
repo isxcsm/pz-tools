@@ -74,8 +74,8 @@ end
 -- ---- layout (design units) ----------------------------------------------------------------------------------------
 local L = {
     PAD = 8, TOP = 28, GAP = 8,
-    COL_W = 238, COL_GAP = 6, STRIP = 44,
-    ICON = 40, CAP = 48, GX = 18, ROW = 64, PIPS = 10, GRID_PAD = 12,
+    COL_W = 194, COL_GAP = 6, STRIP = 58,
+    ICON = 32, CAP = 40, GX = 14, ROW = 52, PIPS = 10, GRID_PAD = 12,
     PLAN = 36, BUTTON_H = 26,
     TIP_W = 300, TIP_PAD = 10,
 }
@@ -1098,8 +1098,9 @@ function View:paintTop(el)
     end
 end
 
--- A tree's header strip: its name, the reset button, its points as a bar (spent in its colour, selected in cyan, still
--- to spend pale, the rows' openings as ticks) and the points left.
+-- A tree's header strip, three rows: its name and the reset button; the points left and what is kept for the 2nd
+-- board; its points as a bar the strip's width (spent in its colour, selected in cyan, still to spend pale, the rows'
+-- openings as ticks).
 function View:paintStrip(el, panel)
     local tree = panel.tree
     local tc = TREE[tree]
@@ -1107,7 +1108,6 @@ function View:paintStrip(el, panel)
     UI.fill(el, x, y, L.COL_W, L.STRIP, tc.strip)
     UI.fill(el, x, y, L.COL_W, 2, tc.c)
     UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
-    local fh = UI.fontHeight()
     if self.mode ~= "trees" then
         local cap = Data.capstone(tree)
         local done = cap and Rules.rank(self.sim, cap.id) >= 1
@@ -1124,22 +1124,14 @@ function View:paintStrip(el, panel)
         UI.frame(el, item.x, item.y, item.w, item.h, tc.light, on and 0.6 or 0.25)
         glyph(el, "Reset", item.x + item.w / 2, item.y + item.h / 2, item.w - 8, tc.light, on and 0.95 or 0.35)
     end
-    -- the bar, with the points left at its right; what is kept for the 2nd board goes on the name's row, left of the
-    -- reset (on the bar's row it squeezed the bar to a few pixels a point)
+    -- the points left, and what is kept for the 2nd board at the right
     local usable, surplus = Rules.ownSplit(self.sim, tree)
+    UI.text(el, getText("IGUI_OA_Tree_OwnLeft", usable), x + 10, y + 27, usable > 0 and P.value or P.dim)
     if surplus > 0 then
-        local share = getText("IGUI_OA_Tree_BoardShare", surplus)
-        local sw = UI.textWidth(share)
-        local right = (item and item.x or x + L.COL_W - 10) - 8
-        local nameEnd = x + 10 + UI.textWidth(Texts.treeName(tree), UIFont.Medium) + 8
-        if right - sw >= nameEnd then UI.text(el, share, right - sw, y + 8, P.dim) end
+        UI.textRight(el, getText("IGUI_OA_Tree_BoardShare", surplus), x + L.COL_W - 10, y + 27, P.dim)
     end
-    local label = getText("IGUI_OA_Tree_OwnLeft", usable)
-    local lw = UI.textWidth(label)
-    local bx, by, bh = x + 10, y + 31, 7
-    local bw = L.COL_W - 20 - lw - 10
-    UI.text(el, label, x + L.COL_W - 10 - lw, y + 26, usable > 0 and P.value or P.dim)
-    if bw < 30 then return end
+    local bh = 7
+    local bx, by, bw = x + 10, y + L.STRIP - bh - 6, L.COL_W - 20
     UI.fill(el, bx, by, bw, bh, P.inset)
     local total = TREE_POINTS[tree]
     local spent = Rules.treeSpent(self.u, tree)
@@ -1364,7 +1356,7 @@ end
 -- The 2nd board while closed: what opens it, the three capstones with the approved ones lit.
 function View:paintBoardBanner(el)
     local bw, bh = 520, 92
-    local bx, by = (L.VIEW_W - bw) / 2, L.COL_Y + L.STRIP + L.GRID_PAD + 3 * L.ROW + 24
+    local bx, by = (L.VIEW_W - bw) / 2, L.COL_Y + L.STRIP + L.GRID_H - bh - 16   -- low in the columns, inside them
     UI.fill(el, bx, by, bw, bh, { 0.02, 0.02, 0.02 }, 0.92)
     UI.frame(el, bx, by, bw, bh, P.border)
     UI.lock(el, bx + 16, by + 16, P.value)

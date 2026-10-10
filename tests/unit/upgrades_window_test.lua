@@ -59,7 +59,7 @@ test("the tab fits a 720p screen at its scale (1.25) and a 900p one (1.625), the
     local bars = 50
     truthy(L.VIEW_W * 1.25 <= 1280 and L.VIEW_H * 1.25 + bars <= 720, "720p")
     truthy(L.VIEW_W * 1.625 <= 1600 and L.VIEW_H * 1.625 + bars <= 900, "900p")
-    truthy(L.VIEW_W >= 720, "as wide as the terminal at the same scale")
+    truthy(L.VIEW_W <= 620, "no wider than about 1000 px at 900p (the tab is one of the character window's, not the terminal)")
 end)
 
 test("every node sits inside its column's grid, on no other node", function()
