@@ -1249,6 +1249,7 @@
     "IGUI_OA_Terminal_Del_Empty": "이번 주 요청 품목이 없습니다.",
     "IGUI_OA_Terminal_Del_Takes": "아래 가운데 무엇이든:",
     "IGUI_OA_Terminal_Del_TakesMore": "... 그 밖에 %1종",
+    "IGUI_OA_Terminal_Del_Kinds": "%1종",
     "IGUI_OA_Terminal_Del_TakesPrices": "물건마다 제값: %1~%2",
     "IGUI_OA_ReqGroup_skillbook": "기술서",
     "IGUI_OA_ReqGroup_recipemag": "레시피 잡지",

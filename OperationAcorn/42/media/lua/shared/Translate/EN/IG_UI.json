@@ -1249,6 +1249,7 @@
     "IGUI_OA_Terminal_Del_Empty": "There are no requests this week.",
     "IGUI_OA_Terminal_Del_Takes": "Any of these:",
     "IGUI_OA_Terminal_Del_TakesMore": "... and %1 more",
+    "IGUI_OA_Terminal_Del_Kinds": "%1 kinds",
     "IGUI_OA_Terminal_Del_TakesPrices": "Each at its own worth: %1 to %2",
     "IGUI_OA_ReqGroup_skillbook": "Skill Books",
     "IGUI_OA_ReqGroup_recipemag": "Recipe Magazines",

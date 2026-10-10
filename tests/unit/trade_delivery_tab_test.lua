@@ -305,6 +305,7 @@ test("a group's row shows the group's name and picture, and the mouse over it li
     local row = tab.data.rows[1]
     eq(row.key, "base:charcoal")
     eq(row.name, "Charcoal", "the group's name, not one kind's")
+    eq(row.kinds, "IGUI_OA_Terminal_Del_Kinds 3", "beside the name: how many kinds, as the mouse over it lists them")
     eq(row.itemType, "Base.Charcoal", "its picture is the first kind's")
     tab:prerender()
     tab.list.over, tab.list.mouseoverselected, tab.list.mx, tab.list.my = true, 1, 40, 10

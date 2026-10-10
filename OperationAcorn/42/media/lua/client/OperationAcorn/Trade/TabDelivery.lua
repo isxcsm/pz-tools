@@ -114,9 +114,12 @@ local function rowsOf(record, worth)
     local rows = {}
     for _, line in ipairs(OA.Requests.entries(record)) do
         local key = line.key
+        local tip = tipOf(key, line)
+        local kinds = tip and #OA.Requests.memberNames(key) or 0
         rows[#rows + 1] = {
             key = key, name = OA.Requests.nameOf(key), itemType = OA.Requests.iconType(key),
-            tip = tipOf(key, line),
+            -- a group that takes several kinds says how many beside its name (the mouse over it lists them)
+            tip = tip, kinds = kinds > 1 and getText("IGUI_OA_Terminal_Del_Kinds", kinds) or nil,
             band = line.band, bandText = getText("IGUI_OA_Terminal_Del_Band_" .. line.band),
             -- The cheapest kind's price; "+" when a dearer kind of the group fetches more.
             price = Text.credits(line.priceMin or line.price)
@@ -232,7 +235,9 @@ function OATabDelivery:layout()
     if not m.narrow then doneWord = doneWord .. Text.DOT .. trustWord end
     local trustW, doneW = UI.textWidth(trustWord), UI.textWidth(doneWord)
     for _, row in ipairs(d.rows) do
-        row.nameFit = UI.fit(row.name, m.nameW)
+        row.kindsW = row.kinds and UI.textWidth(row.kinds) + 8 or 0
+        row.nameFit = UI.fit(row.name, m.nameW - (row.kinds and row.kindsW + 6 or 0))
+        row.nameW = UI.textWidth(row.nameFit)
         row.word = row.full and doneWord or trustWord
         row.wordW = row.full and doneW or trustW
     end
@@ -301,6 +306,12 @@ function OATabDelivery.drawRow(list, y, item, alt)
     if alt then UI.fill(list, 0, y, m.listW, OATabDelivery.ROW_H, p.text, 0.03) end
     UI.icon(list, OA.Trade.Draw.itemTexture(row.itemType, UI.px(24)), 2, y + 1, 24, done and 0.5 or 1, p.iconTint)
     UI.text(list, row.nameFit, m.NX, ty, done and p.dim or p.text)
+    if row.kinds then
+        -- the chip of a group: how many kinds it takes
+        local kx = m.NX + row.nameW + 6
+        UI.frame(list, kx, ty, row.kindsW, fh, p.border, done and 0.5 or 1)
+        UI.text(list, row.kinds, kx + 4, ty, p.dim, nil, done and 0.6 or 1)
+    end
     local band = row.band == "rare" and p.warn or (row.band == "normal" and p.text or p.dim)
     UI.text(list, row.bandText, m.RX, ty, band)
     UI.textRight(list, row.price, m.PX + 70, ty, done and p.dim or p.text, nf)
