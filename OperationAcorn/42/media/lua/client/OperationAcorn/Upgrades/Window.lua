@@ -55,7 +55,8 @@ local RED = { 0.88, 0.16, 0.12 }           -- the approval seal
 local WHITE = { 1, 1, 1 }
 local DARK = { 0.03, 0.03, 0.03 }
 -- Each tree's colour (its icons' plate colour, a little lifted) and its light tint for texts; the strip is the colour
--- mixed into the body.
+-- mixed into the body, and the column under it the same colour more faintly (the trees told apart at a glance, as the
+-- old tab's tinted columns did, without their muddy brown).
 local TREE = {
     scout = { c = { 0.25, 0.66, 0.70 }, light = { 0.62, 0.90, 0.95 } },
     load = { c = { 0.86, 0.55, 0.22 }, light = { 1.0, 0.80, 0.52 } },
@@ -63,7 +64,11 @@ local TREE = {
 }
 for _, t in pairs(TREE) do
     t.strip = {}
-    for i = 1, 3 do t.strip[i] = P.bg[i] * 0.74 + t.c[i] * 0.26 end
+    t.body = {}
+    for i = 1, 3 do
+        t.strip[i] = P.bg[i] * 0.74 + t.c[i] * 0.26
+        t.body[i] = P.inset[i] * 0.88 + t.c[i] * 0.12
+    end
 end
 
 -- ---- layout (design units) ----------------------------------------------------------------------------------------
@@ -1365,7 +1370,7 @@ function View:paint(el)
     end
     local t = (getTimestampMs() - self.t0) / 1000
     for _, panel in ipairs(self.panels) do
-        UI.fill(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, P.inset)
+        UI.fill(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
         self:paintStrip(el, panel)
     end
     for _, line in ipairs(self.lines) do self:paintLine(el, line, t) end
