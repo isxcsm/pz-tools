@@ -226,6 +226,8 @@ final class Formulas implements ApiHooks.Formulas {
     // pass's lift now (written on the main thread, read on the render thread).
     private volatile float seenDark, sight;
     private long sightAt;
+    // The share of a dark place's more least light shown now (0 to 1), eased as the lift is (the main thread's).
+    private float darkShown;
     // The least light of the squares on the screen, the screen pass's uniforms and the values it keeps colour by; null,
     // with the reason, in a game that changed what they read. A fault in the values stops them alone (the reason is then set).
     private final NightLamps lamps;
@@ -1019,17 +1021,19 @@ final class Formulas implements ApiHooks.Formulas {
 
     /**
      * Night sight, once a frame on the main thread before the screen is drawn: the least light of the squares follows
-     * the point (a constant for a value, so that the game bakes its chunks again only when it changes), and the strength
-     * of the screen pass's lift goes towards the point's value times how dark it is for the player (none in daylight or
-     * by a lamp), over {@link #SIGHT_EASE} seconds so that it never pops. The game's darkness reads the squares' own
-     * light, which night sight leaves as it is.
+     * the point (a constant for a value, so that the game bakes its chunks again only when it changes; a dark place's
+     * more is shown by the screen pass, see NightLamps), and the strength of the screen pass's lift, and the share of a
+     * dark place's more shown, go towards the point's value times how dark it is for the player (none in daylight or by a
+     * lamp), and towards whether the player is in a dark place, over {@link #SIGHT_EASE} seconds so that they never pop.
+     * The game's darkness reads the squares' own light, which night sight leaves as it is.
      */
     @Override public void nightSightFrame(int playerIndex) {
         long now = System.nanoTime();
         nightSightStep(now);
         if (lamps == null) return;
-        float least = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight + (lamps.darkPlace() ? darkExtra.value() : 0f));
-        try { lamps.floorLight(Math.round(least * 255f)); }
+        float least = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight);
+        float dark = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight + darkExtra.value());
+        try { lamps.floorLight(Math.round(least * 255f), Math.round(dark * 255f), darkShown); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's least light", failure); }
         if (lampsProblem != null) return;
         try { lamps.frame(playerIndex, now); }
@@ -1068,10 +1072,18 @@ final class Formulas implements ApiHooks.Formulas {
         float seconds = sightAt == 0 ? 0f : Math.max(0f, Math.min(0.25f, (now - sightAt) / 1e9f));
         sightAt = now;
         float target = active.nightSight * darkGate(seenDark, darkFrom.value(), darkFull.value());
-        float current = sight, step = seconds / ease.value();
-        current = target > current ? Math.min(target, current + step) : Math.max(target, current - step);
-        sight = current;
+        float step = seconds / ease.value();
+        sight = toward(sight, target, step);
+        darkShown = toward(darkShown, lamps != null && lamps.darkPlace() ? 1f : 0f, step);
     }
+
+    // A value a step towards a target, never past it.
+    private static float toward(float current, float target, float step) {
+        return target > current ? Math.min(target, current + step) : Math.max(target, current - step);
+    }
+
+    /** The share of a dark place's more least light shown now (for the tests). */
+    float nightSightDarkShown() { return darkShown; }
 
     /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for, from `from` to whole at `full`. */
     static float darkGate(float dark, float from, float full) {

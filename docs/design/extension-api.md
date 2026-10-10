@@ -691,7 +691,7 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 | `FBORenderCell.sanitizeLightInfo` | each return | The light a square's objects are drawn with: a copy raised to the least light (the square's own, which the game also asks for its zombies and its vision, is never changed). |
 | `ShaderUnit.loadShaderFile` | each return | The source of `screen.frag` gets night sight's step (once; another file, or one without `textureBicubic` or the goggles' uniform, is left as it is). |
 | `WeatherShader.onCompileSuccess` | each return | Hands the compiled program over; the step's uniforms are found in it when it next draws (-1 when the step is not there, which GL ignores). |
-| `WeatherShader.startMainThread` | the start | Night sight moves on, once a frame for each player's screen: its least light, where its pixels are on the floor, and now and then the squares' values. |
+| `WeatherShader.startMainThread` | the start | Night sight moves on, once a frame for each player's screen: its least light and the share of a dark place's more shown, where its pixels are on the floor, and now and then the squares' values. |
 | `WeatherShader.startRenderThread` | each return | Sets night sight's uniforms, the program being bound: whether it is on, the strength, the colour kept beyond the values, the values' texture (put in on its own unit) and where a pixel is on it. |
 | `Helicopter.writes:flight` | after every store of `Helicopter.state` or `Helicopter.active` (outside the constructors) | Counts the store; see [What the frame job learns from the hooks](#what-the-frame-job-learns-from-the-hooks). |
 | `IsoWorld.writes:currentCell` | after every store of `IsoWorld.currentCell` (`init`, `KillCell`; outside the constructors) | Counts the store; the same. |
@@ -717,10 +717,14 @@ pass that greys what that light and the pass add.
   reads change. So each square keeps the least light it was raised to (in a table for each player and floor, by x and y
   modulo 256), and `getSquareDirty`'s answer is followed by whether it was raised to another, or not read since squares
   are raised: a new least light (a rank changed, or night sight declared or cleared) has each square read again as the game
-  next asks for it. The least light is one value for a value of the point and a place, so this is rare. In a dark place it is 0.1
-  more (of the full light): with the values, the squares within 6 of the player that the game lights are counted, and at
-  75% or more of them with less than 0.03 of the game's own light (a basement, a room with no light) the player is in
-  one, at 55% or less no longer. PZ Optimization's per-pixel lighting reads the same corners.
+  next asks for it. The least light is one value for a value of the point, so this is rare. In a dark place the least
+  light shown is 0.1 more (of the full light): with the values, the squares within 6 of the player that the game lights
+  are counted, and at 75% or more of them with less than 0.03 of the game's own light (a basement, a room with no light)
+  the player is in one, at 55% or less no longer. While the values run, the squares are raised to the dark place's least
+  light all along, and the screen pass takes each pixel down to the least light shown (`PZT_SightShade`: the one outside
+  a dark place against the dark place's, the share of the 0.1 easing in and out over 0.3 seconds every frame). Raising
+  the squares to it as the player came in had every chunk baked again, one batch after another: a visible step, and work.
+  Split screen, with no values, is raised to the one outside. PZ Optimization's per-pixel lighting reads the same corners.
 - **The screen pass.** The game draws the world into a buffer and then through one screen pass (`WeatherShader`,
   `media/shaders/screen.frag`), which reads the world through `textureBicubic` on every path (the stock one, and the ones
   PZ Optimization's colour grading, god rays and HDR put in), and single texels of it with `texture2D(DIFFUSE, ...)`. The
@@ -735,8 +739,13 @@ pass that greys what that light and the pass add.
     light the lights the game finds reach it give it (`IsoGridSquare.lighting`, each falling off from its colour at its
     square to nothing at its radius, measured; a room's light fills it), against its light. The two are worked out for the
     64 squares on a side around the player on the player's floor, every 0.1 seconds on the game's thread, and put into a
-    small RG texture on its own unit (16: PZ Optimization's passes use 3, 4, 6, 7, 12 to 14, 17 and 20) by the render
-    thread. The shader finds the floor under each pixel from where the game draws three points of it (`isoToScreenX` and
+    small RGBA texture on its own unit (16: PZ Optimization's passes use 3, 4, 6, 7, 12 to 14, 17 and 20) by the render
+    thread. Each set carries the last set's values of the same squares (red, green) beside its own (blue, alpha), and the
+    pass goes from the one to the other every frame over the time the next set takes (`PZT_SightBlend`, by the render
+    thread's clock): the game's own fades (a square coming into view, a light going out) are shown as it fades them, a
+    set later, not in steps 10 times a second. Where the squares are raised above the least light shown, a pixel is taken
+    down to it first (its colour times the larger of its square's share kept and `PZT_SightShade`), and its share kept is
+    counted against it. The shader finds the floor under each pixel from where the game draws three points of it (`isoToScreenX` and
     `Y`, every frame, in the window's pixels, which the pass draws to with PZ Optimization's upscaling too) and reads the
     square's values, smoothly between squares. Beyond them, the mean colour kept on their edge (`PZT_SightKeep`). A wall
     or a thing standing on a square is drawn above it and read as the squares behind; a character standing on a square

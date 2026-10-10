@@ -2,7 +2,7 @@ package org.lwjgl.opengl;
 
 import java.nio.ByteBuffer;
 
-/** Synthetic: the textures made, the one bound, its size and the bytes last put into it (two a texel); the active unit (GL13). */
+/** Synthetic: the textures made, the one bound, its size and the bytes last put into it (four a texel for RGBA, else two); the active unit (GL13). */
 public final class GL11 {
     public static int made, bound, width, height, unitBound = -1;
     public static byte[] pixels;
@@ -17,7 +17,7 @@ public final class GL11 {
     public static void glTexImage2D(int target, int level, int format, int width, int height, int border, int pixelFormat, int type, ByteBuffer data) {
         GL11.width = width;
         GL11.height = height;
-        pixels = new byte[width * height * 2];
+        pixels = new byte[width * height * (pixelFormat == 0x1908 ? 4 : 2)];
     }
 
     public static void glTexSubImage2D(int target, int level, int x, int y, int width, int height, int format, int type, ByteBuffer data) {

@@ -2131,7 +2131,9 @@ public final class ApiHooks {
          * What the eye saw without night sight keeps its colour and what it adds is a cold grey, as the eye's rods see: a
          * pixel's colour is kept by its square's share (PZT_SightLamps, by the floor under the pixel, found from PZT_SightU
          * and V; beyond it, PZT_SightKeep), and dark tones are lifted, the darker the more (a gamma, by PZT_NightSight), in
-         * grey too, but for the light a light source gives (its second channel).
+         * grey too, but for the light a light source gives (its second channel). The values are the last set's (red, green)
+         * and the newest's (blue, alpha), PZT_SightBlend of the way from the one to the other. A square raised to more
+         * light than the least shown (PZT_SightShade of it) is taken down to it first, its colour kept against it.
          */
         static final String STEP = """
 
@@ -2142,13 +2144,21 @@ public final class ApiHooks {
             uniform vec3 PZT_SightU;
             uniform vec3 PZT_SightV;
             uniform float PZT_SightLift;
+            uniform float PZT_SightBlend;
+            uniform float PZT_SightShade;
 
-            vec3 pztNightSight(in vec3 col) {
-            	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return col;
+            vec3 pztNightSight(in vec3 seen) {
+            	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return seen;
             	vec3 at = vec3(gl_FragCoord.xy, 1.0);
             	vec2 uv = vec2(dot(PZT_SightU, at), dot(PZT_SightV, at));
             	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
-            	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) square = texture(PZT_SightLamps, uv).rg;
+            	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) {
+            		vec4 both = texture(PZT_SightLamps, uv);
+            		square = mix(both.rg, both.ba, clamp(PZT_SightBlend, 0.0, 1.0));
+            	}
+            	float least = clamp(PZT_SightShade, 0.0, 1.0);
+            	vec3 col = seen * max(square.x, least);
+            	square.x = least > 0.0 ? min(square.x / least, 1.0) : 1.0;
             	float l = dot(col, vec3(0.299, 0.587, 0.114));
             	float s = clamp(PZT_NightSight, 0.0, 1.0);
             	float lifted = s > 0.0 ? mix(pow(max(l, 0.0), 1.0 - clamp(PZT_SightLift, 0.0, 1.0) * s), l, square.y) : l;

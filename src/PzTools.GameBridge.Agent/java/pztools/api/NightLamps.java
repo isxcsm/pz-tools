@@ -41,6 +41,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * least light but no values (the pass does not say whose screen it
  * draws): the colour is kept there.
  *
+ * <p>Nothing on the screen moves in steps. Each set of values carries the last set's values of the same squares beside
+ * its own, and the pass goes from the one to the other every frame over the time the next set takes
+ * ({@link #blend}): the game's light fades as the game fades it, not 10 times a second. And while the values run, the
+ * squares are raised to the dark place's least light whether the player is in one or not, and the pass takes them down
+ * to the least light shown ({@link #shadeOf}, eased every frame): the baked squares change only when night sight's
+ * value does, and a dark place comes and goes smoothly, where raising the squares to it would make every chunk bake
+ * again, one batch after another.
+ *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
  * back; nothing is allocated after the first frame. The texture is bound on its own unit ({@link #UNIT}), and the unit
  * that was active is made active again.
@@ -63,9 +71,9 @@ final class NightLamps {
     static final int DARK_RADIUS = 6;
     static final float DARK_LIGHT = 0.03f, DARK_IN = 0.75f, DARK_OUT = 0.55f;
     static final String STRENGTH = "PZT_NightSight", ON = "PZT_SightOn", KEEP = "PZT_SightKeep", LAMPS = "PZT_SightLamps", U = "PZT_SightU",
-        V = "PZT_SightV", LIFT = "PZT_SightLift";
+        V = "PZT_SightV", LIFT = "PZT_SightLift", BLEND = "PZT_SightBlend", SHADE = "PZT_SightShade";
 
-    private static final int TEXTURE_2D = 0x0DE1, TEXTURE0 = 0x84C0, ACTIVE_TEXTURE = 0x84E0, RG8 = 0x822B, RG = 0x8227, UNSIGNED_BYTE = 0x1401,
+    private static final int TEXTURE_2D = 0x0DE1, TEXTURE0 = 0x84C0, ACTIVE_TEXTURE = 0x84E0, RGBA8 = 0x8058, RGBA = 0x1908, UNSIGNED_BYTE = 0x1401,
         MIN_FILTER = 0x2801, MAG_FILTER = 0x2800, LINEAR = 0x2601, WRAP_S = 0x2802, WRAP_T = 0x2803, CLAMP_TO_EDGE = 0x812F;
 
     private final Game game;
@@ -88,6 +96,10 @@ final class NightLamps {
 
     /** The least light of a square on the screen, 0 to 255 (0: none); read on any thread the lighting is read on. */
     private volatile int floor;
+    // The least light shown against the one the squares are raised to (0 to 1), for the screen pass; and whether the
+    // values were stopped (a fault).
+    private volatile float shade = 1f;
+    private volatile boolean stopped;
     // Each square as its corners were last read, for each player of this machine and floor (-32 to 31, each made as it
     // is first read): the least light it was raised to and the game's own light of it (0 to 255 each), with its x and y
     // over 256, in one int written and read whole. A floor's squares are kept by x and y modulo 256, more than the
@@ -106,17 +118,25 @@ final class NightLamps {
     }
     private final ThreadLocal<Raised> raised;
 
+    // A set of values: four bytes a square, the last set's two of it, then this set's; the colour kept beyond them, the
+    // last set's and this one's; the time since the last set (the time the next is to take).
     private static final class Values {
-        final ByteBuffer data = ByteBuffer.allocateDirect(SIZE * SIZE * 2);
+        final ByteBuffer data = ByteBuffer.allocateDirect(SIZE * SIZE * 4);
         int x0, y0;
+        float keepFrom, keepTo;
+        long period;
     }
 
     // The values ready for the render thread, and the one it gave back; the game thread's own, which it fills.
     private final AtomicReference<Values> ready = new AtomicReference<>(), spare = new AtomicReference<>(new Values());
     private Values filling = new Values();
     private long valuesAt;
-    // The colour kept beyond the values worked out, as the last ones had it; 1 until then.
-    private volatile float beyond = 1f;
+    // The last set's own values (two bytes a square), where they start and the colour kept beyond them, and the one
+    // being made; none after the values paused (the game thread's).
+    private byte[] lastValues = new byte[SIZE * SIZE * 2], nextValues = new byte[SIZE * SIZE * 2];
+    private int lastX, lastY;
+    private float lastBeyond;
+    private boolean hasLast;
     // Whether the player is in a dark place, as the last values had it (the game's thread's).
     private boolean darkPlace;
     // Where a pixel of the screen (x, y up from the bottom, 1) is on the floor: world x and y, as the game thread last
@@ -124,10 +144,14 @@ final class NightLamps {
     private volatile double[] onFloor;
     private double[] nextFloor = new double[6], lastFloor = new double[6];
 
-    // The render thread's: the program the locations are of, the locations, the texture and where its values start.
-    private int program = -1, strengthAt = -1, onAt = -1, keepAt = -1, lampsAt = -1, uAt = -1, vAt = -1, liftAt = -1, texture;
+    // The render thread's: the program the locations are of, the locations, the texture and where its values start, the
+    // colour kept beyond them (from, to), when they came and the time the next is to take.
+    private int program = -1, strengthAt = -1, onAt = -1, keepAt = -1, lampsAt = -1, uAt = -1, vAt = -1, liftAt = -1, blendAt = -1,
+        shadeAt = -1, texture;
     private int shownX, shownY;
     private boolean shown;
+    private float keepFrom = 1f, keepTo = 1f;
+    private long shownAt, shownPeriod = REFRESH_NS;
 
     NightLamps(ClassLoader loader, Game game, Players players, Tunings.Tuning darkLight, Tunings.Tuning darkIn, Tunings.Tuning darkOut,
             Tunings.Tuning darkRadius, Tunings.Tuning standing) throws ReflectiveOperationException {
@@ -208,18 +232,42 @@ final class NightLamps {
     }
 
     /**
-     * Sets the least light of a square on the screen (0 to 255; 0 for none). Each square raised to another is read again
-     * as the game next asks for its lighting. On the game's thread.
+     * Sets the least light of a square on the screen (0 to 255; 0 for none): {@code light} outside a dark place,
+     * {@code dark} in one, and the share of the dark place's more shown now (0 to 1, eased every frame by the caller).
+     * While the values run (one player of this machine) the squares are raised to {@code dark} and the screen pass takes
+     * them down to the least light shown; without them, to {@code light}. Each square raised to another is read again as
+     * the game next asks for its lighting. On the game's thread, every frame.
      */
-    void floorLight(int light) {
-        int next = Math.max(0, Math.min(255, light));
+    void floorLight(int light, int dark, float darkShare) {
+        int lit = Math.max(0, Math.min(255, light)), most = Math.max(lit, Math.min(255, dark));
+        boolean carried = !stopped && most > lit && alone(players.all()) >= 0;
+        shade = carried ? shadeOf(lit, most, darkShare) : 1f;
+        int next = carried ? most : lit;
         if (next == floor) return;
         if (next > 0) raising = true;
         floor = next;
         valuesAt = 0;
     }
 
+    /** The same least light in a dark place or not. */
+    void floorLight(int light) { floorLight(light, light, 0f); }
+
     int floorLight() { return floor; }
+
+    /** The least light shown against the one the squares are raised to (for the tests). */
+    float shade() { return shade; }
+
+    /** The least light shown against {@code dark}, the one the squares are raised to, with {@code share} of the dark place's more. */
+    static float shadeOf(int light, int dark, float share) {
+        if (dark <= 0) return 1f;
+        return (light + (dark - light) * Math.max(0f, Math.min(1f, share))) / dark;
+    }
+
+    /** How far the screen pass is from the last set's values to the newest's (0 to 1), {@code since} it got them, the next due in {@code period}. */
+    static float blend(long since, long period) {
+        if (period <= 0 || since >= period) return 1f;
+        return since <= 0 ? 0f : (float)since / period;
+    }
 
     /**
      * What {@code getSquareLighting} handed for a player's square, as the game is about to read it: the light the game
@@ -314,9 +362,14 @@ final class NightLamps {
      * now and then the values around the player. Nothing while night sight is not declared.
      */
     void frame(int playerIndex, long now) throws Throwable {
-        if (floor == 0) { valuesAt = 0; darkPlace = false; return; }
+        if (floor == 0) { valuesAt = 0; darkPlace = false; hasLast = false; return; }
         Object[] local = players.all();
-        if (playerIndex < 0 || playerIndex >= local.length || local[playerIndex] == null || alone(local) != playerIndex) { onFloor = null; darkPlace = false; return; }
+        if (playerIndex < 0 || playerIndex >= local.length || local[playerIndex] == null || alone(local) != playerIndex) {
+            onFloor = null;
+            darkPlace = false;
+            hasLast = false;
+            return;
+        }
         Object player = local[playerIndex];
         float px = (float)xOf.invokeExact(player), py = (float)yOf.invokeExact(player);
         int z = (int)Math.floor((float)zOf.invokeExact(player));
@@ -325,8 +378,11 @@ final class NightLamps {
         if (valuesAt != 0 && now - valuesAt < REFRESH_NS) return;
         if (filling == null) filling = spare.getAndSet(null);
         if (filling == null) return;
+        // the next set is due as long after as this one came (at most two refreshes: a pause is not waited out)
+        filling.period = valuesAt == 0 ? REFRESH_NS : Math.max(REFRESH_NS, Math.min(2 * REFRESH_NS, now - valuesAt));
         valuesAt = now;
         fill(filling, game.cell(), playerIndex, x - SIZE / 2, y - SIZE / 2, z);
+        follow(filling);
         Values given = filling;
         // the ones the render thread has not taken yet are filled again next time
         filling = ready.getAndSet(given);
@@ -362,7 +418,8 @@ final class NightLamps {
         onFloor = next;
     }
 
-    // Each square's share of its colour kept and its light sources' share of its light, 0 to 255 each, rows by y.
+    // Each square's share of its colour kept and its light sources' share of its light, 0 to 255 each, rows by y (the
+    // third and fourth bytes of each square).
     private void fill(Values into, Object cell, int playerIndex, int x0, int y0, int z) throws Throwable {
         into.x0 = x0;
         into.y0 = y0;
@@ -391,11 +448,11 @@ final class NightLamps {
                     near++;
                     if (whole < darkBelow) dark++;
                 }
-                data.put(2 * (j * SIZE + i), (byte)Math.round(kept * 255f));
-                data.put(2 * (j * SIZE + i) + 1, (byte)Math.round(lamp * 255f));
+                data.put(4 * (j * SIZE + i) + 2, (byte)Math.round(kept * 255f));
+                data.put(4 * (j * SIZE + i) + 3, (byte)Math.round(lamp * 255f));
             }
         }
-        beyond = (float)(edge / (4 * SIZE - 4));
+        into.keepTo = (float)(edge / (4 * SIZE - 4));
         if (near > 0 && dark >= darkIn.value() * near) darkPlace = true;
         else if (near == 0 || dark <= darkOut.value() * near) darkPlace = false;
         standing(data, cell, x0, y0, z);
@@ -416,7 +473,7 @@ final class NightLamps {
         if (character == null || (int)Math.floor((float)zOf.invokeExact(character)) != z) return;
         int i = (int)Math.floor((float)xOf.invokeExact(character)) - x0, j = (int)Math.floor((float)yOf.invokeExact(character)) - y0;
         if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
-        int kept = data.get(2 * (j * SIZE + i)) & 0xFF, lamp = data.get(2 * (j * SIZE + i) + 1) & 0xFF;
+        int kept = data.get(4 * (j * SIZE + i) + 2) & 0xFF, lamp = data.get(4 * (j * SIZE + i) + 3) & 0xFF;
         int behind = standingSquares.whole();
         for (int k = 0; k <= behind; k++) {
             if (k > 0) atLeast(data, i - k, j - k, kept, lamp);
@@ -428,9 +485,40 @@ final class NightLamps {
 
     private static void atLeast(ByteBuffer data, int i, int j, int kept, int lamp) {
         if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
-        int at = 2 * (j * SIZE + i);
+        int at = 4 * (j * SIZE + i) + 2;
         if ((data.get(at) & 0xFF) < kept) data.put(at, (byte)kept);
         if ((data.get(at + 1) & 0xFF) < lamp) data.put(at + 1, (byte)lamp);
+    }
+
+    // The last set's values of the same squares go before this set's (a square it did not have, or with none, has this
+    // set's twice), and its colour kept beyond them; then this set is the last.
+    private void follow(Values into) {
+        ByteBuffer data = into.data;
+        byte[] last = lastValues, next = nextValues;
+        int dx = into.x0 - lastX, dy = into.y0 - lastY;
+        for (int j = 0; j < SIZE; j++) {
+            int lj = j + dy;
+            boolean row = hasLast && lj >= 0 && lj < SIZE;
+            for (int i = 0; i < SIZE; i++) {
+                int k = j * SIZE + i, li = i + dx;
+                byte kept = data.get(4 * k + 2), lamp = data.get(4 * k + 3);
+                next[2 * k] = kept;
+                next[2 * k + 1] = lamp;
+                if (row && li >= 0 && li < SIZE) {
+                    kept = last[2 * (lj * SIZE + li)];
+                    lamp = last[2 * (lj * SIZE + li) + 1];
+                }
+                data.put(4 * k, kept);
+                data.put(4 * k + 1, lamp);
+            }
+        }
+        into.keepFrom = hasLast ? lastBeyond : into.keepTo;
+        lastBeyond = into.keepTo;
+        lastX = into.x0;
+        lastY = into.y0;
+        lastValues = next;
+        nextValues = last;
+        hasLast = true;
     }
 
     private Object lit(Object square, int playerIndex) throws Throwable {
@@ -457,15 +545,19 @@ final class NightLamps {
 
     static float luma(float r, float g, float b) { return 0.299f * r + 0.587f * g + 0.114f * b; }
 
-    /** The values are stopped (a fault): the screen pass keeps the colour everywhere, and the least light stays. */
-    void stop() { onFloor = null; beyond = 1f; }
+    /**
+     * The values are stopped (a fault): the screen pass keeps the colour everywhere, and the least light stays (the one
+     * outside a dark place, from the next frame).
+     */
+    void stop() { onFloor = null; stopped = true; shade = 1f; }
 
     /** When the screen pass compiles: its program, whose uniforms are found when it next draws. */
     void program(int id) { program = -1 - id; }
 
     /**
      * Each time the screen pass draws, on the render thread with its program bound: whether night sight is on, the
-     * strength of its lift and, while it is declared, the values and where the pixels are on them.
+     * strength of its lift, the least light shown and, while it is declared, the values (how far from the last set's to
+     * the newest's, by the clock) and where the pixels are on them.
      */
     void draw(int id, float strength, float lift) throws Throwable {
         if (program != id) {
@@ -477,6 +569,8 @@ final class NightLamps {
             uAt = (int)uniformAt.invokeExact(id, (CharSequence)U);
             vAt = (int)uniformAt.invokeExact(id, (CharSequence)V);
             liftAt = (int)uniformAt.invokeExact(id, (CharSequence)LIFT);
+            blendAt = (int)uniformAt.invokeExact(id, (CharSequence)BLEND);
+            shadeAt = (int)uniformAt.invokeExact(id, (CharSequence)SHADE);
         }
         if (onAt < 0) return;
         boolean on = floor > 0;
@@ -484,7 +578,8 @@ final class NightLamps {
         if (!on) return;
         uniform1f.invokeExact(strengthAt, strength);
         uniform1f.invokeExact(liftAt, lift);
-        uniform1f.invokeExact(keepAt, beyond);
+        uniform1f.invokeExact(shadeAt, shade);
+        long now = System.nanoTime();
         Values next = ready.getAndSet(null);
         if (next != null || texture == 0) {
             int active = (int)getInteger.invokeExact(ACTIVE_TEXTURE);
@@ -496,19 +591,26 @@ final class NightLamps {
                 textureParameter.invokeExact(TEXTURE_2D, MAG_FILTER, LINEAR);
                 textureParameter.invokeExact(TEXTURE_2D, WRAP_S, CLAMP_TO_EDGE);
                 textureParameter.invokeExact(TEXTURE_2D, WRAP_T, CLAMP_TO_EDGE);
-                textureImage.invokeExact(TEXTURE_2D, 0, RG8, SIZE, SIZE, 0, RG, UNSIGNED_BYTE, (ByteBuffer)null);
+                textureImage.invokeExact(TEXTURE_2D, 0, RGBA8, SIZE, SIZE, 0, RGBA, UNSIGNED_BYTE, (ByteBuffer)null);
             } else {
                 bindTexture.invokeExact(TEXTURE_2D, texture);
             }
             if (next != null) {
-                textureSubImage.invokeExact(TEXTURE_2D, 0, 0, 0, SIZE, SIZE, RG, UNSIGNED_BYTE, next.data);
+                textureSubImage.invokeExact(TEXTURE_2D, 0, 0, 0, SIZE, SIZE, RGBA, UNSIGNED_BYTE, next.data);
                 shownX = next.x0;
                 shownY = next.y0;
+                keepFrom = next.keepFrom;
+                keepTo = next.keepTo;
+                shownPeriod = next.period;
+                shownAt = now;
                 shown = true;
                 spare.set(next);
             }
             activeTexture.invokeExact(active);
         }
+        float blend = blend(now - shownAt, shownPeriod);
+        uniform1f.invokeExact(blendAt, blend);
+        uniform1f.invokeExact(keepAt, stopped ? 1f : keepFrom + (keepTo - keepFrom) * blend);
         uniform1i.invokeExact(lampsAt, UNIT);
         double[] at = onFloor;
         if (!shown || at == null) {
