@@ -38,27 +38,77 @@ test("a pop swells the node by its share early and settles back; a shrink does t
     near(hi, 1 + Motion.POP_SCALE, 0.002, "the top")
     truthy(lo >= 1, "never smaller")
     truthy(at < Motion.POP_MS / 3, "the jump is quick, the settling longer")
-    truthy(Motion.POP_MS >= 150 and Motion.POP_MS <= 200)
+    truthy(Motion.POP_MS >= 220 and Motion.POP_MS <= 300, "long enough to catch")
+    truthy(Motion.POP_SCALE >= 0.15, "large enough to catch")
     eq(Motion.shrink(Motion.SHRINK_MS), 1)
     hi, lo = span(Motion.shrink, Motion.SHRINK_MS)
     near(lo, 1 - Motion.SHRINK_SCALE, 0.002, "the bottom")
     truthy(hi <= 1, "never larger")
 end)
 
-test("a pop's ring goes out from the frame and fades, then is gone", function()
-    local grow, a = Motion.ripple(0)
+test("a pop's ring goes out from the frame, bright and thick at first, thinning and fading, then is gone", function()
+    local grow, a, w = Motion.ripple(0)
     eq(grow, 0)
-    near(a, 0.85, 1e-9)
-    local lastGrow, lastA = grow, a
+    eq(a, 1, "full at first")
+    eq(w, Motion.RIPPLE_WIDTH)
+    local lastGrow, lastA, lastW = grow, a, w
     for t = 10, Motion.RIPPLE_MS - 1, 10 do
-        grow, a = Motion.ripple(t)
-        truthy(grow >= lastGrow and a <= lastA, "out and fading at " .. t)
-        lastGrow, lastA = grow, a
+        grow, a, w = Motion.ripple(t)
+        truthy(grow >= lastGrow and a <= lastA and w <= lastW, "out, fading and thinning at " .. t)
+        lastGrow, lastA, lastW = grow, a, w
     end
     truthy(lastGrow > Motion.RIPPLE_GROW * 0.95 and lastA < 0.05, "nearly out and gone at the end")
+    truthy(lastW >= Motion.RIPPLE_WIDTH / 2, "never thinner than half")
     eq(Motion.ripple(Motion.RIPPLE_MS), nil)
     eq(Motion.ripple(-1), nil)
-    eq(Motion.fxMs("pop"), math.max(Motion.POP_MS, Motion.RIPPLE_MS), "a pop lasts as long as its ring")
+end)
+
+test("a click's answer lasts as long as its longest part: the ring, the floating number, the pip's flash", function()
+    eq(Motion.fxMs("pop"), math.max(Motion.POP_MS, Motion.RIPPLE_MS, Motion.FLOAT_MS, Motion.PIP_MS))
+    eq(Motion.fxMs("shrink"), math.max(Motion.SHRINK_MS, Motion.FLOAT_MS, Motion.PIP_MS))
+    eq(Motion.fxMs("shake"), Motion.SHAKE_MS)
+    -- stretched in game to look at it slowly, it lasts longer at once
+    local saved = Motion.FLOAT_MS
+    Motion.FLOAT_MS = 6000
+    eq(Motion.fxMs("pop"), 6000)
+    Motion.FLOAT_MS = saved
+end)
+
+test("the +1 or -1 rises easing out, holds full a while, then fades out and is gone", function()
+    local rise, a = Motion.float(0)
+    eq(rise, 0)
+    eq(a, 1)
+    rise, a = Motion.float(Motion.FLOAT_MS * Motion.FLOAT_HOLD)
+    eq(a, 1, "still full at the end of its hold")
+    truthy(rise > Motion.FLOAT_RISE * 0.6, "most of its rise done by then")
+    local lastRise, lastA = 0, 1
+    for t = 10, Motion.FLOAT_MS - 1, 10 do
+        rise, a = Motion.float(t)
+        truthy(rise >= lastRise and a <= lastA, "up and fading at " .. t)
+        lastRise, lastA = rise, a
+    end
+    truthy(lastA < 0.1 and lastRise > Motion.FLOAT_RISE * 0.99)
+    eq(Motion.float(Motion.FLOAT_MS), nil)
+    eq(Motion.float(-1), nil)
+end)
+
+test("a pip's flash grows out from the pip and dies out", function()
+    local k, a = Motion.pipFlash(0)
+    eq(k, 1)
+    eq(a, 1)
+    k, a = Motion.pipFlash(Motion.PIP_MS - 1)
+    truthy(k > 1 + Motion.PIP_GROW * 0.99 and a < 0.01)
+    eq(Motion.pipFlash(Motion.PIP_MS), nil)
+end)
+
+test("the points left hop up and back and light, then are still", function()
+    local hi, lo = span(function(t) return (Motion.bump(t)) end, Motion.BUMP_MS - 1)
+    near(hi, Motion.BUMP_HOP, 0.01, "the top of the hop")
+    truthy(lo >= 0, "never below its place")
+    local hop, lit = Motion.bump(0)
+    eq(hop, 0)
+    eq(lit, 1)
+    eq(Motion.bump(Motion.BUMP_MS), nil)
 end)
 
 test("a refusal shakes the node both ways, a few design units at most, and leaves it where it was", function()
@@ -72,10 +122,13 @@ test("a refusal shakes the node both ways, a few design units at most, and leave
     eq(Motion.fxMs("nothing"), 0)
 end)
 
-test("a padlock waits locked, fades out while the frame flashes once, then is over", function()
-    local lock, flash = Motion.unlock(-100)
+test("a padlock waits locked, fades out while the frame flashes once and sends a ring out, then is over", function()
+    local lock, flash, ring = Motion.unlock(-100)
     eq(lock, 1, "before its time: locked")
     eq(flash, 0)
+    eq(ring, 0)
+    local _, _, late = Motion.unlock(Motion.UNLOCK_MS - 1)
+    truthy(late > Motion.UNLOCK_RING * 0.99, "the ring out by the end")
     lock, flash = Motion.unlock(0)
     eq(lock, 1)
     eq(flash, 0)
@@ -143,21 +196,39 @@ test("the lines' lights are out of step: neighbours start their passes far apart
     end
 end)
 
-test("the opening brings the columns in a step apart from the left, the rows from the top, in about 400 ms", function()
+test("the opening: columns rise in a step apart, nodes pop in row by row, lines draw after their nodes", function()
     local cols, rows = 3, 5
     local ends = Motion.openEnd(cols, rows)
-    truthy(ends <= 450, "quick: " .. ends)
+    truthy(ends >= 700 and ends <= 900, "a staged entrance, not a wait: " .. ends)
     for c = 1, cols do
         local start = (c - 1) * Motion.OPEN_COL_MS
-        eq(Motion.openColumn(start, c), 1, "column " .. c .. " hidden until its turn")
-        eq(Motion.openColumn(ends, c), 0, "and shown by the end")
-        if c > 1 then truthy(Motion.openColumn(start, c - 1) < 0.5, "the one before mostly in") end
+        local rise, shown = Motion.openColumn(start, c)
+        eq(rise, Motion.OPEN_RISE, "column " .. c .. " below its place until its turn")
+        eq(shown, 0)
+        rise, shown = Motion.openColumn(ends, c)
+        eq(rise, 0, "in place by the end")
+        eq(shown, 1)
+        if c > 1 then
+            local _, before = Motion.openColumn(start, c - 1)
+            truthy(before > 0.5, "the column before mostly in")
+        end
+        eq(Motion.openBar(start, c), 0, "the bar empty at first")
+        eq(Motion.openBar(ends, c), 1, "and full by the end")
         for r = 1, rows do
-            eq(Motion.openRow(start, c, r), 1, "row " .. r .. " dark at first")
-            eq(Motion.openRow(ends, c, r), 0, "and lit by the end")
+            local k, e = Motion.openNode(start, c, r)
+            eq(e, 0, "row " .. r .. " not in at first")
+            eq(k, Motion.OPEN_NODE_FROM, "and small")
+            k, e = Motion.openNode(ends, c, r)
+            eq(k, 1)
+            eq(e, 1)
+            eq(Motion.openLine(ends, c, r), 1, "its lines drawn by the end")
             if r > 1 then
-                local t = start + Motion.OPEN_ROW_WAIT_MS + (r - 1) * Motion.OPEN_ROW_MS
-                truthy(Motion.openRow(t, c, r - 1) < Motion.openRow(t, c, r), "row " .. (r - 1) .. " before " .. r)
+                local nodeStart = start + Motion.OPEN_NODE_WAIT_MS + (r - 1) * Motion.OPEN_ROW_MS
+                local _, above = Motion.openNode(nodeStart, c, r - 1)
+                truthy(above > 0, "row " .. (r - 1) .. " before row " .. r)
+                eq(Motion.openLine(nodeStart, c, r), 0, "a line waits for its node")
+                local _, half = Motion.openNode(nodeStart + Motion.OPEN_LINE_LAG * Motion.OPEN_NODE_MS, c, r)
+                truthy(half > 0.8, "and starts once its node is mostly in")
             end
         end
     end

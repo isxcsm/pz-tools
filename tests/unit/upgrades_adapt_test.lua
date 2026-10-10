@@ -364,7 +364,7 @@ end)
 
 test("the stamp's look moves while a flash, the press or the fade does, holds while the seal holds, and ends with it", function()
     for _, n in ipairs({ 0, 1, 3, 30 }) do
-        local still = math.max(Plan.sealAt(n) + Plan.SEAL_PRESS_MS, (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
+        local still = math.max(Plan.sealAt(n) + Plan.sealSettle(), (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
         local fade = Plan.sealAt(n) + Plan.SEAL_MS - Plan.SEAL_FADE_MS
         truthy(still < fade, "a hold for " .. n)
         eq(Plan.stampLook(n, 0), 0)
@@ -375,6 +375,73 @@ test("the stamp's look moves while a flash, the press or the fade does, holds wh
         eq(Plan.stampLook(n, Plan.stampEnd(n) - 1), Plan.stampEnd(n) - 1)
         eq(Plan.stampLook(n, Plan.stampEnd(n)), nil, "over")
     end
+end)
+
+test("the stamp takes about 1.5 to 2.2 s for a few nodes", function()
+    for _, n in ipairs({ 1, 3, 5 }) do
+        local ends = Plan.stampEnd(n)
+        truthy(ends >= 1400 and ends <= 2300, n .. " nodes: " .. ends)
+    end
+end)
+
+test("the scan pops each node as it lights and flashes it with a ring going out", function()
+    eq(Plan.stampPop(-1), 1)
+    eq(Plan.stampPop(Plan.STAMP_POP_MS), 1)
+    local top = 1
+    for t = 0, Plan.STAMP_POP_MS do top = math.max(top, Plan.stampPop(t)) end
+    near(top, 1 + Plan.STAMP_POP, 0.002)
+    local a, ring = Plan.stampFlash(0)
+    eq(a, 1)
+    eq(ring, 0)
+    a, ring = Plan.stampFlash(Plan.STAMP_FLASH_MS - 1)
+    truthy(a < 0.01 and ring > Plan.STAMP_RING * 0.99)
+    eq(Plan.stampFlash(Plan.STAMP_FLASH_MS), nil)
+end)
+
+test("the seal falls in large and faint, slams down squashed with an ink ring, settles, holds, lifts away", function()
+    eq(Plan.seal(-1), nil)
+    local sx, sy, a = Plan.seal(0)
+    eq(sx, Plan.SEAL_FROM, "large as it starts to fall")
+    eq(sy, Plan.SEAL_FROM)
+    eq(a, 0, "out of sight")
+    -- falling faster and faster
+    local drop = Plan.SEAL_DROP_MS
+    local s1 = Plan.seal(drop * 0.25)
+    local s2 = Plan.seal(drop * 0.5)
+    local s3 = Plan.seal(drop * 0.75)
+    truthy(s1 - s2 < s2 - s3, "it speeds up")
+    -- the impact: wide and flat, the ink ring starting, then back to its shape
+    local ink, inkGrow, inkA
+    sx, sy, a, ink, inkGrow, inkA = Plan.seal(drop)
+    truthy(sx > 1 and sy < 1, "squashed")
+    near(sy, 1 - Plan.SEAL_SQUASH, 1e-9)
+    eq(a, 1)
+    eq(inkGrow, 0, "the ink ring starts at the seal's edge")
+    truthy(inkA > 0.5)
+    sx, sy = Plan.seal(drop + Plan.SEAL_SQUASH_MS)
+    eq(sx, 1)
+    eq(sy, 1)
+    local _, _, _, settled, gone = Plan.seal(drop + Plan.SEAL_INK_MS)
+    eq(gone, nil, "the ink ring gone")
+    near(settled, 1 - Plan.SEAL_SETTLE, 1e-9, "the ink settled")
+    -- holding, then lifting away: a little larger, fading to nothing
+    local hold = Plan.SEAL_MS - Plan.SEAL_FADE_MS
+    sx, sy, a = Plan.seal(hold)
+    eq(sx, 1)
+    eq(a, 1)
+    sx, sy, a = Plan.seal(Plan.SEAL_MS - 1)
+    truthy(sx > 1 and a < 0.01, "lifted and gone")
+    eq(Plan.seal(Plan.SEAL_MS), nil)
+end)
+
+test("the seal's landing jolts the trees down, a small bounce, then still", function()
+    eq(Plan.sealJolt(0), 0, "not while it falls")
+    eq(Plan.sealJolt(Plan.SEAL_DROP_MS), Plan.SEAL_JOLT_DU, "pushed down at the impact")
+    local up = 0
+    for t = 0, Plan.SEAL_JOLT_MS do up = math.min(up, Plan.sealJolt(Plan.SEAL_DROP_MS + t)) end
+    truthy(up < 0 and up > -Plan.SEAL_JOLT_DU, "a smaller bounce back")
+    eq(Plan.sealJolt(Plan.SEAL_DROP_MS + Plan.SEAL_JOLT_MS), 0)
+    truthy(Plan.SEAL_DROP_MS + Plan.SEAL_JOLT_MS <= Plan.sealSettle(), "the stamp's look moves while it does")
 end)
 
 -- ---- the client's minute ------------------------------------------------------------------------------------------

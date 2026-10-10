@@ -15,21 +15,27 @@
 -- units and our faces (Trade/UI.lua), made again when the scale changes, so the tab grows with the screen as the
 -- terminal does. Icons are drawn at whole pixel sizes from their 128 px pictures, the small signs (pips, checks, the
 -- reset arrow) from textures made at each pixel size (tools/ui_glyphs.py), so nothing is blurred by scaling.
--- When the server's approval comes back while the tab is open, the selected nodes light one by one with a short sound
--- and a red seal is pressed on them for a moment (Plan.stamp has the timing; the tab's own render draws it, so it costs
--- nothing when the tab is closed). The nodes it opened (their padlocks gone) flash in their tree's colour once the
--- stamp is over, as the nodes a click opens do (a row opened by the points selected) just behind the click.
--- Smaller motions (Motion.lua has their timing): a rank raised makes its node pop with a cyan ring going out, one taken
--- back makes it shrink a little, a refused click shakes it; a lit line carries a faint light from the prerequisite
--- down to its node every few seconds, the lines out of step; when the tab comes on the screen its columns come in
--- from the left and their rows light from the top (only the drawing: a click works at once).
+-- When the server's approval comes back while the tab is open, a scan runs over the selected nodes (each pops and
+-- flashes gold with a short sound), then a red seal drops onto the trees: it falls in from larger, slams down squashed
+-- with a thud, jolts the trees and sends an ink ring out; its ink settles, it holds, and it lifts away (Plan.stamp and
+-- Plan.seal have the timing; the tab's own render draws it, so it costs nothing when the tab is closed). The nodes it
+-- opened (their padlocks gone) then flash in their tree's colour with a ring, as the nodes a click opens do (a row
+-- opened by the points selected) just behind the click.
+-- Smaller motions (Motion.lua has their timing): a rank raised makes its node pop with a cyan ring going out and a
+-- "+1" floating up, one taken back shrinks it with a "-1", a refused click shakes it; the pip that changed flashes and
+-- the tree's points left hop with the bar's segment lit. The node under the mouse lights and grows a little. A lit line
+-- carries a light from the prerequisite down to its node every few seconds, the lines out of step. When the tab comes
+-- on the screen its columns rise into place one after the other, their nodes pop in row by row, the lines draw
+-- themselves down and the bars fill; a switch between the trees and the board plays the same, quicker (only the
+-- drawing: a click works at once).
 -- What a frame does: the states of the nodes and lines are worked out when the record or the selection changes
 -- (refresh); a frame only paints them, with the motions from the clock. The body paints the tab's state, which is kept
 -- on the tab and not on the body: each change of it is written to the body as well (View:changed), and the short
--- motions (a click's answer, a padlock, the opening, the stamp) are followed each frame while they play (Trade/UI
--- live, View.tick: one frame function for all of them), so that PZ Optimization's retained UI draws them at once; then
--- the body is let go and its drawing kept. What moves all the time (the pulse, the dashes, the lines' lights) is drawn
--- by the flow, a thin panel over the body (OAResearchFlow), which alone is drawn afresh each frame.
+-- motions (a click's answer, the light under the mouse, a padlock, the opening, the stamp) are followed each frame
+-- while they play (Trade/UI live, View.tick: one frame function for all of them), so that PZ Optimization's retained
+-- UI draws them at once; then the body is let go and its drawing kept. What moves all the time (the pulse, the
+-- dashes, the lines' lights) is drawn by the flow, a thin panel over the body (OAResearchFlow), which alone is drawn
+-- afresh each frame.
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISPanel"
 require "ISUI/ISModalDialog" -- oa-widget: ok (the gamepad's confirm, View:ask)
@@ -123,6 +129,11 @@ local S = 1
 local function X(v) return floor(v * S + 0.5) end
 -- The frame's clock (View:paint sets them): now in ms, and ms since the tab was made.
 local NOW, CLOCK = 0, 0
+-- What the parts of a frame share (View:frameState sets them as the body's or the flow's frame begins): the opening's
+-- age in its own time (nil while it does not play), and each column's rise (design units below its place: the
+-- opening's, and the seal's jolt) and how much of it shows. Kept here: a frame makes nothing.
+local OPEN_AGE = nil
+local RISE, SHOWN = { 0, 0, 0 }, { 1, 1, 1 }
 
 local function rectPx(el, x, y, w, h, c, a)
     if w <= 0 or h <= 0 then return end
@@ -207,6 +218,11 @@ end
 
 local function remainder(v, m)
     return v - floor(v / m) * m
+end
+
+-- Where segment k of a bar of `total` segments from pixel x0 to x1 starts (pixels).
+local function segX(x0, x1, k, total)
+    return x0 + floor((x1 - x0) * k / total + 0.5)
 end
 
 -- A text made with a number put in by getText, cut where the number goes: before, after (the number drawn apart in
@@ -527,9 +543,11 @@ function View:layout()
                     local prev = pts[k - 1]
                     if prev then len = len + math.abs(pts[k][1] - prev[1]) + math.abs(pts[k][2] - prev[2]) end
                 end
-                -- its number and length time the light that runs down it (Motion.bead); its column, the opening
+                -- its number and length time the light that runs down it (Motion.bead); its column and its node's
+                -- row, when it draws itself in the opening
                 local index = #self.lines + 1
-                self.lines[index] = { need = link.need, tree = tree, points = pts, index = index, len = len, col = i }
+                self.lines[index] = { need = link.need, tree = tree, points = pts, index = index, len = len, col = i,
+                    row = Data.byId[link.to].row }
             end
             -- the reset button at the strip's right
             local bs = 22
@@ -612,7 +630,19 @@ function View:changed()
     self.tipDirty = true
     local body = self.body
     if body then body.rev = (body.rev or 0) + 1 end
+    self:lightFocus()
     self:animate()
+end
+
+-- The node under the mouse or the gamepad's cursor lights (Trade/UI place lights, by node id on the body: the one
+-- left goes down). The lights register their own frame function on the body; View:animate puts ours back after, which
+-- follows them too (View.tick).
+function View:lightFocus()
+    local body = self.body
+    if not body then return end
+    local key = self.hover or (self.joypad and self.cursor) or nil
+    local item = key and self:itemOf(key)
+    UI.placeLight(body, item and item.id or nil)
 end
 
 -- ---- state -----------------------------------------------------------------------------------------------------
@@ -744,6 +774,8 @@ function View:onMode(button)
     if self.sim then self:workOut() end
     if self.joypad then self.cursor = (self:firstNode() or {}).key or self.cursor end
     self:changed()
+    -- the other trees come up as the tab's do when it opens, quicker
+    self:startOpen(Motion.SWITCH_PACE)
 end
 
 function View:firstNode()
@@ -791,6 +823,7 @@ function View:plan(id, choice)
     -- (a node still waiting for an approval's stamp to open it opens now: it is being used)
     if self.unlocks then self.unlocks[id] = nil end
     self:refresh()
+    self:markChange(id, false)
     self:unlockSince(before, getTimestampMs() + Motion.UNLOCK_DELAY_MS)
 end
 
@@ -798,10 +831,27 @@ end
 function View:unplan(id)
     if not self.sim then return end
     local steps = Plan.remove(self.u, self.steps, id, self.fragments)
-    self:startFx(id, steps == self.steps and "shake" or "shrink")
+    local back = steps ~= self.steps
+    self:startFx(id, back and "shrink" or "shake")
     self.steps = steps
     self.refusal = nil
     self:refresh()
+    if back then self:markChange(id, true) end
+end
+
+-- After a rank selected or taken `back`: the pip that changed flashes with the click's answer, and the tree's points
+-- left hop with the segment of its bar that changed (View.bump).
+function View:markChange(id, back)
+    local node = Data.byId[id]
+    local n = self.nodes and self.nodes[id]
+    if not n or node.board then return end
+    local f = self.fx and self.fx[id]
+    if f then f.pip = n.full + n.planned + (back and 1 or 0) end
+    local tree = node.tree
+    local planned = self.spentPlan and self.spentPlan[tree] or 0
+    local seg = Rules.treeSpent(self.u, tree) + planned - (back and 0 or 1)
+    self.bump = { tree = tree, seg = seg, at = getTimestampMs() }
+    self:animate()
 end
 
 -- The family weight node asks which family the point is for.
@@ -1100,6 +1150,13 @@ function Window.pips(el, x, y, n, full, planned, color, align)
     end
 end
 
+-- Where pip i of n centred on x stands (its middle), and its size: as Window.pips lays them.
+local function pipAt(x, n, i)
+    local d = n <= 3 and 5 or 4.5
+    local gap = n <= 3 and 3 or 2.5
+    return x - (n * d + (n - 1) * gap) / 2 + (i - 1) * (d + gap) + d / 2, d
+end
+
 local function pulse(t)
     return 0.5 + 0.5 * math.sin(2 * math.pi * t / Window.PULSE_S)
 end
@@ -1209,11 +1266,13 @@ end
 
 -- A tree's header strip, three rows: its name and the reset button; the points left and what is kept for the 2nd
 -- board; its points as a bar the strip's width (spent in its colour, selected in cyan, still to spend pale, the rows'
--- openings as ticks).
-function View:paintStrip(el, panel)
+-- openings as ticks). Column i: it rises with its column and its bar fills in the opening; its points left hop and the
+-- bar's changed segment lights when a click changed them (View.bump).
+function View:paintStrip(el, panel, i)
     local tree = panel.tree
     local tc = TREE[tree]
-    local x, y = panel.x, panel.y
+    local dy = RISE[i]
+    local x, y = panel.x, panel.y + dy
     UI.fill(el, x, y, L.COL_W, L.STRIP, tc.strip)
     UI.fill(el, x, y, L.COL_W, 2, tc.c)
     UI.text(el, Texts.treeName(tree), x + 10, y + 5, tc.light, UIFont.Medium)
@@ -1229,13 +1288,23 @@ function View:paintStrip(el, panel)
     if item and self:reachable(item) then
         local on = self:enabled(item)
         local hover = on and self.hover == item.key
-        UI.fill(el, item.x, item.y, item.w, item.h, hover and tc.c or P.bg, hover and 0.35 or 0.5)
-        UI.frame(el, item.x, item.y, item.w, item.h, tc.light, on and 0.6 or 0.25)
-        glyph(el, "Reset", item.x + item.w / 2, item.y + item.h / 2, item.w - 8, tc.light, on and 0.95 or 0.35)
+        local iy = item.y + dy
+        UI.fill(el, item.x, iy, item.w, item.h, hover and tc.c or P.bg, hover and 0.35 or 0.5)
+        UI.frame(el, item.x, iy, item.w, item.h, tc.light, on and 0.6 or 0.25)
+        glyph(el, "Reset", item.x + item.w / 2, iy + item.h / 2, item.w - 8, tc.light, on and 0.95 or 0.35)
+    end
+    -- a click's mark on the points
+    local hop, lit, seg = 0, 0, -1
+    local bump = self.bump
+    if bump and bump.tree == tree then
+        local h, l = Motion.bump(NOW - bump.at)
+        if h then hop, lit, seg = h, l, bump.seg end
     end
     -- the points left, and what is kept for the 2nd board at the right
     local usable, surplus = Rules.ownSplit(self.sim, tree)
-    UI.text(el, getText("IGUI_OA_Tree_OwnLeft", usable), x + 10, y + 27, usable > 0 and P.value or P.dim)
+    local left = getText("IGUI_OA_Tree_OwnLeft", usable)
+    UI.text(el, left, x + 10, y + 27 - hop, usable > 0 and P.value or P.dim)
+    if lit > 0 then UI.text(el, left, x + 10, y + 27 - hop, WHITE, nil, 0.8 * lit) end
     if surplus > 0 then
         UI.textRight(el, getText("IGUI_OA_Tree_BoardShare", surplus), x + L.COL_W - 10, y + 27, P.dim)
     end
@@ -1245,28 +1314,31 @@ function View:paintStrip(el, panel)
     local total = TREE_POINTS[tree]
     local spent = Rules.treeSpent(self.u, tree)
     local plan = self.spentPlan[tree] or 0
+    -- in the opening the bar fills from nothing to what it shows
+    local filled = spent + plan + usable
+    if OPEN_AGE then filled = filled * Motion.openBar(OPEN_AGE, i) end
     local x0, x1 = X(bx), X(bx + bw)
     local y0, y1 = X(by), X(by + bh)
-    local function segX(k) return x0 + floor((x1 - x0) * k / total + 0.5) end
     for k = 0, total - 1 do
-        local a, b = segX(k), segX(k + 1) - 1
+        local a, b = segX(x0, x1, k, total), segX(x0, x1, k + 1, total) - 1
         local c, alpha
-        if k < spent then
+        if k >= filled then
+            c, alpha = P.border, 0.22
+        elseif k < spent then
             c, alpha = tc.c, 1
         elseif k < spent + plan then
             c, alpha = CYAN, 1
-        elseif k < spent + plan + usable then
-            c, alpha = tc.light, 0.35
         else
-            c, alpha = P.border, 0.22
+            c, alpha = tc.light, 0.35
         end
         rectPx(el, a, y0, b - a, y1 - y0, c, alpha)
+        if k == seg then rectPx(el, a, y0 - X(1), b - a, y1 - y0 + 2 * X(1), WHITE, 0.85 * lit) end
     end
     local tw = math.max(1, floor(S * 0.7 + 0.5))
     for row = 2, Data.ROWS do
         local need = Rules.rowNeed(row)
         if need < total then
-            local px = segX(need) - 1
+            local px = segX(x0, x1, need, total) - 1
             rectPx(el, px, y0 - X(3), tw, y1 - y0 + X(3) + X(1), P.text, 0.75)
         end
     end
@@ -1285,19 +1357,21 @@ local function linePiece(el, xa, ya, xb, yb, len, s0, s1, lw, c, a)
 end
 
 -- The part of a line's light on one of its segments (`dist`: where the segment starts on the line; `head`: where the
--- light's head is, `blen` its length): a short head and a fainter tail behind it.
+-- light's head is, `blen` its length): a soft glow under it (wider, faint), a fainter tail and a bright head.
 local function beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
-    local mid = head - math.min(Motion.BEAD_HEAD, blen)
-    local s0, s1 = math.max(0, head - blen - dist), math.min(len, mid - dist)
-    if s1 > s0 then linePiece(el, xa, ya, xb, yb, len, s0, s1, lw, c, 0.4 * a) end
-    s0, s1 = math.max(0, mid - dist), math.min(len, head - dist)
-    if s1 > s0 then linePiece(el, xa, ya, xb, yb, len, s0, s1, lw, c, a) end
+    local s0, s1 = math.max(0, head - blen - dist), math.min(len, head - dist)
+    if s1 <= s0 then return end
+    linePiece(el, xa, ya, xb, yb, len, s0, s1, lw * Motion.BEAD_GLOW_WIDTH, c, Motion.BEAD_GLOW * a)
+    local m = math.min(s1, math.max(s0, head - math.min(Motion.BEAD_HEAD, blen) - dist))
+    if m > s0 then linePiece(el, xa, ya, xb, yb, len, s0, m, lw, c, 0.4 * a) end
+    if s1 > m then linePiece(el, xa, ya, xb, yb, len, m, s1, lw, c, a) end
 end
 
 -- A prerequisite line drawn one way (`mode`): "solid", "dashes" (flowing with the clock `t`, seconds) or "bead"
 -- (only its light, Motion.bead, its strength times `a`: nothing between passes); a small arrowhead into the node, but
--- for its light.
-local function drawLine(el, line, mode, c, a, t)
+-- for its light. `dy` moves it down (its column rising); `upto` (design units, nil for all) draws only its start, the
+-- arrowhead once it is all there.
+local function drawLine(el, line, mode, c, a, t, dy, upto)
     local head, blen
     if mode == "bead" then
         local strength
@@ -1305,6 +1379,7 @@ local function drawLine(el, line, mode, c, a, t)
         if not head then return end
         a = strength * a
     end
+    dy = dy or 0
     local lw = math.max(2, floor(1.5 * S + 0.5))
     local pts = line.points
     -- the arrowhead's height in pixels; the line stops where it starts
@@ -1314,19 +1389,21 @@ local function drawLine(el, line, mode, c, a, t)
     local phase = mode == "dashes" and remainder(t * Window.FLOW, period) or 0
     local dist = 0
     for i = 1, #pts - 1 do
-        local xa, ya = pts[i][1], pts[i][2]
-        local xb, yb = pts[i + 1][1], pts[i + 1][2]
+        local xa, ya = pts[i][1], pts[i][2] + dy
+        local xb, yb = pts[i + 1][1], pts[i + 1][2] + dy
         if i == #pts - 1 then yb = yb - tip end
         local len = math.abs(xb - xa) + math.abs(yb - ya)
+        local room = upto and math.min(len, upto - dist) or len
+        if upto and room <= 0 then return end
         if len > 0 then
             if mode == "solid" then
-                linePiece(el, xa, ya, xb, yb, len, 0, len, lw, c, a)
+                linePiece(el, xa, ya, xb, yb, len, 0, room, lw, c, a)
             elseif mode == "bead" then
                 beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
             else
                 local s0 = -remainder(dist - phase, period)
-                while s0 < len do
-                    local a0, a1 = math.max(0, s0), math.min(len, s0 + Window.DASH)
+                while s0 < room do
+                    local a0, a1 = math.max(0, s0), math.min(room, s0 + Window.DASH)
                     if a1 > a0 then linePiece(el, xa, ya, xb, yb, len, a0, a1, lw, c, a) end
                     s0 = s0 + period
                 end
@@ -1334,22 +1411,34 @@ local function drawLine(el, line, mode, c, a, t)
         end
         dist = dist + len
     end
-    if mode == "bead" then return end
+    if mode == "bead" or (upto and upto < dist) then return end
     -- the arrowhead, rows of whole pixels
-    local cx, top = X(pts[#pts][1]), X(pts[#pts][2]) - k
+    local cx, top = X(pts[#pts][1]), X(pts[#pts][2] + dy) - k
     for i = 0, k - 1 do
         local w = 2 * (k - i) - 1
         rectPx(el, cx - floor(w / 2), top + i, w, 1, c, a)
     end
 end
 
+-- How much of a line shows in the opening: nil for all of it, else the design units drawn (0: none yet).
+local function lineUpto(line)
+    if not OPEN_AGE then return nil end
+    local share = Motion.openLine(OPEN_AGE, line.col, line.row)
+    if share >= 1 then return nil end
+    return share * line.len
+end
+
 -- A prerequisite line as the body draws it: lit in the tree's colour, or dim. A line only the selection meets is the
--- flow's (its cyan dashes move: View:paintFlow), as are the lit lines' lights.
+-- flow's (its cyan dashes move: View:paintFlow), as are the lit lines' lights. In the opening it draws itself down.
 function View:paintLine(el, line)
+    if line.state == "plan" then return end
+    local upto = lineUpto(line)
+    if upto == 0 then return end
+    local dy = RISE[line.col]
     if line.state == "lit" then
-        drawLine(el, line, "solid", TREE[line.tree].c, 0.95)
-    elseif line.state ~= "plan" then
-        drawLine(el, line, "solid", LINE_DIM, 1)
+        drawLine(el, line, "solid", TREE[line.tree].c, 0.95, 0, dy, upto)
+    else
+        drawLine(el, line, "solid", LINE_DIM, 1, 0, dy, upto)
     end
 end
 
@@ -1374,25 +1463,47 @@ local function plusChip(el, x, y, n)
 end
 
 -- One node: its icon (grey while it cannot be taken) with no well around it, a frame for its state, its ranks as pips
--- (a number on the endless board). A click's answer moves or scales the node (not its pips); a padlock coming off
--- fades with the grey and flashes the frame in the tree's colour.
+-- (a number on the endless board). It rises with its column and pops in with its row in the opening; a click's
+-- answer moves or scales it (not its pips), floats a +1 or -1 up from it and flashes the pip that changed; the
+-- stamp's scan pops it as it lights; the mouse lights it; a padlock coming off fades with the grey, flashes the frame
+-- in the tree's colour and sends a ring out.
 function View:paintNode(el, item)
     local node = Data.byId[item.id]
     local n = self.nodes[item.id]
     if not n then return end
-    local x, y, s = item.x, item.y, item.w
-    local ring, ringA
+    local grow, shown = 1, 1
+    if OPEN_AGE then
+        grow, shown = Motion.openNode(OPEN_AGE, item.col, item.row)
+        if shown <= 0 then return end
+    end
+    -- where it stands (its pips stay there), and where it is drawn
+    local bx, by, bs = item.x, item.y + RISE[item.col], item.w
+    local x, y, s = bx, by, bs
+    local ring, ringA, ringW
     local f = self.fx and self.fx[item.id]
+    local age = f and NOW - f.start
     if f then
-        local age = NOW - f.start
         if f.kind == "shake" then
             x = x + Motion.shake(age)
         else
-            local k = f.kind == "pop" and Motion.pop(age) or Motion.shrink(age)
-            if k ~= 1 then x, y, s = x - s * (k - 1) / 2, y - s * (k - 1) / 2, s * k end
-            if f.kind == "pop" then ring, ringA = Motion.ripple(age) end
+            grow = grow * (f.kind == "pop" and Motion.pop(age) or Motion.shrink(age))
+            if f.kind == "pop" then ring, ringA, ringW = Motion.ripple(age) end
         end
     end
+    local stamp = self.stamp
+    local lit = stamp and stamp.index[item.id]
+    if lit then grow = grow * Plan.stampPop(NOW - stamp.start - (lit - 1) * stamp.step) end
+    -- the light under the mouse (only the lit place asks the clock)
+    local hover = 0
+    local lights = el.fx
+    if lights then
+        local cur, fade = lights.cur, lights.fade
+        if (cur and cur.place == item.id) or (fade and fade.place == item.id) then
+            hover = UI.placeLevels(el, item.id)
+        end
+    end
+    grow = grow * (1 + Motion.HOVER_GROW * hover)
+    if grow ~= 1 then x, y, s = x - s * (grow - 1) / 2, y - s * (grow - 1) / 2, s * grow end
     local tree = item.tree
     local tc = TREE[tree].c
     local th = thick()
@@ -1402,27 +1513,29 @@ function View:paintNode(el, item)
         UI.frame(el, x, y, s, s, P.border, 0.6)
         local fm = UI.fontHeight(UIFont.Medium)
         UI.textCentre(el, "?", x + s / 2, y + (s - fm) / 2, P.dim, UIFont.Medium)
+        if shown < 1 then UI.fill(el, x - 4, y - 4, s + 8, s + 8, TREE[tree].body, 1 - shown) end
         return
     end
     local state = n.state
     local grey = greyed(n)
     -- a padlock coming off (or waiting to: drawn locked meanwhile)
-    local lockA, flashA = 0, 0
+    local lockA, flashA, unlockRing = 0, 0, 0
     local opening = not grey and self.unlocks and self.unlocks[item.id]
     if opening then
-        lockA, flashA = Motion.unlock(NOW - opening)
+        lockA, flashA, unlockRing = Motion.unlock(NOW - opening)
         if not lockA then
-            lockA, flashA = 0, 0
+            lockA, flashA, unlockRing = 0, 0, 0
         elseif lockA >= 1 then
             grey, state, lockA = true, "locked", 0
         end
     end
-    -- the icon at its whole pixel size (only a click's answer scales it a moment)
+    -- the icon at its whole pixel size (only a motion scales it a moment)
     local ipx = iconPx(item.w)
     if s ~= item.w then ipx = floor(ipx * s / item.w + 0.5) end
     local ix, iy = X(x + s / 2) - floor(ipx / 2), X(y + s / 2) - floor(ipx / 2)
     texPx(el, getTexture((grey and node.iconGray) or node.icon), ix, iy, ipx, ipx, nil, grey and 0.8 or 1)
     if lockA > 0 then texPx(el, getTexture(node.iconGray), ix, iy, ipx, ipx, nil, 0.8 * lockA) end
+    if hover > 0 then UI.fill(el, x, y, s, s, WHITE, Motion.HOVER_LIGHT * hover) end
     if n.treeLocked then
         framePx(el, x, y, s, s, P.border, 0.45, 1, out)
     elseif state == "avail" then
@@ -1442,18 +1555,18 @@ function View:paintNode(el, item)
     if lockA > 0 then lockBadge(el, x, y, s, lockA) end
     if flashA > 0 then
         local light = TREE[tree].light
-        UI.fill(el, x, y, s, s, light, 0.22 * flashA)
-        framePx(el, x, y, s, s, light, flashA, th, out)
-        framePx(el, x, y, s, s, tc, 0.5 * flashA, th, out + th / S + 1)
+        UI.fill(el, x, y, s, s, light, 0.32 * flashA)
+        framePx(el, x, y, s, s, light, flashA, th + 1, out)
+        framePx(el, x, y, s, s, light, 0.6 * flashA, th, out + th / S + 1 + unlockRing)
     end
-    if ring then framePx(el, x, y, s, s, CYAN, ringA, math.max(1, th - 1), out + th / S + 1 + ring) end
+    if ring then
+        framePx(el, x, y, s, s, CYAN, ringA, math.max(1, floor(ringW * S + 0.5)), out + th / S + 1 + ring)
+    end
     if n.api and not grey then
         local fh = UI.fontHeight()
         UI.fill(el, x - 1, y - 1, 12, fh, { 0.35, 0.15, 0.05 }, 0.95)
         UI.textCentre(el, "!", x + 5, y - 1, API)
     end
-    -- the ranks under the node where it stands (a click's answer leaves them still)
-    local bx, by, bs = item.x, item.y, item.w
     if node.board then
         if Rules.boardOpen(self.sim) then
             local base = tostring(n.full)
@@ -1469,9 +1582,30 @@ function View:paintNode(el, item)
         end
     elseif not n.treeLocked then
         Window.pips(el, bx + bs / 2, by + bs + 6.5, node.ranks, n.full, n.planned, state == "maxed" and GOLD or tc)
+        -- the pip a click changed flashes
+        if f and f.pip and f.pip >= 1 and f.pip <= node.ranks then
+            local k, pa = Motion.pipFlash(age)
+            if k then
+                local cx, d = pipAt(bx + bs / 2, node.ranks, f.pip)
+                glyph(el, "Pip", cx, by + bs + 6.5, d * k, f.kind == "pop" and CYAN or WHITE, pa)
+            end
+        end
     end
-    local focus = (self.hover == item.key) or (self.joypad and self.cursor == item.key)
-    if focus then framePx(el, x, y, s, s, WHITE, 1, 1, out + th / S + 1) end
+    if hover > 0 then framePx(el, x, y, s, s, WHITE, hover, 1, out + th / S + 1) end
+    -- a click's +1 or -1 floating up
+    if f and f.kind ~= "shake" then
+        local rise, fa = Motion.float(age)
+        if rise then
+            local up = f.kind == "pop"
+            UI.textCentre(el, up and "+1" or "-1", bx + bs / 2, by - UI.fontHeight() - 2 - rise, up and CYAN or P.dim,
+                UIFont.Medium, fa)
+        end
+    end
+    -- the opening: the node fades in over its column
+    if shown < 1 then
+        local x0, y0 = math.min(x, bx) - 4, math.min(y, by) - 8
+        UI.fill(el, x0, y0, math.max(s, bs) + 8, by + bs + L.PIPS + 2 - y0, TREE[tree].body, 1 - shown)
+    end
 end
 
 -- The bottom bar: what approving the selection spends (only the trees with something selected), or how to select;
@@ -1539,22 +1673,30 @@ function View:paintBoardBanner(el)
     end
 end
 
--- The opening, `age` ms after the tab came on the screen: each column comes out of the body's background one after
--- the other (Motion.openColumn), and inside it the rows come out of a dark veil from the top (Motion.openRow).
-function View:paintOpening(el, age)
-    local rows = Data.ROWS
+-- Sets what the parts of a frame share at `now` (OPEN_AGE, RISE, SHOWN): the opening (or the switch to the board, at
+-- its pace) and the seal's jolt.
+function View:frameState(now)
+    local age = nil
+    if self.openAt then
+        age = (now - self.openAt) / (self.openPace or 1)
+        if age >= Motion.openEnd(#self.panels, Data.ROWS) then age = nil end
+    end
+    OPEN_AGE = age
+    local jolt = 0
+    local stamp = self.stamp
+    if stamp then jolt = Plan.sealJolt(now - stamp.start - Plan.sealAt(#stamp.order)) end
+    for i = 1, #self.panels do
+        local rise, shown = 0, 1
+        if age then rise, shown = Motion.openColumn(age, i) end
+        RISE[i], SHOWN[i] = rise + jolt, shown
+    end
+end
+
+-- The opening's veil over each column still coming in: the tab's background, thinning as the column shows.
+function View:paintCovers(el)
     for i, panel in ipairs(self.panels) do
-        local veil = TREE[panel.tree].body
-        for r = 1, rows do
-            local dark = 0.8 * Motion.openRow(age, i, r)
-            if dark > 0 then
-                local y0 = (r == 1) and panel.gy or panel.gy + L.GRID_PAD + (r - 1) * L.ROW - 6
-                local y1 = (r == rows) and panel.gy + L.GRID_H or panel.gy + L.GRID_PAD + r * L.ROW - 6
-                UI.fill(el, panel.gx, y0, L.COL_W, y1 - y0, veil, dark)
-            end
-        end
-        local hidden = Motion.openColumn(age, i)
-        if hidden > 0 then UI.fill(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, P.bg, hidden) end
+        local hidden = 1 - SHOWN[i]
+        if hidden > 0 then UI.fill(el, panel.x, panel.y + RISE[i], L.COL_W, L.STRIP + L.GRID_H, P.bg, hidden) end
     end
 end
 
@@ -1569,29 +1711,31 @@ function View:paint(el)
     -- draw it afresh each frame)
     local now = getTimestampMs()
     NOW, CLOCK = now, now - self.t0
-    for _, panel in ipairs(self.panels) do
-        UI.fill(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
-        self:paintStrip(el, panel)
+    self:frameState(now)
+    for i, panel in ipairs(self.panels) do
+        UI.fill(el, panel.x, panel.y + RISE[i], L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
+        self:paintStrip(el, panel, i)
     end
     for _, line in ipairs(self.lines) do self:paintLine(el, line) end
     for _, item in ipairs(self.items) do
         if item.id then self:paintNode(el, item) end
     end
     local fh = UI.fontHeight()
-    for _, panel in ipairs(self.panels) do
+    for p, panel in ipairs(self.panels) do
+        local dy = RISE[p]
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
-            UI.fill(el, panel.gx, panel.gy, L.COL_W, L.GRID_H, { 0, 0, 0 }, 0.6)
+            UI.fill(el, panel.gx, panel.gy + dy, L.COL_W, L.GRID_H, { 0, 0, 0 }, 0.6)
             local lines = UI.wrap(getText("IGUI_OA_Tree_TreeClosed"), L.COL_W - 2 * L.GRID_PAD)
-            local ty = panel.gy + (L.GRID_H - #lines * fh) / 2
+            local ty = panel.gy + dy + (L.GRID_H - #lines * fh) / 2
             for i, line in ipairs(lines) do
                 UI.textCentre(el, line, panel.gx + L.COL_W / 2, ty + (i - 1) * fh, { 1, 0.9, 0.5 })
             end
         end
-        UI.frame(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, P.border)
+        UI.frame(el, panel.x, panel.y + dy, L.COL_W, L.STRIP + L.GRID_H, P.border)
     end
     if self.mode == "board" and not Rules.boardOpen(self.sim) then self:paintBoardBanner(el) end
-    if self.openAt then self:paintOpening(el, now - self.openAt) end
+    if OPEN_AGE then self:paintCovers(el) end
     self:paintTop(el)
     self:paintPlanBar(el)
     if self.stamp then self:drawStamp(el) end
@@ -1604,9 +1748,11 @@ function View:paint(el)
 end
 
 -- ---- motion ----------------------------------------------------------------------------------------------------
--- What moves by the clock is kept on the tab: `fx` (a click's answer by node id: its kind, start and length),
--- `unlocks` (by node id, when its padlock starts to come off) with the span they cover (unlockFrom, unlockEnd),
--- `openAt` (when the tab came on the screen), and `flowing` (workOut: a pulse, dashes or a line's light to show).
+-- What moves by the clock is kept on the tab: `fx` (a click's answer by node id: its kind, start and length, the pip
+-- it changed), `bump` (the tree whose points a click changed, the bar's segment, when), `unlocks` (by node id, when
+-- its padlock starts to come off) with the span they cover (unlockFrom, unlockEnd), `openAt` and `openPace` (when the
+-- tab came on the screen or switched, at what pace), and `flowing` (workOut: a pulse, dashes or a line's light to
+-- show). The light under the mouse is Trade/UI's, on the body (View:lightFocus).
 
 -- Follows the body each frame (View.tick) while a motion plays, and the flow (View.flowTick) while anything moves by
 -- itself; a frame function already there is replaced, not added, so this is called whenever something may have
@@ -1659,21 +1805,23 @@ function View:lockedOnRecord()
     return locked
 end
 
--- The tab came on the screen: its columns come in (Motion.open*). Only the drawing; a click works at once.
-function View:startOpen()
-    self.openAt = getTimestampMs()
+-- The tab came on the screen (or switched between the trees and the board, at `pace`, a share of the time): its
+-- columns come up (Motion.open*). Only the drawing; a click works at once.
+function View:startOpen(pace)
+    self.openAt, self.openPace = getTimestampMs(), pace or 1
     self:animate()
 end
 
 -- Each frame while the tab shows, before the UI draws (Trade/UI live): one number for PZ Optimization that changes
--- exactly when the body's drawing does. The tab's clock while a motion plays (a click's answer, a padlock coming off,
--- the opening), else the stamp's look (Plan.stampLook: it holds still a while), a constant while a padlock waits for
--- its time, nil when none plays (the body is let go, whatever the flow does; the next change registers it again).
--- Motions that are over are dropped here, so that the frame drawn next is without them.
+-- exactly when the body's drawing does. The tab's clock while a motion plays (a click's answer and its marks, the
+-- light under the mouse, a padlock coming off, the opening), else the stamp's look (Plan.stampLook: it holds still a
+-- while), a constant while a padlock waits for its time, nil when none plays (the body is let go, whatever the flow
+-- does; the next change registers it again). Motions that are over are dropped here, so that the frame drawn next is
+-- without them.
 function View.tick(body, now)
     local view = body.view
     if view.body ~= body then return nil end           -- a body made again for a new scale
-    local moving = false
+    local moving = UI.fxFrame(body, now) ~= nil
     local look
     local stamp = view.stamp
     if stamp then
@@ -1688,6 +1836,10 @@ function View.tick(body, now)
         end
         if any then moving = true else view.fx = nil end
     end
+    local bump = view.bump
+    if bump then
+        if now - bump.at < Motion.BUMP_MS then moving = true else view.bump = nil end
+    end
     if view.unlockEnd then
         if now >= view.unlockEnd then
             view.unlocks, view.unlockFrom, view.unlockEnd = nil, nil, nil
@@ -1698,7 +1850,8 @@ function View.tick(body, now)
         end
     end
     if view.openAt then
-        if now - view.openAt < Motion.openEnd(#view.panels, Data.ROWS) then moving = true else view.openAt = nil end
+        local ends = Motion.openEnd(#view.panels, Data.ROWS) * (view.openPace or 1)
+        if now - view.openAt < ends then moving = true else view.openAt = nil end
     end
     if moving then return now - view.t0 end
     return look
@@ -1713,50 +1866,54 @@ function View.flowTick(flow, now)
     return now - view.t0
 end
 
--- Whether a node's pulse waits: a click's answer moves the node (the body draws its frame then), or its padlock has
--- not come off yet.
-function View:pulseHeld(id, now)
+-- Whether a node's pulse waits: a click's answer moves the node (the body draws its frame then), its padlock has not
+-- come off yet, or it has not popped in with the opening.
+function View:pulseHeld(item, now)
+    local id = item.id
     local f = self.fx and self.fx[id]
     if f and now - f.start < f.ms then return true end
     local at = self.unlocks and self.unlocks[id]
-    return at ~= nil and now < at
+    if at ~= nil and now < at then return true end
+    if OPEN_AGE then
+        local _, shown = Motion.openNode(OPEN_AGE, item.col, item.row)
+        return shown < 1
+    end
+    return false
 end
 
 -- The flow's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's low
 -- point), the cyan dashes of the lines only the selection meets, the lights running down the lit lines. It walks only
--- the lists workOut made and makes nothing. Nothing while the stamp plays; while the tab opens it comes in with the
--- columns and rows (Motion.open*).
+-- the lists workOut made and makes nothing. Nothing while the stamp plays; in the opening the dashes draw themselves
+-- down with the lines, the pulses wait for their nodes, and the lights wait for the end.
 function View:paintFlow(el)
     if not self.sim or self.stamp or not self.flowing then return end
     S = UI.S
     local now = getTimestampMs()
     NOW, CLOCK = now, now - self.t0
+    self:frameState(now)
     local t = CLOCK / 1000
-    local age = self.openAt and now - self.openAt
     for _, line in ipairs(self.planLines) do
-        local a = age and 1 - Motion.openColumn(age, line.col) or 1
-        if a > 0 then drawLine(el, line, "dashes", CYAN, a, t) end
+        local upto = lineUpto(line)
+        if upto ~= 0 then drawLine(el, line, "dashes", CYAN, SHOWN[line.col], t, RISE[line.col], upto) end
     end
-    for _, line in ipairs(self.litLines) do
-        local a = age and 1 - Motion.openColumn(age, line.col) or 1
-        if a > 0 then drawLine(el, line, "bead", TREE[line.tree].light, a) end
+    if not OPEN_AGE then
+        for _, line in ipairs(self.litLines) do drawLine(el, line, "bead", TREE[line.tree].light, 1) end
     end
     local p = pulse(t)
     local th = thick()
     local halo = 2 + th / S + 1
     local focus = self.hover or (self.joypad and self.cursor)
     for _, item in ipairs(self.pulsing) do
-        if not self:pulseHeld(item.id, now) then
-            local a = p
-            if age then
-                a = a * (1 - Motion.openColumn(age, item.col)) * (1 - 0.8 * Motion.openRow(age, item.col, item.row))
-            end
+        if not self:pulseHeld(item, now) then
             local tc = TREE[item.tree].c
-            local x, y, s = item.x, item.y, item.w
-            framePx(el, x, y, s, s, tc, a, th, 2)
-            framePx(el, x, y, s, s, tc, PULSE_HALO * a, th, halo)
-            -- the focus frame stays over the halo, as the body drew it
-            if item.key == focus then framePx(el, x, y, s, s, WHITE, 1, 1, halo) end
+            local x, y, s = item.x, item.y + RISE[item.col], item.w
+            framePx(el, x, y, s, s, tc, p, th, 2)
+            framePx(el, x, y, s, s, tc, PULSE_HALO * p, th, halo)
+            -- the light frame of the node under the mouse stays over the halo, as the body drew it
+            if item.key == focus then
+                local k = UI.placeLevels(self.body, item.id)
+                if k > 0 then framePx(el, x, y, s, s, WHITE, k, 1, halo) end
+            end
         end
     end
 end
@@ -1778,7 +1935,11 @@ function View:startStamp()
     end
     local order = Plan.stampOrder(approved.steps, shown)
     local start = getTimestampMs()
-    self.stamp = { order = order, start = start, lit = 0, pressed = false }
+    -- each node's place in the scan (its pop), and the seal's words cut in letters once (a frame makes nothing)
+    local index = {}
+    for i, id in ipairs(order) do index[id] = i end
+    self.stamp = { order = order, start = start, lit = 0, pressed = false, index = index,
+        step = Plan.stampStep(#order), seal = View.sealLetters() }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which the stamp itself lights
     if approved.locked then
@@ -1792,67 +1953,115 @@ function View:startStamp()
     self:animate()
 end
 
--- The red seal (the 2반's `[직인 ORDWAY]`) over the middle of the trees, `age` ms after it was pressed: it lands from a
--- little larger and fades at the end.
-function View:drawSeal(el, age)
+-- The seal's words as letters with their places: the word in the Large face, the mark under it, each letter's
+-- centre from the seal's middle (design units); and the seal's size. Made once a stamp.
+function View.sealLetters()
     local word, mark = getText("IGUI_OA_Tree_Seal"), getText("IGUI_OA_Tree_SealMark")
     local fl, fh = UI.fontHeight(UIFont.Large), UI.fontHeight()
     local pad = 10
-    local w = math.max(UI.textWidth(word, UIFont.Large), UI.textWidth(mark)) + pad * 4
+    local letters = {}
+    local function cut(text, font, y)
+        local n = string.len(text)
+        local total = UI.textWidth(text, font)
+        local x = -total / 2
+        for i = 1, n do
+            local ch = string.sub(text, i, i)
+            local w = UI.textWidth(ch, font)
+            letters[#letters + 1] = { s = ch, x = x + w / 2, y = y, font = font }
+            x = x + w
+        end
+        return total
+    end
     local h = fl + fh + pad * 3
-    local cx = L.VIEW_W / 2
-    local cy = L.COL_Y + (L.STRIP + L.GRID_H) / 2
-    local a = 1
-    local left = Plan.SEAL_MS - age
-    if left < Plan.SEAL_FADE_MS then a = math.max(0, left / Plan.SEAL_FADE_MS) end
-    local grow = 0
-    if age < Plan.SEAL_PRESS_MS then grow = (1 - age / Plan.SEAL_PRESS_MS) * pad * 2 end
-    local x, y, bw, bh = cx - w / 2 - grow, cy - h / 2 - grow, w + grow * 2, h + grow * 2
-    UI.fill(el, x, y, bw, bh, { 0.02, 0.02, 0.03 }, 0.6 * a)
-    framePx(el, x, y, bw, bh, RED, 0.95 * a, math.max(2, floor(1.5 * S + 0.5)), 0)
-    framePx(el, x + 6, y + 6, bw - 12, bh - 12, RED, 0.8 * a, 1, 0)
-    UI.textCentre(el, word, cx, y + pad + grow, RED, UIFont.Large, a)
-    UI.textCentre(el, mark, cx, y + pad * 2 + fl + grow, RED, nil, 0.9 * a)
+    local ww = cut(word, UIFont.Large, -h / 2 + pad)
+    local wm = cut(mark, UIFont.Small, -h / 2 + pad * 2 + fl)
+    return { letters = letters, w = math.max(ww, wm) + pad * 4, h = h }
 end
 
--- One frame of the stamp: the nodes not lit yet keep their selection frame, a node lit flashes (with a short sound),
--- and the seal is pressed over the trees.
+-- The red seal (the 2반's `[직인 ORDWAY]`) over the middle of the trees, `age` ms after it started to fall
+-- (Plan.seal): it falls in from larger and comes into view, slams down with a squash and an ink ring going out, its
+-- ink settles while it holds, and it lifts away fading. Drawn as a pressed seal: a paper shade, a double ring with a
+-- rough edge (rings a little off each other), the words slanted a little as a hand presses them.
+function View:drawSeal(el, age, dy)
+    local sx, sy, a, ink, inkGrow, inkA = Plan.seal(age)
+    if not sx then return end
+    local seal = self.stamp.seal
+    local cx = L.VIEW_W / 2
+    local cy = L.COL_Y + (L.STRIP + L.GRID_H) / 2 + dy
+    local bw, bh = seal.w * sx, seal.h * sy
+    local x, y = cx - bw / 2, cy - bh / 2
+    if inkGrow then framePx(el, x, y, bw, bh, RED, inkA, math.max(1, floor(S + 0.5)), inkGrow) end
+    UI.fill(el, x, y, bw, bh, { 0.02, 0.02, 0.03 }, 0.55 * a)
+    UI.fill(el, x, y, bw, bh, RED, 0.08 * a * ink)
+    local strong = a * ink
+    local t2 = math.max(2, floor(2 * S + 0.5))
+    framePx(el, x - 1, y + 0.6, bw + 1.6, bh - 0.8, RED, 0.35 * strong, 1, 0)
+    framePx(el, x + 0.7, y - 1, bw - 1.2, bh + 1.4, RED, 0.3 * strong, 1, 0)
+    framePx(el, x, y, bw, bh, RED, 0.95 * strong, t2, 0)
+    framePx(el, x + 5, y + 5, bw - 10, bh - 10, RED, 0.8 * strong, 1, 0)
+    framePx(el, x + 5.6, y + 4.6, bw - 10.4, bh - 9.8, RED, 0.3 * strong, 1, 0)
+    -- the words come in as it lands (the letters do not scale: they would show the wrong size while it falls)
+    local ta = strong
+    if age < Plan.SEAL_DROP_MS then
+        local u = age / Plan.SEAL_DROP_MS
+        ta = ta * u * u
+    end
+    if ta <= 0 then return end
+    for _, l in ipairs(seal.letters) do
+        local lx = cx + l.x * sx
+        local ly = cy + l.y * sy - Window.SEAL_SLANT * l.x
+        UI.textCentre(el, l.s, lx, ly, RED, l.font, ta)
+    end
+end
+
+-- How far the seal's letters climb for each design unit to the right (its slant).
+Window.SEAL_SLANT = 0.05
+
+-- One frame of the stamp: the nodes not lit yet keep their selection frame; the scan runs over them, each node
+-- popping (View:paintNode) and flashing gold with a ring as it lights (with a short sound); then the seal drops on the
+-- trees (a thud as it lands).
 function View:drawStamp(el)
     local stamp = self.stamp
     local n = #stamp.order
-    local t = getTimestampMs() - stamp.start
-    local state = Plan.stamp(n, t)
-    if state.over then
+    local t = NOW - stamp.start
+    if t >= Plan.stampEnd(n) then
         self.stamp = nil
         return
     end
+    local lit = Plan.stampLit(n, t)
     local th = thick()
-    local step = Plan.stampStep(n)
+    local step = stamp.step
     for i, id in ipairs(stamp.order) do
         local item = self:itemOf(id)
         if item then
-            if i > state.lit then
-                framePx(el, item.x, item.y, item.w, item.h, CYAN, 1, th, 2)
+            local dy = RISE[item.col] or 0
+            if i > lit then
+                framePx(el, item.x, item.y + dy, item.w, item.h, CYAN, 1, th, 2)
             else
                 local age = t - (i - 1) * step
-                local a = 1 - age / Plan.STAMP_FLASH_MS
-                if a > 0 then
-                    UI.fill(el, item.x, item.y, item.w, item.h, GOLD, 0.45 * a)
-                    framePx(el, item.x, item.y, item.w, item.h, GOLD, a, th, 3)
+                local a, ring = Plan.stampFlash(age)
+                if a then
+                    local k = Plan.stampPop(age)
+                    local s = item.w * k
+                    local x, y = item.x - (s - item.w) / 2, item.y + dy - (s - item.w) / 2
+                    UI.fill(el, x, y, s, s, GOLD, 0.45 * a)
+                    framePx(el, x, y, s, s, GOLD, a, th, 3)
+                    framePx(el, x, y, s, s, GOLD, 0.6 * a, math.max(1, th - 1), 3 + ring)
                 end
             end
         end
     end
-    if state.lit > stamp.lit then
-        stamp.lit = state.lit
+    if lit > stamp.lit then
+        stamp.lit = lit
         getSoundManager():playUISound("UISelectListItem")
     end
-    if state.sealAge then
-        if not stamp.pressed then
+    local sealAge = t - Plan.sealAt(n)
+    if sealAge >= 0 then
+        if not stamp.pressed and sealAge >= Plan.SEAL_DROP_MS then
             stamp.pressed = true
             getSoundManager():playUISound("UIObjectMenuObjectPlace")
         end
-        self:drawSeal(el, state.sealAge)
+        self:drawSeal(el, sealAge, RISE[1] or 0)
     end
 end
 
@@ -1874,7 +2083,7 @@ function View:setVisible(visible, joypadData)
     else
         self:hideTip()
         self.stamp, self.approved = nil, nil
-        self.fx, self.openAt = nil, nil
+        self.fx, self.openAt, self.bump = nil, nil, nil
         self.unlocks, self.unlockFrom, self.unlockEnd = nil, nil, nil
     end
 end
