@@ -677,6 +677,15 @@ test("the window closes when the character walks away from the machine", functio
     truthy(window.removed, "gone once out of reach")
 end)
 
+test("a machine's reach counts from the nearest square of its footprint", function()
+    openWindow(19)
+    local within = OAMachineWindow.within
+    truthy(within(13.5, 20.5, 10, 20, 2, 2, 3), "1.5 squares off a 2x2's far side")
+    truthy(within(14.9, 21, 10, 20, 2, 2, 3), "just under 3")
+    truthy(not within(15.5, 21, 10, 20, 2, 2, 3), "3.5 squares off")
+    truthy(not within(14.5, 24.5, 10, 20, 2, 2, 3), "diagonal: 2.5 and 2.5")
+end)
+
 test("an open window reads its machine a few times a second, and each frame only paints", function()
     local now = 5000
     _G.getTimestampMs = function() return now end
