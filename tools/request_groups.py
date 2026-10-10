@@ -53,11 +53,13 @@ VALUE = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Value.lua'
 COMMON, NORMAL = 1.0, 0.3          # Requests.COMMON_FROM, Requests.NORMAL_FROM
 
 # The book families (decided with the user): DisplayCategory or tags -> family id. A family takes every member the
-# rule names, whatever its other tags; HollowBook is a container and newspapers are left out (EXCLUDE).
+# rule names, whatever its other tags; HollowBook is a container and newspapers are left out (EXCLUDE). The books are
+# the hardcovers, the softcovers and the leather-bound (base:fancybook) ones.
 FAMILIES = [
     ('skillbook', lambda it: it['dc'] == 'SkillBook'),
     ('recipemag', lambda it: it['dc'] == 'RecipeResource'),
-    ('books', lambda it: it['dc'] == 'Literature' and ({'base:hardcover', 'base:softcover'} & it['tags'])),
+    ('books', lambda it: it['dc'] == 'Literature' and ({'base:hardcover', 'base:softcover', 'base:fancybook'}
+                                                        & it['tags'])),
     ('reading', lambda it: it['dc'] == 'Literature' and ({'base:magazine', 'base:picturebook'} & it['tags'])),
 ]
 FAMILY_NAMES = {

@@ -311,6 +311,7 @@ test("a group is one level above the item type: a narrow tag, the book families,
     eq(R.keyOf("Base.Book"), "books")
     eq(R.keyOf("Base.Paperback"), "books", "hardcover and softcover together")
     eq(R.keyOf("Base.Book_MilitaryHistory"), "books")
+    eq(R.keyOf("Base.BookFancy_Bible"), "books", "the leather-bound ones too")
     eq(R.keyOf("Base.Magazine"), "reading")
     eq(R.keyOf("Base.ComicBook"), "reading")
     eq(R.keyOf("Base.ChessBlack"), R.keyOf("Base.ChessWhite"), "black and white chess pieces")
