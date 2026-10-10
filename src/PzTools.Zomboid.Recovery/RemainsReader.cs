@@ -205,7 +205,10 @@ internal static class RemainsFormat
 
     public static byte[] RestoreInventory(byte[] player, InventoryLayout layout, RemainsRecord source)
     {
-        var (kept, indexMap) = KeepClothes(source.Inventory);
+        // The items come from the remains; the container stays the player's. A corpse's has another kind and a
+        // capacity of 8 or 12, which would then cap what the character can pick up (PlayerHealthEditor).
+        var own = Inventory(new RemainsReader(player, layout.Start), null);
+        var (kept, indexMap) = KeepClothes(source.Inventory with { Header = own.Header, Trailer = own.Trailer });
         var groups = source.Inventory.Groups.Where(g => !IsBodyModel(g.Type)).ToArray();
         using var worn = new MemoryStream(); var wear = source.Worn.Where(w => indexMap.ContainsKey(w.Index)).ToArray();
         worn.WriteByte(checked((byte)wear.Length)); foreach (var w in wear) { var b = Encoding.UTF8.GetBytes(w.Location); Short(worn, b.Length); worn.Write(b); Short(worn, indexMap[w.Index]); }

@@ -90,6 +90,7 @@ method, since some of them also erase traits or exercise regularity.
 | Thermoregulator | Core 37, skin and node values reset; clothing insulation and wind resistance kept |
 | Other | On fire, medicine and sleeping-pill effects, infection-reducing medicine timer, time since last smoke, death drag-down, scheduled exercise stiffness, pending soreness cleared |
 | Inventory and worn items | Wound and bandage models taken off (see below) |
+| Inventory container | A container of a corpse's kind (`inventorymale`, `inventoryfemale`) is put back as the character's own: kind `none`, explored, not looted, capacity 50. Any other container is kept as it is (see below) |
 
 The game draws a wound or a bandage as an invisible piece of clothing, `Base.Wound_*` or `Base.Bandage_*`.
 It puts the model on and takes it off only when it sees a body part's state change during play
@@ -116,6 +117,10 @@ reports it as `recovery-unsupported-format`.
 
 A living character is only healed, also with an empty inventory. A dead one is marked alive (`isDead=0`) and
 healed. Traits, the environment or mod illnesses can bring symptoms back after loading.
+
+### The inventory container
+
+The game checks what a character can pick up against the capacity saved with their inventory container, 50 for a character, and never sets it again; the inventory shows the carry weight instead (`getMaxWeight`, which strength, traits and mods change). A corpse's container has its own kind and a capacity of 12, or 8 once read from a saved chunk (`IsoDeadBody`). Version 0.2.4 copied those fields onto the revived character along with the items, who then could pick up no more than 8 or 12 while the inventory showed their full carry weight. Healing puts such a container back; a capacity a mod set on the character's own container is kept.
 
 ## Getting a dead character's belongings back
 
@@ -168,7 +173,7 @@ the rule that listed it. With no key it uses the only candidate, refuses several
 - **Removing the remains.** From a chunk: the record, the corpse count, the chunk length and the CRC32 change.
   From `reanimated.bin`: the record and the zombie count. The result is parsed again before use. Other chunks,
   objects and zombies are not changed.
-- **Moving the items** (`RemainsFormat.RestoreInventory`). Item groups are copied byte for byte: instance
+- **Moving the items** (`RemainsFormat.RestoreInventory`). Only the items move; the container stays the player's (its kind, flags and capacity). Item groups are copied byte for byte: instance
   ids, stack counts, condition, nested containers, modded fields. Wound and bandage models
   (`Base.Wound_*`, `Base.Bandage_*`) are left out and worn-item indices remapped. Duplicate item ids refuse as
   `recovery-inventory-ambiguous`.

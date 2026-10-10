@@ -180,11 +180,17 @@ public sealed class ProcessTelemetryTests
     {
         using var temp = new TempDirectory();
         var identity = temp.GetPath("identity");
+        // Alive until a beat is stored: a fixed wait of 80 ms failed when a loaded machine ran no timer tick in time.
         await using (ProcessTelemetryHeartbeat.Start(
                          identity, "long-operation", 9,
                          interval: TimeSpan.FromMilliseconds(10)))
         {
-            await Task.Delay(80);
+            var reader = await ProcessTelemetryStore.CreateForIdentityAsync(identity, "long-operation");
+            for (var waited = 0; waited < 10_000; waited += 20)
+            {
+                await Task.Delay(20);
+                if ((await reader.ReadEventsAfterAsync(0)).Any(item => item.EventName == "operation.heartbeat")) break;
+            }
         }
 
         var store = await ProcessTelemetryStore.CreateForIdentityAsync(

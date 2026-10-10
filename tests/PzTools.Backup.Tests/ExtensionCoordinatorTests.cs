@@ -170,7 +170,7 @@ public sealed partial class GameSaveClientTests
         var stream = Guid.NewGuid().ToString("N");
         var observations = new RuntimeSnapshotStore();
         var published = new RuntimeExtensionStatusStore();
-        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(150));
         var silent = false;
         var feed = Task.Run(async () =>
         {
@@ -187,7 +187,9 @@ public sealed partial class GameSaveClientTests
         const string vehicle = VehicleDrivetrainExtension.Id;
         async Task<RuntimeExtensionStatus> Until(Func<RuntimeExtensionStatus, bool> reached, string what)
         {
-            var give = DateTime.UtcNow.AddSeconds(30);
+            // A link that failed (a slow attach on a busy runner) is retried after up to MaxLinkRetryDelay (30 s):
+            // waiting no longer than that missed the next attempt once.
+            var give = DateTime.UtcNow + RuntimeExtensionCoordinator.MaxLinkRetryDelay + TimeSpan.FromSeconds(30);
             while (true)
             {
                 var status = published.Read(vehicle);
