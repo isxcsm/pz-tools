@@ -336,6 +336,34 @@ test("the ground menu offers no placing, and a machine's menu is built without s
     eq(TEST.halo, "IGUI_OA_Machine_Reason_nothingToShred")
 end)
 
+test("a machine with a window is one option, its name, that opens the window; a lure's taking back is its own", function()
+    setup()
+    loadFile("OperationAcorn/Machines/Menu")
+    local Machines = OA.Machines
+    local object = {}
+    local square = { getObjects = function() return { size = function() return 0 end } end }
+    local clicked = { getSquare = function() return square end }
+    Machines.at = function() return object end
+    local kind = "bulkShredder"
+    Machines.state = function() return { kind = kind, id = "m1", on = true } end
+    Machines.canTakeLure = function() return true end
+    OAMachineWindow.open = function(character, machine) TEST.window = { character, machine } end
+    local menu = newMenu()
+    menu:addOption("Vanilla")
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { clicked }, false)
+    eq(menu:names(), "IGUI_OA_Machine_Name_bulkShredder,Vanilla", "no switch, no submenu")
+    local open = menu.options[1]
+    eq(open.subOption, nil)
+    truthy(open.toolTip, "what the machine is, on its option")
+    open.onSelect(open.target, open.param1)
+    eq(TEST.window[2], object, "the window opens on the machine")
+
+    kind = "lure"
+    menu = newMenu()
+    TEST.fire("OnFillWorldObjectContextMenu", 0, menu, { clicked }, false)
+    eq(menu:names(), "IGUI_OA_Machine_Name_lure,ContextMenu_OA_Machine_TakeLure")
+end)
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The research window's fragment count
 
