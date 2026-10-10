@@ -20,7 +20,8 @@ storage). Everything is generated below; nothing of another mod's mesh or textur
 
 What comes from the game install (PZ_DIR, default the Steam folder), structure only:
   * the vanilla bodies MaleBody.x / FemaleBody.x: the pack's back panel follows the body's back, the shoulder straps are
-    wrapped onto the body surface (projected, then pushed out to a clearance), and every strap vertex takes the skin
+    laid onto the body surface (each kept in its own x plane, so it comes over the shoulder and straight down the chest
+    parallel to the other, then pushed out ring by ring to a clearance), and every strap cross-section takes the skin
     weights of the body surface under it (Spine, Spine1, the clavicles, the upper arms; head and neck folded into
     Spine1), blended into Bip01_BackPack where the strap meets the pack. So the straps move with the torso and shoulders
     like the body's own skin instead of floating with the pack bone. The bone offset matrices of those bones are the
@@ -339,6 +340,25 @@ class Body:
         n = unit((self.VN[tri] * bc[k][:, None]).sum(0))
         w = (self.W[tri] * bc[k][:, None]).sum(0)
         return q[k], n, w, float(np.dot(p - q[k], n))
+
+    def ray(self, o, d):
+        """(point, smooth normal) where the ray o + t d first meets the strap surface, or None."""
+        r = raycast(np.asarray(o, float), unit(d), self.A, self.B, self.C)
+        if r is None:
+            return None
+        t, k, u, v = r
+        tri = self.ST[k]
+        n = unit(self.VN[tri[0]] * (1 - u - v) + self.VN[tri[1]] * u + self.VN[tri[2]] * v)
+        return np.asarray(o, float) + unit(d) * t, n
+
+    def front_half_width(self, y):
+        """How far out from the middle the chest still faces forward at height y (rays from the front)."""
+        best = 0.0
+        for x in np.arange(0.0, 0.14, 0.004):
+            r = raycast(np.array([x, y, -1.0]), np.array([0, 0, 1.0]), self.A, self.B, self.C)
+            if r is not None and r[0] - 1.0 < 0.0:
+                best = x
+        return best
 
     def back_z(self, x, y):
         """z of the back surface seen from behind at (x, y), or None."""
@@ -942,25 +962,43 @@ class Placement:
         return out
 
 
-def strap_controls(body, side, pl):
-    """Rough strap centre line (control points) for the +x (side=1) or -x strap: pack root, over the shoulder, down the
-    chest to the buckle, then the lower webbing under the arm to the pack's bottom corner."""
+BUCKLE_Y = 0.658        # height of the ladder buckle at the strap's chest end
+
+
+def strap_xs(body):
+    """Strap centre x over the shoulder and at the chest buckle. Over the shoulder it clears the neck; in front it comes
+    down straight, parallel to the other strap, about mid-clavicle, and stays where the chest still faces forward (on a
+    woman: the outer side of the breast, never toward the sternum)."""
     sh = abs(body.origin('Bip01_L_UpperArm')[0])        # shoulder joint distance from the spine (0.103 / 0.089)
-    xs = 0.72 * sh                                     # strap centre over the shoulder
+    top = 0.72 * sh
+    chest = min(0.066, body.front_half_width(BUCKLE_Y) - 0.005)
+    return top, min(top, chest)
+
+
+def strap_controls(body, side, pl):
+    """Strap centre line (control points) for the +x (side=1) or -x strap: pack root, over the shoulder, straight down
+    the chest to the buckle, then the lower webbing under the arm to the pack's bottom corner."""
+    top, chest = strap_xs(body)
     root = pl(np.array([[STRAP_ROOT[0] * side, STRAP_ROOT[1], STRAP_ROOT[2]]]))[0]
     foot = pl(np.array([[STRAP_FOOT[0] * side, STRAP_FOOT[1], STRAP_FOOT[2]]]))[0]
+
+    def down(y):        # x on the straight front run, from the front of the shoulder (y 0.80) to the buckle
+        return top + (chest - top) * float(np.clip((0.800 - y) / (0.800 - BUCKLE_Y), 0, 1))
     upper = [root, root + np.array([0.004 * side, 0.020, -0.012]),
-             np.array([xs * 0.93 * side, 0.818, 0.060]), np.array([xs * side, 0.826, 0.025]),
-             np.array([xs * 1.02 * side, 0.808, -0.012]), np.array([xs * 1.0 * side, 0.760, -0.040]),
-             np.array([xs * 0.97 * side, 0.700, -0.052]), np.array([xs * 0.99 * side, 0.660, -0.048])]
-    lower = [upper[-1], np.array([xs * 1.12 * side, 0.640, -0.030]), np.array([xs * 1.22 * side, 0.622, 0.010]),
-             np.array([xs * 1.12 * side, 0.600, 0.060]), foot]
+             np.array([top * 0.95 * side, 0.818, 0.060]), np.array([top * side, 0.826, 0.025]),
+             np.array([down(0.806) * side, 0.806, -0.012])]
+    upper += [np.array([down(y) * side, y, -0.060]) for y in (0.765, 0.730, 0.695, BUCKLE_Y)]
+    lower = [upper[-1], np.array([(chest + 0.020) * side, 0.640, -0.030]), np.array([(chest + 0.030) * side, 0.622, 0.010]),
+             np.array([(chest + 0.022) * side, 0.600, 0.060]), foot]
     return upper, lower
 
 
-def fit_to_body(body, ctrl, n, offset, ramp0, ramp1):
+def fit_to_body(body, ctrl, n, offset, ramp0, ramp1, keep_x=False):
     """Resample the control polyline, then pull it onto the body surface at `offset` (through `ramp0` arc length from
-    the start and `ramp1` from the end it blends back to the raw curve, where it enters the pack)."""
+    the start and `ramp1` from the end it blends back to the raw curve, where it enters the pack).
+    keep_x: the strap keeps the control line's x (it runs straight over the shoulder and down the chest): each point
+    is cast onto the body inside its own x plane, across the line, instead of moving to the nearest surface point
+    (which slides a strap off the slope of the chest toward the sternum)."""
     raw = catmull(ctrl, n)
     s = arclen(raw)
     L = s[-1]
@@ -972,14 +1010,34 @@ def fit_to_body(body, ctrl, n, offset, ramp0, ramp1):
     P = raw.copy()
     N = np.zeros_like(P)
     D = np.zeros_like(P)
+    centre = np.array([0.0, 0.735, 0.030])     # inside the upper torso: tells the outside of the line in its plane
+    T = units(np.gradient(raw, axis=0))
     for _ in range(4):
         for i in range(n):
-            q, nn, _, _ = body.closest(P[i])
-            D[i] = (q + nn * offset - raw[i]) * alpha[i]
-            N[i] = nn
+            hit = None
+            if keep_x:
+                t2 = np.array([0.0, T[i][1], T[i][2]])
+                out = unit(np.array([0.0, -t2[2], t2[1]]))
+                away = raw[i] - centre
+                if np.dot(out, np.array([0.0, away[1], away[2]])) < 0:
+                    out = -out
+                hit = body.ray(raw[i] + out * 0.15, -out)
+            if hit is not None:
+                q, nn = hit
+                target = q + nn * offset
+                target[0] = raw[i][0]
+            else:
+                q, nn, _, _ = body.closest(P[i])
+                target = q + nn * offset
+            D[i] = (target - raw[i]) * alpha[i]
+            # a strap kept in its plane lies flat across the chest: the band follows the body's slope only partly
+            # sideways, so it does not twist where the low-poly shoulder and chest facets turn
+            N[i] = unit(nn * np.array([0.35, 1.0, 1.0])) if keep_x else nn
         # the displacement from the smooth raw curve is smoothed along the strap, so the low-poly body's facets do
         # not show as kinks (the push-out after sweeping restores the clearance where smoothing cut a corner)
-        D = smooth_rows(D, 2.2)
+        # (kept in its plane, the strap also bridges the hollow under the collarbone like a strap under tension,
+        # instead of dipping into it and folding over itself)
+        D = smooth_rows(D, 4.0 if keep_x else 2.2)
         P = raw + D
     return P, units(smooth_rows(N, 2.5))
 
@@ -1003,6 +1061,30 @@ def push_out(part, body, clear):
         if sd < clear:
             part.P[i] = p + n * (clear - sd)
     return worst
+
+
+def push_rings(part, body, clear, k, n_prof):
+    """Pushes a swept strap clear of the body ring by ring: each cross-section moves as a whole by the largest push
+    one of its vertices needs, smoothed along the strap, so the band keeps its shape instead of creasing where single
+    edge vertices would be pushed."""
+    for _ in range(3):
+        P = np.array(part.P)
+        ring = np.zeros((k, 3))
+        for i in range(k):
+            best = np.zeros(3)
+            for j in range(i * (n_prof + 1), (i + 1) * (n_prof + 1)):
+                _, n, _, sd = body.closest(P[j])
+                if sd < clear and (clear - sd) > np.linalg.norm(best):
+                    best = n * (clear - sd)
+            ring[i] = best
+        if not ring.any():
+            return
+        ring = smooth_rows(ring, 1.5) * 1.15
+        for i in range(k):
+            for j in range(i * (n_prof + 1), (i + 1) * (n_prof + 1)):
+                part.P[j] = part.P[j] + ring[i]
+        part.P[k * (n_prof + 1)] = part.P[k * (n_prof + 1)] + ring[0]           # the two cap centres
+        part.P[k * (n_prof + 1) + 1] = part.P[k * (n_prof + 1) + 1] + ring[-1]
 
 
 def strap_weights(body, P, s_from_root, s_to_foot):
@@ -1049,7 +1131,7 @@ def worn_straps(C, body, pl):
     parts, weights = [], []
     for side in (1, -1):
         upper, lower = strap_controls(body, side, pl)
-        P, N = fit_to_body(body, upper, 34, CLEAR_STRAP + STRAP_T / 2, ramp0=0.050, ramp1=0)
+        P, N = fit_to_body(body, upper, 34, CLEAR_STRAP + STRAP_T / 2, ramp0=0.050, ramp1=0, keep_x=True)
         # taper the padded strap's width toward the pack root and the buckle
         s = arclen(P)
         L = s[-1]
@@ -1064,23 +1146,28 @@ def worn_straps(C, body, pl):
         P2, N2 = fit_to_body(body, [P[-1] - N[-1] * 0.002] + lower[1:], 22, CLEAR_STRAP + WEB_T / 2, ramp0=0, ramp1=0.05)
         L2 = arclen(P2)[-1]
         web = sweep('web', P2, N2, WEB_W, WEB_T, C['web'], 'web', n_prof=6, v_range=(0.0, min(1.0, L2 / 0.32)))
+        push_rings(strap, body, CLEAR_STRAP * 0.6, len(P), 10)
+        push_rings(web, body, CLEAR_STRAP * 0.6, len(P2), 6)
         for pt in (strap, web, buckle):
-            push_out(pt, body, CLEAR_STRAP * 0.6)
-        # weights: by arc length from the pack root (strap) and to the pack foot (webbing)
-        for pt, kind in ((strap, 'strap'), (buckle, 'buckle'), (web, 'web')):
-            Q = np.array(pt.P)
-            if kind == 'web':
-                proj = np.array([np.argmin(((P2 - q) ** 2).sum(1)) for q in Q])
-                to_foot = L2 - arclen(P2)[proj]
-                from_root = np.full(len(Q), 1.0)
-            else:
-                proj = np.array([np.argmin(((P - q) ** 2).sum(1)) for q in Q])
-                from_root = arclen(P)[proj]
-                to_foot = np.full(len(Q), 1.0)
-            ws = [limit_weights(d) for d in strap_weights(body, Q, from_root, to_foot)]
+            push_out(pt, body, 0.0025)      # a last guard; the rings above already keep the clearance
+        # weights: taken along the centre line (by arc length from the pack root for the strap, to the pack foot for
+        # the webbing) and smoothed along it, so a whole cross-section moves together: weights that differed across
+        # the strap's width would shear it into folds where the shoulder skin stretches
+        rows = path_weights(body, P, arclen(P), np.full(len(P), 1.0))
+        rows2 = path_weights(body, P2, np.full(len(P2), 1.0), L2 - arclen(P2))
+        for pt, path, rw in ((strap, P, rows), (buckle, P, rows), (web, P2, rows2)):
+            proj = [int(np.argmin(((path - q) ** 2).sum(1))) for q in np.array(pt.P)]
             parts.append(pt)
-            weights.append(ws)
+            weights.append([rw[k] for k in proj])
     return parts, weights
+
+
+def path_weights(body, path, from_root, to_foot):
+    """Skin weights of each centre-line point, smoothed along the line, at most MAX_WEIGHTS bones each."""
+    ds = strap_weights(body, path, from_root, to_foot)
+    bones = sorted({b for d in ds for b in d})
+    M = smooth_rows(np.array([[d.get(b, 0.0) for b in bones] for d in ds]), 1.5)
+    return [limit_weights({b: float(v) for b, v in zip(bones, row)}) for row in M]
 
 
 def relaxed_straps(C):
@@ -2141,6 +2228,17 @@ def make_previews(meshes, tex, old=None):
                                                      ('female, front', (0, 0, 1)),
                                                      ('female, game camera front-right', iso_dir(140))])
     sheet(t, 3, big).save(os.path.join(MOCKUPS, 'new_pack_views.png'))
+    # the straps from the front: straight and parallel down the chest, both bodies, standing and in motion
+    t = []
+    for key, body, nm in (('M', male, 'male'), ('F', female, 'female')):
+        t += wearer_tiles(meshes[key], body, tex, big, [('%s, front' % nm, (0, 0, 1)),
+                                                       ('%s, game camera front-right' % nm, iso_dir(140)),
+                                                       ('%s, game camera front-left' % nm, iso_dir(-140))])
+        t += wearer_tiles(meshes[key], body, tex, big, [('%s, arms forward (aiming), front' % nm, iso_dir(160, 15))],
+                          pose='aim')
+        t += wearer_tiles(meshes[key], body, tex, big, [('%s, walk swing, front' % nm, iso_dir(160, 15))], pose='swing')
+        t += wearer_tiles(meshes[key], body, tex, big, [('%s, bind pose, front' % nm, (0, 0, 1))], pose='bind')
+    sheet(t, 3, big).save(os.path.join(MOCKUPS, 'strap_front.png'))
     # 2. strap fit in other poses (the straps carry the body's weights, so they follow the shoulders)
     t = []
     for pose, lab in (('bind', 'bind pose (T)'), ('aim', 'arms forward (aiming)'), ('swing', 'walk swing')):
