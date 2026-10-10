@@ -30,7 +30,7 @@ function OATabMissions:createChildren()
     self.sub = "missions"
     self.subTabs = OASubTabs:new(0, 0, self.width, self:palette(), self, OATabMissions.onSub)
     self.subTabs:initialise()
-    self.subTabs.anchorRight = true
+    self.subTabs:setAnchorRight(true)
     self:addChild(self.subTabs)
     self.subViews = {}
     self:showSub("missions")
@@ -44,8 +44,8 @@ function OATabMissions:subView(id)
     view = SUB_VIEWS[id](0, y, self.width, self.height - y, self.window)
     view:initialise()
     view:instantiate()
-    view.anchorRight = true
-    view.anchorBottom = true
+    view:setAnchorRight(true)
+    view:setAnchorBottom(true)
     self:addChild(view)
     self.subViews[id] = view
     return view

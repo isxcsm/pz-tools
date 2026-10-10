@@ -120,7 +120,7 @@ function OATabUpgrades:buildCard(L, x, y, w, h, c, selected)
     local tagY = tall and 22 or 19
     local rw = 0
     if c.state == "max" then
-        rw = Draw.textRight(L, getText("IGUI_OA_Status_Up_Max"), x + right, tagY, p.dim)
+        rw = Draw.textRight(L, getText("IGUI_OA_Status_Up_Max"), x + right, y + tagY, p.dim)
     else
         local col = ({ avail = p.good, pending = p.warn, field = p.text, debt = p.text, locked = p.dim })[c.state]
         rw = Draw.run(L, { { arrow = true, c = p.dim }, { s = c.nextValue, c = col } }, x, y + (tall and 5 or 4), right, "right")

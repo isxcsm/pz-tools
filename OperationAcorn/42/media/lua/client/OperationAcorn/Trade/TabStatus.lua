@@ -36,7 +36,7 @@ function OATabStatus:createChildren()
     self.sub = "heli"
     self.subTabs = OASubTabs:new(0, OATabStatus.SUB_Y, self.width, self:palette(), self, OATabStatus.onSub)
     self.subTabs:initialise()
-    self.subTabs.anchorRight = true
+    self.subTabs:setAnchorRight(true)
     self:addChild(self.subTabs)
     -- All four screens now, so that the boot screen added after them lies over them.
     self.subViews = {}
@@ -54,8 +54,8 @@ function OATabStatus:subView(id)
     view = class:new(0, y, self.width, self.height - y, self.window)
     view:initialise()
     view:instantiate()
-    view.anchorRight = true
-    view.anchorBottom = true
+    view:setAnchorRight(true)
+    view:setAnchorBottom(true)
     view:setVisible(false)
     self:addChild(view)
     self.subViews[id] = view
@@ -195,8 +195,8 @@ function OATabStatus:startBoot()
     local boot = OAStatusBoot:new(0, 0, self.width, self.height, self)
     boot:initialise()
     boot:instantiate()
-    boot.anchorRight = true
-    boot.anchorBottom = true
+    boot:setAnchorRight(true)
+    boot:setAnchorBottom(true)
     self:addChild(boot)
     self.boot = boot
 end

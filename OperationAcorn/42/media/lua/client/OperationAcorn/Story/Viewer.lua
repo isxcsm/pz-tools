@@ -39,21 +39,21 @@ function ISOAViewer:createChildren()
     -- a document is read: the body one size up from the panels' small text, the title above it
     self.rich.defaultFont = UIFont.Medium
     self.rich:addScrollBars()
-    self.rich.anchorRight = true
-    self.rich.anchorBottom = true
+    self.rich:setAnchorRight(true)
+    self.rich:setAnchorBottom(true)
     self:addChild(self.rich)
     local w = 90
     self.prev = ISButton:new(PAD, self.height - PAD - BUTTON_H, w, BUTTON_H, getText("IGUI_OA_Story_UI_Prev"), self, ISOAViewer.onPrev)
     self.prev:initialise()
     self.prev:instantiate()
-    self.prev.anchorTop = false
-    self.prev.anchorBottom = true
+    self.prev:setAnchorTop(false)
+    self.prev:setAnchorBottom(true)
     self:addChild(self.prev)
     self.next = ISButton:new(PAD + w + 8, self.height - PAD - BUTTON_H, w, BUTTON_H, getText("IGUI_OA_Story_UI_Next"), self, ISOAViewer.onNext)
     self.next:initialise()
     self.next:instantiate()
-    self.next.anchorTop = false
-    self.next.anchorBottom = true
+    self.next:setAnchorTop(false)
+    self.next:setAnchorBottom(true)
     self:addChild(self.next)
 end
 

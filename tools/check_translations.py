@@ -10,7 +10,10 @@ Reports:
 - texts with a bare percent sign (not %%), which breaks the game's String.format, and texts whose %1, %2 ... differ between
   the languages;
 - letters past ASCII inside a string in the Lua code: the game reads mod Lua so that they come out as U+FFFD (write
-  them as string.char(code) or take them from a translation).
+  them as string.char(code) or take them from a translation);
+- a UI element's anchor written as a field (view.anchorRight = true): the game hands anchors to the Java side only
+  when the element is made, so a field written after that does nothing and the element keeps its size when the
+  window is resized (use view:setAnchorRight(true), which works before and after).
 Exit code 1 when anything is found.
 
 Texts too long or too many for code (the radio log, documents, receipt notes) may live in other Translate files
@@ -78,6 +81,23 @@ def non_ascii_strings():
                         if any(ord(c) > 127 for c in m.group(0)):
                             found.append((os.path.relpath(path, ROOT), n, m.group(0)))
                         pos = m.end()
+    return found
+
+
+ANCHOR_FIELD = re.compile(r'^\s*[\w.]+\.anchor(?:Right|Bottom|Left|Top)\s*=')
+
+
+def anchor_fields():
+    """(file, line) for each anchor written as a field in the Lua code."""
+    found = []
+    for folder, _, files in os.walk(ROOT):
+        for name in files:
+            if name.endswith('.lua'):
+                path = os.path.join(folder, name)
+                with open(path, encoding='utf-8') as f:
+                    for n, line in enumerate(f, 1):
+                        if ANCHOR_FIELD.match(line):
+                            found.append((os.path.relpath(path, ROOT), n))
     return found
 
 
@@ -176,6 +196,8 @@ def main():
 
     for path, n, text in non_ascii_strings():
         problems.append('letters past ASCII in Lua code %s:%d %s' % (path, n, text))
+    for path, n in anchor_fields():
+        problems.append('anchor written as a field (use setAnchor...) %s:%d' % (path, n))
 
     for line in problems:
         print(line)

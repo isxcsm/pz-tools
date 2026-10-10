@@ -142,7 +142,7 @@ function OATerminalWindow:createChildren()
     self.tabHeight = UI.fontHeight() + 6
     self.strip = OATerminalTabs:new(0, th, self.width, self.tabHeight, self)
     self.strip:initialise()
-    self.strip.anchorRight = true
+    self.strip:setAnchorRight(true)
     self:addChild(self.strip)
     self.views = {}
     self:activate("status")
@@ -172,8 +172,8 @@ function OATerminalWindow:view(id)
         view:initialise()
         view:instantiate()
     end
-    view.anchorRight = true
-    view.anchorBottom = true
+    view:setAnchorRight(true)
+    view:setAnchorBottom(true)
     view:setVisible(false)
     self:addChild(view)
     self.views[id] = view

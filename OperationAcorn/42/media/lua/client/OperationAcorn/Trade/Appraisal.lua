@@ -79,7 +79,7 @@ OAEstimatePanel = ISPanel:derive("OAEstimatePanel")
 function OAEstimatePanel:createChildren()
     local pad = UI.PAD
     self.list = UI.list(self, 0, UI.fontHeight() * 2 + pad, self.width, self.height - UI.fontHeight() * 2 - pad, OAEstimatePanel.drawRow)
-    self.list.anchorBottom = true
+    self.list:setAnchorBottom(true)
 end
 
 function OAEstimatePanel.drawRow(list, y, item)

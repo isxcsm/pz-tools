@@ -11,8 +11,8 @@ function OAReaderWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
     local top, bottom = self:titleBarHeight(), self:resizeWidgetHeight()
     self.body = UI.rich(self, 0, top, self.width, self.height - top - bottom)
-    self.body.anchorRight = true
-    self.body.anchorBottom = true
+    self.body:setAnchorRight(true)
+    self.body:setAnchorBottom(true)
     UI.setRich(self.body, self.richText)
 end
 
