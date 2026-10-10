@@ -78,7 +78,8 @@ OATabFolder.ROW_ALPHA, OATabFolder.LABEL_ALPHA = 0.7, 0.6
 
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
 -- list is a canvas over the game's list, UI.list). The group names are labels in the head colour, a size down and at
--- the foot of their row so they sit on the entries under them; the entries are quieter than the one shown.
+-- the foot of their row so they sit on the entries under them; the entries read before are quieter than the one shown
+-- and the ones not read yet (which also keep their mark).
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
@@ -93,6 +94,8 @@ function OATabFolder.drawRow(list, y, item)
     if row.entry.isNew then UI.fill(list, 10, y + math.floor((list.rowH - 4) / 2), 4, 4, p.warn) end
     if selected then
         UI.text(list, row.title, 18, ty, p.bright, font)
+    elseif row.entry.isNew then
+        UI.text(list, row.title, 18, ty, p.text, font)
     else
         UI.text(list, row.title, 18, ty, p.text, font, OATabFolder.ROW_ALPHA)
     end
