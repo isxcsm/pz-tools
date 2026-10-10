@@ -705,3 +705,104 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     truthy((drawn["media/textures/OA_Wave.png"] or 0) > 0, "the take's wave drawn")
     truthy((drawn["media/textures/OA_Grain.png"] or 0) > 0, "the columns' grain drawn")
 end)
+
+-- ---- the flow's and the pulse's rectangles through the API's rects call -------------------------------------------
+
+-- The numbers of the rectangles a frame draws, one drawRect each (x, y, w, h, r, g, b, a), and the textures between
+-- them, as a list of entries in drawing order.
+local function frameOf(paint, view, el, api)
+    local log = {}
+    ISUIElement = {
+        drawRect = function(_, x, y, w, h, a, r, g, b) log[#log + 1] = { "rect", x, y, w, h, r, g, b, a } end,
+        drawTextureScaled = function(_, tex) log[#log + 1] = { "texture", tex } end,
+    }
+    local calls = 0
+    PZToolsAPI = nil
+    if api then
+        PZToolsAPI = { version = 1, client = function() return {} end, draw = { rects = function(e, list, count)
+            calls = calls + 1
+            log[#log + 1] = { "batch", e, count, { unpack(list, 1, count * 8) } }
+        end } }
+    end
+    paint(view, el)
+    PZToolsAPI = nil
+    return log, calls
+end
+
+-- A batch's entry as the rectangles it holds, the way drawRect lists them.
+local function flatten(log)
+    local flat = {}
+    for _, e in ipairs(log) do
+        if e[1] == "batch" then
+            for i = 0, e[3] - 1 do
+                local l = e[4]
+                local at = i * 8
+                flat[#flat + 1] = { "rect", l[at + 1], l[at + 2], l[at + 3], l[at + 4], l[at + 5], l[at + 6], l[at + 7], l[at + 8] }
+            end
+        else
+            flat[#flat + 1] = e
+        end
+    end
+    return flat
+end
+
+test("the pulse's frames go to the API as one list of rectangles, the same ones drawRect would draw in the same order", function()
+    local view = onSection(scoutSection())
+    shown(view)
+    view.pulseLevel = nil
+    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    local plain = frameOf(View.paintPulses, view, el, false)
+    truthy(#plain > 4, "the nodes that can be taken pulse")
+    local batched, calls = frameOf(View.paintPulses, view, el, true)
+    eq(calls, 1, "one call")
+    eq(batched[1][2], el, "on the panel")
+    local flat = flatten(batched)
+    eq(#flat, #plain)
+    for i = 1, #plain do
+        for k = 2, 9 do eq(flat[i][k], plain[i][k], "rectangle " .. i .. " number " .. k) end
+    end
+end)
+
+test("the flow's rectangles are drawn before a picture asked after them, and a failing call is drawn one by one", function()
+    local u = scoutSection()
+    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    local view = onSection(u)
+    shown(view)
+    getTexture = function(path) return { path = path } end
+    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    -- a moment when the lit line's light is on the line
+    local plain, batched, calls
+    for ms = 0, 6000, 250 do
+        clock.now = 9000000 + ms
+        view.t0 = 9000000
+        plain = frameOf(View.paintFlow, view, el, false)
+        if #plain > 3 then break end
+    end
+    truthy(#plain > 3, "a lit line's light has something to draw")
+    batched, calls = frameOf(View.paintFlow, view, el, true)
+    local flat = flatten(batched)
+    eq(#flat, #plain)
+    for i = 1, #plain do
+        eq(flat[i][1], plain[i][1], "entry " .. i .. " is a " .. plain[i][1])
+        for k = 2, 9 do
+            if plain[i][1] == "rect" then eq(flat[i][k], plain[i][k], "rectangle " .. i .. " number " .. k) end
+        end
+    end
+    truthy(calls >= 1)
+    -- a call that fails: this frame's rectangles are drawn one by one, and the call is not used again
+    local log = {}
+    ISUIElement = { drawRect = function(_, x, y, w, h, a) log[#log + 1] = { x, y, w, h } end,
+        drawTextureScaled = function() end }
+    local tried = 0
+    PZToolsAPI = { version = 1, client = function() return {} end, draw = { rects = function() tried = tried + 1 error("bad") end } }
+    View.paintFlow(view, el)
+    eq(#log >= 1, true, "drawn one by one after the failure")
+    local first = #log
+    eq(tried >= 1, true)
+    local seen = tried
+    log = {}
+    View.paintFlow(view, el)
+    eq(tried, seen, "not tried again")
+    eq(#log >= 1, true)
+    PZToolsAPI = nil
+end)

@@ -141,6 +141,13 @@ local function picture(name)
     return t or nil
 end
 
+-- The extension API's quads call while a frame's marks are drawn through it (Hud:render sets it): the shade and the
+-- picture go as one call of two quads (24 numbers in a list kept between frames) instead of two calls of DrawTexture.
+-- Nil when the API has none, and for good once a call of it failed (said once in the log).
+local drawQuads = nil
+local quadsFailed = false
+local pair = {}
+
 -- Draws a picture `w` pixels wide (as tall as its proportions say) centred at the screen point (x, y), turned so that
 -- its top faces the screen direction (ux, uy) (0, -1: upright), over a dark copy SHADE pixels lower and right.
 -- UIElement.DrawTexture with four corners (top-left, top-right, bottom-right, bottom-left, the order DrawTextureAngle
@@ -152,6 +159,17 @@ local function quad(ui, tex, x, y, ux, uy, w, c, a)
     local tx, ty = ux * h / 2, uy * h / 2
     local x1, y1, x2, y2 = x - rx + tx, y - ry + ty, x + rx + tx, y + ry + ty
     local x3, y3, x4, y4 = x + rx - tx, y + ry - ty, x - rx - tx, y - ry - ty
+    local draw = drawQuads
+    if draw then
+        local l = pair
+        l[1], l[2], l[3], l[4], l[5], l[6], l[7], l[8] = x1 + SHADE, y1 + SHADE, x2 + SHADE, y2 + SHADE, x3 + SHADE,
+            y3 + SHADE, x4 + SHADE, y4 + SHADE
+        l[9], l[10], l[11], l[12] = 0, 0, 0, a * 0.55
+        l[13], l[14], l[15], l[16], l[17], l[18], l[19], l[20] = x1, y1, x2, y2, x3, y3, x4, y4
+        l[21], l[22], l[23], l[24] = c[1], c[2], c[3], a
+        draw(ui, tex, l, 2)
+        return
+    end
     ui:DrawTexture(tex, x1 + SHADE, y1 + SHADE, x2 + SHADE, y2 + SHADE, x3 + SHADE, y3 + SHADE, x4 + SHADE,
         y4 + SHADE, 0, 0, 0, a * 0.55)
     ui:DrawTexture(tex, x1, y1, x2, y2, x3, y3, x4, y4, c[1], c[2], c[3], a)
@@ -267,6 +285,12 @@ local function drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     end
 end
 
+-- Every mark of the frame, the zombies' and then the noises'.
+local function drawMarks(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+    drawZombies(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+    drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+end
+
 function Hud:render()
     local fh = getTextManager():getFontHeight(UIFont.Small)
     local player = getSpecificPlayer(self.playerNum)
@@ -279,8 +303,18 @@ function Hud:render()
         local cx, cy = ox, isoToScreenY(n, px, py, pz + BODY)
         local now = getTimestampMs()
         local ui = self.javaObject
-        drawZombies(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
-        drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+        drawQuads = not quadsFailed and OA.drawCall("quads") or nil
+        if drawQuads then
+            -- (a failure of the API's call is not an error of every frame: the marks go one by one from then on)
+            local ok, err = pcall(drawMarks, ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+            drawQuads = nil
+            if not ok then
+                quadsFailed = true
+                OA.log("sense marks: the API's quads failed, drawn one by one:", tostring(err))
+            end
+        else
+            drawMarks(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
+        end
     end
     if #S.alarms > 0 then
         local zoom = getCore():getZoom(self.playerNum)
@@ -391,20 +425,36 @@ end
 
 -- The zombies near the character from the extension API's spatial query (PZToolsAPI.zombies.near: `count, list`, one
 -- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none or its
--- answer is not what it should be (then the scan below does it).
+-- answer is not what it should be (then the scan below does it). The query is asked for what the scan reads from each
+-- zombie (whether it has a target, its state, and for the sixth sense whether the character sees it: the game's own
+-- visibility for that player), so a zombie costs no call into the game but the height it stands at (the API gives the
+-- floor, the senses go by the exact height); the answer is written into a table of entries it uses again. An API from
+-- before the options does not write into the table, which tells here.
 local NEAR_LIMIT = 64
-local function fromApi(near, n, px, py, pz, radius, acts, look)
+local nearOptions = { into = {} }
+local LUNGE, ATTACK = "LungeState", "AttackState"
+local function fromApi(near, player, n, px, py, pz, radius, look)
     pz = math.floor(pz)
+    local opts = nearOptions
+    opts.seenBy = look > 0 and player or nil
+    local into = opts.into
     local count = 0
     for level = pz - 1, pz + 1 do
-        local _, result = near(px, py, level, radius, NEAR_LIMIT)
-        if type(result) ~= "table" then return nil end
+        local _, result = near(px, py, level, radius, NEAR_LIMIT, opts)
+        if result ~= into then return nil end
         for k = 1, #result do
-            local z = result[k].zombie
-            if z and not z:isDead() then
-                count = count + 1
-                plain(count, z, z:getX(), z:getY(), acts, n, look, px, py)
+            local e = result[k]
+            local z = e.zombie
+            count = count + 1
+            local p = kept[count]
+            if not p then
+                p = {}
+                kept[count] = p
             end
+            collected[count] = p
+            local state = e.state
+            p.ref, p.x, p.y, p.z, p.seen = z, e.x, e.y, z:getZ(), e.seen
+            p.hunt, p.attack = e.hunting, state == LUNGE or state == ATTACK
         end
     end
     return ended(count)
@@ -412,11 +462,11 @@ end
 
 -- The loaded zombies near the character (player number n, at px, py, pz: read once by the caller) as plain positions,
 -- for the pure parts (the list is the one of every look). A zombie's place is read once in a look.
-local function collect(n, px, py, pz, radius, acts, look)
+local function collect(player, n, px, py, pz, radius, acts, look)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) == "table" and type(zombies.near) == "function" then
-        local ok, list = pcall(fromApi, zombies.near, n, px, py, pz, radius, acts, look)
+        local ok, list = pcall(fromApi, zombies.near, player, n, px, py, pz, radius, look)
         if ok and list then return list end
     end
     local zs = getCell():getZombieList()
@@ -484,7 +534,7 @@ local function senseJob(now)
     local reach = math.max(sixthR, tell and S.radius or 0)
     if reach > 0 then
         local px, py, pz = player:getX(), player:getY(), player:getZ()
-        local list = collect(player:getPlayerNum(), px, py, pz, reach, tell, sixthR * sixthR)
+        local list = collect(player, player:getPlayerNum(), px, py, pz, reach, tell, sixthR * sixthR)
         if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
         if tell then
             local heard = Sense.voices(list, voiceMemo, px, py, pz, S.radius, extended, now, voiceOut)
@@ -705,21 +755,29 @@ local function clearOutlines()
 end
 Senses.clearOutlines = clearOutlines
 
+-- How far past LEDGER_NEAR the squares the walk noted for the containers (the first one a container was found on: an
+-- object over two squares stands on the other too) may be and the container still be asked.
+local LEDGER_SLACK = 2
+
 -- The objects of the unopened containers within LEDGER_NEAR of the character on its floor, in its line of sight, into
--- a new set.
-local function nearUnopened(open, player)
+-- a new set. With the squares the walk noted (ox, oy, oz: the API's) only the containers on near squares are asked
+-- about, the rest by numbers alone: a big building has hundreds of them, and the character moves every few steps.
+local function nearUnopened(open, player, ox, oy, oz)
     local want = {}
     local n = player:getPlayerNum()
     -- a container a mission lights is outlined in the mission's colour, not this one
     local mission = OA.StoryHighlight and OA.StoryHighlight.lit[n] or none
     local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
     local r2 = LEDGER_NEAR * LEDGER_NEAR
+    local reach = LEDGER_NEAR + LEDGER_SLACK
     for i = 1, #open do
-        local object = open[i]:getParent()
-        local square = object and object:getSquare()
-        if square and square:getZ() == pz then
-            local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
-            if dx * dx + dy * dy <= r2 and not mission[object] and square:isCouldSee(n) then want[object] = true end
+        if not ox or (oz[i] == pz and math.abs(ox[i] + 0.5 - px) <= reach and math.abs(oy[i] + 0.5 - py) <= reach) then
+            local object = open[i]:getParent()
+            local square = object and object:getSquare()
+            if square and square:getZ() == pz then
+                local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
+                if dx * dx + dy * dy <= r2 and not mission[object] and square:isCouldSee(n) then want[object] = true end
+            end
         end
     end
     return want
@@ -766,7 +824,8 @@ local function ledgerJob(now)
         if outlinedAt.stamp ~= look.stamp or outlinedAt.x ~= x or outlinedAt.y ~= y or outlinedAt.z ~= z
             or not square then
             outlinedAt.x, outlinedAt.y, outlinedAt.z, outlinedAt.stamp = x, y, z, look.stamp
-            local want = nearUnopened(OA.Buildings.unopened(player) or none, player)
+            local open, ox, oy, oz = OA.Buildings.unopened(player)
+            local want = nearUnopened(open or none, player, ox, oy, oz)
             outlineOnly(want, player:getPlayerNum())
             for _ in pairs(want) do
                 First.report("ledger", player)

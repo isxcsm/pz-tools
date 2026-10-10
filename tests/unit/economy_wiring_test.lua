@@ -674,3 +674,175 @@ test("an opened container is not asked again", function()
     eq(searched, 1)
     eq(asked, before, "not asked once opened")
 end)
+
+-- ---- the API's containers (buildings.containers): the building walked in Java, the changed ones listed ----------
+
+-- A fake of the API's call over `world.entries` ({ c = a container stand-in, x, y, z, count, thumpable, modKind }):
+-- the same list of 7 values a container, the stamps kept for `since`, `into` written from index 1 and trimmed, and the
+-- totals of what matches the filters.
+local function fakeContainersApi(world)
+    local api = {
+        version = 1,
+        client = function() return {} end,
+        buildings = {
+            at = function() return { key = world.key or "b1", playerBuilt = false } end,
+        },
+    }
+    world.calls, world.stamps, world.last = 0, {}, 0
+    world.complete = true
+    api.buildings.containers = function(key, opts)
+        world.calls = world.calls + 1
+        world.asked = { key = key, skipClasses = opts.skipClasses, skipData = opts.skipData, since = opts.since }
+        if world.fail then error("boom") end
+        if world.nobuilding then return nil, false end
+        local before = opts.since and world.stamps[opts.since] or nil
+        local seen, out, n = {}, opts.into or {}, 0
+        local total, opened = 0, 0
+        for _, e in ipairs(world.entries) do
+            local skipped = (opts.skipClasses == "IsoThumpable" and e.thumpable) or (opts.skipData and e.modKind)
+            if not skipped then
+                local sig = e.count * 2 + (e.c.isExplored() and 1 or 0)
+                seen[e.c] = sig
+                total = total + 1
+                if e.c.isExplored() then opened = opened + 1 end
+                if not before or before[e.c] ~= sig then
+                    out[n + 1], out[n + 2], out[n + 3], out[n + 4] = e.c, e.x, e.y, e.z
+                    out[n + 5], out[n + 6], out[n + 7] = "shelves", e.count, e.c.isExplored()
+                    n = n + 7
+                end
+            end
+        end
+        for i = n + 1, #out do out[i] = nil end
+        world.last = world.last + 1
+        world.stamps[world.last] = seen
+        return out, world.complete, world.last, total, opened
+    end
+    return api
+end
+
+local function entry(c, x, y, extra)
+    local e = { c = c, x = x, y = y, z = 0, count = 3 }
+    for k, v in pairs(extra or {}) do e[k] = v end
+    return e
+end
+
+test("with the API's containers a look is one call, and only the changed containers are listed after the first", function()
+    OA.Buildings.reset()
+    local a, b, c = box(false), box(false), box(false)
+    local world = { entries = { entry(a, 10, 10), entry(b, 11, 10), entry(c, 12, 10) } }
+    PZToolsAPI = fakeContainersApi(world)
+    local w = walker({})
+    local key, searched, total, complete = OA.Buildings.tick(w)
+    eq(key, "b1"); eq(searched, 0); eq(total, 3); eq(complete, true)
+    eq(world.calls, 1)
+    eq(world.asked.skipClasses, "IsoThumpable", "a player-built object is left out")
+    eq(world.asked.skipData, "OA_Kind", "and the mod's own")
+    eq(world.asked.since, nil, "the first look lists everything")
+    local open, ox, oy, oz = OA.Buildings.unopened(w)
+    eq(#open, 3)
+    eq(#ox, 3); eq(#oy, 3); eq(#oz, 3)
+    a.set(true)
+    key, searched, total = OA.Buildings.tick(w)
+    eq(world.asked.since, 1, "the next asks what changed since the first")
+    eq(searched, 1); eq(total, 3)
+    open, ox, oy = OA.Buildings.unopened(w)
+    eq(#open, 2)
+    for i = 1, #open do
+        truthy(open[i] ~= a, "an opened container is no longer listed as unopened")
+        eq(ox[i], open[i] == b and 11 or 12, "each container keeps its own square")
+    end
+    -- an item put in a container (the same opened flag) changes it too, and it stays a single unopened entry
+    world.entries[2].count = 4
+    OA.Buildings.tick(w)
+    eq(#OA.Buildings.unopened(w), 2)
+    b.set(true); c.set(true)
+    key, searched, total, complete = OA.Buildings.tick(w)
+    eq(searched, 3); eq(complete, true)
+    eq(#OA.Buildings.unopened(w), 0)
+    local calls = world.calls
+    OA.Buildings.tick(w)
+    OA.Buildings.tick(w)
+    eq(world.calls, calls, "a building counted whole and all opened is not looked at again")
+    PZToolsAPI = nil
+end)
+
+test("the API's walk keeps the player's and the mod's own objects out and says when a square is not loaded", function()
+    OA.Buildings.reset()
+    local a, mine, ours = box(false), box(false), box(false)
+    local world = { entries = { entry(a, 1, 1), entry(mine, 2, 1, { thumpable = true }), entry(ours, 3, 1, { modKind = true }) } }
+    PZToolsAPI = fakeContainersApi(world)
+    world.complete = false
+    local w = walker({})
+    local _, searched, total, complete = OA.Buildings.tick(w)
+    eq(total, 1); eq(complete, false, "a square is not loaded")
+    local calls = world.calls
+    OA.Buildings.tick(w)
+    eq(world.calls, calls + 1, "an incomplete building is looked at again")
+    world.complete = true
+    a.set(true)
+    _, searched, total, complete = OA.Buildings.tick(w)
+    eq(complete, true); eq(searched, 1)
+    PZToolsAPI = nil
+end)
+
+test("when the API lists everything again (its stamp let go) the unopened list is made again, not added to", function()
+    OA.Buildings.reset()
+    local a, b = box(false), box(false)
+    local world = { entries = { entry(a, 1, 1), entry(b, 2, 1) } }
+    PZToolsAPI = fakeContainersApi(world)
+    local w = walker({})
+    OA.Buildings.tick(w)
+    eq(#OA.Buildings.unopened(w), 2)
+    -- b is taken out of the world, and the stamp is one the API no longer keeps
+    table.remove(world.entries, 2)
+    world.stamps = {}
+    local _, _, total = OA.Buildings.tick(w)
+    eq(total, 1)
+    local open = OA.Buildings.unopened(w)
+    eq(#open, 1)
+    eq(open[1], a)
+    PZToolsAPI = nil
+end)
+
+test("an API whose containers call fails, or knows no such building, leaves the Lua walk of its rooms", function()
+    OA.Buildings.reset()
+    local a, b = box(false), box(true)
+    local squares = { ["10,10,0"] = sq({ fakeObject({ a }) }), ["11,10,0"] = sq({ fakeObject({ b }) }) }
+    getCell = function()
+        return { getGridSquare = function(_, x, y, z) return squares[x .. "," .. y .. "," .. z] end }
+    end
+    local world = { entries = {}, nobuilding = true }
+    PZToolsAPI = fakeContainersApi(world)
+    PZToolsAPI.buildings.rooms = function()
+        return { { id = 1, level = 0, rects = { { x = 10, y = 10, w = 2, h = 1 } } } }
+    end
+    local w = walker({})
+    local key, searched, total, complete = OA.Buildings.tick(w)
+    eq(key, "b1"); eq(total, 2); eq(searched, 1); eq(complete, true, "the rooms' squares walked in Lua")
+    eq(world.calls, 1, "asked once for that building")
+    OA.Buildings.tick(w)
+    eq(world.calls, 1, "and not again")
+    -- a call that throws: the Lua walk from then on, for every building
+    OA.Buildings.reset()
+    world.nobuilding, world.fail = false, true
+    key, searched, total, complete = OA.Buildings.tick(w)
+    eq(total, 2); eq(complete, true)
+    eq(world.calls, 2)
+    OA.Buildings.reset()
+    world.fail = false
+    OA.Buildings.tick(w)
+    eq(world.calls, 3, "after a reset the API's walk is tried again")
+    PZToolsAPI = nil
+end)
+
+test("a scan of the building lists its containers through the API too", function()
+    OA.Buildings.reset()
+    local a, b = box(true), box(false)
+    local world = { entries = { entry(a, 1, 1), entry(b, 2, 1) } }
+    PZToolsAPI = fakeContainersApi(world)
+    local square = { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end }
+    local scanned = OA.Buildings.scan(square, nil)
+    eq(scanned.key, "b1"); eq(#scanned.containers, 2); eq(scanned.complete, true)
+    eq(OA.Buildings.searched(scanned.containers), 1)
+    PZToolsAPI = nil
+end)
