@@ -69,7 +69,8 @@ python tools/check_translations.py                          # 번역 키, 샌드
   `ISInventoryPane:renderdetails` 감싸기) 첫 대상 줄에 바닐라 작업 막대(`setJobType`/`setJobDelta`, 그리는 동안만)를 보이고, 그 막대가 차거나
   새 물건이 들어오면 `machineWork` 명령으로 그 자리에서 일하게 한다 (`OA.due`로 읽기 100ms, 부탁 400ms 간격). 일한 양은 어느 쪽이든 지난 게임
   시간이라 지켜봐도 더 만들지 않는다. 소리는 10분에 한 번만 낸다 (`Machines.NOISE_EVERY`). 켜기/끄기 버튼은 오븐처럼 루팅 창 아래 버튼 줄에 있다
-  (`Machines/LootControls.lua`, `ISLootWindowContainerControls.AddHandler`; 기계 창에는 없다). 필요한 부품이 없거나 망가졌으면 켤 수 없고
+  (`Machines/LootControls.lua`, `ISLootWindowContainerControls.AddHandler`)과 기계 창 이름판에 있다. 우클릭 메뉴에는 없다: 창이 있는 기계는
+  메뉴에 이름 한 줄만 두고 누르면 창이 열린다 (`Machines/Menu.lua`). 필요한 부품이 없거나 망가졌으면 켤 수 없고
   (`Machines.canSwitchOn`, 버튼은 꺼지고 이유를 툴팁으로), 부품을 분리하면 먼저 꺼진다. 일하지 않는 이유(꺼짐, 전기 없음, 산출함 가득 등)는
   투입함 첫 줄의 작업 이름 자리에 보인다 (`Machines.stopText`).
 
