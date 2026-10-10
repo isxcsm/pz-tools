@@ -102,6 +102,29 @@ function ISOAMachinePlace:new(character, square, item, kind, dir)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
+-- Opening a machine's window, once the character has walked up to it (the window is the client's).
+
+ISOAMachineOpen = base("ISOAMachineOpen", 1)
+
+function ISOAMachineOpen:isValid()
+    return Machines.find(self.machineId) ~= nil
+end
+
+function ISOAMachineOpen:perform()
+    ISBaseTimedAction.perform(self)
+    local object = Machines.find(self.machineId)
+    if object and OAMachineWindow and OAMachineWindow.open then OAMachineWindow.open(self.character, object) end
+end
+
+function ISOAMachineOpen:complete() return true end
+
+function ISOAMachineOpen:new(character, id, x, y, z)
+    local o = ISBaseTimedAction.new(self, character)
+    o.machineId, o.x, o.y, o.z = id, x, y, z
+    o.maxTime = 1
+    return o
+end
+
 -- Taking a machine up
 
 ISOAMachinePickUp = base("ISOAMachinePickUp", 200)

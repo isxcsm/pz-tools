@@ -635,6 +635,9 @@ local function character(items)
     local c = {}
     function c:getPlayerNum() return 0 end
     function c:isDead() return false end
+    -- standing by the machine (its square is 10, 20)
+    function c:getX() return 11.5 end
+    function c:getY() return 20.5 end
     function c:getInventory() return inventory end
     local mod = {}
     function c:getModData() return mod end
@@ -661,6 +664,18 @@ local function openWindow(px, items)
     window:instantiate()
     return UI, window, object
 end
+
+test("the window closes when the character walks away from the machine", function()
+    local now = 5000
+    _G.getTimestampMs = function() return now end
+    local _, window = openWindow(19)
+    window:update()
+    truthy(not window.removed, "open while near")
+    window.character.getX = function() return 30 end
+    now = now + OAMachineWindow.NEAR_MS
+    window:update()
+    truthy(window.removed, "gone once out of reach")
+end)
 
 test("an open window reads its machine a few times a second, and each frame only paints", function()
     local now = 5000

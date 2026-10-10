@@ -36,8 +36,11 @@ local function queueAt(playerObj, square, action)
     if square and luautils.walkAdj(playerObj, square, true) then ISTimedActionQueue.add(action) end
 end
 
+-- The window opens once the character has walked up to the machine (it closes again when they walk away).
 local function onOpen(playerObj, object)
-    OAMachineWindow.open(playerObj, object)
+    local state = Machines.state(object)
+    local square = object:getSquare()
+    queueAt(playerObj, square, ISOAMachineOpen:new(playerObj, state.id, square:getX(), square:getY(), square:getZ()))
 end
 
 local function onPickUp(playerObj, object)

@@ -355,7 +355,22 @@ test("a machine with a window is one option, its name, that opens the window; a 
     local open = menu.options[1]
     eq(open.subOption, nil)
     truthy(open.toolTip, "what the machine is, on its option")
+    -- picking it walks up to the machine first; the window opens when that is done
+    local queued = {}
+    luautils = luautils or {}
+    luautils.walkAdj = function() return true end
+    ISTimedActionQueue = { add = function(action) queued[#queued + 1] = action end }
+    ISBaseTimedAction.new = function(class) return setmetatable({}, { __index = class }) end
+    square.getX = function() return 10 end
+    square.getY = function() return 20 end
+    square.getZ = function() return 0 end
+    object.getSquare = function() return square end
     open.onSelect(open.target, open.param1)
+    eq(TEST.window, nil, "not before the walk")
+    eq(#queued, 1)
+    eq(queued[1].machineId, "m1")
+    Machines.find = function() return object end
+    queued[1]:perform()
     eq(TEST.window[2], object, "the window opens on the machine")
 
     kind = "lure"

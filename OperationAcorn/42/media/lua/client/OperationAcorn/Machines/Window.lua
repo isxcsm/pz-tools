@@ -15,6 +15,7 @@ require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/Things"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
@@ -36,6 +37,8 @@ OAMachineWindow.ASK_MS = 400
 OAMachineWindow.IDLE_ASK_MS = 3000
 -- How long (real ms) the loot window keeps a bin chosen after [열기], while it lists the bins of the new place.
 OAMachineWindow.SELECT_MS = 1500
+-- How often the window looks whether the character is still near the machine (ms).
+OAMachineWindow.NEAR_MS = 500
 
 -- The most of the screen's height the window takes; a wheel step of a body that scrolls, and its bar's width.
 OAMachineWindow.SCREEN_SHARE = 0.9
@@ -217,6 +220,11 @@ function OAMachineWindow:update()
     if self.era ~= UI.era then return self:close() end
     if not self.object or self.object:getObjectIndex() == -1 or self.character:isDead() then return self:close() end
     local now = getTimestampMs()
+    -- walked away from the machine: the window goes, as the terminal's does (Things.REACH)
+    if OA.due(self.due, "near", now, OAMachineWindow.NEAR_MS) then
+        local square = self.object:getSquare()
+        if not square or not OA.Trade.Things.near(self.character, square:getX(), square:getY()) then return self:close() end
+    end
     if OA.due(self.due, "read", now, OAMachineWindow.READ_MS) then
         self:refresh()
         self:askWork(now)
