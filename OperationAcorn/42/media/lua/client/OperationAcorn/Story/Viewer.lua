@@ -1,6 +1,6 @@
 -- The reading window: a document, or the several that an item holds (the front and the back of a form), with their
 -- titles. Reading a document tells the server (it is kept in the terminal's folder by id) and shows the text the
--- translation files hold for it. Opened from an item's menu and from the folder in the terminal.
+-- translation files hold for it. Opened from an item's menu; the terminal's folder reads inside its own window.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISRichTextPanel"
 require "ISUI/ISButton"
@@ -71,15 +71,9 @@ function ISOAViewer:show(i)
     if not entry then return end
     self.index = i
     local record = OA.Client.record(self.character)
-    local title, body
-    if entry.text then
-        -- A text kept as it was (a manifest of the folder).
-        title, body = entry.title or "", entry.text
-    else
-        title = getText(Docs.titleKey(entry.id))
-        body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
-        if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
-    end
+    local title = getText(Docs.titleKey(entry.id))
+    local body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
+    if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
     self.rich.text = formatText(title, body)
     self.rich:paginate()
     self.rich:setYScroll(0)
@@ -88,7 +82,7 @@ function ISOAViewer:show(i)
     self.next:setEnable(i < #self.docs)
     self.prev:setVisible(#self.docs > 1)
     self.next:setVisible(#self.docs > 1)
-    if not entry.noRecord and not entry.text then
+    if not entry.noRecord then
         OA.Sync.send(self.character, "story_read", { doc = entry.id, variant = entry.variant })
     end
 end
@@ -101,8 +95,8 @@ function ISOAViewer:close()
     Viewer.instance = nil
 end
 
--- Opens the window on a list of { id =, variant =, extra = }; `noRecord` entries (a document already in the folder
--- being looked at again) are not told to the server.
+-- Opens the window on a list of { id =, variant =, extra = }; `noRecord` entries (a survey stake, which is not a paper of
+-- the folder) are not told to the server. It opens in front of the terminal's window when that is open.
 function Viewer.open(character, docs)
     if not docs or #docs == 0 then return end
     if Viewer.instance then Viewer.instance:close() end
@@ -112,6 +106,7 @@ function Viewer.open(character, docs)
     local ui = ISOAViewer:new((core:getScreenWidth() - w) / 2, (core:getScreenHeight() - h) / 2, w, h, character)
     ui:initialise()
     ui:addToUIManager()
+    ui:bringToTop()
     ui.docs = docs
     ui:show(1)
     Viewer.instance = ui

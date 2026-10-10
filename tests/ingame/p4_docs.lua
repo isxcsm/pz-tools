@@ -1,6 +1,7 @@
 -- P4: every document and story line renders without a missing translation, the folder and mission tabs are in the
--- terminal, the viewer opens. Marks two documents read and keeps a manifest in the record: use a throwaway save.
--- After it runs, open the terminal and look at the tabs (the folder lists the two documents and the manifest).
+-- terminal, the viewer opens. Marks two documents read in the record: use a throwaway save. After it runs, open the
+-- terminal and look at the tabs (the folder lists the two documents). It adds no manifest: the folder's manifests are
+-- the helicopter's, and a test number added on every run once showed up as one manifest three times.
 RUN("p4_lib.lua")
 local OA = OperationAcorn
 local say = P4T.say("p4docs")
@@ -42,10 +43,9 @@ end
 P4T.check(say, "radio copies have title and text", badCopies == 0, badCopies)
 OA.Story.markRead(record, "police_card", "muldraugh_pd")
 OA.Story.markRead(record, "clinic_log", "westpoint_clinic")
-OA.Story.addManifest(record, 1042, "test manifest text")
 OA.Sync.changed("story", record.id)
 P4T.check(say, "the missions tab (with the folder) is given", OA.Terminal and OA.Terminal.tab("missions") ~= nil)
-P4T.check(say, "the folder lists the radio copies", #OA.StoryTabs.entries(record) >= #OA.Story.radioCopies(record))
+P4T.check(say, "the folder lists the radio copies", #OA.StoryFolder.flat(OA.StoryFolder.entries(record)) >= #OA.Story.radioCopies(record))
 OA.StoryViewer.open(player, { { id = "police_card", variant = "muldraugh_pd", noRecord = true },
                               { id = "cooler_front", noRecord = true } })
 say("the viewer is open with two pages: look at the layout and the previous/next buttons")

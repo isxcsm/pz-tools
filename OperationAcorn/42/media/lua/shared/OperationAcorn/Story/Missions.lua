@@ -111,6 +111,7 @@ local function newMission(record, kind, level, story)
     local credits, trust = Rewards.reward(level, isStory, 1, creditScale())
     return {
         id = "M" .. tostring(record.number or 0) .. "-" .. tostring(s.seq),
+        seq = s.seq,            -- the terminal's dot remembers the last one it showed (ui.seen.mission)
         kind = kind,            -- "regular" | "story" | "contract"
         story = story,
         level = level,
@@ -798,6 +799,8 @@ function Missions.describe(record)
     local m = s.active
     local now = OA.hours()
     local info = { nextIn = math.max(0, (s.nextAt or 0) - now), results = s.results }
+    -- The special request's slot (the special-request unit gives the function): nil while there is none.
+    info.special = Missions.specialSlot and Missions.specialSlot(record) or nil
     if not m then return info end
     info.id = m.id
     info.kind = m.kind
@@ -819,6 +822,13 @@ function Missions.describe(record)
     info.soil = m.soil and m.soil.variant
     info.cooler = m.carry and { temp = Missions.coolerTemp(m, now), started = m.carry.start ~= nil }
     info.level = m.level
+    info.seq = m.seq
+    -- What the reward is made of, for the card's line under the story (the reward-device unit sets them on the
+    -- mission): the base credits, the danger pay (a fraction, 0 to 0.3), the streak it was made at, the urgent flag.
+    info.base, info.danger, info.streak, info.urgent = m.base, m.danger, m.streak, m.urgent
+    -- The card's 'take another' button: { trust = what it costs, left = how many this week } or nil when the mission
+    -- cannot be swapped (the reward-device unit gives the function).
+    info.reroll = Missions.rerollOffer and Missions.rerollOffer(record, m) or nil
     local first = m.items and m.items[1]
     if first then info.item = Data.itemName(first.type) end
     return info

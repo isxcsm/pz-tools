@@ -108,7 +108,14 @@ end)
 OA.Server.on("story_read", function(character, record, args)
     if type(args.doc) == "string" then
         Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil)
+        Story.clearNew(record, "d:" .. args.doc)
     end
+end)
+
+-- An entry of the terminal's folder was opened there: it is not new any more. `key` is its folder key ("c:s2" a radio
+-- copy, "d:<id>" a document, "r:<number>" a request copy).
+OA.Server.on("story_seen", function(character, record, args)
+    if type(args.key) == "string" then Story.clearNew(record, args.key) end
 end)
 
 -- A drop site's survey stake was read.

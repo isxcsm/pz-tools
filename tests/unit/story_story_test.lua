@@ -241,7 +241,7 @@ test("a radio copy has its title and its text from the translations", function()
     for _, c in ipairs(Story.radioCopies(record)) do byId[c.id] = c end
     eq(Story.copyTitle(byId.first), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_first")
     eq(Story.copyTitle(byId.handover), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_handover")
-    eq(Story.copyTitle(byId.s2), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_Stage 2")
+    eq(Story.copyTitle(byId.s2), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_StageNamed 2 IGUI_OA_Econ_Stage_2")
     eq(Story.copyText(record, byId.first), "IGUI_OA_Story_Radio_first_late 0347", "the number goes in")
     local text = Story.copyText(record, byId.s1)
     local a = string.find(text, "IGUI_OA_Story_Radio_s1_a", 1, true)

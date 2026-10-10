@@ -258,4 +258,11 @@ Data.STATUS_ROWS = 18
 Data.HALLUCINATION_LONG = 3
 Data.MANIFESTS_KEPT = 12
 
+-- The 2반 request copies a special request brings to the folder (DESIGN-terminal 6.3.1): by form (exchange, fetch,
+-- field), the ids of the texts (IGUI_OA_Story_Request_<id>), each sent once. The first copy's number is R-0117.
+Data.REQUEST_FIRST = 117
+Data.REQUESTS = {
+    exchange = { "dunnigan_can" },
+}
+
 return Data
