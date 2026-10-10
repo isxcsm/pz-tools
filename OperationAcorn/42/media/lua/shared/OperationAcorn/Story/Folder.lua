@@ -7,8 +7,9 @@ require "OperationAcorn/Trade/Terminal"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Story"
 require "OperationAcorn/Story/Docs"
+require "OperationAcorn/Story/Typing"
 local OA = OperationAcorn
-local Data, Story, Docs, Terminal = OA.StoryData, OA.Story, OA.StoryDocs, OA.Terminal
+local Data, Story, Docs, Terminal, Typing = OA.StoryData, OA.Story, OA.StoryDocs, OA.Terminal, OA.Typing
 local Folder = {}
 OA.StoryFolder = Folder
 
@@ -236,20 +237,23 @@ function Folder.requestBody(request)
         .. Folder.lines(Story.text("IGUI_OA_Story_Request_" .. request.id, no)) .. "\n" .. approvalOf(request)
 end
 
--- { title =, meta =, body = } of an entry for the reader.
+-- { title =, meta =, body =, marked =, kind = } of an entry for the reader: `body` is the text plain, `marked` the same
+-- with its markup (pauses, colours) for the panel that types it, and `kind` how it is typed when it is new (Typing).
 function Folder.content(record, entry)
     local ref = entry.ref
-    local body
+    local marked
     if ref.kind == "copy" then
-        body = Story.copyText(record, ref.copy)
+        marked = Story.copyMarked(record, ref.copy)
     elseif ref.kind == "request" then
-        body = Folder.requestBody(ref.request)
+        marked = Folder.requestBody(ref.request)
     elseif ref.kind == "manifest" then
-        body = ref.manifest.text
+        marked = ref.manifest.text
     else
-        body = Docs.body(record, ref.id, ref.variant)
+        marked = Docs.body(record, ref.id, ref.variant)
     end
-    return { title = entry.title, meta = metaOf(record, entry), body = Folder.lines(body) }
+    marked = Folder.lines(marked)
+    return { title = entry.title, meta = metaOf(record, entry), body = OA.Markup.strip(marked), marked = marked,
+        kind = Typing.KIND_OF_GROUP[entry.group] }
 end
 
 -- ---------------------------------------------------------------------------------------------------------------

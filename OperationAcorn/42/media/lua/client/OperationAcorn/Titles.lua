@@ -1,6 +1,7 @@
 -- The titles of events (OA.Sync.title): drawn big over the player's screen by the extension API's text
 -- (PZToolsAPI.text.title, queued one at a time), or, without it, as a text over the character.
 require "OperationAcorn/Client"
+require "OperationAcorn/Markup"
 local OA = OperationAcorn
 local Titles = {}
 OA.Titles = Titles
@@ -32,6 +33,7 @@ local function charactersOf(playerId)
     end
     return found
 end
+Titles.charactersOf = charactersOf
 
 -- The extension API's text, when its drawing hook is in.
 local function textApi()
@@ -42,6 +44,7 @@ local function textApi()
     if not ok or status ~= "applied" then return nil end
     return t
 end
+Titles.textApi = textApi
 
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
@@ -50,6 +53,11 @@ function Titles.show(playerId, detail, noHalo)
     local title = text(detail.key, detail.args)
     if not title then return nil end
     local sub = text(detail.sub, detail.subArgs)
+    -- A line under the title may be a radio line: without its markup, and cut to its first sentences when the detail says
+    -- how long the line may be.
+    if sub then
+        sub = detail.subLead and OA.Markup.lead(sub, detail.subLead) or OA.Markup.strip(sub)
+    end
     local characters = charactersOf(playerId)
     if #characters == 0 then return nil end
     local t = textApi()

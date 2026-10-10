@@ -67,7 +67,7 @@ local function onTenMinutes()
         if x then Sites.visit(record, x, y) end
         -- The first radio line, when the trade part has not asked for it by the first stage.
         local stage = Story.progress(record)
-        if stage >= 1 and not Story.section(record).firstContact then Story.firstContact(record, false) end
+        if stage >= 1 and not Story.section(record).firstContact then Story.firstContact(record, false, true) end
     end)
 end
 
@@ -109,6 +109,8 @@ OA.Server.on("story_read", function(character, record, args)
     if type(args.doc) == "string" then
         Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil)
         Story.clearNew(record, "d:" .. args.doc)
+        -- Read whole in the viewer: the terminal has nothing left to type of it.
+        Story.saveTyped(record, "d:" .. args.doc, nil, true)
     end
 end)
 
@@ -116,6 +118,11 @@ end)
 -- copy, "d:<id>" a document, "r:<number>" a request copy).
 OA.Server.on("story_seen", function(character, record, args)
     if type(args.key) == "string" then Story.clearNew(record, args.key) end
+end)
+
+-- The folder's text panel kept how far it has typed an entry (Story/Typing): `t` seconds of typing, or `done`.
+OA.Server.on("story_typed", function(character, record, args)
+    if type(args.key) == "string" then Story.saveTyped(record, args.key, tonumber(args.t), args.done == true) end
 end)
 
 -- A drop site's survey stake was read.

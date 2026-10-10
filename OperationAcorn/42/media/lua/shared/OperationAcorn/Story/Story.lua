@@ -5,6 +5,7 @@ require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Data"
+require "OperationAcorn/Markup"
 local OA = OperationAcorn
 local Data = OA.StoryData
 local Story = {}
@@ -43,6 +44,7 @@ function Story.section(record)
         s.unread = {}        -- what arrived in the folder and is not opened yet: key -> arrival number (Story.markNew)
         s.newSeq = 0         -- the arrivals counted
         s.docStage = {}      -- the trust tier a document was read at: id -> tier (for the ones the data cannot place)
+        s.typed = {}         -- what the terminal types when the folder first shows it: key -> state (Story.markNew, Typing)
         s.requests = {}      -- request copies kept (Story.addRequestCopy): { no =, form =, id =, tier =, day =, month = }
         s.requestNo = Data.REQUEST_FIRST - 1
     end
@@ -188,21 +190,27 @@ end
 
 -- The trade part calls this when the trust stage has gone up (and for milestones, with the milestone count); the
 -- mission tick also calls it when it sees the numbers move, so a missed call costs nothing.
-function Story.onStage(record, stage, milestones)
+function Story.onStage(record, stage, milestones, announce)
     local s = Story.section(record)
     stage = stage or (record.trade and record.trade.stage) or 0
     milestones = milestones or (record.trade and record.trade.milestones) or 0
+    local last
     for st = s.seenStage + 1, stage do
         s.seenStage = st
         Story.enterStage(record, st)
+        last = "s" .. st
         OA.log("story: stage", st, "entered by", record.number)
     end
     for k = s.seenMilestones + 1, milestones do
         s.seenMilestones = k
         Story.enterMilestone(record, k)
+        last = "m" .. k
         OA.log("story: milestone", k, "reached by", record.number)
     end
     OA.Sync.changed("story", record.id)
+    -- The stage title is shown by whoever raised the trust (`announce`); the scene of the last stage entered comes
+    -- after it.
+    if announce and last then Story.scene(record, last) end
 end
 
 -- Missions end: the story hears of it. result: "done" | "expired" | "lost".
@@ -251,6 +259,7 @@ function Story.completeHandover(record)
     Story.queueSupply(record, "KitVoucher", nil)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_Handover", sub = "IGUI_OA_Title_HandoverSub",
         subArgs = { { key = Story.callSignKey(record) } }, style = "stamp" })
+    Story.scene(record, "handover")
     OA.log("story: handover for", record.number)
     OA.Sync.changed("story", record.id)
 end
@@ -283,13 +292,15 @@ function Story.greetingText(record)
 end
 
 -- The first radio line when the terminal is first used, filed as a radio copy: 'late' when the first crate came late
--- or without a helicopter.
-function Story.firstContact(record, late)
+-- or without a helicopter. It is also a scene over the screen, unless `quiet` (a record that is found past the first
+-- stage without one).
+function Story.firstContact(record, late, quiet)
     local s = Story.section(record)
     if s.firstContact then return false end
     s.firstContact = late and "late" or true
     Story.markNew(record, "c:first")
     OA.Sync.changed("story", record.id)
+    if not quiet then Story.scene(record, "first") end
     return true
 end
 
@@ -328,6 +339,47 @@ function Story.tierText(tier)
     return Story.text("IGUI_OA_Story_Copy_Stage", tier)
 end
 
+-- How wide (ems, Markup.width) the radio line under a stage's title may be: some twenty Hangul syllables.
+Story.TITLE_LEAD = 24
+
+-- The title of a trust level reached (what Sync.title takes): "Trust stage 3 · Cross-check" with the stage's name (the
+-- first five and the handover's 8th have one, the others only the number), and under it the first line of the radio
+-- copy the stage brings (Titles cuts it to its first sentences); the shop's new items where the level has no copy.
+function Story.stageTitle(record, level)
+    local nameKey
+    if level >= 1 and level <= Data.LAST_STAGE then
+        nameKey = "IGUI_OA_Econ_Stage_" .. level
+    elseif level == Data.LAST_STAGE + 3 then
+        nameKey = "IGUI_OA_Terminal_LevelHandover"
+    end
+    local detail = { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "stamp",
+        fallback = "good" }
+    if nameKey then
+        detail.key = "IGUI_OA_Title_StageNamed"
+        detail.args = { level, { key = nameKey } }
+    end
+    local def = level <= Data.LAST_STAGE and Data.STAGES[level] or Data.MILESTONES[level - Data.LAST_STAGE]
+    local first = def and def.radio and def.radio[1]
+    if first then
+        detail.sub = "IGUI_OA_Story_Radio_" .. first
+        detail.subArgs = { Story.number(record) }
+        detail.subLead = Story.TITLE_LEAD
+    end
+    return detail
+end
+
+-- A radio copy's scene on the player's screen: its lines typed over the game (client/Scene.lua), for the first
+-- contact, a stage or milestone entered, the handover. The copy is in the folder in any case.
+function Story.scene(record, id)
+    for _, copy in ipairs(Story.radioCopies(record)) do
+        if copy.id == id then
+            OA.Sync.scene(record.id, { id = id, keys = copy.keys, number = Story.number(record) })
+            return true
+        end
+    end
+    return false
+end
+
 -- A radio copy's title and text.
 function Story.copyTitle(copy)
     local what
@@ -339,11 +391,17 @@ function Story.copyTitle(copy)
     return Story.text("IGUI_OA_Story_Copy_Title", what)
 end
 
-function Story.copyText(record, copy)
+-- The text of a copy as the radio lines say it, with their markup (pauses) for a place that types it.
+function Story.copyMarked(record, copy)
     local number = Story.number(record)
     local lines = {}
     for _, key in ipairs(copy.keys) do lines[#lines + 1] = Story.text("IGUI_OA_Story_Radio_" .. key, number) end
     return table.concat(lines, "\n\n")
+end
+
+-- The same plain, for the places that show a copy whole.
+function Story.copyText(record, copy)
+    return OA.Markup.strip(Story.copyMarked(record, copy))
 end
 
 -- The refusal story beats (LORE 7). Returns the radio key for a category that is not taken for a while (`phase`
@@ -522,6 +580,33 @@ function Story.markNew(record, key)
     if s.unread[key] then return false end
     s.newSeq = (s.newSeq or 0) + 1
     s.unread[key] = s.newSeq
+    -- New content is typed by the terminal when the folder first shows it (nothing is typed yet: t = 0).
+    s.typed = s.typed or {}
+    s.typed[key] = { t = 0 }
+    OA.Sync.changed("story", record.id)
+    return true
+end
+
+-- What the terminal has typed of a folder entry: nil when it has nothing to type (shown whole), `true` when it was
+-- typed to its end, else { start = world age in hours, t = seconds typed } (Story/Typing).
+function Story.typedState(record, key)
+    local s = Story.section(record)
+    return s.typed and s.typed[key] or nil
+end
+
+-- The window kept how far a text is typed: `clock` seconds, or `done`. Only an entry that has a state takes it, and
+-- one that is done stays done.
+function Story.saveTyped(record, key, clock, done)
+    local s = Story.section(record)
+    local state = s.typed and s.typed[key]
+    if state == nil or state == true then return false end
+    if done then
+        s.typed[key] = true
+    elseif type(clock) == "number" and clock >= 0 and clock < 100000 then
+        s.typed[key] = { start = OA.hours(), t = clock }
+    else
+        return false
+    end
     OA.Sync.changed("story", record.id)
     return true
 end

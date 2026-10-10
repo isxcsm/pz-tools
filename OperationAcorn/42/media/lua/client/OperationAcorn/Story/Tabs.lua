@@ -83,6 +83,12 @@ function OATabMissions:refresh()
     if view then view:refresh() end
 end
 
+-- The window is closing: the folder keeps how far it has typed.
+function OATabMissions:onWindowClose()
+    local docs = self.subViews and self.subViews.docs
+    if docs and docs.onWindowClose then docs:onWindowClose() end
+end
+
 -- What the missions screen says of the missions so far, in the row of the sub-tabs, to the right.
 function OATabMissions:prerender()
     local view = self.subViews and self.subViews.missions

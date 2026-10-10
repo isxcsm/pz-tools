@@ -7,6 +7,7 @@ require "ISUI/ISButton"
 require "OperationAcorn/Core"
 require "OperationAcorn/Client"
 require "OperationAcorn/Story/Docs"
+require "OperationAcorn/Markup"
 local OA = OperationAcorn
 local Docs = OA.StoryDocs
 local Viewer = {}
@@ -74,6 +75,7 @@ function ISOAViewer:show(i)
     local title = getText(Docs.titleKey(entry.id))
     local body = record and Docs.body(record, entry.id, entry.variant, entry.extra) or ""
     if entry.stake then body = Docs.stakeBody(entry.stake, entry.date) end
+    body = OA.Markup.strip(body)
     self.rich.text = formatText(title, body)
     self.rich:paginate()
     self.rich:setYScroll(0)

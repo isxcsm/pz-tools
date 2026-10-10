@@ -12,6 +12,8 @@ local function onServerCommand(module, command, args)
         OA.Sync.deliver(args.what, args.player, args.detail)
     elseif command == "title" then
         OA.Sync.deliver("title", args.player, args.detail)
+    elseif command == "scene" then
+        OA.Sync.deliver("scene", args.player, args.detail)
     elseif command == "notice" then
         OA.Sync.deliver("notice", args.player, { key = args.key, args = args.args })
     else
