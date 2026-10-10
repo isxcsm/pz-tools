@@ -1,4 +1,5 @@
 {
+    "ContextMenu_OA_Machine_Manage": "관리",
     "ContextMenu_OA_Machine_Install": "설치",
     "ContextMenu_OA_Machine_RemoveShell": "다 쓴 미끼 치우기",
     "ContextMenu_OA_Machine_TakeLure": "미끼 회수",

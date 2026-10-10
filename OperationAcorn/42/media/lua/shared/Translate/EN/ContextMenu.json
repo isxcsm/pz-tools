@@ -1,4 +1,5 @@
 {
+    "ContextMenu_OA_Machine_Manage": "Manage",
     "ContextMenu_OA_Machine_Install": "Install",
     "ContextMenu_OA_Machine_RemoveShell": "Clear away the spent lure",
     "ContextMenu_OA_Machine_TakeLure": "Take the lure back",

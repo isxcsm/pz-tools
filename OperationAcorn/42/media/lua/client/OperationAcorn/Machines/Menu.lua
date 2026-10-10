@@ -103,6 +103,22 @@ local function lureOption(menu, playerObj, object, onTop)
     end
 end
 
+-- The game's water submenu for a machine that is also a fluid container (the rain storage), or nil: the one whose
+-- options act on the machine's container (the game names it after the sprite, not after Machines.name).
+local function fluidSubMenu(context, object)
+    local fluid = object:getFluidContainer()
+    if not fluid then return nil end
+    for _, option in ipairs(context.options) do
+        local sub = option.subOption and context:getSubMenu(option.subOption)
+        if sub then
+            for _, o in ipairs(sub.options) do
+                if o.param1 == fluid then return sub end
+            end
+        end
+    end
+    return nil
+end
+
 -- A machine with a window is one option, its name, that opens the window: switching it and the rest are there. What is
 -- done to it by hand (a lure's taking back) is an option of its own under it. A machine without a window keeps its
 -- name with the things done to it in a submenu, and none at all when nothing is done to it by hand (the research
@@ -111,6 +127,13 @@ local function addMachineOptions(context, playerObj, object)
     local state = Machines.state(object)
     local kind = state.kind
     if Data.hasWindow(kind) then
+        -- a fluid container already has its name over the game's water submenu: the window is opened from in there
+        local water = fluidSubMenu(context, object)
+        if water then
+            local manage = water:addOptionOnTop(getText("ContextMenu_OA_Machine_Manage"), playerObj, onOpen, object)
+            tooltip(manage, getText("Tooltip_OA_Machine_" .. kind))
+            return
+        end
         -- added from the last, each on top: the name comes first
         if kind == "lure" then lureOption(context, playerObj, object, true) end
         local open = context:addOptionOnTop(Machines.name(kind), playerObj, onOpen, object)
@@ -140,6 +163,28 @@ function Menu.fill(player, context, worldobjects, test)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(Menu.fill)
+
+local function addOnce(list, object)
+    for _, v in ipairs(list) do
+        if v == object then return end
+    end
+    list[#list + 1] = object
+end
+
+-- The game looks for a fluid container on the clicked object only (its feeding troughs aside), and a machine's
+-- container is on its anchor alone: a click on any of its other squares hands the anchor to the game's water menu
+-- before the menu is made, so every square gets the same menu, on the one container.
+function Menu.preFill(player, context, worldobjects, test)
+    local fetch = ISWorldObjectContextMenu.fetchVars
+    if not fetch or not fetch.fluidcontainer then return end
+    local square = clickedSquare(worldobjects)
+    local anchor = square and Machines.at(square)
+    if not anchor or not anchor:getFluidContainer() then return end
+    addOnce(fetch.fluidcontainer, anchor)
+    if anchor:hasFluid() and fetch.storeWater then addOnce(fetch.storeWater, anchor) end
+end
+
+Events.OnPreFillWorldObjectContextMenu.Add(Menu.preFill)
 
 -- ---------------------------------------------------------------------------------------------------------------------
 -- Installing, from the item in the inventory
