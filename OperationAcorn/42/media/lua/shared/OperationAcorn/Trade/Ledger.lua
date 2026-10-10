@@ -1,8 +1,9 @@
--- The delivery ledger: one receipt for each helicopter that came, kept in detail for the last 30 days and then folded
--- into totals so the save does not grow without end (DESIGN 12, save data rule).
+-- The settlement numbers: each helicopter's receipt gets the next serial (the supply manifest's number), and the last
+-- settlement stays as one summary line. The receipts themselves are not kept: the manifest paper carries its own copy
+-- and the document folder the latest few (DESIGN-terminal 13).
 --
--- record.ledger = { seq, receipts = { receipt }, totals = { ... } }
--- receipt = { id, at, day, kind ("settle"), boxes, credits, trust, bonus, debtPaid, spent, balance,
+-- record.trade.serial = the last number given; record.trade.lastSettle = { at, credits, trust, boxes }
+-- receipt = { id, at, day, kind ("settle" | "reissue"), boxes, credits, trust, bonus, debtPaid, spent, balance,
 --   lines = { { name, count, credits, trust, marks } }, orders = { { id, target, ordered, delivered, paid, reason } },
 --   note = { key, args }, gifts = { { type, count } }, events = { { kind, n } }, extra = { ... } }
 require "OperationAcorn/Store"
@@ -12,26 +13,8 @@ local Ledger = {}
 OA.Trade = OA.Trade or {}
 OA.Trade.Ledger = Ledger
 
-Ledger.KEEP_DAYS = 30
 -- The lines of one receipt: more are folded into one "other" line.
 Ledger.MAX_LINES = 40
-
-function Ledger.data(record)
-    local d = Store.section(record, "ledger")
-    d.seq = d.seq or 0
-    d.receipts = d.receipts or {}
-    d.totals = d.totals or {}
-    local t = d.totals
-    t.receipts = t.receipts or 0
-    t.boxes = t.boxes or 0
-    t.credits = t.credits or 0
-    t.trust = t.trust or 0
-    t.bonus = t.bonus or 0
-    t.spent = t.spent or 0
-    t.delivered = t.delivered or 0
-    t.first = t.first or nil
-    return d
-end
 
 -- Lines folded to at most `max`: the ones worth most credits stay (in their order), the rest become one line with
 -- name = nil and `other` = how many lines were folded.
@@ -62,58 +45,43 @@ function Ledger.compactLines(lines, max)
     return result
 end
 
--- One receipt into the totals.
-local function fold(totals, receipt)
-    totals.receipts = totals.receipts + 1
-    totals.boxes = totals.boxes + (receipt.boxes or 0)
-    totals.credits = totals.credits + (receipt.credits or 0)
-    totals.trust = totals.trust + (receipt.trust or 0)
-    totals.bonus = totals.bonus + (receipt.bonus or 0)
-    totals.spent = totals.spent + (receipt.spent or 0)
-    for _, o in ipairs(receipt.orders or {}) do totals.delivered = totals.delivered + (o.delivered or 0) end
-    totals.first = totals.first or receipt.day
+-- The summary line of a receipt.
+local function summary(receipt)
+    return { at = receipt.at, credits = receipt.credits or 0, trust = receipt.trust or 0, boxes = receipt.boxes or 0 }
 end
 
--- Receipts older than the keep days (by the day they were written) folded into the totals.
-function Ledger.compact(ledger, nowDay, keepDays)
-    keepDays = keepDays or Ledger.KEEP_DAYS
-    local receipts = ledger.receipts
-    local kept, dropped = {}, 0
-    for _, receipt in ipairs(receipts) do
-        if nowDay - (receipt.day or nowDay) > keepDays then
-            fold(ledger.totals, receipt)
-            dropped = dropped + 1
-        else
-            kept[#kept + 1] = receipt
-        end
-    end
-    if dropped > 0 then ledger.receipts = kept end
-    return dropped
-end
-
--- Writes a receipt: numbers it, shortens its lines and folds the old ones away. Returns the receipt.
+-- Numbers a receipt, shortens its lines and keeps its summary as the last settlement. Returns the receipt.
 function Ledger.add(record, receipt, nowDay)
-    local d = Ledger.data(record)
-    d.seq = d.seq + 1
-    receipt.id = d.seq
+    local t = Store.section(record, "trade")
+    t.serial = (t.serial or 0) + 1
+    receipt.id = t.serial
     receipt.day = nowDay
     if receipt.lines then receipt.lines = Ledger.compactLines(receipt.lines, Ledger.MAX_LINES) end
-    d.receipts[#d.receipts + 1] = receipt
-    Ledger.compact(d, nowDay)
+    t.lastSettle = summary(receipt)
     return receipt
 end
 
-function Ledger.find(record, id)
-    for _, receipt in ipairs(Ledger.data(record).receipts) do
-        if receipt.id == id then return receipt end
-    end
-    return nil
+-- The number the next receipt gets.
+function Ledger.nextSerial(record)
+    local t = record.trade
+    return (t and t.serial or 0) + 1
 end
 
--- The latest receipt, or nil.
+-- The last settlement's summary, or nil before the first.
 function Ledger.last(record)
-    local list = Ledger.data(record).receipts
-    return list[#list]
+    return record.trade and record.trade.lastSettle or nil
 end
+
+-- A save from before: the ledger section's counter becomes the serial, its newest receipt the last settlement.
+Store.addUpgrade("trade.ledger", function(record)
+    local old = record.ledger
+    if not old then return end
+    local t = Store.section(record, "trade")
+    t.serial = math.max(t.serial or 0, old.seq or 0)
+    local receipts = old.receipts or {}
+    local newest = receipts[#receipts]
+    if newest and not t.lastSettle then t.lastSettle = summary(newest) end
+    record.ledger = nil
+end)
 
 return Ledger

@@ -11,7 +11,7 @@ local Trade = OA.Trade
 
 -- Adds `amount` of trust to a record (server side). `source` names where it came from, for the log ("settle",
 -- "mission"). Returns the events, a list of { kind = "stage" or "milestone", n = number }, already dealt with:
---   - the radio line and the title of the stage or milestone reached, with the shop's new items under it (once for
+--   - the title of the stage or milestone reached, with the shop's new items under it (once for
 --     the whole change);
 --   - the story part's onStage (it catches up on every stage and milestone the record has passed; it is idempotent).
 -- A caller must not do these again for the events it gets back.
@@ -36,7 +36,6 @@ function Trade.addTrust(record, amount, source)
             local ok, err = pcall(OA.Story.onStage, record)
             if not ok then OA.log("story onStage failed:", tostring(err)) end
         end
-        Trade.radio(record, "IGUI_OA_Trade_Radio_NewItems")
     end
     return events
 end

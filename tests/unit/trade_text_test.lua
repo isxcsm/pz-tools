@@ -1,4 +1,4 @@
--- The trade part's words (money, radio greeting, order reasons, receipt lines), the estimate that follows the
+-- The trade part's words (money, order reasons, receipt lines), the estimate that follows the
 -- settlement's own counting, and the terminal's tab registry.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -18,21 +18,6 @@ test("credits are written with thousands separators", function()
     eq(Text.credits(1234567), "1,234,567")
     eq(Text.credits(-45000), "-45,000")
     eq(Text.credits(12.6), "13", "rounded once")
-end)
-
-test("the radio greeting is shorter with every stage and absent at the last", function()
-    eq(Text.greeting(0), "IGUI_OA_Trade_Greet_0")
-    eq(Text.greeting(4), "IGUI_OA_Trade_Greet_4")
-    eq(Text.greeting(5), "")
-    eq(Text.greeting(nil), "IGUI_OA_Trade_Greet_0")
-end)
-
-test("the trade part's radio lines get the greeting and the closing word, the story's do not", function()
-    local line = Text.radio({ key = "IGUI_OA_Trade_Radio_Dropped", stage = 2 })
-    eq(line, "IGUI_OA_Trade_Greet_2 IGUI_OA_Trade_Radio_Dropped IGUI_OA_Trade_Radio_Over")
-    line = Text.radio({ key = "IGUI_OA_Trade_Radio_Start", args = { "0347" }, stage = 5 })
-    eq(line, "IGUI_OA_Trade_Radio_Start 0347 IGUI_OA_Trade_Radio_Over")
-    eq(Text.radio({ key = "IGUI_OA_Story_Radio_1", stage = 1 }), "IGUI_OA_Story_Radio_1")
 end)
 
 test("order reasons are the shop's keys or the helicopter's words", function()

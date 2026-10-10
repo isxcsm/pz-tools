@@ -32,7 +32,17 @@ local function onClientCommand(module, command, character, args)
     if not ok then OA.log("command", command, "failed:", tostring(err)) end
 end
 
+-- The records saved by an older version are brought up to date once the save is loaded.
+local upgraded = false
+local function upgradeRecords()
+    if upgraded or isClient() then return end
+    upgraded = true
+    OA.Store.upgradeAll()
+end
+
 Events.OnClientCommand.Add(onClientCommand)
+Events.OnGameStart.Add(upgradeRecords)
+Events.OnServerStarted.Add(upgradeRecords)
 Events.LoadChunk.Add(OA.Chunks.loaded)
 
 return Server

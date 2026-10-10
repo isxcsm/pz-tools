@@ -65,8 +65,9 @@ Server.on("crateEmptied", function(character, record, args)
     if object then Things.breakEmptyCrate(object) end
 end)
 
--- The first time a terminal is used the team answers (LORE: the first radio line says the number once more). A world
--- where the first supply did not come with the vanilla helicopter gets the late line.
+-- The first time a terminal is used the team answers (LORE: the first radio line says the number once more): the
+-- story part files it as a radio copy. A world where the first supply did not come with the vanilla helicopter gets
+-- the late line.
 Server.on("tradeUsed", function(character, record, args)
     local object = Handlers.terminalFor(character, args)
     if not object then return end
@@ -74,12 +75,7 @@ Server.on("tradeUsed", function(character, record, args)
     if heli.greeted then return end
     heli.greeted = true
     local late = record.first ~= nil and record.first.mode ~= "window"
-    if OA.Story and OA.Story.firstContact then
-        -- The story part says it, once for each record.
-        OA.Story.firstContact(record, late)
-    else
-        Trade.radio(record, late and "IGUI_OA_Trade_Radio_Late" or "IGUI_OA_Trade_Radio_Start", { string.format("%04d", record.number or 0) })
-    end
+    if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
 end)
 
 -- The ten-minute work. A failing part does not stop the others.

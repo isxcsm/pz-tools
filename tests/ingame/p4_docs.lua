@@ -26,6 +26,20 @@ for _, list in ipairs({ OA.StoryData.STAGES, OA.StoryData.MILESTONES }) do
     end
 end
 P4T.check(say, "radio lines and notes have text", lines == 0, lines)
+-- The radio copies in the folder: a title and a text for the first contact, each stage and milestone, the handover.
+local copies = { { id = "first", keys = { "first" } }, { id = "first", keys = { "first_late" } },
+    { id = "handover", keys = { OA.StoryData.HANDOVER_RADIO } } }
+for n, def in pairs(OA.StoryData.STAGES) do copies[#copies + 1] = { id = "s" .. n, stage = n, keys = def.radio } end
+for k, def in pairs(OA.StoryData.MILESTONES) do
+    copies[#copies + 1] = { id = "m" .. k, stage = OA.StoryData.LAST_STAGE + k, keys = def.radio }
+end
+local badCopies = 0
+for _, copy in ipairs(copies) do
+    if missing(OA.Story.copyTitle(copy)) or missing(OA.Story.copyText(record, copy)) then
+        say("BAD radio copy", copy.id); badCopies = badCopies + 1
+    end
+end
+P4T.check(say, "radio copies have title and text", badCopies == 0, badCopies)
 OA.Story.markRead(record, "police_card", "muldraugh_pd")
 OA.Story.markRead(record, "clinic_log", "westpoint_clinic")
 OA.Story.addManifest(record, 1042, "test manifest text")

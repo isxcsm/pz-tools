@@ -74,12 +74,41 @@ function Store.ensure(id, name)
     local player = root.players[id]
     if not player then
         local number = newNumber(root)
-        player = { id = id, number = number, created = OA.hours(), name = name }
+        player = { id = id, number = number, created = OA.hours(), name = name, upgrades = {} }
+        -- A new record has nothing of the old shapes: every upgrade counts as done.
+        for _, step in ipairs(Store.UPGRADES) do player.upgrades[step.name] = true end
         root.players[id] = player
         root.numbers[number] = id
         OA.log("new collection point", number, "for", tostring(name))
     end
     return player
+end
+
+-- Upgrades of the records saved by an older version: { name, fn(record) }, each run once for each record (by name, in
+-- the order the parts add them) when the server starts. A part adds its own as it loads.
+Store.UPGRADES = {}
+
+function Store.addUpgrade(name, fn)
+    Store.UPGRADES[#Store.UPGRADES + 1] = { name = name, fn = fn }
+end
+
+-- Runs the upgrades a record has not had. A failing one is logged and tried again at the next start.
+function Store.upgrade(record)
+    record.upgrades = record.upgrades or {}
+    for _, step in ipairs(Store.UPGRADES) do
+        if not record.upgrades[step.name] then
+            local ok, err = pcall(step.fn, record)
+            if ok then
+                record.upgrades[step.name] = true
+            else
+                OA.log("upgrade", step.name, "failed for", tostring(record.number), tostring(err))
+            end
+        end
+    end
+end
+
+function Store.upgradeAll()
+    for _, record in pairs(Store.players()) do Store.upgrade(record) end
 end
 
 -- The id a character goes by, from its modData; made on the character the first time (client side, or alone).

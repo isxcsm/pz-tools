@@ -1,4 +1,4 @@
--- The words of the trade part: money, times, the radio's greeting, the reasons orders are cut short, and a receipt
+-- The words of the trade part: money, the reasons orders are cut short, and a receipt
 -- written out as lines. Plain functions over tables and a translate function, so they are tested outside the game.
 require "OperationAcorn/Core"
 require "OperationAcorn/Trade/Trade"
@@ -31,33 +31,6 @@ function Text.credits(n)
     return sign .. out
 end
 
--- The hours and minutes of a time of day (0 up to 24) as "07:05".
-function Text.clock(tod)
-    local h = math.floor(tod)
-    local m = math.floor((tod - h) * 60)
-    return string.format("%02d:%02d", h % 24, m)
-end
-
--- The radio's greeting by the trust stage the line was said at (LORE 6): the long one at the start, shorter as the
--- team knows the survivor, none at the highest stage.
-function Text.greeting(stage)
-    stage = math.max(0, math.min(5, math.floor(stage or 0)))
-    if stage >= 5 then return "" end
-    return Text.tr("IGUI_OA_Trade_Greet_" .. stage)
-end
-
--- A radio log entry { key, args, stage } as a line. A line of this part gets the greeting of its stage and the
--- closing word; the story part's lines (other keys) are said as they are written.
-function Text.radio(entry)
-    local args = entry.args or {}
-    local body = Text.tr(entry.key, unpack(args))
-    if not string.find(entry.key, "^IGUI_OA_Trade_Radio_%a") then return body end
-    local greeting = entry.greet and Text.tr(entry.greet, entry.number) or Text.greeting(entry.stage)
-    local line = body .. " " .. Text.tr("IGUI_OA_Trade_Radio_Over")
-    if greeting ~= "" then line = greeting .. " " .. line end
-    return line
-end
-
 -- Why an order was cut short: the shop's own reasons are translation keys; the helicopter's are short words.
 function Text.orderReason(reason)
     if not reason then return nil end
@@ -84,7 +57,7 @@ function Text.formLabel(receipt, id)
     return Text.tr("IGUI_OA_Trade_Rc_Label_" .. id)
 end
 
--- A receipt as lines { text, kind } for the manifest, the ledger and the radio's look back. kind is "head", "line",
+-- A receipt as lines { text, kind } for the manifest paper and its copy in the document folder. kind is "head", "line",
 -- "good" (a gift), "bad" (something cut short), "note" or "total".
 function Text.receipt(receipt)
     local lines = {}

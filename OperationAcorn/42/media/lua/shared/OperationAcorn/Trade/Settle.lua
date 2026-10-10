@@ -156,7 +156,7 @@ function Settle.run(record, svc)
         spot = nil
     end
 
-    -- 6. The receipt, in the ledger.
+    -- 6. The receipt: its serial and the last settlement's summary.
     local receipt = {
         at = now,
         kind = reissue and "reissue" or "settle",

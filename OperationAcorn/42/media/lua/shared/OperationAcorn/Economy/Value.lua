@@ -235,29 +235,6 @@ end
 function Value.FRAGMENT_NOTE()
     return OA.Story and OA.Story.FRAGMENT_RECEIPT or "IGUI_OA_Econ_Receipt_Fragment"
 end
-function Value.BIG_METEORITE_RADIO()
-    return OA.Story and OA.Story.BIG_METEORITE_RADIO or "IGUI_OA_Econ_Radio_BigMeteorite"
-end
-
--- Whether an info is the vanilla big meteorite (which the team never takes).
-function Value.isBigMeteorite(info)
-    if info.own or info.cash then return false end
-    local _, why = Categories.of(info)
-    return why == "Meteor"
-end
-
--- Called when a big meteorite is turned away (at sealing, or found in a box at the settlement): the radio says why,
--- once a game day per record. Returns true if the item was the big meteorite.
-function Value.noteRefusal(record, info)
-    if not Value.isBigMeteorite(info) then return false end
-    local codex = OA.Store.section(record, "codex")
-    local day = OA.day()
-    if codex.meteorRadio ~= day then
-        codex.meteorRadio = day
-        OA.Market.radioTo(record, Value.BIG_METEORITE_RADIO())
-    end
-    return true
-end
 
 -- The translation keys of the marks an item shows in a tooltip or the estimate window, in the order to show them.
 function Value.markKeys(marks)
@@ -333,7 +310,6 @@ function Value.settle(record, entries)
     for _, entry in ipairs(entries) do
         local line = Value.appraiseLine(entry.info, entry.count or 1, ctx, taken)
         table.insert(lines, line)
-        if line.marks.bigMeteorite then Value.noteRefusal(record, entry.info) end
         credits = credits + line.credits
         trust = trust + line.trust
         cashTrust = cashTrust + line.cashTrust

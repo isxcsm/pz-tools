@@ -26,8 +26,7 @@ function Sync.changed(what, playerId, detail)
     end
 end
 
--- Something a player should be told: a translation key and its arguments (strings or numbers). The terminal's
--- radio log keeps the lasting ones (that part decides).
+-- Something a player should be told, over the character: a translation key and its arguments (strings or numbers).
 function Sync.notice(playerId, key, args)
     if isServer() then
         sendServerCommand(OA.MOD, "notice", { player = playerId, key = key, args = args })

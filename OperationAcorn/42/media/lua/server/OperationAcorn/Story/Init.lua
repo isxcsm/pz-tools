@@ -1,6 +1,6 @@
 -- The story part's wiring on the server (and alone): the events the missions and the story run on, the commands the
 -- windows send, and the hooks to the trade part. Nothing here runs per tick or per square (DESIGN 12): a ten-minute
--- event compares times, a day event drips radio lines, and the rest answers a command or a chunk loading.
+-- event compares times, a day event picks the frequency's line, and the rest answers a command or a chunk loading.
 require "OperationAcorn/Server"
 require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Story/Game"

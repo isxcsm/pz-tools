@@ -217,33 +217,14 @@ local function onItemFound(character, itemType)
     end
 end
 
--- The market's events as lines in every record's radio log (the trade part keeps the log). A category refused for a
--- while has the story part's line (or this part's own), and a title for each of those records; the others are this
--- part's.
+-- A category refused for a while: a title for every record. The market's other events, and the refusal's own line,
+-- the delivery tab works out from the market's state.
 local function onMarketEvent(event)
-    local key, args, title
-    if event.kind == "refusal" then
-        key, args = OA.Market.refusalLine(event.cat, "start")
-        title = { key = "IGUI_OA_Title_Refusal", sub = "IGUI_OA_Title_RefusalSub",
-            subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
-            fallback = "bad" }
-    else
-        key = event.key
-        if not key then
-            key = event.kind == "glut" and "IGUI_OA_Econ_Event_Glut" or "IGUI_OA_Econ_Event_Demand"
-        end
-        args = { getText(OA.Categories.nameKey(event.cat)) }
-    end
-    for _, record in pairs(OA.Store.players()) do
-        OA.Market.radioTo(record, key, args)
-        if title then OA.Sync.title(record.id, title) end
-    end
-end
-
--- A refused category that has come back as a request: its line, once, to the record whose list it joined.
-local function onRequestBack(record, category)
-    local key, args = OA.Market.refusalLine(category, "back")
-    OA.Market.radioTo(record, key, args)
+    if event.kind ~= "refusal" then return end
+    local title = { key = "IGUI_OA_Title_Refusal", sub = "IGUI_OA_Title_RefusalSub",
+        subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
+        fallback = "bad" }
+    for _, record in pairs(OA.Store.players()) do OA.Sync.title(record.id, title) end
 end
 
 local started = false
@@ -253,7 +234,6 @@ function Economy.start()
     OA.Market.update(OA.day())
     OA.Requests.data()
     OA.Market.listen(onMarketEvent)
-    OA.Requests.listenBack(onRequestBack)
     Economy.hookTransfers()
 end
 

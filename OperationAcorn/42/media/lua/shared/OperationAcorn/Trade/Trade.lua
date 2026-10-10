@@ -1,14 +1,11 @@
--- The trade part's name and what other parts hook into: the radio log, items queued for the next supply crate, the
--- events a sealed box and a settlement raise, and finding the character a record belongs to (DESIGN 9).
+-- The trade part's name and what other parts hook into: items queued for the next supply crate, the events a sealed
+-- box and a settlement raise, and finding the character a record belongs to (DESIGN 9).
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 local OA = OperationAcorn
 local Store = OA.Store
 local Trade = OA.Trade or {}
 OA.Trade = Trade
-
--- The radio log keeps this many lines (DESIGN 12, save data rule).
-Trade.RADIO_LIMIT = 80
 
 -- The account part of a record's trade section (P1 shares it): missing numbers start at zero.
 function Trade.account(record)
@@ -40,7 +37,6 @@ end
 function Trade.boxes(record) return Store.section(record, "boxes") end
 function Trade.heli(record) return Store.section(record, "heli") end
 function Trade.orders(record) return Store.section(record, "orders") end
-function Trade.ledger(record) return Store.section(record, "ledger") end
 
 -- Events for other parts (server side): fn(record, boxId, entries) when a box is sealed, fn(record, result) when a
 -- helicopter has settled a delivery. A failing listener does not stop the others.
@@ -114,21 +110,6 @@ function Trade.takeDrop(record)
     local list = heli.drop or {}
     heli.drop = {}
     return list
-end
-
--- One line in the radio log: a translation key and its arguments (strings and numbers). What the greeting is now goes
--- with it, since the team greets by stage and after the handover by another call sign: the story part's greeting key
--- when it has one (and the number it takes), else the stage (Text.radio decides). Server side.
-function Trade.radio(record, key, args)
-    local log = Store.section(record, "radio")
-    local entry = { at = OA.hours(), key = key, args = args, stage = record.trade and record.trade.stage or 0 }
-    if OA.Story and OA.Story.greeting then
-        local ok, greet = pcall(OA.Story.greeting, record)
-        if ok and greet then entry.greet, entry.number = greet, string.format("%04d", record.number or 0) end
-    end
-    table.insert(log, entry)
-    while #log > Trade.RADIO_LIMIT do table.remove(log, 1) end
-    if OA.Sync then OA.Sync.changed("trade", record.id) end
 end
 
 -- A copy of a table with its tables (plain values only: what the save keeps), so that two places in the save do not

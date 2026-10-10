@@ -209,12 +209,18 @@ function ISOADocsPanel:createChildren()
     self:addChild(self.open)
 end
 
--- The entries: documents read (a stable order), then the latest manifests (newest first).
+-- The entries: documents read (a stable order), the radio copies (newest first), then the latest manifests (newest
+-- first).
 function Tabs.entries(r)
     local list = {}
     if not r then return list end
     for _, doc in ipairs(Story.readDocuments(r)) do
         list[#list + 1] = { id = doc.id, variant = doc.variant, noRecord = true }
+    end
+    local copies = Story.radioCopies(r)
+    for i = #copies, 1, -1 do
+        local copy = copies[i]
+        list[#list + 1] = { text = Story.copyText(r, copy), title = Story.copyTitle(copy) }
     end
     local manifests = Story.section(r).manifests
     for i = #manifests, 1, -1 do
@@ -228,7 +234,7 @@ end
 function Tabs.hasEntries(r)
     if not r then return false end
     local s = Story.section(r)
-    return not OA.isEmpty(s.docs) or #s.manifests > 0
+    return not OA.isEmpty(s.docs) or #s.manifests > 0 or s.firstContact ~= nil
 end
 
 function ISOADocsPanel:refresh()
@@ -268,8 +274,8 @@ OA.Sync.listen("missions", refreshAll)
 OA.Sync.listen("story", refreshAll)
 OA.Sync.listen("all", refreshAll)
 
--- The tabs show when the first stage is passed (the first mission) and when a document has been read or a manifest
--- kept.
+-- The tabs show when the first stage is passed (the first mission) and when a document has been read, a manifest
+-- kept or the first radio line filed.
 local function onGameStart()
     if not (OA.Terminal and OA.Terminal.addTab) then return end
     local function stage(r)

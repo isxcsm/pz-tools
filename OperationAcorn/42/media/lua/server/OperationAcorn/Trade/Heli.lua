@@ -84,7 +84,9 @@ function Heli.call(character, record, kind, x, y)
     call.orders = Trade.copy(Orders.cart(record))
     Trade.orders(record).cart = {}
     Rules.startCall(heli, now, arrive, rewards.callInterval, call)
-    Trade.radio(record, kind == "reissue" and "IGUI_OA_Trade_Radio_ReissueCalled" or "IGUI_OA_Trade_Radio_Called")
+    local day, h, m = Trade.clockText(arrive)
+    OA.Sync.notice(record.id, kind == "reissue" and "IGUI_OA_Trade_Notice_ReissueCalled" or "IGUI_OA_Trade_Notice_Called",
+        { day, string.format("%02d:%02d", h, m) })
     changed(record)
     return true
 end
@@ -193,15 +195,14 @@ local function present(owner, entry)
     Later.after(Heli.LOUD_AT, function() Heli.landNow(id) end)
 end
 
--- The player is told a drop is done (with the radio line): a title, saying the crate is on the map when it is there
+-- The player is told a drop is done: a title, saying the crate is on the map when it is there
 -- already (a drop on a square not loaded yet comes down, and is marked, when the square loads).
 function Heli.dropped(owner, marked)
-    Trade.radio(owner, "IGUI_OA_Trade_Radio_Dropped")
     OA.Sync.title(owner.id, { key = "IGUI_OA_Title_Dropped", sub = marked and "IGUI_OA_Title_Marked" or nil,
         style = "notice", fallback = "good" })
 end
 
--- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the radio follow.
+-- The loud moment of a pass (or at once): the drop waiting in the record is done; the noise and the title follow.
 function Heli.landNow(ownerId)
     local owner = Store.player(ownerId)
     if not owner then return end
@@ -267,7 +268,8 @@ function Heli.arrive(record)
     heli.call = nil
     heli.last = { at = OA.hours(), receipt = plan.receipt.id, kind = call.kind }
     if record.trade.credits < 0 then
-        Trade.radio(record, "IGUI_OA_Trade_Radio_Debt")
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Debt", sub = "IGUI_OA_Title_DebtSub", style = "notice",
+            tone = "red", fallback = "bad" })
     end
     Heli.keepManifest(record, plan.receipt)
     Heli.deliver(record, plan, call)

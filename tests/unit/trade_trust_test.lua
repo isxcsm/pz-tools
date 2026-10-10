@@ -1,6 +1,5 @@
 -- Trust from every source goes through Trade.addTrust: a stage or milestone is dealt with once (the story part is told,
--- the player hears of the new items), a mission's pay takes the same road as a settlement, the radio greeting follows
--- the story part's call sign, and the first contact is said once.
+-- the player hears of the new items), a mission's pay takes the same road as a settlement, and no radio log is written.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -43,13 +42,7 @@ local function fakeStory()
     OA.Story = { stages = 0, onStage = function(record) OA.Story.stages = OA.Story.stages + 1 end }
 end
 
-local function radioKeys(record)
-    local keys = {}
-    for _, line in ipairs(OA.Store.section(record, "radio")) do keys[#keys + 1] = line.key end
-    return keys
-end
-
-test("a stage passed is dealt with once: story told, one radio line, one title, serums stay in the account", function()
+test("a stage passed is dealt with once: story told, one title and no radio line, serums stay in the account", function()
     local record = OA.Store.ensure("rec", "T")
     fakeTrust({ { kind = "stage", stage = 2, sharedSerums = 1 } })
     fakeStory()
@@ -59,8 +52,7 @@ test("a stage passed is dealt with once: story told, one radio line, one title, 
     eq(events[1].kind, "stage")
     eq(events[1].n, 2)
     eq(OA.Story.stages, 1)
-    eq(#radioKeys(record), 1)
-    eq(radioKeys(record)[1], "IGUI_OA_Trade_Radio_NewItems")
+    eq(record.radio, nil, "no radio line is written")
     eq(#heard, 1)
     eq(heard[1].key, "IGUI_OA_Title_Stage")
     eq(heard[1].args[1], 2)
@@ -77,7 +69,7 @@ test("trust that passes nothing tells nobody", function()
     local heard = listenTitles()
     eq(#Trade.addTrust(record, 50, "mission"), 0)
     eq(OA.Story.stages, 0)
-    eq(#radioKeys(record), 0)
+    eq(record.radio, nil)
     eq(#heard, 0)
     eq(#Trade.addTrust(record, 0, "mission"), 0)
     eq(OA.Trust.calls, 1, "no trust, no call")
@@ -92,7 +84,7 @@ test("a milestone is a new-items event too", function()
     eq(events[1].kind, "milestone")
     eq(events[1].n, 1)
     eq(OA.Story.stages, 1)
-    eq(#radioKeys(record), 1)
+    eq(record.radio, nil)
     eq(#heard, 1)
     eq(heard[1].key, "IGUI_OA_Title_Milestone")
     eq(heard[1].args[1], 1)
@@ -117,7 +109,7 @@ test("a mission's pay and a settlement give the same events, each handled once",
     OA.Story.onStage = function() stages = stages + 1 end
     OA.Story.addTrust(mission, 700)
     eq(stages, 1)
-    eq(#radioKeys(mission), 1)
+    eq(mission.radio, nil)
 
     -- A settlement of the same size for another record.
     local record = OA.Store.ensure("s", "S")
@@ -134,34 +126,10 @@ test("a mission's pay and a settlement give the same events, each handled once",
         rnd = function(a, b) return b end,
     })
     eq(stages, 2, "one more call for the settlement, none repeated")
-    eq(#radioKeys(record), 1)
+    eq(record.radio, nil)
     eq(#plan.events, 1)
     eq(plan.events[1].kind, "stage")
     eq(plan.events[1].n, 1)
-end)
-
-test("the radio greeting is the story part's, kept with the line", function()
-    local record = OA.Store.ensure("rec", "T")
-    record.number = 347
-    OA.Story = { greeting = function() return "IGUI_OA_Story_Greeting_2" end }
-    Trade.radio(record, "IGUI_OA_Trade_Radio_Dropped")
-    local entry = OA.Store.section(record, "radio")[1]
-    eq(entry.greet, "IGUI_OA_Story_Greeting_2")
-    eq(entry.number, "0347")
-    eq(OA.Trade.Text.radio(entry), "IGUI_OA_Story_Greeting_2 0347 IGUI_OA_Trade_Radio_Dropped IGUI_OA_Trade_Radio_Over")
-    -- After the handover the story's greeting changes; the line already said keeps the one it was said with.
-    OA.Story.greeting = function() return "IGUI_OA_Story_Greeting_H" end
-    Trade.radio(record, "IGUI_OA_Trade_Radio_Dropped")
-    eq(OA.Store.section(record, "radio")[2].greet, "IGUI_OA_Story_Greeting_H")
-    eq(OA.Store.section(record, "radio")[1].greet, "IGUI_OA_Story_Greeting_2")
-    -- Without a greeting from the story part (the start, the last stage) the trade part's own is used.
-    OA.Story.greeting = function() return nil end
-    Trade.radio(record, "IGUI_OA_Trade_Radio_Dropped")
-    local third = OA.Store.section(record, "radio")[3]
-    eq(third.greet, nil)
-    eq(OA.Trade.Text.radio(third), "IGUI_OA_Trade_Greet_0 IGUI_OA_Trade_Radio_Dropped IGUI_OA_Trade_Radio_Over")
-    third.stage = 5
-    eq(OA.Trade.Text.radio(third), "IGUI_OA_Trade_Radio_Dropped IGUI_OA_Trade_Radio_Over", "no greeting at the last stage")
 end)
 
 test("a manifest in the old form carries the story part's column names", function()

@@ -1,7 +1,7 @@
 -- P2: the whole loop on a throwaway save, without the terminal window. Puts a delivery box down, fills it, seals it,
 -- calls the helicopter through the server function, brings the arrival forward and starts the pass. After about
 -- 30 real seconds look for the crate beside the box (the "[p2flow]" lines say where). Changes the record (credits,
--- ledger, boxes): use a throwaway save.
+-- the settlement's serial and summary, boxes): use a throwaway save.
 RUN("p2_lib.lua")
 local OA = OperationAcorn
 local T = OA.Trade
@@ -31,8 +31,11 @@ local after = T.account(record).credits
 say("credits before", before, "after", after)
 P2T.check(say, "credits grew (the economy values the cloth)", after > before)
 P2T.check(say, "a receipt is in the ledger", T.Ledger.last(record) ~= nil)
+P2T.check(say, "the receipt took a serial", (record.trade.serial or 0) >= 1, record.trade.serial)
 P2T.check(say, "the sealed box is out of the record", Boxes.get(record, box.id) == nil)
 P2T.check(say, "an empty box takes its place", Boxes.active(record) ~= nil and Boxes.active(record).state == "placed")
-P2T.check(say, "a radio line was written", #OA.Store.section(record, "radio") > 0)
+local settled = T.Ledger.last(record)
+P2T.check(say, "the last settlement is kept as a summary", settled ~= nil and settled.credits > 0 and settled.boxes >= 1)
+P2T.check(say, "no radio log is written", record.radio == nil)
 say("pass under way:", tostring(record.heli.landing ~= nil), "at", spot:getX(), spot:getY(),
-    "- wait 15 real seconds for the crate, then check the ledger tab and open the crate")
+    "- wait 15 real seconds for the crate, then open the crate and read the manifest in it")

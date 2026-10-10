@@ -1,5 +1,5 @@
 -- The story core: what a stage queues and sends, the order of the manifest notes, greetings, the old form, the radio
--- after the handover, the status table, the strange item.
+-- copies and the frequency's own lines after the handover, the status table, the strange item.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Story"
@@ -10,32 +10,26 @@ local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
     record.trade = { stage = stage or 0, milestones = milestones or 0, credits = 0, trust = 0 }
-    TEST.radio = {}
     TEST.drop = {}
     OA.Trade = {
-        radio = function(rec, key, args) TEST.radio[#TEST.radio + 1] = { key = key, args = args } end,
         addToDrop = function(rec, items) for _, it in ipairs(items) do TEST.drop[#TEST.drop + 1] = it end end,
     }
     return record
 end
 
-local function keys()
-    local list = {}
-    for _, r in ipairs(TEST.radio) do list[#list + 1] = r.key end
-    return list
-end
-
-test("entering the first stage queues its story first, sends its radio lines and its serum sheet", function()
+test("entering the first stage queues its story first, files its radio copy and sends its serum sheet", function()
     local record = setup(1)
     Story.onStage(record)
     local s = Story.section(record)
     eq(#s.queue, 1)
     eq(s.queue[1].id, "evidence")
     eq(s.queue[1].fresh, true)
-    local k = keys()
-    eq(k[1], "IGUI_OA_Story_Radio_s1_a")
-    eq(k[2], "IGUI_OA_Story_Radio_s1_b")
-    eq(TEST.radio[1].args[1], "0347", "the number is the argument")
+    local copies = Story.radioCopies(record)
+    eq(#copies, 1)
+    eq(copies[1].id, "s1")
+    eq(copies[1].keys[1], "s1_a")
+    eq(copies[1].keys[2], "s1_b")
+    eq(record.radio, nil, "no radio log is kept")
     eq(#TEST.drop, 1)
     eq(TEST.drop[1].type, "OperationAcorn.SerumSheet")
     eq(TEST.drop[1].mod.OA_Doc, "serum_sheet")
@@ -49,8 +43,9 @@ test("the same stage is entered once, however often it is called", function()
     local s = Story.section(record)
     eq(s.seenStage, 2)
     local count = 0
-    for _, key in ipairs(keys()) do if key == "IGUI_OA_Story_Radio_s1_a" then count = count + 1 end end
+    for _, copy in ipairs(Story.radioCopies(record)) do if copy.id == "s1" then count = count + 1 end end
     eq(count, 1)
+    eq(#Story.radioCopies(record), 2, "one copy for each stage entered")
     eq(#TEST.drop, 1 + 3, "serum sheet and the three replies, once")
 end)
 
@@ -115,7 +110,8 @@ test("milestones: the unresolved list, the soil mission at the second, the hando
     local types = {}
     for _, it in ipairs(TEST.drop) do types[it.type] = true end
     truthy(types["OperationAcorn.HandoverFile"] and types["OperationAcorn.KitVoucher"], "the last crate")
-    eq(keys()[#keys()], "IGUI_OA_Story_Radio_handover")
+    local copies = Story.radioCopies(record)
+    eq(copies[#copies].id, "handover", "the handover's copy is the last")
     eq(Story.callSignKey(record), "IGUI_OA_Story_CallSign_Handover")
 end)
 
@@ -168,10 +164,10 @@ test("greetings shorten with the stage, none at the fifth, long again after the 
     eq(Story.greetingKeyFor(5, false), nil)
     eq(Story.greetingKeyFor(5, true), "IGUI_OA_Story_Greeting_H")
     local record = setup(5)
-    eq(Story.greeting(record), nil)
+    eq(Story.greetingKey(record), nil)
     eq(Story.greetingText(record), "")
     record.trade.stage = 2
-    eq(Story.greeting(record), "IGUI_OA_Story_Greeting_2")
+    eq(Story.greetingKey(record), "IGUI_OA_Story_Greeting_2")
     truthy(string.find(Story.greetingText(record), "Greeting_2", 1, true))
 end)
 
@@ -185,33 +181,100 @@ test("the old form comes at the fourth stage", function()
     eq(Story.formLabel(record, "other", "x"), "x")
 end)
 
-test("the first radio line is said once, a late one for a late first crate", function()
+test("the first contact is filed once, a late one for a late first crate", function()
     local record = setup(0)
+    eq(Story.section(record).firstContact, nil)
     truthy(Story.firstContact(record, true))
-    eq(Story.firstContact(record, false), false)
-    eq(keys()[1], "IGUI_OA_Story_Radio_first_late")
+    eq(Story.section(record).firstContact, "late")
+    eq(Story.firstContact(record, false), false, "once")
+    eq(Story.section(record).firstContact, "late", "and it stays late")
+    eq(record.radio, nil, "no radio line is written")
     local other = setup(0)
     Story.section(other).firstContact = nil
-    Story.firstContact(other, false)
-    eq(keys()[1], "IGUI_OA_Story_Radio_first")
+    truthy(Story.firstContact(other, false))
+    eq(Story.section(other).firstContact, true)
+    eq(Story.firstContact(other, true), false)
 end)
 
-test("after the handover a radio line comes every few days: two lines, a question, in order", function()
+test("the radio copies are worked out from the counters, oldest first", function()
+    local record = setup(0)
+    eq(#Story.radioCopies(record), 0, "nothing before the first contact")
+    Story.firstContact(record, true)
+    local copies = Story.radioCopies(record)
+    eq(#copies, 1)
+    eq(copies[1].id, "first")
+    eq(copies[1].stage, nil)
+    eq(copies[1].keys[1], "first_late")
+    local plain = setup(0)
+    Story.section(plain).firstContact = nil
+    Story.firstContact(plain, false)
+    eq(Story.radioCopies(plain)[1].keys[1], "first")
+    local s = Story.section(record)
+    s.seenStage = 5
+    s.seenMilestones = 2
+    copies = Story.radioCopies(record)
+    eq(#copies, 1 + 5 + 2, "the first contact, five stages, two milestones")
+    local ids = {}
+    for i, c in ipairs(copies) do ids[i] = c.id end
+    eq(table.concat(ids, ","), "first,s1,s2,s3,s4,s5,m1,m2")
+    eq(copies[2].stage, 1)
+    eq(copies[2].keys, Data.STAGES[1].radio)
+    eq(copies[7].stage, 6, "the first milestone counts on as the sixth stage")
+    eq(copies[8].stage, 7)
+    eq(copies[7].keys, Data.MILESTONES[1].radio)
+    s.seenMilestones = 3
+    s.handover = true
+    copies = Story.radioCopies(record)
+    eq(copies[#copies].id, "handover")
+    eq(copies[#copies].keys[1], Data.HANDOVER_RADIO)
+    eq(#copies, 1 + 5 + 3 + 1)
+end)
+
+test("a radio copy has its title and its text from the translations", function()
+    local record = setup(0)
+    record.number = 347
+    local s = Story.section(record)
+    s.firstContact = "late"
+    s.seenStage = 2
+    s.handover = true
+    local byId = {}
+    for _, c in ipairs(Story.radioCopies(record)) do byId[c.id] = c end
+    eq(Story.copyTitle(byId.first), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_first")
+    eq(Story.copyTitle(byId.handover), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_handover")
+    eq(Story.copyTitle(byId.s2), "IGUI_OA_Story_Copy_Title IGUI_OA_Story_Copy_Stage 2")
+    eq(Story.copyText(record, byId.first), "IGUI_OA_Story_Radio_first_late 0347", "the number goes in")
+    local text = Story.copyText(record, byId.s1)
+    local a = string.find(text, "IGUI_OA_Story_Radio_s1_a", 1, true)
+    local b = string.find(text, "IGUI_OA_Story_Radio_s1_b", 1, true)
+    truthy(a and b and a < b, "the lines in order")
+    truthy(string.find(text, "\n\n", 1, true), "a blank line between them")
+end)
+
+test("after the handover a line of its own is on the air every few days: two lines, a question, in order", function()
     local record = setup(5, 3)
     local s = Story.section(record)
     eq(Story.dailyRadio(record, 10), false, "not before the handover")
+    eq(s.radioLine, nil)
     s.handover = true
-    truthy(Story.dailyRadio(record, 10))
-    eq(Story.dailyRadio(record, 12), false, "too soon")
-    truthy(Story.dailyRadio(record, 15))
-    truthy(Story.dailyRadio(record, 20))
-    local k = keys()
-    eq(k[1], "IGUI_OA_Story_Radio_after3_1")
-    eq(k[2], "IGUI_OA_Story_Radio_after3_2")
-    eq(k[3], "IGUI_OA_Story_Question_after3_1")
-    for day = 25, 25 + 5 * 20, 5 do Story.dailyRadio(record, day) end
-    eq(#keys(), 9, "six lines and three questions, then it is quiet")
-    eq(s.radioIndex, 9)
+    local function day(d) return Story.dailyRadio(record, d) end
+    truthy(day(10))
+    eq(s.radioLine, "Radio_after3_1")
+    eq(s.radioDay, 10)
+    eq(s.radioIndex, 1)
+    eq(Story.airLine(record, 10), "IGUI_OA_Story_Radio_after3_1", "on the air that day")
+    eq(Story.airLine(record, 11), nil, "and only that day")
+    eq(Story.airLine(record, 9), nil)
+    eq(day(12), false, "too soon")
+    eq(s.radioIndex, 1)
+    eq(Story.airLine(record, 12), nil)
+    truthy(day(15))
+    eq(s.radioLine, "Radio_after3_2")
+    truthy(day(20))
+    eq(s.radioLine, "Question_after3_1")
+    eq(Story.airLine(record, 20), "IGUI_OA_Story_Question_after3_1")
+    for d = 25, 25 + 5 * 20, 5 do Story.dailyRadio(record, d) end
+    eq(s.radioIndex, 9, "six lines and three questions, then it is quiet")
+    eq(record.radio, nil, "nothing is written in a log")
 end)
 
 test("refusal lines: a category with its own, the rest with the general one", function()
@@ -273,10 +336,51 @@ test("the strange item is for the week after a hallucination only", function()
     eq(Story.strangeItem(record), nil)
 end)
 
-test("without the trade part the supply and the radio wait in the record", function()
+test("without the trade part the supply waits in the record, the radio copy stays", function()
     local record = setup(1)
     OA.Trade = nil
     Story.onStage(record)
     eq(#Story.section(record).supply, 1)
-    eq(Story.radio(record, "s1_a"), false)
+    eq(#Story.radioCopies(record), 1, "the radio copy needs no trade part")
+end)
+
+-- The upgrade of a save from before: the terminal's radio log goes, the late first line is kept as the story's.
+
+local function upgrade(record, name)
+    record.upgrades = record.upgrades or {}
+    record.upgrades[name] = nil
+    OA.Store.upgrade(record)
+end
+
+test("the radio log upgrade is registered and a new record has it done", function()
+    local found = false
+    for _, step in ipairs(OA.Store.UPGRADES) do if step.name == "story.radio" then found = true end end
+    truthy(found, "registered")
+    eq(setup(0).upgrades["story.radio"], true)
+end)
+
+test("an old radio log goes, and a late first line is kept as the late first contact", function()
+    local record = setup(0)
+    record.radio = {
+        { at = 1, key = "IGUI_OA_Story_Radio_first_late", args = { "0347" } },
+        { at = 5, key = "IGUI_OA_Trade_Radio_Dropped" },
+    }
+    upgrade(record, "story.radio")
+    eq(record.radio, nil)
+    eq(Story.section(record).firstContact, "late")
+    eq(Story.radioCopies(record)[1].keys[1], "first_late")
+    eq(record.upgrades["story.radio"], true)
+
+    local plain = OA.Store.ensure("p2", "P2")
+    plain.radio = { { at = 1, key = "IGUI_OA_Story_Radio_first", args = { "0347" } } }
+    upgrade(plain, "story.radio")
+    eq(plain.radio, nil)
+    eq(Story.section(plain).firstContact, nil, "the plain first line leaves it to the next first contact")
+end)
+
+test("the radio log upgrade leaves a record without a log alone", function()
+    local record = setup(0)
+    upgrade(record, "story.radio")
+    eq(record.radio, nil)
+    eq(Story.section(record).firstContact, nil)
 end)

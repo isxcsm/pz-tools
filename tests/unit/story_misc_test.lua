@@ -250,8 +250,9 @@ local function uiKeys()
         for _, id in ipairs(ms.notes) do add("Note_" .. id) end
     end
     add("Radio_" .. Data.HANDOVER_RADIO)
-    for _, id in ipairs({ "first", "first_late", "mission_new", "mission_story", "mission_paid", "mission_paid_story",
-                          "field_called", "big_meteorite" }) do add("Radio_" .. id) end
+    for _, id in ipairs({ "first", "first_late" }) do add("Radio_" .. id) end
+    -- The radio copies' titles: the first contact and the handover have their own, the stages share one.
+    add("Copy_Title"); add("Copy_Stage"); add("Copy_first"); add("Copy_handover")
     for _, id in ipairs({ "case_confirmed", "cooler_good", "cooler_warm", "cooler_bad", "serum" }) do add("Note_" .. id) end
     for m, pool in pairs(Data.AFTER) do
         for i = 1, pool.notes do add("Note_after" .. m .. "_" .. i) end

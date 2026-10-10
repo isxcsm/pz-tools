@@ -1,11 +1,10 @@
 -- Where the upgrades meet the game's screens and clocks: the right-click entries (serums in the bag, the research
 -- plan, locked doors, windows and cars), the item tooltip of the cure serum, the notices and the title (or banner) of
 -- a tree's opening, declaring the effects to the API, the once-a-minute infection work (the delay drug, the stand-in
--- bite shield), the terminal tab. Other mods' menus and tooltips are wrapped, never replaced.
+-- bite shield). Other mods' menus and tooltips are wrapped, never replaced.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISPanel"
-require "ISUI/ISButton"
 require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
@@ -26,7 +25,6 @@ local Effects = OA.Upgrades.Effects
 local Serums = OA.Upgrades.Serums
 local Actions = OA.Upgrades.Actions
 local Texts = OA.Upgrades.Texts
-local Window = OA.Upgrades.Window
 local Pulse = OA.Upgrades.Pulse
 local Senses = OA.Upgrades.Senses
 local Dash = OA.Upgrades.Dash
@@ -356,34 +354,10 @@ local function onBiteSurvived()
     if player then OA.Sync.send(player, "upgrades.bite", {}) end
 end
 
--- ---- the terminal tab --------------------------------------------------------------------------------------------
-
-local function terminalTab(x, y, width, height)
-    local fh = getTextManager():getFontHeight(UIFont.Small)
-    local panel = ISPanel:new(x or 0, y or 0, width or fh * 30, height or fh * 12)
-    panel.backgroundColor = { r = 0, g = 0, b = 0, a = 0 }
-    panel.borderColor = { r = 0, g = 0, b = 0, a = 0 }
-    -- The terminal window initialises and instantiates the view (which clears its children), so the button is made
-    -- in createChildren, which instantiate calls.
-    function panel:createChildren()
-        ISPanel.createChildren(self)
-        local button = ISButton:new(fh, fh, fh * 14, fh + 8, getText("IGUI_OA_Tree_OpenPlan"), nil, function() Window.open(0) end)
-        button:initialise()
-        button:instantiate()
-        self:addChild(button)
-    end
-    return panel
-end
-
 local function onGameStart()
     Effects.reset()
     Hooks.refresh()
     if Events.OnPZToolsBiteSurvived then Events.OnPZToolsBiteSurvived.Add(onBiteSurvived) end
-    if OA.Terminal and OA.Terminal.addTab then
-        local ok, err = pcall(OA.Terminal.addTab, "upgrades", "IGUI_OA_Tree_Tab", terminalTab,
-            function() return true end)
-        if not ok then OA.log("terminal tab failed:", tostring(err)) end
-    end
 end
 Events.OnGameStart.Add(onGameStart)
 

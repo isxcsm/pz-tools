@@ -1,5 +1,5 @@
--- The communication terminal's window: one tab each for the shop and orders, the helicopter, the market, the ledger,
--- trust and the radio log, and any tab another part of the mod adds with OA.Terminal.addTab. It opens when the
+-- The communication terminal's window: one tab each for the shop and orders and the helicopter, and any tab another
+-- part of the mod adds with OA.Terminal.addTab. It opens when the
 -- using action completes (OA.Terminal.open) and shows the player's own record, refreshed when the record changes.
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISTabPanel"
@@ -62,7 +62,7 @@ local function signature(tabs)
     return table.concat(ids, ",")
 end
 
--- Builds the tabs for the record as it is (the market's graph opens with trust, so a tab may come or go).
+-- Builds the tabs for the record as it is (a tab may come or go with the record).
 function OATerminalWindow:buildTabs()
     local record = OA.Client.record(self.character)
     local tabs = Terminal.tabs(record, self.character)

@@ -1,7 +1,8 @@
--- The economy's seams with the story part: the refusal radio lines, the meteorite receipt notes and the radio line,
--- and the strange request after a hallucination. The story part and the trade part are faked.
+-- The economy's seams with the story part: the refusal title and lines, the meteorite receipt notes, and the strange
+-- request after a hallucination. The story part is faked.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
+require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Value"
 require "OperationAcorn/Economy/Requests"
 local OA = OperationAcorn
@@ -13,20 +14,10 @@ local function info(fullType, display, weight, extra)
     return t
 end
 
--- A trade part that keeps the radio lines it is given.
-local function fakeTrade()
-    local heard = {}
-    OA.Trade = { radio = function(record, key, args)
-        table.insert(heard, { record = record, key = key, args = args })
-    end }
-    return heard
-end
-
 local function fakeStory(extra)
     OA.Story = {
         refusalKey = function(category, phase) return "STORY_" .. category .. "_" .. phase end,
         BIG_METEORITE_RECEIPT = "STORY_BIG_RECEIPT", FRAGMENT_RECEIPT = "STORY_FRAGMENT_RECEIPT",
-        BIG_METEORITE_RADIO = "STORY_BIG_RADIO",
     }
     for k, v in pairs(extra or {}) do OA.Story[k] = v end
 end
@@ -48,8 +39,7 @@ end
 
 -- 1. The refusal lines.
 
-test("a refusal starts with the story part's line for every record", function()
-    local heard = fakeTrade()
+test("a refusal sends a title to every record", function()
     fakeStory()
     boot()
     OA.Economy.start()
@@ -58,40 +48,20 @@ test("a refusal starts with the story part's line for every record", function()
     OA.Store.player("a").trade = { stage = 1 }
     local st = OA.Market.state()
     st.nextRefusal = 0
-    local titles = {}
+    local titles, notices = {}, {}
     OA.Sync.listen("title", function(id, detail) titles[#titles + 1] = { id = id, detail = detail } end)
+    OA.Sync.listen("notice", function(id, detail) notices[#notices + 1] = { id = id, detail = detail } end)
     OA.Market.update(OA.day() + 1)
-    local refusals = {}
-    for _, h in ipairs(heard) do
-        if string.find(h.key, "^STORY_") then table.insert(refusals, h) end
-    end
-    eq(#refusals, 2, "one line for each record")
-    truthy(string.find(refusals[1].key, "_start$"), refusals[1].key)
-    eq(refusals[1].args, nil)
-    eq(#titles, 2, "and a title for each record")
-    local cat = string.match(refusals[1].key, "^STORY_(%u)_start$")
+    eq(#titles, 2, "a title for each record")
+    eq(#notices, 0, "and nothing else is sent")
     eq(titles[1].detail.key, "IGUI_OA_Title_Refusal")
+    eq(titles[1].detail.sub, "IGUI_OA_Title_RefusalSub")
     eq(titles[1].detail.style, "notice")
-    eq(titles[1].detail.subArgs[1].key, OA.Categories.nameKey(cat), "the category, translated on the player's side")
+    local cat = titles[1].detail.subArgs[1].key
+    truthy(string.find(cat, "^IGUI_"), "the category, translated on the player's side")
+    eq(titles[2].detail.subArgs[1].key, cat)
     eq(titles[1].detail.subArgs[2], 7)
     truthy(titles[1].id ~= titles[2].id)
-end)
-
-test("without the story part the refusal line is this part's own, with the category", function()
-    local heard = fakeTrade()
-    OA.Story = nil
-    boot()
-    OA.Economy.start()
-    OA.Store.ensure("a", "A")
-    OA.Store.player("a").trade = { stage = 1 }
-    OA.Market.state().nextRefusal = 0
-    OA.Market.update(OA.day() + 1)
-    local line
-    for _, h in ipairs(heard) do
-        if h.key == "IGUI_OA_Econ_Radio_RefuseStart" then line = h end
-    end
-    truthy(line, "the fallback key")
-    eq(#line.args, 1)
 end)
 
 test("refusalLine gives the story key for either phase", function()
@@ -105,43 +75,11 @@ test("refusalLine gives the story key for either phase", function()
     eq(#args, 1)
 end)
 
-test("a refused category that comes back as a request has its 'back' line, once", function()
-    local heard = fakeTrade()
-    fakeStory()
-    boot()
-    OA.Economy.start()
-    make(40)
-    local record = OA.Store.ensure("a", "A")
-    local st = OA.Market.state()
-    table.insert(st.due, { cat = "A", day = 3 })
-    TEST.hours = 24 * 3
-    OA.Requests.list(record)
-    local back = 0
-    for _, h in ipairs(heard) do
-        if h.key == "STORY_A_back" then back = back + 1 end
-    end
-    eq(back, 1)
-    OA.Requests.list(record)
-    for _, h in ipairs(heard) do
-        if h.key == "STORY_A_back" then back = back - 1 end
-    end
-    eq(back, 0, "asking again in the same week says nothing more")
-end)
-
-test("a broken radio never breaks the economy", function()
-    OA.Trade = { radio = function() error("no radio") end }
-    local record = OA.Store.ensure("a", "A")
-    eq(OA.Market.radioTo(record, "K"), false)
-    OA.Trade = nil
-    eq(OA.Market.radioTo(record, "K"), false)
-end)
-
 -- 2. The meteorites.
 
 test("a refused big meteorite carries the story receipt note and a mark", function()
     fakeStory()
     local rock = info("Base.LargeMeteorite", "Memento", 5)
-    eq(OA.Value.isBigMeteorite(rock), true)
     local ok, why = OA.Value.accepts(rock)
     eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Meteor")
     local line = OA.Value.appraiseLine(rock, 1, { rate = 1 })
@@ -164,7 +102,6 @@ test("the notes fall back to this part's keys without the story part", function(
     OA.Story = nil
     local line = OA.Value.appraiseLine(info("Base.LargeMeteorite", "Memento", 5), 1, { rate = 1 })
     eq(line.note, "IGUI_OA_Econ_Receipt_BigMeteorite")
-    eq(OA.Value.BIG_METEORITE_RADIO(), "IGUI_OA_Econ_Radio_BigMeteorite")
     local fragment = OA.Value.appraiseLine(info("OperationAcorn.MeteorFragment", "Junk", 0.5, { own = "MeteorFragment" }), 1,
         { rate = 1 })
     eq(fragment.note, "IGUI_OA_Econ_Receipt_Fragment")
@@ -192,39 +129,22 @@ test("the receipt keeps the mark and the note when the trade part copies the lin
     eq(OA.Value.markKeys(kept.marks)[1], "STORY_BIG_RECEIPT")
 end)
 
-test("the settlement says why a big meteorite was turned away, once a day", function()
-    local heard = fakeTrade()
+test("the settlement turns a big meteorite away with no credits and no word of its own", function()
     fakeStory()
     local record = OA.Store.ensure("a", "A")
     OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
     local rock = info("Base.LargeMeteorite", "Memento", 5)
+    local titles, notices = {}, {}
+    OA.Sync.listen("title", function(id, detail) titles[#titles + 1] = detail end)
+    OA.Sync.listen("notice", function(id, detail) notices[#notices + 1] = detail end)
     local result = OA.Value.settle(record, { { info = rock, count = 1 }, { info = rock, count = 2 } })
     eq(result.credits, 0)
     eq(#result.lines, 2)
-    local radio = {}
-    for _, h in ipairs(heard) do if h.key == "STORY_BIG_RADIO" then table.insert(radio, h) end end
-    eq(#radio, 1, "one line for the flight")
-    OA.Value.settle(record, { { info = rock, count = 1 } })
-    radio = {}
-    for _, h in ipairs(heard) do if h.key == "STORY_BIG_RADIO" then table.insert(radio, h) end end
-    eq(#radio, 1, "not again the same day")
-    TEST.hours = 24
-    OA.Value.settle(record, { { info = rock, count = 1 } })
-    radio = {}
-    for _, h in ipairs(heard) do if h.key == "STORY_BIG_RADIO" then table.insert(radio, h) end end
-    eq(#radio, 2, "the next day it says it again")
-end)
-
-test("noteRefusal ignores everything but the big meteorite", function()
-    local heard = fakeTrade()
-    fakeStory()
-    local record = OA.Store.ensure("a", "A")
-    eq(OA.Value.noteRefusal(record, info("Base.Hammer", "Tool")), false)
-    eq(OA.Value.noteRefusal(record, info("OperationAcorn.MeteorFragment", "Junk", 0.5, { own = "MeteorFragment" })), false)
-    eq(#heard, 0)
-    eq(OA.Value.noteRefusal(record, info("Base.LargeMeteorite", "Memento", 5)), true)
-    eq(#heard, 1)
-    eq(heard[1].key, "STORY_BIG_RADIO")
+    eq(result.lines[1].note, "STORY_BIG_RECEIPT", "the receipt line carries the note")
+    eq(#titles, 0)
+    eq(#notices, 0)
+    eq(OA.Store.section(record, "codex").meteorRadio, nil, "nothing is kept for a radio line any more")
+    eq(record.radio, nil)
 end)
 
 -- 3. The strange request.

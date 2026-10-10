@@ -479,7 +479,6 @@ function Missions.start(record)
     end
     if not m then return nil end
     Missions.begin(record, m)
-    if m.story then Story.radio(record, "mission_story") else Story.radio(record, "mission_new") end
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal",
         style = "notice" })
     OA.log("mission", m.id, m.story or m.title, "for", record.number)
@@ -514,7 +513,6 @@ function Missions.pay(record, m)
     -- The economy values a mission item that is in time at nothing (P1: "MissionItem"); the whole reward is paid here.
     Story.addCredits(record, credits)
     Story.addTrust(record, trust)
-    Story.radio(record, m.story and "mission_paid_story" or "mission_paid")
     if m.swap then Story.queueNote(record, "case_confirmed") end
     if m.cooler then Story.queueNote(record, "cooler_" .. (m.cooler.grade or "good")) end
     Missions.finish(record, m, "done")
@@ -753,7 +751,7 @@ function Missions.fieldCall(record, character)
     end
     m.state = "calling"
     if g.release then g.release(m) end
-    Story.radio(record, "field_called")
+    OA.Sync.notice(record.id, "IGUI_OA_Story_UI_Field_calling", {})
     OA.Sync.changed("missions", record.id)
     return true
 end

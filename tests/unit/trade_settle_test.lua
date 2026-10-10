@@ -76,7 +76,11 @@ test("a delivery pays credits and trust and returns an empty box to the active s
     eq(Boxes.active(record), plan.newBox)
     eq(Boxes.get(record, box.id), nil, "the sealed box left the record")
     eq(plan.spot.x, 10)
-    eq(Ledger.last(record).id, plan.receipt.id)
+    eq(record.trade.serial, plan.receipt.id, "the receipt has the next serial")
+    local last = Ledger.last(record)
+    eq(last.credits, 1000)
+    eq(last.trust, 12)
+    eq(last.boxes, 1)
 end)
 
 test("only one empty box returns and previous boxes are just taken", function()

@@ -411,9 +411,15 @@ test("the field call seals on the spot and the helicopter pays", function()
     eq(m.story, "gym")
     eq(m.field.stage, "needdevice")
     M.game.px, M.game.py = m.area.x, m.area.y
+    local told = {}
+    OA.Sync.listen("notice", function(id, detail) told[#told + 1] = { id = id, detail = detail } end)
     local ok = M.fieldCall(record, {})
     truthy(ok)
     eq(m.state, "calling")
+    eq(#told, 1, "the player is told the call went out")
+    eq(told[1].id, record.id)
+    eq(told[1].detail.key, "IGUI_OA_Story_UI_Field_calling")
+    eq(record.radio, nil, "no radio line is written")
     for _ = 1, 30 do M.tick(record); TEST.hours = TEST.hours + 1 / 6 end
     truthy((M.game.noise_count or 0) > 0, "the helicopter's noise went out")
     eq(M.active(record), nil, "paid")

@@ -74,13 +74,15 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 | 섹션 | 주인 | 내용 |
 | --- | --- | --- |
-| `trade` | 거래(P2), 경제(P1)가 함께 쓴다 | `credits`(정수, 빚이면 음수), `trust`(소수까지), `stage`(0~5), `milestones`(지난 이정표 수), `bonus`(다음 정산 때 들어올 보너스 크레딧), `sharedSerums`(다음 보급에 실을 공용 혈청 수). P1의 `Trust.add`, `Codex` 함수가 이 칸을 고친다. 나머지 칸은 P2 |
+| `trade` | 거래(P2), 경제(P1)가 함께 쓴다 | `credits`(정수, 빚이면 음수), `trust`(소수까지), `stage`(0~5), `milestones`(지난 이정표 수), `bonus`(다음 정산 때 들어올 보너스 크레딧), `sharedSerums`(다음 보급에 실을 공용 혈청 수), `serial`(마지막 보급 명세서 번호), `lastSettle`(마지막 정산 요약 `{ at, credits, trust, boxes }`). P1의 `Trust.add`, `Codex` 함수가 이 칸을 고친다. 나머지 칸은 P2 |
 | `codex` | P1 | 도감, 털이, 처치 기록 |
 | `shop` | P1 | 품목별 구매 시각, 주간 구매 수, 키트 대상별 사용 수 |
 | `shred` | P1 | 종류별 최근 분해 수(날마다 ×0.9), 처음 분해한 종류 |
-| `boxes`, `heli`, `orders`, `ledger`, `radio` | P2 | 상자, 헬기, 주문, 납품 장부, 무전 기록 |
+| `boxes`, `heli`, `orders` | P2 | 상자, 헬기, 주문 |
 | `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수 |
-| `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 |
+| `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산) |
+
+기록의 `upgrades`는 옛 판의 세이브를 고친 단계 이름 목록이다. 각 부분이 `Store.addUpgrade(name, fn)`로 단계를 더하고, 서버가 시작할 때 `Store.upgradeAll()`이 기록마다 한 번씩 돌린다. 새 기록은 모든 단계를 한 것으로 시작한다.
 
 세계 섹션(`Store.world(name)`): `market`, `requests`(P1), `sites`(P4, 운석 낙하지), `machines`(P5), `pending`(Chunks).
 
@@ -96,7 +98,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | 묶음 | 맡는 것 | 파일 |
 | --- | --- | --- |
 | P1 경제 | 계열, 값 매기기, 시세, 요청 품목, 신뢰도와 단계 보상, 도감·털이·처치 보너스, 상점 목록과 한도와 가격, 분해 산출. 순수 로직 + 단위 테스트, 게임 어댑터는 얇게 | `shared/OperationAcorn/Economy/*.lua` |
-| P2 거래 | 통신 단말(설치물, 전기, 창과 탭), 납품 상자(설치, 허용 규칙, 밀봉, 파괴, 재발급과 빚), 헬기(호출, 도착, 정산, 보급 상자, 영수증, 명세서), 첫 보급, 한꺼번에 담기, 감정가 툴팁과 견적 창, 새 지역 표시, 주문과 결제, 무전 기록 | `*/OperationAcorn/Trade/*.lua`, `scripts/OA_trade.txt` |
+| P2 거래 | 통신 단말(설치물, 전기, 창과 탭), 납품 상자(설치, 허용 규칙, 밀봉, 파괴, 재발급과 빚), 헬기(호출, 도착, 정산, 보급 상자, 영수증, 명세서), 첫 보급, 한꺼번에 담기, 감정가 툴팁과 견적 창, 새 지역 표시, 주문과 결제 | `*/OperationAcorn/Trade/*.lua`, `scripts/OA_trade.txt` |
 | P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 치료 혈청·지연제(유통 기한, 본인만) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
 | P4 임무와 이야기 | 임무(장소 고르기, 아이템 넣기, 지도 원, 기한), 이야기 임무와 데드 드롭, 문서철, 무전 문구, 명세서 비고, 환각, 전용 주파수, 운석 낙하지(정하기, 실물 놓기, 파편), 이관 | `*/OperationAcorn/Story/*.lua`, `scripts/OA_story.txt` |
 | P5 아지트 기계 | 분해대, 대량 분해기, 재단기, 프로판·오일 정제기, 목재 절단기, 연구팀 보관함, 대형 빗물 저장소, 설치형 미끼, 기계 부품(달고 떼기, 닳기), 따라잡기 처리, 시료 묶음 | `*/OperationAcorn/Machines/*.lua`, `scripts/OA_machines.txt` |
@@ -119,7 +121,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `OA.Value.appraise(info, ctx)` | `{ credits, trust, category, marks = { request, newRegion, high, low, refused } }` (반올림 전) |
 | `OA.Value.settle(record, entries)` | 한 편의 정산: `entries`는 밀봉 기록(`{ info, count }` 목록). 시세 하락(`Market.ship`)과 요청 수 차감을 하고 `{ credits(한 번 반올림한 정수), trust, lines, cashTrust }`. 크레딧·신뢰도를 기록에 더하지는 않는다 (P2가 빚 상환과 함께 더한다) |
 | `OA.Trust.add(record, amount)` | 신뢰도를 더하고 오른 단계·이정표 목록을 돌려준다 (공용 혈청, 새 품목 알림은 P2가 받아 처리) |
-| `OA.Trust.rewards(record)` | 지금 단계의 합계 보상 표: `boxCapacity, callInterval(일), arrival = {min, max}(시간), nightDrop, rate, requestBonus, requestCount, discount, trustAccel, cureInterval, cureCount, delayInterval, delayCount, softerSupply, terminalGraph, marketForecast`, 열린 품목 단계 |
+| `OA.Trust.rewards(record)` | 지금 단계의 합계 보상 표: `boxCapacity, callInterval(일), arrival = {min, max}(시간), nightDrop, rate, requestBonus, requestCount, discount, trustAccel, cureInterval, cureCount, delayInterval, delayCount, softerSupply, marketForecast`, 열린 품목 단계 |
 | `OA.Market.index(category)`, `OA.Market.update(day)`, `OA.Market.ship(category, weight, record)`, `OA.Market.refused(category)`, `OA.Market.history(category)` | 시세 |
 | `OA.Requests.list(record)`, `OA.Requests.bonusFor(record, fullType)` | 이번 주 요청 |
 | `OA.Codex.acquire(record, info)`, `OA.Codex.buildingSearched(record, buildingKey, containers)`, `OA.Codex.kill(record)` | 보너스를 `trade.bonus`에 쌓고, 공용 혈청은 `trade.sharedSerums`에 |
@@ -128,8 +130,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 ### P2가 내놓는 것
 
-- `OA.Terminal.addTab(id, titleKey, factory, visible)`: 통신 단말 창에 탭을 단다. P4(문서철, 임무)와 P3(연구 계획서 열기)가 쓴다.
-- `OA.Trade.radio(record, key, args)`(서버): 무전 기록에 한 줄. P4의 이야기 문구가 이리로 간다.
+- `OA.Terminal.addTab(id, titleKey, factory, visible)`: 통신 단말 창에 탭을 단다. P4(문서철, 임무)가 쓴다.
 - `OA.Trade.addToDrop(record, items)`(서버): 다음 보급 상자에 넣을 물건(이야기 문서, 부속 아이템, 공용 혈청).
 - 이벤트(서버 쪽 Lua 함수 목록): `OA.Trade.onSealed(fn(record, boxId, entries))`, `OA.Trade.onSettled(fn(record, result))`.
   P4는 밀봉 때 임무 아이템 기한을 판정한다.

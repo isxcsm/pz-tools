@@ -1,8 +1,8 @@
 -- The research team's own radio frequency (DESIGN 9: the radio is for listening; trade is by the terminal). A
 -- dynamic channel, set up while the game loads its radio scripts, on a frequency that is free in this game: the vanilla
 -- channels are fixed in RadioData.xml (89.4, 91.2, 93.2, 94.2, 95.0, 98.0, 101.2, 107.6) and the emergency broadcast
--- picks a random one from 88.0 to 108.0 in steps of 0.2; none of them is taken. The broadcast repeats the terminal's
--- radio log briefly; nothing essential is only here (LORE 2).
+-- picks a random one from 88.0 to 108.0 in steps of 0.2; none of them is taken. The broadcast says the stage's lines
+-- briefly, and after the handover the team's own lines and questions; nothing essential is only here (LORE 2).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Story/Data"
@@ -64,11 +64,17 @@ local function leadRecord()
     return best
 end
 
--- The lines on the air at an hour: the greeting and a line or two of the stage. Strings.
-function Radio.lines(record)
+-- The lines on the air at an hour: the greeting and a line or two of the stage, or after the handover the day's own
+-- line (it has its greeting and closing word). Strings.
+function Radio.lines(record, day)
     local lines = {}
     if not record then
         lines[1] = getText("IGUI_OA_Story_Broadcast_idle")
+        return lines
+    end
+    local own = OA.Story.airLine(record, day or OA.day())
+    if own then
+        lines[1] = getText(own, OA.Story.number(record))
         return lines
     end
     local greeting = OA.Story.greetingText(record)

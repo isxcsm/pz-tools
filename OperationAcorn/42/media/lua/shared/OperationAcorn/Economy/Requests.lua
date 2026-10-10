@@ -240,12 +240,6 @@ function Requests.pinNext(record, fullType)
     codex.reqPin = fullType
 end
 
--- Who wants to hear that a refused category came back as a request: fn(record, category).
-local backListeners = {}
-function Requests.listenBack(fn)
-    table.insert(backListeners, fn)
-end
-
 -- The record's list for this week, drawn the first time the week is asked about and topped up as the stage grows.
 -- A strange item the story part names for this week (the week after a hallucination) goes on the list in addition
 -- to the usual count.
@@ -271,10 +265,6 @@ function Requests.list(record)
         -- Categories that were refused a few weeks ago come back.
         for _, cat in ipairs(OA.Market.dueRequests(week * 7, week * 7 + 6)) do
             draw(record, rq, Requests.DUE_PICKS, cat)
-            for _, fn in ipairs(backListeners) do
-                local ok, err = pcall(fn, record, cat)
-                if not ok then OA.log("request listener failed:", tostring(err)) end
-            end
         end
     end
     local want = OA.Trust.rewards(record).requestCount + (rq.extra or 0)

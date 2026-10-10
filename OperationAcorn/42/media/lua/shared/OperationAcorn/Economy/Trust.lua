@@ -188,7 +188,6 @@ function Trust.rewardsFor(stage, milestones)
         delayInterval = at(DELAY_INTERVAL, tier) * delay,
         delayCount = at(DELAY_COUNT, tier),
         softerSupply = stage >= 4,
-        terminalGraph = stage >= 2,
         marketForecast = stage >= 3,
         backpack = stage >= 5,
         kits = milestones >= 1,

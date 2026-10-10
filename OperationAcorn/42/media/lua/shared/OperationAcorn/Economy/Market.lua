@@ -30,7 +30,7 @@ Market.FILTER_EVENT = { stage = 2, cat = "B", mult = 1.5, days = 10 }
 local listeners = {}
 
 -- Listens to the events the market raises: fn(event) with { kind = "stage"|"demand"|"glut"|"refusal"|"story",
--- cat, mult, days, key }. The trade part writes them in the terminal's radio log.
+-- cat, mult, days, key }. The server titles a refusal; the delivery tab shows the rest from the market's state.
 function Market.listen(fn)
     table.insert(listeners, fn)
 end
@@ -256,7 +256,7 @@ function Market.dueRequests(firstDay, lastDay)
     return found
 end
 
--- The radio line for a category refused for a while ("start") or come back as a request ("back"): the story part's
+-- The line for a category refused for a while ("start") or come back as a request ("back"): the story part's
 -- words when it is there (they know the categories it has lines for), else this part's own. Returns key, args.
 function Market.refusalLine(category, phase)
     local story = OA.Story
@@ -265,15 +265,6 @@ function Market.refusalLine(category, phase)
     end
     local key = phase == "back" and "IGUI_OA_Econ_Radio_RefuseBack" or "IGUI_OA_Econ_Radio_RefuseStart"
     return key, { getText(OA.Categories.nameKey(category)) }
-end
-
--- Writes a line in a record's radio log (the trade part keeps the log); false when there is no trade part or the
--- line failed. A broken line never breaks the economy.
-function Market.radioTo(record, key, args)
-    if not (OA.Trade and OA.Trade.radio) then return false end
-    local ok, err = pcall(OA.Trade.radio, record, key, args)
-    if not ok then OA.log("radio line failed:", tostring(err)) end
-    return ok
 end
 
 -- Forgets due requests that are past (kept ten weeks).

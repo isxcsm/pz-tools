@@ -191,9 +191,13 @@ Data.CONTRACTS = {
     { id = "tapes", kind = "random", item = "MissionTape", weight = 2 },
 }
 
--- What each stage tells (LORE 4, 6, 7). Radio lines are in order; notes are the manifest notes that go out one per
--- supply crate in this order (the rest of the crates get the trade package's general lines); supply is what is put
--- into the next supply crate once, on entering; the story ids are queued first (the next mission slot).
+-- The last numbered stage: the milestones after it count on as stages 6, 7, 8 ... (DESIGN-terminal 2.3).
+Data.LAST_STAGE = 5
+
+-- What each stage tells (LORE 4, 6, 7). Radio lines are in order (the stage's radio copy); notes are the manifest
+-- notes that go out one per supply crate in this order (the rest of the crates get the trade package's general lines);
+-- supply is what is put into the next supply crate once, on entering; the story ids are queued first (the next
+-- mission slot).
 Data.STAGES = {
     [1] = { stories = { "evidence" }, radio = { "s1_a", "s1_b" }, notes = { "battery", "appendix_missing", "leave_site" },
             supply = { { "SerumSheet", "serum_sheet" } } },
@@ -235,7 +239,7 @@ Data.AFTER_LAST = 5
 -- the first stage (the first-contact lines carry their own) and at the 5th stage (no greeting) there is none.
 Data.GREETING_STAGES = { [1] = true, [2] = true, [3] = true, [4] = true }
 
--- Temporary refusals (LORE 7): the radio line when a category stops being taken and when it comes back as a request.
+-- Temporary refusals (LORE 7): the line when a category stops being taken and when it comes back as a request.
 -- Categories are the economy's letters. Text IGUI_OA_Story_Refuse_<A|F|any>_<start|back>.
 Data.REFUSALS = { A = true, F = true }
 

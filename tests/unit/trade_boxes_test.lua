@@ -1,4 +1,4 @@
--- Delivery box states, the active box, sealed boxes, grouping items into entries, and the ledger's compaction.
+-- Delivery box states, the active box, sealed boxes, grouping items into entries, and the ledger's numbers and compaction.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Trade/Trade"
@@ -7,8 +7,8 @@ require "OperationAcorn/Trade/Ledger"
 local OA = OperationAcorn
 local Boxes, Ledger = OA.Trade.Boxes, OA.Trade.Ledger
 
-local function newRecord()
-    return OA.Store.ensure("rec", "Tester")
+local function newRecord(id)
+    return OA.Store.ensure(id or "rec", "Tester")
 end
 
 test("the first box becomes the active box", function()
@@ -134,33 +134,39 @@ local function receipt(day, credits)
         orders = { { id = "a", ordered = 2, delivered = 2, paid = 10 } }, lines = {} }
 end
 
-test("the ledger numbers receipts and keeps 30 days in detail", function()
-    local record = newRecord()
+test("the ledger numbers receipts and keeps the last settlement as one summary", function()
+    local record = newRecord("ledger")
+    eq(Ledger.nextSerial(record), 1)
+    eq(Ledger.last(record), nil, "none before the first")
     local r1 = Ledger.add(record, receipt(1, 1000), 1)
-    local r2 = Ledger.add(record, receipt(10, 2000), 10)
     eq(r1.id, 1)
+    eq(r1.day, 1)
+    eq(record.trade.serial, 1)
+    eq(Ledger.nextSerial(record), 2)
+    local first = Ledger.last(record)
+    eq(first.at, 24)
+    eq(first.credits, 1000)
+    eq(first.trust, 10)
+    eq(first.boxes, 1)
+    local r2 = Ledger.add(record, receipt(10, 2000), 10)
     eq(r2.id, 2)
-    eq(Ledger.find(record, 2), r2)
-    eq(Ledger.last(record), r2)
-    local d = Ledger.data(record)
-    eq(#d.receipts, 2)
-    -- Day 31: the receipt of day 1 is 30 days old, still detailed. Day 32: folded.
-    Ledger.add(record, receipt(31, 100), 31)
-    eq(#d.receipts, 3)
-    Ledger.add(record, receipt(32, 100), 32)
-    eq(#d.receipts, 3, "day 1 folded, day 32 added")
-    eq(d.totals.receipts, 1)
-    eq(d.totals.credits, 1000)
-    eq(d.totals.bonus, 5)
-    eq(d.totals.spent, 10)
-    eq(d.totals.delivered, 2)
-    eq(d.totals.first, 1)
-    -- Far later: everything old goes into the totals; the sequence goes on.
+    eq(r2.day, 10)
+    eq(Ledger.nextSerial(record), 3)
+    local last = Ledger.last(record)
+    eq(last.at, 240)
+    eq(last.credits, 2000)
+    eq(last.trust, 20)
+    eq(last, record.trade.lastSettle)
+    eq(record.ledger, nil, "no ledger section is kept")
+    eq(record.trade.serial, 2, "only the counter and the summary stay")
+    -- Far later: the numbering goes on, and the summary is the newest one only.
     local r = Ledger.add(record, receipt(200, 5), 200)
-    eq(#d.receipts, 1)
-    eq(d.totals.receipts, 4)
-    eq(d.totals.credits, 1000 + 2000 + 100 + 100)
-    eq(r.id, 5)
+    eq(r.id, 3)
+    eq(Ledger.last(record).credits, 5)
+    -- A receipt without numbers gives zeros.
+    Ledger.add(record, { at = 1 }, 201)
+    local empty = Ledger.last(record)
+    eq(empty.credits, 0); eq(empty.trust, 0); eq(empty.boxes, 0)
 end)
 
 test("the ledger folds a long list of lines into one", function()
@@ -184,6 +190,65 @@ test("a receipt with many lines is shortened when written", function()
     for i = 1, 100 do lines[i] = { name = "item" .. i, count = 1, credits = i } end
     local r = receipt(1, 1)
     r.lines = lines
-    Ledger.add(record, r, 1)
-    eq(#Ledger.last(record).lines, Ledger.MAX_LINES)
+    local written = Ledger.add(record, r, 1)
+    eq(#written.lines, Ledger.MAX_LINES)
+    eq(Ledger.last(record).lines, nil, "the summary carries no lines")
+end)
+
+-- The upgrade of a save from before: the ledger section becomes the serial and the last settlement.
+
+local function upgrade(record, name)
+    record.upgrades = record.upgrades or {}
+    record.upgrades[name] = nil
+    OA.Store.upgrade(record)
+end
+
+test("the ledger upgrade is registered and a new record has it done", function()
+    local found = false
+    for _, step in ipairs(OA.Store.UPGRADES) do if step.name == "trade.ledger" then found = true end end
+    truthy(found, "registered")
+    eq(newRecord("fresh").upgrades["trade.ledger"], true)
+end)
+
+test("an old ledger becomes the serial and the newest receipt's summary, and goes", function()
+    local record = newRecord("old1")
+    record.ledger = { seq = 7, totals = { receipts = 3 }, receipts = {
+        { id = 6, at = 100, day = 4, credits = 500, trust = 5, boxes = 2, lines = {} },
+        { id = 7, at = 200, day = 8, credits = 900, trust = 9, boxes = 1, lines = {} },
+    } }
+    upgrade(record, "trade.ledger")
+    eq(record.ledger, nil)
+    eq(record.trade.serial, 7)
+    eq(Ledger.nextSerial(record), 8)
+    local last = Ledger.last(record)
+    eq(last.at, 200)
+    eq(last.credits, 900)
+    eq(last.trust, 9)
+    eq(last.boxes, 1)
+    eq(record.upgrades["trade.ledger"], true)
+    -- Run once: a ledger that shows up later is not touched.
+    record.ledger = { seq = 99, receipts = {} }
+    OA.Store.upgrade(record)
+    eq(record.trade.serial, 7)
+    eq(record.ledger.seq, 99)
+end)
+
+test("an old ledger with no receipts keeps only its counter; a record without one is left alone", function()
+    local record = newRecord("old2")
+    record.ledger = { seq = 3, receipts = {}, totals = {} }
+    upgrade(record, "trade.ledger")
+    eq(record.trade.serial, 3)
+    eq(Ledger.last(record), nil)
+    eq(record.ledger, nil)
+    local plain = newRecord("plain")
+    upgrade(plain, "trade.ledger")
+    eq(plain.ledger, nil)
+    eq(Ledger.last(plain), nil)
+    eq(Ledger.nextSerial(plain), 1)
+    -- A serial the new code already has is not lowered.
+    local newer = newRecord("newer")
+    newer.trade = { serial = 10 }
+    newer.ledger = { seq = 4, receipts = {} }
+    upgrade(newer, "trade.ledger")
+    eq(newer.trade.serial, 10)
 end)
