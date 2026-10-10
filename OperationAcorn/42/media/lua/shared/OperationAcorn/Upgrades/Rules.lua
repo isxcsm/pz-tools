@@ -12,7 +12,6 @@
 --                   went into the board, ever), spent (points in ranks now), fromTree[tree], fromShared (where the
 --                   board's points came from, so the pools stay right when the board closes and gives them back
 --                   as "points left")
---   delayStart, delayUntil   the delay drug's window in world age hours
 --   biteAt          the world age hour the bite shield last saved a bite
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -25,8 +24,6 @@ OA.Upgrades.Rules = Rules
 
 -- A reduction effect never reaches a full cut.
 Rules.MAX_CUT = 0.95
--- The delay drug runs infection progress at this share of its speed.
-Rules.DELAY_FACTOR = 0.25
 
 local function perTree(value)
     local t = {}
@@ -73,8 +70,8 @@ function Rules.fill(u)
     b.fromTree = b.fromTree or perTree(0)
     fillTree(b.fromTree, 0)
     b.fromShared = b.fromShared or 0
-    u.delayStart = u.delayStart or 0
-    u.delayUntil = u.delayUntil or 0
+    -- the delay drug's window of the first version: the drug is kept in the infection section now (Infection.lua)
+    u.delayStart, u.delayUntil = nil, nil
     return u
 end
 
@@ -373,7 +370,7 @@ function Rules.reset(u, tree, credits)
     return true, cost
 end
 
--- ---- cure serum and delay drug --------------------------------------------------------------------------------
+-- ---- cure serum -----------------------------------------------------------------------------------------------
 
 -- Whether a cure serum works for this character now: owner is the record id on the serum (OA_Owner), issued the world
 -- age hour it was issued (OA_Issued), shelfDays the shelf life option. Returns "ok" and the days left, "expired" or
@@ -384,30 +381,6 @@ function Rules.cureStatus(issued, owner, myId, now, shelfDays)
     local left = shelfDays - (now - issued) / 24
     if left <= 0 then return "expired", 0 end
     return "ok", left
-end
-
--- A delay drug taken at `now`: the window runs hours longer (drugs taken while it runs add to it).
-function Rules.addDelay(u, now, hours)
-    if u.delayUntil <= now then
-        u.delayStart = now
-        u.delayUntil = now + hours
-    else
-        u.delayUntil = u.delayUntil + hours
-    end
-end
-
-function Rules.delayActive(u, now)
-    return u.delayUntil > now
-end
-
--- Hours the infection's start time moves forward for the time from `from` to `now`: it runs at DELAY_FACTOR of its
--- speed while the window lasts, so each hour in the window holds back (1 - factor) of an hour. Pure: the caller
--- remembers the time of its last check.
-function Rules.delayShift(u, from, now)
-    from = math.max(from, u.delayStart)
-    local to = math.min(now, u.delayUntil)
-    if to <= from then return 0 end
-    return (to - from) * (1 - Rules.DELAY_FACTOR)
 end
 
 -- ---- numbers --------------------------------------------------------------------------------------------------

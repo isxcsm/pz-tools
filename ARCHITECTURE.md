@@ -60,6 +60,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
   게임 시간 이벤트는 빨리 감기(x40)나 잠잘 때 실제 1초에 여러 번 온다. 게임 시간을 따르지 않는 일(세계 훑기, 인벤토리 훑기, 표시 갱신)은
   `OA.due`로 실제 시간 간격(모듈 상수 `..._MS`, 기본 속도에서 게임 10분이 걸리는 실제 25초보다 짧게)을 두고, 게임 시간을 따르는 일은 부른 횟수가 아니라
   지난 게임 시간(`OA.hours()`의 차)으로 센다.
+  예외 하나: 좀비 상처 감지(`Infection.watch`)는 `OnPlayerUpdate`마다 `getTimeSinceZombieAttack()` 정수 하나만 읽고, 좀비가 공격한 뒤 30갱신 동안에만 부위 상태를 비교한다 (게임에 알리는 이벤트가 없다).
 - **지켜보는 기계는 바로 일한다.** 기계는 `EveryTenMinutes`마다 지난 시간만큼 일하지만, 루팅 창이 기계 컨테이너를 그리는 동안(`Machines/Watch.lua`,
   `ISInventoryPane:renderdetails` 감싸기) 첫 대상 줄에 바닐라 작업 막대(`setJobType`/`setJobDelta`, 그리는 동안만)를 보이고, 그 막대가 차거나
   새 물건이 들어오면 `machineWork` 명령으로 그 자리에서 일하게 한다 (`OA.due`로 읽기 100ms, 부탁 400ms 간격). 일한 양은 어느 쪽이든 지난 게임
@@ -80,6 +81,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shred` | P1 | 종류별 최근 분해 수(날마다 ×0.9), 처음 분해한 종류 |
 | `boxes`, `heli`, `orders` | P2 | 상자, 헬기(`line`: 정식 회선이 열림), 주문 |
 | `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수 |
+| `infection` | P3 | 감염과 치료 (`shared/.../Upgrades/Infection.lua`, `OA.Infection`): `untested`(좀비 상처 뒤 검사 전), `known`(검사 양성), `progress`(0~1, 양성 뒤에만 읽음), `drug`(`{ kind = "long"\|"short", till = 끝나는 세계 시각, age = 멈춰 둘 감염 나이(시간) }`). 서버가 고치고(`infection.wound`, `infection.seen` 명령, 약과 검사는 `Serums.lua`), 정산과 견적이 수수료를 이 칸에서 읽고, 상태 탭과 무들은 `OA.Infection.state(record)`로 읽는다 |
 | `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산) |
 
 기록의 `upgrades`는 옛 판의 세이브를 고친 단계 이름 목록이다. 각 부분이 `Store.addUpgrade(name, fn)`로 단계를 더하고, 서버가 시작할 때 `Store.upgradeAll()`이 기록마다 한 번씩 돌린다. 새 기록은 모든 단계를 한 것으로 시작한다.
@@ -99,7 +101,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | --- | --- | --- |
 | P1 경제 | 계열, 값 매기기, 시세, 요청 품목, 신뢰도와 단계 보상, 도감·털이·처치 보너스, 상점 목록과 한도와 가격, 분해 산출. 순수 로직 + 단위 테스트, 게임 어댑터는 얇게 | `shared/OperationAcorn/Economy/*.lua` |
 | P2 거래 | 통신 단말(설치물, 전기, 창과 탭), 납품 상자(설치, 허용 규칙, 밀봉, 파괴, 재발급과 빚), 헬기(호출, 도착, 정산, 보급 상자, 영수증, 명세서), 첫 보급, 한꺼번에 담기, 감정가 툴팁과 견적 창, 새 지역 표시, 주문과 결제 | `*/OperationAcorn/Trade/*.lua`, `scripts/OA_trade.txt` |
-| P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 치료 혈청·지연제(유통 기한, 본인만) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
+| P3 강화와 몸 | 트리 셋과 2차 판의 데이터, 점과 혈청, 연구 승인, 캡스톤, 초기화, 트리 화면, Lua로 되는 노드 효과, API 노드의 선언(API가 있을 때만), 감염 약과 검사(치료 혈청의 유통 기한과 본인만, 지연제 7일·1일의 멈춤, 역전제, 검사 키트, 새 좀비 상처 감지, 수수료 상태, 무들 `억제 중`·`검사 전`) | `*/OperationAcorn/Upgrades/*.lua`, `scripts/OA_upgrades.txt` |
 | P4 임무와 이야기 | 임무(장소 고르기, 아이템 넣기, 지도 원, 기한), 이야기 임무와 데드 드롭, 문서철, 무전 문구, 명세서 비고, 환각, 전용 주파수, 운석 낙하지(정하기, 실물 놓기, 파편), 이관 | `*/OperationAcorn/Story/*.lua`, `scripts/OA_story.txt` |
 | P5 아지트 기계 | 분해대, 대량 분해기, 재단기, 프로판·오일 정제기, 목재 절단기, 연구팀 보관함, 대형 빗물 저장소, 설치형 미끼, 기계 부품(달고 떼기, 닳기), 따라잡기 처리, 시료 묶음 | `*/OperationAcorn/Machines/*.lua`, `scripts/OA_machines.txt` |
 | P6 장비와 키트 | 연구팀 배낭, 개조 키트 넷(타이밍 액션으로 달기, 교환권), 개량 장비(Mk) | `*/OperationAcorn/Gear/*.lua`, `scripts/OA_gear.txt` |
@@ -149,13 +151,13 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 - **아이템:** `module OperationAcorn`, 이름은 파스칼 표기. 묶음마다 자기 스크립트 파일에만 쓴다. 묶음을 넘는 이름:
   `SampleBundle`(P5), `MeteorFragment`(P4), `UpgradeSerumScout`, `UpgradeSerumLoad`, `UpgradeSerumSurvival`,
-  `UpgradeSerumShared`, `CureSerum`, `DelayDrug`(P3), `CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`,
+  `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `DelayDrugLong`, `InfectionReversal`, `InfectionTestKit`(P3), `CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`,
   `SupplyManifest`(P2).
 - **번역 키:** 묶음마다 접두어. `IGUI_OA_Trade_`, `IGUI_OA_Econ_`, `IGUI_OA_Tree_`, `IGUI_OA_Story_`, `IGUI_OA_Machine_`,
   `IGUI_OA_Gear_`. 우클릭 메뉴는 `ContextMenu_OA_<묶음>_`, 툴팁은 `Tooltip_OA_<묶음>_`. 파일은 게임의 정해진 이름
   (`IG_UI.json`, `ContextMenu.json`, `Tooltip.json`, `ItemName.json`, `Recipes.json`)이고, 합칠 때 키를 모은다.
 - **한국어 용어:** 물 저장소(탱크 아님), 강화(특성 아님), 납품 상자, 보급 상자, 통신 단말, 채집점 번호, 연구 승인. 설정집의 이름을 따른다.
-- **샌드박스 옵션:** `sandbox-options.txt`의 25개가 전부다. 새 옵션이 필요하면 이 문서와 NUMBERS를 같이 고친다.
+- **샌드박스 옵션:** `sandbox-options.txt`의 22개가 전부다. 새 옵션이 필요하면 이 문서와 NUMBERS를 같이 고친다.
 
 ## 7. 합치기
 
@@ -258,7 +260,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 **아이템 아이콘:** `Icon = OA_<아이템 이름>` → `media/textures/Item_OA_<아이템 이름>.png` (32×32). 목록은 `tools/icons.txt`가 하나뿐인 원본이다.
 아이템 이름과 아이콘 이름이 달라도 된다 (기계 아이템은 `Icon = OA_Cutter`처럼 아이콘 이름을 직접 적는다: FabricCutter→`Cutter`, PropaneRefinery→`PropaneRefiner`, OilRefinery→`OilRefiner`, LogSaw→`WoodSaw`, TeamLocker→`ResearchStorage`, RainCistern→`RainStorage`, BaitTrap→`Lure`). 모든 `scripts/OA_*.txt`의 `Icon=`이 PNG로 풀리는지는 시험 때 확인한다. 아이콘 이름이 바뀌면 거기 첫 열을 고치고 `python tools/icon_art.py`를 다시 돌린다 (옛 PNG는 지워진다). 지금 이름:
 `CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`, `SupplyManifest`, `SampleBundle`, `MeteorFragment`, `UpgradeSerumScout`, `UpgradeSerumLoad`,
-`UpgradeSerumSurvival`, `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `ShredBench`, `BulkShredder`, `Cutter`, `PropaneRefiner`, `OilRefiner`, `WoodSaw`,
+`UpgradeSerumSurvival`, `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `DelayDrugLong`, `InfectionReversal`, `InfectionTestKit`, `ShredBench`, `BulkShredder`, `Cutter`, `PropaneRefiner`, `OilRefiner`, `WoodSaw`,
 `ResearchStorage`, `RainStorage`, `Lure`, `BagCapacityKit`, `BagWeightKit`, `TrunkKit`, `EngineTuningKit`, `ResearchBackpack`, `FuelCanMk1`~`3`, `WeldingTorchMk1`~`3`,
 `MissionItem`, `DocumentItem`, 이야기 묶음의 서른 가지 `MissionEnvelope`, `MissionSampleTin`, `MissionLogbook`, `MissionFilterCase`, `MissionTape`, `MissionFabricRoll`, `EvidenceEnvelope`, `ClinicRecord`, `WeatherLog`, `FarmJournal`, `SampleCooler`, `RosterPage`, `ReviewMemo`, `WardRecord`, `CellLog`, `SoilSample`, `StakeTag`, `RosterLostPage`, `FilterBundle`, `PharmacyLedger`, `CopyOriginal`, `SampleCase`, `DeadDropCase`, `FieldCallDevice`, `AnalysisReply`, `Appendix`, `SerumSheet`, `UnresolvedList`, `HandoverFile`, `KitVoucher` (`tools/icon_story.py`). 기계 부품 `Motor`, `ShredderBlade`, `CuttingBlade`, `SawBlade`, `Catalyst`, `SoundproofCover`는 등급을 색으로 구분한 세 그림이 있다:
 `<부품>Old`(녹슨 갈색), `<부품>Normal`(강철 회색), `<부품>Modern`(아노다이징 파랑). 등급 접미사 없는 `<부품>`은 보통 등급 그림이다.

@@ -1,5 +1,5 @@
 -- The upgrade rules: data shape, points, row and prerequisite unlocks, capstones and fragments, the 2nd board's costs,
--- the diminishing formulas, reset, serum prices, the cure serum's shelf life and owner, the delay drug, the values
+-- the diminishing formulas, reset, serum prices, the cure serum's shelf life and owner, the values
 -- the effects hand to the API, and the server's commands.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -501,24 +501,6 @@ test("cure serum: owner and shelf life", function()
     eq((Rules.cureStatus(100, "me", "you", 100 + 24 * 30, 7)), "notOwner", "owner first")
     eq((Rules.cureStatus(nil, nil, "you", 5000, 7)), "ok", "no issue time, no owner: usable")
     eq((Rules.cureStatus(nil, "me", "you", 5, 7)), "notOwner")
-end)
-
-test("delay drug holds infection back to a quarter of its speed", function()
-    local u = fresh()
-    Rules.addDelay(u, 10, 24)
-    eq(u.delayUntil, 34)
-    near(Rules.delayShift(u, 10, 11), 0.75, 1e-9, "one hour inside")
-    near(Rules.delayShift(u, 20, 30), 7.5, 1e-9)
-    near(Rules.delayShift(u, 33, 40), 0.75, 1e-9, "only the part inside the window")
-    eq(Rules.delayShift(u, 34, 50), 0, "after the window")
-    eq(Rules.delayShift(u, 0, 10), 0, "before the window")
-    Rules.addDelay(u, 20, 24)
-    eq(u.delayUntil, 58, "a second drug while it runs adds to the window")
-    eq(u.delayStart, 10)
-    Rules.addDelay(u, 100, 24)
-    eq(u.delayStart, 100, "a drug after the window has ended starts a new one")
-    eq(u.delayUntil, 124)
-    near(Rules.delayShift(u, 100, 124), 18, 1e-9, "a day of it holds back 18 hours of 24")
 end)
 
 test("serum kinds", function()

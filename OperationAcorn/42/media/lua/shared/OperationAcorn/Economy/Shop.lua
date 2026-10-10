@@ -4,8 +4,8 @@
 --
 -- An entry: { id, group, tier, price (the base), give = { { type, count, full, fluid, empty } ... } or
 -- choices = { { type, count ... } ... } (the player picks one), week = purchases a week (nil: none), special =
--- "cure" | "delay" | "serum" | "kit" | "reissue" | nil, fixed = true (no shop multiplier, no discount),
--- allowDebt, kits = true (only with KitsForSale) }.
+-- "cure" | "reversal" | "test" | "delay" (with days) | "serum" | "kit" | "reissue" | nil, fixed = true (no shop
+-- multiplier, no discount), allowDebt, kits = true (only with KitsForSale) }.
 -- tier is stage + milestones (Trust.tier): 0 the start, 1..5 stages, 6 the first milestone.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -17,7 +17,9 @@ OA.Shop = Shop
 -- The item types of this mod's goods. Parts, gear and machines are made by other parts of the mod: a name change
 -- is one edit here.
 Shop.TYPES = {
-    cure = "OperationAcorn.CureSerum", delay = "OperationAcorn.DelayDrug",
+    cure = "OperationAcorn.CureSerum", reversal = "OperationAcorn.InfectionReversal",
+    delayLong = "OperationAcorn.DelayDrugLong", delay = "OperationAcorn.DelayDrug",
+    testKit = "OperationAcorn.InfectionTestKit",
     serumScout = "OperationAcorn.UpgradeSerumScout", serumLoad = "OperationAcorn.UpgradeSerumLoad",
     serumSurvival = "OperationAcorn.UpgradeSerumSurvival",
     box = "OperationAcorn.DeliveryBox",
@@ -85,9 +87,18 @@ local catalog
 local function build()
     local list = {}
     local function add(e) table.insert(list, e) end
-    -- Consumables.
-    add({ id = "cure_serum", group = "consumable", tier = 1, price = 30000, special = "cure", give = { give("cure") } })
-    add({ id = "delay_drug", group = "consumable", tier = 0, price = 6000, special = "delay", give = { give("delay") } })
+    -- The serum shelf, infection (DESIGN 10, NUMBERS 10): no discount, no count, no interval; the cure and the reversal
+    -- open at the first stage.
+    add({ id = "cure_serum", group = "serum", tier = 1, price = 500000, special = "cure", fixed = true,
+        give = { give("cure") } })
+    add({ id = "reversal", group = "serum", tier = 1, price = 50000, special = "reversal", fixed = true,
+        give = { give("reversal") } })
+    add({ id = "delay_long", group = "serum", tier = 0, price = 20000, special = "delay", days = 7, fixed = true,
+        give = { give("delayLong") } })
+    add({ id = "test_kit", group = "serum", tier = 0, price = 2000, special = "test", fixed = true,
+        give = { give("testKit") } })
+    add({ id = "delay_drug", group = "serum", tier = 0, price = 5000, special = "delay", days = 1, fixed = true,
+        give = { give("delay") } })
     -- Late resources.
     add({ id = "battery_pack", group = "resource", tier = 1, price = 4000, week = 5, give = { vanilla("Battery", 4, { full = true }) } })
     add({ id = "seed_pack", group = "resource", tier = 1, price = 3000, week = 5, choices = "seeds" })
@@ -188,7 +199,7 @@ end
 -- What the crude terminal orders too (DESIGN-terminal 3.1): the serums, the late resources, the delivery box, the
 -- shredding bench, the bait and the field terminal itself. Everything else the research team made is ordered at the
 -- field terminal only.
-Shop.CRUDE_GROUPS = { consumable = true, serum = true, resource = true, box = true }
+Shop.CRUDE_GROUPS = { serum = true, resource = true, box = true }
 Shop.CRUDE_IDS = { shred_bench = true, bait_trap = true, field_terminal = true }
 
 function Shop.fieldOnly(entry)
@@ -260,14 +271,15 @@ function Shop.kitPrice(kind, target, record, pending)
     return OA.round(k.price * k.growth ^ n * multiplier * (1 - discount))
 end
 
--- The price of an entry for a record, in credits (a whole number). Serums and the box ignore the shop multiplier and
--- the discount; a kit needs its target, so ask Shop.kitPrice.
+-- The price of an entry for a record, in credits (a whole number). Serums, the box and every fixed entry (the infection
+-- medicines) ignore the shop multiplier and the discount; a kit needs its target, so ask Shop.kitPrice.
 function Shop.price(entry, record)
     if entry.special == "serum" then return Shop.serumPrice(entry.tree, record) end
     if entry.special == "kit" then return Shop.kitPrice(entry.kit, "", record) end
     if entry.special == "reissue" then return OA.option("BoxReissueCost") or entry.price end
     local base = entry.price
     if entry.special == "cure" then base = OA.option("CureSerumPrice") or base end
+    if entry.fixed then return OA.round(base) end
     local multiplier = OA.option("ShopPriceMultiplier") or 1.0
     local discount = OA.Trust.rewards(record).discount
     return OA.round(base * multiplier * (1 - discount))
@@ -281,8 +293,7 @@ end
 
 -- How many of an entry a record may buy right now, why not (a translation key) when none, and the world age when
 -- it opens again, if that is known:
---   locked (tier), debt (blocks every order but the box), kits off, the purchase interval of the cure serum and the
---   delay drug (shorter with trust), the weekly limit, and how many one order may hold.
+--   locked (tier), debt (blocks every order but the box), kits off, the weekly limit, and how many one order may hold.
 -- Whether every item an entry gives is defined in the scripts. A good whose item a part of the mod still to come has
 -- not defined is not sold (it would be charged and never delivered) and not shown. Kept per type once known; without a
 -- script manager (the tests) every type counts as defined.

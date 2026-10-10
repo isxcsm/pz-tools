@@ -305,8 +305,12 @@ def cure_serum():
     return vial('Scout', cross=True)
 
 
-def cure_vial():
+def cure_vial(kind='cure'):
+    # the cure serum: a red cross on the label under a red cap; the reversal: the same vial, blue cap and liquid, a
+    # counter-clockwise arrow on the label
     t = dict(liquid=(236, 246, 240), dark=(150, 190, 176), cap=(190, 40, 34))
+    if kind == 'reversal':
+        t = dict(liquid=(214, 232, 250), dark=(120, 156, 196), cap=(40, 86, 170))
     s = Scene(0)
     cx, cy = 0.5, 0.5
     s.tube((cx, cy, 0.0), (cx, cy, 0.5), 0.17, t['liquid'], cap=t['liquid'], segments=28, shine=0.8,
@@ -315,8 +319,17 @@ def cure_vial():
     s.tube((cx, cy, 0.5), (cx, cy, 0.58), 0.1, t['dark'], segments=24, shine=0.5)
     s.tube((cx, cy, 0.58), (cx, cy, 0.66), 0.115, (206, 208, 212), cap=(226, 228, 232), segments=24, shine=0.8)
     s.tube((cx, cy, 0.66), (cx, cy, 0.72), 0.07, t['cap'], cap=(28, 28, 30), segments=18, shine=0.2)
-    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.168, cross_label(), offset=0.0)
+    front_decal(s, cx - 0.14, cx + 0.14, 0.1, 0.38, cy + 0.168, cross_label() if kind == 'cure' else rewind_label(), offset=0.0)
     return from_scene(s)
+
+
+def rewind_label():
+    img = Image.new('RGBA', (40, 44), (240, 238, 226, 255))
+    d = ImageDraw.Draw(img)
+    blue = (40, 86, 170, 255)
+    d.arc([8, 10, 32, 34], start=200, end=500, fill=blue, width=4)
+    d.polygon([(4, 20), (15, 20), (9, 30)], fill=blue)
+    return img
 
 
 def cross_label():
@@ -327,26 +340,32 @@ def cross_label():
     return img
 
 
-def delay_drug():
+def delay_drug(long=False):
+    # the one-day drug has a white cap and a clock on the label; the seven-day drug a green cap and a seven
     s = Scene(0)
     cx, cy = 0.5, 0.5
-    # an amber pill bottle with a white cap and a clock label
+    cap, cap_top = ((92, 150, 86), (122, 184, 114)) if long else ((236, 234, 226), (250, 248, 242))
+    # an amber pill bottle with a cap and a label
     s.tube((cx, cy, 0.0), (cx, cy, 0.48), 0.2, (196, 118, 40), cap=(196, 118, 40), segments=30, shine=0.5,
            bands=[(0, 0.04, (150, 86, 26)), (0.04, 0.96, (196, 118, 40)), (0.96, 1, (150, 86, 26))])
-    s.tube((cx, cy, 0.48), (cx, cy, 0.62), 0.21, (236, 234, 226), cap=(250, 248, 242), segments=30, shine=0.2,
-           bands=[(0, 1, (236, 234, 226))])
+    s.tube((cx, cy, 0.48), (cx, cy, 0.62), 0.21, cap, cap=cap_top, segments=30, shine=0.2,
+           bands=[(0, 1, cap)])
     for i in range(10):
         a = 2 * math.pi * i / 10
         s.tube((cx + 0.205 * math.cos(a), cy + 0.205 * math.sin(a), 0.49), (cx + 0.205 * math.cos(a), cy + 0.205 * math.sin(a), 0.61), 0.01,
                (206, 204, 196), segments=4)
-    front_decal(s, cx - 0.17, cx + 0.17, 0.08, 0.42, cy + 0.198, delay_label(), offset=0.0)
+    front_decal(s, cx - 0.17, cx + 0.17, 0.08, 0.42, cy + 0.198, delay_label(long), offset=0.0)
     return from_scene(s)
 
 
-def delay_label():
+def delay_label(long=False):
     img = Image.new('RGBA', (48, 48), (240, 238, 226, 255))
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, 47, 8], fill=(60, 70, 52, 255))
+    if long:
+        d.line([(13, 17), (35, 17)], fill=(40, 40, 40, 255), width=5)
+        d.line([(35, 17), (21, 41)], fill=(40, 40, 40, 255), width=5)
+        return img
     d.ellipse([12, 14, 36, 38], outline=(40, 40, 40, 255), width=3)
     d.line([(24, 26), (24, 18)], fill=(40, 40, 40, 255), width=2)
     d.line([(24, 26), (30, 29)], fill=(40, 40, 40, 255), width=2)
@@ -631,7 +650,9 @@ PICTURES = {
     'serum_survival': lambda: vial('Survival'),
     'serum_shared': lambda: vial('Shared'),
     'cure': cure_vial,
+    'reversal': lambda: cure_vial('reversal'),
     'delay': delay_drug,
+    'delay_long': lambda: delay_drug(True),
     'shred_bench': machine('shredBench'),
     'bulk_shredder': machine('bulkShredder'),
     'cutter': machine('cutter'),

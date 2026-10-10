@@ -35,8 +35,6 @@
     "Sandbox_OperationAcorn_CureSerumPrice_tooltip": "Base price of one cure serum, in credits.",
     "Sandbox_OperationAcorn_CureSerumShelfLife": "Cure serum shelf life (days)",
     "Sandbox_OperationAcorn_CureSerumShelfLife_tooltip": "Days from receipt until a cure serum no longer works.",
-    "Sandbox_OperationAcorn_DelayDrugHours": "Infection delay drug duration (hours)",
-    "Sandbox_OperationAcorn_DelayDrugHours_tooltip": "Hours one dose slows the infection.",
     "Sandbox_OperationAcorn_UpgradeSerumPrice": "Upgrade serum base price",
     "Sandbox_OperationAcorn_UpgradeSerumPrice_tooltip": "Credits for a tree's first upgrade serum.",
     "Sandbox_OperationAcorn_UpgradeSerumGrowth": "Upgrade serum price growth",

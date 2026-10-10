@@ -67,6 +67,7 @@ local drug = P3T.give("OperationAcorn.DelayDrug")
 if drug then
     local ok = Serums.use(player, drug, id)
     P3T.check(say, "the delay drug is taken while infected", ok)
-    P3T.check(say, "the window is recorded", (u.delayUntil or 0) > OA.hours(), tostring(u.delayUntil))
-    say("let game time pass: the infection percentage should climb at a quarter speed while the window lasts")
+    local d = record.infection and record.infection.drug
+    P3T.check(say, "the drug is recorded with its age", d ~= nil and d.age ~= nil and d.till > OA.hours(), tostring(d and d.till))
+    say("let game time pass: the infection percentage should stay where it is while the drug lasts (held once a minute)")
 end

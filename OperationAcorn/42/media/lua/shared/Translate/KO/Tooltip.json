@@ -18,8 +18,7 @@
     "Tooltip_OA_Tree_CureLeft": "유통 기한이 %1일 남았습니다. 발급받은 사람만 쓸 수 있습니다.",
     "Tooltip_OA_Tree_CureExpired": "유통 기한이 지나 효과가 없습니다.",
     "Tooltip_OA_Tree_CureNotOwner": "다른 사람에게 발급된 혈청이라 효과가 없습니다.",
-    "Tooltip_OA_Tree_NotInfected": "감염된 상태가 아닙니다.",
-    "Tooltip_OA_Tree_DelayInfo": "%1시간 동안 감염이 4분의 1 속도로 진행됩니다.",
+    "Tooltip_OA_Tree_DelayInfo": "%1일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다.",
     "Tooltip_OA_Tree_Reinforced": "강화문입니다. 연구를 2단계까지 올려야 열 수 있습니다.",
     "Tooltip_OA_Tree_NeedPryBar": "빠루나 쇠지렛대가 필요합니다.",
     "Tooltip_OA_Tree_NeedPickTools": "종이 클립과 스크류드라이버가 필요합니다.",
@@ -29,7 +28,7 @@
     "Tooltip_OA_Tree_Item_UpgradeSerumLoad": "하중 적응 연구에 쓸 점 1개를 얻습니다. 처음 맞으면 이 연구가 열립니다.",
     "Tooltip_OA_Tree_Item_UpgradeSerumSurvival": "생존 적응 연구에 쓸 점 1개를 얻습니다. 처음 맞으면 이 연구가 열립니다.",
     "Tooltip_OA_Tree_Item_UpgradeSerumShared": "어느 연구에든 쓸 수 있는 점 1개를 얻습니다.",
-    "Tooltip_OA_Tree_Item_DelayDrug": "감염 진행을 늦춥니다. 여러 번 먹으면 효과 시간이 늘어나고, 유통 기한이 없습니다.",
+    "Tooltip_OA_Tree_Item_DelayDrug": "1일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다. 유통 기한이 없습니다.",
     "Tooltip_OA_Story_AnalysisReply": "2반이 보낸 분석 회신서.",
     "Tooltip_OA_Story_Appendix": "회신서에 딸린 별첨.",
     "Tooltip_OA_Story_CellLog": "감방동 점호 기록. 연필 글씨가 흐립니다.",
@@ -82,5 +81,9 @@
     "Tooltip_OA_Gear_NoBag": "키트를 달 가방이 없습니다. 주문한 대상: %1",
     "Tooltip_OA_Gear_FitVehicle": "차의 정비 창에서 트렁크나 엔진을 우클릭해 답니다. 주문한 대상: %1",
     "Tooltip_OA_Gear_NoVehicleKit": "이 차에 쓸 %1이(가) 없습니다.",
-    "Tooltip_OA_Gear_RedeemInfo": "원하는 키트 하나로 바꿉니다. 어느 가방이나 차에든 쓸 수 있고, 이 키트로는 상점의 다음 키트 값이 오르지 않습니다."
+    "Tooltip_OA_Gear_RedeemInfo": "원하는 키트 하나로 바꿉니다. 어느 가방이나 차에든 쓸 수 있고, 이 키트로는 상점의 다음 키트 값이 오르지 않습니다.",
+    "Tooltip_OA_Tree_Item_DelayDrugLong": "7일 동안 감염 진행을 멈춥니다. 좀비에게 새로 다치면 약효가 사라집니다. 유통 기한이 없습니다.",
+    "Tooltip_OA_Tree_Item_InfectionReversal": "감염 진행을 처음으로 되돌려 메스꺼움 같은 증상을 없앱니다. 감염은 남아 지연제는 계속 필요합니다.",
+    "Tooltip_OA_Tree_Item_InfectionTestKit": "쓰면 감염 여부가 바로 나옵니다. 좀비에게 다친 뒤 검사하기 전에는 납품에 감염 처리 수수료가 붙습니다.",
+    "Tooltip_OA_Tree_Progress": "감염 진행 %1%%"
 }

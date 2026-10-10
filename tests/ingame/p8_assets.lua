@@ -191,7 +191,7 @@ end
 local ITEMS = {
     "CommTerminal", "DeliveryBox", "TerminalManual", "SupplyManifest", "SampleBundle",
     "MeteorFragment", "UpgradeSerumScout", "UpgradeSerumLoad", "UpgradeSerumSurvival", "UpgradeSerumShared",
-    "CureSerum", "DelayDrug", "ShredBench", "BulkShredder", "Cutter", "PropaneRefiner", "OilRefiner", "WoodSaw",
+    "CureSerum", "DelayDrug", "DelayDrugLong", "InfectionReversal", "InfectionTestKit", "ShredBench", "BulkShredder", "Cutter", "PropaneRefiner", "OilRefiner", "WoodSaw",
     "ResearchStorage", "RainStorage", "Lure", "Motor", "MotorOld", "MotorNormal", "MotorModern", "ShredderBlade",
     "ShredderBladeOld", "ShredderBladeNormal", "ShredderBladeModern", "CuttingBlade", "CuttingBladeOld",
     "CuttingBladeNormal", "CuttingBladeModern", "SawBlade", "SawBladeOld", "SawBladeNormal", "SawBladeModern",

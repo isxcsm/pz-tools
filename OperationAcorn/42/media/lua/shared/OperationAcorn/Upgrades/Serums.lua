@@ -1,14 +1,17 @@
--- The serums as items: what injecting an upgrade serum, using a cure serum or taking a delay drug does. These run where
--- the world is decided (the server, or the game alone), from the timed actions in Actions.lua. The rules themselves
--- (Rules.lua) are pure; this file touches the character, the item and the save.
+-- The serums as items: what injecting an upgrade serum, using a cure serum or a reversal, taking a delay drug or a test
+-- kit does. These run where the world is decided (the server, or the game alone), from the timed actions in
+-- Actions.lua. The rules themselves (Rules.lua, Infection.lua) are pure; this file touches the character, the item and
+-- the save.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Upgrades/Data"
 require "OperationAcorn/Upgrades/Rules"
+require "OperationAcorn/Upgrades/Infection"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
+local Infection = OA.Infection
 local Serums = {}
 OA.Upgrades.Serums = Serums
 
@@ -18,14 +21,20 @@ Serums.FATIGUE = 0.15
 -- The infection must be this young (hours) for the polling bite shield to count it as the bite's.
 Serums.BITE_FRESH_HOURS = 2
 
--- What kind of serum an item type is: "upgrade" (with its tree), "shared", "cure", "delay", or nil.
+-- The delay drugs by item type: how long each holds the infection ("short": a day, "long": seven).
+Serums.DELAY = { DelayDrug = "short", DelayDrugLong = "long" }
+
+-- What kind of serum an item type is: "upgrade" (with its tree), "shared", "cure", "delay" (with "long" or "short"),
+-- "reversal", "test", or nil.
 function Serums.kind(itemType)
     for tree, name in pairs(Data.SERUM_ITEM) do
         if itemType == name then return "upgrade", tree end
     end
     if itemType == Data.SHARED_ITEM then return "shared" end
     if itemType == "CureSerum" then return "cure" end
-    if itemType == "DelayDrug" then return "delay" end
+    if Serums.DELAY[itemType] then return "delay", Serums.DELAY[itemType] end
+    if itemType == "InfectionReversal" then return "reversal" end
+    if itemType == "InfectionTestKit" then return "test" end
     return nil
 end
 
@@ -88,7 +97,7 @@ function Serums.inject(character, item, id)
     return true
 end
 
--- ---- cure serum and delay drug ----------------------------------------------------------------------------------
+-- ---- the infection medicines ------------------------------------------------------------------------------------
 
 -- Whether the character has the infection (the real one, or a fake one that a serum would end too).
 function Serums.infected(character)
@@ -121,8 +130,14 @@ function Serums.cureStatus(item, id, now)
     return Rules.cureStatus(data.OA_Issued, data.OA_Owner, id, now or OA.hours(), OA.option("CureSerumShelfLife") or 7)
 end
 
+-- The infection's progress (0 to 1) as the body has it.
+function Serums.progress(character)
+    return OA.clamp(character:getStats():get(CharacterStat.ZOMBIE_INFECTION) / 100, 0, 1)
+end
+
 -- Uses a cure serum. Not the owner's or past its shelf life: nothing happens and the serum stays (the player is
--- told). Returns true when the infection was cured.
+-- told). Not infected: it is used up and nothing is said, so that it cannot be a test. Returns true when the
+-- infection was cured.
 function Serums.cure(character, item, id)
     if Serums.kind(item:getType()) ~= "cure" then return false end
     id = id or OA.Store.idOf(character)
@@ -134,32 +149,71 @@ function Serums.cure(character, item, id)
         OA.Sync.notice(id, "IGUI_OA_Tree_CureNotOwner", {})
         return false
     end
-    if not Serums.infected(character) then
-        OA.Sync.notice(id, "IGUI_OA_Tree_CureNotInfected", {})
-        return false
-    end
     if not consume(item) then return false end
+    if not Serums.infected(character) then return false end
     Serums.cureBody(character)
+    Infection.cured(recordOf(character, id))
+    OA.Sync.changed("infection", id, { kind = "cured" })
     OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", style = "stamp", tone = "green", fallback = "good" })
     return true
 end
 
--- Takes a delay drug: infection runs at a quarter of its speed for DelayDrugHours (drugs taken in that time add to
--- it). The slowing itself is done by Infection.lua, once a minute, while the window lasts.
+-- Takes a delay drug ("long" or "short"): the infection's progress is held for its days, whether or not there is an
+-- infection (the player is told the same either way). It replaces the drug before it. The holding itself is done by
+-- Serums.holdInfection, once a minute.
 function Serums.delay(character, item, id)
-    if Serums.kind(item:getType()) ~= "delay" then return false end
+    local kind, length = Serums.kind(item:getType())
+    if kind ~= "delay" then return false end
     id = id or OA.Store.idOf(character)
-    if not Serums.infected(character) then
-        OA.Sync.notice(id, "IGUI_OA_Tree_DelayNotInfected", {})
-        return false
-    end
     local record = recordOf(character, id)
-    local u = Rules.section(record)
     if not consume(item) then return false end
-    local hours = OA.option("DelayDrugHours") or 24
-    Rules.addDelay(u, OA.hours(), hours)
-    OA.Sync.notice(id, "IGUI_OA_Tree_DelayDone", { hours })
-    OA.Sync.changed("upgrades", id, { kind = "delay" })
+    local age = nil
+    local body = character:getBodyDamage()
+    if body:IsInfected() then
+        local time = body:getInfectionTime()
+        if time >= 0 then age = math.max(0, character:getHoursSurvived() - time) end
+    end
+    Infection.dose(record, length, OA.hours(), age)
+    OA.Sync.notice(id, "IGUI_OA_Tree_DelayDone", { Infection.DRUG_HOURS[length] / 24 })
+    OA.Sync.changed("infection", id, { kind = "drug" })
+    return true
+end
+
+-- Takes a reversal: an infection starts over from nothing (its start time is now, so the nausea and the health limit
+-- of its progress go) but stays, and a drug goes on holding it. Without an infection it is used up and the player is
+-- told the same.
+function Serums.reverse(character, item, id)
+    if Serums.kind(item:getType()) ~= "reversal" then return false end
+    id = id or OA.Store.idOf(character)
+    local record = recordOf(character, id)
+    if not consume(item) then return false end
+    local body = character:getBodyDamage()
+    if body:IsInfected() then
+        body:setInfectionTime(character:getHoursSurvived())
+        character:getStats():set(CharacterStat.ZOMBIE_INFECTION, 0)
+        Infection.reversed(record)
+        OA.Sync.changed("infection", id, { kind = "reversed" })
+    end
+    OA.Sync.notice(id, "IGUI_OA_Tree_ReversalDone", {})
+    return true
+end
+
+-- Uses a test kit: the real infection is found or not, and the player knows from now on (a wound is tested for either
+-- way).
+function Serums.test(character, item, id)
+    if Serums.kind(item:getType()) ~= "test" then return false end
+    id = id or OA.Store.idOf(character)
+    local record = recordOf(character, id)
+    if not consume(item) then return false end
+    local infected = character:getBodyDamage():IsInfected()
+    Infection.tested(record, infected, infected and Serums.progress(character) or nil)
+    OA.Sync.changed("infection", id, { kind = "tested" })
+    if infected then
+        OA.Sync.title(id, { key = "IGUI_OA_Title_TestPositive", style = "stamp", tone = "red", fallback = "bad" })
+    else
+        OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "notice",
+            tone = "green", fallback = "good" })
+    end
     return true
 end
 
@@ -169,24 +223,23 @@ function Serums.use(character, item, id)
     if kind == "upgrade" or kind == "shared" then return Serums.inject(character, item, id) end
     if kind == "cure" then return Serums.cure(character, item, id) end
     if kind == "delay" then return Serums.delay(character, item, id) end
+    if kind == "reversal" then return Serums.reverse(character, item, id) end
+    if kind == "test" then return Serums.test(character, item, id) end
     return false
 end
 
 -- ---- the infection, once a minute --------------------------------------------------------------------------------
 
--- Holds infection back while a delay drug lasts: the infection's start time moves forward by the share of the time
--- from `from` (the last check) to `now` that the drug held back (Rules.delayShift). Call about once a minute for the
--- local character. Returns the hours it moved the start by.
-function Serums.slowInfection(character, u, from, now)
-    if u.delayUntil <= 0 then return 0 end
-    local shift = Rules.delayShift(u, from, now)
-    if shift <= 0 then return 0 end
+-- Holds the infection where the drug took it: while a drug lasts, the infection's start time is set so that its age
+-- stays the same (the progress, the nausea and the health limit stay as they were). Call about once a minute for the
+-- local character, with its record. Returns true when it set the time.
+function Serums.holdInfection(character, record, now)
+    local age = Infection.holdAge(record, now)
+    if not age then return false end
     local body = character:getBodyDamage()
-    if not body:IsInfected() then return 0 end
-    local time = body:getInfectionTime()
-    if time < 0 then return 0 end
-    body:setInfectionTime(time + shift)
-    return shift
+    if not body:IsInfected() or body:getInfectionTime() < 0 then return false end
+    body:setInfectionTime(math.max(0, character:getHoursSurvived() - age))
+    return true
 end
 
 -- The polling bite shield (until the API's): when the character has a fresh infection that came from a bite and the

@@ -86,7 +86,7 @@ option OperationAcorn.KitsForSale
 
 option OperationAcorn.CureSerumPrice
 {
-    type = integer, min = 0, max = 1000000, default = 30000,
+    type = integer, min = 0, max = 2000000, default = 500000,
     page = OperationAcornShop, translation = OperationAcorn_CureSerumPrice,
 }
 
@@ -94,12 +94,6 @@ option OperationAcorn.CureSerumShelfLife
 {
     type = integer, min = 1, max = 365, default = 7,
     page = OperationAcornShop, translation = OperationAcorn_CureSerumShelfLife,
-}
-
-option OperationAcorn.DelayDrugHours
-{
-    type = integer, min = 1, max = 240, default = 24,
-    page = OperationAcornShop, translation = OperationAcorn_DelayDrugHours,
 }
 
 option OperationAcorn.UpgradeSerumPrice

@@ -55,7 +55,7 @@ test("the items have names in both languages", function()
     for _, lang in ipairs({ "EN", "KO" }) do
         local text = file(lang, "ItemName.json")
         for _, name in ipairs({ "UpgradeSerumScout", "UpgradeSerumLoad", "UpgradeSerumSurvival", "UpgradeSerumShared",
-                                "CureSerum", "DelayDrug" }) do
+                                "CureSerum", "DelayDrug", "DelayDrugLong", "InfectionReversal", "InfectionTestKit" }) do
             truthy(has(text, "OperationAcorn." .. name), lang .. " lacks " .. name)
         end
     end
@@ -65,7 +65,7 @@ test("every trees' scripts' items exist in OA_upgrades.txt", function()
     local text = readfile("OperationAcorn/42/media/scripts/OA_upgrades.txt")
     truthy(text, "no item script")
     for _, name in ipairs({ "UpgradeSerumScout", "UpgradeSerumLoad", "UpgradeSerumSurvival", "UpgradeSerumShared",
-                            "CureSerum", "DelayDrug" }) do
+                            "CureSerum", "DelayDrug", "DelayDrugLong", "InfectionReversal", "InfectionTestKit" }) do
         truthy(string.find(text, "item " .. name, 1, true), name .. " is not in the script")
         truthy(string.find(text, "Icon = OA_" .. name, 1, true), name .. " has no OA_ icon")
     end
