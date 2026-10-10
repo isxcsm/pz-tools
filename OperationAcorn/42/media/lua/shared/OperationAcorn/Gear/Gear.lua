@@ -89,6 +89,19 @@ function Gear.findItem(character, id)
     return inventory:getItemById(id)
 end
 
+-- The item an action works on, for the checks that run every tick (isValid): the object the action was made with (in
+-- the field `field`), as long as it is in the character's inventory (a walk up from its container, no search). Only
+-- when the action has no object (made again from its ids) or the object left the inventory is the inventory searched,
+-- once; what that finds is kept.
+function Gear.heldItem(action, field, idField)
+    local item = action[field]
+    if item and OA.inInventory(item, action.character) then return item end
+    -- oa-scan: ok (an action made from ids, or the item moved: once, and kept)
+    item = Gear.findItem(action.character, action[idField])
+    action[field] = item
+    return item
+end
+
 -- The vehicle with an id, or nil.
 function Gear.findVehicle(id)
     if not id then return nil end
@@ -241,14 +254,43 @@ function Gear.vehicleTargets(character, kind, radius)
     return numbered(found)
 end
 
+-- The bags and the kits a character carries, in any container: { key, bags = { item }, kits = { [kind] = { item } } }.
+-- Found in one pass through the inventory, and kept while the inventory's signature (OA.signature) is the same: the
+-- menus and tooltips that need them are drawn again and again, and the inventory may hold thousands of items. A kit or
+-- a bag moved between two bags of the inventory changes no signature, but is still carried, and that is all this says.
+local carriedCache = setmetatable({}, { __mode = "k" })
+
+function Gear.carried(character)
+    local inventory = character:getInventory()
+    local key = OA.signature(inventory)
+    local hit = carriedCache[character]
+    if hit and hit.key == key then return hit end
+    local found = { key = key, bags = {}, kits = {} }
+    -- oa-scan: ok (the one pass for a signature that changed)
+    local list = inventory:getAllEvalRecurse(function(item)
+        return item:IsInventoryContainer() or (item:getModule() == OA.MOD and Gear.kindOfItem(item) ~= nil)
+    end)
+    for i = 0, list:size() - 1 do
+        local item = list:get(i)
+        local kind = item:getModule() == OA.MOD and Gear.kindOfItem(item) or nil
+        if kind then
+            found.kits[kind] = found.kits[kind] or {}
+            table.insert(found.kits[kind], item)
+        end
+        if item:IsInventoryContainer() then table.insert(found.bags, item) end
+    end
+    carriedCache[character] = found
+    return found
+end
+
 -- The bag or the vehicle a target key names, or nil: a bag the character has, a vehicle in the loaded cell.
 function Gear.findTarget(kind, target, character)
     if target == nil or target == "" then return nil end
     if Rules.SCOPE[kind] == "bag" then
-        local list = character:getInventory():getAllEvalRecurse(function(item)
-            return item:IsInventoryContainer() and Gear.bagKey(item) == target
-        end)
-        return list:size() > 0 and list:get(0) or nil
+        for _, bag in ipairs(Gear.carried(character).bags) do
+            if Gear.bagKey(bag) == target then return bag end
+        end
+        return nil
     end
     local vehicles = OA.vehicles()
     for i = 0, vehicles:size() - 1 do

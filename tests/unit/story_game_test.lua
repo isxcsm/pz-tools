@@ -45,3 +45,48 @@ test("an item holds a mission's piece when it is one, or has one inside", functi
     eq(Game.holds(deep, "M1-1"), true, "inside bags")
     eq(Game.holds(item({}, { item({ OA_Mission = "M2-1" }) }), "M1-1"), false)
 end)
+
+-- A character whose inventory counts its searches. The items know their container, which is the inventory.
+local function carrier(items)
+    local searches = 0
+    local weight = 1
+    local inv = {}
+    function inv:getFirstEvalArgRecurse(predicate, arg)
+        searches = searches + 1
+        for _, it in ipairs(items) do
+            if predicate(it, arg) then return it end
+        end
+        return nil
+    end
+    function inv:getItems() return { size = function() return #items end } end
+    function inv:getContentsWeight() return weight end
+    for _, it in ipairs(items) do it.getContainer = function() return inv end end
+    local p = { getInventory = function() return inv end, getModData = function() return { OA_Id = "p1" } end }
+    getNumActivePlayers = function() return 1 end
+    getSpecificPlayer = function() return p end
+    return p, function() return searches end, function(w) weight = w end, inv
+end
+
+test("the mission's item is searched for once, then kept, and a miss is not searched again until the inventory changes", function()
+    local cooler = item({ OA_Mission = "M1-1" })
+    local items = { item({}), cooler }
+    local p, searches, setWeight = carrier(items)
+    local record = { id = "p1" }
+    eq(Game.findItem(record, "M1-1"), cooler)
+    eq(searches(), 1)
+    eq(Game.findItem(record, "M1-1"), cooler)
+    eq(Game.findItem(record, "M1-1"), cooler)
+    eq(searches(), 1, "the item kept is checked in a few steps")
+    -- it leaves the inventory: searched, not found
+    cooler.getContainer = function() return nil end
+    items[2] = item({})
+    eq(Game.findItem(record, "M1-1"), nil)
+    eq(searches(), 2)
+    eq(Game.findItem(record, "M1-1"), nil)
+    eq(Game.findItem(record, "M1-1"), nil)
+    eq(searches(), 2, "a miss under the same signature: not searched again")
+    -- something changed in the inventory: searched again
+    setWeight(2)
+    eq(Game.findItem(record, "M1-1"), nil)
+    eq(searches(), 3)
+end)

@@ -15,7 +15,8 @@ local function item(mission, name)
 end
 
 local function container(items, parent)
-    return { getItems = function() return list(items) end, getParent = function() return parent end }
+    return { getItems = function() return list(items) end, getParent = function() return parent end,
+        getContentsWeight = function() return #items end }
 end
 
 -- A piece of furniture with containers; `calls` records its outline.
@@ -335,4 +336,27 @@ test("the loot window paints the special request's item name too", function()
     pane:renderdetails()
     eq(drawn[2][1], "Filter Case")
     near(drawn[2][2], 0.30, 1e-9)
+end)
+
+test("the container is walked once for what it holds, not at every look", function()
+    local m = setup(regular())
+    local items = { item("M1-1"), item(nil), item(nil) }
+    local reads = 0     -- items read from the container (its size is no read)
+    local box = container(items)
+    box.getItems = function()
+        local l = list(items)
+        local get = l.get
+        l.get = function(...) reads = reads + 1 return get(...) end
+        return l
+    end
+    local desk = furniture({ box })
+    state.squares["100,100,0"] = square({ desk })
+    state.page.inventoryPane.inventory = box
+    load()
+    for _ = 1, 5 do tick() end
+    eq(reads, 3, "five looks (the outline and the names both ask): the three items read once")
+    eq(desk.on, true)
+    items[#items + 1] = item("M1-1#B")
+    for _ = 1, 3 do tick() end
+    eq(reads, 3 + 4, "an item came: read again, once")
 end)

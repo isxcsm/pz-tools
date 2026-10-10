@@ -18,23 +18,8 @@ local Sprites = OA.Sprites
 
 local SHEET = Sprites.MACHINES .. "_"
 
--- sprite name -> machine kind, every look of every kind but the lure (made the first time it is asked).
-local kinds = nil
-local function kindOf(spriteName)
-    if not kinds then
-        kinds = {}
-        for _, kind in ipairs(Data.ORDER) do
-            if kind ~= "lure" then
-                for _, dir in ipairs({ "S", "E", "N", "W" }) do
-                    for _, look in ipairs(Sprites.LOOKS) do
-                        for _, t in ipairs(Sprites.machineTiles(kind, dir, look) or {}) do kinds[t.sprite] = kind end
-                    end
-                end
-            end
-        end
-    end
-    return kinds[spriteName]
-end
+-- sprite name -> machine kind (Machines.kindOfSprite).
+local kindOf = Machines.kindOfSprite
 
 -- The machine (its anchor) a tile of the furniture tool belongs to: the object it was made from, or the one on the
 -- square.

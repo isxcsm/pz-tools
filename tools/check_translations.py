@@ -13,7 +13,14 @@ Reports:
   them as string.char(code) or take them from a translation);
 - a UI element's anchor written as a field (view.anchorRight = true): the game hands anchors to the Java side only
   when the element is made, so a field written after that does nothing and the element keeps its size when the
-  window is resized (use view:setAnchorRight(true), which works before and after).
+  window is resized (use view:setAnchorRight(true), which works before and after);
+- an option added to the bottom of the game's own menu: a client `context:addOption(` (the options of this mod go on top
+  of the world and inventory menus: addOptionOnTop; a menu of this mod's own, or an option that is meant to be at the
+  bottom, carries the comment `-- oa-menu: bottom` on its line or the line above);
+- a search of the whole inventory or of a container (a *Recurse call, a loop over getItems()) in a function that runs
+  while a right-click menu is built, every tick or frame, or at every refresh: see inventory_scans() for how they are
+  found and what it cannot see. A search that is meant to be there (made once for a changed signature, or when the
+  player has acted) carries `-- oa-scan: ok (why)` on its line or within the two lines above.
 Exit code 1 when anything is found.
 
 Texts too long or too many for code (the radio log, documents, receipt notes) may live in other Translate files
@@ -98,6 +105,187 @@ def anchor_fields():
                     for n, line in enumerate(f, 1):
                         if ANCHOR_FIELD.match(line):
                             found.append((os.path.relpath(path, ROOT), n))
+    return found
+
+
+CONTEXT_ADD = re.compile(r'\bcontext:addOption\(')
+BOTTOM_OK = re.compile(r'--\s*oa-menu:\s*bottom')
+
+
+def lua_files(*parts):
+    """(path relative to the Lua root, lines) for each Lua file under the given folders of the Lua root."""
+    found = []
+    for folder, _, files in os.walk(os.path.join(ROOT, *parts)):
+        if 'Translate' in folder:
+            continue
+        for name in sorted(files):
+            if name.endswith('.lua'):
+                path = os.path.join(folder, name)
+                with open(path, encoding='utf-8') as f:
+                    found.append((os.path.relpath(path, ROOT), f.read().split('\n')))
+    return found
+
+
+def bottom_options():
+    """(file, line) for each `context:addOption(` in the client code that is not marked as meant for the bottom."""
+    found = []
+    for path, lines in lua_files('client'):
+        for n, line in enumerate(lines):
+            code = line.split('--')[0]
+            if CONTEXT_ADD.search(code):
+                if not BOTTOM_OK.search(line) and not (n > 0 and BOTTOM_OK.search(lines[n - 1])):
+                    found.append((path, n + 1))
+    return found
+
+
+# What counts as a search of the inventory or of a container: the game's *Recurse calls (getFirstTypeRecurse,
+# getAllEvalRecurse, containsRecursive, getItemWithIDRecursiv ...) and a walk over getItems() (its size or isEmpty is
+# one call and no search).
+SCAN = re.compile(r'\w*Recurs\w*\(|\bgetItems\(\)(?!\s*:\s*(?:size|isEmpty)\()')
+SCAN_OK = re.compile(r'--\s*oa-scan:\s*ok')
+# The events whose handlers run while a menu is built, every tick or frame, or at a refresh of the screen.
+HOT_EVENTS = ('OnFillWorldObjectContextMenu', 'OnFillInventoryObjectContextMenu', 'OnTick', 'OnTickEvenPaused',
+              'OnPlayerUpdate', 'OnRenderTick', 'OnRefreshInventoryWindowContainers')
+# The methods that run every frame or tick whatever registers them (a window's, a pane's, a cursor's, a timed action's;
+# written with a colon, as the game's classes are: a function of a module that happens to be called update is not one).
+HOT_METHODS = ('render', 'prerender', 'update', 'renderdetails', 'isValid')
+FUNCTION = re.compile(r'^(\s*)(?:local\s+)?function\s+([\w.:]+)\s*\(|^(\s*)(?:local\s+)?([\w.]+)\s*=\s*function\s*\(')
+ONE_LINER = re.compile(r'\bend\s*\)*\s*[,;]?\s*(?:--.*)?$')
+HANDLER = re.compile(r'Events\.(\w+)\.Add\(\s*([\w.]+)\s*\)')
+INLINE_HANDLER = re.compile(r'^(\s*)Events\.(\w+)\.Add\(\s*function\b')
+CALL = re.compile(r'(?:\b(\w+)[.:])?\b(\w+)\s*\(')
+
+
+def lua_functions(path, lines):
+    """The functions of a file by their indentation: [{ name, short, file, first, last, scans, calls }]. A function runs
+    from its `function` line to the next `end` at the same indentation (a one-line function is the line)."""
+    found = []
+    for n, line in enumerate(lines):
+        m = FUNCTION.match(line)
+        if not m:
+            continue
+        indent = m.group(1) if m.group(2) else m.group(3)
+        name = m.group(2) or m.group(4)
+        last = n
+        if not ONE_LINER.search(line.split('function', 1)[1]):
+            for k in range(n + 1, len(lines)):
+                if re.match(r'^' + re.escape(indent) + r'end\b', lines[k]):
+                    last = k
+                    break
+        found.append({'name': name, 'short': re.split(r'[.:]', name)[-1], 'file': path, 'first': n, 'last': last})
+    return found
+
+
+def marked_ok(lines, n):
+    """Whether line n carries the mark of a search that belongs, or one of the two lines above it does."""
+    return any(SCAN_OK.search(lines[k]) for k in range(max(0, n - 2), n + 1))
+
+
+def scan_lines(lines, first, last):
+    """(line number, call) for each unmarked search in the lines from first to last."""
+    found = []
+    for n in range(first, last + 1):
+        code = lines[n].split('--')[0]
+        m = SCAN.search(code)
+        if m and not marked_ok(lines, n):
+            found.append((n + 1, m.group(0).rstrip('(')))
+    return found
+
+
+def function_calls(lines, first, last):
+    """The calls inside lines first+1 .. last (comments and marked lines left out) as (receiver, name): `a.b.f(` is
+    ('b', 'f'), `self:f(` is ('self', 'f'), a plain `f(` is (None, 'f')."""
+    calls = set()
+    for n in range(first + 1, last + 1):
+        if marked_ok(lines, n):
+            continue
+        code = lines[n].split('--')[0]
+        for m in CALL.finditer(code):
+            calls.add((m.group(1), m.group(2)))
+    return calls
+
+
+def inventory_scans():
+    """(file, line, kind, function, (file, line, call, functions it goes through)) for each search of an inventory or
+    container in code that runs while a menu is built, every tick or frame, or at a refresh. A heuristic on the text,
+    which sees:
+      - a search written in a function that is registered with one of HOT_EVENTS (by name, or inline) or is one of
+        HOT_METHODS (render, update ... written with a colon);
+      - one in a function that such a function calls, and so on: a plain call or self:f( finds a function of the same
+        file, Table.f( or Table:f( finds the function the mod defines as Table.f (or Table:f) in any file.
+    It does not see: a function that is passed or stored and called later (a callback, a button's handler: that runs when
+    the player acts, which is where a search belongs); a call through a variable or an alias that is not the table's
+    name (view:refresh()); a function the game's classes and the mod's share a name of, on a receiver of that name; the
+    cost of a loop that is not over getItems(); a search made once for a changed signature or at the player's act, unless
+    it carries `-- oa-scan: ok (why)` on its line or within the two lines above (a marked line is no search and no call
+    for this check). A function found only by the indentation of its end: a file indented some other way is misread."""
+    files = lua_files('client') + lua_files('shared') + lua_files('server')
+    by_file = {path: lines for path, lines in files}
+    functions = []
+    for path, lines in files:
+        functions.extend(lua_functions(path, lines))
+    names = {}
+    for f in functions:
+        f['table'] = re.split(r'[.:]', f['name'])[-2] if re.search(r'[.:]', f['name']) else None
+        names.setdefault(f['short'], []).append(f)
+        f['scans'] = scan_lines(by_file[f['file']], f['first'], f['last'])
+        f['calls'] = function_calls(by_file[f['file']], f['first'], f['last'])
+
+    def callees(f):
+        """The functions of the mod a function calls."""
+        for receiver, name in f['calls']:
+            for g in names.get(name, []):
+                if g is f:
+                    continue
+                same_file = g['file'] == f['file']
+                if (receiver is None and same_file) or (receiver == 'self' and same_file) or \
+                        (receiver is not None and receiver == g['table']):
+                    yield g
+
+    def witness(f, seen=()):
+        """The first search a function reaches: (file, line, call, the functions it goes through), or None."""
+        if f['scans']:
+            line, call = f['scans'][0]
+            return f['file'], line, call, [f['name']]
+        for g in callees(f):
+            if id(g) in seen:
+                continue
+            hit = witness(g, seen + (id(f),))
+            if hit:
+                return hit[0], hit[1], hit[2], [f['name']] + hit[3]
+        return None
+
+    roots = []
+    registered = set()
+    for path, lines in files:
+        for n, line in enumerate(lines):
+            code = line.split('--')[0]
+            for m in HANDLER.finditer(code):
+                if m.group(1) in HOT_EVENTS:
+                    registered.add((path, m.group(2).split('.')[-1], m.group(1)))
+            m = INLINE_HANDLER.match(code)
+            if m and m.group(2) in HOT_EVENTS:
+                last = n
+                for k in range(n + 1, len(lines)):
+                    if re.match(r'^' + re.escape(m.group(1)) + r'end\b', lines[k]):
+                        last = k
+                        break
+                roots.append(('event ' + m.group(2), {
+                    'name': 'handler of ' + m.group(2), 'short': 'handler', 'file': path, 'first': n, 'last': last,
+                    'scans': scan_lines(lines, n + 1, last), 'calls': function_calls(lines, n, last), 'table': None}))
+    for f in functions:
+        for path, short, event in registered:
+            if f['file'] == path and f['short'] == short:
+                roots.append(('event ' + event, f))
+        if f['short'] in HOT_METHODS and ':' in f['name']:
+            roots.append(('method ' + f['short'], f))
+    found = []
+    seen = set()
+    for kind, f in roots:
+        hit = witness(f)
+        if hit and (f['file'], f['first']) not in seen:
+            seen.add((f['file'], f['first']))
+            found.append((f['file'], f['first'] + 1, kind, f['name'], hit))
     return found
 
 
@@ -198,6 +386,13 @@ def main():
         problems.append('letters past ASCII in Lua code %s:%d %s' % (path, n, text))
     for path, n in anchor_fields():
         problems.append('anchor written as a field (use setAnchor...) %s:%d' % (path, n))
+    for path, n in bottom_options():
+        problems.append("option added to the bottom of a menu (use addOptionOnTop, or mark it -- oa-menu: bottom) %s:%d"
+                        % (path, n))
+    for path, n, kind, name, (where, line, call, chain) in inventory_scans():
+        problems.append('%s %s (%s:%d) searches the inventory or a container: %s at %s:%d, through %s (cache it under a '
+                        'signature or do it when the player acts; mark a search that belongs -- oa-scan: ok)'
+                        % (kind, name, path, n, call, where, line, ' > '.join(chain)))
 
     for line in problems:
         print(line)

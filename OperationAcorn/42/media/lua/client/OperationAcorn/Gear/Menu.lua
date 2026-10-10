@@ -1,7 +1,8 @@
 -- Where the kits meet the game's screens: the right-click entries (fit a kit to a bag, redeem the handover voucher, fit
 -- a kit to a vehicle from the mechanics window), the lines about fitted kits in a bag's tooltip, the notices, and the
 -- writing of a character's kits into the game when it starts. Other mods' menus and tooltips are wrapped, never
--- replaced.
+-- replaced. The entries go on top of the game's menu; the bags and kits a character carries are not searched for at a
+-- right-click but read from Gear.carried, which keeps them while the inventory is the same.
 require "ISUI/ISToolTip"
 require "ISUI/ISToolTipInv"
 require "ISUI/ISInventoryPaneContextMenu"
@@ -93,25 +94,10 @@ end
 
 -- ---- the inventory menu ---------------------------------------------------------------------------------------
 
-local function isBag(item)
-    return item:IsInventoryContainer()
-end
-
--- The bags a character has, in any container.
-local function bagsOf(player)
-    local found = {}
-    local list = player:getInventory():getAllEvalRecurse(isBag)
-    for i = 0, list:size() - 1 do found[#found + 1] = list:get(i) end
-    return found
-end
-
 -- The kits of a kind a character has that may go to a target called `key`, the ones ordered for it first.
 local function kitsFor(player, kind, key)
-    local fullType = Rules.kitType(kind)
     local exact, any = {}, {}
-    local list = player:getInventory():getAllEvalRecurse(function(item) return item:getFullType() == fullType end)
-    for i = 0, list:size() - 1 do
-        local kit = list:get(i)
+    for _, kit in ipairs(Gear.carried(player).kits[kind] or {}) do
         local target = Gear.targetOf(kit)
         if target == "" then any[#any + 1] = kit elseif target == key then exact[#exact + 1] = kit end
     end
@@ -132,10 +118,10 @@ end
 -- The entry on a bag kit: fit it to one of the bags the character has that it was ordered for.
 local function addBagKitMenu(context, player, kit)
     local kind = Gear.kindOfItem(kit)
-    local option = context:addOption(getText("ContextMenu_OA_Gear_FitBag"), nil, nil)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitBag"), nil, nil)
     local target = Gear.targetOf(kit)
     local fits = {}
-    for _, bag in ipairs(bagsOf(player)) do
+    for _, bag in ipairs(Gear.carried(player).bags) do
         if bag ~= kit and Rules.matches(target, Gear.bagKey(bag)) then fits[#fits + 1] = bag end
     end
     if #fits == 0 then
@@ -152,7 +138,7 @@ end
 
 -- The entry on a vehicle kit: it is fitted from the vehicle's mechanics window.
 local function addVehicleKitHint(context, kit)
-    local option = context:addOption(getText("ContextMenu_OA_Gear_FitVehicle"), nil, nil)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitVehicle"), nil, nil)
     unavailable(option, getText("Tooltip_OA_Gear_FitVehicle", Gear.targetName(Gear.kindOfItem(kit), Gear.targetOf(kit), getPlayer())))
 end
 
@@ -162,7 +148,7 @@ end
 
 -- The entry on the handover voucher: one kit of the kind chosen, for any target, not counted in the shop's price.
 local function addVoucherMenu(context, player, voucher)
-    local option = context:addOption(getText("ContextMenu_OA_Gear_Redeem"), nil, nil)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_Redeem"), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     for _, kind in ipairs(OA.Shop.KIT_ORDER) do
@@ -180,7 +166,7 @@ local function addFitKitMenu(context, player, bag)
         if #kits > 0 then entries[#entries + 1] = { kind = kind, kit = kits[1], count = #kits } end
     end
     if #entries == 0 then return end
-    local option = context:addOption(getText("ContextMenu_OA_Gear_FitKit"), nil, nil)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Gear_FitKit"), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)
     for _, e in ipairs(entries) do
@@ -194,25 +180,30 @@ local function onFillInventory(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player then return end
     local done = {}
+    -- the entries go on top, so they are added from the last of the selection to keep its order
+    local adders = {}
     for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
         local fullType = item:getFullType()
         if item:getModule() == OA.MOD and fullType == Gear.VOUCHER and not done.voucher then
             done.voucher = true
-            addVoucherMenu(context, player, item)
+            adders[#adders + 1] = function() addVoucherMenu(context, player, item) end
         elseif item:getModule() == OA.MOD and Gear.kindOfItem(item) and not done.kit then
             done.kit = true
-            if Rules.SCOPE[Gear.kindOfItem(item)] == "bag" then
-                addBagKitMenu(context, player, item)
-            else
-                addVehicleKitHint(context, item)
+            adders[#adders + 1] = function()
+                if Rules.SCOPE[Gear.kindOfItem(item)] == "bag" then
+                    addBagKitMenu(context, player, item)
+                else
+                    addVehicleKitHint(context, item)
+                end
             end
         elseif item:IsInventoryContainer() and not done.bag then
             done.bag = true
             -- a bag that was fitted before is written again from its kits (the API may have come or gone since)
             if item:hasModData() then pcall(Gear.refreshBag, item) end
-            addFitKitMenu(context, player, item)
+            adders[#adders + 1] = function() addFitKitMenu(context, player, item) end
         end
     end
+    for i = #adders, 1, -1 do adders[i]() end
 end
 Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 
@@ -229,7 +220,7 @@ end
 local function addPartEntry(context, player, part, kind, labelKey, lines)
     local vehicle = part:getVehicle()
     local kits = kitsFor(player, kind, Gear.vehicleKey(vehicle))
-    local option = context:addOption(getText(labelKey), player, fitVehicle, kits[1], part)
+    local option = context:addOptionOnTop(getText(labelKey), player, fitVehicle, kits[1], part)
     local text = lines and join(lines) or getText("Tooltip_OA_Gear_NoKits")
     if #kits == 0 then
         unavailable(option, getText("Tooltip_OA_Gear_NoVehicleKit", getItemNameFromFullType(Rules.kitType(kind))) ..

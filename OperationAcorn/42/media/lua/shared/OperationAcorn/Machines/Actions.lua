@@ -17,13 +17,27 @@ function Actions.ticksForMinutes(minutes)
     return math.max(10, math.floor(minutes * day * 1.25))
 end
 
--- An item of a character's inventory by id (inside bags too), or nil.
+-- An item of a character's inventory by id (inside bags too), or nil. A search of the whole inventory: for the moment an
+-- action completes, not for the checks that run every tick (those use heldItem).
 function Actions.findItem(character, id)
     if not id then return nil end
     local inventory = character:getInventory()
     local item = inventory:getItemWithIDRecursiv(id)
     if item then return item end
     return inventory:getItemById(id)
+end
+
+-- The item an action works on, for the checks that run every tick (isValid, update): the object the action was made
+-- with, as long as it is in the character's inventory (a walk up from its container, no search). Only when the action
+-- has no object (made again from its ids) or the object left the inventory is the inventory searched, once; what that
+-- finds is kept.
+function Actions.heldItem(action)
+    local item = action.item
+    if item and OA.inInventory(item, action.character) then return item end
+    -- oa-scan: ok (an action made from ids, or the item moved: once, and kept)
+    item = Actions.findItem(action.character, action.itemId)
+    action.item = item
+    return item
 end
 
 local function fixedDuration(ticks)
@@ -64,7 +78,7 @@ end
 ISOAMachinePlace = base("ISOAMachinePlace", 150)
 
 function ISOAMachinePlace:isValid()
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = Actions.heldItem(self)
     return item ~= nil and Machines.canPlace(self.kind, self.square, self.dir) ~= nil
 end
 
@@ -81,7 +95,7 @@ end
 -- dir: the facing the machine is put down with (Machines.facing at the time of the click).
 function ISOAMachinePlace:new(character, square, item, kind, dir)
     local o = ISBaseTimedAction.new(self, character)
-    o.square, o.kind, o.itemId, o.dir = square, kind, item:getID(), dir or "S"
+    o.square, o.kind, o.item, o.itemId, o.dir = square, kind, item, item:getID(), dir or "S"
     o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
     o.maxTime = o:getDuration()
     return o
@@ -140,7 +154,7 @@ ISOAMachinePartIn = base("ISOAMachinePartIn", 150)
 
 function ISOAMachinePartIn:isValid()
     local object = Machines.find(self.machineId)
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = Actions.heldItem(self)
     return object ~= nil and item ~= nil and Machines.canInstall(object, self.slot, item) ~= nil
 end
 
@@ -153,7 +167,7 @@ end
 
 function ISOAMachinePartIn:new(character, id, x, y, z, slot, item)
     local o = ISBaseTimedAction.new(self, character)
-    o.machineId, o.x, o.y, o.z, o.slot, o.itemId = id, x, y, z, slot, item:getID()
+    o.machineId, o.x, o.y, o.z, o.slot, o.item, o.itemId = id, x, y, z, slot, item, item:getID()
     o.maxTime = o:getDuration()
     return o
 end
@@ -185,7 +199,7 @@ end
 ISOAMachineShred = base("ISOAMachineShred")
 
 function ISOAMachineShred:isValid()
-    return Machines.find(self.machineId) ~= nil
+    return Machines.find(self.machineId) ~= nil and Actions.heldItem(self) ~= nil
 end
 
 function ISOAMachineShred:complete()
@@ -201,7 +215,7 @@ end
 -- The item shows the action on its row, as the game's actions show on the item they work.
 function ISOAMachineShred:update()
     self.character:faceLocation(self.x + 0.5, self.y + 0.5)
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = self.item
     if item then
         item:setJobType(getText("IGUI_OA_Machine_Job_shred"))
         item:setJobDelta(self:getJobDelta())
@@ -209,7 +223,7 @@ function ISOAMachineShred:update()
 end
 
 function ISOAMachineShred:stop()
-    local item = Actions.findItem(self.character, self.itemId)
+    local item = self.item
     if item then item:setJobDelta(0) end
     ISBaseTimedAction.stop(self)
 end
@@ -225,7 +239,7 @@ function ISOAMachineShred:new(character, id, x, y, z, entry)
     local o = ISBaseTimedAction.new(self, character)
     o.machineId, o.x, o.y, o.z = id, x, y, z
     o.playerId = OA.Store.idOf(character)
-    o.itemId = entry.item:getID()
+    o.item, o.itemId = entry.item, entry.item:getID()
     o.ticks = Actions.ticksForMinutes(Machines.benchMinutesFor({ entry }))
     o.maxTime = o:getDuration()
     return o

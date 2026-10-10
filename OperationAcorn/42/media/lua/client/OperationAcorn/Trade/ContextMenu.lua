@@ -1,5 +1,7 @@
 -- The right-click menus of the trade part: on the terminal, the delivery box and the supply crate in the world, and on
--- their items, the manifest and the manual in the inventory.
+-- their items, the manifest and the manual in the inventory. Each option goes on top of the game's menu (the thing the
+-- player clicked comes first); nothing here searches the inventory to build a menu (what a crowbar would change is
+-- told in the tooltip, and the box's nearby items are looked for when the player picks the option).
 require "ISUI/ISContextMenu"
 require "OperationAcorn/Trade/Actions"
 require "OperationAcorn/Trade/Reader"
@@ -19,6 +21,7 @@ local function tooltip(option, text)
     option.toolTip = tip
 end
 
+-- The crowbar a character carries, looked for when the player picks "break the seal", not when the menu is built.
 local function crowbarOf(character)
     local inventory = character:getInventory()
     for _, name in ipairs(CROWBARS) do
@@ -52,7 +55,10 @@ function Menus.bulk(object, player)
     local character = getSpecificPlayer(player)
     local square = object:getSquare()
     local plan = Things.bulkPlan(character, object)
-    if plan.count == 0 then return end
+    if plan.count == 0 then
+        HaloTextHelper.addBadText(character, getText("ContextMenu_OA_Trade_LoadNothing"))
+        return
+    end
     if luautils.walkAdj(character, square) then
         ISTimedActionQueue.add(ISOABulkLoad:new(character, square, plan.count))
     end
@@ -93,7 +99,7 @@ end
 
 local function terminalOptions(context, object, player)
     local square = object:getSquare()
-    local use = context:addOption(getText("ContextMenu_OA_Trade_UseTerminal"), object, Menus.use, player)
+    local use = context:addOptionOnTop(getText("ContextMenu_OA_Trade_UseTerminal"), object, Menus.use, player)
     if not Objects.powered(square) then
         use.notAvailable = true
         tooltip(use, getText("ContextMenu_OA_Trade_NeedPower"))
@@ -102,29 +108,24 @@ local function terminalOptions(context, object, player)
 end
 
 local function boxOptions(context, object, player)
-    local character = getSpecificPlayer(player)
     local md = object:getModData()
     if md[Objects.SEALED] then
-        local info = context:addOption(getText("ContextMenu_OA_Trade_BoxSealed"), nil, nil)
+        local info = context:addOptionOnTop(getText("ContextMenu_OA_Trade_BoxSealed"), nil, nil)
         info.notAvailable = true
         tooltip(info, getText("ContextMenu_OA_Trade_BoxSealedTip"))
         return
     end
-    context:addOption(getText("ContextMenu_OA_Trade_SealBox"), object, Menus.seal, player)
-    local plan = Things.bulkPlan(character, object)
-    local load = context:addOption(getText("ContextMenu_OA_Trade_LoadBox", plan.count), object, Menus.bulk, player)
-    if plan.count == 0 then
-        load.notAvailable = true
-        tooltip(load, getText("ContextMenu_OA_Trade_LoadNothing"))
-    end
+    -- seal, then load: added on top in reverse. What lies nearby is not counted here (that would search the
+    -- inventory and every container in reach at every right-click): Menus.bulk looks when the option is picked.
+    context:addOptionOnTop(getText("ContextMenu_OA_Trade_LoadBox"), object, Menus.bulk, player)
+    context:addOptionOnTop(getText("ContextMenu_OA_Trade_SealBox"), object, Menus.seal, player)
 end
 
 local function crateOptions(context, object, player)
     local md = object:getModData()
     if md[Objects.SEALED] then
-        local crowbar = crowbarOf(getSpecificPlayer(player))
-        local option = context:addOption(getText("ContextMenu_OA_Trade_Unseal"), object, Menus.unseal, player)
-        tooltip(option, getText(crowbar and "ContextMenu_OA_Trade_UnsealFast" or "ContextMenu_OA_Trade_UnsealSlow"))
+        local option = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Unseal"), object, Menus.unseal, player)
+        tooltip(option, getText("ContextMenu_OA_Trade_UnsealTip"))
     end
 end
 
@@ -167,15 +168,15 @@ local function onFillInventory(player, context, items)
         local place = PLACE_KEY[fullType]
         if place then
             if character:isItemInBothHands(item) then
-                context:addOption(getText(place.key), character, Menus.place, place.kind, item)
+                context:addOptionOnTop(getText(place.key), character, Menus.place, place.kind, item)
             else
-                local option = context:addOption(getText("ContextMenu_OA_Trade_Carry"), character, ISInventoryPaneContextMenu.equipHeavyItem, item)
+                local option = context:addOptionOnTop(getText("ContextMenu_OA_Trade_Carry"), character, ISInventoryPaneContextMenu.equipHeavyItem, item)
                 if character:getVehicle() then option.notAvailable = true end
             end
         elseif fullType == "OperationAcorn.SupplyManifest" then
-            context:addOption(getText("ContextMenu_OA_Trade_ReadManifest"), character, Trade.Reader.manifest, item)
+            context:addOptionOnTop(getText("ContextMenu_OA_Trade_ReadManifest"), character, Trade.Reader.manifest, item)
         elseif fullType == "OperationAcorn.TerminalManual" then
-            context:addOption(getText("ContextMenu_OA_Trade_LastPage"), character, Trade.Reader.lastPage)
+            context:addOptionOnTop(getText("ContextMenu_OA_Trade_LastPage"), character, Trade.Reader.lastPage)
         end
         return
     end

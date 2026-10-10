@@ -193,6 +193,26 @@ function Machines.spriteName(kind, dir, look)
     return nil
 end
 
+-- sprite name -> machine kind, every look of every kind but the lure (which is no furniture): made the first time it is
+-- asked. The furniture tool's pieces (Moveables.lua) and the menu of a piece in the inventory (client Menu.lua) read it.
+local pieceKinds = nil
+
+function Machines.kindOfSprite(spriteName)
+    if not pieceKinds then
+        pieceKinds = {}
+        for _, kind in ipairs(Data.ORDER) do
+            if kind ~= "lure" then
+                for _, dir in ipairs({ "S", "E", "N", "W" }) do
+                    for _, look in ipairs(Sprites.LOOKS) do
+                        for _, t in ipairs(Sprites.machineTiles(kind, dir, look) or {}) do pieceKinds[t.sprite] = kind end
+                    end
+                end
+            end
+        end
+    end
+    return pieceKinds[spriteName]
+end
+
 -- The other objects of a machine on loaded squares: { { dx, dy, object } ... }.
 function Machines.partsOf(state)
     local parts = {}
@@ -886,10 +906,33 @@ end
 -- Hours between the noises a working machine makes (the ten-minute step).
 Machines.NOISE_EVERY = 1 / 6
 
+-- The first things a machine would take from its in-container, for the window that shows its jobs (asked ten times a
+-- second): found by one walk through the container, and kept while the container's signature (OA.signature: how many
+-- items, what they weigh) is the same, the things are still in it, and no more than ten game minutes have passed (an item
+-- can become fit to take with time, rotten food). container -> { key, entries } (weak: a container that is gone drops
+-- out).
+local takesMemo = setmetatable({}, { __mode = "k" })
+
+local function firstTaken(container, kind, lanes)
+    local key = OA.signature(container) .. "|" .. kind .. "|" .. lanes .. "|" .. math.floor(OA.hours() * 6)
+    local hit = takesMemo[container]
+    if hit and hit.key == key then
+        local all = true
+        for _, entry in ipairs(hit.entries) do
+            if not present(entry) then all = false break end
+        end
+        if all then return hit.entries end
+    end
+    -- oa-scan: ok (once for a signature, and not before ten game minutes pass)
+    local entries = collect(container, ACCEPT[kind], lanes)
+    takesMemo[container] = { key = key, entries = entries }
+    return entries
+end
+
 -- The jobs a working machine is on now, for the player watching it: a list, a lane each, of { item, share } (the
 -- share of it done by now, more than 1 when it is due and the machine has not worked since). nil when it is not on a
--- job (idle, off, no power, a part worn out). Light enough for a window that is open: the first things it takes, and
--- the time since it last worked.
+-- job (idle, off, no power, a part worn out). Light enough for a window that is open: the first things it takes
+-- (kept, firstTaken), and the time since it last worked.
 function Machines.progress(object)
     local state = Machines.state(object)
     if not state or state.idle ~= false or state.on == false or not ACCEPT[state.kind] then return nil end
@@ -897,7 +940,7 @@ function Machines.progress(object)
     local square = object:getSquare()
     if fx.stopped or not square or not Machines.hasPower(square) then return nil end
     local inC = Machines.container(object, "in")
-    local entries = inC and collect(inC, ACCEPT[state.kind], fx.lanes) or {}
+    local entries = inC and firstTaken(inC, state.kind, fx.lanes) or {}
     if #entries == 0 then return nil end
     local spent = Data.KINDS[state.kind].rate * fx.speed * math.max(0, OA.hours() - (state.last or 0))
     local carries = state.lanes or { state.carry or 0 }

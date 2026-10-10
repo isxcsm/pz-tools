@@ -44,6 +44,11 @@ local function newInventory()
     end
     function inv:getItemById(id) return self:getItemWithIDRecursiv(id) end
     function inv:getItems() return newList(self.items) end
+    function inv:getContentsWeight()
+        local w = 0
+        for _, it in ipairs(self.items) do w = w + it.weight end
+        return w
+    end
     function inv:getAllEvalRecurse(pred)
         local found = {}
         for _, it in ipairs(self.items) do if pred(it) then found[#found + 1] = it end end
@@ -743,4 +748,134 @@ test("a voucher kit goes to any bag or vehicle and the shop does not count it", 
     eq(Gear.trunkKits(car), 1)
     eq(OA.Shop.kitsFor("trunk", Gear.vehicleId(car, true), record), 0)
     eq(OA.Shop.kitPrice("trunk", Gear.vehicleKey(car), record), price)
+end)
+
+-- ---------------------------------------------------------------------------------------------------------------------
+-- What a character carries, kept per inventory signature; the menus and the actions that read it
+
+test("the bags and kits a character carries are found by one search, kept while the inventory is the same", function()
+    setup()
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local kit = kitOf(player, "bagCapacity", "")
+    local plain = newItem("Base.Hammer")
+    player.inventory:AddItem(plain)
+    local searches = 0
+    local search = player.inventory.getAllEvalRecurse
+    player.inventory.getAllEvalRecurse = function(self, pred) searches = searches + 1 return search(self, pred) end
+    local carried = Gear.carried(player)
+    eq(searches, 1)
+    eq(#carried.bags, 1)
+    eq(carried.bags[1], bag)
+    eq(#carried.kits.bagCapacity, 1)
+    eq(carried.kits.bagCapacity[1], kit)
+    eq(Gear.carried(player), carried)
+    eq(Gear.carried(player), carried)
+    eq(searches, 1, "the same inventory: not searched again")
+    -- an item comes: searched again
+    kitOf(player, "bagWeight", "")
+    local again = Gear.carried(player)
+    eq(searches, 2)
+    eq(#again.kits.bagWeight, 1)
+    -- a kit used up (its weight goes too): searched again, and it is gone
+    player.inventory:DoRemoveItem(kit)
+    eq(#(Gear.carried(player).kits.bagCapacity or {}), 0, "it is gone")
+    eq(searches, 3)
+    -- the target lookups use it
+    eq(Gear.findTarget("bagCapacity", Gear.bagKey(bag), player), bag)
+    eq(searches, 3, "findTarget does not search")
+end)
+
+test("a fitting action checks its kit and bag by the objects it was made with, without searching the inventory", function()
+    setup()
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(bag))
+    local searches = 0
+    local find = player.inventory.getItemWithIDRecursiv
+    player.inventory.getItemWithIDRecursiv = function(self, id) searches = searches + 1 return find(self, id) end
+    function player.inventory:getContainingItem() return nil end
+    local action = { character = player, kit = kit, bag = bag, kitId = kit:getID(), bagId = bag:getID() }
+    for _ = 1, 5 do
+        eq(Gear.heldItem(action, "kit", "kitId"), kit)
+        eq(Gear.heldItem(action, "bag", "bagId"), bag)
+    end
+    eq(searches, 0, "ticks of the action: no search")
+    -- the kit is gone: looked for once by its id, and not found
+    player.inventory:DoRemoveItem(kit)
+    eq(Gear.heldItem(action, "kit", "kitId"), nil)
+    truthy(searches > 0, "looked for by its id")
+end)
+
+-- The kit menus, with the game's UI classes as stand-ins.
+local function menuStubs()
+    local function stubClass()
+        local c = {}
+        c.derive = function() return stubClass() end
+        return setmetatable(c, { __index = function() return function() end end })
+    end
+    for _, class in ipairs({ "ISToolTip", "ISToolTipInv", "ISInventoryPaneContextMenu", "ISVehicleMechanics",
+        "ISInventoryPane", "ISContextMenu", "ISBaseTimedAction" }) do
+        _G[class] = stubClass()
+    end
+    ISToolTip.new = function() return { initialise = function() end, setVisible = function() end } end
+    ISInventoryPane.getActualItems = function(items) return items end
+    local function newMenu()
+        local menu = { options = {} }
+        function menu:addOption(name, target, fn, a, b)
+            local o = { name = name, target = target, onSelect = fn, param1 = a, param2 = b }
+            self.options[#self.options + 1] = o
+            return o
+        end
+        function menu:addOptionOnTop(name, target, fn, a, b)
+            local o = { name = name, target = target, onSelect = fn, param1 = a, param2 = b }
+            table.insert(self.options, 1, o)
+            return o
+        end
+        function menu:addSubMenu(o, sub) o.subOption = sub end
+        return menu
+    end
+    ISContextMenu.getNew = function() return newMenu() end
+    local real = require
+    require = function(name)
+        if string.find(name, "^ISUI/") or string.find(name, "^Vehicles/") or string.find(name, "^TimedActions/")
+            or name == "OperationAcorn/Client" then
+            return true
+        end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Gear/Menu")
+    require = real
+    if not ok then error(err, 0) end
+    return newMenu
+end
+
+test("the kit entries go on top of the inventory menu, and building them searches the inventory once for a signature", function()
+    setup()
+    local newMenu = menuStubs()
+    local player, bag = bagFixture("Base.Bag_ALICEpack", 28, 85)
+    local kit = kitOf(player, "bagCapacity", Gear.bagKey(bag))
+    local searches = 0
+    local search = player.inventory.getAllEvalRecurse
+    player.inventory.getAllEvalRecurse = function(self, pred) searches = searches + 1 return search(self, pred) end
+    getSpecificPlayer = function() return player end
+    -- right-click on the bag: "fit a kit" above the game's own
+    local menu = newMenu()
+    menu:addOption("Vanilla")
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, menu, { bag })
+    eq(menu.options[1].name, "ContextMenu_OA_Gear_FitKit")
+    eq(menu.options[2].name, "Vanilla")
+    eq(#menu.options[1].subOption.options, 1, "the one kind of kit in hand")
+    eq(searches, 1)
+    -- again, and on the kit: no new search
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, menu, { bag })
+    local onKit = newMenu()
+    onKit:addOption("Vanilla")
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, onKit, { kit })
+    eq(onKit.options[1].name, "ContextMenu_OA_Gear_FitBag")
+    eq(onKit.options[2].name, "Vanilla")
+    eq(#onKit.options[1].subOption.options, 1, "the bag the kit was ordered for")
+    eq(searches, 1, "three menus, one search")
+    -- the inventory changed
+    player.inventory:AddItem(newItem("Base.Hammer"))
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, newMenu(), { bag })
+    eq(searches, 2)
 end)

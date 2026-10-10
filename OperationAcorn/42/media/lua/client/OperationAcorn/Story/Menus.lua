@@ -1,6 +1,6 @@
 -- The story's context menus: reading an item's paper, the field call device, leaving the sealed case at a drop, a
 -- soil sample from the ground, and a survey stake. Each only offers what the character's mission asks for; the
--- server judges the rest.
+-- server judges the rest. Each goes on top of the game's menu, in the order named here.
 require "ISUI/ISInventoryPane"
 require "ISUI/ISWorldObjectContextMenu"
 require "TimedActions/ISTimedActionQueue"
@@ -39,10 +39,20 @@ local function wantsCase(m) return m.swap ~= nil and m.swap.stage == "needcase" 
 -- ---------------------------------------------------------------------------------------------------------------
 -- Inventory.
 
+-- Puts the options of a list on top of a menu, so that the first of the list is the first of the menu: added from the
+-- last (each one pushes the others down). A list holds { name, target, fn } tables.
+local function onTop(context, list)
+    for i = #list, 1, -1 do
+        local o = list[i]
+        context:addOptionOnTop(o.name, o.target, o.fn)
+    end
+end
+
 local function onFillInventory(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     local _, record = activeMission(player)
     local read, field, swap = false, false, false
+    local options = {}
     for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
         local name = Data.itemName(item:getFullType())
         if name then
@@ -51,25 +61,23 @@ local function onFillInventory(playerNum, context, items)
                 local docs = Docs.forItem(record, name, md)
                 if #docs > 0 then
                     read = true
-                    context:addOption(getText("ContextMenu_OA_Story_Read"), player, function(p)
-                        OA.StoryViewer.open(p, docs)
-                    end)
+                    options[#options + 1] = { name = getText("ContextMenu_OA_Story_Read"), target = player,
+                        fn = function(p) OA.StoryViewer.open(p, docs) end }
                 end
             end
             if name == "FieldCallDevice" and not field and anyMission(record, wantsDevice) then
                 field = true
-                context:addOption(getText("ContextMenu_OA_Story_FieldCall"), player, function(p)
-                    OA.Sync.send(p, "story_field", {})
-                end)
+                options[#options + 1] = { name = getText("ContextMenu_OA_Story_FieldCall"), target = player,
+                    fn = function(p) OA.Sync.send(p, "story_field", {}) end }
             end
             if name == "SampleCase" and not swap and anyMission(record, wantsCase) then
                 swap = true
-                context:addOption(getText("ContextMenu_OA_Story_LeaveCase"), player, function(p)
-                    OA.Sync.send(p, "story_swap", {})
-                end)
+                options[#options + 1] = { name = getText("ContextMenu_OA_Story_LeaveCase"), target = player,
+                    fn = function(p) OA.Sync.send(p, "story_swap", {}) end }
             end
         end
     end
+    onTop(context, options)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
@@ -89,15 +97,8 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     if player:getVehicle() then return end
     local m = activeMission(player)
 
+    -- the stake is the first of the two options and the soil sample the second, so the stake is added last
     local obj, stake, date = stakeObject(worldobjects)
-    if obj then
-        context:addOption(getText("ContextMenu_OA_Story_ReadStake"), worldobjects, function()
-            local square = obj:getSquare()
-            if square and luautils.walkAdj(player, square, true) then
-                ISTimedActionQueue.add(ISOAStoryAction:new(player, "stake", { stake = stake, date = date }, 40))
-            end
-        end)
-    end
 
     if m and m.soil and m.state == "open" and not m.soil.taken then
         local square
@@ -109,7 +110,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
             if m.soil.variant == "site" then
                 near = Places.distance(player:getX(), player:getY(), m.soil.x, m.soil.y) <= SOIL_NEAR
             end
-            local option = context:addOption(getText("ContextMenu_OA_Story_TakeSoil"), worldobjects, function()
+            local option = context:addOptionOnTop(getText("ContextMenu_OA_Story_TakeSoil"), worldobjects, function()
                 if luautils.walkAdj(player, square, true) then
                     ISTimedActionQueue.add(ISOAStoryAction:new(player, "soil", {}, 200))
                 end
@@ -121,6 +122,15 @@ local function onFillWorld(playerNum, context, worldobjects, test)
                 option.toolTip = tip
             end
         end
+    end
+
+    if obj then
+        context:addOptionOnTop(getText("ContextMenu_OA_Story_ReadStake"), worldobjects, function()
+            local square = obj:getSquare()
+            if square and luautils.walkAdj(player, square, true) then
+                ISTimedActionQueue.add(ISOAStoryAction:new(player, "stake", { stake = stake, date = date }, 40))
+            end
+        end)
     end
 end
 

@@ -149,6 +149,8 @@ end
 -- The items of a box's container as a plain list.
 local function itemsOf(container)
     local list = {}
+    -- oa-scan: ok (a delivery box's contents: asked when the player seals it, and by the estimate panel under the box's
+    -- signature)
     local items = container:getItems()
     for i = 0, items:size() - 1 do list[#list + 1] = items:get(i) end
     return list

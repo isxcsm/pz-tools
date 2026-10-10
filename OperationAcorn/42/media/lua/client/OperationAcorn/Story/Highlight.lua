@@ -28,12 +28,34 @@ local ticking = false
 local last = {}
 local EMPTY = {}
 
--- Whether the container holds an item whose OA_Mission is this id.
-local function holds(container, id)
+-- The items of a container that carry a mission mark: { { item, id } ... }. Found by one walk through the container, and
+-- kept while its signature (OA.signature: how many items, what they weigh) is the same, so that the half-second look
+-- does not walk a container of thousands of items again and again. container -> { key, list } (weak: a container that
+-- is gone drops out).
+local marked = setmetatable({}, { __mode = "k" })
+
+local function markedIn(container)
+    local key = OA.signature(container)
+    local hit = marked[container]
+    if hit and hit.key == key then return hit.list end
+    local list = {}
+    -- oa-scan: ok (once for each signature of the container)
     local items = container:getItems()
     for i = 0, items:size() - 1 do
         local item = items:get(i)
-        if item:hasModData() and item:getModData().OA_Mission == id then return true end
+        if item:hasModData() then
+            local id = item:getModData().OA_Mission
+            if id then list[#list + 1] = { item = item, id = id } end
+        end
+    end
+    marked[container] = { key = key, list = list }
+    return list
+end
+
+-- Whether the container holds an item whose OA_Mission is this id.
+local function holds(container, id)
+    for _, entry in ipairs(markedIn(container)) do
+        if entry.id == id then return true end
     end
     return false
 end
@@ -111,17 +133,12 @@ local function tintOf(page, missions, player)
     local inventory = pane and pane.inventory
     if not inventory or not page:isVisible() then return pane, nil end
     local names
-    local items = inventory:getItems()
-    for i = 0, items:size() - 1 do
-        local item = items:get(i)
-        if item:hasModData() then
-            local id = item:getModData().OA_Mission
-            for _, m in ipairs(missions) do
-                if View.owns(m, id) then
-                    names = names or {}
-                    names[item:getName(player)] = View.color(m.kind)
-                    break
-                end
+    for _, entry in ipairs(markedIn(inventory)) do
+        for _, m in ipairs(missions) do
+            if View.owns(m, entry.id) then
+                names = names or {}
+                names[entry.item:getName(player)] = View.color(m.kind)
+                break
             end
         end
     end

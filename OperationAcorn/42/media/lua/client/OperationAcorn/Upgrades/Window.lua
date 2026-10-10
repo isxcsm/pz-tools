@@ -215,7 +215,7 @@ function View:refresh()
     local record = self.player and self:record()
     if not record then return end
     self.u = Rules.section(record)
-    self:countFragments()
+    self:countFragments(true)
     local sim, kept, used = Plan.simulate(self.u, self.steps, self.fragments)
     self.sim, self.steps = sim, kept
     self.counts = Plan.counts(kept)
@@ -229,8 +229,17 @@ function View:refresh()
     self.tipDirty = true
 end
 
-function View:countFragments()
-    self.fragments = self.player:getInventory():getCountTypeRecurse(Data.FRAGMENT)
+-- The fragments the character carries, in any bag. The window looks again every second, and the inventory may hold
+-- thousands of items: the count is made again only when the inventory's signature (OA.signature: how many items, what
+-- they weigh) is not the one it was made under, or when `force` is given (the window opens, the plan is changed).
+function View:countFragments(force)
+    local inventory = self.player:getInventory()
+    local key = OA.signature(inventory)
+    if force or key ~= self.fragmentKey then
+        self.fragmentKey = key
+        -- oa-scan: ok (a new signature, or the player's own act)
+        self.fragments = inventory:getCountTypeRecurse(Data.FRAGMENT)
+    end
     self.nextCount = getTimestampMs() + 1000
 end
 
@@ -310,6 +319,7 @@ function View:chooseFamily(id)
         local n = self.sim.board.family[family] or 0
         local label = Texts.familyName(family)
         if n > 0 then label = label .. " (" .. Texts.number(Rules.familyAmount(self.sim, family) * 100) .. "%)" end
+        -- oa-menu: bottom (the window's own menu at the mouse, not one of the game's)
         context:addOption(label, self, View.onFamily, id, family)
     end
     if self.joypad then

@@ -109,10 +109,32 @@ local function predicateMission(item, id)
     return missionMatch(item, id)
 end
 
+-- What the last look for a mission's item found, by record id: { mission, item (found, or nil), miss (the inventory's
+-- signature when it was not found) }.
+local looked = {}
+
+-- The mission's item in a character's things, or nil. Asked every few seconds by the sample cooler's look, and the
+-- inventory may hold thousands of items: the item found is kept, and checked in a few steps (it is still in the
+-- inventory and still the mission's); a search of the inventory is made only when it is not, and, when it found nothing,
+-- not again until the inventory's signature (OA.signature: how many items, what they weigh) has changed.
 function Game.findItem(record, missionId)
     local p = Game.character(record)
     if not p then return nil end
-    return p:getInventory():getFirstEvalArgRecurse(predicateMission, missionId)
+    local mem = looked[record.id]
+    if not mem or mem.mission ~= missionId then
+        mem = { mission = missionId }
+        looked[record.id] = mem
+    end
+    local item = mem.item
+    if item and OA.inInventory(item, p) and missionMatch(item, missionId) then return item end
+    mem.item = nil
+    local inventory = p:getInventory()
+    local key = OA.signature(inventory)
+    if mem.miss == key then return nil end
+    -- oa-scan: ok (a new signature, or no item kept)
+    item = inventory:getFirstEvalArgRecurse(predicateMission, missionId)
+    mem.item, mem.miss = item, (not item) and key or nil
+    return item
 end
 
 -- Whether an item is a mission's piece or holds one (a bag with it inside).

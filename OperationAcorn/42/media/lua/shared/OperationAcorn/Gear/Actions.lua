@@ -21,8 +21,8 @@ end
 ISOAFitBagKit = ISBaseTimedAction:derive("ISOAFitBagKit")
 
 function ISOAFitBagKit:isValid()
-    local kit = Gear.findItem(self.character, self.kitId)
-    local bag = Gear.findItem(self.character, self.bagId)
+    local kit = Gear.heldItem(self, "kit", "kitId")
+    local bag = Gear.heldItem(self, "bag", "bagId")
     return kit ~= nil and bag ~= nil and Gear.kindOfItem(kit) ~= nil
 end
 
@@ -54,7 +54,7 @@ end
 
 function ISOAFitBagKit:new(character, kit, bag)
     local o = ISBaseTimedAction.new(self, character)
-    o.kitId, o.bagId = kit:getID(), bag:getID()
+    o.kit, o.bag, o.kitId, o.bagId = kit, bag, kit:getID(), bag:getID()
     o.stopOnWalk = true
     o.stopOnRun = true
     o.maxTime = o:getDuration()
@@ -66,7 +66,7 @@ end
 ISOAFitVehicleKit = ISBaseTimedAction:derive("ISOAFitVehicleKit")
 
 function ISOAFitVehicleKit:isValid()
-    local kit = Gear.findItem(self.character, self.kitId)
+    local kit = Gear.heldItem(self, "kit", "kitId")
     local vehicle = Gear.findVehicle(self.vehicleId)
     return kit ~= nil and vehicle ~= nil and Gear.near(self.character, vehicle)
 end
@@ -115,7 +115,7 @@ end
 
 function ISOAFitVehicleKit:new(character, kit, vehicle)
     local o = ISBaseTimedAction.new(self, character)
-    o.kitId, o.vehicleId = kit:getID(), vehicle:getId()
+    o.kit, o.kitId, o.vehicleId = kit, kit:getID(), vehicle:getId()
     o.kind = Gear.kindOfItem(kit)
     o.stopOnWalk = true
     o.stopOnRun = true
