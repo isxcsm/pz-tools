@@ -312,6 +312,19 @@ public final class ApiHooks {
         default void landed(Object zombie) { }
     }
 
+    /**
+     * Set by the payload while a mod watches the hits zombies take (docs/design/extension-api.md, "Zombie hits"). Null while
+     * nobody watches, so that a hook costs one volatile read. The call comes on the thread that makes the hit (the game's), must
+     * not allocate, and only notes the hit: the event is raised later, on the game's thread.
+     */
+    public interface ZombieHits {
+        /**
+         * {@code IsoZombie.Hit(weapon, attacker, ...)} has worked a hit out and applied it: {@code damage} is what the game dealt,
+         * the zombie is dead or alive, and its {@code lastHitPart} is the part the hit was on.
+         */
+        default void hit(Object zombie, Object attacker, Object weapon, float damage) { }
+    }
+
     /** The kinds of {@link Power#object}. */
     public static final int APPLIANCE = 0, LIGHT_SWITCH = 1, DEVICE = 2, ROOM_LIGHT = 3, FOOD = 4;
 
@@ -328,6 +341,7 @@ public final class ApiHooks {
     private static volatile Moodles moodles;
     private static volatile Text text;
     private static volatile ZombieSounds zombieSounds;
+    private static volatile ZombieHits zombieHits;
     // Where IsoObject reads usesExternalWaterSource for itself and keeps the game's flag: saving it, and finding the
     // game's own source (whose return the network's source replaces).
     private static final Set<String> PLUMBING_KEPT = Set.of("save", "checkExternalFluidSource");
@@ -358,7 +372,7 @@ public final class ApiHooks {
         ANIMATING("animating", Group.FORMULAS), MOODLE_LEVEL("moodleLevel", Group.MOODLES),
         MOODLE_KIND("moodleKind", Group.MOODLES), MOODLE_PICTURE("moodlePicture", Group.MOODLES), TEXT("text", Group.TEXT),
         ZOMBIE_STATE("zombieState", Group.ZOMBIE_SOUNDS), ZOMBIE_VOICE("zombieVoice", Group.ZOMBIE_SOUNDS),
-        ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS);
+        ZOMBIE_LANDED("zombieLanded", Group.ZOMBIE_SOUNDS), ZOMBIE_HIT("zombieHit", Group.ZOMBIE_HITS);
 
         final String label;
         final Group group;
@@ -367,7 +381,7 @@ public final class ApiHooks {
     }
 
     /** The handler a call belongs to: a newer one of that handler reports its faults again. */
-    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS }
+    private enum Group { POWER, WATER, FORMULAS, MOODLES, TEXT, ZOMBIE_SOUNDS, ZOMBIE_HITS }
 
     // Guarded by itself. A fault in a call the game makes 40,000 times a second must not flood its log.
     private static final Set<Call> reported = EnumSet.noneOf(Call.class);
@@ -886,7 +900,27 @@ public final class ApiHooks {
                 })) }),
         // A zombie landing from a fall: the zombie's own handleLandingImpact, which DoLand calls for a landing the game counts as a fall.
         Map.entry("zombie/characters/IsoZombie", new Site[] {
-            Site.atStart("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", (code, owner) -> thisCall(code, "zombieLanded")) }));
+            Site.atStart("handleLandingImpact", "(Lzombie/characters/FallDamage;)V", (code, owner) -> thisCall(code, "zombieLanded")),
+            // A hit a zombie takes (docs/design/extension-api.md, "Zombie hits"): the zombie's Hit(weapon, attacker, ...) hands the hit
+            // to its character's, which works the damage out, applies it (a kill included) and returns it. The one call of that, after
+            // it returns: the damage dealt is the float on the stack (copied), the zombie, the weapon and the attacker are the method's
+            // own arguments, which it never stores over (the early returns for an immortal zombie and a missing attacker are before it).
+            Site.edit("Hit", "(Lzombie/inventory/types/HandWeapon;Lzombie/characters/IsoGameCharacter;FZFZ)F", new Edit(calls(
+                "zombie/characters/IsoGameCharacter", "Hit", "(Lzombie/inventory/types/HandWeapon;Lzombie/characters/IsoGameCharacter;FZFZ)F"), 1,
+                (elements, index) -> {
+                    for (CodeElement element : elements)
+                        if (element instanceof StoreInstruction store && store.slot() <= 2)
+                            throw new IllegalArgumentException("the weapon or the attacker argument is stored over");
+                    return 0;
+                }, (code, element, kind) -> {
+                    code.with(element);
+                    code.dup();
+                    code.aload(0);
+                    code.aload(1);
+                    code.aload(2);
+                    code.invokestatic(HOOKS, "zombieHit", MethodTypeDesc.of(ConstantDescs.CD_void, ConstantDescs.CD_float, ConstantDescs.CD_Object,
+                        ConstantDescs.CD_Object, ConstantDescs.CD_Object));
+                })) }));
 
     /** {@code this}, passed to the static call {@code name(Object)}. */
     private static void thisCall(CodeBuilder code, String name) {
@@ -2089,6 +2123,20 @@ public final class ApiHooks {
         if (current == null) return;
         try { current.landed(zombie); }
         catch (Throwable problem) { reportOnce(Call.ZOMBIE_LANDED, problem); }
+    }
+
+    /** Sets what hears the hits zombies take, replacing an earlier payload's; null while nobody watches (the hook then returns at once). */
+    public static void setZombieHits(ZombieHits next) {
+        synchronized (reported) { reported.removeIf(call -> call.group == Group.ZOMBIE_HITS); }
+        zombieHits = next;
+    }
+
+    /** Put after the call of the character's {@code Hit} in {@code IsoZombie.Hit}: the damage dealt, the zombie, the weapon, the attacker. */
+    public static void zombieHit(float damage, Object zombie, Object weapon, Object attacker) {
+        ZombieHits current = zombieHits;
+        if (current == null) return;
+        try { current.hit(zombie, attacker, weapon, damage); }
+        catch (Throwable problem) { reportOnce(Call.ZOMBIE_HIT, problem); }
     }
 
     // MoodleTextureSet.getBorder(), found once, for the rare path where no picture is known.

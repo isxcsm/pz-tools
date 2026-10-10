@@ -11,6 +11,7 @@ import zombie.core.textures.TextureDraw;
 import zombie.entity.components.fluids.Fluid;
 import zombie.entity.components.fluids.FluidContainer;
 import zombie.entity.components.fluids.FluidSample;
+import zombie.inventory.ItemContainer;
 import zombie.iso.sprite.IsoSprite;
 import zombie.iso.sprite.IsoSpriteInstance;
 
@@ -120,6 +121,11 @@ public class IsoObject {
         }
         return fluidContainer != null && fluidContainer.isTainted();
     }
+
+    /** The containers the object holds (shelves, a counter's drawers), in the order the game lists them. */
+    public final ArrayList<ItemContainer> containers = new ArrayList<>();
+    public int getContainerCount() { return containers.size(); }
+    public ItemContainer getContainerByIndex(int index) { return index >= 0 && index < containers.size() ? containers.get(index) : null; }
 
     public boolean hasModData() { return modData != null; }
     public KahluaTable getModData() {

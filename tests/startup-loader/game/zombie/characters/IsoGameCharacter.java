@@ -49,6 +49,8 @@ public class IsoGameCharacter extends IsoMovingObject {
     /** Where it looks, whether it sleeps or is dead, and the car it is in. */
     public float lookX = 1f, lookY;
     public boolean asleep, dead;
+    /** What is left of its health: a hit takes the damage, and it is dead at 0. */
+    public float health = 1f;
     public Object vehicle;
     /** A player's moodles (the game gives them to players alone); null for any other character. */
     protected final zombie.characters.Moodles.Moodles moodles;
@@ -72,6 +74,14 @@ public class IsoGameCharacter extends IsoMovingObject {
     public boolean isAsleep() { return asleep; }
 
     public boolean isDead() { return dead; }
+
+    /** A hit, as the game's works it out: nothing without a weapon or an attacker, else the damage is taken off the health and returned. */
+    public float Hit(zombie.inventory.types.HandWeapon weapon, IsoGameCharacter attacker, float damage, boolean stagger, float knockback, boolean remote) {
+        if (attacker == null || weapon == null) return 0f;
+        health -= damage;
+        if (health <= 0f) dead = true;
+        return damage;
+    }
 
     public Object getVehicle() { return vehicle; }
 

@@ -63,4 +63,35 @@ final class ZombieReads {
             }
         }
     }
+
+    /**
+     * What a query with options asks of each zombie besides its place, as handles that are constants like {@link Handles}: made by
+     * the first call that has options, so that a game that lacks one of them loses those options alone.
+     */
+    static final class Filters {
+        // IsoGameCharacter.getCurrentState(); IsoZombie.target; IsoZombie.isCrawling().
+        static final MethodHandle STATE, TARGET, CRAWLING;
+
+        static {
+            try {
+                Class<?> character = Game.type(Handles.LOADER, "zombie.characters.IsoGameCharacter");
+                Class<?> zombie = Game.type(Handles.LOADER, "zombie.characters.IsoZombie");
+                STATE = Game.exact(character.getMethod("getCurrentState"), MethodType.methodType(Object.class, Object.class));
+                TARGET = MethodHandles.publicLookup().unreflectGetter(zombie.getField("target")).asType(MethodType.methodType(Object.class, Object.class));
+                CRAWLING = Game.exact(zombie.getMethod("isCrawling"), MethodType.methodType(boolean.class, Object.class));
+            } catch (ReflectiveOperationException failure) {
+                throw new ExceptionInInitializerError(failure);
+            }
+        }
+
+        private Filters() { }
+
+        /** Makes the handles, or fails with why this game cannot answer a query with options. */
+        static void use() {
+            try { MethodHandle ignored = STATE; }
+            catch (ExceptionInInitializerError | NoClassDefFoundError missing) {
+                throw new IllegalStateException("this game cannot answer zombies.near with options: " + missing);
+            }
+        }
+    }
 }

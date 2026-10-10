@@ -36,6 +36,11 @@ public final class GameApi {
     private static volatile Texts texts;
     // The zombies' sounds of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
     private static volatile ZombieSounds sounds;
+    // The hits zombies take, of the Lua environment the game has now; null without one, when the game cannot hook them, or after a fault.
+    private static volatile ZombieHits hits;
+    // The timers and the chunk watches of the Lua environment the game has now; null without one, or when the game cannot run them.
+    private static volatile Timers timers;
+    private static volatile ChunkWatches chunks;
     // The buildings of the Lua environment the game has now, watched each frame for what changes them (Buildings.observe).
     private static volatile Buildings buildings;
     private static boolean buildingsReported;
@@ -52,6 +57,15 @@ public final class GameApi {
 
     /** The zombies' sounds of the Lua environment the game has now, or null (for the tests of this package). */
     static ZombieSounds sounds() { return sounds; }
+
+    /** The hits zombies take, of the Lua environment the game has now, or null (for the tests of this package). */
+    static ZombieHits hits() { return hits; }
+
+    /** The timers of the Lua environment the game has now, or null (for the tests of this package). */
+    static Timers timers() { return timers; }
+
+    /** The chunk watches of the Lua environment the game has now, or null (for the tests of this package). */
+    static ChunkWatches chunks() { return chunks; }
 
     /**
      * In a game the startup loader started, once each time its jar is loaded (the payload's ApiHost): the game's Lua
@@ -105,6 +119,20 @@ public final class GameApi {
                 System.err.println("[PzTools API] zombie sounds stopped: " + failure);
             }
         }
+        ZombieHits struck = hits;
+        if (struck != null) {
+            try { struck.frame(); }
+            catch (Throwable failure) {
+                // Once, as the sounds' are: the hook is given back and the rest of the API goes on.
+                hits = null;
+                struck.stop();
+                System.err.println("[PzTools API] zombie hits stopped: " + failure);
+            }
+        }
+        Timers counting = timers;
+        if (counting != null) counting.frame();
+        ChunkWatches watching = chunks;
+        if (watching != null) watching.frame();
         Helicopters flying = helicopters;
         if (flying != null) {
             try { flying.frame(); }
@@ -137,11 +165,15 @@ public final class GameApi {
             moodles = null;
             texts = null;
             sounds = null;
+            hits = null;
+            timers = null;
+            chunks = null;
             Networks.unhook();
             Formulas.unhook();
             Moodles.unhook();
             Texts.unhook();
             ZombieSounds.unhook();
+            ZombieHits.unhook();
             throw failure;
         }
     }
@@ -168,13 +200,16 @@ public final class GameApi {
             Object handles = clients(lua, api, meta);
             var game = new Game(luaManager.getClassLoader());
             var read = new Buildings(lua, game, luaManager.getClassLoader());
-            read.register(table(lua, api, "buildings"));
+            Object buildingsTable = table(lua, api, "buildings");
+            read.register(buildingsTable);
             buildings = read;
+            containers(lua, read, game, buildingsTable, luaManager.getClassLoader());
             networks(lua, api, meta, handles, game, read, luaManager.getClassLoader());
             formulas(lua, api, meta, handles, game, luaManager.getClassLoader());
             moodles(lua, api, meta, handles, game, luaManager.getClassLoader());
             texts(lua, api, meta, handles, game, luaManager.getClassLoader());
             systems(lua, api, meta, handles, game, luaManager.getClassLoader());
+            scheduled(lua, api, meta, handles, game, luaManager.getClassLoader());
             lua.set(env, GLOBAL, api);
         } catch (Throwable failure) {
             // The functions mods kept refuse to be called rather than change networks and formulas that no longer run.
@@ -183,6 +218,9 @@ public final class GameApi {
             Moodles.retire(lua, meta);
             Texts.retire(lua, meta);
             ZombieSounds.retire(lua, meta);
+            ZombieHits.retire(lua, meta);
+            Timers.retire(lua, meta);
+            ChunkWatches.retire(lua, meta);
             throw failure;
         }
     }
@@ -329,6 +367,26 @@ public final class GameApi {
             ZombieSounds.retire(lua, meta);
             if (zombies != null) lua.set(zombies, "listen", null);
         }
+        ZombieHits struck = null;
+        if (zombies != null) {
+            try {
+                struck = new ZombieHits(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+                struck.hook();
+            } catch (LinkageError olderBootstrap) {
+                System.err.println("[PzTools API] Zombie hits are not in this game; restart it to use them: " + olderBootstrap);
+                struck = null;
+            } catch (ReflectiveOperationException | RuntimeException unreadable) {
+                report(unreadable);
+                ZombieHits.unhook();
+                struck = null;
+            }
+        }
+        hits = struck;
+        if (struck != null) struck.register(zombies);
+        else {
+            ZombieHits.retire(lua, meta);
+            if (zombies != null) lua.set(zombies, "watchHits", null);
+        }
         Helicopters next;
         try {
             next = new Helicopters(lua, game, loader);
@@ -339,6 +397,55 @@ public final class GameApi {
             next = null;
         }
         helicopters = next;
+    }
+
+    /**
+     * {@code buildings.containers} and {@code containersNear}. Left out, with a line in the game's log, in a game that lacks what they
+     * read: the rest of the buildings go on.
+     */
+    private static void containers(Kahlua lua, Buildings read, Game game, Object table, ClassLoader loader) throws ReflectiveOperationException {
+        try { new Containers(lua, game, read, loader).register(table); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(table, "containers", null);
+            lua.set(table, "containersNear", null);
+        }
+    }
+
+    /**
+     * {@code PZToolsAPI.timers}, {@code PZToolsAPI.chunks} and {@code PZToolsAPI.draw}: Lua functions called at a cadence or when a
+     * chunk loads, and many shapes drawn by one call. Each is left out, with a line in the game's log, in a game that lacks what it
+     * reads: the others go on.
+     */
+    private static void scheduled(Kahlua lua, Object api, Object meta, Object handles, Game game, ClassLoader loader)
+            throws ReflectiveOperationException {
+        Timers counting;
+        try {
+            counting = new Timers(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            counting.register(table(lua, api, "timers"));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            Timers.retire(lua, meta);
+            lua.set(api, "timers", null);
+            counting = null;
+        }
+        timers = counting;
+        ChunkWatches watching;
+        try {
+            watching = new ChunkWatches(lua, game, loader, meta, handle -> owner(lua, handles, handle));
+            watching.register(table(lua, api, "chunks"));
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            ChunkWatches.retire(lua, meta);
+            lua.set(api, "chunks", null);
+            watching = null;
+        }
+        chunks = watching;
+        try { new Quads(lua, loader).register(table(lua, api, "draw")); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            report(unreadable);
+            lua.set(api, "draw", null);
+        }
     }
 
     /** The mod a handle belongs to, or null when the value is not one of this environment's handles. */
@@ -381,6 +488,12 @@ public final class GameApi {
             if (shown != null) shown.clear(name, AREA + "client:clear");
             ZombieSounds heard = sounds;
             if (heard != null) heard.clear(name, AREA + "client:clear");
+            ZombieHits struck = hits;
+            if (struck != null) struck.clear(name, AREA + "client:clear");
+            Timers counting = timers;
+            if (counting != null) counting.clear(name, AREA + "client:clear");
+            ChunkWatches watching = chunks;
+            if (watching != null) watching.clear(name, AREA + "client:clear");
             return new Object[0];
         }));
         return handles;

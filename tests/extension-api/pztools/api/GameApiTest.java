@@ -53,6 +53,7 @@ public final class GameApiTest {
         rooms(buildings);
         objects(buildings);
         near(buildings);
+        ContainersTest.run(buildings);
         wallLamps(api, buildings);
         callerErrors(buildings);
         attached(buildings);
@@ -82,10 +83,15 @@ public final class GameApiTest {
         ZombieSoundsTest.run(api);
         MoodlesTest.run(api);
         TextsTest.run(api);
+        ZombieQueriesTest.run(api);
+        ZombieHitsTest.run(api);
+        TimersTest.run(api);
+        ChunkWatchesTest.run(api);
+        QuadsTest.run(api);
         FontsTest.run();
         hooks(api);
         takeover(api, buildings);
-        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make, says which hooks went in, and a newer API takes it over");
+        System.out.println("PASS: the extension API reports buildings and their objects, runs power and water networks, switches them off and on, multiplies their loads, takes in single rooms, runs sources its mods switch, ages food by their supply, shows the moodles mods define, draws the text mods show, tells the sounds zombies make and the hits they take, finds zombies by level, sight and state, lists containers, calls functions on timers and as chunks load, wraps and fits text, draws many shapes at once, says which hooks went in, and a newer API takes it over");
     }
 
     // A map building: a basement, a kitchen and a bedroom above it. A player-built shack. Another building's room.
@@ -2118,9 +2124,9 @@ public final class GameApiTest {
                 "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption", "IsoObject.renderAttachedSprites",
                 "IsoObject.isAnimating", "Helicopter.writes:flight", "IsoWorld.writes:currentCell", "Helicopter.events", "IsoWorld.change", "Moodle.Update:level", "Moodles.GoodBadNeutral",
                 "Moodles.<init>", "MoodlesUI.render", "UIManager.render:text",
-                "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact" })
+                "ParameterZombieState.setState", "ZombieVocalsManager$Slot.playSound", "IsoZombie.handleLandingImpact", "IsoZombie.Hit" })
             check(ApiHooks.APPLIED.equals(hooks.rawget(label)), label + " is " + hooks.rawget(label));
-        check(ApiHooks.hookStatus().size() == 87, "The hooks are " + ApiHooks.hookStatus().keySet());
+        check(ApiHooks.hookStatus().size() == 88, "The hooks are " + ApiHooks.hookStatus().keySet());
         check(ApiHooks.weightTracked(), "The hooks that follow the weight are not all in");
 
         Method transform = ApiHooks.class.getDeclaredMethod("transform", String.class, byte[].class, ClassLoader.class);
