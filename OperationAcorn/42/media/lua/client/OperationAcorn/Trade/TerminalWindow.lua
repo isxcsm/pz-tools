@@ -11,6 +11,7 @@ require "OperationAcorn/Trade/Things"
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/BootSeq"
 require "OperationAcorn/Trade/TerminalBoot"
+require "OperationAcorn/Trade/TerminalStatic"
 local OA = OperationAcorn
 local Trade, Terminal, UI = OA.Trade, OA.Terminal, OA.Trade.UI
 local Objects, Things = Trade.Objects, Trade.Things
@@ -148,6 +149,8 @@ function OATerminalWindow:createChildren()
     end
     UI.closeBox(self, p)
     local th = self:titleBarHeight()
+    -- the crude terminal's static, behind everything the window holds
+    if self.tier == "crude" then self.static = OATerminalStatic.attach(self, th, self:resizeWidgetHeight()) end
     -- The strip and the views are ours, in design units: the title bar's pixels are given to them as such.
     self.tabHeight = UI.fontHeight() + 6
     self.strip = OATerminalTabs:new(0, UI.dp(th), UI.dp(self.width), self.tabHeight, self)
@@ -162,11 +165,26 @@ end
 -- The boot sequence ----------------------------------------------------------------------------------------------
 
 -- The console goes over the strip and the body, from under the title bar to above the resize bar (design units).
+-- Every frame, before the UI draws (Trade/UI live, so that it shows on time with PZ Optimization too): the boot while
+-- it runs, then the crude terminal's weak signal while the window is open (Seq.weakSignal, from the end of the boot);
+-- what the window shows, nil when nothing on it moves by itself any more (the field terminal once booted).
+local function liveFrame(window, now)
+    if window.boot then
+        local look = window:bootTick(now)
+        if look ~= nil then return look end
+    end
+    if window.tier ~= "crude" then return nil end
+    window.signalFrom = window.signalFrom or now
+    local fade, step = Seq.weakSignal(now - window.signalFrom)
+    window.signalFade, window.signalStep = fade, step
+    return fade and step + 1 or 0
+end
+OATerminalWindow.liveFrame = liveFrame
+
 function OATerminalWindow:startBoot()
     local run = self.boot
     if not run then return end
-    -- Every frame, before the UI draws (Trade/UI live): the console's steps show on time with PZ Optimization too.
-    UI.live(self, function(window, now) return window.boot and window:bootTick(now) end)
+    UI.live(self, liveFrame)
     if #run.lines == 0 then return end
     local top = UI.dp(self:titleBarHeight())
     local bottom = UI.dp(self:resizeWidgetHeight())
@@ -363,6 +381,19 @@ function OATerminalWindow:render()
     if fade and fade > 0 then
         local th = self:titleBarHeight()
         UI.fill(self, 0, th, w, h - th - rh, BLACK, fade)
+    end
+    -- The crude terminal's weak signal: the strip and the body fade towards the background, with three bars of static
+    -- that move with the spell's step (over the tabs too, which still take clicks).
+    local weak = self.signalFade
+    if weak then
+        local th = self:titleBarHeight()
+        local bodyH = h - th - rh
+        UI.fill(self, 0, th, w, bodyH, p.bg, weak)
+        for j = 1, 3 do
+            local seed = self.signalStep * 7 + j * 13
+            local a = (0.16 + 0.08 * (seed % 3)) * weak / Seq.WEAK_FADE
+            UI.fill(self, 0, th + (seed * 97) % math.max(1, bodyH - 6), w, 2 + seed % 4, p.text, a)
+        end
     end
     UI.frame(self, 0, 0, w, h, p.border)
 end

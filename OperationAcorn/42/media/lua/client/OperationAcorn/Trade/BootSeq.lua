@@ -188,7 +188,7 @@ function Seq.flicker(elapsed)
     return 1
 end
 
--- The crude screen's shake: now and then the picture jolts. Time is cut into stretches of SHAKE_EVERY_MS; in two of
+-- The crude screen's shake: now and then the picture jolts. Time is cut into stretches of SHAKE_EVERY_MS; in one of
 -- three a burst of SHAKE_MS starts somewhere in it, the jolt changing every SHAKE_STEP_MS and dying out over the burst.
 -- The offset (design units, whole) at `elapsed` ms, the same every time; 0, 0 between bursts.
 Seq.SHAKE_EVERY_MS, Seq.SHAKE_MS, Seq.SHAKE_STEP_MS, Seq.SHAKE_UNITS = 1600, 240, 40, 7
@@ -196,7 +196,7 @@ Seq.SHAKE_EVERY_MS, Seq.SHAKE_MS, Seq.SHAKE_STEP_MS, Seq.SHAKE_UNITS = 1600, 240
 function Seq.shake(elapsed)
     local every = Seq.SHAKE_EVERY_MS
     local slot = floor(elapsed / every)
-    if (slot * 5 + 2) % 3 == 0 then return 0, 0 end
+    if (slot * 5 + 2) % 3 ~= 0 then return 0, 0 end
     local t = elapsed - slot * every - (slot * 389) % (every - Seq.SHAKE_MS)
     if t < 0 or t >= Seq.SHAKE_MS then return 0, 0 end
     local step = floor(t / Seq.SHAKE_STEP_MS)
@@ -204,6 +204,25 @@ function Seq.shake(elapsed)
     local dx = ((slot * 7 + step * 13) % 7 - 3) / 3
     local dy = ((slot * 11 + step * 5) % 5 - 2) / 2
     return floor(dx * k + 0.5), floor(dy * k * 0.6 + 0.5)
+end
+
+-- The crude terminal's weak signal once it is up: now and then the screen fades towards its background for a moment,
+-- flickering, with bars of static across it. Time (from the end of the boot) is cut into stretches of WEAK_EVERY_MS;
+-- in each, one spell of 500 to 1100 ms starts somewhere in it, fading in over WEAK_IN_MS and out over WEAK_OUT_MS. How
+-- far the screen has faded (0 to WEAK_FADE) and the spell's step (for the bars, one every WEAK_STEP_MS) at `elapsed`
+-- ms, or nil between spells; the same every time.
+Seq.WEAK_EVERY_MS, Seq.WEAK_FADE, Seq.WEAK_STEP_MS, Seq.WEAK_IN_MS, Seq.WEAK_OUT_MS = 14000, 0.6, 60, 80, 220
+
+function Seq.weakSignal(elapsed)
+    local every = Seq.WEAK_EVERY_MS
+    local slot = floor(elapsed / every)
+    local length = 500 + (slot * 331 + 120) % 601
+    local t = elapsed - slot * every - (slot * 7919 + 3000) % (every - length)
+    if t < 0 or t >= length then return nil end
+    local env = min(1, t / Seq.WEAK_IN_MS, (length - t) / Seq.WEAK_OUT_MS)
+    local step = floor(t / Seq.WEAK_STEP_MS)
+    local flick = 0.75 + 0.25 * ((slot * 3 + step * 7) % 5) / 4
+    return Seq.WEAK_FADE * env * flick, slot * 64 + step
 end
 
 return Seq

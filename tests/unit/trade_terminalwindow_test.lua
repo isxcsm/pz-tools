@@ -320,3 +320,47 @@ test("the strip draws the window's tabs, dots and blinks: each change of them is
     window:activate("missions")
     eq(window.strip.rev, rev, "the tab already on show: nothing")
 end)
+
+test("after its boot the crude window keeps a weak signal going, the field one is let go", function()
+    local crude, setNow = bootWindow(false, true)
+    crude.tier = "crude"
+    local Window = getmetatable(crude).__index
+    setNow(1000)
+    truthy(Window.liveFrame(crude, 1000) ~= nil, "the boot")
+    local seen, still = false, 0
+    for t = 20000, 60000, 20 do
+        setNow(t)
+        local look = Window.liveFrame(crude, t)
+        truthy(look ~= nil, "followed while open")
+        if crude.signalFade then seen = true else still = still + 1 end
+    end
+    eq(crude.boot, nil)
+    truthy(seen, "a spell came")
+    truthy(still > 1500, "and it is quiet most of the time")
+    local field, set2 = bootWindow(false, false)
+    field.tier = "field"
+    set2(1000)
+    Window.liveFrame(field, 1000)
+    set2(30000)
+    eq(Window.liveFrame(field, 30000), nil, "the field terminal moves by itself no more")
+    eq(field.signalFade, nil)
+end)
+
+test("the crude terminal's static scrolls and swaps its two tiles, counted from its first frame", function()
+    loadWindow()
+    local S = OATerminalStatic
+    local panel = {}
+    local clock = 1760000000000
+    local looks = {}
+    eq(S.frame(panel, clock), 0, "from its first frame (the clock itself is too large for Kahlua's %)")
+    for t = 0, 2000, 10 do
+        local look = S.frame(panel, clock + t)
+        truthy(panel.tileIndex == 1 or panel.tileIndex == 2)
+        truthy(panel.offset >= 0 and panel.offset < S.TILE)
+        looks[look] = true
+    end
+    eq(panel.offset, math.floor(2000 * S.SPEED / 1000) % S.TILE, "it scrolls at SPEED")
+    local n = 0
+    for _ in pairs(looks) do n = n + 1 end
+    truthy(n > 50, "a new look as it moves: " .. n)
+end)

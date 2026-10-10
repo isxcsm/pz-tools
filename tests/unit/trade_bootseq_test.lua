@@ -220,8 +220,29 @@ test("the crude screen jolts now and then: short bursts, a few units, dying out,
         inBurst = moving
         if not moving then still = still + 1 end
     end
-    truthy(bursts >= 4 and bursts <= 9, "now and then over a crude boot: " .. bursts)
+    truthy(bursts >= 2 and bursts <= 4, "now and then over a crude boot (two in its 13 s): " .. bursts)
     truthy(still > 1000, "still most of the time")
     truthy(maxX <= Seq.SHAKE_UNITS and maxY <= Seq.SHAKE_UNITS, "a few units")
     truthy(maxX >= 2, "and visible")
+end)
+
+test("the crude terminal's weak signal: a spell of half a second to a second now and then, fading in and out", function()
+    local spells, inSpell, longest, len, maxFade = 0, false, 0, 0, 0
+    for e = 0, 140000, 10 do
+        local fade, step = Seq.weakSignal(e)
+        local x2, s2 = Seq.weakSignal(e)
+        eq(x2, fade); eq(s2, step)
+        if fade then
+            truthy(fade >= 0 and fade <= Seq.WEAK_FADE)
+            maxFade = math.max(maxFade, fade)
+            if not inSpell then spells, len = spells + 1, 0 end
+            len = len + 10
+            longest = math.max(longest, len)
+        end
+        inSpell = fade ~= nil
+    end
+    eq(spells, 10, "one a 14 s stretch")
+    truthy(longest >= 500 and longest <= 1110, "half a second to a second: " .. longest)
+    truthy(maxFade > Seq.WEAK_FADE * 0.7, "it does fade")
+    eq(Seq.weakSignal(0), nil, "not at once")
 end)
