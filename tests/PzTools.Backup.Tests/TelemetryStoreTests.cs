@@ -68,10 +68,20 @@ public sealed class TelemetryStoreTests
         var store = await TelemetryStore.CreateOrOpenAsync(temp.GetPath("repository"));
         await using var session = await store.BeginRunAsync(1, 1, DateTimeOffset.UtcNow, CreateOptions(mode));
         // A long phase with no progress (comparing every file of an imported save) is alive only by its heartbeat.
+        // The phase lasts until a beat is stored: a fixed wait failed on a busy CI runner whose thread pool ran no
+        // timer tick within 200 ms.
+        var beat = false;
         await using (PzTools.Backup.Engine.TelemetryHeartbeat.Start(session, TimeSpan.FromMilliseconds(10)))
-            await Task.Delay(200);
+        {
+            for (var waited = 0; waited < 10_000 && !beat; waited += 20)
+            {
+                await Task.Delay(20);
+                beat = (await store.ReadEventsAsync(1)).Any(item => item.Name == "operation.heartbeat");
+            }
+        }
         await session.CompleteAsync(RunStatus.Succeeded);
 
+        Assert.True(beat, "no heartbeat was stored within 10 s");
         Assert.Contains(await store.ReadEventsAsync(1), item => item.Name == "operation.heartbeat");
     }
 

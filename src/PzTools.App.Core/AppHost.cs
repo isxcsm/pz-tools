@@ -35,6 +35,8 @@ public sealed class AppHost : IAsyncDisposable
     public static ViewKey BlockedComponentsViewKey { get; } = new("blocked-components");
     public static ViewKey GameLinkViewKey { get; } = new("game-link");
     private readonly CancellationTokenSource lifetime = new();
+    private readonly object actionLogGate = new();
+    private Task actionLogs = Task.CompletedTask;
     private readonly List<Task> supervisors = [];
     private readonly Dictionary<string, SchedulerHostStatus> schedulerStatuses =
         new(StringComparer.Ordinal);
@@ -410,6 +412,8 @@ public sealed class AppHost : IAsyncDisposable
         if (Operations is { } operations)
             await operations.StopAsync(TimeSpan.FromMilliseconds(runtime.ShutdownGraceMs) + TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
+        // A failure recorded a moment ago reaches the log before the store and its view close.
+        await FlushActionLogsAsync().ConfigureAwait(false);
         lifetime.Cancel();
         Projections.RequestStop();
         try
@@ -426,6 +430,8 @@ public sealed class AppHost : IAsyncDisposable
         }
         finally
         {
+            // One recorded while the host was closing stops at the cancelled lifetime; it is awaited all the same.
+            await FlushActionLogsAsync().ConfigureAwait(false);
             await extensionDiagnostics.FlushAsync().ConfigureAwait(false);
             lifetime.Dispose();
         }
@@ -591,7 +597,12 @@ public sealed class AppHost : IAsyncDisposable
                 exceptionType = innermost?.GetType().Name,
                 path = cause is null ? null : UserFacingErrorCatalog.InvalidSettingsFile(cause, Settings.ConfigurationRoot),
             }));
-        _ = Task.Run(async () =>
+        // In order, one after another, and awaited when the host closes: a write left running kept logs.db open past
+        // the host's end.
+        lock (actionLogGate)
+            actionLogs = actionLogs.ContinueWith(_ => WriteAsync(), TaskScheduler.Default).Unwrap();
+
+        async Task WriteAsync()
         {
             try
             {
@@ -602,7 +613,12 @@ public sealed class AppHost : IAsyncDisposable
             {
                 // The card has already told the user; the log is a second chance, not a requirement.
             }
-        });
+        }
+    }
+
+    private Task FlushActionLogsAsync()
+    {
+        lock (actionLogGate) return actionLogs;
     }
 
     public async Task<LogsView> AcknowledgeAllLogIssuesAsync(
