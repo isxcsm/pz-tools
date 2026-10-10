@@ -466,6 +466,8 @@ test("a run's seams: a narrow font space widened to a quarter of the line, and n
     eq(UI.spaceWidth(), 4, "a quarter of 16 design units")
     -- a label measured with its space ("합계 " then the sum drawn after it): the space is a full one
     assert(math.abs(UI.textWidth("ab ") - (26 / 1.625 + 4)) < 1e-9, "label width " .. UI.textWidth("ab "))
+    assert(math.abs(UI.textWidth(" ") - 4) < 1e-9, "a lone space (a bullet's hang) is a full space " .. UI.textWidth(" "))
+    assert(math.abs(UI.textWidth("  ") - 8) < 1e-9, "two spaces")
     eq(UI.textWidth("ab"), 26 / 1.625)
     local L = Draw.list(UI.palette("crude"))
     local drawn = Draw.run(L, { { s = "ab ", c = { 1, 1, 1 } }, { s = "1.5", c = { 1, 1, 1 } } }, 0, 0, 200)

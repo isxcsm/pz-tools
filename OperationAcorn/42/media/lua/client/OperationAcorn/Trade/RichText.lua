@@ -114,7 +114,7 @@ function OARichText:command(cmd, x, y, lineHeight)
         self.font = (size == "medium" and UIFont.Medium) or (size == "large" and UIFont.Large) or UIFont.Small
         self.fonts[at] = self.font
     elseif cmd == "SPACE" then
-        if x > 0 then x = x + self:measure(" ", self.font) + 2 end
+        if x > 0 then x = x + self:measure(" ", self.font) end
     end
     return x, y
 end

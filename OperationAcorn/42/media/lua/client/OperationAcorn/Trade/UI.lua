@@ -516,15 +516,17 @@ end
 
 -- Spaces at a text's end are measured as UI.spaceWidth each: they are not seen, they only place what comes after (a
 -- label's value, the next part of a line), and the font's own space is narrower than the layout's scale at the larger
--- sizes ("합계 " then the sum came out as one word). Only a text that ends in a space pays for the look.
+-- sizes ("합계 " then the sum came out as one word). Only a text that ends in a space pays for the look. A text of
+-- spaces only (a gap asked for between two parts, a bullet's hang) is that many UI.spaceWidth: measured, it has no
+-- letter's image to end at.
 local function trailingMore(text, font)
     if string.byte(text, -1) ~= 32 then return 0 end
     local trail = #string.match(text, " *$")
-    if trail == #text then return 0 end
     return trail * math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
 end
 
 function UI.textWidth(text, font)
+    if text and text ~= "" and string.match(text, "^ +$") then return #text * UI.spaceWidth(font) end
     local w = Faces.measure(faceOf(font), text)
     if S ~= 1 then w = w / S end
     if text and text ~= "" then w = w + trailingMore(text, font) end

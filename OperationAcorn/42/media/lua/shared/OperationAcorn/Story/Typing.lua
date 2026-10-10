@@ -33,6 +33,9 @@ Typing.MODE = { scene = "chars", document = "lines" }
 -- The seconds between two printed rows: five rows a second, so a guide of thirty rows is printed in six seconds (the
 -- longest a scene's pauses keep the player, Typing.MAX_PAUSES), each row on long enough to be seen arriving.
 Typing.LINE_STEP = 0.2
+-- The seconds a row takes to print, left to right under the print head (the cursor), within its step: the row is whole
+-- a little before the next one starts.
+Typing.LINE_PRINT = 0.14
 
 -- The characters a second of the two kinds of text and the two terminals (the crude one quick, the field terminal a little
 -- slower and smoother): a scene at the speed of a radio read aloud, a document as fast as it can be followed. A
@@ -269,6 +272,19 @@ function Typing.rowEnds(src, lineY)
         end
     end
     return ends
+end
+
+-- How far the print of a text in rows (ends: Typing.rowEnds) has got at second `t`, a row started every `step` seconds
+-- and printed over `print` of them: the characters on (the row being printed has the part of its characters that its
+-- time gives, from the left), whether it is over, and whether a row is being printed.
+function Typing.printed(ends, t, step, print)
+    local rows = #ends
+    if rows == 0 or t >= rows * step then return nil, true, false end
+    local r = Typing.rowsAt(t, rows, step)
+    local before = ends[r - 1] or 0
+    local f = print > 0 and (t - (r - 1) * step) / print + 1e-9 or 1
+    if f >= 1 then return ends[r], false, false end
+    return before + math.floor((ends[r] - before) * math.max(0, f)), false, true
 end
 
 -- How many of `count` rows have come on at second `t`, printed `step` seconds apart (the first at once).

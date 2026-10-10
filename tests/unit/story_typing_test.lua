@@ -359,6 +359,22 @@ test("a document's rows end at the characters of the panel's rows, and come on a
     eq(Typing.rowsAt(-1, 4, 0.2), 0)
 end)
 
+test("a document's row is printed from the left within its step, then whole until the next", function()
+    local ends = { 10, 30 }
+    local n, over, head = Typing.printed(ends, 0, 0.2, 0.1)
+    eq(n, 0); eq(over, false); eq(head, true)
+    n, over, head = Typing.printed(ends, 0.05, 0.2, 0.1)
+    eq(n, 5, "half the first row"); eq(head, true)
+    n, over, head = Typing.printed(ends, 0.15, 0.2, 0.1)
+    eq(n, 10, "the first row whole"); eq(head, false)
+    n, over, head = Typing.printed(ends, 0.25, 0.2, 0.1)
+    eq(n, 20, "the second row from where the first ended"); eq(head, true)
+    n, over, head = Typing.printed(ends, 0.4, 0.2, 0.1)
+    eq(n, nil); eq(over, true); eq(head, false)
+    n, over = Typing.printed({}, 0, 0.2, 0.1)
+    eq(over, true, "nothing to print is over")
+end)
+
 test("the characters of the panel's rows are matched to the text's, less the spaces it dropped", function()
     local src = Typing.align("ab cd\nef  gh", { "ab", "cd", "ef", "gh" })
     eq(table.concat(src[1], ","), "1,2")

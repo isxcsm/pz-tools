@@ -72,21 +72,32 @@ local function rightRoom(list)
     return list:isVScrollBarVisible() and 22 or 10
 end
 
+-- How strong the list's rows are drawn next to the document (worklist 3-8): the list is for finding, the document for
+-- reading, so the rows other than the one shown are quieter than the document's text and its heads.
+OATabFolder.ROW_ALPHA, OATabFolder.LABEL_ALPHA = 0.7, 0.6
+
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
--- list is a canvas over the game's list, UI.list).
+-- list is a canvas over the game's list, UI.list). The group names are dim (the document's heads are the ones in the
+-- head colour), the entries quieter than the one shown.
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
     local font = OATabFolder.LIST_FONT
     local ty = y + OATabFolder.ROW_PAD / 2
     if row.header then
-        UI.text(list, row.header, 8, ty, p.head, font)
+        UI.text(list, row.header, 8, ty, p.dim, font)
         return
     end
     local selected = list.selected == item.index
     if row.entry.isNew then UI.fill(list, 10, y + math.floor((list.rowH - 4) / 2), 4, 4, p.warn) end
-    UI.text(list, row.title, 18, ty, selected and p.bright or p.text, font)
-    if row.label ~= "" then UI.textRight(list, row.label, list.width - rightRoom(list), ty, p.dim, font) end
+    if selected then
+        UI.text(list, row.title, 18, ty, p.bright, font)
+    else
+        UI.text(list, row.title, 18, ty, p.text, font, OATabFolder.ROW_ALPHA)
+    end
+    if row.label ~= "" then
+        UI.textRight(list, row.label, list.width - rightRoom(list), ty, p.dim, font, OATabFolder.LABEL_ALPHA)
+    end
 end
 
 -- What the folder holds ------------------------------------------------------------------------------------------
@@ -122,6 +133,8 @@ function OATabFolder:fillList()
         list:addItem(group.id, { header = getText("IGUI_OA_Story_Group_" .. group.id) })
         for _, entry in ipairs(group.entries) do
             local label = Folder.tierLabel(entry.tier)
+            -- a title that names its tier already (a radio copy's "6단계") shows it once
+            if label ~= "" and entry.title and string.find(entry.title, label, 1, true) then label = "" end
             local reach = base - (label ~= "" and UI.textWidth(label, font) + 8 or 0)
             local item = list:addItem(entry.key, { entry = entry, title = UI.fit(entry.title, reach, font), label = label })
             self.rowOf[entry.key] = item.itemindex
@@ -163,6 +176,12 @@ function OATabFolder:refresh()
     self.nextButton:setVisible(entry ~= nil)
 end
 
+-- How a shown entry's heads come in (real seconds): the title slides in from the left as it shows, the line under it a
+-- little after, and the rule is drawn left to right with a bright tip; the body's print waits for the rule (ENTER).
+OATabFolder.TITLE_IN, OATabFolder.META_AFTER, OATabFolder.RULE_AFTER, OATabFolder.RULE_IN = 0.25, 0.08, 0.05, 0.3
+OATabFolder.ENTER = OATabFolder.RULE_AFTER + OATabFolder.RULE_IN
+OATabFolder.SLIDE = 10
+
 -- Reads an entry: the text on the right, and what was new is told to the server as seen.
 function OATabFolder:show(entry, record)
     self:leave()
@@ -172,7 +191,9 @@ function OATabFolder:show(entry, record)
     self.at = self.index[entry.key]
     local run = self:runFor(entry, content, record)
     local read = (run and run.parse) or Markup.parse(content.marked) or { plain = content.body, runs = {} }
+    if run then run.hold = OATabFolder.ENTER end
     self.body.run = run
+    self.enterAt = getTimestampMs()
     local p = self:palette()
     self.body.text = Typing.rich(read, p.text, content.styles, { head = p.head, dim = p.dim })
     self.body:paginate()
@@ -320,6 +341,14 @@ function OATabFolder:layout()
     if self.listW and (self.listW ~= self.listWidth or self.listH ~= h) then self:fillList() end
 end
 
+-- 0 to 1, fast at first and settling (a cubic ease out); below 0 is 0, above 1 is 1.
+local function easeOut(f)
+    if f <= 0 then return 0 end
+    if f >= 1 then return 1 end
+    local g = 1 - f
+    return 1 - g * g * g
+end
+
 function OATabFolder:prerender()
     if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end
     local p = self:palette()
@@ -331,9 +360,26 @@ function OATabFolder:prerender()
         UI.textCentre(self, UI.fit(text, rw - 24), rx + rw / 2, rh / 2 - 8, p.dim)
         return
     end
-    UI.text(self, self.titleText, rx + 12, OATabFolder.TITLE_Y, p.bright, UIFont.Medium)
-    UI.text(self, self.metaText, rx + 12, self.metaY, p.dim)
-    UI.fill(self, rx + 12, self.ruleY, rw - 24, 1, p.border, 0.6)
+    local title, meta, rule = 1, 1, 1
+    if self.enterAt then
+        local t = (getTimestampMs() - self.enterAt) / 1000
+        if t >= OATabFolder.ENTER + OATabFolder.META_AFTER then
+            self.enterAt = nil
+        else
+            local F = OATabFolder
+            title = easeOut((t) / F.TITLE_IN)
+            meta = easeOut((t - F.META_AFTER) / F.TITLE_IN)
+            rule = easeOut((t - F.RULE_AFTER) / F.RULE_IN)
+        end
+    end
+    local slide = OATabFolder.SLIDE
+    UI.text(self, self.titleText, rx + 12 - (1 - title) * slide, OATabFolder.TITLE_Y, p.bright, UIFont.Medium, title)
+    UI.text(self, self.metaText, rx + 12 - (1 - meta) * slide, self.metaY, p.dim, nil, meta)
+    local ruleW = (rw - 24) * rule
+    if ruleW > 0 then UI.fill(self, rx + 12, self.ruleY, ruleW, 1, p.border, 0.6) end
+    if rule < 1 and ruleW > 0 then
+        UI.fill(self, rx + 12 + ruleW - math.min(ruleW, 24), self.ruleY, math.min(ruleW, 24), 1, p.head, 0.9)
+    end
     UI.text(self, self.at .. " / " .. #self.flat, self.countX, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
         p.dim, p.numberFont)
 end

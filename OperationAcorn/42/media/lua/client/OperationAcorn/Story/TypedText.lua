@@ -4,12 +4,13 @@
 -- clock, look up how many characters that is (Markup.count), and when the number has changed hand the panel's rows
 -- their new beginnings (Typing.reveal, which keeps each beginning once made). No Lua timer runs per character, and a
 -- text that is not typed, or is typed to its end, is the plain panel. A document is printed instead (Typing.MODE): a row at a time, whole, every
--- `run.step` seconds; the rows are the panel's own (Typing.rowEnds: the character each row ends at), so the same
+-- `run.step` seconds, each printed left to right under the cursor (Typing.LINE_PRINT); the rows are the panel's own (Typing.rowEnds: the character each row ends at), so the same
 -- reveal shows them and what is kept of a showing is counted in characters either way.
 --
 -- The text's state is its `run` (made by the folder tab for each showing of an entry): { parse = the reading of the text
 -- (Markup.parse), step = the seconds between printed rows (a document; nil: typed a character at a time), clock = seconds
--- typed, last = the time of the last frame (ms), seen = the furthest character that has
+-- typed, hold = real seconds to wait before the clock runs (the reader's title coming in; kept nowhere), last = the time
+-- of the last frame (ms), seen = the furthest character that has
 -- come on in any showing (it grows as the typing does), done = the typing is over }. A click on the text brings it at once
 -- to the furthest point seen before (the whole of it when it was seen to the end) and no further: what the player has
 -- never seen is typed in its time and cannot be skipped. The click is anywhere on the panel (no coordinates are read, so
@@ -46,34 +47,40 @@ function OATypedText:paginate()
     end
 end
 
--- Where a text on its way stands at its clock: how many characters have come on, and whether it is over. A document
--- comes a row at a time and is over a step after its last row.
+-- Where a text on its way stands at its clock: how many characters have come on, whether it is over, and whether the
+-- cursor is on show (typing; a document's row being printed). A document comes a row at a time and is over a step after
+-- its last row.
 function OATypedText:countAt(run)
     local parse = run.parse
     local ends = self.rowEnds
     if ends then
-        local rows = #ends
-        if rows == 0 or run.clock >= rows * run.step then return parse.n, true end
-        return ends[Typing.rowsAt(run.clock, rows, run.step)], false
+        local n, over, printing = Typing.printed(ends, run.clock, run.step, Typing.LINE_PRINT)
+        return n or parse.n, over, printing
     end
-    if run.clock >= parse.total then return parse.n, true end
-    return Markup.count(parse, run.clock), false
+    if run.clock >= parse.total then return parse.n, true, false end
+    return Markup.count(parse, run.clock), false, true
 end
 
 -- A frame of a text on its way: the clock, the number of characters, and the rows when it has changed.
 function OATypedText:advance(run)
     local now = getTimestampMs()
     if run.last and now > run.last and now - run.last < OATypedText.GAP then
-        run.clock = run.clock + (now - run.last) / 1000
+        local dt = (now - run.last) / 1000
+        local hold = run.hold
+        if hold and hold > 0 then
+            local wait = math.min(hold, dt)
+            run.hold, dt = hold - wait, dt - wait
+        end
+        run.clock = run.clock + dt
     end
     run.last = now
-    local n, finished = self:countAt(run)
-    if n ~= self.n then
+    local n, finished, head = self:countAt(run)
+    if n ~= self.n or (self.tipChunk ~= nil) ~= head then
         self.n = n
         if n > (run.seen or 0) then run.seen = n end
         local c = self.reveal:show(n)
-        -- the cursor follows a text typed a character at a time; a printed row comes whole
-        self.tipChunk = (c and not self.rowEnds) and c or nil
+        -- the cursor follows the characters as they come: typed, or a row under the print head (not between rows)
+        self.tipChunk = (c and head) and c or nil
         if self.tipChunk then
             local x = self.cX and self.cX[c] or (self.lineX[c] + self.marginLeft)
             self.tipX = x + self:measure(self.lines[c], self.defaultFont)
@@ -100,11 +107,12 @@ function OATypedText:hurry(run)
         else
             local rows = 0
             while rows < #ends and ends[rows + 1] <= seen do rows = rows + 1 end
-            if rows > 0 then at = (rows - 1) * run.step end
+            if rows > 0 then at = (rows - 1) * run.step + Typing.LINE_PRINT end
         end
     else
         at = seen >= parse.n and parse.total or parse.times[seen]
     end
+    run.hold = nil
     if at and at > run.clock then run.clock = at end
 end
 

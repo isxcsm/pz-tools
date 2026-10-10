@@ -96,6 +96,10 @@ local function folder(opts)
     end)
     require = real
     if not ok then error(err, 0) end
+    -- the timings below are those of the rows and the characters: the title's coming in and a row's print under the
+    -- head are off unless a test asks for them
+    OATabFolder.ENTER = opts.enter or 0
+    Typing.LINE_PRINT = opts.print or 0
 
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
@@ -288,6 +292,22 @@ test("a document is printed a row at a time, whole, with no cursor, and is over 
     eq(t.body.run.done, true)
     eq(Story.typedState(t.record, "d:x").done, true)
     eq(Story.typedState(t.record, "d:x").seen, 23, "seen is kept in characters (the line ends too)")
+end)
+
+test("a document waits for the title to come in, then prints each row from the left under the cursor", function()
+    local t = folder({ enter = 0.3, print = 0.1 })
+    t.add("d:x", "document", DOC)
+    Story.markNew(t.record, "d:x")
+    t.show("d:x")
+    t.frame(0)
+    t.frame(200)
+    eq(t.shown(), "", "the title is still coming in")
+    t.frame(150)
+    eq(t.shown(), "ab", "half way through the first row's print, 0.05 s after the title")
+    truthy(t.body.tipChunk ~= nil, "the cursor is the print head")
+    t.frame(100)
+    eq(t.shown(), ROWS[1], "the first row whole")
+    eq(t.body.tipChunk, nil, "no cursor between rows")
 end)
 
 test("a click in a document seen to the end before brings all of it; a scene keeps its cursor", function()
