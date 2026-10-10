@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""The soft light of the research tab's prerequisite lines (Upgrades/Window.lua: the light that runs down a met
-prerequisite's line, Motion.comet): a round white glow the game tints in the tree's light colour and draws at the
-light's head (a wide faint one and a small bright core), and at a node it arrives at.
+"""The soft lights of the research tab (Upgrades/Window.lua): a round white glow the game tints in the tree's light
+colour and draws at the head of the light that runs down a met prerequisite's line (Motion.comet: a wide faint one and
+a small bright core), at a node it arrives at, and when the body takes an applied selection (a node's burst, the light
+running up to the header); and a soft band, the wave that sweeps down a column that took points.
 
     py tools/glow_art.py      writes OperationAcorn/42/media/textures/OA_Glow.png (64 px, white, its alpha falling
-                              smoothly from the middle to nothing at the edge) and tools/glow_preview.png (a pass of
-                              the light down a line, frame by frame, drawn as the game draws it: the tapered tail,
-                              the afterglow behind it and the arrival at the node).
+                              smoothly from the middle to nothing at the edge), OA_Wave.png (64 x 128, white, a soft
+                              band across, its alpha a bell from the middle to nothing at the top and the bottom, a
+                              little softer at the sides) and tools/glow_preview.png (a pass of the light down a line,
+                              frame by frame, drawn as the game draws it: the tapered tail, the afterglow behind it
+                              and the arrival at the node).
 
 The preview mirrors Motion.lua's numbers (kept in step by hand: COMET below) at the game's scale (UI.S about 1.6),
 enlarged twice so the steps can be seen.
@@ -32,6 +35,22 @@ def glow(n=SIZE):
     edge = np.clip((1 - r) / 0.25, 0, 1)
     a = bell * edge * edge * (3 - 2 * edge)
     out = np.zeros((n, n, 4), np.uint8)
+    out[..., :3] = 255
+    out[..., 3] = (a / a.max() * 255).astype(np.uint8)
+    return Image.fromarray(out, 'RGBA')
+
+
+def band(w=64, h=128):
+    """White, a soft horizontal band: its alpha a bell over the height (nothing at the top and the bottom), a little
+    lower towards the sides (the game draws it a column wide)."""
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    v = (ys + 0.5) / h * 2 - 1
+    u = np.abs((xs + 0.5) / w * 2 - 1)
+    bell = np.exp(-(v * 1.9) ** 2)
+    edge = np.clip((1 - np.abs(v)) / 0.2, 0, 1)
+    side = 1 - 0.25 * np.clip((u - 0.7) / 0.3, 0, 1) ** 2
+    a = bell * edge * edge * (3 - 2 * edge) * side
+    out = np.zeros((h, w, 4), np.uint8)
     out[..., :3] = 255
     out[..., 3] = (a / a.max() * 255).astype(np.uint8)
     return Image.fromarray(out, 'RGBA')
@@ -167,6 +186,9 @@ def main():
     img = glow()
     path = os.path.join(TEXTURES, 'OA_Glow.png')
     img.save(path)
+    print('wrote', os.path.relpath(path, ROOT))
+    path = os.path.join(TEXTURES, 'OA_Wave.png')
+    band().save(path)
     print('wrote', os.path.relpath(path, ROOT))
     preview(img).save(PREVIEW)
     print('wrote', os.path.relpath(PREVIEW, ROOT))

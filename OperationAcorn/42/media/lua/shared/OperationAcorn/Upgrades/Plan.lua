@@ -63,31 +63,23 @@ function Plan.spent(u, sim)
     return out
 end
 
--- ---- the approval stamp (DESIGN-terminal 19) --------------------------------------------------------------------
--- After the server's approval comes back, the research tab runs over the planned nodes one by one (each pops and
--- flashes gold with a ring as it lights), then a seal drops onto the trees: it falls in from larger, slams down with a
--- squash, jolts the trees and sends an ink ring out from the impact; its ink settles, it holds, and it lifts away.
--- This is only the timing and the curves; the tab draws it, while it is open.
-
--- Milliseconds and sizes: between two nodes lighting (shorter for a long plan, so that the nodes take STAMP_MAX_MS at
--- most), how long a node's flash lasts, its pop (STAMP_POP of its size, over STAMP_POP_MS) and its ring (out to
--- STAMP_RING design units); the pause before the seal; the seal's fall (from SEAL_FROM times its size), its squash
--- (SEAL_SQUASH of its height), the trees' jolt (SEAL_JOLT_DU design units), its ink splatter (from SEAL_INK_FROM of
--- the seal's size out by SEAL_INK_GROW of it) and how much its ink settles (SEAL_SETTLE); how long it stays from its
--- fall (the end lifts it by SEAL_LIFT and fades it).
-Plan.STAMP_STEP_MS = 140
-Plan.STAMP_MAX_MS = 1400
-Plan.STAMP_FLASH_MS = 420
-Plan.STAMP_POP, Plan.STAMP_POP_MS = 0.16, 240
-Plan.STAMP_RING = 10
-Plan.SEAL_WAIT_MS = 120
-Plan.SEAL_DROP_MS, Plan.SEAL_FROM = 150, 1.35
-Plan.SEAL_SQUASH_MS, Plan.SEAL_SQUASH = 170, 0.09
-Plan.SEAL_JOLT_MS, Plan.SEAL_JOLT_DU = 160, 3
-Plan.SEAL_INK_MS, Plan.SEAL_INK_FROM, Plan.SEAL_INK_GROW = 480, 0.95, 0.3
-Plan.SEAL_SETTLE = 0.15
-Plan.SEAL_MS = 1250
-Plan.SEAL_FADE_MS, Plan.SEAL_LIFT = 320, 0.06
+-- ---- the body taking an applied selection (DESIGN-terminal 19) --------------------------------------------------
+-- When an applied selection comes back while the tab is open, the body takes it: a scan runs over the applied nodes in
+-- the selection's order, one every TAKE_STEP_MS (shorter for a long selection, so that the scan lasts TAKE_MAX_MS at
+-- most). Each node pops (TAKE_POP of its size over TAKE_POP_MS) and bursts: a glow in its tree's colour grows from
+-- TAKE_BURST_FROM to TAKE_BURST_TO times its size and fades over TAKE_BURST_MS, a bright core flashes over
+-- TAKE_CORE_MS, and its selected ranks settle into solid pips (a flash over TAKE_PIP_MS). A light runs from it up its
+-- lit lines towards its tree's header (TAKE_SPEED design units a second, a TAKE_TAIL tail), and the header flashes as
+-- it arrives (TAKE_HEADER_MS). TAKE_WAVE_WAIT_MS after the last node, and not before the last light has arrived, one
+-- soft wave of light sweeps down each column that took points (TAKE_WAVE_MS); the padlocks it opened come off after it.
+Plan.TAKE_STEP_MS, Plan.TAKE_MAX_MS = 200, 1000
+Plan.TAKE_POP, Plan.TAKE_POP_MS = 0.18, 260
+Plan.TAKE_BURST_MS, Plan.TAKE_BURST_FROM, Plan.TAKE_BURST_TO = 520, 1.1, 3.0
+Plan.TAKE_CORE_MS = 180
+Plan.TAKE_PIP_MS = 360
+Plan.TAKE_SPEED, Plan.TAKE_TAIL = 520, 34
+Plan.TAKE_HEADER_MS = 420
+Plan.TAKE_WAVE_WAIT_MS, Plan.TAKE_WAVE_MS = 280, 460
 
 local function easeOut(u)
     if u <= 0 then return 0 end
@@ -96,8 +88,9 @@ local function easeOut(u)
     return 1 - v * v * v
 end
 
--- The nodes the stamp lights: the plan's, in its order, each once. `shown` (id -> true) keeps the ones on the screen.
-function Plan.stampOrder(steps, shown)
+-- The nodes the scan takes: the selection's, in its order, each once. `shown` (id -> true) keeps the ones on the
+-- screen.
+function Plan.takeOrder(steps, shown)
     local order, seen = {}, {}
     for _, step in ipairs(steps) do
         if not seen[step.id] and (shown == nil or shown[step.id]) then
@@ -108,111 +101,86 @@ function Plan.stampOrder(steps, shown)
     return order
 end
 
--- Milliseconds between two nodes of a stamp of n nodes.
-function Plan.stampStep(n)
-    if n <= 0 then return Plan.STAMP_STEP_MS end
-    return math.min(Plan.STAMP_STEP_MS, math.floor(Plan.STAMP_MAX_MS / n))
+-- Milliseconds between two nodes of a scan of n nodes.
+function Plan.takeStep(n)
+    if n <= 0 then return Plan.TAKE_STEP_MS end
+    return math.min(Plan.TAKE_STEP_MS, math.floor(Plan.TAKE_MAX_MS / n))
 end
 
--- When the seal starts to fall, and when the whole stamp is over, for n nodes.
-function Plan.sealAt(n)
-    return n * Plan.stampStep(n) + Plan.SEAL_WAIT_MS
+-- How many nodes of a scan of n have been taken at `t` ms.
+function Plan.takeLit(n, t)
+    if n <= 0 or t < 0 then return 0 end
+    return math.min(n, math.floor(t / Plan.takeStep(n)) + 1)
 end
 
-function Plan.stampEnd(n)
-    return Plan.sealAt(n) + Plan.SEAL_MS
+-- A node's size `age` ms after it was taken, as a share of its own.
+function Plan.takePop(age)
+    if age < 0 or age >= Plan.TAKE_POP_MS then return 1 end
+    return 1 + Plan.TAKE_POP * math.sin(math.pi * easeOut(age / Plan.TAKE_POP_MS))
 end
 
--- How long the seal moves from the start of its fall: the fall, then the longest of the squash, the jolt and the ink.
-function Plan.sealSettle()
-    return Plan.SEAL_DROP_MS + math.max(Plan.SEAL_SQUASH_MS, Plan.SEAL_JOLT_MS, Plan.SEAL_INK_MS)
-end
-
--- How many nodes of a stamp of n have lit at `t` ms.
-function Plan.stampLit(n, t)
-    if t < 0 then return 0 end
-    return math.min(n, math.floor(t / Plan.stampStep(n)) + 1)
-end
-
--- The stamp at `t` ms: how many nodes have lit, how long ago the seal started to fall (nil before), and whether it is
--- over.
-function Plan.stamp(n, t)
-    local sealAge = t >= Plan.sealAt(n) and (t - Plan.sealAt(n)) or nil
-    return { lit = Plan.stampLit(n, t), sealAge = sealAge, over = t >= Plan.stampEnd(n) }
-end
-
--- A lit node's scale `age` ms after it lit: one quick swell (its top early), 1 outside it.
-function Plan.stampPop(age)
-    if age < 0 or age >= Plan.STAMP_POP_MS then return 1 end
-    return 1 + Plan.STAMP_POP * math.sin(math.pi * easeOut(age / Plan.STAMP_POP_MS))
-end
-
--- A lit node's flash `age` ms after it lit: its strength and how far its ring has gone; nil once over.
-function Plan.stampFlash(age)
-    if age < 0 or age >= Plan.STAMP_FLASH_MS then return nil end
-    local u = age / Plan.STAMP_FLASH_MS
-    local fade = 1 - u
-    return fade * fade, Plan.STAMP_RING * easeOut(u)
-end
-
--- The seal `age` ms after it started to fall: its width and height as shares of its size, how much of it shows, how
--- strong its ink is (settling after the impact), and its ink splatter's size (a share of the seal's) and strength
--- (nil, 0 outside it); nil before the fall and once it is gone.
-function Plan.seal(age)
-    if age < 0 or age >= Plan.SEAL_MS then return nil end
-    local drop = Plan.SEAL_DROP_MS
-    local sx, sy, a, ink = 1, 1, 1, 1
-    local inkSize, inkA = nil, 0
-    if age < drop then
-        -- falling: faster and faster, from larger, coming into view
-        local u = age / drop
-        local k = Plan.SEAL_FROM - (Plan.SEAL_FROM - 1) * u * u
-        sx, sy = k, k
-        a = math.min(1, u / 0.4)
-        a = a * a * (3 - 2 * a)
-    else
-        local t = age - drop
-        if t < Plan.SEAL_SQUASH_MS then
-            local q = 1 - t / Plan.SEAL_SQUASH_MS
-            q = q * q
-            sx, sy = 1 + 0.7 * Plan.SEAL_SQUASH * q, 1 - Plan.SEAL_SQUASH * q
-        end
-        if t < Plan.SEAL_INK_MS then
-            local u = t / Plan.SEAL_INK_MS
-            local fade = 1 - u
-            inkSize, inkA = Plan.SEAL_INK_FROM + Plan.SEAL_INK_GROW * easeOut(u), 0.95 * fade * math.sqrt(fade)
-        end
-        ink = 1 - Plan.SEAL_SETTLE * easeOut(t / Plan.SEAL_INK_MS)
-        -- lifting away at the end
-        local left = Plan.SEAL_MS - age
-        if left < Plan.SEAL_FADE_MS then
-            local v = 1 - left / Plan.SEAL_FADE_MS
-            local k = 1 + Plan.SEAL_LIFT * v
-            sx, sy = sx * k, sy * k
-            a = 1 - v * v * (3 - 2 * v)
-        end
+-- A node's burst `age` ms after it was taken: the glow's size (a share of the node's), its strength, and the core
+-- flash's strength; nil once it is over.
+function Plan.takeBurst(age)
+    if age < 0 or age >= Plan.TAKE_BURST_MS then return nil end
+    local u = age / Plan.TAKE_BURST_MS
+    local size = Plan.TAKE_BURST_FROM + (Plan.TAKE_BURST_TO - Plan.TAKE_BURST_FROM) * easeOut(u)
+    local core = 0
+    if age < Plan.TAKE_CORE_MS then
+        local v = 1 - age / Plan.TAKE_CORE_MS
+        core = v * v
     end
-    return sx, sy, a, ink, inkSize, inkA
+    return size, (1 - u) ^ 1.6, core
 end
 
--- The trees' jolt `age` ms after the seal started to fall: how far they are pushed down (design units: down at the
--- impact, a small bounce back, still); 0 outside it.
-function Plan.sealJolt(age)
-    local t = age - Plan.SEAL_DROP_MS
-    if t < 0 or t >= Plan.SEAL_JOLT_MS then return 0 end
-    local u = t / Plan.SEAL_JOLT_MS
-    return Plan.SEAL_JOLT_DU * (1 - u) * math.cos(3 * math.pi * u)
+-- The flash of a node's new pips `age` ms after it was taken (1 at once, fading), nil once it is over.
+function Plan.takePip(age)
+    if age < 0 or age >= Plan.TAKE_PIP_MS then return nil end
+    local v = 1 - age / Plan.TAKE_PIP_MS
+    return v * v
 end
 
--- What the stamp of n nodes shows at `t` ms, as a number that changes exactly when its drawing does (the tab is drawn
--- afresh on it with PZ Optimization): `t` while a node's pop or flash, the seal's fall, squash, jolt and ink, or its
--- lift moves, -1 while the pressed seal holds still, nil once the stamp is over.
-function Plan.stampLook(n, t)
-    if t >= Plan.stampEnd(n) then return nil end
-    local sealAt = Plan.sealAt(n)
-    local still = math.max(sealAt + Plan.sealSettle(), (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
-    if t >= still and t < sealAt + Plan.SEAL_MS - Plan.SEAL_FADE_MS then return -1 end
-    return t
+-- The light running up from a node `age` ms after it was taken, on a way `len` design units long: how far its head
+-- is from the node (past the way's end while its tail drains), its strength; nil before and once its tail is out.
+function Plan.takeRun(age, len)
+    if age < 0 then return nil end
+    local head = age * Plan.TAKE_SPEED / 1000
+    if head >= len + Plan.TAKE_TAIL then return nil end
+    local a = 1
+    if head > len then a = 1 - (head - len) / Plan.TAKE_TAIL end
+    return head, a
+end
+
+-- Milliseconds the light takes up a way `len` design units long (its head at the header's end).
+function Plan.takeArrive(len)
+    return len * 1000 / Plan.TAKE_SPEED
+end
+
+-- A header's flash `age` ms after a light arrived: quick to come, slower to go; 0 outside it.
+function Plan.takeHeader(age)
+    if age < 0 or age >= Plan.TAKE_HEADER_MS then return 0 end
+    local rise = math.min(1, age / 60)
+    local v = 1 - age / Plan.TAKE_HEADER_MS
+    return rise * v * v
+end
+
+-- When the wave starts for a scan of n nodes whose last light arrives at `arrive` ms, and when the whole is over.
+function Plan.takeWaveAt(n, arrive)
+    return math.max(math.max(0, n - 1) * Plan.takeStep(n) + Plan.TAKE_WAVE_WAIT_MS, arrive or 0)
+end
+
+function Plan.takeEnd(n, arrive)
+    local last = math.max(0, n - 1) * Plan.takeStep(n)
+    return math.max(Plan.takeWaveAt(n, arrive) + Plan.TAKE_WAVE_MS, (arrive or 0) + Plan.TAKE_HEADER_MS,
+        last + Plan.TAKE_BURST_MS, last + Plan.TAKE_PIP_MS)
+end
+
+-- The wave `age` ms after it started: how far down the column it is (0 the header's top, 1 the column's bottom) and
+-- its strength (in and out softly); nil outside it.
+function Plan.takeWave(age)
+    if age < 0 or age >= Plan.TAKE_WAVE_MS then return nil end
+    local u = age / Plan.TAKE_WAVE_MS
+    return u * u * (3 - 2 * u), math.sin(math.pi * u)
 end
 
 return Plan
