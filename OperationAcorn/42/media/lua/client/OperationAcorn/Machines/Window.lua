@@ -3,7 +3,9 @@
 -- its performance, its parts, the rain storage's water or the lure's hours, and the buttons for each (the switch, a
 -- bin opened in the loot window, a part put in, swapped or taken out with a timed action, the water poured or moved,
 -- the lure taken back or cleared).
--- The window is the game's and in pixels; its body is ours, in design units (Trade/UI.lua), and grows with the font.
+-- The window is the game's and in pixels; its body is ours, in design units and our faces (Trade/UI.lua), and grows
+-- with the scale. A body taller than the screen allows (the saw's three parts at 900p) scrolls in a window kept to
+-- nine tenths of the screen.
 -- An open window reads the machine a few times a second (WindowModel.read: the status once), lays it out again only
 -- when what it shows changed (WindowLayout), and each frame only paints that list. Nothing runs when it is closed.
 require "ISUI/ISCollapsableWindow"
@@ -35,16 +37,23 @@ OAMachineWindow.IDLE_ASK_MS = 3000
 -- How long (real ms) the loot window keeps a bin chosen after [열기], while it lists the bins of the new place.
 OAMachineWindow.SELECT_MS = 1500
 
--- The hover of a button or a card, and the tooltip of what the mouse is over (as the status screens').
-local function paintHover(el, L, p)
+-- The most of the screen's height the window takes; a wheel step of a body that scrolls, and its bar's width.
+OAMachineWindow.SCREEN_SHARE = 0.9
+OAMachineWindow.WHEEL = 36
+OAMachineWindow.BAR = 4
+
+-- The hover of a button or a card, and the tooltip of what the mouse is over (as the status screens'). `scroll`: how
+-- far the list is scrolled up in the element (design units).
+local function paintHover(el, L, p, scroll)
     if not (L and el:isMouseOver()) then return end
+    scroll = scroll or 0
     local mx, my = el:getMouseX(), el:getMouseY()
-    local hit = Draw.hitAt(L, mx, my)
+    local hit = Draw.hitAt(L, mx, my + scroll)
     if not hit then return end
     if hit.button and hit.enabled then
-        el:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
+        el:drawRect(hit.x + 1, hit.y - scroll + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
     elseif hit.hover then
-        el:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.08, p.sel[1], p.sel[2], p.sel[3])
+        el:drawRect(hit.x + 1, hit.y - scroll + 1, hit.w - 2, hit.h - 2, 0.08, p.sel[1], p.sel[2], p.sel[3])
     end
     if hit.tip then Draw.paintTip(el, p, hit.tip, mx + 12, my + 18) end
 end
@@ -59,20 +68,44 @@ function OAMachineBody:new(x, y, width, height, window)
     self.__index = self
     o.window = window
     o.background = false
+    o.contentH, o.scroll = height, 0
     return o
 end
 
+-- How far the content can scroll (0 when it all shows), and the scroll kept inside it.
+function OAMachineBody:maxScroll()
+    return math.max(0, self.contentH - self.height)
+end
+
+function OAMachineBody:setScroll(v)
+    self.scroll = math.max(0, math.min(self:maxScroll(), v))
+end
+
 function OAMachineBody:prerender()
-    Draw.paint(self, self.list)
+    if self.scroll == 0 and self:maxScroll() == 0 then return Draw.paint(self, self.list) end
+    self:setStencilRect(0, 0, self.width, self.height)
+    Draw.paint(self, self.list, -UI.px(self.scroll))
+    self:clearStencilRect()
+    -- where the part on show is: a thin bar on the right
+    local p, h = self.window.palette, self.height
+    local th = math.max(16, math.floor(h * h / self.contentH))
+    local ty = math.floor((h - th) * self.scroll / self:maxScroll())
+    UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9)
 end
 
 function OAMachineBody:render()
-    paintHover(self, self.list, self.window.palette)
+    paintHover(self, self.list, self.window.palette, self.scroll)
 end
 
 function OAMachineBody:onMouseDown(x, y)
-    local hit = Draw.hitAt(self.list, x, y)
+    local hit = Draw.hitAt(self.list, x, y + self.scroll)
     if hit and hit.id and hit.enabled then self.window:onHit(hit) end
+    return true
+end
+
+function OAMachineBody:onMouseWheel(del)
+    if self:maxScroll() <= 0 then return false end
+    self:setScroll(self.scroll + del * OAMachineWindow.WHEEL)
     return true
 end
 
@@ -145,7 +178,7 @@ function OAMachineWindow:titleBarHeight() return UI.titleBarHeight() end
 function OAMachineWindow:resizeWidgetHeight() return UI.resizeWidgetHeight() end
 
 -- Reads the machine and lays the window out again when what it shows changed (or when `force`). The window takes the
--- body's height.
+-- body's height, up to its share of the screen (the body then scrolls).
 function OAMachineWindow:refresh(force)
     local input = Model.read(self.object)
     if not input then return end
@@ -157,11 +190,15 @@ function OAMachineWindow:refresh(force)
     local L = Draw.list(self.palette)
     local h = Layout.build(L, model, Layout.WIDTH)
     Draw.bake(L)
-    self.body.list = L
-    if h ~= self.body.height then
-        self.body:setHeight(h)
-        self:setHeight(self:titleBarHeight() + UI.px(h))
+    local body = self.body
+    body.list, body.contentH = L, h
+    local th = self:titleBarHeight()
+    local shown = math.min(h, UI.dp(math.floor(getCore():getScreenHeight() * OAMachineWindow.SCREEN_SHARE) - th))
+    if shown ~= body.height then
+        body:setHeight(shown)
+        self:setHeight(th + UI.px(shown))
     end
+    body:setScroll(body.scroll)
 end
 
 -- A due job (or something new in an idle machine): the machine is asked to work now, not at its next ten-minute step.
@@ -299,7 +336,7 @@ function OAMachineWindow:openPicker(hit)
         none = getText("ContextMenu_OA_Machine_NoPart"), rows = rows }
     -- under the button, inside the screen (design units)
     local bx = UI.dp(self.body:getAbsoluteX()) + hit.x
-    local by = UI.dp(self.body:getAbsoluteY()) + hit.y
+    local by = UI.dp(self.body:getAbsoluteY()) + hit.y - self.body.scroll
     local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
     local picker = OAMachinePicker:new(0, 0, self, slot, entries, pick)
     local x = math.max(0, math.min(bx + hit.w - Layout.PICKER_WIDTH, screenW - Layout.PICKER_WIDTH))

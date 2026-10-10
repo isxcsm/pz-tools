@@ -249,6 +249,17 @@ local function textPx(el, base, str, px, py, r, g, b, a, font, align, ox, oy)
 end
 UI.textPx = textPx
 
+-- The faces from any element, in its own pixels (an element that is not one of our scaled classes, the game's window
+-- of another part): a text at px, py in colour `c` ({ r, g, b }), and a text's width and a line's height in a face.
+-- In design units, on our scaled classes, UI.text / textCentre / textRight and UI.textWidth / fontHeight are the same.
+function UI.textAtPx(el, text, px, py, c, font, a, align)
+    return textPx(el, el.oaBase or el, text, px, py, c[1], c[2], c[3], a or 1, font, align or 0)
+end
+
+function UI.faceWidthPx(text, font)
+    return Faces.measure(faceOf(font), text)
+end
+
 function SCALED:drawText(str, x, y, r, g, b, a, font)
     return textPx(self, self.oaBase, str, floor(x * S + 0.5), floor(y * S + 0.5), r, g, b, a, font, 0)
 end

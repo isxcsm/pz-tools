@@ -15,10 +15,14 @@ local UI = OA.Trade.UI
 
 OARichText = ISPanel:derive("OARichText")
 
--- A wheel step (design units), the bar's width and the room kept for it on the right of the text.
+-- A wheel step (design units), the bar's width and its gap to the panel's right edge, and the gap kept between the
+-- text and the bar. The text is always broken short of the bar and its gap, whether the bar shows or not: a text that
+-- grows past the panel as it is typed does not break its lines again when the bar comes, and the bar never covers it.
 OARichText.WHEEL = 18
 OARichText.BAR = 6
-OARichText.BAR_ROOM = 10
+OARichText.BAR_EDGE = 1
+OARichText.BAR_GAP = 7
+OARichText.BAR_ROOM = OARichText.BAR + OARichText.BAR_EDGE + OARichText.BAR_GAP
 
 local floor = math.floor
 local find, sub = string.find, string.sub
@@ -235,7 +239,7 @@ function OARichText:thumb()
 end
 
 function OARichText:onMouseDown(x, y)
-    if self:maxScroll() > 0 and x >= self.width - OARichText.BAR - 2 then
+    if self:maxScroll() > 0 and x >= self:barX() - 1 then
         local ty, th = self:thumb()
         if y < ty or y >= ty + th then self:setScroll((y - th / 2) * self:maxScroll() / math.max(1, self.height - th)) end
         self.dragging = true
@@ -288,15 +292,24 @@ function OARichText:render()
     self:drawBar()
 end
 
--- The bar on the right, while there is more than shows: in the palette of the window (grey in a game-coloured one).
+-- Where the bar stands: its width and its gap in from the right edge (the text keeps BAR_GAP more to its left).
+function OARichText:barX()
+    return self.width - OARichText.BAR - OARichText.BAR_EDGE
+end
+
+local BAR_GREY = { 0.5, 0.5, 0.5 }
+
+-- The bar on the right, while there is more than shows: in the palette of the window (grey in a game-coloured one,
+-- found once).
 function OARichText:drawBar()
     if self:maxScroll() <= 0 then return end
-    local p = self.palette or UI.paletteOf(self)
-    local c = p and p.border or { 0.5, 0.5, 0.5 }
+    if self.palette == nil then self.palette = UI.paletteOf(self.parent) or false end
+    local c = self.palette and self.palette.border or BAR_GREY
     local bar = OARichText.BAR
     local ty, th = self:thumb()
-    self:drawRect(self.width - bar - 1, 0, bar, self.height, 0.25, c[1], c[2], c[3])
-    self:drawRect(self.width - bar - 1, ty, bar, th, 0.95, c[1], c[2], c[3])
+    local x = self:barX()
+    self:drawRect(x, 0, bar, self.height, 0.25, c[1], c[2], c[3])
+    self:drawRect(x, ty, bar, th, 0.95, c[1], c[2], c[3])
 end
 
 UI.scaled(OARichText, ISPanel)
