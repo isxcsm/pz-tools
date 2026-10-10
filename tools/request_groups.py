@@ -8,7 +8,8 @@ and, with --report, a plain text summary next to it in the scratch folder given 
 
 What it reads (B42, the installed game):
 - the item scripts (media/scripts/**.txt): display category, item type, weight, tags;
-- the item names (Translate/EN and KO ItemName.json): variants are the names whose words before ' [' are the same;
+- the item names (Translate/EN and KO ItemName.json): variants are the names whose words before ' [' are the same,
+  in Korean, or in English when the kinds are of one display category and their Korean names are near each other;
 - the loot tables (media/lua/server/Items: Distributions.lua, ProceduralDistributions.lua and the tables they name)
   and how many rooms of each name the maps have (media/maps/*/*.lotheader), for how often a thing is found;
 - craftRecipe (inputs, outputs, SkillRequired, NeedToBeLearn), the foraging categories, the farm crops, the animal
@@ -21,9 +22,13 @@ The rules (written out in mockups/terminal/request-groups-report.md):
   group may also take kinds no house hands out (the kiln's charcoal).
 - A group is, in this order: a family decided by hand (FAMILIES: the four book families), a narrow tag the recipes use
   for "any of these" (base:charcoal; TAG_MAX kinds at most, of one display category, not a BROAD_TAGS property), the
-  variants whose Korean name before ' [' is the same (or whose names are the same), and a few groups by hand (MANUAL:
-  one appliance of several brands). Everything else is a group of its own. Groups the list would show under the same
-  Korean name are then one group, so a week never shows a name twice.
+  variants (union-find: the Korean name before ' [' is the same, spaces and stray brackets aside; or the English name
+  is the same, of one display category, the Korean names being near: the words of one inside the other), and a few
+  groups by hand (MANUAL: one appliance of several brands). Everything else is a group of its own. Groups the list
+  would show under the same Korean name are then one group, so a week never shows a name twice.
+  The ids of the name groups ('n:...') continue the previous table (this file, as the last run wrote it): a group
+  keeps the id of the old group most of its kinds came from, and an old id that goes away is kept in the row that
+  took over (`was`), so a saved list is moved to the new group (Requests.keyOf).
 - How easy a group is: the loot score (how many of its members the whole map's containers hand out, weighted by how
   many rooms of each kind the maps have and how likely each container picks each list), over the median of all the
   candidate groups. Another way to get any member raises the score to a floor: a recipe of easy inputs (nature, loot
@@ -39,6 +44,7 @@ import os
 import re
 import struct
 import sys
+import zlib
 from collections import Counter, defaultdict
 
 GAME = r'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid'
@@ -643,14 +649,56 @@ def band(score):
     return 'common' if score >= COMMON else ('normal' if score >= NORMAL else 'rare')
 
 
+def clean(name):
+    """A name less its stray brackets (a ']' with no '[' before it, a '[' never closed: vanilla's Korean names have a
+    few, "끈 없는 브라]") and with single spaces. Requests.clean does the same at run time."""
+    out = []
+    opens = []
+    for c in name:
+        if c == '[':
+            opens.append(len(out))
+            out.append(c)
+        elif c == ']':
+            if opens:
+                opens.pop()
+                out.append(c)
+        else:
+            out.append(c)
+    for at in reversed(opens):
+        del out[at]
+    return ' '.join(''.join(out).split())
+
+
 def strip_variant(name):
-    return re.sub(r'\s*\[[^\]]*\]\s*$', '', name).strip()
+    """The words before the trailing ' [...]' of a name, stray brackets gone (Requests.plain)."""
+    return re.sub(r'\s*\[[^\]]*\]\s*$', '', clean(name)).strip()
+
+
+def inside(small, big):
+    """Whether the words of `small` are in `big` in the same order (a name inside a longer one)."""
+    at = 0
+    for w in small:
+        while at < len(big) and big[at] != w:
+            at += 1
+        if at == len(big):
+            return False
+        at += 1
+    return True
 
 
 def display_name(names):
-    """The name the list shows for a group, as Requests.nameOf makes it at run time: the words all the members' names
-    start with (less a trailing ' -' or an open bracket), else the first member's name without its ' [...]'."""
-    words = [n.split(' ') for n in names]
+    """The name the list shows for a group, as Requests.nameOf makes it at run time. `names`: one per member kind
+    (the game-language names, a kind each). In this order: the shortest of the members' names (its words before
+    ' [', stray brackets gone) that all the other names have inside them in order ("끈 없는 브라" for "끈 없는 프릴
+    브라"); else the words all the members' names start with (less a trailing ' -' or an open bracket); else the
+    words they all end with (less a leading ' -'); else the first member's name without its ' [...]'."""
+    plain = [strip_variant(n) for n in names]
+    if len(names) > 1:
+        split = [p.split(' ') for p in plain]
+        fits = [i for i, w in enumerate(split) if w != [''] and all(inside(w, o) for o in split)]
+        if fits:
+            return plain[min(fits, key=lambda i: (len(split[i]), len(plain[i]), i))]
+    words = [clean(n).split(' ') for n in names]
     common = []
     for col in zip(*words):
         if len(set(col)) != 1:
@@ -660,7 +708,96 @@ def display_name(names):
         common.pop()
     if len(names) > 1 and common:
         return ' '.join(common)
-    return strip_variant(names[0])
+    if len(names) > 1:
+        tail = []
+        for col in zip(*[p.split(' ')[::-1] for p in plain]):
+            if len(set(col)) != 1:
+                break
+            tail.append(col[0])
+        while tail and re.match(r'^[-:)\]]|.*[)\]]', tail[-1]):
+            tail.pop()
+        if tail:
+            return ' '.join(tail[::-1])
+    return plain[0]
+
+
+def near(a, b):
+    """Whether two Korean names are of one thing: the words of one are inside the other, in order, or they are the
+    same less their spaces ("공구상자", "공구 상자"). An English name two kinds share joins them only when their Korean
+    names are near (vanilla's English names have typos too: "Rice" for a mashed sugar beet)."""
+    a, b = strip_variant(a), strip_variant(b)
+    wa, wb = a.split(' '), b.split(' ')
+    if inside(wa, wb) or inside(wb, wa):
+        return True
+    return ''.join(a.split()) == ''.join(b.split())
+
+
+def read_previous():
+    """The table as the last run wrote it (it is the repository's): [(id, [was ids], [item types])]. A save keeps a
+    group's id, so a group that moves must keep the id of the group most of its kinds came from, and an id that goes
+    away is remembered in the row that took over (`was`)."""
+    try:
+        text = open(OUT, encoding='utf-8').read()
+    except OSError:
+        return []
+    rows = []
+    for line in text.split(chr(10)):
+        ident = re.match(r'\s*\{ id = "([^"]*)",', line)
+        body = re.search(r' items = \{ (.*) \} \},?$', line)
+        if ident and body:
+            was = re.search(r' was = \{ (.*?) \}', line)
+            rows.append((ident.group(1), re.findall(r'"([^"]+)"', was.group(1)) if was else [],
+                         re.findall(r'"([^"]+)"', body.group(1))))
+    return rows
+
+
+def keep_ids(groups, previous, items):
+    """Names the groups of names (the 'n:' ones) after the previous table where they continue it, and gives every
+    group the old ids it replaces (`was`: ids a save may still hold, that no group has now)."""
+    old_of = {}
+    for oid, _, ms in previous:
+        for t in ms:
+            old_of[t] = oid
+    old_ids = {oid for oid, _, _ in previous}
+    old_size = {oid: len(ms) for oid, _, ms in previous}
+    named = [g for g in groups.values() if g['how'] == 'name']
+    claims = []
+    for g in named:
+        count = Counter(old_of[t] for t in g['items'] if old_of.get(t, '').startswith('n:'))
+        for oid, n in count.items():
+            claims.append((-n, oid != g['id'], -old_size[oid], oid, g['id']))
+    taken, gave = {}, {}
+    for _, _, _, oid, gid in sorted(claims):
+        if oid not in taken and gid not in gave:
+            taken[oid], gave[gid] = gid, oid
+    final = {}
+    for g in named:
+        final[g['id']] = gave.get(g['id'])
+    used = set(gave.values())
+    for g in sorted(named, key=lambda g: g['id']):
+        if final[g['id']]:
+            continue
+        gid = g['id']
+        while gid in used or gid in old_ids or any(o.get('id') == gid for o in groups.values() if o is not g):
+            gid += '_'
+        final[g['id']] = gid
+        used.add(gid)
+    for g in named:
+        g['id'] = final[g['id']]
+    # `was`: every old id that no group has now goes to the group most of its kinds went to.
+    where = {t: g for g in groups.values() for t in g['items']}
+    ids = {g['id'] for g in groups.values()}
+    for g in groups.values():
+        g['was'] = set()
+    for oid, was, ms in previous:
+        count = Counter(id(where[t]) for t in ms if t in where)
+        if not count:
+            continue
+        top = count.most_common(1)[0][0]
+        target = next(g for g in groups.values() if id(g) == top)
+        for old in [oid] + was:
+            if old not in ids and old not in items:
+                target['was'].add(old)
 
 
 # --- the whole thing -----------------------------------------------------------------------------------------------
@@ -778,19 +915,40 @@ def main():
             for f in sorted(narrow[best]):
                 if f not in group_of:
                     add(best, f, 'tag')
-    # 2. variants: the same Korean name before ' [' (or the same name).
-    by_name = defaultdict(list)
-    for full in sorted(members_ok):
-        if full in group_of:
-            continue
-        ko = names_ko.get(full)
-        if not ko:
-            continue
-        by_name[strip_variant(ko)].append(full)
-    for base, ms in sorted(by_name.items()):
+    # 2. variants: the same name before ' [' in Korean or in English (stray brackets gone), of one display category.
+    #    Vanilla's Korean names have typos ("끈 없는 브라]") and say the same thing in different words ("끈 없는 프릴
+    #    브라" for the English "Bra - Strapless"), so either language joins two kinds (union-find over both).
+    loose = [f for f in sorted(members_ok) if f not in group_of and (names_ko.get(f) or names_en.get(f))]
+    parent = {f: f for f in loose}
+
+    def find(f):
+        while parent[f] != f:
+            parent[f] = parent[parent[f]]
+            f = parent[f]
+        return f
+
+    seen_key = defaultdict(list)
+    for f in loose:
+        keys = []
+        ko_prefix = ''.join(strip_variant(names_ko.get(f, '')).casefold().split())      # "공구상자" and "공구 상자"
+        if ko_prefix:
+            keys.append(('ko', ko_prefix))
+        en_prefix = strip_variant(names_en.get(f, '')).casefold()
+        if en_prefix:
+            keys.append(('en', items[f]['dc'], en_prefix))
+        for k in keys:
+            for other in seen_key[k]:
+                # An English match joins two kinds only when their Korean names are near each other too.
+                if k[0] == 'ko' or not (names_ko.get(f) and names_ko.get(other)) or near(names_ko[f], names_ko[other]):
+                    parent[find(f)] = find(other)
+            seen_key[k].append(f)
+    clusters = defaultdict(list)
+    for f in loose:
+        clusters[find(f)].append(f)
+    for ms in sorted(clusters.values(), key=lambda m: m[0]):
         if len(ms) >= 2 and any(f in candidates for f in ms):
             # The id: the English words the members' names start with (a save keeps it), else the first member's.
-            words = [names_en.get(f, '').split() for f in ms]
+            words = [clean(names_en.get(f, '')).split() for f in ms]
             common = []
             for col in zip(*words):
                 if len(set(col)) != 1:
@@ -822,7 +980,7 @@ def main():
         g = groups[gid]
         if gid in NAMED:
             continue
-        label = display_name([names_ko.get(f, f) for f in g['items']])
+        label = display_name([names_ko.get(f) or names_en.get(f) or f for f in g['items']])
         if label in shown:
             into = groups[shown[label]]
             into['items'] += g['items']
@@ -912,6 +1070,7 @@ def main():
 
     bands_after = Counter(band(g['score']) for g in groups.values())
 
+    keep_ids(groups, read_previous(), items)
     write_lua(groups)
     if report_dir:
         write_report(report_dir, groups, excluded, before, med_before, bands_before, bands_after, items, names_ko,
@@ -928,26 +1087,32 @@ def lua_str(s):
 
 def write_lua(groups):
     rows = sorted(groups.values(), key=lambda g: g['id'])
-    out = [
-        '-- The request groups (NUMBERS 2): made by tools/request_groups.py from the game\'s files. Do not edit by hand:',
-        '-- change the tool and run it again. A row: { id, score, wt, dc, items = { fullType ... }, name, icon }. id is',
-        '-- the group\'s key in a save (a member\'s fullType for a group of one), score how easy it is to come by (1 and',
-        '-- more common, 0.3 to 1 normal, below rare), wt and dc the weight and display category of its dearest member',
-        '-- (the request price never pays less than that member\'s value), items the kinds it takes, the most found first;',
-        '-- name (a translation key) only for the families named by hand, icon only when it is not the first item.',
-        'require "OperationAcorn/Core"',
-        '',
-        'OperationAcorn.RequestGroups = {',
-    ]
+    body = []
     for g in rows:
         parts = ['id = ' + lua_str(g['id']), 'score = %g' % g['score'], 'wt = %g' % g['wt'], 'dc = ' + lua_str(g['dc'])]
         if g['id'] in NAMED:
             parts.append('name = ' + lua_str(NAMED[g['id']]))
+        if g['was']:
+            parts.append('was = { %s }' % ', '.join(lua_str(w) for w in sorted(g['was'])))
         if g['icon'] != g['items'][0]:
             parts.append('icon = ' + lua_str(g['icon']))
         items = ', '.join(lua_str(f) for f in g['items'])
-        out.append('    { %s, items = { %s } },' % (', '.join(parts), items))
-    out.append('}')
+        body.append('    { %s, items = { %s } },' % (', '.join(parts), items))
+    # The stamp tells the world save which table it was made from (Requests.data makes the saved one again when it differs).
+    stamp = '%08x' % zlib.crc32('\n'.join(body).encode('utf-8'))
+    out = [
+        "-- The request groups (NUMBERS 2): made by tools/request_groups.py from the game's files. Do not edit by hand:",
+        '-- change the tool and run it again. A row: { id, score, wt, dc, items = { fullType ... }, name, was, icon }. id is',
+        "-- the group's key in a save (a member's fullType for a group of one), score how easy it is to come by (1 and",
+        '-- more common, 0.3 to 1 normal, below rare), wt and dc the weight and display category of its dearest member',
+        "-- (the request price never pays less than that member's value), items the kinds it takes, the most found first;",
+        '-- name (a translation key) only for the families named by hand, was the ids the group had before a save may',
+        '-- still hold (a group that was joined to this one), icon only when it is not the first item.',
+        'require "OperationAcorn/Core"',
+        '',
+        'OperationAcorn.RequestGroupsStamp = "%s"' % stamp,
+        'OperationAcorn.RequestGroups = {',
+    ] + body + ['}']
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(out) + '\n')
 
