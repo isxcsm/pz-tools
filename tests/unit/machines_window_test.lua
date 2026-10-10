@@ -2,7 +2,8 @@
 -- the model's numbers and units (weight with no unit, fuel in L an hour from the load and the sandbox, noise in tiles,
 -- hours of running left), which buttons each part shows, each kind's own section; the layout at the fonts of 16, 19
 -- and 26 pixel screens (every text inside the window and none on another, the window inside a 1280 x 720 screen at
--- 16 px); and the window reading the machine a few times a second, not every frame, and looking through the bags
+-- 16 px); the two columns of a machine with parts, whole in both languages at 720p, 900p and 1080p with no scroll;
+-- and the window reading the machine a few times a second, not every frame, and looking through the bags
 -- for parts only when a button is pressed.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
@@ -16,10 +17,13 @@ local Data, Logic = Machines.Data, Machines.Logic
 -- The English texts (their lengths are what the layout is checked with), the arguments put in as the game does.
 
 local TEXTS
+-- The language of the texts: "EN", or "KO" for the tests of the longest Korean lines.
+local LANG = "EN"
 local function loadTexts()
     TEXTS = { ContextMenu_Turn_On = "Turn on", ContextMenu_Turn_Off = "Turn off" }
+    if LANG == "KO" then TEXTS = { ContextMenu_Turn_On = "켜기", ContextMenu_Turn_Off = "끄기" } end
     for _, name in ipairs({ "IG_UI", "ContextMenu" }) do
-        local text = readfile("OperationAcorn/42/media/lua/shared/Translate/EN/" .. name .. ".json") or ""
+        local text = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. LANG .. "/" .. name .. ".json") or ""
         for line in string.gmatch(text, "[^\n]+") do
             local key, value = string.match(line, '^%s*"([^"]+)":%s*"(.*)",?%s*$')
             if key then TEXTS[key] = (string.gsub(value, '\\"', '"')) end
@@ -555,10 +559,13 @@ local function overlap(a, b)
     return math.max(0, math.min(ox, oy))
 end
 
+-- A scene laid out at its kind's width: the list, its height and its width.
 local function layOut(UI, Draw, Model, Layout, scene)
     local L = Draw.list(UI.palette("field"))
-    local h = Layout.build(L, Model.build(SCENES[scene]()), Layout.WIDTH)
-    return L, h
+    local input = SCENES[scene]()
+    local width = Layout.widthOf(input.kind)
+    local h = Layout.build(L, Model.build(input), width)
+    return L, h, width
 end
 
 for _, px in ipairs({ 16, 19, 26 }) do
@@ -566,11 +573,11 @@ for _, px in ipairs({ 16, 19, 26 }) do
         local UI, Draw, Model, Layout = loadWindow(px)
         useFonts(UI, px)
         for name in pairs(SCENES) do
-            local L, h = layOut(UI, Draw, Model, Layout, name)
+            local L, h, width = layOut(UI, Draw, Model, Layout, name)
             local list = textBoxes(UI, L)
             truthy(#list > 10, name .. ": texts drawn")
             for _, t in ipairs(list) do
-                truthy(t.x >= 0 and t.x + t.w <= Layout.WIDTH + 0.5,
+                truthy(t.x >= 0 and t.x + t.w <= width + 0.5,
                     name .. " " .. px .. " px: '" .. t.s .. "' inside the width (" .. t.x .. ", " .. t.w .. ")")
                 truthy(t.y >= 0 and t.y + t.h <= h + 0.5, name .. " " .. px .. " px: '" .. t.s .. "' inside the height")
             end
@@ -583,7 +590,7 @@ for _, px in ipairs({ 16, 19, 26 }) do
             end
             -- every button and card inside the window
             for _, hit in ipairs(L.hits) do
-                truthy(hit.x >= 0 and hit.x + hit.w <= Layout.WIDTH and hit.y >= 0 and hit.y + hit.h <= h,
+                truthy(hit.x >= 0 and hit.x + hit.w <= width and hit.y >= 0 and hit.y + hit.h <= h,
                     name .. ": a hit inside the window")
             end
         end
@@ -599,7 +606,7 @@ test("the window fits a 1280 x 720 screen at the 16 px font, with room to spare;
         local px = font.S + 1 + h
         if px > tallest then tallest, tallestAt = px, name end
         truthy(px <= 720 * 0.85, name .. ": " .. px .. " px high at 16 px")
-        truthy(Layout.WIDTH <= 1280 * 0.5)
+        truthy(Layout.widthOf(SCENES[name]().kind) <= 1280 * 0.55)
         -- at 19 px (1080p) and 26 px (1440p) the window is the same design times the scale, inside those screens
         for _, size in ipairs({ { 19, 1080 }, { 26, 1440 } }) do
             useFonts(UI, size[1])
@@ -615,13 +622,14 @@ test("the section heights do not jump as jobs come and go (the lanes' room is ke
     local UI, Draw, Model, Layout = loadWindow(16)
     local input = SCENES.running()
     local L = Draw.list(UI.palette("field"))
-    local busy = Layout.build(L, Model.build(input), Layout.WIDTH)
+    local width = Layout.widthOf(input.kind)
+    local busy = Layout.build(L, Model.build(input), width)
     input.jobs = { input.jobs[1] }
     L = Draw.list(UI.palette("field"))
-    eq(Layout.build(L, Model.build(input), Layout.WIDTH), busy, "one job")
+    eq(Layout.build(L, Model.build(input), width), busy, "one job")
     input.jobs = {}
     L = Draw.list(UI.palette("field"))
-    eq(Layout.build(L, Model.build(input), Layout.WIDTH), busy, "none")
+    eq(Layout.build(L, Model.build(input), width), busy, "none")
 end)
 
 -- The window ------------------------------------------------------------------------------------------------------------
@@ -778,7 +786,12 @@ local function koApi()
     _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
         font = function(_, px) return px end,
         fontHeight = function(_, key) return key end,
-        measure = function(_, key, s) return #tostring(s) * key * 7 / 16 end,
+        -- a letter 7 wide at 16, a Hangul syllable 15
+        measure = function(_, key, s)
+            local w = 0
+            for i = 1, #tostring(s) do w = w + (string.byte(s, i) >= 0x1100 and 15 or 7) end
+            return w * key / 16
+        end,
         draw = function() end,
     } }
 end
@@ -812,3 +825,197 @@ for _, screenH in ipairs({ 400, 720, 900, 1080, 1440 }) do
         end
     end)
 end
+
+-- The wide window of a machine with parts ------------------------------------------------------------------------------
+-- A machine with parts is two columns (jobs and performance left, bins and parts right) and wide enough for the
+-- longest lines of both languages in a column; none scrolls at 720p, 900p or 1080p at the 16 px font.
+
+local WIDE_KINDS = { "bulkShredder", "cutter", "propaneRefiner", "oilRefiner", "woodSaw" }
+local BOX_TYPES = { ["in"] = "OAMachineIn", out = "OAMachineOut", tank = "OAMachineTank" }
+
+-- A machine of a kind with every slot filled at `cond` of the tier (or empty: cond nil), running with a job a lane
+-- (the motor's lanes: three with the modern one), its bins as full as they go.
+local function partsScene(kind, tier, cond)
+    local def = Data.KINDS[kind]
+    local parts = {}
+    for _, slot in ipairs(def.slots) do
+        if cond then parts[slot] = { tier = slot == "cover" and "normal" or tier, cond = cond } end
+    end
+    local state = { kind = kind, on = true, running = cond ~= nil and cond > 0, parts = parts }
+    local status = statusOf(state)
+    local jobs = {}
+    for i = 1, status.lanes do
+        jobs[i] = { fullType = "Base.Log", name = "Log " .. i, share = 0.3 * i }
+    end
+    local boxes = {}
+    for i, role in ipairs(def.containers) do
+        boxes[i] = { role = role, type = BOX_TYPES[role], weight = 100, capacity = 100, count = 1200 }
+    end
+    return { kind = kind, id = "m7", status = status, hook = true, fuelRate = 0.1, inCount = 1200, jobs = jobs,
+        boxes = boxes, canOn = { ok = true } }
+end
+
+-- Every text inside the width and the height, none on another and none cut short ("..."), every button and card
+-- inside. Returns the texts.
+local function checkList(UI, L, h, width, label)
+    local list = textBoxes(UI, L)
+    for _, t in ipairs(list) do
+        truthy(t.x >= 0 and t.x + t.w <= width + 0.5, label .. ": '" .. t.s .. "' inside the width (" .. t.x .. ", " .. t.w .. ")")
+        truthy(t.y >= 0 and t.y + t.h <= h + 0.5, label .. ": '" .. t.s .. "' inside the height")
+        truthy(string.sub(t.s, -3) ~= "...", label .. ": '" .. t.s .. "' was cut short")
+    end
+    for i = 1, #list do
+        for j = i + 1, #list do
+            local a, b = list[i], list[j]
+            truthy(overlap(a, b) <= 1, label .. ": '" .. a.s .. "' and '" .. b.s .. "' on one another")
+        end
+    end
+    for _, hit in ipairs(L.hits) do
+        truthy(hit.x >= 0 and hit.x + hit.w <= width and hit.y >= 0 and hit.y + hit.h <= h, label .. ": a hit inside the window")
+    end
+    return list
+end
+
+-- The bins' amounts and the parts' tier chips are left out of a row that has no room for them (not cut), so the list
+-- is checked to have them.
+local function hasText(list, s)
+    for _, t in ipairs(list) do
+        if t.s == s then return true end
+    end
+    return false
+end
+
+-- Runs `fn` with the texts of a language (the window's files loaded with them), the language put back after.
+local function inLanguage(lang, fn)
+    LANG = lang
+    local ok, err = pcall(fn)
+    LANG = "EN"
+    if not ok then error(err, 0) end
+end
+
+local function onScreen(UI, screenH)
+    koApi()
+    _G.getCore = function()
+        return { getScreenWidth = function() return screenH * 16 / 9 end, getScreenHeight = function() return screenH end }
+    end
+    UI.refreshScale()
+    eq(UI.facesOn, true)
+end
+
+test("a machine with parts is wider than one without; the window's width is the layout's", function()
+    local _, _, _, Layout = loadWindow(16)
+    for _, kind in ipairs(WIDE_KINDS) do
+        eq(Layout.widthOf(kind), Layout.WIDE, kind)
+    end
+    for kind, def in pairs(Data.KINDS) do
+        if #def.slots == 0 then eq(Layout.widthOf(kind), Layout.WIDTH, kind) end
+    end
+    truthy(Layout.WIDE > Layout.WIDTH and Layout.WIDE <= 700, "700 at the most")
+end)
+
+for _, lang in ipairs({ "EN", "KO" }) do
+    for _, screenH in ipairs({ 720, 900, 1080 }) do
+        test("every machine with parts shows whole in " .. lang .. " at " .. screenH .. "p: no scroll, nothing cut", function()
+            inLanguage(lang, function()
+                _G.getTimestampMs = function() return 1 end
+                local UI, Draw, Model, Layout = loadWindow(16)
+                onScreen(UI, screenH)
+                local room = UI.dp(math.floor(screenH * 0.9) - UI.titleBarHeight())
+                for _, kind in ipairs(WIDE_KINDS) do
+                    -- fresh, standard, worn, broken and empty parts
+                    for _, v in ipairs({ { "modern", 82 }, { "normal", 61 }, { "normal", 15 }, { "old", 0 }, { "old", false } }) do
+                        local label = kind .. " " .. lang .. " " .. screenH .. "p " .. tostring(v[1]) .. "/" .. tostring(v[2])
+                        local model = Model.build(partsScene(kind, v[1], v[2] or nil))
+                        local L = Draw.list(UI.palette("field"))
+                        local width = Layout.widthOf(kind)
+                        local h = Layout.build(L, model, width)
+                        local list = checkList(UI, L, h, width, label)
+                        truthy(h <= room, label .. ": " .. h .. " high, " .. room .. " of room")
+                        for _, box in ipairs(model.boxes) do
+                            truthy(hasText(list, box.amount), label .. ": the amount of " .. box.title)
+                        end
+                        for _, card in ipairs(model.parts) do
+                            truthy(hasText(list, card.tier), label .. ": the chip of the " .. card.name)
+                        end
+                        -- the saw with three lanes of jobs, the most there is
+                        if kind == "woodSaw" and v[1] == "modern" and v[2] == 82 then
+                            eq(#model.jobs.rows, 3, "three lanes of jobs")
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+end
+
+test("in two columns: the jobs and the performance on the left, the bins and the parts on the right, none across", function()
+    local UI, Draw, Model, Layout = loadWindow(16)
+    useFonts(UI, 16)
+    for _, kind in ipairs(WIDE_KINDS) do
+        local width = Layout.widthOf(kind)
+        local L = Draw.list(UI.palette("field"))
+        local h = Layout.build(L, Model.build(partsScene(kind, "modern", 82)), width)
+        local w = width - 2 * Layout.PAD
+        local leftEnd = Layout.PAD + Layout.LEFT
+        local rightStart = leftEnd + Layout.COLUMN_GAP
+        truthy(rightStart < Layout.PAD + w and w - Layout.LEFT - Layout.COLUMN_GAP >= Layout.WIDTH - 2 * Layout.PAD,
+            kind .. ": the right column is as wide as the single one")
+                -- the columns start at the Jobs head; the plate and the strip above are the whole width
+        local top
+        for _, t in ipairs(textBoxes(UI, L)) do
+            if t.s == getText("IGUI_OA_Machine_Jobs") then top = t.y end
+        end
+        truthy(top, kind .. ": the jobs head")
+        for _, t in ipairs(textBoxes(UI, L)) do
+            if t.y >= top then
+                truthy(t.x + t.w <= leftEnd + 0.5 or t.x >= rightStart - 0.5, kind .. ": '" .. t.s .. "' across the columns")
+            end
+        end
+        local perfs, opens, cards, ys = 0, 0, 0, {}
+        for _, hit in ipairs(L.hits) do
+            if hit.y >= top then
+                truthy(hit.x + hit.w <= leftEnd + 0.5 or hit.x >= rightStart - 0.5, kind .. ": a hit across the columns")
+            end
+            if hit.hover and not hit.id then
+                perfs = perfs + 1
+                truthy(hit.x + hit.w <= leftEnd + 0.5, kind .. ": a performance cell on the left")
+            elseif hit.id == "open" then
+                opens = opens + 1
+                ys[#ys + 1] = hit.y
+                truthy(hit.x >= rightStart, kind .. ": a bin on the right")
+            elseif hit.id == "part" then
+                cards = cards + 1
+                truthy(hit.x >= rightStart, kind .. ": a part on the right")
+            end
+        end
+        eq(perfs, 3, kind .. ": three performance cells")
+        eq(opens, 2, kind .. ": two bins")
+        truthy(cards >= #Data.KINDS[kind].slots, kind .. ": a button a part")
+        truthy(ys[2] > ys[1], kind .. ": the bins one above the other")
+        truthy(h > top, kind .. ": a body")
+    end
+end)
+
+test("a kind without parts keeps one column of the usual width", function()
+    local UI, Draw, Model, Layout = loadWindow(16)
+    useFonts(UI, 16)
+    for _, scene in ipairs({ "rain", "lure", "spent" }) do
+        local _, h, width = layOut(UI, Draw, Model, Layout, scene)
+        eq(width, Layout.WIDTH, scene)
+        truthy(h > 0)
+    end
+end)
+
+test("the window opens as wide as its kind, in the middle of the screen", function()
+    _G.getTimestampMs = function() return 1 end
+    local UI = loadWindow(16)
+    _G.instanceof = function() return false end
+    local object = fakeMachine(cutterState(), { containers = {
+        OAMachineIn = fakeContainer("OAMachineIn", 12.5, 9), OAMachineOut = fakeContainer("OAMachineOut", 3, 2) } })
+    local window = OAMachineWindow.open(character(), object)
+    local width = UI.px(Machines.WindowLayout.WIDE)
+    eq(window.width, width)
+    eq(window.body.width, Machines.WindowLayout.WIDE)
+    eq(window.x, (1280 - width) / 2)
+    eq(window.y, math.max(0, (720 - window.height) / 2))
+end)

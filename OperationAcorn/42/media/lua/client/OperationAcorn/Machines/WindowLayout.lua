@@ -3,7 +3,11 @@
 -- tooltip (Trade/StatusDraw.lua), in design units (Trade/UI.lua: a 16 pixel Small font), in the field terminal's
 -- palette. Laid out when the model changes; each frame only paints the list. From the top: the name plate (icon,
 -- name, number, the light and the switch), the strip (what it does or what to do), then per kind: the jobs a lane each,
--- the two bins, the three numbers of its performance on one row, the water gauge, the lure's hours, and a card a part.
+-- the two bins, the three numbers of its performance, the water gauge, the lure's hours, and a card a part.
+-- A machine with parts is wide, in two columns under the plate and the strip (one column of the jobs, the bins, the
+-- performance and three parts was taller than a 900p screen allows): on the left the jobs and the performance (its
+-- three numbers one above the other), on the right the bins one above the other, then the parts. The others (no
+-- parts: the locker, the rain storage, the lure) are one column. The window's width is the layout's (Layout.widthOf).
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
@@ -14,18 +18,32 @@ local Data = Machines.Data
 local Layout = {}
 Machines.WindowLayout = Layout
 
--- The window's width, its margin, the room between blocks and before a section (design units).
+-- The window's width of a machine without parts and of one with (two columns), its margin, the room between blocks
+-- and before a section, and between the two columns (design units). In the wide one the left column (the jobs and the
+-- performance) is narrow and the right (the bins and the cards of the parts) is as wide as the single column's body:
+-- a card needs it for a name, its tier, two buttons and the longest of its lines, in either language.
 Layout.WIDTH = 420
+Layout.WIDE = 690
+Layout.LEFT = 250
 Layout.PAD = 10
 Layout.GAP = 6
 Layout.SECTION = 8
+Layout.COLUMN_GAP = 10
 -- The part picker's width.
 Layout.PICKER_WIDTH = 300
 -- A bar's height and a job's icon.
 local BAR = 8
 local ICON = 16
+-- The room between two bins, and between two cards of parts.
+local BOX_GAP = 4
+local CARD_GAP = 3
 
 local floor = math.floor
+
+-- The width of a kind's window: wide for a machine with parts.
+function Layout.widthOf(kind)
+    return #Data.KINDS[kind].slots > 0 and Layout.WIDE or Layout.WIDTH
+end
 
 -- A button's height: smaller than the terminal's (the window is short), still a line and a margin.
 function Layout.buttonHeight()
@@ -76,7 +94,8 @@ local function plate(L, m, x, y, w)
     local right = x + w - 10
     local light = m.light
     local lc = colour(p, light.tone)
-    local sw = Draw.fit(L, light.text, right - 170, y + 6, 170, lc, nil, nil, "right")
+    local lightW = math.max(170, floor(w * 0.4))
+    local sw = Draw.fit(L, light.text, right - lightW, y + 6, lightW, lc, nil, nil, "right")
     local d = 8
     local lx, ly = right - sw - d - 6, y + 6 + floor((fh - d) / 2)
     if light.hollow then Draw.frame(L, lx, ly, d, d, lc) else Draw.rect(L, lx, ly, d, d, lc) end
@@ -135,52 +154,50 @@ local function jobs(L, j, x, y, w)
     return y + rows * row
 end
 
--- The bins side by side: the name, the weight in it of what it holds ("38.4 / 100", the game's weight, no unit), the
--- button that opens it in the loot window, its fill, and a note (how many things, what it waits for).
+-- The bins one above the other: the name, the weight in it of what it holds ("38.4 / 100", the game's weight, no
+-- unit), the button that opens it in the loot window, its fill, and a note (how many things, what it waits for).
 local function boxes(L, list, x, y, w)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
-    local n = #list
-    local gw = n > 1 and floor((w - 8) / 2) or w
-    local h = 6 + btn + 4 + BAR + 4 + fh + 6
+    local h = 5 + btn + 3 + BAR + 3 + fh + 5
     local open = getText("IGUI_OA_Machine_Open")
     local openTip = Draw.tip(p, { getText("IGUI_OA_Machine_OpenTip") })
     for i, b in ipairs(list) do
-        local bx = x + (i - 1) * (gw + 8)
-        Draw.panel(L, bx, y, gw, h)
+        local by = y + (i - 1) * (h + BOX_GAP)
+        Draw.panel(L, x, by, w, h)
         local ow = buttonWidth(open)
-        local hit = Draw.button(L, bx + gw - 8 - ow, y + 6, ow, btn, open, b.strong and "strong" or "normal", nil,
+        local hit = Draw.button(L, x + w - 8 - ow, by + 5, ow, btn, open, b.strong and "strong" or "normal", nil,
             "open", openTip)
         hit.role = b.role
-        local ty = y + 6 + floor((btn - fh) / 2)
-        local room = gw - 16 - ow - 6
-        local tw = Draw.fit(L, b.title, bx + 8, ty, room, p.bright)
+        local ty = by + 5 + floor((btn - fh) / 2)
+        local room = w - 16 - ow - 6
+        local tw = Draw.fit(L, b.title, x + 8, ty, room, p.bright)
         if room - tw > 24 then
             Draw.run(L, { { s = b.amount, c = p.value, pad = 8 }, { s = " / " .. b.capacity, c = p.dim } },
-                bx + 8 + tw, ty, room - tw)
+                x + 8 + tw, ty, room - tw)
         end
-        local yy = y + 6 + btn + 4
-        Draw.progress(L, bx + 8, yy, gw - 16, BAR, b.frac, colour(p, b.tone))
-        Draw.fit(L, b.note, bx + 8, yy + BAR + 4, gw - 16, p.dim)
+        local yy = by + 5 + btn + 3
+        Draw.progress(L, x + 8, yy, w - 16, BAR, b.frac, colour(p, b.tone))
+        Draw.fit(L, b.note, x + 8, yy + BAR + 3, w - 16, p.dim)
     end
-    return y + h
+    return y + #list * h + (#list - 1) * BOX_GAP
 end
 
--- The performance: three cells on one row, a number and a line under it; how each is made is in its tooltip.
+-- The performance: three cells one above the other, a number and a line under it; how each is made is in its
+-- tooltip.
 local function perf(L, pf, x, y, w)
     local p, fh = L.p, L.fh
     y = head(L, x, y, w, getText("IGUI_OA_Machine_Perf"), pf.right)
-    local cw = floor((w - 12) / 3)
     local h = 5 + 2 * fh + 5
     for i, c in ipairs(pf.cells) do
-        local cx = x + (i - 1) * (cw + 6)
-        Draw.panel(L, cx, y, cw, h)
-        Draw.fit(L, c.value, cx + 7, y + 5, cw - 14, p.value)
-        Draw.fit(L, c.sub, cx + 7, y + 5 + fh, cw - 14, colour(p, c.subTone))
-        local hit = Draw.hit(L, cx, y, cw, h, nil, tipOf(p, c.tip))
+        local cy = y + (i - 1) * (h + Layout.GAP)
+        Draw.panel(L, x, cy, w, h)
+        Draw.fit(L, c.value, x + 7, cy + 5, w - 14, p.value)
+        Draw.fit(L, c.sub, x + 7, cy + 5 + fh, w - 14, colour(p, c.subTone))
+        local hit = Draw.hit(L, x, cy, w, h, nil, tipOf(p, c.tip))
         hit.hover = true
     end
-    return y + h
+    return y + #pf.cells * h + (#pf.cells - 1) * Layout.GAP
 end
 
 -- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that make sense, its condition with the line under which
@@ -189,7 +206,7 @@ local function parts(L, list, x, y, w)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
     y = head(L, x, y, w, getText("IGUI_OA_Machine_Parts"), getText("IGUI_OA_Machine_Parts_WornLine"))
-    local h = 4 + btn + 2 + fh + fh + 4
+    local h = 3 + btn + 1 + fh + fh + 3
     local ib = UI.iconSize(40, h - 12)
     for _, c in ipairs(list) do
         Draw.panel(L, x, y, w, h)
@@ -201,12 +218,12 @@ local function parts(L, list, x, y, w)
             local b = c.buttons[k]
             local bw = buttonWidth(b.label)
             bx = bx - bw
-            local hit = Draw.button(L, bx, y + 4, bw, btn, b.label, b.strong and "strong" or "normal", nil, "part",
+            local hit = Draw.button(L, bx, y + 3, bw, btn, b.label, b.strong and "strong" or "normal", nil, "part",
                 b.tip and Draw.tip(p, { b.tip }) or nil)
             hit.slot, hit.action = c.slot, b.id
             bx = bx - 6
         end
-        local ry = y + 4 + floor((btn - fh) / 2)
+        local ry = y + 3 + floor((btn - fh) / 2)
         local nw = Draw.fit(L, c.name, tx, ry, math.max(0, bx - 4 - tx), p.bright)
         local chipW = UI.textWidth(c.tier) + 12
         local cx = tx + nw + 6
@@ -214,7 +231,7 @@ local function parts(L, list, x, y, w)
             Draw.rect(L, cx, ry + 1, chipW, fh - 2, c.empty and p.inset or p.title)
             Draw.fit(L, c.tier, cx, ry, chipW, c.empty and p.dim or p.text, nil, nil, "centre")
         end
-        local y2 = y + 4 + btn + 2
+        local y2 = y + 3 + btn + 1
         if c.empty then
             Draw.fit(L, c.effect, tx, y2, right - tx, colour(p, c.effectTone))
         else
@@ -229,9 +246,9 @@ local function parts(L, list, x, y, w)
             Draw.fit(L, c.life, right - lifeW, y2, lifeW, colour(p, c.lifeTone), nil, nil, "right")
             Draw.fit(L, c.effect, tx, y2 + fh, right - tx, colour(p, c.effectTone))
         end
-        y = y + h + 4
+        y = y + h + CARD_GAP
     end
-    return y - 4
+    return y - CARD_GAP
 end
 
 -- The rain storage: a gauge with its marks, what it holds and has room for, and the game's own two ways with its water.
@@ -322,11 +339,28 @@ local function lure(L, u, x, y, w)
     return y + btn
 end
 
--- Lays a model out into a list for a body `width` wide; returns the height it takes.
+-- The two columns of a machine with parts, from y: the jobs and the performance (and the rain's or the lure's section,
+-- which no kind with parts has) on the left, the bins and the parts on the right. Returns the lower end.
+local function columns(L, m, x, y, w)
+    local lw = Layout.LEFT
+    local rx = x + lw + Layout.COLUMN_GAP
+    local rw = w - lw - Layout.COLUMN_GAP
+    local ly, ry = y, y
+    if m.jobs then ly = jobs(L, m.jobs, x, ly, lw) end
+    if m.perf then ly = perf(L, m.perf, x, ly + (m.jobs and Layout.SECTION or 0), lw) end
+    if m.rain then ly = rain(L, m.rain, x, ly + Layout.SECTION, lw) end
+    if m.lure then ly = lure(L, m.lure, x, ly + Layout.SECTION, lw) end
+    if m.boxes and #m.boxes > 0 then ry = boxes(L, m.boxes, rx, ry, rw) end
+    if m.parts then ry = parts(L, m.parts, rx, ry + (ry > y and Layout.SECTION or 0), rw) end
+    return math.max(ly, ry)
+end
+
+-- Lays a model out into a list for a body `width` wide (Layout.widthOf); returns the height it takes.
 function Layout.build(L, m, width)
     local x, w = Layout.PAD, width - 2 * Layout.PAD
     local y = plate(L, m, x, Layout.PAD, w) + Layout.GAP
     y = strip(L, m.strip, x, y, w)
+    if m.parts then return columns(L, m, x, y + Layout.SECTION, w) + Layout.PAD end
     if m.jobs then y = jobs(L, m.jobs, x, y + Layout.SECTION, w) end
     if m.boxes and #m.boxes > 0 then y = boxes(L, m.boxes, x, y + Layout.GAP, w) end
     if m.perf then y = perf(L, m.perf, x, y + Layout.SECTION, w) end
