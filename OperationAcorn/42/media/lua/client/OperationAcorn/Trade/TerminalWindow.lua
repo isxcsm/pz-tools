@@ -175,8 +175,19 @@ local function liveFrame(window, now)
     end
     if window.tier ~= "crude" then return nil end
     window.signalFrom = window.signalFrom or now
-    local fade, step = Seq.weakSignal(now - window.signalFrom)
-    window.signalFade, window.signalStep = fade, step
+    local fade, step, jolt, through = Seq.weakSignal(now - window.signalFrom)
+    window.signalFade, window.signalStep, window.signalThrough = fade, step, through
+    -- the jolt moves the window itself a pixel or two, and back; never while the player drags it (a jolt then is
+    -- forgotten: at most a pixel or two off, once)
+    if window.moving then
+        window.joltX = 0
+    else
+        local dx = jolt and math.floor(jolt * UI.S * 0.75 + 0.5) or 0
+        if dx ~= (window.joltX or 0) then
+            window:setX(window:getX() - (window.joltX or 0) + dx)
+            window.joltX = dx
+        end
+    end
     return fade and step + 1 or 0
 end
 OATerminalWindow.liveFrame = liveFrame
@@ -364,7 +375,45 @@ function OATerminalWindow:prerender()
     if p.scanlines and self.scanline then
         local top = th + UI.px(self.tabHeight)
         local rh = self:resizeWidgetHeight()
-        self:drawTextureTiled(self.scanline, 0, top, self.width, self.height - top - rh, p.text[1], p.text[2], p.text[3], 0.07)
+        local c = p.text
+        self:drawTextureTiled(self.scanline, 0, top, self.width, self.height - top - rh, c[1], c[2], c[3], 0.07)
+    end
+end
+
+-- The crude terminal's weak signal (Seq.weakSignal), over the strip and the body (the tabs still take clicks): the
+-- picture fades towards the background in bands of their own depth that change with the spell's step, the static
+-- thickens over it, a lighter band rolls down once, and a few bright lines of interference cross it.
+OATerminalWindow.WEAK_BANDS = 9
+
+function OATerminalWindow:drawWeakSignal(th, rh)
+    local p = self.palette
+    local w, bodyH = self.width, self.height - th - rh
+    local fade, step = self.signalFade, self.signalStep
+    local k = fade / Seq.WEAK_FADE
+    local n = OATerminalWindow.WEAK_BANDS
+    for b = 0, n - 1 do
+        local y0, y1 = math.floor(b * bodyH / n), math.floor((b + 1) * bodyH / n)
+        local depth = 0.55 + 0.45 * ((step * 7 + b * 13) % 5) / 4
+        UI.fill(self, 0, th + y0, w, y1 - y0, p.bg, fade * depth)
+    end
+    local static = self.static
+    local tex = static and static.tiles[step % 2 + 1]
+    if tex then
+        local shift = (step * 37) % OATerminalStatic.TILE
+        self:setStencilRect(0, th, w, bodyH)
+        self:drawTextureTiled(tex, 0, th - shift, w, bodyH + shift, p.text[1], p.text[2], p.text[3], 0.32 * k)
+        self:clearStencilRect()
+    end
+    local rollH = math.max(8, math.floor(bodyH / 7))
+    local rollY = math.floor((self.signalThrough or 0) * (bodyH + rollH)) - rollH
+    if rollY < bodyH then
+        local top = math.max(0, rollY)
+        UI.fill(self, 0, th + top, w, math.min(bodyH, rollY + rollH) - top, p.text, 0.05 * k)
+    end
+    for j = 1, 3 do
+        local seed = step * 7 + j * 13
+        local a = (0.16 + 0.08 * (seed % 3)) * k
+        UI.fill(self, 0, th + (seed * 97) % math.max(1, bodyH - 6), w, 1 + seed % 3, p.text, a)
     end
 end
 
@@ -382,19 +431,7 @@ function OATerminalWindow:render()
         local th = self:titleBarHeight()
         UI.fill(self, 0, th, w, h - th - rh, BLACK, fade)
     end
-    -- The crude terminal's weak signal: the strip and the body fade towards the background, with three bars of static
-    -- that move with the spell's step (over the tabs too, which still take clicks).
-    local weak = self.signalFade
-    if weak then
-        local th = self:titleBarHeight()
-        local bodyH = h - th - rh
-        UI.fill(self, 0, th, w, bodyH, p.bg, weak)
-        for j = 1, 3 do
-            local seed = self.signalStep * 7 + j * 13
-            local a = (0.16 + 0.08 * (seed % 3)) * weak / Seq.WEAK_FADE
-            UI.fill(self, 0, th + (seed * 97) % math.max(1, bodyH - 6), w, 2 + seed % 4, p.text, a)
-        end
-    end
+    if self.signalFade then self:drawWeakSignal(self:titleBarHeight(), rh) end
     UI.frame(self, 0, 0, w, h, p.border)
 end
 

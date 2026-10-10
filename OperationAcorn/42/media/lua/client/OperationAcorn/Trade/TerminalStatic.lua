@@ -13,7 +13,7 @@ OATerminalStatic.TILES = { "media/textures/OA_Static_1.png", "media/textures/OA_
 -- The tiles' side (pixels), how faint the static is (its tint's alpha), how fast it scrolls (pixels a second) and how
 -- often the two tiles swap (ms).
 OATerminalStatic.TILE = 256
-OATerminalStatic.ALPHA, OATerminalStatic.SPEED, OATerminalStatic.SWAP_MS = 0.14, 40, 90
+OATerminalStatic.ALPHA, OATerminalStatic.SPEED, OATerminalStatic.SWAP_MS = 0.2, 40, 90
 
 -- In the window's pixels (a plain game panel, not one of our scaled ones).
 function OATerminalStatic:new(x, y, width, height, window)

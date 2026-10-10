@@ -324,19 +324,30 @@ end)
 test("after its boot the crude window keeps a weak signal going, the field one is let go", function()
     local crude, setNow = bootWindow(false, true)
     crude.tier = "crude"
+    crude.x = 100
+    crude.getX = function(self) return self.x end
+    crude.setX = function(self, x) self.x = x end
     local Window = getmetatable(crude).__index
     setNow(1000)
     truthy(Window.liveFrame(crude, 1000) ~= nil, "the boot")
-    local seen, still = false, 0
+    local seen, still, jolted = false, 0, false
     for t = 20000, 60000, 20 do
         setNow(t)
         local look = Window.liveFrame(crude, t)
         truthy(look ~= nil, "followed while open")
         if crude.signalFade then seen = true else still = still + 1 end
+        if crude.x ~= 100 then jolted = true end
+        truthy(math.abs(crude.x - 100) <= 3, "a pixel or two")
+        if not crude.signalFade then eq(crude.x, 100, "and back between spells") end
     end
     eq(crude.boot, nil)
     truthy(seen, "a spell came")
+    truthy(jolted, "the window jolted in it")
     truthy(still > 1500, "and it is quiet most of the time")
+    -- dragged during a jolt: left where the player put it
+    crude.moving = true
+    Window.liveFrame(crude, 60020)
+    eq(crude.joltX, 0)
     local field, set2 = bootWindow(false, false)
     field.tier = "field"
     set2(1000)

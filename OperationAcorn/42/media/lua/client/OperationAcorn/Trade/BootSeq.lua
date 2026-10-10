@@ -208,9 +208,10 @@ end
 
 -- The crude terminal's weak signal once it is up: now and then the screen fades towards its background for a moment,
 -- flickering, with bars of static across it. Time (from the end of the boot) is cut into stretches of WEAK_EVERY_MS;
--- in each, one spell of 500 to 1100 ms starts somewhere in it, fading in over WEAK_IN_MS and out over WEAK_OUT_MS. How
--- far the screen has faded (0 to WEAK_FADE) and the spell's step (for the bars, one every WEAK_STEP_MS) at `elapsed`
--- ms, or nil between spells; the same every time.
+-- in each, one spell of 500 to 1100 ms starts somewhere in it, fading in over WEAK_IN_MS and out over WEAK_OUT_MS. At
+-- `elapsed` ms: how far the screen has faded (0 to WEAK_FADE), the spell's step (one every WEAK_STEP_MS, for what
+-- flickers with it), how far the window jolts sideways (-2 to 2 units: in the spell's first steps and now and then
+-- after) and how far through the spell it is (0 to 1); nil between spells. The same every time.
 Seq.WEAK_EVERY_MS, Seq.WEAK_FADE, Seq.WEAK_STEP_MS, Seq.WEAK_IN_MS, Seq.WEAK_OUT_MS = 14000, 0.6, 60, 80, 220
 
 function Seq.weakSignal(elapsed)
@@ -222,7 +223,9 @@ function Seq.weakSignal(elapsed)
     local env = min(1, t / Seq.WEAK_IN_MS, (length - t) / Seq.WEAK_OUT_MS)
     local step = floor(t / Seq.WEAK_STEP_MS)
     local flick = 0.75 + 0.25 * ((slot * 3 + step * 7) % 5) / 4
-    return Seq.WEAK_FADE * env * flick, slot * 64 + step
+    local jolt = 0
+    if step < 4 or step % 7 == 3 then jolt = (slot * 5 + step * 3) % 5 - 2 end
+    return Seq.WEAK_FADE * env * flick, slot * 64 + step, jolt, t / length
 end
 
 return Seq
