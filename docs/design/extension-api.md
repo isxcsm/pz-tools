@@ -1193,7 +1193,8 @@ main menu and loading another save, a second local player, and Moodle Framework'
 
 A mod shows text on the screen: a line in a font, a colour and a size, that comes on, stays and goes with an effect; or a
 title, a large line in the middle of the screen with a smaller one under it, in one of a few styles, one title after another.
-The mod says what and when, from its own events (a quest done, a search done); the API draws it with the game's own text
+A text can also be typed, a character at a time with pauses and a cursor, carry colours, and be broken to a width
+([below](#typing-markup-and-fitting-a-width)). The mod says what and when, from its own events (a quest done, a search done); the API draws it with the game's own text
 drawing, once a frame, with no Lua running for it.
 ([`Texts`](../../src/PzTools.GameBridge.Agent/java/pztools/api/Texts.java))
 
@@ -1243,7 +1244,7 @@ which override the jar's; it overrides none of the text classes):
 
 | Field | Value | Meaning |
 | --- | --- | --- |
-| `text` | 1 to 512 characters | The text; `\n` breaks it into at most 8 lines. |
+| `text` | 1 to 512 characters | The text; `\n` breaks it into at most 8 lines (counted after the markup, with `markup`, is read). |
 | `font` | a name, or a list of 1 to 8 | One of the game's `UIFont` names (`"Large"` when left out). In a list, the first that has every character of the text is used, the last when none has: `{ "SdfBold", "Large" }` is the sharp font for Latin text and the language's for the rest. |
 | `size` | 0.005 to 0.5 | The height of a line as a share of the player's screen's height, whatever the font and the resolution. |
 | `scale` | 0.05 to 20 | The zoom of the font instead (1 when left out), when there is no `size`. |
@@ -1253,11 +1254,15 @@ which override the jar's; it overrides none of the text classes):
 | `shadow` | boolean | A dark copy a little below and to the right. |
 | `outline` | 0 to 8 pixels | Copies around the text, in `outlineColor` (black). |
 | `delay` | 0 to 30 seconds | Before it comes on. |
-| `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"rise"`, `"drop"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; rises, or drops, three quarters of a line into its place as it fades in. |
+| `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"rise"`, `"drop"`, `"type"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; rises, or drops, three quarters of a line into its place as it fades in; or types (see [typing](#typing-markup-and-fitting-a-width)), which takes as long as its text and speed do, so it takes no `enterTime`. |
 | `hold` | 0 to 3600 seconds | How long it stays once on; left out, until the mod hides it. |
 | `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"none"` goes at once. |
 | `player` | 0 to 3 | The local player whose screen it is on; left out, every local player's. |
 | `queue` | boolean | It waits for the titles and queued texts before it on its screen (see titles). |
+| `markup` | boolean | The text has [markup](#typing-markup-and-fitting-a-width): pauses, speed changes and colours (false when left out: braces are braces). |
+| `width` | 0.05 to 1 | The longest a line may be, as a share of the player's screen's width: longer lines are broken at spaces. Left out, a line is as long as it is. |
+| `speed` | 1 to 1000 | With `enter = "type"`: the characters a second (30 when left out). |
+| `cursor` | boolean | With `enter = "type"`: a blinking underscore after the last character typed. |
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"stamp"` when left out), and to change the style's
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, and `now`. A style is a pair of `show` specs:
@@ -1282,6 +1287,63 @@ API was updated.
 
 Multiplayer is not blocked: the text is drawn on the machine that shows it, for its local players; nothing is sent.
 
+### Typing, markup and fitting a width
+
+For a text that is read as it comes (a transmission, a terminal): the characters come on one after another, as a typewriter
+does, drawn by the API with no Lua running for it. These apply to `show`, not to `title`.
+
+**Typing.** `enter = "type"` shows the characters one at a time, in order, at `speed` characters a second (30 when left out; 1
+to 1000). A character is a UTF-16 unit: a Hangul syllable is one, so Korean is typed a syllable at a time. The first comes on
+when the text is first drawn (after its `delay`), and the next one every `1 / speed` seconds, spaces too; a `\n` takes no time
+of its own. The rows are laid out for the whole text from the start, so nothing moves as it is typed: text centred on a line
+stays centred on the whole line. Typing takes as long as the text and its pauses take, and that is the enter effect's time:
+`hold` counts from the end of it (the last character's turn, and any pause after it), and `enterTime` is not taken (a Lua error
+with `"type"`). A text hidden while it is typed leaves with what had come on. `speed` and `cursor` are Lua errors without
+`enter = "type"`. A text may take at most 300 seconds to type.
+
+**Cursor.** `cursor = true` draws an underscore (`_`, in the text's colour and the font's glyph for it; the font list picks a font
+that has it) after the last character that has come on, or at the start of the text before the first. It is on while characters
+are coming, and blinks while it waits: on for 0.5 s, off for 0.5 s, counted from the time of the last character that came on (a
+pause blinks it; so does a text that is done, until it leaves).
+
+**Markup.** With `markup = true` the text may carry tags in braces, read once when the text is shown:
+
+| Markup | Meaning |
+| --- | --- |
+| `{p:seconds}` | A pause: the next character comes on `seconds` later than it would (0 to 30; digits with an optional fraction of up to 3 digits: `{p:0.6}`, `{p:3}`). At the start of the text it delays the first character; at the end it delays the end of typing, and so the hold. |
+| `{s:rate}` | From the next character on, `rate` characters a second (1 to 1000, as `speed`): `{s:8}` is slow, `{s:60}` quick. |
+| `{s}` | From the next character on, the text's own `speed` again. |
+| `{c:RRGGBB}` ... `{/c}` | The characters between are in this colour: six hexadecimal digits, red, green, blue (`FF8000`, either case, no `#`). The text's alpha, shadow and outline stay. Colours do not nest: another `{c:...}` before the `{/c}` is an error. |
+| `{{` and `}}` | One `{` and one `}`. |
+
+Anything else in braces, a `{` with no `}` after it, a `}` with no `{` before it, a malformed number, a `{c:...}` never closed,
+a `{/c}` with none open, and a text with no character left once the tags are taken out, are Lua errors that name the tag and
+its place in the text (the character's number). The 512 characters include the tags; the 8 lines, the font and the width are of what is
+left of them. Outside typing the tags do nothing but colour and the braces: the same translated string can
+be shown typed or whole. Without `markup`, braces are the text, as they always were.
+
+Example, three lines of a transmission (speed 30; the pauses add up to 5.3 s):
+
+```lua
+PZToolsAPI.text.show(handle, { enter = "type", speed = 30, cursor = true, markup = true, width = 0.5, align = "left", x = 0.25, hold = 4,
+    text = "Receiving{p:0.6}.{p:0.6}.{p:0.6}.{p:1.2}\n{c:FFD060}Point 0347.{/c}{p:0.8} Passing on the result.{p:1.5}\n{s:8}Destroy the sample." })
+```
+
+**Fitting a width.** `width = w` breaks the text so that no row is wider than `w` of the player's screen's width (0.05 to
+1), measured with the game's font at the zoom the text has before its effects (so a growing text is not broken again), and
+for each local player's screen: in split screen the two halves can break the same text in different places. A line (a `\n`)
+breaks:
+
+- before a word that follows spaces (the spaces at the break are dropped; spaces elsewhere stay);
+- between two characters of the scripts written without spaces (Han, kana, full-width forms), but not beside a space;
+- when a word alone is wider than `w`, after as many of its characters as fit, at least one.
+
+There is no hyphenation and no rule for punctuation at the start of a row. Hangul is written with spaces and breaks at
+them. The rows are centred or aligned each by itself as before (`align`, `x`), and the block as a whole on `y`. Without
+`width`, the rows are the text's own lines, as before. With it, the limit of 8 lines is on the text's own (`\n`) lines, and
+the rows they break into are not limited but by the 512 characters. The rows are made again when the screen's size or the
+game's font changes.
+
 ### Drawing
 
 The hook calls `Texts.draw()` once a frame from the interface's drawing (below). With nothing shown it returns after one
@@ -1294,6 +1356,16 @@ copy offset by a 24th of a line (at least a pixel) at 55% of the alpha; an outli
 the game says is a distance-field font (`TextManager.isSdf`) is drawn inside the game's shader, as `AtomUIText` does it, with
 the threshold for the zoom, no shadow and no outline of the shader's own. A text hidden while it comes on leaves from where
 it was. Drawing allocates nothing.
+
+A text with markup, typing or a width is drawn from its rows, still one `DrawString` for each run of one colour. The
+markup is read, and the time of each character worked out (the characters a second, the pauses and speed changes added up),
+once, when the text is shown. The rows are made once for each screen's size and font: the text broken at its width, with each
+row's width and each colour run's place in it measured with the game's font. Each frame the characters that have come on are
+the ones whose time is not after the typing clock (the time since the text was first drawn, less its delay, and no later than
+the time it began to leave: a binary search), the runs and rows are cut there, and the cursor is placed after them. The first
+`n` characters of a run are made as a string the first time `n` are shown, with their width for the cursor, and kept: a frame
+makes no string, once the characters are there. The rows are not changed by the effects' zoom or shift, and a text that is not
+typed, with no colour and no width, takes the plain path above, as it always did.
 
 | Hook | Where | What it does |
 | --- | --- | --- |
@@ -1361,11 +1433,21 @@ title on the screen leave within 0.25 s and the new one follow; a Hangul title t
 oldest go; in split screen a text for every player is on both players' parts, one for a player on theirs alone, and titles queue
 on each; without a player the window is used; `clear` takes one mod's texts, a world left takes its texts and a new world's stay;
 wrong arguments and a 65th text are Lua errors; a drawing that fails leaves the windows, the tooltip and what follows drawn, and
-draws again once it can; a newer API takes a text over at the alpha it was at, with its key, and the old functions refuse. A
+draws again once it can; a newer API takes a text over at the alpha it was at, with its key, and the old functions refuse; a typed
+text goes on typing from where it was under a newer API, and what the API before typing kept is shown as it was. Typing: the
+characters come on at their times (the first at once, one every 0.1 s at 10 a second, the default 30), the hold starts when the
+typing has ended, including a pause at the end, a hidden text leaves with what had come on, a pause holds the text back and
+`{s}` returns to its speed; the cursor sits after the last character, stays on while they come, blinks 0.5 s on and 0.5 s off
+while it waits and is at the start before the first; colours cut the row in runs placed by the whole row, also while they are
+typed; a text is broken at spaces, at lines of its own, in a word wider than the width, between Han characters, for the zoom of
+its size, for each of two screens of different widths, and again for a font made again; the typing does not move the rows;
+bad markup, a speed or cursor without `"type"`, an `enterTime` with it, and a text that takes over 300 s to type are Lua errors;
+a typed text with colours and rows allocates nothing once its characters are there (100,000 frames). A
 frame with a stamp title and its line (12 strings) took about 0.4 us to place in the synthetic game and allocated nothing over
 100,000 frames.
 
-Not tried in the game yet: how the titles look (the sizes, the colours, the effects' timing, a zoomed `SdfBold` and
+Not tried in the game yet: how typed text looks (the cursor's underscore in each font, the width of the rows and the places of
+colour runs as the game's fonts measure them, with kerning if they have it, the Korean fonts' widths); how the titles look (the sizes, the colours, the effects' timing, a zoomed `SdfBold` and
 `SdfRobertoSans` through the shader, and the copies of the outline at that zoom); a Hangul title in `Large` zoomed (bitmap, so
 softer); split screen; the interface's lower frame rate option; whether hiding the interface (the key that hides the HUD) hides
 the text too; and the text over the main menu.

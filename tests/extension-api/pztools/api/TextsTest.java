@@ -20,7 +20,8 @@ import pztools.bridge.ApiHooks;
  * The text a mod shows, against the synthetic game: drawn by the game's own text drawing from the hook in the interface's drawing
  * (after the windows, before the tooltip), placed on each local player's part of the screen, zoomed, coloured, faded and moved by
  * its effects on the clock of the interface, the first font that has its characters, the distance-field shader around the fonts
- * made for it; titles in their styles, one after another on each screen; hidden, cleared, gone with the world, taken over by a
+ * made for it; titles in their styles, one after another on each screen; text typed with pauses, speed changes, colours and a
+ * cursor, and fitted to a width on each screen; hidden, cleared, gone with the world, taken over by a
  * newer API; a drawing that fails leaves the interface drawn; and nothing is done, nor allocated, with nothing shown.
  */
 final class TextsTest {
@@ -48,14 +49,17 @@ final class TextsTest {
             layout(text, mod);
             fonts(text, mod);
             effects(text, mod);
+            typing(text, mod);
             titles(text, mod);
             screens(text, mod);
             world(text, mod, other);
             rejects(api, text, mod);
             failing(text, mod);
             cost(text, mod);
+            typingCost(text, mod);
             takeover(api, text, mod);
-            System.out.println("PASS: text a mod shows is drawn with the interface, zoomed, faded and moved on each player's screen; titles follow one another");
+            takeoverTyped(api, text, mod);
+            System.out.println("PASS: text a mod shows is drawn with the interface, zoomed, faded and moved on each player's screen; titles follow one another; text types, fits a width and carries colours");
         } finally {
             System.arraycopy(before, 0, IsoPlayer.players, 0, before.length);
             IsoWorld.instance.setCell(home);
@@ -271,6 +275,252 @@ final class TextsTest {
         check(draws().isEmpty(), "The pop did not go");
     }
 
+    /** Typing: characters at their times, the hold counted from the last; markup pauses and speeds; a cursor that blinks; colours. */
+    private static void typing(KahluaTable text, Object mod) {
+        // 10 characters a second: the first at once, then one every 0.1 s; the row is placed by its whole width (75), so nothing moves.
+        double key = showing(text, mod, "text", "Hello", "enter", "type", "speed", 10.0, "hold", 1.0);
+        render();
+        drawn(draws().get(0), UIFont.Large, 762.5, 433.5, 1, "H", 1, 1, 1, 1);
+        check(draws().size() == 1, "More than the first character came on at once");
+        advance(0.25);
+        render();
+        drawn(draws().get(0), UIFont.Large, 762.5, 433.5, 1, "Hel", 1, 1, 1, 1);
+        advance(0.2);
+        render();
+        drawn(draws().get(0), UIFont.Large, 762.5, 433.5, 1, "Hello", 1, 1, 1, 1);
+        // Typing takes 0.5 s, the hold starts then: the text goes at 1.5 s.
+        advance(1.0);
+        render();
+        check(draws().size() == 1, "The hold did not start when typing was over");
+        advance(0.1);
+        render();
+        check(draws().isEmpty() && !(Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "A typed text outlived its hold");
+
+        // The default is 30 characters a second.
+        showing(text, mod, "text", "Slow down", "enter", "type");
+        render();
+        advance(0.07);
+        render();
+        check("Slo".equals(draws().get(0)[5]), "The default speed is not 30 a second: " + draws().get(0)[5]);
+        FormulasTest.call(mod, "clear");
+
+        // Hidden while typing: it leaves with what had come on.
+        key = showing(text, mod, "text", "Hello", "enter", "type", "speed", 10.0, "leave", "fade", "leaveTime", 1.0);
+        render();
+        advance(0.15);
+        FormulasTest.call(text, "hide", mod, key);
+        render();
+        advance(0.2);
+        render();
+        check("He".equals(draws().get(0)[5]) && near(alpha(draws().get(0)), 1 - 0.2 * 0.2 * (3 - 2 * 0.2)), "A typed text hidden midway did not leave as it was: " + draws().get(0)[5]);
+        FormulasTest.call(mod, "clear");
+
+        // Markup: a pause is added to the gap after the character before it, {s:2} slows what follows.
+        // A at 0, B at 1.1 (after 0.1 and a pause of 1), C at 1.2, D at 1.7 (2 a second); typing takes 2.2 s.
+        key = showing(text, mod, "text", "A{p:1}B{s:2}CD", "markup", true, "enter", "type", "speed", 10.0, "hold", 1.0);
+        render();
+        advance(0.5);
+        render();
+        check("A".equals(draws().get(0)[5]), "The pause did not hold the text back: " + draws().get(0)[5]);
+        advance(0.65);
+        render();
+        check("AB".equals(draws().get(0)[5]), "The text did not go on after its pause: " + draws().get(0)[5]);
+        advance(0.1);
+        render();
+        check("ABC".equals(draws().get(0)[5]), "The speed change came late: " + draws().get(0)[5]);
+        advance(0.4);
+        render();
+        check("ABC".equals(draws().get(0)[5]), "The slower speed was not slower: " + draws().get(0)[5]);
+        advance(0.2);
+        render();
+        drawn(draws().get(0), UIFont.Large, 770, 433.5, 1, "ABCD", 1, 1, 1, 1);
+        advance(1.3);
+        render();
+        check(draws().size() == 1, "The hold did not start when the last character's turn was over");
+        advance(0.2);
+        render();
+        check(draws().isEmpty(), "A typed text with markup outlived its hold");
+        // {s} goes back to the text's own speed; a pause at the end belongs to the typing (the hold starts after it).
+        key = showing(text, mod, "text", "{s:1}A{s}B{p:2}", "markup", true, "enter", "type", "speed", 10.0, "hold", 1.0);
+        render();
+        advance(0.95);
+        render();
+        check("A".equals(draws().get(0)[5]), "A slow character came early: " + draws().get(0)[5]);
+        advance(0.1);
+        render();
+        check("AB".equals(draws().get(0)[5]), "{s} did not go back to the text's speed: " + draws().get(0)[5]);
+        // A takes 1 s, B 0.1, the pause 2: typing is over at 3.1 s and the text goes at 4.1.
+        advance(2.9);
+        render();
+        check(draws().size() == 1, "A pause at the end did not delay the hold");
+        advance(0.2);
+        render();
+        check(draws().isEmpty(), "The hold was not counted from the end of the pause at the end");
+
+        // Markup without typing: the pauses and speeds mean nothing, the colours and the braces do.
+        showing(text, mod, "text", "a{p:3}b{s:5}c{{d}}", "markup", true);
+        render();
+        drawn(draws().get(0), UIFont.Large, 755, 433.5, 1, "abc{d}", 1, 1, 1, 1);
+        FormulasTest.call(mod, "clear");
+        // Without markup = true the braces are the text.
+        showing(text, mod, "text", "a{p:3}b", "enter", "type", "speed", 1000.0);
+        render();
+        advance(0.1);
+        render();
+        check("a{p:3}b".equals(draws().get(0)[5]), "Braces were read without markup: " + draws().get(0)[5]);
+        FormulasTest.call(mod, "clear");
+
+        // Colours: one string for each run, placed by the whole row (6 characters, 90 wide).
+        showing(text, mod, "text", "ab{c:FF8000}cd{/c}ef", "markup", true, "color", list(1.0, 1.0, 1.0, 0.5));
+        render();
+        var runs = draws();
+        check(runs.size() == 3, "A row with a colour is not 3 runs: " + runs.size());
+        drawn(runs.get(0), UIFont.Large, 755, 433.5, 1, "ab", 1, 1, 1, 0.5);
+        drawn(runs.get(1), UIFont.Large, 785, 433.5, 1, "cd", 1, 128 / 255.0, 0, 0.5);
+        drawn(runs.get(2), UIFont.Large, 815, 433.5, 1, "ef", 1, 1, 1, 0.5);
+        FormulasTest.call(mod, "clear");
+
+        // Colours while typing: the run being typed is cut where the typing is, in its own colour, and does not move.
+        showing(text, mod, "text", "ab{c:00FF00}cd{/c}", "markup", true, "enter", "type", "speed", 10.0);
+        render();
+        advance(0.25);
+        render();
+        runs = draws();
+        check(runs.size() == 2, "A typed row with a colour is not 2 runs yet: " + runs.size());
+        drawn(runs.get(0), UIFont.Large, 770, 433.5, 1, "ab", 1, 1, 1, 1);
+        drawn(runs.get(1), UIFont.Large, 800, 433.5, 1, "c", 0, 1, 0, 1);
+        FormulasTest.call(mod, "clear");
+
+        // The cursor is an underscore after the last character that came on: on while characters come, blinking while it waits.
+        showing(text, mod, "text", "Hi", "enter", "type", "speed", 10.0, "cursor", true, "hold", 5.0);
+        render();
+        drawn(draws().get(0), UIFont.Large, 785, 433.5, 1, "H", 1, 1, 1, 1);
+        drawn(draws().get(1), UIFont.Large, 800, 433.5, 1, "_", 1, 1, 1, 1);
+        advance(0.15);
+        render();
+        drawn(draws().get(1), UIFont.Large, 815, 433.5, 1, "_", 1, 1, 1, 1);
+        // 0.5 s after the last character it goes off, and 0.5 s later it is on again.
+        advance(0.5);
+        render();
+        check(draws().size() == 1 && "Hi".equals(draws().get(0)[5]), "The cursor did not blink off: " + draws().size());
+        advance(0.5);
+        render();
+        check(draws().size() == 2 && "_".equals(draws().get(1)[5]), "The cursor did not blink on");
+        FormulasTest.call(mod, "clear");
+        // Before the first character (a pause first) it is at the start.
+        showing(text, mod, "text", "{p:1}Hi", "markup", true, "enter", "type", "speed", 10.0, "cursor", true, "align", "left", "x", 0.1);
+        render();
+        check(draws().size() == 1 && "_".equals(draws().get(0)[5]) && near((Double)draws().get(0)[2], 160), "The cursor is not at the start before the first character");
+        FormulasTest.call(mod, "clear");
+
+        // Rows fitted to a width: breaks at spaces; each row centred on its own width; the rows laid out as a block.
+        // 0.1 of 1600 is 160, 10 characters of 15: "aaaa bbbb" fits (135), the next word does not.
+        key = showing(text, mod, "text", "aaaa bbbb cccc dd", "width", 0.1);
+        render();
+        runs = draws();
+        check(runs.size() == 2, "The text was not broken in two rows: " + runs.size());
+        drawn(runs.get(0), UIFont.Large, 732.5, 417, 1, "aaaa bbbb", 1, 1, 1, 1);
+        drawn(runs.get(1), UIFont.Large, 747.5, 450, 1, "cccc dd", 1, 1, 1, 1);
+        FormulasTest.call(text, "hide", mod, key, true);
+        // A line of its own stays; a word wider than the width is broken by characters; an empty line stays.
+        showing(text, mod, "text", "ab cd\n\nabcdefghijklmnopqrstuvwxyz", "width", 0.1, "align", "left", "x", 0.0);
+        render();
+        runs = draws();
+        check(runs.size() == 4 && "ab cd".equals(runs.get(0)[5]) && "abcdefghij".equals(runs.get(1)[5]) && "klmnopqrst".equals(runs.get(2)[5])
+            && "uvwxyz".equals(runs.get(3)[5]), "Lines and a long word were not broken as they should: " + runs.size());
+        // Five rows of 33 centred on 450: the empty one has a place.
+        check(near((Double)runs.get(0)[3], 450 - 82.5) && near((Double)runs.get(1)[3], 450 - 82.5 + 66) && near((Double)runs.get(3)[3], 450 - 82.5 + 132),
+            "The rows are not placed as a block");
+        FormulasTest.call(mod, "clear");
+        // The width is that of the text at its own size: a size of 0.1 (zoom 2.727) leaves room for 3 characters.
+        showing(text, mod, "text", "abcdef ghi", "width", 0.1, "size", 0.1);
+        render();
+        runs = draws();
+        check(runs.size() == 3 && "abc".equals(runs.get(0)[5]) && "def".equals(runs.get(1)[5]) && "ghi".equals(runs.get(2)[5]),
+            "A sized text was not broken for its zoom: " + runs.size());
+        FormulasTest.call(mod, "clear");
+        // Wrapped and typed: the rows are those of the whole text, so what is typed stays where it will be.
+        showing(text, mod, "text", "aaaa bbbb cccc dd", "width", 0.1, "enter", "type", "speed", 10.0, "cursor", true);
+        render();
+        advance(0.25);
+        render();
+        drawn(draws().get(0), UIFont.Large, 732.5, 417, 1, "aaa", 1, 1, 1, 1);
+        check(near((Double)draws().get(1)[2], 732.5 + 45) && "_".equals(draws().get(1)[5]), "The cursor is not after the third character");
+        advance(0.8);
+        render();
+        // 11 characters by 1.05 s: the space after the second word was typed, and the first letter of the third word.
+        runs = draws();
+        check(runs.size() == 3 && "aaaa bbbb".equals(runs.get(0)[5]) && "c".equals(runs.get(1)[5]), "The second row did not start with the third word: " + runs.size());
+        drawn(runs.get(1), UIFont.Large, 747.5, 450, 1, "c", 1, 1, 1, 1);
+        check(near((Double)runs.get(2)[2], 747.5 + 15), "The cursor did not go on to the next row");
+        FormulasTest.call(mod, "clear");
+
+        // Fitted for each screen: split screen halves of 1600 and 800 wide break the text where each has room.
+        IsoPlayer.players[1] = new IsoPlayer();
+        IsoCamera.width[1] = 800;
+        IsoCamera.left[1] = 800;
+        try {
+            showing(text, mod, "text", "ab cd ef gh", "width", 0.2);
+            render();
+            runs = draws();
+            check(runs.size() == 3 && "ab cd ef gh".equals(runs.get(0)[5]) && "ab cd ef".equals(runs.get(1)[5]) && "gh".equals(runs.get(2)[5]),
+                "The text was not fitted to each screen: " + runs.size());
+            render();
+            check(draws().size() == 3, "The rows of a screen were lost between frames");
+        } finally {
+            IsoPlayer.players[1] = null;
+            IsoCamera.width[1] = 1600;
+            IsoCamera.left[1] = 0;
+        }
+        FormulasTest.call(mod, "clear");
+        // A new font is fitted again.
+        showing(text, mod, "text", "aaaa bbbb cccc dd", "width", 0.1);
+        render();
+        TextManager.instance.fonts.put(UIFont.Large, new zombie.core.fonts.AngelCodeFont(0xD7A3, 33, 20, false));
+        render();
+        check(draws().size() == 3 && "aaaa".equals(draws().get(0)[5]), "A new font did not make a new fit: " + draws().size());
+        TextManager.instance.reset();
+        FormulasTest.call(mod, "clear");
+        // Han has no spaces: a row may break beside its characters.
+        showing(text, mod, "text", "一二三四五六", "width", 0.05);
+        render();
+        check(draws().size() == 2 && "一二三四五".equals(draws().get(0)[5]) && "六".equals(draws().get(1)[5]),
+            "Han was not broken between characters: " + draws().size());
+        FormulasTest.call(mod, "clear");
+    }
+
+    /** What typing, colours and rows cost once the characters are there: nothing allocated. */
+    private static void typingCost(KahluaTable text, Object mod) {
+        showing(text, mod, "text", "ab{c:FF8000}cd{/c} ef gh ij kl", "markup", true, "width", 0.1, "enter", "type", "speed", 100.0, "cursor", true, "hold", 1000.0);
+        render();
+        // Every prefix is made once, as its character comes on.
+        for (int step = 0; step < 40; step++) {
+            advance(0.011);
+            render();
+        }
+        advance(1);
+        render();
+        advance(0.2);
+        render();
+        TextManager.record = false;
+        long bytes;
+        try {
+            // Frames on both sides of the cursor's blinks: 1 s of the clock for each hundred.
+            bytes = Allocations.median(5, () -> {
+                for (int frame = 0; frame < 100_000; frame++) {
+                    if (frame % 100 == 0) advance(0.1);
+                    UIManager.render();
+                }
+            });
+        } finally { TextManager.record = true; }
+        check(bytes < 4096, "A typed text with colours and rows allocated " + bytes + " bytes in 100,000 frames");
+        FormulasTest.call(mod, "clear");
+    }
+
+    private static double showing(KahluaTable text, Object mod, Object... pairs) {
+        return (Double)FormulasTest.call(text, "show", mod, table(pairs)).get(0);
+    }
+
     /** Titles: their styles, one after another, at once when asked, and a full queue. */
     private static void titles(KahluaTable text, Object mod) {
         double quest = (Double)FormulasTest.call(text, "title", mod, table("text", "Quest complete", "subtitle", "The well is clean")).get(0);
@@ -413,6 +663,25 @@ final class TextsTest {
         rejects(text, "spec.style must be one of stamp, discovery, notice", "title", mod, table("text", "x", "style", "loud"));
         rejects(text, "spec has no field font", "title", mod, table("text", "x", "font", "Large"));
         rejects(text, "key must be", "hide", mod, "a");
+        rejects(text, "spec.markup must be true or false", "show", mod, table("text", "x", "markup", "yes"));
+        rejects(text, "spec.width must be a number from 0.05 to 1", "show", mod, table("text", "x", "width", 2.0));
+        rejects(text, "spec.speed must be a number from 1 to 1000", "show", mod, table("text", "x", "enter", "type", "speed", 0.5));
+        rejects(text, "spec.speed and spec.cursor go with spec.enter = \"type\"", "show", mod, table("text", "x", "speed", 10.0));
+        rejects(text, "spec.speed and spec.cursor go with spec.enter = \"type\"", "show", mod, table("text", "x", "cursor", true));
+        rejects(text, "spec.enterTime does not go with enter = \"type\"", "show", mod, table("text", "x", "enter", "type", "enterTime", 1.0));
+        rejects(text, "spec.enter must be one of \"none\", \"fade\", \"pop\", \"slam\", \"rise\", \"drop\", \"type\"", "show", mod, table("text", "x", "enter", "spin"));
+        String[][] markup = {
+            { "a{p:abc}", "{p:abc} must be {p:seconds}" }, { "a{p:31}", "{p:31} must be {p:seconds}, from 0 to 30" }, { "a{p}", "{p} must be {p:seconds}" },
+            { "a{p:-1}", "{p:-1} must be {p:seconds}" }, { "a{s:0}", "{s:0} must be {s:characters a second}" },
+            { "a{s:2000}", "{s:2000} must be {s:characters a second}" }, { "a{c:12}", "{c:12} must be {c:RRGGBB}" },
+            { "a{c:FF0000}b{c:00FF00}", "inside a colour that is not closed" }, { "a{/c}", "{/c} with no {c:RRGGBB} before it" },
+            { "a{c:FF0000}b", "a {c:RRGGBB} that is not closed with {/c}" }, { "a{x}", "{x} is not {p:seconds}" },
+            { "a}b", "a } with no { before it" }, { "a{b", "a { with no } after it" }, { "{p:1}", "no characters are left once the markup is read" },
+            { "a{p:30}b{p:30}c{p:30}d{p:30}e{p:30}f{p:30}g{p:30}h{p:30}i{p:30}j{p:30}k{p:30}l", "seconds to type; at most 300" } };
+        for (String[] bad : markup)
+            rejects(text, bad[1], "show", mod, table("text", bad[0], "markup", true, "enter", "type", "speed", 1000.0));
+        rejects(text, "takes 400 seconds to type; at most 300", "show", mod, table("text", "x".repeat(400), "enter", "type", "speed", 1.0));
+        rejects(text, "has 9 lines; at most 8", "show", mod, table("text", "1\n2\n3\n4\n5\n6\n7\n8\n{p:1}9", "markup", true));
         var keys = new ArrayList<Double>();
         for (int index = 0; index < Texts.MAX_PER_MOD; index++) keys.add((Double)FormulasTest.call(text, "show", mod, table("text", "n" + index)).get(0));
         rejects(text, "at most " + Texts.MAX_PER_MOD, "show", mod, table("text", "one more"));
@@ -479,6 +748,52 @@ final class TextsTest {
         } catch (IllegalArgumentException expected) {
             check(expected.getMessage().contains("the API was updated"), expected.getMessage());
         }
+        FormulasTest.call(mod, "clear");
+        render();
+        check(draws().isEmpty(), "clear left a text taken over");
+    }
+
+    /** A typed text goes on typing under a newer API, which reads its markup again; a text kept before typing is shown as it was. */
+    private static void takeoverTyped(KahluaTable api, KahluaTable text, Object mod) throws Exception {
+        ClassLoader game = TextsTest.class.getClassLoader();
+        // T at 0, y at 0.1, then a pause of 1 s: p at 1.2, e at 1.3, d at 1.4.
+        double key = showing(text, mod, "text", "Ty{p:1}ped", "markup", true, "enter", "type", "speed", 10.0, "hold", 100.0);
+        render();
+        advance(0.25);
+        render();
+        check("Ty".equals(draws().get(0)[5]), "The text was not typed: " + draws().get(0)[5]);
+        GameApi.frame(game);
+        GameApi.register(LuaManager.class);
+        useClock();
+        render();
+        drawn(draws().get(0), UIFont.Large, 800 - 5 * 15 / 2.0, 433.5, 1, "Ty", 1, 1, 1, 1);
+        check((Boolean)FormulasTest.call(text, "shown", mod, key).get(0), "The newer API does not know the typed text");
+        advance(1.0);
+        render();
+        check("Typ".equals(draws().get(0)[5]), "The newer API did not go on typing after the pause: " + draws().get(0)[5]);
+        advance(0.2);
+        render();
+        check("Typed".equals(draws().get(0)[5]), "The newer API did not finish typing: " + draws().get(0)[5]);
+        FormulasTest.call(mod, "clear");
+
+        // What the API before typing kept has the fields up to hidden alone.
+        showing(text, mod, "text", "Old", "enter", "fade", "enterTime", 2.0);
+        render();
+        advance(1);
+        GameApi.frame(game);
+        KahluaTable meta = api.getMetatable();
+        String[] kept = ((String)meta.rawget("texts")).split("\n");
+        var before = new StringBuilder("pztools-texts 1");
+        for (int row = 1; row < kept.length; row++) {
+            String[] fields = kept[row].split("\t", -1);
+            before.append('\n').append("T".equals(fields[0]) ? String.join("\t", Arrays.copyOf(fields, 31)) : kept[row]);
+        }
+        meta.rawset("texts", before.toString());
+        meta.rawset("textsHandover", null);
+        GameApi.register(LuaManager.class);
+        useClock();
+        render();
+        check(draws().size() == 1 && "Old".equals(draws().get(0)[5]) && near(alpha(draws().get(0)), 0.5), "A text kept before typing was not taken over");
         FormulasTest.call(mod, "clear");
         render();
         check(draws().isEmpty(), "clear left a text taken over");
