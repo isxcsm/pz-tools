@@ -394,6 +394,12 @@ test("the flow is made with the body, after it, as its sibling in the tab", func
     eq(view.flow.height, view.body.height)
     truthy(rawget(OAResearchFlow, "onMouseUp") == nil and rawget(OAResearchFlow, "onMouseMove") == nil,
         "it handles no mouse: the body under it does")
+    -- but the game gives it a right click whatever it takes: it passes it on, and the rank is taken back
+    local taken
+    view.itemAt = function(_, x, y) return x == 5 and y == 6 and { id = "sight" } or nil end
+    view.unplan = function(_, id) taken = id end
+    eq(OAResearchFlow.onRightMouseUp(view.flow, 5, 6), true)
+    eq(taken, "sight", "a right click over the flow takes the rank back")
 end)
 
 test("the padlocks an approval took off come off once its stamp is over, not on top of it", function()

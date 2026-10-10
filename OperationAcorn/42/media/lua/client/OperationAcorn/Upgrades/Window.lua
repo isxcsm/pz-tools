@@ -276,10 +276,19 @@ function OAResearchBody:onMouseUp(x, y)
     return true
 end
 
-function OAResearchBody:onRightMouseUp(x, y)
-    local item = self.view:itemAt(x, y)
-    if item and item.id then self.view:unplan(item.id) end
+-- A right click takes a selected rank back (the flow over the body passes it on: OAResearchFlow).
+function View:rightClick(x, y)
+    local item = self:itemAt(x, y)
+    if item and item.id then self:unplan(item.id) end
     return true
+end
+
+function OAResearchBody:onRightMouseDown(x, y)
+    return true
+end
+
+function OAResearchBody:onRightMouseUp(x, y)
+    return self.view:rightClick(x, y)
 end
 
 UI.scaled(OAResearchBody, ISPanel)
@@ -301,6 +310,16 @@ end
 
 function OAResearchFlow:createChildren()
     self.javaObject:setConsumeMouseEvents(false)
+end
+
+-- The game hands a right click to the element on top whether or not it takes mouse events: the flow passes it on to
+-- the body's (the same place: their coordinates are the same).
+function OAResearchFlow:onRightMouseDown(x, y)
+    return true
+end
+
+function OAResearchFlow:onRightMouseUp(x, y)
+    return self.view:rightClick(x, y)
 end
 
 function OAResearchFlow:prerender()
