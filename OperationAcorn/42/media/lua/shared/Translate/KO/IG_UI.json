@@ -1037,5 +1037,9 @@
     "IGUI_OA_Tree_BiteArmed": "물림 방어: 준비됨",
     "IGUI_OA_Tree_BiteRestDays": "물림 방어: %1일 %2시간 뒤 준비",
     "IGUI_OA_Tree_BiteRestHours": "물림 방어: %1시간 뒤 준비",
-    "IGUI_OA_Title_BiteReady": "물림 내성 회복"
+    "IGUI_OA_Title_BiteReady": "물림 내성 회복",
+    "IGUI_OA_ItemTip_Mission": "임무 물건",
+    "IGUI_OA_ItemTip_Request": "요청 품목 · 개당 %1 · 이번 주 %2/%3",
+    "IGUI_OA_ItemTip_RequestFull": "요청 품목 · 개당 %1 · 이번 주 %2/%3 · 다 채움",
+    "IGUI_OA_ItemTip_New": "처음 보는 물건"
 }

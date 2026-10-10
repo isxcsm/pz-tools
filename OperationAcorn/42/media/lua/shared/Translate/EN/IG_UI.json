@@ -1037,5 +1037,9 @@
     "IGUI_OA_Tree_BiteArmed": "Bite shield: ready",
     "IGUI_OA_Tree_BiteRestDays": "Bite shield: ready in %1 d %2 h",
     "IGUI_OA_Tree_BiteRestHours": "Bite shield: ready in %1 h",
-    "IGUI_OA_Title_BiteReady": "Bite shield ready"
+    "IGUI_OA_Title_BiteReady": "Bite shield ready",
+    "IGUI_OA_ItemTip_Mission": "Mission item",
+    "IGUI_OA_ItemTip_Request": "Requested · %1 each · this week %2/%3",
+    "IGUI_OA_ItemTip_RequestFull": "Requested · %1 each · this week %2/%3 · filled",
+    "IGUI_OA_ItemTip_New": "Not seen before"
 }
