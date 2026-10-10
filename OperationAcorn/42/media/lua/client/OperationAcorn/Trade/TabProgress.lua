@@ -76,8 +76,8 @@ end
 local function cellTip(p, d, lv, lane)
     local lines = {}
     local head = lane == "A" and getText("IGUI_OA_Status_Lane_All") or getText("IGUI_OA_Status_Col_Team")
-    lines[1] = { s = lv.name .. " · " .. head, c = p.head }
-    for _, it in ipairs(lane == "A" and lv.itemsA or lv.itemsB) do lines[#lines + 1] = it.name .. " · " .. it.price end
+    lines[1] = { s = lv.name .. Text.DOT .. head, c = p.head }
+    for _, it in ipairs(lane == "A" and lv.itemsA or lv.itemsB) do lines[#lines + 1] = it.name .. Text.DOT .. it.price end
     if lane == "A" then
         for _, s in ipairs(lv.moreA) do lines[#lines + 1] = s end
     else
@@ -225,7 +225,7 @@ function OATabProgress:buildDetail(L, x, y, w, h, t)
             Draw.fit(L, getText("IGUI_OA_Status_MoreRows", #lines - show), cx + 20, yy, gw - 24, p.dim)
             local all = {}
             for _, line in ipairs(lines) do
-                all[#all + 1] = line.item and (line.item.name .. " · " .. line.item.price) or line.text
+                all[#all + 1] = line.item and (line.item.name .. Text.DOT .. line.item.price) or line.text
             end
             Draw.hit(L, cx, top, gw, h - 26, nil, Draw.tip(p, all))
         end

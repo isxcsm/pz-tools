@@ -273,7 +273,7 @@ function OATabUpgrades:buildForm(L, x, y, w, h)
     for _, r in ipairs(d.requests) do
         if xx >= limit then break end
         local used = Draw.run(L, { { s = r.name .. " " .. r.from, c = p.text }, { arrow = true, c = p.dim }, { s = r.to, c = p.warn },
-            { s = " · ", c = p.dim }, { s = Text.credits(r.price), c = p.text, font = nf } }, xx, y + 4, limit - xx)
+            { s = Text.DOT, c = p.dim }, { s = Text.credits(r.price), c = p.text, font = nf } }, xx, y + 4, limit - xx)
         xx = xx + used + 16
     end
     Draw.run(L, { { s = getText("IGUI_OA_Status_FormTotal") .. " ", c = p.dim }, { s = d.total, c = p.value, font = nf },

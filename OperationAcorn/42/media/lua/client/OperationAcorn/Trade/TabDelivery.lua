@@ -165,7 +165,7 @@ function OATabDelivery:refresh()
     self.data = {
         head = getText("IGUI_OA_Terminal_Del_Head", #rows),
         priceLabel = getText("IGUI_OA_Support_Name_reqprice") .. " ",
-        price = "×" .. trimmed(OA.Trust.rewards(record).requestPrice),
+        price = Text.TIMES .. trimmed(OA.Trust.rewards(record).requestPrice),
         refresh = refreshText(),
         rows = rows,
         expect = expect,
@@ -205,7 +205,7 @@ function OATabDelivery:layout()
     -- What each row draws that depends on the width: the name cut to its column, the words before the trust.
     local trustWord = getText("IGUI_OA_Terminal_Del_Trust") .. " "
     local doneWord = getText("IGUI_OA_Terminal_Del_DoneShort")
-    if not m.narrow then doneWord = doneWord .. " · " .. trustWord end
+    if not m.narrow then doneWord = doneWord .. Text.DOT .. trustWord end
     local trustW, doneW = UI.textWidth(trustWord), UI.textWidth(doneWord)
     for _, row in ipairs(d.rows) do
         row.nameFit = UI.fit(row.name, m.nameW)
@@ -223,7 +223,7 @@ function OATabDelivery:layout()
     for i, line in ipairs(d.sit) do
         line.fit = UI.fit(line.text, w - 170)
         if line.left then
-            local sep = line.mult and " · " or ""
+            local sep = line.mult and Text.DOT or ""
             local wl, ws = UI.textWidth(line.left), UI.textWidth(sep)
             local wm = line.mult and UI.textWidth(line.mult) or 0
             line.xLeft = w - 10 - wl

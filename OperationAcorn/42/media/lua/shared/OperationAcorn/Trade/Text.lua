@@ -7,6 +7,12 @@ local Trade = OA.Trade
 local Text = {}
 Trade.Text = Text
 
+-- The separator " · " and the sign × the screens put between words and before a count. Made from their
+-- character codes: the game reads a mod's Lua files so that a letter past ASCII written in the code comes out as
+-- U+FFFD (texts from the translation files are fine).
+Text.DOT = " " .. string.char(183) .. " "
+Text.TIMES = string.char(215)
+
 -- The translate function (the game's getText); a test sets its own.
 function Text.tr(key, ...)
     return getText(key, ...)

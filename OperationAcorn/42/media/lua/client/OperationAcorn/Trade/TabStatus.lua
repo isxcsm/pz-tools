@@ -156,7 +156,7 @@ function OATabStatus:prerender()
     UI.fill(self, x0, 31, math.floor(barW * t.frac + 0.5), 7, field and p.value or p.sel)
     UI.frame(self, x0, 31, barW, 7, p.border)
     local nf = p.numberFont
-    run(self, x0, 40, { { t.trust, p.text, nf }, { " / ", p.dim }, { t.to, p.dim, nf }, { " · " .. t.next .. " ", p.dim },
+    run(self, x0, 40, { { t.trust, p.text, nf }, { " / ", p.dim }, { t.to, p.dim, nf }, { Text.DOT .. t.next .. " ", p.dim },
         { t.left, p.text, nf } })
     local unit = " " .. getText("IGUI_OA_Terminal_Credits")
     local right = w

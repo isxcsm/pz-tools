@@ -8,7 +8,9 @@ Reports:
   no page or option has;
 - items and craft recipes (media/scripts) without a name, and names no item or recipe has;
 - texts with a bare percent sign (not %%), which breaks the game's String.format, and texts whose %1, %2 ... differ between
-  the languages.
+  the languages;
+- letters past ASCII inside a string in the Lua code: the game reads mod Lua so that they come out as U+FFFD (write
+  them as string.char(code) or take them from a translation).
 Exit code 1 when anything is found.
 
 Texts too long or too many for code (the radio log, documents, receipt notes) may live in other Translate files
@@ -52,6 +54,31 @@ def code():
                 with open(os.path.join(folder, name), encoding='utf-8') as f:
                     texts.append(f.read())
     return '\n'.join(texts)
+
+
+LUA_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
+
+
+def non_ascii_strings():
+    """(file, line, string) for each string in the Lua code (comments left out) with a letter past ASCII."""
+    found = []
+    for folder, _, files in os.walk(ROOT):
+        if 'Translate' in folder:
+            continue
+        for name in files:
+            if not name.endswith('.lua'):
+                continue
+            path = os.path.join(folder, name)
+            with open(path, encoding='utf-8') as f:
+                for n, line in enumerate(f, 1):
+                    pos = 0
+                    for m in LUA_STRING.finditer(line):
+                        if '--' in line[pos:m.start()]:
+                            break
+                        if any(ord(c) > 127 for c in m.group(0)):
+                            found.append((os.path.relpath(path, ROOT), n, m.group(0)))
+                        pos = m.end()
+    return found
 
 
 def sandbox_keys():
@@ -146,6 +173,9 @@ def main():
             problems.append('no text for %s (%s)' % (key, name))
         for key in sorted(have - needed):
             problems.append('%s names nothing in the scripts (%s)' % (key, name))
+
+    for path, n, text in non_ascii_strings():
+        problems.append('letters past ASCII in Lua code %s:%d %s' % (path, n, text))
 
     for line in problems:
         print(line)

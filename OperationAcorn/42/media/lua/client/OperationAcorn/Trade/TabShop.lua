@@ -378,7 +378,7 @@ function OATabShop:buildDetail(record, ctx)
     local info = {}
     if not d.state.open then info[#info + 1] = statusText(d.state) end
     if entry.week then info[#info + 1] = getText("IGUI_OA_Terminal_Shop_PerWeek", entry.week) end
-    d.info = table.concat(info, " · ")
+    d.info = table.concat(info, Text.DOT)
     d.maxQty = d.state.open and math.min(Orders.MAX_COUNT, d.state.n) or 1
     self.qty = math.max(1, math.min(self.qty or 1, d.maxQty))
     local options

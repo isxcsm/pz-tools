@@ -110,7 +110,7 @@ test("the tab shows the week's list: six rows at the start, each with its band, 
     eq(#d.rows, 6)
     eq(#tab.list.items, 6)
     eq(d.head, "IGUI_OA_Terminal_Del_Head 6")
-    eq(d.price, "×1.0")
+    eq(d.price, OA.Trade.Text.TIMES .. "1.0")
     for _, row in ipairs(d.rows) do
         eq(row.band, "common", "only the common items at the start")
         eq(row.price, "600"); eq(row.qty, 10); eq(row.trust, "+5"); eq(row.progress, "0/10")
@@ -124,7 +124,7 @@ test("the header's multiplier and the prices follow the request price upgrade", 
     OA.Support.setLevel(record, "reqprice", 3)
     OA.Support.setLevel(record, "reqcount", 3)
     local tab = openTab(record)
-    eq(tab.data.price, "×1.33")
+    eq(tab.data.price, OA.Trade.Text.TIMES .. "1.33")
     eq(#tab.data.rows, 12)
     local prices = {}
     for _, row in ipairs(tab.data.rows) do prices[row.band] = row.price end

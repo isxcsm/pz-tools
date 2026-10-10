@@ -449,7 +449,7 @@ function M.infection(state)
             percent(state.progress))
     end
     if (state.fee or 0) > 0 then second[#second + 1] = tr("IGUI_OA_Status_Inf_Fee", percent(state.fee)) end
-    return { table.concat(first, " · "), #second > 0 and table.concat(second, " · ") or nil }
+    return { table.concat(first, Text.DOT), #second > 0 and table.concat(second, Text.DOT) or nil }
 end
 
 -- The infection state from the infection part, when it is there (nil otherwise or if it fails).
@@ -557,7 +557,7 @@ function M.waybill(record, flight)
             subs[#subs + 1] = tr("IGUI_OA_Status_SendFeeReleased")
         end
         w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendSealed", sealed),
-            worth = credits(flight.net or (flight.sealed or 0) - fee), sub = #subs > 0 and table.concat(subs, " · ") or nil }
+            worth = credits(flight.net or (flight.sealed or 0) - fee), sub = #subs > 0 and table.concat(subs, Text.DOT) or nil }
     else
         local box = Boxes.active(record)
         if box and box.state == "placed" then
