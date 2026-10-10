@@ -46,6 +46,24 @@ local function textApi()
 end
 Titles.textApi = textApi
 
+-- The style to ask the API for: the detail's when the API has it (an older PZ Tools may not have "dust"), else "stamp".
+-- The API's styles are asked once (again for another API's text).
+local styles, stylesOf
+local function styleFor(t, wanted)
+    wanted = wanted or "stamp"
+    if stylesOf ~= t then
+        styles, stylesOf = {}, t
+        local ok, list = pcall(t.styles)
+        if ok and type(list) == "table" then
+            for _, name in ipairs(list) do styles[name] = true end
+        elseif ok and list ~= nil and list.size then
+            for i = 0, list:size() - 1 do styles[list:get(i)] = true end
+        end
+    end
+    return styles[wanted] and wanted or "stamp"
+end
+Titles.styleFor = styleFor
+
 -- Shows a title (detail as OA.Sync.title takes it) for the player of that id; returns how it was shown: "title",
 -- "halo" or nil. With `noHalo` a title the API cannot draw is not shown at all (the caller has its own way then).
 function Titles.show(playerId, detail, noHalo)
@@ -67,7 +85,7 @@ function Titles.show(playerId, detail, noHalo)
     for _, character in ipairs(characters) do
         local done = false
         if handle then
-            local spec = { text = title, subtitle = sub, style = detail.style or "stamp", player = character:getPlayerNum() }
+            local spec = { text = title, subtitle = sub, style = styleFor(t, detail.style), player = character:getPlayerNum() }
             local tone = Titles.TONES[detail.tone]
             if tone then spec.color, spec.subtitleColor = tone[1], tone[2] end
             local ok, err = pcall(t.title, handle, spec)

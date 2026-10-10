@@ -78,3 +78,26 @@ test("with noHalo a title the API cannot draw is not shown, for the caller's own
     eq(#halo, 0)
     PZToolsAPI = nil
 end)
+
+test("a style the API does not have (an older PZ Tools) is asked as stamp", function()
+    world()
+    local called = {}
+    local function api(styles)
+        PZToolsAPI = {
+            version = OA.API_VERSION,
+            client = function() return "handle" end,
+            text = {
+                status = function() return "applied" end,
+                styles = function() return styles end,
+                title = function(_, spec) called[#called + 1] = spec.style end,
+            },
+        }
+    end
+    api({ "stamp", "dust" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "dust" })
+    eq(called[1], "dust")
+    api({ "stamp" })
+    OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "dust" })
+    eq(called[2], "stamp", "not there: stamp")
+    PZToolsAPI = nil
+end)

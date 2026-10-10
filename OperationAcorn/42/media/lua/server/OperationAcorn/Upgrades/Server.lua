@@ -68,11 +68,12 @@ function UpgradesServer.approve(character, record, rawSteps)
     return true
 end
 
--- The title of an approval that took a capstone: the second board's when that opened it (the last capstone), else the
--- capstone's with its name (the last one in the plan). One title for one approval.
+-- The title of an applied plan that took a capstone: the second board's when that opened it (the last capstone), else
+-- the capstone's with its name (the last one in the plan). One title for one plan; a quiet one that fades in and
+-- crumbles away (the API's "dust" style, Titles.show falls back where it has none).
 function UpgradesServer.titles(id, u, steps, wasOpen, capstones)
     if not wasOpen and Rules.boardOpen(u) then
-        OA.Sync.title(id, { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "stamp",
+        OA.Sync.title(id, { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
             tone = "gold", fallback = "good" })
         return
     end
@@ -83,7 +84,7 @@ function UpgradesServer.titles(id, u, steps, wasOpen, capstones)
         if node and node.capstone then name = Data.key(node.id, "Name") end
     end
     if not name then return end
-    OA.Sync.title(id, { key = "IGUI_OA_Title_Capstone", sub = name, style = "stamp", tone = "gold",
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Capstone", sub = name, style = "dust", tone = "gold",
         fallback = "good" })
 end
 
