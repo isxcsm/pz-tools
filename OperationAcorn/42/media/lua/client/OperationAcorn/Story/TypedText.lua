@@ -37,13 +37,16 @@ end
 -- over the new rows.
 function OATypedText:paginate()
     OARichText.paginate(self)
-    self.reveal, self.n, self.tipChunk, self.rowEnds = nil, nil, nil, nil
+    self.reveal, self.n, self.tipChunk, self.rowEnds, self.rowFirst = nil, nil, nil, nil, nil
     local run = self.run
     if run and run.parse and not run.done then
         local chunks = {}
         for c, line in ipairs(self.lines or {}) do chunks[c] = unescape(line) end
         self.reveal = Typing.reveal(chunks, run.parse.plain, self.lines)
-        if run.step then self.rowEnds = Typing.rowEnds(self.reveal.src, self.lineY) end
+        if run.step then
+            self.rowEnds = Typing.rowEnds(self.reveal.src, self.lineY)
+            self.rowFirst = Typing.rowFirsts(self.reveal.src, self.lineY)
+        end
     end
 end
 
@@ -128,8 +131,29 @@ function OATypedText:render()
     if self.textDirty or self.laidW ~= self.width then self:paginate() end
     local run = self.run
     if self.reveal and run and not run.done then self:advance(run) end
+    if self.rowFirst and self.reveal and self.cursorColor then self:drawFreshRow(run) end
     OARichText.render(self)
     if self.tipChunk and self.cursorColor then self:drawCursor() end
+end
+
+-- The row just printed has a faint band behind it that fades over its step (OATypedText.FRESH at first), so each row
+-- lands as a beat of its own; drawn under the text, the whole width of the text.
+OATypedText.FRESH = 0.16
+
+function OATypedText:drawFreshRow(run)
+    local rows = #self.rowFirst
+    local r = Typing.rowsAt(run.clock, rows, run.step)
+    if r < 1 then return end
+    local f = 1 - (run.clock - (r - 1) * run.step) / run.step
+    if f <= 0 then return end
+    local c = self.rowFirst[r]
+    local y = self.lineY[c] + self.marginTop + self:getYScroll()
+    local h = self:lineHeightOf(self.cFont and self.cFont[c] or self.defaultFont)
+    if y + h < 0 or y > self.height then return end
+    local col = self.cursorColor
+    local pad = math.max(1, math.floor(h / 8))
+    local w = self.barX and self:barX() - 2 or self.width
+    self:drawRect(0, y - pad, w, h + 2 * pad, OATypedText.FRESH * f, col[1], col[2], col[3])
 end
 
 -- A block after the last character that has come on, blinking, in design units: the block is the row's face high (less

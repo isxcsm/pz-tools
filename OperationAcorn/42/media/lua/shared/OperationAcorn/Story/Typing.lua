@@ -30,12 +30,12 @@ local sub, find = string.sub, string.find
 -- teleprinter prints a line (DESIGN-terminal 14 F2, worklist 3-2).
 Typing.MODE = { scene = "chars", document = "lines" }
 
--- The seconds between two printed rows: five rows a second, so a guide of thirty rows is printed in six seconds (the
--- longest a scene's pauses keep the player, Typing.MAX_PAUSES), each row on long enough to be seen arriving.
-Typing.LINE_STEP = 0.2
--- The seconds a row takes to print, left to right under the print head (the cursor), within its step: the row is whole
--- a little before the next one starts.
-Typing.LINE_PRINT = 0.14
+-- The seconds between two printed rows: four rows a second, so a guide of thirty rows is printed in under eight seconds,
+-- with a beat between rows that reads as a printer's (worklist 3-8: rows that ran into each other read as fast typing).
+Typing.LINE_STEP = 0.25
+-- The seconds a row takes to print, left to right under the print head (the cursor): quick, so the row is a stroke and
+-- the beat is the wait for the next one.
+Typing.LINE_PRINT = 0.05
 
 -- The characters a second of the two kinds of text and the two terminals (the crude one quick, the field terminal a little
 -- slower and smoother): a scene at the speed of a radio read aloud, a document as fast as it can be followed. A
@@ -285,6 +285,18 @@ function Typing.printed(ends, t, step, print)
     local f = print > 0 and (t - (r - 1) * step) / print + 1e-9 or 1
     if f >= 1 then return ends[r], false, false end
     return before + math.floor((ends[r] - before) * math.max(0, f)), false, true
+end
+
+-- The first chunk of each of those rows (the same rows as Typing.rowEnds).
+function Typing.rowFirsts(src, lineY)
+    local first, lastY = {}, nil
+    for c = 1, #src do
+        if #src[c] > 0 and lineY[c] ~= lastY then
+            first[#first + 1] = c
+            lastY = lineY[c]
+        end
+    end
+    return first
 end
 
 -- How many of `count` rows have come on at second `t`, printed `step` seconds apart (the first at once).

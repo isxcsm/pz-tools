@@ -100,6 +100,7 @@ local function folder(opts)
     -- head are off unless a test asks for them
     OATabFolder.ENTER = opts.enter or 0
     Typing.LINE_PRINT = opts.print or 0
+    Typing.LINE_STEP = 0.2
 
     local record = OA.Store.ensure("p1", "P")
     record.number = 347
