@@ -176,6 +176,48 @@ local function place(circle, style, s)
     circle.seen = cx + wx >= 0 and cx - wx <= viewW and cy + wy >= 0 and cy - wy <= viewH
 end
 
+-- The dashes of a ring or a way (the first `count` of `dashes`, four numbers each) in one colour, `thick` pixels thick.
+-- With the extension API's quads call they go as one list of quads and one call (a ring has dozens, drawn every frame
+-- on each map open); an API without it, or one whose call failed (said once, and not tried again), has them drawn one
+-- by one.
+local dashQuads = {}
+local quadsFailed = false
+local function drawDashes(count, thick, c, a)
+    if count == 0 then return end
+    local draw = not quadsFailed and OA.drawCall("quads") or nil
+    local tex = draw and picture(DASH)
+    if tex and a > 0.003 then
+        local list, k = dashQuads, 0
+        local r, g, b = c[1], c[2], c[3]
+        local half = thick / 2
+        for i = 1, count do
+            local o = i * 4
+            local x1, y1, x2, y2 = dashes[o - 3], dashes[o - 2], dashes[o - 1], dashes[o]
+            local dx, dy = x2 - x1, y2 - y1
+            local len = math.sqrt(dx * dx + dy * dy)
+            if len >= 0.01 then
+                local nx, ny = -dy / len * half, dx / len * half
+                local at = k * 12
+                list[at + 1], list[at + 2] = absX + x1 - nx, absY + y1 - ny
+                list[at + 3], list[at + 4] = absX + x2 - nx, absY + y2 - ny
+                list[at + 5], list[at + 6] = absX + x2 + nx, absY + y2 + ny
+                list[at + 7], list[at + 8] = absX + x1 + nx, absY + y1 + ny
+                list[at + 9], list[at + 10], list[at + 11], list[at + 12] = r, g, b, a
+                k = k + 1
+            end
+        end
+        if k == 0 then return end
+        local ok, err = pcall(draw, ui, tex, list, k)
+        if ok then return end
+        quadsFailed = true
+        OA.log("map dashes: the API's quads failed, drawn one by one:", tostring(err))
+    end
+    for i = 1, count do
+        local o = i * 4
+        dash(dashes[o - 3], dashes[o - 2], dashes[o - 1], dashes[o], thick, c, a)
+    end
+end
+
 -- A circle's soft fill and its pulse.
 local function drawFill(circle, style, now)
     if not circle.seen then return end
@@ -207,11 +249,7 @@ local function drawRing(circle, style, s, now)
     local thick = style.ring_thick * s
     local count = Fx.ringDashes(shape, circle.sx, circle.sy, style.ring_dash * s, style.ring_gap * s,
         now * style.ring_speed * s / 1000, 0, 0, viewW, viewH, thick, dashes, MAX_DASHES)
-    local c, a = circle.color, circle.dim and DIM_RING or 1
-    for i = 1, count do
-        local o = i * 4
-        dash(dashes[o - 3], dashes[o - 2], dashes[o - 1], dashes[o], thick, c, a)
-    end
+    drawDashes(count, thick, circle.color, circle.dim and DIM_RING or 1)
 end
 
 -- The way from the player to the edge of the circle it leads to, marching toward it.
@@ -227,11 +265,7 @@ local function drawPath(circle, style, s, now)
     local sx, sy = ox + dx / len * start, oy + dy / len * start
     local count = Fx.lineDashes(sx, sy, ex, ey, style.path_dash * s, style.path_gap * s,
         now * style.path_speed * s / 1000, 0, 0, viewW, viewH, dashes, MAX_DASHES)
-    local thick, c = style.path_thick * s, circle.color
-    for i = 1, count do
-        local o = i * 4
-        dash(dashes[o - 3], dashes[o - 2], dashes[o - 1], dashes[o], thick, c, 1)
-    end
+    drawDashes(count, style.path_thick * s, circle.color, 1)
 end
 
 local function drawCrates(scene, s)
