@@ -21,17 +21,18 @@ function UI.creditsUnit()
     return getText("IGUI_OA_Terminal_Credits")
 end
 
--- The two terminals' colours (DESIGN-terminal 1.3): the crude one built from the kit, phosphor green on near black;
--- the field terminal ordered from the shop, warm white and amber on olive. Every screen draws from the palette of
--- the terminal it is open at. Colours are { r, g, b }.
+-- The two terminals' colours (DESIGN-terminal 1.3): the crude one built from the kit, phosphor green on near black
+-- and nothing else (a warning, a debt, a mission's colour are the bright green: `mono`); the field terminal ordered
+-- from the shop, warm white and amber on olive. Every screen draws from the palette of the terminal it is open at.
+-- Colours are { r, g, b }.
 UI.PALETTES = {
     crude = {
         bg = { 0.02, 0.05, 0.03 }, bgAlpha = 0.95, panel = nil,
         text = { 0.45, 0.95, 0.55 }, dim = { 0.25, 0.55, 0.30 }, bright = { 0.78, 1.0, 0.82 },
         value = { 0.78, 1.0, 0.82 }, head = { 0.78, 1.0, 0.82 }, border = { 0.20, 0.50, 0.25 },
-        warn = { 0.95, 0.75, 0.30 }, bad = { 1, 0.45, 0.35 }, good = { 0.78, 1.0, 0.82 },
+        warn = { 0.78, 1.0, 0.82 }, bad = { 0.78, 1.0, 0.82 }, good = { 0.78, 1.0, 0.82 },
         sel = { 0.45, 0.95, 0.55 }, title = { 0.04, 0.10, 0.05 }, dark = { 0.02, 0.05, 0.03 },
-        tabStrip = nil, numberFont = UIFont.Code, iconTint = { 0.6, 1, 0.6 }, scanlines = true, tape = true,
+        tabStrip = nil, numberFont = UIFont.Small, iconTint = { 0.6, 1, 0.6 }, scanlines = true, mono = true,
     },
     field = {
         bg = { 0.10, 0.11, 0.08 }, bgAlpha = 0.96, panel = { 0.15, 0.16, 0.12 },
@@ -39,12 +40,9 @@ UI.PALETTES = {
         value = { 1, 0.82, 0.25 }, head = { 1, 0.82, 0.25 }, border = { 0.42, 0.45, 0.30 },
         warn = { 1, 0.82, 0.25 }, bad = { 1, 0.45, 0.35 }, good = { 0.6, 0.95, 0.6 },
         sel = { 1, 0.82, 0.25 }, title = { 0.30, 0.33, 0.20 }, dark = { 0.10, 0.11, 0.08 },
-        tabStrip = { 0.30, 0.33, 0.20 }, numberFont = UIFont.Small, iconTint = nil, scanlines = false, tape = false,
+        tabStrip = { 0.30, 0.33, 0.20 }, numberFont = UIFont.Small, iconTint = nil, scanlines = false, mono = false,
     },
 }
--- The tape over the crude terminal's corners.
-UI.TAPE = { 0.75, 0.68, 0.45 }
-
 function UI.palette(tier)
     return UI.PALETTES[tier] or UI.PALETTES.crude
 end
@@ -58,11 +56,6 @@ function UI.frame(el, x, y, w, h, c, a)
     el:drawRectBorder(x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
--- The game measures a Code font text (the crude terminal's numbers) to the last glyph's ink, not to the end of its
--- cell: "8" is 5 pixels, "88" 13. The glyph sits a little right in its cell, so whatever follows overlapped it and
--- the thin space of the small font after it disappeared ("8/ 37,000"). Its width counts this much more.
-UI.CODE_TAIL = 3
-
 function UI.text(el, text, x, y, c, font, a)
     el:drawText(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
@@ -71,9 +64,8 @@ function UI.textCentre(el, text, x, y, c, font, a)
     el:drawTextCentre(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
--- Ends at x by UI.textWidth (the game's own right alignment would let a Code font text run past x).
 function UI.textRight(el, text, x, y, c, font, a)
-    el:drawText(text, x - UI.textWidth(text, font), y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
+    el:drawTextRight(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
 function UI.fontHeight(font)
@@ -85,9 +77,7 @@ function UI.buttonHeight()
 end
 
 function UI.textWidth(text, font)
-    local w = getTextManager():MeasureStringX(font or UIFont.Small, text)
-    if font and font == UIFont.Code and text ~= "" then w = w + UI.CODE_TAIL end
-    return w
+    return getTextManager():MeasureStringX(font or UIFont.Small, text)
 end
 
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut

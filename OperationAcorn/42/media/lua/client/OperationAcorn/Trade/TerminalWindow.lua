@@ -268,13 +268,6 @@ function OATerminalWindow:render()
         for j = 0, i do UI.fill(self, w - 5 - 4 * j, h - rh + 3 + 4 * (2 - i), 2, 2, p.dim) end
     end
     UI.frame(self, 0, 0, w, h, p.border)
-    if p.tape then
-        local t = UI.TAPE
-        UI.fill(self, -9, -7, 10, 28, t, 0.85)
-        UI.fill(self, w - 1, -7, 10, 28, t, 0.85)
-        UI.fill(self, -9, h - 6, 30, 10, t, 0.85)
-        UI.fill(self, w - 21, h - 6, 30, 10, t, 0.85)
-    end
 end
 
 -- How far (squares) the player walks before the directions on show are worked out again (DESIGN-terminal 6.5).

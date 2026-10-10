@@ -328,7 +328,7 @@ function OATabDelivery:prerender()
     local fh = UI.fontHeight()
     UI.text(self, d.head, 0, 0, p.head)
     UI.text(self, d.priceLabel, 150, 0, p.dim)
-    -- (Small, not the number font: the code font has no multiplication sign.)
+    -- (Small, not the number font: a number font need not have the multiplication sign.)
     UI.text(self, d.price, d.priceX, 0, p.text)
     UI.textRight(self, d.refresh, w, 0, p.dim)
     local hy = m.headY

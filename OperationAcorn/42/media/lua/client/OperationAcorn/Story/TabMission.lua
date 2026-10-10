@@ -22,9 +22,9 @@ OATabMission.CARD_H, OATabMission.CARD_H_SMALL, OATabMission.SMALL_BELOW = 196, 
 
 
 -- Text with its numbers apart ---------------------------------------------------------------------------------------
--- The crude terminal draws numbers in the Code font, which has no Hangul, so a line with both is drawn in runs. The
--- numbers are wrapped in two control characters before the text is made and cut out again: the translation keeps its
--- one natural sentence.
+-- A line's numbers are drawn in the palette's number font (numberFont), so a line is drawn in runs. The numbers are
+-- wrapped in two control characters before the text is made and cut out again: the translation keeps its one
+-- natural sentence.
 local MARK_A, MARK_B = "\1", "\2"
 
 local function wrapped(...)
@@ -212,7 +212,8 @@ function OATabMission:buildCard(record, info)
     local c = self:character()
     local px, py = c:getX(), c:getY()
     local card = { kind = info.kind or "regular" }
-    card.colour = OA.StoryView.color(card.kind)
+    -- the crude terminal is green only: its card band and badge are the bright green
+    card.colour = p.mono and p.bright or OA.StoryView.color(card.kind)
     local titleKey, briefKey = Missions.keys(info)
     card.title = getText(titleKey)
     card.badges = { { text = getText("IGUI_OA_Story_UI_Badge_" .. card.kind), colour = card.colour } }
