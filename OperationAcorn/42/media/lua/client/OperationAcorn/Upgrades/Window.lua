@@ -148,14 +148,59 @@ local INVISIBLE = 0.002
 -- middle, a few pixels across, it is not seen either.
 local GLOW_INVISIBLE = 0.012
 
+-- The rectangles of the flow's and the pulse's frames (View:paintFlow, View:paintPulses: a line's dashes and lights are
+-- dozens a frame) go to the extension API's rects call as one list of numbers (8 each: x, y, w, h, r, g, b, a) instead of
+-- a drawRect for each, in the order they were asked: a picture asked between (texPx) has the rectangles before it
+-- drawn first. The list is kept between frames. An API without the call, or one whose call failed (said once, and not
+-- tried again: the frame's rectangles are drawn one by one), leaves every rectangle a drawRect.
+local rectList, rectCount, rectEl, rectDraw = {}, 0, nil, nil
+local rectsFailed = false
+
+local function drawRects()
+    local n = rectCount
+    if n == 0 then return end
+    rectCount = 0
+    local list = rectList
+    local ok, err = pcall(rectDraw, rectEl, list, n)
+    if ok then return end
+    rectsFailed = true
+    OA.log("research flow: the API's rects failed, drawn one by one:", tostring(err))
+    for i = 0, n - 1 do
+        local at = i * 8
+        ISUIElement.drawRect(rectEl, list[at + 1], list[at + 2], list[at + 3], list[at + 4], list[at + 8], list[at + 5],
+            list[at + 6], list[at + 7])
+    end
+end
+
+-- Starts a frame's batch for the element `el` (every rectangle of the frame is drawn on it), and ends it (what is left
+-- is drawn). Nothing is batched outside a frame, or without the API's call.
+local function beginRects(el)
+    rectCount = 0
+    rectDraw = not rectsFailed and OA.drawCall("rects") or nil
+    rectEl = rectDraw and el or nil
+end
+
+local function endRects()
+    if rectEl then drawRects() end
+    rectEl, rectDraw = nil, nil
+end
+
 local function rectPx(el, x, y, w, h, c, a)
     if w <= 0 or h <= 0 or (a and a < INVISIBLE) then return end
+    if el == rectEl then
+        local l, at = rectList, rectCount * 8
+        l[at + 1], l[at + 2], l[at + 3], l[at + 4] = x, y, w, h
+        l[at + 5], l[at + 6], l[at + 7], l[at + 8] = c[1], c[2], c[3], a or 1
+        rectCount = rectCount + 1
+        return
+    end
     ISUIElement.drawRect(el, x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
 local function texPx(el, tex, x, y, w, h, c, a)
     if not tex or (a and a < INVISIBLE) then return end
     c = c or WHITE
+    if el == rectEl then drawRects() end
     ISUIElement.drawTextureScaled(el, tex, x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
@@ -2132,13 +2177,7 @@ end
 -- The flow's frame: the cyan dashes of the lines only the selection meets, the lights running down the lit lines. It
 -- walks only the lists workOut made and makes nothing. Nothing while a take plays; in the opening the dashes draw
 -- themselves down with the lines, and the lights wait for the end.
-function View:paintFlow(el)
-    if not self.sim or self.take or not self.lighting then return end
-    S = UI.S
-    local now = getTimestampMs()
-    NOW, CLOCK = now, now - self.t0
-    self:frameState(now)
-    local t = CLOCK / 1000
+local function flowLines(self, el, t)
     for _, line in ipairs(self.planLines) do
         local upto = lineUpto(line)
         if upto ~= 0 then drawLine(el, line, "dashes", CYAN, SHOWN[line.col], t, RISE[line.col], upto) end
@@ -2148,15 +2187,23 @@ function View:paintFlow(el)
     end
 end
 
--- The pulse panel's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's
--- low point), at the step View.pulseTick found; the light frame of the node under the mouse stays over the halo, as
--- the body drew it. In the opening the pulses wait for their nodes.
-function View:paintPulses(el)
-    if not self.sim or self.take or not self.pulsingOn then return end
+function View:paintFlow(el)
+    if not self.sim or self.take or not self.lighting then return end
     S = UI.S
     local now = getTimestampMs()
     NOW, CLOCK = now, now - self.t0
     self:frameState(now)
+    -- (the batch of rectangles is ended whatever happens in the frame)
+    beginRects(el)
+    local ok, err = pcall(flowLines, self, el, CLOCK / 1000)
+    endRects()
+    if not ok then error(err, 0) end
+end
+
+-- The pulse panel's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's
+-- low point), at the step View.pulseTick found; the light frame of the node under the mouse stays over the halo, as
+-- the body drew it. In the opening the pulses wait for their nodes.
+local function pulseFrames(self, el, now)
     local steps = Window.PULSE_LEVELS
     local p = (self.pulseLevel or floor(pulse(CLOCK / 1000) * steps + 0.5)) / steps
     local th = thick()
@@ -2174,6 +2221,18 @@ function View:paintPulses(el)
             end
         end
     end
+end
+
+function View:paintPulses(el)
+    if not self.sim or self.take or not self.pulsingOn then return end
+    S = UI.S
+    local now = getTimestampMs()
+    NOW, CLOCK = now, now - self.t0
+    self:frameState(now)
+    beginRects(el)
+    local ok, err = pcall(pulseFrames, self, el, now)
+    endRects()
+    if not ok then error(err, 0) end
 end
 
 -- ---- the body taking an applied selection -------------------------------------------------------------------------
