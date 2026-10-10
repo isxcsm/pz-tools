@@ -119,7 +119,7 @@ test("entering stage 1 starts the evidence story first, far from the base", func
     -- Story reward is x1.5.
     eq(m.credits, 15000)
     eq(m.trust, 90)
-    truthy(M.game.supply[1] == "OperationAcorn.SerumSheet", "the serum sheet goes to the crate")
+    eq(Story.section(record).papers[1].doc, "serum_sheet", "the serum sheet waits for a crate")
 end)
 
 test("a story mission that is missed comes back at the next stage, and regulars come between", function()
@@ -509,4 +509,113 @@ test("a mission item past the deadline counts as plain before it is sealed", fun
     local m = M.active(record)
     TEST.hours = TEST.hours + 8 * 24
     eq(Story.missionExpired(m.id), true)
+end)
+
+-- The papers of what was delivered come back -------------------------------------------------------------------------
+
+local function full(name) return OA.StoryData.fullType(name) end
+
+test("what the mission delivered has its papers listed: the original of a pair, the record of a swap, a drop's inside", function()
+    local compare = { compare = { right = "B" }, items = {
+        { key = "A", type = full("CopyOriginal"), mods = { OA_Serial = 100 } },
+        { key = "B", type = full("CopyOriginal"), mods = { OA_Serial = 140 } } } }
+    local docs = M.documentsOf(compare)
+    eq(#docs, 1)
+    eq(docs[1].id, "con_compare")
+    eq(docs[1].extra, 140, "the original's number")
+    local swap = { swap = { item = "ClinicRecord" }, items = {
+        { key = "CASE", type = full("DeadDropCase"), mode = "case", mods = {} },
+        { key = "A", type = full("ClinicRecord"), mode = "inside", mods = { OA_Variant = "westpoint_clinic" } } } }
+    docs = M.documentsOf(swap)
+    eq(#docs, 1)
+    eq(docs[1].id, "clinic_log")
+    eq(docs[1].variant, "westpoint_clinic")
+    local drop = { drop = { item = "ReviewMemo" }, items = {
+        { key = "CASE", type = full("DeadDropCase"), mode = "case", inside = "ReviewMemo",
+          mods = { OA_Variant = "marchridge_bunker", OA_Inside = "ReviewMemo" } } } }
+    docs = M.documentsOf(drop)
+    eq(#docs, 1)
+    eq(docs[1].id, "review_memo")
+    eq(docs[1].variant, "marchridge_bunker")
+    local cooler = { items = { { key = "A", type = full("SampleCooler"), mods = { OA_Variant = "valley_camp" } } } }
+    eq(#M.documentsOf(cooler), 2, "front and back")
+    local note = { items = { { key = "A", type = full("MissionEnvelope"), mods = { OA_Note = "note_4" } } } }
+    docs = M.documentsOf(note)
+    eq(#docs, 1)
+    eq(docs[1].id, "note_4")
+    eq(#M.documentsOf({ items = { { key = "A", type = full("MissionTape"), mods = {} } } }), 0)
+end)
+
+test("a soil sample's paper takes the stake number, a plain one has none", function()
+    local docs = M.documentsOf({ soil = { stake = 412, variant = "site" }, items = { { type = full("SoilSample"), mode = "given" } } })
+    eq(docs[1].id, "soil_slip")
+    eq(docs[1].extra, 412)
+    docs = M.documentsOf({ soil = { variant = "plain" }, items = { { type = full("SoilSample"), mode = "given" } } })
+    eq(docs[1].id, "soil_slip")
+    eq(docs[1].extra, nil)
+end)
+
+test("the delivered mission item's paper is in the folder after the settlement, as a copy, new", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "evidence")
+    local place = m.place
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
+    eq(Story.section(record).docs.police_card, nil, "not before the settlement")
+    M.onSettled(record, { credits = 1000, trust = 5 })
+    local s = Story.section(record)
+    eq(s.docs.police_card, place, "with the place it was found at")
+    eq(s.copies.police_card, true)
+    truthy(s.unread["d:police_card"], "new in the folder")
+    eq(s.docStage.police_card, 1)
+end)
+
+test("a paper the player read before the settlement stays as it was read", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    Story.markRead(record, "police_card", m.place)
+    M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
+    M.onSettled(record, { credits = 1000, trust = 5 })
+    local s = Story.section(record)
+    eq(s.copies.police_card, nil)
+    eq(s.unread["d:police_card"], nil)
+end)
+
+test("a mission that ran out sends no copy", function()
+    local record = setup(1)
+    M.tick(record)
+    TEST.hours = TEST.hours + 8 * 24
+    M.tick(record)
+    eq(M.active(record), nil)
+    eq(Story.section(record).docs.police_card, nil)
+end)
+
+-- The handover and the revisits have papers of their own -------------------------------------------------------------
+
+test("the handover mission's item is its own paper, the revisits' items carry the new office's forms", function()
+    local record = setup(5, 3)
+    local s = Story.section(record)
+    s.seenStage = 5; s.seenMilestones = 2
+    Story.queueStory(record, "handover", true)
+    M.tick(record)
+    local m = M.active(record)
+    eq(m.story, "handover")
+    eq(m.items[1].type, "OperationAcorn.HandoverPages")
+    eq(OA.StoryDocs.forItem(record, "HandoverPages", m.items[1].mods)[1].id, "handover_pages")
+    M.finish(record, m, "expired")
+    for _, id in ipairs({ "revisit_ledger", "revisit_roster", "revisit_police" }) do
+        s.done[id] = nil
+        TEST.hours = TEST.hours + 4 * 24
+        Story.queueStory(record, id, true)
+        M.tick(record)
+        local mission = M.active(record)
+        eq(mission.story, id)
+        local docs = OA.StoryDocs.forItem(record, OA.StoryData.itemName(mission.items[1].type), mission.items[1].mods)
+        eq(#docs, 1, "the new form alone, not the item's old paper")
+        eq(docs[1].id, id)
+        eq(docs[1].variant, mission.place)
+        M.finish(record, mission, "expired")
+    end
 end)

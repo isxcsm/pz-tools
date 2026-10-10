@@ -160,7 +160,7 @@ test("what an entry says: its title, a line about it, its text", function()
     local radio = Folder.content(record, groupOf(groups, "radio").entries[1])
     eq(radio.title, stageCopy(2))
     eq(radio.meta, T("IGUI_OA_Story_Meta_Copy", T("IGUI_OA_Story_CallSign_Oak"),
-        T("IGUI_OA_Story_Copy_StageNamed", 2, T("IGUI_OA_Econ_Stage_2")), 2))
+        T("IGUI_OA_Story_Copy_StageNamed", 2, T("IGUI_OA_Econ_Stage_2")), 1))  -- the line that tells of the correction waits for the reply
     truthy(string.find(radio.body, T("IGUI_OA_Story_Radio_s2_a"), 1, true))
     local reply = Folder.content(record, groupOf(groups, "research").entries[2])
     eq(reply.title, T("IGUI_OA_Story_DocTitle_reply_first") .. " (1)")
@@ -345,13 +345,17 @@ test("each helicopter arrival keeps one manifest, numbered by the ledger and non
         truthy(Heli.arrive(record))
     end
     Heli.deliver, Heli.refreshBoxes = real.deliver, real.refresh
-    eq(record.trade.serial, 3)
+    -- The numbers are a middle one and two steps on (1 to 5 each), the ledger's, each once.
+    local one = OA.Trade.Ledger.serialAfter(record, nil)
+    local two = OA.Trade.Ledger.serialAfter(record, one)
+    local three = OA.Trade.Ledger.serialAfter(record, two)
+    eq(record.trade.serial, three)
     local serials = {}
     for _, mf in ipairs(record.story.manifests) do serials[#serials + 1] = mf.serial end
-    eq(table.concat(serials, ","), "1,2,3")
+    eq(table.concat(serials, ","), one .. "," .. two .. "," .. three)
     local entries = groupOf(Folder.entries(record), "manifest").entries
     eq(table.concat(titles(groupOf(Folder.entries(record), "manifest")), "|"),
-        T("IGUI_OA_Story_UI_ManifestTitle", 3) .. "|" .. T("IGUI_OA_Story_UI_ManifestTitle", 2) .. "|" .. T("IGUI_OA_Story_UI_ManifestTitle", 1))
+        T("IGUI_OA_Story_UI_ManifestTitle", three) .. "|" .. T("IGUI_OA_Story_UI_ManifestTitle", two) .. "|" .. T("IGUI_OA_Story_UI_ManifestTitle", one))
     eq(#entries, 3)
 end)
 
@@ -397,4 +401,102 @@ test("a new record's folder fields are made with its story section", function()
     eq(type(s.unread), "table")
     eq(s.newSeq, 0)
     eq(s.requestNo, Data.REQUEST_FIRST - 1)
+end)
+
+-- The folder after the story improvements: the numbers a document was read with, the copies, the stake record -----------
+
+test("a document read with a number is shown with it again, not as the plain one", function()
+    korean()
+    local record = setup(5, 1)
+    Story.markRead(record, "soil_slip", nil, 412)
+    local entry = groupOf(Folder.entries(record), "field").entries[1]
+    eq(entry.ref.extra, 412)
+    local body = Folder.content(record, entry).body
+    truthy(string.find(body, "412", 1, true), "the stake number is on the slip")
+    truthy(not string.find(body, T("IGUI_OA_Story_Doc_soil_slip_plain"), 1, true))
+end)
+
+test("a delivered paper's copy says where it came from", function()
+    korean()
+    local record = setup(2)
+    Story.markRead(record, "police_card", "muldraugh_pd")
+    Story.returnCopies(record, { { id = "police_card" }, { id = "clinic_log", variant = "westpoint_clinic" } })
+    local metas = {}
+    for _, entry in ipairs(groupOf(Folder.entries(record), "field").entries) do
+        metas[entry.key] = Folder.content(record, entry).meta
+    end
+    truthy(string.find(metas["d:clinic_log"], T("IGUI_OA_Story_Meta_copy"), 1, true))
+    truthy(string.find(metas["d:police_card"], T("IGUI_OA_Story_Meta_found"), 1, true), "the one read on the spot says so")
+    eq(Folder.unreadCount(record), 1, "the copy is new, the read paper is not")
+end)
+
+test("the stakes read are one record in the field papers, a line each with the date on the stake", function()
+    korean()
+    local record = setup(2)
+    eq(groupOf(Folder.entries(record), "field"), nil)
+    Story.noteStake(record, 412, 3)
+    Story.noteStake(record, 87, 6)
+    local entries = groupOf(Folder.entries(record), "field").entries
+    eq(#entries, 1)
+    eq(entries[1].title, T("IGUI_OA_Story_DocTitle_stake_log"))
+    eq(entries[1].key, "d:stake_log")
+    local content = Folder.content(record, entries[1])
+    eq(content.meta, T("IGUI_OA_Story_Meta_stakes"))
+    eq(content.body, T("IGUI_OA_Story_StakeLog_Line", "87", T("IGUI_OA_Story_StakeDate_6")) .. "\n"
+        .. T("IGUI_OA_Story_StakeLog_Line", "412", T("IGUI_OA_Story_StakeDate_3")))
+    Story.markRead(record, "clinic_log")
+    eq(#groupOf(Folder.entries(record), "field").entries, 2, "among the other field papers")
+end)
+
+test("a manifest with the story's remark stays in the folder after the usual few have gone", function()
+    korean()
+    local record = setup(1)
+    Story.addManifest(record, 100, "remarked", true)
+    for i = 1, Data.MANIFESTS_KEPT + 2 do Story.addManifest(record, 100 + i, "plain", false) end
+    local entries = groupOf(Folder.entries(record), "manifest").entries
+    eq(#entries, Data.MANIFESTS_KEPT + 1)
+    eq(entries[#entries].key, "m:100")
+end)
+
+-- A crate from the first stage to the next: the paper, what the remark encloses, the manifest kept -------------------------
+
+test("a crate carries one paper and what its remark encloses; the manifest with the story's remark is kept", function()
+    korean()
+    local loaded, err = pcall(require, "OperationAcorn/Story/Init")
+    if not loaded then error("the story server part does not load: " .. tostring(err)) end
+    TEST.fire("EveryTenMinutes")  -- the story subscribes to the trade part
+    local record = setup(1)
+    Story.onStage(record)
+    local Heli = OA.Trade.Heli
+    local plans = {}
+    local real = { deliver = Heli.deliver, refresh = Heli.refreshBoxes }
+    Heli.deliver, Heli.refreshBoxes = function() end, function() end
+    record.trade.credits = 500
+    local function arrive()
+        local box = OA.Trade.Boxes.add(record, { x = 10, y = 0, z = 0, active = true })
+        OA.Trade.Boxes.seal(record, box.id, { { info = { fullType = "Base.Rag" }, count = 1 } })
+        OA.Trade.heli(record).call = { at = 0, arrive = 1, kind = "normal", orders = {} }
+        local plan = Heli.arrive(record)
+        plans[#plans + 1] = plan
+        return plan
+    end
+    local first = arrive()
+    local types = {}
+    for _, spec in ipairs(first.cargo) do types[spec.type] = spec end
+    truthy(types["OperationAcorn.SerumSheet"], "the serum sheet is the paper of this crate")
+    eq(types["OperationAcorn.SerumSheet"].mod.OA_Doc, "serum_sheet")
+    truthy(types["Base.Battery"], "the remark says two batteries are enclosed")
+    eq(types["Base.Battery"].count, 2)
+    eq(first.receipt.note.key, "IGUI_OA_Story_Note_battery")
+    eq(first.receipt.bonusNote, nil)
+    local second = arrive()
+    for _, spec in ipairs(second.cargo) do
+        eq(spec.type ~= "OperationAcorn.SerumSheet", true, "the paper went once")
+    end
+    eq(second.receipt.note.key, "IGUI_OA_Story_Note_appendix_missing")
+    Heli.deliver, Heli.refreshBoxes = real.deliver, real.refresh
+    local kept = 0
+    for _, mf in ipairs(record.story.manifests) do if mf.keep then kept = kept + 1 end end
+    eq(kept, 2, "both manifests carry a remark of the story's own")
+    truthy(first.receipt.id > 0 and second.receipt.id > first.receipt.id and second.receipt.id <= first.receipt.id + 5)
 end)

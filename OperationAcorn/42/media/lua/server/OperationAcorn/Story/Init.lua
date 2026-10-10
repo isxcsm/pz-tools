@@ -31,14 +31,23 @@ local function subscribe()
     if subscribed or not OA.Trade then return end
     local a = listen(OA.Trade.onSealed, Missions.onSealed)
     local b = listen(OA.Trade.onSettled, Missions.onSettled)
-    -- The manifest's remark: the story's ordered lines go in front of the general ones.
-    if OA.Trade.addNoteProvider and not provided then
+    local c = listen(OA.Trade.onSettled, Story.onSettled)
+    -- The manifest's remark: the story's ordered lines go in front of the filler lines and the general ones (they say what
+    -- the remark encloses too: Trade.Settle puts it in the crate), and the 2반 papers go in the crates, one to each.
+    if OA.Trade.addNoteProvider and OA.Trade.addCrateProvider and not provided then
         provided = true
-        OA.Trade.addNoteProvider(function(record)
-            return Story.manifestNoteKey(record)
+        OA.Trade.addNoteProvider(function(record, draft)
+            local key, args, _, fx = Story.manifestNoteKey(record, draft)
+            return key, args, fx
         end, true)
+        OA.Trade.addNoteProvider(function(record, draft)
+            return Story.fillNoteKey(record, draft)
+        end)
+        OA.Trade.addCrateProvider(function(record, draft)
+            return Story.crateSpecs(record, draft)
+        end)
     end
-    subscribed = a and b
+    subscribed = a and b and c
 end
 
 local function eachRecord(fn)
@@ -104,10 +113,10 @@ OA.Server.on("story_soil", function(character, record, args)
     if not Missions.soil(record, character) then OA.Sync.notice(record.id, "IGUI_OA_Story_SoilFail", {}) end
 end)
 
--- A document was read. `variant` is the place its text was for.
+-- A document was read. `variant` is the place its text was for, `extra` the number it was read with.
 OA.Server.on("story_read", function(character, record, args)
     if type(args.doc) == "string" then
-        Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil)
+        Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil, args.extra)
         Story.clearNew(record, "d:" .. args.doc)
     end
 end)
@@ -118,10 +127,16 @@ OA.Server.on("story_seen", function(character, record, args)
     if type(args.key) == "string" then Story.clearNew(record, args.key) end
 end)
 
--- A drop site's survey stake was read.
+-- A drop site's survey stake was read: its number and its date go to the stake record in the folder (the date is the
+-- site's own, not what the window says).
 OA.Server.on("story_stake", function(character, record, args)
-    local s = Story.section(record)
-    if type(args.stake) == "number" then s.sitesSearched[args.stake] = true end
+    if type(args.stake) ~= "number" then return end
+    for _, site in ipairs(Sites.list()) do
+        if site.stake == args.stake then
+            Story.noteStake(record, args.stake, site.date)
+            return
+        end
+    end
 end)
 
 -- The serum with the adaptation node at its second point was taken (the upgrade part calls this on each dose): the

@@ -64,11 +64,13 @@ function Reader.manifest(character, item)
     Reader.open(character, getText("IGUI_OA_Trade_Manifest_Title"), UI.richLines(lines))
 end
 
--- The last page of the terminal manual: the survivor's collection point number written by hand (LORE: start).
+-- The last page of the terminal manual: the survivor's collection point number written by hand over the trace of an
+-- erased one (LORE: start, clue 1).
 function Reader.lastPage(character)
     local record = OA.Client.record(character)
     local number = record and record.number or 0
     local text = " <H2> <RGB:1,1,1> " .. getText("IGUI_OA_Trade_Manual_LastPage") .. " <LINE> <TEXT> <RGB:0.85,0.85,0.7> "
+        .. getText("IGUI_OA_Trade_Manual_Erased") .. " <LINE> "
         .. getText("IGUI_OA_Trade_Manual_Number", string.format("%04d", number)) .. " <LINE> "
     Reader.open(character, getText("IGUI_OA_Trade_Manual_Title"), text)
 end

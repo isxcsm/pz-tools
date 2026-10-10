@@ -12,8 +12,9 @@ require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Rewards"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Story"
+require "OperationAcorn/Story/Docs"
 local OA = OperationAcorn
-local Data, Rewards, Places, Story = OA.StoryData, OA.Rewards, OA.Places, OA.Story
+local Data, Rewards, Places, Story, Docs = OA.StoryData, OA.Rewards, OA.Places, OA.Story, OA.StoryDocs
 local Missions = {}
 OA.Missions = Missions
 
@@ -256,7 +257,10 @@ local function createFetch(record, def, id, level, itemOverride, placeIds, opts)
     local placeId = Missions.pickStoryPlace(record, placeIds or def.places, level, opts or { ignoreBand = def.ignoreBand })
     if not placeId then return nil end
     local item = itemOverride or def.item
-    local it = placeStoryPiece(m, item, "A", placeId, { OA_Variant = placeId })
+    local mods = { OA_Variant = placeId }
+    -- A revisit's item carries the new office's paper, not the old one the item has.
+    if def.doc then mods.OA_Doc, mods.OA_Only = def.doc, true end
+    local it = placeStoryPiece(m, item, "A", placeId, mods)
     if def.condition == "locked" then it.lock = true end
     if def.kind == "carry" then m.carry = {} end
     return m
@@ -516,7 +520,32 @@ function Missions.pay(record, m)
     Story.addTrust(record, trust)
     if m.swap then Story.queueNote(record, "case_confirmed") end
     if m.cooler then Story.queueNote(record, "cooler_" .. (m.cooler.grade or "good")) end
+    -- The team sends the delivered papers' copies back: they are in the folder from now on.
+    Story.returnCopies(record, Missions.documentsOf(m))
     Missions.finish(record, m, "done")
+end
+
+-- The papers of what a mission delivered: { { id =, variant =, extra = } } as the item shows them (Docs.forItem). Of a
+-- contract with two copies only the original counts; the sealed case of an exchange is not a paper.
+function Missions.documentsOf(m)
+    local list = {}
+    local function add(name, mods)
+        for _, doc in ipairs(Docs.forItem(nil, name, mods)) do list[#list + 1] = doc end
+    end
+    if m.soil then
+        add("SoilSample", { OA_Stake = m.soil.stake })
+        return list
+    end
+    for _, it in ipairs(m.items or {}) do
+        local name = Data.itemName(it.type)
+        local mods = it.mods or {}
+        if it.mode == "case" then
+            -- the case that was left, or the case of a drop that holds the paper
+            name = it.inside
+        end
+        if name and not (m.compare and it.key ~= m.compare.right) then add(name, mods) end
+    end
+    return list
 end
 
 -- Every ten minutes, for each record (the server's tick calls this).

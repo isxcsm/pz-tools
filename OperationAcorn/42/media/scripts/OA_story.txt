@@ -308,6 +308,16 @@ module OperationAcorn
         WorldStaticModel = SheetOfPaper,
     }
 
+    item HandoverPages
+    {
+        DisplayCategory = Literature,
+        ItemType = base:normal,
+        Weight = 0.1,
+        Icon = OA_HandoverPages,
+        Tooltip = Tooltip_OA_Story_HandoverPages,
+        WorldStaticModel = SheetOfPaper,
+    }
+
     item KitVoucher
     {
         DisplayCategory = Literature,

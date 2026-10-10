@@ -24,6 +24,9 @@ local GROUP_OF = { supply = "research", guide = "research", found = "field", not
 -- Military months for the request copies' dates (a date is written in the paper's own form, not translated).
 Folder.MONTHS = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC" }
 
+-- Where the stake record sits among the field papers (above the mission papers, below nothing that is new).
+local STAKE_LOG_ORDER = 50
+
 -- Where a document sits in the story's order: the newest has the highest number (the definition order of the lists
 -- in Story/Docs); the field notes are the oldest of the field papers.
 local ORDER
@@ -164,8 +167,12 @@ function Folder.entries(record)
         local group = GROUP_OF[Docs.kind(doc.id)]
         if group then
             put(group, "d:" .. doc.id, Story.text(Docs.titleKey(doc.id)), Folder.docTier(record, doc.id), orderOf(doc.id),
-                { kind = "doc", id = doc.id, variant = doc.variant }, s)
+                { kind = "doc", id = doc.id, variant = doc.variant, extra = doc.extra }, s)
         end
+    end
+    if #Story.stakeLog(record) > 0 then
+        put("field", "d:" .. Docs.STAKE_LOG, Story.text(Docs.titleKey(Docs.STAKE_LOG)), nil, STAKE_LOG_ORDER,
+            { kind = "stakes" }, s)
     end
     for _, mf in ipairs(s.manifests or {}) do
         put("manifest", "m:" .. mf.serial, Story.text("IGUI_OA_Story_UI_ManifestTitle", tostring(mf.serial)), mf.tier,
@@ -211,12 +218,15 @@ local function metaOf(record, entry)
         end
     elseif ref.kind == "request" then
         parts[1] = Story.text("IGUI_OA_Story_Meta_Request")
+    elseif ref.kind == "stakes" then
+        parts[1] = Story.text("IGUI_OA_Story_Meta_stakes")
     elseif ref.kind == "manifest" then
         if named then parts[#parts + 1] = named end
         parts[#parts + 1] = Story.text("IGUI_OA_Story_Meta_Manifest")
     else
         if named then parts[#parts + 1] = named end
-        parts[#parts + 1] = Story.text("IGUI_OA_Story_Meta_" .. Docs.kind(ref.id))
+        local copy = Story.section(record).copies[ref.id]
+        parts[#parts + 1] = Story.text("IGUI_OA_Story_Meta_" .. (copy and "copy" or Docs.kind(ref.id)))
     end
     if entry.same then parts[#parts + 1] = Story.text("IGUI_OA_Story_Meta_Same", entry.same) end
     return table.concat(parts, Story.text("IGUI_OA_Story_UI_Dot"))
@@ -236,6 +246,16 @@ function Folder.requestBody(request)
         .. Folder.lines(Story.text("IGUI_OA_Story_Request_" .. request.id, no)) .. "\n" .. approvalOf(request)
 end
 
+-- The survey stake record's text: a line for each stake read, by number, with the date on it.
+function Folder.stakeLog(record)
+    local lines = {}
+    for _, row in ipairs(Story.stakeLog(record)) do
+        lines[#lines + 1] = Story.text("IGUI_OA_Story_StakeLog_Line", tostring(row.stake),
+            Story.text("IGUI_OA_Story_StakeDate_" .. tostring(row.date)))
+    end
+    return table.concat(lines, "\n")
+end
+
 -- { title =, meta =, body = } of an entry for the reader.
 function Folder.content(record, entry)
     local ref = entry.ref
@@ -246,8 +266,10 @@ function Folder.content(record, entry)
         body = Folder.requestBody(ref.request)
     elseif ref.kind == "manifest" then
         body = ref.manifest.text
+    elseif ref.kind == "stakes" then
+        body = Folder.stakeLog(record)
     else
-        body = Docs.body(record, ref.id, ref.variant)
+        body = Docs.body(record, ref.id, ref.variant, ref.extra)
     end
     return { title = entry.title, meta = metaOf(record, entry), body = Folder.lines(body) }
 end

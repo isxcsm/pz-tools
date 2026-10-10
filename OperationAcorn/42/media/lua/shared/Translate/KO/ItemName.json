@@ -77,5 +77,6 @@
     "OperationAcorn.KitEngine": "엔진 튜닝 키트",
     "OperationAcorn.DelayDrugLong": "감염 지연제 (7일)",
     "OperationAcorn.InfectionReversal": "감염 역전제",
-    "OperationAcorn.InfectionTestKit": "감염 검사 키트"
+    "OperationAcorn.InfectionTestKit": "감염 검사 키트",
+    "OperationAcorn.HandoverPages": "인계 대상 서류"
 }
