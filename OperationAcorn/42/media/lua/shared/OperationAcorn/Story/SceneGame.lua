@@ -41,15 +41,16 @@ function SceneGame.loaded(at)
 end
 
 -- The free squares in rooms of the piece's building, on its floor, within `radius` of it (loaded ones only), nearest
--- first; those nearer than Scene.NEAR to the player (px, py) left out when px is given.
-local function freeSquares(it, radius, px, py)
+-- first; those nearer than `near` (Scene.NEAR by default) to the player (px, py) left out when px is given.
+local function freeSquares(it, radius, px, py, near)
     local c = getCell()
     local at = it.at
     local home = c:getGridSquare(at.x, at.y, at.z)
     local building = home and home:getBuilding()
     local list = {}
     if not building then return list end
-    local near2 = Scene.NEAR * Scene.NEAR
+    near = near or Scene.NEAR
+    local near2 = near * near
     for x = math.max(it.x1, at.x - radius), math.min(it.x2, at.x + radius) do
         for y = math.max(it.y1, at.y - radius), math.min(it.y2, at.y + radius) do
             local sq = c:getGridSquare(x, y, at.z)
@@ -95,8 +96,8 @@ local function spawn(sq, outfit, female, crawler, fakeDead, sitting)
 end
 
 -- The keepers: the first in the piece's room when it can be, the rest about the building.
-function SceneGame.spawnGuards(it, guards, px, py)
-    local squares = freeSquares(it, 16, px, py)
+function SceneGame.spawnGuards(it, guards, px, py, near)
+    local squares = freeSquares(it, 16, px, py, near)
     local home = getCell():getGridSquare(it.at.x, it.at.y, it.at.z)
     local room = home and home:getRoom()
     for i, g in ipairs(guards) do
@@ -116,8 +117,8 @@ function SceneGame.spawnGuards(it, guards, px, py)
 end
 
 -- The survivor, by the piece: its persistent outfit id, or nil when it could not be made.
-function SceneGame.spawnSurvivor(it, s, px, py)
-    local sq = takeRandom(freeSquares(it, 2, px, py), 4)
+function SceneGame.spawnSurvivor(it, s, px, py, near)
+    local sq = takeRandom(freeSquares(it, 2, px, py, near), 4)
     if not sq then return nil end
     local zombie = spawn(sq, s.outfit, 50, s.look == "crawler", s.look == "fakeDead", s.look == "sitting")
     if not zombie then return nil end

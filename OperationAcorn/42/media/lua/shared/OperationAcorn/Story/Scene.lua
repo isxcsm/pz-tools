@@ -30,6 +30,10 @@ Scene.game = nil
 Scene.SURVIVOR_CHANCE = 25   -- percent a mission has a survivor, never two missions in a row
 Scene.SURVIVORS_KEPT = 4     -- survivors not yet dead a record remembers (the oldest is forgotten)
 Scene.NEAR = 20              -- nothing is made closer than this to the player (it would appear in sight)
+Scene.READY = 40             -- the scene is made once the player is this near its piece: made as the circle is
+                             -- entered (up to 100 squares off), the keepers wandered out before the player came
+Scene.CLOSE = 10             -- how far from the player things are made when the player came nearer than NEAR between
+                             -- two looks (by car): out of the room the player stands in, not never
 Scene.SITE_TOUCH = 4         -- how close to a drop site's middle counts as being at it
 Scene.LOOK_MS = 1000         -- real milliseconds at least between two looks (the minute fires fast when fast-forwarded)
 Scene.DRIFT = 200            -- how far from its building a dying survivor may be and still be the one
@@ -326,7 +330,8 @@ function Scene.addSurvivor(record, m, outfitId, at)
     while #sec.survivors > Scene.SURVIVORS_KEPT do table.remove(sec.survivors, 1) end
 end
 
--- Puts the mission's scene in the world, if its piece is in place, its square loaded and the player not too near.
+-- Puts the mission's scene in the world, if its piece is in place, its square loaded and the player near it (READY),
+-- what is made kept NEAR away from the player (CLOSE when the player is already nearer).
 function Scene.build(record, m, px, py)
     local sc = m.scene
     local it = Scene.buildingPiece(m)
@@ -335,14 +340,16 @@ function Scene.build(record, m, px, py)
         return
     end
     if not (it.placed and it.at) then return end
-    if Places.distance(px, py, it.at.x, it.at.y) < Scene.NEAR then return end
+    local d = Places.distance(px, py, it.at.x, it.at.y)
+    if d > Scene.READY then return end
+    local near = d >= Scene.NEAR and Scene.NEAR or Scene.CLOSE
     local g = Scene.game
     if not g.loaded(it.at) then return end
     sc.built = true
     if sc.props and #sc.props > 0 then g.placeProps(it, sc.props) end
-    if sc.guards and OA.option("MissionGuards") ~= false then g.spawnGuards(it, sc.guards, px, py) end
+    if sc.guards and OA.option("MissionGuards") ~= false then g.spawnGuards(it, sc.guards, px, py, near) end
     if sc.survivor then
-        local outfitId = g.spawnSurvivor(it, sc.survivor, px, py)
+        local outfitId = g.spawnSurvivor(it, sc.survivor, px, py, near)
         if outfitId then Scene.addSurvivor(record, m, outfitId, it.at) end
     end
 end

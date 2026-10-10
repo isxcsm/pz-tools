@@ -166,7 +166,7 @@ local function fakeWorld()
     g.say = function(record, id, ctx) g.said[#g.said + 1] = { id = id, ctx = ctx } end
     g.loaded = function() return g.loadedAt end
     g.placeProps = function(it, props) g.props = g.props + #props end
-    g.spawnGuards = function(it, guards) g.guards = g.guards + #guards end
+    g.spawnGuards = function(it, guards, px, py, near) g.guards, g.near = g.guards + #guards, near end
     g.spawnSurvivor = function(it, s) g.survivors = g.survivors + 1; return -2147155967 end
     Scene.game = g
     return g
@@ -200,7 +200,7 @@ test("a mission begun gets its scene once; an offer only when it is taken", func
     eq(stake.scene.survivor, nil)
 end)
 
-test("the minute look: the line on entering the circle, the scene once its piece is in place and loaded, not near", function()
+test("the minute look: the line on entering the circle, the scene once its piece is in place, loaded and near", function()
     local g = fakeWorld()
     local record = OA.Store.ensure("p1", "P")
     Scene.section(record).last = false
@@ -222,12 +222,12 @@ test("the minute look: the line on entering the circle, the scene once its piece
     Scene.minute(record)
     eq(m.scene.built, false, "its square not loaded")
     g.loadedAt = true
-    g.px, g.py = 110, 105
     Scene.minute(record)
-    eq(m.scene.built, false, "the player too near")
-    g.px, g.py = 150, 130
+    eq(m.scene.built, false, "the player not near yet (58 squares)")
+    g.px, g.py = 125, 120
     Scene.minute(record)
     eq(m.scene.built, true)
+    eq(g.near, Scene.NEAR)
     eq(g.props, 3)
     truthy(g.guards >= 2)
     eq(g.survivors, 1)
@@ -246,12 +246,25 @@ test("the keepers stay away with the option off", function()
     local m = mission(record, nil)
     m.scene = Scene.plan(record, m, 0)
     m.items[1].placed, m.items[1].at = true, { x = 100, y = 100, z = 0 }
-    g.px, g.py = 150, 130
+    g.px, g.py = 108, 104
     Scene.minute(record)
-    eq(m.scene.built, true)
+    eq(m.scene.built, true, "made when the player came nearer than NEAR at once")
     eq(g.guards, 0)
     truthy(g.props >= 1)
     SandboxVars.OperationAcorn.MissionGuards = true
+end)
+
+test("a player who came nearer than NEAR between two looks still gets the keepers, made CLOSE away", function()
+    local g = fakeWorld()
+    local record = OA.Store.ensure("p1", "P")
+    local m = mission(record, nil)
+    m.scene = Scene.plan(record, m, 0)
+    m.items[1].placed, m.items[1].at = true, { x = 100, y = 100, z = 0 }
+    g.px, g.py = 108, 104
+    Scene.minute(record)
+    eq(m.scene.built, true)
+    truthy(g.guards >= 2)
+    eq(g.near, Scene.CLOSE)
 end)
 
 test("a dying survivor is known by its outfit id near its building; the first thing taken says the line once", function()
