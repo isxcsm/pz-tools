@@ -5,9 +5,12 @@
 -- (Typing.reveal, which keeps each beginning once made). No Lua timer runs per character, and a text that is not typed,
 -- or is typed to its end, is the plain panel.
 --
--- The text's state is its `run` (made by the folder tab, kept with the window): { parse = the reading of the text
--- (Markup.parse), clock = seconds typed, last = the time of the last frame (ms), done }. A click on the text types the
--- rest at once.
+-- The text's state is its `run` (made by the folder tab for each showing of an entry): { parse = the reading of the text
+-- (Markup.parse), clock = seconds typed, last = the time of the last frame (ms), seen = the furthest character that has
+-- come on in any showing (it grows as the typing does), done = the typing is over }. A click on the text brings it at once
+-- to the furthest point seen before (the whole of it when it was seen to the end) and no further: what the player has
+-- never seen is typed in its time and cannot be skipped. The click is anywhere on the panel (no coordinates are read, so
+-- the font and the scroll do not matter to it).
 require "ISUI/ISRichTextPanel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
@@ -51,6 +54,7 @@ function OATypedText:advance(run)
     local n = finished and parse.n or Markup.count(parse, run.clock)
     if n ~= self.n then
         self.n = n
+        if n > (run.seen or 0) then run.seen = n end
         local c, k = self.reveal:show(n)
         self.tipChunk = c
         if c then
@@ -64,6 +68,22 @@ function OATypedText:advance(run)
     end
 end
 
+-- The furthest point the player has seen of this text, at once: the clock goes on to the moment that character comes
+-- (the whole text's end when it was seen to the end). Nothing happens at or past it, so a click cannot skip what was
+-- never seen. The next frame draws it.
+function OATypedText:hurry(run)
+    local parse = run.parse
+    local seen = run.seen or 0
+    local at = seen >= parse.n and parse.total or parse.times[seen]
+    if at and at > run.clock then run.clock = at end
+end
+
+function OATypedText:onMouseDown(x, y)
+    ISRichTextPanel.onMouseDown(self, x, y)
+    local run = self.run
+    if self.reveal and run and not run.done then self:hurry(run) end
+end
+
 function OATypedText:render()
     -- The panel lays the text out again in its own render when its size changed; done first, the reveal starts over the
     -- new rows before they are drawn.
@@ -75,15 +95,17 @@ function OATypedText:render()
 end
 
 -- A block after the last character that has come on, blinking. The panel is the game's, in pixels: the block is the
--- row's font high (less 3 at each end) and a quarter of that wide, 6 at least, so it keeps to the text in any font.
+-- row's font high (less a ninth at each end, 3 at least) and a quarter of that wide, 6 at least, so it keeps to the text
+-- in any font (the folder's body is the Medium font, at any scale).
 function OATypedText:drawCursor()
     local c = self.tipChunk
     local fh = getTextManager():getFontHeight(self.defaultFont)
     local y = self.lineY[c] + self.marginTop + self:getYScroll()
     if y < 0 or y + fh > self.height then return end
     local col = self.cursorColor
+    local inset = math.max(3, math.floor(fh / 9))
     local a = 0.55 + 0.45 * math.sin(getTimestampMs() / 160)
-    self:drawRect(self.tipX + 1, y + 3, math.max(6, math.floor(fh / 4)), fh - 6, a, col[1], col[2], col[3])
+    self:drawRect(self.tipX + 1, y + inset, math.max(6, math.floor(fh / 4)), fh - 2 * inset, a, col[1], col[2], col[3])
 end
 
 return OATypedText

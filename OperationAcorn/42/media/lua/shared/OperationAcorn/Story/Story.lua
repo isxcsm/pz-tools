@@ -7,6 +7,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Say"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Markup"
+require "OperationAcorn/Story/Typing"
 local OA = OperationAcorn
 local Data = OA.StoryData
 local Story = {}
@@ -45,7 +46,7 @@ function Story.section(record)
         s.unread = {}        -- what arrived in the folder and is not opened yet: key -> arrival number (Story.markNew)
         s.newSeq = 0         -- the arrivals counted
         s.docStage = {}      -- the trust tier a document was read at: id -> tier (for the ones the data cannot place)
-        s.typed = {}         -- what the terminal types when the folder first shows it: key -> state (Story.markNew, Typing)
+        s.typed = {}         -- how far the terminal's folder has shown each text: key -> state (Story.markNew, Typing)
         s.requests = {}      -- request copies kept (Story.addRequestCopy): { no =, form =, id =, tier =, day =, month = }
         s.requestNo = Data.REQUEST_FIRST - 1
     end
@@ -814,33 +815,33 @@ function Story.markNew(record, key)
     if s.unread[key] then return false end
     s.newSeq = (s.newSeq or 0) + 1
     s.unread[key] = s.newSeq
-    -- New content is typed by the terminal when the folder first shows it (nothing is typed yet: t = 0).
+    -- New content is typed by the terminal when the folder first shows it: nothing of it is seen yet, so a click on it
+    -- brings nothing forward (Typing).
     s.typed = s.typed or {}
-    s.typed[key] = { t = 0 }
+    s.typed[key] = { seen = 0 }
     OA.Sync.changed("story", record.id)
     return true
 end
 
--- What the terminal has typed of a folder entry: nil when it has nothing to type (shown whole), `true` when it was
--- typed to its end, else { start = world age in hours, t = seconds typed } (Story/Typing).
+-- What the terminal has shown of a folder entry (Typing): { seen = the furthest character, done = seen to the end,
+-- start = world age in hours and t = seconds typed of a showing left half way }; `true` in a record from before (seen to
+-- the end), or { start, t } (the clock only); nil for an entry it has not kept anything of, which was shown whole.
 function Story.typedState(record, key)
     local s = Story.section(record)
     return s.typed and s.typed[key] or nil
 end
 
--- The window kept how far a text is typed: `clock` seconds, or `done`. Only an entry that has a state takes it, and
--- one that is done stays done.
-function Story.saveTyped(record, key, clock, done)
+-- The window kept how far a showing of a text got: `seen` characters came on (the furthest only grows), `done` when that
+-- is the whole text, `clock` the seconds typed when the showing was left before the end (nil when it ran to the end).
+-- An entry that was never kept anything of takes a state; the key must be a folder key.
+function Story.saveTyped(record, key, seen, done, clock)
+    if type(key) ~= "string" or #key > 64 or not string.find(key, "^[cdrm]:[%w_%.%-]+$") then return false end
+    if seen ~= nil and not (type(seen) == "number" and seen >= 0 and seen < 100000) then return false end
+    if clock ~= nil and not (type(clock) == "number" and clock >= 0 and clock < 100000) then return false end
+    if seen == nil and clock == nil and not done then return false end
     local s = Story.section(record)
-    local state = s.typed and s.typed[key]
-    if state == nil or state == true then return false end
-    if done then
-        s.typed[key] = true
-    elseif type(clock) == "number" and clock >= 0 and clock < 100000 then
-        s.typed[key] = { start = OA.hours(), t = clock }
-    else
-        return false
-    end
+    s.typed = s.typed or {}
+    s.typed[key] = OA.Typing.keep(s.typed[key], seen, done, clock, OA.hours())
     OA.Sync.changed("story", record.id)
     return true
 end
