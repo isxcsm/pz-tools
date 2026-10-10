@@ -719,17 +719,23 @@ function M.heroWidth(w)
 end
 
 -- The hero's spacing: whether the last settlement and the crates take a label line and a value line each (roomy),
--- and the gap between the blocks. `top` is the height the state, its lines, the arrival bar and the infection box take
--- (from 46 down), `facts` how many fact blocks there are.
+-- the gap between the blocks, and whether the four values fit (a short window with the infection box leaves them to
+-- the upgrades screen). `top` is the height the state, its lines, the arrival bar and the infection box take (from 46
+-- down), `facts` how many fact blocks there are; the buttons keep the bottom 72.
 function M.heroSpacing(h, top, facts)
     local roomy = h >= 300
+    local spec = true
     local used = 46 + top + 54 + 8 + facts * 36
     if used > h - 72 then
         roomy = false
         used = used - facts * 18
     end
+    if used > h - 72 then
+        spec = false
+        used = used - 54
+    end
     local gap = OA.clamp(math.floor((h - 72 - used) / 3), 4, 18)
-    return roomy, gap
+    return roomy, gap, spec
 end
 
 -- The road: { lx (lane labels' width), colw, roomy, nodeH, laneH, ya, yb, trackH }.

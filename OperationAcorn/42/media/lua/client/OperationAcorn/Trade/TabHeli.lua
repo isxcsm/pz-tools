@@ -47,7 +47,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         for _, line in ipairs(Draw.wrap(s.text, w - 20)) do subs[#subs + 1] = { line, p[s.colour] or p.text } end
     end
     local top = #subs * fh + (H.eta and 14 or 0) + (d.infection and 46 or 0)
-    local roomy, gap = M.heroSpacing(h, top, 2)
+    local roomy, gap, showSpec = M.heroSpacing(h, top, 2)
     local yy = y + 46
     for _, s in ipairs(subs) do
         Draw.text(L, s[1], x + 10, yy, s[2])
@@ -74,16 +74,19 @@ function OATabHeli:buildHero(L, x, y, w, h)
         yy = yy + 42
     end
     yy = yy + gap
-    -- 헬기 사양: the four values the upgrades sub-tab raises.
-    Draw.text(L, getText("IGUI_OA_Status_Spec"), x + 10, yy, p.dim)
-    Draw.fit(L, getText("IGUI_OA_Status_SpecHint"), x + 10, yy, w - 20, p.dim, nil, 0.8, "right")
-    yy = yy + 18
-    local cw = math.floor((w - 20) / 2)
-    for i, s in ipairs(d.spec) do
-        local col, row = OA.remainder(i - 1, 2), math.floor((i - 1) / 2)
-        Draw.run(L, { { s = s.label .. " ", c = p.dim }, { s = s.value, c = p.text } }, x + 10 + col * cw, yy + row * fh, cw - 4)
+    if showSpec then
+        -- 헬기 사양: the four values the upgrades sub-tab raises.
+        Draw.text(L, getText("IGUI_OA_Status_Spec"), x + 10, yy, p.dim)
+        Draw.fit(L, getText("IGUI_OA_Status_SpecHint"), x + 10, yy, w - 20, p.dim, nil, 0.8, "right")
+        yy = yy + 18
+        local cw = math.floor((w - 20) / 2)
+        for i, s in ipairs(d.spec) do
+            local col, row = OA.remainder(i - 1, 2), math.floor((i - 1) / 2)
+            Draw.run(L, { { s = s.label .. " ", c = p.dim }, { s = s.value, c = p.text } }, x + 10 + col * cw, yy + row * fh,
+                cw - 4)
+        end
+        yy = yy + 2 * fh + 4 + gap
     end
-    yy = yy + 2 * fh + 4 + gap
     Draw.rect(L, x + 10, yy - 4, w - 20, 1, p.border, 0.6)
     yy = yy + 4
     -- The last settlement and the crates: a label line and a value line each, or one line each when short.
