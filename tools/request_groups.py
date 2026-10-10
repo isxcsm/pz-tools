@@ -731,8 +731,8 @@ def _full(t):
 
 def read_recipes(items):
     """craftRecipe blocks: { name, inputs: [ [(type, count)...] consumed ], tools: [ [(type, count)...] kept ], outputs:
-    [(type, count)], skill (the highest level asked), learn }. Tag inputs are the items with the tag; an alternative
-    with its own count ("3:Base.LargeBranch") keeps it."""
+    [(type, count)], skill (the highest level asked), learn, category (lower case), butchering (it gives Butchering
+    xp) }. Tag inputs are the items with the tag; an alternative with its own count ("3:Base.LargeBranch") keeps it."""
     by_tag = defaultdict(list)
     for full, it in items.items():
         for t in it['tags']:
@@ -753,6 +753,9 @@ def read_recipes(items):
             body = text[m.end():at - 1]
             rec = {'name': m.group(1), 'inputs': [], 'tools': [], 'outputs': [], 'skill': 0, 'learn': False,
                    'tags_used': set()}
+            cat = re.search(r'^\s*category\s*=\s*(\w+)', body, re.M)
+            rec['category'] = cat.group(1).lower() if cat else ''
+            rec['butchering'] = bool(re.search(r'^\s*xpAward\s*=[^\n]*\bButchering\b', body, re.M))
             sk = re.search(r'SkillRequired\s*=\s*([^,\n]+)', body)
             if sk:
                 levels = [int(x) for x in re.findall(r':(\d+)', sk.group(1))]
@@ -806,12 +809,21 @@ def read_recipes(items):
     return recipes
 
 
+def cooking(r):
+    """A recipe of the game's Cooking category: dishes, dough, slicing, opening packs and cans, coffee and toast. Food
+    made that way is no way to come by food (the user, 2026-10-11); the raw food it is made from counts. Cutting up a
+    catch (a small animal, a fish into fillets) is butchering though, which the game marks with Butchering xp, and
+    it still counts."""
+    return r.get('category') == 'cooking' and not r.get('butchering')
+
+
 def craft_rates(recipes, have):
     """What a week's making gives of each output, from what the other ways give (`have`, a rate per kind; shallow: a
     recipe's inputs are not made in turn). A recipe makes as many times as its scarcest input allows (that input's
     rate over the count it takes, the alternatives of a slot added), times its outputs, times the chance to have each
     tool, x SKILL_STEP per level asked, x LEARN when it is learnt first; at most CRAFT_CAP. A recipe that takes back
-    what it makes (a repair, a refill) gives nothing new. Work stations are not counted. The best recipe counts:
+    what it makes (a repair, a refill) gives nothing new, and cooking (`cooking`) is no way to come by food. Work
+    stations are not counted. The best recipe counts:
     {type: (rate, recipe name)}."""
     out = {}
 
@@ -829,7 +841,7 @@ def craft_rates(recipes, have):
         return runs or 0.0
 
     for r in recipes:
-        if not r['outputs'] or not any(r['inputs']):
+        if not r['outputs'] or not any(r['inputs']) or cooking(r):
             continue
         used = {t for alts in r['inputs'] + r['tools'] for t, _ in alts}
         factor = SKILL_STEP ** r['skill'] * (LEARN if r['learn'] else 1.0)

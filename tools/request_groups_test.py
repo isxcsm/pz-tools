@@ -86,6 +86,24 @@ class Craft(unittest.TestCase):
         r = recipe('Repair', [[('Broken', 1.0), ('Glue', 1.0)]], [('Broken', 1.0, None)])
         self.assertEqual(rg.craft_rates([r], {'Broken': 1.0, 'Glue': 1.0}), {})
 
+    def test_cooking_makes_no_food_but_cutting_up_a_catch_does(self):
+        omelette = recipe('PrepareOmelette', [[('Egg', 2.0)]], [('Omelette', 1.0, None)])
+        omelette['category'] = 'cooking'
+        self.assertEqual(rg.craft_rates([omelette], {'Egg': 4.0}), {}, 'a dish is no way to come by food')
+        fillet = recipe('SliceFillet', [[('Bass', 1.0)]], [('Fillet', 2.0, None)])
+        fillet.update(category='cooking', butchering=True)
+        self.assertAlmostEqual(rg.craft_rates([fillet], {'Bass': 0.5})['Fillet'][0], 1.0)
+        pack = recipe('PackCannedFood', [[('Can', 6.0)]], [('CanBox', 1.0, None)])
+        pack['category'] = 'packing'
+        self.assertAlmostEqual(rg.craft_rates([pack], {'Can': 3.0})['CanBox'][0], 0.5, msg='packing still counts')
+
+    def test_the_game_files_mark_cooking_and_butchering(self):
+        recipes = {r['name']: r for r in rg.read_recipes(rg.read_items())}
+        for name in ('PrepareOmelette', 'MakePancake', 'OpenBagOfFrozenFood'):
+            self.assertTrue(rg.cooking(recipes[name]), name)
+        for name in ('SliceFillet', 'ButcherSmallAnimal', 'PackCannedFood', 'MakeWoodCharcoal'):
+            self.assertFalse(rg.cooking(recipes[name]), name)
+
 
 class Bands(unittest.TestCase):
     RULES = {'share': {'common': 0.5, 'normal': 0.35},

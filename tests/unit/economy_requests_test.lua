@@ -550,8 +550,18 @@ test("the band comes from every way a group is come by, ranked: kiln charcoal an
     truthy(R.qtyOf("cans") >= R.qtyOf(R.keyOf("Base.Charcoal")), "cans ask at least as many as charcoal")
     local counts = { common = 0, normal = 0, rare = 0 }
     for _, row in ipairs(REAL_GROUPS) do counts[R.bandOf(row.id)] = counts[R.bandOf(row.id)] + 1 end
+    -- The shares, but a group as easy as the last one in a band joins it (the table has such ties at its cuts).
+    local scores = {}
+    for i, row in ipairs(REAL_GROUPS) do scores[i] = row.score end
+    table.sort(scores, function(a, b) return a > b end)
+    local function upTo(cut)
+        local k = cut
+        while scores[k + 1] == scores[cut] do k = k + 1 end
+        return k
+    end
     local n = #REAL_GROUPS
-    eq(counts.common, math.floor(n * 0.5 + 0.5)); eq(counts.common + counts.normal, math.floor(n * 0.85 + 0.5))
+    eq(counts.common, upTo(math.floor(n * 0.5 + 0.5)))
+    eq(counts.common + counts.normal, upTo(math.floor(n * 0.85 + 0.5)))
 end)
 
 -- A script manager that knows the given types ({ fullType = { w, dc } }; `all` for any type, 0.1 of junk).
