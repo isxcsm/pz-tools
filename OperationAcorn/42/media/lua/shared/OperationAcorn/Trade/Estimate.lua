@@ -66,10 +66,10 @@ function Estimate.infos(record, infos)
 end
 
 -- The whole flight a call would make: the sealed boxes' worth, the bonus waiting, the cart's cost and the balance
--- that would be left. { sealed, fee, feeRate, net, boxes, bonus, orders, cart, before, after, blocked, requests,
--- filled }: sealed is the worth before the infection handling fee, fee the credits it withholds (0 or more; the same
+-- that would be left. { sealed, fee, feeRate, feeReleased, net, boxes, bonus, orders, cart, before, after, blocked,
+-- requests, filled }: sealed is the worth before the infection handling fee, fee the credits it withholds (0 or more; the same
 -- before a test as after, so the estimate does not tell whether there is an infection), feeRate its share (0 when
--- none applies), net sealed less fee; after is what is left with the fee and the orders taken. `requests` and
+-- none applies), feeReleased whether the flight says a cure lifted the fee, net sealed less fee; after is what is left with the fee and the orders taken. `requests` and
 -- `filled` as Estimate.entries gives them for the sealed boxes (empty when there are none).
 function Estimate.flight(record)
     local account = Trade.account(record)
@@ -86,6 +86,7 @@ function Estimate.flight(record)
     local orders = (after >= 0) and cost or 0
     return {
         boxes = #Boxes.sealed(record), sealed = credits, fee = fee, feeRate = feeRate, net = credits - fee,
+        feeReleased = OA.Infection.releasing(record, credits),
         bonus = bonus, orders = orders, cart = cost,
         before = balance, after = after - orders, blocked = after < 0 and cost > 0,
         requests = worth and worth.requests or { credits = 0, units = 0, lines = {} },

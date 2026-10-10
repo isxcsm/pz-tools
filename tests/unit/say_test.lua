@@ -96,3 +96,25 @@ test("self-talk says the line over the head, keeps the order on the character, a
     eq(#said, 1)
     SandboxVars.OperationAcorn.Monologue = true
 end)
+
+test("self-talk the server asks for with a delay waits for it, then says the line of that moment", function()
+    language({ Late = 3 })
+    local said, data = {}, { OA_Id = "me" }
+    local player = { getModData = function() return data end, Say = function(_, t) said[#said + 1] = t end,
+        isDead = function() return false end }
+    getPlayer = function() return player end
+    Say.tell("me", "Late", nil, 2.5)
+    eq(#said, 0, "not yet")
+    TEST.fire("OnTick")
+    eq(#said, 1, "the clock has moved on")
+    Say.tell("me", "Late")
+    eq(#said, 2, "no delay: at once")
+    Say.tell("someone", "Late")
+    eq(#said, 2, "another player's line is not said here")
+    player.isDead = function() return true end
+    Say.tell("me", "Late", nil, 2.5)
+    TEST.fire("OnTick")
+    eq(#said, 2, "a character who died in between says nothing")
+    getPlayer = nil
+end)
+

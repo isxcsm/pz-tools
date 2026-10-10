@@ -80,11 +80,20 @@ end
 
 -- What the player was told: notices, titles, and the infection changes.
 local function listen()
-    local told = { notices = {}, titles = {}, changes = {} }
+    local told = { notices = {}, titles = {}, changes = {}, says = {} }
     OA.Sync.listen("notice", function(id, d) told.notices[#told.notices + 1] = d end)
     OA.Sync.listen("title", function(id, d) told.titles[#told.titles + 1] = d end)
     OA.Sync.listen("infection", function(id, d) told.changes[#told.changes + 1] = d end)
+    OA.Sync.listen("say", function(id, d) told.says[#told.says + 1] = d end)
     return told
+end
+
+-- The first title with a key, or nil.
+local function titleOf(told, key)
+    for _, t in ipairs(told.titles) do
+        if t.key == key then return t end
+    end
+    return nil
 end
 
 local function record(id)
@@ -294,7 +303,10 @@ test("a reversal without an infection is used up and the player is told the same
     truthy(Serums.use(c, item, "inf"))
     eq(item.removed, 1)
     eq(c.time, -1, "nothing was set")
-    eq(told.notices[1].key, "IGUI_OA_Tree_ReversalDone")
+    eq(told.notices[1], nil, "no notice: the title and a line")
+    eq(told.titles[1].key, "IGUI_OA_Title_Reversal")
+    eq(told.titles[1].style, "notice")
+    eq(told.says[1].id, "Reversal")
 end)
 
 test("a test kit finds the real infection: positive is known with its progress, negative lifts the wound's fee", function()
@@ -312,6 +324,9 @@ test("a test kit finds the real infection: positive is known with its progress, 
     near(r.infection.progress, 0.38)
     eq(told.titles[1].key, "IGUI_OA_Title_TestPositive")
     eq(told.titles[1].tone, "red")
+    eq(told.titles[1].style, "stamp")
+    eq(told.says[1].id, "TestPositive")
+    eq(told.says[1].ctx.first, true)
     -- another wound after a negative test makes it untested again
     c.infected = false
     r = record("other")
@@ -320,7 +335,10 @@ test("a test kit finds the real infection: positive is known with its progress, 
     eq(r.infection.untested, nil)
     eq(r.infection.known, nil)
     eq(Infection.feeRate(r), 0)
-    eq(told.titles[2].key, "IGUI_OA_Title_TestNegative")
+    local negative = titleOf(told, "IGUI_OA_Title_TestNegative")
+    eq(negative.sub, "IGUI_OA_Title_TestNegativeSub")
+    eq(negative.style, "notice")
+    eq(told.says[#told.says].id, "TestNegative")
     Infection.wounded(r, "bite", 0)
     eq(Infection.feeRate(r), 0.3)
 end)
@@ -353,6 +371,8 @@ test("a cure serum that cures clears the infection, the fee and the drug", funct
     eq(Infection.state(r, 1), nil)
     eq(Infection.feeRate(r), 0)
     eq(told.titles[1].key, "IGUI_OA_Title_Cured")
+    eq(told.titles[1].style, "stamp")
+    eq(told.titles[1].tone, "green")
 end)
 
 test("serum kinds of the infection items", function()

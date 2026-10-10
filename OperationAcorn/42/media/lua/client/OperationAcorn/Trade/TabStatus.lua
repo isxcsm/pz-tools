@@ -10,12 +10,16 @@ require "OperationAcorn/Trade/TabProgress"
 require "OperationAcorn/Trade/TabUpgrades"
 require "OperationAcorn/Trade/TabRecords"
 require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Trust, Objects = OA.Trust, Trade.Objects
 local Draw, M = Trade.Draw, Trade.StatusModel
 
 OATabStatus = OATab:derive("OATabStatus")
+
+-- The character's lines at the end of a field terminal's first boot (DESIGN-terminal 18: 정식 단말 첫 켬, 3 lines).
+OA.Say.define("TerminalFirst", {})
 
 -- The strip's height, and where the sub-tab row and the sub-tab's screen start.
 OATabStatus.TOP_H = 60
@@ -219,6 +223,12 @@ function OAStatusBoot:new(x, y, width, height, tab)
     return o
 end
 
+-- The boot is over (it ran out, or a click skipped it): the board of news shows, and the character says a line.
+function OAStatusBoot:bootOver()
+    self.phase = "news"
+    OA.Say.say(self.tab.window.character, "TerminalFirst")
+end
+
 -- The board's words, worked out again when the record changes.
 function OAStatusBoot:refresh()
     local record = self.tab:record()
@@ -271,7 +281,7 @@ function OAStatusBoot:prerender()
         -- Timed by subtracting timestamps only (Kahlua's % is wrong at their size), and only while it shows.
         local shown, over = M.bootLines(getTimestampMs() - self.start)
         if over then
-            self.phase = "news"
+            self:bootOver()
         else
             self:drawRect(-10, -10, self.width + 20, self.height + 20, 1, 0, 0, 0)
             local record = self.tab:record()
@@ -303,7 +313,7 @@ end
 
 function OAStatusBoot:onMouseDown(x, y)
     if self.phase == "boot" then
-        self.phase = "news"
+        self:bootOver()
         return true
     end
     local hit = Draw.hitAt(self.list, x, y)

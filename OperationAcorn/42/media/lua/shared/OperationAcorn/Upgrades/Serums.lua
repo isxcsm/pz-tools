@@ -8,10 +8,12 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Upgrades/Data"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Infection"
+require "OperationAcorn/Upgrades/Guides"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Infection = OA.Infection
+local Guides = OA.Upgrades.Guides
 local Serums = {}
 OA.Upgrades.Serums = Serums
 
@@ -135,9 +137,13 @@ function Serums.progress(character)
     return OA.clamp(character:getStats():get(CharacterStat.ZOMBIE_INFECTION) / 100, 0, 1)
 end
 
+-- Real seconds from the cure's stamp to the line the character says, and to the certificate's notice.
+Serums.CURED_SAY_DELAY = 2.5
+
 -- Uses a cure serum. Not the owner's or past its shelf life: nothing happens and the serum stays (the player is
--- told). Not infected: it is used up and nothing is said, so that it cannot be a test. Returns true when the
--- infection was cured.
+-- told). Not infected: it is used up and nothing is said, so that it cannot be a test. Cured: the green stamp with the
+-- days it took and the drugs, a line a moment later, the certificate of its length in the folder (DESIGN-terminal
+-- 17.6). Returns true when the infection was cured.
 function Serums.cure(character, item, id)
     if Serums.kind(item:getType()) ~= "cure" then return false end
     id = id or OA.Store.idOf(character)
@@ -152,9 +158,15 @@ function Serums.cure(character, item, id)
     if not consume(item) then return false end
     if not Serums.infected(character) then return false end
     Serums.cureBody(character)
-    Infection.cured(recordOf(character, id))
+    local record = recordOf(character, id)
+    local days, doses, length = Infection.summary(record, OA.hours())
+    Infection.cured(record)
     OA.Sync.changed("infection", id, { kind = "cured" })
-    OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", style = "stamp", tone = "green", fallback = "good" })
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", sub = doses > 0 and "IGUI_OA_Title_CuredSubDrugs" or "IGUI_OA_Title_CuredSub",
+        subArgs = { days, doses }, style = "stamp", tone = "green", fallback = "good" })
+    OA.Say.tell(id, "Cured", { length = length }, Serums.CURED_SAY_DELAY)
+    local sent, paper = Guides.certify(record, length, days, doses)
+    if sent then Guides.title(id, paper) end
     return true
 end
 
@@ -176,6 +188,13 @@ function Serums.delay(character, item, id)
     Infection.dose(record, length, OA.hours(), age)
     OA.Sync.notice(id, "IGUI_OA_Tree_DelayDone", { Infection.DRUG_HOURS[length] / 24 })
     OA.Sync.changed("infection", id, { kind = "drug" })
+    -- the first drug has a line, once (the same whether or not there is an infection)
+    local inf = Infection.section(record)
+    inf.told = inf.told or {}
+    if not inf.told.delay then
+        inf.told.delay = true
+        OA.Say.tell(id, "DelayFirst")
+    end
     return true
 end
 
@@ -194,25 +213,30 @@ function Serums.reverse(character, item, id)
         Infection.reversed(record)
         OA.Sync.changed("infection", id, { kind = "reversed" })
     end
-    OA.Sync.notice(id, "IGUI_OA_Tree_ReversalDone", {})
+    OA.Sync.title(id, { key = "IGUI_OA_Title_Reversal", style = "notice", tone = "green", fallback = "good" })
+    OA.Say.tell(id, "Reversal")
     return true
 end
 
 -- Uses a test kit: the real infection is found or not, and the player knows from now on (a wound is tested for either
--- way).
+-- way). A positive test is a red stamp and a line, and the first one brings the handling notice to the folder; a
+-- negative one is the news title `음성 · 수수료 없음` and a line (DESIGN-terminal 17.6).
 function Serums.test(character, item, id)
     if Serums.kind(item:getType()) ~= "test" then return false end
     id = id or OA.Store.idOf(character)
     local record = recordOf(character, id)
     if not consume(item) then return false end
     local infected = character:getBodyDamage():IsInfected()
-    Infection.tested(record, infected, infected and Serums.progress(character) or nil)
+    local positives = Infection.tested(record, infected, infected and Serums.progress(character) or nil, OA.hours())
     OA.Sync.changed("infection", id, { kind = "tested" })
     if infected then
         OA.Sync.title(id, { key = "IGUI_OA_Title_TestPositive", style = "stamp", tone = "red", fallback = "bad" })
+        OA.Say.tell(id, "TestPositive", { first = positives == 1 })
+        if Guides.deliver(record, Guides.NOTICE) then Guides.title(id, Guides.NOTICE) end
     else
         OA.Sync.title(id, { key = "IGUI_OA_Title_TestNegative", sub = "IGUI_OA_Title_TestNegativeSub", style = "notice",
             tone = "green", fallback = "good" })
+        OA.Say.tell(id, "TestNegative")
     end
     return true
 end

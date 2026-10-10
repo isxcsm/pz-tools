@@ -324,6 +324,16 @@ test("a fee from the infection part: the send line says it, the sum is named aft
     eq(w.total.amount, "28,230")
 end)
 
+test("a flight that says a cure lifted the fee names it on the send line, with no fee on the sum", function()
+    local r = newRecord(3, 0, 1000)
+    withBox(r)
+    local flight = { boxes = 1, sealed = 38900, net = 38900, bonus = 0, fee = 0, feeRate = 0, feeReleased = true }
+    local w = M.waybill(r, flight)
+    eq(w.send[1].sub, "IGUI_OA_Status_SendFeeReleased")
+    eq(w.calc[2].label, "IGUI_OA_Status_Calc_Settle")
+    eq(M.waybill(r, { boxes = 1, sealed = 38900, net = 38900, bonus = 0, fee = 0, feeRate = 0 }).send[1].sub, nil)
+end)
+
 -- Infection, the tab's dot -------------------------------------------------------------------------------------------
 
 test("the infection box: infected and held, a wound not tested, nothing", function()

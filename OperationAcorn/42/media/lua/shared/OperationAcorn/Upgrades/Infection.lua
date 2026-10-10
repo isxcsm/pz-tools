@@ -7,10 +7,17 @@
 --   progress  0 to 1, the infection's progress as last seen (read only while known)
 --   drug      { kind = "long" | "short", till = the world age hour it ends, age = the hours the infection is held at
 --             (nil: nothing to hold, the body was not infected when it was taken) }
+-- and what the presentation (DESIGN-terminal 17.6) remembers:
+--   since     the world age hour the wound or the infection was first noticed, until a negative test or the cure
+--   doses     the delay drugs taken since then (the cure's stamp tells how many it took)
+--   positives the positive tests ever made (the first one is told differently, and brings the handling notice)
+--   told      { delay = true } what was said once and never again
+--   released  true from a cure that lifted the fee until the settlement that tells so
 -- The rules here are pure (a record and a clock); the body is touched by Serums.lua and by the client's watch
 -- (Upgrades/Hooks.lua), which use the wound detection at the end of this file.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
+require "OperationAcorn/Say"
 local OA = OperationAcorn
 local Infection = {}
 OA.Infection = Infection
@@ -21,6 +28,21 @@ Infection.FEE = 0.3
 Infection.DRUG_HOURS = { long = 7 * 24, short = 24 }
 -- The wounds a zombie makes.
 Infection.WOUNDS = { bite = true, scratch = true, cut = true }
+-- An infection cured within this many days is a short one, at this many or more a long one (the cure's lines and
+-- certificate follow its length).
+Infection.SHORT_DAYS, Infection.LONG_DAYS = 14, 60
+
+-- The self-talk (DESIGN-terminal 18; keys IGUI_OA_Say_<bundle>_<n>). Cured: lines 1 for a short infection, 2 for a long
+-- one, the rest either. TestPositive: lines 1-2 the first positive test ever, 3-4 the ones after. DrugLost rests a day.
+-- None of the lines says anything about a wound: what the player may know is only what the tests and the body show.
+OA.Say.define("CureStart", {})
+OA.Say.define("Cured", { tags = { [1] = { length = "short" }, [2] = { length = "long" } } })
+OA.Say.define("TestPositive", { tags = { [1] = { first = true }, [2] = { first = true }, [3] = { first = false },
+    [4] = { first = false } } })
+OA.Say.define("TestNegative", {})
+OA.Say.define("DrugLost", { cooldown = 24 })
+OA.Say.define("Reversal", {})
+OA.Say.define("DelayFirst", {})
 
 function Infection.section(record)
     return OA.Store.section(record, "infection")
@@ -54,6 +76,37 @@ function Infection.fee(record, credits)
     local rate = Infection.feeRate(record)
     if rate <= 0 or (credits or 0) <= 0 then return 0, rate end
     return OA.round(credits * rate), rate
+end
+
+-- Whether a cure lifted the fee and no settlement has said so yet, for a flight worth `credits` (the waybill and the
+-- receipt tell it once; a fee that is back, or a flight that carries nothing, does not).
+function Infection.releasing(record, credits)
+    local inf = record and record.infection
+    return inf ~= nil and inf.released == true and Infection.feeRate(record) <= 0 and (credits or 0) > 0
+end
+
+-- The settlement that tells it: true once (and the note is spent); a fee that came back spends it without telling.
+function Infection.takeRelease(record, credits)
+    local inf = record and record.infection
+    if not (inf and inf.released) then return false end
+    if Infection.feeRate(record) > 0 then
+        inf.released = nil
+        return false
+    end
+    if (credits or 0) <= 0 then return false end
+    inf.released = nil
+    return true
+end
+
+-- How a cured infection is told: whole days since it was first noticed (at least 1), the delay drugs taken since, and
+-- its length, "short", "normal" or "long". Read before Infection.cured clears it.
+function Infection.summary(record, now)
+    local inf = record and record.infection
+    local since = inf and inf.since
+    local days = since and math.max(1, math.floor((now - since) / 24 + 0.5)) or 1
+    local length = "normal"
+    if days < Infection.SHORT_DAYS then length = "short" elseif days >= Infection.LONG_DAYS then length = "long" end
+    return days, (inf and inf.doses) or 0, length
 end
 
 -- What the terminal shows of the infection, or nil when there is nothing to show:
@@ -98,6 +151,7 @@ function Infection.dose(record, kind, now, age)
     local old = inf.drug
     if old and old.till > now and old.age then age = old.age end
     inf.drug = { kind = kind, till = now + hours, age = age }
+    if inf.since then inf.doses = (inf.doses or 0) + 1 end
     return inf.drug
 end
 
@@ -106,22 +160,28 @@ end
 function Infection.wounded(record, kind, now)
     local inf = Infection.section(record)
     if not inf.known then inf.untested = true end
+    inf.since = inf.since or now
     local lost = Infection.drug(inf, now)
     inf.drug = nil
     return lost
 end
 
--- A test: positive (the progress as it is) or negative. Either way the wound is tested for.
-function Infection.tested(record, infected, progress)
+-- A test: positive (the progress as it is) or negative. Either way the wound is tested for. A negative one forgets
+-- when the wound came; a positive one counts. Returns how many positive tests there have been (0 for a negative one).
+function Infection.tested(record, infected, progress, now)
     local inf = Infection.section(record)
     inf.untested = nil
     if infected then
         inf.known = true
         inf.progress = OA.clamp(progress or inf.progress or 0, 0, 1)
-    else
-        inf.known = nil
-        inf.progress = nil
+        inf.since = inf.since or now or OA.hours()
+        inf.positives = (inf.positives or 0) + 1
+        return inf.positives
     end
+    inf.known = nil
+    inf.progress = nil
+    inf.since, inf.doses = nil, nil
+    return 0
 end
 
 -- A reversal: the progress goes back to nothing, and so does the age a drug holds the infection at.
@@ -131,10 +191,12 @@ function Infection.reversed(record)
     if inf.drug and inf.drug.age then inf.drug.age = 0 end
 end
 
--- The cure: nothing is left to test, know or hold.
+-- The cure: nothing is left to test, know or hold, and a fee that was taken is lifted (the next settlement says so).
 function Infection.cured(record)
     local inf = Infection.section(record)
+    if Infection.feeRate(record) > 0 then inf.released = true end
     inf.known, inf.untested, inf.progress, inf.drug = nil, nil, nil, nil
+    inf.since, inf.doses = nil, nil
 end
 
 -- The percent a progress shows as, a whole number (rounded, so 0.29 is 29 and not 28).
@@ -162,6 +224,7 @@ function Infection.seen(record, infected, progress, now)
     if infected then
         if not inf.known and not inf.untested then
             inf.untested = true
+            inf.since = inf.since or now
             changed = true
         end
         local d = inf.drug
@@ -175,6 +238,7 @@ function Infection.seen(record, infected, progress, now)
         end
     elseif inf.known then
         inf.known, inf.progress = nil, nil
+        inf.since, inf.doses = nil, nil
         changed = true
     end
     return changed

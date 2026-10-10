@@ -1,6 +1,6 @@
--- The timed actions of the upgrades: injecting a serum (or using a cure serum, or a delay drug), prying a locked door,
--- window or car door open with a pry bar, picking its lock with a paper clip and a screwdriver. Each checks again as
--- it completes, where the world is decided (complete runs on the server).
+-- The timed actions of the upgrades: injecting a serum (or using a cure serum, or a delay drug, or a test kit), prying a
+-- locked door, window or car door open with a pry bar, picking its lock with a paper clip and a screwdriver. Each checks
+-- again as it completes, where the world is decided (complete runs on the server).
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Serums"
@@ -21,6 +21,13 @@ Actions.PRY_NOISE = { 22, 40 }
 Actions.PRY_QUIET = { 12, 22 }
 Actions.PRY_ENDURANCE = 0.06
 Actions.PRY_FATIGUE = 0.02
+-- Using a serum: how long (ticks). The cure serum takes the longest (DESIGN-terminal 17.6), the test kit is a short wait
+-- for the result.
+Actions.USE_TICKS = 120
+Actions.CURE_TICKS = 300
+Actions.TEST_TICKS = 90
+-- The game's sound of wiping with an alcohol wipe (ISDisinfect plays it), for the wait of a test.
+Actions.TEST_SOUND = "FirstAidApplyAlcoholWipes"
 -- Picking: how long (ticks) at rank 1 (rank 2 halves it), and how quiet.
 Actions.PICK_TICKS = 300
 Actions.PICK_NOISE = { 3, 4 }
@@ -121,25 +128,46 @@ function ISOAUseSerum:isValid()
     return self.character:getInventory():contains(self.item)
 end
 
+-- A test kit is a short wait with a swab's sound; a cure serum is a long dose, with a line of the character's at its
+-- start (the same whether or not there is an infection to cure). self.kind is the item's kind (Serums.kind).
 function ISOAUseSerum:start()
     if isClient() and self.item then
         self.item = self.character:getInventory():getItemById(self.item:getID())
     end
     self.item:setJobDelta(0.0)
     self.item:setJobType(getText("ContextMenu_OA_Tree_Inject"))
+    if self.kind == "test" then
+        -- the wait for a result: working at the kit, a swab's sound until it is over
+        self:setActionAnim("Loot")
+        self.character:SetVariable("LootPosition", "Mid")
+        self.character:reportEvent("EventLootItem")
+        self:setOverrideHandModels(nil, nil)
+        self.sound = self.character:playSound(Actions.TEST_SOUND)
+    elseif self.kind == "cure" and self.character:isLocalPlayer() then
+        OA.Say.say(self.character, "CureStart")
+    end
 end
 
 function ISOAUseSerum:update()
     self.item:setJobDelta(self:getJobDelta())
-    self:setActionAnim(CharacterActionAnims.TakePills)
+    if self.kind ~= "test" then self:setActionAnim(CharacterActionAnims.TakePills) end
+end
+
+function ISOAUseSerum:stopSound()
+    if self.sound and self.character:getEmitter():isPlaying(self.sound) then
+        self.character:stopOrTriggerSound(self.sound)
+    end
+    self.sound = nil
 end
 
 function ISOAUseSerum:stop()
+    self:stopSound()
     ISBaseTimedAction.stop(self)
     self.item:setJobDelta(0.0)
 end
 
 function ISOAUseSerum:perform()
+    self:stopSound()
     self.item:setJobDelta(0.0)
     ISBaseTimedAction.perform(self)
 end
@@ -150,12 +178,15 @@ end
 
 function ISOAUseSerum:getDuration()
     if self.character:isTimedActionInstant() then return 1 end
-    return 120
+    if self.kind == "cure" then return Actions.CURE_TICKS end
+    if self.kind == "test" then return Actions.TEST_TICKS end
+    return Actions.USE_TICKS
 end
 
 function ISOAUseSerum:new(character, item)
     local o = ISBaseTimedAction.new(self, character)
     o.item = item
+    o.kind = Serums.kind(item:getType())
     o.oaId = OA.Store.idOf(character)
     o.stopOnWalk = false
     o.stopOnRun = true
