@@ -154,11 +154,18 @@ function ISInventoryPage:onMouseOverButton(button, x, y)
     end
 end
 
--- The game switches an object off as the mouse leaves it or another container is chosen: when it is one of a
--- machine's squares the page lights, everything is set again at the next update.
+-- The game switches an object off as the mouse leaves it or another container is chosen (the mouse leaving one bin
+-- of the chosen machine for another switched that square off). When it is one of a machine's squares the page lights,
+-- it is lit again at once as it was, so that no frame shows it dark (seen in game as a flicker), and everything is
+-- worked out again at the next update (which turns it off if it should be: one frame lit too long, never one dark).
 local stopHighlight = ISInventoryPage.stopHighlightContainer
 function ISInventoryPage:stopHighlightContainer(container)
     stopHighlight(self, container)
     local was = applied[self]
-    if was and was.objects[container] then was.dirty = true end
+    local kind = was and was.objects[container]
+    if kind then
+        local core = getCore()
+        light(self, container, true, kind == "chosen" and core:getObjectHighlitedColor() or core:getWorldItemHighlightColor())
+        was.dirty = true
+    end
 end

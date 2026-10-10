@@ -415,9 +415,11 @@ function OATabDelivery:drawRowTip()
     for _, line in ipairs(tip) do tw = math.max(tw, UI.textWidth(line)) end
     tw = tw + 12
     local th = #tip * fh + 6
-    local x = math.min(list:getX() + list:getMouseX() + 16, self:getWidth() - tw)
-    local y = list:getY() + list:getMouseY() + 16
-    if y + th > self:getHeight() then y = math.max(0, list:getY() + list:getMouseY() - th - 4) end
+    -- the mouse in the tab's own units: the list is the game's, in pixels and scrolled, so its mouse is not
+    local mx, my = self:getMouseX(), self:getMouseY()
+    local x = math.max(0, math.min(mx + 16, self:getWidth() - tw))
+    local y = my + 16
+    if y + th > self:getHeight() then y = math.max(0, my - th - 4) end
     UI.fill(self, x, y, tw, th, p.bg, 0.97)
     UI.frame(self, x, y, tw, th, p.border)
     for i, line in ipairs(tip) do UI.text(self, line, x + 6, y + 3 + (i - 1) * fh, i == 1 and p.dim or p.bright) end

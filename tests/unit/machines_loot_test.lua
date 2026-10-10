@@ -118,14 +118,30 @@ test("the machine under the mouse is lit in the hover colour, and goes dark when
     truthy(a1.lit and a2.lit, "the chosen machine keeps its light")
 end)
 
-test("a square the game switches off is lit again at the next update", function()
+test("a square the game switches off stays lit: no frame shows it dark", function()
     local page, a1, a2 = load()
     page.inventory = { parent = a1 }
     page:updateContainerHighlight()
+    -- as the game does when the mouse leaves the chosen machine's other bin
     page:stopHighlightContainer(a2)
-    truthy(not a2.lit)
+    truthy(a2.lit, "lit again at once, before the world is drawn")
+    eq(a2.colour, CHOSEN)
     page:updateContainerHighlight()
     truthy(a2.lit); eq(a2.colour, CHOSEN)
+end)
+
+test("a hovered machine the game switches off as the mouse leaves goes dark at the next update", function()
+    local page, a1, _, b1 = load()
+    page.inventory = { parent = a1 }
+    page:updateContainerHighlight()
+    local button = { inventory = { parent = b1 } }
+    page:onMouseOverButton(button)
+    page:updateContainerHighlight()
+    truthy(b1.lit)
+    page:onMouseOutButton(button)
+    page:stopHighlightContainer(b1)
+    page:updateContainerHighlight()
+    truthy(not b1.lit, "not left lit")
 end)
 
 test("a collapsed window lights nothing", function()
