@@ -533,8 +533,6 @@
     "IGUI_OA_Trade_Manual_Title": "단말 조립 책자",
     "IGUI_OA_Trade_Manual_LastPage": "마지막 쪽, 연필 글씨",
     "IGUI_OA_Trade_Manual_Number": "채집점 %1",
-    "IGUI_OA_Trade_Map_First": "책자 상자",
-    "IGUI_OA_Trade_Map_Crate": "보급 상자",
     "IGUI_OA_Story_Brief_bunker": "%1에서 이전 채집점이 남긴 용기를 찾아 안의 사본을 가져오십시오. 선택 건입니다.",
     "IGUI_OA_Story_Brief_cells": "%1 감방동의 점호 기록을 가져오십시오.",
     "IGUI_OA_Story_Brief_clinic": "보급 상자로 온 밀봉 시료함을 %1에 두고, 응급 접수 기록철이 나올 때까지 근처에서 기다리십시오.",

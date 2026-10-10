@@ -127,11 +127,7 @@ function ISOAMissionPanel:createChildren()
 end
 
 function ISOAMissionPanel:onMap()
-    local r = record()
-    local info = r and Missions.describe(r) or {}
-    if info.area and ISWorldMap and ISWorldMap.ShowWorldMap then
-        ISWorldMap.ShowWorldMap(character():getPlayerNum(), info.area.x, info.area.y, 16)
-    end
+    OA.StoryMaps.show(character())
 end
 
 function ISOAMissionPanel:onChoose(button)
