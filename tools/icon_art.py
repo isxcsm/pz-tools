@@ -9,6 +9,14 @@ finds media/textures/Item_OA_<ItemName>.png.
     python tools/icon_art.py            writes the icons
     python tools/icon_art.py --preview  also writes tools/icon_preview.png (every icon at 32px and at 4x)
 
+The 32 px icons are the game's (its inventory, its tooltips) and stay 32. The mod's own windows draw icons larger as the
+screen grows (their scale S = floor(screenH / 540 * 4) / 4: a 32 unit icon is 40 px at 720p, 64 at 1080p, 128 at 4K),
+so every icon is also written in HIGH-RES copies from the same picture before it was shrunk:
+    media/textures/OA_ItemHi/OA_<ItemName>_64.png and _128.png
+(no "Item_" prefix: they are not inventory icons). A window takes the smallest copy at least as big as it draws the
+icon (32, 64, 128): the game loads media/textures without mipmaps, so a texture shrunk much more than 2x shimmers.
+Cost: 16 + 64 KiB of VRAM an icon, loaded only when a window first draws it.
+
 The pictures are small solids drawn with the tile engine (tile_engine.py), in the same light and palette as the tiles:
 the machines are their tiles shrunk, the parts are tiered by colour (old: rust brown, normal: steel grey, modern:
 anodised blue), the serums by their tree (scout: blue-teal, load: amber, survival: green, shared: violet).
@@ -34,6 +42,9 @@ import tile_art as A  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEXTURES = os.path.join(HERE, '..', 'OperationAcorn', '42', 'media', 'textures')
 SIZE = 32
+# The high-res copies for the mod's own windows (see the top), in their own folder.
+HIRES = (64, 128)
+HIRES_DIR = os.path.join(TEXTURES, 'OA_ItemHi')
 
 TIERS = {
     'Old': dict(body=(142, 96, 62), dark=(98, 64, 40), light=(176, 128, 86), tag=(176, 120, 60)),
@@ -51,17 +62,47 @@ TREE = {
 # ----------------------------------------------------------------------------------------------------------------
 # From a scene (or an image) to a 32x32 icon: cropped to what is drawn, fitted, with a thin dark outline.
 
-def fit(image, size=SIZE, margin=1):
+def fit(image, size=SIZE, margin=1, source=None):
+    """The 32 px icon. `source`: the same picture larger, for the high-res copies (else `image` itself); it rides on
+    the icon as .oa_source (hires())."""
     box = image.getbbox()
     if not box:
-        return Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        icon = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+        icon.oa_source = None
+        return icon
     crop = image.crop(box)
     inner = size - 2 * margin - 2   # room left for the outline
     scale = inner / max(crop.width, crop.height)
     big = crop.resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))), Image.LANCZOS)
     out = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     out.alpha_composite(big, ((size - big.width) // 2, (size - big.height) // 2))
-    return outline(out)
+    icon = outline(out)
+    icon.oa_source = source if source is not None else image
+    return icon
+
+
+def hires(icon, size):
+    """A high-res copy of an icon made by fit(): its source fitted to size x size the same way (the margin and the
+    outline grow with the size, so it reads as the 32 px icon, only sharper). Shrunk with premultiplied alpha, so the
+    edges keep no dark fringe. Second result: the source's longer side, to tell when it had to be enlarged."""
+    source = getattr(icon, 'oa_source', None)
+    if source is None or not source.getbbox():
+        return icon.resize((size, size), Image.LANCZOS), 0
+    k = size // SIZE
+    crop = source.crop(source.getbbox())
+    inner = size - 2 * k - 2 * k
+    scale = inner / max(crop.width, crop.height)
+    big = crop.convert('RGBa').resize((max(1, round(crop.width * scale)), max(1, round(crop.height * scale))),
+                                      Image.LANCZOS).convert('RGBA')
+    out = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    out.alpha_composite(big, ((size - big.width) // 2, (size - big.height) // 2))
+    # the dark outline, k pixels wide (1 at 32), its outer edge kept smooth
+    a = out.getchannel('A')
+    grown = a.filter(ImageFilter.MaxFilter(2 * k + 1))
+    ring = Image.new('RGBA', out.size, (22, 24, 22, 0))
+    ring.putalpha(Image.eval(grown, lambda v: min(215, v * 3)))
+    ring.alpha_composite(out)
+    return ring, max(crop.width, crop.height)
 
 
 def outline(icon):
@@ -76,7 +117,7 @@ def outline(icon):
 def from_scene(scene, glows=None):
     big = scene.render()
     small = big.convert('RGBa').resize((E.W * 2, E.H * 2), Image.LANCZOS).convert('RGBA')
-    return fit(small)
+    return fit(small, source=big)
 
 
 def brighten(image, k=1.18):
@@ -554,7 +595,8 @@ def field_terminal():
     stick(s, centre, rot, size, '+y', noise_texture(30, 20, 3, (96, 102, 92), spread=18), margin=0.02, offset=0.002)
     stick(s, centre, rot, size, '+y', acorn_mark(40, STENCIL), margin=0.14, offset=0.004)
     big = s.render()
-    return fit(brighten(big.convert('RGBa').resize((E.W * 2, E.H * 2), Image.LANCZOS).convert('RGBA'), 1.2))
+    return fit(brighten(big.convert('RGBa').resize((E.W * 2, E.H * 2), Image.LANCZOS).convert('RGBA'), 1.2),
+               source=brighten(big, 1.2))
 
 
 def backpack():
@@ -696,18 +738,32 @@ def read_list():
 def main():
     rows = read_list()
     os.makedirs(TEXTURES, exist_ok=True)
-    wanted = set()
+    os.makedirs(HIRES_DIR, exist_ok=True)
+    wanted, wanted_hi = set(), set()
     made = []
+    enlarged = []
     for name, key in rows:
         icon = PICTURES[key]()
         file = 'Item_OA_%s.png' % name
         icon.save(os.path.join(TEXTURES, file))
         wanted.add(file)
+        for size in HIRES:
+            hi, side = hires(icon, size)
+            hi_file = 'OA_%s_%d.png' % (name, size)
+            hi.save(os.path.join(HIRES_DIR, hi_file))
+            wanted_hi.add(hi_file)
+            if side and side < size - 4 * (size // SIZE):
+                enlarged.append('%s@%d (source %d px)' % (name, size, side))
         made.append((name, icon))
     # icons of names that were renamed away
     for file in os.listdir(TEXTURES):
         if file.startswith('Item_OA_') and file not in wanted:
             os.remove(os.path.join(TEXTURES, file))
+    for file in os.listdir(HIRES_DIR):
+        if file.startswith('OA_') and file not in wanted_hi:
+            os.remove(os.path.join(HIRES_DIR, file))
+    if enlarged:
+        print('enlarged from a smaller source:', ', '.join(enlarged))
     if '--preview' in sys.argv:
         cols = 10
         cell = 32 * 4 + 8
