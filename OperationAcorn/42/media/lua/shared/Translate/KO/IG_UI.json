@@ -1037,6 +1037,7 @@
     "IGUI_OA_Terminal_Shop_PayNote": "결제는 헬기가 도착할 때 합니다.",
     "IGUI_OA_Terminal_Shop_Short": "지금 잔고로는 %1 크레딧 모자랍니다. 도착할 때 이번 편 정산분까지 더해 결제합니다.",
     "IGUI_OA_Terminal_Shop_Line": "%1 ×%2",
+    "IGUI_OA_Item_VehicleClass": "%1 (%2)",
     "IGUI_OA_Terminal_Shop_Desc_cure_serum": "감염을 없앱니다. 지연제를 더 먹을 필요가 없습니다. 받은 때부터 7일 안에 써야 합니다.",
     "IGUI_OA_Terminal_Shop_Desc_reversal": "감염 진행을 처음으로 되돌려 메스꺼움 같은 증상을 없앱니다. 감염은 남습니다.",
     "IGUI_OA_Terminal_Shop_Desc_delay_long": "7일 동안 감염 진행을 멈춥니다. 감염된 채 좀비에게 다치면 약효가 바로 사라집니다.",

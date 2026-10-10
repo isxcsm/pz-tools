@@ -21,6 +21,27 @@ test("credits are written with thousands separators", function()
     eq(Text.credits(12.6), "13", "rounded once")
 end)
 
+test("a car part's name carries its vehicle class; other items keep the game's name", function()
+    local saved = { getItemNameFromFullType, getScriptManager, instanceItem }
+    local made = 0
+    getItemNameFromFullType = function(t) return t == "Base.CarBattery2" and "Car Battery" or "Apple" end
+    getScriptManager = function()
+        return { FindItem = function(_, t)
+            return { getDisplayCategory = function() return t == "Base.CarBattery2" and "VehicleMaintenance" or "Food" end }
+        end }
+    end
+    instanceItem = function()
+        made = made + 1
+        return { getMechanicType = function() return 2 end }
+    end
+    eq(Text.itemName("Base.CarBattery2"), "IGUI_OA_Item_VehicleClass Car Battery IGUI_VehicleType_2")
+    eq(Text.itemName("Base.CarBattery2"), "IGUI_OA_Item_VehicleClass Car Battery IGUI_VehicleType_2")
+    eq(made, 1, "the class is looked up once per type")
+    eq(Text.itemName("Base.Apple"), "Apple")
+    eq(made, 1, "no item is made for other categories")
+    getItemNameFromFullType, getScriptManager, instanceItem = saved[1], saved[2], saved[3]
+end)
+
 test("order reasons are the shop's keys or the helicopter's words", function()
     eq(Text.orderReason("IGUI_OA_Econ_Shop_Limit"), "IGUI_OA_Econ_Shop_Limit")
     eq(Text.orderReason("credits"), "IGUI_OA_Trade_OrderReason_credits")

@@ -354,6 +354,9 @@ test("a car battery's kinds fill the combo box and the pick is ordered", functio
     eq(window.sent[1].command, "tradeCart")
     eq(window.sent[1].args.lines[1].choice, "Base.CarBattery2")
     eq(window.sent[1].args.lines[1].count, 1)
+    -- the cart line is named by the kind picked alone
+    local entry = OA.Shop.entry("car_battery")
+    eq(tab:lineName(entry, { id = "car_battery", choice = "Base.CarBattery2" }), OA.Trade.Text.nameOf("Base.CarBattery2"))
 end)
 
 test("the quantity adds that many, and not beyond the weekly count", function()

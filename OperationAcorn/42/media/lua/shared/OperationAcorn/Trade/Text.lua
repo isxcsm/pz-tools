@@ -18,12 +18,31 @@ function Text.tr(key, ...)
     return getText(key, ...)
 end
 
--- The name of an item type (the game's), for a receipt line.
+-- The vehicle class of a car part (1 standard, 2 heavy-duty, 3 sports), or false. The game names the three alike
+-- (CarBattery1..3 are all "car battery") and tells them apart by this, as its mechanics window does. Only the
+-- vehicle maintenance items are looked at, each once (it takes an item made from the type).
+local classes = {}
+local function vehicleClass(fullType)
+    local class = classes[fullType]
+    if class ~= nil then return class end
+    local ok, t = pcall(function()
+        local script = getScriptManager():FindItem(fullType)
+        if not (script and script:getDisplayCategory() == "VehicleMaintenance") then return 0 end
+        return instanceItem(fullType):getMechanicType()
+    end)
+    class = ok and type(t) == "number" and t > 0 and t or false
+    classes[fullType] = class
+    return class
+end
+
+-- The name of an item type (the game's, with the vehicle class of a car part), for a receipt line.
 function Text.itemName(fullType)
     if not fullType then return "?" end
     local ok, name = pcall(getItemNameFromFullType, fullType)
-    if ok and name and name ~= "" then return name end
-    return tostring(fullType)
+    if not (ok and name and name ~= "") then return tostring(fullType) end
+    local class = vehicleClass(fullType)
+    if class then name = Text.tr("IGUI_OA_Item_VehicleClass", name, Text.tr("IGUI_VehicleType_" .. class)) end
+    return name
 end
 Text.nameOf = Text.itemName
 

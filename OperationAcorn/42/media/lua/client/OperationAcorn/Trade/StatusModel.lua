@@ -580,7 +580,7 @@ function M.waybill(record, flight)
             price = (ok and type(price) == "number") and OA.round(price) * line.count or 0
             orders = orders + price
             local name = Orders.nameOf(entry)
-            if line.choice and entry.choices then name = name .. " - " .. Text.itemName(line.choice) end
+            if line.choice and entry.choices then name = Text.itemName(line.choice) end
             w.recv[#w.recv + 1] = { kind = "item", type = M.entryType(entry, line),
                 name = tr("IGUI_OA_Status_ItemCount", name, line.count), price = credits(price) }
         end

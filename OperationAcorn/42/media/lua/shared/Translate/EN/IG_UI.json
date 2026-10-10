@@ -1037,6 +1037,7 @@
     "IGUI_OA_Terminal_Shop_PayNote": "Payment is taken when the helicopter arrives.",
     "IGUI_OA_Terminal_Shop_Short": "The balance is %1 credits short right now. Payment is taken on arrival, with this flight's settlement added.",
     "IGUI_OA_Terminal_Shop_Line": "%1 ×%2",
+    "IGUI_OA_Item_VehicleClass": "%1 (%2)",
     "IGUI_OA_Terminal_Shop_Desc_cure_serum": "Clears the infection. No more delay drugs are needed. It must be used within 7 days of receiving it.",
     "IGUI_OA_Terminal_Shop_Desc_reversal": "Sets the infection's progress back to the start and ends nausea and the like. The infection stays.",
     "IGUI_OA_Terminal_Shop_Desc_delay_long": "Halts the infection's progress for 7 days. If a zombie hurts you while you are infected, the effect wears off at once.",

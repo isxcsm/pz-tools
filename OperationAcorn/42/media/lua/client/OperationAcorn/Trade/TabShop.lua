@@ -438,10 +438,11 @@ function OATabShop:buildCart(record)
     self.sum = s
 end
 
--- The name of a cart line: the entry's, with the choice and the target.
+-- The name of a cart line: the entry's or the choice's, with the target.
 function OATabShop:lineName(entry, line)
     local name = Orders.nameOf(entry)
-    if line.choice and entry.choices then name = name .. " - " .. Text.nameOf(line.choice) end
+    -- A line with a choice is named by what was chosen (the entry's name says only what it is chosen from).
+    if line.choice and entry.choices then name = Text.nameOf(line.choice) end
     if line.target and line.target ~= "" and entry.kit then
         name = name .. " (" .. OA.Gear.targetName(entry.kit, line.target, self:character()) .. ")"
     end
