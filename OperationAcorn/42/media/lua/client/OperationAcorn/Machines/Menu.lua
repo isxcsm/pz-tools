@@ -127,9 +127,11 @@ local function addMachineOptions(context, playerObj, object)
     local state = Machines.state(object)
     local kind = state.kind
     if Data.hasWindow(kind) then
-        -- a fluid container already has its name over the game's water submenu: the window is opened from in there
+        -- a fluid container already has its name over the game's water submenu: the window is opened from in there, and
+        -- takes the place of the game's container info (the window shows all of it and more)
         local water = fluidSubMenu(context, object)
         if water then
+            water:removeOptionByName(getText("Fluid_Show_Info"))
             local manage = water:addOptionOnTop(getText("ContextMenu_OA_Machine_Manage"), playerObj, onOpen, object)
             tooltip(manage, getText("Tooltip_OA_Machine_" .. kind))
             return

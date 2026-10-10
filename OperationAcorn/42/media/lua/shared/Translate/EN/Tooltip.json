@@ -7,7 +7,7 @@
     "Tooltip_OA_Machine_oilRefiner": "Refines cooking oil, lard and seeds into petrol and fills an empty can. Needs electricity.",
     "Tooltip_OA_Machine_woodSaw": "Saws logs (weight 9) into 6 planks each, 180 weight an hour. Gives no carpentry experience. Needs electricity. Very loud.",
     "Tooltip_OA_Machine_researchStorage": "A large storage locker for the base.",
-    "Tooltip_OA_Machine_rainStorage": "A large open-top water storage. Holds 4000 L and collects rain ten times faster than a rain collector barrel. Place it outdoors with no roof above.",
+    "Tooltip_OA_Machine_rainStorage": "A large open-top water storage. Holds 4000 L and collects about 72 L an hour in heavy rain. Place it outdoors with no roof above.",
     "Tooltip_OA_Machine_lure": "Sounds every 15 minutes for a day, drawing zombies from far away. Once spent it stays, switched off. Taken back while it works, it keeps the time it has left.",
     "Tooltip_OA_Machine_Part_motor": "A machine motor. Better tiers work on more things at once (1, 2, 3), a little faster, and draw more electricity. Wears while the machine runs.",
     "Tooltip_OA_Machine_Part_shredBlade": "A blade for the bulk shredder. Better tiers get more sample bundles from the same load. Wears while it runs.",

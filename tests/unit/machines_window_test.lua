@@ -290,7 +290,7 @@ test("the rain storage: its share on the light, the water and the room, its butt
     eq(m.rain.water, "2,860"); eq(m.rain.capacity, "4,000")
     eq(m.rain.right, "of 4,000 L")
     eq(m.rain.rows[1][2], "1,140 L")
-    eq(m.rain.rows[2][2], "10x a rain collector")
+    eq(m.rain.rows[2][2], "about 72 L an hour in heavy rain", "litres an hour, not a ratio: the game's collectors differ in size")
     eq(m.rain.ticks[1], "1,000"); eq(m.rain.ticks[3], "3,000")
     truthy(m.rain.canEmpty); truthy(m.rain.canTransfer)
     local input = SCENES.rain()

@@ -249,7 +249,7 @@
     "IGUI_OA_Machine_Rain_Collected": "모은 물",
     "IGUI_OA_Machine_Rain_Room": "더 담을 수 있음",
     "IGUI_OA_Machine_Rain_Catch": "비 받는 양",
-    "IGUI_OA_Machine_Rain_CatchValue": "빗물받이 통의 %1배",
+    "IGUI_OA_Machine_Rain_CatchValue": "큰 비에 시간당 약 %1 L",
     "IGUI_OA_Machine_Rain_Transfer": "물 옮기기",
     "IGUI_OA_Machine_Rain_Empty": "비우기",
     "IGUI_OA_Machine_Rain_Note": "치우려면 먼저 비워야 합니다.",

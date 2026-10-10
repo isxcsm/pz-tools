@@ -12,12 +12,14 @@ local Model = {}
 Machines.WindowModel = Model
 
 -- The vanilla numbers the window compares with: a fridge's generator load (IsoGenerator.FridgeFreezerPowerConsumption),
--- a generator's sound radius outdoors (Base.Generator SoundRadius), the noise trap's (vanilla NoiseTrap), and the
--- rain collector crate's rain factor (entity Base.RainCollector).
+-- a generator's sound radius outdoors (Base.Generator SoundRadius) and the noise trap's (vanilla NoiseTrap). And the rain
+-- a fluid container's rain factor of 1 catches in a game hour of the heaviest rain (FluidContainerUpdateSystem: 0.005 L
+-- a game second times the precipitation intensity, 0 to 1, and the factor; half of it in snow). The game's rain
+-- collectors come in more than one size (factors 0.25 and 0.4), so the window gives litres, not a ratio to one of them.
 Model.FRIDGE_LOAD = 0.13
 Model.GENERATOR_NOISE = 20
 Model.NOISE_TRAP = 17
-Model.RAIN_COLLECTOR_FACTOR = 0.4
+Model.RAIN_LITRES_AN_HOUR = 0.005 * 3600
 -- The sandbox's generator fuel an hour for a load of 1 (GeneratorFuelConsumption, in litres: IsoGenerator's
 -- getTotalPowerUsing is the load times it, "L/h").
 Model.FUEL_DEFAULT = 0.1
@@ -360,7 +362,7 @@ local function rainOf(input)
         rows = {
             { text("IGUI_OA_Machine_Rain_Room"), Model.grouped(capacity - water) .. " L" },
             { text("IGUI_OA_Machine_Rain_Catch"),
-                text("IGUI_OA_Machine_Rain_CatchValue", Model.decimal(Data.RAIN_FACTOR / Model.RAIN_COLLECTOR_FACTOR, 1)) },
+                text("IGUI_OA_Machine_Rain_CatchValue", Model.grouped(Data.RAIN_FACTOR * Model.RAIN_LITRES_AN_HOUR)) },
         },
         canEmpty = water > 0.01 and input.canEmpty ~= false,
         canTransfer = input.canTransfer ~= false,

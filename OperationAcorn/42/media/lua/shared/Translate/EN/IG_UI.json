@@ -249,7 +249,7 @@
     "IGUI_OA_Machine_Rain_Collected": "Collected",
     "IGUI_OA_Machine_Rain_Room": "Room left",
     "IGUI_OA_Machine_Rain_Catch": "Rain caught",
-    "IGUI_OA_Machine_Rain_CatchValue": "%1x a rain collector",
+    "IGUI_OA_Machine_Rain_CatchValue": "about %1 L an hour in heavy rain",
     "IGUI_OA_Machine_Rain_Transfer": "Transfer",
     "IGUI_OA_Machine_Rain_Empty": "Empty",
     "IGUI_OA_Machine_Rain_Note": "Empty it before taking it up.",
