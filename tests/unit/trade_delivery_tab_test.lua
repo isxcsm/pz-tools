@@ -130,7 +130,7 @@ test("the header's multiplier and the prices follow the request price upgrade", 
     for _, row in ipairs(tab.data.rows) do prices[row.band] = row.price end
     eq(prices.common, "800")
     if prices.normal then eq(prices.normal, "2,000") end
-    if prices.rare then eq(prices.rare, "5,320") end
+    if prices.rare then eq(prices.rare, "5,330") end
 end)
 
 test("the bar counts what the week settled and shows what the sealed boxes hold lightly", function()

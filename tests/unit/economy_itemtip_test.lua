@@ -33,26 +33,6 @@ local function scripts(map)
     getScriptManager = function() return { FindItem = function(_, t) return map[t] end } end
 end
 
-test("a price is the band's, in tens, with the support's multiplier", function()
-    local price, count = Tip.band(2.5)
-    eq(price, 600)
-    eq(count, 10)
-    price, count = Tip.band(1)
-    eq(price, 600, "a score of 1 is common")
-    price, count = Tip.band(0.99)
-    eq(price, 1500)
-    eq(count, 5)
-    price, count = Tip.band(0.3)
-    eq(price, 1500, "0.3 is the middle band")
-    price, count = Tip.band(0.29)
-    eq(price, 4000)
-    eq(count, 3)
-    eq(Tip.tens(600 * 1.1), 660)
-    eq(Tip.tens(1500 * 1.1), 1650)
-    eq(Tip.tens(4000 * 1.2), 4800)
-    eq(Tip.tens(4000 * 1.33), 5320)
-end)
-
 test("an item on the list has its price, the count a week and what is settled", function()
     world()
     local r = record(0)
@@ -78,10 +58,9 @@ test("the request price level raises the price, and the count settled never pass
     eq(done, 3)
 end)
 
-test("without the world's table or a list there is no request line, and nothing is made or changed", function()
-    local r = record(0)
-    eq(Tip.requestOf(r, "Base.Pencil"), nil, "no table yet")
+test("without a list there is no request line, and nothing is made or changed", function()
     world()
+    local r = record(0)
     r.codex.req = nil
     eq(Tip.requestOf(r, "Base.Pencil"), nil, "no list yet: the server draws it, this does not")
     eq(r.codex.req, nil, "the record is not changed")
@@ -103,7 +82,7 @@ test("the request line says the price, the count settled and the count", functio
     r.trade.levels.reqprice = 3
     r.trade.levelsRev = 1   -- what flight support does with each level
     r.trade.serial = 3
-    eq(Tip.rows(r, "Base.Ring", nil)[1].text, "IGUI_OA_ItemTip_Request 5,320 0 3", "thousands as the terminal writes them")
+    eq(Tip.rows(r, "Base.Ring", nil)[1].text, "IGUI_OA_ItemTip_Request 5,330 0 3", "thousands as the terminal writes them")
 end)
 
 test("a kind the codex has not seen is new, but only a kind the codex counts, and never a bought item", function()

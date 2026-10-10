@@ -317,7 +317,9 @@ function Requests.unitPrice(record, band)
     return math.floor(base * OA.Trust.rewards(record).requestPrice / 10 + 0.5) * 10
 end
 
-local function lineFor(record, fullType, used)
+-- The line of an item on the list, its weekly count read from `used` (the list itself is not looked at, so the
+-- client can call it on its copy without drawing anything).
+function Requests.line(record, fullType, used)
     local band = Requests.band(Requests.scoreOf(fullType))
     local def = Requests.BANDS[band]
     local n = used[fullType] or 0
@@ -331,7 +333,7 @@ function Requests.entry(record, fullType)
     local items = Requests.list(record)
     local _, rq = state(record)
     for _, t in ipairs(items) do
-        if t == fullType then return lineFor(record, fullType, rq.used) end
+        if t == fullType then return Requests.line(record, fullType, rq.used) end
     end
     return nil
 end
@@ -342,7 +344,7 @@ function Requests.entries(record)
     local _, rq = state(record)
     local lines = {}
     for i, t in ipairs(items) do
-        local line = lineFor(record, t, rq.used)
+        local line = Requests.line(record, t, rq.used)
         line.order = i
         lines[#lines + 1] = line
     end

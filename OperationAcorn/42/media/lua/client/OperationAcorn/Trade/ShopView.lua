@@ -12,7 +12,7 @@ OA.Trade.ShopView = ShopView
 -- The serum shelf (DESIGN-terminal 4.1) in its fixed order: the treatments, then the upgrade serums. An id the
 -- catalog does not have (yet) is skipped; any other entry of the serum or consumable group, or that is a serum, is
 -- put after them in the catalog's order.
-ShopView.TREAT_IDS = { "cure_serum", "reversal", "test_kit", "delay_long", "delay_drug" }
+ShopView.TREAT_IDS = { "cure_serum", "reversal", "delay_long", "delay_drug", "test_kit" }
 ShopView.ENHANCE_IDS = { "serum_scout", "serum_load", "serum_survival" }
 
 -- Sizes (DESIGN-terminal 4.1, 4.2, 1.2).

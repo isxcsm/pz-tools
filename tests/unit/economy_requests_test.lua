@@ -237,7 +237,7 @@ test("the request price reward multiplies the price, to ten credits", function()
     local record = OA.Store.ensure("p", "P")
     eq(R.unitPrice(record, "common"), 600); eq(R.unitPrice(record, "normal"), 1500); eq(R.unitPrice(record, "rare"), 4000)
     local want = { { 1, 1.0, 600, 1500, 4000 }, { 2, 1.1, 660, 1650, 4400 }, { 3, 1.2, 720, 1800, 4800 },
-        { 4, 1.33, 800, 2000, 5320 } }
+        { 4, 4 / 3, 800, 2000, 5330 } }
     for _, w in ipairs(want) do
         OA.Support.setLevel(record, "reqprice", w[1] - 1)
         near(OA.Trust.rewards(record).requestPrice, w[2], 1e-9)

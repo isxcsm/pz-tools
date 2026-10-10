@@ -21,7 +21,7 @@ Support.LIST = {
     { id = "rate", group = "trade", base = 0, steps = { { 0.05, 3, 40000 }, { 0.10, 5, 90000 }, { 0.15, 7, 160000 } } },
     { id = "discount", group = "trade", base = 0, steps = { { 0.05, 4, 50000 }, { 0.10, 7, 120000 } } },
     { id = "reqcount", group = "trade", base = 6, steps = { { 8, 2, 20000 }, { 10, 5, 50000 }, { 12, 7, 90000 } } },
-    { id = "reqprice", group = "trade", base = 1.0, steps = { { 1.1, 3, 30000 }, { 1.2, 5, 60000 }, { 1.33, 7, 100000 } } },
+    { id = "reqprice", group = "trade", base = 1.0, steps = { { 1.1, 3, 30000 }, { 1.2, 5, 60000 }, { 4 / 3, 7, 100000 } } },
     { id = "softer", group = "trade", base = false, steps = { { true, 4, 60000 } } },
     { id = "forecast", group = "trade", base = false, steps = { { true, 3, 25000 } } },
 }

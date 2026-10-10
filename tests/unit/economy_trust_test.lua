@@ -162,7 +162,7 @@ test("rewards by stage with the levels trust alone used to give: box, calls, arr
     near(at(2, 0).requestPrice, 1.0)
     near(at(3, 0).requestPrice, 1.1)
     near(at(5, 0).requestPrice, 1.2)
-    near(at(5, 2).requestPrice, 1.33)
+    near(at(5, 2).requestPrice, 4 / 3)
     eq(at(4, 0).softerSupply, true)
     eq(at(3, 0).marketForecast, true)
     eq(at(2, 0).marketForecast, false)

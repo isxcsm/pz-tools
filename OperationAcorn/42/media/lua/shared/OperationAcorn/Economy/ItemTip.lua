@@ -5,51 +5,20 @@
 -- the list's length stay the same, and a frame only looks tables up. The record is read as it is, never changed: the list
 -- of the week is drawn by the server (Requests.list on the client's copy would draw it again).
 --
--- The numbers of a request line are the delivery tab's (5.1): the price of the rarity band times the flight support's
--- request price, in tens, and the count the band takes a week.
+-- The numbers of a request line are the delivery tab's (5.1, Requests.line).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
-require "OperationAcorn/Economy/Trust"
+require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Economy/Value"
 require "OperationAcorn/Trade/Text"
 local OA = OperationAcorn
 local ItemTip = {}
 OA.ItemTip = ItemTip
 
--- The rarity bands: { the smallest commonness score, price of one, count a week } (score as Requests.eligible reads it).
-ItemTip.BANDS = { { 1, 600, 10 }, { 0.3, 1500, 5 }, { 0, 4000, 3 } }
-
 -- The colours of the lines (the amber is paler than the ledger's outline, and the mission's is the mission's).
 ItemTip.REQUEST_COLOR = { 1.0, 0.82, 0.35 }
 ItemTip.NEW_COLOR = { 0.55, 0.95, 0.60 }
-
--- The band of a commonness score: price and count.
-function ItemTip.band(score)
-    for _, b in ipairs(ItemTip.BANDS) do
-        if score >= b[1] then return b[2], b[3] end
-    end
-    local last = ItemTip.BANDS[#ItemTip.BANDS]
-    return last[2], last[3]
-end
-
--- A price in tens.
-function ItemTip.tens(x)
-    return math.floor(x / 10 + 0.5) * 10
-end
-
--- Commonness scores of the request candidates: { [item type] = score }, made again when the world's table is.
-local scores, scoresOf, scoresN = {}, nil, nil
-local function scoreOf(fullType)
-    local world = OA.Store.root().world
-    local data = world and world.requests
-    if not data or not data.types then return nil end
-    if data ~= scoresOf or data.n ~= scoresN then
-        scores, scoresOf, scoresN = {}, data, data.n
-        for i = 1, #data.types do scores[data.types[i]] = data.score[i] end
-    end
-    return scores[fullType]
-end
 
 -- The request of this week for an item type: price, count a week, count settled; nil when it is not on the list.
 function ItemTip.requestOf(record, fullType)
@@ -61,12 +30,8 @@ function ItemTip.requestOf(record, fullType)
         if rq.items[i] == fullType then listed = true break end
     end
     if not listed then return nil end
-    local score = scoreOf(fullType)
-    if not score then return nil end
-    local price, count = ItemTip.band(score)
-    price = ItemTip.tens(price * OA.Trust.rewards(record).requestPrice)
-    local done = rq.used and rq.used[fullType] or 0
-    return price, count, math.min(done, count)
+    local line = OA.Requests.line(record, fullType, rq.used or {})
+    return line.price, line.qty, math.min(line.used, line.qty)
 end
 
 -- The line of a request: { text, color } or nil.

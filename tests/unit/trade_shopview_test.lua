@@ -47,7 +47,7 @@ test("the shelf holds the serum, consumable and serum-special entries in the fix
         entry("serum_load", "serum", { special = "serum" }),
     }
     blocks = V.shelf(full)
-    eq(ids(blocks[1].entries), "cure_serum,reversal,test_kit,delay_long,delay_drug")
+    eq(ids(blocks[1].entries), "cure_serum,reversal,delay_long,delay_drug,test_kit")
     eq(ids(blocks[2].entries), "serum_scout,serum_load,serum_survival")
     eq(V.shelfCount(blocks), 8)
 end)

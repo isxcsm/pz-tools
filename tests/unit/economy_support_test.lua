@@ -49,7 +49,7 @@ test("the steps of the tables: value, the tier that opens it, the price", functi
     near(s.value, 0.10); eq(s.tier, 7); eq(s.price, 120000)
     s = Sup.step("reqcount", 3)
     eq(s.value, 12); eq(s.tier, 7); eq(s.price, 90000)
-    near(Sup.step("reqprice", 3).value, 1.33)
+    near(Sup.step("reqprice", 3).value, 4 / 3)
     eq(Sup.step("softer", 1).tier, 4); eq(Sup.step("forecast", 1).price, 25000)
 end)
 
