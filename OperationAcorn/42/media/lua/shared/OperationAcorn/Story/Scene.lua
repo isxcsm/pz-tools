@@ -251,10 +251,37 @@ function Scene.guardOutfit(placeId, int)
     return g[1], g[2]
 end
 
--- How many keep the building: two or three, one more from the fourth level.
-function Scene.guardCount(level, int)
+-- How many keep the building by the mission's level (1 to 5; past 5, KEEPERS_ON more a level up to KEEPERS_MOST),
+-- give or take two, times the sandbox's zombie population (none in a world without zombies). Those already in the
+-- building count among them (SceneGame.spawnGuards).
+Scene.KEEPERS = { 10, 15, 20, 26, 32 }
+Scene.KEEPERS_ON, Scene.KEEPERS_MOST = 3, 40
+-- One keeper in KEEPERS_STILL lies or sits (fake dead, getting up as the player comes; or sitting against something):
+-- those stay in the building when noise draws the others out.
+Scene.KEEPERS_STILL = 3
+
+local function population()
+    local zc = SandboxVars and SandboxVars.ZombieConfig
+    local mult = zc and tonumber(zc.PopulationMultiplier) or 1
+    return OA.clamp(mult, 0, 4)
+end
+
+function Scene.guardCount(level, int, mult)
     int = int or OA.random
-    return int(2, 3) + ((level or 1) >= 4 and 1 or 0)
+    level = math.max(1, level or 1)
+    local n = Scene.KEEPERS[math.min(level, #Scene.KEEPERS)]
+    if level > #Scene.KEEPERS then
+        n = math.min(Scene.KEEPERS_MOST, n + (level - #Scene.KEEPERS) * Scene.KEEPERS_ON)
+    end
+    n = (n + int(-2, 2)) * (mult or population())
+    return math.floor(n + 0.5)
+end
+
+-- How one keeper is found: nil (standing), "fakeDead" or "sitting".
+function Scene.guardLook(int)
+    int = int or OA.random
+    if int(1, Scene.KEEPERS_STILL) ~= 1 then return nil end
+    return int(1, 2) == 1 and "fakeDead" or "sitting"
 end
 
 -- Night by the game's dawn and dusk hours.
@@ -281,7 +308,7 @@ function Scene.plan(record, m, days, int)
         local guards = {}
         for i = 1, Scene.guardCount(m.level, int) do
             local outfit, female = Scene.guardOutfit(m.place, int)
-            guards[i] = { outfit = outfit or false, female = female or false }
+            guards[i] = { outfit = outfit or false, female = female or false, look = Scene.guardLook(int) or false }
         end
         sc.guards = guards
         if Scene.survivorRoll(Scene.section(record), int) then

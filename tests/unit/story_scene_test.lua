@@ -116,11 +116,18 @@ test("the keepers wear what fits the place, or the game's own outfit at a regula
     eq(Scene.guardOutfit(nil), nil)
     eq(Scene.guardOutfit("marchridge_shed"), nil, "a shed: the game's own")
     for _ = 1, 30 do
-        local n = Scene.guardCount(1)
-        truthy(n >= 2 and n <= 3)
-        n = Scene.guardCount(4)
-        truthy(n >= 3 and n <= 4)
+        local n = Scene.guardCount(1, nil, 1)
+        truthy(n >= 8 and n <= 12)
+        n = Scene.guardCount(5, nil, 1)
+        truthy(n >= 30 and n <= 34)
+        n = Scene.guardCount(9, nil, 1)
+        truthy(n >= 38 and n <= 42, "past 5 up to KEEPERS_MOST")
     end
+    eq(Scene.guardCount(3, seq({ 0 }), 0.5), 10, "half the population, half the keepers")
+    eq(Scene.guardCount(3, seq({ 0 }), 0), 0, "a world without zombies has none")
+    eq(Scene.guardLook(seq({ 2 })), nil)
+    eq(Scene.guardLook(seq({ 1, 1 })), "fakeDead")
+    eq(Scene.guardLook(seq({ 1, 2 })), "sitting")
     -- every place a story mission can use has its kind, and its kind has things to leave
     for id in pairs(OA.StoryData.PLACES) do
         local kind = Scene.placeKind(id)

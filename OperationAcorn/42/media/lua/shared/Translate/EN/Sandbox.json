@@ -50,5 +50,5 @@
     "Sandbox_OperationAcorn_MeteorSites": "Meteor drop sites",
     "Sandbox_OperationAcorn_MeteorSites_tooltip": "Multiplies the number of meteor drop sites. At 1 there are 24.",
     "Sandbox_OperationAcorn_MissionGuards": "Mission site keepers",
-    "Sandbox_OperationAcorn_MissionGuards_tooltip": "When you first come near a mission's building, 2 to 4 more zombies are inside it, dressed for the place, such as police at a police station. Default: on."
+    "Sandbox_OperationAcorn_MissionGuards_tooltip": "When you first come near a mission's building, it is filled with zombies up to a number set by the mission's level (about 10 at the first, about 30 at the fifth, scaled by the zombie population), dressed for the place, such as police at a police station. Some lie or sit and stay inside. Default: on."
 }

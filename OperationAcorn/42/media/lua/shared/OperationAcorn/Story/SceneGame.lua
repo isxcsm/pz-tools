@@ -95,12 +95,27 @@ local function spawn(sq, outfit, female, crawler, fakeDead, sitting)
     return nil
 end
 
--- The keepers: the first in the piece's room when it can be, the rest about the building.
+-- The zombies already in a building (once, as the scene is made).
+local function zombiesIn(building)
+    local list = getCell():getZombieList()
+    local n = 0
+    for i = 0, list:size() - 1 do
+        local sq = list:get(i):getCurrentSquare()
+        if sq and sq:getBuilding() == building then n = n + 1 end
+    end
+    return n
+end
+
+-- The keepers, less those already in the building: the first in the piece's room when it can be, the rest spread
+-- over the building's rooms on the piece's floor.
 function SceneGame.spawnGuards(it, guards, px, py, near)
-    local squares = freeSquares(it, 16, px, py, near)
     local home = getCell():getGridSquare(it.at.x, it.at.y, it.at.z)
-    local room = home and home:getRoom()
-    for i, g in ipairs(guards) do
+    local building = home and home:getBuilding()
+    if not building then return end
+    local squares = freeSquares(it, 200, px, py, near)
+    local room = home:getRoom()
+    for i = 1, #guards - zombiesIn(building) do
+        local g = guards[i]
         local sq
         if i == 1 and room then
             for k, e in ipairs(squares) do
@@ -112,7 +127,7 @@ function SceneGame.spawnGuards(it, guards, px, py, near)
         end
         sq = sq or takeRandom(squares)
         if not sq then return end
-        spawn(sq, g.outfit, g.female)
+        spawn(sq, g.outfit, g.female, false, g.look == "fakeDead", g.look == "sitting")
     end
 end
 
