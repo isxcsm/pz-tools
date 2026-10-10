@@ -1,5 +1,5 @@
--- What the player sees of a mission and of the crates on the map and in the world: colours, the markers of a map, the
--- dots, the zoom that fits the player and the circle, and the pieces to light.
+-- What the player sees of a mission and of the crates on the map and in the world: colours, what the maps show, the
+-- zoom that fits the player and the circle, and the pieces to light.
 require "OperationAcorn/Core"
 require "OperationAcorn/Story/View"
 local OA = OperationAcorn
@@ -42,36 +42,6 @@ test("a mission has a circle, a swap mission a dimmer second one, a sealed missi
     eq(list[2].r, 70)
 end)
 
-test("ten dots go from the player to the circle's edge, evenly, the last short of it", function()
-    local dots = View.dots(0, 0, { x = 1200, y = 0, r = 100 })
-    eq(#dots, 10)
-    local step = dots[2].x - dots[1].x
-    for i = 1, 10 do
-        eq(dots[i].y, 0)
-        truthy(dots[i].x > 0 and dots[i].x < 1100, "between the player and the edge")
-        if i > 1 then near(dots[i].x - dots[i - 1].x, step, 1, "even steps") end
-        eq(dots[i].r, 7, "0.6% of 1200")
-    end
-    truthy(1200 - dots[10].x > 100, "the last dot is outside the circle")
-    truthy(dots[1].x < step * 1.1, "the first is one step from the player")
-end)
-
-test("a dot's radius follows the distance, and no dot is under one square", function()
-    eq(View.dots(0, 0, { x = 6400, y = 0, r = 100 })[1].r, 38)
-    eq(View.dots(0, 0, { x = 130, y = 0, r = 100 })[1].r, 1)
-end)
-
-test("no dots inside the circle, and none without one", function()
-    eq(#View.dots(1010, 2000, { x = 1000, y = 2000, r = 60 }), 0)
-    eq(#View.dots(0, 0, nil), 0)
-end)
-
-test("dots lie on the line to a circle in any direction", function()
-    local dots = View.dots(100, 100, { x = 100, y = -900, r = 50 })
-    for _, d in ipairs(dots) do eq(d.x, 100) end
-    truthy(dots[1].y < 100 and dots[10].y > -850)
-end)
-
 test("the crates are the helicopter's marks that are left", function()
     eq(#View.crates(nil), 0)
     eq(#View.crates({ heli = {} }), 0)
@@ -82,52 +52,51 @@ test("the crates are the helicopter's marks that are left", function()
     eq(list[2].x, 30)
 end)
 
-test("the world map gets the circle, the dots and the crates; the minimap the circle only", function()
+test("the maps show the circle, the way's end and the crates, from the middles of their squares", function()
     local record = { missions = { active = mission() }, heli = { markers = { { kind = "crate", x = 7, y = 8, z = 0 } } } }
-    local world = View.markers(record, 0, 0, true)
-    local counts = { circle = 0, dot = 0, crate = 0 }
-    for _, k in ipairs(world) do counts[k.kind] = counts[k.kind] + 1 end
-    eq(counts.circle, 1)
-    eq(counts.dot, 10)
-    eq(counts.crate, 1)
-    local mini = View.markers(record, 0, 0, false)
-    eq(#mini, 1)
-    eq(mini[1].kind, "circle")
-    eq(mini[1].color, View.TEAL)
-    eq(mini[1].minPx, View.CIRCLE_MIN_PX)
-    eq(world[2].minPx, View.DOT_MIN_PX, "a dot stays small: the game's own smallest is 64 px")
+    local scene = View.scene(record)
+    eq(#scene.circles, 1)
+    local c = scene.circles[1]
+    eq(c.x, 1000.5)
+    eq(c.y, 2000.5)
+    eq(c.r, 60)
+    eq(c.dim, false)
+    eq(c.color, View.MAP_TEAL)
+    eq(scene.lead, c, "the way leads to it")
+    eq(#scene.crates, 1)
+    eq(scene.crates[1].x, 7.5)
+    eq(scene.crates[1].y, 8.5)
+    eq(scene.empty, false)
 end)
 
-test("the circle's colour follows the mission and the crates keep their own", function()
-    local story = mission("story")
-    local record = { missions = { active = story }, heli = { markers = { { kind = "crate", x = 7, y = 8, z = 0 } } } }
-    local list = View.markers(record, 0, 0, true)
-    eq(list[1].color, View.SKY)
-    eq(list[#list].color, View.CRATE)
-    eq(list[#list].kind, "crate")
+test("on the maps the colours are deeper than in the world, the kinds told apart as there", function()
+    eq(View.mapColor("story"), View.MAP_SKY)
+    for _, kind in ipairs({ "regular", "contract", "special", "anything" }) do
+        eq(View.mapColor(kind), View.MAP_TEAL, kind)
+    end
+    truthy(View.MAP_TEAL[1] < View.TEAL[1] and View.MAP_SKY[1] < View.SKY[1], "more saturated")
+    truthy(View.MAP_TEAL[2] > View.MAP_TEAL[3] and View.MAP_SKY[3] > View.MAP_SKY[2], "the same hues")
+    local scene = View.scene({ missions = { active = mission("story") }, heli = { markers = { { x = 7, y = 8 } } } })
+    eq(scene.circles[1].color, View.MAP_SKY)
 end)
 
-test("a record with nothing to show has no markers", function()
-    eq(#View.markers({}, 5, 5, true), 0)
-    eq(#View.markers(nil, 5, 5, false), 0)
+test("a record with nothing to show is empty: the maps draw nothing", function()
+    eq(View.scene({}).empty, true)
+    eq(View.scene(nil).empty, true)
+    eq(View.scene({ missions = { active = mission("regular", "offer") } }).empty, true)
+    eq(View.scene({ missions = { active = mission("regular", "sealed") } }).empty, true)
+    local crates = View.scene({ heli = { markers = { { kind = "crate", x = 1, y = 2 } } } })
+    eq(crates.empty, false, "crates alone are shown")
+    eq(crates.lead, nil)
 end)
 
-test("the second circle is dimmer", function()
+test("the second circle is dim and the way never leads to it", function()
     local m = mission()
     m.area2 = { x = 5, y = 6, r = 70 }
-    local list = View.markers({ missions = { active = m } }, nil, nil, false)
-    eq(#list, 2)
-    truthy(list[2].alpha < list[1].alpha)
-end)
-
-test("the signature is the same for the same markers and differs when one changes", function()
-    local record = { missions = { active = mission() } }
-    local a = View.signature(View.markers(record, 0, 0, true))
-    eq(View.signature(View.markers(record, 0, 0, true)), a)
-    truthy(View.signature(View.markers(record, 50, 0, true)) ~= a, "the player moved: the dots moved")
-    record.heli = { markers = { { kind = "crate", x = 1, y = 2, z = 0 } } }
-    truthy(View.signature(View.markers(record, 0, 0, true)) ~= a, "a crate")
-    eq(View.signature({}), "")
+    local scene = View.scene({ missions = { active = m } })
+    eq(#scene.circles, 2)
+    eq(scene.circles[2].dim, true)
+    eq(scene.lead, scene.circles[1])
 end)
 
 -- The zoom: the game's scale in pixels a square is 2^zoom * height / EARTH.
@@ -229,25 +198,17 @@ test("the special request running is shown with the main mission, once it is tak
     eq(#View.shownList(nil), 0)
 end)
 
-test("both circles are drawn in teal and the dots lead to the main mission's", function()
+test("both missions' circles are shown and the way leads to the main mission's", function()
     local main, sp = mission(), special()
-    local record = { missions = { active = main, special = { mission = sp } } }
-    local world = View.markers(record, 0, 0, true)
-    local circles, dots = {}, {}
-    for _, k in ipairs(world) do
-        if k.kind == "circle" then circles[#circles + 1] = k elseif k.kind == "dot" then dots[#dots + 1] = k end
-    end
-    eq(#circles, 2)
-    eq(circles[1].x, 1000)
-    eq(circles[2].x, 3000)
-    eq(circles[2].color, View.TEAL)
-    eq(#dots, 10)
-    truthy(dots[10].x < 1000 and dots[10].y < 2000, "towards the first circle")
-    eq(#View.markers(record, 0, 0, false), 2, "the minimap has the two circles")
-    local alone = View.markers({ missions = { special = { mission = sp } } }, 0, 0, true)
-    local first
-    for _, k in ipairs(alone) do if k.kind == "dot" then first = k end end
-    truthy(first and first.x > 1000, "no main mission: the dots lead to the request's")
+    local scene = View.scene({ missions = { active = main, special = { mission = sp } } })
+    eq(#scene.circles, 2)
+    eq(scene.circles[1].x, 1000.5)
+    eq(scene.circles[2].x, 3000.5)
+    eq(scene.circles[2].color, View.MAP_TEAL)
+    eq(scene.circles[2].dim, false, "the request's circle is its own, with its pin")
+    eq(scene.lead, scene.circles[1])
+    local alone = View.scene({ missions = { special = { mission = sp } } })
+    eq(alone.lead.x, 3000.5, "no main mission: the way leads to the request's")
 end)
 
 test("an item belongs to the main mission or the special request by its OA_Mission, and to no other", function()
