@@ -178,3 +178,31 @@ test("the switch-off: the content falls to a line, the line shrinks to a dot and
         last = kk
     end
 end)
+
+test("what the console shows changes exactly when its drawing does: a line, its end, the cursor's blink", function()
+    local run = Seq.new(false, false)
+    run.start = 0
+    local last, lastSig, changes = nil, nil, 0
+    for e = 0, run.consoleEnd - 1, 5 do
+        local phase, shown = Seq.state(run, e)
+        eq(phase, "console")
+        local sig = tostring(shown)
+        if shown > 0 then
+            if e >= Seq.statusAt(run, shown) then sig = sig .. ":ended"
+            else sig = sig .. ":" .. tostring(Seq.cursorOn(e - Seq.appearAt(run, shown))) end
+        end
+        local look = Seq.look(run, phase, shown, e)
+        eq(look ~= last, sig ~= lastSig, "at " .. e .. " ms")
+        if look ~= last then changes = changes + 1 end
+        last, lastSig = look, sig
+    end
+    truthy(changes > 8 and changes < 40, "a few dozen changes, not one a frame")
+    local phase, shown, _, e = Seq.state(run, run.consoleEnd + 10)
+    eq(phase, "collapse")
+    eq(Seq.look(run, phase, shown, e), e, "the switch-off moves every frame")
+    truthy(e > last)
+    local crude = Seq.new(false, true)
+    crude.start = 0
+    phase, shown, _, e = Seq.state(crude, 1234)
+    eq(Seq.look(crude, phase, shown, e), 1234, "the crude console flickers: every frame")
+end)

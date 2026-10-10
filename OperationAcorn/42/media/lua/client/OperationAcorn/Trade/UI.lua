@@ -912,4 +912,61 @@ function UI.menu(character)
     return ISContextMenu.get(character:getPlayerNum(), x, y)
 end
 
+-- Drawing that follows the clock ----------------------------------------------------------------------------------
+-- PZ Optimization's retained UI (on in its default profile) replays an element's last drawing while nothing it watches
+-- has changed: input, the mouse over it, its size or place, a write to its Lua table made before it draws. Once a
+-- drawing has held still for a quarter second it is drawn afresh only now and then, up to a second apart, so a drawing
+-- that changes by the clock after a pause (a cursor's blink, a line printed on time, a stage of a sequence) would show
+-- up to a second late. Such an element registers here with `frame(el, now)`: it does what the element needs every frame
+-- and gives a value that changes exactly when the element's drawing does, nil once it no longer moves by itself. Every
+-- frame, before the UI draws, a changed value is written to the element (liveLook) and a count to each element it is
+-- in (a window held still is replayed with all it holds). An element no longer on show is let go. The handler stays on
+-- once used: taking it off from inside the event would make the game skip the next handler of that frame, and with
+-- nothing registered it returns at once.
+local live, liveHooked, liveCount = {}, false, 0
+
+-- Whether the element and every element it is in are on show.
+local function onShow(el)
+    while el do
+        if not el:isVisible() then return false end
+        el = el.parent
+    end
+    return true
+end
+
+local function liveFrame()
+    if live[1] == nil then return end
+    local now = getTimestampMs()
+    for i = #live, 1, -1 do
+        local entry = live[i]
+        local el = entry.el
+        local look = onShow(el) and entry.frame(el, now) or nil
+        if look ~= el.liveLook then
+            el.liveLook = look
+            liveCount = liveCount + 1
+            local parent = el.parent
+            while parent do
+                parent.liveCount = liveCount
+                parent = parent.parent
+            end
+        end
+        if look == nil then table.remove(live, i) end
+    end
+end
+UI.liveFrame = liveFrame
+
+function UI.live(el, frame)
+    for _, entry in ipairs(live) do
+        if entry.el == el then
+            entry.frame = frame
+            return
+        end
+    end
+    if not liveHooked then
+        Events.OnPreUIDraw.Add(liveFrame)
+        liveHooked = true
+    end
+    live[#live + 1] = { el = el, frame = frame }
+end
+
 return UI

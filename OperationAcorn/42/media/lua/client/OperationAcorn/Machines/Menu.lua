@@ -105,7 +105,8 @@ end
 
 -- A machine with a window is one option, its name, that opens the window: switching it and the rest are there. What is
 -- done to it by hand (a lure's taking back) is an option of its own under it. A machine without a window keeps its
--- name with the things done to it in a submenu.
+-- name with the things done to it in a submenu, and none at all when nothing is done to it by hand (the research
+-- storage: a container, opened from the inventory).
 local function addMachineOptions(context, playerObj, object)
     local state = Machines.state(object)
     local kind = state.kind
@@ -116,6 +117,7 @@ local function addMachineOptions(context, playerObj, object)
         tooltip(open, getText("Tooltip_OA_Machine_" .. kind))
         return
     end
+    if not Data.KINDS[kind].hand and kind ~= "lure" then return end
     local option = context:addOptionOnTop(Machines.name(kind), nil, nil)
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(option, sub)

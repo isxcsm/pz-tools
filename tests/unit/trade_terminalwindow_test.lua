@@ -177,9 +177,13 @@ end)
 test("the window keeps the console up, takes it off when the fade starts, and lets the run go when it is over", function()
     local window, setNow, heard = bootWindow(false, false)
     setNow(1000)
-    window:bootTick()
+    eq(window:bootTick(), 0, "what the window shows: black")
     eq(window.overlay.gone, false, "the first frame starts the run")
     eq(window.bootAlpha, nil)
+    eq(window.overlay.look, 0, "written to the console")
+    setNow(1000 + 600)
+    eq(window:bootTick(), 5, "the first line, its cursor on")
+    eq(window.overlay.look, 5)
     setNow(1000 + 9199)
     window:bootTick()
     eq(window.overlay.gone, false)
@@ -187,7 +191,7 @@ test("the window keeps the console up, takes it off when the fade starts, and le
     window:bootTick()
     eq(window.overlay.gone, false, "still the switch-off")
     setNow(1000 + 9480 + 175)
-    window:bootTick()
+    near(window:bootTick(), 0.5, 1e-9, "then the fade")
     eq(window.overlay.gone, true, "the fade started: the console is off and the tabs are usable")
     eq(window.bootOverlay, nil)
     eq(heard(), 1, "the status tab is told")
@@ -195,7 +199,7 @@ test("the window keeps the console up, takes it off when the fade starts, and le
     window:bootTick()
     eq(heard(), 1, "once")
     setNow(1000 + 9480 + 350)
-    window:bootTick()
+    eq(window:bootTick(), nil, "then nothing")
     eq(window.boot, nil, "over: nothing left to run")
     eq(window.bootAlpha, nil)
     eq(window.keys, false, "and no keys wanted")
@@ -225,3 +229,71 @@ test("a click or a key skips the console and starts the fade at once", function(
     other:bootSkip()
 end)
 
+
+test("the boot runs every frame before the UI draws, and what it shows is written where PZ Optimization sees it", function()
+    local window, setNow = bootWindow(false, false)
+    local added, handler = 0, nil
+    local saved = _G.Events
+    _G.Events = { OnPreUIDraw = { Add = function(fn) added = added + 1; handler = fn end } }
+    local savedBoot = _G.OATerminalBoot
+    local console = { gone = false }
+    for _, k in ipairs({ "initialise", "instantiate", "setAnchorRight", "setAnchorBottom" }) do console[k] = function() end end
+    _G.OATerminalBoot = { new = function() return console end }
+    window.width, window.height = 1000, 700
+    window.titleBarHeight = function() return 20 end
+    window.resizeWidgetHeight = function() return 10 end
+    window.addChild = function(self, child) self.added = child end
+    local shown = true
+    window.isVisible = function() return shown end
+    local screen = { isVisible = function() return true end }
+    window.parent = screen
+    local lines = window.boot.lines
+    window.boot.lines = {}
+    window:startBoot()
+    eq(window.added, nil, "a run without lines has no console")
+    window.boot.lines = lines
+    window:startBoot()
+    eq(window.added, console)
+    local UI = OperationAcorn.Trade.UI
+    eq(UI.liveFrame, handler)
+    truthy(added <= 1, "the handler is added once")
+    setNow(1000)
+    handler()
+    eq(window.liveLook, 0, "the frame ticks the run and writes its look")
+    eq(console.look, 0)
+    local count = screen.liveCount
+    truthy(count, "and a count to what the window is in")
+    setNow(1000 + 300)
+    handler()
+    eq(screen.liveCount, count, "nothing changed on screen: nothing written")
+    setNow(1000 + 600)
+    handler()
+    eq(window.liveLook, 5)
+    truthy(screen.liveCount > count)
+    setNow(1000 + 20000)
+    handler()
+    eq(window.boot, nil, "the run is over")
+    eq(console.gone, true)
+    eq(window.liveLook, nil, "and the window let go")
+    -- a window closed during its boot is let go too
+    local other, set2 = bootWindow(false, false)
+    other.width, other.height = 1000, 700
+    other.titleBarHeight, other.resizeWidgetHeight = window.titleBarHeight, window.resizeWidgetHeight
+    other.addChild = window.addChild
+    local open = true
+    other.isVisible = function() return open end
+    other:startBoot()
+    set2(1000)
+    handler()
+    set2(1600)
+    handler()
+    eq(other.liveLook, 5)
+    open = false
+    handler()
+    eq(other.liveLook, nil)
+    open = true
+    set2(3000)
+    handler()
+    eq(other.liveLook, nil, "not ticked any more")
+    _G.Events, _G.OATerminalBoot = saved, savedBoot
+end)

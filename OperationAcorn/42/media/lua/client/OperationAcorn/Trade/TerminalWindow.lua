@@ -162,7 +162,10 @@ end
 -- The console goes over the strip and the body, from under the title bar to above the resize bar (design units).
 function OATerminalWindow:startBoot()
     local run = self.boot
-    if not run or #run.lines == 0 then return end
+    if not run then return end
+    -- Every frame, before the UI draws (Trade/UI live): the console's steps show on time with PZ Optimization too.
+    UI.live(self, function(window, now) return window.boot and window:bootTick(now) end)
+    if #run.lines == 0 then return end
     local top = UI.dp(self:titleBarHeight())
     local bottom = UI.dp(self:resizeWidgetHeight())
     local overlay = OATerminalBoot:new(0, top, UI.dp(self.width), UI.dp(self.height) - top - bottom, self, run)
@@ -174,28 +177,33 @@ function OATerminalWindow:startBoot()
     self.bootOverlay = overlay
 end
 
--- Each frame while the sequence lasts (from prerender): when the console is over the panel comes off and the status tab
--- hears of it, then the fade-in is the window's own black over the tabs, until it is done and the run is let go.
-function OATerminalWindow:bootTick()
+-- Each frame while the sequence lasts: when the console is over the panel comes off and the status tab hears of it,
+-- then the fade-in is the window's own black over the tabs, until it is done and the run is let go. What the console
+-- shows is written to it (Seq.look); gives what the window shows (the console's look, then the fade), nil when over.
+function OATerminalWindow:bootTick(now)
     local run = self.boot
-    local phase, _, t = Seq.state(run, getTimestampMs())
-    if phase == "fade" or phase == "done" then
-        if not self.consoleDone then
-            self.consoleDone = true
-            if self.bootOverlay then
-                self:removeChild(self.bootOverlay)
-                self.bootOverlay = nil
-            end
-            local status = self.views.status
-            if status and status.consoleOver then status:consoleOver() end
+    local phase, shown, t, e = Seq.state(run, now or getTimestampMs())
+    if phase == "console" or phase == "collapse" then
+        local look = Seq.look(run, phase, shown, e)
+        if self.bootOverlay then self.bootOverlay.look = look end
+        return look
+    end
+    if not self.consoleDone then
+        self.consoleDone = true
+        if self.bootOverlay then
+            self:removeChild(self.bootOverlay)
+            self.bootOverlay = nil
         end
+        local status = self.views.status
+        if status and status.consoleOver then status:consoleOver() end
     end
     if phase == "fade" then
         self.bootAlpha = 1 - t
-    elseif phase == "done" then
-        self.boot, self.bootAlpha = nil, nil
-        self:setWantKeyEvents(false)
+        return self.bootAlpha
     end
+    self.boot, self.bootAlpha = nil, nil
+    self:setWantKeyEvents(false)
+    return nil
 end
 
 -- A click on the console, or a key: the fade-in starts now.
@@ -311,7 +319,6 @@ function OATerminalWindow:refresh()
 end
 
 function OATerminalWindow:prerender()
-    if self.boot then self:bootTick() end
     local p = self.palette
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)

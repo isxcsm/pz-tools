@@ -120,6 +120,17 @@ function Seq.state(run, now)
     return "done", n, 1, e
 end
 
+-- What the console shows at `e` ms in `phase` with `shown` lines, as a number that changes when the drawing does: the
+-- normal console's lines, whether the last one has ended and its cursor's blink; the crude console's flicker and
+-- garbling and the switch-off move every frame, so for them it is the time itself (always above the console's few
+-- states, since the switch-off starts at consoleEnd).
+function Seq.look(run, phase, shown, e)
+    if phase ~= "console" or run.crude then return e end
+    if shown == 0 then return 0 end
+    if e >= Seq.statusAt(run, shown) then return shown * 4 + 2 end
+    return shown * 4 + (Seq.cursorOn(e - Seq.appearAt(run, shown)) and 1 or 0)
+end
+
 -- A click or a key: the fade-in starts now (a run that is already fading or done is left alone).
 function Seq.skip(run, now)
     local phase = Seq.state(run, now)
