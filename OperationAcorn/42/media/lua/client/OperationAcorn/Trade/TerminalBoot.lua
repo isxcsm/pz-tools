@@ -78,7 +78,7 @@ end
 function OATerminalBoot:drawRow(row, i, y, a, age, ended)
     local p = self.window.palette
     local text = row.text
-    if self.run.crude then text = Seq.garble(text, i, age) end
+    if self.run.crude and not row.bright then text = Seq.garble(text, i, age) end
     if row.bright then
         UI.textCentre(self, text, self.bx + self.bw / 2, y, p.bright, UI.titleFont(), a)
         return

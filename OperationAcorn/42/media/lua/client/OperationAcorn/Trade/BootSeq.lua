@@ -17,12 +17,14 @@ OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 
--- The console: a black beat, then each line: its words, the cursor blinking WAIT_MS (the crude terminal's weak signal
--- WEAK_WAIT_MS), what it ends with, GAP_MS to the next line; a beat more before the welcome, and `hold` after it
--- before the switch-off. The long one is the first open of a field terminal. The cursor is on and off BLINK_MS each.
-Seq.SHORT = { black = 400, hold = 1200 }
-Seq.LONG = { black = 500, hold = 1400 }
-Seq.WAIT_MS, Seq.WEAK_WAIT_MS, Seq.GAP_MS, Seq.WELCOME_MS, Seq.BLINK_MS = 700, 1800, 250, 600, 175
+-- The console, paced for the eye: a black beat, then each line: its words and the cursor blinking WAIT_MS (time to read
+-- them and wait; the crude terminal's weak signal WEAK_WAIT_MS), what it ends with, held GAP_MS before the next line
+-- takes the eye away (time to see the result); WELCOME_MS after the last result the welcome, held `hold` before the
+-- switch-off. The long one is the first open of a field terminal. The cursor is on and off BLINK_MS each (a blink, not
+-- a flicker).
+Seq.SHORT = { black = 500, hold = 2500 }
+Seq.LONG = { black = 600, hold = 2500 }
+Seq.WAIT_MS, Seq.WEAK_WAIT_MS, Seq.GAP_MS, Seq.WELCOME_MS, Seq.BLINK_MS = 900, 2400, 600, 800, 280
 -- The switch-off and the fade-in. The tabs are usable as soon as the fade starts.
 Seq.COLLAPSE_MS, Seq.FADE_MS = 280, 350
 -- The share of the switch-off the content takes to become the line (the rest is the line shrinking to a dot).
