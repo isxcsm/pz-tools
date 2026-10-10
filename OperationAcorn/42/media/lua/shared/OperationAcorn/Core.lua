@@ -92,6 +92,33 @@ function OA.vehicles(into)
     return list
 end
 
+-- Searching the inventory or a container (the *Recurse calls, a loop over getItems()) is never done while a right-click
+-- menu is built, every tick or frame, or at every refresh of a screen: a mod that raises the bag capacity lets a player
+-- carry thousands of items, and such a search can freeze the game. The ways out, in this order: act on the item the
+-- player clicked; look once when the player commits to an action (a button, the start of a timed action); or keep
+-- the answer under a cheap signature of the container, below. tools/check_translations.py looks for the searches.
+
+-- A short text that changes when what a container holds changes: how many items lie in it and what they weigh (a bag
+-- weighs what is in it, so a change inside a bag shows too). Both are one call into the game, not a search.
+function OA.signature(container)
+    return tostring(container:getItems():size()) .. "|" .. tostring(container:getContentsWeight())
+end
+
+-- Whether an item is in a character's inventory, at any depth of bags: the item's container and the bag that holds
+-- that container, upward, until the inventory (a few steps; the inventory is not searched).
+function OA.inInventory(item, character)
+    if not item or not character then return false end
+    local inventory = character:getInventory()
+    local container = item:getContainer()
+    for _ = 1, 20 do
+        if not container then return false end
+        if container == inventory then return true end
+        local holder = container:getContainingItem()
+        container = holder and holder:getContainer() or nil
+    end
+    return false
+end
+
 -- Whether a table has no entries. The game's Lua has no next(), so this is a pairs loop that stops at once.
 function OA.isEmpty(t)
     for _ in pairs(t) do return false end

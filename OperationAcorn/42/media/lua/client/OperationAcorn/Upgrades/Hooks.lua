@@ -197,11 +197,18 @@ local function useItem(player, item)
     ISTimedActionQueue.add(ISOAUseSerum:new(player, item))
 end
 
+-- Runs the adders of a list so that the first one ends up the first option of the menu: each puts its option on top, so
+-- they run from the last (the options of this mod go above the game's own).
+local function onTop(adders)
+    for i = #adders, 1, -1 do adders[i]() end
+end
+
 local function onFillInventory(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
     if not player then return end
     local actual = ISInventoryPane.getActualItems(items)
     local done = {}
+    local adders = {}
     for _, item in ipairs(actual) do
         local itemType = item:getType()
         local kind, length = nil, nil
@@ -209,35 +216,55 @@ local function onFillInventory(playerNum, context, items)
         if kind and not done[itemType] then
             done[itemType] = true
             local id = OA.Client.id(player)
-            if kind == "upgrade" or kind == "shared" then
-                context:addOption(getText("ContextMenu_OA_Tree_Inject"), player, useItem, item)
-            elseif kind == "cure" then
-                local option = context:addOption(getText("ContextMenu_OA_Tree_UseCure"), player, useItem, item)
-                local status, left = Serums.cureStatus(item, id)
-                if status == "expired" then
-                    unavailable(option, getText("Tooltip_OA_Tree_CureExpired"))
-                elseif status == "notOwner" then
-                    unavailable(option, getText("Tooltip_OA_Tree_CureNotOwner"))
-                else
-                    tip(option, getText("Tooltip_OA_Tree_CureLeft", Texts.number(left)))
+            adders[#adders + 1] = function()
+                if kind == "upgrade" or kind == "shared" then
+                    context:addOptionOnTop(getText("ContextMenu_OA_Tree_Inject"), player, useItem, item)
+                elseif kind == "cure" then
+                    local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_UseCure"), player, useItem, item)
+                    local status, left = Serums.cureStatus(item, id)
+                    if status == "expired" then
+                        unavailable(option, getText("Tooltip_OA_Tree_CureExpired"))
+                    elseif status == "notOwner" then
+                        unavailable(option, getText("Tooltip_OA_Tree_CureNotOwner"))
+                    else
+                        tip(option, getText("Tooltip_OA_Tree_CureLeft", Texts.number(left)))
+                    end
+                elseif kind == "delay" then
+                    -- never refused for want of an infection: that would tell the player whether they have one
+                    local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_TakeDelay"), player, useItem, item)
+                    tip(option, getText("Tooltip_OA_Tree_DelayInfo", OA.Infection.DRUG_HOURS[length] / 24))
+                elseif kind == "reversal" then
+                    local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_UseReversal"), player, useItem, item)
+                    tip(option, getText("Tooltip_OA_Tree_Item_InfectionReversal"))
+                elseif kind == "test" then
+                    local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_UseTest"), player, useItem, item)
+                    tip(option, getText("Tooltip_OA_Tree_Item_InfectionTestKit"))
                 end
-            elseif kind == "delay" then
-                -- never refused for want of an infection: that would tell the player whether they have one
-                local option = context:addOption(getText("ContextMenu_OA_Tree_TakeDelay"), player, useItem, item)
-                tip(option, getText("Tooltip_OA_Tree_DelayInfo", OA.Infection.DRUG_HOURS[length] / 24))
-            elseif kind == "reversal" then
-                local option = context:addOption(getText("ContextMenu_OA_Tree_UseReversal"), player, useItem, item)
-                tip(option, getText("Tooltip_OA_Tree_Item_InfectionReversal"))
-            elseif kind == "test" then
-                local option = context:addOption(getText("ContextMenu_OA_Tree_UseTest"), player, useItem, item)
-                tip(option, getText("Tooltip_OA_Tree_Item_InfectionTestKit"))
             end
         end
     end
+    onTop(adders)
 end
 Events.OnFillInventoryObjectContextMenu.Add(onFillInventory)
 
+-- What the lock options need in the character's things, by the action: whether it is there and the words that say what
+-- is missing. They are looked for here, when the option is picked, not when the menu is built (that would search the
+-- whole inventory at every right-click on a locked door).
+local NEEDS = {
+    [ISOAPryOpen] = { have = function(player) return Actions.pryBar(player) ~= nil end,
+        missing = "Tooltip_OA_Tree_NeedPryBar" },
+    [ISOAPickLock] = { have = function(player)
+        local clip, driver = Actions.pickTools(player)
+        return clip ~= nil and driver ~= nil
+    end, missing = "Tooltip_OA_Tree_NeedPickTools" },
+}
+
 local function startLock(player, target, class)
+    local needs = NEEDS[class]
+    if needs and not needs.have(player) then
+        HaloTextHelper.addBadText(player, getText(needs.missing))
+        return
+    end
     if instanceof(target, "VehiclePart") then
         ISTimedActionQueue.add(class:new(player, target))
         return
@@ -254,27 +281,24 @@ local function addLockOptions(context, player, target)
     local crowbar, pick = Rules.rank(u, "crowbar"), Rules.rank(u, "lock")
     if crowbar < 1 and pick < 1 then return end
     local reinforced = Actions.isReinforced(target)
-    if crowbar >= 1 then
-        local chance = Texts.percent(Rules.crowbarChance(u) * 100)
-        local option = context:addOption(getText("ContextMenu_OA_Tree_Pry", chance), player, startLock, target, ISOAPryOpen)
-        if reinforced and crowbar < 2 then
-            unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
-        elseif not Actions.pryBar(player) then
-            unavailable(option, getText("Tooltip_OA_Tree_NeedPryBar"))
-        else
-            tip(option, getText("Tooltip_OA_Tree_PryInfo", chance))
-        end
-    end
+    -- pry, then pick: added on top from the last. A missing tool is not greyed out here (that needs a search of the
+    -- inventory); the tooltip names the tools and startLock tells the player when the option is picked without them.
     if pick >= 1 then
         local chance = Texts.percent(Rules.lockChance(u) * 100)
-        local option = context:addOption(getText("ContextMenu_OA_Tree_Pick", chance), player, startLock, target, ISOAPickLock)
-        local clip, driver = Actions.pickTools(player)
+        local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Pick", chance), player, startLock, target, ISOAPickLock)
         if reinforced and pick < 2 then
             unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
-        elseif not clip or not driver then
-            unavailable(option, getText("Tooltip_OA_Tree_NeedPickTools"))
         else
-            tip(option, getText("Tooltip_OA_Tree_PickInfo", chance))
+            tip(option, getText("Tooltip_OA_Tree_PickInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
+        end
+    end
+    if crowbar >= 1 then
+        local chance = Texts.percent(Rules.crowbarChance(u) * 100)
+        local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Pry", chance), player, startLock, target, ISOAPryOpen)
+        if reinforced and crowbar < 2 then
+            unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
+        else
+            tip(option, getText("Tooltip_OA_Tree_PryInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPryBar"))
         end
     end
 end

@@ -127,7 +127,7 @@ function ISOAUseSerum:isValid()
     if isClient() and self.item then
         return self.character:getInventory():containsID(self.item:getID())
     end
-    return self.character:getInventory():contains(self.item)
+    return OA.inInventory(self.item, self.character)
 end
 
 -- A test kit is a short wait with a swab's sound; a cure serum is a long dose, with a line of the character's at its

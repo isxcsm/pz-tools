@@ -93,7 +93,9 @@ function OAMachineWindow:onInstall(button)
         return Machines.canInstall(object, slot, item) and true or nil
     end, 40)
     local context = ISContextMenu.get(self.playerNum, button:getAbsoluteX(), button:getAbsoluteY() + button:getHeight())
+    -- the window's own menu at its button, not one of the game's: the options run down from the top
     if #candidates == 0 then
+        -- oa-menu: bottom
         context:addOption(getText("ContextMenu_OA_Machine_NoPart"), nil, nil)
         return
     end
@@ -101,6 +103,7 @@ function OAMachineWindow:onInstall(button)
         local item = entry.item
         local percent = math.floor(item:getCondition() * 100 / math.max(1, item:getConditionMax()) + 0.5)
         local label = string.format("%s (%d%%)", item:getName(), percent)
+        -- oa-menu: bottom
         local option = context:addOption(label, self, OAMachineWindow.doInstall, slot, item)
         local info = Machines.partOf(item)
         if info then

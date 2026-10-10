@@ -33,7 +33,7 @@ function ISOAPlaceCursor:getSprite()
 end
 
 function ISOAPlaceCursor:isValid(square)
-    if not square or not self.character:getInventory():contains(self.item) then return false end
+    if not square or not OA.inInventory(self.item, self.character) then return false end
     if self.kind == Objects.DELIVERY_BOX then return Objects.clearSquare(square, nil, self.cache) end
     return Objects.free(square)
 end

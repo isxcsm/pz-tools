@@ -67,6 +67,11 @@ local function newContainer(kind, capacity)
         return false
     end
     function c:isEmpty() return #self.items == 0 end
+    function c:getContentsWeight()
+        local w = 0
+        for _, it in ipairs(self.items) do w = w + it:getActualWeight() end
+        return w
+    end
     c.containsRecursive = c.contains
     return c
 end
@@ -1463,4 +1468,83 @@ test("a change of the load key makes the generators near count again", function(
     eq(updated[#updated], square(10, 10, 0))
     IsoGenerator = nil
     cleanup()
+end)
+
+test("the window's progress walks the in-container once for what it holds, not at every ask", function()
+    setup()
+    local obj, state, sq = addMachine("bulkShredder", 10, 10)
+    powered(sq)
+    local inC = Machines.container(obj, "in")
+    fill(inC, "Base.Hammer", 3, {})
+    TEST.hours = 1
+    Machines.update(obj)
+    TEST.hours = 1 + 1 / 60
+    local reads = 0
+    local getItems = inC.getItems
+    inC.getItems = function(self)
+        local l = getItems(self)
+        local get = l.get
+        l.get = function(...) reads = reads + 1 return get(...) end
+        return l
+    end
+    eq(#Machines.progress(obj), 1)
+    local first = reads
+    truthy(first > 0, "the first ask walks")
+    for _ = 1, 10 do Machines.progress(obj) end
+    eq(reads, first, "asked ten times a second by a watched window: no more walks")
+    -- something came in: walked again
+    fill(inC, "Base.Hammer", 1, {})
+    Machines.progress(obj)
+    truthy(reads > first, "the container changed")
+    local second = reads
+    -- ten game minutes on: walked again (an item can become fit to take with time)
+    TEST.hours = TEST.hours + 1 / 6
+    Machines.progress(obj)
+    truthy(reads > second, "ten game minutes passed")
+end)
+
+test("an action's item is held by the object it was made with, and the inventory is searched only when it is not there", function()
+    setup()
+    ISBaseTimedAction = { derive = function() return {} end, new = function() return {} end }
+    local real = require
+    require = function(name)
+        if string.find(name, "^TimedActions/") then return true end
+        return real(name)
+    end
+    local ok, err = pcall(real, "OperationAcorn/Machines/Actions")
+    require = real
+    if not ok then error(err, 0) end
+    local searches = 0
+    local inventory = newContainer("main", 100)
+    function inventory:getItemWithIDRecursiv() searches = searches + 1 return nil end
+    function inventory:getItemById() return nil end
+    function inventory:getContainingItem() return nil end
+    local character = { getInventory = function() return inventory end }
+    local item = newItem("Base.Hammer")
+    inventory:AddItem(item)
+    local action = { character = character, item = item, itemId = item:getID() }
+    eq(Machines.Actions.heldItem(action), item)
+    eq(Machines.Actions.heldItem(action), item)
+    eq(searches, 0, "in the inventory: no search")
+    -- in a bag of the inventory: a walk up from its container
+    local bag = newItem("Base.Bag", { bag = true })
+    inventory:AddItem(bag)
+    bag.inner.getContainingItem = function() return bag end
+    local inner = newItem("Base.Plank")
+    bag.inner:AddItem(inner)
+    action = { character = character, item = inner, itemId = inner:getID() }
+    eq(Machines.Actions.heldItem(action), inner)
+    eq(searches, 0, "in a bag in the inventory: no search")
+    -- gone: searched (once), and nothing kept
+    inventory:Remove(item)
+    eq(Machines.Actions.heldItem({ character = character, item = item, itemId = item:getID() }), nil)
+    eq(searches, 1)
+end)
+
+test("a machine's furniture piece is known by its sprite, the lure's tile is not one", function()
+    setup()
+    eq(Machines.kindOfSprite(Machines.spriteName("cutter", "E", false)), "cutter")
+    eq(Machines.kindOfSprite(Machines.spriteName("oilRefiner", "S", true)), "oilRefiner")
+    eq(Machines.kindOfSprite(Machines.spriteName("lure", "S", true)), nil)
+    eq(Machines.kindOfSprite("furniture_seating_01_0"), nil)
 end)
