@@ -1,5 +1,6 @@
 -- The upgrades' clock wiring (client Upgrades/Hooks): the ten-minute refresh keeps to real time, the minute's
--- infection work does not. The game's UI classes are stand-ins: only the file's top level runs.
+-- infection work does not; the banner, the senses' marks and the moodles' stand-ins are drawn on time with PZ
+-- Optimization's retained UI. The game's UI classes are stand-ins: only the file's top level runs.
 require "OperationAcorn/Core"
 local OA = OperationAcorn
 
@@ -133,4 +134,131 @@ test("the notices of an adaptation and a first effect are said over the head wit
     truthy(said(good[4], "IGUI_OA_Tree_FirstEffectSingle IGUI_OA_Tree_Node_dash_Name 1"), good[4])
     OA.Sync.deliver("notice", "p1", { key = "IGUI_OA_Tree_GuideSent", args = {} })
     truthy(said(good[5], "IGUI_OA_Tree_GuideSent"), good[5])
+end)
+
+-- ---- with PZ Optimization's retained UI (Trade/UI live) ------------------------------------------------------------
+
+-- The game's panel for the elements made after loading: a table that records being taken off and shown. Its class's
+-- own methods are the file's; the stand-in class answers any other name with a function, so only the calls the
+-- elements make are given here.
+local made
+local NOOP = { initialise = true, instantiate = true, addToUIManager = true, backMost = true }
+local function panelStandIn()
+    made = {}
+    ISPanel = { new = function(self, x, y, w, h)
+        local o = setmetatable({ x = x, y = y, width = w, height = h, visible = true }, { __index = function(_, k)
+            local v = rawget(self, k)
+            if v ~= nil then return v end
+            if NOOP[k] then return function() end end
+            return nil
+        end })
+        o.javaObject = { setConsumeMouseEvents = function() end }
+        o.removeFromUIManager = function(el) el.removed = true end
+        o.setVisible = function(el, v) el.visible = v end
+        o.isVisible = function(el) return el.visible end
+        made[#made + 1] = o
+        return o
+    end }
+    UIFont = { Medium = "M", Small = "S" }
+    getTextManager = function()
+        return { getFontHeight = function() return 20 end, MeasureStringX = function(_, _, s) return #s * 8 end }
+    end
+    getPlayerScreenLeft = function() return 0 end
+    getPlayerScreenTop = function() return 0 end
+    getPlayerScreenWidth = function() return 1920 end
+    getPlayerScreenHeight = function() return 1080 end
+end
+
+test("the banner is followed each frame before the UI draws: it holds still, fades on time and goes at its end", function()
+    local Hooks = loadHooks()
+    panelStandIn()
+    local UI = OA.Trade.UI
+    local now = 5000000
+    getTimestampMs = function() return now end
+    Hooks.banner("one<LINE>two")
+    local banner = made[1]
+    UI.liveFrame()
+    eq(banner.liveLook, 0, "holding still")
+    now = now + ISOABanner.LIFETIME - ISOABanner.FADE - 10
+    UI.liveFrame()
+    eq(banner.liveLook, 0, "still: nothing to draw afresh")
+    now = now + 20
+    UI.liveFrame()
+    eq(banner.liveLook, ISOABanner.LIFETIME - ISOABanner.FADE + 10, "the fade starts on time")
+    now = now + 100
+    UI.liveFrame()
+    eq(banner.liveLook, ISOABanner.LIFETIME - ISOABanner.FADE + 110, "and moves each frame")
+    now = banner.born + ISOABanner.LIFETIME
+    UI.liveFrame()
+    eq(banner.removed, true, "taken off at its end, with no frame drawn")
+    eq(banner.liveLook, nil, "and let go")
+    -- one taken over by the next is let go
+    Hooks.banner("a")
+    Hooks.banner("b")
+    local first, second = made[2], made[3]
+    UI.liveFrame()
+    eq(first.removed, true)
+    eq(first.liveLook, nil)
+    eq(second.liveLook, 0)
+end)
+
+test("the senses' marks are drawn every frame while one shows, and held still with none", function()
+    loadHooks()
+    local S = OA.Upgrades.Senses.state
+    local tick = ISOASenseHud.tick
+    eq(tick(nil, 1000), 0, "nothing heard")
+    S.ring = true
+    S.zombies = { { born = 900, untilMs = 3000 } }
+    eq(tick(nil, 1000), 1000, "a cue on show: every frame")
+    eq(tick(nil, 1016), 1016)
+    eq(tick(nil, 3000), 0, "run out (still in the list until the next sound): held still")
+    S.sounds = { { born = 2900, untilMs = 5000 } }
+    eq(tick(nil, 3000), 3000, "a new noise shows at once")
+    S.ring = false
+    eq(tick(nil, 3016), 0, "the sense off: its cues are not drawn")
+    S.alarms = { { x = 1, y = 2, z = 0 } }
+    eq(tick(nil, 3032), 3032, "an alarm's mark follows the camera")
+end)
+
+test("the moodles' stand-ins follow their levels and the mouse, though the element is one pixel", function()
+    loadHooks()
+    panelStandIn()
+    local Moodles = OA.Upgrades.Moodles
+    local UI = OA.Trade.UI
+    getCore = function()
+        return { getOptionMoodleSize = function() return 1 end, getScreenHeight = function() return 1080 end }
+    end
+    UIManager = { getMoodleUI = function()
+        return { getX = function() return 1800 end, getY = function() return 100 end }
+    end }
+    local mx, my = 0, 0
+    getMouseX = function() return mx end
+    getMouseY = function() return my end
+    Moodles.set("sixth", 2)
+    local panel = made[1]
+    truthy(panel and panel.visible, "the stand-ins show")
+    local rev = panel.rev
+    truthy(rev, "a level written to the panel")
+    UI.liveFrame()
+    eq(panel.liveLook, 0, "the mouse over none")
+    -- 32 px moodles, 6 px left of the column at (1800, 100), 4 px apart
+    mx, my = 1770, 110
+    UI.liveFrame()
+    eq(panel.liveLook, 1, "over the first: drawn afresh for its tooltip")
+    eq(panel.hover, 1)
+    Moodles.set("untested", 1)
+    truthy(panel.rev > rev, "another level: written to the panel")
+    my = 140
+    UI.liveFrame()
+    eq(panel.liveLook, 2, "over the second")
+    Moodles.set("sixth", 0)
+    UI.liveFrame()
+    eq(panel.liveLook, 0, "the second moved up: the mouse is over none")
+    Moodles.set("untested", 0)
+    eq(panel.visible, false)
+    UI.liveFrame()
+    eq(panel.liveLook, nil, "none shows: let go")
+    Moodles.set("sixth", 1)
+    UI.liveFrame()
+    eq(panel.liveLook, 0, "shown again: followed again")
 end)

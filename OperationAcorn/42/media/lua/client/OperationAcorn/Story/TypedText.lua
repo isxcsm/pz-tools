@@ -15,12 +15,18 @@
 -- to the furthest point seen before (the whole of it when it was seen to the end) and no further: what the player has
 -- never seen is typed in its time and cannot be skipped. The click is anywhere on the panel (no coordinates are read, so
 -- the font and the scroll do not matter to it).
+-- With PZ Optimization the panel is not drawn while its drawing holds still (the empty page while the title comes in,
+-- `hold`), and a frame drawn late would count as a gap: the typing would start late or wait. So a text on its way is
+-- also followed every frame before the UI draws (Trade/UI live): the same frame work, and its clock as the look, which
+-- holds still while the clock does and moves as the characters come.
 require "OperationAcorn/Trade/RichText"
+require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Story/Typing"
 local OA = OperationAcorn
 local Markup, Typing = OA.Markup, OA.Typing
+local UI = OA.Trade.UI
 
 OATypedText = OARichText:derive("OATypedText")
 
@@ -47,6 +53,7 @@ function OATypedText:paginate()
             self.rowEnds = Typing.rowEnds(self.reveal.src, self.lineY)
             self.rowFirst = Typing.rowFirsts(self.reveal.src, self.lineY)
         end
+        UI.live(self, OATypedText.tick)
     end
 end
 
@@ -125,12 +132,26 @@ function OATypedText:onMouseDown(x, y)
     if self.reveal and run and not run.done then self:hurry(run) end
 end
 
+-- Each frame of a text on its way, before the UI draws: the frame's work (a second call in the same frame adds no
+-- time), and the clock as what the panel shows; nil when it is over or not on its way.
+function OATypedText.tick(el, now)
+    local run = el.run
+    if not (el.reveal and run and not run.done) then return nil end
+    el:advance(run)
+    if run.done then return nil end
+    return run.clock
+end
+
 function OATypedText:render()
     -- The panel lays the text out again in its own render when its size changed; done first, the reveal starts over the
     -- new rows before they are drawn.
     if self.textDirty or self.laidW ~= self.width then self:paginate() end
     local run = self.run
-    if self.reveal and run and not run.done then self:advance(run) end
+    if self.reveal and run and not run.done then
+        self:advance(run)
+        -- followed each frame from now on (again after the panel was let go, not on show)
+        if self.liveLook == nil and not run.done then UI.live(self, OATypedText.tick) end
+    end
     if self.rowFirst and self.reveal and self.cursorColor then self:drawFreshRow(run) end
     OARichText.render(self)
     if self.tipChunk and self.cursorColor then self:drawCursor() end

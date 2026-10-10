@@ -297,3 +297,26 @@ test("the boot runs every frame before the UI draws, and what it shows is writte
     eq(other.liveLook, nil, "not ticked any more")
     _G.Events, _G.OATerminalBoot = saved, savedBoot
 end)
+
+test("the strip draws the window's tabs, dots and blinks: each change of them is written to it, which PZ Optimization watches", function()
+    local marks = {}
+    register(marks)
+    local window = makeWindow({})
+    window.strip = {}
+    window:updateMarks({})
+    eq(window.strip.rev, nil, "no dot, no blink: nothing changed")
+    marks.missions = "new"
+    window:updateMarks({})
+    local rev = window.strip.rev
+    truthy(rev, "a dot that blinks")
+    window:updateMarks({})
+    eq(window.strip.rev, rev, "the same dots: nothing")
+    window:blinkTab("missions")
+    eq(window.strip.rev, rev, "already blinking: nothing")
+    window.views.missions = { setVisible = function() end }
+    window:activate("missions")
+    truthy(window.strip.rev > rev, "the tab on show, its blink gone")
+    rev = window.strip.rev
+    window:activate("missions")
+    eq(window.strip.rev, rev, "the tab already on show: nothing")
+end)

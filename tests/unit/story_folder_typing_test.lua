@@ -71,7 +71,8 @@ local function folder(opts)
         return d
     end }
     OA.Trade = OA.Trade or {}
-    OA.Trade.UI = {}
+    -- (the panel's following each frame, Trade/UI live, is story_typedtext_test's)
+    OA.Trade.UI = { live = function() end }
     getTextManager = function()
         return { getFontHeight = function() return 29 end, MeasureStringX = function(_, _, s) return #tostring(s) * 11 end }
     end
@@ -80,7 +81,7 @@ local function folder(opts)
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "OperationAcorn/Trade/Button"
-            or name == "OperationAcorn/Trade/RichText" then
+            or name == "OperationAcorn/Trade/RichText" or name == "OperationAcorn/Trade/UI" then
             return true
         end
         return real(name)

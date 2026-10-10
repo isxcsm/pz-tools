@@ -53,6 +53,9 @@ end
 
 local function load()
     OARichText = stubPanel()
+    -- the terminal's helpers (Trade/UI: the following each frame) are the real ones, over a stand-in of the game's panel
+    ISPanel = { derive = function() return setmetatable({}, { __index = function() return function() end end }) end }
+    UIFont = UIFont or setmetatable({}, { __index = function(_, k) return k end })
     getTextManager = function()
         -- the folder's Medium font is a taller and wider one than the stub panel's own
         return {
@@ -332,4 +335,65 @@ test("a text that is not typed is the plain panel", function()
     panel:render()
     eq(shown(panel), "one two")
     eq(panel.renders, 1)
+end)
+
+-- With PZ Optimization a panel whose drawing holds still is not drawn (a document's empty page while the title comes
+-- in), and a frame drawn late would count as a gap: the typing is followed each frame before the UI draws instead.
+test("a document on its way is followed each frame before the UI draws: still while it waits, then printed on time with no frame drawn", function()
+    clock()
+    local panel, run = panelFor("ab\ncd", 10)
+    run.step = 0.2
+    panel:paginate()
+    run.hold = 0.35
+    local empty = shown(panel)
+    panel.isVisible = function() return true end
+    local UI = OA.Trade.UI
+    UI.liveFrame()
+    eq(panel.liveLook, 0, "followed from its layout: its clock, still")
+    eq(shown(panel), empty, "nothing printed while the title comes in")
+    ms = ms + 200
+    UI.liveFrame()
+    eq(panel.liveLook, 0, "still waiting: nothing to draw afresh")
+    ms = ms + 200
+    UI.liveFrame()
+    near(panel.liveLook, 0.05, 1e-9, "the wait is over on time: the clock moves")
+    for _ = 1, 4 do
+        ms = ms + 100
+        UI.liveFrame()
+    end
+    truthy(shown(panel) ~= empty, "rows printed")
+    eq(panel.renders, 0, "all of it without a frame drawn")
+    for _ = 1, 10 do
+        ms = ms + 100
+        UI.liveFrame()
+    end
+    eq(run.done, true)
+    eq(panel.finished, 1, "told done once")
+    eq(panel.liveLook, nil, "and let go")
+end)
+
+test("a panel off the screen is let go and the typing waits; drawn again, it is followed again", function()
+    clock()
+    local panel, run = panelFor("abcdef", 10)
+    local on = true
+    panel.isVisible = function() return on end
+    local UI = OA.Trade.UI
+    UI.liveFrame()
+    eq(panel.liveLook, 0)
+    on = false
+    ms = ms + 100
+    UI.liveFrame()
+    eq(panel.liveLook, nil, "not on show: let go")
+    on = true
+    ms = ms + 2000
+    UI.liveFrame()
+    eq(panel.liveLook, nil, "not followed until it draws")
+    panel:render()
+    eq(run.clock, 0, "the time away is a gap: the typing waited")
+    ms = ms + 100
+    UI.liveFrame()
+    near(panel.liveLook, 0.1, 1e-9, "followed again")
+    -- a frame and its drawing in the same moment add the time once
+    panel:render()
+    near(run.clock, 0.1, 1e-9)
 end)

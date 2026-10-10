@@ -20,7 +20,9 @@ require "OperationAcorn/Upgrades/Pulse"
 require "OperationAcorn/Upgrades/Senses"
 require "OperationAcorn/Upgrades/Dash"
 require "OperationAcorn/Upgrades/Carry"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
+local UI = OA.Trade.UI
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules
 local Effects = OA.Upgrades.Effects
@@ -63,7 +65,9 @@ OA.Sync.listen("all", onChanged)
 
 -- ---- notices and the banner ------------------------------------------------------------------------------------
 
--- The banner of a tree opening: a few lines on the top of the screen that fade away.
+-- The banner of a tree opening: a few lines on the top of the screen that fade away. Its frame (Trade/UI live) runs
+-- every frame before the UI draws: with PZ Optimization the fade starts on time after the banner held still, and the
+-- banner goes at the end of its life; the drawing only paints.
 local Banner = ISPanel:derive("ISOABanner")
 ISOABanner = Banner
 local banner = nil
@@ -92,15 +96,23 @@ end
 Banner.LIFETIME = 9000
 Banner.FADE = 2000
 
+-- Each frame: the banner taken off at the end of its life, or when another took its place (nil then); else its age
+-- while it fades, 0 while it holds still.
+function Banner.tick(el, now)
+    if el ~= banner then return nil end
+    local age = now - el.born
+    if age >= Banner.LIFETIME then
+        el:removeFromUIManager()
+        banner = nil
+        return nil
+    end
+    return age > Banner.LIFETIME - Banner.FADE and age or 0
+end
+
 function Banner:render()
     local age = getTimestampMs() - self.born
-    if age >= Banner.LIFETIME then
-        self:removeFromUIManager()
-        if banner == self then banner = nil end
-        return
-    end
     local a = 1
-    if age > Banner.LIFETIME - Banner.FADE then a = (Banner.LIFETIME - age) / Banner.FADE end
+    if age > Banner.LIFETIME - Banner.FADE then a = math.max(0, (Banner.LIFETIME - age) / Banner.FADE) end
     self.backgroundColor.a = 0.85 * a
     self.borderColor.a = 0.9 * a
     local y = self.fh / 2
@@ -120,6 +132,7 @@ function Hooks.banner(text)
     banner:instantiate()
     banner.javaObject:setConsumeMouseEvents(false)
     banner:addToUIManager()
+    UI.live(banner, Banner.tick)
 end
 
 -- A tree opened (its first serum adapted to): a title, with a line under it saying a paper came to the terminal's folder
