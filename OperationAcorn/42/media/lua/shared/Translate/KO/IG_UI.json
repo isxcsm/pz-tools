@@ -437,7 +437,7 @@
     "IGUI_OA_Tree_TabName": "강화",
     "IGUI_OA_Tree_ModeTrees": "강화 트리",
     "IGUI_OA_Tree_OwnLeft": "남은 포인트 %1",
-    "IGUI_OA_Tree_OwnLeftBoard": "남은 포인트 %1 (2차 연구판 몫 +%2)",
+    "IGUI_OA_Tree_BoardShare": "2차 연구판 +%1",
     "IGUI_OA_Tree_BadgeShared": "공용 포인트 %1",
     "IGUI_OA_Tree_BadgeFragments": "운석 파편 %1",
     "IGUI_OA_Tree_BadgePlan": "선택 %1포인트",

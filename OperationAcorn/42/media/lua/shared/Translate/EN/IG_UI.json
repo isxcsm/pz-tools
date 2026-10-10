@@ -437,7 +437,7 @@
     "IGUI_OA_Tree_TabName": "Enhancement",
     "IGUI_OA_Tree_ModeTrees": "Enhancement trees",
     "IGUI_OA_Tree_OwnLeft": "%1 points left",
-    "IGUI_OA_Tree_OwnLeftBoard": "%1 points left (+%2 for the 2nd board)",
+    "IGUI_OA_Tree_BoardShare": "2nd board +%1",
     "IGUI_OA_Tree_BadgeShared": "Shared %1",
     "IGUI_OA_Tree_BadgeFragments": "Meteorite fragments %1",
     "IGUI_OA_Tree_BadgePlan": "Selected %1 pts",

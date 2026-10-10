@@ -1112,9 +1112,17 @@ function View:paintStrip(el, panel)
         UI.frame(el, item.x, item.y, item.w, item.h, tc.light, on and 0.6 or 0.25)
         glyph(el, "Reset", item.x + item.w / 2, item.y + item.h / 2, item.w - 8, tc.light, on and 0.95 or 0.35)
     end
-    -- the bar
+    -- the bar, with the points left at its right; what is kept for the 2nd board goes on the name's row, left of the
+    -- reset (on the bar's row it squeezed the bar to a few pixels a point)
     local usable, surplus = Rules.ownSplit(self.sim, tree)
-    local label = surplus > 0 and getText("IGUI_OA_Tree_OwnLeftBoard", usable, surplus) or getText("IGUI_OA_Tree_OwnLeft", usable)
+    if surplus > 0 then
+        local share = getText("IGUI_OA_Tree_BoardShare", surplus)
+        local sw = UI.textWidth(share)
+        local right = (item and item.x or x + L.COL_W - 10) - 8
+        local nameEnd = x + 10 + UI.textWidth(Texts.treeName(tree), UIFont.Medium) + 8
+        if right - sw >= nameEnd then UI.text(el, share, right - sw, y + 8, P.dim) end
+    end
+    local label = getText("IGUI_OA_Tree_OwnLeft", usable)
     local lw = UI.textWidth(label)
     local bx, by, bh = x + 10, y + 31, 7
     local bw = L.COL_W - 20 - lw - 10
