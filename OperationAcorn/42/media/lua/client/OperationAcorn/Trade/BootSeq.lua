@@ -24,7 +24,7 @@ local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 -- a flicker).
 Seq.SHORT = { black = 500, hold = 2500 }
 Seq.LONG = { black = 600, hold = 2500 }
-Seq.WAIT_MS, Seq.WEAK_WAIT_MS, Seq.GAP_MS, Seq.WELCOME_MS, Seq.BLINK_MS = 900, 2400, 600, 800, 280
+Seq.WAIT_MS, Seq.WEAK_WAIT_MS, Seq.GAP_MS, Seq.WELCOME_MS, Seq.BLINK_MS = 900, 2400, 1100, 800, 280
 -- The switch-off and the fade-in. The tabs are usable as soon as the fade starts.
 Seq.COLLAPSE_MS, Seq.FADE_MS = 280, 350
 -- The share of the switch-off the content takes to become the line (the rest is the line shrinking to a dot).
