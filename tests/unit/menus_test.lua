@@ -305,7 +305,8 @@ test("the ground menu offers no placing, and a machine's menu is built without s
     setup()
     loadFile("OperationAcorn/Machines/Menu")
     local Machines = OA.Machines
-    local object = {}
+    -- (a machine with no fluid container: the game's water submenu is not there to go into)
+    local object = { getFluidContainer = function() return nil end }
     local square = { getObjects = function() return { size = function() return 0 end } end }
     local clicked = { getSquare = function() return square end }
     Machines.at = function() return object end
@@ -340,7 +341,8 @@ test("a machine with a window is one option, its name, that opens the window; a 
     setup()
     loadFile("OperationAcorn/Machines/Menu")
     local Machines = OA.Machines
-    local object = {}
+    -- (a machine with no fluid container: the game's water submenu is not there to go into)
+    local object = { getFluidContainer = function() return nil end }
     local square = { getObjects = function() return { size = function() return 0 end } end }
     local clicked = { getSquare = function() return square end }
     Machines.at = function() return object end
