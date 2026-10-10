@@ -11,7 +11,7 @@ require "OperationAcorn/Story/Maps"
 require "OperationAcorn/Story/TabMission"
 require "OperationAcorn/Story/TabFolder"
 local OA = OperationAcorn
-local Folder, Terminal = OA.StoryFolder, OA.Terminal
+local Folder = OA.StoryFolder
 local Tabs = {}
 OA.StoryTabs = Tabs
 
@@ -75,9 +75,8 @@ function OATabMissions:refresh()
     local record = self:record()
     if not record then return end
     local unread = Folder.unreadCount(record)
-    local freshMission = Folder.missionSeq(record) > (Terminal.seenValue(record, "mission") or 0)
     self.subTabs:setItems({
-        { id = "missions", label = getText("IGUI_OA_Story_Sub_missions"), dot = (freshMission and self.sub ~= "missions") and "new" or nil },
+        { id = "missions", label = getText("IGUI_OA_Story_Sub_missions"), dot = (self.sub ~= "missions" and Folder.freshMission(record)) and "new" or nil },
         { id = "docs", label = getText("IGUI_OA_Story_Sub_docs"), badge = unread > 0 and getText("IGUI_OA_Story_UI_NewCount", unread) or nil },
     }, self.sub)
     local view = self.subViews[self.sub]
@@ -104,19 +103,11 @@ function Tabs.showOnMap(character)
     OA.StoryMaps.show(character)
 end
 
--- The sub-tab on show in the character's open window (the tab's `seen` needs it: the mission is seen on its own screen).
-local function shownSub()
-    local player = getPlayer()
-    local window = player and OATerminalWindow.instances[player:getPlayerNum()]
-    local view = window and window.views and window.views.missions
-    return view and view.sub or nil
-end
-
 OA.Terminal.addTab("missions", function(x, y, w, h, window)
     return OATabMissions:new(x, y, w, h, window)
 end, {
     mark = Folder.mark,
-    seen = function(record) return Folder.seen(record, shownSub()) end,
+    seen = function(record, window) return Folder.seen(record, window and window:subOn("missions")) end,
 })
 
 return Tabs

@@ -8,8 +8,9 @@ OA.Terminal = Terminal
 
 Terminal.ORDER = { "status", "shop", "delivery", "missions" }
 
--- What a tab's dot remembers as seen, in the record's ui.seen (DESIGN-terminal 1.1): numbers only.
-Terminal.SEEN_KEYS = { mission = true, week = true, tier = true, docs = true, market = true }
+-- What a tab's dot remembers as seen, in the record's ui.seen (DESIGN-terminal 1.1): numbers only. `road` is the status
+-- tab's progress screen: the trust level whose entry it has shown (11.1).
+Terminal.SEEN_KEYS = { mission = true, week = true, tier = true, docs = true, market = true, road = true }
 
 local tabs = {}
 
@@ -17,8 +18,9 @@ local tabs = {}
 -- height, window)` returns the view (a panel; it may have `refresh(view)` for when the record changes). `opts`:
 --   mark(record) -> nil | "new" | "bad": the dot by the tab's name (amber for something not seen yet, red for a
 --     state to deal with);
---   seen(record) -> key, value, or a table { key = value, ... } for a tab with more than one thing to see: what the
---     window keeps as seen once the tab has been looked at (SEEN_KEYS keys).
+--   seen(record, window) -> key, value, or a table { key = value, ... } for a tab with more than one thing to see:
+--     what the window keeps as seen once the tab has been looked at (SEEN_KEYS keys); nil keeps nothing (a tab whose
+--     news is seen on one of its screens asks the window which is on show, window:subOn(id)).
 function Terminal.addTab(id, factory, opts)
     tabs[id] = { id = id, factory = factory, mark = opts and opts.mark, seen = opts and opts.seen }
     return tabs[id]
@@ -44,11 +46,11 @@ end
 
 -- What a tab keeps as seen for a record, as a list of { key, value } by key (none when the tab has no rule or the rule
 -- fails).
-function Terminal.seenPairs(id, record)
+function Terminal.seenPairs(id, record, window)
     local tab = tabs[id]
     local list = {}
     if not (tab and tab.seen and record) then return list end
-    local ok, first, second = pcall(tab.seen, record)
+    local ok, first, second = pcall(tab.seen, record, window)
     if not ok or first == nil then return list end
     if type(first) == "table" then
         for key, value in pairs(first) do list[#list + 1] = { key = key, value = value } end

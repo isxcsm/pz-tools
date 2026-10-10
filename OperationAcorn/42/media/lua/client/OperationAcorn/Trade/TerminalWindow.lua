@@ -50,7 +50,8 @@ end
 
 -- The strip of the four tabs under the title bar: the crude terminal's are outlined green boxes, the field
 -- terminal's sit on an olive band with an amber line over the chosen one. A dot by a name is something not seen yet
--- (amber, blinking until the tab is looked at) or a state to deal with (red).
+-- (amber, pulsing until the tab is looked at) or a state to deal with (red); a tab that has something new to look at
+-- also blinks (OATerminalWindow:blinkTab) until it is shown.
 OATerminalTabs = ISPanel:derive("OATerminalTabs")
 
 function OATerminalTabs:new(x, y, width, height, window)
@@ -60,6 +61,12 @@ function OATerminalTabs:new(x, y, width, height, window)
     o.window = window
     o.background = false
     o.slots = {}
+    -- The names and their widths, measured once (the language does not change while the window is open).
+    o.labels = {}
+    for _, id in ipairs(Terminal.ORDER) do
+        local name = getText(Terminal.titleKey(id))
+        o.labels[id] = { name = name, w = UI.textWidth(name) + 30 }
+    end
     return o
 end
 
@@ -71,9 +78,9 @@ function OATerminalTabs:prerender()
     local fh = UI.fontHeight()
     local x = 8
     self.slots = {}
+    local pulse = math.sin(getTimestampMs() / 220)
     for _, id in ipairs(Terminal.ORDER) do
-        local name = getText(Terminal.titleKey(id))
-        local tw = UI.textWidth(name) + 30
+        local name, tw = self.labels[id].name, self.labels[id].w
         local on = id == w.activeId
         if p.tabStrip then
             if on then
@@ -91,14 +98,13 @@ function OATerminalTabs:prerender()
             end
             UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, on and p.bright or p.dim)
         end
-        if w.blink and w.blink[id] then
-            -- Something new to look at here (the field terminal's first open): the tab blinks until it is shown.
-            UI.frame(self, x - 1, 1, tw + 2, h - 1, p.value, 0.5 + 0.5 * math.sin(getTimestampMs() / 220))
+        if w.blink[id] then
+            UI.frame(self, x - 1, 1, tw + 2, h - 1, p.value, 0.5 + 0.5 * pulse)
         end
         local mark = w.marks[id]
         if mark then
             local a = 1
-            if mark == "new" then a = 0.55 + 0.45 * math.sin(getTimestampMs() / 220) end
+            if mark == "new" then a = 0.55 + 0.45 * pulse end
             UI.fill(self, x + tw - 8, 7, 4, 4, mark == "bad" and p.bad or p.warn, a)
         end
         self.slots[#self.slots + 1] = { id = id, x = x, w = tw }
@@ -175,7 +181,7 @@ function OATerminalWindow:view(id)
 end
 
 function OATerminalWindow:activate(id)
-    if self.blink then self.blink[id] = nil end
+    self.blink[id] = nil
     if self.activeId == id and self.views[id] then return end
     for vid, view in pairs(self.views) do
         if vid ~= id then view:setVisible(false) end
@@ -186,6 +192,19 @@ function OATerminalWindow:activate(id)
     self:refresh()
 end
 
+-- A tab with something new to look at blinks until it is shown (the one on show has nothing to blink for). The one
+-- way to draw attention to a tab: the dots call it when a tab's mark turns new, a part may call it for its own news
+-- (the field terminal's first open).
+function OATerminalWindow:blinkTab(id)
+    if id ~= self.activeId then self.blink[id] = true end
+end
+
+-- Which screen of a tab with sub-tabs is on show (nil for a tab without, or not made yet).
+function OATerminalWindow:subOn(id)
+    local view = self.views[id]
+    return view and view.sub or nil
+end
+
 -- The shop tab opened on an entry's card (the '상점에서 보기' buttons of the other tabs).
 function OATerminalWindow:showShopEntry(entryId)
     self:activate("shop")
@@ -193,18 +212,24 @@ function OATerminalWindow:showShopEntry(entryId)
     if view and view.showEntry then view:showEntry(entryId) end
 end
 
--- The dots of the tabs, worked out again when the record changes (not every frame).
+-- The dots of the tabs, worked out again when the record changes (not every frame). A tab whose dot turns new blinks
+-- (the first time too: what was new when the window opened).
 function OATerminalWindow:updateMarks(record)
     local marks = {}
-    for _, id in ipairs(Terminal.ORDER) do marks[id] = Terminal.mark(id, record) end
+    for _, id in ipairs(Terminal.ORDER) do
+        marks[id] = Terminal.mark(id, record)
+        if marks[id] == "new" and self.marks[id] ~= "new" then self:blinkTab(id) end
+    end
     self.marks = marks
 end
 
--- The tab on show has been looked at: what its dot waits for is kept as seen.
+-- The tab on show has been looked at: what its dot waits for is kept as seen (each value is sent once; the record
+-- answers with it).
 function OATerminalWindow:markSeen(record)
-    if not (record and self.marks[self.activeId] == "new") then return end
-    for _, pair in ipairs(Terminal.seenPairs(self.activeId, record)) do
-        if Terminal.seenValue(record, pair.key) ~= pair.value then
+    if not record then return end
+    for _, pair in ipairs(Terminal.seenPairs(self.activeId, record, self)) do
+        if Terminal.seenValue(record, pair.key) ~= pair.value and self.told[pair.key] ~= pair.value then
+            self.told[pair.key] = pair.value
             OA.Sync.send(self.character, "terminalSeen", { key = pair.key, value = pair.value })
         end
     end
@@ -300,6 +325,8 @@ function OATerminalWindow:new(character, x, y, z, tier)
     o.playerNum = character:getPlayerNum()
     o.tx, o.ty, o.tz = x, y, z
     o.marks = {}
+    o.blink = {}
+    o.told = {}
     o:setResizable(true)
     o.minimumWidth, o.minimumHeight = OATerminalWindow.MIN_WIDTH, OATerminalWindow.MIN_HEIGHT
     return o

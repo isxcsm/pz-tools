@@ -1,13 +1,16 @@
 -- The status tab's helicopter screen (DESIGN-terminal 2.2). On the left the helicopter: its state and what follows
 -- from it, the arrival bar while it flies, the infection box, the four values the upgrades raise, the last settlement,
--- the supply crates still lying around, and the buttons that call it or ask for a new delivery box. On the right this
--- flight's waybill: what goes up, what comes down, and the settlement's sums pinned to the bottom like the foot of a
--- receipt. The words come from Trade/StatusModel; this lays them out (mockups/terminal/gen/status.py hero, waybill).
+-- the supply crates still lying around, the card of a new guide document (DESIGN-terminal 11.1) and the buttons that
+-- call it or ask for a new delivery box. On the right this flight's waybill: what goes up, what comes down, and the
+-- settlement's sums pinned to the bottom like the foot of a receipt. The words come from Trade/StatusModel; this lays
+-- them out (mockups/terminal/gen/status.py hero, waybill).
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
+require "OperationAcorn/Story/Folder"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Draw, M, Estimate = Trade.Draw, Trade.StatusModel, Trade.Estimate
+local Folder = OA.StoryFolder
 
 OATabHeli = OAStatusView:derive("OATabHeli")
 
@@ -25,6 +28,7 @@ function OATabHeli:model(record)
         last = M.lastSettle(record, now),
         crates = M.crates(record.heli and record.heli.markers, c:getX(), c:getY()),
         infection = M.infection(M.infectionState(record)),
+        guide = Folder.newGuide(record),
         waybill = M.waybill(record, flight),
         reissueCost = OA.option("BoxReissueCost") or 10000,
     }
@@ -47,7 +51,7 @@ function OATabHeli:buildHero(L, x, y, w, h)
         for _, line in ipairs(Draw.wrap(s.text, w - 20)) do subs[#subs + 1] = { line, p[s.colour] or p.text } end
     end
     local top = #subs * fh + (H.eta and 14 or 0) + (d.infection and 46 or 0)
-    local roomy, gap, showSpec = M.heroSpacing(h, top, 2)
+    local roomy, gap, showSpec, showFacts = M.heroSpacing(h, top, 2, d.guide ~= nil)
     local yy = y + 46
     for _, s in ipairs(subs) do
         Draw.text(L, s[1], x + 10, yy, s[2])
@@ -87,9 +91,21 @@ function OATabHeli:buildHero(L, x, y, w, h)
         end
         yy = yy + 2 * fh + 4 + gap
     end
+    if showFacts then self:buildFacts(L, x, yy, w, roomy) end
+    if d.guide then self:buildGuide(L, x + 10, y + h - 66 - M.GUIDE_GAP - M.GUIDE_H, w - 20) end
+    -- The buttons, at the bottom.
+    Draw.button(L, x + 10, y + h - 66, w - 20, 30, getText("IGUI_OA_Trade_Heli_Call"), H.callable and "strong" or "disabled",
+        UIFont.Medium, "call", not H.callable and H.callWhy and Draw.tip(p, { H.callWhy }) or nil)
+    Draw.button(L, x + 10, y + h - 31, w - 20, 22, getText("IGUI_OA_Status_Reissue", Text.credits(d.reissueCost)),
+        H.reissue and "strong" or "disabled", nil, "reissue", not H.reissue and H.reissueWhy and Draw.tip(p, { H.reissueWhy }) or nil)
+end
+
+-- The last settlement and the crates under a rule from yy: a label line and a value line each, or one line each when
+-- short.
+function OATabHeli:buildFacts(L, x, yy, w, roomy)
+    local d, p, fh = self.data, L.p, L.fh
     Draw.rect(L, x + 10, yy - 4, w - 20, 1, p.border, 0.6)
     yy = yy + 4
-    -- The last settlement and the crates: a label line and a value line each, or one line each when short.
     local facts = {
         { getText("IGUI_OA_Status_LastSettle"), d.last and Draw.styled(L, d.last, p.text, p.value,
             { [1] = { p.text, UIFont.Small }, [3] = { p.text, p.numberFont } })
@@ -110,11 +126,19 @@ function OATabHeli:buildHero(L, x, y, w, h)
             yy = yy + fh + 2
         end
     end
-    -- The buttons, at the bottom.
-    Draw.button(L, x + 10, y + h - 66, w - 20, 30, getText("IGUI_OA_Trade_Heli_Call"), H.callable and "strong" or "disabled",
-        UIFont.Medium, "call", not H.callable and H.callWhy and Draw.tip(p, { H.callWhy }) or nil)
-    Draw.button(L, x + 10, y + h - 31, w - 20, 22, getText("IGUI_OA_Status_Reissue", Text.credits(d.reissueCost)),
-        H.reissue and "strong" or "disabled", nil, "reissue", not H.reissue and H.reissueWhy and Draw.tip(p, { H.reissueWhy }) or nil)
+end
+
+-- The new guide document's card (DESIGN-terminal 11.1 priority 2), amber: "새 문서" over the document's title, and a
+-- button that opens it in the folder. It goes when the document is read.
+function OATabHeli:buildGuide(L, x, y, w)
+    local d, p, fh = self.data, L.p, L.fh
+    local H = M.GUIDE_H
+    Draw.box(L, x, y, w, H, p.warn, 0.08, p.warn, 0.9)
+    local bw = 56
+    Draw.text(L, getText("IGUI_OA_Status_Guide_New"), x + 8, y + 3, p.warn)
+    Draw.fit(L, d.guide.title, x + 8, y + 3 + fh, w - bw - 24, p.bright)
+    Draw.button(L, x + w - bw - 6, y + math.floor((H - 24) / 2), bw, 24, getText("IGUI_OA_Status_Guide_Read"), "strong", nil,
+        "guide")
 end
 
 function OATabHeli:buildWaybill(L, x, y, w, h)
@@ -236,7 +260,15 @@ function OATabHeli:onMouseWheel(del)
 end
 
 function OATabHeli:onHit(hit)
-    if hit.id == "call" then self:onCall() elseif hit.id == "reissue" then self:onReissue() end
+    if hit.id == "call" then self:onCall()
+    elseif hit.id == "reissue" then self:onReissue()
+    elseif hit.id == "guide" then self:onGuide() end
+end
+
+-- '읽기' on the new-document card: the folder opens on that document (the missions tab; reading it clears it).
+function OATabHeli:onGuide()
+    local guide = self.data and self.data.guide
+    if guide and OA.StoryTabs then OA.StoryTabs.openDocument(self.window, guide.key) end
 end
 
 function OATabHeli:onCall()
