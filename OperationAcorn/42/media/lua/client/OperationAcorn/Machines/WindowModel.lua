@@ -236,16 +236,19 @@ local function perfOf(input)
     tip[#tip + 1] = { s = text("IGUI_OA_Machine_Perf_TipTotal", rateText(kind, status.rate or 0)), tone = "value" }
     cells[1] = { value = rateText(kind, status.rate or 0), sub = sub, subTone = subTone, tip = tip }
 
-    -- the generator's fuel: the load times the sandbox's fuel an hour, while it runs
+    -- the power: the load it puts on whatever powers it (the grid, a generator, the power mod's panels), as fridges; a
+    -- generator's fuel for it (the load times the sandbox's fuel an hour) only in the tooltip, since grid or solar power
+    -- burns none
     local fuelRate = input.fuelRate or Model.FUEL_DEFAULT
     local load = status.load or 0
-    local fuelSub
-    if not input.hook then fuelSub = text("IGUI_OA_Machine_Perf_NoHook")
-    elseif running then fuelSub = text("IGUI_OA_Machine_Perf_Fridges", math.max(1, OA.round(load / Model.FRIDGE_LOAD)))
-    else fuelSub = text("IGUI_OA_Machine_Perf_NotNow") end
-    cells[2] = { value = text("IGUI_OA_Machine_Perf_Fuel", Model.decimal(load * fuelRate, 2)), sub = fuelSub,
-        tip = { { s = text("IGUI_OA_Machine_Perf_FuelHead"), tone = "head" }, text("IGUI_OA_Machine_Perf_TipFuel"),
-            text("IGUI_OA_Machine_Perf_TipLoad", Model.decimal(load, 2), Model.decimal(fuelRate, 3)) } }
+    local powerSub
+    if not input.hook then powerSub = text("IGUI_OA_Machine_Perf_NoHook")
+    elseif running then powerSub = text("IGUI_OA_Machine_Perf_Fridges", math.max(1, OA.round(load / Model.FRIDGE_LOAD)))
+    else powerSub = text("IGUI_OA_Machine_Perf_NotNow") end
+    cells[2] = { value = text("IGUI_OA_Machine_Perf_Power", Model.decimal(load, 2)), sub = powerSub,
+        tip = { { s = text("IGUI_OA_Machine_Perf_PowerHead"), tone = "head" }, text("IGUI_OA_Machine_Perf_TipPower"),
+            text("IGUI_OA_Machine_Perf_TipGenFuel", Model.decimal(load * fuelRate, 2), Model.decimal(load, 2),
+                Model.decimal(fuelRate, 3)) } }
 
     -- the noise
     local noiseTip = { { s = text("IGUI_OA_Machine_Noise"), tone = "head" }, text("IGUI_OA_Machine_Perf_TipNoise") }

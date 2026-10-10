@@ -141,7 +141,7 @@ end
 
 -- The model ----------------------------------------------------------------------------------------------------------
 
-test("a running cutter: rate in weight an hour with no unit, times the old motor, fuel from the load and the sandbox", function()
+test("a running cutter: rate in weight an hour with no unit, times the old motor, the power load, fuel only in the tip", function()
     local Model = loadModel()
     local m = Model.build(SCENES.running())
     eq(m.title, "Fabric Cutter")
@@ -155,9 +155,11 @@ test("a running cutter: rate in weight an hour with no unit, times the old motor
     eq(rate.sub, "3.9x old motor")
     eq(rate.tip[#rate.tip].s, "In all: 140 weight/h")
     eq(rate.tip[2], "One old motor: 36 weight/h")
-    -- fuel: load 0.4 x the modern motor's 1.5 = 0.6, x 0.1 L an hour
-    eq(m.perf.cells[2].value, "Fuel 0.06 L/h")
+    -- power: load 0.4 x the modern motor's 1.5 = 0.6; on a generator x 0.1 L an hour (the tooltip only: grid or solar
+    -- power burns no fuel)
+    eq(m.perf.cells[2].value, "Power load 0.6")
     eq(m.perf.cells[2].sub, "about 5 fridges")
+    truthy(string.find(m.perf.cells[2].tip[3], "On a generator it burns about 0.06 L of fuel an hour (load 0.6 ", 1, true), "the fuel in the tip")
     eq(m.perf.cells[3].value, "Noise 10 tiles")
     eq(m.perf.cells[3].sub, "generator: 20")
     eq(m.perf.right, nil, "no 'while running' note while it runs")
@@ -276,7 +278,7 @@ test("the oil refiner works in litres; its second bin is the fill box; no time t
     eq(m.boxes[2].note, "1 things " .. DOT .. " keep empty tanks here")
     eq(m.boxes[1].note, "2 things " .. DOT .. " Running")
     -- the fuel at a sandbox of 0.5 L for a load of 1: 0.3 x 0.5
-    eq(m.perf.cells[2].value, "Fuel 0.15 L/h")
+    eq(m.perf.cells[2].value, "Power load 0.3")
 end)
 
 test("the rain storage: its share on the light, the water and the room, its buttons; no parts, jobs or bins", function()
