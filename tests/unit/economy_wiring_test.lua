@@ -11,6 +11,15 @@ local function list(t)
     return { size = function() return #t end, get = function(_, i) return t[i + 1] end, items = t }
 end
 
+-- An inventory or a bag holding `t` (a list the test may change): its items, and what they weigh (OA.signature).
+local function pack(t)
+    return { getItems = function() return list(t) end, getContentsWeight = function()
+        local w = 0
+        for _, it in ipairs(t) do w = w + it:getActualWeight() end
+        return w
+    end }
+end
+
 local classes
 function instanceof(object, class)
     return object ~= nil and object.classes ~= nil and object.classes[class] == true
@@ -55,7 +64,7 @@ local function item(fullType, o)
     end
     if o.contents then
         it.classes.InventoryContainer = true
-        it.getInventory = function() return { getItems = function() return list(o.contents) end } end
+        it.getInventory = function() return pack(o.contents) end
     end
     return it
 end
@@ -267,7 +276,7 @@ test("the ten minute look over the pack finds kinds a pickup missed", function()
     local inBag = item("Base.Pencil")
     local bag = item("Base.Satchel", { display = "Bag", contents = { inBag } })
     local ch = character("t")
-    ch.getInventory = function() return { getItems = function() return list({ crafted, bag }) end } end
+    ch.getInventory = function() return pack({ crafted, bag }) end
     getOnlinePlayers = function() return list({ ch }) end
     isServer = function() return true end
     TEST.fire("EveryTenMinutes")
@@ -280,7 +289,7 @@ end)
 -- A character carrying `items` (a list the test may change), on a server that looks after it.
 local function carrier(id, items)
     local ch = character(id)
-    ch.getInventory = function() return { getItems = function() return list(items) end } end
+    ch.getInventory = function() return pack(items) end
     getOnlinePlayers = function() return list({ ch }) end
     isServer = function() return true end
     return ch
@@ -308,12 +317,51 @@ test("fast-forwarded, the look over the pack runs at most once each SWEEP_MS of 
     truthy(OA.Economy.SWEEP_MS < 25000, "the default speed (25 s for ten game minutes) looks every time")
 end)
 
+test("the look is skipped while the pack and the bags it went into hold what they held", function()
+    boot()
+    local record = OA.Store.ensure("t", "T")
+    local walked = 0
+    local rope = item("Base.Rope", { display = "Tool" })
+    local plain = rope.getFullType
+    rope.getFullType = function() walked = walked + 1; return plain() end
+    local inBag = {}
+    local bag = item("Base.Satchel", { display = "Bag", contents = inBag })
+    local bagInside = pack(inBag)
+    bag.getInventory = function() return bagInside end
+    local items = { rope, bag }
+    local inventory = pack(items)
+    local ch = character("t")
+    ch.getInventory = function() return inventory end
+    getOnlinePlayers = function() return list({ ch }) end
+    isServer = function() return true end
+    local clock = 1760000000000
+    getTimestampMs = function() return clock end
+    TEST.fire("EveryTenMinutes")
+    truthy(record.codex.kinds.Rope)
+    walked = 0
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    eq(walked, 0, "nothing changed: no walk")
+    inBag[1] = item("Base.Pencil")
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    eq(walked, 1, "a thing put in the bag: walked again (the rope is a known kind: one look)")
+    truthy(record.codex.kinds.Pencil, "and the pencil counted")
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    eq(walked, 1)
+    items[3] = item("Base.Thread")
+    clock = clock + OA.Economy.SWEEP_MS
+    TEST.fire("EveryTenMinutes")
+    eq(walked, 2, "a thing put in the pack")
+end)
+
 test("each character has its own look", function()
     boot()
     local a, b = OA.Store.ensure("a", "A"), OA.Store.ensure("b", "B")
     local chA, chB = character("a"), character("b")
-    chA.getInventory = function() return { getItems = function() return list({ item("Base.Rope") }) end } end
-    chB.getInventory = function() return { getItems = function() return list({ item("Base.Pencil") }) end } end
+    chA.getInventory = function() return pack({ item("Base.Rope") }) end
+    chB.getInventory = function() return pack({ item("Base.Pencil") }) end
     getOnlinePlayers = function() return list({ chA, chB }) end
     isServer = function() return true end
     getTimestampMs = function() return 1760000000000 end
@@ -362,7 +410,7 @@ test("a pickup of a type that is no loot is remembered for the look too", functi
     ISTransferAction:transferItem(ch, bundle, container("shelves", { square = square(1, 1) }),
         container("inventory", { mine = true }), nil)
     eq(reads, 1)
-    ch.getInventory = function() return { getItems = function() return list({ bundle }) end } end
+    ch.getInventory = function() return pack({ bundle }) end
     TEST.fire("EveryTenMinutes")
     eq(reads, 1, "known as no loot")
 end)
