@@ -17,6 +17,9 @@ end
 -- Loads Hooks with the UI stand-ins (the game's own files are not here), then takes them away again.
 local function loadHooks()
     for _, name in ipairs(UI) do _G[name] = stubClass() end
+    -- the research tab draws with the terminal's helpers (Trade/UI), whose palettes name the game's fonts
+    local font = UIFont
+    UIFont = font or setmetatable({}, { __index = function() return 1 end })
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") or string.find(name, "^XpSystem/") or string.find(name, "^TimedActions/") then
@@ -26,6 +29,7 @@ local function loadHooks()
     end
     local ok, err = pcall(real, "OperationAcorn/Upgrades/Hooks")
     require = real
+    UIFont = font
     for _, name in ipairs(UI) do _G[name] = nil end
     if not ok then error(err, 0) end
     return OA.Upgrades.Hooks
