@@ -26,6 +26,9 @@ function BU.api()
     if api.version ~= BU.API_VERSION then return nil, "version" end
     -- Water groups take a water network's own producers besides its parents' (API with draw and fill).
     if not api.networks.draw then return nil, "version" end
+    -- What is kept of buildings goes with the API's version of them, and the rooms built onto a building come from it
+    -- (BU.Panels: an API with buildings.version and buildings.attached).
+    if not (api.buildings and api.buildings.version and api.buildings.attached) then return nil, "version" end
     return api
 end
 

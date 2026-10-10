@@ -47,9 +47,11 @@ else
     say("BAD no region at the square")
 end
 
--- The room found.
+-- The room found. Kept while the API's version of the buildings holds: asked again, nothing is read again.
 Panels.forgetRooms()
 local rooms = Panels.rooms(building)
+check("the buildings' version holds while nothing changes", api.buildings.version() == api.buildings.version(), true)
+check("the rooms are kept for it", Panels.rooms(building) == rooms, true)
 local spaces = Panels.attached(building)
 check("rooms built onto the building found", spaces ~= nil and #spaces >= 1, true)
 local space = Panels.attachedAt(spaces, x, y, z)
