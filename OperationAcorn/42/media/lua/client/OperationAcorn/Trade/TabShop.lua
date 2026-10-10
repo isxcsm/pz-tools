@@ -743,6 +743,20 @@ function OATabShop.onCardRow(tab, row, x, y)
     end
 end
 
+-- Opens the card of an entry: its section (the shelf for a shelf entry), the card chosen and scrolled to.
+function OATabShop:showEntry(id)
+    local entry = OA.Shop and OA.Shop.entry(id)
+    if not entry then return end
+    self.cat = ShopView.onShelf(entry) and "serums" or entry.group
+    self.sel, self.qty, self.pick, self.onlyOpen = id, 1, nil, false
+    self:refresh()
+    for _, row in ipairs(self.cards.rows or {}) do
+        for _, card in ipairs(row.cards or {}) do
+            if card.id == id then self.cards:setScroll(row.y) return end
+        end
+    end
+end
+
 function OATabShop:onCombo(combo)
     self.pick = combo:getSelectedData()
     self:refresh()

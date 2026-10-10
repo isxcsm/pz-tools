@@ -501,23 +501,16 @@ function M.entryType(entry, line)
     return nil
 end
 
--- The request goods in the sealed boxes: "양초 4개, 연필 3개" and the credits they make (nil when the economy does
--- not say).
-local function requestSummary(record)
-    local worth = Estimate.entries(record, Boxes.sealedEntries(record))
-    if not worth then return nil end
-    local names, sum, known = {}, 0, false
-    for _, line in ipairs(worth.lines or {}) do
-        if (line.requestUnits or 0) > 0 then
-            names[#names + 1] = tr("IGUI_OA_Status_Count", Text.itemName(line.fullType), line.requestUnits)
-            if line.requestCredits then
-                known = true
-                sum = sum + line.requestCredits
-            end
-        end
+-- The request goods in the sealed boxes (the flight's `requests`, the biggest first): "양초 4개, 연필 3개" and the
+-- credits they make; nil when there are none.
+local function requestSummary(flight)
+    local requests = flight.requests
+    if not requests or (requests.units or 0) == 0 then return nil end
+    local names = {}
+    for _, line in ipairs(requests.lines or {}) do
+        names[#names + 1] = tr("IGUI_OA_Status_Count", Text.itemName(line.fullType), line.units)
     end
-    if #names == 0 then return nil end
-    return table.concat(names, ", "), known and OA.round(sum) or nil
+    return table.concat(names, ", "), OA.round(requests.credits or 0)
 end
 
 -- 이번 편 운송장: what goes up, what comes down and the sums. `flight` is Estimate.flight(record). Returns
@@ -533,16 +526,16 @@ function M.waybill(record, flight)
     local fee = flight.fee or 0
     if sealed > 0 then
         local subs = {}
-        local names, sum = requestSummary(record)
+        local names, sum = requestSummary(flight)
         if names then
-            subs[#subs + 1] = sum and tr("IGUI_OA_Status_SendRequests", credits(sum), names)
+            subs[#subs + 1] = sum > 0 and tr("IGUI_OA_Status_SendRequests", credits(sum), names)
                 or tr("IGUI_OA_Status_SendRequestsBare", names)
         end
         if fee > 0 then
             subs[#subs + 1] = tr("IGUI_OA_Status_SendFee", percent(flight.feeRate or 0), credits(fee))
         end
         w.send[1] = { icon = Shop.TYPES.box, name = tr("IGUI_OA_Status_SendSealed", sealed),
-            worth = credits(flight.sealed or 0), sub = #subs > 0 and table.concat(subs, " · ") or nil }
+            worth = credits(flight.net or (flight.sealed or 0) - fee), sub = #subs > 0 and table.concat(subs, " · ") or nil }
     else
         local box = Boxes.active(record)
         if box and box.state == "placed" then
@@ -581,7 +574,8 @@ function M.waybill(record, flight)
     end
     -- The sums.
     local balance = account.credits
-    local gain = sealed > 0 and (flight.sealed or 0) or 0
+    -- the settlement as it will be paid: the infection handling fee taken off
+    local gain = sealed > 0 and (flight.net or (flight.sealed or 0) - fee) or 0
     local bonus = flight.bonus or OA.round(account.bonus or 0)
     local r = M.receipt(balance, gain + bonus, orders, prices)
     if balance < 0 then

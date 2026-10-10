@@ -99,14 +99,6 @@ function Tabs.openDocument(window, key)
     if view and view.showDocument then view:showDocument(key) end
 end
 
--- Opens the shop tab on an entry (the special request's board: the field terminal). A shop tab that cannot show it
--- is opened as it is.
-function Tabs.openShop(window, entryId)
-    window:activate("shop")
-    local view = window:view("shop")
-    if view and view.showEntry then pcall(view.showEntry, view, entryId) end
-end
-
 -- 'Show on the map': the world map fitted to the character and the mission's area (Story/Maps).
 function Tabs.showOnMap(character)
     OA.StoryMaps.show(character)

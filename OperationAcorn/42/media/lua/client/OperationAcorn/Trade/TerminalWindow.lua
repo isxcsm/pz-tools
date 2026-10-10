@@ -186,6 +186,13 @@ function OATerminalWindow:activate(id)
     self:refresh()
 end
 
+-- The shop tab opened on an entry's card (the '상점에서 보기' buttons of the other tabs).
+function OATerminalWindow:showShopEntry(entryId)
+    self:activate("shop")
+    local view = self.views.shop
+    if view and view.showEntry then view:showEntry(entryId) end
+end
+
 -- The dots of the tabs, worked out again when the record changes (not every frame).
 function OATerminalWindow:updateMarks(record)
     local marks = {}

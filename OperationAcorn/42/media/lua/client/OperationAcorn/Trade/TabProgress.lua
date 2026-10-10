@@ -240,13 +240,6 @@ function OATabProgress:onHit(hit)
         self.sel = hit.level
         self:layout()
     elseif hit.id == "shop" then
-        OATabProgress.showFieldTerminal(self.window)
+        self.window:showShopEntry("field_terminal")
     end
-end
-
--- Opens the shop at the field terminal (the shop tab may give showEntry for it).
-function OATabProgress.showFieldTerminal(window)
-    window:activate("shop")
-    local view = window.views and window.views.shop
-    if view and view.showEntry then view:showEntry("field_terminal") end
 end

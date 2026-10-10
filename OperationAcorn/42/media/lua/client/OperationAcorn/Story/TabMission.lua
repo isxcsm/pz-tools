@@ -146,7 +146,7 @@ function OATabMission:onReroll()
 end
 
 function OATabMission:onShop()
-    OA.StoryTabs.openShop(self.window, "field_terminal")
+    self.window:showShopEntry("field_terminal")
 end
 
 -- What the screen shows -------------------------------------------------------------------------------------------

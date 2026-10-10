@@ -315,7 +315,7 @@ end)
 test("a fee from the infection part: the send line says it, the sum is named after it", function()
     local r = newRecord(3, 0, 1000)
     withBox(r)
-    local flight = { boxes = 1, sealed = 27230, bonus = 0, fee = 11670, feeRate = 0.3 }
+    local flight = { boxes = 1, sealed = 38900, net = 27230, bonus = 0, fee = 11670, feeRate = 0.3 }
     local w = M.waybill(r, flight)
     eq(w.send[1].name, "IGUI_OA_Status_SendSealed 1"); eq(w.send[1].worth, "27,230")
     eq(w.send[1].sub, "IGUI_OA_Status_SendFee 30 11,670")

@@ -296,7 +296,7 @@ function OATabUpgrades:onHit(hit)
     elseif hit.id == "cancel" then
         UI.confirm(self:character(), getText("IGUI_OA_Status_CancelAsk"), self, OATabUpgrades.doCancel, hit.card)
     elseif hit.id == "shop" then
-        OATabProgress.showFieldTerminal(self.window)
+        self.window:showShopEntry("field_terminal")
     end
 end
 
