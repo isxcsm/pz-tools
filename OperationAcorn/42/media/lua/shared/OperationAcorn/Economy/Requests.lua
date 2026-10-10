@@ -1,7 +1,7 @@
 -- This week's request list (NUMBERS 2) and the table it is drawn from.
 --
 -- A request is a group one level above the item type: "charcoal" takes the looted and the kiln-made kind, "skill
--- books" any skill book. The groups and how easy each is to come by are made from the game's files by
+-- books" any skill book, "canned food" any sealed tin, "hats" any hat. The groups and how easy each is to come by are made from the game's files by
 -- tools/request_groups.py (RequestGroups.lua; the rules head the tool): a group's key is its id, or the item type
 -- itself for a group of one. A type no group has (a strange item the story names) is a group of one with no score.
 -- The world save (`requests` section) keeps the candidates found at the first world start:
@@ -27,8 +27,10 @@ local OA = OperationAcorn
 local Requests = {}
 OA.Requests = Requests
 
--- 2: the candidates are groups (1 had item types).
-Requests.VERSION = 2
+-- 2: the candidates are groups (1 had item types). 3: the ids of the groups that vanilla's name typos split are joined
+-- (the saved candidates hold the old ids). The table is made again too when RequestGroups.lua is (its stamp): a save
+-- holds the group ids and scores of the table it was made from.
+Requests.VERSION = 3
 Requests.DUE_PICKS = 2          -- items of a category that comes back after a refusal
 
 -- The commonness bands: from this score up (1 and more common, 0.3 to 1 normal, less than 0.3 rare). A band has the
@@ -52,20 +54,26 @@ Requests.HOUSE_ROOMS = {
 
 -- The rows in use (RequestGroups.lua's, or a test's) and what is looked up in them, made once for the rows: byKey
 -- (key -> row) and keyOfType (member type -> key); names, member names and floors are made once for a key.
-local rows, byKey, keyOfType
+local rows, byKey, keyOfType, aliasOf
 local names, memberNames, floors = {}, {}, {}
 
 local function index()
     local now = OA.RequestGroups or {}
     if rows ~= now then
-        rows, byKey, keyOfType = now, {}, {}
+        rows, byKey, keyOfType, aliasOf = now, {}, {}, {}
         names, memberNames, floors = {}, {}, {}
         for _, row in ipairs(rows) do
             byKey[row.id] = row
             for _, t in ipairs(row.items) do keyOfType[t] = row.id end
         end
+        -- The ids a group had before the table was made again (`was`), that a save may still hold.
+        for _, row in ipairs(rows) do
+            for _, old in ipairs(row.was or {}) do
+                if not byKey[old] then aliasOf[old] = row.id end
+            end
+        end
     end
-    return byKey, keyOfType
+    return byKey, keyOfType, aliasOf
 end
 
 -- Puts other rows in place of the generated ones (a test with its own item names; {} for none).
@@ -74,10 +82,11 @@ function Requests.useGroups(list)
     index()
 end
 
--- The key of the group an item type belongs to: the group's id, or the type itself.
+-- The key of the group an item type belongs to: the group's id, or the type itself. An id the table no longer has
+-- (a group that was joined to another) is the key of the group that took it over.
 function Requests.keyOf(fullType)
-    local _, ofType = index()
-    return ofType[fullType] or fullType
+    local _, ofType, alias = index()
+    return ofType[fullType] or alias[fullType] or fullType
 end
 
 -- The group's row ({ id, score, wt, dc, items, name, icon }), or nil for a type no group has.
@@ -104,17 +113,76 @@ local function itemName(fullType)
     return tostring(fullType)
 end
 
--- A name less its variant (" [white]").
-local function plain(name)
-    return (string.gsub(name, "%s*%[[^%]]*%]%s*$", ""))
+-- A name less its stray brackets (a "]" with no "[" before it, a "[" never closed: vanilla's Korean names have a few,
+-- "끈 없는 브라]") and with single spaces. The tool works names out the same way.
+local function clean(name)
+    local out, opens = {}, {}
+    for i = 1, #name do
+        local c = string.sub(name, i, i)
+        if c == "[" then
+            opens[#opens + 1] = #out + 1
+            out[#out + 1] = c
+        elseif c == "]" then
+            if #opens > 0 then
+                opens[#opens] = nil
+                out[#out + 1] = c
+            end
+        else
+            out[#out + 1] = c
+        end
+    end
+    for i = #opens, 1, -1 do table.remove(out, opens[i]) end
+    local words = {}
+    for w in string.gmatch(table.concat(out), "%S+") do words[#words + 1] = w end
+    return table.concat(words, " ")
 end
 
--- The words all the names start with, less a trailing " -" or a word with an open bracket; nil when none.
-local function commonWords(list)
+-- A name less its variant (" [white]") and its stray brackets.
+local function plain(name)
+    local text = string.gsub(clean(name), "%s*%[[^%]]*%]%s*$", "")
+    return (string.gsub(text, "^%s+", ""))
+end
+
+local function wordsOf(name)
+    local words = {}
+    for w in string.gmatch(name, "%S+") do words[#words + 1] = w end
+    return words
+end
+
+-- Whether the words of `small` are in `big` in the same order.
+local function inside(small, big)
+    local at = 0
+    for _, w in ipairs(small) do
+        repeat at = at + 1 until at > #big or big[at] == w
+        if at > #big then return false end
+    end
+    return true
+end
+
+-- The name a group of several kinds shows (the tool works it out the same way, to merge the groups that would show
+-- one name twice). In this order: the shortest of the kinds' names (less the variant) that all the others have inside
+-- them in order ("끈 없는 브라" for "끈 없는 프릴 브라"); else the words all the names start with, less a trailing " -"
+-- or a word with an open bracket; else the words they all end with, less a leading " -"; else the first name.
+local function displayName(list)
+    local plains, splits = {}, {}
+    for i, name in ipairs(list) do
+        plains[i] = plain(name)
+        splits[i] = wordsOf(plains[i])
+    end
+    local best
+    for i = 1, #list do
+        if #splits[i] > 0 and (not best or #splits[i] < #splits[best]) then
+            local fits = true
+            for j = 1, #list do
+                if not inside(splits[i], splits[j]) then fits = false break end
+            end
+            if fits then best = i end
+        end
+    end
+    if best then return plains[best] end
     local common
     for _, name in ipairs(list) do
-        local words = {}
-        for w in string.gmatch(name, "%S+") do words[#words + 1] = w end
+        local words = wordsOf(clean(name))
         if not common then
             common = words
         else
@@ -128,13 +196,35 @@ local function commonWords(list)
         if not (string.find(last, "^[%-:%(%[]") or string.find(last, "[%[%(]")) then break end
         common[#common] = nil
     end
-    if not common or #common == 0 then return nil end
-    return table.concat(common, " ")
+    if common and #common > 0 then return table.concat(common, " ") end
+    local tail
+    for i = 1, #list do
+        local words = splits[i]
+        if not tail then
+            tail = {}
+            for k = #words, 1, -1 do tail[#tail + 1] = words[k] end
+        else
+            local n = 0
+            while n < #tail and n < #words and tail[n + 1] == words[#words - n] do n = n + 1 end
+            for k = #tail, n + 1, -1 do tail[k] = nil end
+        end
+    end
+    while tail and #tail > 0 do
+        local last = tail[#tail]
+        if not (string.find(last, "^[%-:%)%]]") or string.find(last, "[%)%]]")) then break end
+        tail[#tail] = nil
+    end
+    if tail and #tail > 0 then
+        local out = {}
+        for k = #tail, 1, -1 do out[#out + 1] = tail[k] end
+        return table.concat(out, " ")
+    end
+    return plains[1]
 end
 
--- The name the list shows for a group, made once: a family's own text; else the words all its members' names start
--- with, so "Bowling Shirt [Blue]" and "[Brown]" are "Bowling Shirt"; else the first member's name without its
--- variant. The tool merged the groups that would show the same name (it works the name out the same way).
+-- The name the list shows for a group, made once: a family's own text; else, for several kinds, the name worked out
+-- from theirs (displayName: "Bowling Shirt [Blue]" and "[Brown]" are "Bowling Shirt"); else the kind's name without
+-- its variant. The tool merged the groups that would show the same name (it works the name out the same way).
 function Requests.nameOf(key)
     index()
     local hit = names[key]
@@ -144,8 +234,13 @@ function Requests.nameOf(key)
         hit = getText(row.name)
     else
         local items = row and row.items or { key }
-        if #items > 1 then hit = commonWords(Requests.memberNames(key)) end
-        hit = hit or plain(itemName(items[1]))
+        if #items > 1 then
+            local list = {}
+            for i, t in ipairs(items) do list[i] = itemName(t) end
+            hit = displayName(list)
+        else
+            hit = plain(itemName(items[1]))
+        end
     end
     names[key] = hit
     return hit
@@ -260,8 +355,8 @@ function Requests.build(sums, infoOf, groups, exists)
             cats[n] = OA.Categories.of({ fullType = first, weight = row.wt, displayCategory = row.dc }) or "E"
         end
     end
-    return { version = Requests.VERSION, types = types, score = score, cat = cats, kinds = kinds, total = total,
-        n = #types }
+    return { version = Requests.VERSION, stamp = OA.RequestGroupsStamp, types = types, score = score, cat = cats,
+        kinds = kinds, total = total, n = #types }
 end
 
 -- Makes the table from the game's distributions and the groups (the real thing; tests call build with their own).
@@ -285,11 +380,11 @@ function Requests.scan()
     return Requests.build(sums, infoOf, rows, function(t) return infoOf(t) ~= nil end)
 end
 
--- The world's table, built the first time and again when a save from before the groups has one of item types (nil
--- when the game's tables are not there, as on a client).
+-- The world's table, built the first time and again when a save from before the groups has one of item types or one
+-- made from another RequestGroups.lua (nil when the game's tables are not there, as on a client).
 function Requests.data()
     local world = OA.Store.world("requests")
-    if world.version ~= Requests.VERSION or not world.types then
+    if world.version ~= Requests.VERSION or not world.types or (world.stamp and world.stamp ~= OA.RequestGroupsStamp) then
         local made = Requests.scan()
         if not made then return nil end
         for k in pairs(world) do world[k] = nil end
@@ -358,9 +453,23 @@ end
 function Requests.migrate(record)
     local codex = record.codex
     if not codex then return end
+    local old = codex.req and not codex.req.groups
+    if old then codex.req.groups = true end
+    Requests.rekey(codex, old)
+end
+
+-- The lists whose keys were checked against the rows in use (a list is checked again when the table changes).
+local checked = setmetatable({}, { __mode = "k" })
+
+-- Puts the keys a record holds (the week's list, what was settled, the strange item, the pinned one) in the table's
+-- terms: a type becomes its group's key, an id the table dropped becomes that of the group that took it over (the
+-- tool keeps these as `was`), a group named twice is kept once and its settled units add up. `force` for a list of item
+-- types from before the groups (it has no `groups` mark); a list is otherwise checked once for the rows in use.
+function Requests.rekey(codex, force)
+    index()
     if codex.reqPin then codex.reqPin = Requests.keyOf(codex.reqPin) end
     local rq = codex.req
-    if not rq or rq.groups then return end
+    if not rq or (checked[rq] == rows and not force) then return end
     local items, seen, used = {}, {}, {}
     for _, t in ipairs(rq.items or {}) do
         local key = Requests.keyOf(t)
@@ -375,7 +484,7 @@ function Requests.migrate(record)
     end
     rq.items, rq.used = items, used
     if rq.strange then rq.strange = Requests.keyOf(rq.strange) end
-    rq.groups = true
+    checked[rq] = rows
 end
 
 OA.Store.addUpgrade("requests.groups", Requests.migrate)
@@ -384,7 +493,7 @@ OA.Store.addUpgrade("requests.groups", Requests.migrate)
 -- of item types from before (a save not upgraded yet) is moved to groups first.
 local function state(record)
     local codex = OA.Store.section(record, "codex")
-    if codex.req and not codex.req.groups then Requests.migrate(record) end
+    if codex.req and not codex.req.groups then Requests.migrate(record) else Requests.rekey(codex) end
     return codex, codex.req
 end
 
