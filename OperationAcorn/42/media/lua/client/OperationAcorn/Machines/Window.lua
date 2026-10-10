@@ -101,8 +101,7 @@ function OAMachineBody:prerender()
     self:clearStencilRect()
     -- where the part on show is: a thin bar on the right
     local p, h = self.window.palette, self.height
-    local th = math.max(16, math.floor(h * h / self.contentH))
-    local ty = math.floor((h - th) * self.scroll / self:maxScroll())
+    local ty, th = UI.thumb(h, self.contentH, self.scroll, self:maxScroll(), 16)
     UI.fill(self, self.width - OAMachineWindow.BAR - 1, ty, OAMachineWindow.BAR, th, p.border, 0.9)
 end
 

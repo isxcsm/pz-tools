@@ -35,26 +35,9 @@ local function trimmed(v)
 end
 
 -- The text cut into lines no wider than `width`: at spaces, or inside a word that is wider by itself.
+local WORDS = { breakWords = true }
 local function wrap(text, width)
-    local lines = {}
-    local line = ""
-    for word in string.gmatch(text, "%S+") do
-        local try = line == "" and word or (line .. " " .. word)
-        if UI.textWidth(try) <= width then
-            line = try
-        else
-            if line ~= "" then lines[#lines + 1] = line end
-            line = word
-            while UI.textWidth(line) > width and #line > 1 do
-                local cut = line
-                while #cut > 1 and UI.textWidth(cut) > width do cut = string.sub(cut, 1, #cut - 1) end
-                lines[#lines + 1] = cut
-                line = string.sub(line, #cut + 1)
-            end
-        end
-    end
-    if line ~= "" then lines[#lines + 1] = line end
-    return lines
+    return OA.wrap(text, width, UI.textWidth, WORDS)
 end
 
 function OATabDelivery:createChildren()

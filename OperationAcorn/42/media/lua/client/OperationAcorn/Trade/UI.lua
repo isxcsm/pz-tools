@@ -58,6 +58,15 @@ local on = false
 -- font -> { its space, the space between parts } (UI.fontSpace), until the scale changes: the status header asks
 -- each frame
 local spaces = {}
+-- Text measured once: font -> text -> width (design units), and face -> text -> width (pixels), until the scale or the
+-- faces change; and the wraps and cuts made for the frames that draw the same text at the same width each time
+-- (UI.wrapMemo, UI.fitMemo). A table that grows past a few thousand texts (a counter's every number) starts over.
+local widths, pixelWidths, wrapMemos, fitMemos = {}, {}, {}, {}
+local cached = 0
+local CACHE_MAX = 4000
+local function forgetText()
+    widths, pixelWidths, wrapMemos, fitMemos, cached = {}, {}, {}, {}, 0
+end
 local floor = math.floor
 local faceOf = Faces.face
 local WHITE = { 1, 1, 1 }
@@ -233,6 +242,26 @@ end
 -- at px (2), or untrimmed (3). `base` draws in pixels in the game's font (the element's class without the scaling).
 -- ox, oy: UI.origin(el) when the caller has it (a list of many texts), else nil. An API face is drawn at the same
 -- screen pixel the game's text would be, a centred one by half its width as the game's (whole pixels).
+local function faceWidth(face, str)
+    local known = pixelWidths[face]
+    if not known then
+        known = {}
+        pixelWidths[face] = known
+    end
+    local w = known[str]
+    if w == nil then
+        if cached >= CACHE_MAX then
+            forgetText()
+            known = {}
+            pixelWidths[face] = known
+        end
+        w = Faces.measure(face, str)
+        known[str] = w
+        cached = cached + 1
+    end
+    return w
+end
+
 local function textPx(el, base, str, px, py, r, g, b, a, font, align, ox, oy)
     local face = faceOf(font)
     local key = face.key
@@ -243,9 +272,9 @@ local function textPx(el, base, str, px, py, r, g, b, a, font, align, ox, oy)
         return base.drawTextUntrimmed(el, str, px, py, r, g, b, a, face.font)
     end
     if align == 1 then
-        px = px - floor(Faces.measure(face, str) / 2)
+        px = px - floor(faceWidth(face, str) / 2)
     elseif align == 2 then
-        px = px - Faces.measure(face, str)
+        px = px - faceWidth(face, str)
     end
     if not ox then
         local jo = el.javaObject
@@ -263,7 +292,7 @@ function UI.textAtPx(el, text, px, py, c, font, a, align)
 end
 
 function UI.faceWidthPx(text, font)
-    return Faces.measure(faceOf(font), text)
+    return faceWidth(faceOf(font), text)
 end
 
 function SCALED:drawText(str, x, y, r, g, b, a, font)
@@ -371,6 +400,7 @@ function UI.setScale(s, useApi)
     s = s or 1
     if useApi == nil then useApi = Faces.on end
     local made = Faces.build(s, useApi)
+    forgetText()
     local now = s ~= 1 or Faces.on
     if s == S and now == on and Faces.on == UI.facesOn then return made end
     S, on = s, now
@@ -416,10 +446,17 @@ function UI.designCanvas(el)
     return c
 end
 
+-- Whether a row of a game list at pixel y (from the list's top, before its scroll) is outside what shows.
+local function rowHidden(list, y, h)
+    local at = y + list:getYScroll()
+    return at + h < 0 or at >= list.height
+end
+
 -- A game list's doDrawItem drawing each row with drawRow(list, y, item, alt) in design units (the list as a canvas,
--- y from its top); it gives the list where the next row starts.
+-- y from its top); it gives the list where the next row starts. A row outside the list's visible part is not drawn.
 function UI.rowPainter(drawRow)
     return function(list, y, item, alt)
+        if rowHidden(list, y, item.height) then return y + item.height end
         local c = UI.designCanvas(list)
         drawRow(c, c == list and y or y / S, item, alt)
         return y + item.height
@@ -531,11 +568,33 @@ local function trailingMore(text, font)
     return trail * math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
 end
 
-function UI.textWidth(text, font)
+local function measureDesign(text, font)
     if text and text ~= "" and string.match(text, "^ +$") then return #text * UI.spaceWidth(font) end
     local w = Faces.measure(faceOf(font), text)
     if S ~= 1 then w = w / S end
     if text and text ~= "" then w = w + trailingMore(text, font) end
+    return w
+end
+
+function UI.textWidth(text, font)
+    if text == nil then return measureDesign(text, font) end
+    local key = font or UIFont.Small
+    local known = widths[key]
+    if not known then
+        known = {}
+        widths[key] = known
+    end
+    local w = known[text]
+    if w == nil then
+        if cached >= CACHE_MAX then
+            forgetText()
+            known = {}
+            widths[key] = known
+        end
+        w = measureDesign(text, font)
+        known[text] = w
+        cached = cached + 1
+    end
     return w
 end
 
@@ -573,45 +632,63 @@ function UI.spaceGaps(text, font)
 end
 
 -- A text broken into lines no wider than `width` (design units) at its spaces, and at its line ends ("\n"). A word
--- wider than the width by itself stays whole on its own line, as the game's rich text keeps it.
+-- wider than the width by itself stays whole on its own line, as the game's rich text keeps it. (OA.wrap: the one
+-- wrap; a margin, because a width in design units can be a fraction a hair under the text's own.)
+local WRAP = { eps = 0.001, paragraphs = true }
 function UI.wrap(text, width, font)
-    local lines = {}
-    for para in string.gmatch((text or "") .. "\n", "(.-)\n") do
-        local current
-        for word in string.gmatch(para, "%S+") do
-            local longer = current and (current .. " " .. word) or word
-            if current and UI.textWidth(longer, font) > width + 0.001 then
-                lines[#lines + 1] = current
-                current = word
-            else
-                current = longer
-            end
-        end
-        lines[#lines + 1] = current or ""
-    end
-    return lines
+    return OA.wrap(text, width, UI.textWidth, WRAP, font)
 end
 
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
--- never splits a letter.
--- (with a margin: a width in design units can be a fraction a hair under the text's own)
-local function fitWith(measure, text, width, font)
-    width = width + 0.001
-    if measure(text, font) <= width then return text end
-    local cut = text
-    while #cut > 1 and measure(cut .. "...", font) > width do
-        cut = string.sub(cut, 1, #cut - 1)
-    end
-    return cut .. "..."
-end
-
+-- never splits a letter. (with a margin: a width in design units can be a fraction a hair under the text's own)
 function UI.fit(text, width, font)
-    return fitWith(UI.textWidth, text, width, font)
+    return OA.fitText(text, width, UI.textWidth, 0.001, font)
 end
 
 -- The same in pixels.
 function UI.fitPx(text, width, font)
-    return fitWith(UI.textWidthPx, text, width, font)
+    return OA.fitText(text, width, UI.textWidthPx, 0.001, font)
+end
+
+-- The wrap and the cut kept for a text drawn at the same width every frame: the lines are the memo's own, read, not
+-- changed. Made again when the scale changes.
+local function memoOf(memos, font, text)
+    local key = font or UIFont.Small
+    local byFont = memos[key]
+    if not byFont then
+        byFont = {}
+        memos[key] = byFont
+    end
+    local byText = byFont[text]
+    if not byText then
+        if cached >= CACHE_MAX then forgetText() return nil end
+        byText = {}
+        byFont[text] = byText
+        cached = cached + 1
+    end
+    return byText
+end
+
+function UI.wrapMemo(text, width, font)
+    local byText = memoOf(wrapMemos, font, text)
+    if not byText then return UI.wrap(text, width, font) end
+    local lines = byText[width]
+    if not lines then
+        lines = UI.wrap(text, width, font)
+        byText[width] = lines
+    end
+    return lines
+end
+
+function UI.fitMemo(text, width, font)
+    local byText = memoOf(fitMemos, font, text)
+    if not byText then return UI.fit(text, width, font) end
+    local cut = byText[width]
+    if not cut then
+        cut = UI.fit(text, width, font)
+        byText[width] = cut
+    end
+    return cut
 end
 
 -- One dot of the small signs drawn from rectangles, in design units: round(S) pixels, so that their strokes thicken
@@ -794,6 +871,37 @@ function UI.styleScrollBar(bar)
     bar.render = renderBar
 end
 
+-- The scroll bars of our own scrolling elements (a rich text, the shop's cards, the machine window's body): an element
+-- with `height`, `scroll`, maxScroll() and setScroll(v) shows a thumb on a bar along its right edge.
+-- The thumb for `h` visible of `full` content at `scroll` of at most `max`: its top and its height (`least` high at
+-- the least, 20 when not given).
+function UI.thumb(h, full, scroll, max, least)
+    local th = math.max(least or 20, floor(h * h / full))
+    return max > 0 and floor((h - th) * scroll / max) or 0, th
+end
+
+-- A bar on the right of `el`, `w` wide at `x`: the track faintly, then the thumb (top ty, height th), in colour c.
+function UI.drawBar(el, x, w, h, ty, th, c)
+    UI.fill(el, x, 0, w, h, c, 0.25)
+    UI.fill(el, x, ty, w, th, c, 0.95)
+end
+
+-- A click at y on the bar of `el` (which has thumb() as UI.thumb): the thumb goes there unless the click is on it; a
+-- drag starts. And the drag by dy.
+function UI.barPress(el, y)
+    local ty, th = el:thumb()
+    if y < ty or y >= ty + th then
+        el:setScroll((y - th / 2) * el:maxScroll() / math.max(1, el.height - th))
+    end
+    el.dragging = true
+end
+
+function UI.barDrag(el, dy)
+    if not el.dragging then return end
+    local _, th = el:thumb()
+    el:setScroll(el.scroll + dy * el:maxScroll() / math.max(1, el.height - th))
+end
+
 -- A list with rows drawn by `drawRow(list, y, item, alt)` (inside our elements in design units and faces: the list is
 -- then a canvas over the game's list, UI.designCanvas). The row's own height is the list's itemheight (UI.rowHeight).
 function UI.list(parent, x, y, width, height, drawRow, target, onclick)
@@ -821,9 +929,7 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
         return baseMouseDown(self, x, y)
     end
     list.doDrawItem = function(self, rowY, item, alt)
-        if rowY + self:getYScroll() + item.height < 0 or rowY + self:getYScroll() >= self.height then
-            return rowY + item.height
-        end
+        if rowHidden(self, rowY, item.height) then return rowY + item.height end
         if self.selected == item.index then
             self:drawSelection(0, rowY, self:getWidth(), item.height - 1)
         end

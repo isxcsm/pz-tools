@@ -137,18 +137,7 @@ end
 
 -- A text broken into lines no wider than `w` at its spaces.
 function Draw.wrap(text, w, font)
-    local lines, current = {}, nil
-    for word in string.gmatch(text or "", "%S+") do
-        local longer = current and (current .. " " .. word) or word
-        if current and UI.textWidth(longer, font) > w then
-            lines[#lines + 1] = current
-            current = word
-        else
-            current = longer
-        end
-    end
-    if current then lines[#lines + 1] = current end
-    return lines
+    return OA.wrap(text, w, UI.textWidth, nil, font)
 end
 
 -- Textures ---------------------------------------------------------------------------------------------------------

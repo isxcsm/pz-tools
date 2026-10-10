@@ -84,26 +84,9 @@ local function drawRuns(el, x, y, list, p)
 end
 
 -- A text cut into lines of at most `width` (at the spaces; a word wider than a line is cut where it is).
+local WORDS = { breakWords = true }
 local function wrapLines(text, width)
-    local lines = {}
-    local line = ""
-    for word in string.gmatch(text, "%S+") do
-        local try = line == "" and word or (line .. " " .. word)
-        if UI.textWidth(try) <= width then
-            line = try
-        else
-            if line ~= "" then lines[#lines + 1] = line end
-            line = word
-            while UI.textWidth(line) > width and #line > 1 do
-                local cut = #line
-                while cut > 1 and UI.textWidth(string.sub(line, 1, cut)) > width do cut = cut - 1 end
-                lines[#lines + 1] = string.sub(line, 1, cut)
-                line = string.sub(line, cut + 1)
-            end
-        end
-    end
-    if line ~= "" then lines[#lines + 1] = line end
-    return lines
+    return OA.wrap(text, width, UI.textWidth, WORDS)
 end
 
 -- A panel: the border, and the palette's panel colour (the crude terminal a faint wash).

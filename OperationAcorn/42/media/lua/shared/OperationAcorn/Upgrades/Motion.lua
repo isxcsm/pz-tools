@@ -12,13 +12,8 @@ OperationAcorn.Upgrades.Motion = Motion
 
 local floor, min, max, sin, pi = math.floor, math.min, math.max, math.sin, math.pi
 
--- A curve fast at first that settles at the end (u from 0 to 1; held at its ends outside).
-function Motion.easeOut(u)
-    if u <= 0 then return 0 end
-    if u >= 1 then return 1 end
-    local v = 1 - u
-    return 1 - v * v * v
-end
+-- A curve fast at first that settles at the end (u from 0 to 1; held at its ends outside): the shared one.
+Motion.easeOut = OperationAcorn.easeOut
 
 -- ---- a click's answer ---------------------------------------------------------------------------------------------
 -- Milliseconds and sizes: a rank raised swells the node by POP_SCALE of its size and sends a cyan ring RIPPLE_GROW

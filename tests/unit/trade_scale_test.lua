@@ -862,3 +862,42 @@ test("a missions button is as wide as its title in design units, not in pixels",
     local long = OAMButton:new(0, 0, 70, 26, "Next page", {})
     eq(long.width, 9 * 7 + 10, "73 units, where the game's measure would make it 112")
 end)
+
+test("a list row outside the list's visible part is not drawn", function()
+    local UI = loadUI(16)
+    local drawn = 0
+    local painter = UI.rowPainter(function() drawn = drawn + 1 end)
+    local list = { height = 100, getYScroll = function() return -40 end }
+    eq(painter(list, 10, { height = 20 }, false), 30, "above the top (scrolled up): the next place, nothing drawn")
+    eq(drawn, 0)
+    eq(painter(list, 200, { height = 20 }, false), 220, "below the bottom")
+    eq(drawn, 0)
+    painter(list, 60, { height = 20 }, false)
+    eq(drawn, 1, "on show")
+    painter(list, 139, { height = 20 }, false)
+    eq(drawn, 2, "its top just inside")
+end)
+
+test("texts measured once are not measured again until the scale is set", function()
+    local UI = loadUI(16)
+    local calls = 0
+    local measure = getTextManager().MeasureStringX
+    local manager = getTextManager()
+    local wrapped = setmetatable({}, { __index = manager })
+    wrapped.MeasureStringX = function(self, font, text) calls = calls + 1 return measure(manager, font, text) end
+    local was = getTextManager
+    getTextManager = function() return wrapped end
+    local w = UI.textWidth("some words")
+    local first = calls
+    truthy(first > 0)
+    eq(UI.textWidth("some words"), w)
+    eq(calls, first, "the second ask is from memory")
+    local lines = UI.wrapMemo("one two three", 20)
+    local again = UI.wrapMemo("one two three", 20)
+    truthy(lines == again, "the same wrap, kept")
+    eq(UI.fitMemo("one two three", 20), UI.fit("one two three", 20))
+    UI.setScale(2)
+    UI.textWidth("some words")
+    truthy(calls > first, "measured again at the new scale")
+    getTextManager = was
+end)

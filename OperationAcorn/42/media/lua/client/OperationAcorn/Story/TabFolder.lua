@@ -338,12 +338,7 @@ function OATabFolder:layout()
 end
 
 -- 0 to 1, fast at first and settling (a cubic ease out); below 0 is 0, above 1 is 1.
-local function easeOut(f)
-    if f <= 0 then return 0 end
-    if f >= 1 then return 1 end
-    local g = 1 - f
-    return 1 - g * g * g
-end
+local easeOut = OperationAcorn.easeOut
 
 function OATabFolder:prerender()
     if self.laidW ~= self.width or self.laidH ~= self.height then self:layout() end

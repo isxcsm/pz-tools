@@ -139,3 +139,37 @@ test("upgradeAll goes through every record in the save", function()
     OA.Store.upgradeAll()
     eq(#seen, 2, "each once")
 end)
+
+test("the shared wrap and cut: the rules the windows' own copies had", function()
+    local chars = function(s) return #s end
+    -- spaces only; a word wider than a line stays whole
+    local lines = OA.wrap("aaa bbb ccc ddd", 7, chars)
+    eq(#lines, 2); eq(lines[1], "aaa bbb"); eq(lines[2], "ccc ddd")
+    eq(OA.wrap("abcdefghij kl", 5, chars)[1], "abcdefghij")
+    eq(#OA.wrap("", 5, chars), 0, "no text, no line")
+    eq(#OA.wrap("one\ntwo", 20, chars), 1, "line ends are spaces unless paragraphs")
+    -- paragraphs: a line end ends a line, a blank paragraph is an empty line
+    local rows = OA.wrap("one\n\ntwo", 20, chars, { paragraphs = true })
+    eq(#rows, 3); eq(rows[2], "")
+    -- a margin: a width a hair under the text's own still takes it
+    eq(#OA.wrap("aaaa bbbb", 9 - 0.0005, chars, { eps = 0.001 }), 1)
+    eq(#OA.wrap("aaaa bbbb", 9 - 0.0005, chars), 2)
+    -- words cut between letters
+    local cut = OA.wrap("abcdefghij kl", 4, chars, { breakWords = true })
+    eq(cut[1], "abcd"); eq(cut[2], "efgh"); eq(cut[3], "ij"); eq(cut[4], "kl")
+    -- at most n lines, the last ending in "..."
+    local few = OA.wrap("aaa bbb ccc ddd eee", 3, chars, { breakWords = true, maxLines = 2 })
+    eq(#few, 2); eq(few[1], "aaa"); eq(few[2], "b...", "one letter is kept at the least")
+    local fewer = OA.wrap("aaaa bbbb cccc", 6, chars, { maxLines = 2 })
+    eq(fewer[2], "bbb...", "the last line cut so that the dots fit")
+    -- the cut
+    eq(OA.fitText("abcdef", 6, chars), "abcdef")
+    eq(OA.fitText("abcdefg", 6, chars), "abc...")
+    eq(OA.cutFor("abcdefg", 6, chars), "abc")
+    eq(OA.fitText("ab", 1, chars), "a...", "one letter is kept at the least")
+end)
+
+test("the shared ease out", function()
+    eq(OA.easeOut(-1), 0); eq(OA.easeOut(0), 0); eq(OA.easeOut(1), 1); eq(OA.easeOut(2), 1)
+    near(OA.easeOut(0.5), 0.875, 1e-12)
+end)
