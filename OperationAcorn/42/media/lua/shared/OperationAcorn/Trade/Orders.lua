@@ -126,14 +126,19 @@ end
 
 -- Replaces the cart with the lines given, keeping the valid ones: a known entry, a whole count of 1 to the limit,
 -- no more lines than the limit, a repeated entry (same id, target and choice) merged. Returns the cart.
-function Orders.set(record, lines)
+function Orders.set(record, lines, crude)
     local cart = {}
     local seen = {}
+    local dropped = 0
     for _, line in ipairs(lines or {}) do
         if #cart >= Orders.MAX_LINES then break end
         local id = line.id
         local count = math.floor(tonumber(line.count) or 0)
         local entry = type(id) == "string" and Orders.entry(id) or nil
+        if entry and crude and OA.Shop and OA.Shop.fieldOnly and OA.Shop.fieldOnly(entry) then
+            dropped = dropped + 1
+            entry = nil
+        end
         if entry and count >= 1 then
             count = math.min(count, Orders.MAX_COUNT)
             local target = type(line.target) == "string" and line.target or nil
@@ -151,7 +156,7 @@ function Orders.set(record, lines)
         end
     end
     Trade.orders(record).cart = cart
-    return cart
+    return cart, dropped
 end
 
 -- What the cart costs at today's prices, one unit's price times the count (prices that rise as units are bought

@@ -29,10 +29,10 @@ Objects.TERMINAL, Objects.DELIVERY_BOX, Objects.CRATE = "terminal", "box", "crat
 Objects.ITEMS = {
     terminal = "OperationAcorn.CommTerminal",
     box = "OperationAcorn.DeliveryBox",
-    kit = "OperationAcorn.TerminalUpgradeKit",
+    field = "OperationAcorn.FieldTerminal",
 }
--- The modData key of a terminal upgraded with its kit (the object's, and its item's while it is carried): the team's
--- own terminal, whose market tab has the price graph.
+-- The modData key of a field terminal standing in the world (put down from the FieldTerminal item): the team's own
+-- terminal (DESIGN-terminal 3).
 Objects.UPGRADED = "OA_Upgraded"
 Objects.BOX_CONTAINER, Objects.CRATE_CONTAINER = "OADeliveryBox", "OASupplyCrate"
 -- The texts of those titles; named here so that the translation check sees them used.
@@ -233,7 +233,7 @@ function Objects.terminalSprite(facing, on, upgraded)
     return Sprites.terminal(facing or "S", on, upgraded)
 end
 
--- Whether a terminal object is upgraded with its kit.
+-- Whether a terminal object is the field terminal.
 function Objects.isUpgraded(object)
     return object:getModData()[Objects.UPGRADED] == true
 end

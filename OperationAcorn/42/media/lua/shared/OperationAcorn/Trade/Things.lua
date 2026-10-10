@@ -47,18 +47,32 @@ Things.watch, Things.unwatch = watch, unwatch
 
 -- The terminal ------------------------------------------------------------------------------------------------
 
--- Puts a terminal item down on a square, facing S, E, N or W.
+-- Puts a terminal item down on a square, facing S, E, N or W: the assembled one, or the field terminal.
 function Things.placeTerminal(character, square, facing, item, record)
     local ok, why = Objects.free(square)
     if not ok then return false, why end
-    local upgraded = item and item:getModData()[Objects.UPGRADED] == true
+    local upgraded = item ~= nil and item:getFullType() == Objects.ITEMS.field
     local object = Objects.create(square, Objects.terminalSprite(facing, Objects.powered(square), upgraded),
         Objects.TERMINAL, { OA_Facing = facing, [Objects.UPGRADED] = upgraded or nil })
     Objects.consume(character, item)
     watch("trade.terminal", square:getX(), square:getY(), square:getZ())
     Objects.showTerminal(object)
-    if record then Things.terminalPlaced(record, square) end
+    if record then
+        Things.terminalPlaced(record, square)
+        if upgraded then Things.lineOpened(record) end
+    end
     return true, object
+end
+
+-- The first field terminal a record puts down registers its line with the team (DESIGN-terminal 3.2, 12): special
+-- requests come to it from then on, even if that terminal is lost. A gold title says what has opened.
+function Things.lineOpened(record)
+    local heli = Trade.heli(record)
+    if heli.line then return false end
+    heli.line = true
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "stamp",
+        tone = "gold", fallback = "good" })
+    return true
 end
 
 -- The record learns where its terminal stands (the base, for the story part's distance bands). The first one placed
@@ -79,24 +93,7 @@ function Things.takeTerminal(character, object)
     unwatch("trade.terminal", square:getX(), square:getY(), square:getZ())
     local upgraded = Objects.isUpgraded(object)
     Objects.remove(object)
-    Objects.giveHeavy(character, Objects.ITEMS.terminal, upgraded and { [Objects.UPGRADED] = true } or nil)
-    return true
-end
-
--- Upgrades a terminal with the kit the character carries: the team's own terminal from now on (its look, and the
--- price graph in its market tab). The kit is used up.
-function Things.upgradeTerminal(character, object)
-    if Objects.kindOf(object) ~= Objects.TERMINAL then return false, "noTerminal" end
-    if Objects.isUpgraded(object) then return false, "upgraded" end
-    local square = object:getSquare()
-    if not square or not near(character, square:getX(), square:getY()) then return false, "far" end
-    local kit = character:getInventory():getFirstTypeRecurse(Objects.ITEMS.kit)
-    if not kit then return false, "noKit" end
-    Objects.consume(character, kit)
-    object:getModData()[Objects.UPGRADED] = true
-    if isServer() then object:transmitModData() end
-    Objects.showTerminal(object)
-    square:playSound(Things.LATCH_SOUND)
+    Objects.giveHeavy(character, upgraded and Objects.ITEMS.field or Objects.ITEMS.terminal)
     return true
 end
 

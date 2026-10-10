@@ -98,3 +98,18 @@ test("an unknown shop gives no entries and a name is the entry's", function()
     fakeShop()
     eq(Orders.nameOf(Orders.entry("battery_pack")), "IGUI_OA_Econ_Shop_Item_battery_pack")
 end)
+
+test("at the crude terminal the research team's goods are left out of the cart and counted", function()
+    fakeShop()
+    OA.Shop.fieldOnly = function(entry) return entry.id == "kit_trunk" or entry.id == "fuelcan_mk1" end
+    local record = newRecord()
+    local lines = { { id = "battery_pack", count = 1 }, { id = "kit_trunk", count = 1, target = "car7" },
+        { id = "fuelcan_mk1", count = 2 } }
+    local cart, dropped = Orders.set(record, lines, true)
+    eq(#cart, 1)
+    eq(cart[1].id, "battery_pack")
+    eq(dropped, 2)
+    cart, dropped = Orders.set(record, lines, false)
+    eq(#cart, 3, "the field terminal orders everything")
+    eq(dropped, 0)
+end)

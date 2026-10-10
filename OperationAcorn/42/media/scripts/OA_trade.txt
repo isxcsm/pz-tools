@@ -15,14 +15,16 @@ module OperationAcorn
         RequiresEquippedBothHands = true,
     }
 
-    /* The kit that upgrades an assembled terminal into the team's own (its look, and the market tab's price graph). */
-    item TerminalUpgradeKit
+    /* The team's field terminal, ordered from the shop: carried and put down like the assembled one, it stands as the
+       team's own terminal (research team goods, special requests, flight support). */
+    item FieldTerminal
     {
         DisplayCategory = Electronics,
         ItemType = base:normal,
-        Weight = 3.0,
-        Icon = OA_TerminalUpgradeKit,
-        Tooltip = Tooltip_OA_TerminalUpgradeKit,
+        Weight = 12.0,
+        Icon = OA_FieldTerminal,
+        Tooltip = Tooltip_OA_FieldTerminal,
+        RequiresEquippedBothHands = true,
     }
 
     /* The delivery box that is put down on open ground; its number is kept in the item's modData while it is carried. */

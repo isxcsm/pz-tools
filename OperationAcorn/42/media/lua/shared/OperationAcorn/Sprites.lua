@@ -23,8 +23,8 @@ local function facing(dir)
 end
 
 -- Trade sheet.
--- The terminal: the one assembled from a desktop computer and a ham radio (16-23), or the team's own once upgraded
--- with its kit (0-7); each off (dark) or on, in its facing.
+-- The terminal: the one assembled from a desktop computer and a ham radio (16-23), or the team's field terminal
+-- (0-7); each off (dark) or on, in its facing.
 function Sprites.terminal(dir, on, upgraded)
     return tile(Sprites.TRADE, (upgraded and 0 or 16) + (on and 4 or 0) + facing(dir))
 end

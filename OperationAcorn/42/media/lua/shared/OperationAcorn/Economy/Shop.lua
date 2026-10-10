@@ -35,7 +35,7 @@ Shop.TYPES = {
     sawBladeNormal = "OperationAcorn.SawBladeNormal", sawBladeModern = "OperationAcorn.SawBladeModern",
     filterNormal = "OperationAcorn.FilterNormal", filterModern = "OperationAcorn.FilterModern",
     muffler = "OperationAcorn.SoundproofCover",
-    terminalKit = "OperationAcorn.TerminalUpgradeKit",
+    fieldTerminal = "OperationAcorn.FieldTerminal",
 }
 
 -- Upgrade serum trees. The ids are the names the upgrades part uses.
@@ -114,7 +114,7 @@ local function build()
     -- Machines.
     add({ id = "shred_bench", group = "machine", tier = 0, price = 5000, give = { give("shredBench") } })
     add({ id = "bait_trap", group = "machine", tier = 2, price = 12000, give = { give("bait") } })
-    add({ id = "terminal_kit", group = "machine", tier = 2, price = 50000, give = { give("terminalKit") } })
+    add({ id = "field_terminal", group = "machine", tier = 2, price = 50000, give = { give("fieldTerminal") } })
     add({ id = "team_locker", group = "machine", tier = 2, price = 60000, give = { give("locker") } })
     add({ id = "fabric_cutter", group = "machine", tier = 2, price = 80000, give = { give("cutter") } })
     add({ id = "log_saw", group = "machine", tier = 2, price = 100000, give = { give("logSaw") } })
@@ -183,6 +183,16 @@ end
 function Shop.catalog()
     if not catalog then catalog = build() end
     return catalog
+end
+
+-- What the crude terminal orders too (DESIGN-terminal 3.1): the serums, the late resources, the delivery box, the
+-- shredding bench, the bait and the field terminal itself. Everything else the research team made is ordered at the
+-- field terminal only.
+Shop.CRUDE_GROUPS = { consumable = true, serum = true, resource = true, box = true }
+Shop.CRUDE_IDS = { shred_bench = true, bait_trap = true, field_terminal = true }
+
+function Shop.fieldOnly(entry)
+    return not (Shop.CRUDE_GROUPS[entry.group] or Shop.CRUDE_IDS[entry.id])
 end
 
 function Shop.entry(id)

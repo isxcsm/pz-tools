@@ -78,7 +78,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `codex` | P1 | 도감, 털이, 처치 기록 |
 | `shop` | P1 | 품목별 구매 시각, 주간 구매 수, 키트 대상별 사용 수 |
 | `shred` | P1 | 종류별 최근 분해 수(날마다 ×0.9), 처음 분해한 종류 |
-| `boxes`, `heli`, `orders` | P2 | 상자, 헬기, 주문 |
+| `boxes`, `heli`, `orders` | P2 | 상자, 헬기(`line`: 정식 회선이 열림), 주문 |
 | `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수 |
 | `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산) |
 

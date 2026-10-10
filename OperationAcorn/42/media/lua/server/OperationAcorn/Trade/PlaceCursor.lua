@@ -16,8 +16,10 @@ local function facingToward(character, x, y)
     return dy > 0 and "S" or "N"
 end
 
-local function spriteFor(kind, facing)
-    if kind == Objects.TERMINAL then return Sprites.terminal(facing or "S", false) end
+local function spriteFor(kind, facing, item)
+    if kind == Objects.TERMINAL then
+        return Sprites.terminal(facing or "S", false, item ~= nil and item:getFullType() == Objects.ITEMS.field)
+    end
     if kind == Objects.DELIVERY_BOX then return Sprites.deliveryBox(false) end
     return Sprites.supplyCrate(false)
 end
@@ -26,7 +28,7 @@ function ISOAPlaceCursor:getSprite()
     local square = self.square
     local facing = square and facingToward(self.character, square:getX(), square:getY()) or "S"
     self.facing = facing
-    self.chosenSprite = spriteFor(self.kind, facing)
+    self.chosenSprite = spriteFor(self.kind, facing, self.item)
     return self.chosenSprite
 end
 

@@ -29,12 +29,18 @@ local function refuse(record, reason)
     OA.Sync.notice(record.id, "IGUI_OA_Trade_Reason_" .. tostring(reason))
 end
 
--- The cart: the lines the terminal's shop tab holds, kept in the record so that a closed window loses nothing.
+-- The cart: the lines the terminal's shop tab holds, kept in the record so that a closed window loses nothing. The
+-- research team's goods are ordered at a field terminal only (checked again here, by the terminal it was sent at).
+function Handlers.setCart(record, object, lines)
+    local _, dropped = Orders.set(record, lines, not Objects.isUpgraded(object))
+    if dropped > 0 then refuse(record, "fieldOnly") end
+end
+
 Server.on("tradeCart", function(character, record, args)
     local object, why = Handlers.terminalFor(character, args)
     if not object then return refuse(record, why) end
     if type(args.lines) ~= "table" then return end
-    Orders.set(record, args.lines)
+    Handlers.setCart(record, object, args.lines)
     OA.Sync.changed("trade", record.id)
 end)
 
@@ -44,7 +50,7 @@ Server.on("tradeCall", function(character, record, args)
     local object, why = Handlers.terminalFor(character, args)
     if not object then return refuse(record, why) end
     local kind = args.kind == "reissue" and "reissue" or "normal"
-    if type(args.lines) == "table" then Orders.set(record, args.lines) end
+    if type(args.lines) == "table" then Handlers.setCart(record, object, args.lines) end
     local ok, reason
     if kind == "reissue" then
         local canCall, noBox = Boxes.canCall(record)

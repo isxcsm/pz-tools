@@ -503,8 +503,8 @@ def board_image(w=64, h=48):
     return img
 
 
-def terminal_kit():
-    """The terminal upgrade kit: an open olive hard case, the team's mark on its lid, in the foam a circuit board, a
+def field_terminal():
+    """The field terminal: an open olive hard case, the team's mark on its lid, in the foam a circuit board, a
     rugged antenna module with its stubby antenna up, and a coil of cable."""
     s = Scene(0)
     x0, x1, y0, y1, zb = 0.10, 0.90, 0.30, 0.86, 0.22
@@ -642,7 +642,7 @@ PICTURES = {
     'rain_storage': machine('rainStorage', 3),
     'lure': lure_icon,
     'backpack': backpack,
-    'terminal_kit': terminal_kit,
+    'field_terminal': field_terminal,
     'kit_bag_capacity': lambda: kit('bagplus', (170, 200, 236)),
     'kit_bag_weight': lambda: kit('bagfeather', (240, 200, 120)),
     'kit_trunk': lambda: kit('trunk', (168, 220, 196)),

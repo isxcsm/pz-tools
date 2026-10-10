@@ -82,31 +82,6 @@ function ISOAPlaceThing:new(character, kind, item, square, facing)
     return o
 end
 
--- Fitting the upgrade kit to a terminal.
-ISOAUpgradeTerminal = base("ISOAUpgradeTerminal", 300)
-
-function ISOAUpgradeTerminal:isValid()
-    local square = squareOf(self)
-    local object = square and Objects.find(square, Objects.TERMINAL)
-    return object ~= nil and not Objects.isUpgraded(object)
-        and self.character:getInventory():getFirstTypeRecurse(Objects.ITEMS.kit) ~= nil
-end
-
-function ISOAUpgradeTerminal:complete()
-    local object = Objects.find(squareOf(self), Objects.TERMINAL)
-    if not object then return false end
-    local ok, why = Things.upgradeTerminal(self.character, object)
-    if not ok then refuse(self.character, why) end
-    return true
-end
-
-function ISOAUpgradeTerminal:new(character, square)
-    local o = ISBaseTimedAction.new(self, character)
-    o.x, o.y, o.z = square:getX(), square:getY(), square:getZ()
-    o.maxTime = o:getDuration()
-    return o
-end
-
 -- Using the terminal: the window opens when the action is done (on the player's side).
 ISOAUseTerminal = base("ISOAUseTerminal", 1, "Loot")
 

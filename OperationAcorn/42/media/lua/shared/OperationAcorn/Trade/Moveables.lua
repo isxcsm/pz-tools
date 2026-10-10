@@ -14,20 +14,23 @@ local Sprites = OA.Sprites
 local Objects, Things = OA.Trade.Objects, OA.Trade.Things
 
 -- The trade sheet's tiles that are objects to take up, by their kind.
-local KIND = {}
+local KIND, FIELD = {}, {}
 for dir = 0, 7 do
-    KIND[Sprites.TRADE .. "_" .. dir] = Objects.TERMINAL          -- upgraded
+    KIND[Sprites.TRADE .. "_" .. dir] = Objects.TERMINAL          -- the field terminal
+    FIELD[Sprites.TRADE .. "_" .. dir] = true
     KIND[Sprites.TRADE .. "_" .. (16 + dir)] = Objects.TERMINAL   -- as assembled
 end
 KIND[Sprites.deliveryBox(false)], KIND[Sprites.deliveryBox(true)] = Objects.DELIVERY_BOX, Objects.DELIVERY_BOX
-local NAME = { [Objects.TERMINAL] = "CommTerminal", [Objects.DELIVERY_BOX] = "DeliveryBox" }
+local NAME = { [Objects.TERMINAL] = Objects.ITEMS.terminal, [Objects.DELIVERY_BOX] = Objects.ITEMS.box }
 
+-- An item of the kind (the field terminal's for its tiles), made once, for the tool's name and weight.
 local items = {}
-local function itemOf(kind)
-    local item = items[kind]
+local function itemOf(kind, field)
+    local fullType = field and Objects.ITEMS.field or NAME[kind]
+    local item = items[fullType]
     if item == nil then
-        item = instanceItem("OperationAcorn." .. NAME[kind]) or false
-        items[kind] = item
+        item = instanceItem(fullType) or false
+        items[fullType] = item
     end
     return item or nil
 end
@@ -53,7 +56,7 @@ function ISMoveableSpriteProps.new(sprite)
         s.Noffset, s.Soffset, s.Woffset, s.Eoffset = 0, 0, 0, 0
         s.linkedOffset, s.linkedLoc, s.isClosedState, s.wallOverlay = 0, nil, false, false
         s.ignoreSurfaceSnap, s.isGridExtensionTile, s.allowDoorFrame, s.isForceSingleItem = false, false, false, false
-        local item = itemOf(kind)
+        local item = itemOf(kind, FIELD[s.spriteName])
         if item then
             s.name = item:getName()
             s.weight = item:getActualWeight()
