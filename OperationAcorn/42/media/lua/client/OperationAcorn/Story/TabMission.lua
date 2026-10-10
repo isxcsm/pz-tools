@@ -5,6 +5,7 @@
 -- worked out when the record changes or the player has walked (`refresh`); the frames only draw it (`prerender`).
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Button"
+require "OperationAcorn/Trade/Confirm"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Rewards"

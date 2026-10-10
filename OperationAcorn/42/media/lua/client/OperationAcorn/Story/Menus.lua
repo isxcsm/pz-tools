@@ -14,6 +14,7 @@ require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/Viewer"
 require "OperationAcorn/Story/Action"
 require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/Confirm"
 local OA = OperationAcorn
 local Data, Places, Docs = OA.StoryData, OA.Places, OA.StoryDocs
 local Menus = {}
