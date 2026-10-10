@@ -24,10 +24,12 @@
 -- down to its node every few seconds, the lines out of step; when the tab comes on the screen its columns come in
 -- from the left and their rows light from the top (only the drawing: a click works at once).
 -- What a frame does: the states of the nodes and lines are worked out when the record or the selection changes
--- (refresh); a frame only paints them, with the pulse, the dashes and the motions from the clock. The body paints the
--- tab's state, which is kept on the tab and not on the body: each change of it is written to the body as well
--- (View:changed), and the clock's motions are followed each frame (Trade/UI live, View.tick: one frame function for all
--- of them), so that PZ Optimization's retained UI draws them at once; the body is let go once nothing moves.
+-- (refresh); a frame only paints them, with the motions from the clock. The body paints the tab's state, which is kept
+-- on the tab and not on the body: each change of it is written to the body as well (View:changed), and the short
+-- motions (a click's answer, a padlock, the opening, the stamp) are followed each frame while they play (Trade/UI
+-- live, View.tick: one frame function for all of them), so that PZ Optimization's retained UI draws them at once; then
+-- the body is let go and its drawing kept. What moves all the time (the pulse, the dashes, the lines' lights) is drawn
+-- by the flow, a thin panel over the body (OAResearchFlow), which alone is drawn afresh each frame.
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISPanel"
 require "ISUI/ISModalDialog" -- oa-widget: ok (the gamepad's confirm, View:ask)
@@ -266,6 +268,34 @@ end
 
 UI.scaled(OAResearchBody, ISPanel)
 
+-- ---- the flow: what moves by itself, over the body ----------------------------------------------------------------
+-- The nodes' pulse, the selection's dashes and the lit lines' lights move all the time the tab shows. Drawn by the body
+-- they would have PZ Optimization draw all of it (every icon, text and pip) afresh each frame; drawn by a thin panel of
+-- their own over it, only this panel is. It is the body's sibling, not its child (a child followed each frame would
+-- mark the body changed as well, Trade/UI live), the same size, made with it, and takes no clicks: the body under it
+-- gets them.
+OAResearchFlow = ISPanel:derive("OAResearchFlow")
+
+function OAResearchFlow:new(view)
+    local o = ISPanel.new(self, 0, 0, L.VIEW_W, L.VIEW_H)
+    o.view = view
+    o.background = false
+    return o
+end
+
+function OAResearchFlow:createChildren()
+    self.javaObject:setConsumeMouseEvents(false)
+end
+
+function OAResearchFlow:prerender()
+    local view = self.view
+    -- shown again some way that did not register it (its window shown as a whole): followed from now on
+    if view.flowing and self.liveLook == nil then UI.live(self, View.flowTick) end
+    view:paintFlow(self)
+end
+
+UI.scaled(OAResearchFlow, ISPanel)
+
 -- ---- the tooltip: ours, in the terminal tooltip's look -------------------------------------------------------------
 OAResearchTip = ISPanel:derive("OAResearchTip")
 
@@ -392,11 +422,16 @@ function View:createChildren()
     self:makeBody()
 end
 
--- The body (and the tooltip) for the scale now; made again when it changed (UI.era).
+-- The body, the flow over it (added after it, so drawn over it) and the tooltip for the scale now; made again when it
+-- changed (UI.era).
 function View:makeBody()
     if self.body then
         self:removeChild(self.body)
         self.body = nil
+    end
+    if self.flow then
+        self:removeChild(self.flow)
+        self.flow = nil
     end
     if self.tip then
         self:hideTip()
@@ -408,7 +443,15 @@ function View:makeBody()
     body:instantiate()
     self:addChild(body)
     self.body = body
+    local flow = OAResearchFlow:new(self)
+    flow:initialise()
+    flow:instantiate()
+    self:addChild(flow)
+    self.flow = flow
     self:layout()
+    -- (the new layout's lines and lists of what moves, at once)
+    if self.sim then self:workOut() end
+    self:animate()
 end
 
 -- Before the tab shows: the scale again, and a new body when it changed.
@@ -467,12 +510,14 @@ function View:layout()
             for k, node in ipairs(Data.boardGroup(tree)) do
                 local c, r = (k - 1) % Data.COLS + 1, floor((k - 1) / Data.COLS) + 1
                 local x, y, s = cell(c, r)
-                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s }
+                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s,
+                    col = i, row = r }
             end
         else
             for _, node in ipairs(Data.treeNodes(tree)) do
                 local x, y, s = cell(node.col, node.row, node.capstone)
-                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s }
+                items[#items + 1] = { key = node.id, id = node.id, tree = tree, x = gx + x, y = gy + y, w = s, h = s,
+                    col = i, row = node.row }
             end
             for _, link in ipairs(Links.tree(tree)) do
                 local pts, len = {}, 0
@@ -482,9 +527,9 @@ function View:layout()
                     local prev = pts[k - 1]
                     if prev then len = len + math.abs(pts[k][1] - prev[1]) + math.abs(pts[k][2] - prev[2]) end
                 end
-                -- its number and length time the light that runs down it (Motion.bead)
+                -- its number and length time the light that runs down it (Motion.bead); its column, the opening
                 local index = #self.lines + 1
-                self.lines[index] = { need = link.need, tree = tree, points = pts, index = index, len = len }
+                self.lines[index] = { need = link.need, tree = tree, points = pts, index = index, len = len, col = i }
             end
             -- the reset button at the strip's right
             local bs = 22
@@ -603,28 +648,32 @@ local function greyed(n)
     return n.state == "locked" or n.treeLocked == true
 end
 
--- What each node and line shows, from the record and the simulation (once a change, not each frame); and whether
--- anything of it moves by itself (a node's pulse, a line's light or dashes), which keeps the body followed each frame.
+-- What each node and line shows, from the record and the simulation (once a change, not each frame); and what of it
+-- moves by itself, which the flow draws (View:paintFlow walks only these lists): the nodes that pulse, the lines in
+-- dashes, the lit lines with their lights.
 function View:workOut()
     local nodes = self:nodeStates(self.sim, self.counts, self.fragmentsLeft)
     self.nodes = nodes
-    local flowing = false
-    for _, n in pairs(nodes) do
-        if n.state == "avail" and not n.treeLocked then flowing = true end
+    local pulsing, planLines, litLines = {}, {}, {}
+    for _, item in ipairs(self.items) do
+        local n = item.id and nodes[item.id]
+        if n and n.state == "avail" and not n.treeLocked and not n.hidden then pulsing[#pulsing + 1] = item end
     end
     local u, sim = self.u, self.sim
     for _, line in ipairs(self.lines) do
         local need, k = line.need[1], line.need[2]
         if Rules.rank(u, need) >= k then
             line.state = "lit"
+            litLines[#litLines + 1] = line
         elseif Rules.rank(sim, need) >= k then
             line.state = "plan"
+            planLines[#planLines + 1] = line
         else
             line.state = "dim"
         end
-        if line.state ~= "dim" then flowing = true end
     end
-    self.flowing = flowing
+    self.pulsing, self.planLines, self.litLines = pulsing, planLines, litLines
+    self.flowing = #pulsing > 0 or #planLines > 0 or #litLines > 0
 end
 
 -- The state of each node on the screen on a simulation, with `counts` ranks of each selected and `fragments` at hand.
@@ -1029,9 +1078,6 @@ function View:prerender()
     if self.height ~= self.wantH or (parent and parent.height ~= self.y + self.wantH) then
         self:setHeightAndParentHeight(self.wantH)
     end
-    -- shown without its setVisible (its window shown as a whole): what moves by itself is followed again
-    local body = self.body
-    if self.flowing and body and body.liveLook == nil then self:animate() end
     ISPanelJoypad.prerender(self)
 end
 
@@ -1057,6 +1103,12 @@ end
 local function pulse(t)
     return 0.5 + 0.5 * math.sin(2 * math.pi * t / Window.PULSE_S)
 end
+
+-- A node that can be taken: its frame's strength at the pulse's low point (the body draws it, still), and how much
+-- the pulse adds at its top. The flow draws the frame again over it at the pulse's own strength p: one frame of a
+-- colour at PULSE_BASE under one at p shows as one at PULSE_BASE + (1 - PULSE_BASE) * p, the pulse as it was drawn
+-- in one piece.
+local PULSE_BASE, PULSE_HALO = 0.55, 0.22
 
 -- A button drawn as the terminal's (Trade/Button.lua): normal, strong, or off.
 local function button(el, item, label, style, hover)
@@ -1242,28 +1294,24 @@ local function beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
     if s1 > s0 then linePiece(el, xa, ya, xb, yb, len, s0, s1, lw, c, a) end
 end
 
--- A prerequisite line: lit in the tree's colour (a faint light running down it now and then: Motion.bead), dim, or
--- the selection's flowing cyan dashes; a small arrowhead into the node.
-function View:paintLine(el, line, t)
-    local c, a
-    local head, ba, blen
-    if line.state == "lit" then
-        c, a = TREE[line.tree].c, 0.95
-        head, ba, blen = Motion.bead(CLOCK, line.index, line.len)
-    elseif line.state == "plan" then
-        c, a = CYAN, 1
-    else
-        c, a = LINE_DIM, 1
+-- A prerequisite line drawn one way (`mode`): "solid", "dashes" (flowing with the clock `t`, seconds) or "bead"
+-- (only its light, Motion.bead, its strength times `a`: nothing between passes); a small arrowhead into the node, but
+-- for its light.
+local function drawLine(el, line, mode, c, a, t)
+    local head, blen
+    if mode == "bead" then
+        local strength
+        head, strength, blen = Motion.bead(CLOCK, line.index, line.len)
+        if not head then return end
+        a = strength * a
     end
     local lw = math.max(2, floor(1.5 * S + 0.5))
     local pts = line.points
     -- the arrowhead's height in pixels; the line stops where it starts
     local k = math.max(3, floor(3 * S + 0.5))
     local tip = k / S
-    local ex, ey = pts[#pts][1], pts[#pts][2]
-    local dashed = line.state == "plan"
     local period = Window.DASH + Window.DASH_GAP
-    local phase = remainder(t * Window.FLOW, period)
+    local phase = mode == "dashes" and remainder(t * Window.FLOW, period) or 0
     local dist = 0
     for i = 1, #pts - 1 do
         local xa, ya = pts[i][1], pts[i][2]
@@ -1271,9 +1319,10 @@ function View:paintLine(el, line, t)
         if i == #pts - 1 then yb = yb - tip end
         local len = math.abs(xb - xa) + math.abs(yb - ya)
         if len > 0 then
-            if not dashed then
+            if mode == "solid" then
                 linePiece(el, xa, ya, xb, yb, len, 0, len, lw, c, a)
-                if head then beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, TREE[line.tree].light, ba) end
+            elseif mode == "bead" then
+                beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
             else
                 local s0 = -remainder(dist - phase, period)
                 while s0 < len do
@@ -1285,11 +1334,22 @@ function View:paintLine(el, line, t)
         end
         dist = dist + len
     end
+    if mode == "bead" then return end
     -- the arrowhead, rows of whole pixels
-    local cx, top = X(ex), X(ey) - k
+    local cx, top = X(pts[#pts][1]), X(pts[#pts][2]) - k
     for i = 0, k - 1 do
         local w = 2 * (k - i) - 1
         rectPx(el, cx - floor(w / 2), top + i, w, 1, c, a)
+    end
+end
+
+-- A prerequisite line as the body draws it: lit in the tree's colour, or dim. A line only the selection meets is the
+-- flow's (its cyan dashes move: View:paintFlow), as are the lit lines' lights.
+function View:paintLine(el, line)
+    if line.state == "lit" then
+        drawLine(el, line, "solid", TREE[line.tree].c, 0.95)
+    elseif line.state ~= "plan" then
+        drawLine(el, line, "solid", LINE_DIM, 1)
     end
 end
 
@@ -1316,7 +1376,7 @@ end
 -- One node: its icon (grey while it cannot be taken) with no well around it, a frame for its state, its ranks as pips
 -- (a number on the endless board). A click's answer moves or scales the node (not its pips); a padlock coming off
 -- fades with the grey and flashes the frame in the tree's colour.
-function View:paintNode(el, item, t)
+function View:paintNode(el, item)
     local node = Data.byId[item.id]
     local n = self.nodes[item.id]
     if not n then return end
@@ -1366,9 +1426,8 @@ function View:paintNode(el, item, t)
     if n.treeLocked then
         framePx(el, x, y, s, s, P.border, 0.45, 1, out)
     elseif state == "avail" then
-        local p = pulse(t)
-        framePx(el, x, y, s, s, tc, 0.55 + 0.45 * p, th, out)
-        framePx(el, x, y, s, s, tc, 0.22 * p, th, out + th / S + 1)
+        -- the pulse's low point; the flow lays the rest of the pulse over it (View:paintFlow)
+        framePx(el, x, y, s, s, tc, PULSE_BASE, th, out)
     elseif state == "maxed" then
         framePx(el, x, y, s, s, GOLD, 1, th, out)
     elseif state == "planned" then
@@ -1506,19 +1565,17 @@ function View:paint(el)
         UI.textCentre(el, getText("IGUI_OA_Tree_NoRecord"), L.VIEW_W / 2, L.VIEW_H / 2, P.text)
         return
     end
-    -- the clock: now (ms) for the motions, the tab's own (ms since it was made, small enough for a remainder) for the
-    -- lines' lights, and the same in seconds for the pulse and the dashes (kept here, not on the tab: a write to the
-    -- tab each frame would have PZ Optimization draw it afresh each frame)
+    -- the clock for the motions (kept here, not on the tab: a write to the tab each frame would have PZ Optimization
+    -- draw it afresh each frame)
     local now = getTimestampMs()
     NOW, CLOCK = now, now - self.t0
-    local t = CLOCK / 1000
     for _, panel in ipairs(self.panels) do
         UI.fill(el, panel.x, panel.y, L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
         self:paintStrip(el, panel)
     end
-    for _, line in ipairs(self.lines) do self:paintLine(el, line, t) end
+    for _, line in ipairs(self.lines) do self:paintLine(el, line) end
     for _, item in ipairs(self.items) do
-        if item.id then self:paintNode(el, item, t) end
+        if item.id then self:paintNode(el, item) end
     end
     local fh = UI.fontHeight()
     for _, panel in ipairs(self.panels) do
@@ -1551,10 +1608,12 @@ end
 -- `unlocks` (by node id, when its padlock starts to come off) with the span they cover (unlockFrom, unlockEnd),
 -- `openAt` (when the tab came on the screen), and `flowing` (workOut: a pulse, dashes or a line's light to show).
 
--- Follows the body each frame (View.tick) while anything moves; a frame function already there is replaced, not
--- added, so this is called whenever something may have started.
+-- Follows the body each frame (View.tick) while a motion plays, and the flow (View.flowTick) while anything moves by
+-- itself; a frame function already there is replaced, not added, so this is called whenever something may have
+-- started.
 function View:animate()
     if self.body then UI.live(self.body, View.tick) end
+    if self.flow and self.flowing then UI.live(self.flow, View.flowTick) end
 end
 
 -- A node's answer to a click (Motion): "pop" (a rank raised), "shrink" (one taken back) or "shake" (refused).
@@ -1607,14 +1666,14 @@ function View:startOpen()
 end
 
 -- Each frame while the tab shows, before the UI draws (Trade/UI live): one number for PZ Optimization that changes
--- exactly when the body's drawing does. The tab's clock while anything moves (a click's answer, a padlock coming off,
--- the opening, the pulses, the dashes and the lights on the lines), else the stamp's look (Plan.stampLook: it holds
--- still a while), a constant while a padlock waits for its time, nil when nothing moves (the body is let go; the next
--- change registers it again). Motions that are over are dropped here, so that the frame drawn next is without them.
+-- exactly when the body's drawing does. The tab's clock while a motion plays (a click's answer, a padlock coming off,
+-- the opening), else the stamp's look (Plan.stampLook: it holds still a while), a constant while a padlock waits for
+-- its time, nil when none plays (the body is let go, whatever the flow does; the next change registers it again).
+-- Motions that are over are dropped here, so that the frame drawn next is without them.
 function View.tick(body, now)
     local view = body.view
     if view.body ~= body then return nil end           -- a body made again for a new scale
-    local moving = view.flowing
+    local moving = false
     local look
     local stamp = view.stamp
     if stamp then
@@ -1643,6 +1702,63 @@ function View.tick(body, now)
     end
     if moving then return now - view.t0 end
     return look
+end
+
+-- Each frame for the flow (Trade/UI live): the tab's clock while anything moves by itself, a constant while the stamp
+-- plays (the flow holds still under its seal), nil when nothing moves (let go; workOut's next change registers it).
+function View.flowTick(flow, now)
+    local view = flow.view
+    if view.flow ~= flow or not view.flowing then return nil end
+    if view.stamp then return -1 end
+    return now - view.t0
+end
+
+-- Whether a node's pulse waits: a click's answer moves the node (the body draws its frame then), or its padlock has
+-- not come off yet.
+function View:pulseHeld(id, now)
+    local f = self.fx and self.fx[id]
+    if f and now - f.start < f.ms then return true end
+    local at = self.unlocks and self.unlocks[id]
+    return at ~= nil and now < at
+end
+
+-- The flow's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's low
+-- point), the cyan dashes of the lines only the selection meets, the lights running down the lit lines. It walks only
+-- the lists workOut made and makes nothing. Nothing while the stamp plays; while the tab opens it comes in with the
+-- columns and rows (Motion.open*).
+function View:paintFlow(el)
+    if not self.sim or self.stamp or not self.flowing then return end
+    S = UI.S
+    local now = getTimestampMs()
+    NOW, CLOCK = now, now - self.t0
+    local t = CLOCK / 1000
+    local age = self.openAt and now - self.openAt
+    for _, line in ipairs(self.planLines) do
+        local a = age and 1 - Motion.openColumn(age, line.col) or 1
+        if a > 0 then drawLine(el, line, "dashes", CYAN, a, t) end
+    end
+    for _, line in ipairs(self.litLines) do
+        local a = age and 1 - Motion.openColumn(age, line.col) or 1
+        if a > 0 then drawLine(el, line, "bead", TREE[line.tree].light, a) end
+    end
+    local p = pulse(t)
+    local th = thick()
+    local halo = 2 + th / S + 1
+    local focus = self.hover or (self.joypad and self.cursor)
+    for _, item in ipairs(self.pulsing) do
+        if not self:pulseHeld(item.id, now) then
+            local a = p
+            if age then
+                a = a * (1 - Motion.openColumn(age, item.col)) * (1 - 0.8 * Motion.openRow(age, item.col, item.row))
+            end
+            local tc = TREE[item.tree].c
+            local x, y, s = item.x, item.y, item.w
+            framePx(el, x, y, s, s, tc, a, th, 2)
+            framePx(el, x, y, s, s, tc, PULSE_HALO * a, th, halo)
+            -- the focus frame stays over the halo, as the body drew it
+            if item.key == focus then framePx(el, x, y, s, s, WHITE, 1, 1, halo) end
+        end
+    end
 end
 
 -- ---- the approval stamp ----------------------------------------------------------------------------------------

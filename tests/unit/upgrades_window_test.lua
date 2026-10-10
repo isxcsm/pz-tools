@@ -201,13 +201,16 @@ end)
 
 -- ---- motion (Motion.lua's timing, followed by View.tick) -----------------------------------------------------------
 
--- A shown body for the tab, and a clock the test moves.
+-- A shown body for the tab and the flow over it, both in a shown tab, and a clock the test moves.
 local clock = { now = 9000000 }
 local function shown(view)
-    local body = { view = view, isVisible = function() return true end }
-    view.body = body
+    local function on() return true end
+    view.isVisible = on
+    local body = { view = view, isVisible = on, parent = view }
+    local flow = { view = view, isVisible = on, parent = view }
+    view.body, view.flow = body, flow
     getTimestampMs = function() return clock.now end
-    return body
+    return body, flow
 end
 
 -- A tab on a section of the upgrades, its refresh done here (no player): the selection simulated, the states worked
@@ -322,22 +325,67 @@ test("a click's answer is followed each frame and let go once over", function()
     eq(view.fx, nil, "and dropped before the frame drawn without it")
 end)
 
-test("the lights on the lines, the pulses and the dashes keep the body followed while the tab shows", function()
+test("the pulses, dashes and lights keep only the flow followed: the body is let go and kept as drawn", function()
     local UI = OA.Trade.UI
     local view = onSection(scoutSection())
-    local body = shown(view)
+    local body, flow = shown(view)
     eq(view.flowing, true, "a node can be taken")
+    truthy(#view.pulsing > 0, "the nodes that pulse, listed")
     View.animate(view)
     UI.liveFrame()
-    local first = body.liveLook
+    local first = flow.liveLook
+    eq(body.liveLook, nil, "the body: nothing of its own moves")
+    eq(body.liveCount, nil, "and nothing written to it")
     clock.now = clock.now + 16
     UI.liveFrame()
-    truthy(body.liveLook ~= first and body.liveLook ~= nil, "moves each frame")
-    body.isVisible = function() return false end
+    truthy(flow.liveLook ~= first and flow.liveLook ~= nil, "the flow moves each frame")
+    eq(body.liveCount, nil, "the body still untouched: a sibling, not the flow's parent")
+    truthy(view.liveCount ~= nil, "the tab marked (its own drawing is light)")
+    -- a stamp: the flow holds still under its seal
+    view.stamp = { order = {}, start = clock.now }
+    clock.now = clock.now + 16
     UI.liveFrame()
-    eq(body.liveLook, nil, "hidden: let go")
+    eq(flow.liveLook, -1)
+    view.stamp = nil
+    -- the selection taken back and nothing left that moves: the flow let go too
+    view.flowing = false
+    UI.liveFrame()
+    eq(flow.liveLook, nil, "nothing flows: let go")
+    view.flowing = true
+    View.animate(view)
+    flow.isVisible = function() return false end
+    UI.liveFrame()
+    eq(flow.liveLook, nil, "hidden: let go")
     local closed = onSection(OA.Upgrades.Rules.blank())
     eq(closed.flowing, false, "no tree open: nothing moves by itself")
+end)
+
+test("the flow is made with the body, after it, as its sibling in the tab", function()
+    local view = laidOut("trees")
+    local children = {}
+    view.addChild = function(v, child)
+        children[#children + 1] = child
+        child.parent = v
+    end
+    view.removeChild = function(_, child)
+        for i, c in ipairs(children) do
+            if c == child then table.remove(children, i) end
+        end
+    end
+    -- the game's panel as far as making the two goes
+    ISPanel.new = function(class, x, y, w, h)
+        return setmetatable({ x = x, y = y, width = w, height = h }, { __index = class })
+    end
+    View.makeBody(view)
+    View.makeBody(view)
+    eq(#children, 2, "made again for a new scale: the old two gone")
+    eq(children[1], view.body)
+    eq(children[2], view.flow, "the flow after the body: drawn over it")
+    eq(view.flow.parent, view, "a sibling of the body")
+    eq(view.flow.width, view.body.width)
+    eq(view.flow.height, view.body.height)
+    truthy(rawget(OAResearchFlow, "onMouseUp") == nil and rawget(OAResearchFlow, "onMouseMove") == nil,
+        "it handles no mouse: the body under it does")
 end)
 
 test("the padlocks an approval took off come off once its stamp is over, not on top of it", function()
@@ -459,6 +507,7 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
             clock.now = clock.now + 16
             OA.Trade.UI.liveFrame()
             View.paint(view, el)
+            View.paintFlow(view, el)
         end
     end
     frames(30)
