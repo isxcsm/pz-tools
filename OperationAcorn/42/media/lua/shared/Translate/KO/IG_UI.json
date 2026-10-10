@@ -1311,6 +1311,7 @@
     "IGUI_OA_Status_News": "새로 열린 것",
     "IGUI_OA_Status_News_Team": "연구팀 물건 주문",
     "IGUI_OA_Status_News_TeamNow": "지금 %1종: %2",
+    "IGUI_OA_Status_News_TeamRest": "%1 외 %2종",
     "IGUI_OA_Status_News_TeamNone": "지금 주문할 수 있는 것은 아직 없습니다.",
     "IGUI_OA_Status_News_TeamMore": "신뢰도가 오르면 %1종 더 (상점의 흐린 카드)",
     "IGUI_OA_Status_News_Special": "특별 의뢰",

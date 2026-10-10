@@ -12,6 +12,15 @@ OA.Trade.UI = UI
 
 UI.PAD = 10
 
+-- The room between a number and its unit ("627 크레딧"): the Korean small font's space is two or three pixels, too
+-- thin to read as one.
+UI.UNIT_GAP = 4
+
+-- The unit of money as the screens write it after a number, without a space (UI.UNIT_GAP goes before it).
+function UI.creditsUnit()
+    return getText("IGUI_OA_Terminal_Credits")
+end
+
 -- The two terminals' colours (DESIGN-terminal 1.3): the crude one built from the kit, phosphor green on near black;
 -- the field terminal ordered from the shop, warm white and amber on olive. Every screen draws from the palette of
 -- the terminal it is open at. Colours are { r, g, b }.

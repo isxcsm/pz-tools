@@ -277,7 +277,7 @@ function OATabUpgrades:buildForm(L, x, y, w, h)
         xx = xx + used + 16
     end
     Draw.run(L, { { s = getText("IGUI_OA_Status_FormTotal") .. " ", c = p.dim }, { s = d.total, c = p.value, font = nf },
-        { s = " " .. getText("IGUI_OA_Terminal_Credits"), c = p.dim } }, x + 10, y + h - fh - 5, w - 20, "right")
+        { s = UI.creditsUnit(), c = p.dim, pad = UI.UNIT_GAP } }, x + 10, y + h - fh - 5, w - 20, "right")
     -- The stamp: what the settlement turns into 반영 (told by the title then).
     Draw.frame(L, x + w - 74, y + 4, 64, 18, p.warn)
     Draw.fit(L, getText("IGUI_OA_Status_Stamp"), x + w - 74, y + 5, 64, p.warn, nil, 1, "centre")

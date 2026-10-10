@@ -689,6 +689,9 @@ end
 -- The field terminal's first open (DESIGN-terminal 12) -------------------------------------------------------------
 
 -- The "새로 열린 것" board: { { head, lines = { ... } } } for the team's goods, the special requests and flight support.
+-- The goods open now are named up to NEWS_NAMES, the rest counted (a late stage opens twenty and more at once).
+M.NEWS_NAMES = 5
+
 function M.news(record)
     local tier = Trust.tier(record)
     local open, later = {}, 0
@@ -699,7 +702,11 @@ function M.news(record)
     end
     local team = {}
     if #open > 0 then
-        team[1] = tr("IGUI_OA_Status_News_TeamNow", #open, table.concat(open, ", "))
+        local shown = {}
+        for i = 1, math.min(#open, M.NEWS_NAMES) do shown[i] = open[i] end
+        local names = table.concat(shown, ", ")
+        if #open > #shown then names = tr("IGUI_OA_Status_News_TeamRest", names, #open - #shown) end
+        team[1] = tr("IGUI_OA_Status_News_TeamNow", #open, names)
     else
         team[1] = tr("IGUI_OA_Status_News_TeamNone")
     end

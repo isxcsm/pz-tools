@@ -1311,6 +1311,7 @@
     "IGUI_OA_Status_News": "Newly opened",
     "IGUI_OA_Status_News_Team": "Research team orders",
     "IGUI_OA_Status_News_TeamNow": "%1 now: %2",
+    "IGUI_OA_Status_News_TeamRest": "%1 and %2 more",
     "IGUI_OA_Status_News_TeamNone": "Nothing to order yet.",
     "IGUI_OA_Status_News_TeamMore": "%1 more as trust rises (the dimmed cards in the shop)",
     "IGUI_OA_Status_News_Special": "Special requests",

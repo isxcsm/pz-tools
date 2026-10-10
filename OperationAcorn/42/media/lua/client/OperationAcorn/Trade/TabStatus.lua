@@ -158,16 +158,16 @@ function OATabStatus:prerender()
     local nf = p.numberFont
     run(self, x0, 40, { { t.trust, p.text, nf }, { " / ", p.dim }, { t.to, p.dim, nf }, { Text.DOT .. t.next .. " ", p.dim },
         { t.left, p.text, nf } })
-    local unit = " " .. getText("IGUI_OA_Terminal_Credits")
+    local unit = UI.creditsUnit()
     local right = w
     if t.debt then
         UI.textRight(self, getText("IGUI_OA_Terminal_Debt"), right, 3, p.bad)
-        local uw = UI.textWidth(unit)
+        local uw = UI.textWidth(unit) + UI.UNIT_GAP
         UI.textRight(self, unit, right, 21, p.bad)
         UI.textRight(self, t.balance, right - uw, 21, p.bad, nf)
     else
         UI.textRight(self, getText("IGUI_OA_Terminal_Balance"), right, 3, p.dim)
-        local uw = UI.textWidth(unit)
+        local uw = UI.textWidth(unit) + UI.UNIT_GAP
         UI.textRight(self, unit, right, 21, p.dim)
         if field then
             UI.textRight(self, t.balance, right - uw, 17, p.value, UIFont.Medium)

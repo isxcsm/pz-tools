@@ -457,6 +457,12 @@ test("the new board counts the team's goods open now and later, and the upgrades
     eq(news[3].lines[2], "IGUI_OA_Status_News_SupportNow 2")
     news = M.news(newRecord(3, 0))
     eq(news[1].lines[2], "IGUI_OA_Status_News_TeamMore 13")
+    -- a late stage: five names and the rest counted
+    news = M.news(newRecord(5, 0))
+    local first = news[1].lines[1]
+    truthy(string.find(first, "^IGUI_OA_Status_News_TeamNow %d+ IGUI_OA_Status_News_TeamRest "), first)
+    local _, commas = string.gsub(first, ", ", "")
+    eq(commas, 4, "five names")
     news = M.news(newRecord(0, 0))
     eq(news[1].lines[1], "IGUI_OA_Status_News_TeamNone")
     eq(news[3].lines[2], "IGUI_OA_Status_News_SupportLater")

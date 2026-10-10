@@ -224,7 +224,7 @@ function OATabHeli:buildWaybill(L, x, y, w, h)
     Draw.text(L, getText("IGUI_OA_Status_Calc_After"), x + 14, cy + 3, p.text)
     local big = p.panel and UIFont.Medium or nf
     Draw.run(L, { { s = W.total.amount, c = p[W.total.colour] or p.value, font = big },
-        { s = " " .. getText("IGUI_OA_Terminal_Credits"), c = p.dim } }, x + 10, cy + (p.panel and 0 or 3), w - 22, "right")
+        { s = UI.creditsUnit(), c = p.dim, pad = UI.UNIT_GAP } }, x + 10, cy + (p.panel and 0 or 3), w - 22, "right")
 end
 
 -- The arrival bar's fill for the time now.

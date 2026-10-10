@@ -68,9 +68,10 @@ end
 -- A run of parts { s, c, font, a } or { arrow = true, c } side by side, cut at width `w` (nil: no limit), left or
 -- right in it. Returns the width drawn.
 local ARROW_W = 16
+-- A part's width: `pad` pixels before it, then the arrow or the text.
 local function partWidth(part)
-    if part.arrow then return ARROW_W end
-    return UI.textWidth(part.s or "", part.font)
+    if part.arrow then return ARROW_W + (part.pad or 0) end
+    return UI.textWidth(part.s or "", part.font) + (part.pad or 0)
 end
 
 function Draw.runWidth(parts)
@@ -87,6 +88,8 @@ function Draw.run(L, parts, x, y, w, align)
     local cx = x
     for _, part in ipairs(parts) do
         local pw = partWidth(part)
+        local pad = part.pad or 0
+        cx, pw, left = cx + pad, pw - pad, left - pad
         if part.arrow then
             if pw > left then break end
             Draw.arrow(L, cx + 3, y + math.floor((L.fh - 7) / 2), part.c, part.a)

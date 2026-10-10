@@ -591,9 +591,9 @@ function OATabShop:drawDetail(p)
     local open = d.state.open
     drawIcon(self, d.entry, r.x + 10, r.y + 10, 48, p, open and 1 or 0.4)
     UI.text(self, d.nameFit, r.x + 68, r.y + 3, p.bright, UIFont.Medium)
-    local unit = " " .. getText("IGUI_OA_Terminal_Credits")
+    local unit = UI.creditsUnit()
     UI.textRight(self, unit, r.x + r.w - 10, r.y + 7, p.dim)
-    UI.textRight(self, d.price, r.x + r.w - 10 - UI.textWidth(unit), r.y + 7, p.value, p.numberFont)
+    UI.textRight(self, d.price, r.x + r.w - 10 - UI.textWidth(unit) - UI.UNIT_GAP, r.y + 7, p.value, p.numberFont)
     local y = r.y + 26
     for _, line in ipairs(self.descLines) do
         UI.text(self, line, r.x + 68, y, p.text)
