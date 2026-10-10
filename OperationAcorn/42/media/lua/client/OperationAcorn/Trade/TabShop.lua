@@ -9,6 +9,7 @@ require "OperationAcorn/Trade/ShopView"
 require "OperationAcorn/Trade/Button"
 require "OperationAcorn/Trade/Combo"
 require "OperationAcorn/Gear/Gear"
+require "OperationAcorn/Trade/StatusDraw"
 local OA = OperationAcorn
 local Trade, UI, Orders, Text = OA.Trade, OA.Trade.UI, OA.Trade.Orders, OA.Trade.Text
 local ShopView = OA.Trade.ShopView
@@ -66,11 +67,14 @@ end
 
 function OAShopScroll:prerender()
     local p = self.tab:palette()
-    if self:isMouseOver() then
-        self.mx, self.my = self:getMouseX(), self:getMouseY()
-    else
-        self.mx, self.my = nil, nil
+    -- the place under the mouse (a card's id, a cart button) lights up: Trade/UI places
+    local over
+    if self:isMouseOver() and self.placeAt and not self.dragging then
+        local x, y = self:getMouseX(), self:getMouseY() + self.scroll
+        local row = self:rowAt(y)
+        if row then over = self.placeAt(self.tab, row, x, y - row.y) end
     end
+    UI.placeLight(self, over)
     self:setStencilRect(0, 0, self.width, self.height)
     for _, row in ipairs(self.rows) do
         local y = row.y - self.scroll
@@ -103,7 +107,11 @@ function OAShopScroll:onMouseDown(x, y)
         return true
     end
     local row = self:rowAt(y + self.scroll)
-    if row and self.onClick then self.onClick(self.tab, row, x, y + self.scroll - row.y) end
+    if row then
+        local place = self.placeAt and self.placeAt(self.tab, row, x, y + self.scroll - row.y)
+        if place ~= nil then UI.placeFlash(self, place) end
+        if self.onClick then self.onClick(self.tab, row, x, y + self.scroll - row.y) end
+    end
     return true
 end
 
@@ -131,25 +139,25 @@ local VEHICLE_REACH = 30
 local SHELF_HEAD = { treat = "IGUI_OA_Terminal_Shop_Treat", enhance = "IGUI_OA_Econ_Shop_Group_serum" }
 local SHELF_NOTE = { treat = "IGUI_OA_Terminal_Shop_TreatNote", enhance = "IGUI_OA_Terminal_Shop_EnhanceNote" }
 
--- The icon of an entry: the first thing it gives, from its item script (found once).
-local icons = {}
-local function iconOf(entry)
-    local known = icons[entry.id]
+-- The icon of an entry: the first thing it gives (its type, found once), drawn from the texture for its size on the
+-- screen (Trade/StatusDraw: our items' high-res copies when larger than their 32 px icon).
+local types = {}
+local function typeOf(entry)
+    local known = types[entry.id]
     if known ~= nil then return known or nil end
     local good = entry.give and entry.give[1]
     if not good and entry.choices then
         local choices = OA.Shop.choices(entry)
         good = choices and choices[1]
     end
-    if not good then return nil end
-    local script = getScriptManager():FindItem(good.type)
-    local texture = script and script:getNormalTexture() or false
-    icons[entry.id] = texture
-    return texture or nil
+    types[entry.id] = good and good.type or false
+    return good and good.type or nil
 end
 
 local function drawIcon(el, entry, x, y, size, p, alpha)
-    UI.icon(el, entry and iconOf(entry), x, y, size, alpha, p.iconTint)
+    local fullType = entry and typeOf(entry)
+    if not fullType then return end
+    UI.icon(el, OA.Trade.Draw.itemTexture(fullType, UI.px(size)), x, y, size, alpha, p.iconTint)
 end
 
 -- A panel of the palette: its fill and a one pixel border.
@@ -186,6 +194,8 @@ function OATabShop:createChildren()
     local p = self:palette()
     self.cards = OAShopScroll:new(self, OATabShop.drawCardRow, OATabShop.onCardRow)
     self.cartList = OAShopScroll:new(self, OATabShop.drawCartRow, OATabShop.onCartRow)
+    self.cards.placeAt = OATabShop.cardPlace
+    self.cartList.placeAt = OATabShop.cartPlace
     for _, list in ipairs({ self.cards, self.cartList }) do
         list:initialise()
         list:instantiate()
@@ -377,7 +387,10 @@ function OATabShop:buildCart(record)
         if entry then
             local sum = OA.round(priceOf(entry, line, record)) * line.count
             total = total + sum
-            rows[#rows + 1] = {
+            local n = #rows
+            rows[n + 1] = {
+                -- its three buttons' places (Trade/UI places: numbers, the same when the cart is made again)
+                keys = { n * 3 + 1, n * 3 + 2, n * 3 + 3 },
                 line = line, h = ShopView.CART_ROW, price = Text.credits(sum),
                 name = getText("IGUI_OA_Terminal_Shop_Line", self:lineName(entry, line), line.count),
             }
@@ -497,9 +510,12 @@ end
 -- The left column: the serum box, the sections and the "only what can be bought" box.
 function OATabShop:drawLeft(p, m)
     local catw, sb = ShopView.CAT_W, ShopView.SERUM_H
+    local over = self:isMouseOver() and self:leftAt(self:getMouseX(), self:getMouseY()) or nil
+    UI.placeLight(self, over ~= self.cat and over or nil)
     local on = self.cat == "serums"
-    UI.fill(self, 0, 0, catw, sb, p.sel, on and 0.24 or 0.08)
-    UI.frame(self, 0, 0, catw, sb, p.sel, on and 1 or 0.7)
+    local k, f = UI.placeLevels(self, "serums")
+    UI.fill(self, 0, 0, catw, sb, p.sel, (on and 0.24 or 0.08) + 0.08 * k + 0.3 * f)
+    UI.frame(self, 0, 0, catw, sb, p.sel, on and 1 or 0.7 + 0.3 * k)
     if on then UI.fill(self, 0, 0, 3, sb, p.sel) end
     UI.text(self, getText("IGUI_OA_Terminal_Shop_Serum"), 10, 3, on and p.bright or p.head, UIFont.Medium)
     drawIcon(self, m.serumEntry, catw - 30, 4, 24, p)
@@ -513,12 +529,20 @@ function OATabShop:drawLeft(p, m)
             UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.22)
             UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel)
         end
+        k, f = UI.placeLevels(self, cat.id)
+        if k > 0 or f > 0 then
+            UI.fill(self, 0, y, catw, ShopView.CAT_ROW, p.sel, 0.1 * k + 0.3 * f)
+            UI.fill(self, 0, y, 2, ShopView.CAT_ROW, p.sel, 0.6 * k)
+        end
         if cat.locked then UI.lock(self, 8, y + 6, p.warn, 0.8) end
         UI.text(self, cat.name, cat.locked and 22 or 10, y + 3, chosen and p.bright or (cat.locked and p.dim or p.text))
         y = y + ShopView.CAT_ROW
     end
     local cy = self.height - 18
     UI.frame(self, 0, cy + 2, 12, 12, p.border)
+    k, f = UI.placeLevels(self, "only")
+    if k > 0 then UI.frame(self, 0, cy + 2, 12, 12, p.sel, k) end
+    if f > 0 then UI.fill(self, 0, cy + 2, 12, 12, p.sel, 0.4 * f) end
     if self.onlyOpen then UI.fill(self, 3, cy + 5, 6, 6, p.text) end
     UI.text(self, m.checkFit, 18, cy, p.text)
 end
@@ -613,9 +637,11 @@ function OATabShop:drawCard(list, card, x, y, w, p)
     else
         if p.panel then UI.fill(list, x, y, w, h, p.panel, open and 1 or 0.5) else UI.fill(list, x, y, w, h, p.text, 0.03) end
         UI.frame(list, x, y, w, h, p.border, open and 1 or 0.5)
-        if list.mx and list.mx >= x and list.mx < x + w and list.my >= y and list.my < y + h then
-            UI.frame(list, x, y, w, h, p.text, 0.8)
-        end
+    end
+    local k, f = UI.placeLevels(list, card.id)
+    if k > 0 or f > 0 then
+        UI.fill(list, x, y, w, h, p.sel, 0.06 * k + 0.25 * f)
+        if not selected and k > 0 then UI.frame(list, x, y, w, h, p.text, 0.8 * k) end
     end
     if card.fitW ~= w then
         card.fitW = w
@@ -634,6 +660,8 @@ function OATabShop:drawCard(list, card, x, y, w, p)
     UI.text(list, card.statusFit, sx, y + h - fh - 4, open and p.dim or c)
 end
 
+local CART_GLYPHS = { "-", "+", "x" }
+
 -- A row of the cart list: the line's name, its price and the three small buttons.
 function OATabShop.drawCartRow(list, row, y, p)
     local fh = UI.fontHeight()
@@ -643,33 +671,55 @@ function OATabShop.drawCartRow(list, row, y, p)
     end
     UI.text(list, row.nameFit, 8, y, p.text)
     UI.text(list, row.price, 8, y + fh + 1, p.value, p.numberFont)
-    for k, glyph in ipairs({ "-", "+", "x" }) do
+    for k, glyph in ipairs(CART_GLYPHS) do
         local bx = list.width - 62 + 18 * (k - 1)
+        local c = glyph == "x" and p.bad or p.text
         UI.fill(list, bx, y + fh + 1, 15, 15, p.panel or p.bg)
+        local lk, lf = UI.placeLevels(list, row.keys[k])
+        if lk > 0 or lf > 0 then UI.fill(list, bx, y + fh + 1, 15, 15, c, 0.14 * lk + 0.35 * lf) end
         UI.frame(list, bx, y + fh + 1, 15, 15, p.border)
-        UI.textCentre(list, glyph, bx + 8, y + fh, glyph == "x" and p.bad or p.text)
+        if lk > 0 then UI.frame(list, bx, y + fh + 1, 15, 15, c, 0.8 * lk) end
+        UI.textCentre(list, glyph, bx + 8, y + fh, c)
     end
     UI.fill(list, 8, y + 37, list.width - 16, 1, p.border, 0.35)
 end
 
 -- Clicks --------------------------------------------------------------------------------------------------------
 
+-- What of the left column is at x, y: "serums" (the serum box), a section's id, "only" (the box at the bottom), or nil.
+function OATabShop:leftAt(x, y)
+    if not self.model or x < 0 or x >= ShopView.CAT_W then return nil end
+    if y < ShopView.SERUM_H then return "serums" end
+    if y >= self.height - 20 then return "only" end
+    if y < ShopView.CAT_TOP then return nil end
+    local cat = self.model.cats[math.floor((y - ShopView.CAT_TOP) / ShopView.CAT_ROW) + 1]
+    return cat and cat.id or nil
+end
+
 function OATabShop:onMouseDown(x, y)
-    if not self.model then return true end
-    if x < ShopView.CAT_W then
-        if y < ShopView.SERUM_H then
-            self:setCat("serums")
-        elseif y >= self.height - 20 then
-            self.onlyOpen = not self.onlyOpen
-            getSoundManager():playUISound("UISelectListItem")
-            self.cards:setScroll(0)
-            self:refresh()
-        else
-            local cat = self.model.cats[math.floor((y - ShopView.CAT_TOP) / ShopView.CAT_ROW) + 1]
-            if cat and y >= ShopView.CAT_TOP then self:setCat(cat.id) end
-        end
+    local at = self:leftAt(x, y)
+    if at == nil then return true end
+    if at ~= self.cat then UI.placeFlash(self, at) end
+    if at == "only" then
+        self.onlyOpen = not self.onlyOpen
+        getSoundManager():playUISound("UISelectListItem")
+        self.cards:setScroll(0)
+        self:refresh()
+    else
+        self:setCat(at)
     end
     return true
+end
+
+-- The cards and the detail come up after a change of what they show (OATerminalWindow:reveal): `whole` the list too.
+function OATabShop:revealCards(whole)
+    local r = self.rect
+    if not r then return end
+    if whole then
+        self.window:reveal(self, r.cards.x, r.cards.y, r.cards.w, r.detail.y + r.detail.h - r.cards.y)
+    else
+        self.window:reveal(self, r.detail.x, r.detail.y, r.detail.w, r.detail.h)
+    end
 end
 
 function OATabShop:setCat(id)
@@ -678,21 +728,33 @@ function OATabShop:setCat(id)
     self.cat, self.sel = id, nil
     self.cards:setScroll(0)
     self:refresh()
+    self:revealCards(true)
 end
 
-function OATabShop.onCardRow(tab, row, x, y)
-    if row.kind ~= "cards" or y >= ShopView.CARD_H then return end
+-- The card at x, y of a row of the card list, or nil.
+local function cardAt(tab, row, x, y)
+    if row.kind ~= "cards" or y >= ShopView.CARD_H then return nil end
     local w = ShopView.cardWidth(tab.cards.width)
     for _, card in ipairs(row.cards) do
         local cx = card.col * (w + 6)
-        if x >= cx and x < cx + w then
-            if card.id ~= tab.sel then
-                getSoundManager():playUISound("UISelectListItem")
-                tab.sel, tab.qty, tab.pick = card.id, 1, nil
-                tab:refresh()
-            end
-            return
-        end
+        if x >= cx and x < cx + w then return card end
+    end
+    return nil
+end
+
+-- The place a card lights (its entry's id), for Trade/UI places.
+function OATabShop.cardPlace(tab, row, x, y)
+    local card = cardAt(tab, row, x, y)
+    return card and card.id or nil
+end
+
+function OATabShop.onCardRow(tab, row, x, y)
+    local card = cardAt(tab, row, x, y)
+    if card and card.id ~= tab.sel then
+        getSoundManager():playUISound("UISelectListItem")
+        tab.sel, tab.qty, tab.pick = card.id, 1, nil
+        tab:refresh()
+        tab:revealCards(false)
     end
 end
 
@@ -793,12 +855,24 @@ function OATabShop:remove(line)
 end
 
 -- A click on a cart line: its minus, plus or remove box.
-function OATabShop.onCartRow(tab, row, x, y)
+-- Which of a cart row's three buttons is at x, y (0, 1, 2), or nil.
+local function cartButtonAt(tab, x, y)
     local fh = UI.fontHeight()
-    if y < fh + 1 or y >= fh + 16 then return end
+    if y < fh + 1 or y >= fh + 16 then return nil end
     local k = math.floor((x - (tab.cartList.width - 62)) / 18)
-    if k < 0 or k > 2 or (x - (tab.cartList.width - 62)) % 18 >= 15 then return end
-    if k == 0 then tab:change(row.line, -1) elseif k == 1 then tab:change(row.line, 1) else tab:remove(row.line) end
+    if k < 0 or k > 2 or (x - (tab.cartList.width - 62)) - 18 * k >= 15 then return nil end
+    return k
+end
+
+-- The place a cart button lights (the row's keys), for Trade/UI places.
+function OATabShop.cartPlace(tab, row, x, y)
+    local k = cartButtonAt(tab, x, y)
+    return k and row.keys[k + 1] or nil
+end
+
+function OATabShop.onCartRow(tab, row, x, y)
+    local k = cartButtonAt(tab, x, y)
+    if k == 0 then tab:change(row.line, -1) elseif k == 1 then tab:change(row.line, 1) elseif k == 2 then tab:remove(row.line) end
 end
 
 function OATabShop:onClear()

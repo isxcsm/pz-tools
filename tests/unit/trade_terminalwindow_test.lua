@@ -438,3 +438,32 @@ test("hover and press lights: eased, one key can have both, and the element is f
     local down = UI.hoverLight(el, "a", false)
     truthy(down > 0 and down < 0.5, "going down " .. down)
 end)
+
+test("places lit one at a time: the one under the mouse comes up, the one left goes down, a click flashes one", function()
+    loadWindow()
+    local UI = OperationAcorn.Trade.UI
+    local now = 1000
+    _G.getTimestampMs = function() return now end
+    _G.Events = _G.Events or { OnPreUIDraw = { Add = function() end } }
+    local el = {}
+    UI.placeLight(el, nil)
+    eq(el.fx, nil, "nothing kept while nothing is hovered")
+    UI.placeLight(el, "a", "data a")
+    now = now + UI.HOVER_IN_MS
+    eq(UI.placeLevels(el, "a"), 1)
+    UI.placeLight(el, "a", "data a2")
+    eq(el.fx.cur.data, "data a2", "the same place: its data follows, nothing restarts")
+    UI.placeLight(el, "b")
+    now = now + UI.HOVER_OUT_MS / 2
+    local a, b = UI.placeLevels(el, "a"), UI.placeLevels(el, "b")
+    truthy(a > 0 and a < 1, "a goes down " .. a)
+    eq(b, 1, "b is up")
+    UI.placeLight(el, "a")
+    local back = UI.placeLevels(el, "a")
+    eq(back, a, "back onto a: it comes up from where it was")
+    UI.placeFlash(el, "c")
+    local k, f = UI.placeLevels(el, "c")
+    eq(k, 0); eq(f, 1)
+    now = now + UI.FLASH_MS + UI.HOVER_OUT_MS
+    eq(UI.fxFrame(el, now), nil, "all still: let go")
+end)

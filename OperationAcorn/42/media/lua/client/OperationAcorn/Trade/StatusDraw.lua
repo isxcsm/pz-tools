@@ -153,7 +153,7 @@ end
 
 -- Textures ---------------------------------------------------------------------------------------------------------
 
-local textures, hires = {}, {}
+local textures, hires, hiTex = {}, {}, { [64] = {}, [128] = {} }
 -- The icon of an item type for `px` pixels across (nil: its own size), found once a size: the script's 32 px icon, or
 -- for one of ours drawn larger its high-res copy (media/textures/OA_ItemHi, 64 or 128 px, made by tools/icon_art.py),
 -- so that a 64 px icon is not the 32 px one blown up.
@@ -170,11 +170,11 @@ function Draw.itemTexture(fullType, px)
     local icon = hires[fullType]
     if icon and px and px > 34 then
         local size = px <= 66 and 64 or 128
-        local key = fullType .. "@" .. size
-        local hi = textures[key]
+        local bySize = hiTex[size]
+        local hi = bySize[fullType]
         if hi == nil then
             hi = getTexture("media/textures/OA_ItemHi/" .. icon .. "_" .. size .. ".png") or false
-            textures[key] = hi
+            bySize[fullType] = hi
         end
         if hi then return hi end
     end
@@ -270,7 +270,9 @@ end
 
 -- A place that answers the mouse: `id` for a click (when enabled), `tip` (a tooltip from Draw.tip) on hover.
 function Draw.hit(L, x, y, w, h, id, tip, enabled, button)
-    local hit = { x = x, y = y, w = w, h = h, id = id, tip = tip, enabled = enabled ~= false, button = button }
+    -- key: the place it lights (UI.placeLight), the same when the list is made again
+    local hit = { x = x, y = y, w = w, h = h, id = id, tip = tip, enabled = enabled ~= false, button = button,
+        key = tostring(id) .. ":" .. x .. ":" .. y }
     L.hits[#L.hits + 1] = hit
     return hit
 end
@@ -410,24 +412,53 @@ function OAStatusView:prerender()
     Draw.paint(self, self.list)
 end
 
--- On top: the hover of a button or a card, and the tooltip of what the mouse is over.
-function OAStatusView:render()
-    if not (self.list and self:isMouseOver()) then return end
-    local mx, my = self:getMouseX(), self:getMouseY()
-    local hit = Draw.hitAt(self.list, mx, my)
+-- A button or a card that lights: an enabled button, or a place that asks for it (hit.hover: a card not chosen).
+local function lights(hit)
+    return hit and ((hit.button and hit.enabled) or hit.hover) and hit or nil
+end
+
+-- A lit place: a button's fill and frame, a card's fainter; a click's flash over either.
+function OAStatusView:paintLight(slot, p)
+    local hit = slot and slot.data
     if not hit then return end
-    local p = self:palette()
-    if hit.button and hit.enabled then
-        self:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
-    elseif hit.hover then
-        self:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.08, p.sel[1], p.sel[2], p.sel[3])
+    local k, f = UI.placeLevels(self, slot.place)
+    if k <= 0 and f <= 0 then return end
+    local x, y, w, h = hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2
+    local s = p.sel
+    if hit.button then
+        self:drawRect(x, y, w, h, 0.12 * k + 0.3 * f, s[1], s[2], s[3])
+        if k > 0 then self:drawRectBorder(hit.x, hit.y, hit.w, hit.h, 0.7 * k, s[1], s[2], s[3]) end
+    else
+        self:drawRect(x, y, w, h, 0.08 * k + 0.25 * f, s[1], s[2], s[3])
+        if k > 0 then self:drawRectBorder(hit.x, hit.y, hit.w, hit.h, 0.6 * k, p.text[1], p.text[2], p.text[3]) end
     end
-    if hit.tip then Draw.paintTip(self, p, hit.tip, mx + 12, my + 18) end
+end
+
+-- On top: the lights of the buttons and cards (eased: Trade/UI places), and the tooltip of what the mouse is over.
+function OAStatusView:render()
+    if not self.list then return end
+    local hit
+    if self:isMouseOver() then hit = Draw.hitAt(self.list, self:getMouseX(), self:getMouseY()) end
+    local lit = lights(hit)
+    UI.placeLight(self, lit and lit.key, lit)
+    local p = self:palette()
+    local fx, flashes = self.fx, self.fxFlash
+    local cur, fade = fx and fx.cur, fx and fx.fade
+    if cur then self:paintLight(cur, p) end
+    if fade and not (cur and fade.place == cur.place) then self:paintLight(fade, p) end
+    local press = flashes and flashes.press
+    if press and not (cur and press.place == cur.place) and not (fade and press.place == fade.place) then
+        self:paintLight(press, p)
+    end
+    if hit and hit.tip then Draw.paintTip(self, p, hit.tip, self:getMouseX() + 12, self:getMouseY() + 18) end
 end
 
 function OAStatusView:onMouseDown(x, y)
     local hit = Draw.hitAt(self.list, x, y)
-    if hit and hit.id and hit.enabled and self.onHit then self:onHit(hit) end
+    if hit and hit.id and hit.enabled then
+        if lights(hit) then UI.placeFlash(self, hit.key, hit) end
+        if self.onHit then self:onHit(hit) end
+    end
     return true
 end
 

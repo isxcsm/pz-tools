@@ -8,6 +8,7 @@ require "OperationAcorn/Trade/Estimate"
 require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Economy/Market"
 require "OperationAcorn/Economy/Season"
+require "OperationAcorn/Trade/StatusDraw"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Boxes, Estimate = Trade.Boxes, Trade.Estimate
@@ -78,10 +79,6 @@ end
 
 -- Data --------------------------------------------------------------------------------------------------------
 
-local function itemTexture(fullType)
-    local script = getScriptManager():FindItem(fullType)
-    return script and script:getNormalTexture() or nil
-end
 
 -- The days until the week's list changes, as a text.
 local function refreshText()
@@ -118,7 +115,7 @@ local function rowsOf(record, worth)
     for _, line in ipairs(OA.Requests.entries(record)) do
         local key = line.key
         rows[#rows + 1] = {
-            key = key, name = OA.Requests.nameOf(key), texture = itemTexture(OA.Requests.iconType(key)),
+            key = key, name = OA.Requests.nameOf(key), itemType = OA.Requests.iconType(key),
             tip = tipOf(key, line),
             band = line.band, bandText = getText("IGUI_OA_Terminal_Del_Band_" .. line.band),
             -- The cheapest kind's price; "+" when a dearer kind of the group fetches more.
@@ -302,7 +299,7 @@ function OATabDelivery.drawRow(list, y, item, alt)
     local ty = y + (OATabDelivery.ROW_H - fh) / 2
     local done = row.full
     if alt then UI.fill(list, 0, y, m.listW, OATabDelivery.ROW_H, p.text, 0.03) end
-    UI.icon(list, row.texture, 2, y + 1, 24, done and 0.5 or 1, p.iconTint)
+    UI.icon(list, OA.Trade.Draw.itemTexture(row.itemType, UI.px(24)), 2, y + 1, 24, done and 0.5 or 1, p.iconTint)
     UI.text(list, row.nameFit, m.NX, ty, done and p.dim or p.text)
     local band = row.band == "rare" and p.warn or (row.band == "normal" and p.text or p.dim)
     UI.text(list, row.bandText, m.RX, ty, band)

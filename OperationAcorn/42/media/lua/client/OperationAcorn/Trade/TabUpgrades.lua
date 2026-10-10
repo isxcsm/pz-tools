@@ -68,7 +68,7 @@ function OATabUpgrades:build(L, w, h)
         end
         Draw.textCentre(L, label, gx + math.floor(bw / 2), 2, g == group and p.bright or p.text)
         local hit = Draw.hit(L, gx, 0, bw, 20, "group")
-        hit.group = g
+        hit.group, hit.hover = g, g ~= group
         gx = gx + bw + 4
     end
     -- The cards, two columns, scrolled (in pixels, a row at a time) when they do not fit.
@@ -96,6 +96,7 @@ function OATabUpgrades:build(L, w, h)
         Draw.scrollbar(L, lay.lw - 6, lay.top, lay.areaH, first / math.max(1, maxScroll), lay.areaH / lay.contentH)
     end
     if sel then self:buildDetail(L, lay.lw + 8, 0, lay.rw, h - lay.formH - 6, sel) end
+    self.detailBox = { x = lay.lw + 8, y = 0, w = lay.rw, h = h - lay.formH - 6 }
     self:buildForm(L, 0, h - lay.formH, w, lay.formH)
 end
 
@@ -300,12 +301,19 @@ end
 
 function OATabUpgrades:onHit(hit)
     if hit.id == "group" then
+        if hit.group == (self.group or Support.GROUPS[1]) then return end
         self.group = hit.group
         self:layout()
+        -- the group's cards and detail come up (the row of the groups stays)
+        self.window:reveal(self, 0, 22, self.width, self.height - 22)
     elseif hit.id == "card" then
         self.selected = self.selected or {}
-        self.selected[self.group or Support.GROUPS[1]] = hit.card
+        local group = self.group or Support.GROUPS[1]
+        if self.selected[group] == hit.card then return end
+        self.selected[group] = hit.card
         self:layout()
+        local b = self.detailBox
+        if b then self.window:reveal(self, b.x, b.y, b.w, b.h) end
     elseif hit.id == "apply" then
         self:send("tradeUpgrade", { upgrade = hit.card, level = hit.level })
     elseif hit.id == "cancel" then

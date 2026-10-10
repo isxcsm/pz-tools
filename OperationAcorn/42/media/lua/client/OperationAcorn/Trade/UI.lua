@@ -805,17 +805,35 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
     list.itemPadY = 3
     list.itemheight = list.fontHgt + list.itemPadY * 2 + 2
     list.drawBorder = true
+    -- the row under the mouse lights up and a clicked one flashes (UI.placeLight: the rows by their index)
+    local basePrerender, baseMouseDown = list.prerender, list.onMouseDown
+    list.prerender = function(self)
+        local over = self.mouseoverselected
+        if not (over and over > 0 and over ~= self.selected and self:isMouseOver() and not self:isMouseOverScrollBar()) then
+            over = nil
+        end
+        UI.placeLight(self, over)
+        return basePrerender(self)
+    end
+    list.onMouseDown = function(self, x, y)
+        local row = self:rowAt(x, y)
+        if row and row > 0 then UI.placeFlash(self, row) end
+        return baseMouseDown(self, x, y)
+    end
     list.doDrawItem = function(self, rowY, item, alt)
         if rowY + self:getYScroll() + item.height < 0 or rowY + self:getYScroll() >= self.height then
             return rowY + item.height
         end
         if self.selected == item.index then
             self:drawSelection(0, rowY, self:getWidth(), item.height - 1)
-        elseif self.mouseoverselected == item.index and self:isMouseOver() and not self:isMouseOverScrollBar() then
-            self:drawMouseOverHighlight(0, rowY, self:getWidth(), item.height - 1)
         end
-        local c = UI.designCanvas(self)
-        drawRow(c, c == self and rowY or rowY / S, item, alt)
+        local k, f = UI.placeLevels(self, item.index)
+        local c = self.mouseOverHighlightColor
+        if (k > 0 or f > 0) and c then
+            self:drawRect(0, rowY, self:getWidth(), item.height - 1, c.a * k + 0.15 * f, c.r, c.g, c.b)
+        end
+        local canvas = UI.designCanvas(self)
+        drawRow(canvas, canvas == self and rowY or rowY / S, item, alt)
         return rowY + item.height
     end
     if onclick then list:setOnMouseDownFunction(target, onclick) end
@@ -1049,6 +1067,56 @@ function UI.flashLevel(el, key)
     local f = el.fxFlash and el.fxFlash[key]
     if not f then return 0 end
     return fxLevel(f, getTimestampMs())
+end
+
+-- Places on one element lit one at a time (a screen's cards and buttons, a list's rows): a place is any value that
+-- stays the same while the element is laid out again (an id, a number, a string made when laid out). The place under
+-- the mouse (`over`, nil for none) comes up and the one it left goes down: two lights at most, el.fx.cur and
+-- el.fx.fade (a third left as quickly goes dark at once), each with the place and `data` (what the element needs to
+-- draw it, its last given). A click's flash is el.fxFlash.press. Called as the element draws.
+function UI.placeLight(el, over, data)
+    local fx = el.fx
+    local cur = fx and fx.cur
+    if cur and cur.place == over then
+        cur.data = data
+        return
+    end
+    if not cur and over == nil then return end
+    fx = fx or fxOf(el, "fx")
+    local now = getTimestampMs()
+    local fade = fx.fade
+    local from = 0
+    if fade and fade.place == over then
+        from = fxLevel(fade, now)
+        fx.fade = nil
+    end
+    if cur then fx.fade = { place = cur.place, data = cur.data, from = fxLevel(cur, now), to = 0, at = now, dur = UI.HOVER_OUT_MS } end
+    fx.cur = over ~= nil and { place = over, data = data, from = from, to = 1, at = now, dur = UI.HOVER_IN_MS } or nil
+    UI.live(el, fxFrame)
+end
+
+function UI.placeFlash(el, place, data)
+    fxOf(el, "fxFlash").press = { place = place, data = data, from = 1, to = 0, at = getTimestampMs(), dur = UI.FLASH_MS }
+    UI.live(el, fxFrame)
+end
+
+-- How lit a place is now: its hover's level and its flash's, 0 to 1 each.
+function UI.placeLevels(el, place)
+    local k, f = 0, 0
+    local fx, flashes = el.fx, el.fxFlash
+    if not (fx or flashes) then return 0, 0 end
+    local now = getTimestampMs()
+    if fx then
+        local cur, fade = fx.cur, fx.fade
+        if cur and cur.place == place then
+            k = fxLevel(cur, now)
+        elseif fade and fade.place == place then
+            k = fxLevel(fade, now)
+        end
+    end
+    local press = flashes and flashes.press
+    if press and press.place == place then f = fxLevel(press, now) end
+    return k, f
 end
 
 return UI

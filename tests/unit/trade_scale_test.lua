@@ -740,7 +740,8 @@ local function loadShop(px)
     _G.getItemNameFromFullType = function(t) return "Name" end
     _G.getScriptManager = function()
         return {
-            FindItem = function(_, t) return { getNormalTexture = function() return "tex" end } end,
+            FindItem = function(_, t) return { getNormalTexture = function() return "tex" end,
+                getIcon = function() return "Item_" .. t end } end,
             getAllItems = function() return { size = function() return 0 end, get = function() return nil end } end,
         }
     end
@@ -776,7 +777,7 @@ local function shopTexts(UI, tier, size, cat)
     local r = OA.Store.ensure("s", "S")
     r.trade = { credits = 48200, trust = 0, stage = 3, milestones = 0, bonus = 0, sharedSerums = 0, levels = {} }
     OA.Trust.reset()
-    local window = { palette = UI.palette(tier), tier = tier, record = r, character = {} }
+    local window = { palette = UI.palette(tier), tier = tier, record = r, character = {}, reveal = function() end }
     local tab = OATabShop:new(0, 0, size[1], size[2], window)
     tab:initialise()
     tab:instantiate()

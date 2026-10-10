@@ -297,8 +297,7 @@ test("a group's row shows the group's name and picture, and the mouse over it li
     local Tab = load()
     local names = { ["Base.Charcoal"] = "Charcoal", ["Base.Coke"] = "Coke", ["Base.CharcoalCrafted"] = "Wood Charcoal" }
     getItemNameFromFullType = function(t) return names[t] or t end
-    local asked
-    getScriptManager = function() return { FindItem = function(_, t) asked = t; return nil end } end
+    getScriptManager = function() return { FindItem = function() return nil end } end
     local window = { palette = OA.Trade.UI.palette("crude"), record = record, tier = "crude" }
     local tab = Tab:new(0, 0, 700, 408, window)
     tab:createChildren()
@@ -306,7 +305,7 @@ test("a group's row shows the group's name and picture, and the mouse over it li
     local row = tab.data.rows[1]
     eq(row.key, "base:charcoal")
     eq(row.name, "Charcoal", "the group's name, not one kind's")
-    eq(asked, "Base.Charcoal", "its picture is the first kind's")
+    eq(row.itemType, "Base.Charcoal", "its picture is the first kind's")
     tab:prerender()
     tab.list.over, tab.list.mouseoverselected, tab.list.mx, tab.list.my = true, 1, 40, 10
     tab.drawn = {}

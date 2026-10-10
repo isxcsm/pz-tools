@@ -12,6 +12,7 @@ require "OperationAcorn/Story/Rewards"
 require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Story/View"
 require "OperationAcorn/Economy/Shop"
+require "OperationAcorn/Trade/StatusDraw"
 local OA = OperationAcorn
 local UI, Text = OA.Trade.UI, OA.Trade.Text
 local Data, Places, Rewards, Missions = OA.StoryData, OA.Places, OA.Rewards, OA.Missions
@@ -216,11 +217,6 @@ local function timeRuns(kind, dayKey, hourKey, hours)
     return runsOf(kind, hourKey, math.max(1, math.ceil(hours)))
 end
 
--- The texture of a mission's item (its script's icon), or nil.
-local function itemTexture(name)
-    local script = getScriptManager():FindItem(Data.fullType(name))
-    return script and script:getNormalTexture() or nil
-end
 
 -- Where a circle is from the player: "현재 위치에서 북동쪽 약 1.2km · 표시 구역 반지름 약 70m".
 local function whereText(px, py, area)
@@ -250,7 +246,7 @@ function OATabMission:buildCard(record, info)
     local place = info.place and getText("IGUI_OA_Story_Place_" .. info.place) or ""
     card.brief = getText(briefKey, place, OA.Story.number(record))
     if info.item and info.state ~= "offer" then
-        card.item = { tex = itemTexture(info.item),
+        card.item = { type = Data.fullType(info.item),
             runs = join(plain("dim", getText("IGUI_OA_Story_UI_ItemLabel") .. " "), plain("text", getItemNameFromFullType(Data.fullType(info.item)))) }
         -- scattered pieces: "시료 깡통 3곳 중 1곳 회수"
         if info.scatter then
@@ -583,7 +579,7 @@ function OATabMission:drawCard(p)
     local bonusRows = card.bonus and 1 or 0
     local low = cardH - 36 - 18 * bonusRows
     if card.item then
-        UI.icon(self, card.item.tex, 12, yy, 24, 1, p.iconTint)
+        UI.icon(self, OA.Trade.Draw.itemTexture(card.item.type, UI.px(24)), 12, yy, 24, 1, p.iconTint)
         drawRuns(self, 42, yy + 4, card.item.runs, p)
         yy = yy + 28
     end

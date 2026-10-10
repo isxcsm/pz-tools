@@ -218,8 +218,8 @@ OATerminalWindow.liveFrame = liveFrame
 -- A screen just put on show (a tab, a sub-tab's screen) comes up out of the background over REVEAL_MS: a veil of the
 -- background over it thins out, thicker below a faint line that runs down it once (eased out), so that it reads as
 -- drawn in from the top. The window draws it over what it holds; clicks reach the screen at once. Not in the boot,
--- whose own fade brings the first screen up.
-OATerminalWindow.REVEAL_MS = 220
+-- whose own fade brings the first screen up. A part of a screen can come up alone (a card's detail).
+OATerminalWindow.REVEAL_MS = 340
 
 local function within(el, outer)
     while el do
@@ -237,13 +237,14 @@ local function onShow(el)
     return true
 end
 
-function OATerminalWindow:reveal(el)
+-- `el` comes up, or the part x, y, w, h of it (its own units).
+function OATerminalWindow:reveal(el, x, y, w, h)
     if self.boot or not el then return end
     local now = getTimestampMs()
     local r = self.revealing
     -- a tab opened on one of its screens: the whole tab comes up
-    if r and r.at == now and within(el, r.el) then return end
-    self.revealing = { el = el, at = now }
+    if r and r.at == now and not r.w and within(el, r.el) then return end
+    self.revealing = { el = el, at = now, x = x, y = y, w = w, h = h }
     self.revealT = 0
     UI.live(self, liveFrame)
 end
@@ -267,10 +268,13 @@ function OATerminalWindow:drawReveal()
     local jo, ej = self.javaObject, r and r.el.javaObject
     if not (t and jo and ej) then return end
     local x, y = ej:getAbsoluteX() - jo:getAbsoluteX(), ej:getAbsoluteY() - jo:getAbsoluteY()
+    local w, h = ej:getWidth(), ej:getHeight()
+    if r.w then
+        x, y, w, h = x + UI.px(r.x), y + UI.px(r.y), UI.px(r.w), UI.px(r.h)
+    end
     local top = math.max(y, self:titleBarHeight())
-    local bottom = math.min(y + ej:getHeight(), self.height - self:resizeWidgetHeight())
+    local bottom = math.min(y + h, self.height - self:resizeWidgetHeight())
     if bottom <= top then return end
-    local w = ej:getWidth()
     local p = self.palette
     local u = 1 - t
     local line = top + math.floor((1 - u * u) * (bottom - top))

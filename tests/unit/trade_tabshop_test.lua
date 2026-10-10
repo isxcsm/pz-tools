@@ -98,7 +98,8 @@ local function loadTab()
     _G.getItemNameFromFullType = function(t) return "name:" .. t end
     _G.getScriptManager = function()
         return {
-            FindItem = function(_, t) return { getNormalTexture = function() return "tex:" .. t end } end,
+            FindItem = function(_, t) return { getNormalTexture = function() return "tex:" .. t end,
+                getIcon = function() return "Item_" .. t end } end,
             getAllItems = function()
                 local seeds = {}
                 for _, n in ipairs({ "TomatoBagSeed", "CarrotBagSeed" }) do
@@ -153,7 +154,8 @@ local function open(tier, w, h, stage, credits)
     OA.Client.id = function() return "s" end
     local notices = {}
     OA.Sync.deliver = function(kind, id, args) table.insert(notices, { kind = kind, args = args }) end
-    local window = { palette = UI.palette(tier), tier = tier, record = record, sent = {}, character = {} }
+    local window = { palette = UI.palette(tier), tier = tier, record = record, sent = {}, character = {},
+        reveal = function() end }
     local tab = Tab:new(0, 0, w or 700, h or 408, window)
     tab:initialise()
     tab:instantiate()
