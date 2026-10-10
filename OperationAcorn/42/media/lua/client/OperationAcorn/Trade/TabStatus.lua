@@ -1,25 +1,31 @@
 -- The terminal's status tab (DESIGN-terminal 2): a fixed strip at the top (which terminal this is, the trust level
 -- and its bar, the balance) and under it four sub-tabs, one screen each: the helicopter, progress, upgrades and the
--- record. The window opens on it, at the helicopter.
+-- record. The window opens on it, at the helicopter. A field terminal opened for the first time shows its boot screen
+-- and the board of what it opened first (DESIGN-terminal 12).
 require "OperationAcorn/Trade/TerminalWindow"
+require "OperationAcorn/Trade/StatusDraw"
+require "OperationAcorn/Trade/StatusModel"
 require "OperationAcorn/Trade/TabHeli"
+require "OperationAcorn/Trade/TabProgress"
+require "OperationAcorn/Trade/TabUpgrades"
+require "OperationAcorn/Trade/TabRecords"
 require "OperationAcorn/Economy/Trust"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
-local Trust = OA.Trust
+local Trust, Objects = OA.Trust, Trade.Objects
+local Draw, M = Trade.Draw, Trade.StatusModel
 
 OATabStatus = OATab:derive("OATabStatus")
 
 -- The strip's height, and where the sub-tab row and the sub-tab's screen start.
 OATabStatus.TOP_H = 60
 OATabStatus.SUB_Y = 66
-OATabStatus.BODY_Y = 96
+OATabStatus.BODY_Y = M.BODY_Y
 
 OATabStatus.SUBS = { "heli", "progress", "upgrades", "records" }
 
--- The sub-tabs' screens: the helicopter's is the trade part's; the others come with their units (DESIGN-terminal 14).
 local SUB_VIEWS = {
-    heli = function(x, y, w, h, window) return OATabHeli:new(x, y, w, h, window) end,
+    heli = OATabHeli, progress = OATabProgress, upgrades = OATabUpgrades, records = OATabRecords,
 }
 
 function OATabStatus:createChildren()
@@ -28,7 +34,10 @@ function OATabStatus:createChildren()
     self.subTabs:initialise()
     self.subTabs.anchorRight = true
     self:addChild(self.subTabs)
+    -- All four screens now, so that the boot screen added after them lies over them.
     self.subViews = {}
+    for _, id in ipairs(OATabStatus.SUBS) do self:subView(id) end
+    self:startBoot()
     self:showSub("heli")
 end
 
@@ -36,12 +45,13 @@ function OATabStatus:subView(id)
     local view = self.subViews[id]
     if view then return view end
     local y = OATabStatus.BODY_Y
-    local make = SUB_VIEWS[id]
-    view = make and make(0, y, self.width, self.height - y, self.window) or OATab:new(0, y, self.width, self.height - y, self.window)
+    local class = SUB_VIEWS[id] or OATab
+    view = class:new(0, y, self.width, self.height - y, self.window)
     view:initialise()
     view:instantiate()
     view.anchorRight = true
     view.anchorBottom = true
+    view:setVisible(false)
     self:addChild(view)
     self.subViews[id] = view
     return view
@@ -61,15 +71,26 @@ end
 function OATabStatus:refresh()
     local record = self:record()
     if not record then return end
-    local crude = self.window.tier ~= "field"
+    local field = self.window.tier == "field"
     local items = {}
     for _, id in ipairs(OATabStatus.SUBS) do
-        items[#items + 1] = { id = id, label = getText("IGUI_OA_Terminal_Sub_" .. id), lock = id == "upgrades" and crude }
+        local item = { id = id, label = getText("IGUI_OA_Terminal_Sub_" .. id) }
+        if id == "progress" and not field and M.fieldTerminalBuyable(record) then item.dot = "new" end
+        if id == "upgrades" then
+            if not field then
+                item.lock = true
+            else
+                local n = M.countAvail(record, true)
+                if n > 0 then item.badge = getText("IGUI_OA_Status_Avail", n) end
+            end
+        end
+        items[#items + 1] = item
     end
     self.subTabs:setItems(items, self.sub)
     self.top = self:topLines(record)
     local view = self.subViews[self.sub]
     if view and view.refresh then view:refresh() end
+    if self.boot then self.boot:refresh() end
 end
 
 -- The trust level's words: "신뢰도 2단계 · 분류" up to the 5th stage, the bare number after it, the handover at 8.
@@ -150,9 +171,152 @@ function OATabStatus:prerender()
     UI.fill(self, 0, OATabStatus.TOP_H, w, 1, p.border, 0.8)
 end
 
--- The tab's dot: red while the balance is a debt (DESIGN-terminal 11.1).
+-- The first open of a field terminal (DESIGN-terminal 12) ----------------------------------------------------------
+-- Once per terminal object (its modData OA_Booted): about 1.5 s of a black screen with three lines, then the board of
+-- what the field terminal opened, over the status tab. A click skips the boot screen; the board's button closes it,
+-- and the shop and missions tabs blink until they are looked at.
+
+function OATabStatus:startBoot()
+    if self.window.tier ~= "field" then return end
+    local square = getCell():getGridSquare(self.window.tx, self.window.ty, self.window.tz)
+    local object = square and Objects.find(square, Objects.TERMINAL)
+    if not object then return end
+    local data = object:getModData()
+    if data.OA_Booted then return end
+    data.OA_Booted = true
+    if isClient() then object:transmitModData() end
+    local boot = OAStatusBoot:new(0, 0, self.width, self.height, self)
+    boot:initialise()
+    boot:instantiate()
+    boot.anchorRight = true
+    boot.anchorBottom = true
+    self:addChild(boot)
+    self.boot = boot
+end
+
+function OATabStatus:bootDone()
+    if self.boot then
+        self:removeChild(self.boot)
+        self.boot = nil
+    end
+    local w = self.window
+    w.blink = w.blink or {}
+    w.blink.shop, w.blink.missions = true, true
+end
+
+OAStatusBoot = ISPanel:derive("OAStatusBoot")
+
+function OAStatusBoot:new(x, y, width, height, tab)
+    local o = ISPanel:new(x, y, width, height)
+    setmetatable(o, self)
+    self.__index = self
+    o.tab = tab
+    o.background = false
+    o.start = getTimestampMs()
+    o.phase = "boot"
+    return o
+end
+
+-- The board's words, worked out again when the record changes.
+function OAStatusBoot:refresh()
+    local record = self.tab:record()
+    if record then self.news = M.news(record) end
+    self.list = nil
+end
+
+function OAStatusBoot:layoutBoard()
+    local p = self.tab:palette()
+    if not self.news then self:refresh() end
+    local L = Draw.list(p)
+    local fh = L.fh
+    local bw = math.min(400, self.width - 40)
+    -- The height first: the title, each section's head and lines, the button.
+    local lines = {}
+    for _, s in ipairs(self.news or {}) do
+        local wrapped = {}
+        for _, line in ipairs(s.lines) do
+            for _, part in ipairs(Draw.wrap(line, bw - 44)) do wrapped[#wrapped + 1] = part end
+        end
+        lines[#lines + 1] = { head = s.head, lines = wrapped }
+    end
+    local bh = 46
+    for _, s in ipairs(lines) do bh = bh + 18 + fh * #s.lines + 8 end
+    bh = bh + 40
+    local bx = math.floor((self.width - bw) / 2)
+    local by = math.max(0, math.floor((self.height - bh) / 2))
+    Draw.rect(L, -10, -10, self.width + 20, self.height + 20, { 0, 0, 0 }, 0.45)
+    Draw.box(L, bx, by, bw, bh, p.panel or p.bg, 1, p.value)
+    Draw.text(L, getText("IGUI_OA_Status_News"), bx + 16, by + 12, p.value, UIFont.Medium)
+    local yy = by + 46
+    for _, s in ipairs(lines) do
+        Draw.bullet(L, bx + 18, yy, p.value)
+        Draw.fit(L, s.head, bx + 28, yy, bw - 44, p.bright)
+        yy = yy + 18
+        for _, line in ipairs(s.lines) do
+            Draw.text(L, line, bx + 28, yy, p.text)
+            yy = yy + fh
+        end
+        yy = yy + 8
+    end
+    Draw.button(L, bx + bw - 112, by + bh - 34, 96, 24, getText("IGUI_OA_Status_Ok"), "strong", nil, "ok")
+    self.list = L
+    self.laidW, self.laidH = self.width, self.height
+end
+
+function OAStatusBoot:prerender()
+    local p = self.tab:palette()
+    if self.phase == "boot" then
+        -- Timed by subtracting timestamps only (Kahlua's % is wrong at their size), and only while it shows.
+        local shown, over = M.bootLines(getTimestampMs() - self.start)
+        if over then
+            self.phase = "news"
+        else
+            self:drawRect(-10, -10, self.width + 20, self.height + 20, 1, 0, 0, 0)
+            local record = self.tab:record()
+            local number = string.format("%04d", record and record.number or 0)
+            local texts = { getText("IGUI_OA_Status_Boot_1"), getText("IGUI_OA_Status_Boot_2", number),
+                getText("IGUI_OA_Title_LineOpened") }
+            local mid = math.floor(self.height / 2) - 40
+            for i = 1, shown do
+                local c = i == 3 and p.value or p.text
+                self:drawTextCentre(texts[i], self.width / 2, mid + 26 * (i - 1), c[1], c[2], c[3], 1, UIFont.Medium)
+            end
+            local skip = getText("IGUI_OA_Status_Boot_Skip")
+            self:drawTextRight(skip, self.width, self.height - 18, p.dim[1], p.dim[2], p.dim[3], 1, UIFont.Small)
+            return
+        end
+    end
+    if not self.list or self.laidW ~= self.width or self.laidH ~= self.height then self:layoutBoard() end
+    Draw.paint(self, self.list)
+end
+
+function OAStatusBoot:render()
+    if self.phase ~= "news" or not self.list or not self:isMouseOver() then return end
+    local hit = Draw.hitAt(self.list, self:getMouseX(), self:getMouseY())
+    if hit and hit.button then
+        local p = self.tab:palette()
+        self:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
+    end
+end
+
+function OAStatusBoot:onMouseDown(x, y)
+    if self.phase == "boot" then
+        self.phase = "news"
+        return true
+    end
+    local hit = Draw.hitAt(self.list, x, y)
+    if hit and hit.id == "ok" then self.tab:bootDone() end
+    return true
+end
+
+function OAStatusBoot:onMouseWheel()
+    return true
+end
+
+-- The tab's dot: red while the balance is a debt, or there is an infection or a wound not tested (DESIGN-terminal
+-- 11.1).
 OA.Terminal.addTab("status", function(x, y, w, h, window)
     return OATabStatus:new(x, y, w, h, window)
 end, {
-    mark = function(record) return Trade.inDebt(record) and "bad" or nil end,
+    mark = function(record) return M.statusMark(record) end,
 })
