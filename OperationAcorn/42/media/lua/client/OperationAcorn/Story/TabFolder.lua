@@ -77,9 +77,8 @@ end
 OATabFolder.ROW_ALPHA, OATabFolder.LABEL_ALPHA = 0.7, 0.6
 
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
--- list is a canvas over the game's list, UI.list). The group names are labels: dim and a size down, at the foot of
--- their row so they sit on the entries under them (the document's heads are the ones in the head colour); the entries
--- are quieter than the one shown.
+-- list is a canvas over the game's list, UI.list). The group names are labels in the head colour, a size down and at
+-- the foot of their row so they sit on the entries under them; the entries are quieter than the one shown.
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
@@ -87,7 +86,7 @@ function OATabFolder.drawRow(list, y, item)
     local ty = y + OATabFolder.ROW_PAD / 2
     if row.header then
         local drop = UI.fontHeight(font) - UI.fontHeight(UIFont.Small)
-        UI.text(list, row.header, 8, ty + drop, p.dim)
+        UI.text(list, row.header, 8, ty + drop, p.head)
         return
     end
     local selected = list.selected == item.index
