@@ -722,3 +722,44 @@ test("the bags are looked through for parts only when a part's button is pressed
     picker:onMouseDownOutside()
     eq(window.picker, nil)
 end)
+
+-- With the extension API's UI fonts the window follows the screen (Trade/UI.lua): it keeps to nine tenths of the
+-- screen's height, and a body taller than that scrolls.
+local function koApi()
+    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
+        font = function(_, px) return px end,
+        fontHeight = function(_, key) return key end,
+        measure = function(_, key, s) return #tostring(s) * key * 7 / 16 end,
+        draw = function() end,
+    } }
+end
+
+for _, screenH in ipairs({ 400, 720, 900, 1080, 1440 }) do
+    test("with the API's fonts at " .. screenH .. "p the window keeps inside the screen, its body scrolling when taller", function()
+        _G.getTimestampMs = function() return 1 end
+        local UI = loadWindow(16)
+        koApi()
+        _G.getCore = function()
+            return { getScreenWidth = function() return screenH * 16 / 9 end, getScreenHeight = function() return screenH end }
+        end
+        _G.instanceof = function() return false end
+        UI.refreshScale()
+        eq(UI.facesOn, true)
+        local object = fakeMachine(cutterState(), { containers = {
+            OAMachineIn = fakeContainer("OAMachineIn", 12.5, 9), OAMachineOut = fakeContainer("OAMachineOut", 3, 2) } })
+        local window = OAMachineWindow:new(0, 0, character(), object)
+        window:initialise()
+        window:instantiate()
+        truthy(window.height <= math.floor(screenH * 0.9), screenH .. ": " .. window.height .. " px high")
+        if screenH < 540 then truthy(window.body.contentH > window.body.height, "taller than a small screen allows") end
+        local body = window.body
+        if body.contentH > body.height then
+            truthy(body:onMouseWheel(1), "the wheel scrolls it")
+            eq(body.scroll, math.min(OAMachineWindow.WHEEL, body.contentH - body.height))
+            body:onMouseWheel(100)
+            eq(body.scroll, body.contentH - body.height, "to its end and no further")
+        else
+            eq(body:onMouseWheel(1), false, "all of it shows: nothing to scroll")
+        end
+    end)
+end

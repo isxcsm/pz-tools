@@ -571,12 +571,12 @@ end
 
 -- None on another more than at the design's own 16 px font (the smallest window packs a few lines a unit or two into
 -- each other by design): the same screen laid out at 16 px is the measure, text by text.
-local function noWorse(list, base, what)
+local function noWorse(list, base, what, slack)
     eq(#list, #base, what .. ": the same texts as at 16 px")
     for i = 1, #list do
         for j = i + 1, #list do
             local now, was = overlap(list[i], list[j]), overlap(base[i], base[j])
-            truthy(now <= math.max(was, 0) + 1, what .. ": '" .. list[i].s .. "' at " .. list[i].x .. "," .. list[i].y
+            truthy(now <= math.max(was, 0) + 1 + (slack or 0), what .. ": '" .. list[i].s .. "' at " .. list[i].x .. "," .. list[i].y
                 .. " and '" .. list[j].s .. "' at " .. list[j].x .. "," .. list[j].y .. " overlap " .. now .. " (" .. was .. " at 16 px)")
         end
     end
@@ -657,6 +657,55 @@ for _, px in ipairs({ 19, 26, 38 }) do
                     local now = statusTexts(UI, name, tier, size)
                     inside(now, size[1], size[2], what)
                     noWorse(now, base, what)
+                end
+            end
+        end
+    end)
+end
+
+-- The extension API's UI fonts as the Korean language has them: a size asked for is the nearest of its bitmap fonts'
+-- line heights within a few pixels, else drawn at that size; a character 7/16 of the line wide.
+local KO = { 19, 26, 29, 33, 38, 40, 45 }
+local function koApi()
+    local function pick(px)
+        local best
+        for _, h in ipairs(KO) do
+            if math.abs(h - px) <= 3 and (not best or math.abs(h - px) < math.abs(best - px)) then best = h end
+        end
+        return best or px
+    end
+    _G.PZToolsAPI = { version = OA.API_VERSION, client = function() return "h" end, text = {
+        font = function(_, px) return pick(px) end,
+        fontHeight = function(_, key) return key end,
+        measure = function(_, key, s) return #tostring(s) * key * 7 / 16 end,
+        draw = function() end,
+    } }
+end
+
+for _, screenH in ipairs({ 720, 900, 1080, 1440 }) do
+    test("the status screens with the API's fonts at " .. screenH .. "p: every text inside, none on another more than at 16 px", function()
+        local UI = loadStatus(16)
+        for _, tier in ipairs({ "crude", "field" }) do
+            for _, size in ipairs({ { 700, 312 }, { 580, 252 } }) do
+                for _, name in ipairs(STATUS) do
+                    local what = screenH .. "p " .. tier .. " " .. name .. " " .. size[1]
+                    _G.PZToolsAPI = nil
+                    useFonts(UI, 16)
+                    local base = statusTexts(UI, name, tier, size)
+                    koApi()
+                    _G.getCore = function()
+                        return { getScreenWidth = function() return screenH * 16 / 9 end, getScreenHeight = function() return screenH end }
+                    end
+                    UI.refreshScale()
+                    eq(UI.facesOn, true)
+                    eq(UI.S, OA.Trade.Faces.screenScale(screenH))
+                    local now = statusTexts(UI, name, tier, size)
+                    inside(now, size[1], size[2], what)
+                    -- a bitmap font is a little larger than the design's at some sizes (33 pixels at 2x is 16.5
+                    -- units, its letters as much wider): texts the design packs into each other meet by that much
+                    -- more, a few percent of a text's size
+                    local grown = math.max(1, UI.fontHeight() / 16, UI.fontHeight(UIFont.Medium) / 20)
+                    noWorse(now, base, what, (grown - 1) * 40)
                 end
             end
         end
