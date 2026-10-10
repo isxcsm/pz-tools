@@ -725,9 +725,10 @@ local function nearUnopened(open, player)
     return want
 end
 
--- The look at the building (the walk over its squares, the containers asked whether they are opened) is made at most
--- once each Buildings.LOOK_MS, as the economy's minute check makes it; between looks the job works from what the last
--- look found (`look`), and the outlines are made again only when the character has moved to another square.
+-- Which building the character is in is asked every run (entering and leaving are told at once, as before); the heavy
+-- look (the walk over its squares, the containers asked whether they are opened) is made at most once each
+-- Buildings.LOOK_MS, as the economy's minute check makes it, or at once on a new building. Between looks the job works
+-- from what the last look found (`look`), and the outlines are made again only on a new look or a new square.
 local lookAt = {}      -- OA.due's clock of the look
 local look = { key = nil, opened = 0, total = 0, complete = false, stamp = 0 }
 local outlinedAt = { x = nil, y = nil, z = nil, stamp = -1 }
@@ -737,7 +738,15 @@ local function ledgerJob(now)
     local record = player and not player:isDead() and OA.Client.record(player)
     local rank = record and Rules.rank(Rules.section(record), "ledger") or 0
     if rank >= 1 then
-        if OA.due(lookAt, "look", now, OA.Buildings.LOOK_MS) then
+        local here = player:getCurrentSquare()
+        local room = here and here:getRoom()
+        local at = room and OA.Buildings.keyAt(here, room) or nil
+        if at == nil then
+            -- (outside: the tick drops the walk that was kept)
+            if look.key ~= nil then OA.Buildings.tick(player) end
+            look.key, lookAt.look = nil, nil
+        elseif at ~= look.key or OA.due(lookAt, "look", now, OA.Buildings.LOOK_MS) then
+            lookAt.look = now
             look.key, look.opened, look.total, look.complete = OA.Buildings.tick(player)
             look.stamp = look.stamp + 1
         end
