@@ -53,7 +53,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
-| `client/OperationAcorn/Scene.lua` | 큰 장면의 화면 타이핑: 첫 교신, 단계 진입, 이관의 교신 줄을 `PZToolsAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
+| `client/OperationAcorn/RadioScene.lua` | 큰 장면의 화면 타이핑 (`OA.RadioScene`): 첫 교신, 단계 진입, 이관의 교신 줄을 `PZToolsAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
 | `client/OperationAcorn/Story/TypedText.lua` | 문서철의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 건너뛰기는 없다(속도를 읽는 속도보다 빠르게 잡는다). 창이 닫히면 `story_typed`로 진행을 서버 기록(`story.typed`)에 남긴다 |
 
 - **변경은 서버에서만 한다.** 화면은 `OA.Sync.send`로 서버에 부탁하고, 서버 핸들러가 기록을 고친 뒤 `OA.Sync.changed`를 부른다.
@@ -185,7 +185,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 
 | 시트 | tiledef (`mod.info`) | 정의 파일 | 텍스처 팩 | 칸 |
 | --- | --- | --- | --- | --- |
-| `oa_trade_01` | `oa_trade 6601` | `media/oa_trade.tiles` | `texturepacks/OperationAcornTrade.pack` (`pack=OperationAcornTrade`) | 0~15 |
+| `oa_trade_01` | `oa_trade 6601` | `media/oa_trade.tiles` | `texturepacks/OperationAcornTrade.pack` (`pack=OperationAcornTrade`) | 0~27 (4줄) |
 | `oa_machines_01` | `oa_machines 6602` | `media/oa_machines.tiles` | `texturepacks/OperationAcornMachines.pack` (`pack=OperationAcornMachines`) | 0~157 (20줄) |
 
 `mod.info`(`42/`과 `common/` 둘 다)의 `pack=`, `tiledef=` 줄은 위 표와 같다. 타일 이름은 `<시트>_<번호>` (예: `oa_machines_01_128`).
@@ -253,6 +253,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 - **꺼짐 / 대기 / 도는 중:** 속성이 아니라 그림만 다르다. 꺼졌거나 전기가 없으면 멈춤(빨간 등), 켜져 있고 일감을 기다리면 대기(초록 등, 대량 분해기는 경광등도), 일하면 도는 중이다 (`Machines.refreshLook`). 상태가 바뀌면 코드가 `Sprites.machineTiles(kind, dir, running)`의 칸마다 그 칸 오브젝트에 `setSpriteFromName`을 한다 (칸 하나만 바꾸면 기계가 찢어진다. 이름 문자열을 받는 `setSprite`는 이름도 속성도 없는 맨 그림을 만든다).
   돌아가는 모습이 없는 기계는 `running`을 무시한다.
 - 그을린 땅(13)은 바닥 위의 투명 그림이다. 바닥 타일을 바꾸지 말고 `IsoObject.new(cell, square, "oa_trade_01_13")`로 칸에 얹는다.
+  낙하지 둘레의 소품(24 젖어 보이는 흙, 25 끊긴 표지 테이프, 26 빈 시료 봉투, 27 줄지어 놓인 돌)도 같은 방식이다. 속성이 없는 바닥 그림이라 빛도 소리도 없다.
 
 타일을 바꾸려면 `python tools/tile_art.py --preview`를 돌린다 (`tools/tile_art_preview_trade.png`; `..._machines.png`는 기계마다 서 있는 모습 그대로 이어 붙인 것, `..._machines_tiles.png`는 낱칸). 저장은 시트 자리로 타일을 가리키므로,
 쓴 자리는 바꾸지 않고 새 타일은 빈 자리나 새 줄에 넣는다.

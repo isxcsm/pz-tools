@@ -368,7 +368,7 @@ function Story.stageTitle(record, level)
     return detail
 end
 
--- A radio copy's scene on the player's screen: its lines typed over the game (client/Scene.lua), for the first
+-- A radio copy's scene on the player's screen: its lines typed over the game (client/RadioScene.lua), for the first
 -- contact, a stage or milestone entered, the handover. The copy is in the folder in any case.
 function Story.scene(record, id)
     for _, copy in ipairs(Story.radioCopies(record)) do

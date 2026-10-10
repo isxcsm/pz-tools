@@ -52,7 +52,7 @@ end
 
 -- A radio scene over a player's screen, typed (the first contact, a stage entered, the handover): `detail` is { id (the
 -- copy's id), keys (its radio lines' ids), number (the collection point number the lines say) }. The lines are
--- translated on the player's side; shown by client/OperationAcorn/Scene.lua, and only through the extension API's text.
+-- translated on the player's side; shown by client/OperationAcorn/RadioScene.lua, and only through the extension API's text.
 function Sync.scene(playerId, detail)
     if isServer() then
         sendServerCommand(OA.MOD, "scene", { player = playerId, detail = detail })

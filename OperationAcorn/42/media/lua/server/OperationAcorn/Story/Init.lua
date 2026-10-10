@@ -1,13 +1,17 @@
 -- The story part's wiring on the server (and alone): the events the missions and the story run on, the commands the
 -- windows send, and the hooks to the trade part. Nothing here runs per tick or per square (DESIGN 12): a ten-minute
--- event compares times, a day event picks the frequency's line, and the rest answers a command or a chunk loading.
+-- event compares times, a minute event a few distances, a day event picks the frequency's line, and the rest answers
+-- a command or a chunk loading.
 require "OperationAcorn/Server"
 require "OperationAcorn/Story/Missions"
 require "OperationAcorn/Story/Game"
 require "OperationAcorn/Story/Sites"
 require "OperationAcorn/Story/Story"
+require "OperationAcorn/Story/Scene"
+require "OperationAcorn/Story/SceneGame"
 local OA = OperationAcorn
 local Missions, Game, Sites, Story = OA.Missions, OA.StoryGame, OA.Sites, OA.Story
+local Scene, SceneGame = OA.Scene, OA.SceneGame
 local Init = {}
 OA.StoryInit = Init
 
@@ -52,6 +56,7 @@ local function start()
     if started then return end
     started = true
     Missions.game = Game
+    Scene.game = SceneGame
     local ok, err = pcall(Sites.ensure)
     if not ok then OA.log("meteor sites failed:", tostring(err)) end
     Game.rebuildWaiting()
@@ -71,12 +76,21 @@ local function onTenMinutes()
     end)
 end
 
+-- Every game minute: a mission's circle entered, its place shown, a drop site stood at (Story/Scene; a few distances a
+-- record, and nothing more until the player is in a circle).
+local function onMinute()
+    if not started then return end
+    eachRecord(Scene.minute)
+end
+
 local function onDay()
     local day = OA.day()
     eachRecord(function(record) Story.dailyRadio(record, day) end)
 end
 
 Events.EveryTenMinutes.Add(onTenMinutes)
+Events.EveryOneMinute.Add(onMinute)
+Events.OnZombieDead.Add(SceneGame.zombieDied)
 Events.EveryDays.Add(onDay)
 Events.OnGameStart.Add(start)
 Events.OnServerStarted.Add(start)

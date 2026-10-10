@@ -7,6 +7,7 @@
 -- starts with the line just said. Only the order left is kept, in a state table the caller gives (the character's
 -- mod data for self-talk, a record's section for what the server sends).
 require "OperationAcorn/Core"
+require "OperationAcorn/Sync"
 local OA = OperationAcorn
 local Say = {}
 OA.Say = Say
@@ -124,5 +125,21 @@ function Say.say(character, id, ctx)
     if key then character:Say(getText(key)) end
     return key
 end
+
+-- Self-talk the server's side asks for (a mission's place reached, a drop site stood at): the player's own client
+-- says it, alone at once. ctx is the context the bundle's tags are matched against.
+function Say.tell(playerId, id, ctx)
+    if isServer() then
+        sendServerCommand(OA.MOD, "say", { player = playerId, id = id, ctx = ctx })
+    else
+        OA.Sync.deliver("say", playerId, { id = id, ctx = ctx })
+    end
+end
+
+OA.Sync.listen("say", function(playerId, detail)
+    local player = getPlayer and getPlayer()
+    if not (player and detail) or OA.Store.idOf(player) ~= playerId then return end
+    Say.say(player, detail.id, detail.ctx)
+end)
 
 return Say

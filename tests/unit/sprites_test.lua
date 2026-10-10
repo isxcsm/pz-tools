@@ -278,7 +278,7 @@ end)
 
 test("the trade tiles keep their places", function()
     local places, count = readTiles("oa_trade.tiles", "oa_trade_01")
-    eq(count, 24)
+    eq(count, 32)
     -- the team's own terminal (upgraded with its kit)
     eq(Sprites.terminal("S", false, true), "oa_trade_01_0")
     eq(Sprites.terminal("W", false, true), "oa_trade_01_3")
@@ -297,10 +297,18 @@ test("the trade tiles keep their places", function()
     eq(Sprites.SCORCHED_GROUND, "oa_trade_01_13")
     eq(Sprites.METEOR_ROCKS, "oa_trade_01_14")
     eq(Sprites.SITE_STAKE, "oa_trade_01_15")
+    -- what lies round a drop site
+    eq(Sprites.DAMP_SOIL, "oa_trade_01_24")
+    eq(Sprites.CUT_TAPE, "oa_trade_01_25")
+    eq(Sprites.SAMPLE_BAG, "oa_trade_01_26")
+    eq(Sprites.STONE_ROW, "oa_trade_01_27")
     for _, name in ipairs({ Sprites.terminal("E", true), Sprites.deliveryBox(true), Sprites.supplyCrate(true),
         Sprites.PARACHUTE_CRATE, Sprites.METEOR_ROCKS, Sprites.SITE_STAKE }) do
         local index = tonumber(string.match(name, "(%d+)$"))
         truthy(places[index].CustomName, name .. " is defined")
+    end
+    for _, name in ipairs({ Sprites.DAMP_SOIL, Sprites.CUT_TAPE, Sprites.SAMPLE_BAG, Sprites.STONE_ROW }) do
+        truthy(places[tonumber(string.match(name, "(%d+)$"))], name .. " is defined")
     end
     eq(places[0].Facing, "S")
     eq(places[3].Facing, "W")

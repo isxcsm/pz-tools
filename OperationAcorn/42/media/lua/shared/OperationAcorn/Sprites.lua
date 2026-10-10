@@ -34,6 +34,12 @@ Sprites.PARACHUTE_CRATE = tile(Sprites.TRADE, 12)
 Sprites.SCORCHED_GROUND = tile(Sprites.TRADE, 13)
 Sprites.METEOR_ROCKS = tile(Sprites.TRADE, 14)
 Sprites.SITE_STAKE = tile(Sprites.TRADE, 15)
+-- What lies round a drop site (story-improvements 10): dark soil that looks wet, a cut length of marker tape, an empty
+-- sample bag, stones laid in a row.
+Sprites.DAMP_SOIL = tile(Sprites.TRADE, 24)
+Sprites.CUT_TAPE = tile(Sprites.TRADE, 25)
+Sprites.SAMPLE_BAG = tile(Sprites.TRADE, 26)
+Sprites.STONE_ROW = tile(Sprites.TRADE, 27)
 
 -- Machines sheet. The big machines are several tiles; a machine takes states x facings x tiles places, in this order:
 -- state (stopped, running), facing (S E N W), then the tiles of that facing's footprint row by row (y outer, x inner).

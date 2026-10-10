@@ -1,5 +1,6 @@
 """The trade sheet's objects (besides the terminal): the delivery box, the supply crate, the parachute crate, the scorched
-ground, the meteor rocks, the drop-site stake, and the crude terminal (the first-day one the terminal upgrades)."""
+ground, the meteor rocks, the drop-site stake, the crude terminal (the first-day one the terminal upgrades), and what
+lies round a drop site (dark soil that looks wet, a cut length of marker tape, an empty sample bag, stones in a row)."""
 import math
 import random
 
@@ -343,6 +344,115 @@ def site_stake():
                col, (0, -1, -0.2))
     ground = shadow((0.5, 0.5), 0.22, 0.16, 100)
     return compose(s, ground=ground, seed=71)
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# What lies round a drop site (story-improvements 10): flat things on the ground, nothing that gives light.
+
+def _patch(n, seed, ragged_waves, cx=0.5, cy=0.5, size=0.8):
+    """A ragged blob for a ground decal: (t, noise, fine) arrays, t 0 at its middle and 1 at its outline."""
+    rnd = np.random.RandomState(seed)
+    yy, xx = np.mgrid[0:n, 0:n]
+    dx, dy = (xx - cx * n) / (n * size / 2), (yy - cy * n) / (n * size / 2)
+    r = np.sqrt(dx * dx + dy * dy)
+    theta = np.arctan2(dy, dx)
+    ragged = 0.82 + sum(a * np.sin(k * theta + ph) for k, a, ph in ragged_waves)
+    noise = rnd.randn(n // 8 + 1, n // 8 + 1)
+    noise = np.asarray(Image.fromarray(((noise - noise.min()) / (np.ptp(noise)) * 255).astype(np.uint8)).resize((n, n), Image.BICUBIC)) / 255.0
+    fine = rnd.rand(n, n)
+    t = r / ragged + (noise - 0.5) * 0.3
+    return t, noise, fine
+
+
+def damp_soil():
+    """Earth darker than the ground round it, as if just rained on: a deep brown patch, nearly black in the middle,
+    with a faint wet sheen in a few places and a few small stones. A decal on the floor."""
+    n = 300
+    t, noise, fine = _patch(n, 17, ((3, 0.08, 0.6), (5, 0.06, 2.0), (8, 0.04, 1.1)), size=0.86)
+    alpha = np.clip((1.0 - t) * 3.0, 0, 1) * 0.92
+    rgb = np.zeros((n, n, 3))
+    edge = np.array([78, 60, 42], float)
+    deep = np.array([46, 34, 24], float)
+    mix = np.clip(1 - t, 0, 1) ** 0.6
+    rgb[:] = edge + (deep - edge) * mix[..., None]
+    rgb += (fine[..., None] - 0.5) * 10
+    # the sheen: pale smears where the noise peaks, as on wet clay
+    sheen = np.clip((noise - 0.66) * 6, 0, 1) * (t < 0.75)
+    rgb = rgb + (np.array([118, 112, 104]) - rgb) * (sheen[..., None] * 0.6)
+    out = np.concatenate([np.clip(rgb, 0, 255), (alpha * 255)[..., None]], axis=2).astype(np.uint8)
+    img = Image.fromarray(out, 'RGBA').filter(ImageFilter.GaussianBlur(0.9))
+    s = Scene(0)
+    flat_decal(s, 0.0, 0.0, 1.0, 1.0, 0.0, img, offset=0.0)
+    rn = random.Random(23)
+    for i in range(5):
+        a = rn.random() * 6.28
+        d = 0.08 + rn.random() * 0.25
+        s.rock((0.5 + math.cos(a) * d, 0.5 + math.sin(a) * d, 0.01), 0.018 + rn.random() * 0.012, 80 + i,
+               (70, 62, 56), squash=(1, 1, 0.6), detail=0, jitter=0.3)
+    return compose(s, seed=81)
+
+
+def _ribbon(s, pts, width, colours, z=0.006):
+    """A flat ribbon along a path on the ground, in alternating colours a segment each."""
+    for i in range(len(pts) - 1):
+        (ax, ay), (bx, by) = pts[i], pts[i + 1]
+        dx, dy = bx - ax, by - ay
+        length = math.hypot(dx, dy) or 1.0
+        nx, ny = -dy / length * width / 2, dx / length * width / 2
+        quad = [(ax + nx, ay + ny, z), (bx + nx, by + ny, z), (bx - nx, by - ny, z), (ax - nx, ay - ny, z)]
+        s.poly(quad, colours[i % len(colours)], (0, 0, 1))
+
+
+def cut_tape():
+    """A length of orange and white marker tape on the ground, cut in two: one end still knotted to a short peg
+    that was pushed in and snapped off, the rest blown a little way, its cut ends square."""
+    s = Scene(0)
+    white = (236, 232, 220)
+    # the snapped peg, a stub of wood with the knot
+    s.box(0.24, 0.30, 0.0, 0.29, 0.35, 0.10, WOOD, top=(168, 130, 84), shine=0.05)
+    s.tube((0.265, 0.325, 0.07), (0.265, 0.325, 0.085), 0.034, ORANGE, segments=10)
+    # the piece tied to it, lying out from the peg
+    _ribbon(s, [(0.28, 0.34), (0.36, 0.40), (0.44, 0.43), (0.50, 0.47)], 0.05, (ORANGE, white))
+    # the other piece, further off, curled once
+    _ribbon(s, [(0.58, 0.52), (0.66, 0.53), (0.73, 0.58), (0.76, 0.66), (0.71, 0.72), (0.64, 0.70)], 0.05,
+            (white, ORANGE), z=0.007)
+    ground = shadow((0.5, 0.5), 0.3, 0.2, 40)
+    return compose(s, ground=ground, seed=91)
+
+
+def sample_bag():
+    """An empty sample bag dropped on the ground: clear plastic gone milky, a red seal strip along its top, a white
+    label with nothing written on it, creased."""
+    w, h = 180, 140
+    img = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([4, 4, w - 5, h - 5], fill=(214, 220, 222, 120), outline=(240, 244, 246, 190), width=3)
+    d.rectangle([4, 4, w - 5, 20], fill=(196, 52, 44, 210))                     # the seal strip
+    d.line([(4, 24), (w - 5, 24)], fill=(240, 244, 246, 170), width=2)
+    d.rectangle([22, 44, 98, 92], fill=(246, 244, 236, 235), outline=(170, 168, 160, 235))   # the label
+    for y in (58, 70, 82):
+        d.line([(30, y), (90, y)], fill=(176, 172, 160, 235), width=1)            # its empty lines
+    for x0, y0, x1, y1 in ((110, 30, 150, 120), (60, 100, 170, 112), (30, 30, 40, 128)):
+        d.line([(x0, y0), (x1, y1)], fill=(250, 252, 252, 110), width=2)          # creases
+    img = img.rotate(-24, resample=Image.BICUBIC, expand=True)
+    s = Scene(0)
+    flat_decal(s, 0.24, 0.26, 0.76, 0.74, 0.0, img, offset=0.004)
+    return compose(s, seed=101)
+
+
+def stone_row():
+    """Stones about the size of a fist laid in a straight row across one side of the square, as if to mark a line:
+    grey field stones, much alike, evenly spaced."""
+    s = Scene(0)
+    rn = random.Random(9)
+    for i in range(6):
+        t = i / 5.0
+        x, y = 0.18 + t * 0.62, 0.70 - t * 0.38
+        r = 0.045 + rn.random() * 0.012
+        s.rock((x, y, r * 0.55), r, 110 + i, (124, 120, 112), squash=(1.1, 0.95, 0.65), detail=1, jitter=0.18,
+               colour2=(98, 94, 88), shine=0.05)
+    ground = shadow((0.49, 0.51), 0.36, 0.12, 60)
+    return compose(s, ground=ground, seed=111)
 
 
 # ----------------------------------------------------------------------------------------------------------------
