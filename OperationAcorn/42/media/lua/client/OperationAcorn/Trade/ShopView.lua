@@ -25,6 +25,9 @@ ShopView.ROW_H = 64         -- a row of two cards, with the gap under it
 ShopView.HEAD_H = 22        -- a block's head line
 ShopView.BLOCK_GAP = 4      -- extra room after a block
 ShopView.CART_ROW = 42
+-- The detail's icon (design units: no icon of ours is laid out larger, Trade/StatusDraw itemTexture) and where its
+-- text and its quantity row start.
+ShopView.DETAIL_ICON, ShopView.DETAIL_TEXT = 32, 52
 ShopView.WIDE = 680         -- from this body width on the cart is 200 wide, below it 176
 
 -- Entries the shop tab never lists: the box reissue is bought with the status tab's button.
@@ -260,7 +263,8 @@ function ShopView.detailRow(cw, detailH, hasCombo)
         local x = labelled and 76 or 10
         row.combo = { x = x, w = math.max(60, math.min(150, row.add.x - 8 - x)), label = labelled }
     else
-        row.minus, row.count, row.plus = { x = 68, w = 20 }, { x = 90, w = 24 }, { x = 116, w = 20 }
+        local x = ShopView.DETAIL_TEXT
+        row.minus, row.count, row.plus = { x = x, w = 20 }, { x = x + 22, w = 24 }, { x = x + 48, w = 20 }
     end
     return row
 end
