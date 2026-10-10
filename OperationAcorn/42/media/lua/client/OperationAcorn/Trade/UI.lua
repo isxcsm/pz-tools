@@ -12,6 +12,55 @@ OA.Trade.UI = UI
 
 UI.PAD = 10
 
+-- The two terminals' colours (DESIGN-terminal 1.3): the crude one built from the kit, phosphor green on near black;
+-- the field terminal ordered from the shop, warm white and amber on olive. Every screen draws from the palette of
+-- the terminal it is open at. Colours are { r, g, b }.
+UI.PALETTES = {
+    crude = {
+        bg = { 0.02, 0.05, 0.03 }, bgAlpha = 0.95, panel = nil,
+        text = { 0.45, 0.95, 0.55 }, dim = { 0.25, 0.55, 0.30 }, bright = { 0.78, 1.0, 0.82 },
+        value = { 0.78, 1.0, 0.82 }, head = { 0.78, 1.0, 0.82 }, border = { 0.20, 0.50, 0.25 },
+        warn = { 0.95, 0.75, 0.30 }, bad = { 1, 0.45, 0.35 }, good = { 0.78, 1.0, 0.82 },
+        sel = { 0.45, 0.95, 0.55 }, title = { 0.04, 0.10, 0.05 }, dark = { 0.02, 0.05, 0.03 },
+        tabStrip = nil, numberFont = UIFont.Code, iconTint = { 0.6, 1, 0.6 }, scanlines = true, tape = true,
+    },
+    field = {
+        bg = { 0.10, 0.11, 0.08 }, bgAlpha = 0.96, panel = { 0.15, 0.16, 0.12 },
+        text = { 0.92, 0.90, 0.82 }, dim = { 0.62, 0.60, 0.52 }, bright = { 1, 0.98, 0.92 },
+        value = { 1, 0.82, 0.25 }, head = { 1, 0.82, 0.25 }, border = { 0.42, 0.45, 0.30 },
+        warn = { 1, 0.82, 0.25 }, bad = { 1, 0.45, 0.35 }, good = { 0.6, 0.95, 0.6 },
+        sel = { 1, 0.82, 0.25 }, title = { 0.30, 0.33, 0.20 }, dark = { 0.10, 0.11, 0.08 },
+        tabStrip = { 0.30, 0.33, 0.20 }, numberFont = UIFont.Small, iconTint = nil, scanlines = false, tape = false,
+    },
+}
+-- The tape over the crude terminal's corners.
+UI.TAPE = { 0.75, 0.68, 0.45 }
+
+function UI.palette(tier)
+    return UI.PALETTES[tier] or UI.PALETTES.crude
+end
+
+-- Drawing with a palette colour: a filled rectangle, a border, a text (alpha optional).
+function UI.fill(el, x, y, w, h, c, a)
+    el:drawRect(x, y, w, h, a or 1, c[1], c[2], c[3])
+end
+
+function UI.frame(el, x, y, w, h, c, a)
+    el:drawRectBorder(x, y, w, h, a or 1, c[1], c[2], c[3])
+end
+
+function UI.text(el, text, x, y, c, font, a)
+    el:drawText(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
+end
+
+function UI.textCentre(el, text, x, y, c, font, a)
+    el:drawTextCentre(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
+end
+
+function UI.textRight(el, text, x, y, c, font, a)
+    el:drawTextRight(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
+end
+
 function UI.fontHeight(font)
     return getTextManager():getFontHeight(font or UIFont.Small)
 end
@@ -33,6 +82,79 @@ function UI.fit(text, width, font)
         cut = string.sub(cut, 1, #cut - 1)
     end
     return cut .. "..."
+end
+
+-- A small padlock drawn from rectangles (the fonts have no glyph for one), 8 wide and 9 high from x, y.
+function UI.lock(el, x, y, c, a)
+    UI.frame(el, x + 2, y, 4, 4, c, a)
+    UI.fill(el, x, y + 4, 8, 5, c, a)
+end
+
+-- A row of sub-tabs (the status tab's and the missions tab's, DESIGN-terminal 2.1a, 6.4): boxes side by side, the
+-- chosen one filled. `items` = { { id, label, lock (a padlock before the name), badge (a text on a filled chip after
+-- it), dot ("new" or "bad") } }; a click calls onSelect(target, id).
+OASubTabs = ISPanel:derive("OASubTabs")
+
+function OASubTabs:new(x, y, width, palette, target, onSelect)
+    local o = ISPanel:new(x, y, width, UI.fontHeight() + 6)
+    setmetatable(o, self)
+    self.__index = self
+    o.background = false
+    o.palette = palette
+    o.target, o.onSelect = target, onSelect
+    o.items, o.slots = {}, {}
+    return o
+end
+
+function OASubTabs:setItems(items, active)
+    self.items, self.active = items, active
+end
+
+function OASubTabs:prerender()
+    local p = self.palette
+    local fh = UI.fontHeight()
+    local h = self.height
+    local x = 0
+    self.slots = {}
+    for _, item in ipairs(self.items) do
+        local on = item.id == self.active
+        local lw = UI.textWidth(item.label)
+        local bw = lw + 32
+        if item.lock then bw = bw + 12 end
+        local badgeW = item.badge and UI.textWidth(item.badge) + 10 or 0
+        if item.badge then bw = bw + badgeW + 4 end
+        if on then
+            UI.fill(self, x, 0, bw, h, p.sel, 0.2)
+            UI.frame(self, x, 0, bw, h, p.sel)
+        else
+            if p.panel then UI.fill(self, x, 0, bw, h, p.panel) end
+            UI.frame(self, x, 0, bw, h, p.border)
+        end
+        local lx = x + 16
+        if item.lock then
+            UI.lock(self, lx, (h - 9) / 2, p.warn, 0.9)
+            lx = lx + 12
+        end
+        UI.text(self, item.label, lx, (h - fh) / 2, on and p.bright or p.text)
+        if item.badge then
+            local bx = lx + lw + 8
+            UI.fill(self, bx, 4, badgeW, h - 8, p.sel, 0.85)
+            UI.textCentre(self, item.badge, bx + badgeW / 2, (h - fh) / 2, p.dark)
+        end
+        if item.dot then UI.fill(self, x + bw - 8, 4, 4, 4, item.dot == "bad" and p.bad or p.warn) end
+        self.slots[#self.slots + 1] = { id = item.id, x = x, w = bw }
+        x = x + bw + 4
+    end
+end
+
+function OASubTabs:onMouseDown(x, y)
+    for _, slot in ipairs(self.slots) do
+        if x >= slot.x and x < slot.x + slot.w then
+            if self.onSelect then self.onSelect(self.target, slot.id) end
+            return true
+        end
+    end
+    return true
 end
 
 -- A label at x, y.

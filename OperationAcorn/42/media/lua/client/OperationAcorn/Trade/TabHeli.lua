@@ -1,4 +1,4 @@
--- The terminal's helicopter tab: the state of the delivery box, whether a call is on its way or when the next one
+-- The status tab's helicopter screen: the state of the delivery box, whether a call is on its way or when the next one
 -- is possible, the expected balance, and the buttons that call the helicopter or ask for a new delivery box.
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Estimate"
@@ -119,6 +119,3 @@ function OATabHeli:doReissue()
     self:send("tradeCall", { kind = "reissue" })
 end
 
-OA.Terminal.addTab("heli", "IGUI_OA_Trade_Tab_Heli", function(x, y, w, h, window)
-    return OATabHeli:new(x, y, w, h, window)
-end)

@@ -241,6 +241,12 @@ function OATabShop:onClear()
     self:sendLines({})
 end
 
-OA.Terminal.addTab("shop", "IGUI_OA_Trade_Tab_Shop", function(x, y, w, h, window)
+-- The tab's dot: items a new trust level has opened, until the tab is looked at (DESIGN-terminal 1.1).
+OA.Terminal.addTab("shop", function(x, y, w, h, window)
     return OATabShop:new(x, y, w, h, window)
-end)
+end, {
+    mark = function(record)
+        return OA.Trust.tier(record) > (OA.Terminal.seenValue(record, "tier") or 0) and "new" or nil
+    end,
+    seen = function(record) return "tier", OA.Trust.tier(record) end,
+})

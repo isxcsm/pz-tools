@@ -1,6 +1,7 @@
--- The story part's two tabs in the communication terminal: the mission (what is asked, where about, until when, what
--- it pays; the choice buttons of a choice mission; the map) and the folder of documents (the ones read, and the latest
--- manifests). Both only read the record; what they change goes to the server as a command.
+-- The story part's tab in the communication terminal, missions, with two screens: the mission (what is asked, where
+-- about, until when, what it pays; the choice buttons of a choice mission; the map) and the folder of documents (the
+-- ones read, the radio copies, the latest manifests). Both only read the record; what they change goes to the server
+-- as a command.
 require "ISUI/ISPanel"
 require "ISUI/ISButton"
 require "ISUI/ISRichTextPanel"
@@ -230,13 +231,6 @@ function Tabs.entries(r)
     return list
 end
 
--- Is there anything for the folder (cheap: no text is made).
-function Tabs.hasEntries(r)
-    if not r then return false end
-    local s = Story.section(r)
-    return not OA.isEmpty(s.docs) or #s.manifests > 0 or s.firstContact ~= nil
-end
-
 function ISOADocsPanel:refresh()
     local r = record()
     self.entries = Tabs.entries(r)
@@ -274,20 +268,63 @@ OA.Sync.listen("missions", refreshAll)
 OA.Sync.listen("story", refreshAll)
 OA.Sync.listen("all", refreshAll)
 
--- The tabs show when the first stage is passed (the first mission) and when a document has been read, a manifest
--- kept or the first radio line filed.
+-- ---------------------------------------------------------------------------------------------------------------
+-- The missions tab: the two screens under a row of sub-tabs (DESIGN-terminal 6.4).
+
+ISOAMissionsTab = ISPanel:derive("ISOAMissionsTab")
+
+Tabs.SUBS = { "missions", "docs" }
+
+function ISOAMissionsTab:new(x, y, width, height, window)
+    local o = ISPanel.new(self, x, y, width, height)
+    o.window = window
+    o.background = false
+    o.sub = "missions"
+    return o
+end
+
+function ISOAMissionsTab:createChildren()
+    self.subTabs = OASubTabs:new(0, 0, self.width, self.window.palette, self, ISOAMissionsTab.onSub)
+    self.subTabs:initialise()
+    self.subTabs.anchorRight = true
+    self:addChild(self.subTabs)
+    local y = self.subTabs.height + 6
+    self.views = {
+        missions = Tabs.missionTab(0, y, self.width, self.height - y),
+        docs = Tabs.docsTab(0, y, self.width, self.height - y),
+    }
+    for _, view in pairs(self.views) do
+        view.anchorRight = true
+        view.anchorBottom = true
+        self:addChild(view)
+    end
+    self:showSub("missions")
+end
+
+function ISOAMissionsTab:showSub(id)
+    self.sub = id
+    for vid, view in pairs(self.views) do view:setVisible(vid == id) end
+    self:refresh()
+end
+
+function ISOAMissionsTab.onSub(self, id)
+    if id ~= self.sub then self:showSub(id) end
+end
+
+function ISOAMissionsTab:refresh()
+    local items = {}
+    for _, id in ipairs(Tabs.SUBS) do items[#items + 1] = { id = id, label = getText("IGUI_OA_Story_Sub_" .. id) } end
+    self.subTabs:setItems(items, self.sub)
+    local view = self.views[self.sub]
+    if view then view:refresh() end
+end
+
 local function onGameStart()
     if not (OA.Terminal and OA.Terminal.addTab) then return end
-    local function stage(r)
-        r = r or record()
-        return r and Story.progress(r) or 0
-    end
-    local ok, err = pcall(OA.Terminal.addTab, "story_missions", "IGUI_OA_Story_TabMissions", Tabs.missionTab,
-        function(r) return stage(r) >= 1 end)
-    if not ok then OA.log("mission tab failed:", tostring(err)) end
-    ok, err = pcall(OA.Terminal.addTab, "story_docs", "IGUI_OA_Story_TabDocs", Tabs.docsTab,
-        function(r) return Tabs.hasEntries(r or record()) end)
-    if not ok then OA.log("document tab failed:", tostring(err)) end
+    local ok, err = pcall(OA.Terminal.addTab, "missions", function(x, y, w, h, window)
+        return ISOAMissionsTab:new(x, y, w, h, window)
+    end)
+    if not ok then OA.log("missions tab failed:", tostring(err)) end
 end
 Events.OnGameStart.Add(onGameStart)
 

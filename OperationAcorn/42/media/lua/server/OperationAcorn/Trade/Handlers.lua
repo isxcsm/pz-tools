@@ -5,6 +5,7 @@ require "OperationAcorn/Server"
 require "OperationAcorn/Trade/Heli"
 require "OperationAcorn/Trade/FirstSupply"
 require "OperationAcorn/Trade/Markers"
+require "OperationAcorn/Trade/Terminal"
 local OA = OperationAcorn
 local Store, Chunks, Server, Trade = OA.Store, OA.Chunks, OA.Server, OA.Trade
 local Objects, Things, Boxes, Heli, Orders = Trade.Objects, Trade.Things, Trade.Boxes, Trade.Heli, Trade.Orders
@@ -76,6 +77,11 @@ Server.on("tradeUsed", function(character, record, args)
     heli.greeted = true
     local late = record.first ~= nil and record.first.mode ~= "window"
     if OA.Story and OA.Story.firstContact then OA.Story.firstContact(record, late) end
+end)
+
+-- A tab of the terminal has been looked at: its dot goes (what it has seen is a number, DESIGN-terminal 1.1).
+Server.on("terminalSeen", function(character, record, args)
+    if OA.Terminal.setSeen(record, args.key, tonumber(args.value)) then OA.Sync.changed("trade", record.id) end
 end)
 
 -- The ten-minute work. A failing part does not stop the others.

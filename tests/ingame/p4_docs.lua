@@ -44,11 +44,8 @@ OA.Story.markRead(record, "police_card", "muldraugh_pd")
 OA.Story.markRead(record, "clinic_log", "westpoint_clinic")
 OA.Story.addManifest(record, 1042, "test manifest text")
 OA.Sync.changed("story", record.id)
-local tabs = OA.Terminal and OA.Terminal.tabs(record, player) or {}
-local ids = {}
-for _, t in ipairs(tabs) do ids[#ids + 1] = t.id end
-say("terminal tabs now", table.concat(ids, ","))
-P4T.check(say, "the folder tab is there", string.find(table.concat(ids, ","), "story_docs", 1, true) ~= nil)
+P4T.check(say, "the missions tab (with the folder) is given", OA.Terminal and OA.Terminal.tab("missions") ~= nil)
+P4T.check(say, "the folder lists the radio copies", #OA.StoryTabs.entries(record) >= #OA.Story.radioCopies(record))
 OA.StoryViewer.open(player, { { id = "police_card", variant = "muldraugh_pd", noRecord = true },
                               { id = "cooler_front", noRecord = true } })
 say("the viewer is open with two pages: look at the layout and the previous/next buttons")
