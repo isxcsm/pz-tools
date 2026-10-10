@@ -682,6 +682,8 @@ Senses.clearOutlines = clearOutlines
 local function nearUnopened(open, player)
     local want = {}
     local n = player:getPlayerNum()
+    -- a container a mission lights is outlined in the mission's colour, not this one
+    local mission = OA.StoryHighlight and OA.StoryHighlight.lit[n] or none
     local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
     local r2 = LEDGER_NEAR * LEDGER_NEAR
     for i = 1, #open do
@@ -689,7 +691,7 @@ local function nearUnopened(open, player)
         local square = object and object:getSquare()
         if square and square:getZ() == pz then
             local dx, dy = square:getX() + 0.5 - px, square:getY() + 0.5 - py
-            if dx * dx + dy * dy <= r2 and square:isCouldSee(n) then want[object] = true end
+            if dx * dx + dy * dy <= r2 and not mission[object] and square:isCouldSee(n) then want[object] = true end
         end
     end
     return want

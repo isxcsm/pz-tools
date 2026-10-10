@@ -49,7 +49,7 @@ function Appraisal.lineFor(item, record)
 end
 
 -- The tooltip draws the item's own lines through the game; the appraisal is a strip drawn under it (above it when the
--- tooltip is at the bottom of the screen).
+-- tooltip is at the bottom of the screen), and says how much room it took (oaAbove, oaBelow) for the lines of ItemTip.
 local originalRender = ISToolTipInv.render
 function ISToolTipInv:render()
     originalRender(self)
@@ -65,6 +65,8 @@ function ISToolTipInv:render()
     local w = math.max(self.width, UI.textWidth(line.text, font) + 16)
     local y = self.height
     if self:getY() + self.height + h > getCore():getScreenHeight() then y = -h end
+    -- what the item tooltip's other lines (ItemTip) find taken
+    if y < 0 then self.oaAbove = h else self.oaBelow = h end
     self:drawRect(0, y, w, h, self.backgroundColor.a, self.backgroundColor.r, self.backgroundColor.g, self.backgroundColor.b)
     self:drawRectBorder(0, y, w, h, self.borderColor.a, self.borderColor.r, self.borderColor.g, self.borderColor.b)
     self:drawText(line.text, 8, y + 4, line.r, line.g, line.b, 1, font)

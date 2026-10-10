@@ -178,9 +178,17 @@ for _, file in ipairs(listfiles("tests/unit")) do
                 print("FAIL " .. file .. ": " .. tostring(msg0))
             end
             for i = 1, ok0 and #cases or 0 do
+                -- A case may set game stubs of its own (a script manager, a tooltip class): they are taken back after it,
+                -- so that the next case, in any file, starts from the harness's stubs only.
+                local before = {}
+                for k, v in pairs(_G) do before[k] = v end
                 fresh()
                 local case = cases[i]
                 local ok, msg = pcall(case.fn)
+                local added = {}
+                for k in pairs(_G) do if before[k] == nil then added[#added + 1] = k end end
+                for _, k in ipairs(added) do _G[k] = nil end
+                for k, v in pairs(before) do _G[k] = v end
                 if ok then
                     passed = passed + 1
                 else

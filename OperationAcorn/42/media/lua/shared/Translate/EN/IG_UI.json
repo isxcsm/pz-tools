@@ -527,8 +527,6 @@
     "IGUI_OA_Trade_Manual_Title": "Terminal Booklet",
     "IGUI_OA_Trade_Manual_LastPage": "Last page, in pencil",
     "IGUI_OA_Trade_Manual_Number": "Collection point %1",
-    "IGUI_OA_Trade_Map_First": "Booklet box",
-    "IGUI_OA_Trade_Map_Crate": "Supply crate",
     "IGUI_OA_Story_Brief_bunker": "Find the case a previous collection point left at the %1 and bring back the copy inside. This one is optional.",
     "IGUI_OA_Story_Brief_cells": "Bring the roll-call record from the %1 cell block.",
     "IGUI_OA_Story_Brief_clinic": "Leave the sealed sample case from the supply crate at the %1, then wait nearby until the emergency intake binder turns up.",
@@ -1111,5 +1109,9 @@
     "IGUI_OA_Terminal_Shop_Desc_kit_engine": "Raises engine power by 10%% and engine noise by 5%%.",
     "IGUI_OA_Terminal_Shop_Desc_serum_scout": "Gives one point to spend on Field Detection research.",
     "IGUI_OA_Terminal_Shop_Desc_serum_load": "Gives one point to spend on Load Adaptation research.",
-    "IGUI_OA_Terminal_Shop_Desc_serum_survival": "Gives one point to spend on Survival Adaptation research."
+    "IGUI_OA_Terminal_Shop_Desc_serum_survival": "Gives one point to spend on Survival Adaptation research.",
+    "IGUI_OA_ItemTip_Mission": "Mission item",
+    "IGUI_OA_ItemTip_Request": "Requested · %1 each · this week %2/%3",
+    "IGUI_OA_ItemTip_RequestFull": "Requested · %1 each · this week %2/%3 · filled",
+    "IGUI_OA_ItemTip_New": "Not seen before"
 }

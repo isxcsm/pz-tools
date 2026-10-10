@@ -527,8 +527,6 @@
     "IGUI_OA_Trade_Manual_Title": "단말 조립 책자",
     "IGUI_OA_Trade_Manual_LastPage": "마지막 쪽, 연필 글씨",
     "IGUI_OA_Trade_Manual_Number": "채집점 %1",
-    "IGUI_OA_Trade_Map_First": "책자 상자",
-    "IGUI_OA_Trade_Map_Crate": "보급 상자",
     "IGUI_OA_Story_Brief_bunker": "%1에서 이전 채집점이 남긴 용기를 찾아 안의 사본을 가져오십시오. 선택 건입니다.",
     "IGUI_OA_Story_Brief_cells": "%1 감방동의 점호 기록을 가져오십시오.",
     "IGUI_OA_Story_Brief_clinic": "보급 상자로 온 밀봉 시료함을 %1에 두고, 응급 접수 기록철이 나올 때까지 근처에서 기다리십시오.",
@@ -1111,5 +1109,9 @@
     "IGUI_OA_Terminal_Shop_Desc_kit_engine": "엔진 출력이 10%%, 엔진 소리가 5%%만큼 커집니다.",
     "IGUI_OA_Terminal_Shop_Desc_serum_scout": "현장 탐지 연구에 쓸 점 1개를 얻습니다.",
     "IGUI_OA_Terminal_Shop_Desc_serum_load": "하중 적응 연구에 쓸 점 1개를 얻습니다.",
-    "IGUI_OA_Terminal_Shop_Desc_serum_survival": "생존 적응 연구에 쓸 점 1개를 얻습니다."
+    "IGUI_OA_Terminal_Shop_Desc_serum_survival": "생존 적응 연구에 쓸 점 1개를 얻습니다.",
+    "IGUI_OA_ItemTip_Mission": "임무 물건",
+    "IGUI_OA_ItemTip_Request": "요청 품목 · 개당 %1 · 이번 주 %2/%3",
+    "IGUI_OA_ItemTip_RequestFull": "요청 품목 · 개당 %1 · 이번 주 %2/%3 · 다 채움",
+    "IGUI_OA_ItemTip_New": "처음 보는 물건"
 }

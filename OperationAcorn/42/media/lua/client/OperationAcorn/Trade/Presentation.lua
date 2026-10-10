@@ -1,6 +1,6 @@
 -- What the player sees and hears of the trade: a short text over the character for the server's notices, the sound
 -- of the helicopter passing over a drop (the vanilla helicopter sound, moved along its path; the crate appears at the
--- loudest moment on the server's side), and the marks of what the helicopter left on the world map.
+-- loudest moment on the server's side). What the helicopter left is marked on the world map by Story/Maps.
 require "OperationAcorn/Client"
 require "OperationAcorn/Trade/Trade"
 local OA = OperationAcorn
@@ -88,46 +88,5 @@ local function onHeliPass(playerId, args)
     end
 end
 OA.Sync.listen("heliPass", onHeliPass)
-
--- The world map --------------------------------------------------------------------------------------------------------
-
-local ICON = "Item_OA_SupplyCrate"
-
--- Marks the unclaimed drops of the player whose map is open.
-local function drawMarks(map)
-    local character = getSpecificPlayer(map.playerNum or 0)
-    local record = character and OA.Client.record(character)
-    local marks = record and record.heli and record.heli.markers
-    if not marks or #marks == 0 then return end
-    local texture = getTexture(ICON)
-    local size = 28
-    for _, mark in ipairs(marks) do
-        local sx = map.mapAPI:worldToUIX(mark.x, mark.y) - size / 2
-        local sy = map.mapAPI:worldToUIY(mark.x, mark.y) - size / 2
-        if texture then
-            map:drawTextureScaledAspect(texture, sx, sy, size, size, 1, 1, 1, 1)
-        else
-            map:drawRect(sx, sy, size, size, 1, 0.9, 0.7, 0.2)
-        end
-        map:drawRectBorder(sx - 1, sy - 1, size + 2, size + 2, 1, 0.9, 0.3, 0.2)
-        map:drawText(getText(mark.kind == "first" and "IGUI_OA_Trade_Map_First" or "IGUI_OA_Trade_Map_Crate"),
-            sx + size + 4, sy + 6, 1, 0.9, 0.5, 1, UIFont.Small)
-    end
-end
-
-local function hookMap()
-    if not ISWorldMap or Presentation.mapHooked then return end
-    Presentation.mapHooked = true
-    local render = ISWorldMap.render
-    function ISWorldMap:render()
-        render(self)
-        local ok, err = pcall(drawMarks, self)
-        if not ok and not Presentation.mapFailed then
-            Presentation.mapFailed = true
-            OA.log("map marks failed:", tostring(err))
-        end
-    end
-end
-Events.OnGameStart.Add(hookMap)
 
 return Presentation
