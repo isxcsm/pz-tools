@@ -48,5 +48,7 @@
     "Sandbox_OperationAcorn_ShredDecay": "분해 반복 감소",
     "Sandbox_OperationAcorn_ShredDecay_tooltip": "같은 종류를 최근에 이만큼 분해하면 시료 묶음이 절반만 나옵니다. 낮을수록 빨리 줄어듭니다.",
     "Sandbox_OperationAcorn_MeteorSites": "운석 낙하지",
-    "Sandbox_OperationAcorn_MeteorSites_tooltip": "운석 낙하지 수의 배율입니다. 1이면 24곳입니다."
+    "Sandbox_OperationAcorn_MeteorSites_tooltip": "운석 낙하지 수의 배율입니다. 1이면 24곳입니다.",
+    "Sandbox_OperationAcorn_MissionGuards": "임무 장소를 지키는 좀비",
+    "Sandbox_OperationAcorn_MissionGuards_tooltip": "임무 건물에 처음 다가가면 그 안에 좀비가 2~4마리 더 있습니다. 경찰서에서는 경찰, 진료소에서는 의료진처럼 장소에 맞는 복장입니다. 기본값: 켬."
 }

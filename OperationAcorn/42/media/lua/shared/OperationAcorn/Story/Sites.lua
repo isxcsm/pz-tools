@@ -2,8 +2,9 @@
 -- opened: 24 times the MeteorSites option of them, over the whole map, more than 300 squares apart, in the world
 -- section "sites". Whether a place is really land is found out when its chunk first loads (never by scanning squares):
 -- a place that is not gets a new one elsewhere. A site then gets its props (scorched ground, rocks, a survey stake with
--- its number and a date) and 1 to 3 meteorite fragments numbered by the stake, all through OA.Chunks. No sound is
--- changed around a site (FEASIBILITY: visual clues only).
+-- its number and a date, and round them 2 or 3 things someone left) and 1 to 3 meteorite fragments numbered by the
+-- stake, all through OA.Chunks. No sound is changed around a site and nothing there gives light (FEASIBILITY: visual
+-- clues only).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -21,6 +22,11 @@ Sites.SPACING = 300
 Sites.NOT = { TownZone = true, WaterZone = true, WaterFlow = true, Basement = true, TrailerPark = true, Nav = false }
 Sites.DATES = 8
 Sites.MAX_RETRIES = 12
+-- What someone left round a site (LORE 7, story-improvements 10), 2 or 3 of them: dark soil that looks wet, a second
+-- stake with another date, a cut length of marker tape, an empty sample bag, stones laid in a row.
+Sites.PROPS = { "soil", "stake", "tape", "bag", "stones" }
+Sites.PROP_SPRITES = { soil = OA.Sprites.DAMP_SOIL, tape = OA.Sprites.CUT_TAPE, bag = OA.Sprites.SAMPLE_BAG,
+                       stones = OA.Sprites.STONE_ROW }
 
 local function section()
     return OA.Store.world("sites")
@@ -54,6 +60,24 @@ function Sites.fragmentCount(bonus, int, float)
     local whole = math.floor(expected)
     if float(0, 1) < expected - whole then whole = whole + 1 end
     return whole
+end
+
+-- The things left round a site: 2 or 3 different kinds of Sites.PROPS.
+function Sites.propKinds(int)
+    int = int or OA.random
+    local pool = {}
+    for i, kind in ipairs(Sites.PROPS) do pool[i] = kind end
+    local out = {}
+    for _ = 1, int(2, 3) do out[#out + 1] = table.remove(pool, int(1, #pool)) end
+    return out
+end
+
+-- A stake date other than the site's own (1 to DATES), for the second stake.
+function Sites.otherDate(date, int)
+    int = int or OA.random
+    local d = int(1, Sites.DATES - 1)
+    if d >= (date or 0) then d = d + 1 end
+    return d
 end
 
 -- The best fragment bonus among the records (the site is the world's, the fragments are placed once).
@@ -284,6 +308,28 @@ local function build(site, sq, chunkSquare)
     end
     stakeSq = stakeSq or sq
     addObject(stakeSq, OA.Sprites.SITE_STAKE, { OA_Site = site.n, OA_StakeNo = site.stake, OA_StakeDate = site.date })
+    -- What someone left: each on its own land square 2 to 4 out from the middle, not the stake's.
+    local ring = {}
+    for dx = -4, 4 do
+        for dy = -4, 4 do
+            if math.max(math.abs(dx), math.abs(dy)) >= 2 then ring[#ring + 1] = { dx, dy } end
+        end
+    end
+    for _, kind in ipairs(Sites.propKinds()) do
+        local s
+        while not s and #ring > 0 do
+            local o = table.remove(ring, OA.random(1, #ring))
+            local cand = c:getGridSquare(x + o[1], y + o[2], z)
+            if cand ~= stakeSq and isLand(cand) then s = cand end
+        end
+        if not s then break end
+        if kind == "stake" then
+            addObject(s, OA.Sprites.SITE_STAKE, { OA_Site = site.n, OA_StakeNo = site.stake,
+                OA_StakeDate = Sites.otherDate(site.date) })
+        else
+            addObject(s, Sites.PROP_SPRITES[kind])
+        end
+    end
     local count = Sites.fragmentCount(Sites.bestBonus())
     site.fragments = count
     for _ = 1, count do

@@ -437,6 +437,8 @@ end
 function Missions.begin(record, m)
     local s = Missions.state(record)
     s.active = m
+    -- What its place will show (Story/Scene): decided once, as it begins.
+    if OA.Scene then OA.Scene.begin(record, m) end
     if m.state ~= "offer" then
         local g = game()
         for _, it in ipairs(m.items) do
@@ -659,6 +661,8 @@ end
 -- An item came into a character's things (the economy's pickup hook, as it happens): the sample cooler's clock
 -- starts now, whatever the rate of the ten-minute look below.
 function Missions.pickedUp(record, item)
+    -- A survivor's things (Story/Scene): the first one taken says a line.
+    if OA.Scene then OA.Scene.pickedUp(record, item) end
     local m = record.missions and record.missions.active
     if not (m and m.carry) or m.carry.start then return end
     local g = game()

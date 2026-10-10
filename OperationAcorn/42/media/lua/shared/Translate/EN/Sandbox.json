@@ -48,5 +48,7 @@
     "Sandbox_OperationAcorn_ShredDecay": "Shredding repeat decay",
     "Sandbox_OperationAcorn_ShredDecay_tooltip": "How many recent shreds of one kind halve its yield. Lower makes repeats yield less sooner.",
     "Sandbox_OperationAcorn_MeteorSites": "Meteor drop sites",
-    "Sandbox_OperationAcorn_MeteorSites_tooltip": "Multiplies the number of meteor drop sites. At 1 there are 24."
+    "Sandbox_OperationAcorn_MeteorSites_tooltip": "Multiplies the number of meteor drop sites. At 1 there are 24.",
+    "Sandbox_OperationAcorn_MissionGuards": "Mission site keepers",
+    "Sandbox_OperationAcorn_MissionGuards_tooltip": "When you first come near a mission's building, 2 to 4 more zombies are inside it, dressed for the place, such as police at a police station. Default: on."
 }
