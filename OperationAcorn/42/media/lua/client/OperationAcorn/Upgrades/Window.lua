@@ -1798,6 +1798,59 @@ function View:paintBoardBanner(el)
     end
 end
 
+-- ---- the columns' background --------------------------------------------------------------------------------------
+-- Under a column's grid: a soft light falling from its header in the tree's light colour (BG_LIGHT_A at the top, gone
+-- BG_LIGHT_END of the way down), a gentle vignette darkening its sides (BG_SIDE_W design units in) and its bottom
+-- (BG_BOTTOM of the grid), at most BG_VIGNETTE_A, and a fine film grain (tools/grain_art.py's tile, drawn tiled at its
+-- own pixels) at BG_GRAIN_A. Light and vignette are thin bands of plain fills, their strengths worked out once; it is
+-- all still, drawn with the body.
+Window.BG_LIGHT_A, Window.BG_LIGHT_END = 0.16, 0.4
+Window.BG_VIGNETTE_A, Window.BG_SIDE_W, Window.BG_BOTTOM = 0.42, 26, 0.45
+Window.BG_GRAIN_A = 0.05
+local BG_BANDS, BG_SIDES = 10, 5
+local LIGHT_K, BOTTOM_K, SIDE_K = {}, {}, {}
+for k = 1, BG_BANDS do
+    local v = (k - 0.5) / BG_BANDS
+    LIGHT_K[k] = (1 - v * v * (3 - 2 * v)) ^ 1.6
+    BOTTOM_K[k] = v ^ 1.6
+end
+for j = 1, BG_SIDES do
+    local v = 1 - (j - 0.5) / BG_SIDES
+    SIDE_K[j] = 0.75 * v * v
+end
+
+local grainTex = nil
+local function grain()
+    if grainTex == nil then grainTex = getTexture("media/textures/OA_Grain.png") or false end
+    return grainTex or nil
+end
+
+-- A column's background over its grid (its body already filled), `dy` design units down.
+local function paintColumnBack(el, panel, dy, tc)
+    local x0, x1 = X(panel.x), X(panel.x + L.COL_W)
+    local top, bottom = panel.gy + dy, panel.gy + dy + L.GRID_H
+    local lh = L.GRID_H * Window.BG_LIGHT_END
+    local bh = L.GRID_H * Window.BG_BOTTOM
+    local vig = Window.BG_VIGNETTE_A
+    for k = 1, BG_BANDS do
+        local ya, yb = X(top + lh * (k - 1) / BG_BANDS), X(top + lh * k / BG_BANDS)
+        rectPx(el, x0, ya, x1 - x0, yb - ya, tc.light, Window.BG_LIGHT_A * LIGHT_K[k])
+        ya, yb = X(bottom - bh + bh * (k - 1) / BG_BANDS), X(bottom - bh + bh * k / BG_BANDS)
+        rectPx(el, x0, ya, x1 - x0, yb - ya, DARK, vig * BOTTOM_K[k])
+    end
+    local y0, y1 = X(top), X(bottom)
+    local sw = Window.BG_SIDE_W
+    for j = 1, BG_SIDES do
+        local a = vig * SIDE_K[j]
+        local xa, xb = X(panel.x + sw * (j - 1) / BG_SIDES), X(panel.x + sw * j / BG_SIDES)
+        rectPx(el, xa, y0, xb - xa, y1 - y0, DARK, a)
+        xa, xb = X(panel.x + L.COL_W - sw * j / BG_SIDES), X(panel.x + L.COL_W - sw * (j - 1) / BG_SIDES)
+        rectPx(el, xa, y0, xb - xa, y1 - y0, DARK, a)
+    end
+    local tex = grain()
+    if tex then ISUIElement.drawTextureTiled(el, tex, x0, y0, x1 - x0, y1 - y0, 1, 1, 1, Window.BG_GRAIN_A) end
+end
+
 -- Sets what the parts of a frame share at `now` (OPEN_AGE, RISE, SHOWN): the opening (or the switch to the board, at
 -- its pace).
 function View:frameState(now)
@@ -1836,6 +1889,7 @@ function View:paint(el)
     self:frameState(now)
     for i, panel in ipairs(self.panels) do
         UI.fill(el, panel.x, panel.y + RISE[i], L.COL_W, L.STRIP + L.GRID_H, TREE[panel.tree].body)
+        paintColumnBack(el, panel, RISE[i], TREE[panel.tree])
         self:paintStrip(el, panel, i)
     end
     for _, line in ipairs(self.lines) do self:paintLine(el, line) end

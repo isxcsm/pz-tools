@@ -574,6 +574,9 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     ISUIElement = { drawRect = rect, drawTextureScaled = function(_, tex, _, _, w, h, a)
         if a < 0 or a > 1 or w < 0 or h < 0 then bad[#bad + 1] = "texture a=" .. a end
         if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
+    end, drawTextureTiled = function(_, tex, _, _, w, h, _, _, _, a)
+        if a < 0 or a > 1 or w < 0 or h < 0 then bad[#bad + 1] = "tiled a=" .. a end
+        if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
     end }
     getTexture = function(path) return { path = path } end
     getSoundManager = function() return { playUISound = function() end } end
@@ -642,4 +645,5 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     truthy(comets > 0 and arrivals > 0, "a lit line's light drawn, arriving at its node")
     truthy((drawn["media/textures/OA_Glow.png"] or 0) > 0, "the light's glow drawn")
     truthy((drawn["media/textures/OA_Wave.png"] or 0) > 0, "the take's wave drawn")
+    truthy((drawn["media/textures/OA_Grain.png"] or 0) > 0, "the columns' grain drawn")
 end)
