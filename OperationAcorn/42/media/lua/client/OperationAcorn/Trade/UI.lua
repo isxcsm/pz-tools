@@ -35,6 +35,9 @@ UI.BASE_FONT = 16
 UI.S = 1
 -- The scale as a local too: the drawing below reads it on every call.
 local S = 1
+-- font -> { its space, the space between parts } (UI.fontSpace), until the scale changes: the status header asks
+-- each frame
+local spaces = {}
 local floor = math.floor
 
 -- A design number in pixels (rounded to whole pixels when scaled), and pixels in design units.
@@ -301,6 +304,7 @@ function UI.setScale(s)
     if s == S then return end
     S = s
     UI.S = s
+    spaces = {}
     for _, entry in ipairs(scaledClasses) do install(entry) end
 end
 
@@ -364,7 +368,7 @@ end
 -- Colours are { r, g, b }.
 UI.PALETTES = {
     crude = {
-        bg = { 0.02, 0.05, 0.03 }, bgAlpha = 0.95, panel = nil,
+        bg = { 0.02, 0.05, 0.03 }, bgAlpha = 1, panel = nil,
         text = { 0.45, 0.95, 0.55 }, dim = { 0.25, 0.55, 0.30 }, bright = { 0.78, 1.0, 0.82 },
         value = { 0.78, 1.0, 0.82 }, head = { 0.78, 1.0, 0.82 }, border = { 0.20, 0.50, 0.25 },
         warn = { 0.78, 1.0, 0.82 }, bad = { 0.78, 1.0, 0.82 }, good = { 0.78, 1.0, 0.82 },
@@ -373,7 +377,7 @@ UI.PALETTES = {
         tabStrip = nil, numberFont = UIFont.Small, iconTint = { 0.6, 1, 0.6 }, scanlines = true, mono = true,
     },
     field = {
-        bg = { 0.10, 0.11, 0.08 }, bgAlpha = 0.96, panel = { 0.15, 0.16, 0.12 },
+        bg = { 0.10, 0.11, 0.08 }, bgAlpha = 1, panel = { 0.15, 0.16, 0.12 },
         text = { 0.92, 0.90, 0.82 }, dim = { 0.62, 0.60, 0.52 }, bright = { 1, 0.98, 0.92 },
         value = { 1, 0.82, 0.25 }, head = { 1, 0.82, 0.25 }, border = { 0.42, 0.45, 0.30 },
         warn = { 1, 0.82, 0.25 }, bad = { 1, 0.45, 0.35 }, good = { 0.6, 0.95, 0.6 },
@@ -433,9 +437,45 @@ function UI.textWidth(text, font)
     return w / S
 end
 
+-- A space between two parts drawn apart (a label and its value), in design units: the font's space, or a quarter of
+-- the font's height where that is wider (the 26-pixel Korean font's space is 4 pixels, a sixth of its height). The
+-- font's space is measured between two letters: a text is measured to the end of its last letter's image, so a space
+-- or a "·" alone measures short of how far it moves the next letter.
+function UI.fontSpace(font)
+    font = font or UIFont.Small
+    local known = spaces[font]
+    if not known then
+        local space = UI.textWidth("x x", font) - UI.textWidth("xx", font)
+        known = { space, math.max(space, UI.fontHeight(font) / 4) }
+        spaces[font] = known
+    end
+    return known[1]
+end
+
+function UI.spaceWidth(font)
+    UI.fontSpace(font)
+    return spaces[font or UIFont.Small][2]
+end
+
+-- For a text drawn as one part of a line (a label, then its value in another colour): what its spaces at the ends add
+-- to its width to make each UI.spaceWidth, the first of those before it. The font's space is narrower than the
+-- layout's scale at the larger font sizes (4 pixels in the 26-pixel Korean font). The text is drawn whole, its spaces
+-- with it: a text is measured to the end of its last letter's image, so one cut before its spaces would measure short
+-- of where that letter moves the next.
+function UI.spaceGaps(text, font)
+    text = text or ""
+    local lead, trail = #string.match(text, "^ *"), #string.match(text, " *$")
+    if lead == #text then trail = 0 end
+    if lead + trail == 0 then return 0, 0 end
+    local more = math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
+    return lead * more, (lead + trail) * more
+end
+
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
 -- never splits a letter.
+-- (with a margin: a width in design units can be a fraction a hair under the text's own)
 local function fitWith(measure, text, width, font)
+    width = width + 0.001
     if measure(text, font) <= width then return text end
     local cut = text
     while #cut > 1 and measure(cut .. "...", font) > width do

@@ -433,6 +433,41 @@ test("a tooltip is measured and drawn in design units", function()
     eq(box[2], math.floor((300 - 49) * 1.625 + 0.5), "kept inside the screen, in its design width")
 end)
 
+test("a run's seams: a narrow font space widened to a quarter of the line, and no part cut that fits", function()
+    local UI, Draw = loadDraw(26)
+    UI.refreshScale()
+    -- letters 13 pixels wide, a space 4 (the 26 pixel Korean font's); a text measured to its last letter's end
+    _G.getTextManager = function()
+        return {
+            getFontHeight = function() return 26 end,
+            MeasureStringX = function(_, _, text)
+                local w = 0
+                for k = 1, #text do w = w + (string.sub(text, k, k) == " " and 4 or 13) end
+                return w
+            end,
+        }
+    end
+    UI.setScale(1)
+    UI.setScale(1.625)
+    eq(UI.spaceWidth(), 4, "a quarter of 16 design units")
+    local L = Draw.list(UI.palette("crude"))
+    local drawn = Draw.run(L, { { s = "ab ", c = { 1, 1, 1 } }, { s = "1.5", c = { 1, 1, 1 } } }, 0, 0, 200)
+    local texts = {}
+    for _, op in ipairs(L.ops) do if op[1] == 3 then texts[#texts + 1] = op end end
+    eq(#texts, 2)
+    eq(texts[1][2], "ab "); eq(texts[2][2], "1.5", "whole: not cut to \"...\"")
+    local before = (13 + 13 + 4) / 1.625
+    assert(math.abs(texts[2][3] - (before + 4 - 4 / 1.625)) < 1e-9, "the value after a full space: " .. texts[2][3])
+    assert(drawn <= 200)
+    -- a width that is the run's own, left as a fraction: nothing is cut
+    L = Draw.list(UI.palette("crude"))
+    local parts = { { s = "abc " }, { s = "de" }, { s = " f" } }
+    Draw.run(L, parts, 0, 0, Draw.runWidth(parts))
+    for _, op in ipairs(L.ops) do
+        if op[1] == 3 then assert(not string.find(op[2], "%.%.%.$"), "cut: " .. op[2]) end
+    end
+end)
+
 -- The window ---------------------------------------------------------------------------------------------------------
 
 local function loadWindow(px, screenW, screenH)

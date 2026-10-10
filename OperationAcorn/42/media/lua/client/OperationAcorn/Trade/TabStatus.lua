@@ -129,8 +129,9 @@ end
 -- Draws texts one after another from x; each { text, colour, font }. Returns the x after the last.
 local function run(el, x, y, parts)
     for _, part in ipairs(parts) do
-        UI.text(el, part[1], x, y, part[2], part[3])
-        x = x + UI.textWidth(part[1], part[3])
+        local before, more = UI.spaceGaps(part[1], part[3])
+        UI.text(el, part[1], x + before, y, part[2], part[3])
+        x = x + UI.textWidth(part[1], part[3]) + more
     end
     return x
 end

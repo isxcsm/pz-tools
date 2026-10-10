@@ -69,11 +69,19 @@ end
 
 -- A run of parts { s, c, font, a } or { arrow = true, c } side by side, cut at width `w` (nil: no limit), left or
 -- right in it. Returns the width drawn.
+-- The spaces at a part's ends are widened (UI.spaceGaps): a part's seam is a gap of the layout.
+-- Widths are compared with a margin: in design units at a scale like 1.625 they are fractions, and what is left after
+-- one part (the run's width less it) can come out a hair under the next part's width.
 local ARROW_W = 16
+local EPS = 0.001
+
+local widened = function(part) return UI.spaceGaps(part.s, part.font) end
+
 -- A part's width: `pad` pixels before it, then the arrow or the text.
 local function partWidth(part)
     if part.arrow then return ARROW_W + (part.pad or 0) end
-    return UI.textWidth(part.s or "", part.font) + (part.pad or 0)
+    local _, more = widened(part)
+    return UI.textWidth(part.s or "", part.font) + more + (part.pad or 0)
 end
 
 function Draw.runWidth(parts)
@@ -93,14 +101,17 @@ function Draw.run(L, parts, x, y, w, align)
         local pad = part.pad or 0
         cx, pw, left = cx + pad, pw - pad, left - pad
         if part.arrow then
-            if pw > left then break end
+            if pw > left + EPS then break end
             Draw.arrow(L, cx + 3, y + math.floor((L.fh - 7) / 2), part.c, part.a)
-        elseif pw <= left then
-            Draw.text(L, part.s, cx, y, part.c, part.font, part.a)
         else
-            Draw.fit(L, part.s, cx, y, left, part.c, part.font, part.a)
-            cx = cx + left
-            break
+            local before = widened(part)
+            if pw <= left + EPS then
+                Draw.text(L, part.s, cx + before, y, part.c, part.font, part.a)
+            else
+                if left - before > 0 then Draw.fit(L, part.s, cx + before, y, left - before, part.c, part.font, part.a) end
+                cx = cx + left
+                break
+            end
         end
         cx = cx + pw
         left = left - pw
