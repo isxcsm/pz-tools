@@ -206,3 +206,22 @@ test("what the console shows changes exactly when its drawing does: a line, its 
     phase, shown, _, e = Seq.state(crude, 1234)
     eq(Seq.look(crude, phase, shown, e), 1234, "the crude console flickers: every frame")
 end)
+
+test("the crude screen jolts now and then: short bursts, a few units, dying out, the same every time", function()
+    local bursts, inBurst, still, maxX, maxY = 0, false, 0, 0, 0
+    for e = 0, 12000, 10 do
+        local dx, dy = Seq.shake(e)
+        eq(dx, math.floor(dx)); eq(dy, math.floor(dy))
+        local x2, y2 = Seq.shake(e)
+        eq(x2, dx); eq(y2, dy)
+        maxX, maxY = math.max(maxX, math.abs(dx)), math.max(maxY, math.abs(dy))
+        local moving = dx ~= 0 or dy ~= 0
+        if moving and not inBurst then bursts = bursts + 1 end
+        inBurst = moving
+        if not moving then still = still + 1 end
+    end
+    truthy(bursts >= 4 and bursts <= 9, "now and then over a crude boot: " .. bursts)
+    truthy(still > 1000, "still most of the time")
+    truthy(maxX <= Seq.SHAKE_UNITS and maxY <= Seq.SHAKE_UNITS, "a few units")
+    truthy(maxX >= 2, "and visible")
+end)

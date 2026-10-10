@@ -188,4 +188,22 @@ function Seq.flicker(elapsed)
     return 1
 end
 
+-- The crude screen's shake: now and then the picture jolts. Time is cut into stretches of SHAKE_EVERY_MS; in two of
+-- three a burst of SHAKE_MS starts somewhere in it, the jolt changing every SHAKE_STEP_MS and dying out over the burst.
+-- The offset (design units, whole) at `elapsed` ms, the same every time; 0, 0 between bursts.
+Seq.SHAKE_EVERY_MS, Seq.SHAKE_MS, Seq.SHAKE_STEP_MS, Seq.SHAKE_UNITS = 1600, 240, 40, 7
+
+function Seq.shake(elapsed)
+    local every = Seq.SHAKE_EVERY_MS
+    local slot = floor(elapsed / every)
+    if (slot * 5 + 2) % 3 == 0 then return 0, 0 end
+    local t = elapsed - slot * every - (slot * 389) % (every - Seq.SHAKE_MS)
+    if t < 0 or t >= Seq.SHAKE_MS then return 0, 0 end
+    local step = floor(t / Seq.SHAKE_STEP_MS)
+    local k = Seq.SHAKE_UNITS * (1 - t / Seq.SHAKE_MS)
+    local dx = ((slot * 7 + step * 13) % 7 - 3) / 3
+    local dy = ((slot * 11 + step * 5) % 5 - 2) / 2
+    return floor(dx * k + 0.5), floor(dy * k * 0.6 + 0.5)
+end
+
 return Seq
