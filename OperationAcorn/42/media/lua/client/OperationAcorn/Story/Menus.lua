@@ -13,9 +13,16 @@ require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/Viewer"
 require "OperationAcorn/Story/Action"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
 local Data, Places, Docs = OA.StoryData, OA.Places, OA.StoryDocs
 local Menus = {}
+
+-- Asks before a command that uses up an item (the field call device and the mission item, the sample case).
+local function ask(player, key, command)
+    local text = string.gsub(getText(key), "\\n", "\n")
+    OA.Trade.UI.confirm(player, text, player, function(p) OA.Sync.send(p, command, {}) end)
+end
 OA.StoryMenus = Menus
 
 local SOIL_NEAR = 25
@@ -68,12 +75,12 @@ local function onFillInventory(playerNum, context, items)
             if name == "FieldCallDevice" and not field and anyMission(record, wantsDevice) then
                 field = true
                 options[#options + 1] = { name = getText("ContextMenu_OA_Story_FieldCall"), target = player,
-                    fn = function(p) OA.Sync.send(p, "story_field", {}) end }
+                    fn = function(p) ask(p, "IGUI_OA_Story_FieldCallAsk", "story_field") end }
             end
             if name == "SampleCase" and not swap and anyMission(record, wantsCase) then
                 swap = true
                 options[#options + 1] = { name = getText("ContextMenu_OA_Story_LeaveCase"), target = player,
-                    fn = function(p) OA.Sync.send(p, "story_swap", {}) end }
+                    fn = function(p) ask(p, "IGUI_OA_Story_LeaveCaseAsk", "story_swap") end }
             end
         end
     end

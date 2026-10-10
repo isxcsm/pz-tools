@@ -188,6 +188,31 @@ test("the stake comes first and the soil sample second, both on top of the world
     eq(menu:names(), "ContextMenu_OA_Story_ReadStake,ContextMenu_OA_Story_TakeSoil,Vanilla")
 end)
 
+test("the field call and leaving the sample case ask first: nothing is sent until the answer is yes", function()
+    setup()
+    OA.Client = { record = function() return nil end, id = function() return "p1" end }
+    loadFile("OperationAcorn/Story/Menus", { ["OperationAcorn/Client"] = true })
+    local mission = { field = {}, swap = { stage = "needcase" }, state = "open" }
+    OA.StoryView.live = function() return { mission } end
+    OA.Client.record = function() return { missions = { active = mission } } end
+    local asked, sent = {}, {}
+    OA.Trade.UI.confirm = function(_, text, target, onYes) asked[#asked + 1] = { text = text, yes = function() onYes(target) end } end
+    local send = OA.Sync.send
+    OA.Sync.send = function(_, command) sent[#sent + 1] = command end
+    local function item(name)
+        return { getFullType = function() return "OperationAcorn." .. name end, getModData = function() return {} end }
+    end
+    local menu = newMenu()
+    TEST.fire("OnFillInventoryObjectContextMenu", 0, menu, { item("FieldCallDevice"), item("SampleCase") })
+    eq(menu:names(), "ContextMenu_OA_Story_FieldCall,ContextMenu_OA_Story_LeaveCase")
+    for _, o in ipairs(menu.options) do o.onSelect(o.target) end
+    eq(#asked, 2); eq(#sent, 0, "nothing sent before the answer")
+    eq(asked[1].text, "IGUI_OA_Story_FieldCallAsk"); eq(asked[2].text, "IGUI_OA_Story_LeaveCaseAsk")
+    asked[1].yes(); asked[2].yes()
+    OA.Sync.send = send
+    eq(table.concat(sent, ","), "story_field,story_swap")
+end)
+
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The upgrades: locked doors
 

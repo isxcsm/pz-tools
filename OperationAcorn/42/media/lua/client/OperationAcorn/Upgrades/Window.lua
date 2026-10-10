@@ -332,7 +332,24 @@ function View:onFamily(id, family)
     self:plan(id, family)
 end
 
+-- The approval asks first: an approved rank is taken back only by a reset, which costs credits.
 function View:onApprove()
+    if #self.steps == 0 then return end
+    local text = getText("IGUI_OA_Tree_ApproveConfirm", #self.steps)
+    local modal = ISModalDialog:new(0, 0, 360, 150, text, true, self, View.onApproveAnswer, self.playerNum)
+    modal:initialise()
+    modal:addToUIManager()
+    modal:setX(self:getAbsoluteX() + (self.width - modal.width) / 2)
+    modal:setY(self:getAbsoluteY() + (self.height - modal.height) / 2)
+    if self.joypad then setJoypadFocus(self.playerNum, modal) end
+end
+
+function View:onApproveAnswer(button)
+    if button.internal == "YES" then self:approve() end
+    if self.joypad then setJoypadFocus(self.playerNum, self) end
+end
+
+function View:approve()
     if #self.steps == 0 then return end
     -- what the plan was, for the stamp that plays when the approval comes back (alone, that is at once, inside the send)
     self.approved = { steps = self.steps, at = getTimestampMs() }

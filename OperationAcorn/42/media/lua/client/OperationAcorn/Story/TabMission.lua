@@ -147,11 +147,24 @@ function OATabMission:onMap()
     if info and info.area then OA.StoryTabs.showOnMap(self:character()) end
 end
 
+-- What cannot be taken back asks first: a choice closes the other option for good, 'take another' costs trust and the
+-- week's one, a special request closes the other one offered.
 function OATabMission:onChoose(button)
-    self:send("story_choose", { option = button.internal })
+    local text = getText("IGUI_OA_Story_ChooseAsk", button.title or "")
+    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doChoose, button.internal)
+end
+
+function OATabMission:doChoose(option)
+    self:send("story_choose", { option = option })
 end
 
 function OATabMission:onReroll()
+    local reroll = self.info and self.info.reroll
+    local text = getText("IGUI_OA_Story_RerollAsk", reroll and reroll.trust or 0)
+    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doReroll)
+end
+
+function OATabMission:doReroll()
     self:send("story_reroll", {})
 end
 
@@ -161,7 +174,14 @@ end
 
 -- The special request: the one picked of the two is taken; its area on the map.
 function OATabMission:onAccept()
-    self:send("story_special", { option = self.pick or "a" })
+    local option = self.pick or "a"
+    local offered = self.special and self.special.options and self.special.options[option]
+    local text = getText("IGUI_OA_Story_SpecialAsk", offered and offered.title or "")
+    UI.confirm(self:character(), string.gsub(text, "\\n", "\n"), self, OATabMission.doAccept, option)
+end
+
+function OATabMission:doAccept(option)
+    self:send("story_special", { option = option })
 end
 
 function OATabMission:onSpecialMap()
