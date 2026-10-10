@@ -6,6 +6,9 @@ local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 
 OAReaderWindow = ISCollapsableWindow:derive("OAReaderWindow")
 OAReaderWindow.instances = {}
+-- The default size in design units: the window is the game's, in pixels, so these are times the terminal's scale
+-- (Trade/UI.lua), within 90% of the screen.
+OAReaderWindow.WIDTH, OAReaderWindow.HEIGHT = 460, 420
 
 function OAReaderWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
@@ -23,7 +26,10 @@ function OAReaderWindow:close()
 end
 
 function OAReaderWindow:new(character, title, richText)
-    local width, height = 460, 420
+    UI.refreshScale()
+    local core = getCore()
+    local width = math.min(UI.px(OAReaderWindow.WIDTH), math.floor(core:getScreenWidth() * 0.9))
+    local height = math.min(UI.px(OAReaderWindow.HEIGHT), math.floor(core:getScreenHeight() * 0.9))
     local x = (getCore():getScreenWidth() - width) / 2
     local y = (getCore():getScreenHeight() - height) / 2
     local o = ISCollapsableWindow:new(x, y, width, height)

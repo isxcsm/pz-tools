@@ -26,7 +26,7 @@ local function strip(panel, rows, y)
         local row = rows[i]
         local rw = row.w
         if not rw then
-            rw = UI.textWidth(row.text, font) + 16
+            rw = UI.textWidthPx(row.text, font) + 16
             row.w = rw
         end
         if rw > w then w = rw end
@@ -57,7 +57,7 @@ local function draw(panel, item)
     local mission = owner and ItemTip.missionRows(View.color(owner.kind)) or nil
     local rows = ItemTip.rows(record, fullType, data and data.OA_Bought)
     if not mission and #rows == 0 then return end
-    lineHeight = lineHeight or UI.fontHeight(font)
+    lineHeight = lineHeight or UI.fontHeightPx(font)
     local top = mission and lineHeight + 8 or 0
     local bottom = #rows > 0 and #rows * lineHeight + 8 or 0
     local topY, bottomY = ItemTip.place(panel:getY(), panel.height, getCore():getScreenHeight(), panel.oaAbove or 0,

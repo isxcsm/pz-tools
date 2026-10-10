@@ -15,10 +15,13 @@ local Objects, Things = Trade.Objects, Trade.Things
 OATerminalWindow = ISCollapsableWindow:derive("OATerminalWindow")
 OATerminalWindow.instances = {}
 
--- Sizes (DESIGN-terminal 1.2): the default and the smallest, and the inner margin of the body.
+-- Sizes (DESIGN-terminal 1.2): the default and the smallest, and the inner margin of the body, in design units (the
+-- window is the game's and in pixels: these times the scale, Trade/UI.lua; the tabs in its body are in design units).
 OATerminalWindow.WIDTH, OATerminalWindow.HEIGHT = 720, 480
 OATerminalWindow.MIN_WIDTH, OATerminalWindow.MIN_HEIGHT = 600, 420
 OATerminalWindow.PAD = 10
+-- The most of the screen the window takes.
+OATerminalWindow.SCREEN_SHARE = 0.9
 
 local SCANLINE = "media/textures/OA_Scanline.png"
 
@@ -47,6 +50,8 @@ function OATab:send(command, args)
     args.x, args.y, args.z = self.window.tx, self.window.ty, self.window.tz
     OA.Sync.send(self.window.character, command, args)
 end
+
+UI.scaled(OATab, ISPanel)
 
 -- The strip of the four tabs under the title bar: the crude terminal's are outlined green boxes, the field
 -- terminal's sit on an olive band with an amber line over the chosen one. A dot by a name is something not seen yet
@@ -123,6 +128,8 @@ function OATerminalTabs:onMouseDown(x, y)
     return true
 end
 
+UI.scaled(OATerminalTabs, ISPanel)
+
 -- The window ----------------------------------------------------------------------------------------------------
 
 function OATerminalWindow:createChildren()
@@ -139,8 +146,9 @@ function OATerminalWindow:createChildren()
     cb.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
     cb.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
     local th = self:titleBarHeight()
+    -- The strip and the views are ours, in design units: the title bar's pixels are given to them as such.
     self.tabHeight = UI.fontHeight() + 6
-    self.strip = OATerminalTabs:new(0, th, self.width, self.tabHeight, self)
+    self.strip = OATerminalTabs:new(0, UI.dp(th), UI.dp(self.width), self.tabHeight, self)
     self.strip:initialise()
     self.strip:setAnchorRight(true)
     self:addChild(self.strip)
@@ -148,12 +156,12 @@ function OATerminalWindow:createChildren()
     self:activate("status")
 end
 
--- Where the active tab's view goes: under the strip, inside the margin, above the resize bar.
+-- Where the active tab's view goes: under the strip, inside the margin, above the resize bar (design units).
 function OATerminalWindow:bodyRect()
     local pad = OATerminalWindow.PAD
-    local top = self:titleBarHeight() + self.tabHeight + pad
-    local bottom = self:resizeWidgetHeight() + pad
-    return pad, top, self.width - pad * 2, self.height - top - bottom
+    local top = UI.dp(self:titleBarHeight()) + self.tabHeight + pad
+    local bottom = UI.dp(self:resizeWidgetHeight()) + pad
+    return pad, top, UI.dp(self.width) - pad * 2, UI.dp(self.height) - top - bottom
 end
 
 -- The view of a tab, made the first time it is shown. A tab no part has given a view yet shows nothing.
@@ -250,10 +258,10 @@ function OATerminalWindow:prerender()
     local th = self:titleBarHeight()
     UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
     UI.fill(self, 0, 0, self.width, th, p.title)
-    UI.textCentre(self, self.title, self.width / 2, (th - UI.fontHeight()) / 2, p.text)
+    UI.textCentre(self, self.title, self.width / 2, (th - UI.fontHeightPx()) / 2, p.text)
     UI.fill(self, 0, th - 1, self.width, 1, p.border)
     if p.scanlines and self.scanline then
-        local top = th + self.tabHeight
+        local top = th + UI.px(self.tabHeight)
         local rh = self:resizeWidgetHeight()
         self:drawTextureTiled(self.scanline, 0, top, self.width, self.height - top - rh, p.text[1], p.text[2], p.text[3], 0.07)
     end
@@ -277,6 +285,8 @@ OATerminalWindow.MOVED = 10
 -- who has walked a few squares gets the directions again.
 function OATerminalWindow:update()
     ISCollapsableWindow.update(self)
+    -- Another window worked the scale out again from a font that changed: this one was made with the old one.
+    if self.scale ~= UI.S then return self:close() end
     self.ticks = (self.ticks or 0) + 1
     if self.ticks < 30 then return end
     self.ticks = 0
@@ -305,15 +315,27 @@ function OATerminalWindow:close()
     self:removeFromUIManager()
 end
 
+-- The window's default and smallest sizes in pixels: the design sizes times the scale, kept to a share of the screen.
+function OATerminalWindow.sizes()
+    local core = getCore()
+    local share = OATerminalWindow.SCREEN_SHARE
+    local maxW, maxH = math.floor(core:getScreenWidth() * share), math.floor(core:getScreenHeight() * share)
+    local W = OATerminalWindow
+    return math.min(UI.px(W.WIDTH), maxW), math.min(UI.px(W.HEIGHT), maxH),
+        math.min(UI.px(W.MIN_WIDTH), maxW), math.min(UI.px(W.MIN_HEIGHT), maxH)
+end
+
 -- `tier` is "crude" or "field": which terminal the window is open at.
 function OATerminalWindow:new(character, x, y, z, tier)
-    local width, height = OATerminalWindow.WIDTH, OATerminalWindow.HEIGHT
+    UI.refreshScale()
+    local width, height, minW, minH = OATerminalWindow.sizes()
     local sx = (getCore():getScreenWidth() - width) / 2
     local sy = (getCore():getScreenHeight() - height) / 2
     local o = ISCollapsableWindow:new(sx, sy, width, height)
     setmetatable(o, self)
     self.__index = self
     o.tier = tier
+    o.scale = UI.S
     o.palette = UI.palette(tier)
     o.scanline = getTexture(SCANLINE)
     local record = OA.Client.record(character)
@@ -325,7 +347,7 @@ function OATerminalWindow:new(character, x, y, z, tier)
     o.blink = {}
     o.told = {}
     o:setResizable(true)
-    o.minimumWidth, o.minimumHeight = OATerminalWindow.MIN_WIDTH, OATerminalWindow.MIN_HEIGHT
+    o.minimumWidth, o.minimumHeight = minW, minH
     return o
 end
 

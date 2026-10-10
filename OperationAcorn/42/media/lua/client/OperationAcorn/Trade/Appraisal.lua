@@ -61,8 +61,8 @@ function ISToolTipInv:render()
     local ok, line = pcall(Appraisal.lineFor, item, record)
     if not ok or not line then return end
     local font = UIFont.Small
-    local h = UI.fontHeight(font) + 8
-    local w = math.max(self.width, UI.textWidth(line.text, font) + 16)
+    local h = UI.fontHeightPx(font) + 8
+    local w = math.max(self.width, UI.textWidthPx(line.text, font) + 16)
     local y = self.height
     if self:getY() + self.height + h > getCore():getScreenHeight() then y = -h end
     -- what the item tooltip's other lines (ItemTip) find taken
@@ -78,7 +78,7 @@ OAEstimatePanel = ISPanel:derive("OAEstimatePanel")
 
 function OAEstimatePanel:createChildren()
     local pad = UI.PAD
-    self.list = UI.list(self, 0, UI.fontHeight() * 2 + pad, self.width, self.height - UI.fontHeight() * 2 - pad, OAEstimatePanel.drawRow)
+    self.list = UI.list(self, 0, UI.fontHeightPx() * 2 + pad, self.width, self.height - UI.fontHeightPx() * 2 - pad, OAEstimatePanel.drawRow)
     self.list:setAnchorBottom(true)
 end
 
@@ -87,8 +87,8 @@ function OAEstimatePanel.drawRow(list, y, item)
     local pad = list.itemPadY
     local c = row.refused and { 0.9, 0.55, 0.5 } or { 0.9, 0.9, 0.9 }
     local text = row.value
-    local textX = list.width - 16 - UI.textWidth(text)
-    list:drawText(UI.fit(row.name, textX - 16, list.font), 8, y + pad, c[1], c[2], c[3], 1, list.font)
+    local textX = list.width - 16 - UI.textWidthPx(text)
+    list:drawText(UI.fitPx(row.name, textX - 16, list.font), 8, y + pad, c[1], c[2], c[3], 1, list.font)
     list:drawText(text, textX, y + pad, c[1], c[2], c[3], 1, list.font)
 end
 
@@ -155,7 +155,7 @@ end
 function OAEstimatePanel:render()
     ISPanel.render(self)
     self:drawText(getText("IGUI_OA_Trade_Estimate_Title"), 8, 4, 1, 1, 1, 1, UIFont.Small)
-    self:drawText(self.total or "", 8, 4 + UI.fontHeight(), 0.7, 0.95, 0.7, 1, UIFont.Small)
+    self:drawText(self.total or "", 8, 4 + UI.fontHeightPx(), 0.7, 0.95, 0.7, 1, UIFont.Small)
 end
 
 function OAEstimatePanel:new(page, character)

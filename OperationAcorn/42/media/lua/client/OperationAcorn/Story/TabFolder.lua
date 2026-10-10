@@ -15,11 +15,16 @@ OATabFolder = OATab:derive("OATabFolder")
 OATabFolder.ROW_H = 18
 -- The list's width: 232, 200 when the window is narrow (the minimum size).
 OATabFolder.LIST_W, OATabFolder.LIST_W_NARROW, OATabFolder.NARROW_BELOW = 232, 200, 680
+-- The document's font: one step over the other tabs' Small (DESIGN-terminal 6.4: the folder is for reading).
+OATabFolder.BODY_FONT = UIFont.Medium
+-- The reader's heads: the title's top, the room the title takes at least, and the body's top under the rule.
+OATabFolder.TITLE_Y, OATabFolder.TITLE_MIN_H, OATabFolder.RULE_GAP, OATabFolder.BODY_GAP = 6, 24, 4, 8
 
 function OATabFolder:createChildren()
     local p = self:palette()
-    local list = UI.list(self, 0, 0, OATabFolder.LIST_W, self.height, OATabFolder.drawRow, self, OATabFolder.onPick)
-    list.itemheight = OATabFolder.ROW_H
+    self.listWidth = OATabFolder.LIST_W
+    local list = UI.list(self, 0, 0, self.listWidth, self.height, OATabFolder.drawRow, self, OATabFolder.onPick)
+    UI.rowHeight(list, OATabFolder.ROW_H)
     list.itemPadY = 1
     list.palette = p
     list.backgroundColor = p.panel and { r = p.panel[1], g = p.panel[2], b = p.panel[3], a = 1 }
@@ -35,6 +40,7 @@ function OATabFolder:createChildren()
     body.backgroundColor.a = 0
     body.borderColor.a = 0
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 0, 0, 0, 0
+    body.defaultFont = OATabFolder.BODY_FONT
     self.body = body
     local bh = UI.buttonHeight()
     self.prevButton = OAMButton:new(0, 0, 70, bh, getText("IGUI_OA_Story_UI_Prev"), p, self, OATabFolder.onPrev)
@@ -49,7 +55,8 @@ function OATabFolder:createChildren()
     self.runs, self.typedSent = {}, {}
 end
 
--- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new.
+-- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
+-- list is a canvas over the game's list, UI.list).
 function OATabFolder.drawRow(list, y, item)
     local p = list.palette
     local row = item.item
@@ -70,7 +77,7 @@ function OATabFolder:fillList()
     local list = self.list
     list:clear()
     self.rowOf = {}
-    local reach = list.width - 18 - 70
+    local reach = self.listWidth - 18 - 70
     for _, group in ipairs(self.groups) do
         list:addItem(group.id, { header = getText("IGUI_OA_Story_Group_" .. group.id) })
         for _, entry in ipairs(group.entries) do
@@ -78,7 +85,7 @@ function OATabFolder:fillList()
             self.rowOf[entry.key] = item.itemindex
         end
     end
-    self.listW = list.width
+    self.listW = self.listWidth
 end
 
 -- The entry to show when the folder is first looked at: the newest of the new ones, else the top one.
@@ -211,8 +218,16 @@ end
 -- Where everything goes ------------------------------------------------------------------------------------------
 
 function OATabFolder:readerRect()
-    local lw = self.list.width
+    local lw = self.listWidth
     return lw + 8, 0, self.width - lw - 8, self.height
+end
+
+-- Where the reader's heads and its body go: the title (Medium), the line under it, the rule and the body's top.
+function OATabFolder.heads()
+    local F = OATabFolder
+    local metaY = F.TITLE_Y + math.max(F.TITLE_MIN_H, UI.fontHeight(UIFont.Medium))
+    local ruleY = metaY + UI.fontHeight() + F.RULE_GAP
+    return metaY, ruleY, ruleY + F.BODY_GAP
 end
 
 -- The title and the line under it cut to the reader's width.
@@ -228,20 +243,21 @@ function OATabFolder:layout()
     local w, h = self.width, self.height
     self.laidW, self.laidH = w, h
     local list = self.list
-    UI.size(list, w >= OATabFolder.NARROW_BELOW and OATabFolder.LIST_W or OATabFolder.LIST_W_NARROW, h)
+    self.listWidth = w >= OATabFolder.NARROW_BELOW and OATabFolder.LIST_W or OATabFolder.LIST_W_NARROW
+    UI.size(list, self.listWidth, h)
     local rx, _, rw = self:readerRect()
     local bh = UI.buttonHeight()
+    local bodyY
+    self.metaY, self.ruleY, bodyY = OATabFolder.heads()
     local body = self.body
-    body:setX(rx + 12)
-    body:setY(58)
-    UI.size(body, rw - 24, math.max(20, h - 58 - bh - 16))
+    UI.place(body, rx + 12, bodyY, rw - 24, math.max(20, h - bodyY - bh - 16))
     body:paginate()
     self.prevButton:setX(rx + 12)
     self.prevButton:setY(h - bh - 8)
     self.nextButton:setX(rx + 88)
     self.nextButton:setY(h - bh - 8)
     self:fitHeads()
-    if self.listW and self.listW ~= list.width then self:fillList() end
+    if self.listW and self.listW ~= self.listWidth then self:fillList() end
 end
 
 function OATabFolder:prerender()
@@ -255,9 +271,9 @@ function OATabFolder:prerender()
         UI.textCentre(self, UI.fit(text, rw - 24), rx + rw / 2, rh / 2 - 8, p.dim)
         return
     end
-    UI.text(self, self.titleText, rx + 12, 6, p.bright, UIFont.Medium)
-    UI.text(self, self.metaText, rx + 12, 30, p.dim)
-    UI.fill(self, rx + 12, 50, rw - 24, 1, p.border, 0.6)
+    UI.text(self, self.titleText, rx + 12, OATabFolder.TITLE_Y, p.bright, UIFont.Medium)
+    UI.text(self, self.metaText, rx + 12, self.metaY, p.dim)
+    UI.fill(self, rx + 12, self.ruleY, rw - 24, 1, p.border, 0.6)
     UI.text(self, self.at .. " / " .. #self.flat, rx + 170, rh - UI.buttonHeight() - 8 + (UI.buttonHeight() - UI.fontHeight()) / 2,
         p.dim, p.numberFont)
 end

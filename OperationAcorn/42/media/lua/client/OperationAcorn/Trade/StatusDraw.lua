@@ -1,6 +1,8 @@
 -- Drawing for the status tab's screens: a screen is laid out into a list of drawing steps (rectangles, borders, texts,
 -- textures) when its record or its size changes, and each frame only goes through that list. Texts are measured and
 -- cut to their width while the list is made. The list also keeps the places that answer a click or show a tooltip.
+-- The steps and the places are in design units (Trade/UI.lua); the steps are made pixels once (Draw.bake), and a frame
+-- hands those to the game as they are.
 -- The widgets are those of the mockups (mockups/terminal/gen/ui.py): panels, buttons, bars, a padlock, a bullet and
 -- an arrow made of rectangles (the fonts have no glyph for them), in the palette of the terminal.
 require "OperationAcorn/Trade/TerminalWindow"
@@ -266,28 +268,60 @@ function Draw.tip(p, lines)
     return tip
 end
 
--- Draws a list on an element (each frame).
-function Draw.paint(el, L, dx, dy)
-    if not L then return end
-    dx, dy = dx or 0, dy or 0
+-- A step's pixels for the scale now: rx, ry (and rw, rh for a rectangle), by the rounded edges as UI.lua draws them.
+-- At scale 1 they are the design numbers as they are.
+function Draw.bakeOp(op)
+    local s = UI.S
+    local k = op[1]
+    local x, y, w, h
+    if k == TEXT or k == TEX then x, y, w, h = op[3], op[4], op[5], op[6] else x, y, w, h = op[2], op[3], op[4], op[5] end
+    if s == 1 then
+        op.rx, op.ry = x, y
+        if k ~= TEXT then op.rw, op.rh = w, h end
+        return
+    end
+    local floor = math.floor
+    op.rx, op.ry = floor(x * s + 0.5), floor(y * s + 0.5)
+    if k ~= TEXT and k ~= UNCLIP then
+        op.rw, op.rh = floor((x + w) * s + 0.5) - op.rx, floor((y + h) * s + 0.5) - op.ry
+    end
+end
+
+-- Makes every step pixels (once a list is made, and again if the scale changed).
+function Draw.bake(L)
     for _, op in ipairs(L.ops) do
+        if op[1] ~= UNCLIP then Draw.bakeOp(op) end
+    end
+    L.scale = UI.S
+end
+
+-- Draws a list on one of our elements (each frame): the baked pixels go to the game's drawing as they are (the
+-- element's class without the scaling, el.oaBase).
+function Draw.paint(el, L)
+    if not L then return end
+    if L.scale ~= UI.S then Draw.bake(L) end
+    local B = el.oaBase or el
+    local rect, border, text, tex = B.drawRect, B.drawRectBorder, B.drawText, B.drawTextureScaledAspect
+    local ops = L.ops
+    for i = 1, #ops do
+        local op = ops[i]
         local k = op[1]
         if k == RECT then
             local c = op[6]
-            el:drawRect(op[2] + dx, op[3] + dy, op[4], op[5], op[7], c[1], c[2], c[3])
+            rect(el, op.rx, op.ry, op.rw, op.rh, op[7], c[1], c[2], c[3])
         elseif k == FRAME then
             local c = op[6]
-            el:drawRectBorder(op[2] + dx, op[3] + dy, op[4], op[5], op[7], c[1], c[2], c[3])
+            border(el, op.rx, op.ry, op.rw, op.rh, op[7], c[1], c[2], c[3])
         elseif k == TEXT then
             local c = op[5]
-            el:drawText(op[2], op[3] + dx, op[4] + dy, c[1], c[2], c[3], op[6], op[7])
+            text(el, op[2], op.rx, op.ry, c[1], c[2], c[3], op[6], op[7])
         elseif k == TEX then
             local t = op[8]
-            el:drawTextureScaledAspect(op[2], op[3] + dx, op[4] + dy, op[5], op[6], op[7], t[1], t[2], t[3])
+            tex(el, op[2], op.rx, op.ry, op.rw, op.rh, op[7], t[1], t[2], t[3])
         elseif k == CLIP then
-            el:setStencilRect(op[2] + dx, op[3] + dy, op[4], op[5])
+            B.setStencilRect(el, op.rx, op.ry, op.rw, op.rh)
         elseif k == UNCLIP then
-            el:clearStencilRect()
+            B.clearStencilRect(el)
         end
     end
 end
@@ -324,6 +358,7 @@ function OAStatusView:layout()
     if not self.data then return end
     local L = Draw.list(self:palette())
     self:build(L, self.width, self.height)
+    Draw.bake(L)
     self.list = L
 end
 
