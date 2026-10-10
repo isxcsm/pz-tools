@@ -24,10 +24,10 @@ option OperationAcorn.BonusMultiplier
     page = OperationAcornTrade, translation = OperationAcorn_BonusMultiplier,
 }
 
-option OperationAcorn.RequestBonus
+option OperationAcorn.RequestPrice
 {
-    type = integer, min = 0, max = 500, default = 50,
-    page = OperationAcornTrade, translation = OperationAcorn_RequestBonus,
+    type = integer, min = 10, max = 500, default = 100,
+    page = OperationAcornTrade, translation = OperationAcorn_RequestPrice,
 }
 
 option OperationAcorn.HelicopterArrivalMin

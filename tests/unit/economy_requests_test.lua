@@ -175,20 +175,87 @@ test("the categories the team wants at the stage are twice as likely", function(
     truthy(b > a * 1.5 and b < a * 2.6, "B " .. b .. " vs A " .. a)
 end)
 
-test("bonusFor gives the reward's bonus and the units that remain", function()
+test("the bands: 1 and more is common, 0.3 to 1 normal, less rare, with a price, a quantity and a trust bonus", function()
+    eq(R.band(20.9), "common"); eq(R.band(1), "common")
+    eq(R.band(0.79), "normal"); eq(R.band(0.3), "normal")
+    eq(R.band(0.29), "rare"); eq(R.band(0.08), "rare")
+    local b = R.BANDS
+    eq(b.common.price, 600); eq(b.common.qty, 10); eq(b.common.trust, 5)
+    eq(b.normal.price, 1500); eq(b.normal.qty, 5); eq(b.normal.trust, 10)
+    eq(b.rare.price, 4000); eq(b.rare.qty, 3); eq(b.rare.trust, 20)
+end)
+
+test("entry gives the fixed price, the week's quantity and what is left of it", function()
     install(10, function() return 2.0 end)
     local record = OA.Store.ensure("p", "P")
     local item = R.list(record)[1]
-    local bonus, left = R.bonusFor(record, item)
-    near(bonus, 0.5, 1e-9); eq(left, 20)
+    local e = R.entry(record, item)
+    eq(e.band, "common"); eq(e.price, 600); eq(e.qty, 10); eq(e.trust, 5)
+    eq(e.used, 0); eq(e.left, 10); eq(e.full, false)
     R.consume(record, item, 7)
-    bonus, left = R.bonusFor(record, item)
-    eq(left, 13)
-    R.consume(record, item, 13)
-    bonus, left = R.bonusFor(record, item)
-    eq(bonus, 0); eq(left, 0)
-    bonus, left = R.bonusFor(record, "Base.NotListed")
-    eq(bonus, 0)
+    e = R.entry(record, item)
+    eq(e.used, 7); eq(e.left, 3); eq(e.full, false)
+    R.consume(record, item, 3)
+    e = R.entry(record, item)
+    eq(e.left, 0); eq(e.full, true)
+    eq(R.entry(record, "Base.NotListed"), nil)
+end)
+
+test("an item's band follows its score: 600 x10, 1,500 x5, 4,000 x3", function()
+    install(30, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+    local record = OA.Store.ensure("p", "P")
+    OA.Trust.add(record, 2300)           -- stage 2: every band is drawn
+    OA.Support.setLevel(record, "reqcount", 3)   -- all 12
+    local seen = { common = false, normal = false, rare = false }
+    for _, e in ipairs(R.entries(record)) do
+        local n = tonumber(string.match(e.fullType, "%d+"))
+        local band = n <= 10 and "common" or (n <= 20 and "normal" or "rare")
+        eq(e.band, band, e.fullType)
+        eq(e.price, R.BANDS[band].price); eq(e.qty, R.BANDS[band].qty)
+        seen[band] = true
+    end
+    truthy(seen.common and seen.normal and seen.rare, "all three bands on a 12 item list")
+end)
+
+test("entries come by band, common first, each band in the order drawn", function()
+    install(30, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+    local record = OA.Store.ensure("p", "P")
+    OA.Trust.add(record, 2300)
+    OA.Support.setLevel(record, "reqcount", 3)
+    local rank = { common = 1, normal = 2, rare = 3 }
+    local last = 0
+    local list = R.entries(record)
+    eq(#list, 12)
+    for _, e in ipairs(list) do
+        truthy(rank[e.band] >= last, "bands only go up")
+        last = rank[e.band]
+    end
+end)
+
+test("the request price reward multiplies the price, to ten credits", function()
+    install(10, function() return 2.0 end)
+    local record = OA.Store.ensure("p", "P")
+    eq(R.unitPrice(record, "common"), 600); eq(R.unitPrice(record, "normal"), 1500); eq(R.unitPrice(record, "rare"), 4000)
+    local want = { { 1, 1.0, 600, 1500, 4000 }, { 2, 1.1, 660, 1650, 4400 }, { 3, 1.2, 720, 1800, 4800 },
+        { 4, 1.33, 800, 2000, 5320 } }
+    for _, w in ipairs(want) do
+        OA.Support.setLevel(record, "reqprice", w[1] - 1)
+        near(OA.Trust.rewards(record).requestPrice, w[2], 1e-9)
+        eq(R.unitPrice(record, "common"), w[3], "common at x" .. w[2])
+        eq(R.unitPrice(record, "normal"), w[4])
+        eq(R.unitPrice(record, "rare"), w[5])
+    end
+    SandboxVars.OperationAcorn.RequestPrice = 50
+    OA.Trust.reset()
+    OA.Support.setLevel(record, "reqprice", 0)
+    eq(R.unitPrice(record, "common"), 300, "the option scales the price")
+end)
+
+test("an item the house loot does not hand out is rare", function()
+    install(10, function() return 2.0 end)
+    eq(R.scoreOf("Base.Item3"), 2.0)
+    eq(R.scoreOf("Base.Harmonica"), 0)
+    eq(R.band(R.scoreOf("Base.Harmonica")), "rare")
 end)
 
 test("a refused category is left out, and comes back two to a list when due", function()

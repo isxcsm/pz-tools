@@ -103,6 +103,20 @@ test("a receipt with only unpaid support entries has no applied note", function(
     eq(waiting, 1); eq(note, 0)
 end)
 
+test("a receipt tells the request lines the flight filled", function()
+    local lines = Text.receipt({ id = 1, day = 1, balanceBefore = 0, balance = 0,
+        filled = { { fullType = "Base.Rag", band = "common", trust = 5 } } })
+    local found
+    for _, line in ipairs(lines) do
+        if string.find(line.text, "IGUI_OA_Trade_Rc_Filled", 1, true) then found = line end
+    end
+    truthy(found, "a line for the filled request")
+    eq(found.kind, "good")
+    truthy(string.find(found.text, "5", 1, true))
+    local plain = Text.receipt({ id = 1, day = 1, balanceBefore = 0, balance = 0 })
+    for _, line in ipairs(plain) do eq(string.find(line.text, "Rc_Filled", 1, true), nil) end
+end)
+
 test("a receipt without support entries has no support lines", function()
     local lines = Text.receipt({ id = 1, day = 1, balanceBefore = 0, balance = 0 })
     for _, line in ipairs(lines) do
@@ -110,8 +124,8 @@ test("a receipt without support entries has no support lines", function()
     end
 end)
 
--- An economy with the counting of the real one: a request item is worth a bonus for its first 20 units a week, and the
--- units one line takes are not available to the next.
+-- An economy with the counting of the real one: a request item's first 20 units a week are worth more, and the units
+-- one line takes are not available to the next.
 local function fakeValue()
     OA.Value = {
         CASH_TRUST_CAP = 50,
@@ -120,7 +134,13 @@ local function fakeValue()
             local used = taken.requests[info.fullType] or 0
             local units = math.max(0, math.min(count, 20 - used))
             return { fullType = info.fullType, count = count, credits = 100 * count + 50 * units, trust = count,
-                cashTrust = 0, requestUnits = units, regionWeight = 0 }
+                cashTrust = 0, requestUnits = units, requestCredits = 150 * units, regionWeight = 0 }
+        end,
+        requestFills = function(ctx, taken)
+            if (taken.requests["Base.Rag"] or 0) >= 20 then
+                return { fills = { { fullType = "Base.Rag", band = "common", trust = 5 } }, trust = 5 }
+            end
+            return { fills = {}, trust = 0 }
         end,
     }
 end
@@ -135,7 +155,10 @@ test("the estimate follows what earlier lines of the same flight used up", funct
     eq(result.lines[1].requestUnits, 15)
     eq(result.lines[2].requestUnits, 5, "only five of the twenty are left")
     eq(result.credits, 3000 + 50 * 20)
-    eq(result.trust, 30)
+    eq(result.trust, 30 + 5, "the full line's trust is in")
+    eq(#result.filled, 1)
+    eq(result.requests.units, 20); eq(result.requests.credits, 3000)
+    eq(result.requests.lines[1].fullType, "Base.Rag"); eq(result.requests.lines[1].units, 20)
     OA.Value = nil
     eq(Estimate.entries(record, {}), nil, "without an economy there is no estimate")
 end)
@@ -158,6 +181,9 @@ test("the flight estimate puts the sealed boxes, the bonus and the cart together
     eq(flight.bonus, 100)
     eq(flight.cart, 2000)
     eq(flight.after, 500 + 300 + 100 - 2000)
+    eq(flight.requests.units, 2, "what B1's waybill draws: the request units and what they fetch")
+    eq(flight.requests.credits, 300); eq(flight.requests.lines[1].fullType, "Base.Rag")
+    eq(#flight.filled, 0)
     OA.Shop = nil
 end)
 
@@ -168,6 +194,7 @@ test("a debt that the flight does not clear blocks the orders in the estimate", 
     OA.Trade.account(record).credits = -5000
     OA.Trade.Orders.set(record, { { id = "a", count = 1 } })
     local flight = Estimate.flight(record)
+    eq(flight.requests.units, 0, "no sealed box, no request units")
     eq(flight.blocked, true)
     eq(flight.orders, 0)
     eq(flight.after, -5000)
@@ -195,6 +222,25 @@ test("a tab's dot comes from its rule; a failing rule shows none", function()
     eq(Terminal.mark("status", {}), nil)
     eq(Terminal.mark("missions", {}), nil, "a tab without a view has no dot")
     eq(Terminal.mark("shop", nil), nil)
+    Terminal.clear()
+end)
+
+test("a tab keeps one thing as seen, or several: the pairs come by key", function()
+    Terminal.clear()
+    Terminal.addTab("shop", function() end, { seen = function() return "tier", 4 end })
+    Terminal.addTab("delivery", function() end, { seen = function() return { week = 3, market = 12 } end })
+    Terminal.addTab("status", function() end, { seen = function() error("broken") end })
+    Terminal.addTab("missions", function() end)
+    local one = Terminal.seenPairs("shop", {})
+    eq(#one, 1); eq(one[1].key, "tier"); eq(one[1].value, 4)
+    local two = Terminal.seenPairs("delivery", {})
+    eq(#two, 2); eq(two[1].key, "market"); eq(two[1].value, 12); eq(two[2].key, "week"); eq(two[2].value, 3)
+    eq(#Terminal.seenPairs("status", {}), 0, "a failing rule keeps nothing")
+    eq(#Terminal.seenPairs("missions", {}), 0, "a tab without a rule")
+    eq(#Terminal.seenPairs("shop", nil), 0)
+    local record = {}
+    truthy(Terminal.setSeen(record, "market", 12))
+    eq(Terminal.seenValue(record, "market"), 12)
     Terminal.clear()
 end)
 

@@ -103,8 +103,9 @@ test("rewards at the start", function()
     local r = T.rewardsFor(0, 0)
     eq(r.boxCapacity, 50); eq(r.callInterval, 3)
     eq(r.arrival.min, 4); eq(r.arrival.max, 6)
-    eq(r.nightDrop, false); eq(r.rate, 0); near(r.requestBonus, 0.5); eq(r.requestCount, 6)
+    eq(r.nightDrop, false); eq(r.rate, 0); eq(r.requestCount, 6)
     near(r.requestPrice, 1.0)
+    eq(r.requestBonus, nil, "the old request bonus is the request price upgrade now")
     eq(r.discount, 0); eq(r.trustAccel, 1.0)
     eq(r.softerSupply, false); eq(r.marketForecast, false)
     eq(r.backpack, false); eq(r.kits, false); eq(r.transferred, false)
@@ -120,7 +121,6 @@ test("without levels every upgrade number stays at its start, whatever the stage
     eq(r.backpack, true, "what trust gives by itself stays")
     eq(r.kits, true)
     eq(r.transferred, true, "the third milestone")
-    near(r.requestBonus, 1.0)
     near(r.trustAccel, 1.2)
 end)
 
@@ -129,9 +129,6 @@ test("rewards replace each other, they do not add", function()
     near(T.rewardsFor(3, 0, Sup.levelsForTier(3)).rate, 0.05)
     near(T.rewardsFor(5, 0, Sup.levelsForTier(5)).rate, 0.10)
     near(T.rewardsFor(5, 2, Sup.levelsForTier(7)).rate, 0.15)
-    near(T.rewardsFor(3, 0).requestBonus, 0.65)
-    near(T.rewardsFor(5, 0).requestBonus, 0.80)
-    near(T.rewardsFor(5, 2).requestBonus, 1.00)
     near(T.rewardsFor(4, 0, Sup.levelsForTier(4)).discount, 0.05)
     near(T.rewardsFor(5, 2, Sup.levelsForTier(7)).discount, 0.10)
     near(T.rewardsFor(5, 1).trustAccel, 1.1)
@@ -182,15 +179,15 @@ end)
 
 test("the options set the starting values and the rewards keep their proportion", function()
     SandboxVars.OperationAcorn.CallInterval = 6.0
-    SandboxVars.OperationAcorn.RequestBonus = 100
+    SandboxVars.OperationAcorn.RequestPrice = 150
     SandboxVars.OperationAcorn.HelicopterArrivalMin = 8
     SandboxVars.OperationAcorn.HelicopterArrivalMax = 12
     local r0 = T.rewardsFor(0, 0)
-    eq(r0.callInterval, 6); near(r0.requestBonus, 1.0); eq(r0.arrival.min, 8); eq(r0.arrival.max, 12)
+    eq(r0.callInterval, 6); near(r0.requestPrice, 1.5); eq(r0.arrival.min, 8); eq(r0.arrival.max, 12)
     local r4 = T.rewardsFor(4, 0, OA.Support.levelsForTier(4))
     eq(r4.callInterval, 3, "1.5 days at the default is half of 3")
     eq(r4.arrival.min, 6); eq(r4.arrival.max, 8, "3 and 4 at the default, 8 and 12 scaled")
-    near(T.rewardsFor(5, 0).requestBonus, 1.6)
+    near(T.rewardsFor(5, 0, OA.Support.levelsForTier(5)).requestPrice, 1.8, 1e-9, "x1.2 of the starting 1.5")
 end)
 
 test("the serum interval options are gone from the sandbox", function()

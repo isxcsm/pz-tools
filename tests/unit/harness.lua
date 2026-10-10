@@ -49,6 +49,7 @@ local function resetGame()
     TEST.hours = 0
     TEST.random = 1
     TEST.sent = {}
+    TEST.month = nil
     SandboxVars = sandboxDefaults()
     local store = {}
     ModData = {
@@ -74,6 +75,8 @@ local function resetGame()
             getWorldAgeHours = function() return TEST.hours end,
             getTimeOfDay = function() return (TEST.hours + 9) % 24 end,
             getHour = function() return math.floor((TEST.hours + 9) % 24) end,
+            -- The month, counted from 0 as the game does (TEST.month, July at the start).
+            getMonth = function() return TEST.month or 6 end,
         }
     end
     -- A fixed pseudo-random sequence (a linear congruential generator), so that tests repeat.

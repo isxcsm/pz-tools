@@ -190,11 +190,12 @@ end
 
 -- The tab on show has been looked at: what its dot waits for is kept as seen.
 function OATerminalWindow:markSeen(record)
-    local tab = Terminal.tab(self.activeId)
-    if not (record and tab and tab.seen and self.marks[self.activeId] == "new") then return end
-    local ok, key, value = pcall(tab.seen, record)
-    if not ok or not key or Terminal.seenValue(record, key) == value then return end
-    OA.Sync.send(self.character, "terminalSeen", { key = key, value = value })
+    if not (record and self.marks[self.activeId] == "new") then return end
+    for _, pair in ipairs(Terminal.seenPairs(self.activeId, record)) do
+        if Terminal.seenValue(record, pair.key) ~= pair.value then
+            OA.Sync.send(self.character, "terminalSeen", { key = pair.key, value = pair.value })
+        end
+    end
 end
 
 -- Redraws what is on show: the dots, then the active tab.

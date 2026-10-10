@@ -181,6 +181,7 @@ function Settle.run(record, svc)
         bonusNote = bonusKey,
         events = events,
         cashTrust = result.cashTrust,
+        filled = result.filled and #result.filled > 0 and result.filled or nil,
         support = #support > 0 and support or nil,
     }
     local key, args = Trade.noteFor(record, receipt)

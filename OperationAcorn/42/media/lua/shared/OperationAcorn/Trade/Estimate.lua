@@ -10,7 +10,10 @@ local Boxes, Orders = Trade.Boxes, Trade.Orders
 local Estimate = {}
 Trade.Estimate = Estimate
 
--- Entries ({ info, count }) valued as one flight: { credits (whole), trust, lines } or nil when there is no economy.
+-- Entries ({ info, count }) valued as one flight: { credits (whole), trust, lines, requests, filled } or nil when
+-- there is no economy. `requests` is what this week's request lines fetch: { credits (whole), units, lines = { {
+-- fullType, units, credits } the biggest first } }; `filled` are the request lines the flight would make full (their
+-- trust is in `trust`).
 function Estimate.entries(record, entries)
     local Value = OA.Value
     if not (Value and Value.context and Value.appraiseLine) then return nil end
@@ -18,10 +21,24 @@ function Estimate.entries(record, entries)
     local taken = { requests = {}, cells = {} }
     local credits, trust, cashTrust = 0, 0, 0
     local lines = {}
+    local requests = { credits = 0, units = 0, lines = {} }
+    local byType = {}
     for _, entry in ipairs(entries) do
         local line = Value.appraiseLine(entry.info, entry.count or 1, ctx, taken)
         lines[#lines + 1] = line
         credits = credits + line.credits
+        if line.requestUnits and line.requestUnits > 0 then
+            local r = byType[line.fullType]
+            if not r then
+                r = { fullType = line.fullType, units = 0, credits = 0 }
+                byType[line.fullType] = r
+                requests.lines[#requests.lines + 1] = r
+            end
+            r.units = r.units + line.requestUnits
+            r.credits = r.credits + (line.requestCredits or 0)
+            requests.units = requests.units + line.requestUnits
+            requests.credits = requests.credits + (line.requestCredits or 0)
+        end
         trust = trust + line.trust
         cashTrust = cashTrust + (line.cashTrust or 0)
         if line.requestUnits and line.requestUnits > 0 then
@@ -32,7 +49,14 @@ function Estimate.entries(record, entries)
         end
     end
     cashTrust = math.min(cashTrust, Value.CASH_TRUST_CAP or cashTrust)
-    return { credits = OA.round(credits), trust = trust + cashTrust, lines = lines }
+    local fills = Value.requestFills and Value.requestFills(ctx, taken) or { fills = {}, trust = 0 }
+    table.sort(requests.lines, function(a, b)
+        if a.credits ~= b.credits then return a.credits > b.credits end
+        return a.fullType < b.fullType
+    end)
+    requests.credits = OA.round(requests.credits)
+    return { credits = OA.round(credits), trust = trust + cashTrust + fills.trust, lines = lines, requests = requests,
+        filled = fills.fills }
 end
 
 -- Items of a container (their infos) grouped and valued.
@@ -41,7 +65,8 @@ function Estimate.infos(record, infos)
 end
 
 -- The whole flight a call would make: the sealed boxes' worth, the bonus waiting, the cart's cost and the balance
--- that would be left. { sealed, boxes, bonus, orders, before, after, debt }.
+-- that would be left. { sealed, boxes, bonus, orders, before, after, debt, requests, filled } - `requests` and
+-- `filled` as Estimate.entries gives them for the sealed boxes (empty when there are none).
 function Estimate.flight(record)
     local account = Trade.account(record)
     local entries = Boxes.sealedEntries(record)
@@ -57,6 +82,8 @@ function Estimate.flight(record)
     return {
         boxes = #Boxes.sealed(record), sealed = credits, bonus = bonus, orders = orders, cart = cost,
         before = balance, after = after - orders, blocked = after < 0 and cost > 0,
+        requests = worth and worth.requests or { credits = 0, units = 0, lines = {} },
+        filled = worth and worth.filled or {},
     }
 end
 

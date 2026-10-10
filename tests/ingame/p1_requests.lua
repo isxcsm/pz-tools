@@ -41,8 +41,9 @@ if record then
     local want = OA.Trust.rewards(record).requestCount
     say("this week's list (" .. #items .. " of " .. want .. "):")
     for _, t in ipairs(items) do
-        say("  ", t, "category", tostring(OA.Requests.kindCategory(OA.Categories.baseType(t))), "bonus",
-            tostring((OA.Requests.bonusFor(record, t))))
+        local e = OA.Requests.entry(record, t)
+        say("  ", t, "category", tostring(OA.Requests.kindCategory(OA.Categories.baseType(t))), "band", e.band,
+            "price", e.price, "qty", e.qty, "used", e.used)
     end
     P1T.check(say, "the list has the rewarded count", #items == want, #items .. " / " .. want)
     local seen, dup = {}, false

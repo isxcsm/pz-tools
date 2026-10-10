@@ -8,6 +8,9 @@
 -- A record's list is drawn from the candidates by the stage it has reached: a score of 1 or more from the start,
 -- 0.3 to 1 from stage 1, less than 0.3 from stage 2. The categories the team wants at that stage are twice as
 -- likely. The list is the record's own, redrawn when the week changes, and grows (is topped up) with the stage.
+-- An item on the list is bought at a fixed price for each unit, by its commonness (NUMBERS 2): the first `qty` units
+-- of the week at `price` (times the request price reward), and a bonus of trust once the line is full. Units over the
+-- quantity and items not on the list are valued as any other item.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
@@ -18,8 +21,17 @@ local Requests = {}
 OA.Requests = Requests
 
 Requests.VERSION = 1
-Requests.FIRST_UNITS = 20       -- units of an item per week that earn the bonus
 Requests.DUE_PICKS = 2          -- items of a category that comes back after a refusal
+
+-- The commonness bands: from this score up (1 and more common, 0.3 to 1 normal, less than 0.3 rare). A band has the
+-- price of a unit, the units a week takes at it and the trust a full line gives (NUMBERS 2).
+Requests.COMMON_FROM, Requests.NORMAL_FROM = 1, 0.3
+Requests.BANDS = {
+    common = { price = 600, qty = 10, trust = 5 },
+    normal = { price = 1500, qty = 5, trust = 10 },
+    rare = { price = 4000, qty = 3, trust = 20 },
+}
+Requests.BAND_ORDER = { "common", "normal", "rare" }
 
 -- The rooms that count as a house (NUMBERS 12): their containers' loot is the "house loot" of the design.
 Requests.HOUSE_ROOMS = {
@@ -173,11 +185,31 @@ function Requests.categoryTotal(letter)
     return world and world.total and world.total[letter] or 0
 end
 
+-- The band of a commonness score.
+function Requests.band(score)
+    if score >= Requests.COMMON_FROM then return "common" end
+    if score >= Requests.NORMAL_FROM then return "normal" end
+    return "rare"
+end
+
 -- Whether a score may be drawn at a stage.
 function Requests.eligible(score, stage)
-    if score >= 1 then return true end
-    if score >= 0.3 then return stage >= 1 end
+    if score >= Requests.COMMON_FROM then return true end
+    if score >= Requests.NORMAL_FROM then return stage >= 1 end
     return stage >= 2
+end
+
+-- The commonness score of an item type: from the world's table, 0 (the rarest band) for one the house loot does not
+-- hand out (a strange item the story names). The lookup table is made once for the world's table.
+local indexOf, indexFrom
+function Requests.scoreOf(fullType)
+    local world = Requests.data()
+    if not world or not world.types then return 0 end
+    if indexFrom ~= world.types then
+        indexOf, indexFrom = {}, world.types
+        for i = 1, world.n or #world.types do indexOf[world.types[i]] = world.score[i] end
+    end
+    return indexOf[fullType] or 0
 end
 
 -- The record's request state: { week, items = { fullType ... }, used = { fullType = units this week } }.
@@ -242,7 +274,7 @@ end
 
 -- The record's list for this week, drawn the first time the week is asked about and topped up as the stage grows.
 -- A strange item the story part names for this week (the week after a hallucination) goes on the list in addition
--- to the usual count.
+-- to the normal count.
 function Requests.list(record)
     local codex, rq = state(record)
     local week = OA.week()
@@ -272,29 +304,57 @@ function Requests.list(record)
     return rq.items
 end
 
--- Units of each item the record has had the bonus on this week.
+-- Units of each item the record has had settled as requests this week.
 function Requests.used(record)
     Requests.list(record)
     local _, rq = state(record)
     return rq.used
 end
 
--- The request bonus of an item for a record (a fraction such as 0.5) and the units it still applies to; 0, 0 when
--- the item is not on the list or its units are used up.
-function Requests.bonusFor(record, fullType)
+-- The price of a unit of a band for a record: the band's price times the request price reward, to ten credits.
+function Requests.unitPrice(record, band)
+    local base = Requests.BANDS[band].price
+    return math.floor(base * OA.Trust.rewards(record).requestPrice / 10 + 0.5) * 10
+end
+
+local function lineFor(record, fullType, used)
+    local band = Requests.band(Requests.scoreOf(fullType))
+    local def = Requests.BANDS[band]
+    local n = used[fullType] or 0
+    return { fullType = fullType, band = band, price = Requests.unitPrice(record, band), qty = def.qty,
+        trust = def.trust, used = n, left = math.max(0, def.qty - n), full = n >= def.qty }
+end
+
+-- The record's line of an item on this week's list: { fullType, band, price (a unit), qty (the week's units), trust
+-- (for a full line), used, left, full }; nil when the item is not on the list.
+function Requests.entry(record, fullType)
     local items = Requests.list(record)
     local _, rq = state(record)
     for _, t in ipairs(items) do
-        if t == fullType then
-            local left = Requests.FIRST_UNITS - (rq.used[fullType] or 0)
-            if left > 0 then return OA.Trust.rewards(record).requestBonus, left end
-            return 0, 0
-        end
+        if t == fullType then return lineFor(record, fullType, rq.used) end
     end
-    return 0, 0
+    return nil
 end
 
--- A flight used `n` units of an item's bonus.
+-- All the lines of this week's list, by band (common first) and in the order the list was drawn within a band.
+function Requests.entries(record)
+    local items = Requests.list(record)
+    local _, rq = state(record)
+    local lines = {}
+    for i, t in ipairs(items) do
+        local line = lineFor(record, t, rq.used)
+        line.order = i
+        lines[#lines + 1] = line
+    end
+    local rank = { common = 1, normal = 2, rare = 3 }
+    table.sort(lines, function(a, b)
+        if a.band ~= b.band then return rank[a.band] < rank[b.band] end
+        return a.order < b.order
+    end)
+    return lines
+end
+
+-- A flight settled `n` units of an item as requests.
 function Requests.consume(record, fullType, n)
     local used = Requests.used(record)
     used[fullType] = (used[fullType] or 0) + n

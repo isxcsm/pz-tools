@@ -119,12 +119,12 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `OA.Value.accepts(info)` | 납품 상자에 넣을 수 있는지, 아니면 이유 키 |
 | `OA.Value.context(record)` | 지금 값 매기기에 쓰는 표(계열 시세, 요청 목록, 단계 보상). 하루에 한 번 만들어 둔다 |
 | `OA.Value.appraise(info, ctx)` | `{ credits, trust, category, marks = { request, newRegion, high, low, refused } }` (반올림 전) |
-| `OA.Value.settle(record, entries)` | 한 편의 정산: `entries`는 밀봉 기록(`{ info, count }` 목록). 시세 하락(`Market.ship`)과 요청 수 차감을 하고 `{ credits(한 번 반올림한 정수), trust, lines, cashTrust }`. 크레딧·신뢰도를 기록에 더하지는 않는다 (P2가 빚 상환과 함께 더한다) |
+| `OA.Value.settle(record, entries)` | 한 편의 정산: `entries`는 밀봉 기록(`{ info, count }` 목록). 시세 하락(`Market.ship`)과 요청 수 차감을 하고 `{ credits(한 번 반올림한 정수), trust, lines, cashTrust, shipped, filled(다 채운 요청 줄) }`. 요청 품목은 고정 단가로 사고 시세 공급에는 넣지 않는다. 크레딧·신뢰도를 기록에 더하지는 않는다 (P2가 빚 상환과 함께 더한다) |
 | `OA.Trust.add(record, amount)` | 신뢰도를 더하고 오른 단계·이정표 목록을 돌려준다 (공용 혈청, 새 품목 알림은 P2가 받아 처리) |
-| `OA.Trust.rewards(record)` | 지금 값의 표: 운항 지원 개량 단계에서 오는 `boxCapacity, callInterval(일), arrival = {min, max}(시간), nightDrop, rate, requestCount, requestPrice, discount, softerSupply, marketForecast`와 신뢰도로 오는 `trustAccel, requestBonus, backpack, kits, transferred`. 단계·이정표·`levelsRev`가 바뀌면 다시 만든다 |
+| `OA.Trust.rewards(record)` | 지금 값의 표: 운항 지원 개량 단계에서 오는 `boxCapacity, callInterval(일), arrival = {min, max}(시간), nightDrop, rate, requestCount, requestPrice, discount, softerSupply, marketForecast`와 신뢰도로 오는 `trustAccel, backpack, kits, transferred`. `requestPrice`는 요청 품목 단가 배율(개량 값 × 샌드박스 `RequestPrice`). 단계·이정표·`levelsRev`가 바뀌면 다시 만든다 |
 | `OA.Support.step(id, n)`, `OA.Support.request(record, id, level, field)`, `OA.Support.cancel(record, id)`, `OA.Support.settle(record, balance)` | 운항 지원 개량 (DESIGN-terminal 2.6): 단계표, 신청(정식 단말, 바로 다음 단계, 신뢰도 단계, 빚 없음), 다음 정산 때 결제와 반영. 잔고가 모자란 신청은 다음 정산까지 기다린다 |
-| `OA.Market.index(category)`, `OA.Market.update(day)`, `OA.Market.ship(category, weight, record)`, `OA.Market.refused(category)`, `OA.Market.history(category)` | 시세 |
-| `OA.Requests.list(record)`, `OA.Requests.bonusFor(record, fullType)` | 이번 주 요청 |
+| `OA.Market.index(category)`, `OA.Market.update(day)`, `OA.Market.ship(category, weight, record)`, `OA.Market.refused(category)`, `OA.Market.history(category)`, `OA.Market.situation()`, `OA.Market.news()`, `OA.Season.current()` | 시세. `situation`은 지금 시세 사건 줄(계열마다 하나, 기록 없음), `news`는 사건이 시작하고 끝난 횟수(납품 탭 점), `Season`은 게임 달로 정한 계절과 가중치 |
+| `OA.Requests.list(record)`, `OA.Requests.entry(record, fullType)`, `OA.Requests.entries(record)` | 이번 주 요청 목록과 줄(`band`, `price`, `qty`, `trust`, `used`, `left`, `full`). 줄은 흔한 정도 띠로 고정 단가와 수량이 정해진다 |
 | `OA.Codex.acquire(record, info)`, `OA.Codex.buildingSearched(record, buildingKey, containers)`, `OA.Codex.kill(record)` | 보너스를 `trade.bonus`에 쌓고, 공용 혈청은 `trade.sharedSerums`에 |
 | `OA.Shop.catalog()`, `OA.Shop.price(entry, record)`, `OA.Shop.available(entry, record)`, `OA.Shop.bought(entry, record, count)`, `OA.Shop.serumPrice(tree, record)`, `OA.Shop.kitPrice(kind, target, record)` | 상점 |
 | `OA.Shred.yield(info, record, extras)` | 기대 산출 개수(소수), 첫 분해 보너스. 실제 개수는 부른 쪽이 `OA.Shred.roll(expected)`로 굴린다 |

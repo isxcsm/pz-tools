@@ -5,7 +5,7 @@
 -- record.trade.serial = the last number given; record.trade.lastSettle = { at, credits, trust, boxes }
 -- receipt = { id, at, day, kind ("settle" | "reissue"), boxes, credits, trust, bonus, debtPaid, spent, balance,
 --   lines = { { name, count, credits, trust, marks } }, orders = { { id, target, ordered, delivered, paid, reason } },
---   note = { key, args }, gifts = { { type, count } }, events = { { kind, n } }, extra = { ... } }
+--   filled = { { fullType, band, trust } } (request lines made full), note = { key, args }, gifts = { { type, count } }, events = { { kind, n } }, extra = { ... } }
 require "OperationAcorn/Store"
 local OA = OperationAcorn
 local Store = OA.Store
