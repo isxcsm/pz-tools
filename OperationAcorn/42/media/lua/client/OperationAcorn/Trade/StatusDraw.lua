@@ -153,25 +153,40 @@ end
 
 -- Textures ---------------------------------------------------------------------------------------------------------
 
-local textures = {}
--- The icon of an item type (its script's), found once.
-function Draw.itemTexture(fullType)
+local textures, hires = {}, {}
+-- The icon of an item type for `px` pixels across (nil: its own size), found once a size: the script's 32 px icon, or
+-- for one of ours drawn larger its high-res copy (media/textures/OA_ItemHi, 64 or 128 px, made by tools/icon_art.py),
+-- so that a 64 px icon is not the 32 px one blown up.
+function Draw.itemTexture(fullType, px)
     if not fullType then return nil end
     local tex = textures[fullType]
     if tex == nil then
         local script = getScriptManager():FindItem(fullType)
         tex = script and script:getNormalTexture() or false
         textures[fullType] = tex
+        local icon = script and script:getIcon()
+        hires[fullType] = icon and string.sub(icon, 1, 3) == "OA_" and icon or false
+    end
+    local icon = hires[fullType]
+    if icon and px and px > 34 then
+        local size = px <= 66 and 64 or 128
+        local key = fullType .. "@" .. size
+        local hi = textures[key]
+        if hi == nil then
+            hi = getTexture("media/textures/OA_ItemHi/" .. icon .. "_" .. size .. ".png") or false
+            textures[key] = hi
+        end
+        if hi then return hi end
     end
     return tex or nil
 end
 
--- An item's icon, tinted on the crude terminal.
+-- An item's icon, tinted on the crude terminal (its texture is picked for its pixels when the list is baked).
 function Draw.item(L, fullType, x, y, size, a)
     local tex = Draw.itemTexture(fullType)
     if not tex then return end
     local t = L.p.iconTint or { 1, 1, 1 }
-    add(L, { TEX, tex, x, y, size, size, a or 1, t })
+    add(L, { TEX, tex, x, y, size, size, a or 1, t, item = fullType })
 end
 
 function Draw.clip(L, x, y, w, h)
@@ -300,6 +315,7 @@ function Draw.bakeOp(op)
     if s == 1 then
         op.rx, op.ry = x, y
         if k ~= TEXT then op.rw, op.rh = w, h end
+        if op.item then op[2] = Draw.itemTexture(op.item, op.rw) or op[2] end
         return
     end
     local floor = math.floor
@@ -307,6 +323,7 @@ function Draw.bakeOp(op)
     if k ~= TEXT and k ~= UNCLIP then
         op.rw, op.rh = floor((x + w) * s + 0.5) - op.rx, floor((y + h) * s + 0.5) - op.ry
     end
+    if op.item then op[2] = Draw.itemTexture(op.item, op.rw) or op[2] end
 end
 
 -- Makes every step pixels (once a list is made, and again if the scale changed).

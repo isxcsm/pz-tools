@@ -334,7 +334,7 @@ test("a status list's texts go to the faces from the element's place, asked once
     UI.refreshScale()
     local el = ourElement(UI, 10, 20)
     _G.getScriptManager = function()
-        return { FindItem = function() return { getNormalTexture = function() return "tex" end } end }
+        return { FindItem = function() return { getNormalTexture = function() return "tex" end, getIcon = function() return "Thing" end } end }
     end
     local Draw = OA.Trade.Draw
     local L = Draw.list(UI.palette("crude"))
