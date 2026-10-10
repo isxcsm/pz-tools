@@ -55,20 +55,47 @@ end
 function Trade.fireSealed(record, boxId, entries) fire(sealedHooks, record, boxId, entries) end
 function Trade.fireSettled(record, result) fire(settledHooks, record, result) end
 
--- Notes for the manifest: fn(record, receipt) returns a translation key and its arguments, or nil. The first that
--- answers writes the team's line (the story part puts its ordered lines in front of the general ones).
+-- Notes for the manifest: fn(record, draft) returns a translation key, its arguments and what the remark encloses
+-- ({ items = { { type, count } } }, or nil), or nil for no note. The first that answers writes the team's line (the
+-- story part puts its ordered lines in front of the general ones). `draft` is what the settlement knows of the crate
+-- by then: { kind, boxes, credits, trust, orders (the order results), cargo (the item specs so far), lines (the
+-- settled lines), serial (the number this manifest gets), lastSerial, events }.
 local noteProviders = {}
 
 function Trade.addNoteProvider(fn, first)
     if first then table.insert(noteProviders, 1, fn) else table.insert(noteProviders, fn) end
 end
 
-function Trade.noteFor(record, receipt)
+function Trade.noteFor(record, draft)
     for _, fn in ipairs(noteProviders) do
-        local ok, key, args = pcall(fn, record, receipt)
-        if ok and key then return key, args end
+        local ok, key, args, fx = pcall(fn, record, draft)
+        if ok and key then return key, args, fx end
     end
     return nil
+end
+
+-- Papers and the like for one crate: fn(record, draft) returns a list of item specs (as Trade.addToDrop takes them) to
+-- put in this crate, or nil. The story part sends its papers this way, one for each crate, when their time has come.
+local crateProviders = {}
+
+function Trade.addCrateProvider(fn)
+    table.insert(crateProviders, fn)
+end
+
+function Trade.crateExtras(record, draft)
+    local specs = {}
+    for _, fn in ipairs(crateProviders) do
+        local ok, list = pcall(fn, record, draft)
+        if ok and type(list) == "table" then
+            for _, item in ipairs(list) do
+                local spec = Trade.dropSpec(item)
+                if spec then specs[#specs + 1] = spec end
+            end
+        elseif not ok then
+            OA.log("crate provider failed:", tostring(list))
+        end
+    end
+    return specs
 end
 
 -- A drop item: a type name, or { type, count, mod = { key = value }, condition, used, fluid, amount, receipt }.

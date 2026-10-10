@@ -269,6 +269,69 @@ test("the note providers write the team's line", function()
     eq(plan.receipt.note.args[1], 1)
 end)
 
+test("the providers see the crate: the orders, the cargo so far, the number the manifest gets", function()
+    local record = newRecord(5000)
+    seal(record, 10, nil, true)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = { { id = "cheap", count = 2 } } }
+    local next = Ledger.nextSerial(record)
+    local seen
+    Trade.addNoteProvider(function(r, draft) seen = draft; return nil end)
+    Settle.run(record, services({ credits = 70, trust = 1, lines = { { name = "Base.Rag", count = 2, credits = 70 } } }))
+    eq(seen.boxes, 1)
+    eq(seen.serial, next)
+    eq(seen.lastSerial, 0)
+    eq(#seen.orders, 1)
+    eq(seen.orders[1].delivered, 2)
+    eq(seen.cargo[1].type, "Base.cheap")
+    eq(#seen.lines, 1)
+end)
+
+test("a remark that encloses things puts them in the crate, and the chance extra stays away", function()
+    local record = newRecord(0)
+    record.trade.stage = 2
+    seal(record, 10, nil, true)
+    Trade.addNoteProvider(function()
+        return "IGUI_OA_Story_Note_battery", { "0347" }, { items = { { type = "Base.Battery", count = 2 } } }
+    end)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    -- roll 1 would bring the chance extra, a pair of batteries in the pool's first place.
+    local plan = Settle.run(record, services({ roll = 1, credits = 70, trust = 1 }))
+    eq(#plan.cargo, 1, "the batteries of the remark alone")
+    eq(plan.cargo[1].type, "Base.Battery")
+    eq(plan.cargo[1].count, 2)
+    eq(plan.receipt.bonusNote, nil, "the same line is not on the paper twice")
+    eq(plan.receipt.note.key, "IGUI_OA_Story_Note_battery")
+end)
+
+test("a flight with nothing to carry has no remark, and the providers are not asked", function()
+    local record = newRecord(0)
+    Boxes.add(record, { x = 7, y = 0, z = 0 })
+    local asked = 0
+    Trade.addNoteProvider(function() asked = asked + 1; return "IGUI_OA_Story_Note_battery", {}, { items = { { type = "Base.Battery", count = 2 } } } end)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    local plan = Settle.run(record, services({ roll = 1 }))
+    eq(asked, 0)
+    eq(#plan.cargo, 0)
+    eq(plan.receipt.note, nil)
+end)
+
+test("the crate providers' papers go in the crate and are listed on the manifest", function()
+    local record = newRecord(0)
+    seal(record, 10, nil, true)
+    Trade.addCrateProvider(function(r, draft)
+        return { { type = "OperationAcorn.AnalysisReply", count = 1, mod = { OA_Doc = "reply_first" }, junk = 1 } }
+    end)
+    Trade.addCrateProvider(function() error("boom") end)
+    Trade.addCrateProvider(function() return nil end)
+    Trade.heli(record).call = { at = 90, arrive = 100, kind = "normal", orders = {} }
+    local plan = Settle.run(record, services({ credits = 70, trust = 1 }))
+    eq(#plan.cargo, 1)
+    eq(plan.cargo[1].type, "OperationAcorn.AnalysisReply")
+    eq(plan.cargo[1].mod.OA_Doc, "reply_first")
+    eq(plan.cargo[1].junk, nil, "an item spec keeps its known fields only")
+    eq(plan.receipt.gifts[1].type, "OperationAcorn.AnalysisReply")
+end)
+
 test("flight support requests are paid after the orders, from what is left", function()
     local record = newRecord(0)
     seal(record, 10, nil, true)
