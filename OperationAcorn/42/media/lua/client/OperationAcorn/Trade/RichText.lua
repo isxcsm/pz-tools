@@ -248,17 +248,12 @@ end
 
 -- The bar's thumb: its top and its height.
 function OARichText:thumb()
-    local h = self.height
-    local th = math.max(20, floor(h * h / self.contentH))
-    local max = self:maxScroll()
-    return max > 0 and floor((h - th) * self.scroll / max) or 0, th
+    return UI.thumb(self.height, self.contentH, self.scroll, self:maxScroll())
 end
 
 function OARichText:onMouseDown(x, y)
     if self:maxScroll() > 0 and x >= self:barX() - 1 then
-        local ty, th = self:thumb()
-        if y < ty or y >= ty + th then self:setScroll((y - th / 2) * self:maxScroll() / math.max(1, self.height - th)) end
-        self.dragging = true
+        UI.barPress(self, y)
         return true
     end
     if self.onmousedown then self.onmousedown(self.target) end
@@ -266,9 +261,7 @@ function OARichText:onMouseDown(x, y)
 end
 
 function OARichText:drag(dy)
-    if not self.dragging then return end
-    local _, th = self:thumb()
-    self:setScroll(self.scroll + dy * self:maxScroll() / math.max(1, self.height - th))
+    UI.barDrag(self, dy)
 end
 
 function OARichText:onMouseMove(dx, dy) self:drag(dy) end
@@ -319,9 +312,7 @@ function OARichText:drawBar()
     local c = self.palette and self.palette.border or BAR_GREY
     local bar = OARichText.BAR
     local ty, th = self:thumb()
-    local x = self:barX()
-    self:drawRect(x, 0, bar, self.height, 0.25, c[1], c[2], c[3])
-    self:drawRect(x, ty, bar, th, 0.95, c[1], c[2], c[3])
+    UI.drawBar(self, self:barX(), bar, self.height, ty, th, c)
 end
 
 UI.scaled(OARichText, ISPanel)

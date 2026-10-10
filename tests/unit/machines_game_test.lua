@@ -1548,3 +1548,74 @@ test("a machine's furniture piece is known by its sprite, the lure's tile is not
     eq(Machines.kindOfSprite(Machines.spriteName("lure", "S", true)), nil)
     eq(Machines.kindOfSprite("furniture_seating_01_0"), nil)
 end)
+
+test("a step that leaves an idle machine as it was sends nothing to the clients", function()
+    setup()
+    local obj, state, sq = addMachine("bulkShredder", 10, 10)
+    powered(sq)
+    local sent = 0
+    obj.transmitModData = function() sent = sent + 1 end
+    obj.transmitUpdatedSpriteToClients = function() end
+    local wasServer = isServer
+    isServer = function() return true end
+    -- idle, nothing to take: the first step settles the state (reason noInput), the later ones change nothing
+    TEST.hours = 1
+    Machines.update(obj)
+    local settled = sent
+    TEST.hours = 1 + 1 / 6
+    Machines.update(obj)
+    TEST.hours = 1 + 2 / 6
+    Machines.update(obj)
+    eq(sent, settled, "two idle steps: nothing sent")
+    -- no power: the same, after the step that says so
+    sq.power = false
+    TEST.hours = 2
+    Machines.update(obj)
+    local dark = sent
+    truthy(dark > settled, "the change to noPower is sent")
+    TEST.hours = 2 + 1 / 6
+    Machines.update(obj)
+    eq(sent, dark, "still no power: nothing sent")
+    -- work comes: sent at the start and while it runs
+    sq.power = true
+    fill(Machines.container(obj, "in"), "Base.Hammer", 3, {})
+    TEST.hours = 3
+    Machines.update(obj)
+    eq(state.idle, false, "started")
+    truthy(sent > dark, "the start is sent")
+    local running = sent
+    TEST.hours = 3 + 1 / 600
+    Machines.update(obj)
+    truthy(sent > running, "a working machine sends its clock")
+    isServer = wasServer
+end)
+
+test("an idle machine's step does not walk its in-container again while it holds the same", function()
+    setup()
+    local obj, state, sq = addMachine("bulkShredder", 10, 10)
+    powered(sq)
+    local inC = Machines.container(obj, "in")
+    -- a bag with nothing a shredder takes: a walk finds no work, every time
+    inC:AddItem(newItem("Base.CardboardBox", { bag = true }))
+    local reads = 0
+    local getItems = inC.getItems
+    inC.getItems = function(self)
+        local l = getItems(self)
+        local get = l.get
+        l.get = function(...) reads = reads + 1 return get(...) end
+        return l
+    end
+    TEST.hours = 1
+    Machines.update(obj)
+    local first = reads
+    truthy(first > 0, "the first step looks")
+    for i = 1, 5 do
+        TEST.hours = 1 + i / 6
+        Machines.update(obj)
+    end
+    eq(reads, first, "the same contents: no more walks")
+    fill(inC, "Base.Hammer", 1, {})
+    TEST.hours = 3
+    Machines.update(obj)
+    eq(state.idle, false, "something came in: found")
+end)

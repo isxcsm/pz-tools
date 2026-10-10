@@ -161,35 +161,9 @@ end
 
 -- A word wrap: `text` cut into lines no wider than `width` by `measure(string)`, at spaces (a word wider than a line
 -- is cut between letters). At most `maxLines` lines when given: the last one ends in "..." if text was left.
+local WORDS = { breakWords = true }
 function ShopView.wrap(text, width, measure, maxLines)
-    local lines, line = {}, ""
-    local function push()
-        if line ~= "" then lines[#lines + 1] = line end
-        line = ""
-    end
-    for word in string.gmatch(text or "", "%S+") do
-        local try = (line == "") and word or (line .. " " .. word)
-        if measure(try) <= width then
-            line = try
-        else
-            push()
-            while #word > 1 and measure(word) > width do
-                local k = #word - 1
-                while k > 1 and measure(string.sub(word, 1, k)) > width do k = k - 1 end
-                lines[#lines + 1] = string.sub(word, 1, k)
-                word = string.sub(word, k + 1)
-            end
-            line = word
-        end
-    end
-    push()
-    if maxLines and #lines > maxLines then
-        while #lines > maxLines do table.remove(lines) end
-        local last = lines[#lines]
-        while #last > 1 and measure(last .. "...") > width do last = string.sub(last, 1, #last - 1) end
-        lines[#lines] = last .. "..."
-    end
-    return lines
+    return OA.wrap(text, width, measure, maxLines and { breakWords = true, maxLines = maxLines } or WORDS)
 end
 
 -- The rows of the card list from blocks { { head, note, entries = { card ... } } } (a block without a head has none):

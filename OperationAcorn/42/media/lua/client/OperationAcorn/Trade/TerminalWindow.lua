@@ -90,7 +90,7 @@ function OATerminalTabs:prerender()
     if p.tabStrip then UI.fill(self, 0, 0, self.width, h, p.tabStrip) end
     local fh = UI.fontHeight()
     local x = 8
-    self.slots = {}
+    local slots, n = self.slots, 0
     local pulse = math.sin(getTimestampMs() / 220)
     local mx = self:isMouseOver() and self:getMouseX() or -1
     for _, id in ipairs(Terminal.ORDER) do
@@ -131,9 +131,16 @@ function OATerminalTabs:prerender()
             if mark == "new" then a = 0.55 + 0.45 * pulse end
             UI.fill(self, x + tw - 8, 7, 4, 4, mark == "bad" and p.bad or p.warn, a)
         end
-        self.slots[#self.slots + 1] = { id = id, x = x, w = tw }
+        n = n + 1
+        local slot = slots[n]
+        if not slot then
+            slot = {}
+            slots[n] = slot
+        end
+        slot.id, slot.x, slot.w = id, x, tw
         x = x + tw + 3
     end
+    for i = #slots, n + 1, -1 do slots[i] = nil end
     UI.fill(self, 0, h - 1, self.width, 1, p.border)
 end
 

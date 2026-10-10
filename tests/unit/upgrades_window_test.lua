@@ -208,9 +208,10 @@ local function shown(view)
     view.isVisible = on
     local body = { view = view, isVisible = on, parent = view }
     local flow = { view = view, isVisible = on, parent = view }
-    view.body, view.flow = body, flow
+    local pulse = { view = view, isVisible = on, parent = view, pulses = true }
+    view.body, view.flow, view.pulse = body, flow, pulse
     getTimestampMs = function() return clock.now end
-    return body, flow
+    return body, flow, pulse
 end
 
 -- A tab on a section of the upgrades, its refresh done here (no player): the selection simulated, the states worked
@@ -333,39 +334,94 @@ test("a click's answer is followed each frame and let go once over", function()
     eq(view.fx, nil, "and dropped before the frame drawn without it")
 end)
 
-test("the pulses, dashes and lights keep only the flow followed: the body is let go and kept as drawn", function()
+test("the pulses, dashes and lights keep only their panels followed: the body is let go and kept as drawn", function()
     local UI = OA.Trade.UI
     local view = onSection(scoutSection())
-    local body, flow = shown(view)
+    local body, flow, pulse = shown(view)
     eq(view.flowing, true, "a node can be taken")
     truthy(#view.pulsing > 0, "the nodes that pulse, listed")
+    eq(view.pulsingOn, true)
+    eq(view.lighting, false, "no line is lit or selected yet")
+    View.animate(view)
+    UI.liveFrame()
+    local first = pulse.liveLook
+    truthy(first ~= nil, "the pulse panel is followed")
+    eq(flow.liveLook, nil, "the lights have nothing to show: not followed")
+    eq(body.liveLook, nil, "the body: nothing of its own moves")
+    eq(body.liveCount, nil, "and nothing written to it")
+    -- the pulse moves on a step at a time: fewer changes than frames, and each step of the cycle gets its turn
+    local looks, changes, last = {}, 0, first
+    for _ = 1, 200 do
+        clock.now = clock.now + 16
+        UI.liveFrame()
+        if pulse.liveLook ~= last then changes = changes + 1 end
+        last = pulse.liveLook
+        looks[pulse.liveLook] = true
+    end
+    truthy(changes > 40 and changes < 150, "drawn on a step, not each frame: " .. changes .. " of 200")
+    eq(body.liveCount, nil, "the body still untouched: a sibling, not the panel's parent")
+    truthy(view.liveCount ~= nil, "the tab marked (its own drawing is light)")
+    -- a take: the pulses hold still (the take draws its own lights)
+    view.take = { order = {}, start = clock.now, ends = 1000 }
+    clock.now = clock.now + 16
+    UI.liveFrame()
+    eq(pulse.liveLook, -1)
+    view.take = nil
+    -- nothing left that pulses: the panel let go too
+    view.pulsingOn = false
+    UI.liveFrame()
+    eq(pulse.liveLook, nil, "nothing pulses: let go")
+    view.pulsingOn = true
+    View.animate(view)
+    pulse.isVisible = function() return false end
+    UI.liveFrame()
+    eq(pulse.liveLook, nil, "hidden: let go")
+    local closed = onSection(OA.Upgrades.Rules.blank())
+    eq(closed.flowing, false, "no tree open: nothing moves by itself")
+end)
+
+test("a lit line's light is followed each frame by the flow, and the take holds it still", function()
+    local UI = OA.Trade.UI
+    local u = scoutSection()
+    for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    local view = onSection(u)
+    local body, flow = shown(view)
+    eq(view.lighting, true, "sixth at its second rank lights its line")
     View.animate(view)
     UI.liveFrame()
     local first = flow.liveLook
-    eq(body.liveLook, nil, "the body: nothing of its own moves")
-    eq(body.liveCount, nil, "and nothing written to it")
     clock.now = clock.now + 16
     UI.liveFrame()
     truthy(flow.liveLook ~= first and flow.liveLook ~= nil, "the flow moves each frame")
-    eq(body.liveCount, nil, "the body still untouched: a sibling, not the flow's parent")
-    truthy(view.liveCount ~= nil, "the tab marked (its own drawing is light)")
-    -- a take: the flow holds still (the take draws its own lights)
     view.take = { order = {}, start = clock.now, ends = 1000 }
     clock.now = clock.now + 16
     UI.liveFrame()
     eq(flow.liveLook, -1)
     view.take = nil
-    -- the selection taken back and nothing left that moves: the flow let go too
-    view.flowing = false
+    view.lighting = false
     UI.liveFrame()
     eq(flow.liveLook, nil, "nothing flows: let go")
-    view.flowing = true
-    View.animate(view)
-    flow.isVisible = function() return false end
-    UI.liveFrame()
-    eq(flow.liveLook, nil, "hidden: let go")
-    local closed = onSection(OA.Upgrades.Rules.blank())
-    eq(closed.flowing, false, "no tree open: nothing moves by itself")
+end)
+
+test("an idle comet or a node held back costs no drawing; a pulse is drawn on its steps", function()
+    local view = onSection(scoutSection())
+    shown(view)
+    local drawn = 0
+    local el = setmetatable({}, { __index = function() return function() return 0 end end })
+    ISUIElement = { drawRect = function() drawn = drawn + 1 end, drawTextureScaled = function() drawn = drawn + 1 end }
+    View.paintFlow(view, el)
+    eq(drawn, 0, "nothing lit or selected: the lights panel draws nothing")
+    view.pulseLevel = nil
+    View.paintPulses(view, el)
+    truthy(drawn > 0, "the nodes that can be taken pulse")
+    local atLevel = drawn
+    drawn = 0
+    view.pulseLevel = 0
+    View.paintPulses(view, el)
+    eq(drawn, 0, "at the low point the pulse adds nothing to the body's frames")
+    view.pulseLevel = OA.Upgrades.Window.PULSE_LEVELS
+    View.paintPulses(view, el)
+    eq(drawn, atLevel, "the same nodes at the top")
 end)
 
 test("the flow is made with the body, after it, as its sibling in the tab", function()
@@ -386,9 +442,10 @@ test("the flow is made with the body, after it, as its sibling in the tab", func
     end
     View.makeBody(view)
     View.makeBody(view)
-    eq(#children, 2, "made again for a new scale: the old two gone")
+    eq(#children, 3, "made again for a new scale: the old three gone")
     eq(children[1], view.body)
     eq(children[2], view.flow, "the flow after the body: drawn over it")
+    eq(children[3], view.pulse, "the pulse panel last")
     eq(view.flow.parent, view, "a sibling of the body")
     eq(view.flow.width, view.body.width)
     eq(view.flow.height, view.body.height)
@@ -605,6 +662,7 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
             OA.Trade.UI.liveFrame()
             View.paint(view, el)
             View.paintFlow(view, el)
+            View.paintPulses(view, el)
         end
     end
     frames(30)

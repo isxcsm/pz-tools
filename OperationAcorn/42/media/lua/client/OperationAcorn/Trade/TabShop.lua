@@ -59,10 +59,7 @@ end
 
 -- The thumb of the bar: its top and its height.
 function OAShopScroll:thumb()
-    local h = self.height
-    local th = math.max(20, math.floor(h * h / self.full))
-    local max = self:maxScroll()
-    return max > 0 and math.floor((h - th) * self.scroll / max) or 0, th
+    return UI.thumb(self.height, self.full, self.scroll, self:maxScroll())
 end
 
 function OAShopScroll:prerender()
@@ -84,8 +81,7 @@ function OAShopScroll:prerender()
     if self.full > self.height then
         local bar = OAShopScroll.BAR
         local ty, th = self:thumb()
-        UI.fill(self, self.width - bar, 0, bar, self.height, p.border, 0.25)
-        UI.fill(self, self.width - bar, ty, bar, th, p.border, 0.95)
+        UI.drawBar(self, self.width - bar, bar, self.height, ty, th, p.border)
     end
 end
 
@@ -98,12 +94,7 @@ end
 
 function OAShopScroll:onMouseDown(x, y)
     if self:maxScroll() > 0 and x >= self.width - OAShopScroll.BAR - 2 then
-        local ty, th = self:thumb()
-        if y < ty or y >= ty + th then
-            -- a click on the track: the thumb goes there
-            self:setScroll((y - th / 2) * self:maxScroll() / math.max(1, self.height - th))
-        end
-        self.dragging = true
+        UI.barPress(self, y)   -- (a click on the track: the thumb goes there)
         return true
     end
     local row = self:rowAt(y + self.scroll)
@@ -116,9 +107,7 @@ function OAShopScroll:onMouseDown(x, y)
 end
 
 function OAShopScroll:drag(dy)
-    if not self.dragging then return end
-    local _, th = self:thumb()
-    self:setScroll(self.scroll + dy * self:maxScroll() / math.max(1, self.height - th))
+    UI.barDrag(self, dy)
 end
 
 function OAShopScroll:onMouseMove(dx, dy) self:drag(dy) end

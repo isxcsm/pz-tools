@@ -35,7 +35,8 @@
 -- while they play (Trade/UI live, View.tick: one frame function for all of them), so that PZ Optimization's retained
 -- UI draws them at once; then the body is let go and its drawing kept. What moves all the time (the pulse, the
 -- dashes, the lines' lights) is drawn by the flow, a thin panel over the body (OAResearchFlow), which alone is drawn
--- afresh each frame.
+-- afresh each frame; the nodes' pulse by a second such panel over it, drawn afresh only when the pulse has moved on a
+-- step (PULSE_LEVELS from its low to its top) or a node held back starts to pulse.
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISPanel"
 require "ISUI/ISModalDialog" -- oa-widget: ok (the gamepad's confirm, View:ask)
@@ -71,6 +72,9 @@ local NOTE = { 0.85, 0.78, 0.55 }          -- the research team's line
 local API = { 1.0, 0.6, 0.3 }              -- a node that needs the extension API
 local WHITE = { 1, 1, 1 }
 local DARK = { 0.03, 0.03, 0.03 }
+local BLACK = { 0, 0, 0 }
+local CLOSED_TEXT = { 1, 0.9, 0.5 }          -- why a tree is closed
+local PLUS_TEXT = { 0.04, 0.10, 0.12 }       -- the +n of selected ranks
 -- Each tree's colour (its icons' plate colour, a little lifted) and its light tint for texts; the strip is the colour
 -- mixed into the body, and the column under it the same colour more faintly (the trees told apart at a glance, as the
 -- old tab's tinted columns did, without their muddy brown).
@@ -107,6 +111,8 @@ Window.LAYOUT = L
 -- The pulse of a node that can be taken (seconds a cycle), and the selected path's dashes: dash, gap (design units)
 -- and how fast they flow (design units a second).
 Window.PULSE_S = 1.6
+-- The steps the pulse is drawn in, from its low point to its top (a step of the frame's strength is 1/24 of its range).
+Window.PULSE_LEVELS = 24
 Window.DASH, Window.DASH_GAP, Window.FLOW = 6, 4, 20
 -- The points a tree's bar counts (every rank of the tree), and where its rows open on it.
 local TREE_POINTS = {}
@@ -136,13 +142,19 @@ local NOW, CLOCK = 0, 0
 local OPEN_AGE = nil
 local RISE, SHOWN = { 0, 0, 0 }, { 1, 1, 1 }
 
+-- Under this a colour changes no pixel (half a step of the 8 bits a pixel has): it is not drawn.
+local INVISIBLE = 0.002
+-- A soft light is at its strongest in its middle and fades out to its edge: under this much (3 steps of 255) at its
+-- middle, a few pixels across, it is not seen either.
+local GLOW_INVISIBLE = 0.012
+
 local function rectPx(el, x, y, w, h, c, a)
-    if w <= 0 or h <= 0 then return end
+    if w <= 0 or h <= 0 or (a and a < INVISIBLE) then return end
     ISUIElement.drawRect(el, x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
 local function texPx(el, tex, x, y, w, h, c, a)
-    if not tex then return end
+    if not tex or (a and a < INVISIBLE) then return end
     c = c or WHITE
     ISUIElement.drawTextureScaled(el, tex, x, y, w, h, a or 1, c[1], c[2], c[3])
 end
@@ -309,9 +321,10 @@ UI.scaled(OAResearchBody, ISPanel)
 -- gets them.
 OAResearchFlow = ISPanel:derive("OAResearchFlow")
 
-function OAResearchFlow:new(view)
+function OAResearchFlow:new(view, pulses)
     local o = ISPanel.new(self, 0, 0, L.VIEW_W, L.VIEW_H)
     o.view = view
+    o.pulses = pulses or false     -- the one that draws the nodes' pulse (View:paintPulses), not the lights
     o.background = false
     return o
 end
@@ -333,8 +346,13 @@ end
 function OAResearchFlow:prerender()
     local view = self.view
     -- shown again some way that did not register it (its window shown as a whole): followed from now on
-    if view.flowing and self.liveLook == nil then UI.live(self, View.flowTick) end
-    view:paintFlow(self)
+    if self.pulses then
+        if view.pulsingOn and self.liveLook == nil then UI.live(self, View.pulseTick) end
+        view:paintPulses(self)
+    else
+        if view.lighting and self.liveLook == nil then UI.live(self, View.flowTick) end
+        view:paintFlow(self)
+    end
 end
 
 UI.scaled(OAResearchFlow, ISPanel)
@@ -476,6 +494,10 @@ function View:makeBody()
         self:removeChild(self.flow)
         self.flow = nil
     end
+    if self.pulse then
+        self:removeChild(self.pulse)
+        self.pulse = nil
+    end
     if self.tip then
         self:hideTip()
         self.tip = nil
@@ -491,6 +513,11 @@ function View:makeBody()
     flow:instantiate()
     self:addChild(flow)
     self.flow = flow
+    local pulse = OAResearchFlow:new(self, true)
+    pulse:initialise()
+    pulse:instantiate()
+    self:addChild(pulse)
+    self.pulse = pulse
     self:layout()
     -- (the new layout's lines and lists of what moves, at once)
     if self.sim then self:workOut() end
@@ -605,7 +632,7 @@ function View:boardTabText()
     local sim = self.sim
     if sim and Rules.boardOpen(sim) then return Texts.treeName(Data.BOARD), false end
     local n = sim and Rules.capstones(sim) or 0
-    return getText("IGUI_OA_Tree_BoardClosedTab", n, #Data.TREES), true
+    return UI.str("IGUI_OA_Tree_BoardClosedTab", n, #Data.TREES), true
 end
 
 function View:boardTabWidth()
@@ -732,7 +759,9 @@ function View:workOut()
         end
     end
     self.pulsing, self.planLines, self.litLines = pulsing, planLines, litLines
-    self.flowing = #pulsing > 0 or #planLines > 0 or #litLines > 0
+    self.pulsingOn = #pulsing > 0
+    self.lighting = #planLines > 0 or #litLines > 0
+    self.flowing = self.pulsingOn or self.lighting
 end
 
 -- The state of each node on the screen on a simulation, with `counts` ranks of each selected and `fragments` at hand.
@@ -1245,14 +1274,16 @@ local function chip(el, right, y, h, icon, key, value)
     return x
 end
 
+local MODE_KEYS = { "mode:trees", "mode:board" }
+
 function View:paintTop(el)
     local hoverKey = self.hover
-    for _, key in ipairs({ "mode:trees", "mode:board" }) do
+    for _, key in ipairs(MODE_KEYS) do
         local item = self.byKey[key]
         local on = self.mode == item.mode
         local style = on and "strong" or "normal"
         if key == "mode:trees" then
-            button(el, item, getText("IGUI_OA_Tree_ModeTrees"), style, hoverKey == key)
+            button(el, item, UI.str("IGUI_OA_Tree_ModeTrees"), style, hoverKey == key)
         else
             local text, closed = self:boardTabText()
             button(el, item, nil, style, hoverKey == key)
@@ -1314,7 +1345,7 @@ function View:paintStrip(el, panel, i)
     if self.mode ~= "trees" then
         local cap = Data.capstone(tree)
         local done = cap and Rules.rank(self.sim, cap.id) >= 1
-        local sub = done and getText("IGUI_OA_Tree_CapstoneDone", Texts.nodeName(cap.id)) or "???"
+        local sub = done and UI.str("IGUI_OA_Tree_CapstoneDone", Texts.nodeName(cap.id)) or "???"
         UI.text(el, sub, x + 10, y + 26, done and P.text or P.dim, nil, 0.9)
         return
     end
@@ -1337,11 +1368,11 @@ function View:paintStrip(el, panel, i)
     end
     -- the points left, and what is kept for the 2nd board at the right
     local usable, surplus = Rules.ownSplit(self.sim, tree)
-    local left = getText("IGUI_OA_Tree_OwnLeft", usable)
+    local left = UI.str("IGUI_OA_Tree_OwnLeft", usable)
     UI.text(el, left, x + 10, y + 27 - hop, usable > 0 and P.value or P.dim)
     if lit > 0 then UI.text(el, left, x + 10, y + 27 - hop, WHITE, nil, 0.8 * lit) end
     if surplus > 0 then
-        UI.textRight(el, getText("IGUI_OA_Tree_BoardShare", surplus), x + L.COL_W - 10, y + 27, P.dim)
+        UI.textRight(el, UI.str("IGUI_OA_Tree_BoardShare", surplus), x + L.COL_W - 10, y + 27, P.dim)
     end
     local bh = 7
     local bx, by, bw = x + 10, y + L.STRIP - bh - 6, L.COL_W - 20
@@ -1454,7 +1485,7 @@ end
 
 -- The glow centred on design point x, y, `px` pixels across, tinted.
 local function glowAt(el, tex, x, y, px, c, a)
-    if a <= 0 then return end
+    if a < GLOW_INVISIBLE then return end
     px = math.max(2, floor(px + 0.5))
     texPx(el, tex, X(x) - floor(px / 2), X(y) - floor(px / 2), px, px, c, math.min(1, a))
 end
@@ -1478,7 +1509,7 @@ end
 
 -- The pieces of a line between `s0` and `s1` (design units along it, clipped to it), lw pixels wide.
 local function lineSpan(el, line, s0, s1, dy, lw, c, a)
-    if a <= 0 then return end
+    if a < INVISIBLE then return end
     local pts = line.points
     local dist = 0
     for i = 1, #pts - 1 do
@@ -1575,7 +1606,7 @@ local function plusChip(el, x, y, n)
     local w = UI.textWidth(s) + 8
     local cx, cy = x - w + 5, y - 7
     UI.fill(el, cx, cy, w, fh, CYAN)
-    UI.textCentre(el, s, cx + w / 2, cy, { 0.04, 0.10, 0.12 })
+    UI.textCentre(el, s, cx + w / 2, cy, PLUS_TEXT)
 end
 
 -- One node: its icon (grey while it cannot be taken) with no well around it, a frame for its state, its ranks as pips
@@ -1751,18 +1782,23 @@ function View:paintPlanBar(el)
     local fh = UI.fontHeight()
     local ty = y + (h - fh) / 2
     if has then
-        local parts = {}
-        for _, tree in ipairs(Data.TREES) do
-            local n = self.spentPlan[tree] or 0
-            if n > 0 then
-                parts[#parts + 1] = { getText("IGUI_OA_Tree_PlanPart", getText("IGUI_OA_Tree_Short_" .. tree), n), TREE[tree].light }
+        -- what the selection spends, as text parts: made again only when the selection's spending is
+        local parts = self.planParts
+        if self.planPartsFor ~= self.spentPlan then
+            parts = {}
+            for _, tree in ipairs(Data.TREES) do
+                local n = self.spentPlan[tree] or 0
+                if n > 0 then
+                    parts[#parts + 1] = { getText("IGUI_OA_Tree_PlanPart", getText("IGUI_OA_Tree_Short_" .. tree), n), TREE[tree].light }
+                end
             end
-        end
-        if (self.spentPlan.board or 0) > 0 then
-            parts[#parts + 1] = { getText("IGUI_OA_Tree_PlanPart", Texts.treeName(Data.BOARD), self.spentPlan.board), GOLD }
+            if (self.spentPlan.board or 0) > 0 then
+                parts[#parts + 1] = { getText("IGUI_OA_Tree_PlanPart", Texts.treeName(Data.BOARD), self.spentPlan.board), GOLD }
+            end
+            self.planParts, self.planPartsFor = parts, self.spentPlan
         end
         local pre, post = around("IGUI_OA_Tree_PlanUses")
-        local sep = getText("IGUI_OA_Tree_Sep")
+        local sep = UI.str("IGUI_OA_Tree_Sep")
         local tx = x + 14
         UI.text(el, pre, tx, ty, P.text)
         tx = tx + UI.textWidth(pre)
@@ -1776,32 +1812,34 @@ function View:paintPlanBar(el)
         end
         UI.text(el, post, tx, ty, P.text)
     else
-        local hint = getText(self.joypad and "IGUI_OA_Tree_PadHint" or "IGUI_OA_Tree_Hint")
+        local hint = UI.str(self.joypad and "IGUI_OA_Tree_PadHint" or "IGUI_OA_Tree_Hint")
         local room = self.byKey.clear.x - x - 24
-        UI.text(el, UI.fit(hint, room), x + 14, ty, P.dim)
+        UI.text(el, UI.fitMemo(hint, room), x + 14, ty, P.dim)
     end
     local clear, approve = self.byKey.clear, self.byKey.approve
-    button(el, clear, getText("IGUI_OA_Tree_ClearPlan"), has and "normal" or "off", has and self.hover == "clear")
-    button(el, approve, getText("IGUI_OA_Tree_Approve"), has and "strong" or "off", has and self.hover == "approve")
+    button(el, clear, UI.str("IGUI_OA_Tree_ClearPlan"), has and "normal" or "off", has and self.hover == "clear")
+    button(el, approve, UI.str("IGUI_OA_Tree_Approve"), has and "strong" or "off", has and self.hover == "approve")
 end
 
 -- The 2nd board while closed: what opens it, the three capstones with the approved ones lit.
+local BANNER_BG = { 0.02, 0.02, 0.02 }
+
 function View:paintBoardBanner(el)
     local bw, bh = 520, 92
     local bx, by = (L.VIEW_W - bw) / 2, L.COL_Y + L.STRIP + L.GRID_H - bh - 16   -- low in the columns, inside them
-    UI.fill(el, bx, by, bw, bh, { 0.02, 0.02, 0.02 }, 0.92)
+    UI.fill(el, bx, by, bw, bh, BANNER_BG, 0.92)
     UI.frame(el, bx, by, bw, bh, P.border)
     UI.lock(el, bx + 16, by + 16, P.value)
     UI.text(el, "???", bx + 40, by + 10, P.value, UIFont.Medium)
-    local text = getText("IGUI_OA_Tree_BoardHidden", Rules.capstones(self.sim), #Data.TREES)
-    UI.text(el, UI.fit(text, bw - 56), bx + 40, by + 36, P.text)
+    local text = UI.str("IGUI_OA_Tree_BoardHidden", Rules.capstones(self.sim), #Data.TREES)
+    UI.text(el, UI.fitMemo(text, bw - 56), bx + 40, by + 36, P.text)
     local segW = (bw - 56 - 16) / 3
     for i, tree in ipairs(Data.TREES) do
         local cap = Data.capstone(tree)
         local lit = Rules.rank(self.sim, cap.id) >= 1
         local sx = bx + 40 + (i - 1) * (segW + 8)
         UI.fill(el, sx, by + 60, segW, 6, lit and TREE[tree].c or P.border, lit and 1 or 0.35)
-        UI.text(el, UI.fit(Texts.nodeName(cap.id), segW), sx, by + 68, lit and TREE[tree].light or P.dim)
+        UI.text(el, UI.fitMemo(Texts.nodeName(cap.id), segW), sx, by + 68, lit and TREE[tree].light or P.dim)
     end
 end
 
@@ -1886,7 +1924,7 @@ function View:paint(el)
     S = UI.S
     UI.fill(el, 0, 0, L.VIEW_W, L.VIEW_H, P.bg)           -- opaque: nothing behind shows through
     if not self.sim then
-        UI.textCentre(el, getText("IGUI_OA_Tree_NoRecord"), L.VIEW_W / 2, L.VIEW_H / 2, P.text)
+        UI.textCentre(el, UI.str("IGUI_OA_Tree_NoRecord"), L.VIEW_W / 2, L.VIEW_H / 2, P.text)
         return
     end
     -- the clock for the motions (kept here, not on the tab: a write to the tab each frame would have PZ Optimization
@@ -1908,11 +1946,11 @@ function View:paint(el)
         local dy = RISE[p]
         -- a tree not opened yet: dark, with why
         if self.mode == "trees" and not Rules.treeOpen(self.u, panel.tree) then
-            UI.fill(el, panel.gx, panel.gy + dy, L.COL_W, L.GRID_H, { 0, 0, 0 }, 0.6)
-            local lines = UI.wrap(getText("IGUI_OA_Tree_TreeClosed"), L.COL_W - 2 * L.GRID_PAD)
+            UI.fill(el, panel.gx, panel.gy + dy, L.COL_W, L.GRID_H, BLACK, 0.6)
+            local lines = UI.wrapMemo(UI.str("IGUI_OA_Tree_TreeClosed"), L.COL_W - 2 * L.GRID_PAD)
             local ty = panel.gy + dy + (L.GRID_H - #lines * fh) / 2
             for i, line in ipairs(lines) do
-                UI.textCentre(el, line, panel.gx + L.COL_W / 2, ty + (i - 1) * fh, { 1, 0.9, 0.5 })
+                UI.textCentre(el, line, panel.gx + L.COL_W / 2, ty + (i - 1) * fh, CLOSED_TEXT)
             end
         end
         UI.frame(el, panel.x, panel.y + dy, L.COL_W, L.STRIP + L.GRID_H, P.border)
@@ -1942,7 +1980,8 @@ end
 -- started.
 function View:animate()
     if self.body then UI.live(self.body, View.tick) end
-    if self.flow and self.flowing then UI.live(self.flow, View.flowTick) end
+    if self.flow and self.lighting then UI.live(self.flow, View.flowTick) end
+    if self.pulse and self.pulsingOn then UI.live(self.pulse, View.pulseTick) end
 end
 
 -- A node's answer to a click (Motion): "pop" (a rank raised), "shrink" (one taken back) or "shake" (refused).
@@ -2044,9 +2083,35 @@ end
 -- registers it).
 function View.flowTick(flow, now)
     local view = flow.view
-    if view.flow ~= flow or not view.flowing then return nil end
+    if view.flow ~= flow or not view.lighting then return nil end
     if view.take then return -1 end
     return now - view.t0
+end
+
+-- Each frame for the pulse panel (Trade/UI live): a number that changes exactly when its drawing does. The pulse is
+-- drawn in PULSE_LEVELS steps, so it moves on a step at a time, not on each frame (what is between steps
+-- is replayed, not drawn); with it, which nodes wait (a click's answer, a padlock, the opening) and the light of the
+-- node under the mouse. In the opening, where the columns rise, each frame. -1 while a take plays, nil when no node
+-- pulses (let go; workOut's next change registers it).
+function View.pulseTick(panel, now)
+    local view = panel.view
+    if view.pulse ~= panel or not view.pulsingOn then return nil end
+    if view.take then return -1 end
+    local level = floor(pulse((now - view.t0) / 1000) * Window.PULSE_LEVELS + 0.5)
+    view.pulseLevel = level
+    view:frameState(now)
+    if OPEN_AGE then return now - view.t0 end
+    -- (the nodes held back, told apart by their numbers in the list)
+    local held = 0
+    local items = view.pulsing
+    for i = 1, #items do
+        if view:pulseHeld(items[i], now) then held = remainder(held * 31 + i, 1000003) end
+    end
+    local focus = view.hover or (view.joypad and view.cursor)
+    local light = 0
+    local item = focus and view.byKey[focus]
+    if item and item.id then light = floor(UI.placeLevels(view.body, item.id) * 32 + 0.5) end
+    return (held * 64 + light) * 64 + level
 end
 
 -- Whether a node's pulse waits: a click's answer moves the node (the body draws its frame then), its padlock has not
@@ -2064,12 +2129,11 @@ function View:pulseHeld(item, now)
     return false
 end
 
--- The flow's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's low
--- point), the cyan dashes of the lines only the selection meets, the lights running down the lit lines. It walks only
--- the lists workOut made and makes nothing. Nothing while a take plays; in the opening the dashes draw themselves
--- down with the lines, the pulses wait for their nodes, and the lights wait for the end.
+-- The flow's frame: the cyan dashes of the lines only the selection meets, the lights running down the lit lines. It
+-- walks only the lists workOut made and makes nothing. Nothing while a take plays; in the opening the dashes draw
+-- themselves down with the lines, and the lights wait for the end.
 function View:paintFlow(el)
-    if not self.sim or self.take or not self.flowing then return end
+    if not self.sim or self.take or not self.lighting then return end
     S = UI.S
     local now = getTimestampMs()
     NOW, CLOCK = now, now - self.t0
@@ -2082,7 +2146,19 @@ function View:paintFlow(el)
     if not OPEN_AGE then
         for _, line in ipairs(self.litLines) do drawComet(el, line, RISE[line.col], 1) end
     end
-    local p = pulse(t)
+end
+
+-- The pulse panel's frame: the pulse of the nodes that can be taken (the body has drawn their frames at the pulse's
+-- low point), at the step View.pulseTick found; the light frame of the node under the mouse stays over the halo, as
+-- the body drew it. In the opening the pulses wait for their nodes.
+function View:paintPulses(el)
+    if not self.sim or self.take or not self.pulsingOn then return end
+    S = UI.S
+    local now = getTimestampMs()
+    NOW, CLOCK = now, now - self.t0
+    self:frameState(now)
+    local steps = Window.PULSE_LEVELS
+    local p = (self.pulseLevel or floor(pulse(CLOCK / 1000) * steps + 0.5)) / steps
     local th = thick()
     local halo = 2 + th / S + 1
     local focus = self.hover or (self.joypad and self.cursor)
@@ -2092,7 +2168,6 @@ function View:paintFlow(el)
             local x, y, s = item.x, item.y + RISE[item.col], item.w
             framePx(el, x, y, s, s, tc, p, th, 2)
             framePx(el, x, y, s, s, tc, PULSE_HALO * p, th, halo)
-            -- the light frame of the node under the mouse stays over the halo, as the body drew it
             if item.key == focus then
                 local k = UI.placeLevels(self.body, item.id)
                 if k > 0 then framePx(el, x, y, s, s, WHITE, k, 1, halo) end

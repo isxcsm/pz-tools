@@ -81,12 +81,7 @@ Plan.TAKE_SPEED, Plan.TAKE_TAIL = 520, 34
 Plan.TAKE_HEADER_MS = 420
 Plan.TAKE_WAVE_WAIT_MS, Plan.TAKE_WAVE_MS = 280, 460
 
-local function easeOut(u)
-    if u <= 0 then return 0 end
-    if u >= 1 then return 1 end
-    local v = 1 - u
-    return 1 - v * v * v
-end
+local easeOut = OperationAcorn.easeOut
 
 -- The nodes the scan takes: the selection's, in its order, each once. `shown` (id -> true) keeps the ones on the
 -- screen.

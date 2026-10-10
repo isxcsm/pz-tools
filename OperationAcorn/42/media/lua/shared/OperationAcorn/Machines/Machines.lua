@@ -506,6 +506,7 @@ end
 Machines.collect = collect
 
 local function takeOut(entry)
+    entry.taken = true
     entry.container:Remove(entry.item)
     sendRemoveItemFromContainer(entry.container, entry.item)
 end
@@ -524,7 +525,7 @@ end
 
 -- Whether an item is still in the container it was collected from.
 local function present(entry)
-    return entry.container:contains(entry.item)
+    return not entry.taken and entry.container:contains(entry.item)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------------
@@ -684,11 +685,37 @@ end
 -- ---------------------------------------------------------------------------------------------------------------------
 -- The jobs of each kind, for Logic.advance
 
--- The things a machine works on, in the order of its container; one taken out (done, or by a player) is skipped.
-local function newQueue(container, accept, limit)
-    local queue = { list = collect(container, accept, limit) }
+-- What a machine found to take from a container at its last step: container -> { key, limit, list } (weak: a
+-- container that is gone drops out). A step finds the same things again, without a walk, while the container's
+-- signature (OA.signature: how many items, what they weigh) is the same and the things are all still in it; a refiner's
+-- key also changes every ten game minutes (food rots into fit to take with time). A job done drops it (the walk is
+-- done again with what is left).
+local queueMemo = setmetatable({}, { __mode = "k" })
+
+-- The things a machine works on, in the order of its container; one taken out (done, or by a player) is skipped. The
+-- container is not walked until the first thing is asked for.
+local function newQueue(container, accept, limit, timed)
+    local queue = {}
+    local function load(force)
+        local key = OA.signature(container)
+        if timed then key = key .. "|" .. math.floor(OA.hours() * 6) end
+        local hit = not force and queueMemo[container]
+        if hit and hit.key == key and hit.limit == limit then
+            local all = true
+            for _, entry in ipairs(hit.list) do
+                if not present(entry) then all = false break end
+            end
+            if all then queue.list = hit.list return end
+        end
+        -- oa-scan: ok (once for a signature, and for a refiner not before ten game minutes pass)
+        queue.list = collect(container, accept, limit)
+        queueMemo[container] = { key = key, limit = limit, list = queue.list }
+    end
+    -- the container walked again (a step that goes on after a batch)
+    function queue.reload() load(true) end
     -- the n-th thing still there (1 when not given)
     function queue.peek(n)
+        if not queue.list then load(false) end
         n = n or 1
         for _, entry in ipairs(queue.list) do
             if present(entry) then
@@ -772,9 +799,8 @@ local function makeIO(object, state, record)
     local queue
 
     if kind == "bulkShredder" then
-        local function reset() queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + 5) end
-        reset()
-        io.reset = reset
+        queue = newQueue(inC, ACCEPT.bulkShredder, Data.BATCH + 5)
+        io.reset = queue.reload
         io.next = function(fx, lane)
             if not record then return nil, "noOwner" end
             local entry = queue.peek(lane)
@@ -789,9 +815,8 @@ local function makeIO(object, state, record)
         end
 
     elseif kind == "cutter" then
-        local function reset() queue = newQueue(inC, ACCEPT.cutter, Data.BATCH + 5) end
-        reset()
-        io.reset = reset
+        queue = newQueue(inC, ACCEPT.cutter, Data.BATCH + 5)
+        io.reset = queue.reload
         io.next = function(fx, lane)
             local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
@@ -808,11 +833,8 @@ local function makeIO(object, state, record)
         end
 
     elseif kind == "woodSaw" then
-        local function reset()
-            queue = newQueue(inC, ACCEPT.woodSaw, Data.BATCH + 5)
-        end
-        reset()
-        io.reset = reset
+        queue = newQueue(inC, ACCEPT.woodSaw, Data.BATCH + 5)
+        io.reset = queue.reload
         io.next = function(fx, lane)
             local entry = queue.peek(lane)
             if not entry then return nil, "noInput" end
@@ -828,11 +850,8 @@ local function makeIO(object, state, record)
     elseif kind == "propaneRefiner" or kind == "oilRefiner" then
         local propane = kind == "propaneRefiner"
         local tankC = Machines.container(object, "tank")
-        local function reset()
-            queue = newQueue(inC, ACCEPT[kind], Data.BATCH + 5)
-        end
-        reset()
-        io.reset = reset
+        queue = newQueue(inC, ACCEPT[kind], Data.BATCH + 5, propane)
+        io.reset = queue.reload
         io.next = function(fx, lane)
             if tankC then deposit(tankC, state, kind) end
             local entry = queue.peek(lane)
@@ -850,6 +869,12 @@ local function makeIO(object, state, record)
         end
     else
         return nil
+    end
+    -- a job done changes the container: the next step walks it again
+    local finish = io.finish
+    io.finish = function(job, fx)
+        queueMemo[inC] = nil
+        return finish(job, fx)
     end
     return io
 end
@@ -887,12 +912,19 @@ function Machines.update(object, opts)
     local powered = Machines.hasPower(square)
     if catchUp and (state.idle ~= false or state.on == false or not powered) then return nil end
 
+    -- What a client reads of an idle machine: whether it runs, why it does not, the product waiting in the buffer.
+    -- (`last` and the lanes mean nothing to it while idle: its clock starts again with the first job.) A step that
+    -- leaves an idle machine as it was sends nothing.
+    local wasIdle, wasRunning, wasReason, wasBuffer = state.idle == true, state.running, state.reason, state.buffer
+
     if state.on == false or not powered then
         -- Without power or switched off it does not work, and the time does not count: its clock starts again.
         state.idle, state.running, state.last, state.lanes = true, false, now, {}
         state.reason = state.on == false and "off" or "noPower"
         Machines.refreshLook(object, state)
-        if isServer() then object:transmitModData() end
+        if isServer() and not (wasIdle and wasRunning == false and wasReason == state.reason) then
+            object:transmitModData()
+        end
         return nil
     end
 
@@ -920,7 +952,10 @@ function Machines.update(object, opts)
     if worn then
         for slot, what in pairs(worn) do notePart(state, slot, what) end
     end
-    if isServer() then object:transmitModData() end
+    if isServer() and not (wasIdle and state.idle == true and wasRunning == state.running and wasReason == state.reason
+        and wasBuffer == state.buffer) then
+        object:transmitModData()
+    end
     return result
 end
 

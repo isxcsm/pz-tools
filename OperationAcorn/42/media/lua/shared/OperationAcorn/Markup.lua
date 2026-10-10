@@ -190,24 +190,9 @@ end
 
 -- A plain text broken into rows of no more than `limit` at spaces (a word longer than that stays whole): characters, or
 -- what `measure(row)` says (a width in pixels). For the plain show of a scene that an API without wrapping gets.
+local PARAGRAPHS = { paragraphs = true }
 function Markup.wrap(text, limit, measure)
-    local width = measure or string.len
-    local rows = {}
-    for line in string.gmatch((text or "") .. "\n", "(.-)\n") do
-        local row = ""
-        for word in string.gmatch(line, "%S+") do
-            if row == "" then
-                row = word
-            elseif width(row .. " " .. word) <= limit then
-                row = row .. " " .. word
-            else
-                rows[#rows + 1] = row
-                row = word
-            end
-        end
-        rows[#rows + 1] = row
-    end
-    return rows
+    return OA.wrap(text, limit, measure or string.len, PARAGRAPHS)
 end
 
 return Markup

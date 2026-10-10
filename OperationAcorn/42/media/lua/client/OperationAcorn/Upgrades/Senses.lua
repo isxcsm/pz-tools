@@ -363,14 +363,13 @@ local SEEN_ALPHA = 0.05
 -- `count` of them; the tables past it are kept for the next look and are not in the list.
 local collected, kept = {}, {}
 
-local function plain(count, z, acts, n, look, lx, ly)
+local function plain(count, z, x, y, acts, n, look, lx, ly)
     local p = kept[count]
     if not p then
         p = {}
         kept[count] = p
     end
     collected[count] = p
-    local x, y = z:getX(), z:getY()
     p.ref, p.x, p.y, p.z, p.seen, p.hunt, p.attack = z, x, y, z:getZ(), nil, nil, nil
     if look > 0 then
         local dx, dy = x - lx, y - ly
@@ -394,9 +393,8 @@ end
 -- whole level a call, the nearest `limit`), on its floor and the ones beside it; nil when the API has none or its
 -- answer is not what it should be (then the scan below does it).
 local NEAR_LIMIT = 64
-local function fromApi(near, player, radius, acts, look)
-    local px, py, pz = player:getX(), player:getY(), math.floor(player:getZ())
-    local n = player:getPlayerNum()
+local function fromApi(near, n, px, py, pz, radius, acts, look)
+    pz = math.floor(pz)
     local count = 0
     for level = pz - 1, pz + 1 do
         local _, result = near(px, py, level, radius, NEAR_LIMIT)
@@ -405,31 +403,30 @@ local function fromApi(near, player, radius, acts, look)
             local z = result[k].zombie
             if z and not z:isDead() then
                 count = count + 1
-                plain(count, z, acts, n, look, px, py)
+                plain(count, z, z:getX(), z:getY(), acts, n, look, px, py)
             end
         end
     end
     return ended(count)
 end
 
--- The loaded zombies near the character as plain positions, for the pure parts (the list is the one of every look).
-local function collect(player, radius, acts, look)
+-- The loaded zombies near the character (player number n, at px, py, pz: read once by the caller) as plain positions,
+-- for the pure parts (the list is the one of every look). A zombie's place is read once in a look.
+local function collect(n, px, py, pz, radius, acts, look)
     local api = OA.api()
     local zombies = api and api.zombies
     if type(zombies) == "table" and type(zombies.near) == "function" then
-        local ok, list = pcall(fromApi, zombies.near, player, radius, acts, look)
+        local ok, list = pcall(fromApi, zombies.near, n, px, py, pz, radius, acts, look)
         if ok and list then return list end
     end
     local zs = getCell():getZombieList()
-    local px, py = player:getX(), player:getY()
-    local n = player:getPlayerNum()
     local count = 0
     for i = 0, zs:size() - 1 do
         local z = zs:get(i)
         local zx, zy = z:getX(), z:getY()
         if zx - px <= radius and px - zx <= radius and zy - py <= radius and py - zy <= radius and not z:isDead() then
             count = count + 1
-            plain(count, z, acts, n, look, px, py)
+            plain(count, z, zx, zy, acts, n, look, px, py)
         end
     end
     return ended(count)
@@ -486,8 +483,8 @@ local function senseJob(now)
     local tell = active and S.hearing > 0
     local reach = math.max(sixthR, tell and S.radius or 0)
     if reach > 0 then
-        local list = collect(player, reach, tell, sixthR * sixthR)
         local px, py, pz = player:getX(), player:getY(), player:getZ()
+        local list = collect(player:getPlayerNum(), px, py, pz, reach, tell, sixthR * sixthR)
         if sixthR > 0 then S.sixth = Sense.hunch(list, px, py, pz, sixthR) end
         if tell then
             local heard = Sense.voices(list, voiceMemo, px, py, pz, S.radius, extended, now, voiceOut)
@@ -728,25 +725,58 @@ local function nearUnopened(open, player)
     return want
 end
 
+-- Which building the character is in is asked every run (entering and leaving are told at once, as before); the heavy
+-- look (the walk over its squares, the containers asked whether they are opened) is made at most once each
+-- Buildings.LOOK_MS, as the economy's minute check makes it, or at once on a new building. Between looks the job works
+-- from what the last look found (`look`), and the outlines are made again only on a new look or a new square.
+local lookAt = {}      -- OA.due's clock of the look
+local look = { key = nil, opened = 0, total = 0, complete = false, stamp = 0 }
+local outlinedAt = { x = nil, y = nil, z = nil, stamp = -1 }
+
 local function ledgerJob(now)
     local player = getPlayer()
     local record = player and not player:isDead() and OA.Client.record(player)
     local rank = record and Rules.rank(Rules.section(record), "ledger") or 0
-    local key, opened, total, complete
-    if rank >= 1 then key, opened, total, complete = OA.Buildings.tick(player) end
+    if rank >= 1 then
+        local here = player:getCurrentSquare()
+        local room = here and here:getRoom()
+        local at = room and OA.Buildings.keyAt(here, room) or nil
+        if at == nil then
+            -- (outside: the tick drops the walk that was kept)
+            if look.key ~= nil then OA.Buildings.tick(player) end
+            look.key, lookAt.look = nil, nil
+        elseif at ~= look.key or OA.due(lookAt, "look", now, OA.Buildings.LOOK_MS) then
+            lookAt.look = now
+            look.key, look.opened, look.total, look.complete = OA.Buildings.tick(player)
+            look.stamp = look.stamp + 1
+        end
+    else
+        lookAt.look, look.key = nil, nil
+    end
+    local key, opened, total, complete = look.key, look.opened, look.total, look.complete
     if not key then
         ledger.key = nil
+        outlinedAt.x = nil
         clearOutlines()
         return
     end
     if rank >= 2 then
-        local want = nearUnopened(OA.Buildings.unopened(player) or none, player)
-        outlineOnly(want, player:getPlayerNum())
-        for _ in pairs(want) do
-            First.report("ledger", player)
-            break
+        local square = player:getCurrentSquare()
+        local x, y, z = square and square:getX(), square and square:getY(), square and square:getZ()
+        if outlinedAt.stamp ~= look.stamp or outlinedAt.x ~= x or outlinedAt.y ~= y or outlinedAt.z ~= z
+            or not square then
+            outlinedAt.x, outlinedAt.y, outlinedAt.z, outlinedAt.stamp = x, y, z, look.stamp
+            local want = nearUnopened(OA.Buildings.unopened(player) or none, player)
+            outlineOnly(want, player:getPlayerNum())
+            for _ in pairs(want) do
+                First.report("ledger", player)
+                break
+            end
         end
-    else clearOutlines() end
+    else
+        outlinedAt.x = nil
+        clearOutlines()
+    end
     if key ~= ledger.key then
         ledger.key, ledger.done, ledger.told, ledger.since = key, false, false, now
     end
