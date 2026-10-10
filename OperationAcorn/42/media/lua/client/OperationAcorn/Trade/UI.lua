@@ -58,6 +58,11 @@ function UI.frame(el, x, y, w, h, c, a)
     el:drawRectBorder(x, y, w, h, a or 1, c[1], c[2], c[3])
 end
 
+-- The game measures a Code font text (the crude terminal's numbers) to the last glyph's ink, not to the end of its
+-- cell: "8" is 5 pixels, "88" 13. The glyph sits a little right in its cell, so whatever follows overlapped it and
+-- the thin space of the small font after it disappeared ("8/ 37,000"). Its width counts this much more.
+UI.CODE_TAIL = 3
+
 function UI.text(el, text, x, y, c, font, a)
     el:drawText(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
@@ -66,8 +71,9 @@ function UI.textCentre(el, text, x, y, c, font, a)
     el:drawTextCentre(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
+-- Ends at x by UI.textWidth (the game's own right alignment would let a Code font text run past x).
 function UI.textRight(el, text, x, y, c, font, a)
-    el:drawTextRight(text, x, y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
+    el:drawText(text, x - UI.textWidth(text, font), y, c[1], c[2], c[3], a or 1, font or UIFont.Small)
 end
 
 function UI.fontHeight(font)
@@ -79,7 +85,9 @@ function UI.buttonHeight()
 end
 
 function UI.textWidth(text, font)
-    return getTextManager():MeasureStringX(font or UIFont.Small, text)
+    local w = getTextManager():MeasureStringX(font or UIFont.Small, text)
+    if font and font == UIFont.Code and text ~= "" then w = w + UI.CODE_TAIL end
+    return w
 end
 
 -- The text cut to a width with "..." at the end (whole when it fits). The game's strings are per character, so a cut
