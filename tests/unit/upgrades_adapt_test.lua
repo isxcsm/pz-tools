@@ -1,7 +1,7 @@
 -- What follows an upgrade serum dose (DESIGN-terminal 19): the adaptation (shared time, the points at the end, kept in
 -- world time across a reload), the research team's papers (the plan with the first dose, a memo when a tree opens and
--- another at its capstone, each once), the first effect of six nodes (once each), the approval stamp's timing, and
--- that every new text is there in both languages.
+-- another at its capstone, each once), the first effect of six nodes (once each), the timing of the body taking an
+-- applied selection, and that every new text is there in both languages.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -328,120 +328,99 @@ test("the server notes a first effect a client reports, and ignores a bad one", 
     sendClientCommand(c, OA.MOD, "upgrades.first", { id = "f4" })
 end)
 
--- ---- the approval stamp -------------------------------------------------------------------------------------------
+-- ---- the body taking an applied selection ------------------------------------------------------------------------
 
-test("the stamp lights each planned node once, in the plan's order, on the screen only", function()
+test("the take reaches each applied node once, in the selection's order, on the screen only", function()
     local steps = { { id = "a" }, { id = "b" }, { id = "a" }, { id = "c" }, { id = "b" } }
-    local order = Plan.stampOrder(steps, { a = true, b = true, c = true })
+    local order = Plan.takeOrder(steps, { a = true, b = true, c = true })
     eq(table.concat(order, ","), "a,b,c")
-    order = Plan.stampOrder(steps, { a = true, c = true })
+    order = Plan.takeOrder(steps, { a = true, c = true })
     eq(table.concat(order, ","), "a,c", "the board's nodes are not on a trees screen")
-    eq(#Plan.stampOrder(steps, nil), 3)
-    eq(#Plan.stampOrder({}, {}), 0)
+    eq(#Plan.takeOrder(steps, nil), 3)
+    eq(#Plan.takeOrder({}, {}), 0)
 end)
 
-test("the stamp's timing: nodes at a step each, the seal after the last, a long plan kept short", function()
-    eq(Plan.stampStep(5), Plan.STAMP_STEP_MS)
-    eq(Plan.stampStep(100), math.floor(Plan.STAMP_MAX_MS / 100))
-    truthy(100 * Plan.stampStep(100) <= Plan.STAMP_MAX_MS)
+test("the take's scan: a node at a step each, a long selection kept short", function()
+    eq(Plan.takeStep(3), Plan.TAKE_STEP_MS)
+    eq(Plan.takeStep(100), math.floor(Plan.TAKE_MAX_MS / 100))
+    truthy(100 * Plan.takeStep(100) <= Plan.TAKE_MAX_MS)
     local n = 4
-    local step = Plan.stampStep(n)
-    local state = Plan.stamp(n, 0)
-    eq(state.lit, 1)
-    eq(state.sealAge, nil)
-    eq(state.over, false)
-    eq(Plan.stamp(n, step).lit, 2)
-    eq(Plan.stamp(n, step * 3).lit, 4)
-    eq(Plan.stamp(n, step * 10).lit, 4, "never more than the plan")
-    eq(Plan.stamp(n, Plan.sealAt(n) - 1).sealAge, nil)
-    eq(Plan.stamp(n, Plan.sealAt(n) + 70).sealAge, 70)
-    eq(Plan.stamp(n, Plan.stampEnd(n) - 1).over, false)
-    eq(Plan.stamp(n, Plan.stampEnd(n)).over, true)
-    -- a plan whose nodes are all off the screen still gets its seal
-    eq(Plan.stamp(0, Plan.SEAL_WAIT_MS).sealAge, 0)
-    eq(Plan.stamp(0, 0).lit, 0)
+    local step = Plan.takeStep(n)
+    eq(Plan.takeLit(n, -1), 0)
+    eq(Plan.takeLit(n, 0), 1)
+    eq(Plan.takeLit(n, step), 2)
+    eq(Plan.takeLit(n, step * 3), 4)
+    eq(Plan.takeLit(n, step * 10), 4, "never more than the selection")
+    eq(Plan.takeLit(0, 500), 0)
 end)
 
-test("the stamp's look moves while a flash, the press or the fade does, holds while the seal holds, and ends with it", function()
-    for _, n in ipairs({ 0, 1, 3, 30 }) do
-        local still = math.max(Plan.sealAt(n) + Plan.sealSettle(), (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
-        local fade = Plan.sealAt(n) + Plan.SEAL_MS - Plan.SEAL_FADE_MS
-        truthy(still < fade, "a hold for " .. n)
-        eq(Plan.stampLook(n, 0), 0)
-        eq(Plan.stampLook(n, still - 1), still - 1, "moving before the hold")
-        eq(Plan.stampLook(n, still), -1, "the hold")
-        eq(Plan.stampLook(n, fade - 1), -1)
-        eq(Plan.stampLook(n, fade), fade, "the fade, on time")
-        eq(Plan.stampLook(n, Plan.stampEnd(n) - 1), Plan.stampEnd(n) - 1)
-        eq(Plan.stampLook(n, Plan.stampEnd(n)), nil, "over")
-    end
-end)
-
-test("the stamp takes about 1.5 to 2.2 s for a few nodes", function()
-    for _, n in ipairs({ 1, 3, 5 }) do
-        local ends = Plan.stampEnd(n)
-        truthy(ends >= 1400 and ends <= 2300, n .. " nodes: " .. ends)
-    end
-end)
-
-test("the scan pops each node as it lights and flashes it with a ring going out", function()
-    eq(Plan.stampPop(-1), 1)
-    eq(Plan.stampPop(Plan.STAMP_POP_MS), 1)
+test("a node taken pops, bursts with a growing fading glow and a short core flash, its pips flashing", function()
+    eq(Plan.takePop(-1), 1)
+    eq(Plan.takePop(Plan.TAKE_POP_MS), 1)
     local top = 1
-    for t = 0, Plan.STAMP_POP_MS do top = math.max(top, Plan.stampPop(t)) end
-    near(top, 1 + Plan.STAMP_POP, 0.002)
-    local a, ring = Plan.stampFlash(0)
+    for t = 0, Plan.TAKE_POP_MS do top = math.max(top, Plan.takePop(t)) end
+    near(top, 1 + Plan.TAKE_POP, 0.002)
+    eq(Plan.takeBurst(-1), nil)
+    local size, a, core = Plan.takeBurst(0)
+    eq(size, Plan.TAKE_BURST_FROM)
     eq(a, 1)
-    eq(ring, 0)
-    a, ring = Plan.stampFlash(Plan.STAMP_FLASH_MS - 1)
-    truthy(a < 0.01 and ring > Plan.STAMP_RING * 0.99)
-    eq(Plan.stampFlash(Plan.STAMP_FLASH_MS), nil)
+    eq(core, 1)
+    local size2, a2, core2 = Plan.takeBurst(Plan.TAKE_CORE_MS)
+    truthy(size2 > size and a2 < a, "growing and fading")
+    eq(core2, 0, "the core flash is the short part")
+    size, a = Plan.takeBurst(Plan.TAKE_BURST_MS - 1)
+    truthy(size > Plan.TAKE_BURST_TO * 0.99 and a < 0.01)
+    eq(Plan.takeBurst(Plan.TAKE_BURST_MS), nil)
+    eq(Plan.takePip(0), 1)
+    truthy(Plan.takePip(Plan.TAKE_PIP_MS - 1) < 0.01)
+    eq(Plan.takePip(Plan.TAKE_PIP_MS), nil)
 end)
 
-test("the seal falls in large and faint, slams down squashed with an ink ring, settles, holds, lifts away", function()
-    eq(Plan.seal(-1), nil)
-    local sx, sy, a = Plan.seal(0)
-    eq(sx, Plan.SEAL_FROM, "large as it starts to fall")
-    eq(sy, Plan.SEAL_FROM)
-    eq(a, 0, "out of sight")
-    -- falling faster and faster
-    local drop = Plan.SEAL_DROP_MS
-    local s1 = Plan.seal(drop * 0.25)
-    local s2 = Plan.seal(drop * 0.5)
-    local s3 = Plan.seal(drop * 0.75)
-    truthy(s1 - s2 < s2 - s3, "it speeds up")
-    -- the impact: wide and flat, the ink ring starting, then back to its shape
-    local ink, inkGrow, inkA
-    sx, sy, a, ink, inkGrow, inkA = Plan.seal(drop)
-    truthy(sx > 1 and sy < 1, "squashed")
-    near(sy, 1 - Plan.SEAL_SQUASH, 1e-9)
-    eq(a, 1)
-    eq(inkGrow, Plan.SEAL_INK_FROM, "the splatter starts at the seal's edge")
-    truthy(inkA > 0.5)
-    sx, sy = Plan.seal(drop + Plan.SEAL_SQUASH_MS)
-    eq(sx, 1)
-    eq(sy, 1)
-    local _, _, _, settled, gone = Plan.seal(drop + Plan.SEAL_INK_MS)
-    eq(gone, nil, "the ink ring gone")
-    near(settled, 1 - Plan.SEAL_SETTLE, 1e-9, "the ink settled")
-    -- holding, then lifting away: a little larger, fading to nothing
-    local hold = Plan.SEAL_MS - Plan.SEAL_FADE_MS
-    sx, sy, a = Plan.seal(hold)
-    eq(sx, 1)
-    eq(a, 1)
-    sx, sy, a = Plan.seal(Plan.SEAL_MS - 1)
-    truthy(sx > 1 and a < 0.01, "lifted and gone")
-    eq(Plan.seal(Plan.SEAL_MS), nil)
+test("a taken node's light runs up its way, arrives at the header on time, and drains out", function()
+    local len = 120
+    eq(Plan.takeRun(-1, len), nil)
+    local last = -1
+    for t = 0, 2000, 10 do
+        local head, a = Plan.takeRun(t, len)
+        if head then
+            truthy(head > last, "up the way, never back")
+            truthy(a > 0 and a <= 1)
+            last = head
+        end
+    end
+    near(select(1, Plan.takeRun(Plan.takeArrive(len), len)), len, 1e-6, "the head at the header when it arrives")
+    eq(Plan.takeRun(Plan.takeArrive(len + Plan.TAKE_TAIL), len), nil, "its tail drained")
+    eq(Plan.takeArrive(0), 0, "a node with no way: its header at once")
+    eq(Plan.takeHeader(-1), 0)
+    truthy(Plan.takeHeader(60) > 0.7, "the header flashes quickly")
+    eq(Plan.takeHeader(Plan.TAKE_HEADER_MS), 0)
 end)
 
-test("the seal's landing jolts the trees down, a small bounce, then still", function()
-    eq(Plan.sealJolt(0), 0, "not while it falls")
-    eq(Plan.sealJolt(Plan.SEAL_DROP_MS), Plan.SEAL_JOLT_DU, "pushed down at the impact")
-    local up = 0
-    for t = 0, Plan.SEAL_JOLT_MS do up = math.min(up, Plan.sealJolt(Plan.SEAL_DROP_MS + t)) end
-    truthy(up < 0 and up > -Plan.SEAL_JOLT_DU, "a smaller bounce back")
-    eq(Plan.sealJolt(Plan.SEAL_DROP_MS + Plan.SEAL_JOLT_MS), 0)
-    truthy(Plan.SEAL_DROP_MS + Plan.SEAL_JOLT_MS <= Plan.sealSettle(), "the stamp's look moves while it does")
+test("the wave comes after the last node and its light, sweeps down once, and the take ends with it", function()
+    for _, n in ipairs({ 1, 3, 6 }) do
+        local last = (n - 1) * Plan.takeStep(n)
+        for _, arrive in ipairs({ last, last + 500 }) do
+            local at = Plan.takeWaveAt(n, arrive)
+            truthy(at >= last + Plan.TAKE_WAVE_WAIT_MS and at >= arrive, "after the scan and the lights")
+            truthy(Plan.takeEnd(n, arrive) >= at + Plan.TAKE_WAVE_MS, "the wave is the last part")
+        end
+    end
+    eq(Plan.takeWave(-1), nil)
+    local down, a = Plan.takeWave(0)
+    eq(down, 0)
+    eq(a, 0)
+    local mid, ma = Plan.takeWave(Plan.TAKE_WAVE_MS / 2)
+    near(mid, 0.5, 1e-9)
+    near(ma, 1, 1e-9)
+    eq(Plan.takeWave(Plan.TAKE_WAVE_MS), nil)
+end)
+
+test("the take lasts about 0.7 to 1.6 s for a few nodes, before the padlocks come off", function()
+    for _, n in ipairs({ 1, 3, 5 }) do
+        local last = (n - 1) * Plan.takeStep(n) + Plan.takeArrive(150)
+        local ends = Plan.takeEnd(n, last)
+        truthy(ends >= 700 and ends <= 1600, n .. " nodes: " .. ends)
+    end
 end)
 
 -- ---- the client's minute ------------------------------------------------------------------------------------------

@@ -167,38 +167,36 @@ test("what the body paints is the tab's: each change of it is written to the bod
     eq(view.tipDirty, true, "the tooltip is made again too")
 end)
 
-test("the approval stamp is followed each frame before the UI draws: the seal holds still, then fades on time", function()
-    local Plan = OA.Upgrades.Plan
+test("an applied selection's take is followed each frame before the UI draws, and let go once it is over", function()
     local UI = OA.Trade.UI
     local view = laidOut("trees")
     local body = { view = view, isVisible = function() return true end }
     view.body, view.sim = body, {}
     view.getIsVisible = function() return true end
     local now = 7000000
+    view.t0 = now
     getTimestampMs = function() return now end
     local ids = {}
     for _, item in ipairs(view.items) do
         if item.id and #ids < 2 then ids[#ids + 1] = { id = item.id } end
     end
     view.approved = { steps = ids, at = now }
-    View.startStamp(view)
+    View.startTake(view)
     local start = now
+    local ends = view.take.ends
+    truthy(ends > 0)
     UI.liveFrame()
-    eq(body.liveLook, 0, "the first node lights")
+    eq(body.liveLook, 0, "the first node is taken")
     now = start + 300
     UI.liveFrame()
-    eq(body.liveLook, 300, "the nodes flash: every frame")
-    local hold = Plan.sealAt(2) + Plan.SEAL_MS - Plan.SEAL_FADE_MS
-    now = start + hold - 1
+    eq(body.liveLook, 300, "every frame while it plays")
+    now = start + ends - 1
     UI.liveFrame()
-    eq(body.liveLook, -1, "the seal holds still")
-    now = start + hold + 10
-    UI.liveFrame()
-    eq(body.liveLook, hold + 10, "its fade starts on time")
-    now = start + Plan.stampEnd(2)
+    eq(body.liveLook, ends - 1, "the wave to its end")
+    now = start + ends
     UI.liveFrame()
     eq(body.liveLook, nil, "over: let go")
-    eq(view.stamp, nil, "and the stamp gone, with no frame drawn")
+    eq(view.take, nil, "and the take gone, with no frame drawn")
 end)
 
 -- ---- motion (Motion.lua's timing, followed by View.tick) -----------------------------------------------------------
@@ -351,12 +349,12 @@ test("the pulses, dashes and lights keep only the flow followed: the body is let
     truthy(flow.liveLook ~= first and flow.liveLook ~= nil, "the flow moves each frame")
     eq(body.liveCount, nil, "the body still untouched: a sibling, not the flow's parent")
     truthy(view.liveCount ~= nil, "the tab marked (its own drawing is light)")
-    -- a stamp: the flow holds still under its seal
-    view.stamp = { order = {}, start = clock.now }
+    -- a take: the flow holds still (the take draws its own lights)
+    view.take = { order = {}, start = clock.now, ends = 1000 }
     clock.now = clock.now + 16
     UI.liveFrame()
     eq(flow.liveLook, -1)
-    view.stamp = nil
+    view.take = nil
     -- the selection taken back and nothing left that moves: the flow let go too
     view.flowing = false
     UI.liveFrame()
@@ -404,7 +402,24 @@ test("the flow is made with the body, after it, as its sibling in the tab", func
     eq(taken, "sight", "a right click over the flow takes the rank back")
 end)
 
-test("the padlocks an approval took off come off once its stamp is over, not on top of it", function()
+test("a taken node's light runs up its lit lines to its tree's header, through the nodes on the way", function()
+    local u = scoutSection()
+    for _, id in ipairs({ "sixth", "sixth", "sight", "sight", "sight", "alarm", "sense", "sense" }) do
+        truthy(OA.Upgrades.Rules.buy(u, id, { fragments = 0 }), id)
+    end
+    local view = onSection(u)
+    view:refresh()
+    local lines, offs, len = View.wayUp(view, "sensePlus")
+    eq(#lines, 2, "sensePlus to sense, sense to sixth")
+    eq(lines[1].to, "sensePlus")
+    eq(lines[2].to, "sense")
+    eq(offs[1], 0)
+    truthy(offs[2] > lines[1].len, "the second line starts past the node between")
+    near(len, offs[2] + lines[2].len, 1e-9)
+    eq(View.wayUp(view, "sixth"), nil, "a first-row node has no way up")
+end)
+
+test("the padlocks an approval took off come off once its take is over, not on top of it", function()
     local UI = OA.Trade.UI
     local Plan = OA.Upgrades.Plan
     local Rules = OA.Upgrades.Rules
@@ -421,28 +436,27 @@ test("the padlocks an approval took off come off once its stamp is over, not on 
     for _, step in ipairs(steps) do truthy(Rules.buy(u, step.id, { fragments = 0 }, step.choice)) end
     view.steps = {}
     view:refresh()
-    View.startStamp(view)
+    View.startTake(view)
     local start = clock.now
-    local n = #Plan.stampOrder(steps)
-    local ends = start + Plan.stampEnd(n)
+    local ends = start + view.take.ends
     local opened = 0
     for id, at in pairs(view.unlocks) do
-        eq(at, ends, id .. " after the stamp")
+        eq(at, ends, id .. " after the take")
         if view.nodes[id] and view.nodes[id].state == "avail" then
             opened = opened + 1
             eq(rowOf(id), 2, id)
         end
-        truthy(not Plan.counts(steps)[id], "not a node the stamp lights")
+        truthy(not Plan.counts(steps)[id], "not a node the take reaches")
     end
     truthy(opened > 0, "row 2 opened by the approval")
     eq(Motion.unlock(start - ends), 1, "drawn locked meanwhile")
     view.flowing = false
-    clock.now = start + Plan.sealAt(n) + Plan.sealSettle() + 100
+    clock.now = ends - 100
     UI.liveFrame()
-    eq(body.liveLook, -1, "the seal holds still: nothing drawn afresh")
+    eq(body.liveLook, clock.now, "the take moves to its end")
     clock.now = ends
     UI.liveFrame()
-    eq(view.stamp, nil, "the stamp is over")
+    eq(view.take, nil, "the take is over")
     eq(body.liveLook, clock.now, "the padlocks come off")
     clock.now = ends + Motion.UNLOCK_MS
     UI.liveFrame()
@@ -560,6 +574,9 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     ISUIElement = { drawRect = rect, drawTextureScaled = function(_, tex, _, _, w, h, a)
         if a < 0 or a > 1 or w < 0 or h < 0 then bad[#bad + 1] = "texture a=" .. a end
         if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
+    end, drawTextureTiled = function(_, tex, _, _, w, h, _, _, _, a)
+        if a < 0 or a > 1 or w < 0 or h < 0 then bad[#bad + 1] = "tiled a=" .. a end
+        if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
     end }
     getTexture = function(path) return { path = path } end
     getSoundManager = function() return { playUISound = function() end } end
@@ -571,7 +588,7 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     View.startOpen(view)
     View.paint(view, el)
     eq(covers, 3, "the opening starts with the columns hidden")
-    -- clicks, a row opening, an approval's stamp, the padlocks after it; a frame every 16 ms for 4 s
+    -- clicks, a row opening, an applied selection's take, the padlocks after it; a frame every 16 ms for 4 s
     local steps = rowTwoSteps()
     for _, id in ipairs(steps) do View.plan(view, id) end
     View.unplan(view, steps[1])
@@ -605,25 +622,28 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
         if arrive and arrive > 0 then arrivals = arrivals + 1 end
         return head, a, tail, after, arrive
     end
-    view.approved = { steps = view.steps, at = clock.now, locked = View.lockedOnRecord(view) }
+    view.approved = { steps = view.steps, at = clock.now, locked = View.lockedOnRecord(view), spent = view.spentPlan }
     for _, step in ipairs(view.steps) do OA.Upgrades.Rules.buy(u, step.id, { fragments = 0 }, step.choice) end
     -- (and a prerequisite met: sixth at its second rank lights its line to sense)
     for _ = 1, 2 do truthy(OA.Upgrades.Rules.buy(u, "sixth", { fragments = 0 })) end
+    -- (and sense in what the take plays, to send a light up that line: the take draws what it is given)
+    local applied = view.approved.steps
+    applied[#applied + 1] = { id = "sense" }
     view.steps = {}
     view:refresh()
-    View.startStamp(view)
+    View.startTake(view)
+    truthy(#view.take.order > 0)
+    local runs = 0
+    for _, way in ipairs(view.take.ways) do
+        if way.lines then runs = runs + 1 end
+    end
+    truthy(runs > 0, "a taken node's light has a way up")
     frames(300)
     Motion.comet = comet
     eq(#bad, 0, table.concat(bad, "; "))
     truthy(rects > 0)
     truthy(comets > 0 and arrivals > 0, "a lit line's light drawn, arriving at its node")
     truthy((drawn["media/textures/OA_Glow.png"] or 0) > 0, "the light's glow drawn")
-    -- the seal from its pictures, the copy for the size it is drawn at (the 256 px one up to 300 pixels across)
-    local px = math.floor(Window.SEAL_SIZE * OA.Trade.UI.S + 0.5)
-    local size, other = px <= 300 and 256 or 512, px <= 300 and 512 or 256
-    for _, name in ipairs({ "Seal", "SealWord_EN", "SealInk" }) do
-        truthy((drawn["media/textures/OA_" .. name .. "_" .. size .. ".png"] or 0) > 0, name .. " drawn")
-        eq(drawn["media/textures/OA_" .. name .. "_" .. other .. ".png"], nil, name .. " at its own copy")
-    end
-    truthy((drawn["media/textures/OA_SealShade.png"] or 0) > 0, "the shade under the seal drawn")
+    truthy((drawn["media/textures/OA_Wave.png"] or 0) > 0, "the take's wave drawn")
+    truthy((drawn["media/textures/OA_Grain.png"] or 0) > 0, "the columns' grain drawn")
 end)
