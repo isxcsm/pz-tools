@@ -22,8 +22,8 @@ Reports:
   found and what it cannot see. A search that is meant to be there (made once for a changed signature, or when the
   player has acted) carries `-- oa-scan: ok (why)` on its line or within the two lines above;
 - a game widget that draws its text in the game's font (ISRichTextPanel, ISButton:new, ISComboBox, ISModalDialog,
-  ISLabel:new) in the client files of the mod's windows (Trade/, Story/, Machines/, less the files that draw on the
-  game's own windows and menus: WIDGET_EXCLUDED): the windows' texts are drawn in faces (Trade/UI.lua), so their
+  ISLabel:new) in the client files of the mod's windows (Trade/, Story/, Machines/ and the research tab
+  Upgrades/Window.lua, less the files that draw on the game's own windows and menus: WIDGET_EXCLUDED): the windows' texts are drawn in faces (Trade/UI.lua), so their
   widgets are the mod's own (Trade/Button, RichText, Combo, Confirm). One that is meant to be there carries
   `-- oa-widget: ok (why)` on its line or the line above.
 Exit code 1 when anything is found.
@@ -299,6 +299,8 @@ def inventory_scans():
 WIDGET = re.compile(r'\bISRichTextPanel\b|\bISButton:new\b|\bISComboBox\b|\bISModalDialog\b|\bISLabel:new\b')
 WIDGET_OK = re.compile(r'--\s*oa-widget:\s*ok')
 WIDGET_FOLDERS = ('Trade', 'Story', 'Machines')
+# Windows of the mod in other folders.
+WIDGET_FILES = ('Upgrades/Window.lua',)
 WIDGET_EXCLUDED = ('Trade/ItemTip.lua', 'Trade/Appraisal.lua', 'Trade/ContextMenu.lua', 'Story/Menus.lua',
                    'Machines/Menu.lua', 'Machines/LootControls.lua', 'Machines/Lure.lua')
 
@@ -322,6 +324,10 @@ def window_files():
     files = []
     for folder in WIDGET_FOLDERS:
         files += lua_files('client', 'OperationAcorn', folder)
+    for name in WIDGET_FILES:
+        path = os.path.join(ROOT, 'client', 'OperationAcorn', *name.split('/'))
+        with open(path, encoding='utf-8') as f:
+            files.append((os.path.relpath(path, ROOT), f.read().split('\n')))
     return files
 
 

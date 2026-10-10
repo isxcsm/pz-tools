@@ -5,7 +5,15 @@ Usage:
     python tools/node_icons.py             write all OA_Node_*.png (and the *_Gray.png of each) + tools/node_icons.txt
     python tools/node_icons.py --preview   also write tools/node_icons_preview.png
 
-Every icon is drawn at 8x (512px) and downsampled with LANCZOS to 64x64 RGBA.
+Every icon is drawn in a 64-unit space at 8x (512px) and downsampled with LANCZOS to OUT x OUT RGBA (128).
+
+Why 128: the windows scale with the screen (S = floor(screenH / 540 * 4) / 4) and draw a node's icon at about 40
+design units: 50 px at 720p, 60 at 900p, 80 at 1080p, 100 at 1440p, 160 at 4K. The game loads a texture from
+media/textures without mipmaps (Texture.getSharedTexture: flags 0, or only compression), so an icon is sampled
+bilinearly from its one level: shrunk more than about 2x it shimmers on its thin rims, enlarged it goes soft. 128 is
+shrunk at most 2.6x (720p) and 1.3x at 1080p, is never enlarged up to 1440p, and is enlarged 1.25x at 4K. 256 would be
+shrunk 3-5x on the common screens. VRAM (RGBA8, uncompressed): 64 KiB an icon, 7 MiB for all 56 icons and their
+grey copies, and the game loads a texture only when it is first drawn (64 px was 16 KiB an icon, 1.8 MiB).
 Style: rounded-square badge, 2-tone flat fill (dark plate + lighter disc), thin dark rim,
 cream glyph with a soft drop shadow. Board colour: scout = blue-teal, load = amber-brown,
 survival = green. Capstones get a gold rim and a gold star. Second-board nodes keep their
@@ -18,8 +26,9 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 S = 8
-N = 64
+N = 64          # the drawing space, in units
 W = N * S
+OUT = 128       # the PNG's size
 CREAM = (246, 240, 216, 255)
 ERASE = (0, 0, 0, 0)
 
@@ -929,7 +938,7 @@ def render_icon(board, glyph, flags):
     img.alpha_composite(sh)
     img.alpha_composite(layer)
     corner_marks(img, key, flags)
-    return img.resize((N, N), Image.LANCZOS)
+    return img.resize((OUT, OUT), Image.LANCZOS)
 
 
 # ---------------------------------------------------------------- output
@@ -972,7 +981,7 @@ def make_preview(icons):
         board, name, slug, _fn, _fl = spec
         x = (i % cols) * cw + 8
         y = (i // cols) * ch + 6
-        sheet.alpha_composite(im, (x, y))
+        sheet.alpha_composite(im.resize((64, 64), Image.LANCZOS), (x, y))
         sheet.alpha_composite(im.resize((32, 32), Image.LANCZOS), (x + 74, y + 16))
         d.text((x, y + 70), slug, fill=(235, 235, 220, 255), font=font)
         d.text((x, y + 83), BOARD_ASCII[board], fill=(160, 170, 150, 255), font=font)

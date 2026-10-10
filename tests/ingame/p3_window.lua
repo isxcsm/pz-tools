@@ -78,8 +78,10 @@ later(3, function()
         and UIManager.getUI():contains(tip.javaObject) and tip.description ~= "")
     if tip then
         local item = view:itemOf("sight")
-        say("tooltip at", tip.desiredX, tip.desiredY, "node at", view:getAbsoluteX() + item.x, view:getAbsoluteY() + item.y)
-        say("sample tooltip", plain(tip.name .. " " .. tip.description))
+        -- the tab's items are in design units (its body is ours, Trade/UI.lua), as is our tooltip's place
+        say("tooltip at", tip.x, tip.y, "node at", OA.Trade.UI.dp(view:getAbsoluteX()) + item.x,
+            OA.Trade.UI.dp(view:getAbsoluteY()) + item.y)
+        say("sample tooltip", plain(tip.description))
     end
     view.hover = nil
     view:updateTip()
