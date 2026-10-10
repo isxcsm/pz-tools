@@ -558,26 +558,23 @@ def field_terminal():
 
 
 def backpack():
+    """The research team backpack as modelled (tools/backpack_mesh.py): a lid, a front pouch with MOLLE rows, two
+    compression straps, and the two canteens built into the side pouches."""
     s = Scene(0)
-    cx = 0.5
-    s.box(0.24, 0.3, 0.0, 0.76, 0.7, 0.58, OD, top=OD_LIGHT, shine=0.05)
-    s.box(0.22, 0.28, 0.4, 0.78, 0.72, 0.64, OD_DARK, top=OD, shine=0.05)
-    # two front pockets
-    s.box(0.27, 0.7, 0.04, 0.46, 0.78, 0.26, OD_LIGHT)
-    s.box(0.54, 0.7, 0.04, 0.73, 0.78, 0.26, OD_LIGHT)
-    s.box(0.26, 0.7, 0.24, 0.47, 0.79, 0.28, OD_DARK)
-    s.box(0.53, 0.7, 0.24, 0.74, 0.79, 0.28, OD_DARK)
-    # the flap's straps with buckles
-    for x in (0.34, 0.62):
-        s.box(x, 0.7, 0.3, x + 0.05, 0.74, 0.62, (74, 70, 50))
-        s.box(x - 0.01, 0.74, 0.34, x + 0.06, 0.76, 0.4, STEEL, shine=0.7)
-    front_decal(s, 0.4, 0.6, 0.46, 0.62, 0.725, acorn_mark(28, STENCIL), offset=0.0)
-    # webbing strips on the sides with two hooks each, and a canteen hanging on the east one
-    for sx in (0.22, 0.78):
-        s.box(sx - 0.01 if sx < 0.5 else sx, 0.34, 0.1, sx + 0.0 if sx < 0.5 else sx + 0.012, 0.66, 0.5, (74, 70, 50))
-    s.box(0.78, 0.4, 0.14, 0.8, 0.48, 0.2, STEEL, shine=0.7)
-    s.tube((0.84, 0.5, 0.02), (0.84, 0.5, 0.3), 0.07, OD_DARK, cap=OD, segments=16)
-    s.tube((0.84, 0.5, 0.3), (0.84, 0.5, 0.34), 0.03, BLACK, segments=10)
+    s.box(0.27, 0.32, 0.0, 0.73, 0.68, 0.52, OD, top=OD_LIGHT, shine=0.05)
+    s.box(0.26, 0.31, 0.44, 0.74, 0.69, 0.6, OD_DARK, top=OD, shine=0.05)              # the lid
+    s.box(0.3, 0.68, 0.03, 0.7, 0.77, 0.28, OD_LIGHT, top=OD_LIGHT)                    # front pouch
+    for z in (0.09, 0.17):                                                               # its MOLLE rows
+        s.box(0.31, 0.77, z, 0.69, 0.785, z + 0.035, (70, 74, 50))
+    for x in (0.35, 0.6):                                                                # compression straps, buckles
+        s.box(x, 0.785, 0.02, x + 0.05, 0.795, 0.28, (62, 66, 44))
+        s.box(x, 0.69, 0.28, x + 0.05, 0.70, 0.6, (62, 66, 44))
+        s.box(x - 0.01, 0.70, 0.36, x + 0.06, 0.72, 0.41, BLACK, shine=0.3)
+    front_decal(s, 0.43, 0.57, 0.3, 0.43, 0.681, acorn_mark(28, STENCIL), offset=0.0)
+    for x0, x1 in ((0.18, 0.27), (0.73, 0.82)):                                          # side pouches, canteens
+        s.box(x0, 0.38, 0.02, x1, 0.62, 0.24, OD_DARK, top=(40, 42, 32))
+        s.box(x0 + 0.01, 0.41, 0.24, x1 - 0.01, 0.59, 0.31, (92, 100, 70), top=(108, 116, 82), shine=0.3)
+        s.tube(((x0 + x1) / 2, 0.5, 0.31), ((x0 + x1) / 2, 0.5, 0.36), 0.03, BLACK, segments=12, shine=0.3)
     return from_scene(s)
 
 
