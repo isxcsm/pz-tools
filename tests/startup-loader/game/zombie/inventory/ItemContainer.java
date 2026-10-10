@@ -23,6 +23,10 @@ public final class ItemContainer {
     public VehiclePart vehiclePart;
     public InventoryContainer inventoryContainer;
     public boolean vehicleSeat, seatOccupied;
+    /** Whether the player opened it. */
+    public boolean explored;
+    public boolean isExplored() { return explored; }
+    public void setExplored(boolean value) { explored = value; }
     public ItemContainer(IsoObject parent) {
         this.parent = parent;
         this.items = new ArrayList<>();

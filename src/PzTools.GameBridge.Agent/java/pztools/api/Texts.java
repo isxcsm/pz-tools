@@ -267,6 +267,8 @@ final class Texts implements ApiHooks.Text {
     private boolean embeddedReady;
     /** The fonts of text.font, measure and draw; null in a game this cannot read them in (package-private for the tests). */
     final SizedFonts sized;
+    /** What text.wrap and text.fit measured, kept for the calls that ask again (package-private for the tests). */
+    final TextFits.Cache fits = new TextFits.Cache();
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
     private final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
@@ -484,6 +486,76 @@ final class Texts implements ApiHooks.Text {
             catch (Throwable failure) { throw Game.thrown(failure); }
             return Game.NONE;
         });
+        // A text broken into lines of a width, and cut to one, in a font text.font made or one of the game's by name.
+        function(table, "wrap", (call, arguments) -> {
+            String owner = owner(arguments, call);
+            try { return fitted(owner, arguments, call, true); }
+            catch (RuntimeException mine) { throw mine; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+        function(table, "fit", (call, arguments) -> {
+            String owner = owner(arguments, call);
+            try { return fitted(owner, arguments, call, false); }
+            catch (RuntimeException mine) { throw mine; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+    }
+
+    /** Wraps or fits: the cache first, then the font's measure; a font this game cannot measure gives nil. */
+    private Object[] fitted(String owner, Object[] arguments, String call, boolean wrap) throws Throwable {
+        Object font = arguments.length > 1 ? arguments[1] : null;
+        Object key, uiFont = null;
+        int px = 0;
+        if (font instanceof String name) {
+            uiFont = fonts.get(name);
+            if (uiFont == null) throw new IllegalArgumentException(call + ": font must be what text.font returned or one of the game's font names: " + String.join(", ", fonts.keySet()));
+            key = name;
+        } else if (font instanceof Double) {
+            px = sizedKey(arguments, call);
+            key = px;
+        } else throw new IllegalArgumentException(call + ": font must be what text.font returned or one of the game's font names");
+        if (!(arguments.length > 2 && arguments[2] instanceof String words) || words.length() > TextFits.MAX_TEXT)
+            throw new IllegalArgumentException(call + ": text must be a string of at most " + TextFits.MAX_TEXT + " characters");
+        int limit = Arguments.integer(arguments, 3, call, "width", 1, 100_000);
+        String ellipsis = TextFits.ELLIPSIS;
+        if (!wrap && arguments.length > 4 && arguments[4] != null) {
+            if (!(arguments[4] instanceof String given) || given.length() > TextFits.MAX_ELLIPSIS)
+                throw new IllegalArgumentException(call + ": ellipsis must be a string of at most " + TextFits.MAX_ELLIPSIS + " characters");
+            ellipsis = given;
+        }
+        // What the width comes from, and what it was measured with: the choice of a height (made again when the game makes its fonts
+        // again, and with the embedded font's readiness), or the game's font object.
+        TextFits.Width width;
+        Object[] with;
+        if (uiFont != null) {
+            Object face = (Object)fontOf.invokeExact(textManager, uiFont);
+            Object chosen = uiFont;
+            width = text -> (int)measure.invokeExact(textManager, chosen, text);
+            with = new Object[] { face };
+        } else {
+            if (sized == null) return new Object[] { null };
+            SizedFonts.Choice choice = sized.choice(px);
+            if (choice == null) return new Object[] { null };
+            int height = px;
+            EmbeddedFont.Loaded own = drawable();
+            width = text -> sized.measure(height, text, own);
+            with = new Object[] { choice, own != null };
+        }
+        var id = new TextFits.Key(owner, key, limit, wrap, wrap ? null : ellipsis, words);
+        TextFits.Result kept = fits.get(id, with);
+        if (kept == null) {
+            if (wrap) {
+                String[] lines;
+                try { lines = TextFits.wrap(width, words, limit); }
+                catch (IllegalArgumentException tooLong) { throw new IllegalArgumentException(call + ": " + tooLong.getMessage()); }
+                kept = new TextFits.Result(with, lua.list(java.util.Arrays.asList((Object[])lines)), TextFits.widest(width, lines), false);
+            } else {
+                Object[] result = TextFits.fit(width, words, limit, ellipsis);
+                kept = new TextFits.Result(with, result[0], 0, (Boolean)result[1]);
+            }
+            fits.put(id, kept);
+        }
+        return wrap ? new Object[] { kept.value(), kept.widest() } : new Object[] { kept.value(), kept.cut() };
     }
 
     /** The embedded font when it can draw this frame (its atlas was in video memory as the frame began), else null. */
@@ -799,6 +871,7 @@ final class Texts implements ApiHooks.Text {
     /** {@code handle:clear()}: the mod's texts go at once, waiting ones too. */
     void clear(String owner, String call) throws ReflectiveOperationException {
         current(call);
+        fits.drop(owner);
         if (shown.removeIf(text -> text.owner.equals(owner))) { publish(); dirty = true; }
     }
 
@@ -1477,9 +1550,7 @@ final class Texts implements ApiHooks.Text {
     }
 
     /** Whether the character is of a script written without spaces between words (Han, kana, full-width forms): a row may break beside it. */
-    private static boolean wide(char letter) {
-        return letter >= 0x2E80 && letter <= 0x9FFF || letter >= 0xF900 && letter <= 0xFAFF || letter >= 0xFF00 && letter <= 0xFFEF;
-    }
+    private static boolean wide(char letter) { return TextFits.wide(letter); }
 
     /** The row of the characters {@code from} to {@code to}: its width, and its runs of one colour with where each starts. */
     private Row row(Shown text, int from, int to) throws Throwable {

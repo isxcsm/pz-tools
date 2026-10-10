@@ -671,7 +671,7 @@ final class Buildings {
     float consumption(Object object) throws ReflectiveOperationException { return (float)consumption.invoke(object); }
 
     /** The building a key names, or null when no building has that key now (it was rebuilt, or removed). */
-    private Building resolve(String key) throws ReflectiveOperationException {
+    Building resolve(String key) throws ReflectiveOperationException {
         String[] parts = key.split(",", -1);
         if (parts.length != 3) return null;
         int x, y, z;

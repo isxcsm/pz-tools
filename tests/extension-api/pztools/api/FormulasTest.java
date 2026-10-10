@@ -1740,7 +1740,7 @@ final class FormulasTest {
         return invoke(function, arguments);
     }
 
-    private static List<Object> invoke(Object function, Object... arguments) {
+    static List<Object> invoke(Object function, Object... arguments) {
         var frame = new LuaCallFrame(arguments);
         int count = ((JavaFunction)function).call(frame, arguments.length);
         check(count == frame.results.size(), "The result count is wrong");

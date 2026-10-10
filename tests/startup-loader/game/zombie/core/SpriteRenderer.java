@@ -27,6 +27,13 @@ public final class SpriteRenderer {
         if (TextManager.record) TextManager.log("quad", texture, x0, y0, x1, y1, x2, y2, x3, y3, u0, v0, u1, v1, u2, v2, u3, v3, r, g, b, a);
     }
 
+    /** The rectangles drawn from a window by whole pixels: the texture, x, y, w, h and the colour. */
+    public static final List<Object[]> rects = new ArrayList<>();
+
+    public void renderi(Texture texture, int x, int y, int w, int h, float r, float g, float b, float a, java.util.function.Consumer<TextureDraw> consumer) {
+        rects.add(new Object[] { texture, x, y, w, h, r, g, b, a });
+    }
+
     public TextureDraw drawGeneric(TextureDraw.GenericDrawer drawer) {
         if (TextManager.record) TextManager.log("generic", drawer);
         queued.add(drawer);

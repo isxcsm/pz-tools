@@ -9,6 +9,8 @@ public final class IsoChunk {
     public final int wx, wy;
     public final ArrayList<int[]> generators = new ArrayList<>();
     public IsoCell cell;
+    /** Whether the chunk is in a chunk map, as the game says (a chunk the cell lists but that is not in one yet is not loaded). */
+    public boolean loaded = true;
     /** The objects the game lists as ones a generator can power. */
     public final java.util.Set<IsoObject> poweredObjects = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     public int getMinLevel() { return 0; }

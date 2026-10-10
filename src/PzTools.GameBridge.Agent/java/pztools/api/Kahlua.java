@@ -10,12 +10,14 @@ final class Kahlua {
     /** A Lua function's body: arguments as Lua gives them (numbers are {@code Double}), results to return. */
     @FunctionalInterface interface Body { Object[] call(Object[] arguments) throws Exception; }
 
-    private final Field env, platform;
+    private final Field env, platform, caller, thread;
     private final Class<?> tableType;
     private final Method newTable, rawset, rawget, setMetatable, getMetatable;
     private final Class<?> functionType;
     private final Method argument, push, pushNil;
-    private final Method iterator, advance, key, value;
+    private final Method iterator, advance, key, value, pcall;
+    // KahluaTable.rawget(int) as (Object, int)Object: the array part of a table, read without boxing the index.
+    private final java.lang.invoke.MethodHandle rawgetAt, lengthOf;
 
     Kahlua(Class<?> luaManager) throws ReflectiveOperationException {
         ClassLoader loader = luaManager.getClassLoader();
@@ -37,7 +39,29 @@ final class Kahlua {
         advance = walker.getMethod("advance");
         key = walker.getMethod("getKey");
         value = walker.getMethod("getValue");
+        caller = luaManager.getField("caller");
+        thread = luaManager.getField("thread");
+        pcall = Class.forName("se.krka.kahlua.integration.LuaCaller", false, loader).getMethod("pcall",
+            Class.forName("se.krka.kahlua.vm.KahluaThread", false, loader), Object.class, Object[].class);
+        rawgetAt = java.lang.invoke.MethodHandles.publicLookup().unreflect(table.getMethod("rawget", int.class))
+            .asType(java.lang.invoke.MethodType.methodType(Object.class, Object.class, int.class));
+        lengthOf = java.lang.invoke.MethodHandles.publicLookup().unreflect(table.getMethod("len"))
+            .asType(java.lang.invoke.MethodType.methodType(int.class, Object.class));
     }
+
+    /**
+     * Calls a Lua function from Java, as the game calls the handlers of its events ({@code LuaManager.caller.pcall}): a fault in
+     * it is caught by Lua, not thrown. The results are Lua's: the first is {@code true}, or {@code false} followed by the error.
+     */
+    Object[] call(Object function, Object... arguments) throws ReflectiveOperationException {
+        return (Object[])pcall.invoke(caller.get(null), thread.get(null), function, arguments);
+    }
+
+    /** The value at {@code index} (1 up) of a table's array part, or null: without boxing the index. */
+    Object at(Object table, int index) throws Throwable { return (Object)rawgetAt.invokeExact(table, index); }
+
+    /** The length of a table's array part ({@code #table}). */
+    int length(Object table) throws Throwable { return (int)lengthOf.invokeExact(table); }
 
     /** The global table, or null before the game made one. */
     Object environment() throws ReflectiveOperationException { return env.get(null); }

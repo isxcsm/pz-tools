@@ -62,6 +62,7 @@ final class TextsTest {
             layout(text, mod);
             fonts(text, mod);
             embedded(text, mod);
+            TextFitsTest.run(text);
             sized(text, mod);
             effects(text, mod);
             typing(text, mod);
@@ -375,6 +376,7 @@ final class TextsTest {
             // 20 pixels: the game's own Small (19), read no more, drawn as DrawText draws it (no zoom) where it is asked.
             check(sizedKey(text, mod, 20) == 20 && sizedKey(text, mod, 20.3) == 20, "text.font gave another key for 20 pixels");
             check(sizedHeight(text, mod, 20) == 19 && sizedWidth(text, mod, 20, "가나다") == 27, "20 pixels is not the 19 of the game's Small");
+            TextFitsTest.keyed(text, mod, 20.0, 27);
             Object[] drawn = sizedDraw(text, mod, 20, "가나다", 100.5, 40.25).get(0);
             check(drawn[1] == gameSmall && zoom(drawn) == 0 && near((Double)drawn[2], 100.5) && near((Double)drawn[3], 40.25) && "가나다".equals(drawn[5])
                 && near((Double)drawn[6], 1) && near((Double)drawn[7], 0.5) && near((Double)drawn[8], 0.25) && near((Double)drawn[9], 1),
