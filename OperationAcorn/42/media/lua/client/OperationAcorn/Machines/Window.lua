@@ -1,226 +1,377 @@
--- The machine window (DESIGN 12: right-click a machine -> maintenance): what the machine is doing, its parts and how
--- worn they are, and buttons to put a part in or take it out (timed actions; it is switched on and off where its
--- containers show, LootControls.lua, or from its menu). It reads the machine's state each frame it is open; nothing runs
--- when it is closed.
+-- The machine window (DESIGN 12: right-click a machine -> maintenance), drawn as research-team equipment in the field
+-- terminal's palette (mockups/machines/a-equipment.html): what the machine does and what to do next, its jobs and bins,
+-- its performance, its parts, the rain storage's water or the lure's hours, and the buttons for each (the switch, a
+-- bin opened in the loot window, a part put in, swapped or taken out with a timed action, the water poured or moved,
+-- the lure taken back or cleared).
+-- The window is the game's and in pixels; its body is ours, in design units (Trade/UI.lua), and grows with the font.
+-- An open window reads the machine a few times a second (WindowModel.read: the status once), lays it out again only
+-- when what it shows changed (WindowLayout), and each frame only paints that list. Nothing runs when it is closed.
 require "ISUI/ISCollapsableWindow"
-require "ISUI/ISButton"
-require "ISUI/ISContextMenu"
+require "ISUI/ISPanel"
+require "ISUI/ISInventoryPage"
+require "ISUI/ISInventoryPaneContextMenu"
 require "ISUI/ISWorldObjectContextMenu"
+require "OperationAcorn/Sync"
+require "OperationAcorn/Trade/UI"
+require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
 require "OperationAcorn/Machines/Actions"
+require "OperationAcorn/Machines/WindowModel"
+require "OperationAcorn/Machines/WindowLayout"
 local OA = OperationAcorn
+local UI, Draw = OA.Trade.UI, OA.Trade.Draw
 local Machines = OA.Machines
-local Data = Machines.Data
+local Data, Logic = Machines.Data, Machines.Logic
+local Model, Layout = Machines.WindowModel, Machines.WindowLayout
 
 OAMachineWindow = ISCollapsableWindow:derive("OAMachineWindow")
 OAMachineWindow.windows = {}
 
-local FONT = UIFont.Small
-local FONT_HGT = getTextManager():getFontHeight(FONT)
-local ROW = FONT_HGT + 10
-local WIDTH = 400
+-- How often (real ms) an open window reads its machine; the least time between two asks to work (a job is due); how
+-- seldom an idle machine with something in it is asked (as the loot window's watch, Watch.lua).
+OAMachineWindow.READ_MS = 250
+OAMachineWindow.ASK_MS = 400
+OAMachineWindow.IDLE_ASK_MS = 3000
+-- How long (real ms) the loot window keeps a bin chosen after [열기], while it lists the bins of the new place.
+OAMachineWindow.SELECT_MS = 1500
 
--- The text of the machine's state.
-local stateText = Machines.statusText
-
-local function conditionColor(cond)
-    if cond < Data.WORN_BELOW then return 1, 0.35, 0.3 end
-    if cond < 50 then return 1, 0.85, 0.3 end
-    return 0.6, 1, 0.6
+-- The hover of a button or a card, and the tooltip of what the mouse is over (as the status screens').
+local function paintHover(el, L, p)
+    if not (L and el:isMouseOver()) then return end
+    local mx, my = el:getMouseX(), el:getMouseY()
+    local hit = Draw.hitAt(L, mx, my)
+    if not hit then return end
+    if hit.button and hit.enabled then
+        el:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.10, p.sel[1], p.sel[2], p.sel[3])
+    elseif hit.hover then
+        el:drawRect(hit.x + 1, hit.y + 1, hit.w - 2, hit.h - 2, 0.08, p.sel[1], p.sel[2], p.sel[3])
+    end
+    if hit.tip then Draw.paintTip(el, p, hit.tip, mx + 12, my + 18) end
 end
 
-local function number(x)
-    if math.abs(x - math.floor(x)) < 0.005 then return tostring(math.floor(x)) end
-    return string.format("%.2f", x)
+-- The body ------------------------------------------------------------------------------------------------------------
+
+OAMachineBody = ISPanel:derive("OAMachineBody")
+
+function OAMachineBody:new(x, y, width, height, window)
+    local o = ISPanel:new(x, y, width, height)
+    setmetatable(o, self)
+    self.__index = self
+    o.window = window
+    o.background = false
+    return o
 end
 
-function OAMachineWindow:slots()
-    return Data.KINDS[self.kind].slots
+function OAMachineBody:prerender()
+    Draw.paint(self, self.list)
 end
 
--- The lines of info above the parts: the status and, for a machine that works, speed, load and noise; the water
--- or the time left for the two with one; and the hint.
-local function infoLines(kind)
-    local def = Data.KINDS[kind]
-    if def.rate then return 5 end
-    if kind == "rainStorage" or kind == "lure" then return 3 end
-    return 2
+function OAMachineBody:render()
+    paintHover(self, self.list, self.window.palette)
 end
 
--- The window's height for a machine kind.
-local function heightFor(kind)
-    local def = Data.KINDS[kind]
-    local y = ISCollapsableWindow.TitleBarHeight() + 8 + infoLines(kind) * ROW
-    if #def.slots > 0 then y = y + ROW * (1 + #def.slots) end
-    return y + 12
+function OAMachineBody:onMouseDown(x, y)
+    local hit = Draw.hitAt(self.list, x, y)
+    if hit and hit.id and hit.enabled then self.window:onHit(hit) end
+    return true
 end
+
+UI.scaled(OAMachineBody, ISPanel)
+
+-- The part picker: the parts the character carries that fit a slot, under the button that opened it (or above it
+-- near the bottom of the screen). A click on a row puts that part in; a click anywhere else closes it.
+OAMachinePicker = ISPanel:derive("OAMachinePicker")
+
+function OAMachinePicker:new(x, y, window, slot, entries, pick)
+    local L = Draw.list(window.palette)
+    local h = Layout.picker(L, pick, Layout.PICKER_WIDTH)
+    Draw.bake(L)
+    local o = ISPanel:new(x, y, Layout.PICKER_WIDTH, h)
+    setmetatable(o, self)
+    self.__index = self
+    o.window, o.slot, o.entries, o.list = window, slot, entries, L
+    o.background = false
+    return o
+end
+
+function OAMachinePicker:prerender()
+    Draw.paint(self, self.list)
+end
+
+function OAMachinePicker:render()
+    paintHover(self, self.list, self.window.palette)
+end
+
+function OAMachinePicker:onMouseDown(x, y)
+    local hit = Draw.hitAt(self.list, x, y)
+    if hit and hit.id == "pick" then
+        local entry = self.entries[hit.index]
+        if entry then self.window:doInstall(self.slot, entry.item) end
+    end
+    self:close()
+    return true
+end
+
+function OAMachinePicker:onMouseDownOutside()
+    self:close()
+end
+
+function OAMachinePicker:close()
+    if self.window.picker == self then self.window.picker = nil end
+    self:setVisible(false)
+    self:removeFromUIManager()
+end
+
+UI.scaled(OAMachinePicker, ISPanel)
+
+-- The window ------------------------------------------------------------------------------------------------------------
 
 function OAMachineWindow:createChildren()
     ISCollapsableWindow.createChildren(self)
-    local th = self:titleBarHeight()
-    self.partRows = {}
-    local y = th + 8 + infoLines(self.kind) * ROW
-    if #self:slots() > 0 then
-        y = y + ROW
-        for _, slot in ipairs(self:slots()) do
-            local install = ISButton:new(WIDTH - 170, y, 76, ROW - 4, getText("IGUI_OA_Machine_Install"), self, OAMachineWindow.onInstall)
-            install.internal = slot
-            install:initialise()
-            install:instantiate()
-            self:addChild(install)
-            local remove = ISButton:new(WIDTH - 90, y, 76, ROW - 4, getText("IGUI_OA_Machine_Remove"), self, OAMachineWindow.onRemove)
-            remove.internal = slot
-            remove:initialise()
-            remove:instantiate()
-            self:addChild(remove)
-            self.partRows[slot] = { y = y, install = install, remove = remove }
-            y = y + ROW
-        end
+    local p = self.palette
+    -- Only the close box stays of the vanilla title bar, drawn in the palette (as the terminal's).
+    for _, b in ipairs({ self.pinButton, self.collapseButton, self.infoButton }) do
+        if b then b:setVisible(false) end
     end
-    self.partsEnd = y
+    local cb = self.closeButton
+    if cb then
+        cb:setImage(nil)
+        cb:setTitle("x")
+        cb.textColor = { r = p.text[1], g = p.text[2], b = p.text[3], a = 1 }
+        cb.borderColor = { r = p.border[1], g = p.border[2], b = p.border[3], a = 1 }
+        cb.backgroundColorMouseOver = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
+    end
+    self.body = OAMachineBody:new(0, UI.dp(self:titleBarHeight()), Layout.WIDTH, 100, self)
+    self.body:initialise()
+    self:addChild(self.body)
+    self:refresh(true)
 end
 
--- Where a character walks to and what it does there.
-local function queue(character, object, action)
-    local square = object:getSquare()
-    if square and luautils.walkAdj(character, square, true) then ISTimedActionQueue.add(action) end
-end
-
-function OAMachineWindow:onInstall(button)
-    local slot = button.internal
-    local object = self.object
-    local candidates = Machines.collect(self.character:getInventory(), function(item)
-        return Machines.canInstall(object, slot, item) and true or nil
-    end, 40)
-    local context = ISContextMenu.get(self.playerNum, button:getAbsoluteX(), button:getAbsoluteY() + button:getHeight())
-    -- the window's own menu at its button, not one of the game's: the options run down from the top
-    if #candidates == 0 then
-        -- oa-menu: bottom
-        context:addOption(getText("ContextMenu_OA_Machine_NoPart"), nil, nil)
-        return
-    end
-    for _, entry in ipairs(candidates) do
-        local item = entry.item
-        local percent = math.floor(item:getCondition() * 100 / math.max(1, item:getConditionMax()) + 0.5)
-        local label = string.format("%s (%d%%)", item:getName(), percent)
-        -- oa-menu: bottom
-        local option = context:addOption(label, self, OAMachineWindow.doInstall, slot, item)
-        local info = Machines.partOf(item)
-        if info then
-            local tip = ISWorldObjectContextMenu.addToolTip()
-            tip.description = getText("Tooltip_OA_Machine_Part_" .. info.part)
-            option.toolTip = tip
-        end
+-- Reads the machine and lays the window out again when what it shows changed (or when `force`). The window takes the
+-- body's height.
+function OAMachineWindow:refresh(force)
+    local input = Model.read(self.object)
+    if not input then return end
+    local model = Model.build(input)
+    self.model = model
+    local key = Model.key(model)
+    if not force and key == self.key then return end
+    self.key = key
+    local L = Draw.list(self.palette)
+    local h = Layout.build(L, model, Layout.WIDTH)
+    Draw.bake(L)
+    self.body.list = L
+    if h ~= self.body.height then
+        self.body:setHeight(h)
+        self:setHeight(self:titleBarHeight() + UI.px(h))
     end
 end
 
-function OAMachineWindow:doInstall(slot, item)
-    local square = self.object:getSquare()
-    if not square then return end
-    ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
-    queue(self.character, self.object,
-        ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item))
-end
-
-function OAMachineWindow:onRemove(button)
-    local square = self.object:getSquare()
-    if not square then return end
-    queue(self.character, self.object,
-        ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), button.internal))
+-- A due job (or something new in an idle machine): the machine is asked to work now, not at its next ten-minute step.
+function OAMachineWindow:askWork(now)
+    local model = self.model
+    if not model then return end
+    local want = model.due or (model.idleWithInput and OA.due(self.due, "idle", now, OAMachineWindow.IDLE_ASK_MS))
+    if want and OA.due(self.due, "ask", now, OAMachineWindow.ASK_MS) then
+        OA.Sync.send(self.character, "machineWork", { machine = self.machineId })
+    end
 end
 
 function OAMachineWindow:update()
     ISCollapsableWindow.update(self)
-    if self:getIsVisible() and (not self.object or self.object:getObjectIndex() == -1) then
-        self:removeFromUIManager()
-        OAMachineWindow.windows[self.machineId] = nil
-        return
+    -- another window worked the scale out again from a font that changed: this one was made with the old one
+    if self.scale ~= UI.S then return self:close() end
+    if not self.object or self.object:getObjectIndex() == -1 or self.character:isDead() then return self:close() end
+    local now = getTimestampMs()
+    if OA.due(self.due, "read", now, OAMachineWindow.READ_MS) then
+        self:refresh()
+        self:askWork(now)
     end
-    local status = Machines.status(self.object)
-    if not status then return end
-    for slot, row in pairs(self.partRows) do
-        row.remove:setEnable(status.parts[slot] ~= nil)
-    end
+end
+
+function OAMachineWindow:prerender()
+    local p = self.palette
+    local th = self:titleBarHeight()
+    UI.fill(self, 0, 0, self.width, self.height, p.bg, p.bgAlpha)
+    UI.fill(self, 0, 0, self.width, th, p.title)
+    UI.textCentre(self, self.title, self.width / 2, (th - UI.fontHeightPx()) / 2, p.text)
+    UI.fill(self, 0, th - 1, self.width, 1, p.border)
 end
 
 function OAMachineWindow:render()
-    ISCollapsableWindow.render(self)
-    local status = Machines.status(self.object)
-    if not status then return end
-    local th = self:titleBarHeight()
-    local y = th + 8
-    local function line(label, value, r, g, b)
-        self:drawText(label, 12, y, 0.8, 0.8, 0.8, 1, FONT)
-        self:drawText(value, 130, y, r or 1, g or 1, b or 1, 1, FONT)
-        y = y + ROW
-    end
-    line(getText("IGUI_OA_Machine_Status"), stateText(status), status.running and 0.6 or 1, status.running and 1 or 0.9, status.running and 0.6 or 0.6)
-    local kind = self.kind
-    local def = Data.KINDS[kind]
-    if def.rate then
-        -- what the work is differs by kind (weight of things, litres): each has its own line
-        line(getText("IGUI_OA_Machine_Speed"), getText("IGUI_OA_Machine_SpeedValue_" .. kind, number(status.rate),
-            number(status.speed), tostring(status.lanes)))
-        line(getText("IGUI_OA_Machine_Load"), number(status.load))
-        line(getText("IGUI_OA_Machine_Noise"), tostring(status.noise))
-    elseif kind == "rainStorage" then
-        line(getText("IGUI_OA_Machine_Water"), getText("IGUI_OA_Machine_WaterValue", number(status.water or 0), number(status.capacity or Data.RAIN_CAPACITY)))
-    elseif kind == "lure" then
-        line(getText("IGUI_OA_Machine_LureLeft"), status.spent and getText("IGUI_OA_Machine_LureSpent") or getText("IGUI_OA_Machine_Hours", number(status.left or 0)))
-    end
-    self:drawText(getText("IGUI_OA_Machine_Hint_" .. kind), 12, y, 0.65, 0.65, 0.65, 1, FONT)
-    y = y + ROW
-
-    if #self:slots() > 0 then
-        self:drawText(getText("IGUI_OA_Machine_Parts"), 12, self.partRows[self:slots()[1]].y - ROW, 1, 1, 1, 1, FONT)
-        for _, slot in ipairs(self:slots()) do
-            local row = self.partRows[slot]
-            self:drawText(getText("IGUI_OA_Machine_Slot_" .. slot), 12, row.y + 3, 0.8, 0.8, 0.8, 1, FONT)
-            local part = status.parts[slot]
-            if part then
-                local r, g, b = conditionColor(part.cond)
-                self:drawText(string.format("%s  %d%%", getText("IGUI_OA_Machine_Tier_" .. part.tier), math.floor(part.cond + 0.5)),
-                    110, row.y + 3, r, g, b, 1, FONT)
-            else
-                self:drawText(getText("IGUI_OA_Machine_Empty"), 110, row.y + 3, 0.6, 0.6, 0.6, 1, FONT)
-            end
-        end
-    end
+    UI.frame(self, 0, 0, self.width, self.height, self.palette.border)
 end
 
 function OAMachineWindow:close()
+    if self.picker then self.picker:close() end
+    self:setVisible(false)
     self:removeFromUIManager()
-    OAMachineWindow.windows[self.machineId] = nil
+    if OAMachineWindow.windows[self.machineId] == self then OAMachineWindow.windows[self.machineId] = nil end
 end
+
+-- The buttons -----------------------------------------------------------------------------------------------------------
+
+-- Walks next to a square, then does the action.
+local function queueAt(character, square, action)
+    if square and luautils.walkAdj(character, square, true) then ISTimedActionQueue.add(action) end
+end
+
+function OAMachineWindow:onHit(hit)
+    local id = hit.id
+    if id == "switch" then
+        local state = Machines.state(self.object)
+        OA.Sync.send(self.character, "machineSwitch", { machine = self.machineId, on = state and state.on == false })
+        self.due.read = nil
+    elseif id == "open" then
+        self:openBox(hit.role)
+    elseif id == "part" then
+        if hit.action == "remove" then self:doRemove(hit.slot) else self:openPicker(hit) end
+    elseif id == "rain:transfer" or id == "rain:empty" then
+        local fluid = self.object.getFluidContainer and self.object:getFluidContainer()
+        if not fluid then return end
+        if id == "rain:transfer" then ISWorldObjectContextMenu.onFluidTransfer(self.playerNum, fluid)
+        else ISWorldObjectContextMenu.onFluidEmpty(self.playerNum, fluid) end
+    elseif id == "lure:take" or id == "lure:clear" then
+        local square = self.object:getSquare()
+        if not square then return end
+        local class = id == "lure:take" and ISOAMachineTakeLure or ISOAMachinePickUp
+        queueAt(self.character, square, class:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ()))
+    end
+end
+
+-- The loot window chooses a bin (as the game's own actions do it, ISOpenVehicleDoor), shown if it was collapsed.
+local function showBox(character, container)
+    local loot = getPlayerLoot(character:getPlayerNum())
+    if not loot then return end
+    loot:setForceSelectedContainer(container, OAMachineWindow.SELECT_MS)
+    ISInventoryPage.dirtyUI()
+    loot:setVisible(true)
+    if loot.isCollapsed then
+        loot.isCollapsed = false
+        loot:clearMaxDrawHeight()
+        loot.collapseCounter = -30
+    end
+end
+
+-- [열기]: walks to the square the bin is on, then the loot window shows it.
+function OAMachineWindow:openBox(role)
+    local container = Machines.container(self.object, role)
+    if not container then return end
+    local holder = container:getParent() or self.object
+    local square = holder:getSquare()
+    if not square then return end
+    if luautils.walkAdj(self.character, square, true) then
+        ISTimedActionQueue.queueActions(self.character, showBox, container)
+    end
+end
+
+local TIER_RANK = { old = 1, normal = 2, modern = 3 }
+
+-- The parts the character carries that fit a slot: looked for now, as the player pressed the button. Best first.
+function OAMachineWindow:candidates(slot)
+    local object = self.object
+    -- oa-scan: ok (the player pressed the button: once)
+    local found = Machines.collect(self.character:getInventory(), function(item)
+        return Machines.canInstall(object, slot, item) and Machines.partOf(item) or nil
+    end, 40)
+    local function condition(item)
+        return item:getCondition() * Data.CONDITION_MAX / math.max(1, item:getConditionMax())
+    end
+    for _, entry in ipairs(found) do entry.cond = condition(entry.item) end
+    table.sort(found, function(a, b)
+        local ra, rb = TIER_RANK[a.data.tier] or 0, TIER_RANK[b.data.tier] or 0
+        if ra ~= rb then return ra > rb end
+        return a.cond > b.cond
+    end)
+    return found
+end
+
+function OAMachineWindow:openPicker(hit)
+    if self.picker then self.picker:close() end
+    local slot = hit.slot
+    local entries = self:candidates(slot)
+    local rows = {}
+    for i, entry in ipairs(entries) do
+        local def = Logic.partDef(self.kind, slot, entry.data.tier)
+        local cond = entry.cond
+        rows[i] = { icon = entry.item:getFullType(), name = entry.item:getName(), cond = math.floor(cond + 0.5) .. "%",
+            tone = cond <= 0 and "bad" or (cond < Data.WORN_BELOW and "warn" or "good"),
+            effect = def and Model.effect(entry.data.part, def) or "" }
+    end
+    local pick = { title = getText("IGUI_OA_Machine_Pick_Title", getText("IGUI_OA_Machine_Slot_" .. slot)),
+        none = getText("ContextMenu_OA_Machine_NoPart"), rows = rows }
+    -- under the button, inside the screen (design units)
+    local bx = UI.dp(self.body:getAbsoluteX()) + hit.x
+    local by = UI.dp(self.body:getAbsoluteY()) + hit.y
+    local screenW, screenH = UI.dp(getCore():getScreenWidth()), UI.dp(getCore():getScreenHeight())
+    local picker = OAMachinePicker:new(0, 0, self, slot, entries, pick)
+    local x = math.max(0, math.min(bx + hit.w - Layout.PICKER_WIDTH, screenW - Layout.PICKER_WIDTH))
+    local y = by + hit.h + 2
+    if y + picker.height > screenH then y = math.max(0, by - picker.height - 2) end
+    picker.x, picker.y = x, y
+    picker:initialise()
+    picker:addToUIManager()
+    picker:setVisible(true)
+    self.picker = picker
+end
+
+-- Puts a part in (the one in the slot comes out to the character's bag).
+function OAMachineWindow:doInstall(slot, item)
+    local square = self.object:getSquare()
+    if not square then return end
+    ISInventoryPaneContextMenu.transferIfNeeded(self.character, item)
+    queueAt(self.character, square,
+        ISOAMachinePartIn:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot, item))
+end
+
+function OAMachineWindow:doRemove(slot)
+    local square = self.object:getSquare()
+    if not square then return end
+    queueAt(self.character, square,
+        ISOAMachinePartOut:new(self.character, self.machineId, square:getX(), square:getY(), square:getZ(), slot))
+end
+
+-- Opening ---------------------------------------------------------------------------------------------------------------
 
 function OAMachineWindow:new(x, y, character, object)
     local state = Machines.state(object)
-    local o = ISCollapsableWindow:new(x, y, WIDTH, heightFor(state.kind))
+    local o = ISCollapsableWindow:new(x, y, UI.px(Layout.WIDTH), 200)
     setmetatable(o, self)
     self.__index = self
-    o.backgroundColor = { r = 0.02, g = 0.02, b = 0.03, a = 0.93 }
+    o.palette = UI.palette("field")
+    o.scale = UI.S
+    o.due = {}
     o.character = character
     o.playerNum = character:getPlayerNum()
     o.object = object
     o.machineId = state.id
     o.kind = state.kind
+    o.title = Machines.name(state.kind)
     o:setResizable(false)
-    o:setTitle(Machines.name(state.kind))
     return o
 end
 
--- Opens the window of a machine for a character (one window a machine).
+-- Opens the window of a machine for a character (one window a machine), in the middle of the screen.
 function OAMachineWindow.open(character, object)
     local state = Machines.state(object)
     if not state then return end
     local old = OAMachineWindow.windows[state.id]
-    if old then old:removeFromUIManager() end
-    local window = OAMachineWindow:new(getCore():getScreenWidth() / 2 - WIDTH / 2, 120, character, object)
+    if old then old:close() end
+    UI.refreshScale()
+    local width = UI.px(Layout.WIDTH)
+    local window = OAMachineWindow:new((getCore():getScreenWidth() - width) / 2, 0, character, object)
     window:initialise()
     window:addToUIManager()
+    window:setY(math.max(0, (getCore():getScreenHeight() - window.height) / 2))
     window:setVisible(true)
     OAMachineWindow.windows[state.id] = window
     return window
 end
+
+-- A machine was switched (the server answers): its window reads it again now.
+OA.Sync.listen("machines", function(_, detail)
+    local window = type(detail) == "table" and OAMachineWindow.windows[detail.machine]
+    if window then window:refresh() end
+end)
 
 return OAMachineWindow

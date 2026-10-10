@@ -599,8 +599,9 @@ test("numbers from NUMBERS 11", function()
     eq(Data.LURE.radius, 60)
 end)
 
--- The machine window names each kind's own unit of work (built as IGUI_OA_Machine_SpeedValue_<kind>) and hint.
-test("every kind with a window has its hint, and every working kind its speed line, in both languages", function()
+-- The machine window names each kind's unit of work (IGUI_OA_Machine_Rate_<unit>: litres for the oil refiner, weight
+-- for the others, WindowModel.lua) and its hint.
+test("every kind with a window has its hint, and every working kind its rate line, in both languages", function()
     for _, lang in ipairs({ "EN", "KO" }) do
         local text = readfile("OperationAcorn/42/media/lua/shared/Translate/" .. lang .. "/IG_UI.json")
         for kind, def in pairs(Data.KINDS) do
@@ -608,8 +609,9 @@ test("every kind with a window has its hint, and every working kind its speed li
             eq(string.find(text, '"IGUI_OA_Machine_Hint_' .. kind .. '":', 1, true) ~= nil, Data.hasWindow(kind),
                 lang .. " hint of " .. kind)
             if def.rate then
-                truthy(string.find(text, '"IGUI_OA_Machine_SpeedValue_' .. kind .. '":', 1, true),
-                    lang .. " lacks the speed line of " .. kind)
+                local unit = kind == "oilRefiner" and "litres" or "weight"
+                truthy(string.find(text, '"IGUI_OA_Machine_Rate_' .. unit .. '":', 1, true),
+                    lang .. " lacks the rate line of " .. kind)
             end
         end
     end
