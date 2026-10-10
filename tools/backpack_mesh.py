@@ -3,6 +3,8 @@
 
     py tools/backpack_mesh.py              build everything, render tools/backpack_preview.png and the mockup sheets
     py tools/backpack_mesh.py --check      re-parse every produced file and assert it is consistent (no building)
+    py tools/backpack_mesh.py --icon       only render tools/backpack_icon_source.png from the meshes and the atlas as
+                                           they are (then tools/icon_art.py makes the item icons from it)
 
 What it writes (all under OperationAcorn/42/media):
     models_X/Skinned/BackPacks/OA_ResearchPack_M.x, _F.x, _LHand.x, _RHand.x   worn / carried skinned meshes
@@ -11,7 +13,8 @@ What it writes (all under OperationAcorn/42/media):
     clothing/clothingItems/OA_Bag_ResearchPack.xml (+ _LHand, _RHand)           the clothing items
     fileGuidTable.xml                                                           registers the three clothing items
     scripts/OA_backpack_models.txt                                              the floor model script
-and the preview sheets: tools/backpack_preview.png, and mockups/backpack/*.png next to the repository (when that folder's
+and tools/backpack_icon_source.png (the floor model on a clear background, the source of the item icon that
+tools/icon_art.py makes), and the preview sheets: tools/backpack_preview.png, and mockups/backpack/*.png next to the repository (when that folder's
 parent exists).
 
 The pack is our own: soft rounded shapes (rounded boxes with bulged sides and a domed top), a lid, a front pouch with
@@ -52,6 +55,7 @@ SKINNED = os.path.join(PZ_DIR, 'media', 'models_X', 'Skinned')
 VANILLA_BP = os.path.join(SKINNED, 'BackPacks')
 VANILLA_GROUND = os.path.join(PZ_DIR, 'media', 'models_X', 'WorldItems', 'Clothing', 'ALICE_Pack_Ground.fbx')
 PREVIEW = os.path.join(HERE, 'backpack_preview.png')
+ICON_SOURCE = os.path.join(HERE, 'backpack_icon_source.png')
 MOCKUPS = os.path.join(os.path.dirname(ROOT), 'mockups', 'backpack')
 
 NAME = 'OA_ResearchPack'
@@ -2194,6 +2198,22 @@ def wearer_tiles(mesh, body, tex, size, views, pose='rest', crop=None):
     return tiles
 
 
+def make_icon_source(meshes, tex, size=512):
+    """tools/backpack_icon_source.png: the floor model as the preview's 'ground model' shows it (from the front-left, a
+    little from above: the lid, the front pouch with the team mark, a canteen), on a clear background. Rendered on black
+    and on white: where they differ is how far the background shows through, which gives the alpha and the colour
+    without a fringe."""
+    g = meshes['G'].arrays()
+    d = iso_dir(-35)
+    black = np.asarray(render([g], tex, d, (0, 1, 0), size, ss=3, bg=(0, 0, 0)), float)
+    white = np.asarray(render([g], tex, d, (0, 1, 0), size, ss=3, bg=(255, 255, 255)), float)
+    alpha = np.clip(1.0 - (white - black).mean(-1) / 255.0, 0.0, 1.0)
+    colour = np.where(alpha[..., None] > 1e-3, black / np.maximum(alpha[..., None], 1e-3), 0.0)
+    rgba = np.dstack([np.clip(colour, 0, 255), alpha * 255]).astype(np.uint8)
+    im = Image.fromarray(rgba, 'RGBA')
+    im.crop(im.getbbox()).save(ICON_SOURCE)
+
+
 def make_previews(meshes, tex, old=None):
     """tools/backpack_preview.png and, when the mockups folder's parent exists, the review sheets."""
     male, female = body_of('MaleBody.x'), body_of('FemaleBody.x')
@@ -2324,6 +2344,8 @@ def build_all(old_dir=None):
     old = load_old(old_dir) if old_dir else None
     make_previews(meshes, np.array(tex), old)
     print('preview', os.path.relpath(PREVIEW, ROOT))
+    make_icon_source(meshes, np.array(tex)[..., :3])
+    print('icon source', os.path.relpath(ICON_SOURCE, ROOT))
 
 
 # ======================================================================================================================
@@ -2489,10 +2511,16 @@ def check_all():
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--check', action='store_true', help='validate the produced files instead of building')
+    ap.add_argument('--icon', action='store_true', help='only render the icon source from the meshes and the atlas')
     ap.add_argument('--old', metavar='DIR', help='folder with the previous _M.x, _F.x and texture, for the before/after sheet')
     args = ap.parse_args()
     if args.check:
         sys.exit(check_all())
+    if args.icon:
+        _, meshes, _ = build_meshes()
+        make_icon_source(meshes, np.array(Image.open(OUT['TEX']).convert('RGB')))
+        print('icon source', os.path.relpath(ICON_SOURCE, ROOT))
+        return
     build_all(args.old)
     sys.exit(check_all())
 

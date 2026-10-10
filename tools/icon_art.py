@@ -29,7 +29,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np  # noqa: E402
-from PIL import Image, ImageDraw, ImageFilter  # noqa: E402
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter  # noqa: E402
 
 import tile_engine as E  # noqa: E402
 from tile_engine import Scene, rotation, apply, add, stencil_text, acorn_mark, font  # noqa: E402
@@ -600,24 +600,15 @@ def field_terminal():
 
 
 def backpack():
-    """The research team backpack as modelled (tools/backpack_mesh.py): a lid, a front pouch with MOLLE rows, two
-    compression straps, and the two canteens built into the side pouches."""
-    s = Scene(0)
-    s.box(0.27, 0.32, 0.0, 0.73, 0.68, 0.52, OD, top=OD_LIGHT, shine=0.05)
-    s.box(0.26, 0.31, 0.44, 0.74, 0.69, 0.6, OD_DARK, top=OD, shine=0.05)              # the lid
-    s.box(0.3, 0.68, 0.03, 0.7, 0.77, 0.28, OD_LIGHT, top=OD_LIGHT)                    # front pouch
-    for z in (0.09, 0.17):                                                               # its MOLLE rows
-        s.box(0.31, 0.77, z, 0.69, 0.785, z + 0.035, (70, 74, 50))
-    for x in (0.35, 0.6):                                                                # compression straps, buckles
-        s.box(x, 0.785, 0.02, x + 0.05, 0.795, 0.28, (62, 66, 44))
-        s.box(x, 0.69, 0.28, x + 0.05, 0.70, 0.6, (62, 66, 44))
-        s.box(x - 0.01, 0.70, 0.36, x + 0.06, 0.72, 0.41, BLACK, shine=0.3)
-    front_decal(s, 0.43, 0.57, 0.3, 0.43, 0.681, acorn_mark(28, STENCIL), offset=0.0)
-    for x0, x1 in ((0.18, 0.27), (0.73, 0.82)):                                          # side pouches, canteens
-        s.box(x0, 0.38, 0.02, x1, 0.62, 0.24, OD_DARK, top=(40, 42, 32))
-        s.box(x0 + 0.01, 0.41, 0.24, x1 - 0.01, 0.59, 0.31, (92, 100, 70), top=(108, 116, 82), shine=0.3)
-        s.tube(((x0 + x1) / 2, 0.5, 0.31), ((x0 + x1) / 2, 0.5, 0.36), 0.03, BLACK, segments=12, shine=0.3)
-    return from_scene(s)
+    """The research team backpack: its floor model itself, rendered by tools/backpack_mesh.py (backpack_icon_source.png,
+    remade with the model or alone with --icon), so the icon is the bag the player sees on the floor and on the back."""
+    big = Image.open(os.path.join(HERE, 'backpack_icon_source.png')).convert('RGBA')
+    # the preview's lighting is for looking at the model: lifted to sit with the other item icons
+    alpha = big.getchannel('A')
+    big = ImageEnhance.Contrast(ImageEnhance.Brightness(big.convert('RGB')).enhance(1.25)).enhance(1.1).convert('RGBA')
+    big.putalpha(alpha)
+    small = big.convert('RGBa').resize((128, round(128 * big.height / big.width)), Image.LANCZOS).convert('RGBA')
+    return fit(small, source=big)
 
 
 def jerrycan(mk):

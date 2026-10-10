@@ -44,7 +44,7 @@ module OperationAcorn
         WeightReduction = 85,
         WorldStaticModel = OperationAcorn.OA_ResearchPack_Ground,
         AttachmentsProvided = WebbingLeft;WebbingRight,
-        Tags = base:ignorezombiedensity,
+        Tags = base:ignorezombiedensity;base:omitemptyfromname,
         component FluidContainer
         {
             ContainerName = OA_WaterStorage,
