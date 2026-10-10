@@ -1,6 +1,8 @@
 -- The folder tab's typing of what it shows (client/Story/TabFolder, with the panel of client/Story/TypedText): a text is
--- typed every time it is shown, a click brings it to the furthest point seen and no further, a scene left half way
--- starts over and a document goes on, and the records of before are read as they were. The game's rich text panel is
+-- typed every time it is shown, its first presentation left half way goes on at exactly the clock it stopped at (scene and
+-- document alike, with no game time made up for), a click brings it to the furthest point seen and no further, a text
+-- seen to its end plays again from the beginning with a click showing all of it and keeps no clock of a replay, and the
+-- records of before are read as they were. The game's rich text panel is
 -- stood in for by one that cuts the text at its commands into rows (as story_typedtext_test does); the tab is the real
 -- one, its methods run on a table that has only what they touch, and the server's side is the real one too.
 require "OperationAcorn/Core"
@@ -75,12 +77,6 @@ local function folder(opts)
     end
     ms = 1000000
     getTimestampMs = function() return ms end
-    local game = getGameTime
-    getGameTime = function()
-        local t = game()
-        t.getMinutesPerDay = function() return 60 end
-        return t
-    end
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "OperationAcorn/Trade/Button"
@@ -157,7 +153,7 @@ test("an entry is typed every time it is shown, at the same speed as the first t
     for _ = 1, 6 do t.frame(400) end
     eq(t.shown(), "abcdefghijklmnopqrst")
     truthy(Story.typedState(t.record, "c:s1").done, "seen to the end")
-    -- shown again: typed again
+    -- shown again: typed again, from the beginning
     t.show("d:x")
     t.show("c:s1")
     eq(t.shown(), "", "laid out, nothing on")
@@ -192,7 +188,7 @@ test("a click brings an entry that was read to the end before to its end, and no
     eq(t.body.run.done, true)
 end)
 
-test("a scene left half way starts over, and a click brings it to the furthest point seen", function()
+test("a scene left half way in its first presentation goes on at the same clock; a click brings it to the furthest seen", function()
     local t = folder()
     t.add("c:s1", "scene", TEXT)
     t.add("d:x", "document", TEXT)
@@ -210,19 +206,20 @@ test("a scene left half way starts over, and a click brings it to the furthest p
     TEST.hours = 5
     t.show("c:s1")
     t.frame(0)
-    eq(t.shown(), "a", "from the beginning, though the game time passed")
-    near(t.body.run.clock, 0, 1e-9)
+    eq(t.shown(), "abcdefghi", "where it was, though the game time passed")
+    near(t.body.run.clock, 0.85, 1e-9)
     t.body:onMouseDown(3, 3)
     t.frame(16)
-    eq(t.shown(), "abcdefghi", "to the furthest point seen")
-    t.body:onMouseDown(3, 3)
-    t.frame(16)
-    eq(t.shown(), "abcdefghi", "and no further")
+    eq(t.shown(), "abcdefghi", "a click goes no further than the furthest seen")
     t.frame(100)
     eq(t.shown(), "abcdefghij", "the rest is typed in its time")
+    -- and again, and the window kept it too before the server's record had it
+    t.show("d:x")
+    near(t.tab.kept["c:s1"].t, 0.966, 1e-9)
+    eq(t.tab.kept["c:s1"].start, nil)
 end)
 
-test("a document left half way goes on from there, with the game time that passed turned into the terminal's work", function()
+test("a document left half way in its first presentation goes on at the same clock, with no game time made up for", function()
     local t = folder()
     t.add("d:x", "document", DOC)
     t.add("c:s1", "scene", TEXT)
@@ -237,19 +234,47 @@ test("a document left half way goes on from there, with the game time that passe
     t.frame(0)
     eq(t.shown(), ROWS[2], "no time has passed: where it was")
     t.show("c:s1")
-    -- a 60 minute day: a game hour is 150 real seconds, so 0.01 of an hour is 1.5 s, more than the rows left
-    TEST.hours = 1.01
+    -- a long night's sleep: the terminal did not print while the player was away
+    TEST.hours = 9
     t.show("d:x")
     t.frame(0)
-    eq(t.shown(), ROWS[4], "the terminal printed all of it while the player was away")
+    eq(t.shown(), ROWS[2], "still where it was")
+    near(t.body.run.clock, 0.25, 1e-9)
+    t.frame(150)
+    eq(t.shown(), ROWS[3], "and goes on from there")
+    eq(Story.typedState(t.record, "d:x").start, nil)
+end)
+
+test("a text seen to its end plays again from the beginning every time and keeps no clock of a replay", function()
+    local t = folder()
+    t.add("d:x", "document", DOC)
+    t.add("c:s1", "scene", TEXT)
+    Story.markNew(t.record, "d:x")
+    t.show("d:x")
+    t.frame(0)
+    for _ = 1, 5 do t.frame(200) end
+    eq(t.body.run.done, true)
     eq(Story.typedState(t.record, "d:x").done, true)
-    eq(Story.typedState(t.record, "d:x").t, nil)
-    -- seen to the end, it is printed again from the start whatever time has passed
+    -- a replay left half way stores no clock, and the next one starts at 0 again
     t.show("c:s1")
-    TEST.hours = 1.02
     t.show("d:x")
     t.frame(0)
-    eq(t.shown(), ROWS[1])
+    eq(t.shown(), ROWS[1], "from the beginning")
+    t.frame(250)
+    eq(t.shown(), ROWS[2])
+    t.show("c:s1")
+    eq(Story.typedState(t.record, "d:x").t, nil, "no clock for a done entry")
+    eq(t.tab.kept["d:x"].t, nil)
+    eq(Story.typedState(t.record, "d:x").done, true)
+    t.show("d:x")
+    t.frame(0)
+    eq(t.shown(), ROWS[1], "starts at 0 again")
+    near(t.body.run.clock, 0, 1e-9)
+    -- a click shows all of it
+    t.body:onMouseDown(3, 3)
+    t.frame(16)
+    eq(t.shown(), ROWS[4])
+    eq(t.body.run.done, true)
 end)
 
 test("a click in a document comes to the furthest point seen, and no further", function()
@@ -347,7 +372,7 @@ test("the window closing tells the server how far the entry on show got", functi
     eq(t.tab.told[1].done, nil)
     local state = Story.typedState(t.record, "c:s1")
     eq(state.seen, 4)
-    eq(state.start, 7)
+    eq(state.start, nil, "no world age is kept")
     t.tab:onWindowClose()
     eq(#t.tab.told, 1, "once for a showing")
 end)
@@ -383,7 +408,7 @@ test("records from before: an entry typed to its end (true) is typed again and a
     end
 end)
 
-test("records from before: { start, t } is a document's place and, for a scene, the furthest point seen", function()
+test("records from before: { start, t } is the place both a scene and a document go on from", function()
     local t = folder()
     t.add("c:s1", "scene", TEXT)
     t.add("d:x", "document", DOC)
@@ -391,13 +416,13 @@ test("records from before: { start, t } is a document's place and, for a scene, 
     Story.section(t.record).typed = { ["c:s1"] = { start = 3, t = 0.75 }, ["d:x"] = { start = 3, t = 0.25 } }
     t.show("c:s1")
     t.frame(0)
-    eq(t.shown(), "a", "a scene starts over")
+    eq(t.shown(), "abcdefgh", "a scene goes on from the clock (0.75 s: eight characters), whatever the old world age says")
     t.body:onMouseDown(3, 3)
     t.frame(16)
-    eq(t.shown(), "abcdefgh", "a click brings it to where its clock had come (0.75 s: eight characters)")
+    eq(t.shown(), "abcdefgh", "and a click brings nothing more: only the clock's characters were seen")
     t.show("d:x")
     t.frame(0)
-    eq(t.shown(), ROWS[2], "a document goes on from the clock, printed by rows")
+    eq(t.shown(), ROWS[2], "a document goes on from the clock too, printed by rows")
     t.body:onMouseDown(3, 3)
     t.frame(16)
     eq(t.shown(), ROWS[2], "and a click brings nothing more: only the clock's characters were seen")
