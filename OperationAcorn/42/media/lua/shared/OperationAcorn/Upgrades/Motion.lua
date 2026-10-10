@@ -138,34 +138,51 @@ function Motion.unlock(age)
 end
 
 -- ---- the light on the lines ---------------------------------------------------------------------------------------
--- A met prerequisite's line carries a light from the prerequisite down to its node, one pass every BEAD_PERIOD_MS, at
--- BEAD_SPEED design units a second (a short line's pass still lasts BEAD_MIN_MS, a long one's no more than
--- BEAD_MAX_SHARE of the period); BEAD_LEN design units long with its tail (never more than half the line), the head
--- BEAD_HEAD of it, at most BEAD_ALPHA strong; under it a glow BEAD_GLOW_WIDTH times the line's width, BEAD_GLOW as
--- strong as the light.
-Motion.BEAD_PERIOD_MS = 2600
-Motion.BEAD_SPEED = 60
-Motion.BEAD_MIN_MS = 450
-Motion.BEAD_MAX_SHARE = 0.8
-Motion.BEAD_LEN, Motion.BEAD_HEAD = 18, 6
-Motion.BEAD_ALPHA = 0.85
-Motion.BEAD_GLOW, Motion.BEAD_GLOW_WIDTH = 0.28, 3
+-- A met prerequisite's line carries a soft light from the prerequisite down to its node, a comet: a round glow at its
+-- head (COMET_HEAD times the line's width across, a brighter core COMET_CORE times), a tail COMET_TAIL design units
+-- long (never more than COMET_TAIL_SHARE of the line) in COMET_STEPS steps growing smaller and fainter, and behind it
+-- the line brightened where the head has passed, fading within COMET_AFTER_MS. One pass every COMET_PERIOD_MS, at
+-- COMET_SPEED design units a second (a short line's pass still lasts COMET_MIN_MS, a long one's no more than
+-- COMET_MAX_SHARE of the period), at most COMET_ALPHA strong; when it reaches the node, the arrowhead and the node's
+-- frame light softly over COMET_ARRIVE_MS (COMET_ARRIVE times the line's width across; COMET_LOCKED of it into a
+-- locked node). tools/glow_art.py draws the glow and a preview with these numbers.
+Motion.COMET_PERIOD_MS = 2600
+Motion.COMET_SPEED = 60
+Motion.COMET_MIN_MS = 450
+Motion.COMET_MAX_SHARE = 0.7
+Motion.COMET_ALPHA = 0.9
+Motion.COMET_TAIL, Motion.COMET_TAIL_SHARE, Motion.COMET_STEPS = 22, 0.6, 6
+Motion.COMET_AFTER_MS = 300
+Motion.COMET_ARRIVE_MS = 250
+Motion.COMET_HEAD, Motion.COMET_CORE, Motion.COMET_ARRIVE = 6.0, 2.5, 10.0
+Motion.COMET_LOCKED = 0.35
 -- The share of the period a line's passes are put off by, for line i: steps of the golden ratio, so that lines next
 -- to each other never move together and none waits long for the next.
 local GOLDEN = 0.6180339887
 
 -- Line i's light `ms` into the tab's clock (small numbers: from when the tab was made), on a line `len` design units
--- long: the head's distance from the line's start, its strength, and the light's length; nil between passes.
-function Motion.bead(ms, i, len)
-    local period = Motion.BEAD_PERIOD_MS
-    local travel = min(period * Motion.BEAD_MAX_SHARE, max(Motion.BEAD_MIN_MS, len * 1000 / Motion.BEAD_SPEED))
+-- long: the head's distance from the line's start (past the end while the tail drains into the node), its strength,
+-- the tail's length, the afterglow's length, and the arrival's strength (0 until the head arrives); nil between
+-- passes.
+function Motion.comet(ms, i, len)
+    local period = Motion.COMET_PERIOD_MS
+    local travel = min(period * Motion.COMET_MAX_SHARE, max(Motion.COMET_MIN_MS, len * 1000 / Motion.COMET_SPEED))
+    local tail = min(Motion.COMET_TAIL, len * Motion.COMET_TAIL_SHARE)
+    local after = min(len, len * Motion.COMET_AFTER_MS / travel)
     local share = i * GOLDEN
     local at = ms + (share - floor(share)) * period
     local phase = at - floor(at / period) * period
-    if phase >= travel then return nil end
+    local ends = max(travel * (1 + max(tail, after) / max(len, 1)), travel + Motion.COMET_ARRIVE_MS)
+    if phase >= ends then return nil end
     local u = phase / travel
-    local a = Motion.BEAD_ALPHA * min(1, u / 0.15, (1 - u) / 0.25)
-    return len * u, a, min(Motion.BEAD_LEN, len / 2)
+    local a = Motion.COMET_ALPHA * min(1, u / 0.12)
+    local arrive = 0
+    local v = phase - travel
+    if v >= 0 and v < Motion.COMET_ARRIVE_MS then
+        local w = v / Motion.COMET_ARRIVE_MS
+        arrive = min(1, w * 6) * (1 - w) * (1 - w)
+    end
+    return len * u, a, tail, after, arrive
 end
 
 -- ---- the opening --------------------------------------------------------------------------------------------------

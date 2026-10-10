@@ -144,41 +144,49 @@ test("a padlock waits locked, fades out while the frame flashes once and sends a
     truthy(Motion.UNLOCK_DELAY_MS < Motion.POP_MS, "behind the pop's top, not after its end")
 end)
 
-test("a line's light passes once a period, from the line's start to its end, faint, and gone between passes", function()
-    local period = Motion.BEAD_PERIOD_MS
+test("a line's light passes once a period down the line, its tail short, then arrives at the node", function()
+    local period = Motion.COMET_PERIOD_MS
     for _, len in ipairs({ 6, 10, 56, 160 }) do
-        local passes, lastHead, on = 0, nil, false
+        local passes, arrivals, lastHead, on, arriving = 0, 0, nil, false, false
         for ms = 0, 3 * period - 1, 5 do
-            local head, a, blen = Motion.bead(ms, 3, len)
+            local head, a, tail, after, arrive = Motion.comet(ms, 3, len)
             if head then
                 if not on then passes = passes + 1 end
-                truthy(head >= 0 and head <= len, "on the line")
-                truthy(a >= 0 and a <= Motion.BEAD_ALPHA, "faint")
-                truthy(blen <= len / 2 and blen <= Motion.BEAD_LEN, "short")
+                truthy(head >= 0, "on the line")
+                truthy(a >= 0 and a <= Motion.COMET_ALPHA, "never more than its strength")
+                truthy(tail <= len * Motion.COMET_TAIL_SHARE and tail <= Motion.COMET_TAIL, "a short tail")
+                truthy(after >= 0 and after <= len, "the afterglow on the line")
+                truthy(arrive >= 0 and arrive <= 1, "the arrival between 0 and 1")
+                if arrive > 0 then
+                    truthy(head >= len, "arriving only once the head is at the node")
+                    if not arriving then arrivals = arrivals + 1 end
+                end
                 if on then truthy(head >= lastHead, "down the line, never back") end
                 lastHead = head
             end
             on = head ~= nil
+            arriving = head ~= nil and arrive > 0
         end
         truthy(passes >= 3 and passes <= 4, "once a period for " .. len .. " (" .. passes .. ")")
+        eq(arrivals, passes, "each pass arrives at the node for " .. len)
     end
     -- the same on a clock hours on (a remainder taken with floor, no `%`)
     local at = 0
-    while Motion.bead(at, 7, 80) == nil do at = at + 10 end
+    while Motion.comet(at, 7, 80) == nil do at = at + 10 end
     at = at + 100
-    local h1, a1 = Motion.bead(at, 7, 80)
-    local h2, a2 = Motion.bead(at + 5000 * period, 7, 80)
+    local h1, a1 = Motion.comet(at, 7, 80)
+    local h2, a2 = Motion.comet(at + 5000 * period, 7, 80)
     near(h2, h1, 1e-6)
     near(a2, a1, 1e-6)
 end)
 
 test("the lines' lights are out of step: neighbours start their passes far apart", function()
-    local period = Motion.BEAD_PERIOD_MS
+    local period = Motion.COMET_PERIOD_MS
     -- when line i's pass starts within a period
     local function startOf(i)
-        local last = Motion.bead(period - 1, i, 50) ~= nil
+        local last = Motion.comet(period - 1, i, 50) ~= nil
         for ms = 0, period - 1 do
-            local on = Motion.bead(ms, i, 50) ~= nil
+            local on = Motion.comet(ms, i, 50) ~= nil
             if on and not last then return ms end
             last = on
         end

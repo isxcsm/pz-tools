@@ -72,18 +72,19 @@ end
 -- Milliseconds and sizes: between two nodes lighting (shorter for a long plan, so that the nodes take STAMP_MAX_MS at
 -- most), how long a node's flash lasts, its pop (STAMP_POP of its size, over STAMP_POP_MS) and its ring (out to
 -- STAMP_RING design units); the pause before the seal; the seal's fall (from SEAL_FROM times its size), its squash
--- (SEAL_SQUASH of its height), the trees' jolt (SEAL_JOLT_DU design units), its ink ring (out to SEAL_INK_GROW) and how
--- much its ink settles (SEAL_SETTLE); how long it stays from its fall (the end lifts it by SEAL_LIFT and fades it).
+-- (SEAL_SQUASH of its height), the trees' jolt (SEAL_JOLT_DU design units), its ink splatter (from SEAL_INK_FROM of
+-- the seal's size out by SEAL_INK_GROW of it) and how much its ink settles (SEAL_SETTLE); how long it stays from its
+-- fall (the end lifts it by SEAL_LIFT and fades it).
 Plan.STAMP_STEP_MS = 140
 Plan.STAMP_MAX_MS = 1400
 Plan.STAMP_FLASH_MS = 420
 Plan.STAMP_POP, Plan.STAMP_POP_MS = 0.16, 240
 Plan.STAMP_RING = 10
 Plan.SEAL_WAIT_MS = 120
-Plan.SEAL_DROP_MS, Plan.SEAL_FROM = 150, 1.45
+Plan.SEAL_DROP_MS, Plan.SEAL_FROM = 150, 1.35
 Plan.SEAL_SQUASH_MS, Plan.SEAL_SQUASH = 170, 0.09
-Plan.SEAL_JOLT_MS, Plan.SEAL_JOLT_DU = 160, 2
-Plan.SEAL_INK_MS, Plan.SEAL_INK_GROW = 480, 28
+Plan.SEAL_JOLT_MS, Plan.SEAL_JOLT_DU = 160, 3
+Plan.SEAL_INK_MS, Plan.SEAL_INK_FROM, Plan.SEAL_INK_GROW = 480, 0.95, 0.3
 Plan.SEAL_SETTLE = 0.15
 Plan.SEAL_MS = 1250
 Plan.SEAL_FADE_MS, Plan.SEAL_LIFT = 320, 0.06
@@ -155,13 +156,13 @@ function Plan.stampFlash(age)
 end
 
 -- The seal `age` ms after it started to fall: its width and height as shares of its size, how much of it shows, how
--- strong its ink is (settling after the impact), and its ink ring's reach and strength (nil, 0 outside it); nil before
--- the fall and once it is gone.
+-- strong its ink is (settling after the impact), and its ink splatter's size (a share of the seal's) and strength
+-- (nil, 0 outside it); nil before the fall and once it is gone.
 function Plan.seal(age)
     if age < 0 or age >= Plan.SEAL_MS then return nil end
     local drop = Plan.SEAL_DROP_MS
     local sx, sy, a, ink = 1, 1, 1, 1
-    local inkGrow, inkA = nil, 0
+    local inkSize, inkA = nil, 0
     if age < drop then
         -- falling: faster and faster, from larger, coming into view
         local u = age / drop
@@ -179,7 +180,7 @@ function Plan.seal(age)
         if t < Plan.SEAL_INK_MS then
             local u = t / Plan.SEAL_INK_MS
             local fade = 1 - u
-            inkGrow, inkA = Plan.SEAL_INK_GROW * easeOut(u), 0.6 * fade * fade
+            inkSize, inkA = Plan.SEAL_INK_FROM + Plan.SEAL_INK_GROW * easeOut(u), 0.95 * fade * math.sqrt(fade)
         end
         ink = 1 - Plan.SEAL_SETTLE * easeOut(t / Plan.SEAL_INK_MS)
         -- lifting away at the end
@@ -191,7 +192,7 @@ function Plan.seal(age)
             a = 1 - v * v * (3 - 2 * v)
         end
     end
-    return sx, sy, a, ink, inkGrow, inkA
+    return sx, sy, a, ink, inkSize, inkA
 end
 
 -- The trees' jolt `age` ms after the seal started to fall: how far they are pushed down (design units: down at the
