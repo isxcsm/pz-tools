@@ -91,6 +91,10 @@ function OATerminalTabs:prerender()
             end
             UI.textCentre(self, name, x + tw / 2, (h - fh) / 2 + 1, on and p.bright or p.dim)
         end
+        if w.blink and w.blink[id] then
+            -- Something new to look at here (the field terminal's first open): the tab blinks until it is shown.
+            UI.frame(self, x - 1, 1, tw + 2, h - 1, p.value, 0.5 + 0.5 * math.sin(getTimestampMs() / 220))
+        end
         local mark = w.marks[id]
         if mark then
             local a = 1
@@ -171,6 +175,7 @@ function OATerminalWindow:view(id)
 end
 
 function OATerminalWindow:activate(id)
+    if self.blink then self.blink[id] = nil end
     if self.activeId == id and self.views[id] then return end
     for vid, view in pairs(self.views) do
         if vid ~= id then view:setVisible(false) end

@@ -135,6 +135,12 @@ python tools/check_translations.py                          # 번역 키, 샌드
 - `OA.Trade.addToDrop(record, items)`(서버): 다음 보급 상자에 넣을 물건(이야기 문서, 부속 아이템, 공용 혈청).
 - 이벤트(서버 쪽 Lua 함수 목록): `OA.Trade.onSealed(fn(record, boxId, entries))`, `OA.Trade.onSettled(fn(record, result))`.
   P4는 밀봉 때 임무 아이템 기한을 판정한다.
+- 상태 탭 (DESIGN-terminal 2, 12): `client/OperationAcorn/Trade/StatusModel.lua`(`OA.Trade.StatusModel`)가 기록에서 화면의 글과
+  숫자를 만들고(헬기 상태, 운송장 정산 계산, 진행 길의 단계별 목록, 개량 카드 상태, 감염 칸, 기록, 정식 단말 첫 화면 판, 크기별
+  배치), 하위 탭 넷(`TabHeli`, `TabProgress`, `TabUpgrades`, `TabRecords`)은 `StatusDraw.lua`(`OA.Trade.Draw`, `OAStatusView`)의
+  그리기 목록으로 갱신 때 배치하고 프레임마다 그리기만 한다. 다른 묶음에서 받는 것: `OA.Infection.state(record)`(없으면 감염 칸을
+  숨김), `Estimate.flight(record).fee/feeRate`, 상점 탭의 `view:showEntry(id)`(있으면 '상점에서 보기'가 그 카드를 고름). 정식 단말을
+  처음 열었는지는 단말 오브젝트 modData `OA_Booted`, 깜박일 탭은 창의 `blink[id]`(그 탭을 열면 꺼짐).
 
 ### P3, P4, P5가 내놓는 것
 
