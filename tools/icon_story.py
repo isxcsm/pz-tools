@@ -148,6 +148,20 @@ def mission_fabric_roll(I):
     return I.from_scene(s)
 
 
+def mission_heavy_case(I):
+    s = Scene(0)
+    # a tall hard transport case: grey, a seam, two side handles, latches, a yellow band and the weight stencilled
+    s.box(0.1, 0.22, 0.0, 0.9, 0.78, 0.5, (88, 94, 98), top=(116, 122, 126), shine=0.2)
+    s.box(0.1, 0.22, 0.24, 0.9, 0.78, 0.256, (52, 56, 60))
+    s.box(0.03, 0.38, 0.2, 0.1, 0.62, 0.34, STEEL_DARK)
+    s.box(0.9, 0.38, 0.2, 0.97, 0.62, 0.34, STEEL_DARK)
+    for x in (0.2, 0.7):
+        s.box(x, 0.78, 0.2, x + 0.1, 0.8, 0.31, STEEL, shine=0.7)
+    s.box(0.1, 0.78, 0.4, 0.9, 0.785, 0.46, YELLOW)
+    front_decal(s, 0.34, 0.66, 0.07, 0.19, 0.781, stencil_text('15', 40, 16, STENCIL), offset=0.0)
+    return I.from_scene(s)
+
+
 # --------------------------------------------------------------------------------------------------------------
 # Evidence and records.
 
@@ -548,6 +562,7 @@ def kit_voucher(I):
 FUNCTIONS = {
     'mission_envelope': mission_envelope, 'mission_sample_tin': mission_sample_tin, 'mission_logbook': mission_logbook,
     'mission_filter_case': mission_filter_case, 'mission_tape': mission_tape, 'mission_fabric_roll': mission_fabric_roll,
+    'mission_heavy_case': mission_heavy_case,
     'evidence_envelope': evidence_envelope, 'clinic_record': clinic_record, 'weather_log': weather_log,
     'farm_journal': farm_journal, 'sample_cooler': sample_cooler, 'roster_page': roster_page, 'review_memo': review_memo,
     'ward_record': ward_record, 'cell_log': cell_log, 'soil_sample': soil_sample, 'stake_tag': stake_tag,

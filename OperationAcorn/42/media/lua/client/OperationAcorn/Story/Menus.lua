@@ -10,6 +10,7 @@ require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Docs"
+require "OperationAcorn/Story/View"
 require "OperationAcorn/Story/Viewer"
 require "OperationAcorn/Story/Action"
 local OA = OperationAcorn
@@ -24,12 +25,23 @@ local function activeMission(player)
     return record and record.missions and record.missions.active or nil, record
 end
 
+-- Is there a mission running (the main one, or the special request) that `test` says yes to.
+local function anyMission(record, test)
+    for _, m in ipairs(OA.StoryView.live(record)) do
+        if test(m) then return true end
+    end
+    return false
+end
+
+local function wantsDevice(m) return m.field ~= nil and m.state == "open" end
+local function wantsCase(m) return m.swap ~= nil and m.swap.stage == "needcase" and m.state == "open" end
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- Inventory.
 
 local function onFillInventory(playerNum, context, items)
     local player = getSpecificPlayer(playerNum)
-    local m, record = activeMission(player)
+    local _, record = activeMission(player)
     local read, field, swap = false, false, false
     for _, item in ipairs(ISInventoryPane.getActualItems(items)) do
         local name = Data.itemName(item:getFullType())
@@ -44,13 +56,13 @@ local function onFillInventory(playerNum, context, items)
                     end)
                 end
             end
-            if name == "FieldCallDevice" and not field and m and m.field and m.state == "open" then
+            if name == "FieldCallDevice" and not field and anyMission(record, wantsDevice) then
                 field = true
                 context:addOption(getText("ContextMenu_OA_Story_FieldCall"), player, function(p)
                     OA.Sync.send(p, "story_field", {})
                 end)
             end
-            if name == "SampleCase" and not swap and m and m.swap and m.swap.stage == "needcase" and m.state == "open" then
+            if name == "SampleCase" and not swap and anyMission(record, wantsCase) then
                 swap = true
                 context:addOption(getText("ContextMenu_OA_Story_LeaveCase"), player, function(p)
                     OA.Sync.send(p, "story_swap", {})

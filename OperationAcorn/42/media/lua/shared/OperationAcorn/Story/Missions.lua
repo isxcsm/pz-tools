@@ -25,7 +25,8 @@ local function game()
 end
 
 -- A record's `missions` section: { active = mission | nil, nextAt = world age, seq = n, results = { done =, expired =,
--- lost = } }.
+-- lost = }, streak = missions done in time in a row, bestStreak = the longest, reroll = { week = } when a mission was
+-- taken again this week, special = the special request's slot (Missions.special) }.
 function Missions.state(record)
     local s = OA.Store.section(record, "missions")
     if not s.version then
@@ -34,11 +35,32 @@ function Missions.state(record)
         s.nextAt = 0
         s.results = { done = 0, expired = 0, lost = 0 }
     end
+    -- A save from before the streak counted had none.
+    s.streak = s.streak or 0
+    s.bestStreak = s.bestStreak or 0
     return s
 end
 
 function Missions.active(record)
     return Missions.state(record).active
+end
+
+-- The special request's slot (DESIGN-terminal 6.3), a mission of its own beside the main one: { nextAt = world age the
+-- next offer may come, offer = { seq, at, a = option, b = option } while two are offered, mission = the one taken,
+-- last = the ids of the last offer }. An option is { id, form, place, area, danger }.
+function Missions.special(record)
+    local s = Missions.state(record)
+    if not s.special then s.special = { nextAt = 0, last = {} } end
+    return s.special
+end
+
+-- The missions running now (a list: the main one, then the special request), for what works on every one of them.
+function Missions.live(record)
+    local missions = record and record.missions
+    local list = {}
+    if missions and missions.active then list[#list + 1] = missions.active end
+    if missions and missions.special and missions.special.mission then list[#list + 1] = missions.special.mission end
+    return list
 end
 
 local function weighted(list, int)
@@ -147,6 +169,46 @@ local function circleFor(m, x, y)
     m.area = { x = cx, y = cy, r = r }
 end
 
+-- The points a mission's zombie density is read at: the middle of its circle and four points round it (a few chunks of
+-- the area; read once, when the mission is made).
+function Missions.samplePoints(area)
+    local d = area.r * 0.6
+    local x, y = math.floor(area.x), math.floor(area.y)
+    return {
+        { x, y }, { math.floor(area.x + d), y }, { math.floor(area.x - d), y },
+        { x, math.floor(area.y + d) }, { x, math.floor(area.y - d) },
+    }
+end
+
+-- The danger pay of some areas (circles): the average density the game gives at their sample points, as a fraction
+-- (Rewards.dangerPay). 0 when the game cannot say.
+function Missions.dangerOf(areas)
+    local g = game()
+    if not (g and g.zombieIntensity) then return 0 end
+    local sum, n = 0, 0
+    for _, area in ipairs(areas) do
+        for _, p in ipairs(Missions.samplePoints(area)) do
+            local v = g.zombieIntensity(p[1], p[2])
+            if v then sum, n = sum + v, n + 1 end
+        end
+    end
+    if n == 0 then return 0 end
+    return Rewards.dangerPay(sum / n)
+end
+
+-- Makes the mission's reward of its parts (DESIGN-terminal 7.2): `base` the credits the kind is worth, the danger pay of
+-- its area and the streak the record has now on top of them, on the credits only. The card shows the parts. `danger`
+-- (the special request's offer read it already) is read when not given.
+function Missions.price(record, m, danger)
+    local areas = {}
+    if m.area then areas[#areas + 1] = m.area end
+    if m.area2 then areas[#areas + 1] = m.area2 end
+    m.base = m.base or m.credits
+    m.danger = danger or Missions.dangerOf(areas)
+    m.streak = m.special and 0 or Missions.state(record).streak
+    m.credits = Rewards.withBonus(m.base, m.danger, m.streak)
+end
+
 -- A place table of a regular mission's building from the game adapter.
 local function buildingPlace(info)
     return {
@@ -167,25 +229,16 @@ local function pickBuildingPlace(record, level)
     return buildingPlace(g.buildingInfo(idx)), ax, ay
 end
 
-local function fieldNoteId()
-    if OA.random(1, 100) <= Data.FIELD_NOTE_CHANCE then
-        return "note_" .. tostring(OA.random(1, Data.FIELD_NOTES))
+-- The field note an item may carry: the ones the record has not read come first, the read ones again when all are read.
+local function fieldNoteId(record)
+    if OA.random(1, 100) > Data.FIELD_NOTE_CHANCE then return nil end
+    local read = Story.section(record).docs
+    local fresh = {}
+    for n = 1, Data.FIELD_NOTES do
+        if not read["note_" .. n] then fresh[#fresh + 1] = n end
     end
-    return nil
-end
-
-local function createRegular(record, level)
-    local p, ax, ay = pickBuildingPlace(record, level)
-    if not p then return nil end
-    local kind = weighted(Data.REGULAR)
-    local m = newMission(record, "regular", level, nil)
-    m.title = kind.item
-    m.anchor = { x = ax, y = ay }
-    local mods = {}
-    if Data.ITEMS[kind.item].note then mods.OA_Note = fieldNoteId() end
-    m.items[1] = placementFrom(kind.item, "A", p, mods)
-    circleFor(m, p.x, p.y)
-    return m
+    if #fresh == 0 then return "note_" .. tostring(OA.random(1, Data.FIELD_NOTES)) end
+    return "note_" .. tostring(fresh[OA.random(1, #fresh)])
 end
 
 -- The candidate list of a story as Places wants it ({ x, y, id }).
@@ -310,14 +363,14 @@ function Missions.choose(record, option)
     placeStoryPiece(m, opt.item, "A", placeId, { OA_Variant = placeId })
     m.title = m.story .. "_" .. option
     Story.section(record).chosen[m.story] = option
+    Missions.price(record, m)
     Missions.begin(record, m)
     return true
 end
 
--- Two copies, one original: the original's serial is what the terminal copy shows.
-local function createCompare(record, entry, level)
-    local g = game()
-    local m = newMission(record, "contract", level, nil)
+-- Two copies, one original: the original's serial is what the terminal copy shows. A contract mission, or `kind`.
+local function createCompare(record, entry, level, kind)
+    local m = newMission(record, kind or "contract", level, nil)
     m.title = "compare"
     local serial = OA.random(100, 899)
     m.compare = { serial = serial, right = (OA.random(1, 2) == 1) and "A" or "B" }
@@ -421,6 +474,111 @@ local function createSoil(record, def, id, level)
     return m
 end
 
+-- ---------------------------------------------------------------------------------------------------------------
+-- The regular missions (DESIGN-terminal 7.2): one item in a building of the band, and the kinds mixed in.
+
+local function createItem(record, level, kind)
+    local p, ax, ay = pickBuildingPlace(record, level)
+    if not p then return nil end
+    local m = newMission(record, "regular", level, nil)
+    m.title = kind.item
+    m.anchor = { x = ax, y = ay }
+    local mods = {}
+    if Data.ITEMS[kind.item].note then mods.OA_Note = fieldNoteId(record) end
+    m.items[1] = placementFrom(kind.item, "A", p, mods)
+    circleFor(m, p.x, p.y)
+    if kind.kind == "heavy" then m.heavy = Data.HEAVY_WEIGHT end
+    return m
+end
+
+-- The soil sample of bare ground, among the regular missions: no place, no circle; the sample is taken anywhere outdoors.
+local function createPlainSoil(record, level)
+    local m = newMission(record, "regular", level, nil)
+    m.title = "soil"
+    local ax, ay = Missions.anchor(record)
+    if ax then m.anchor = { x = ax, y = ay } end
+    m.soil = { variant = "plain" }
+    return m
+end
+
+-- Is a point the centre of one of the buildings in the list.
+local function usedBuilding(list, x, y)
+    for _, p in ipairs(list) do
+        if p.x == x and p.y == y then return true end
+    end
+    return false
+end
+
+-- Pieces of one item in two or three buildings of the circle. The whole set pays more, a part pays by the share
+-- found (Missions.scatterPay). When the area holds no second building it is an ordinary pickup.
+local function createScatter(record, level, kind)
+    local g = game()
+    local p, ax, ay = pickBuildingPlace(record, level)
+    if not p then return nil end
+    local m = newMission(record, "regular", level, nil)
+    m.title = kind.item
+    m.anchor = { x = ax, y = ay }
+    circleFor(m, p.x, p.y)
+    local pieces = { p }
+    local want = OA.random(Data.SCATTER_PIECES[1], Data.SCATTER_PIECES[2])
+    local area = m.area
+    local function at(i)
+        local x, y, ok = g.building(i)
+        if x and usedBuilding(pieces, x, y) then return nil end
+        return x, y, ok
+    end
+    for _ = 2, want do
+        local idx = Places.pickBuilding(g.buildingCount(), at, area.x, area.y, 0, area.r - 10, 200)
+        local info = idx and g.buildingInfo(idx)
+        -- a building the search had to take from outside the circle is not one of the area
+        if not info or Places.distance(info.x, info.y, area.x, area.y) > area.r - 10 then break end
+        pieces[#pieces + 1] = buildingPlace(info)
+    end
+    local mods = { OA_Note = Data.ITEMS[kind.item].note and fieldNoteId(record) or nil }
+    for i, piece in ipairs(pieces) do
+        m.items[i] = placementFrom(kind.item, string.sub("ABC", i, i), piece, i == 1 and mods or {})
+    end
+    if #pieces >= 2 then
+        m.title = "scatter"
+        m.scatter = { total = #pieces, found = {} }
+        -- the whole set's price (a part pays by its share of the price without the extra)
+        m.credits = OA.round(m.credits * (1 + Rewards.SCATTER_BONUS))
+        m.trust = OA.round(m.trust * (1 + Rewards.SCATTER_BONUS))
+    end
+    return m
+end
+
+local REGULAR_BUILDERS = {
+    item = createItem, heavy = createItem, scatter = createScatter,
+    compare = function(record, level, kind) return createCompare(record, kind, level, "regular") end,
+    soil = function(record, level) return createPlainSoil(record, level) end,
+}
+
+local function createRegular(record, level)
+    local kind = weighted(Data.REGULAR)
+    return REGULAR_BUILDERS[kind.kind or "item"](record, level, kind)
+end
+
+-- An urgent mission (one in URGENT_CHANCE): a day to do it, and it pays more. Not for the kinds that need more than
+-- one place or one carry.
+local function makeUrgent(m)
+    if m.compare or m.scatter or m.heavy or m.soil then return end
+    if OA.random(1, 100) > Rewards.URGENT_CHANCE then return end
+    m.urgent = true
+    m.deadline = m.issued + Rewards.URGENT_HOURS
+    m.credits = OA.round(m.credits * Rewards.URGENT_MULTIPLIER)
+    m.trust = OA.round(m.trust * Rewards.URGENT_MULTIPLIER)
+end
+
+-- The next mission that is not a story's: a contract one after the handover, else a regular one.
+local function createPlain(record, level)
+    local m
+    if Story.handedOver(record) then m = createContract(record, level) end
+    if not m then m = createRegular(record, level) end
+    if m then makeUrgent(m) end
+    return m
+end
+
 local STORY_BUILDERS = {
     fetch = createFetch, carry = createFetch, swap = createSwap, field = createField,
     dropfetch = createDropFetch, choice = createChoice, soil = createSoil,
@@ -456,10 +614,13 @@ end
 -- id). `m` is a mission or the tab's description of one.
 function Missions.keys(m)
     local prefix, brief = "Title_", "Brief_"
-    if m.kind == "regular" then
+    if m.kind == "regular" and m.title ~= "compare" then
         prefix, brief = "RegTitle_", "RegBrief_"
-    elseif m.kind == "contract" then
+    elseif m.kind == "contract" or m.kind == "regular" then
+        -- (the comparison among the regular missions is told in the contract's words)
         prefix, brief = "ConTitle_", "ConBrief_"
+    elseif m.kind == "special" then
+        prefix, brief = "SpecialTitle_", "SpecialBrief_"
     end
     return "IGUI_OA_Story_" .. prefix .. tostring(m.title), "IGUI_OA_Story_" .. brief .. tostring(m.title)
 end
@@ -478,13 +639,10 @@ function Missions.start(record)
             Story.queueStory(record, story.id, story.fresh)
         end
     end
-    if not m then
-        if Story.handedOver(record) then
-            m = createContract(record, level)
-        end
-        if not m then m = createRegular(record, level) end
-    end
+    if not m then m = createPlain(record, level) end
     if not m then return nil end
+    -- a choice is priced when it is chosen (it has no place yet)
+    if m.state ~= "offer" then Missions.price(record, m) end
     Missions.begin(record, m)
     OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal",
         style = "notice" })
@@ -492,8 +650,36 @@ function Missions.start(record)
     return m
 end
 
+-- The streak (DESIGN-terminal 7.2): a mission done in time adds one, one past its deadline ends it; a lost one and a taken
+-- again one leave it. The special request is a slot of its own and neither counts nor ends it.
+local function countStreak(s, result)
+    if result == "done" then
+        s.streak = s.streak + 1
+        if s.streak > s.bestStreak then s.bestStreak = s.streak end
+    elseif result == "expired" then
+        s.streak = 0
+    end
+end
+
+-- The special request ends: its slot waits SPECIAL_GAP_DAYS for the next offer.
+local function finishSpecial(record, m, result)
+    local s = Missions.state(record)
+    local g = game()
+    if g and g.release then g.release(m) end
+    local sp = Missions.special(record)
+    sp.mission = nil
+    sp.nextAt = OA.hours() + Rewards.hours(Rewards.SPECIAL_GAP_DAYS)
+    s.results[result] = (s.results[result] or 0) + 1
+    if result == "expired" then
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "notice",
+            tone = "red", fallback = "bad" })
+    end
+    OA.Sync.changed("missions", record.id)
+end
+
 -- The mission ends: only its result stays (DESIGN 12). `result`: "done" | "expired" | "lost".
 function Missions.finish(record, m, result)
+    if m.special then return finishSpecial(record, m, result) end
     local s = Missions.state(record)
     local g = game()
     if g and g.release then g.release(m) end
@@ -501,6 +687,7 @@ function Missions.finish(record, m, result)
     s.nextAt = OA.hours() + intervalHours()
     s.results[result] = (s.results[result] or 0) + 1
     s.last = { id = m.id, story = m.story, result = result, at = OA.hours() }
+    countStreak(s, result)
     if result == "expired" then
         OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "notice",
             tone = "red", fallback = "bad" })
@@ -563,11 +750,21 @@ function Missions.tick(record)
     local m = s.active
     if not m then
         if Rewards.level(stage, milestones) and now >= (s.nextAt or 0) then Missions.start(record) end
-        return
+    else
+        Missions.tickOne(record, m, now)
     end
+    Missions.tickSpecial(record, now)
+end
+
+-- One running mission: its deadline, how long a sealed box may wait, and the steps that go by time.
+function Missions.tickOne(record, m, now)
     if m.state == "offer" or m.state == "open" or m.state == "calling" then
         if m.state ~= "calling" and now > m.deadline then
-            Missions.finish(record, m, "expired")
+            if m.scatter then
+                Missions.settleScatter(record, m, now)
+            else
+                Missions.finish(record, m, "expired")
+            end
             return
         end
     elseif m.state == "sealed" then
@@ -596,10 +793,15 @@ end
 -- The trade part sealed a box: the mission item in it is judged now (the deadline counts at sealing). entries:
 -- { { info = { mission = ..., count = ...}, count = n }, ... }.
 function Missions.onSealed(record, boxId, entries)
-    local s = Missions.state(record)
-    local m = s.active
-    if not m or m.state ~= "open" then return end
     local now = OA.hours()
+    for _, m in ipairs(Missions.live(record)) do
+        if m.state == "open" then Missions.sealedIn(record, m, boxId, entries, now) end
+    end
+end
+
+-- The pieces of a mission among a sealed box's entries, judged now. A scattered mission counts every piece it finds.
+function Missions.sealedIn(record, m, boxId, entries, now)
+    local found
     for _, entry in ipairs(entries or {}) do
         local info = entry.info or {}
         local base, key = Missions.parseId(info.mission)
@@ -608,15 +810,56 @@ function Missions.onSealed(record, boxId, entries)
             if m.compare then right = (key == m.compare.right) end
             if right then
                 if Rewards.judge(m.deadline, now) ~= "ok" then
-                    -- Too late: a plain item, no penalty. The mission is over.
-                    Missions.finish(record, m, "expired")
+                    -- Too late: a plain item, no penalty. The mission is over (what a scattered one found pays).
+                    if m.scatter then
+                        Missions.settleScatter(record, m, now)
+                    else
+                        Missions.finish(record, m, "expired")
+                    end
                     return
                 end
-                Missions.sealedOk(record, m, boxId, now)
-                return
+                if not m.scatter then
+                    Missions.sealedOk(record, m, boxId, now)
+                    return
+                end
+                if key and m.scatter.found[key] == nil then
+                    m.scatter.found[key] = true
+                    found = true
+                end
             end
         end
     end
+    if found then
+        m.box = boxId
+        if Missions.scatterCount(m) >= m.scatter.total then
+            Missions.sealedOk(record, m, boxId, now)
+        else
+            OA.Sync.changed("missions", record.id)
+        end
+    end
+end
+
+-- The pieces of a scattered mission found (sealed in time) so far.
+function Missions.scatterCount(m)
+    local n = 0
+    if m.scatter then
+        for _ in pairs(m.scatter.found) do n = n + 1 end
+    end
+    return n
+end
+
+-- What a scattered mission pays for the pieces it has: the whole set the price (which has the extra in it), a part its
+-- share of the price without the extra.
+function Missions.scatterPay(m)
+    local share = Rewards.scatterShare(Missions.scatterCount(m), m.scatter.total)
+    local k = share / (1 + Rewards.SCATTER_BONUS)
+    return OA.round(m.credits * k), OA.round(m.trust * k)
+end
+
+-- A scattered mission whose time is out: the pieces found are paid at the next settlement, none is an expired mission.
+function Missions.settleScatter(record, m, now)
+    if Missions.scatterCount(m) == 0 then return Missions.finish(record, m, "expired") end
+    Missions.sealedOk(record, m, nil, now)
 end
 
 function Missions.sealedOk(record, m, boxId, now)
@@ -626,6 +869,9 @@ function Missions.sealedOk(record, m, boxId, now)
         local q = Rewards.coolerQuality(temp)
         m.cooler = { temp = temp, grade = Rewards.coolerGrade(temp) }
         credits, trust = Rewards.reward(m.level, true, q, creditScale())
+        credits = Rewards.withBonus(credits, m.danger, m.streak)
+    elseif m.scatter then
+        credits, trust = Missions.scatterPay(m)
     end
     m.pay = { credits = credits, trust = trust }
     m.state = "sealed"
@@ -639,20 +885,21 @@ end
 -- The trade part settled a helicopter's delivery: a sealed mission is paid. `result.boxes` (when given) names the
 -- boxes the settlement covered.
 function Missions.onSettled(record, result)
-    local s = Missions.state(record)
-    local m = s.active
-    if not m or m.state ~= "sealed" then return end
     -- The trade part settles all of a record's sealed boxes in one arrival and says how many it took (a number).
     if result and type(result.boxes) == "number" and result.boxes <= 0 then return end
     local covered = result and (result.boxes or result.boxIds)
-    if type(covered) == "table" and m.box ~= nil then
-        local found = false
-        for k, v in pairs(covered) do
-            if v == m.box or k == m.box then found = true end
+    for _, m in ipairs(Missions.live(record)) do
+        if m.state == "sealed" then
+            local paid = true
+            if type(covered) == "table" and m.box ~= nil then
+                paid = false
+                for k, v in pairs(covered) do
+                    if v == m.box or k == m.box then paid = true end
+                end
+            end
+            if paid then Missions.pay(record, m) end
         end
-        if not found then return end
     end
-    Missions.pay(record, m)
 end
 
 -- The economy asks, as it values a mission item: is it a plain item now (1,000 credits and 5 trust, no mission)?
@@ -664,10 +911,13 @@ function Missions.expired(id)
     if not number then return true end
     for _, record in pairs(OA.Store.players()) do
         if tostring(record.number or 0) == number then
-            local m = record.missions and record.missions.active
-            if not (m and m.id == base) then return true end
-            if m.state == "sealed" or m.state == "calling" then return false end
-            return Rewards.judge(m.deadline, OA.hours()) ~= "ok"
+            for _, m in ipairs(Missions.live(record)) do
+                if m.id == base then
+                    if m.state == "sealed" or m.state == "calling" then return false end
+                    return Rewards.judge(m.deadline, OA.hours()) ~= "ok"
+                end
+            end
+            return true
         end
     end
     return true
@@ -722,19 +972,23 @@ end
 -- The sealed case is put in the drop (the player holds it, in reach of the place): the wait begins, and the player has
 -- to stay about for the record to appear.
 function Missions.swap(record, character)
-    local s = Missions.state(record)
-    local m = s.active
-    if not (m and m.swap and m.swap.stage == "needcase" and m.state == "open") then return false end
     local g = game()
     local x, y = g.playerPosition(record)
-    local p = Data.PLACES[m.place]
-    if not x or not p or Places.distance(x, y, p.x, p.y) > Data.CASE_RANGE then return false end
-    if g.takeItem and not g.takeItem(character, "SampleCase") then return false end
-    m.swap.stage = "waiting"
-    m.swap.waited = 0
-    m.swap.at = OA.hours()
-    OA.Sync.changed("missions", record.id)
-    return true
+    -- (the story's clinic and a special request may both wait for a case: the one the player stands at)
+    for _, m in ipairs(Missions.live(record)) do
+        if m.swap and m.swap.stage == "needcase" and m.state == "open" then
+            local p = Data.PLACES[m.place]
+            if x and p and Places.distance(x, y, p.x, p.y) <= Data.CASE_RANGE then
+                if g.takeItem and not g.takeItem(character, "SampleCase") then return false end
+                m.swap.stage = "waiting"
+                m.swap.waited = 0
+                m.swap.at = OA.hours()
+                OA.Sync.changed("missions", record.id)
+                return true
+            end
+        end
+    end
+    return false
 end
 
 -- The wait (waited, hours) adds up the game time from each look that found the player near (swap.at) to the next, not
@@ -763,10 +1017,23 @@ function Missions.tickSwap(record, m, now)
 end
 
 -- The field call device is used at the place: the mission item is sealed on the spot and the helicopter comes.
+local CALL_REASONS = { none = 0, range = 1, device = 2, item = 3 }
+
 function Missions.fieldCall(record, character)
-    local s = Missions.state(record)
-    local m = s.active
-    if not (m and m.field and m.state == "open") then return false, "none" end
+    -- (the story's field trade and a special request may both be open: the one the player stands at; when none can
+    -- be called, the reason of the one that came furthest)
+    local why = "none"
+    for _, m in ipairs(Missions.live(record)) do
+        if m.field and m.state == "open" then
+            local ok, reason = Missions.callField(record, character, m)
+            if ok then return true end
+            if (CALL_REASONS[reason] or 0) > CALL_REASONS[why] then why = reason end
+        end
+    end
+    return false, why
+end
+
+function Missions.callField(record, character, m)
     local g = game()
     local x, y, z = g.playerPosition(record)
     if not x or not m.area then return false, "range" end
@@ -824,17 +1091,184 @@ function Missions.soil(record, character)
 end
 
 -- ---------------------------------------------------------------------------------------------------------------
+-- Taking another mission (DESIGN-terminal 7.2).
+
+-- Whether the card offers 'take another' for a mission, and at what price: { trust = the trust it costs, left = how many
+-- there are left this week (0 or 1) } or nil. Only a regular or contract mission that is open, and a scattered one only
+-- until a piece is found (a piece sealed would be left a plain item).
+function Missions.rerollOffer(record, m)
+    if not m or m.special or m.state ~= "open" then return nil end
+    if m.kind ~= "regular" and m.kind ~= "contract" then return nil end
+    if m.scatter and Missions.scatterCount(m) > 0 then return nil end
+    local s = Missions.state(record)
+    local used = s.reroll ~= nil and s.reroll.week == OA.week()
+    return { trust = Rewards.rerollCost(m.level), left = used and 0 or 1 }
+end
+
+-- The mission is given back for another one, once a week, for some trust. The new one is made first: when none can be
+-- made nothing is lost. What the old one left in the world stays and counts as a plain item. Returns true when taken.
+function Missions.reroll(record)
+    local s = Missions.state(record)
+    local m = s.active
+    local offer = Missions.rerollOffer(record, m)
+    if not offer or offer.left <= 0 then return false end
+    local stage, milestones = Story.progress(record)
+    local level = Rewards.level(stage, milestones)
+    if not level then return false end
+    local fresh = createPlain(record, level)
+    if not fresh then return false end
+    Missions.price(record, fresh)
+    local g = game()
+    if g and g.release then g.release(m) end
+    Story.loseTrust(record, offer.trust)
+    s.reroll = { week = OA.week() }
+    OA.Sync.changed("trade", record.id)
+    Missions.begin(record, fresh)
+    OA.log("mission", m.id, "taken again as", fresh.id, "for", record.number)
+    return true
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- The special request (DESIGN-terminal 6.3): two offered at a time at the field terminal, one taken. It runs in a slot of
+-- its own beside the main mission (Missions.live), with the story's exchange, retrieve and field-trade steps.
+
+-- Is the slot open for the record: a field line (record.heli.line) and the second level. Returns that, and the level.
+function Missions.specialOpen(record)
+    local stage, milestones = Story.progress(record)
+    local level = Rewards.level(stage, milestones)
+    if not level or level < 2 then return false, level end
+    return (record.heli ~= nil and record.heli.line == true), level
+end
+
+-- Two different requests for an offer, not the ones of the last offer; the ones whose request copy has not come yet
+-- are likelier, and the second is of another form when there is one. Returns the two entries of Data.SPECIALS.
+function Missions.pickSpecials(record, int)
+    local sp = Missions.special(record)
+    local sent = {}
+    for _, req in ipairs(Story.section(record).requests or {}) do sent[req.id] = true end
+    local skip = {}
+    for _, id in ipairs(sp.last or {}) do skip[id] = true end
+    local pool = {}
+    for _, entry in ipairs(Data.SPECIALS) do
+        if not skip[entry.id] then pool[#pool + 1] = { entry = entry, weight = sent[entry.request] and 1 or 3 } end
+    end
+    if #pool < 2 then
+        pool = {}
+        for _, entry in ipairs(Data.SPECIALS) do pool[#pool + 1] = { entry = entry, weight = 1 } end
+    end
+    local first = weighted(pool, int)
+    local others, same = {}, {}
+    for _, e in ipairs(pool) do
+        if e ~= first then
+            if e.entry.form ~= first.entry.form then others[#others + 1] = e else same[#same + 1] = e end
+        end
+    end
+    local second = weighted(#others > 0 and others or same, int)
+    return first.entry, second.entry
+end
+
+-- One offered request: where it is (a place of the band of the level above, its circle) and the danger there.
+local function specialOption(record, entry, level)
+    local placeId = Missions.pickStoryPlace(record, entry.places, Rewards.specialBandLevel(level))
+    local p = placeId and Data.PLACES[placeId]
+    if not p then return nil end
+    local cx, cy, r = Places.circle(p.x, p.y, Places.circleRadius(level))
+    local area = { x = cx, y = cy, r = r }
+    return { id = entry.id, form = entry.form, place = placeId, area = area, danger = Missions.dangerOf({ area }) }
+end
+
+-- Two requests are offered. False when two cannot be made now.
+function Missions.offerSpecial(record, level)
+    local first, second = Missions.pickSpecials(record)
+    local a, b = specialOption(record, first, level), specialOption(record, second, level)
+    if not (a and b) then return false end
+    local s = Missions.state(record)
+    s.seq = s.seq + 1
+    Missions.special(record).offer = { seq = s.seq, at = OA.hours(), a = a, b = b }
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
+    OA.log("special request offered to", record.number, a.id, b.id)
+    OA.Sync.changed("missions", record.id)
+    return true
+end
+
+-- The request taken, as a mission: its form's steps, the level's reward doubled in credits, the fourteen days, the
+-- circle that was offered.
+local function createSpecial(record, opt, level)
+    local entry = Data.SPECIAL_BY_ID[opt.id]
+    if not (entry and Data.PLACES[opt.place]) then return nil end
+    local m = newMission(record, "special", level, nil)
+    m.special = true
+    m.form = entry.form
+    m.title = entry.id
+    m.credits, m.trust = Rewards.specialReward(level, creditScale())
+    m.deadline = m.issued + Rewards.hours(Rewards.SPECIAL_DAYS)
+    local ax, ay = Missions.anchor(record)
+    if ax then m.anchor = { x = ax, y = ay } end
+    if entry.form == "exchange" then
+        local it = placeStoryPiece(m, "DeadDropCase", "CASE", opt.place, { OA_Drop = "" }, "floor")
+        it.mode = "case"
+        m.swap = { stage = "needcase", waited = 0, item = entry.item }
+        Story.queueSupply(record, "SampleCase", nil)
+    elseif entry.form == "fetch" then
+        local it = placeStoryPiece(m, "DeadDropCase", "CASE", opt.place,
+            { OA_Variant = opt.place, OA_Inside = entry.item }, "floor")
+        it.mode = "case"
+        it.inside = entry.item
+        m.drop = { item = entry.item }
+    else
+        placeStoryPiece(m, entry.item, "A", opt.place, { OA_Variant = opt.place })
+        m.field = { stage = "needdevice" }
+        Story.queueSupply(record, "FieldCallDevice", nil)
+    end
+    m.area = { x = opt.area.x, y = opt.area.y, r = opt.area.r }
+    Missions.price(record, m, opt.danger)
+    return m
+end
+
+-- The terminal chose one of the two offered ('a' or 'b'): it becomes the request, the other closes, the staff's request
+-- copy goes to the folder. Returns true when taken.
+function Missions.acceptSpecial(record, option)
+    local open, level = Missions.specialOpen(record)
+    if not open then return false end
+    local sp = Missions.special(record)
+    local offer = sp.offer
+    local opt = offer and (option == "a" or option == "b") and offer[option] or nil
+    if not opt or sp.mission then return false end
+    local m = createSpecial(record, opt, level)
+    if not m then return false end
+    sp.last = { offer.a.id, offer.b.id }
+    sp.offer = nil
+    sp.mission = m
+    if OA.Scene then OA.Scene.begin(record, m) end
+    local entry = Data.SPECIAL_BY_ID[opt.id]
+    local req = Story.addRequestCopy(record, entry.form, entry.request)
+    m.request = req and req.no or nil
+    local g = game()
+    for _, it in ipairs(m.items) do
+        if not it.placed and g and g.request then g.request(record, m, it) end
+    end
+    OA.log("special request", m.id, m.title, "taken by", record.number)
+    OA.Sync.changed("missions", record.id)
+    return true
+end
+
+-- Every ten minutes: the request running is looked after like any mission; with none, and none offered, the next offer
+-- comes when its time has.
+function Missions.tickSpecial(record, now)
+    local sp = record.missions and record.missions.special
+    if sp and sp.mission then return Missions.tickOne(record, sp.mission, now) end
+    if sp and sp.offer then return end
+    local open, level = Missions.specialOpen(record)
+    if not open then return end
+    if now >= (sp and sp.nextAt or 0) then Missions.offerSpecial(record, level) end
+end
+
+-- ---------------------------------------------------------------------------------------------------------------
 -- What the windows read.
 
 -- A plain description of a mission for the tab: strings and numbers, no text (the tab translates).
-function Missions.describe(record)
-    local s = Missions.state(record)
-    local m = s.active
-    local now = OA.hours()
-    local info = { nextIn = math.max(0, (s.nextAt or 0) - now), results = s.results }
-    -- The special request's slot (the special-request unit gives the function): nil while there is none.
-    info.special = Missions.specialSlot and Missions.specialSlot(record) or nil
-    if not m then return info end
+local function describeMission(m, now)
+    local info = {}
     info.id = m.id
     info.kind = m.kind
     info.story = m.story
@@ -856,15 +1290,55 @@ function Missions.describe(record)
     info.cooler = m.carry and { temp = Missions.coolerTemp(m, now), started = m.carry.start ~= nil }
     info.level = m.level
     info.seq = m.seq
-    -- What the reward is made of, for the card's line under the story (the reward-device unit sets them on the
-    -- mission): the base credits, the danger pay (a fraction, 0 to 0.3), the streak it was made at, the urgent flag.
+    -- What the reward is made of, for the card's line under the story: the base credits, the danger pay (a fraction, 0
+    -- to 0.3), the streak it was made at, the urgent flag.
     info.base, info.danger, info.streak, info.urgent = m.base, m.danger, m.streak, m.urgent
-    -- The card's 'take another' button: { trust = what it costs, left = how many this week } or nil when the mission
-    -- cannot be swapped (the reward-device unit gives the function).
-    info.reroll = Missions.rerollOffer and Missions.rerollOffer(record, m) or nil
+    -- The scattered pieces (how many of how many are found), the weight of a heavy sample, a special request's form
+    -- and its request copy's number (the folder's R-number).
+    info.scatter = m.scatter and { total = m.scatter.total, found = Missions.scatterCount(m) } or nil
+    info.heavy = m.heavy
+    info.form = m.form
+    info.request = m.request
     local first = m.items and m.items[1]
     if first then info.item = Data.itemName(first.type) end
     return info
+end
+
+function Missions.describe(record)
+    local s = Missions.state(record)
+    local m = s.active
+    local now = OA.hours()
+    local info = { nextIn = math.max(0, (s.nextAt or 0) - now), results = s.results }
+    info.special = Missions.specialSlot(record)
+    if not m then return info end
+    for k, v in pairs(describeMission(m, now)) do info[k] = v end
+    -- The card's 'take another' button: { trust = what it costs, left = how many this week } or nil when the mission
+    -- cannot be swapped.
+    info.reroll = Missions.rerollOffer(record, m)
+    return info
+end
+
+-- The special request's slot for the tab: nil while the record has none (no field line, or below the second level), else
+-- { state = "mission", mission = (describe's table) }, { state = "offer", options = { a = {...}, b = {...} } } or
+-- { state = "wait", nextIn = hours to the next offer }. An option is { id, form, place, area, danger, credits, trust,
+-- days }.
+function Missions.specialSlot(record)
+    local sp = record.missions and record.missions.special
+    local now = OA.hours()
+    if sp and sp.mission then return { state = "mission", mission = describeMission(sp.mission, now) } end
+    local open, level = Missions.specialOpen(record)
+    if not open then return nil end
+    if sp and sp.offer then
+        local credits, trust = Rewards.specialReward(level, creditScale())
+        local options = {}
+        for _, key in ipairs({ "a", "b" }) do
+            local opt = sp.offer[key]
+            options[key] = { id = opt.id, form = opt.form, place = opt.place, area = opt.area, danger = opt.danger,
+                credits = Rewards.withBonus(credits, opt.danger, 0), trust = trust, days = Rewards.SPECIAL_DAYS }
+        end
+        return { state = "offer", options = options, seq = sp.offer.seq }
+    end
+    return { state = "wait", nextIn = math.max(0, (sp and sp.nextAt or 0) - now) }
 end
 
 return Missions

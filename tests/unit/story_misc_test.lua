@@ -234,7 +234,11 @@ local function uiKeys()
     local function add(k) list[#list + 1] = P .. k end
     for id in pairs(Data.PLACES) do add("Place_" .. id); add("PlaceNote_" .. id) end
     for _, id in ipairs(storyIds()) do add("Title_" .. id); add("Brief_" .. id) end
-    for _, r in ipairs(Data.REGULAR) do add("RegTitle_" .. r.item); add("RegBrief_" .. r.item) end
+    for _, r in ipairs(Data.REGULAR) do
+        -- (the comparison is told in the contract's words)
+        if r.id ~= "compare" then add("RegTitle_" .. (r.id or r.item)); add("RegBrief_" .. (r.id or r.item)) end
+    end
+    for _, e in ipairs(Data.SPECIALS) do add("SpecialTitle_" .. e.id) end
     for _, c in ipairs(Data.CONTRACTS) do add("ConTitle_" .. c.id); add("ConBrief_" .. c.id) end
     for _, id in ipairs(Docs.all()) do
         add("DocTitle_" .. id)

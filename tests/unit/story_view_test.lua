@@ -204,3 +204,65 @@ test("an item belongs to a mission by its id, or by the id and a piece", functio
     eq(View.owns(nil, "M7-3"), false)
     eq(View.owns({ id = "M7-30" }, "M7-30#B"), true, "the prefix follows the mission")
 end)
+
+-- The special request beside the main mission (DESIGN-terminal 6.3) -----------------------------------------------------
+
+local function special(state)
+    local m = mission("special", state)
+    m.id = "M1-2"
+    m.area = { x = 3000, y = 4000, r = 70 }
+    return m
+end
+
+test("the special request running is shown with the main mission, once it is taken", function()
+    local main, sp = mission(), special()
+    local record = { missions = { active = main, special = { mission = sp } } }
+    eq(View.shownSpecial(record), sp)
+    local list = View.shownList(record)
+    eq(#list, 2)
+    eq(list[1], main)
+    eq(list[2], sp)
+    eq(View.shownSpecial({ missions = { special = { mission = special("calling") } } }), nil)
+    eq(View.shownSpecial({ missions = { special = { offer = {} } } }), nil, "an offer has no circle")
+    eq(#View.shownList({ missions = { special = { mission = sp } } }), 1, "the request alone")
+    eq(#View.shownList({}), 0)
+    eq(#View.shownList(nil), 0)
+end)
+
+test("both circles are drawn in teal and the dots lead to the main mission's", function()
+    local main, sp = mission(), special()
+    local record = { missions = { active = main, special = { mission = sp } } }
+    local world = View.markers(record, 0, 0, true)
+    local circles, dots = {}, {}
+    for _, k in ipairs(world) do
+        if k.kind == "circle" then circles[#circles + 1] = k elseif k.kind == "dot" then dots[#dots + 1] = k end
+    end
+    eq(#circles, 2)
+    eq(circles[1].x, 1000)
+    eq(circles[2].x, 3000)
+    eq(circles[2].color, View.TEAL)
+    eq(#dots, 10)
+    truthy(dots[10].x < 1000 and dots[10].y < 2000, "towards the first circle")
+    eq(#View.markers(record, 0, 0, false), 2, "the minimap has the two circles")
+    local alone = View.markers({ missions = { special = { mission = sp } } }, 0, 0, true)
+    local first
+    for _, k in ipairs(alone) do if k.kind == "dot" then first = k end end
+    truthy(first and first.x > 1000, "no main mission: the dots lead to the request's")
+end)
+
+test("an item belongs to the main mission or the special request by its OA_Mission, and to no other", function()
+    local main, sp = mission(), special()
+    local record = { missions = { active = main, special = { mission = sp } } }
+    eq(View.ownerOf(record, "M1-1"), main)
+    eq(View.ownerOf(record, "M1-1#A"), main)
+    eq(View.ownerOf(record, "M1-2"), sp)
+    eq(View.ownerOf(record, "M1-2#B"), sp)
+    eq(View.ownerOf(record, "M1-22"), nil)
+    eq(View.ownerOf(record, "M9-9"), nil)
+    eq(View.ownerOf(record, nil), nil)
+    eq(View.ownerOf({}, "M1-1"), nil)
+    eq(View.ownerOf(nil, "M1-1"), nil)
+    eq(#View.live(record), 2)
+    eq(#View.live({ missions = { active = main } }), 1)
+    eq(#View.live(nil), 0)
+end)

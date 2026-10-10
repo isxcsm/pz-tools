@@ -86,5 +86,6 @@
     "Tooltip_OA_Tree_Item_InfectionReversal": "감염 진행을 처음으로 되돌려 메스꺼움 같은 증상을 없앱니다. 감염은 남아 지연제는 계속 필요합니다.",
     "Tooltip_OA_Tree_Item_InfectionTestKit": "쓰면 감염 여부가 바로 나옵니다. 좀비에게 다친 뒤 검사하기 전에는 납품에 감염 처리 수수료가 붙습니다.",
     "Tooltip_OA_Tree_Progress": "감염 진행 %1%%",
-    "Tooltip_OA_Story_HandoverPages": "담당 부서 변경에 따라 넘기는 서류 묶음. 맨 위에 목록이 붙어 있습니다."
+    "Tooltip_OA_Story_HandoverPages": "담당 부서 변경에 따라 넘기는 서류 묶음. 맨 위에 목록이 붙어 있습니다.",
+    "Tooltip_OA_Story_MissionHeavyCase": "손잡이가 달린 두꺼운 보관 상자. 혼자 오래 들고 다니기에는 무겁습니다."
 }

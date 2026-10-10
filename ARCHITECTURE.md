@@ -86,7 +86,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `boxes`, `heli`, `orders` | P2 | 상자, 헬기(`line`: 정식 회선이 열림), 주문 |
 | `upgrades` | P3 | 트리 점, 노드, 캡스톤, 2차 판, 산 혈청 수 |
 | `infection` | P3 | 감염과 치료 (`shared/.../Upgrades/Infection.lua`, `OA.Infection`): `untested`(좀비 상처 뒤 검사 전), `known`(검사 양성), `progress`(0~1, 양성 뒤에만 읽음), `drug`(`{ kind = "long"\|"short", till = 끝나는 세계 시각, age = 멈춰 둘 감염 나이(시간) }`). 서버가 고치고(`infection.wound`, `infection.seen` 명령, 약과 검사는 `Serums.lua`), 정산과 견적이 수수료를 이 칸에서 읽고, 상태 탭과 무들은 `OA.Infection.state(record)`로 읽는다 |
-| `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산) |
+| `missions`, `story` | P4 | 임무, 이야기 진행, 문서철 (교신 사본은 진행 칸에서 계산). `missions`: `active`(지금 임무), `special`(특별 의뢰 칸 `{ nextAt, offer = { seq, a, b }, mission, last }`, `Missions.live(record)`가 둘을 함께 돌려준다), `streak`·`bestStreak`(연속 완료), `reroll`(`{ week }`, 바꿔 받은 주) |
 
 기록의 `upgrades`는 옛 판의 세이브를 고친 단계 이름 목록이다. 각 부분이 `Store.addUpgrade(name, fn)`로 단계를 더하고, 서버가 시작할 때 `Store.upgradeAll()`이 기록마다 한 번씩 돌린다. 새 기록은 모든 단계를 한 것으로 시작한다.
 
@@ -274,7 +274,7 @@ python tools/check_translations.py                          # 번역 키, 샌드
 `CommTerminal`, `DeliveryBox`, `SupplyCrate`, `TerminalManual`, `SupplyManifest`, `SampleBundle`, `MeteorFragment`, `UpgradeSerumScout`, `UpgradeSerumLoad`,
 `UpgradeSerumSurvival`, `UpgradeSerumShared`, `CureSerum`, `DelayDrug`, `DelayDrugLong`, `InfectionReversal`, `InfectionTestKit`, `ShredBench`, `BulkShredder`, `Cutter`, `PropaneRefiner`, `OilRefiner`, `WoodSaw`,
 `ResearchStorage`, `RainStorage`, `Lure`, `BagCapacityKit`, `BagWeightKit`, `TrunkKit`, `EngineTuningKit`, `ResearchBackpack`, `FuelCanMk1`~`3`, `WeldingTorchMk1`~`3`,
-`MissionItem`, `DocumentItem`, 이야기 묶음의 서른 가지 `MissionEnvelope`, `MissionSampleTin`, `MissionLogbook`, `MissionFilterCase`, `MissionTape`, `MissionFabricRoll`, `EvidenceEnvelope`, `ClinicRecord`, `WeatherLog`, `FarmJournal`, `SampleCooler`, `RosterPage`, `ReviewMemo`, `WardRecord`, `CellLog`, `SoilSample`, `StakeTag`, `RosterLostPage`, `FilterBundle`, `PharmacyLedger`, `CopyOriginal`, `SampleCase`, `DeadDropCase`, `FieldCallDevice`, `AnalysisReply`, `Appendix`, `SerumSheet`, `UnresolvedList`, `HandoverFile`, `KitVoucher` (`tools/icon_story.py`). 기계 부품 `Motor`, `ShredderBlade`, `CuttingBlade`, `SawBlade`, `Catalyst`, `SoundproofCover`는 등급을 색으로 구분한 세 그림이 있다:
+`MissionItem`, `DocumentItem`, 이야기 묶음의 서른한 가지 `MissionEnvelope`, `MissionSampleTin`, `MissionLogbook`, `MissionFilterCase`, `MissionTape`, `MissionFabricRoll`, `MissionHeavyCase`, `EvidenceEnvelope`, `ClinicRecord`, `WeatherLog`, `FarmJournal`, `SampleCooler`, `RosterPage`, `ReviewMemo`, `WardRecord`, `CellLog`, `SoilSample`, `StakeTag`, `RosterLostPage`, `FilterBundle`, `PharmacyLedger`, `CopyOriginal`, `SampleCase`, `DeadDropCase`, `FieldCallDevice`, `AnalysisReply`, `Appendix`, `SerumSheet`, `UnresolvedList`, `HandoverFile`, `KitVoucher` (`tools/icon_story.py`). 기계 부품 `Motor`, `ShredderBlade`, `CuttingBlade`, `SawBlade`, `Catalyst`, `SoundproofCover`는 등급을 색으로 구분한 세 그림이 있다:
 `<부품>Old`(녹슨 갈색), `<부품>Normal`(강철 회색), `<부품>Modern`(아노다이징 파랑). 등급 접미사 없는 `<부품>`은 보통 등급 그림이다.
 강화 혈청은 트리 색(정찰 청록, 하중 호박, 생존 초록, 공용 보라)이다.
 

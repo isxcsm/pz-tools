@@ -78,5 +78,6 @@
     "OperationAcorn.DelayDrugLong": "Infection Delay Drug (7 Days)",
     "OperationAcorn.InfectionReversal": "Infection Reversal Drug",
     "OperationAcorn.InfectionTestKit": "Infection Test Kit",
-    "OperationAcorn.HandoverPages": "Papers for Handover"
+    "OperationAcorn.HandoverPages": "Papers for Handover",
+    "OperationAcorn.MissionHeavyCase": "Heavy Sample Case"
 }

@@ -366,20 +366,22 @@ end
 local looks = {}  -- by record id: the real time (ms) of the last look
 
 -- Every game minute, for each record: the circle entered (the line), the scene put in place, a drop site stood at.
+-- Each mission running is looked at: the regular one and a special request beside it.
 function Scene.minute(record)
     local g = Scene.game
     if not g then return end
     if not OA.due(looks, record.id, getTimestampMs(), Scene.LOOK_MS) then return end
     local x, y = g.playerPosition(record)
     if not x then return end
-    local m = record.missions and record.missions.active
-    if m and m.scene and m.state == "open" and (inCircle(m.area, x, y) or inCircle(m.area2, x, y)) then
-        if not m.scene.arrived then
-            m.scene.arrived = true
-            local id, ctx = Scene.arrivalLine(record, m, g.isNight())
-            g.say(record, id, ctx)
+    for _, m in ipairs(OA.Missions.live(record)) do
+        if m.scene and m.state == "open" and (inCircle(m.area, x, y) or inCircle(m.area2, x, y)) then
+            if not m.scene.arrived then
+                m.scene.arrived = true
+                local id, ctx = Scene.arrivalLine(record, m, g.isNight())
+                g.say(record, id, ctx)
+            end
+            if not m.scene.built then Scene.build(record, m, x, y) end
         end
-        if not m.scene.built then Scene.build(record, m, x, y) end
     end
     if OA.Sites and Scene.touchSite(record, x, y, OA.Sites.list()) then g.say(record, "SiteFirst", nil) end
 end

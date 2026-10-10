@@ -26,6 +26,54 @@ function Rewards.streakBonus(n)
     return Rewards.STREAK_STEP * math.min(math.max(n or 0, 0), Rewards.STREAK_MAX)
 end
 
+-- Danger pay (DESIGN-terminal 7.2): the zombie density of the mission's area (the average of the chunks read there) over
+-- DANGER_BASE, in per cent, in steps of 5, from 0 to 0.3 of the credits. Returns the fraction (0 to 0.3).
+Rewards.DANGER_BASE, Rewards.DANGER_STEP, Rewards.DANGER_MAX = 0.05, 5, 0.3
+function Rewards.dangerPay(density)
+    local percent = ((density or 0) - Rewards.DANGER_BASE) * 100
+    local steps = math.floor(percent / Rewards.DANGER_STEP + 0.5 + 1e-9)
+    return OA.clamp(steps * Rewards.DANGER_STEP / 100, 0, Rewards.DANGER_MAX)
+end
+
+-- The credits of a mission with its danger pay and the streak's bonus on top of the base (both on the credits only; the
+-- trust stays): 30,000 at 15 per cent danger and a streak of 2 is 40,500.
+function Rewards.withBonus(base, danger, streak)
+    return OA.round(base * (1 + (danger or 0) + Rewards.streakBonus(streak)))
+end
+
+-- The urgent mission (7.2): one regular mission in URGENT_CHANCE (per cent), URGENT_HOURS to do it, MULTIPLIER the pay.
+Rewards.URGENT_CHANCE, Rewards.URGENT_HOURS, Rewards.URGENT_MULTIPLIER = 10, 24, 1.5
+
+-- The scattered samples (7.2): the whole set pays SCATTER_BONUS more; a part pays the share found of the price without
+-- it. `found` and `total` count the pieces.
+Rewards.SCATTER_BONUS = 0.2
+function Rewards.scatterShare(found, total)
+    if total <= 0 then return 0 end
+    if found >= total then return 1 + Rewards.SCATTER_BONUS end
+    return found / total
+end
+
+-- Taking another mission (7.2): once a week, for this share of the level's trust.
+Rewards.REROLL_SHARE = 0.10
+function Rewards.rerollCost(level)
+    local row = Rewards.LEVELS[level]
+    if not row then return 0 end
+    return OA.round(row.trust * Rewards.REROLL_SHARE)
+end
+
+-- The special request (6.3): the level's regular credits twice over and its trust once, fourteen days, the next offer
+-- seven days after one ends. The distance band is the next level's.
+Rewards.SPECIAL_CREDITS = 2
+Rewards.SPECIAL_DAYS, Rewards.SPECIAL_GAP_DAYS = 14, 7
+function Rewards.specialReward(level, creditScale)
+    local credits, trust = Rewards.reward(level, false, 1, creditScale)
+    return credits * Rewards.SPECIAL_CREDITS, trust
+end
+
+function Rewards.specialBandLevel(level)
+    return math.min((level or 1) + 1, #Rewards.LEVELS)
+end
+
 -- A mission item delivered after the deadline is a plain item: this much, no penalty (NUMBERS 1, 9). The economy
 -- values every mission item at this, so a mission in time pays the rest on top.
 Rewards.EXPIRED_CREDITS = 1000

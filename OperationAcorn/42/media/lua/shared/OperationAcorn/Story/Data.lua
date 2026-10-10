@@ -65,6 +65,7 @@ Data.ITEMS = {
     MissionFilterCase = { note = true, weight = 1.5 },
     MissionTape = { note = true, weight = 0.2 },
     MissionFabricRoll = { note = true, weight = 1.0 },
+    MissionHeavyCase = { note = true, weight = 15 },
     -- Story missions.
     EvidenceEnvelope = { docs = { "police_card" }, weight = 0.3 },
     ClinicRecord = { docs = { "clinic_log" }, weight = 0.5 },
@@ -108,7 +109,11 @@ function Data.itemName(fullType)
     return name
 end
 
--- The regular missions' kinds: the item, how heavy the pick is. Text: IGUI_OA_Story_RegTitle_<item> and _RegBrief_.
+-- The regular missions' kinds: how heavy the pick is, and what is made. Without a `kind` it is one item in one building
+-- (text: IGUI_OA_Story_RegTitle_<item> and _RegBrief_). The others (DESIGN-terminal 7.2): `compare` (two copies in two
+-- buildings, one the original), `soil` (a sample of bare ground), `scatter` (a piece of `item` in each of two or three
+-- buildings of the area), `heavy` (one item that weighs about 15: a car or a cart carries it). Their text is
+-- IGUI_OA_Story_RegTitle_<id> and _RegBrief_<id>, the compare one the contract's.
 Data.REGULAR = {
     { item = "MissionEnvelope", weight = 3 },
     { item = "MissionSampleTin", weight = 2 },
@@ -116,7 +121,15 @@ Data.REGULAR = {
     { item = "MissionFilterCase", weight = 2 },
     { item = "MissionTape", weight = 2 },
     { item = "MissionFabricRoll", weight = 2 },
+    { id = "compare", kind = "compare", item = "CopyOriginal", weight = 1 },
+    { id = "soil", kind = "soil", weight = 1 },
+    { id = "scatter", kind = "scatter", item = "MissionSampleTin", weight = 2 },
+    { item = "MissionHeavyCase", kind = "heavy", weight = 1 },
 }
+
+-- The scattered samples: how many pieces there can be, and the weight of the heavy sample (the card tells it).
+Data.SCATTER_PIECES = { 2, 3 }
+Data.HEAVY_WEIGHT = 15
 
 -- The field notes a regular mission item may carry (document ids note_1 .. note_N), and the chance it does.
 Data.FIELD_NOTES = 12
@@ -290,11 +303,35 @@ Data.STATUS_ROWS = 18
 Data.HALLUCINATION_LONG = 3
 Data.MANIFESTS_KEPT = 12
 
+-- The special requests (DESIGN-terminal 6.3): what the field terminal offers, two at a time. Each is one of the three
+-- forms the story missions already have: `exchange` (leave the sealed case at the place, wait, take what turns up),
+-- `fetch` (take the item from the container left there), `field` (find the item and call the helicopter on the spot).
+-- `item` is a regular mission item, `places` the candidates (Data.PLACES, picked by the band of the level above), and
+-- `request` the 2반 request copy sent with it. Text: IGUI_OA_Story_SpecialTitle_<id>.
+Data.SPECIALS = {
+    { id = "can", form = "exchange", item = "MissionSampleTin", request = "dunnigan_can",
+      places = { "riverside_farm", "riverside_farm2", "fallas_farm", "fallas_farm2" } },
+    { id = "cold", form = "exchange", item = "MissionSampleTin", request = "ashdown_cold",
+      places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
+    { id = "stock", form = "fetch", item = "MissionLogbook", request = "kiesling_stock",
+      places = { "valley_camp", "east_camp", "riverside_school", "westpoint_school", "marchridge_school" } },
+    { id = "filters", form = "fetch", item = "MissionFilterCase", request = "dunnigan_filters",
+      places = { "brandenburg_airfield", "riverside_farm", "fallas_farm", "fallas_farm2" } },
+    { id = "handover", form = "field", item = "MissionEnvelope", request = "branscomb_test",
+      places = { "riverside_school", "westpoint_school", "marchridge_school", "valley_camp", "east_camp" } },
+    { id = "records", form = "field", item = "MissionLogbook", request = "ashdown_seal",
+      places = { "westpoint_clinic", "marchridge_clinic", "fallas_clinic" } },
+}
+Data.SPECIAL_BY_ID = {}
+for _, entry in ipairs(Data.SPECIALS) do Data.SPECIAL_BY_ID[entry.id] = entry end
+
 -- The 2반 request copies a special request brings to the folder (DESIGN-terminal 6.3.1): by form (exchange, fetch,
 -- field), the ids of the texts (IGUI_OA_Story_Request_<id>), each sent once. The first copy's number is R-0117.
 Data.REQUEST_FIRST = 117
 Data.REQUESTS = {
-    exchange = { "dunnigan_can" },
+    exchange = { "dunnigan_can", "ashdown_cold" },
+    fetch = { "kiesling_stock", "dunnigan_filters" },
+    field = { "branscomb_test", "ashdown_seal" },
 }
 
 return Data

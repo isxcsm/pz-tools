@@ -17,7 +17,7 @@ local View, Missions = OA.StoryView, OA.Missions
 local Highlight = {}
 OA.StoryHighlight = Highlight
 
--- The objects lit now, by the character's number: object -> true. The search ledger leaves these to this part.
+-- The objects lit now, by the character's number: object -> its colour. The search ledger leaves these to this part.
 local lit = {}
 Highlight.lit = lit
 
@@ -38,15 +38,16 @@ local function holds(container, id)
     return false
 end
 
--- Puts into `want` the objects of a square that hold a piece: the furniture whose container has it, the item on the
--- floor that is it (or, for a case that holds the piece, the case while the piece is in it).
-local function find(square, id, inner, want)
+-- Puts into `want` the objects of a square that hold a piece, with the colour to light them: the furniture whose
+-- container has it, the item on the floor that is it (or, for a case that holds the piece, the case while the piece is
+-- in it).
+local function find(square, id, inner, want, color)
     local objects = square:getObjects()
     for j = 0, objects:size() - 1 do
         local object = objects:get(j)
         for k = 0, object:getContainerCount() - 1 do
             if holds(object:getContainerByIndex(k), id) then
-                want[object] = true
+                want[object] = color
                 break
             end
         end
@@ -57,15 +58,16 @@ local function find(square, id, inner, want)
         local item = world:getItem()
         if item and item:hasModData() and item:getModData().OA_Mission == id then
             if not inner or (instanceof(item, "InventoryContainer") and holds(item:getInventory(), inner)) then
-                want[world] = true
+                want[world] = color
             end
         end
     end
 end
 
--- The objects to light for a mission seen from a character: object -> true (nothing made when nothing is near).
-local function wanted(m, player)
-    local want
+-- Adds the objects to light for a mission seen from a character to `want` (object -> colour; made here when nothing is
+-- there yet and something is near, so that nothing is made while nothing is near). Returns `want`.
+local function wanted(m, player, want)
+    local color = View.color(m.kind)
     local n = player:getPlayerNum()
     local px, py, pz = player:getX(), player:getY(), player:getZ()
     for _, it in ipairs(m.items) do
@@ -75,11 +77,11 @@ local function wanted(m, player)
             if square and square:isCouldSee(n) then
                 want = want or {}
                 local inner = it.inside and Missions.itemId(m, "A") or nil
-                find(square, Missions.itemId(m, it.key), inner, want)
+                find(square, Missions.itemId(m, it.key), inner, want, color)
             end
         end
     end
-    return want or EMPTY
+    return want
 end
 
 local function setOutline(object, on, n, color)
@@ -89,22 +91,22 @@ end
 
 -- Lights the objects in `want` and no others (the ones lit already are lit again: the game, or another part, may have
 -- turned an outline off or changed its colour; the container the loot window has open is the game's to colour).
-local function lightOnly(n, want, color, open)
+local function lightOnly(n, want, open)
     local mine = lit[n]
     if mine then
         for object in pairs(mine) do
             if not want[object] then setOutline(object, false, n) end
         end
     end
-    for object in pairs(want) do
+    for object, color in pairs(want) do
         if object ~= open then setOutline(object, true, n, color) end
     end
     lit[n] = (not OA.isEmpty(want)) and want or nil
 end
 
--- The names to paint in the loot window of a character: { [name] = colour } for the mission's items in the container
+-- The names to paint in the loot window of a character: { [name] = colour } for the missions' items in the container
 -- the window shows, or nil.
-local function tintOf(page, m, player)
+local function tintOf(page, missions, player)
     local pane = page and page.inventoryPane
     local inventory = pane and pane.inventory
     if not inventory or not page:isVisible() then return pane, nil end
@@ -112,12 +114,27 @@ local function tintOf(page, m, player)
     local items = inventory:getItems()
     for i = 0, items:size() - 1 do
         local item = items:get(i)
-        if item:hasModData() and View.owns(m, item:getModData().OA_Mission) then
-            names = names or {}
-            names[item:getName(player)] = View.color(m.kind)
+        if item:hasModData() then
+            local id = item:getModData().OA_Mission
+            for _, m in ipairs(missions) do
+                if View.owns(m, id) then
+                    names = names or {}
+                    names[item:getName(player)] = View.color(m.kind)
+                    break
+                end
+            end
         end
     end
     return pane, names
+end
+
+-- The missions to light for a record: the ones open, the main one and the special request.
+local function openMissions(record)
+    local list = View.shownList(record)
+    for i = #list, 1, -1 do
+        if list[i].state ~= "open" then table.remove(list, i) end
+    end
+    return list
 end
 
 local function tick()
@@ -126,19 +143,20 @@ local function tick()
     for n = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(n)
         local record = player and not player:isDead() and OA.Client.record(player)
-        local m = View.shown(record)
-        if m and m.state ~= "open" then m = nil end
+        local missions = openMissions(record)
         local page = getPlayerLoot(n)
-        if m then
+        if #missions > 0 then
+            local want
+            for _, m in ipairs(missions) do want = wanted(m, player, want) end
             local inventory = page and page.inventoryPane and page.inventoryPane.inventory
-            lightOnly(n, wanted(m, player), View.color(m.kind), inventory and inventory:getParent() or nil)
-            local pane, names = tintOf(page, m, player)
+            lightOnly(n, want or EMPTY, inventory and inventory:getParent() or nil)
+            local pane, names = tintOf(page, missions, player)
             if pane then
                 pane.oaTint = names
                 tinted[pane] = true
             end
         else
-            lightOnly(n, EMPTY, nil, nil)
+            lightOnly(n, EMPTY, nil)
             local pane = page and page.inventoryPane
             if pane then pane.oaTint = nil end
         end
@@ -160,8 +178,7 @@ local function update()
     for n = 0, getNumActivePlayers() - 1 do
         local player = getSpecificPlayer(n)
         local record = player and OA.Client.record(player)
-        local m = View.shown(record)
-        if m and m.state == "open" then want = true end
+        if #openMissions(record) > 0 then want = true end
     end
     if want and not ticking then
         ticking = true

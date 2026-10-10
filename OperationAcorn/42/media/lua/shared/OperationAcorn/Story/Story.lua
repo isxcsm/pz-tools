@@ -190,6 +190,18 @@ function Story.addTrust(record, trust)
     end
 end
 
+-- Takes trust away (taking another mission costs some): never below where the stage or milestone the record is at
+-- begins, so that a level once reached stays. Returns what was taken.
+function Story.loseTrust(record, trust)
+    if not trust or trust <= 0 then return 0 end
+    local t = trade(record)
+    local floor = 0
+    if OA.Trust and OA.Trust.progress then floor = OA.Trust.progress(record).from or 0 end
+    local before = t.trust or 0
+    t.trust = math.max(math.min(before, floor), before - trust)
+    return before - t.trust
+end
+
 function Story.addCredits(record, credits)
     if credits == 0 then return end
     local t = trade(record)
@@ -900,16 +912,22 @@ local function gameDate()
     return nil, nil
 end
 
-function Story.addRequestCopy(record, form)
+function Story.addRequestCopy(record, form, prefer)
     local ids = Data.REQUESTS[form]
     if not ids then return nil end
     local s = Story.section(record)
     s.requests = s.requests or {}
     local used = {}
     for _, req in ipairs(s.requests) do used[req.id] = true end
+    -- The text the request itself is for goes first (a request for a sample can sends the can's); else the form's next.
     local id
     for _, candidate in ipairs(ids) do
-        if not used[candidate] then id = candidate; break end
+        if candidate == prefer and not used[candidate] then id = candidate; break end
+    end
+    if not id then
+        for _, candidate in ipairs(ids) do
+            if not used[candidate] then id = candidate; break end
+        end
     end
     if not id then return nil end
     local stage, milestones = Story.progress(record)
