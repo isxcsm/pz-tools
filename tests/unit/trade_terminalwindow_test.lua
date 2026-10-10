@@ -143,11 +143,11 @@ end)
 require "OperationAcorn/Trade/BootSeq"
 local Seq = OperationAcorn.Trade.BootSeq
 
-local function bootWindow(first, crude, quick)
+local function bootWindow(first, crude)
     local window, Window = makeWindow({})
     local now = 1000
     _G.getTimestampMs = function() return now end
-    window.boot = Seq.new(first, crude, quick)
+    window.boot = Seq.new(first, crude)
     window.views = {}
     local heard = 0
     window.views.status = { consoleOver = function() heard = heard + 1 end }
@@ -175,18 +175,18 @@ test("the first open of a field terminal is claimed once, in the object's modDat
 end)
 
 test("the window keeps the console up, takes it off when the fade starts, and lets the run go when it is over", function()
-    local window, setNow, heard = bootWindow(false, false, false)
+    local window, setNow, heard = bootWindow(false, false)
     setNow(1000)
     window:bootTick()
     eq(window.overlay.gone, false, "the first frame starts the run")
     eq(window.bootAlpha, nil)
-    setNow(1000 + 919)
+    setNow(1000 + 2349)
     window:bootTick()
     eq(window.overlay.gone, false)
-    setNow(1000 + 1000)
+    setNow(1000 + 2400)
     window:bootTick()
     eq(window.overlay.gone, false, "still the switch-off")
-    setNow(1000 + 1070 + 125)
+    setNow(1000 + 2630 + 175)
     window:bootTick()
     eq(window.overlay.gone, true, "the fade started: the console is off and the tabs are usable")
     eq(window.bootOverlay, nil)
@@ -194,7 +194,7 @@ test("the window keeps the console up, takes it off when the fade starts, and le
     near(window.bootAlpha, 0.5, 1e-9)
     window:bootTick()
     eq(heard(), 1, "once")
-    setNow(1000 + 1070 + 250)
+    setNow(1000 + 2630 + 350)
     window:bootTick()
     eq(window.boot, nil, "over: nothing left to run")
     eq(window.bootAlpha, nil)
@@ -202,7 +202,7 @@ test("the window keeps the console up, takes it off when the fade starts, and le
 end)
 
 test("a click or a key skips the console and starts the fade at once", function()
-    local window, setNow, heard = bootWindow(true, false, false)
+    local window, setNow, heard = bootWindow(true, false)
     setNow(1000)
     window:bootTick()
     setNow(1300)
@@ -211,7 +211,7 @@ test("a click or a key skips the console and starts the fade at once", function(
     eq(heard(), 1)
     eq(window.bootAlpha, 1, "the fade starts from black")
     -- a key does the same
-    local other, set2 = bootWindow(false, true, false)
+    local other, set2 = bootWindow(false, true)
     set2(2000)
     other:bootTick()
     set2(2100)
@@ -225,26 +225,3 @@ test("a click or a key skips the console and starts the fade at once", function(
     other:bootSkip()
 end)
 
-test("a terminal reopened within a minute has no console, only the fade-in", function()
-    local window, setNow, heard = bootWindow(false, false, true)
-    setNow(1000)
-    window:bootTick()
-    eq(heard(), 1, "the first frame is already the fade")
-    eq(window.bootAlpha, 1)
-    setNow(1250)
-    window:bootTick()
-    eq(window.boot, nil)
-end)
-
-test("closing the window notes when, per terminal, for the one-minute rule", function()
-    local window, Window = makeWindow({})
-    _G.getTimestampMs = function() return 777000 end
-    window.playerNum, window.tx, window.ty, window.tz = 0, 10, 20, 0
-    window.setVisible = function() end
-    window.removeFromUIManager = function() end
-    Window.closedAt = {}
-    window:close()
-    eq(Window.closedAt["0:10,20,0"], 777000)
-    eq(Seq.reopened(Window.closedAt["0:10,20,0"], 777000 + 30000), true)
-    eq(Window.closedAt["0:11,20,0"], nil, "another terminal is not it")
-end)

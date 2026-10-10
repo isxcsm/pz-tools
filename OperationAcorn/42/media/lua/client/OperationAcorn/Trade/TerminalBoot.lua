@@ -13,10 +13,12 @@ local BLACK = { 0, 0, 0 }
 
 OATerminalBoot = ISPanel:derive("OATerminalBoot")
 
--- The widest the lines go, the gap between rows, and the extra gap above the last line, in design units.
+-- The widest the lines go, the gap between rows, and the extra gap above the welcome, in design units. The welcome is
+-- in a larger face, centred under the lines.
 OATerminalBoot.WIDTH = 380
 OATerminalBoot.ROW_GAP = 5
-OATerminalBoot.LAST_GAP = 9
+OATerminalBoot.LAST_GAP = 16
+OATerminalBoot.WELCOME_FONT = UIFont.Large
 -- The bright line's thickness and the dot's width.
 OATerminalBoot.LINE = 2
 OATerminalBoot.DOT = 4
@@ -55,12 +57,13 @@ function OATerminalBoot:layout()
             row.leaderX = UI.textWidth(row.text) + gap
         end
         row.y = (i - 1) * rowH + (line.bright and OATerminalBoot.LAST_GAP or 0)
+        row.h = line.bright and UI.fontHeight(OATerminalBoot.WELCOME_FONT) or fh
         rows[i] = row
     end
     local last = rows[#rows]
     self.rows = rows
     self.fh = fh
-    self.blockH = last and last.y + fh or 0
+    self.blockH = last and last.y + last.h or 0
     self.bx = math.floor((self.width - bw) / 2)
     self.bw = bw
     self.by = math.max(0, math.floor((self.height - self.blockH) / 2))
@@ -75,7 +78,7 @@ function OATerminalBoot:drawRow(row, i, y, a, age)
     local text = row.text
     if self.run.crude then text = Seq.garble(text, i, age) end
     if row.bright then
-        UI.text(self, text, self.bx, y, p.bright, nil, a)
+        UI.textCentre(self, text, self.bx + self.bw / 2, y, p.bright, OATerminalBoot.WELCOME_FONT, a)
         return
     end
     UI.text(self, text, self.bx, y, p.text, nil, a)
@@ -99,7 +102,7 @@ function OATerminalBoot:prerender()
         self:setStencilRect(0, cy - band / 2, self.width, band)
         for i = 1, shown do
             local row = self.rows[i]
-            local y = cy + (self.by + row.y + self.fh / 2 - cy) * k - self.fh / 2
+            local y = cy + (self.by + row.y + row.h / 2 - cy) * k - row.h / 2
             self:drawRow(row, i, y, a * k, 1e9)
         end
         self:clearStencilRect()

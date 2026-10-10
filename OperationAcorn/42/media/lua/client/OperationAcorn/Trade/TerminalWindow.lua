@@ -30,14 +30,6 @@ OATerminalWindow.SCREEN_SHARE = 0.9
 local SCANLINE = "media/textures/OA_Scanline.png"
 local BLACK = { 0, 0, 0 }
 
--- When each terminal's window last closed (real ms, kept for the session only), by player and square: a terminal opened
--- again within Seq.REOPEN_MS skips the console.
-OATerminalWindow.closedAt = {}
-
-local function closedKey(playerNum, x, y, z)
-    return playerNum .. ":" .. x .. "," .. y .. "," .. z
-end
-
 -- A tab's base: a panel that knows its window and the player's record. Tabs derive from it and build their widgets in
 -- createChildren; `refresh` redraws them from the record.
 OATab = ISPanel:derive("OATab")
@@ -383,7 +375,6 @@ function OATerminalWindow:close()
     for _, view in pairs(self.views or {}) do
         if view.onWindowClose then view:onWindowClose() end
     end
-    OATerminalWindow.closedAt[closedKey(self.playerNum, self.tx, self.ty, self.tz)] = getTimestampMs()
     OATerminalWindow.instances[self.playerNum] = nil
     self:setVisible(false)
     self:removeFromUIManager()
@@ -412,8 +403,8 @@ function OATerminalWindow.claimFirst(object, tier)
 end
 
 -- `tier` is "crude" or "field": which terminal the window is open at. `first`: its first open as a field terminal (the
--- long boot, then the board of what it opened); `quick`: opened again within a minute (only the fade-in).
-function OATerminalWindow:new(character, x, y, z, tier, first, quick)
+-- long boot, then the board of what it opened).
+function OATerminalWindow:new(character, x, y, z, tier, first)
     UI.refreshScale()
     local width, height, minW, minH = OATerminalWindow.sizes()
     local sx = (getCore():getScreenWidth() - width) / 2
@@ -431,7 +422,7 @@ function OATerminalWindow:new(character, x, y, z, tier, first, quick)
     o.playerNum = character:getPlayerNum()
     o.tx, o.ty, o.tz = x, y, z
     o.firstBoot = first and true or false
-    o.boot = Seq.new(first, tier == "crude", quick)
+    o.boot = Seq.new(first, tier == "crude")
     o.wantKeyEvents = #o.boot.lines > 0
     o.marks = {}
     o.blink = {}
@@ -452,8 +443,7 @@ function Terminal.open(character, x, y, z)
     local object = square and Objects.find(square, Objects.TERMINAL)
     local tier = object and Objects.isUpgraded(object) and "field" or "crude"
     local first = OATerminalWindow.claimFirst(object, tier)
-    local quick = not first and Seq.reopened(OATerminalWindow.closedAt[closedKey(playerNum, x, y, z)], getTimestampMs())
-    window = OATerminalWindow:new(character, x, y, z, tier, first, quick)
+    window = OATerminalWindow:new(character, x, y, z, tier, first)
     window:initialise()
     window:addToUIManager()
     window:setVisible(true)

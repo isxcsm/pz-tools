@@ -2,8 +2,8 @@
 -- game calls (Trade/TerminalBoot draws it, Trade/TerminalWindow runs it). Every open the window body is black and
 -- console lines print one at a time; then the content collapses into a bright line that shrinks to a dot (the switch-off
 -- of a tube), and the tabs fade in from black. The first open of a field terminal is the long version, with a few more
--- self-test lines; the crude terminal reads rougher (an extra line, garbled letters that settle, a flicker). A terminal
--- opened again within a minute of closing it only fades in. A click or a key skips the console. Nothing is saved.
+-- self-test lines; the crude terminal reads rougher (an extra line, garbled letters that settle, a flicker). It plays on
+-- every open, slow enough to be read; a click or a key skips the console. Nothing is saved.
 --
 -- It is all arithmetic on the time since the run began, which the draw works out from the clock each frame while the
 -- sequence lasts: no timer, nothing after it has ended. Times are in ms, taken by subtracting timestamps only
@@ -16,15 +16,13 @@ OA.Trade.BootSeq = Seq
 
 local floor, ceil, min, max = math.floor, math.ceil, math.min, math.max
 
--- A terminal opened again within this long of its window closing skips the console (real time).
-Seq.REOPEN_MS = 60000
-
--- The console: a black beat, a line every `step`, and `hold` after the last line before the switch-off. The long
--- one is the first open of a field terminal.
-Seq.SHORT = { black = 120, step = 180, hold = 260 }
-Seq.LONG = { black = 200, step = 220, hold = 450 }
+-- The console: a black beat, a line every `step`, a beat more before the welcome, and `hold` after it before the
+-- switch-off. The long one is the first open of a field terminal.
+Seq.SHORT = { black = 300, step = 300, hold = 800 }
+Seq.LONG = { black = 400, step = 300, hold = 1000 }
+Seq.WELCOME_MS = 350
 -- The switch-off and the fade-in. The tabs are usable as soon as the fade starts.
-Seq.COLLAPSE_MS, Seq.FADE_MS = 150, 250
+Seq.COLLAPSE_MS, Seq.FADE_MS = 280, 350
 -- The share of the switch-off the content takes to become the line (the rest is the line shrinking to a dot).
 Seq.SPLIT = 0.6
 
@@ -59,19 +57,15 @@ function Seq.lines(first, crude)
     return out
 end
 
--- A run: `first` the long version, `crude` the rough one, `quick` only the fade-in (a terminal opened again within a
--- minute). It starts counting at the first frame that asks (Seq.state), not when it was made.
-function Seq.new(first, crude, quick)
-    local run = { first = first and true or false, crude = crude and true or false, quick = quick and true or false }
-    if quick then
-        run.lines, run.black, run.step, run.consoleEnd, run.collapse = {}, 0, 0, 0, 0
-    else
-        local t = first and Seq.LONG or Seq.SHORT
-        run.lines = Seq.lines(first, crude)
-        run.black, run.step = t.black, t.step
-        run.consoleEnd = t.black + (#run.lines - 1) * t.step + t.hold
-        run.collapse = Seq.COLLAPSE_MS
-    end
+-- A run: `first` the long version, `crude` the rough one. It starts counting at the first frame that asks (Seq.state),
+-- not when it was made.
+function Seq.new(first, crude)
+    local run = { first = first and true or false, crude = crude and true or false }
+    local t = first and Seq.LONG or Seq.SHORT
+    run.lines = Seq.lines(first, crude)
+    run.black, run.step = t.black, t.step
+    run.consoleEnd = Seq.appearAt(run, #run.lines) + t.hold
+    run.collapse = Seq.COLLAPSE_MS
     run.fadeAt = run.consoleEnd + run.collapse
     run.endAt = run.fadeAt + Seq.FADE_MS
     return run
@@ -79,7 +73,7 @@ end
 
 -- When line i appears (ms after the start).
 function Seq.appearAt(run, i)
-    return run.black + (i - 1) * run.step
+    return run.black + (i - 1) * run.step + (run.lines[i].bright and Seq.WELCOME_MS or 0)
 end
 
 -- The phase `now` is in: "console" (and how many lines are printed), "collapse", "fade" (usable) or "done"; how far
@@ -92,7 +86,7 @@ function Seq.state(run, now)
     local n = #run.lines
     if e < run.consoleEnd then
         local shown = 0
-        if e >= run.black then shown = min(n, floor((e - run.black) / run.step) + 1) end
+        while shown < n and Seq.appearAt(run, shown + 1) <= e do shown = shown + 1 end
         return "console", shown, 0, e
     end
     if e < run.fadeAt then return "collapse", n, (e - run.consoleEnd) / run.collapse, e end
@@ -104,14 +98,6 @@ end
 function Seq.skip(run, now)
     local phase = Seq.state(run, now)
     if phase == "console" or phase == "collapse" then run.start = now - run.fadeAt end
-end
-
--- Whether a terminal closed at `closedAt` (nil: never) and opened at `now` is a reopening: within the minute, and the
--- clock has not gone back.
-function Seq.reopened(closedAt, now)
-    if not closedAt then return false end
-    local since = now - closedAt
-    return since >= 0 and since <= Seq.REOPEN_MS
 end
 
 -- The switch-off at progress t (0 to 1) of the collapse: the height the content has left (1 to 0), the line's width
