@@ -479,15 +479,6 @@ test("the new board counts the team's goods open now and later, and the upgrades
     eq(news[3].lines[2], "IGUI_OA_Status_News_SupportLater")
 end)
 
-test("the boot screen's lines come one by one and it ends after 1.5 s", function()
-    local n, over = M.bootLines(0)
-    eq(n, 1); eq(over, false)
-    eq((M.bootLines(499)), 1); eq((M.bootLines(500)), 2); eq((M.bootLines(1200)), 3)
-    n, over = M.bootLines(1500)
-    eq(over, true)
-    eq((M.bootLines(-20)), 1, "a clock gone back shows the first")
-end)
-
 -- Layouts ----------------------------------------------------------------------------------------------------------
 
 test("the layouts at the default and the smallest window", function()

@@ -727,16 +727,6 @@ function M.news(record)
     }
 end
 
--- The boot screen's lines and how long each waits (ms after the start), and when it ends.
-M.BOOT_STEP_MS, M.BOOT_MS = 500, 1500
-
--- How many of the boot screen's three lines are shown `elapsed` ms after the start, and whether it is over.
-function M.bootLines(elapsed)
-    if elapsed < 0 then elapsed = 0 end
-    local n = math.min(3, math.floor(elapsed / M.BOOT_STEP_MS) + 1)
-    return n, elapsed >= M.BOOT_MS
-end
-
 -- Layouts (DESIGN-terminal 1.2: the default 720x480 body is 700x408, the smallest 580x348) -------------------------
 
 -- The status tab's sub-tab screens start under the strip and the sub-tab row.
