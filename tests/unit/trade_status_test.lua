@@ -118,8 +118,12 @@ test("where the road stands and the chosen level's note", function()
     eq(at, 2); near(frac, (3940 - 2300) / (5500 - 2300), 1e-9)
     eq(M.plain(M.detailNote(r, 3)), "IGUI_OA_Status_TrustLeft 1,560")
     eq(M.plain(M.detailNote(r, 2)), "IGUI_OA_Status_Got")
-    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AfterFive 11,500", "a later stage says its trust")
-    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AfterFiveOn 121,000")
+    eq(M.plain(M.detailNote(r, 4)), "IGUI_OA_Status_AtTrust 11,500", "a later stage says its trust")
+    eq(M.plain(M.detailNote(r, 9)), "IGUI_OA_Status_AtTrustOn 121,000")
+    -- past the five stages, the next level is still the trust left
+    r.trade.stage, r.trade.milestones, r.trade.trust = 5, 1, 37000
+    eq(M.plain(M.detailNote(r, 7)), "IGUI_OA_Status_TrustLeft 21,000")
+    eq(M.plain(M.detailNote(r, 8)), "IGUI_OA_Status_AtTrust " .. M.plain({ { s = OA.Trade.Text.credits(M.threshold(8)) } }))
     r.trade.stage, r.trade.milestones = 5, 6
     eq((M.roadPosition(r)), 9, "every level past 8 stands on the last node")
 end)

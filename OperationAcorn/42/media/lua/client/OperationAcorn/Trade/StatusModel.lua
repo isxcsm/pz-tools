@@ -226,16 +226,16 @@ function M.roadPosition(record)
     return math.min(tier, M.LEVELS), OA.clamp((pr.trust - pr.from) / span, 0, 1)
 end
 
--- The chosen level's head on the right: "앞으로 신뢰도 1,560" for the next stage, "받음" for one reached, "5단계 뒤 ·
--- 신뢰도 37,000" for a level after the stages not reached yet. Parts, the number as argument 1.
+-- The chosen level's head on the right: "앞으로 신뢰도 1,560" for the next level, "받음" for one reached, "신뢰도
+-- 37,000에" for a later one ("신뢰도 121,000부터" for the last, which repeats). Parts, the number as argument 1.
 function M.detailNote(record, t)
     local tier = Trust.tier(record)
     if t <= tier then return { { s = tr("IGUI_OA_Status_Got") } } end
-    if t == tier + 1 and t <= Trust.STAGES then
+    if t == tier + 1 then
         local trust = (record.trade and record.trade.trust) or 0
         return M.parts("IGUI_OA_Status_TrustLeft", credits(math.max(0, M.threshold(t) - trust)))
     end
-    return M.parts(t >= M.LEVELS and "IGUI_OA_Status_AfterFiveOn" or "IGUI_OA_Status_AfterFive", credits(M.threshold(t)))
+    return M.parts(t >= M.LEVELS and "IGUI_OA_Status_AtTrustOn" or "IGUI_OA_Status_AtTrust", credits(M.threshold(t)))
 end
 
 -- Flight support (DESIGN-terminal 2.6) ------------------------------------------------------------------------------
