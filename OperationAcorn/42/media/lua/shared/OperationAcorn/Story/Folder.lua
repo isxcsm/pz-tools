@@ -292,19 +292,6 @@ function Folder.newGuide(record)
     return best
 end
 
--- How many things in the folder are new apart from the guide documents, which the status tab's card carries (11.1
--- priority 3: 'other new documents').
-function Folder.newCount(record)
-    local unread = record and record.story and record.story.unread
-    local n = 0
-    if unread then
-        for key in pairs(unread) do
-            if not guideId(key) then n = n + 1 end
-        end
-    end
-    return n
-end
-
 -- The number of the mission on show, which the tab's dot compares with ui.seen.mission (0 when there is none). A new
 -- mission has a higher number than any before it.
 function Folder.missionSeq(record)
@@ -318,11 +305,11 @@ function Folder.freshMission(record)
     return Folder.missionSeq(record) > (Terminal.seenValue(record, "mission") or 0)
 end
 
--- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder but the guide
--- documents (the card on the status tab has those).
+-- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder. A guide document
+-- lights it too, beside the status tab's card: opening it either way marks it read, and both go out.
 function Folder.mark(record)
     if Folder.freshMission(record) then return "new" end
-    if Folder.newCount(record) > 0 then return "new" end
+    if Folder.unreadCount(record) > 0 then return "new" end
     return nil
 end
 
