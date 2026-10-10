@@ -650,6 +650,36 @@ function UI.fitPx(text, width, font)
     return OA.fitText(text, width, UI.textWidthPx, 0.001, font)
 end
 
+-- getText for what a frame draws: the translation of a key (with up to two arguments), asked of the game once. The
+-- language does not change under the running game.
+local strings = {}
+local NONE = {}
+local stringCount = 0
+function UI.str(key, a, b)
+    local byKey = strings[key]
+    if not byKey then
+        byKey = {}
+        strings[key] = byKey
+    end
+    local ka = a == nil and NONE or a
+    local byA = byKey[ka]
+    if not byA then
+        byA = {}
+        byKey[ka] = byA
+    end
+    local kb = b == nil and NONE or b
+    local s = byA[kb]
+    if s == nil then
+        if stringCount >= CACHE_MAX then
+            strings, stringCount = {}, 0
+        end
+        s = getText(key, a, b)
+        byA[kb] = s
+        stringCount = stringCount + 1
+    end
+    return s
+end
+
 -- The wrap and the cut kept for a text drawn at the same width every frame: the lines are the memo's own, read, not
 -- changed. Made again when the scale changes.
 local function memoOf(memos, font, text)
@@ -732,7 +762,7 @@ function OASubTabs:prerender()
     local h = self.height
     local x = 0
     local mx = self:isMouseOver() and self:getMouseX() or -1
-    self.slots = {}
+    local slots, n = self.slots, 0
     for _, item in ipairs(self.items) do
         local on = item.id == self.active
         local lw = UI.textWidth(item.label)
@@ -765,9 +795,16 @@ function OASubTabs:prerender()
             UI.textCentre(self, item.badge, bx + badgeW / 2, (h - fh) / 2, p.dark)
         end
         if item.dot then UI.fill(self, x + bw - 8, 4, 4, 4, item.dot == "bad" and p.bad or p.warn) end
-        self.slots[#self.slots + 1] = { id = item.id, x = x, w = bw }
+        n = n + 1
+        local slot = slots[n]
+        if not slot then
+            slot = {}
+            slots[n] = slot
+        end
+        slot.id, slot.x, slot.w = item.id, x, bw
         x = x + bw + 4
     end
+    for i = #slots, n + 1, -1 do slots[i] = nil end
 end
 
 function OASubTabs:onMouseDown(x, y)

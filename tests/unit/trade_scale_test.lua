@@ -901,3 +901,20 @@ test("texts measured once are not measured again until the scale is set", functi
     truthy(calls > first, "measured again at the new scale")
     getTextManager = was
 end)
+
+test("the sub-tabs' frame reuses its click slots instead of making them each frame", function()
+    local UI = loadUI(16)
+    local tabs = OASubTabs:new(0, 0, 400, UI.palette("field"), nil, nil)
+    tabs:setItems({ { id = "a", label = "One" }, { id = "b", label = "Two", badge = "3" }, { id = "c", label = "Three" } }, "a")
+    tabs:prerender()
+    eq(#tabs.slots, 3)
+    local first, second = tabs.slots[1], tabs.slots[2]
+    local x2 = second.x
+    tabs:prerender()
+    truthy(tabs.slots[1] == first and tabs.slots[2] == second, "the same tables")
+    eq(tabs.slots[2].x, x2)
+    eq(tabs.slots[3].id, "c")
+    tabs:setItems({ { id = "a", label = "One" } }, "a")
+    tabs:prerender()
+    eq(#tabs.slots, 1, "fewer items: the slots past them gone")
+end)

@@ -23,8 +23,15 @@ function Texts.percent(x)
     return Texts.number(x) .. "%"
 end
 
+local treeNames, nodeNames = {}, {}
+
 function Texts.treeName(tree)
-    return getText("IGUI_OA_Tree_Name_" .. tree)
+    local name = treeNames[tree]
+    if name == nil then
+        name = getText("IGUI_OA_Tree_Name_" .. tree)
+        treeNames[tree] = name
+    end
+    return name
 end
 
 function Texts.familyName(family)
@@ -32,7 +39,12 @@ function Texts.familyName(family)
 end
 
 function Texts.nodeName(id)
-    return getText(Data.key(id, "Name"))
+    local name = nodeNames[id]
+    if name == nil then
+        name = getText(Data.key(id, "Name"))
+        nodeNames[id] = name
+    end
+    return name
 end
 
 -- A translation that may be left out, or nil.
