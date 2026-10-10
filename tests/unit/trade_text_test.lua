@@ -154,7 +154,8 @@ local function fakeValue()
         appraiseLine = function(info, count, ctx, taken)
             local used = taken.requests[info.fullType] or 0
             local units = math.max(0, math.min(count, 20 - used))
-            return { fullType = info.fullType, count = count, credits = 100 * count + 50 * units, trust = count,
+            return { fullType = info.fullType, requestKey = info.fullType, count = count,
+                credits = 100 * count + 50 * units, trust = count,
                 cashTrust = 0, requestUnits = units, requestCredits = 150 * units, regionWeight = 0 }
         end,
         requestFills = function(ctx, taken)

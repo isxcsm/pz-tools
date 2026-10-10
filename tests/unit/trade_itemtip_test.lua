@@ -7,6 +7,8 @@ require "OperationAcorn/Economy/ItemTip"
 require "OperationAcorn/Story/View"
 local OA = OperationAcorn
 local View = OA.StoryView
+-- The request lines here are by item type: no generated groups.
+OA.Requests.useGroups({})
 
 local calls
 local panel, original

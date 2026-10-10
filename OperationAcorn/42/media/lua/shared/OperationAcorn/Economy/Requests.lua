@@ -1,26 +1,34 @@
 -- This week's request list (NUMBERS 2) and the table it is drawn from.
 --
--- The candidates are the vanilla item kinds the house loot tables hand out and the team takes, found once from
--- the distribution tables at the first world start and kept in the world save (`requests` section):
---   types / score (parallel lists): candidate item types and their commonness score (the sum of the item's weights
---   in the house tables over the median of all candidates); kinds: every house loot kind (by base type) with its
---   category, and total: how many there are per category (the codex's category completion counts against these).
+-- A request is a group one level above the item type: "charcoal" takes the looted and the kiln-made kind, "skill
+-- books" any skill book. The groups and how easy each is to come by are made from the game's files by
+-- tools/request_groups.py (RequestGroups.lua; the rules head the tool): a group's key is its id, or the item type
+-- itself for a group of one. A type no group has (a strange item the story names) is a group of one with no score.
+-- The world save (`requests` section) keeps the candidates found at the first world start:
+--   types / score / cat (parallel lists): the candidate groups' keys, their commonness score and category;
+--   kinds: every house loot kind (by base type) with its category, and total: how many there are per category (the
+--   codex's category completion counts against these).
 -- A record's list is drawn from the candidates by the stage it has reached: a score of 1 or more from the start,
 -- 0.3 to 1 from stage 1, less than 0.3 from stage 2. The categories the team wants at that stage are twice as
--- likely. The list is the record's own, redrawn when the week changes, and grows (is topped up) with the stage.
--- An item on the list is bought at a fixed price for each unit, by its commonness (NUMBERS 2): the first `qty` units
--- of the week at `price` (times the request price reward), and a bonus of trust once the line is full. Units over the
--- quantity and items not on the list are valued as any other item.
+-- likely. The list is the record's own, redrawn when the week changes, and grows (is topped up) with the stage. A
+-- group is on it once.
+-- A group on the list is bought at a fixed price for each unit, by its commonness (NUMBERS 2): the first `qty` units
+-- of the week at `price` (times the request price reward), and a bonus of trust once the line is full. The price is
+-- never below what the group's dearest member is worth by weight (Requests.floorOf), and a unit never fetches less
+-- than it would unrequested at the day's index (Value.appraiseLine). Units over the quantity and items not on the
+-- list are valued as any other item.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
 require "OperationAcorn/Economy/Trust"
 require "OperationAcorn/Economy/Market"
+require "OperationAcorn/Economy/RequestGroups"
 local OA = OperationAcorn
 local Requests = {}
 OA.Requests = Requests
 
-Requests.VERSION = 1
+-- 2: the candidates are groups (1 had item types).
+Requests.VERSION = 2
 Requests.DUE_PICKS = 2          -- items of a category that comes back after a refusal
 
 -- The commonness bands: from this score up (1 and more common, 0.3 to 1 normal, less than 0.3 rare). A band has the
@@ -39,6 +47,147 @@ Requests.HOUSE_ROOMS = {
     "garagestorage", "attic", "shed", "sunroom", "storage", "hoarder", "hoarderbedroom", "hoarderkitchen",
     "hoarderoffice",
 }
+
+-- The groups ------------------------------------------------------------------------------------------------
+
+-- The rows in use (RequestGroups.lua's, or a test's) and what is looked up in them, made once for the rows: byKey
+-- (key -> row) and keyOfType (member type -> key); names, member names and floors are made once for a key.
+local rows, byKey, keyOfType
+local names, memberNames, floors = {}, {}, {}
+
+local function index()
+    local now = OA.RequestGroups or {}
+    if rows ~= now then
+        rows, byKey, keyOfType = now, {}, {}
+        names, memberNames, floors = {}, {}, {}
+        for _, row in ipairs(rows) do
+            byKey[row.id] = row
+            for _, t in ipairs(row.items) do keyOfType[t] = row.id end
+        end
+    end
+    return byKey, keyOfType
+end
+
+-- Puts other rows in place of the generated ones (a test with its own item names; {} for none).
+function Requests.useGroups(list)
+    OA.RequestGroups = list
+    index()
+end
+
+-- The key of the group an item type belongs to: the group's id, or the type itself.
+function Requests.keyOf(fullType)
+    local _, ofType = index()
+    return ofType[fullType] or fullType
+end
+
+-- The group's row ({ id, score, wt, dc, items, name, icon }), or nil for a type no group has.
+function Requests.group(key)
+    local rowOf = index()
+    return rowOf[key]
+end
+
+-- The item types a group takes (a list not to be changed).
+function Requests.members(key)
+    local row = Requests.group(key)
+    return row and row.items or { key }
+end
+
+-- The item type whose picture stands for the group.
+function Requests.iconType(key)
+    local row = Requests.group(key)
+    return row and (row.icon or row.items[1]) or key
+end
+
+local function itemName(fullType)
+    local ok, name = pcall(getItemNameFromFullType, fullType)
+    if ok and name and name ~= "" then return name end
+    return tostring(fullType)
+end
+
+-- A name less its variant (" [white]").
+local function plain(name)
+    return (string.gsub(name, "%s*%[[^%]]*%]%s*$", ""))
+end
+
+-- The words all the names start with, less a trailing " -" or a word with an open bracket; nil when none.
+local function commonWords(list)
+    local common
+    for _, name in ipairs(list) do
+        local words = {}
+        for w in string.gmatch(name, "%S+") do words[#words + 1] = w end
+        if not common then
+            common = words
+        else
+            local n = 0
+            while n < #common and n < #words and common[n + 1] == words[n + 1] do n = n + 1 end
+            for i = #common, n + 1, -1 do common[i] = nil end
+        end
+    end
+    while common and #common > 0 do
+        local last = common[#common]
+        if not (string.find(last, "^[%-:%(%[]") or string.find(last, "[%[%(]")) then break end
+        common[#common] = nil
+    end
+    if not common or #common == 0 then return nil end
+    return table.concat(common, " ")
+end
+
+-- The name the list shows for a group, made once: a family's own text; else the words all its members' names start
+-- with, so "Bowling Shirt [Blue]" and "[Brown]" are "Bowling Shirt"; else the first member's name without its
+-- variant. The tool merged the groups that would show the same name (it works the name out the same way).
+function Requests.nameOf(key)
+    index()
+    local hit = names[key]
+    if hit then return hit end
+    local row = Requests.group(key)
+    if row and row.name then
+        hit = getText(row.name)
+    else
+        local items = row and row.items or { key }
+        if #items > 1 then hit = commonWords(Requests.memberNames(key)) end
+        hit = hit or plain(itemName(items[1]))
+    end
+    names[key] = hit
+    return hit
+end
+
+-- The names of the kinds a group takes, in its order, each once (made once; a list not to be changed).
+function Requests.memberNames(key)
+    index()
+    local hit = memberNames[key]
+    if not hit then
+        hit = {}
+        local seen = {}
+        for _, t in ipairs(Requests.members(key)) do
+            local name = itemName(t)
+            if not seen[name] then
+                seen[name] = true
+                hit[#hit + 1] = name
+            end
+        end
+        memberNames[key] = hit
+    end
+    return hit
+end
+
+-- What the group's dearest member is worth by weight at index 1 (its weight times its category's credits): the
+-- request price is never below it (a television is worth 6,000; a common line pays 600). 0 for a type no group has.
+function Requests.floorOf(key)
+    index()
+    local hit = floors[key]
+    if hit == nil then
+        hit = 0
+        local row = Requests.group(key)
+        if row and row.wt then
+            local cat = OA.Categories.of({ fullType = row.items[1], weight = row.wt, displayCategory = row.dc })
+            if cat then hit = row.wt * OA.Categories.UNIT[cat] end
+        end
+        floors[key] = hit
+    end
+    return hit
+end
+
+-- The table -------------------------------------------------------------------------------------------------
 
 local function addList(into, list, mult)
     if type(list) ~= "table" then return end
@@ -80,53 +229,42 @@ function Requests.weights(dist, procedural, rooms)
     return sums
 end
 
--- The saved table from the weights: `infoOf(name)` gives the info of an item name (as OA.Value.infoFromScript does),
--- or nil for a name no item has. `accepts(info)` decides what the team takes.
-function Requests.build(sums, infoOf, accepts)
-    local kinds, total, list = {}, {}, {}
-    local seenKind = {}
-    local perType = {}
-    for name, weight in pairs(sums) do
+-- The saved table: kinds and total from the house loot's weights (`infoOf(name)` gives the info of an item name as
+-- OA.Value.infoFromScript does, or nil for a name no item has), and the candidates from the group rows (as
+-- RequestGroups.lua has them; `exists(fullType)`, when given, tells a type the game has: a group none of whose
+-- members it has is left out). A candidate's category is its first existing member's.
+function Requests.build(sums, infoOf, groups, exists)
+    local kinds, total = {}, {}
+    for name in pairs(sums) do
         local info = infoOf(name)
         if info then
             local cat = OA.Categories.of(info)
-            if cat then
-                if not seenKind[info.baseType] then
-                    seenKind[info.baseType] = true
-                    kinds[info.baseType] = cat
-                    total[cat] = (total[cat] or 0) + 1
-                end
-                if accepts(info) then
-                    perType[info.fullType] = (perType[info.fullType] or 0) + weight
-                end
+            if cat and not kinds[info.baseType] then
+                kinds[info.baseType] = cat
+                total[cat] = (total[cat] or 0) + 1
             end
         end
     end
-    for fullType, weight in pairs(perType) do
-        table.insert(list, { fullType = fullType, weight = weight })
+    local types, score, cats = {}, {}, {}
+    for _, row in ipairs(groups or {}) do
+        local first
+        for _, t in ipairs(row.items) do
+            if not exists or exists(t) then
+                first = t
+                break
+            end
+        end
+        if first then
+            local n = #types + 1
+            types[n], score[n] = row.id, row.score
+            cats[n] = OA.Categories.of({ fullType = first, weight = row.wt, displayCategory = row.dc }) or "E"
+        end
     end
-    -- A stable order (the table order of pairs() is not): by weight, then name.
-    table.sort(list, function(a, b)
-        if a.weight ~= b.weight then return a.weight > b.weight end
-        return a.fullType < b.fullType
-    end)
-    local weights = {}
-    for i, e in ipairs(list) do weights[i] = e.weight end
-    local median = 1
-    if #weights > 0 then
-        local n = #weights
-        median = (n % 2 == 1) and weights[(n + 1) / 2] or (weights[n / 2] + weights[n / 2 + 1]) / 2
-        if median <= 0 then median = 1 end
-    end
-    local types, score = {}, {}
-    for i, e in ipairs(list) do
-        types[i] = e.fullType
-        score[i] = math.floor(e.weight / median * 1000 + 0.5) / 1000
-    end
-    return { version = Requests.VERSION, types = types, score = score, kinds = kinds, total = total, n = #types }
+    return { version = Requests.VERSION, types = types, score = score, cat = cats, kinds = kinds, total = total,
+        n = #types }
 end
 
--- Makes the table from the game's distributions (the real thing; tests call build with their own tables).
+-- Makes the table from the game's distributions and the groups (the real thing; tests call build with their own).
 function Requests.scan()
     local dist = SuburbsDistributions or (Distributions and Distributions[1])
     local procedural = ProceduralDistributions and ProceduralDistributions.list
@@ -143,10 +281,12 @@ function Requests.scan()
         end
         return hit or nil
     end
-    return Requests.build(sums, infoOf, function(info) return OA.Value.accepts(info) end)
+    index()
+    return Requests.build(sums, infoOf, rows, function(t) return infoOf(t) ~= nil end)
 end
 
--- The world's table, built the first time (nil when the game's tables are not there, as on a client).
+-- The world's table, built the first time and again when a save from before the groups has one of item types (nil
+-- when the game's tables are not there, as on a client).
 function Requests.data()
     local world = OA.Store.world("requests")
     if world.version ~= Requests.VERSION or not world.types then
@@ -165,11 +305,12 @@ function Requests.kindCount(world)
     return n
 end
 
--- Puts a built table in the world save (a test, or a part that made its own).
+-- Puts a built table in the world save (a test, or a part that made its own) as the current one.
 function Requests.install(made)
     local world = OA.Store.world("requests")
     for k in pairs(world) do world[k] = nil end
     for k, v in pairs(made) do world[k] = v end
+    world.version = Requests.VERSION
     return world
 end
 
@@ -199,26 +340,55 @@ function Requests.eligible(score, stage)
     return stage >= 2
 end
 
--- The commonness score of an item type: from the world's table, 0 (the rarest band) for one the house loot does not
--- hand out (a strange item the story names). The lookup table is made once for the world's table.
+-- The commonness score of a group (by key): from the world's table, 0 (the rarest band) for one that is no candidate
+-- (a strange item the story names). The lookup table is made once for the world's table.
 local indexOf, indexFrom
-function Requests.scoreOf(fullType)
+function Requests.scoreOf(key)
     local world = Requests.data()
     if not world or not world.types then return 0 end
     if indexFrom ~= world.types then
         indexOf, indexFrom = {}, world.types
         for i = 1, world.n or #world.types do indexOf[world.types[i]] = world.score[i] end
     end
-    return indexOf[fullType] or 0
+    return indexOf[key] or 0
 end
 
--- The record's request state: { week, items = { fullType ... }, used = { fullType = units this week } }.
+-- A list saved before the groups named item types: each becomes its group's key, a group named twice is kept once
+-- and the units the week settled of its types add up. The pinned item and the strange one too.
+function Requests.migrate(record)
+    local codex = record.codex
+    if not codex then return end
+    if codex.reqPin then codex.reqPin = Requests.keyOf(codex.reqPin) end
+    local rq = codex.req
+    if not rq or rq.groups then return end
+    local items, seen, used = {}, {}, {}
+    for _, t in ipairs(rq.items or {}) do
+        local key = Requests.keyOf(t)
+        if not seen[key] then
+            seen[key] = true
+            items[#items + 1] = key
+        end
+    end
+    for t, n in pairs(rq.used or {}) do
+        local key = Requests.keyOf(t)
+        used[key] = (used[key] or 0) + n
+    end
+    rq.items, rq.used = items, used
+    if rq.strange then rq.strange = Requests.keyOf(rq.strange) end
+    rq.groups = true
+end
+
+OA.Store.addUpgrade("requests.groups", Requests.migrate)
+
+-- The record's request state: { week, items = { key ... }, used = { key = units this week }, groups = true }. A list
+-- of item types from before (a save not upgraded yet) is moved to groups first.
 local function state(record)
     local codex = OA.Store.section(record, "codex")
+    if codex.req and not codex.req.groups then Requests.migrate(record) end
     return codex, codex.req
 end
 
--- Draws `n` more items for a record into rq.items. Items already there, refused categories and (unless forced)
+-- Draws `n` more groups for a record into rq.items. Groups already there, refused categories and (unless forced)
 -- scores too rare for the stage are left out.
 local function draw(record, rq, n, forcedCategory)
     local world = Requests.data()
@@ -232,7 +402,7 @@ local function draw(record, rq, n, forcedCategory)
     for i = 1, world.n do
         local t = world.types[i]
         if not have[t] then
-            local cat = world.kinds[OA.Categories.baseType(t)]
+            local cat = world.cat and world.cat[i] or world.kinds[OA.Categories.baseType(t)]
             local ok
             if forcedCategory then
                 ok = cat == forcedCategory
@@ -266,20 +436,20 @@ local function draw(record, rq, n, forcedCategory)
     end
 end
 
--- A fixed item for next week's list (the story hands one over after a hallucination).
+-- A fixed item for next week's list (the story hands one over after a hallucination): its group goes on it.
 function Requests.pinNext(record, fullType)
     local codex = OA.Store.section(record, "codex")
-    codex.reqPin = fullType
+    codex.reqPin = Requests.keyOf(fullType)
 end
 
--- The record's list for this week, drawn the first time the week is asked about and topped up as the stage grows.
--- A strange item the story part names for this week (the week after a hallucination) goes on the list in addition
--- to the normal count.
+-- The record's list for this week (group keys), drawn the first time the week is asked about and topped up as the
+-- stage grows. The group of a strange item the story part names for this week (the week after a hallucination) goes
+-- on the list in addition to the normal count.
 function Requests.list(record)
     local codex, rq = state(record)
     local week = OA.week()
     if not rq or rq.week ~= week then
-        rq = { week = week, items = {}, used = {}, extra = 0 }
+        rq = { week = week, items = {}, used = {}, extra = 0, groups = true }
         codex.req = rq
         if codex.reqPin then
             table.insert(rq.items, codex.reqPin)
@@ -288,6 +458,7 @@ function Requests.list(record)
         local story = OA.Story
         local strange = story and story.strangeItem and story.strangeItem(record) or nil
         if strange then
+            strange = Requests.keyOf(strange)
             local present = false
             for _, t in ipairs(rq.items) do if t == strange then present = true end end
             if not present then table.insert(rq.items, strange) end
@@ -304,36 +475,39 @@ function Requests.list(record)
     return rq.items
 end
 
--- Units of each item the record has had settled as requests this week.
+-- Units of each group (by key) the record has had settled as requests this week.
 function Requests.used(record)
     Requests.list(record)
     local _, rq = state(record)
     return rq.used
 end
 
--- The price of a unit of a band for a record: the band's price times the request price reward, to ten credits.
-function Requests.unitPrice(record, band)
-    local base = Requests.BANDS[band].price
+-- The price of a unit of a band for a record: the band's price (or `floor` when that is more) times the request
+-- price reward, to ten credits.
+function Requests.unitPrice(record, band, floor)
+    local base = math.max(Requests.BANDS[band].price, floor or 0)
     return math.floor(base * OA.Trust.rewards(record).requestPrice / 10 + 0.5) * 10
 end
 
--- The line of an item on the list, its weekly count read from `used` (the list itself is not looked at, so the
--- client can call it on its copy without drawing anything).
-function Requests.line(record, fullType, used)
-    local band = Requests.band(Requests.scoreOf(fullType))
+-- The line of a group on the list (by key), its weekly count read from `used` (the list itself is not looked at, so
+-- the client can call it on its copy without drawing anything). `fullType` is the key too (the name the parts that
+-- show a line have read it by).
+function Requests.line(record, key, used)
+    local band = Requests.band(Requests.scoreOf(key))
     local def = Requests.BANDS[band]
-    local n = used[fullType] or 0
-    return { fullType = fullType, band = band, price = Requests.unitPrice(record, band), qty = def.qty,
-        trust = def.trust, used = n, left = math.max(0, def.qty - n), full = n >= def.qty }
+    local n = used[key] or 0
+    return { key = key, fullType = key, band = band, price = Requests.unitPrice(record, band, Requests.floorOf(key)),
+        qty = def.qty, trust = def.trust, used = n, left = math.max(0, def.qty - n), full = n >= def.qty }
 end
 
--- The record's line of an item on this week's list: { fullType, band, price (a unit), qty (the week's units), trust
--- (for a full line), used, left, full }; nil when the item is not on the list.
-function Requests.entry(record, fullType)
+-- The record's line of a group on this week's list, by its key or a member's type: { key, fullType (the key), band,
+-- price (a unit), qty (the week's units), trust (for a full line), used, left, full }; nil when it is not on the list.
+function Requests.entry(record, keyOrType)
+    local key = Requests.keyOf(keyOrType)
     local items = Requests.list(record)
     local _, rq = state(record)
     for _, t in ipairs(items) do
-        if t == fullType then return Requests.line(record, fullType, rq.used) end
+        if t == key then return Requests.line(record, key, rq.used) end
     end
     return nil
 end
@@ -356,10 +530,10 @@ function Requests.entries(record)
     return lines
 end
 
--- A flight settled `n` units of an item as requests.
-function Requests.consume(record, fullType, n)
+-- A flight settled `n` units of a group (by key) as requests.
+function Requests.consume(record, key, n)
     local used = Requests.used(record)
-    used[fullType] = (used[fullType] or 0) + n
+    used[key] = (used[key] or 0) + n
 end
 
 -- Draws every record's list for the new week (the daily handler calls it): counters reset, lists redrawn.

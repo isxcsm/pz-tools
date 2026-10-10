@@ -7,6 +7,8 @@ require "OperationAcorn/Economy/Requests"
 require "OperationAcorn/Economy/ItemTip"
 local OA = OperationAcorn
 local Tip = OA.ItemTip
+-- The request lines here are by item type: no generated groups.
+OA.Requests.useGroups({})
 
 -- The world's request table: Pencil common, Thread common, Hammer middling, Ring rare.
 local function world()

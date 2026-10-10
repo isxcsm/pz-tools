@@ -1,4 +1,5 @@
--- P1: the request candidates built from the game's loot tables (NUMBERS 12 survey), the scan's cost, and a week's list.
+-- P1: the request candidates (the groups of RequestGroups.lua the game has) and the house loot kinds from the game's
+-- loot tables (NUMBERS 12 survey), the scan's cost, and a week's list with its groups' names.
 -- Rebuilds the table in memory only for the timing (the save's table is put back). Changes nothing else.
 -- Prints "[p1req]" lines.
 RUN("p1_lib.lua")
@@ -30,11 +31,11 @@ if world then
     P1T.check(say, "the world table matches a fresh scan", world.n == made.n, world.n .. " / " .. made.n)
 end
 
--- Scores: the median is 1.
-local ones = 0
-for _, s in ipairs(made.score) do if s >= 0.99 and s <= 1.01 then ones = ones + 1 end end
-say("candidates scoring about 1:", ones)
-P1T.check(say, "some candidates score about 1", ones > 0)
+-- Every group the tool made is a candidate: the game has a kind of each.
+P1T.check(say, "every group is a candidate", made.n == #OA.RequestGroups, made.n .. " / " .. #OA.RequestGroups)
+local bands = { common = 0, normal = 0, rare = 0 }
+for _, s in ipairs(made.score) do bands[OA.Requests.band(s)] = bands[OA.Requests.band(s)] + 1 end
+say("bands: common", bands.common, "normal", bands.normal, "rare", bands.rare)
 
 if record then
     local items = OA.Requests.list(record)
@@ -42,13 +43,13 @@ if record then
     say("this week's list (" .. #items .. " of " .. want .. "):")
     for _, t in ipairs(items) do
         local e = OA.Requests.entry(record, t)
-        say("  ", t, "category", tostring(OA.Requests.kindCategory(OA.Categories.baseType(t))), "band", e.band,
-            "price", e.price, "qty", e.qty, "used", e.used)
+        say("  ", t, OA.Requests.nameOf(t), "kinds", #OA.Requests.members(t), "band", e.band, "price", e.price,
+            "qty", e.qty, "used", e.used)
     end
     P1T.check(say, "the list has the rewarded count", #items == want, #items .. " / " .. want)
     local seen, dup = {}, false
     for _, t in ipairs(items) do if seen[t] then dup = true end seen[t] = true end
-    P1T.check(say, "no item twice", not dup)
+    P1T.check(say, "no group twice", not dup)
     local again = OA.Requests.list(record)
     P1T.check(say, "asking again gives the same list", again == items or table.concat(again, ",") == table.concat(items, ","))
 else

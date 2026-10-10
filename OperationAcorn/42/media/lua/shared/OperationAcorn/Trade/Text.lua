@@ -125,8 +125,10 @@ function Text.receipt(receipt)
     elseif receipt.feeReleased then
         add("good", "IGUI_OA_Trade_Rc_FeeReleased")
     end
+    -- A filled line names its request group (an older receipt's, an item type: its own name).
+    local requestName = OA.Requests and OA.Requests.nameOf or Text.itemName
     for _, fill in ipairs(receipt.filled or {}) do
-        add("good", "IGUI_OA_Trade_Rc_Filled", Text.itemName(fill.fullType), Text.credits(fill.trust))
+        add("good", "IGUI_OA_Trade_Rc_Filled", requestName(fill.fullType), Text.credits(fill.trust))
     end
     if (receipt.bonus or 0) ~= 0 then add("good", "IGUI_OA_Trade_Rc_Bonus", Text.credits(receipt.bonus)) end
     if (receipt.debtPaid or 0) > 0 then add("line", "IGUI_OA_Trade_Rc_DebtPaid", Text.credits(receipt.debtPaid)) end
