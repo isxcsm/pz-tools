@@ -1,4 +1,5 @@
--- Requests: the candidate table from the loot tables, the commonness score, the weekly list and its counters.
+-- Requests: the groups, the candidate table, the commonness score, the weekly list and its counters, and a list saved
+-- before the groups.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Value"
@@ -53,23 +54,23 @@ test("weights sum a list once per container that draws it, junk included", funct
     eq(sums.Pistol, nil, "a gun store is no house")
 end)
 
-test("build keeps what the team takes and scores by the median", function()
-    local dist, procedural = tables()
-    local data = R.build(R.weights(dist, procedural), infoOf, function(i) return OA.Value.accepts(i) end)
-    -- Candidates: Apple 20, Pan 6, Pencil 5, TinnedBeans 40, Hammer 6, Shirt 8 (ammo is not taken).
-    eq(data.n, 6)
-    local at = {}
-    for i = 1, data.n do at[data.types[i]] = data.score[i] end
-    eq(at["Base.Bullets9mm"], nil)
-    -- Sorted weights 5 6 6 8 20 40: the median is 7.
-    near(at["Base.TinnedBeans"], 40 / 7, 1e-3)
-    near(at["Base.Pencil"], 5 / 7, 1e-3)
-    near(at["Base.Shirt"], 8 / 7, 1e-3)
+test("build takes the candidates from the groups, with their score and category", function()
+    local groups = {
+        { id = "base:charcoal", score = 1, wt = 0.8, dc = "Material",
+            items = { "Base.Charcoal", "Base.CharcoalCrafted" } },
+        { id = "Base.Pan", score = 0.5, wt = 0.5, dc = "Cooking", items = { "Base.Pan" } },
+        { id = "n:Gone", score = 3, wt = 1, dc = "Junk", items = { "Base.GoneA", "Base.GoneB" } },
+    }
+    local function exists(t) return not string.find(t, "Gone", 1, true) end
+    local data = R.build({}, infoOf, groups, exists)
+    eq(data.n, 2, "a group none of whose kinds the game has is left out")
+    eq(data.types[1], "base:charcoal"); eq(data.score[1], 1); eq(data.cat[1], "K")
+    eq(data.types[2], "Base.Pan"); eq(data.score[2], 0.5); eq(data.cat[2], "F")
 end)
 
 test("kinds list every house loot kind with its category, ammo too", function()
     local dist, procedural = tables()
-    local data = R.build(R.weights(dist, procedural), infoOf, function(i) return OA.Value.accepts(i) end)
+    local data = R.build(R.weights(dist, procedural), infoOf)
     eq(data.kinds.Apple, "A")
     eq(data.kinds.Bullets9mm, nil, "ammo has no category")
     eq(data.kinds.Hammer, "H")
@@ -84,16 +85,16 @@ test("a colour variant counts as one kind", function()
         local full = "Base." .. name
         return { fullType = full, baseType = OA.Categories.baseType(full), weight = 0.3, displayCategory = "Clothing" }
     end
-    local data = R.build(sums, of, function() return true end)
+    local data = R.build(sums, of)
     eq(data.total.B, 2, "Cap and Cap_Reverse")
     eq(data.kinds.Cap, "B")
     eq(data.kinds.Cap_Reverse, "B")
-    eq(data.n, 3, "each type is a candidate")
 end)
 
 test("a name no item has is skipped", function()
-    local data = R.build({ Ghost = 5, Apple = 5 }, infoOf, function() return true end)
-    eq(data.n, 1)
+    local data = R.build({ Ghost = 5, Apple = 5 }, infoOf)
+    eq(data.total.A, 1)
+    eq(data.kinds.Ghost, nil)
 end)
 
 test("the stage opens the rarer items", function()
@@ -298,4 +299,148 @@ test("the table is built once and kept in the world save", function()
     eq(R.kindCategory("Item2"), "A")
     eq(R.kindCategory("Nothing"), nil)
     eq(R.categoryTotal("B"), 0, "no totals installed")
+end)
+
+-- The groups made from the game's files (RequestGroups.lua) -----------------------------------------------------
+
+test("a group is one level above the item type: a narrow tag, the book families, a variant", function()
+    eq(R.keyOf("Base.Charcoal"), "base:charcoal")
+    eq(R.keyOf("Base.CharcoalCrafted"), "base:charcoal", "the kiln's charcoal is the looted charcoal's group")
+    eq(R.keyOf("Base.BookCarpentry1"), "skillbook")
+    eq(R.keyOf("Base.BookFirstAid5"), "skillbook", "any skill, any volume")
+    eq(R.keyOf("Base.Book"), "books")
+    eq(R.keyOf("Base.Paperback"), "books", "hardcover and softcover together")
+    eq(R.keyOf("Base.Book_MilitaryHistory"), "books")
+    eq(R.keyOf("Base.BookFancy_Bible"), "books", "the leather-bound ones too")
+    eq(R.keyOf("Base.Magazine"), "reading")
+    eq(R.keyOf("Base.ComicBook"), "reading")
+    eq(R.keyOf("Base.ChessBlack"), R.keyOf("Base.ChessWhite"), "black and white chess pieces")
+    eq(R.keyOf("Base.Shirt_Bowling_Blue"), R.keyOf("Base.Shirt_Bowling_Pink"), "a bowling shirt of any colour")
+    eq(R.keyOf("Base.Harmonica"), "Base.Harmonica", "a kind on its own is its own group")
+end)
+
+test("what is left out is in no group: keys, maps, specimens, hollow books, newspapers, cartons", function()
+    for _, t in ipairs({ "Base.Key1", "Base.CarKey", "Base.MuldraughMap", "Base.Specimen_MonkeyHead",
+        "Base.HollowBook", "Base.Newspaper", "Base.NailsCarton", "Base.Photo", "Base.IDcard" }) do
+        eq(R.group(R.keyOf(t)), nil, t)
+    end
+end)
+
+test("every kind is in one group at most, and every group takes something", function()
+    local seen, ids = {}, {}
+    for _, row in ipairs(OA.RequestGroups) do
+        truthy(not ids[row.id], "one row for " .. row.id)
+        ids[row.id] = true
+        truthy(#row.items > 0, row.id .. " takes something")
+        for _, t in ipairs(row.items) do
+            truthy(not seen[t], t .. " is in " .. tostring(seen[t]) .. " and " .. row.id)
+            seen[t] = row.id
+        end
+    end
+end)
+
+test("the band comes from how the group is come by: charcoal and watermelons are common, so are skill books", function()
+    local function bandOf(t) return R.band(R.group(R.keyOf(t)).score) end
+    eq(bandOf("Base.CharcoalCrafted"), "common", "a kiln makes twelve from two logs")
+    eq(bandOf("Base.Watermelon"), "common", "a farm grows them")
+    eq(bandOf("Base.BookCarpentry3"), "common", "any skill book")
+    eq(bandOf("Base.TvBlack"), "normal", "a television (of any brand) comes out of a TV crate now and then")
+end)
+
+test("a group's price is never below its dearest member's value: a television is 6,000, not 600", function()
+    local key = R.keyOf("Base.TvBlack")
+    eq(R.floorOf(key), 6000, "10 weight of electronics at 600")
+    R.install(R.build({}, infoOf, { R.group(key) }))
+    local record = OA.Store.ensure("p", "P")
+    eq(R.line(record, key, {}).price, 6000)
+    eq(R.floorOf("Base.Nothing"), 0, "a kind no group has has no floor")
+end)
+
+test("a group's name: the family's text, the words its kinds' names start with, or the first kind's", function()
+    R.useGroups({
+        { id = "skillbook", score = 5, wt = 1, dc = "SkillBook", name = "IGUI_OA_ReqGroup_skillbook",
+            items = { "Base.B1" } },
+        { id = "n:Bowling_Shirt", score = 1, wt = 0.2, dc = "Clothing", items = { "Base.SB", "Base.SP" } },
+        { id = "n:Chess", score = 1, wt = 0.1, dc = "Entertainment", items = { "Base.CB", "Base.CW" } },
+        { id = "base:charcoal", score = 1, wt = 0.8, dc = "Material",
+            items = { "Base.Charcoal", "Base.CharcoalCrafted" } },
+    })
+    local names = { ["Base.SB"] = "Bowling Shirt - Blue", ["Base.SP"] = "Bowling Shirt - Pink",
+        ["Base.CB"] = "Chess Piece [Black]", ["Base.CW"] = "Chess Piece [White]",
+        ["Base.Charcoal"] = "Charcoal", ["Base.CharcoalCrafted"] = "Wood Charcoal", ["Base.Lone"] = "Lamp [On]" }
+    getItemNameFromFullType = function(t) return names[t] end
+    eq(R.nameOf("skillbook"), "IGUI_OA_ReqGroup_skillbook")
+    eq(R.nameOf("n:Bowling_Shirt"), "Bowling Shirt")
+    eq(R.nameOf("n:Chess"), "Chess Piece")
+    eq(R.nameOf("base:charcoal"), "Charcoal", "no words in common: the first kind's name")
+    eq(R.nameOf("Base.Lone"), "Lamp", "a kind on its own, less its variant")
+    local list = R.memberNames("base:charcoal")
+    eq(#list, 2); eq(list[2], "Wood Charcoal")
+    eq(R.iconType("base:charcoal"), "Base.Charcoal")
+end)
+
+-- A world of groups for the list tests: charcoal (two kinds) and plain kinds.
+local function installGroups(count)
+    local rows = { { id = "base:charcoal", score = 2, wt = 0.8, dc = "Material",
+        items = { "Base.Charcoal", "Base.CharcoalCrafted" } } }
+    for i = 1, count do
+        rows[#rows + 1] = { id = "Base.Item" .. i, score = 2, wt = 0.1, dc = "Junk", items = { "Base.Item" .. i } }
+    end
+    R.useGroups(rows)
+    R.install(R.build({}, infoOf, rows))
+end
+
+test("a group is on a week's list once, even when the pin and the strange item are of it", function()
+    installGroups(3)
+    local record = OA.Store.ensure("p", "P")
+    R.list(record)
+    R.pinNext(record, "Base.CharcoalCrafted")
+    OA.Story = { strangeItem = function() return "Base.Charcoal" end }
+    TEST.hours = 24 * 7 + 1
+    local list = R.list(record)
+    eq(list[1], "base:charcoal", "the pinned kind's group leads")
+    local n = 0
+    for _, key in ipairs(list) do if key == "base:charcoal" then n = n + 1 end end
+    eq(n, 1)
+    eq(#list, 4, "the three other groups and charcoal: nothing twice")
+    OA.Story = nil
+end)
+
+test("charcoal from the kiln is a line of the charcoal request", function()
+    installGroups(10)
+    local record = OA.Store.ensure("p", "P")
+    OA.Support.setLevel(record, "reqcount", 3)
+    local e = R.entry(record, "Base.CharcoalCrafted")
+    truthy(e, "the group is on the list")
+    eq(e.key, "base:charcoal")
+    R.consume(record, e.key, 4)
+    eq(R.entry(record, "Base.Charcoal").used, 4, "the looted and the made kind count together")
+end)
+
+test("a list saved before the groups is moved to them and keeps what the week settled", function()
+    installGroups(5)
+    local record = OA.Store.ensure("p", "P")
+    local codex = OA.Store.section(record, "codex")
+    codex.req = { week = OA.week(), extra = 0, items = { "Base.Charcoal", "Base.Item1", "Base.CharcoalCrafted" },
+        used = { ["Base.Charcoal"] = 3, ["Base.CharcoalCrafted"] = 2, ["Base.Item1"] = 1 } }
+    codex.reqPin = "Base.CharcoalCrafted"
+    OA.Store.upgrade(record)
+    local list = R.list(record)
+    eq(list[1], "base:charcoal"); eq(list[2], "Base.Item1")
+    for i = 3, #list do truthy(list[i] ~= "base:charcoal", "charcoal once") end
+    eq(R.used(record)["base:charcoal"], 5, "3 and 2 of its kinds")
+    eq(R.used(record)["Base.Item1"], 1)
+    eq(R.entry(record, "Base.Charcoal").left, 5)
+    eq(codex.reqPin, "base:charcoal")
+    eq(codex.req.groups, true)
+    codex.req.groups = nil
+    codex.req.items = { "Base.CharcoalCrafted" }
+    codex.req.used = {}
+    eq(R.list(record)[1], "base:charcoal", "a list not upgraded yet is moved when it is read")
+end)
+
+test("one appliance of several brands is one group by hand: any television, any radio", function()
+    eq(R.keyOf("Base.TvBlack"), "tv"); eq(R.keyOf("Base.TvWideScreen"), "tv"); eq(R.keyOf("Base.TvAntique"), "tv")
+    eq(R.keyOf("Base.RadioRed"), "radio"); eq(R.keyOf("Base.RadioMakeShift"), "radio", "a home-made one too")
+    eq(R.group("tv").name, "IGUI_OA_ReqGroup_tv")
 end)

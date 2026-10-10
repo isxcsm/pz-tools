@@ -1,7 +1,8 @@
--- The terminal's delivery tab (DESIGN-terminal 5): this week's request items with their fixed prices, how much of each
+-- The terminal's delivery tab (DESIGN-terminal 5): this week's request groups with their fixed prices, how much of each
 -- the week has taken, what a full line gives, the settlement the sealed boxes would make, and under it this week's
--- situation: the market's events, the season, and today's index of each category. Everything is worked out when the
--- record changes (or the day does) and the frames only draw it.
+-- situation: the market's events, the season, and today's index of each category. A row shows its group's name and
+-- picture; the mouse over it lists the kinds the group takes. Everything is worked out when the record changes (or the
+-- day does) and the frames only draw it.
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Estimate"
 require "OperationAcorn/Economy/Requests"
@@ -18,6 +19,8 @@ OATabDelivery.ROW_H = 26
 OATabDelivery.NARROW = 680
 -- How many lines of events the situation shows: the rest are counted.
 OATabDelivery.SIT_MAX = 5
+-- How many kinds a row's tooltip names: the rest are counted.
+OATabDelivery.TIP_MAX = 12
 -- An index at or past these is drawn as high or low.
 OATabDelivery.CHIP_HIGH, OATabDelivery.CHIP_LOW = 1.15, 0.85
 -- Frames between looking whether the day or the market has moved on while the tab is open.
@@ -89,16 +92,33 @@ local function refreshText()
     return getText("IGUI_OA_Terminal_Del_Refresh", left)
 end
 
+-- The tooltip lines of a group: the kinds it takes (a group of one has none).
+local function tipOf(key)
+    local names = OA.Requests.memberNames(key)
+    if #names < 2 then return nil end
+    local lines = { getText("IGUI_OA_Terminal_Del_Takes") }
+    local shown = math.min(#names, OATabDelivery.TIP_MAX)
+    if shown < #names then shown = shown - 1 end
+    for i = 1, shown do lines[#lines + 1] = names[i] end
+    if shown < #names then lines[#lines + 1] = getText("IGUI_OA_Terminal_Del_TakesMore", #names - shown) end
+    return lines
+end
+
 -- The rows of the week's list: what each shows, from the record and the sealed boxes' estimate.
 local function rowsOf(record, worth)
     local sealed = {}
-    for _, r in ipairs(worth and worth.requests and worth.requests.lines or {}) do sealed[r.fullType] = r.units end
+    for _, r in ipairs(worth and worth.requests and worth.requests.lines or {}) do
+        local key = r.key or r.fullType
+        sealed[key] = (sealed[key] or 0) + r.units
+    end
     local rows = {}
     for _, line in ipairs(OA.Requests.entries(record)) do
+        local key = line.key
         rows[#rows + 1] = {
-            fullType = line.fullType, name = Text.itemName(line.fullType), texture = itemTexture(line.fullType),
+            key = key, name = OA.Requests.nameOf(key), texture = itemTexture(OA.Requests.iconType(key)),
+            tip = tipOf(key),
             band = line.band, bandText = getText("IGUI_OA_Terminal_Del_Band_" .. line.band),
-            price = Text.credits(line.price), used = line.used, qty = line.qty, sealed = sealed[line.fullType] or 0,
+            price = Text.credits(line.price), used = line.used, qty = line.qty, sealed = sealed[key] or 0,
             progress = line.used .. "/" .. line.qty, full = line.full, trust = "+" .. line.trust,
         }
     end
@@ -379,10 +399,35 @@ function OATabDelivery:prerender()
     end
 end
 
--- A chip under the mouse tells its category's long name and today's index.
+-- The kinds a row's group takes, beside the row under the mouse (drawn as the chips' tip is).
+function OATabDelivery:drawRowTip()
+    local list = self.list
+    if #list.items == 0 or not list:isMouseOver() then return false end
+    local item = list.items[list.mouseoverselected or -1]
+    local tip = item and item.item and item.item.tip
+    if not tip then return false end
+    local p = self:palette()
+    local fh = UI.fontHeight()
+    local tw = 0
+    for _, line in ipairs(tip) do tw = math.max(tw, UI.textWidth(line)) end
+    tw = tw + 12
+    local th = #tip * fh + 6
+    local x = math.min(list:getX() + list:getMouseX() + 16, self:getWidth() - tw)
+    local y = list:getY() + list:getMouseY() + 16
+    if y + th > self:getHeight() then y = math.max(0, list:getY() + list:getMouseY() - th - 4) end
+    UI.fill(self, x, y, tw, th, p.bg, 0.97)
+    UI.frame(self, x, y, tw, th, p.border)
+    for i, line in ipairs(tip) do UI.text(self, line, x + 6, y + 3 + (i - 1) * fh, i == 1 and p.dim or p.bright) end
+    return true
+end
+
+-- A row under the mouse lists what its group takes; a chip under the mouse tells its category's long name and today's
+-- index.
 function OATabDelivery:render()
     local d, m = self.data, self.metrics
-    if not (d and m and self:isMouseOver()) then return end
+    if not (d and m) then return end
+    if self:drawRowTip() then return end
+    if not self:isMouseOver() then return end
     local mx, my = self:getMouseX(), self:getMouseY()
     for k, chip in ipairs(d.chips) do
         local r = d.chipRects[k]

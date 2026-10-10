@@ -68,8 +68,9 @@ local function bought(item)
 end
 
 -- The codex looks at one item (and the items in it, to a depth of three bags). Known kinds, types that are no loot and
--- the shop's goods cost a lookup or two; only a kind not known yet is read whole (Value.info).
-local function acquireItem(record, kinds, item, depth)
+-- the shop's goods cost a lookup or two; only a kind not known yet is read whole (Value.info). `bags`, when given,
+-- collects the bags whose items were looked at.
+local function acquireItem(record, kinds, item, depth, bags)
     local fullType = item:getFullType()
     if not kinds[baseOf(fullType)] and not notLoot[fullType] and not bought(item) then
         local info = OA.Value.info(item)
@@ -77,8 +78,10 @@ local function acquireItem(record, kinds, item, depth)
         if not info.bought and not OA.Categories.isLoot(info) then notLoot[fullType] = true end
     end
     if depth < 3 and instanceof(item, "InventoryContainer") then
-        local items = item:getInventory():getItems()
-        for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), depth + 1) end
+        local inside = item:getInventory()
+        if bags then bags[#bags + 1] = inside end
+        local items = inside:getItems()
+        for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), depth + 1, bags) end
     end
 end
 
@@ -88,12 +91,33 @@ end
 Economy.SWEEP_MS = 5000
 
 local sweptAt = {}     -- by record id: the real time (ms) of the last look over the character's inventory
+-- By record id: what the last look saw, { inventory, bags = { container ... }, sigs = { signature ... } } (the
+-- inventory first, then each bag the look went into). Nothing in them has changed while every signature is the same
+-- (OA.signature: count and weight, one call each), so the look is skipped then: no search on a tick (Core.lua).
+local swept = {}
+
+-- Whether the inventory and the bags the last look went into hold what they held then.
+local function unchanged(seen, inventory)
+    if not seen or seen.inventory ~= inventory then return false end
+    if OA.signature(inventory) ~= seen.sigs[1] then return false end
+    for i, bag in ipairs(seen.bags) do
+        if OA.signature(bag) ~= seen.sigs[i + 1] then return false end
+    end
+    return true
+end
 
 local function sweepInventory(character, record, now)
     if not OA.due(sweptAt, record.id, now, Economy.SWEEP_MS) then return end
+    local inventory = character:getInventory()
+    if unchanged(swept[record.id], inventory) then return end
     local kinds = OA.Codex.section(record).kinds
-    local items = character:getInventory():getItems()
-    for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), 1) end
+    local bags = {}
+    -- oa-scan: ok (only when a signature changed since the last look)
+    local items = inventory:getItems()
+    for i = 0, items:size() - 1 do acquireItem(record, kinds, items:get(i), 1, bags) end
+    local sigs = { OA.signature(inventory) }
+    for i, bag in ipairs(bags) do sigs[i + 1] = OA.signature(bag) end
+    swept[record.id] = { inventory = inventory, bags = bags, sigs = sigs }
 end
 
 -- Tags an item, and what is inside it, with the cell it came from. An item keeps the first cell it was tagged with.

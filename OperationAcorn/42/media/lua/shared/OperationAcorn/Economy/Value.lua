@@ -4,9 +4,9 @@
 --   trust   = weight * unit / 100 * state * accel
 -- state is 0.5 + 0.5 * condition (food: fresh 1, stale 0.5). The market index, the new-region bonus and the
 -- exchange rate never touch trust, so no one can farm trust through them. Cash and this mod's goods have fixed
--- values. So does an item on this week's request list, for the first units of the week: a fixed price for each
--- (Requests.entry) times state and rate, no weight, index or new-region bonus, and a bonus of trust when the line
--- is full. A whole flight is rounded once, in settle (DESIGN 9).
+-- values. So does an item of a group on this week's request list, for the first units of the week: the group's fixed
+-- price for each (Requests.entry; never less than the unit's own value at the day's index) times state and rate, no
+-- new-region bonus, and a bonus of trust when the line is full. A whole flight is rounded once, in settle (DESIGN 9).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
@@ -148,8 +148,8 @@ end
 -- The unrounded value of `count` of one kind of item, as one line of a receipt. ctx as Value.context makes it;
 -- `taken` (optional) carries what earlier lines of the same flight used up: { requests = {}, cells = {} }.
 --   { fullType, baseType, count, weight (total), category, credits, trust, cashTrust, marks, requestUnits,
---     requestCredits (what the request units fetch), marketWeight (the weight that goes to the market: not the
---     request units), regionWeight }
+--     requestCredits (what the request units fetch), requestKey (the item's request group), marketWeight (the
+--     weight that goes to the market: not the request units), regionWeight }
 function Value.appraiseLine(info, count, ctx, taken)
     count = count or 1
     local line = {
@@ -194,14 +194,17 @@ function Value.appraiseLine(info, count, ctx, taken)
     line.marks.low = index <= Value.LOW
     line.marks.refused = ctx.refused and ctx.refused[cat] and true or false
     line.trust = w * unit / 100 * state * (ctx.trustAccel or 1.0) * count
-    -- The units of this week's request come first, at the item's fixed price; the others are valued by weight.
-    local request = ctx.requests and ctx.requests[info.fullType]
+    -- The units of this week's request come first, at the group's fixed price; the others are valued by weight. The
+    -- line's counters are its group's (key), shared by every type the group takes.
+    local key = OA.Requests.keyOf(info.fullType)
+    local request = ctx.requests and ctx.requests[key]
     local nReq = 0
     if request then
-        local used = (ctx.requestUsed and ctx.requestUsed[info.fullType] or 0)
-            + (taken and taken.requests and taken.requests[info.fullType] or 0)
+        local used = (ctx.requestUsed and ctx.requestUsed[key] or 0)
+            + (taken and taken.requests and taken.requests[key] or 0)
         nReq = math.max(0, math.min(count, request.qty - used))
     end
+    line.requestKey = key
     local rest = count - nReq
     -- How many of the others earn the new-region premium.
     local full, partial, consumed = 0, 0, 0
@@ -217,7 +220,9 @@ function Value.appraiseLine(info, count, ctx, taken)
         end
     end
     local sum = rest + Value.NEW_REGION_BONUS * (full + partial)
-    line.requestCredits = request and nReq * request.price * state * rate or 0
+    -- A request unit never fetches less than it would unrequested at today's index (the new-region premium is never
+    -- a request unit's: NUMBERS 2).
+    line.requestCredits = request and nReq * math.max(request.price, w * unit * index) * state * rate or 0
     line.credits = w * unit * index * state * rate * sum + line.requestCredits
     line.marketWeight = w * rest
     line.marks.request = nReq > 0
@@ -258,7 +263,7 @@ end
 
 -- The table values are read from, made once a day for a record (a tooltip reads it, never recomputes):
 --   rate (the exchange rate: the reward and CreditMultiplier), trustAccel, index (live), refused (live),
---   requests (this week's request lines by item type, as Requests.entries gives them), requestUsed (live), cellUsed,
+--   requests (this week's request lines by group key, as Requests.entries gives them), requestUsed (live), cellUsed,
 --   rewards.
 -- Everything that moves within the day (the index, what the request counters and cells have used) is a live table.
 local contexts = {}
@@ -298,17 +303,18 @@ function Value.reset()
     contexts = {}
 end
 
--- The request lines a flight fills to their quantity: { fills = { { fullType, band, trust } ... }, trust }. `taken`
--- is what the flight settles of each item as requests ({ requests = { fullType = units } }); the units earlier flights
--- settled this week (ctx.requestUsed) are already counted. A line gives its trust once, as it becomes full.
+-- The request lines a flight fills to their quantity: { fills = { { fullType (the group's key), band, trust } ... },
+-- trust }. `taken` is what the flight settles of each group as requests ({ requests = { key = units } }); the units
+-- earlier flights settled this week (ctx.requestUsed) are already counted. A line gives its trust once, as it becomes
+-- full.
 function Value.requestFills(ctx, taken)
     local fills, total = {}, 0
-    for fullType, n in pairs(taken.requests or {}) do
-        local request = ctx.requests and ctx.requests[fullType]
+    for key, n in pairs(taken.requests or {}) do
+        local request = ctx.requests and ctx.requests[key]
         if request and n > 0 then
-            local used = ctx.requestUsed and ctx.requestUsed[fullType] or 0
+            local used = ctx.requestUsed and ctx.requestUsed[key] or 0
             if used < request.qty and used + n >= request.qty then
-                fills[#fills + 1] = { fullType = fullType, band = request.band, trust = request.trust }
+                fills[#fills + 1] = { fullType = key, band = request.band, trust = request.trust }
                 total = total + request.trust
             end
         end
@@ -320,8 +326,8 @@ end
 -- One flight's settlement: `entries` is the sealed boxes' records, { info = ..., count = n } in any order. Values
 -- every line at the market as it is now, sends the weight shipped to the market, uses up the request counters and
 -- the new-region weights, and returns { credits (rounded once), trust, cashTrust, lines, shipped, filled }. `filled`
--- are the request lines this flight made full ({ fullType, band, trust }); their trust is in `trust`. The record's
--- credits and trust are not changed: the trade part adds them with the debt.
+-- are the request lines this flight made full ({ fullType (the key), band, trust }); their trust is in `trust`. The
+-- record's credits and trust are not changed: the trade part adds them with the debt.
 function Value.settle(record, entries)
     local ctx = Value.buildContext(record)
     local taken = { requests = {}, cells = {} }
@@ -335,7 +341,7 @@ function Value.settle(record, entries)
         trust = trust + line.trust
         cashTrust = cashTrust + line.cashTrust
         if line.requestUnits > 0 then
-            taken.requests[line.fullType] = (taken.requests[line.fullType] or 0) + line.requestUnits
+            taken.requests[line.requestKey] = (taken.requests[line.requestKey] or 0) + line.requestUnits
         end
         if line.regionWeight > 0 and entry.info.cell then
             taken.cells[entry.info.cell] = (taken.cells[entry.info.cell] or 0) + line.regionWeight
@@ -349,8 +355,8 @@ function Value.settle(record, entries)
     -- Cash is not a sample: its trust is capped per flight.
     cashTrust = math.min(cashTrust, Value.CASH_TRUST_CAP)
     local fills = Value.requestFills(ctx, taken)
-    for fullType, n in pairs(taken.requests) do
-        OA.Requests.consume(record, fullType, n)
+    for key, n in pairs(taken.requests) do
+        OA.Requests.consume(record, key, n)
     end
     local codex = OA.Store.section(record, "codex")
     codex.cells = codex.cells or {}

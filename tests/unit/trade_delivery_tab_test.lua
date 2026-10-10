@@ -30,6 +30,8 @@ local function stubPanel()
     function c:isMouseOver() return self.over or false end
     function c:getMouseX() return self.mx or 0 end
     function c:getMouseY() return self.my or 0 end
+    function c:getX() return self.x end
+    function c:getY() return self.y end
     function c:palette() return self.window.palette end
     function c:record() return self.window.record end
     function c:addItem(name, item) self.items[#self.items + 1] = { text = name, item = item, height = self.itemheight } end
@@ -136,7 +138,7 @@ end)
 test("the bar counts what the week settled and shows what the sealed boxes hold lightly", function()
     local record = world(0)
     local tab0 = openTab(record)
-    local item = tab0.data.rows[1].fullType
+    local item = tab0.data.rows[1].key
     OA.Requests.consume(record, item, 4)
     local Boxes = OA.Trade.Boxes
     local box = Boxes.add(record, { x = 1, y = 1, z = 0 })
@@ -144,7 +146,7 @@ test("the bar counts what the week settled and shows what the sealed boxes hold 
         displayCategory = "Junk" }, count = 3 } })
     local tab = openTab(record)
     local row
-    for _, r in ipairs(tab.data.rows) do if r.fullType == item then row = r end end
+    for _, r in ipairs(tab.data.rows) do if r.key == item then row = r end end
     eq(row.progress, "4/10"); eq(row.sealed, 3)
     truthy(tab.data.expect and string.find(tab.data.expect, "IGUI_OA_Terminal_Del_Expect", 1, true),
         "the settlement the sealed boxes make")
@@ -156,7 +158,7 @@ end)
 test("a sealed box that fills a line adds the trust to the expected settlement", function()
     local record = world(0)
     local tab0 = openTab(record)
-    local item = tab0.data.rows[1].fullType
+    local item = tab0.data.rows[1].key
     local Boxes = OA.Trade.Boxes
     local box = Boxes.add(record, { x = 1, y = 1, z = 0 })
     Boxes.seal(record, box.id, { { info = { fullType = item, baseType = OA.Categories.baseType(item), weight = 0.1,
@@ -169,11 +171,11 @@ end)
 test("a full line is marked done and dim, and still drawn", function()
     local record = world(0)
     local tab0 = openTab(record)
-    local item = tab0.data.rows[1].fullType
+    local item = tab0.data.rows[1].key
     OA.Requests.consume(record, item, 10)
     local tab = openTab(record)
     local row
-    for _, r in ipairs(tab.data.rows) do if r.fullType == item then row = r end end
+    for _, r in ipairs(tab.data.rows) do if r.key == item then row = r end end
     eq(row.full, true)
     local list = tab.list
     list.drawn = {}
@@ -282,6 +284,38 @@ test("a chip under the mouse draws its tip", function()
     tab.mx = 0
     tab:render()
     eq(texts(tab), "", "nothing off the chips")
+end)
+
+test("a group's row shows the group's name and picture, and the mouse over it lists what it takes", function()
+    OA.Requests.useGroups({ { id = "base:charcoal", score = 2, wt = 0.8, dc = "Material",
+        items = { "Base.Charcoal", "Base.Coke", "Base.CharcoalCrafted" } } })
+    OA.Requests.install(OA.Requests.build({}, function() return nil end, OA.RequestGroups))
+    local record = OA.Store.ensure("p", "P")
+    local Tab = load()
+    local names = { ["Base.Charcoal"] = "Charcoal", ["Base.Coke"] = "Coke", ["Base.CharcoalCrafted"] = "Wood Charcoal" }
+    getItemNameFromFullType = function(t) return names[t] or t end
+    local asked
+    getScriptManager = function() return { FindItem = function(_, t) asked = t; return nil end } end
+    local window = { palette = OA.Trade.UI.palette("crude"), record = record, tier = "crude" }
+    local tab = Tab:new(0, 0, 700, 408, window)
+    tab:createChildren()
+    tab:refresh()
+    local row = tab.data.rows[1]
+    eq(row.key, "base:charcoal")
+    eq(row.name, "Charcoal", "the group's name, not one kind's")
+    eq(asked, "Base.Charcoal", "its picture is the first kind's")
+    tab:prerender()
+    tab.list.over, tab.list.mouseoverselected, tab.list.mx, tab.list.my = true, 1, 40, 10
+    tab.drawn = {}
+    tab:render()
+    local drawn = texts(tab)
+    truthy(string.find(drawn, "IGUI_OA_Terminal_Del_Takes", 1, true), "the tip's head")
+    truthy(string.find(drawn, "Wood Charcoal", 1, true), "the kiln's charcoal is named")
+    truthy(string.find(drawn, "Coke", 1, true))
+    tab.list.over = false
+    tab.drawn = {}
+    tab:render()
+    eq(texts(tab), "", "nothing when the mouse is off the list")
 end)
 
 test("the day moving on, or an event, refreshes the tab", function()

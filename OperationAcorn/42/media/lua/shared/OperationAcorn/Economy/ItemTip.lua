@@ -20,17 +20,19 @@ OA.ItemTip = ItemTip
 ItemTip.REQUEST_COLOR = { 1.0, 0.82, 0.35 }
 ItemTip.NEW_COLOR = { 0.55, 0.95, 0.60 }
 
--- The request of this week for an item type: price, count a week, count settled; nil when it is not on the list.
+-- The request of this week for an item type (its group's line): price, count a week, count settled; nil when the
+-- group is not on the list.
 function ItemTip.requestOf(record, fullType)
     local codex = record.codex
     local rq = codex and codex.req
     if not rq or not rq.items then return nil end
+    local key = OA.Requests.keyOf(fullType)
     local listed = false
     for i = 1, #rq.items do
-        if rq.items[i] == fullType then listed = true break end
+        if rq.items[i] == key then listed = true break end
     end
     if not listed then return nil end
-    local line = OA.Requests.line(record, fullType, rq.used or {})
+    local line = OA.Requests.line(record, key, rq.used or {})
     return line.price, line.qty, math.min(line.used, line.qty)
 end
 

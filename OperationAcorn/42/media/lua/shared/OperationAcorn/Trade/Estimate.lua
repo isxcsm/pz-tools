@@ -13,8 +13,8 @@ Trade.Estimate = Estimate
 
 -- Entries ({ info, count }) valued as one flight: { credits (whole), trust, lines, requests, filled } or nil when
 -- there is no economy. `requests` is what this week's request lines fetch: { credits (whole), units, lines = { {
--- fullType, units, credits } the biggest first } }; `filled` are the request lines the flight would make full (their
--- trust is in `trust`).
+-- fullType, key (its request group), units, credits } the biggest first } }; `filled` are the request lines the
+-- flight would make full (their trust is in `trust`).
 function Estimate.entries(record, entries)
     local Value = OA.Value
     if not (Value and Value.context and Value.appraiseLine) then return nil end
@@ -31,7 +31,7 @@ function Estimate.entries(record, entries)
         if line.requestUnits and line.requestUnits > 0 then
             local r = byType[line.fullType]
             if not r then
-                r = { fullType = line.fullType, units = 0, credits = 0 }
+                r = { fullType = line.fullType, key = line.requestKey, units = 0, credits = 0 }
                 byType[line.fullType] = r
                 requests.lines[#requests.lines + 1] = r
             end
@@ -43,7 +43,7 @@ function Estimate.entries(record, entries)
         trust = trust + line.trust
         cashTrust = cashTrust + (line.cashTrust or 0)
         if line.requestUnits and line.requestUnits > 0 then
-            taken.requests[line.fullType] = (taken.requests[line.fullType] or 0) + line.requestUnits
+            taken.requests[line.requestKey] = (taken.requests[line.requestKey] or 0) + line.requestUnits
         end
         if line.regionWeight and line.regionWeight > 0 and entry.info.cell then
             taken.cells[entry.info.cell] = (taken.cells[entry.info.cell] or 0) + line.regionWeight

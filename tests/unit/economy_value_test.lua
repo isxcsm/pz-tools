@@ -5,6 +5,8 @@ require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Value"
 local OA = OperationAcorn
 local V = OA.Value
+-- The request lines here are by item type: no generated groups.
+OA.Requests.useGroups({})
 
 local function info(fullType, display, weight, extra)
     local t = { fullType = fullType, baseType = OA.Categories.baseType(fullType), weight = weight,
@@ -135,10 +137,35 @@ test("a request price ignores the weight and the market, but not the state or th
     c.index.H = 1.8
     local hammer = info("Base.Hammer", "Tool", 1.0, { condition = 0.5 })
     near(V.appraise(hammer, c).credits, 1500 * 0.75 * 1.05, 1e-9, "state 0.75, rate 1.05, no index")
-    local heavy = info("Base.Hammer", "Tool", 9.0, { condition = 1.0 })
-    near(V.appraise(heavy, c).credits, 1500 * 1.05, 1e-9, "heavier is not worth more")
+    local heavy = info("Base.Hammer", "Tool", 2.0, { condition = 1.0 })
+    near(V.appraise(heavy, c).credits, 1500 * 1.05, 1e-9, "heavier is not worth more (2 x 300 x 1.8 is less)")
     local other = info("Base.Saw", "Tool", 1.0)
     near(V.appraise(other, c).credits, 300 * 1.8 * 1.05, 1e-9, "a thing off the list keeps the index")
+end)
+
+test("a request unit never fetches less than it would unrequested at the day's index", function()
+    -- A television (10 weight of electronics, G 600 a weight) is worth 6,000; the common line's 600 would be a tenth.
+    local c = ctx({ requests = { ["Base.TvBlack"] = request() }, rate = 1.0 })
+    local tv = info("Base.TvBlack", "Communications", 10.0)
+    local line = V.appraiseLine(tv, 2, c)
+    eq(line.requestUnits, 2, "still the request's units: they count for the line")
+    near(line.credits, 2 * 6000, 1e-9)
+    c.index.G = 1.5
+    near(V.appraiseLine(tv, 1, c).credits, 9000, 1e-9, "and at a high index the index's value")
+end)
+
+test("a crafted twin fills the request of its group: wood charcoal for charcoal", function()
+    OA.Requests.useGroups({ { id = "base:charcoal", score = 1, wt = 0.8, dc = "Material",
+        items = { "Base.Charcoal", "Base.Coke", "Base.CharcoalCrafted" } } })
+    local c = ctx({ requests = { ["base:charcoal"] = request() } })
+    local looted = V.appraiseLine(info("Base.Charcoal", "Material", 0.8), 4, c, { requests = {}, cells = {} })
+    eq(looted.requestKey, "base:charcoal")
+    eq(looted.requestUnits, 4)
+    local taken = { requests = { ["base:charcoal"] = 4 }, cells = {} }
+    local crafted = V.appraiseLine(info("Base.CharcoalCrafted", "Material", 0.8), 12, c, taken)
+    eq(crafted.requestKey, "base:charcoal")
+    eq(crafted.requestUnits, 6, "the group's ten units a week are shared by its kinds")
+    near(crafted.requestCredits, 6 * 600, 1e-9)
 end)
 
 test("an item that is not on the list gets no request price", function()
