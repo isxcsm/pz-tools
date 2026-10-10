@@ -42,7 +42,7 @@
     "Sandbox_OperationAcorn_UpgradeSerumGrowth": "강화 혈청 가격 증가",
     "Sandbox_OperationAcorn_UpgradeSerumGrowth_tooltip": "같은 트리의 강화 혈청을 살 때마다 가격이 이 배율만큼 오릅니다. 27번째부터는 일정한 금액씩 오릅니다.",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier": "강화 효과 크기",
-    "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "수치가 있는 연구 효과의 배율입니다.",
+    "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "수치가 있는 강화 효과의 배율입니다.",
     "Sandbox_OperationAcorn_SharedSerumMilestones": "공용 혈청 이정표 간격",
     "Sandbox_OperationAcorn_SharedSerumMilestones_tooltip": "최고 단계 뒤로 신뢰도 이정표 몇 개마다 공용 강화 혈청을 받을지 정합니다.",
     "Sandbox_OperationAcorn_ShredDecay": "분해 반복 감소",

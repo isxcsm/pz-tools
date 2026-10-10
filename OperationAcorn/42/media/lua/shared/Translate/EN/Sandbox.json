@@ -42,7 +42,7 @@
     "Sandbox_OperationAcorn_UpgradeSerumGrowth": "Upgrade serum price growth",
     "Sandbox_OperationAcorn_UpgradeSerumGrowth_tooltip": "Each upgrade serum of a tree costs this many times the one before. From the 27th on, the price rises by a fixed amount.",
     "Sandbox_OperationAcorn_UpgradeEffectMultiplier": "Upgrade effect size",
-    "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "Multiplies research effects that have a number.",
+    "Sandbox_OperationAcorn_UpgradeEffectMultiplier_tooltip": "Multiplies enhancement effects that have a number.",
     "Sandbox_OperationAcorn_SharedSerumMilestones": "Shared serum every N milestones",
     "Sandbox_OperationAcorn_SharedSerumMilestones_tooltip": "After the top stage, a shared enhancement serum comes every this many trust milestones.",
     "Sandbox_OperationAcorn_ShredDecay": "Shredding repeat decay",
