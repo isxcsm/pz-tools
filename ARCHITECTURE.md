@@ -47,10 +47,14 @@ python tools/check_translations.py                          # 번역 키, 샌드
 | `shared/OperationAcorn/Core.lua` | `OperationAcorn`(=`OA`) 이름공간, `OA.log`, `OA.api()`/`OA.handle()`(확장 API), `OA.option(name)`(샌드박스), `OA.hours()`(세계 나이, 시간), `OA.day()`(00시에 바뀌는 날 번호), `OA.week()`, `OA.random(a, b)`(둘 다 포함), `OA.randomFloat`, `OA.round`, `OA.clamp`, `OA.remainder`, `OA.due(last, key, now, ms)`(실제 시간 간격 제한) |
 | `shared/OperationAcorn/Store.lua` | 저장 데이터. 전역 ModData `OA_World` 하나에 모두 둔다. `Store.world(section)`, `Store.player(id)`, `Store.section(record, section)`, `Store.players()`, `Store.ensure(id, name)`(기록과 네 자리 채집점 번호를 만든다), `Store.idOf(character)`(캐릭터 modData `OA_Id`) |
 | `shared/OperationAcorn/Sync.lua` | 바뀐 것 알리기. `Sync.changed(what, playerId, detail)`, `Sync.notice(playerId, key, args)`, `Sync.title(playerId, detail)`(사건의 제목: 확장 API의 큰 글씨, 없으면 캐릭터 위 글. `client/OperationAcorn/Titles.lua`가 보인다. 인자는 `{ key, args }`이면 플레이어 쪽에서 번역한다), `Sync.send(character, command, args)`(클라이언트 → 서버, `args.id`를 붙인다), `Sync.listen(what, fn)`(클라이언트 쪽) |
+| `shared/OperationAcorn/Markup.lua` | 타이핑 글의 표시 문법 (확장 API의 `text.show` `markup = true`와 같다): `{p:초}` 멈춤, `{s:글자수}` / `{s}` 속도, `{c:RRGGBB}…{/c}` 색, `{{ }}` 이스케이프. `Markup.parse(text, speed)`(글자별 등장 시각 표, 오류는 nil과 이유), `Markup.strip(text)`(표시를 뺀 글, 표시가 없는 모든 곳에서 쓴다), `Markup.count(read, t)`(그 시각에 찍힌 글자 수, 이분 탐색), `Markup.lead`(타이틀 부제용 첫 문장들), `Markup.wrap` |
+| `shared/OperationAcorn/Story/Typing.lua` | 단말 안 타이핑의 순수 부분: 속도(`Typing.SPEED`, 장면 / 문서, 조립 / 정식), 기록에 남기는 시계(`Typing.start` / `Typing.saved`, 세계 나이로 이어 찍기), 글 패널용 글(`Typing.rich`), 패널의 줄과 글자 맞추기(`Typing.align`, `Typing.reveal`) |
 | `shared/OperationAcorn/Chunks.lua` | 칸이 불러질 때 할 일의 대기 표 (`LoadChunk`, 청크 키). `Chunks.handle(kind, fn)`, `Chunks.add(entry)`, `Chunks.remove(predicate)`, `Chunks.list(kind)`. `LoadGridsquare`는 쓰지 않는다 |
 | `shared/OperationAcorn/Sprites.lua` | 이 모드 타일 이름 (`Sprites.terminal(dir, on)`, `Sprites.machineTiles(kind, dir, running)`, `Sprites.footprint(kind, dir)` ...). 시트 자리는 바꾸지 않는다 |
 | `server/OperationAcorn/Server.lua` | 클라이언트 명령 받기: `OA.Server.on(name, function(character, record, args) ... end)`. `LoadChunk`를 `Chunks`에 잇는다 |
 | `client/OperationAcorn/Client.lua` | 서버가 보낸 것을 `Sync` 듣는 쪽으로. `OA.Client.record(character)`(이 클라이언트가 보는 내 기록), 첫 접속 때 `hello` |
+| `client/OperationAcorn/Scene.lua` | 큰 장면의 화면 타이핑: 첫 교신, 단계 진입, 이관의 교신 줄을 `PZToolsAPI.text.show` `enter = "type"`으로 찍는다 (`Sync.scene`). 옛 API는 같은 글을 표시 없이 한 번에 띄운다 |
+| `client/OperationAcorn/Story/TypedText.lua` | 문서철의 글 패널 `OATypedText`: 프레임마다 시계를 더하고 글자 수가 바뀔 때만 줄을 갱신한다. 클릭하면 끝까지 찍는다. 창이 닫히면 `story_typed`로 진행을 서버 기록(`story.typed`)에 남긴다 |
 
 - **변경은 서버에서만 한다.** 화면은 `OA.Sync.send`로 서버에 부탁하고, 서버 핸들러가 기록을 고친 뒤 `OA.Sync.changed`를 부른다.
   혼자 할 때는 같은 과정이 즉시 돈다. 멀티플레이는 검증하지 않지만 막지도 않는다 (이 구조만 지킨다).

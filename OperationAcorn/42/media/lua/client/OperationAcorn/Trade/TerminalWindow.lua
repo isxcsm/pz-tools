@@ -278,6 +278,10 @@ function OATerminalWindow:update()
 end
 
 function OATerminalWindow:close()
+    -- A tab may keep something as the window goes (the folder's typing).
+    for _, view in pairs(self.views or {}) do
+        if view.onWindowClose then view:onWindowClose() end
+    end
     OATerminalWindow.instances[self.playerNum] = nil
     self:setVisible(false)
     self:removeFromUIManager()

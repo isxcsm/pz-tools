@@ -30,10 +30,14 @@ function Trade.addTrust(record, amount, source)
         -- one title for the whole change: the last level reached (milestone k is level 5 + k)
         local last = events[#events]
         local level = last.kind == "milestone" and 5 + last.n or last.n
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems",
-            style = "stamp", fallback = "good" })
+        -- The story names the stage and takes the line under the title from the radio copy it brings; without it the
+        -- plain title with the new items.
+        local detail = OA.Story and OA.Story.stageTitle and OA.Story.stageTitle(record, level)
+            or { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "stamp",
+                fallback = "good" }
+        OA.Sync.title(record.id, detail)
         if OA.Story and OA.Story.onStage then
-            local ok, err = pcall(OA.Story.onStage, record)
+            local ok, err = pcall(OA.Story.onStage, record, nil, nil, true)
             if not ok then OA.log("story onStage failed:", tostring(err)) end
         end
     end

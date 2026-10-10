@@ -5,9 +5,10 @@
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Story/Button"
 require "OperationAcorn/Story/Folder"
+require "OperationAcorn/Story/TypedText"
 local OA = OperationAcorn
 local UI = OA.Trade.UI
-local Folder = OA.StoryFolder
+local Folder, Typing, Markup = OA.StoryFolder, OA.Typing, OA.Markup
 
 OATabFolder = OATab:derive("OATabFolder")
 
@@ -27,7 +28,10 @@ function OATabFolder:createChildren()
     list.selectionColor = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.25 }
     list.mouseOverHighlightColor = { r = p.sel[1], g = p.sel[2], b = p.sel[3], a = 0.1 }
     self.list = list
-    local body = UI.rich(self, 0, 0, 100, 100)
+    -- The text panel that types what is new (Story/TypedText); a document that is not new is its plain panel.
+    local body = UI.rich(self, 0, 0, 100, 100, OATypedText)
+    body.target, body.onFinished = self, OATabFolder.onTyped
+    body.cursorColor = p.bright
     body.backgroundColor.a = 0
     body.borderColor.a = 0
     body.marginLeft, body.marginRight, body.marginTop, body.marginBottom = 0, 0, 0, 0
@@ -42,6 +46,7 @@ function OATabFolder:createChildren()
     end
     self.groups, self.flat, self.rowOf = {}, {}, {}
     self.sent = {}
+    self.runs, self.typedSent = {}, {}
 end
 
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new.
@@ -113,11 +118,10 @@ function OATabFolder:show(entry, record)
     local content = Folder.content(record, entry)
     self.content = content
     self.at = self.index[entry.key]
-    local p = self:palette()
-    local c = p.text
-    local lines = {}
-    for line in string.gmatch(content.body .. "\n", "(.-)\n") do lines[#lines + 1] = line end
-    self.body.text = string.format(" <TEXT> <RGB:%.2f,%.2f,%.2f> ", c[1], c[2], c[3]) .. table.concat(lines, " <LINE> ")
+    local run = self:runFor(entry, content, record)
+    local read = (run and run.parse) or Markup.parse(content.marked) or { plain = content.body, runs = {} }
+    self.body.run = run
+    self.body.text = Typing.rich(read, self:palette().text)
     self.body:paginate()
     self.body:setYScroll(0)
     self.body:setVisible(true)
@@ -128,6 +132,49 @@ function OATabFolder:show(entry, record)
         self.sent[entry.key] = true
         self:send("story_seen", { key = entry.key })
     end
+end
+
+-- How an entry is typed: its run (the reading of its text and the clock, seconds typed) while it has something left to
+-- type, else nil and the plain panel. What is new is typed when first shown; one left half typed goes on from where it
+-- stood with the game time that passed turned into the terminal's own work (Typing.start). The run is kept with the
+-- window, so the entry shown again goes on from where it was.
+function OATabFolder:runFor(entry, content, record)
+    local key = entry.key
+    local run = self.runs[key]
+    if run then return not run.done and run or nil end
+    local speed = Typing.speed(content.kind, self.window.tier)
+    local clock = speed and Typing.start(OA.Story.typedState(record, key), OA.hours(), getGameTime():getMinutesPerDay())
+    if not clock then return nil end
+    local parse = Markup.parse(content.marked, speed)
+    if not parse then return nil end
+    run = { key = key, parse = parse, clock = clock, done = clock >= parse.total }
+    self.runs[key] = run
+    if run.done then
+        self:report(run)
+        return nil
+    end
+    return run
+end
+
+-- The server is told how far an entry is typed: done (once), or the seconds when the window closes.
+function OATabFolder:report(run)
+    if run.done then
+        if self.typedSent[run.key] then return end
+        self.typedSent[run.key] = true
+        self:send("story_typed", { key = run.key, done = true })
+    elseif run.last then
+        self:send("story_typed", { key = run.key, t = run.clock })
+    end
+end
+
+-- The panel typed a text to its end.
+function OATabFolder.onTyped(self, run)
+    self:report(run)
+end
+
+-- The window is closing: what is half typed is kept, to go on from there when the folder shows it again.
+function OATabFolder:onWindowClose()
+    for _, run in pairs(self.runs) do self:report(run) end
 end
 
 function OATabFolder.onPick(self, row)

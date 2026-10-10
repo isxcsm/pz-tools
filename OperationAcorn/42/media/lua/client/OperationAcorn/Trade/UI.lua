@@ -206,8 +206,8 @@ function UI.list(parent, x, y, width, height, drawRow, target, onclick)
 end
 
 -- A scrolling rich text panel.
-function UI.rich(parent, x, y, width, height)
-    local panel = ISRichTextPanel:new(x, y, width, height)
+function UI.rich(parent, x, y, width, height, class)
+    local panel = (class or ISRichTextPanel):new(x, y, width, height)
     panel:initialise()
     panel:instantiate()
     panel.autosetheight = false
