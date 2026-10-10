@@ -51,6 +51,13 @@ public final class StartupInstallTest {
                 for (Path file : files.toList())
                     assert StartupInstall.sha256(copied.resolve(StartupInstall.EXTENSIONS).resolve(file.getFileName())).equals(StartupInstall.sha256(file)) : file;
             }
+            // So do the API's fonts, which it finds beside the payload.
+            try (var files = Files.list(bridge.resolve(StartupInstall.FONTS))) {
+                var fonts = files.toList();
+                assert fonts.stream().anyMatch(file -> file.getFileName().toString().endsWith(".ttf")) : "the bridge has no fonts";
+                for (Path file : fonts)
+                    assert StartupInstall.sha256(copied.resolve(StartupInstall.FONTS).resolve(file.getFileName())).equals(StartupInstall.sha256(file)) : file;
+            }
 
             // The game loads the bootstrap at its log zip and gets the endpoint only after its property list.
             expect(start(java, game), loaded);

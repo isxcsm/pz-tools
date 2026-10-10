@@ -14,16 +14,29 @@ import pztools.bridge.ApiHooks;
  * it), from a hook in {@code UIManager.render} once the interface's windows are drawn: so the text is drawn with the interface,
  * on each local player's part of the screen, and nothing runs in Lua for it. With nothing shown the hook returns at once.
  *
+ * <p>A text can be typed (its characters come on at a rate, with pauses, speed changes and a cursor), carry colours, and be wrapped
+ * to a width. {@link Script} reads its markup once, when it is shown, and {@link Layout} breaks it into rows once for each screen's
+ * size and font; each frame then only compares the clock with the time of each character.
+ *
  * <p>What is shown belongs to the world it was shown in, and is kept in the API table's metatable for a newer API to take over,
  * as the moodles are. Everything here runs on the game's main thread: the mods' calls, the frame job and the drawing.
+ *
+ * <p>A mod also draws text of its own in its windows at a height in pixels ({@code font}, {@code fontHeight}, {@code measure},
+ * {@code draw}): {@link SizedFonts} chooses and loads the language's font for the height.
  */
 final class Texts implements ApiHooks.Text {
     private static final String AREA = "PZToolsAPI.text.";
-    private static final String MIRROR = "texts", FORMAT = "pztools-texts 1", GENERATION = "textsGeneration", HANDOVER = "textsHandover";
+    private static final String MIRROR = "texts", FORMAT = "pztools-texts 2", FORMAT_BEFORE_TYPING = "pztools-texts 1", GENERATION = "textsGeneration", HANDOVER = "textsHandover";
     /** The hook that draws, as {@code PZToolsAPI.hooks()} names it. */
     static final String HOOK = "UIManager.render:text";
     static final int PLAYERS = 4, MAX_LINES = 8, MAX_LENGTH = 512, MAX_PER_MOD = 64, MAX_ALL = 256, MAX_WAITING = 8;
     static final double MAX_SECONDS = 30, MAX_HOLD = 3600, MAX_SCALE = 20, MAX_SIZE = 0.5, MAX_OUTLINE = 8;
+    // Typing: the characters a second (DEFAULT_SPEED when left out), the narrowest width to fit, the longest pause, the longest a
+    // text may take to type, and the time a cursor is on, and then off.
+    static final double DEFAULT_SPEED = 30, MAX_SPEED = 1000, MIN_WIDTH = 0.05, MAX_PAUSE = 30, MAX_TYPING = 300, BLINK = 0.5;
+    private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("[0-9]{1,4}(\\.[0-9]{1,3})?");
+    private static final java.util.regex.Pattern HEX = java.util.regex.Pattern.compile("[0-9A-Fa-f]{6}");
+    private static final String CURSOR = "_";
     // A text whose alpha is below this is not drawn.
     private static final float INVISIBLE = 0.002f;
     // How far the rising and sinking effects move, in the text's line heights.
@@ -31,7 +44,7 @@ final class Texts implements ApiHooks.Text {
     private static final double SECOND = 1e9;
 
     /** How a text comes onto the screen. */
-    enum Enter { NONE, FADE, POP, SLAM, RISE, DROP }
+    enum Enter { NONE, FADE, POP, SLAM, RISE, DROP, TYPE }
 
     /** How it goes. */
     enum Leave { NONE, FADE, RISE, SINK, GROW, SHRINK }
@@ -43,7 +56,8 @@ final class Texts implements ApiHooks.Text {
     static final class Shown {
         final String owner;
         final long key;
-        // The lines, the font's name and the game's font (UIFont); the share of the screen's height a line is, or the zoom.
+        // The lines (what is drawn: markup left out), the font's name and the game's font (UIFont); the share of the screen's height a
+        // line is, or the zoom.
         String[] lines;
         String fontName;
         Object font;
@@ -52,6 +66,15 @@ final class Texts implements ApiHooks.Text {
         boolean shadow;
         double x = 0.5, y = 0.5;
         int align;
+        // What the mod gave as the text, when it has markup, types or fits a width (null for a plain text); and the options for
+        // these: the markup is read, a line's width as a share of the screen's, the characters a second (0: the default), a cursor.
+        String source;
+        boolean markup, cursor;
+        double width, speed;
+        // What the source makes of it, once; null for a plain text, which is drawn as it always was.
+        Script script;
+        // The rows of the text on each screen, made for the size of the screen and the font that were then.
+        Layout[] layouts;
         double delay, enterTime, hold = Double.POSITIVE_INFINITY, leaveTime;
         Enter enter = Enter.NONE;
         Leave leave = Leave.NONE;
@@ -64,12 +87,142 @@ final class Texts implements ApiHooks.Text {
         // When it was first drawn (System.nanoTime), 0 before; when its mod hid it, 0 if it did not.
         long start, hidden;
         boolean done;
-        // The widths of the lines and the height of one at zoom 1, as measured with the game's font (AngelCodeFont) they were for.
+        // The widths of the lines and the height of one at zoom 1, as measured with the font (AngelCodeFont) they were for: the
+        // game's, or the embedded font's.
         Object measuredWith;
         float[] widths;
         float lineHeight;
+        // The game's font (AngelCodeFont) of the text's UIFont as last read, and the height of its line at zoom 1.
+        Object gameFont;
+        float gameLineHeight;
+        // The embedded font's AngelCodeFont while it draws the text (null: the game's font draws it); whether that font has every
+        // character of the text, as found for the font it was looked up in.
+        Object face;
+        Object coveredBy;
+        boolean covered;
 
         Shown(String owner, long key) { this.owner = owner; this.key = key; }
+    }
+
+    /**
+     * What a text's markup and typing make of it, read once when it is shown: the characters it shows, when each comes on and in
+     * what colour. The markup is {p:seconds} (a pause), {s:rate} and {s} (a speed, and back to the text's own), and
+     * {c:RRGGBB} up to {/c} (a colour); two braces in a row stand for one brace.
+     */
+    static final class Script {
+        /** The characters, markup left out; the lines apart by {@code \n}. */
+        final String plain;
+        /** For each character, the seconds after typing starts at which it shows; never before the one before it. Null for no typing. */
+        final double[] at;
+        /** For each character, its colour as 0xRRGGBB, or -1 for the text's own. Null when no character has one. */
+        final int[] tint;
+        /** How long typing takes: to the end of the last character's turn and the pauses after it. 0 for no typing. */
+        final double duration;
+
+        private Script(String plain, double[] at, int[] tint, double duration) {
+            this.plain = plain; this.at = at; this.tint = tint; this.duration = duration;
+        }
+
+        /** Reads the source; a {@code rate} of characters a second is what a {@code {s}} goes back to. */
+        static Script read(String source, boolean markup, boolean type, double rate, String call, String name) {
+            String text = source.replace("\r\n", "\n").replace('\t', ' ');
+            int length = text.length(), count = 0, color = -1;
+            var plain = new StringBuilder(length);
+            double[] at = type ? new double[length] : null;
+            int[] tint = null;
+            double time = 0, speed = rate;
+            for (int index = 0; index < length; index++) {
+                char letter = text.charAt(index);
+                if (markup && (letter == '{' || letter == '}')) {
+                    if (index + 1 < length && text.charAt(index + 1) == letter) index++;
+                    else if (letter == '}') throw bad(call, name, index, "a } with no { before it (write }} for the character)");
+                    else {
+                        int close = text.indexOf('}', index);
+                        if (close < 0) throw bad(call, name, index, "a { with no } after it (write {{ for the character)");
+                        String tag = text.substring(index + 1, close);
+                        int colon = tag.indexOf(':');
+                        String word = colon < 0 ? tag : tag.substring(0, colon), argument = colon < 0 ? null : tag.substring(colon + 1);
+                        switch (word) {
+                            case "p" -> {
+                                if (argument == null || !NUMBER.matcher(argument).matches() || Double.parseDouble(argument) > MAX_PAUSE)
+                                    throw bad(call, name, index, "{" + tag + "} must be {p:seconds}, from 0 to " + trim(MAX_PAUSE));
+                                time += Double.parseDouble(argument);
+                            }
+                            case "s" -> {
+                                double value = argument == null ? rate : NUMBER.matcher(argument).matches() ? Double.parseDouble(argument) : 0;
+                                if (!(value >= 1 && value <= MAX_SPEED))
+                                    throw bad(call, name, index, "{" + tag + "} must be {s:characters a second}, from 1 to " + trim(MAX_SPEED) + ", or {s}");
+                                speed = value;
+                            }
+                            case "c" -> {
+                                if (argument == null || !HEX.matcher(argument).matches()) throw bad(call, name, index, "{" + tag + "} must be {c:RRGGBB}");
+                                if (color >= 0) throw bad(call, name, index, "{" + tag + "} inside a colour that is not closed with {/c}");
+                                color = Integer.parseInt(argument, 16);
+                            }
+                            case "/c" -> {
+                                if (argument != null || color < 0) throw bad(call, name, index, "{" + tag + "} with no {c:RRGGBB} before it");
+                                color = -1;
+                            }
+                            default -> throw bad(call, name, index, "{" + tag + "} is not {p:seconds}, {s:rate}, {s}, {c:RRGGBB} or {/c}");
+                        }
+                        index = close;
+                        continue;
+                    }
+                }
+                if (at != null) at[count] = time;
+                if (color >= 0) {
+                    if (tint == null) { tint = new int[length]; Arrays.fill(tint, -1); }
+                    tint[count] = color;
+                }
+                plain.append(letter);
+                count++;
+                if (letter != '\n') time += 1 / speed;
+            }
+            if (color >= 0) throw bad(call, name, length, "a {c:RRGGBB} that is not closed with {/c}");
+            if (count == 0) throw bad(call, name, 0, "no characters are left once the markup is read");
+            if (type && time > MAX_TYPING) throw new IllegalArgumentException(call + ": " + name + " takes " + trim(Math.rint(time)) + " seconds to type; at most " + trim(MAX_TYPING));
+            return new Script(plain.toString(), at == null ? null : Arrays.copyOf(at, count), tint == null ? null : Arrays.copyOf(tint, count), type ? time : 0);
+        }
+
+        private static IllegalArgumentException bad(String call, String name, int index, String why) {
+            return new IllegalArgumentException(call + ": " + name + " has markup that does not read, at character " + (index + 1) + ": " + why);
+        }
+
+        /** How many characters show at {@code seconds} of typing: those whose time has come. */
+        int shown(double seconds) {
+            if (at == null) return plain.length();
+            int low = 0, high = at.length;
+            while (low < high) {
+                int middle = (low + high) >>> 1;
+                if (at[middle] <= seconds + 1e-9) low = middle + 1;
+                else high = middle;
+            }
+            return low;
+        }
+    }
+
+    /** A run of one colour in a row. When typing, the first characters of it are made once, when first shown, with their widths. */
+    static final class Seg {
+        int from, to, tint;
+        String text;
+        // Where it starts in the row, at zoom 1.
+        float x;
+        String[] part;
+        float[] partWidth;
+    }
+
+    /** A line as it is drawn: the characters {@code from} to {@code to} of the text, in runs of one colour. */
+    static final class Row {
+        int from, to;
+        float width;
+        Seg[] segs;
+    }
+
+    /** The rows of a text on one screen, made for the screen's size and the font it was measured with. */
+    static final class Layout {
+        Object font;
+        int width, height;
+        Row[] rows;
     }
 
     private final Kahlua lua;
@@ -87,6 +240,20 @@ final class Texts implements ApiHooks.Text {
     private final MethodHandle threshold, shaderShadow, shaderOutline, startShader, endShader;
     // IsoCamera.getScreenLeft, getScreenTop, getScreenWidth, getScreenHeight of a player; Core.getInstance(), its screen's size.
     private final MethodHandle screenLeft, screenTop, screenWidth, screenHeight, core, coreWidth, coreHeight;
+    // AngelCodeFont.drawString(x, y, zoom, text, r, g, b, a) and getWidth(text), for the embedded font; null in a game without them.
+    private final MethodHandle faceDraw, faceWidth;
+    // The language's own fonts that are made for a size (Small, Medium, Large), and the tallest of their lines, for the Large font
+    // it was measured with (the font size option makes them again).
+    private final Object[] natives;
+    private Object nativeOf;
+    private float nativeLargest;
+    /** The embedded font for large text, or null: the game's fonts draw everything (package-private for the tests). */
+    EmbeddedFont.Loaded embedded;
+    // Whether the embedded font's atlas was in video memory as this frame began: text.measure and text.draw choose by it, so that
+    // a text measured and drawn in one frame is in one font.
+    private boolean embeddedReady;
+    /** The fonts of text.font, measure and draw; null in a game this cannot read them in (package-private for the tests). */
+    final SizedFonts sized;
     // What is shown, in the order it was shown: changed on the game's thread and read by the drawing, on the same thread.
     private final ArrayList<Shown> shown = new ArrayList<>();
     private volatile Shown[] drawn = new Shown[0];
@@ -116,7 +283,18 @@ final class Texts implements ApiHooks.Text {
         fontHeight = Game.exact(manager.getMethod("getFontHeight", font), MethodType.methodType(int.class, Object.class, Object.class));
         sdf = Game.exact(manager.getMethod("isSdf", font), MethodType.methodType(boolean.class, Object.class, Object.class));
         fontOf = Game.exact(manager.getMethod("getFontFromEnum", font), MethodType.methodType(Object.class, Object.class, Object.class));
-        glyphs = Game.type(loader, "zombie.core.fonts.AngelCodeFont").getField("chars");
+        Class<?> angelCode = Game.type(loader, "zombie.core.fonts.AngelCodeFont");
+        glyphs = angelCode.getField("chars");
+        MethodHandle draws = null, widths = null;
+        try {
+            draws = Game.exact(angelCode.getMethod("drawString", float.class, float.class, float.class, String.class, float.class, float.class,
+                float.class, float.class), MethodType.methodType(void.class, Object.class, float.class, float.class, float.class, String.class,
+                float.class, float.class, float.class, float.class));
+            widths = Game.exact(angelCode.getMethod("getWidth", String.class), MethodType.methodType(int.class, Object.class, String.class));
+        } catch (NoSuchMethodException older) { draws = null; } // The game's fonts alone.
+        faceDraw = draws;
+        faceWidth = widths;
+        natives = new Object[] { fonts.get("Small"), fonts.get("Medium"), fonts.get("Large") };
         sdfShader = manager.getField("sdfShader");
         Class<?> distance = Game.type(loader, "zombie.core.opengl.SDFShader"), shader = Game.type(loader, "zombie.core.opengl.Shader");
         threshold = Game.exact(distance.getMethod("updateThreshold", float.class), MethodType.methodType(void.class, Object.class, float.class));
@@ -146,6 +324,16 @@ final class Texts implements ApiHooks.Text {
         world = game.cell();
         load(lua.get(meta, MIRROR));
         dirty = false;
+        // As the Lua environment starts (a loading screen): the language's pack into video memory, or its bake started.
+        embedded = faceDraw == null || faceWidth == null ? null : EmbeddedFont.current(loader);
+        embeddedReady = embedded != null && embedded.ready.get();
+        SizedFonts readable;
+        try { readable = new SizedFonts(loader, textManager); }
+        catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
+            readable = null;
+            System.err.println("[PzTools API] text: text.font has no fonts in this game: " + unreadable);
+        }
+        sized = readable;
     }
 
     /** Gives the game's interface drawing to this text. Throws a LinkageError in a game whose bootstrap has no text hook. */
@@ -228,6 +416,67 @@ final class Texts implements ApiHooks.Text {
         });
         function(table, "styles", (call, arguments) -> new Object[] { lua.list(List.copyOf(Styles.ALL.keySet())) });
         function(table, "status", (call, arguments) -> new Object[] { status() });
+        // Text a mod draws in its own windows, at a height in pixels: the key is the height.
+        function(table, "font", (call, arguments) -> {
+            owner(arguments, call);
+            Object value = arguments.length > 1 ? arguments[1] : null;
+            if (!(value instanceof Double number) || !(number >= 1 && number <= SizedFonts.MAX))
+                throw new IllegalArgumentException(call + ": px must be a number from 1 to " + SizedFonts.MAX);
+            int px = (int)Math.round(number);
+            try { return new Object[] { sized != null && sized.prepare(px, drawable()) ? (Object)(double)px : null }; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+        function(table, "fontHeight", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            int height;
+            try { height = sized == null ? 0 : sized.height(px); }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+            return new Object[] { height > 0 ? (Object)(double)height : null };
+        });
+        function(table, "measure", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof String words)) throw new IllegalArgumentException(call + ": text must be a string");
+            try { return new Object[] { (double)(sized == null ? 0 : sized.measure(px, words, drawable())) }; }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+        });
+        function(table, "draw", (call, arguments) -> {
+            owner(arguments, call);
+            int px = sizedKey(arguments, call);
+            if (!(arguments.length > 2 && arguments[2] instanceof String words)) throw new IllegalArgumentException(call + ": text must be a string");
+            double x = place(arguments, 3, call, "x"), y = place(arguments, 4, call, "y");
+            float red = part(arguments, 5, call, "r"), green = part(arguments, 6, call, "g"), blue = part(arguments, 7, call, "b"), alpha = part(arguments, 8, call, "a");
+            if (sized == null) return Game.NONE;
+            try { sized.draw(px, words, x, y, red, green, blue, alpha, drawable()); }
+            catch (Throwable failure) { throw Game.thrown(failure); }
+            return Game.NONE;
+        });
+    }
+
+    /** The embedded font when it can draw this frame (its atlas was in video memory as the frame began), else null. */
+    private EmbeddedFont.Loaded drawable() { return embeddedReady ? embedded : null; }
+
+    /** A key text.font gave: the height in pixels it was asked for. */
+    private static int sizedKey(Object[] arguments, String call) {
+        Object value = arguments.length > 1 ? arguments[1] : null;
+        if (!(value instanceof Double number) || number != Math.rint(number) || number < 1 || number > SizedFonts.MAX)
+            throw new IllegalArgumentException(call + ": key must be what text.font returned");
+        return number.intValue();
+    }
+
+    /** A place on the screen, in pixels: any number. */
+    private static double place(Object[] arguments, int index, String call, String name) {
+        Object value = index < arguments.length ? arguments[index] : null;
+        if (!(value instanceof Double number) || !Double.isFinite(number)) throw new IllegalArgumentException(call + ": " + name + " must be a number");
+        return number;
+    }
+
+    /** A colour's part, 0 to 1. */
+    private static float part(Object[] arguments, int index, String call, String name) {
+        Object value = index < arguments.length ? arguments[index] : null;
+        if (!(value instanceof Double number) || !(number >= 0 && number <= 1)) throw new IllegalArgumentException(call + ": " + name + " must be a number from 0 to 1");
+        return (float)(double)number;
     }
 
     private String owner(Object[] arguments, String call) throws ReflectiveOperationException {
@@ -267,7 +516,7 @@ final class Texts implements ApiHooks.Text {
             Object value = entry.getValue();
             String name = prefix + "." + field;
             switch (field) {
-                case "text" -> text.lines = lines(value, call, name);
+                case "text" -> text.source = source(value, call, name);
                 case "font" -> font(text, value, call, name);
                 case "scale" -> text.scale = number(value, call, name, 0.05, MAX_SCALE);
                 case "size" -> text.size = number(value, call, name, 0.005, MAX_SIZE);
@@ -302,21 +551,59 @@ final class Texts implements ApiHooks.Text {
                     if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": " + name + " must be true or false");
                     text.queued = on;
                 }
+                case "markup" -> text.markup = flag(value, call, name);
+                case "width" -> text.width = number(value, call, name, MIN_WIDTH, 1);
+                case "speed" -> text.speed = number(value, call, name, 1, MAX_SPEED);
+                case "cursor" -> text.cursor = flag(value, call, name);
                 default -> throw new IllegalArgumentException(call + ": " + prefix + " has no field " + field + "; it takes text, font, scale, size,"
-                    + " color, x, y, align, shadow, outline, outlineColor, delay, enter, enterTime, hold, leave, leaveTime, player and queue");
+                    + " color, x, y, align, shadow, outline, outlineColor, delay, enter, enterTime, hold, leave, leaveTime, player, queue,"
+                    + " markup, width, speed and cursor");
             }
         }
+        if (text.enter != Enter.TYPE && (text.speed != 0 || text.cursor))
+            throw new IllegalArgumentException(call + ": " + prefix + ".speed and " + prefix + ".cursor go with " + prefix + ".enter = \"type\"");
+        if (text.source != null) compose(text, call, prefix);
         if (text.lines != null && text.font == null) font(text, "Large", call, prefix + ".font");
         else if (text.lines != null && text.fontName == null) font(text, text.font, call, prefix + ".font");
     }
 
-    private String[] lines(Object value, String call, String name) {
+    private static boolean flag(Object value, String call, String name) {
+        if (!(value instanceof Boolean on)) throw new IllegalArgumentException(call + ": " + name + " must be true or false");
+        return on;
+    }
+
+    private static String source(Object value, String call, String name) {
         if (!(value instanceof String text) || text.isEmpty() || text.length() > MAX_LENGTH)
             throw new IllegalArgumentException(call + ": " + name + " must be a string of 1 to " + MAX_LENGTH + " characters");
+        return text;
+    }
+
+    private String[] lines(Object value, String call, String name) { return lines(source(value, call, name), call, name); }
+
+    private static String[] lines(String text, String call, String name) {
         String[] lines = text.replace("\r\n", "\n").split("\n", -1);
         if (lines.length > MAX_LINES) throw new IllegalArgumentException(call + ": " + name + " has " + lines.length + " lines; at most " + MAX_LINES);
         for (int index = 0; index < lines.length; index++) lines[index] = lines[index].replace('\t', ' ');
         return lines;
+    }
+
+    /**
+     * Makes the text's lines from its source. With markup, typing or a width to fit it also makes the {@link Script}, which the
+     * drawing goes by; a plain text is its lines alone. The enter effect {@code type} takes as long as the typing does.
+     */
+    private void compose(Shown text, String call, String prefix) {
+        boolean type = text.enter == Enter.TYPE;
+        if (type && text.enterTime != 0)
+            throw new IllegalArgumentException(call + ": " + prefix + ".enterTime does not go with enter = \"type\", which takes as long as its text and speed do");
+        String name = prefix + ".text";
+        if (!text.markup && !type && text.width == 0) {
+            text.lines = lines(text.source, call, name);
+            text.source = null;
+            return;
+        }
+        text.script = Script.read(text.source, text.markup, type, text.speed == 0 ? DEFAULT_SPEED : text.speed, call, name);
+        text.lines = lines(text.script.plain, call, name);
+        if (type) text.enterTime = text.script.duration;
     }
 
     /**
@@ -340,19 +627,20 @@ final class Texts implements ApiHooks.Text {
             if (!fonts.containsKey(font)) throw new IllegalArgumentException(call + ": " + name + ": the game has no font " + font + "; it has " + String.join(", ", fonts.keySet()));
         if (text.lines == null) { text.font = List.copyOf(names); return; }
         String chosen = names.get(names.size() - 1);
-        for (String font : names) if (covers(fonts.get(font), text.lines)) { chosen = font; break; }
+        for (String font : names) if (covers(fonts.get(font), text.lines, text.cursor)) { chosen = font; break; }
         text.fontName = chosen;
         text.font = fonts.get(chosen);
     }
 
-    /** Whether the game's font has a character for every one of the lines' (spaces aside). */
-    private boolean covers(Object font, String[] lines) throws ReflectiveOperationException {
+    /** Whether the game's font has a character for every one of the lines' (spaces aside), and for the cursor when there is one. */
+    private boolean covers(Object font, String[] lines, boolean cursor) throws ReflectiveOperationException {
         Object angel;
         try { angel = (Object)fontOf.invokeExact(textManager, font); }
         catch (Throwable failure) { throw Game.thrown(failure); }
         if (angel == null) return false;
         Object[] defined = (Object[])glyphs.get(angel);
         if (defined == null) return false;
+        if (cursor && (CURSOR.charAt(0) >= defined.length || defined[CURSOR.charAt(0)] == null)) return false;
         for (String line : lines)
             for (int index = 0; index < line.length(); index++) {
                 char letter = line.charAt(index);
@@ -619,6 +907,8 @@ final class Texts implements ApiHooks.Text {
         to.outlineAlpha = from.outlineAlpha; to.shadow = from.shadow; to.x = from.x; to.y = from.y; to.align = from.align;
         to.delay = from.delay; to.enter = from.enter; to.enterTime = from.enterTime; to.hold = from.hold; to.leave = from.leave;
         to.leaveTime = from.leaveTime; to.player = from.player; to.queued = from.queued; to.cell = from.cell;
+        to.source = from.source; to.markup = from.markup; to.width = from.width; to.speed = from.speed; to.cursor = from.cursor;
+        to.script = from.script;
     }
 
     /** A text with a style's fields, its text to come. */
@@ -639,6 +929,8 @@ final class Texts implements ApiHooks.Text {
 
     /** Each frame, on the game's thread: a world left takes its texts away; what is shown is written for a newer API when it changed. */
     void frame() {
+        EmbeddedFont.Loaded own = embedded;
+        embeddedReady = own != null && own.ready.get();
         try {
             if (moves.moved() && game.cell() != world) {
                 Object cell = game.cell();
@@ -684,7 +976,7 @@ final class Texts implements ApiHooks.Text {
                 for (Shown text : all) {
                     if (text.done || text.waiting || text.player >= 0 && text.player != screen) continue;
                     if (text.start == 0) { text.start = now; dirty = true; }
-                    if (!draw(text, now, left, top, width, height)) { text.done = true; finished = true; }
+                    if (!draw(text, now, screen, left, top, width, height)) { text.done = true; finished = true; }
                 }
             }
         } catch (Throwable failure) {
@@ -712,7 +1004,7 @@ final class Texts implements ApiHooks.Text {
     }
 
     /** Draws the text on one screen as it is at {@code now}; false once it has gone. Allocates nothing. */
-    private boolean draw(Shown text, long now, int left, int top, int width, int height) throws Throwable {
+    private boolean draw(Shown text, long now, int screen, int left, int top, int width, int height) throws Throwable {
         double t = (now - text.start) / SECOND - text.delay;
         // When it starts to leave: after its hold, or when its mod hid it.
         double leaving = text.enterTime + text.hold;
@@ -728,7 +1020,7 @@ final class Texts implements ApiHooks.Text {
         double in = text.enter == Enter.NONE || text.enterTime <= 0 ? 1 : Math.min(1, Math.min(t, leaving) / text.enterTime);
         double alpha = 1, scale = 1, shift = 0;
         switch (text.enter) {
-            case NONE -> { }
+            case NONE, TYPE -> { }
             case FADE -> alpha = smooth(in);
             case POP -> { alpha = Math.min(1, in * 2); scale = 0.5 + 0.5 * backOut(in); }
             case SLAM -> { alpha = Math.min(1, in * 3); scale = 1 + 1.5 * (1 - in * in); }
@@ -747,42 +1039,85 @@ final class Texts implements ApiHooks.Text {
         if (shownAlpha <= INVISIBLE) return true;
         Object font = text.font;
         Object angel = (Object)fontOf.invokeExact(textManager, font);
-        if (angel != text.measuredWith || text.widths == null) measure(text, angel);
+        if (angel != text.gameFont) {
+            text.gameFont = angel;
+            text.gameLineHeight = (int)fontHeight.invokeExact(textManager, font);
+        }
+        if (text.gameLineHeight <= 0) return true;
+        // A line's height in pixels before the effects: the embedded font draws it when that is more than the game's fonts are made
+        // for (and the game's font would be zoomed past its size).
+        double requested = text.size > 0 ? text.size * height : text.gameLineHeight * text.scale;
+        EmbeddedFont.Loaded own = embedded;
+        boolean large = large(text, own, font, requested);
+        Object face = large ? own.font : angel;
+        if (face != text.measuredWith || text.script == null && text.widths == null) {
+            text.face = large ? own.font : null;
+            measure(text, face, large ? own.lineHeight : 0);
+        }
         if (text.lineHeight <= 0) return true;
-        double zoom = (text.size > 0 ? text.size * height / text.lineHeight : text.scale) * scale;
+        double base = large ? requested / text.lineHeight : text.size > 0 ? text.size * height / text.lineHeight : text.scale;
+        double zoom = base * scale;
         double line = text.lineHeight * zoom;
         double anchorX = left + text.x * width, anchorY = top + text.y * height + shift * line;
-        double firstY = anchorY - line * text.lines.length / 2;
-        boolean distance = (boolean)sdf.invokeExact(textManager, font);
+        Script script = text.script;
+        Layout laid = null;
+        int typed = 0;
+        if (script != null) {
+            // The rows are those of the text at its own size, not the effect's: a growing text is not broken again.
+            if (text.layouts == null) text.layouts = new Layout[PLAYERS];
+            laid = text.layouts[screen];
+            if (laid == null || laid.font != face || laid.width != width || laid.height != height) laid = text.layouts[screen] = layout(text, face, width, height, base);
+            typed = script.shown(Math.min(t, leaving));
+        }
+        double firstY = anchorY - line * (laid == null ? text.lines.length : laid.rows.length) / 2;
+        boolean distance = large || (boolean)sdf.invokeExact(textManager, font);
         Object shader = distance ? sdfShader.get(null) : null;
         if (shader != null) {
-            // As the game's own distance-field text (AtomUIText): an edge as sharp as the zoom, no outline, no shadow of its own.
-            threshold.invokeExact(shader, (float)(0.125 / zoom));
+            // As the game's own distance-field text (AtomUIText): an edge as sharp as the zoom, no outline, no shadow of its own. The
+            // embedded font's atlas spans its own distance: its edge is a pixel and a half wide on the screen at any zoom.
+            threshold.invokeExact(shader, (float)(large ? EmbeddedFont.EDGE / (2 * own.spread * zoom) : 0.125 / zoom));
             shaderShadow.invokeExact(shader, 0f);
             shaderOutline.invokeExact(shader, 0f, 0f, 0f, 0f, 0f);
             startShader.invokeExact(shader);
         }
         try {
-            for (int index = 0; index < text.lines.length; index++) {
-                String words = text.lines[index];
-                if (words.isEmpty()) continue;
-                double lineWidth = text.widths[index] * zoom;
-                double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
-                double y = firstY + line * index;
-                if (text.shadow) {
-                    double offset = Math.max(1, Math.round(line / 24));
-                    drawString.invokeExact(textManager, font, x + offset, y + offset, zoom, words, 0.0, 0.0, 0.0, (double)(shownAlpha * 0.55f));
+            if (laid == null) {
+                for (int index = 0; index < text.lines.length; index++) {
+                    String words = text.lines[index];
+                    if (words.isEmpty()) continue;
+                    double lineWidth = text.widths[index] * zoom;
+                    double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
+                    paint(text, words, x, firstY + line * index, zoom, line, text.red, text.green, text.blue, shownAlpha, alpha);
                 }
-                if (text.outline > 0) {
-                    double o = text.outline;
-                    double a = alpha * text.outlineAlpha;
-                    for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
-                        if (dx == 0 && dy == 0) continue;
-                        drawString.invokeExact(textManager, font, x + dx * o, y + dy * o, zoom, words, (double)text.outlineRed,
-                            (double)text.outlineGreen, (double)text.outlineBlue, a);
+            } else {
+                // The rows by the characters that have come on: a row is placed by its whole width, so typing moves nothing.
+                Row[] rows = laid.rows;
+                for (int index = 0; index < rows.length && rows[index].from < typed; index++) {
+                    Row row = rows[index];
+                    double lineWidth = row.width * zoom;
+                    double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
+                    double y = firstY + line * index;
+                    for (Seg seg : row.segs) {
+                        if (seg.from >= typed) break;
+                        int tint = seg.tint;
+                        paint(text, seg.to <= typed ? seg.text : part(seg, typed - seg.from), x + seg.x * zoom, y, zoom, line,
+                            tint < 0 ? text.red : (tint >> 16 & 0xFF) / 255f, tint < 0 ? text.green : (tint >> 8 & 0xFF) / 255f,
+                            tint < 0 ? text.blue : (tint & 0xFF) / 255f, shownAlpha, alpha);
                     }
                 }
-                drawString.invokeExact(textManager, font, x, y, zoom, words, (double)text.red, (double)text.green, (double)text.blue, (double)shownAlpha);
+                // The cursor sits after the last character that came on and stays on while characters come on; it blinks while it waits.
+                if (text.cursor && (t - (typed > 0 ? script.at[typed - 1] : 0)) % (2 * BLINK) < BLINK) {
+                    int at = 0;
+                    while (at + 1 < rows.length && rows[at + 1].from < typed) at++;
+                    Row row = rows[at];
+                    double lineWidth = row.width * zoom, beside = 0;
+                    for (Seg seg : row.segs) {
+                        if (seg.from >= typed) break;
+                        beside = seg.x + partWidth(text, seg, Math.min(seg.to, typed) - seg.from);
+                    }
+                    double x = text.align < 0 ? anchorX : text.align > 0 ? anchorX - lineWidth : anchorX - lineWidth / 2;
+                    paint(text, CURSOR, x + beside * zoom, firstY + line * at, zoom, line, text.red, text.green, text.blue, shownAlpha, alpha);
+                }
             }
         } finally {
             if (shader != null) endShader.invokeExact();
@@ -790,12 +1125,197 @@ final class Texts implements ApiHooks.Text {
         return true;
     }
 
-    /** The lines' widths and the line height at zoom 1, for the game's font now (it changes with the font size option). */
-    private void measure(Shown text, Object angel) throws Throwable {
-        if (text.widths == null || text.widths.length != text.lines.length) text.widths = new float[text.lines.length];
-        for (int index = 0; index < text.lines.length; index++)
-            text.widths[index] = text.lines[index].isEmpty() ? 0 : (int)measure.invokeExact(textManager, text.font, text.lines[index]);
-        text.lineHeight = (int)fontHeight.invokeExact(textManager, text.font);
+    /** One string with the text's shadow and outline, and then in the colour given. */
+    private void paint(Shown text, String words, double x, double y, double zoom, double line, float red, float green, float blue, float shownAlpha, double alpha)
+        throws Throwable {
+        if (text.face != null) { paintFace(text, words, x, y, zoom, line, red, green, blue, shownAlpha, alpha); return; }
+        Object font = text.font;
+        if (text.shadow) {
+            double offset = Math.max(1, Math.round(line / 24));
+            drawString.invokeExact(textManager, font, x + offset, y + offset, zoom, words, 0.0, 0.0, 0.0, (double)(shownAlpha * 0.55f));
+        }
+        if (text.outline > 0) {
+            double o = text.outline;
+            double a = alpha * text.outlineAlpha;
+            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                drawString.invokeExact(textManager, font, x + dx * o, y + dy * o, zoom, words, (double)text.outlineRed,
+                    (double)text.outlineGreen, (double)text.outlineBlue, a);
+            }
+        }
+        drawString.invokeExact(textManager, font, x, y, zoom, words, (double)red, (double)green, (double)blue, (double)shownAlpha);
+    }
+
+    /** {@link #paint} in the embedded font: its AngelCodeFont draws as TextManager.DrawString has the game's draw. */
+    private void paintFace(Shown text, String words, double x, double y, double zoom, double line, float red, float green, float blue, float shownAlpha,
+            double alpha) throws Throwable {
+        Object face = text.face;
+        if (text.shadow) {
+            double offset = Math.max(1, Math.round(line / 24));
+            faceDraw.invokeExact(face, (float)(x + offset), (float)(y + offset), (float)zoom, words, 0f, 0f, 0f, shownAlpha * 0.55f);
+        }
+        if (text.outline > 0) {
+            double o = text.outline;
+            float a = (float)(alpha * text.outlineAlpha);
+            for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                faceDraw.invokeExact(face, (float)(x + dx * o), (float)(y + dy * o), (float)zoom, words, text.outlineRed, text.outlineGreen,
+                    text.outlineBlue, a);
+            }
+        }
+        faceDraw.invokeExact(face, (float)x, (float)y, (float)zoom, words, red, green, blue, shownAlpha);
+    }
+
+    /**
+     * Whether the embedded font draws the text now: it is in video memory, the line asked for is taller than any the language's
+     * own fonts (Small, Medium, Large) are made at, the game's font for the text is not a distance-field one (those are sharp at
+     * any size), and the embedded font has every character of the text (else the game's font draws all of it: no character is
+     * missing). Allocates nothing.
+     */
+    private boolean large(Shown text, EmbeddedFont.Loaded own, Object font, double requested) throws Throwable {
+        if (own == null || !own.ready.get() || requested <= nativeLargest()) return false;
+        if ((boolean)sdf.invokeExact(textManager, font)) return false;
+        if (text.coveredBy != own) {
+            text.covered = own.covers(text.lines, text.cursor, CURSOR.charAt(0));
+            text.coveredBy = own;
+        }
+        return text.covered;
+    }
+
+    /** The tallest line of the language's own fonts, measured again when the game makes its fonts again. */
+    private float nativeLargest() throws Throwable {
+        Object large = (Object)fontOf.invokeExact(textManager, natives[2]);
+        if (large != nativeOf) {
+            float most = 0;
+            for (Object font : natives) if (font != null) most = Math.max(most, (int)fontHeight.invokeExact(textManager, font));
+            nativeLargest = most;
+            nativeOf = large;
+        }
+        return nativeLargest;
+    }
+
+    /** The width at zoom 1 of these characters in the font that draws the text. */
+    private int width(Shown text, String words) throws Throwable {
+        return text.face != null ? (int)faceWidth.invokeExact(text.face, words) : (int)measure.invokeExact(textManager, text.font, words);
+    }
+
+    /** The first {@code count} characters of a run, made the first time they are asked for (one string for each character typed). */
+    private static String part(Seg seg, int count) {
+        if (count >= seg.text.length()) return seg.text;
+        String made = seg.part[count];
+        return made != null ? made : (seg.part[count] = seg.text.substring(0, count));
+    }
+
+    /** The width at zoom 1 of the first {@code count} characters of a run, measured the first time it is asked for. */
+    private float partWidth(Shown text, Seg seg, int count) throws Throwable {
+        if (count <= 0) return 0;
+        count = Math.min(count, seg.text.length());
+        float known = seg.partWidth[count];
+        if (known > 0) return known;
+        return seg.partWidth[count] = width(text, part(seg, count));
+    }
+
+    // ---- the rows of a text with markup, typing or a width ----
+
+    /**
+     * Breaks a script's text into rows for a screen of this size: at the lines it has, and when it has a width, at the spaces (and
+     * between the characters of the scripts written without them) that keep a row within it. The width is a share of the screen's,
+     * measured with the game's font at the zoom the text has before its effects. Runs once for each size and font, not each frame.
+     */
+    private Layout layout(Shown text, Object angel, int width, int height, double zoom) throws Throwable {
+        String plain = text.script.plain;
+        double limit = text.width > 0 ? text.width * width / zoom : Double.POSITIVE_INFINITY;
+        var rows = new ArrayList<Row>();
+        for (int begin = 0; begin <= plain.length();) {
+            int end = plain.indexOf('\n', begin);
+            if (end < 0) end = plain.length();
+            int start = begin;
+            do {
+                int stop = start == end ? end : fit(text, plain, start, end, limit);
+                rows.add(row(text, start, stop));
+                start = stop;
+                // A row that was broken at spaces does not carry them over.
+                if (stop < end) while (start < end && plain.charAt(start) == ' ') start++;
+            } while (start < end);
+            begin = end + 1;
+        }
+        var laid = new Layout();
+        laid.font = angel;
+        laid.width = width;
+        laid.height = height;
+        laid.rows = rows.toArray(new Row[0]);
+        return laid;
+    }
+
+    /** Where the row that starts at {@code start} ends: at the paragraph's end if that fits, else at the last break that does. */
+    private int fit(Shown text, String plain, int start, int end, double limit) throws Throwable {
+        if (limit == Double.POSITIVE_INFINITY || fits(text, plain.substring(start, end), limit)) return end;
+        int best = -1;
+        for (int at = start + 1; at < end; at++) {
+            // A break is before a word that follows spaces, or beside a character of a script written without them.
+            if (plain.charAt(at) == ' ' || plain.charAt(at - 1) != ' ' && !wide(plain.charAt(at - 1)) && !wide(plain.charAt(at))) continue;
+            int stop = at;
+            while (stop > start && plain.charAt(stop - 1) == ' ') stop--;
+            if (stop == start) continue;
+            if (!fits(text, plain.substring(start, stop), limit)) break;
+            best = stop;
+        }
+        if (best >= 0) return best;
+        // A word wider than the row: as many of its characters as fit, one at least.
+        int stop = start + 1;
+        while (stop < end && fits(text, plain.substring(start, stop + 1), limit)) stop++;
+        return stop;
+    }
+
+    private boolean fits(Shown text, String words, double limit) throws Throwable {
+        return width(text, words) <= limit;
+    }
+
+    /** Whether the character is of a script written without spaces between words (Han, kana, full-width forms): a row may break beside it. */
+    private static boolean wide(char letter) {
+        return letter >= 0x2E80 && letter <= 0x9FFF || letter >= 0xF900 && letter <= 0xFAFF || letter >= 0xFF00 && letter <= 0xFFEF;
+    }
+
+    /** The row of the characters {@code from} to {@code to}: its width, and its runs of one colour with where each starts. */
+    private Row row(Shown text, int from, int to) throws Throwable {
+        Script script = text.script;
+        String plain = script.plain;
+        var row = new Row();
+        row.from = from;
+        row.to = to;
+        row.width = from == to ? 0 : width(text, plain.substring(from, to));
+        var segs = new ArrayList<Seg>();
+        for (int at = from; at < to;) {
+            int tint = script.tint == null ? -1 : script.tint[at], stop = at + 1;
+            while (stop < to && (script.tint == null ? -1 : script.tint[stop]) == tint) stop++;
+            var seg = new Seg();
+            seg.from = at;
+            seg.to = stop;
+            seg.tint = tint;
+            seg.text = plain.substring(at, stop);
+            seg.x = at == from ? 0 : width(text, plain.substring(from, at));
+            if (script.at != null) {
+                seg.part = new String[seg.text.length()];
+                seg.partWidth = new float[seg.text.length() + 1];
+            }
+            segs.add(seg);
+            at = stop;
+        }
+        row.segs = segs.toArray(new Seg[0]);
+        return row;
+    }
+
+    /**
+     * The lines' widths (of a plain text) and the line height at zoom 1, for the font that draws it now: the game's (it changes with
+     * the font size option), or the embedded font, whose line is {@code faceLine} high (its own fonts' lines run to their padding).
+     */
+    private void measure(Shown text, Object angel, int faceLine) throws Throwable {
+        if (text.script == null) {
+            if (text.widths == null || text.widths.length != text.lines.length) text.widths = new float[text.lines.length];
+            for (int index = 0; index < text.lines.length; index++)
+                text.widths[index] = text.lines[index].isEmpty() ? 0 : width(text, text.lines[index]);
+        }
+        text.lineHeight = text.face != null ? faceLine : (int)fontHeight.invokeExact(textManager, text.font);
         text.measuredWith = angel;
     }
 
@@ -816,7 +1336,7 @@ final class Texts implements ApiHooks.Text {
         for (Shown shownText : shown) {
             if (shownText.done) continue;
             Shown s = shownText;
-            text.append("\nT\t").append(escape(s.owner)).append('\t').append(s.key).append('\t').append(escape(String.join("\n", s.lines)))
+            text.append("\nT\t").append(escape(s.owner)).append('\t').append(s.key).append('\t').append(escape(s.source != null ? s.source : String.join("\n", s.lines)))
                 .append('\t').append(s.fontName).append('\t').append(s.scale).append('\t').append(s.size)
                 .append('\t').append(s.red).append('\t').append(s.green).append('\t').append(s.blue).append('\t').append(s.alpha)
                 .append('\t').append(s.outline).append('\t').append(s.outlineRed).append('\t').append(s.outlineGreen).append('\t').append(s.outlineBlue)
@@ -824,7 +1344,8 @@ final class Texts implements ApiHooks.Text {
                 .append('\t').append(ALIGN_NAMES[s.align + 1]).append('\t').append(s.delay).append('\t').append(s.enter.name())
                 .append('\t').append(s.enterTime).append('\t').append(s.hold).append('\t').append(s.leave.name()).append('\t').append(s.leaveTime)
                 .append('\t').append(s.player).append('\t').append(s.queued).append('\t').append(s.waiting).append('\t').append(s.start)
-                .append('\t').append(s.hidden);
+                .append('\t').append(s.hidden).append('\t').append(s.markup).append('\t').append(s.width).append('\t').append(s.speed)
+                .append('\t').append(s.cursor);
         }
         lua.set(meta, MIRROR, text.toString());
         dirty = false;
@@ -856,14 +1377,16 @@ final class Texts implements ApiHooks.Text {
     private void load(Object kept) {
         if (!(kept instanceof String text)) return;
         String[] lines = text.split("\n");
-        if (!FORMAT.equals(lines[0])) {
+        // The format before typing has the fields up to hidden; the text of those has no markup, typing or width.
+        boolean before = FORMAT_BEFORE_TYPING.equals(lines[0]);
+        if (!before && !FORMAT.equals(lines[0])) {
             System.err.println("[PzTools API] text: what was shown is kept in another format; it is not shown again");
             return;
         }
         for (int index = 1; index < lines.length; index++) {
             String[] fields = lines[index].split("\t", -1);
             if ("N".equals(fields[0])) { next = Math.max(next, Long.parseLong(fields[1])); continue; }
-            if (fields.length != 31 || !"T".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
+            if (fields.length != (before ? 31 : 35) || !"T".equals(fields[0])) throw new IllegalStateException("Unknown line in the kept text: " + lines[index]);
             var s = new Shown(unescape(fields[1]), Long.parseLong(fields[2]));
             s.lines = unescape(fields[3]).split("\n", -1);
             s.fontName = fields[4];
@@ -878,6 +1401,16 @@ final class Texts implements ApiHooks.Text {
             s.hold = Double.parseDouble(fields[23]); s.leave = Leave.valueOf(fields[24]); s.leaveTime = Double.parseDouble(fields[25]);
             s.player = Integer.parseInt(fields[26]); s.queued = Boolean.parseBoolean(fields[27]); s.waiting = Boolean.parseBoolean(fields[28]);
             s.start = Long.parseLong(fields[29]); s.hidden = Long.parseLong(fields[30]);
+            if (!before) {
+                s.markup = Boolean.parseBoolean(fields[31]); s.width = Double.parseDouble(fields[32]); s.speed = Double.parseDouble(fields[33]);
+                s.cursor = Boolean.parseBoolean(fields[34]);
+                if (s.markup || s.width > 0 || s.enter == Enter.TYPE) {
+                    // Read again: the script is not kept, and gives the same as when it was shown.
+                    s.source = unescape(fields[3]);
+                    if (s.enter == Enter.TYPE) s.enterTime = 0;
+                    compose(s, "PZToolsAPI.text", "kept text");
+                }
+            }
             s.cell = world;
             next = Math.max(next, s.key + 1);
             shown.add(s);

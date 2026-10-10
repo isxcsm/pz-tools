@@ -102,6 +102,9 @@ public sealed class PublishedDistributionTests
             Assert.All(apiJar.Entries, entry => Assert.True(entry.FullName.StartsWith("META-INF/", StringComparison.Ordinal)
                 || entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal), entry.FullName));
         }
+        // The API's embedded fonts, one pack a script, with their license, beside the payload where the API looks for them.
+        Assert.Equal(new[] { "OFL.txt", "pztools-font-ja.ttf", "pztools-font-ko.ttf", "pztools-font-latin.ttf", "pztools-font-sc.ttf", "pztools-font-tc.ttf" },
+            Directory.GetFiles(Path.Combine(bridge, "fonts")).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         using (var bridgeJar = ZipFile.OpenRead(Path.Combine(bridge, "pztools-game-bridge.jar")))
             Assert.DoesNotContain(bridgeJar.Entries, entry => entry.FullName.StartsWith("pztools/api/", StringComparison.Ordinal));
         Assert.False(File.Exists(Path.Combine(extensions, "pztools-seamless-save.jar")));

@@ -56,6 +56,9 @@
     <MSBuild Projects="..\PzTools.GameExtensions.VehicleDrivetrain\PzTools.GameExtensions.VehicleDrivetrain.proj" Targets="Build" Properties="Configuration=$(Configuration);GameBridgeDirectory=$(BridgeOutputPath);JdkPath=$(BridgeJdkPath)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\..\..\config\game-extensions\catalog.tsv;$(MSBuildProjectDirectory)\..\..\config\game-extensions\vehicle-drivetrain.toml"
           DestinationFolder="$(BridgeOutputPath)\extensions" SkipUnchangedFiles="true" />
+    <!-- The extension API's embedded fonts (scripts/fonts/build-api-fonts.py makes them) and their license, beside the payload. -->
+    <ItemGroup><_ApiFont Include="$(MSBuildProjectDirectory)\fonts\pztools-font-*.ttf;$(MSBuildProjectDirectory)\fonts\OFL.txt" /></ItemGroup>
+    <Copy SourceFiles="@(_ApiFont)" DestinationFolder="$(BridgeOutputPath)\fonts" SkipUnchangedFiles="true" />
   </Target>
   <Target Name="Build" DependsOnTargets="PrepareAgent;BuildNative;BuildAgent;BuildRuntime;BuildExtensions" />
 </Project>

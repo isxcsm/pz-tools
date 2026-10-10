@@ -84,6 +84,27 @@ A published app has none of this: [`publish-app.ps1`](../../scripts/publish-app.
 `PzToolsDistribution=true`, which drops the `PZTOOLS_DEV_TOOLS` symbol, and
 `PublishedDistributionTests` checks that.
 
+### The extension API's fonts
+
+The fonts the extension API draws large text with are committed in
+`src/PzTools.GameBridge.Agent/fonts`, and the build copies them beside the payload. Make them again
+only to change their characters or typeface; what they hold and why is in
+[the embedded font](../design/extension-api.md#the-embedded-font).
+
+1. Download the originals from https://github.com/google/fonts into a folder outside the
+   repository: `ofl/notosans/NotoSans[wdth,wght].ttf`, `ofl/notosanskr/NotoSansKR[wght].ttf`,
+   `ofl/notosansjp/NotoSansJP[wght].ttf`, `ofl/notosanssc/NotoSansSC[wght].ttf`,
+   `ofl/notosanstc/NotoSansTC[wght].ttf`, and each folder's `OFL.txt` saved as
+   `OFL-<folder>.txt` (`OFL-notosans.txt`, `OFL-notosanskr.txt`, ...).
+2. Install fontTools (`pip install fonttools`). Only this script needs it.
+3. When the game's or a mod's translations changed, write the characters in use again:
+   `python -X utf8 scripts/fonts/build-api-fonts.py --scan --game <ProjectZomboid folder> --mods <mod folder>`.
+4. Build the packs: `python -X utf8 scripts/fonts/build-api-fonts.py --source <download folder>`. It
+   prints each pack's size, characters and kerning pairs. The same inputs give the same bytes.
+
+Run the `api` suite of the [game bridge tests](#game-bridge-tests) after: it checks the Korean
+pack's characters and bakes one pack.
+
 ## Unit tests
 
 ```powershell
