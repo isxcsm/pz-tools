@@ -56,7 +56,7 @@ tool. Each release has a `.sha256` file beside its ZIP. In PowerShell, in the fo
 downloaded to:
 
 ```powershell
-Get-FileHash .\PzTools-v0.2.4-win-x64.zip -Algorithm SHA256
+Get-FileHash .\PzTools-v0.2.5-win-x64.zip -Algorithm SHA256
 ```
 
 The hash must equal the one in the `.sha256` file. PowerShell prints it in capitals and
@@ -69,7 +69,7 @@ build provenance attestation. With the
 [GitHub CLI](https://cli.github.com/):
 
 ```powershell
-gh attestation verify .\PzTools-v0.2.4-win-x64.zip --repo isxcsm/pz-tools
+gh attestation verify .\PzTools-v0.2.5-win-x64.zip --repo isxcsm/pz-tools
 ```
 
 This checks that the ZIP was built by the repository's own workflow, from a commit in it

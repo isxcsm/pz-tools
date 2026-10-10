@@ -232,8 +232,8 @@ Releases are built by GitHub Actions from a tag, not on a developer's PC.
 3. Commit, then push a tag named `v` and the version:
 
    ```powershell
-   git tag v0.2.4
-   git push origin v0.2.4
+   git tag v0.2.5
+   git push origin v0.2.5
    ```
 
 The tag runs the full CI ([below](#ci)), and then the `release` job:
