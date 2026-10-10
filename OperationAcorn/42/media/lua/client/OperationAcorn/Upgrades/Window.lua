@@ -69,7 +69,7 @@ local CYAN = { 0.40, 0.95, 1.0 }           -- the selection
 local LINE_DIM = { 0.30, 0.32, 0.25 }      -- a line whose prerequisite is not met
 local NOTE = { 0.85, 0.78, 0.55 }          -- the research team's line
 local API = { 1.0, 0.6, 0.3 }              -- a node that needs the extension API
-local RED = { 0.88, 0.16, 0.12 }           -- the approval seal
+local RED = { 0.77, 0.14, 0.11 }           -- the approval seal's ink (tools/seal_art.py's)
 local WHITE = { 1, 1, 1 }
 local DARK = { 0.03, 0.03, 0.03 }
 -- Each tree's colour (its icons' plate colour, a little lifted) and its light tint for texts; the strip is the colour
@@ -83,9 +83,11 @@ local TREE = {
 for _, t in pairs(TREE) do
     t.strip = {}
     t.body = {}
+    t.core = {}                                -- the core of a line's light: the light colour, mostly white
     for i = 1, 3 do
         t.strip[i] = P.bg[i] * 0.74 + t.c[i] * 0.26
         t.body[i] = P.inset[i] * 0.88 + t.c[i] * 0.12
+        t.core[i] = t.light[i] * 0.4 + 0.6
     end
 end
 
@@ -562,11 +564,11 @@ function View:layout()
                     local prev = pts[k - 1]
                     if prev then len = len + math.abs(pts[k][1] - prev[1]) + math.abs(pts[k][2] - prev[2]) end
                 end
-                -- its number and length time the light that runs down it (Motion.bead); its column and its node's
-                -- row, when it draws itself in the opening
+                -- its number and length time the light that runs down it (Motion.comet); its column and its node's
+                -- row, when it draws itself in the opening; its node, which its light arrives at
                 local index = #self.lines + 1
                 self.lines[index] = { need = link.need, tree = tree, points = pts, index = index, len = len, col = i,
-                    row = Data.byId[link.to].row }
+                    row = Data.byId[link.to].row, to = link.to }
             end
             -- the reset button at the strip's right
             local bs = 22
@@ -714,6 +716,8 @@ function View:workOut()
         if Rules.rank(u, need) >= k then
             line.state = "lit"
             litLines[#litLines + 1] = line
+            local n = nodes[line.to]
+            line.target, line.targetLocked = self.byKey[line.to], n ~= nil and greyed(n)
         elseif Rules.rank(sim, need) >= k then
             line.state = "plan"
             planLines[#planLines + 1] = line
@@ -1375,29 +1379,10 @@ local function linePiece(el, xa, ya, xb, yb, len, s0, s1, lw, c, a)
     end
 end
 
--- The part of a line's light on one of its segments (`dist`: where the segment starts on the line; `head`: where the
--- light's head is, `blen` its length): a soft glow under it (wider, faint), a fainter tail and a bright head.
-local function beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
-    local s0, s1 = math.max(0, head - blen - dist), math.min(len, head - dist)
-    if s1 <= s0 then return end
-    linePiece(el, xa, ya, xb, yb, len, s0, s1, lw * Motion.BEAD_GLOW_WIDTH, c, Motion.BEAD_GLOW * a)
-    local m = math.min(s1, math.max(s0, head - math.min(Motion.BEAD_HEAD, blen) - dist))
-    if m > s0 then linePiece(el, xa, ya, xb, yb, len, s0, m, lw, c, 0.4 * a) end
-    if s1 > m then linePiece(el, xa, ya, xb, yb, len, m, s1, lw, c, a) end
-end
-
--- A prerequisite line drawn one way (`mode`): "solid", "dashes" (flowing with the clock `t`, seconds) or "bead"
--- (only its light, Motion.bead, its strength times `a`: nothing between passes); a small arrowhead into the node, but
--- for its light. `dy` moves it down (its column rising); `upto` (design units, nil for all) draws only its start, the
--- arrowhead once it is all there.
+-- A prerequisite line drawn one way (`mode`): "solid" or "dashes" (flowing with the clock `t`, seconds); a small
+-- arrowhead into the node. `dy` moves it down (its column rising); `upto` (design units, nil for all) draws only its
+-- start, the arrowhead once it is all there.
 local function drawLine(el, line, mode, c, a, t, dy, upto)
-    local head, blen
-    if mode == "bead" then
-        local strength
-        head, strength, blen = Motion.bead(CLOCK, line.index, line.len)
-        if not head then return end
-        a = strength * a
-    end
     dy = dy or 0
     local lw = math.max(2, floor(1.5 * S + 0.5))
     local pts = line.points
@@ -1417,8 +1402,6 @@ local function drawLine(el, line, mode, c, a, t, dy, upto)
         if len > 0 then
             if mode == "solid" then
                 linePiece(el, xa, ya, xb, yb, len, 0, room, lw, c, a)
-            elseif mode == "bead" then
-                beadOn(el, xa, ya, xb, yb, len, dist, head, blen, lw, c, a)
             else
                 local s0 = -remainder(dist - phase, period)
                 while s0 < room do
@@ -1430,12 +1413,103 @@ local function drawLine(el, line, mode, c, a, t, dy, upto)
         end
         dist = dist + len
     end
-    if mode == "bead" or (upto and upto < dist) then return end
+    if upto and upto < dist then return end
     -- the arrowhead, rows of whole pixels
     local cx, top = X(pts[#pts][1]), X(pts[#pts][2] + dy) - k
     for i = 0, k - 1 do
         local w = 2 * (k - i) - 1
         rectPx(el, cx - floor(w / 2), top + i, w, 1, c, a)
+    end
+end
+
+-- The soft round light (tools/glow_art.py), found once.
+local glowTex = nil
+local function glow()
+    if glowTex == nil then glowTex = getTexture("media/textures/OA_Glow.png") or false end
+    return glowTex or nil
+end
+
+-- The glow centred on design point x, y, `px` pixels across, tinted.
+local function glowAt(el, tex, x, y, px, c, a)
+    if a <= 0 then return end
+    px = math.max(2, floor(px + 0.5))
+    texPx(el, tex, X(x) - floor(px / 2), X(y) - floor(px / 2), px, px, c, math.min(1, a))
+end
+
+-- The design point `at` design units along a line (from its start; held at its ends), moved down by dy.
+local function pointOn(line, at, dy)
+    local pts = line.points
+    local dist = 0
+    for i = 1, #pts - 1 do
+        local xa, ya, xb, yb = pts[i][1], pts[i][2], pts[i + 1][1], pts[i + 1][2]
+        local len = math.abs(xb - xa) + math.abs(yb - ya)
+        if at <= dist + len and len > 0 then
+            local f = math.max(0, at - dist) / len
+            return xa + (xb - xa) * f, ya + (yb - ya) * f + dy
+        end
+        dist = dist + len
+    end
+    local last = pts[#pts]
+    return last[1], last[2] + dy
+end
+
+-- The pieces of a line between `s0` and `s1` (design units along it, clipped to it), lw pixels wide.
+local function lineSpan(el, line, s0, s1, dy, lw, c, a)
+    if a <= 0 then return end
+    local pts = line.points
+    local dist = 0
+    for i = 1, #pts - 1 do
+        local xa, ya, xb, yb = pts[i][1], pts[i][2] + dy, pts[i + 1][1], pts[i + 1][2] + dy
+        local len = math.abs(xb - xa) + math.abs(yb - ya)
+        local a0, a1 = math.max(0, s0 - dist), math.min(len, s1 - dist)
+        if a1 > a0 then linePiece(el, xa, ya, xb, yb, len, a0, a1, lw, c, a) end
+        dist = dist + len
+        if dist >= s1 then return end
+    end
+end
+
+-- A lit line's light (Motion.comet), `a` times its strength: behind the head the line brightened where it has passed
+-- (fading), the tail's steps fainter and its soft lights smaller the further back, the head a round glow with a
+-- bright core; arriving, a soft light on the arrowhead and on the node's frame (fainter into a locked node).
+local function drawComet(el, line, dy, a)
+    local head, strength, tail, after, arrive = Motion.comet(CLOCK, line.index, line.len)
+    if not head then return end
+    local tex = glow()
+    local tc = TREE[line.tree]
+    local lw = math.max(2, floor(1.5 * S + 0.5))
+    local len = line.len - math.max(3, floor(3 * S + 0.5)) / S       -- the line's drawn part, up to the arrowhead
+    strength = strength * a
+    for i = 0, 2 do
+        lineSpan(el, line, head - after * (i + 1) / 3, math.min(len, head - after * i / 3), dy, lw, tc.light,
+            0.22 * (1 - i / 3) * a)
+    end
+    local n = Motion.COMET_STEPS
+    for i = 0, n - 1 do
+        local f = 1 - i / n
+        lineSpan(el, line, head - tail * (i + 1) / n, math.min(len, head - tail * i / n), dy, lw, tc.light,
+            strength * f * f * 0.7)
+    end
+    if tex then
+        for i = 1, n do
+            local back = head - tail * i / n
+            if back >= 0 and back <= len then
+                local f = 1 - i / (n + 1)
+                local x, y = pointOn(line, back, dy)
+                glowAt(el, tex, x, y, lw * Motion.COMET_HEAD * (0.35 + 0.55 * f), tc.light, strength * f * f * 0.55)
+            end
+        end
+        if head <= len then
+            local x, y = pointOn(line, head, dy)
+            glowAt(el, tex, x, y, lw * Motion.COMET_HEAD, tc.light, strength * 0.85)
+            glowAt(el, tex, x, y, lw * Motion.COMET_CORE, tc.core, strength)
+        end
+    end
+    if arrive > 0 then
+        local k = arrive * a * (line.targetLocked and Motion.COMET_LOCKED or 1)
+        local ex, ey = pointOn(line, line.len, dy)
+        if tex then glowAt(el, tex, ex, ey, lw * Motion.COMET_ARRIVE, tc.light, 0.7 * k) end
+        local item = line.target
+        if item then framePx(el, item.x, item.y + dy, item.w, item.h, tc.light, 0.8 * k, 2, 2) end
     end
 end
 
@@ -1916,7 +1990,7 @@ function View:paintFlow(el)
         if upto ~= 0 then drawLine(el, line, "dashes", CYAN, SHOWN[line.col], t, RISE[line.col], upto) end
     end
     if not OPEN_AGE then
-        for _, line in ipairs(self.litLines) do drawLine(el, line, "bead", TREE[line.tree].light, 1) end
+        for _, line in ipairs(self.litLines) do drawComet(el, line, RISE[line.col], 1) end
     end
     local p = pulse(t)
     local th = thick()
@@ -1954,11 +2028,11 @@ function View:startStamp()
     end
     local order = Plan.stampOrder(approved.steps, shown)
     local start = getTimestampMs()
-    -- each node's place in the scan (its pop), and the seal's words cut in letters once (a frame makes nothing)
+    -- each node's place in the scan (its pop), and the seal's textures found once (a frame makes nothing)
     local index = {}
     for i, id in ipairs(order) do index[id] = i end
     self.stamp = { order = order, start = start, lit = 0, pressed = false, index = index,
-        step = Plan.stampStep(#order), seal = View.sealLetters() }
+        step = Plan.stampStep(#order), tex = View.sealTextures() }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which the stamp itself lights
     if approved.locked then
@@ -1972,69 +2046,61 @@ function View:startStamp()
     self:animate()
 end
 
--- The seal's words as letters with their places: the word in the Large face, the mark under it, each letter's
--- centre from the seal's middle (design units); and the seal's size. Made once a stamp.
-function View.sealLetters()
-    local word, mark = getText("IGUI_OA_Tree_Seal"), getText("IGUI_OA_Tree_SealMark")
-    local fl, fh = UI.fontHeight(UIFont.Large), UI.fontHeight()
-    local pad = 10
-    local letters = {}
-    local function cut(text, font, y)
-        local n = string.len(text)
-        local total = UI.textWidth(text, font)
-        local x = -total / 2
-        for i = 1, n do
-            local ch = string.sub(text, i, i)
-            local w = UI.textWidth(ch, font)
-            letters[#letters + 1] = { s = ch, x = x + w / 2, y = y, font = font }
-            x = x + w
-        end
-        return total
+-- The seal's size (design units): a real moment, over the middle tree and into the outer ones.
+Window.SEAL_SIZE = 260
+
+-- The seal's textures (tools/seal_art.py), found once each: the copy (256 or 512 px) for the pixel size it is drawn at.
+local sealCache = {}
+local function sealTex(name, px)
+    local path = "media/textures/OA_" .. name .. "_" .. (px <= 300 and 256 or 512) .. ".png"
+    local tex = sealCache[path]
+    if tex == nil then
+        tex = getTexture(path) or false
+        sealCache[path] = tex
     end
-    local h = fl + fh + pad * 3
-    local ww = cut(word, UIFont.Large, -h / 2 + pad)
-    local wm = cut(mark, UIFont.Small, -h / 2 + pad * 2 + fl)
-    return { letters = letters, w = math.max(ww, wm) + pad * 4, h = h }
+    return tex or nil
 end
 
--- The red seal (the 2반's `[직인 ORDWAY]`) over the middle of the trees, `age` ms after it started to fall
--- (Plan.seal): it falls in from larger and comes into view, slams down with a squash and an ink ring going out, its
--- ink settles while it holds, and it lifts away fading. Drawn as a pressed seal: a paper shade, a double ring with a
--- rough edge (rings a little off each other), the words slanted a little as a hand presses them.
+-- The seal's textures for a stamp at the scale now: the stamp, its word in the game's language (none for a language
+-- without one: the word is drawn as text then), its splatter and the shade under it. Made once a stamp.
+function View.sealTextures()
+    local px = X(Window.SEAL_SIZE)
+    local lang = "EN"
+    if Translator and Translator.getLanguage then lang = tostring(Translator.getLanguage():name()) end
+    if sealCache.shade == nil then sealCache.shade = getTexture("media/textures/OA_SealShade.png") or false end
+    return { seal = sealTex("Seal", px), word = sealTex("SealWord_" .. lang, px), ink = sealTex("SealInk", px),
+        shade = sealCache.shade or nil, text = getText("IGUI_OA_Tree_SealWord") }
+end
+
+-- A texture centred on design point cx, cy, w by h design units, at whole pixels.
+local function texCentred(el, tex, cx, cy, w, h, a)
+    if not tex or a <= 0 then return end
+    local x0, y0 = X(cx - w / 2), X(cy - h / 2)
+    texPx(el, tex, x0, y0, X(cx + w / 2) - x0, X(cy + h / 2) - y0, nil, math.min(1, a))
+end
+
+-- The red seal (the 2반's) over the middle of the trees, `age` ms after it started to fall (Plan.seal): it falls in
+-- from larger and comes into view, slams down with a squash and an ink splatter going out, its ink settles while it
+-- holds, and it lifts away fading. A round ink stamp (tools/seal_art.py: its rings, its band's ORDWAY / TEAM 2, its
+-- tilt and its wear are in the picture), its word in the game's language on the same canvas, a soft shade under it
+-- so that it reads over the nodes.
 function View:drawSeal(el, age, dy)
-    local sx, sy, a, ink, inkGrow, inkA = Plan.seal(age)
+    local sx, sy, a, ink, inkSize, inkA = Plan.seal(age)
     if not sx then return end
-    local seal = self.stamp.seal
+    local tex = self.stamp.tex
+    local size = Window.SEAL_SIZE
     local cx = L.VIEW_W / 2
     local cy = L.COL_Y + (L.STRIP + L.GRID_H) / 2 + dy
-    local bw, bh = seal.w * sx, seal.h * sy
-    local x, y = cx - bw / 2, cy - bh / 2
-    if inkGrow then framePx(el, x, y, bw, bh, RED, inkA, math.max(1, floor(S + 0.5)), inkGrow) end
-    UI.fill(el, x, y, bw, bh, { 0.02, 0.02, 0.03 }, 0.55 * a)
-    UI.fill(el, x, y, bw, bh, RED, 0.08 * a * ink)
-    local strong = a * ink
-    local t2 = math.max(2, floor(2 * S + 0.5))
-    framePx(el, x - 1, y + 0.6, bw + 1.6, bh - 0.8, RED, 0.35 * strong, 1, 0)
-    framePx(el, x + 0.7, y - 1, bw - 1.2, bh + 1.4, RED, 0.3 * strong, 1, 0)
-    framePx(el, x, y, bw, bh, RED, 0.95 * strong, t2, 0)
-    framePx(el, x + 5, y + 5, bw - 10, bh - 10, RED, 0.8 * strong, 1, 0)
-    framePx(el, x + 5.6, y + 4.6, bw - 10.4, bh - 9.8, RED, 0.3 * strong, 1, 0)
-    -- the words come in as it lands (the letters do not scale: they would show the wrong size while it falls)
-    local ta = strong
-    if age < Plan.SEAL_DROP_MS then
-        local u = age / Plan.SEAL_DROP_MS
-        ta = ta * u * u
-    end
-    if ta <= 0 then return end
-    for _, l in ipairs(seal.letters) do
-        local lx = cx + l.x * sx
-        local ly = cy + l.y * sy - Window.SEAL_SLANT * l.x
-        UI.textCentre(el, l.s, lx, ly, RED, l.font, ta)
+    local w, h = size * sx, size * sy
+    texCentred(el, tex.shade, cx, cy, w * 1.08, h * 1.08, a)
+    if inkSize then texCentred(el, tex.ink, cx, cy, size * inkSize, size * inkSize, inkA) end
+    texCentred(el, tex.seal, cx, cy, w, h, a * ink)
+    if tex.word then
+        texCentred(el, tex.word, cx, cy, w, h, a * ink)
+    else
+        UI.textCentre(el, tex.text, cx, cy - UI.fontHeight(UIFont.Large) / 2, RED, UIFont.Large, a * ink)
     end
 end
-
--- How far the seal's letters climb for each design unit to the right (its slant).
-Window.SEAL_SLANT = 0.05
 
 -- One frame of the stamp: the nodes not lit yet keep their selection frame; the scan runs over them, each node
 -- popping (View:paintNode) and flashing gold with a ring as it lights (with a short sound); then the seal drops on the

@@ -27,6 +27,8 @@ local function loadWindow()
         return setmetatable({}, { __index = function() return function() return 16 end end })
     end
     getText = function(key) return key end
+    -- (no pictures: the tab draws without them)
+    getTexture = function() return nil end
     local real = require
     require = function(name)
         if string.find(name, "^ISUI/") or string.find(name, "^XpSystem/") or string.find(name, "^TimedActions/") then
@@ -554,10 +556,12 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
         if a < 0 or a > 1 or w < 0 or h < 0 or x ~= x or y ~= y then bad[#bad + 1] = x .. "," .. y .. " a=" .. a end
         if a == 1 and r == P.bg[1] and g == P.bg[2] and b == P.bg[3] and w == L.COL_W then covers = covers + 1 end
     end
-    ISUIElement = { drawRect = rect, drawTextureScaled = function(_, _, _, _, w, h, a)
+    local drawn = {}
+    ISUIElement = { drawRect = rect, drawTextureScaled = function(_, tex, _, _, w, h, a)
         if a < 0 or a > 1 or w < 0 or h < 0 then bad[#bad + 1] = "texture a=" .. a end
+        if tex.path then drawn[tex.path] = (drawn[tex.path] or 0) + 1 end
     end }
-    getTexture = function() return {} end
+    getTexture = function(path) return { path = path } end
     getSoundManager = function() return { playUISound = function() end } end
     -- the body: its own fields set, the game's drawing answered by stand-ins
     local el = view.body
@@ -594,11 +598,12 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     frames(40)
     -- the approval and its answer, as in the test above; then the lit lines' lights for a while
     local Motion = OA.Upgrades.Motion
-    local bead, beads = Motion.bead, 0
-    Motion.bead = function(...)
-        local head, a, len = bead(...)
-        if head then beads = beads + 1 end
-        return head, a, len
+    local comet, comets, arrivals = Motion.comet, 0, 0
+    Motion.comet = function(...)
+        local head, a, tail, after, arrive = comet(...)
+        if head then comets = comets + 1 end
+        if arrive and arrive > 0 then arrivals = arrivals + 1 end
+        return head, a, tail, after, arrive
     end
     view.approved = { steps = view.steps, at = clock.now, locked = View.lockedOnRecord(view) }
     for _, step in ipairs(view.steps) do OA.Upgrades.Rules.buy(u, step.id, { fragments = 0 }, step.choice) end
@@ -608,8 +613,17 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     view:refresh()
     View.startStamp(view)
     frames(300)
-    Motion.bead = bead
+    Motion.comet = comet
     eq(#bad, 0, table.concat(bad, "; "))
     truthy(rects > 0)
-    truthy(beads > 0, "a lit line's light drawn")
+    truthy(comets > 0 and arrivals > 0, "a lit line's light drawn, arriving at its node")
+    truthy((drawn["media/textures/OA_Glow.png"] or 0) > 0, "the light's glow drawn")
+    -- the seal from its pictures, the copy for the size it is drawn at (the 256 px one up to 300 pixels across)
+    local px = math.floor(Window.SEAL_SIZE * OA.Trade.UI.S + 0.5)
+    local size, other = px <= 300 and 256 or 512, px <= 300 and 512 or 256
+    for _, name in ipairs({ "Seal", "SealWord_EN", "SealInk" }) do
+        truthy((drawn["media/textures/OA_" .. name .. "_" .. size .. ".png"] or 0) > 0, name .. " drawn")
+        eq(drawn["media/textures/OA_" .. name .. "_" .. other .. ".png"], nil, name .. " at its own copy")
+    end
+    truthy((drawn["media/textures/OA_SealShade.png"] or 0) > 0, "the shade under the seal drawn")
 end)

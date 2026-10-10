@@ -416,7 +416,7 @@ test("the seal falls in large and faint, slams down squashed with an ink ring, s
     truthy(sx > 1 and sy < 1, "squashed")
     near(sy, 1 - Plan.SEAL_SQUASH, 1e-9)
     eq(a, 1)
-    eq(inkGrow, 0, "the ink ring starts at the seal's edge")
+    eq(inkGrow, Plan.SEAL_INK_FROM, "the splatter starts at the seal's edge")
     truthy(inkA > 0.5)
     sx, sy = Plan.seal(drop + Plan.SEAL_SQUASH_MS)
     eq(sx, 1)
