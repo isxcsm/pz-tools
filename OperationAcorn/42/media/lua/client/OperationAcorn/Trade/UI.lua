@@ -833,6 +833,17 @@ end
 -- their 32 pixel pictures): UI.icon in design units on our elements (the pixels of others), UI.iconPx in the element's
 -- pixels (the status lists' baked steps). `tint` is { r, g, b } (nil: none), the picture kept to its aspect.
 
+-- The design size nearest `want` (and no more than `most`, when given) at which a 32 pixel icon is drawn a whole number
+-- of times its size: drawn at any other size the picture is blurred (and shimmers when shrunk; the textures have no
+-- mipmaps), so a place that shows an icon on its own takes its size from here.
+function UI.iconSize(want, most)
+    local k = math.max(1, floor(want * S / 32 + 0.5))
+    if most then
+        while k > 1 and k * 32 / S > most do k = k - 1 end
+    end
+    return k * 32 / S
+end
+
 function UI.iconPx(el, texture, px, py, pw, ph, a, tint)
     if not texture then return end
     local t = tint or WHITE

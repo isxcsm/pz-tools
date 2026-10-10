@@ -61,7 +61,7 @@ local function head(L, x, y, w, label, right)
     return y + fh + 4
 end
 
--- The name plate: the machine's icon in a well, its name and number, the light with the state, the switch.
+-- The name plate: the machine's icon, its name and number, the light with the state, the switch.
 local function plate(L, m, x, y, w)
     local p, fh = L.p, L.fh
     local lm = UI.fontHeight(UIFont.Medium)
@@ -71,9 +71,8 @@ local function plate(L, m, x, y, w)
     for _, at in ipairs({ { x + 3, y + 3 }, { x + w - 6, y + 3 }, { x + 3, y + h - 6 }, { x + w - 6, y + h - 6 } }) do
         Draw.rect(L, at[1], at[2], 3, 3, p.border)
     end
-    local ib = h - 12
-    Draw.box(L, x + 8, y + 6, ib, ib, p.inset, 1, p.border, 0.8)
-    Draw.item(L, m.icon, x + 12, y + 10, ib - 8)
+    local ib = UI.iconSize(h - 12, h - 8)
+    Draw.item(L, m.icon, x + 10, y + floor((h - ib) / 2), ib)
     local right = x + w - 10
     local light = m.light
     local lc = colour(p, light.tone)
@@ -89,7 +88,7 @@ local function plate(L, m, x, y, w)
         Draw.button(L, right - switchW, y + h - 4 - btn, switchW, btn, m.switch.label,
             m.switch.enabled and "normal" or "disabled", nil, "switch", tip)
     end
-    local nx = x + 8 + ib + 10
+    local nx = x + 10 + ib + 10
     Draw.fit(L, m.title, nx, y + 6, right - used - 10 - nx, p.bright, UIFont.Medium)
     Draw.fit(L, m.tag, nx, y + 6 + lm, right - (switchW > 0 and switchW + 10 or 0) - nx, p.dim)
     return y + h
@@ -184,19 +183,18 @@ local function perf(L, pf, x, y, w)
     return y + h
 end
 
--- A card a part: its icon, the slot and the tier, the buttons that make sense, its condition with the line under which
+-- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that make sense, its condition with the line under which
 -- it is worn, the hours of running it has left, and what it does (or what is wrong with it).
 local function parts(L, list, x, y, w)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
     y = head(L, x, y, w, getText("IGUI_OA_Machine_Parts"), getText("IGUI_OA_Machine_Parts_WornLine"))
     local h = 4 + btn + 2 + fh + fh + 4
-    local ib = h - 12
+    local ib = UI.iconSize(40, h - 12)
     for _, c in ipairs(list) do
         Draw.panel(L, x, y, w, h)
-        Draw.box(L, x + 6, y + 6, ib, ib, p.inset, 1, p.border, 0.7)
-        if c.icon then Draw.item(L, c.icon, x + 10, y + 10, ib - 8, c.broken and 0.55 or 1) end
-        local tx = x + 6 + ib + 8
+        if c.icon then Draw.item(L, c.icon, x + 10, y + floor((h - ib) / 2), ib, c.broken and 0.55 or 1) end
+        local tx = x + 10 + ib + 10
         local right = x + w - 6
         local bx = right
         for k = #c.buttons, 1, -1 do
