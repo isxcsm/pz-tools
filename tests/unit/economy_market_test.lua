@@ -240,3 +240,141 @@ test("refused is false for an unknown category and with no refusal", function()
     truthy(not M.refused("A"))
     truthy(not M.refused("ZZ"))
 end)
+
+-- Season and the situation lines (DESIGN-terminal 5.2, 5.3).
+
+local function demandAt(month, pick, line)
+    fix()
+    local old = OA.Store.world("market")
+    for k in pairs(old) do old[k] = nil end    -- a new world each time
+    TEST.month = month - 1
+    M.update(0)
+    local st = M.state()
+    st.nextDemand = 5
+    OA.random = function(a, b)
+        if a == 1 and b == 3 then return 2 end              -- not a glut
+        if b == OA.Season.LINES then return line or 1 end   -- the line of the season
+        return pick(a, b)
+    end
+    M.update(5)
+    return st.events[#st.events], st
+end
+
+test("a demand in a season's category is told in the team's words for the season", function()
+    -- The weights of a summer: I x3 and C x2, the rest 1: 14 in all; the roll picks along the letters.
+    local e = demandAt(7, function(a, b) return 12 end)    -- A 1, B 2, C 3..4, D..H 5..9, I 10..12
+    eq(e.cat, "I")
+    eq(e.key, "IGUI_OA_Econ_Season_summer_I_1")
+    eq(e.mult, 1.25); eq(e.ends, 10)
+end)
+
+test("the second line of a season is drawn too", function()
+    local e = demandAt(7, function(a, b) return 12 end, 2)
+    eq(e.key, "IGUI_OA_Econ_Season_summer_I_2")
+end)
+
+test("a demand in another category keeps the general line", function()
+    local e = demandAt(7, function(a, b) return 1 end)     -- the first letter, A, which summer does not raise
+    eq(e.cat, "A")
+    eq(e.key, "IGUI_OA_Econ_Event_Demand")
+end)
+
+test("the season follows the month: winter raises B and F, spring H and K, autumn A and H", function()
+    local e = demandAt(1, function(a, b) return 3 end)      -- winter: A 1, B 2..4
+    eq(e.cat, "B"); eq(e.key, "IGUI_OA_Econ_Season_winter_B_1")
+    e = demandAt(4, function(a, b) return b end)            -- spring: the last roll lands on K
+    eq(e.cat, "K"); eq(e.key, "IGUI_OA_Econ_Season_spring_K_1")
+    e = demandAt(10, function(a, b) return 1 end)           -- autumn: A is x3
+    eq(e.cat, "A"); eq(e.key, "IGUI_OA_Econ_Season_autumn_A_1")
+end)
+
+test("the demand is drawn by the weights, over many draws", function()
+    fix()
+    local counts = {}
+    for i = 0, 13 do
+        local roll = function(a, b) return a + i % (b - a + 1) end
+        local c = OA.Season.pick(OA.Categories.LETTERS, "summer", roll)
+        counts[c] = (counts[c] or 0) + 1
+    end
+    eq(counts.I, 3, "x3"); eq(counts.C, 2, "x2"); eq(counts.A, 1, "the rest once each")
+end)
+
+test("a glut never lands on a category the season raises", function()
+    fix()
+    TEST.month = 6
+    M.update(0)
+    local heard = {}
+    M.listen(function(e) heard[#heard + 1] = e end)
+    local n = 0
+    OA.random = function(a, b)
+        if a == 1 and b == 3 then return 1 end    -- a glut
+        n = n + 1
+        return a + n % (b - a + 1)
+    end
+    for d = 1, 200 do M.update(d) end
+    truthy(#heard >= 10, "a glut every 10 to 15 days")
+    for _, e in ipairs(heard) do
+        eq(e.kind, "glut")
+        eq(e.mult, 0.8)
+        eq(e.key, "IGUI_OA_Econ_Event_Glut")
+        truthy(e.cat ~= "I" and e.cat ~= "C", "a summer glut on " .. e.cat)
+    end
+end)
+
+test("the situation lists the largest raise per category, then gluts, then refusals", function()
+    fix()
+    TEST.month = 6
+    M.update(0)
+    M.addEvent("B", 1.3, 14, "IGUI_OA_Econ_Event_StageWant", "stage")
+    M.addEvent("B", 1.5, 10, "IGUI_OA_Econ_Event_FilterSamples", "story")
+    M.addEvent("G", 1.3, 14, "IGUI_OA_Econ_Event_StageWant", "stage")
+    M.addEvent("I", 1.25, 5, "IGUI_OA_Econ_Season_summer_I_2")
+    M.addEvent("A", 0.8, 5, "IGUI_OA_Econ_Event_Glut")
+    M.addEvent("C", 1.25, 5, "IGUI_OA_Econ_Event_Demand")
+    M.addEvent("C", 0.8, 5, "IGUI_OA_Econ_Event_Glut")
+    M.state().refused.F = 4
+    local lines = M.situation()
+    local got = {}
+    for _, l in ipairs(lines) do got[#got + 1] = l.kind .. ":" .. l.cat .. ":" .. tostring(l.mult) .. ":" .. l.left end
+    eq(table.concat(got, " "), "raise:B:1.5:10 raise:G:1.3:14 raise:C:1.25:5 raise:I:1.25:5 glut:A:0.8:5 refusal:F:nil:4",
+        "B has the 1.5 only, C its raise and not its glut, F is refused")
+    eq(lines[1].key, "IGUI_OA_Econ_Event_FilterSamples"); eq(lines[1].withCat, true)
+    eq(lines[4].key, "IGUI_OA_Econ_Season_summer_I_2"); eq(lines[4].withCat, false, "a season line names no category")
+    eq(lines[6].key, M.REFUSAL_KEY); eq(lines[6].withCat, true)
+end)
+
+test("the situation counts the days left from today, drops what ended, and has no lines when quiet", function()
+    fix()
+    M.update(0)
+    eq(#M.situation(), 0)
+    M.addEvent("D", 1.3, 3, "IGUI_OA_Econ_Event_StageWant", "stage")
+    eq(M.situation()[1].left, 3)
+    M.update(1)
+    eq(M.situation()[1].left, 2)
+    M.update(3)
+    eq(#M.situation(), 0, "over on the third day")
+end)
+
+test("an event with no key falls back to the general line", function()
+    fix()
+    M.update(0)
+    M.addEvent("D", 1.3, 3)
+    M.addEvent("E", 0.8, 3)
+    local lines = M.situation()
+    eq(lines[1].key, "IGUI_OA_Econ_Event_Demand"); eq(lines[2].key, "IGUI_OA_Econ_Event_Glut")
+end)
+
+test("the news counter counts events begun and ended, for the delivery tab's dot", function()
+    fix()
+    M.update(0)
+    eq(M.news(), 0)
+    M.addEvent("D", 1.3, 2, "k")
+    eq(M.news(), 1, "begun")
+    M.update(1)
+    eq(M.news(), 1)
+    M.update(2)
+    eq(M.news(), 2, "ended")
+    M.state().refused.A = 5
+    M.update(5)
+    eq(M.news(), 3, "a refusal over")
+end)

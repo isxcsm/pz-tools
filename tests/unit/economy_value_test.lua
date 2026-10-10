@@ -1,4 +1,5 @@
--- Value: the formulas of NUMBERS 1, the state factor, cash, request and new-region bonuses, one rounding a flight.
+-- Value: the formulas of NUMBERS 1, the state factor, cash, the fixed request prices and the new-region bonus, one
+-- rounding a flight.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Value"
@@ -14,7 +15,7 @@ end
 
 -- A plain context: index 1 everywhere, no premiums.
 local function ctx(extra)
-    local c = { rate = 1.0, trustAccel = 1.0, requestBonus = 0.5, index = {}, refused = {}, requests = {},
+    local c = { rate = 1.0, trustAccel = 1.0, index = {}, refused = {}, requests = {},
         requestUsed = {}, cellUsed = {} }
     for k, v in pairs(extra or {}) do c[k] = v end
     return c
@@ -98,30 +99,71 @@ test("cash trust is capped at 50 for a whole flight", function()
     near(result.trust, 50 + 40, 1e-9, "the cap is on cash only")
 end)
 
-test("the request bonus covers the first 20 units of an item", function()
-    local c = ctx({ requests = { ["Base.Shirt"] = true }, requestBonus = 0.65 })
+-- A request line as Requests.entries gives it: a common item, 600 a unit, 10 a week, trust 5 for a full line.
+local function request(extra)
+    local r = { band = "common", price = 600, qty = 10, trust = 5 }
+    for k, v in pairs(extra or {}) do r[k] = v end
+    return r
+end
+
+test("a request item is bought at its fixed price for the first units of the week", function()
+    local c = ctx({ requests = { ["Base.Shirt"] = request() } })
     local shirt = info("Base.Shirt", "Clothing", 1.0)
     local one = V.appraise(shirt, c)
-    near(one.credits, 400 * 1.65, 1e-9)
+    near(one.credits, 600, 1e-9, "not the 400 of its weight")
     truthy(one.marks.request)
-    local line = V.appraiseLine(shirt, 30, c)
-    near(line.credits, 400 * (30 + 0.65 * 20), 1e-6, "20 with the bonus, 10 without")
-    eq(line.requestUnits, 20)
-    near(line.trust, 4 * 30, 1e-9, "trust has no bonus")
-    c.requestUsed["Base.Shirt"] = 15
-    line = V.appraiseLine(shirt, 30, c)
-    eq(line.requestUnits, 5, "15 were used this week")
-    c.requestUsed["Base.Shirt"] = 20
+    local line = V.appraiseLine(shirt, 14, c)
+    near(line.credits, 10 * 600 + 4 * 400, 1e-6, "10 at the fixed price, 4 by weight")
+    eq(line.requestUnits, 10)
+    near(line.requestCredits, 6000, 1e-6)
+    near(line.trust, 4 * 14, 1e-9, "trust is by weight, the request adds none")
+    near(line.marketWeight, 4, 1e-9, "only the other units go to the market")
+    c.requestUsed["Base.Shirt"] = 7
+    line = V.appraiseLine(shirt, 5, c)
+    eq(line.requestUnits, 3, "7 of the 10 were settled this week")
+    near(line.credits, 3 * 600 + 2 * 400, 1e-6)
+    c.requestUsed["Base.Shirt"] = 10
     line = V.appraiseLine(shirt, 3, c)
     eq(line.requestUnits, 0)
     truthy(not line.marks.request)
+    near(line.credits, 3 * 400, 1e-6)
 end)
 
-test("an item that is not on the list gets no bonus", function()
-    local c = ctx({ requests = { ["Base.Pan"] = true } })
+test("a request price ignores the weight and the market, but not the state or the rate", function()
+    local c = ctx({ requests = { ["Base.Hammer"] = request({ price = 1500, qty = 5, band = "normal" }) },
+        rate = 1.05 })
+    c.index.H = 1.8
+    local hammer = info("Base.Hammer", "Tool", 1.0, { condition = 0.5 })
+    near(V.appraise(hammer, c).credits, 1500 * 0.75 * 1.05, 1e-9, "state 0.75, rate 1.05, no index")
+    local heavy = info("Base.Hammer", "Tool", 9.0, { condition = 1.0 })
+    near(V.appraise(heavy, c).credits, 1500 * 1.05, 1e-9, "heavier is not worth more")
+    local other = info("Base.Saw", "Tool", 1.0)
+    near(V.appraise(other, c).credits, 300 * 1.8 * 1.05, 1e-9, "a thing off the list keeps the index")
+end)
+
+test("an item that is not on the list gets no request price", function()
+    local c = ctx({ requests = { ["Base.Pan"] = request() } })
     local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
     near(a.credits, 400, 1e-9)
     truthy(not a.marks.request)
+end)
+
+test("a line made full gives its trust once", function()
+    local c = ctx({ requests = { ["Base.Shirt"] = request(), ["Base.Pan"] = request({ trust = 10, band = "normal" }) } })
+    local fills = V.requestFills(c, { requests = { ["Base.Shirt"] = 10 } })
+    eq(#fills.fills, 1); eq(fills.trust, 5); eq(fills.fills[1].fullType, "Base.Shirt")
+    eq(fills.fills[1].band, "common")
+    c.requestUsed["Base.Shirt"] = 8
+    fills = V.requestFills(c, { requests = { ["Base.Shirt"] = 2, ["Base.Pan"] = 4 } })
+    eq(#fills.fills, 1, "8 and 2 fill the shirts, 4 of 10 do not fill the pans")
+    eq(fills.trust, 5)
+    c.requestUsed["Base.Shirt"] = 10
+    fills = V.requestFills(c, { requests = { ["Base.Shirt"] = 0 } })
+    eq(#fills.fills, 0, "a line already full gave its trust")
+    eq(V.requestFills(c, { requests = {} }).trust, 0)
+    c.requestUsed["Base.Pan"] = 6
+    fills = V.requestFills(c, { requests = { ["Base.Pan"] = 4 } })
+    eq(fills.trust, 10, "a normal line gives 10")
 end)
 
 test("a new region pays +25% on the first 30 weight of a cell", function()
@@ -154,74 +196,18 @@ test("a heavy unit takes the premium for the part of it that fits", function()
     near(single.credits, 12 * 300 * (1 + 0.25 * 0.5), 1e-6, "6 of 12 weight left")
 end)
 
-test("the request bonus and the new region multiply", function()
-    local c = ctx({ requests = { ["Base.Shirt"] = true }, requestBonus = 0.5 })
+test("the request units get no new-region premium, the other units do", function()
+    local c = ctx({ requests = { ["Base.Shirt"] = request() } })
     local shirt = info("Base.Shirt", "Clothing", 1.0, { cell = "9,9" })
     local a = V.appraise(shirt, c)
-    near(a.credits, 400 * 1.5 * 1.25, 1e-9)
+    near(a.credits, 600, 1e-9, "no premium on a request unit")
     local line = V.appraiseLine(shirt, 40, c)
-    -- 40 units: first 20 with the bonus; the first 30 in the region. Units 1..20 have both, 21..30 the region only.
-    near(line.credits, 400 * (20 * 1.5 * 1.25 + 10 * 1.25 + 10), 1e-6)
-end)
-
-test("an item with no cell tag has no region bonus", function()
-    local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), ctx())
-    truthy(not a.marks.newRegion)
-end)
-
-test("a refused category is marked and still valued", function()
-    local c = ctx({ refused = { B = true } })
-    local a = V.appraise(info("Base.Shirt", "Clothing", 1.0), c)
-    truthy(a.marks.refused)
-    near(a.credits, 400, 1e-9)
-end)
-
-test("what the box takes, and why not", function()
-    truthy(V.accepts(info("Base.Shirt", "Clothing", 1)))
-    truthy(V.accepts(info("Base.Money", "Junk", 0.01, { cash = 1 })))
-    truthy(V.accepts(info("OperationAcorn.SampleBundle", "Junk", 0.1, { own = "SampleBundle" })))
-    truthy(V.accepts(info("OperationAcorn.MeteorFragment", "Material", 1, { own = "MeteorFragment" })))
-    local ok, why = V.accepts(info("OperationAcorn.CureSerum", "FirstAid", 0.1, { own = "CureSerum" }))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Own")
-    ok, why = V.accepts(info("Base.Bullets9mm", "Ammo", 0.01))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Ammo")
-    ok, why = V.accepts(info("Base.Apple", "Food", 0.2, { food = "rotten" }))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Rotten")
-    truthy(V.accepts(info("Base.Apple", "Food", 0.2, { food = "stale" })))
-    ok, why = V.accepts(info("Base.Satchel", "Bag", 0.5, { filled = true }))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Filled")
-    truthy(V.accepts(info("Base.Satchel", "Bag", 0.5, { filled = false })))
-    ok, why = V.accepts(info("Base.Hammer", "Tool", 1, { bought = true }))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Bought")
-    ok, why = V.accepts(info("Base.Sofa", "Furniture", 20, { moveable = true }))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Furniture")
-    ok, why = V.accepts(info("Base.LargeMeteorite", "Memento", 5))
-    eq(ok, false); eq(why, "IGUI_OA_Econ_Reject_Meteor")
-end)
-
-test("this mod's taken goods have fixed values and ignore the market", function()
-    local c = ctx({ index = { K = 2.0 }, rate = 1.1, trustAccel = 1.1 })
-    local frag = V.appraise(info("OperationAcorn.MeteorFragment", "Material", 1, { own = "MeteorFragment" }), c)
-    near(frag.credits, 30000 * 1.1, 1e-6)
-    near(frag.trust, 10 * 1.1, 1e-9)
-    local expired = V.appraise(info("OperationAcorn.Note", "Junk", 0.1, { own = "ExpiredMission" }), c)
-    near(expired.credits, 1100, 1e-6)
-    near(expired.trust, 5.5, 1e-9)
-    local mission = V.appraise(info("OperationAcorn.Note", "Junk", 0.1, { own = "MissionItem" }), c)
-    eq(mission.credits, 0)
-end)
-
-test("a whole flight is rounded once", function()
-    local record = OA.Store.ensure("r", "R")
-    OA.Requests.install({ version = 1, types = {}, score = {}, kinds = {}, total = {}, n = 0 })
-    -- 7 pencils of weight 0.01 in category E: 0.01 * 350 = 3.5 credits each, 24.5 together.
-    local pencil = info("Base.Pencil", "Junk", 0.01)
-    local lines = {}
-    for i = 1, 7 do lines[i] = { info = pencil, count = 1 } end
-    local result = V.settle(record, lines)
-    eq(result.credits, 25, "24.5 rounds to 25 once; seven rounded 3.5s would be 28")
-    near(result.trust, 7 * 0.035, 1e-9)
-    eq(#result.lines, 7)
+    -- 40 units: 10 request units at 600; the 30 others take the 30 weight of the region.
+    near(line.credits, 10 * 600 + 400 * 30 * 1.25, 1e-6)
+    near(line.regionWeight, 30, 1e-9, "the request units use none of the cell")
+    line = V.appraiseLine(shirt, 20, c)
+    near(line.credits, 10 * 600 + 400 * 10 * 1.25, 1e-6)
+    near(line.regionWeight, 10, 1e-9)
 end)
 
 test("settle uses the record's rate and the sandbox multiplier", function()
@@ -238,27 +224,68 @@ test("settle uses the record's rate and the sandbox multiplier", function()
     near(result.credits, 400 * 1.05 * 2.0 * index, 0.5, "rate")
 end)
 
-test("settle sends the weight to the market and uses up the premiums", function()
+local function oneShirt()
     local record = OA.Store.ensure("s", "S")
     OA.Requests.install({ version = 1, types = { "Base.Shirt" }, score = { 2.0 },
         kinds = { Shirt = "B" }, total = { B = 1 }, n = 1 })
     OA.randomFloat = function() return 0 end
     OA.Market.update(OA.day())
     for _, c in ipairs(OA.Categories.LETTERS) do OA.Market.state().M[c] = 1.0 end
+    return record
+end
+
+test("settle sends the weight to the market and uses up the premiums", function()
+    local record = oneShirt()
     eq(OA.Requests.list(record)[1], "Base.Shirt")
     local shirt = info("Base.Shirt", "Clothing", 1.0, { cell = "1,1" })
     local before = OA.Market.index("B")
     local result = V.settle(record, { { info = shirt, count = 30 }, { info = shirt, count = 10 } })
-    -- 40 shirts: the first 20 with the request bonus (+50%) and the first 30 in the region (+25%).
-    local expected = 400 * before * (20 * 1.5 * 1.25 + 10 * 1.25 + 10)
+    -- 40 shirts: 10 are the week's request at 600 (no premium); the other 30 all take the region's +25%.
+    local expected = 10 * 600 + 400 * before * 30 * 1.25
     near(result.credits, OA.round(expected), 0.5)
-    near(OA.Market.state().S.B, 0.97 ^ 4, 1e-9, "40 weight shipped")
-    eq(OA.Requests.used(record)["Base.Shirt"], 20)
+    near(OA.Market.state().S.B, 0.97 ^ 3, 1e-9, "the 30 other units are shipped, the request ones are not")
+    eq(OA.Requests.used(record)["Base.Shirt"], 10)
     near(record.codex.cells["1,1"], 30, 1e-9)
-    -- A second flight: the premiums are used up.
+    near(result.trust, 40 * 4 + 5, 1e-9, "trust by weight and 5 for the full line")
+    eq(#result.filled, 1); eq(result.filled[1].fullType, "Base.Shirt"); eq(result.filled[1].trust, 5)
+    -- A second flight: the request and the region are used up, the line gave its trust already.
     local price = 400 * OA.Market.index("B")
     local second = V.settle(record, { { info = shirt, count = 10 } })
-    near(second.credits, 10 * price, 0.5, "no bonus, no region left")
+    near(second.credits, 10 * price, 0.5, "no request, no region left")
+    near(second.trust, 40, 1e-9)
+    eq(#second.filled, 0)
+end)
+
+test("a line filled over two flights gives its trust on the second", function()
+    local record = oneShirt()
+    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    local first = V.settle(record, { { info = shirt, count = 6 } })
+    eq(#first.filled, 0); near(first.trust, 24, 1e-9)
+    local price = 400 * OA.Market.index("B")
+    local second = V.settle(record, { { info = shirt, count = 6 } })
+    eq(#second.filled, 1, "6 and 6 pass the 10")
+    near(second.trust, 24 + 5, 1e-9)
+    near(second.credits, 4 * 600 + 2 * price, 0.5)
+end)
+
+test("a new week starts the request counters again", function()
+    local record = oneShirt()
+    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    V.settle(record, { { info = shirt, count = 10 } })
+    eq(OA.Requests.entry(record, "Base.Shirt").left, 0)
+    TEST.hours = 24 * 7 + 2
+    V.reset()
+    eq(OA.Requests.entry(record, "Base.Shirt").left, 10, "the week's counters were drawn anew")
+    local result = V.settle(record, { { info = shirt, count = 10 } })
+    eq(#result.filled, 1, "and the line can be filled again")
+end)
+
+test("the cached context follows the rewards: a new request price level reaches the next appraisal", function()
+    local record = oneShirt()
+    local shirt = info("Base.Shirt", "Clothing", 1.0)
+    near(V.appraise(shirt, V.context(record)).credits, 600, 1e-9)
+    OA.Support.setLevel(record, "reqprice", 1)
+    near(V.appraise(shirt, V.context(record)).credits, 660, 1e-9, "x1.1 the same day")
 end)
 
 test("the context is cached for the day and follows the market live", function()

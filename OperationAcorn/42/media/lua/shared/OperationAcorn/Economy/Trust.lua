@@ -137,7 +137,6 @@ end
 
 -- What trust raises by itself (NUMBERS 5). Each is { from = the first tier it applies at, value }, the last one
 -- reached wins; the tier is stage + milestones.
-local REQUEST_BONUS = { { 0, 0.50 }, { 3, 0.65 }, { 5, 0.80 }, { 7, 1.00 } }
 local ACCEL = { { 0, 1.0 }, { 6, 1.1 }, { 8, 1.2 } }
 
 local function at(line, tier)
@@ -159,7 +158,7 @@ function Trust.rewardsFor(stage, milestones, levels)
     local call = (OA.option("CallInterval") or 3.0) / 3.0
     local arriveMin = (OA.option("HelicopterArrivalMin") or 4) / 4
     local arriveMax = (OA.option("HelicopterArrivalMax") or 6) / 6
-    local requestBonus = (OA.option("RequestBonus") or 50) / 50
+    local priceRatio = (OA.option("RequestPrice") or 100) / 100
     local arrive = value("arrive")
     local lo, hi = arrive[1] * arriveMin, arrive[2] * arriveMax
     if lo > hi then lo = hi end
@@ -170,8 +169,7 @@ function Trust.rewardsFor(stage, milestones, levels)
         arrival = { min = lo, max = hi },
         nightDrop = value("night"),
         rate = value("rate"),
-        requestBonus = at(REQUEST_BONUS, tier) * requestBonus,
-        requestPrice = value("reqprice"),
+        requestPrice = value("reqprice") * priceRatio,
         requestCount = value("reqcount"),
         discount = value("discount"),
         trustAccel = at(ACCEL, tier),

@@ -4,10 +4,14 @@
 --   S the supply: 0.97 for every 10 weight of the category shipped (down to 0.40), +0.03 a day back to 1.
 --   E the events: one per category, the largest raise; a glut (x0.8) only when no raise is on.
 -- The index is read live (a few multiplications), so a tooltip never shows a price the last flight has changed.
+-- The random demand draws its category by the season (OA.Season). The delivery tab's "this week" lines are worked out
+-- from this state (Market.situation); nothing is kept for them but a counter (`news`) of events begun and ended, which
+-- the tab's dot waits on.
 -- Randomness goes through OA.randomFloat / OA.random at call time, so a test can fix it.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
+require "OperationAcorn/Economy/Season"
 local OA = OperationAcorn
 local Market = {}
 OA.Market = Market
@@ -35,6 +39,15 @@ function Market.listen(fn)
     table.insert(listeners, fn)
 end
 
+-- Counts an event begun or ended (the delivery tab shows a dot until it has been looked at).
+local function news(st)
+    st.news = (st.news or 0) + 1
+end
+
+function Market.news()
+    return Market.state().news or 0
+end
+
 local function raise(event)
     for _, fn in ipairs(listeners) do
         local ok, err = pcall(fn, event)
@@ -58,6 +71,7 @@ function Market.state()
         st.due = {}
         st.history = {}
         st.totals = {}
+        st.news = 0
         st.nextDemand = day + OA.random(10, 15)
         st.nextRefusal = day + OA.random(20, 30)
     end
@@ -111,6 +125,7 @@ end
 function Market.addEvent(category, mult, days, key, kind)
     local st = Market.state()
     table.insert(st.events, { cat = category, mult = mult, ends = st.day + days, key = key })
+    news(st)
     raise({ kind = kind or "story", cat = category, mult = mult, days = days, key = key })
 end
 
@@ -156,7 +171,7 @@ local function fold(st, cat, day)
     end
 end
 
-local function step(st, day, top)
+local function step(st, day, top, season)
     local letters = OA.Categories.LETTERS
     for _, c in ipairs(letters) do
         local m = st.M[c] + Market.REVERT * (1.0 - st.M[c]) + OA.randomFloat(-Market.NOISE, Market.NOISE)
@@ -164,19 +179,39 @@ local function step(st, day, top)
         st.S[c] = math.min(1.0, st.S[c] + Market.RECOVERY)
     end
     for i = #st.events, 1, -1 do
-        if st.events[i].ends <= day then table.remove(st.events, i) end
+        if st.events[i].ends <= day then
+            table.remove(st.events, i)
+            news(st)
+        end
     end
     for c, ends in pairs(st.refused) do
-        if ends <= day then st.refused[c] = nil end
+        if ends <= day then
+            st.refused[c] = nil
+            news(st)
+        end
     end
     st.day = day
-    -- Random demand, every 10 to 15 days; one time in three the team has too much of a category instead.
+    -- Random demand, every 10 to 15 days; one time in three the team has too much of a category instead. The
+    -- category is drawn by the season's weights; a glut never lands on one the season raises. A demand for a category
+    -- the season raises is told in the team's words for the season.
     if day >= st.nextDemand then
-        local c = letters[OA.random(1, #letters)]
         local glut = OA.random(1, 3) == 1
+        local c, key
+        if glut then
+            c = OA.Season.pickOther(letters, season, OA.random)
+            key = "IGUI_OA_Econ_Event_Glut"
+        else
+            c = OA.Season.pick(letters, season, OA.random)
+            if OA.Season.raised(season, c) then
+                key = OA.Season.lineKey(season, c, OA.random(1, OA.Season.LINES))
+            else
+                key = "IGUI_OA_Econ_Event_Demand"
+            end
+        end
         local mult = glut and 0.8 or 1.25
-        table.insert(st.events, { cat = c, mult = mult, ends = day + 5, key = glut and "IGUI_OA_Econ_Event_Glut" or "IGUI_OA_Econ_Event_Demand" })
-        raise({ kind = glut and "glut" or "demand", cat = c, mult = mult, days = 5 })
+        table.insert(st.events, { cat = c, mult = mult, ends = day + 5, key = key })
+        news(st)
+        raise({ kind = glut and "glut" or "demand", cat = c, mult = mult, days = 5, key = key })
         st.nextDemand = day + OA.random(10, 15)
     end
     -- A category refused for a week, from the first stage on, every 20 to 30 days. It comes back as a request.
@@ -184,6 +219,7 @@ local function step(st, day, top)
         local c = letters[OA.random(1, #letters)]
         st.refused[c] = day + 7
         table.insert(st.due, { cat = c, day = day + 7 + OA.random(14, 21) })
+        news(st)
         raise({ kind = "refusal", cat = c, days = 7 })
         st.nextRefusal = day + OA.random(20, 30)
     end
@@ -205,10 +241,11 @@ function Market.update(day)
     local st = Market.state()
     if st.day >= day and st.history.A then return end
     local top = topStage()
+    local season = OA.Season.current()
     local from = st.day + 1
     if st.history.A == nil then from = st.day end
     if day - from + 1 > Market.MAX_CATCH_UP then from = day - Market.MAX_CATCH_UP + 1 end
-    for d = from, day do step(st, d, top) end
+    for d = from, day do step(st, d, top, season) end
 end
 
 -- Weight shipped: the supply of a category falls by 0.97 for every 10 weight (0.9775 with the "softer supply"
@@ -265,6 +302,50 @@ function Market.refusalLine(category, phase)
     end
     local key = phase == "back" and "IGUI_OA_Econ_Radio_RefuseBack" or "IGUI_OA_Econ_Radio_RefuseStart"
     return key, { getText(OA.Categories.nameKey(category)) }
+end
+
+-- What is going on in the market now, one line for each category it touches (DESIGN-terminal 5.2): the largest raise
+-- on a category, else its glut (the same rule as the index), and the categories the team does not take. Worked out
+-- from the state each time it is asked (the delivery tab asks when it is redrawn); nothing is kept.
+--   { kind = "raise" | "glut" | "refusal", cat, mult (nil for a refusal), left (days more), key, withCat }
+-- `key` is the text's translation key; `withCat` says its %1 is the category's name (a season's line names none).
+-- Raises come first, the largest first, then gluts, then refusals; the same kind by category.
+Market.REFUSAL_KEY = "IGUI_OA_Econ_Event_Refusal"
+
+local SITUATION_RANK = { raise = 1, glut = 2, refusal = 3 }
+
+function Market.situation()
+    local st = Market.state()
+    local day = st.day
+    local lines = {}
+    for _, c in ipairs(OA.Categories.LETTERS) do
+        local best, glut
+        for _, e in ipairs(st.events) do
+            if e.cat == c and e.ends > day then
+                if e.mult > 1.0 then
+                    if not best or e.mult > best.mult then best = e end
+                elseif not glut or e.mult < glut.mult then
+                    glut = e
+                end
+            end
+        end
+        local e = best or glut
+        if e then
+            local key = e.key or (best and "IGUI_OA_Econ_Event_Demand" or "IGUI_OA_Econ_Event_Glut")
+            lines[#lines + 1] = { kind = best and "raise" or "glut", cat = c, mult = e.mult, left = e.ends - day,
+                key = key, withCat = not OA.Season.isLineKey(key) }
+        end
+        local ends = st.refused[c]
+        if ends and ends > day then
+            lines[#lines + 1] = { kind = "refusal", cat = c, left = ends - day, key = Market.REFUSAL_KEY, withCat = true }
+        end
+    end
+    table.sort(lines, function(a, b)
+        if a.kind ~= b.kind then return SITUATION_RANK[a.kind] < SITUATION_RANK[b.kind] end
+        if a.kind == "raise" and a.mult ~= b.mult then return a.mult > b.mult end
+        return a.cat < b.cat
+    end)
+    return lines
 end
 
 -- Forgets due requests that are past (kept ten weeks).

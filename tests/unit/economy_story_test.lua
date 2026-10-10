@@ -158,8 +158,7 @@ test("the week after a hallucination the list holds the strange item besides the
     local found = 0
     for _, t in ipairs(list) do if t == "Base.Harmonica" then found = found + 1 end end
     eq(found, 1)
-    local bonus = OA.Requests.bonusFor(record, "Base.Harmonica")
-    truthy(bonus >= 0)
+    truthy(OA.Requests.entry(record, "Base.Harmonica"), "it is a line of the list like the others")
     eq(#OA.Requests.list(record), 7, "still 7 when asked again")
 end)
 
@@ -185,15 +184,15 @@ test("the strange item is on the list once even if it was drawn as a candidate",
     eq(#list, 7)
 end)
 
-test("the strange item earns the request bonus like any listed item", function()
+test("the strange item is bought like any listed item, in the rarest band", function()
     fakeStory({ strangeItem = function() return "Base.Harmonica" end })
     make(10)
     local record = OA.Store.ensure("a", "A")
     OA.Store.section(record, "trade").stage = 2
     OA.Trust.section(record).stage = 2
-    local bonus, left = OA.Requests.bonusFor(record, "Base.Harmonica")
-    truthy(bonus > 0, "stage 2 has a request bonus")
-    eq(left, 20)
+    local e = OA.Requests.entry(record, "Base.Harmonica")
+    eq(e.band, "rare", "the house loot does not hand it out")
+    eq(e.price, 4000); eq(e.left, 3)
 end)
 
 -- 4. Mission items against the story part's rule.
