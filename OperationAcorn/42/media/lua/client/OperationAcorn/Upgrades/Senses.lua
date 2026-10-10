@@ -14,7 +14,9 @@ require "OperationAcorn/Upgrades/Pulse"
 require "OperationAcorn/Upgrades/Moodles"
 require "OperationAcorn/Upgrades/First"
 require "OperationAcorn/Economy/Buildings"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
+local UI = OA.Trade.UI
 local Rules = OA.Upgrades.Rules
 local Sense = OA.Upgrades.Sense
 local Pulse = OA.Upgrades.Pulse
@@ -295,6 +297,30 @@ function Hud:render()
     end
 end
 
+-- Whether a mark is on show at `now`: a cue that has not run out (the lists keep run-out ones until the next sound),
+-- or an alarm's mark.
+local function marking(now)
+    if #S.alarms > 0 then return true end
+    if not S.ring then return false end
+    local list = S.zombies
+    for i = 1, #list do
+        if list[i].untilMs > now then return true end
+    end
+    list = S.sounds
+    for i = 1, #list do
+        if list[i].untilMs > now then return true end
+    end
+    return false
+end
+
+-- Each frame, before the UI draws (Trade/UI live): the marks are placed from where the character, the camera and the
+-- zombies they follow are, which move without telling the HUD, and a cue fades by the clock, so while a mark is on
+-- show the HUD is drawn every frame (`now`), as it is without PZ Optimization; with none, it holds still (0) and a new
+-- cue shows at once.
+function Hud.tick(el, now)
+    return marking(now) and now or 0
+end
+
 local hud = nil
 
 local function showHud(on)
@@ -313,6 +339,8 @@ local function showHud(on)
             hud:setX(getPlayerScreenLeft(0))
             hud:setY(getPlayerScreenTop(0))
             hud.screenW, hud.screenH = getPlayerScreenWidth(0), getPlayerScreenHeight(0)
+            -- followed each frame while it shows (a hidden HUD was let go)
+            UI.live(hud, Hud.tick)
         end
     end
 end

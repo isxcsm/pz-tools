@@ -362,11 +362,28 @@ test("the stamp's timing: nodes at a step each, the seal after the last, a long 
     eq(Plan.stamp(0, 0).lit, 0)
 end)
 
+test("the stamp's look moves while a flash, the press or the fade does, holds while the seal holds, and ends with it", function()
+    for _, n in ipairs({ 0, 1, 3, 30 }) do
+        local still = math.max(Plan.sealAt(n) + Plan.SEAL_PRESS_MS, (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
+        local fade = Plan.sealAt(n) + Plan.SEAL_MS - Plan.SEAL_FADE_MS
+        truthy(still < fade, "a hold for " .. n)
+        eq(Plan.stampLook(n, 0), 0)
+        eq(Plan.stampLook(n, still - 1), still - 1, "moving before the hold")
+        eq(Plan.stampLook(n, still), -1, "the hold")
+        eq(Plan.stampLook(n, fade - 1), -1)
+        eq(Plan.stampLook(n, fade), fade, "the fade, on time")
+        eq(Plan.stampLook(n, Plan.stampEnd(n) - 1), Plan.stampEnd(n) - 1)
+        eq(Plan.stampLook(n, Plan.stampEnd(n)), nil, "over")
+    end
+end)
+
 -- ---- the client's minute ------------------------------------------------------------------------------------------
 
 test("the moodle follows the record and the server is asked once the end has passed", function()
     local real = require
     ISPanel = { derive = function() return setmetatable({}, { __index = function() return function() end end }) end }
+    -- the moodles' stand-ins follow the mouse with the terminal's helpers (Trade/UI), whose palettes name the fonts
+    UIFont = UIFont or setmetatable({}, { __index = function(_, k) return k end })
     require = function(name)
         if string.find(name, "^ISUI/") then return true end
         return real(name)

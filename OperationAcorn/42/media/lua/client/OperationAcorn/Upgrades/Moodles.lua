@@ -5,7 +5,9 @@
 -- text when the mouse is over one. A moodle is set only when its level changes.
 require "ISUI/ISPanel"
 require "OperationAcorn/Client"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
+local UI = OA.Trade.UI
 OA.Upgrades = OA.Upgrades or {}
 local Moodles = {}
 OA.Upgrades.Moodles = Moodles
@@ -88,7 +90,11 @@ local function pictureOf(def, level, size)
     return getTexture((string.gsub(path, "{size}", tostring(size))))
 end
 
-function Panel:render()
+-- Where the stand-ins go (their size, and the first's place: left of the game's column) and which one the mouse is
+-- over (its place in the column, 0 for none), written to the panel. The panel is one pixel and never has the mouse, so
+-- PZ Optimization would not draw it afresh for a hover: this runs each frame before the UI draws (Trade/UI live), and
+-- a value it changes is drawn at once. Gives the hovered one (the look).
+function Panel:place()
     local option = getCore():getOptionMoodleSize()
     local size = SIZES[option] or ((getCore():getScreenHeight() > 1200) and 64 or 48)
     local column = UIManager.getMoodleUI(self.playerNum)
@@ -97,16 +103,35 @@ function Panel:render()
         x = column:getX() - self.x - size - 6
         y = column:getY() - self.y
     end
-    local back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png")
     local mx, my = getMouseX() - self.x, getMouseY() - self.y
+    local hover, at = 0, 0
+    if mx >= x and mx < x + size and my >= y then
+        for _, def in ipairs(Moodles.DEFS) do
+            if (levels[def.id] or 0) > 0 and not inColumn[def.id] then
+                at = at + 1
+                local top = y + (at - 1) * (size + 4)
+                if my >= top and my < top + size then hover = at end
+            end
+        end
+    end
+    self.size, self.atX, self.atY, self.hover = size, x, y, hover
+    return hover
+end
+
+function Panel:render()
+    if not self.size then self:place() end
+    local size, x, y = self.size, self.atX, self.atY
+    local back = getTexture("media/ui/Moodles/" .. size .. "/_Moodles_BGsolid.png")
+    local at = 0
     for _, def in ipairs(Moodles.DEFS) do
         local level = levels[def.id] or 0
         if level > 0 and not inColumn[def.id] then
+            at = at + 1
             local r, g, b = tint(def.kind, level)
             if back then self:drawTextureScaled(back, x, y, size, size, 0.9, r, g, b) end
             local icon = pictureOf(def, level, size)
             if icon then self:drawTextureScaled(icon, x, y, size, size, 1, 1, 1, 1) end
-            if mx >= x and mx < x + size and my >= y and my < y + size then
+            if at == self.hover then
                 local key = "Moodles_" .. OA.MOD .. ":" .. def.id
                 local name, text = getText(key .. "_lvl" .. level), getText(key .. "_desc_lvl" .. level)
                 local tm = getTextManager()
@@ -124,7 +149,7 @@ end
 
 local panel = nil
 
--- Shows the stand-ins' panel while one is drawn.
+-- Shows the stand-ins' panel while one is drawn; a count written to it tells PZ Optimization a level changed.
 local function standIns()
     local any = false
     for _, def in ipairs(Moodles.DEFS) do
@@ -138,7 +163,12 @@ local function standIns()
         panel:addToUIManager()
         panel:backMost()
     end
-    if panel then panel:setVisible(any) end
+    if panel then
+        panel:setVisible(any)
+        panel.rev = (panel.rev or 0) + 1
+        -- followed each frame while it shows (a hidden panel was let go)
+        if any then UI.live(panel, Panel.place) end
+    end
 end
 
 -- ---- setting a level -------------------------------------------------------------------------------------------

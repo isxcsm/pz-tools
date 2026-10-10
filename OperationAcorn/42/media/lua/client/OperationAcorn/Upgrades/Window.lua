@@ -19,7 +19,9 @@
 -- and a red seal is pressed on them for a moment (Plan.stamp has the timing; the tab's own render draws it, so it costs
 -- nothing when the tab is closed).
 -- What a frame does: the states of the nodes and lines are worked out when the record or the selection changes
--- (refresh); a frame only paints them, with the pulse and the dashes from the clock.
+-- (refresh); a frame only paints them, with the pulse and the dashes from the clock. The body paints the tab's state,
+-- which is kept on the tab and not on the body: each change of it is written to the body as well (View:changed), and
+-- the stamp is followed each frame (Trade/UI live), so that PZ Optimization's retained UI draws them at once.
 require "ISUI/ISPanelJoypad"
 require "ISUI/ISPanel"
 require "ISUI/ISModalDialog" -- oa-widget: ok (the gamepad's confirm, View:ask)
@@ -541,8 +543,16 @@ function View:setHover(item)
     local key = (item and not self:asking()) and item.key or nil
     if key ~= self.hover then
         self.hover = key
-        self.tipDirty = true
+        self:changed()
     end
+end
+
+-- What the body shows changed (the nodes, the hover, the cursor, a refusal): the tooltip is made again, and a count
+-- is written to the body, which PZ Optimization watches (the state is the tab's; the body only paints it).
+function View:changed()
+    self.tipDirty = true
+    local body = self.body
+    if body then body.rev = (body.rev or 0) + 1 end
 end
 
 -- ---- state -----------------------------------------------------------------------------------------------------
@@ -570,7 +580,7 @@ function View:refresh()
     end
     self:layout()
     self:workOut()
-    self.tipDirty = true
+    self:changed()
 end
 
 -- What each node and line shows, from the record and the simulation (once a change, not each frame).
@@ -650,7 +660,7 @@ function View:onMode(button)
     self:layout()
     if self.sim then self:workOut() end
     if self.joypad then self.cursor = (self:firstNode() or {}).key or self.cursor end
-    self.tipDirty = true
+    self:changed()
 end
 
 function View:firstNode()
@@ -687,7 +697,7 @@ function View:plan(id, choice)
     local steps, why = Plan.add(self.u, self.steps, id, choice, self.fragments)
     if not steps then
         self.refusal = { id = id, why = why }
-        self.tipDirty = true
+        self:changed()
         return
     end
     self.refusal = nil
@@ -1431,6 +1441,18 @@ function View:startStamp()
     end
     local order = Plan.stampOrder(approved.steps, shown)
     self.stamp = { order = order, start = getTimestampMs(), lit = 0, pressed = false }
+    -- every frame while it plays (Trade/UI live): the seal holds still, then fades on time with PZ Optimization too
+    if self.body then UI.live(self.body, View.stampTick) end
+end
+
+-- Each frame of a stamp, for the body: what it shows (Plan.stampLook), nil once it is over (the stamp goes).
+function View.stampTick(body, now)
+    local view = body.view
+    local stamp = view.stamp
+    if not stamp then return nil end
+    local look = Plan.stampLook(#stamp.order, now - stamp.start)
+    if look == nil then view.stamp = nil end
+    return look
 end
 
 -- The red seal (the 2반's `[직인 ORDWAY]`) over the middle of the trees, `age` ms after it was pressed: it lands from a
@@ -1521,13 +1543,14 @@ function View:onGainJoypadFocus(joypadData)
     ISPanelJoypad.onGainJoypadFocus(self, joypadData)
     self.joypad = true
     if not self.cursor then self.cursor = (self:firstNode() or {}).key end
-    self.tipDirty = true
+    self:changed()
 end
 
 function View:onLoseJoypadFocus(joypadData)
     ISPanelJoypad.onLoseJoypadFocus(self, joypadData)
     self.joypad = false
     self:hideTip()
+    self:changed()
 end
 
 -- The nearest item (a node or a button) in a direction from the cursor: dx, dy are -1, 0 or 1.
@@ -1535,6 +1558,7 @@ function View:step(dx, dy)
     local from = self.cursor and self:itemOf(self.cursor)
     if not from then
         self.cursor = (self:firstNode() or {}).key
+        self:changed()
         return
     end
     local fx, fy = from.x + from.w / 2, from.y + from.h / 2
@@ -1552,7 +1576,7 @@ function View:step(dx, dy)
     end
     if best then
         self.cursor = best.key
-        self.tipDirty = true
+        self:changed()
     end
 end
 

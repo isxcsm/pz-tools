@@ -5,13 +5,17 @@
 -- takes every click in the world, consuming events or not); a client option turns it off. A ringing in the ears sounds
 -- once at the start, on the same option: the game has no tinnitus sound, so the steady test tone of its television
 -- (`TelevisionTestBeep`, Object/Television/TestTone, which the game loops when a set has no signal) is played low and
--- faded out by the overlay's own drawing, which stops it.
+-- faded out by the overlay's frame, which stops it. The frame (Trade/UI live) runs every frame before the UI draws, so
+-- with PZ Optimization the ringing still steps smoothly, the glow falls on time after holding still, and the overlay
+-- goes when its last run is over; the drawing only paints.
 require "ISUI/ISPanel"
 require "OperationAcorn/Core"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Story/Glow"
 require "OperationAcorn/Client"
+require "OperationAcorn/Trade/UI"
 local OA = OperationAcorn
+local UI = OA.Trade.UI
 local Hallucination = {}
 OA.Hallucination = Hallucination
 
@@ -78,28 +82,54 @@ function ISOAHallucination:ring(run, t)
     ring.emitter:setVolume(ring.id, volume * Hallucination.RING_VOLUME)
 end
 
-function ISOAHallucination:prerender()
-    local now = getTimestampMs()
-    local alive = {}
-    for _, run in ipairs(self.runs) do
+-- The brightness of a run's faint light on every edge and of its light on the site's edge at `t` ms.
+local function levels(run, t)
+    local base = OA.Glow.envelope(t, run.total)
+    local site = run.edge and OA.Glow.envelope(t, run.total * 1.5) or 0
+    return base, site
+end
+
+-- Each frame, before the UI draws: the ringing of every run, the runs that are over let go, and the overlay taken off
+-- with the last one (nil then). Gives the sum of the runs' brightnesses: it changes exactly when the drawing does (it
+-- holds still while every glow holds, and moves again when one falls).
+function ISOAHallucination:tick(now)
+    local runs = self.runs
+    local look, n = 0, 0
+    for i = 1, #runs do
+        local run = runs[i]
         local t = now - run.start
-        local base = OA.Glow.envelope(t, run.total)
-        local site = run.edge and OA.Glow.envelope(t, run.total * 1.5) or 0
         self:ring(run, t)
         if t < run.total * 1.5 then
-            alive[#alive + 1] = run
+            n = n + 1
+            runs[n] = run
+            local base, site = levels(run, t)
+            look = look + base + site
+        end
+    end
+    for i = #runs, n + 1, -1 do runs[i] = nil end
+    if n == 0 then
+        self:removeFromUIManager()
+        if Hallucination.overlays[self.playerNum] == self then Hallucination.overlays[self.playerNum] = nil end
+        return nil
+    end
+    return look
+end
+
+local EDGES = { "left", "right", "top", "bottom" }
+
+function ISOAHallucination:prerender()
+    local now = getTimestampMs()
+    for _, run in ipairs(self.runs) do
+        local t = now - run.start
+        if t < run.total * 1.5 then
+            local base, site = levels(run, t)
             -- A faint light on all four edges, and the stronger one where the site is.
-            for _, e in ipairs({ "left", "right", "top", "bottom" }) do
+            for _, e in ipairs(EDGES) do
                 local s = base * 0.35
                 if e == run.edge then s = math.max(s, site) end
                 self:glow(e, s)
             end
         end
-    end
-    self.runs = alive
-    if #alive == 0 then
-        self:removeFromUIManager()
-        Hallucination.overlays[self.playerNum] = nil
     end
 end
 
@@ -121,6 +151,7 @@ function Hallucination.start(playerNum, detail)
         ui = ISOAHallucination:new(playerNum)
         ui:addToUIManager()
         Hallucination.overlays[playerNum] = ui
+        UI.live(ui, ISOAHallucination.tick)
     end
     local run = {
         start = getTimestampMs(),

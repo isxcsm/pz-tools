@@ -140,3 +140,59 @@ test("while the tab's question is on the screen nothing is hovered and the toolt
     eq(rawget(view, "hover"), "reset", "hovered again once the question is gone")
     eq(rawget(view, "question"), nil, "forgotten")
 end)
+
+-- ---- with PZ Optimization's retained UI (Trade/UI live) ------------------------------------------------------------
+
+test("what the body paints is the tab's: each change of it is written to the body, which PZ Optimization watches", function()
+    local view = laidOut("trees")
+    -- (the stand-in class answers a name the view has not set with a function)
+    view.body, view.cursor, view.sim = {}, false, false
+    view.asking = function() return false end
+    view.reachable = function() return true end
+    View.setHover(view, view.byKey.approve)
+    eq(view.body.rev, 1, "a hover")
+    View.setHover(view, view.byKey.approve)
+    eq(view.body.rev, 1, "the same hover: nothing")
+    view.joypad = true
+    View.step(view, 1, 0)
+    eq(view.body.rev, 2, "the gamepad's cursor placed")
+    View.step(view, 1, 0)
+    eq(view.body.rev, 3, "and moved")
+    View.onMode(view, { internal = "board" })
+    eq(view.body.rev, 4, "the mode")
+    eq(view.tipDirty, true, "the tooltip is made again too")
+end)
+
+test("the approval stamp is followed each frame before the UI draws: the seal holds still, then fades on time", function()
+    local Plan = OA.Upgrades.Plan
+    local UI = OA.Trade.UI
+    local view = laidOut("trees")
+    local body = { view = view, isVisible = function() return true end }
+    view.body, view.sim = body, {}
+    view.getIsVisible = function() return true end
+    local now = 7000000
+    getTimestampMs = function() return now end
+    local ids = {}
+    for _, item in ipairs(view.items) do
+        if item.id and #ids < 2 then ids[#ids + 1] = { id = item.id } end
+    end
+    view.approved = { steps = ids, at = now }
+    View.startStamp(view)
+    local start = now
+    UI.liveFrame()
+    eq(body.liveLook, 0, "the first node lights")
+    now = start + 300
+    UI.liveFrame()
+    eq(body.liveLook, 300, "the nodes flash: every frame")
+    local hold = Plan.sealAt(2) + Plan.SEAL_MS - Plan.SEAL_FADE_MS
+    now = start + hold - 1
+    UI.liveFrame()
+    eq(body.liveLook, -1, "the seal holds still")
+    now = start + hold + 10
+    UI.liveFrame()
+    eq(body.liveLook, hold + 10, "its fade starts on time")
+    now = start + Plan.stampEnd(2)
+    UI.liveFrame()
+    eq(body.liveLook, nil, "over: let go")
+    eq(rawget(view, "stamp"), nil, "and the stamp gone, with no frame drawn")
+end)

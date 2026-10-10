@@ -113,4 +113,15 @@ function Plan.stamp(n, t)
     return { lit = lit, sealAge = sealAge, over = t >= Plan.stampEnd(n) }
 end
 
+-- What the stamp of n nodes shows at `t` ms, as a number that changes exactly when its drawing does (the tab is drawn
+-- afresh on it with PZ Optimization): `t` while a node's flash, the seal's press or its fade moves, -1 while the
+-- pressed seal holds still, nil once the stamp is over.
+function Plan.stampLook(n, t)
+    if t >= Plan.stampEnd(n) then return nil end
+    local sealAt = Plan.sealAt(n)
+    local still = math.max(sealAt + Plan.SEAL_PRESS_MS, (n - 1) * Plan.stampStep(n) + Plan.STAMP_FLASH_MS)
+    if t >= still and t < sealAt + Plan.SEAL_MS - Plan.SEAL_FADE_MS then return -1 end
+    return t
+end
+
 return Plan

@@ -61,7 +61,9 @@ UI.scaled(OATab, ISPanel)
 -- The strip of the four tabs under the title bar: the crude terminal's are outlined green boxes, the field
 -- terminal's sit on an olive band with an amber line over the chosen one. A dot by a name is something not seen yet
 -- (amber, pulsing until the tab is looked at) or a state to deal with (red); a tab that has something new to look at
--- also blinks (OATerminalWindow:blinkTab) until it is shown.
+-- also blinks (OATerminalWindow:blinkTab) until it is shown. What it shows is the window's (the tab on show, the dots,
+-- the blinks): each change of it is written to the strip too (OATerminalWindow:tabsChanged), which PZ Optimization
+-- watches, so the strip is drawn afresh at once.
 OATerminalTabs = ISPanel:derive("OATerminalTabs")
 
 function OATerminalTabs:new(x, y, width, height, window)
@@ -253,13 +255,23 @@ function OATerminalWindow:view(id)
     return view
 end
 
+-- The tab on show, a dot or a blink changed: a count written to the strip (see OATerminalTabs).
+function OATerminalWindow:tabsChanged()
+    local strip = self.strip
+    if strip then strip.rev = (strip.rev or 0) + 1 end
+end
+
 function OATerminalWindow:activate(id)
-    self.blink[id] = nil
+    if self.blink[id] then
+        self.blink[id] = nil
+        self:tabsChanged()
+    end
     if self.activeId == id and self.views[id] then return end
     for vid, view in pairs(self.views) do
         if vid ~= id then view:setVisible(false) end
     end
     self.activeId = id
+    self:tabsChanged()
     local view = self:view(id)
     view:setVisible(true)
     self:refresh()
@@ -269,7 +281,10 @@ end
 -- way to draw attention to a tab: the dots call it when a tab's mark turns new, a part may call it for its own news
 -- (the field terminal's first open).
 function OATerminalWindow:blinkTab(id)
-    if id ~= self.activeId then self.blink[id] = true end
+    if id ~= self.activeId and not self.blink[id] then
+        self.blink[id] = true
+        self:tabsChanged()
+    end
 end
 
 -- Which screen of a tab with sub-tabs is on show (nil for a tab without, or not made yet).
@@ -289,11 +304,14 @@ end
 -- (the first time too: what was new when the window opened).
 function OATerminalWindow:updateMarks(record)
     local marks = {}
+    local changed = false
     for _, id in ipairs(Terminal.ORDER) do
         marks[id] = Terminal.mark(id, record)
+        if marks[id] ~= self.marks[id] then changed = true end
         if marks[id] == "new" and self.marks[id] ~= "new" then self:blinkTab(id) end
     end
     self.marks = marks
+    if changed then self:tabsChanged() end
 end
 
 -- The tab on show has been looked at: what its dot waits for is kept as seen (each value is sent once; the record
