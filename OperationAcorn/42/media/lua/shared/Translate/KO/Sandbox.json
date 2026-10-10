@@ -5,6 +5,8 @@
     "Sandbox_OperationAcornUpgrades": "도토리 작전: 강화",
     "Sandbox_OperationAcorn_HiddenZombieFix": "가려진 좀비 수정",
     "Sandbox_OperationAcorn_HiddenZombieFix_tooltip": "보이는 곳에 서 있는데도 화면에 그려지지 않는 좀비를 보이게 하고, 그 좀비도 플레이어를 볼 수 있게 합니다. PZ Tools가 필요합니다. Zombie Visibility Fix 모드가 켜져 있으면 작동하지 않습니다. 기본값: 켬.",
+    "Sandbox_OperationAcorn_Monologue": "혼잣말",
+    "Sandbox_OperationAcorn_Monologue_tooltip": "치료, 검사, 임무 장소 도착 같은 때에 캐릭터가 머리 위로 짧게 혼잣말을 합니다. 기본값: 켬.",
     "Sandbox_OperationAcorn_CreditMultiplier": "크레딧 환산 배율",
     "Sandbox_OperationAcorn_CreditMultiplier_tooltip": "납품으로 받는 크레딧의 배율입니다.",
     "Sandbox_OperationAcorn_TrustThresholdMultiplier": "단계별 필요 신뢰도",

@@ -6,6 +6,12 @@ option OperationAcorn.HiddenZombieFix
     page = OperationAcorn, translation = OperationAcorn_HiddenZombieFix,
 }
 
+option OperationAcorn.Monologue
+{
+    type = boolean, default = true,
+    page = OperationAcorn, translation = OperationAcorn_Monologue,
+}
+
 option OperationAcorn.CreditMultiplier
 {
     type = double, min = 0.1, max = 10.0, default = 1.0,
