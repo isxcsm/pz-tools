@@ -522,8 +522,14 @@ function Changes.syncAttached(panel)
         data.attached = data.attached or {}
         local found = {}
         if #spaces > 0 then
-            for _, device in ipairs(Panels.devices(panel, utility)) do
-                if device.attached then found[device.key] = true end
+            -- From the built-on rooms' objects alone, as a rule; the building's devices for an object with a part
+            -- elsewhere (Panels.attachedKeys).
+            found = Panels.attachedKeys(panel, utility, building)
+            if not found then
+                found = {}
+                for _, device in ipairs(Panels.devices(panel, utility)) do
+                    if device.attached then found[device.key] = true end
+                end
             end
         end
         for key in pairs(found) do

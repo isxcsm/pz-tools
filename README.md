@@ -50,7 +50,10 @@ strip marks floors with producers.
 - `BuildingUtilities/`: the mod (`42/media/lua/{shared,client,server}/BuildingUtilities`, scripts, sandbox options,
   translations in EN and KO).
 - `tests/ingame/`: checks run from the game's debug console ([README](tests/ingame/README.md)).
-- `tools/`: `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room
+- `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Tools API stubbed (`harness.lua`). From the
+  repository root: `java -cp <ProjectZomboid>/projectzomboid.jar tools/LuaTest.java [file name filter]` (a JDK, not the
+  game's runtime).
+- `tools/`: `LuaTest.java` (runs `tests/unit`), `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room
   names of the game's maps against the translations), `tile_art.py` (the mod's own sprite sheet: water units, the utility panel console and snow on panels).
 
 The solar panel and battery rack art comes from Immersive Solar Arrays (Apache-2.0); see
