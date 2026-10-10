@@ -514,10 +514,21 @@ function UI.buttonHeight()
     return UI.fontHeight(UIFont.Small) + 10
 end
 
+-- Spaces at a text's end are measured as UI.spaceWidth each: they are not seen, they only place what comes after (a
+-- label's value, the next part of a line), and the font's own space is narrower than the layout's scale at the larger
+-- sizes ("합계 " then the sum came out as one word). Only a text that ends in a space pays for the look.
+local function trailingMore(text, font)
+    if string.byte(text, -1) ~= 32 then return 0 end
+    local trail = #string.match(text, " *$")
+    if trail == #text then return 0 end
+    return trail * math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
+end
+
 function UI.textWidth(text, font)
     local w = Faces.measure(faceOf(font), text)
-    if S == 1 then return w end
-    return w / S
+    if S ~= 1 then w = w / S end
+    if text and text ~= "" then w = w + trailingMore(text, font) end
+    return w
 end
 
 -- A space between two parts drawn apart (a label and its value), in design units: the font's space, or a quarter of
@@ -540,18 +551,17 @@ function UI.spaceWidth(font)
     return spaces[font or UIFont.Small][2]
 end
 
--- For a text drawn as one part of a line (a label, then its value in another colour): what its spaces at the ends add
--- to its width to make each UI.spaceWidth, the first of those before it. The font's space is narrower than the
--- layout's scale at the larger font sizes (4 pixels in the 26-pixel Korean font). The text is drawn whole, its spaces
--- with it: a text is measured to the end of its last letter's image, so one cut before its spaces would measure short
--- of where that letter moves the next.
+-- For a text drawn as one part of a line (a label, then its value in another colour): what its spaces at the start add
+-- to make each UI.spaceWidth, as the shift to draw it at and as what its width gains (the spaces at its end are in
+-- UI.textWidth already). The text is drawn whole, its spaces with it: a text is measured to the end of its last
+-- letter's image, so one cut before its spaces would measure short of where that letter moves the next.
 function UI.spaceGaps(text, font)
     text = text or ""
-    local lead, trail = #string.match(text, "^ *"), #string.match(text, " *$")
-    if lead == #text then trail = 0 end
-    if lead + trail == 0 then return 0, 0 end
-    local more = math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
-    return lead * more, (lead + trail) * more
+    if string.byte(text, 1) ~= 32 then return 0, 0 end
+    local lead = #string.match(text, "^ *")
+    if lead == #text then return 0, 0 end
+    local more = lead * math.max(0, UI.spaceWidth(font) - UI.fontSpace(font))
+    return more, more
 end
 
 -- A text broken into lines no wider than `width` (design units) at its spaces, and at its line ends ("\n"). A word
