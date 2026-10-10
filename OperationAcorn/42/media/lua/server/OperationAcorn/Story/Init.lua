@@ -91,6 +91,36 @@ OA.Server.on("story_choose", function(character, record, args)
     Missions.choose(record, args.option)
 end)
 
+-- A command from a terminal window: the terminal it was made at must be near and powered (the trade part's own check);
+-- `fieldOnly` also wants it to be a field terminal. False, with the reason told to the player, when it is not.
+local function atTerminal(character, record, args, fieldOnly)
+    local Trade = OA.Trade
+    local handlers, objects = Trade and Trade.Handlers, Trade and Trade.Objects
+    if not (handlers and objects) then return true end
+    local object, why = handlers.terminalFor(character, args)
+    if not object then
+        OA.Sync.notice(record.id, "IGUI_OA_Trade_Reason_" .. tostring(why))
+        return false
+    end
+    if fieldOnly and not objects.isUpgraded(object) then
+        OA.Sync.notice(record.id, "IGUI_OA_Trade_Reason_fieldOnly")
+        return false
+    end
+    return true
+end
+
+-- The card's 'take another': once a week, for some trust.
+OA.Server.on("story_reroll", function(character, record, args)
+    if not atTerminal(character, record, args) then return end
+    if not Missions.reroll(record) then OA.Sync.notice(record.id, "IGUI_OA_Story_RerollFail", {}) end
+end)
+
+-- One of the two special requests taken (at a field terminal).
+OA.Server.on("story_special", function(character, record, args)
+    if not atTerminal(character, record, args, true) then return end
+    if not Missions.acceptSpecial(record, args.option) then OA.Sync.notice(record.id, "IGUI_OA_Story_SpecialFail", {}) end
+end)
+
 OA.Server.on("story_swap", function(character, record, args)
     if not Missions.swap(record, character) then OA.Sync.notice(record.id, "IGUI_OA_Story_SwapFail", {}) end
 end)

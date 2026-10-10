@@ -58,6 +58,17 @@ function Game.buildingExists(x, y, z)
     return ok and def ~= nil
 end
 
+-- The zombie density of the map at a square (DESIGN-terminal 7.2): the metagrid's chunk there, as the game's own spawning
+-- reads it (it follows the zombie count option). nil when the square is off the map or the game cannot say.
+function Game.zombieIntensity(x, y)
+    local ok, value = pcall(function()
+        local chunk = getWorld():getMetaGrid():getChunkDataFromTile(x, y)
+        return chunk and chunk:getZombieIntensity(false) or nil
+    end)
+    if ok and type(value) == "number" then return value end
+    return nil
+end
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- Characters.
 
@@ -193,10 +204,11 @@ local seen = {}
 
 local function findPiece(missionId, key)
     for _, record in pairs(OA.Store.players()) do
-        local m = record.missions and record.missions.active
-        if m and m.id == missionId then
-            for _, it in ipairs(m.items) do
-                if it.key == key then return record, m, it end
+        for _, m in ipairs(Missions.live(record)) do
+            if m.id == missionId then
+                for _, it in ipairs(m.items) do
+                    if it.key == key then return record, m, it end
+                end
             end
         end
     end
@@ -458,8 +470,7 @@ end
 function Game.rebuildWaiting()
     waiting = {}
     for _, record in pairs(OA.Store.players()) do
-        local m = record.missions and record.missions.active
-        if m then
+        for _, m in ipairs(Missions.live(record)) do
             for _, it in ipairs(m.items) do
                 if not it.placed and it.mode == "container" then waiting[#waiting + 1] = { mission = m.id, key = it.key } end
             end

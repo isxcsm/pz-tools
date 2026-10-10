@@ -99,9 +99,10 @@ function Tabs.openDocument(window, key)
     if view and view.showDocument then view:showDocument(key) end
 end
 
--- 'Show on the map': the world map fitted to the character and the mission's area (Story/Maps).
-function Tabs.showOnMap(character)
-    OA.StoryMaps.show(character)
+-- 'Show on the map': the world map fitted to the character and the mission's area (Story/Maps); `which` "special" for
+-- the special request's.
+function Tabs.showOnMap(character, which)
+    OA.StoryMaps.show(character, which)
 end
 
 -- The sub-tab on show in the character's open window (the tab's `seen` needs it: the mission is seen on its own screen).

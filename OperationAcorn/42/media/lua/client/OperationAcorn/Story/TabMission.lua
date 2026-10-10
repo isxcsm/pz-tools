@@ -1,8 +1,8 @@
 -- The missions tab's mission screen (DESIGN-terminal 6.1, 6.2): the mission card, a card of its own under a colour band
 -- (the colour is the map's: teal for the regular and contract missions, sky blue for the story's), with what is
--- asked, where from here, until when and what it pays; and under it the special request's slot, a locked board at
--- the crude terminal. Everything is worked out when the record changes or the player has walked (`refresh`); the
--- frames only draw it (`prerender`).
+-- asked, where from here, until when and what it pays; and under it the special request's slot: a locked board at
+-- the crude terminal, at the field terminal the two requests offered (one to choose), or the one taken. Everything is
+-- worked out when the record changes or the player has walked (`refresh`); the frames only draw it (`prerender`).
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Story/Button"
 require "OperationAcorn/Story/Data"
@@ -124,12 +124,22 @@ function OATabMission:createChildren()
         self.optionButtons[option] = b
     end
     self.shopButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowInShop"), p, self, OATabMission.onShop)
-    for _, b in ipairs({ self.mapButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton }) do
+    self.acceptButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_SpecialAccept"), p, self,
+        OATabMission.onAccept, "strong")
+    self.specialMapButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowMap"), p, self,
+        OATabMission.onSpecialMap, "strong")
+    for _, b in ipairs(self:buttons()) do
         b:initialise()
         b:instantiate()
         b:setVisible(false)
         self:addChild(b)
     end
+end
+
+-- Every button of the screen (layout shows the ones the screen needs).
+function OATabMission:buttons()
+    return { self.mapButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton,
+        self.acceptButton, self.specialMapButton }
 end
 
 function OATabMission:onMap()
@@ -147,6 +157,32 @@ end
 
 function OATabMission:onShop()
     self.window:showShopEntry("field_terminal")
+end
+
+-- The special request: the one picked of the two is taken; its area on the map.
+function OATabMission:onAccept()
+    self:send("story_special", { option = self.pick or "a" })
+end
+
+function OATabMission:onSpecialMap()
+    local special = self.info and self.info.special
+    if special and special.state == "mission" and special.mission.area then
+        OA.StoryTabs.showOnMap(self:character(), "special")
+    end
+end
+
+-- A click on the screen itself: the radio cells of the two offered requests, and the link to the request's copy.
+function OATabMission:onMouseDown(x, y)
+    local special = self.special
+    local function inside(r) return r and x >= r.x and x < r.x + r.w and y >= r.y and y < r.y + r.h end
+    if special and special.kind == "offer" and special.cells then
+        for _, key in ipairs({ "a", "b" }) do
+            if inside(special.cells[key]) then self.pick = key end
+        end
+    elseif special and special.kind == "mission" and special.link and inside(special.linkRect) then
+        OA.StoryTabs.openDocument(self.window, special.link.key)
+    end
+    return true
 end
 
 -- What the screen shows -------------------------------------------------------------------------------------------
@@ -194,6 +230,11 @@ function OATabMission:buildCard(record, info)
     if info.item and info.state ~= "offer" then
         card.item = { tex = itemTexture(info.item),
             runs = join(plain("dim", getText("IGUI_OA_Story_UI_ItemLabel") .. " "), plain("text", getItemNameFromFullType(Data.fullType(info.item)))) }
+        -- scattered pieces: "시료 깡통 3곳 중 1곳 회수"
+        if info.scatter then
+            card.item.runs = join(card.item.runs, plain("text", " "),
+                runsOf("text", "IGUI_OA_Story_UI_ScatterCount", info.scatter.total, info.scatter.found))
+        end
         measure(card.item.runs, p)
     end
     -- The conditions at the place, as the card has always told them.
@@ -206,6 +247,8 @@ function OATabMission:buildCard(record, info)
         line(getText("IGUI_OA_Story_UI_Cooler", string.format("%.1f", info.cooler.temp)))
     end
     if info.compare then line(getText("IGUI_OA_Story_UI_Compare", tostring(info.compare))) end
+    if info.heavy then line(getText("IGUI_OA_Story_UI_Heavy", info.heavy)) end
+    if info.scatter then line(getText("IGUI_OA_Story_UI_Scatter", math.floor(Rewards.SCATTER_BONUS * 100 + 0.5))) end
     if info.stakeNo then line(getText("IGUI_OA_Story_UI_Stake", tostring(info.stakeNo))) end
     -- Where: one circle, or two for the comparison.
     card.where = {}
@@ -268,12 +311,80 @@ function OATabMission:buildEmpty(record, info)
     return { empty = true, head = getText("IGUI_OA_Story_UI_NoMission"), sub = measure(sub, p) }
 end
 
--- The special request's slot: the locked board at the crude terminal, the empty slot at the field terminal (the
--- special request's own screens are the special-request unit's).
+-- The reward line of a special request: "보상 70,000 크레딧 · 신뢰도 200 · 기한 14일" (an offer, with the days), and the
+-- danger pay when there is one.
+local function specialReward(o, p, withDays)
+    local runs
+    if withDays then
+        runs = runsOf("text", "IGUI_OA_Story_UI_SpecialReward", Text.credits(o.credits), o.trust or 0, o.days or Rewards.SPECIAL_DAYS)
+    else
+        runs = runsOf("text", "IGUI_OA_Story_UI_Reward", Text.credits(o.credits), o.trust or 0)
+    end
+    for _, run in ipairs(runs) do
+        if run.num then run.kind = "value" end
+    end
+    local danger = o.danger and math.floor(o.danger * 100 + 0.5) or 0
+    if danger > 0 then
+        runs = join(runs, plain("dim", getText("IGUI_OA_Story_UI_Dot")), runsOf("warn", "IGUI_OA_Story_UI_Danger", danger))
+    end
+    return measure(runs, p)
+end
+
+-- The special request's slot: the locked board at the crude terminal; at the field terminal nothing yet, the next
+-- offer's time, the two requests offered, or the one taken.
 function OATabMission:buildSpecial(record, info)
     local p = self:palette()
+    local c = self:character()
+    local px, py = c:getX(), c:getY()
     local special = { head = getText("IGUI_OA_Story_UI_Special") }
-    if self.window.tier ~= "field" then
+    local slot = info.special
+    if self.window.tier == "field" and slot and slot.state == "wait" then
+        special.kind = "wait"
+        special.runs = measure(timeRuns("dim", "IGUI_OA_Story_UI_SpecialNextIn", "IGUI_OA_Story_UI_SpecialNextInHours",
+            slot.nextIn or 0), p)
+    elseif self.window.tier == "field" and slot and slot.state == "offer" then
+        special.kind = "offer"
+        special.hint = getText("IGUI_OA_Story_UI_SpecialPick")
+        special.options = {}
+        for _, key in ipairs({ "a", "b" }) do
+            local o = slot.options[key]
+            special.options[key] = {
+                title = getText("IGUI_OA_Story_SpecialTitle_" .. o.id),
+                form = getText("IGUI_OA_Story_UI_SpecialForm_" .. o.form),
+                where = Places.whereText(px, py, o.area.x, o.area.y),
+                reward = specialReward(o, p, true),
+            }
+        end
+        -- the first is chosen to begin with; a new offer starts again
+        if self.pickSeq ~= slot.seq or not special.options[self.pick or ""] then self.pick, self.pickSeq = "a", slot.seq end
+    elseif self.window.tier == "field" and slot and slot.state == "mission" then
+        local m = slot.mission
+        special.kind = "mission"
+        special.title = getText("IGUI_OA_Story_SpecialTitle_" .. m.title)
+        special.form = getText("IGUI_OA_Story_UI_SpecialForm_" .. m.form)
+        if m.state == "sealed" then
+            special.right = plain("text", getText("IGUI_OA_Story_UI_Sealed"))
+        elseif m.state == "calling" then
+            special.right = plain("text", getText("IGUI_OA_Story_UI_Calling"))
+        else
+            special.right = timeRuns("text", "IGUI_OA_Story_UI_Left", "IGUI_OA_Story_UI_LeftHours", m.left or 0)
+        end
+        measure(special.right, p)
+        special.lines = {}
+        if m.swap then special.lines[#special.lines + 1] = getText("IGUI_OA_Story_UI_Swap_" .. m.swap) end
+        if m.field then special.lines[#special.lines + 1] = getText("IGUI_OA_Story_UI_Field_" .. m.field) end
+        if m.form == "fetch" and m.state == "open" then
+            special.lines[#special.lines + 1] = getText("IGUI_OA_Story_UI_Fetch")
+        end
+        if m.area and m.state ~= "sealed" then
+            special.where = { label = getText("IGUI_OA_Story_UI_Where") .. " ", text = whereText(px, py, m.area) }
+        end
+        if m.request then
+            special.link = { key = "r:" .. m.request, text = getText("IGUI_OA_Story_UI_SpecialCopy") }
+        end
+        special.reward = specialReward(m, p)
+        special.hasArea = m.area ~= nil and m.state ~= "sealed"
+    elseif self.window.tier ~= "field" then
         special.locked = true
         special.tag = getText("IGUI_OA_Story_UI_SpecialLocked")
         special.text = getText("IGUI_OA_Story_UI_SpecialLockedText")
@@ -320,7 +431,7 @@ function OATabMission:layout()
     self.small = h < OATabMission.SMALL_BELOW
     self.cardH = self.small and OATabMission.CARD_H_SMALL or OATabMission.CARD_H
     local cardH = self.cardH
-    for _, b in ipairs({ self.mapButton, self.rerollButton, self.optionButtons.a, self.optionButtons.b, self.shopButton }) do
+    for _, b in ipairs(self:buttons()) do
         b:setVisible(false)
     end
     if card and not card.empty then
@@ -373,7 +484,39 @@ function OATabMission:layout()
     local sh = h - sy
     self.slot = { y = sy, h = sh }
     local special = self.special
-    if special and special.locked then
+    local fh = UI.fontHeight()
+    if special and special.kind == "offer" then
+        local b = self.acceptButton
+        b:setX(w - 12 - b.width)
+        b:setY(sy + sh - b.height - 4)
+        b:setVisible(true)
+        special.hintFit = UI.fit(special.hint, w - 24 - UI.textWidth(special.head) - 12)
+        -- two cells side by side: a radio, the title, the form (dim) and the place
+        local cw = math.floor((w - 36) / 2)
+        special.cells = {}
+        for i, key in ipairs({ "a", "b" }) do
+            special.cells[key] = { x = 12 + (i - 1) * (cw + 12), y = sy + 26, w = cw, h = 3 * fh + 10 }
+            local o = special.options[key]
+            o.titleFit = UI.fit(o.title, cw - 32)
+            o.formFit = UI.fit(o.form, cw - 32)
+            o.whereFit = UI.fit(o.where, cw - 32)
+        end
+    elseif special and special.kind == "mission" then
+        local b = self.specialMapButton
+        b:setX(w - 12 - b.width)
+        b:setY(sy + sh - b.height - 4)
+        b:setVisible(true)
+        b.enable = special.hasArea
+        local mh = UI.fontHeight(UIFont.Medium)
+        special.titleFit = UI.fit(special.title, w - 24 - special.right.w - UI.textWidth(special.head) - 24, UIFont.Medium)
+        special.mh = mh
+        special.formFit = UI.fit(special.form, w - 24)
+        special.lineFits = {}
+        for i, text in ipairs(special.lines) do special.lineFits[i] = UI.fit(text, w - 24) end
+        if special.where then special.where.labelW = UI.textWidth(special.where.label) end
+        if special.where then special.where.fit = UI.fit(special.where.text, w - 24 - special.where.labelW) end
+        if special.link then special.link.w = UI.textWidth(special.link.text) end
+    elseif special and special.locked then
         local b = self.shopButton
         b:setX(w - 12 - b.width)
         b:setY(sy + sh - b.height - 4)
@@ -472,10 +615,78 @@ function OATabMission:drawSpecial(p)
             yy = yy + fh
         end
         drawRuns(self, 12, y0 + h - 26, special.cost, p)
+    elseif special.kind == "offer" then
+        self:drawOffer(p, special, y0, h)
+    elseif special.kind == "mission" then
+        self:drawMission(p, special, y0, h)
+    elseif special.kind == "wait" then
+        UI.text(self, special.head, 12, y0 + 6, p.head)
+        drawRuns(self, 12, y0 + 26, special.runs, p)
     else
         UI.text(self, special.head, 12, y0 + 6, p.head)
         UI.text(self, special.text, 12, y0 + 26, p.dim)
     end
+end
+
+-- A disc of radius r from rows of rectangles (the radio buttons).
+local function disc(el, cx, cy, r, c, a)
+    for dy = -r, r do
+        local half = math.floor(math.sqrt(r * r + 0.5 - dy * dy))
+        UI.fill(el, cx - half, cy + dy, 2 * half + 1, 1, c, a)
+    end
+end
+
+-- The two requests offered: a radio cell each, the picked one framed, and its reward under them.
+function OATabMission:drawOffer(p, special, y0, h)
+    local w = self.width
+    local fh = UI.fontHeight()
+    UI.text(self, special.head, 12, y0 + 6, p.head)
+    UI.text(self, special.hintFit, w - 12 - UI.textWidth(special.hintFit), y0 + 6, p.dim)
+    for _, key in ipairs({ "a", "b" }) do
+        local cell, o = special.cells[key], special.options[key]
+        local on = self.pick == key
+        if on then UI.fill(self, cell.x, cell.y, cell.w, cell.h, p.sel, 0.12) end
+        UI.frame(self, cell.x, cell.y, cell.w, cell.h, on and p.sel or p.border, on and 0.9 or 1)
+        disc(self, cell.x + 11, cell.y + 3 + math.floor(fh / 2), 5, on and p.sel or p.dim)
+        disc(self, cell.x + 11, cell.y + 3 + math.floor(fh / 2), 3, p.dark)
+        if on then disc(self, cell.x + 11, cell.y + 3 + math.floor(fh / 2), 2, p.sel) end
+        UI.text(self, o.titleFit, cell.x + 24, cell.y + 3, p.bright)
+        UI.text(self, o.formFit, cell.x + 24, cell.y + 3 + fh, p.dim)
+        UI.text(self, o.whereFit, cell.x + 24, cell.y + 3 + 2 * fh, p.text)
+    end
+    local picked = special.options[self.pick or "a"]
+    if picked then drawRuns(self, 12, y0 + h - 24, picked.reward, p) end
+end
+
+-- The request taken: its title and form, what is asked now, where, the link to the staff's request copy, the reward.
+function OATabMission:drawMission(p, special, y0, h)
+    local w = self.width
+    local fh = UI.fontHeight()
+    UI.text(self, special.head, 12, y0 + 6, p.head)
+    drawRuns(self, w - 12 - special.right.w, y0 + 7, special.right, p)
+    local yy = y0 + 22
+    UI.text(self, special.titleFit, 12, yy, p.bright, UIFont.Medium)
+    yy = yy + special.mh + 1
+    UI.text(self, special.formFit, 12, yy, p.dim)
+    yy = yy + fh + 4
+    local limit = y0 + h - 28
+    for _, text in ipairs(special.lineFits) do
+        if yy + fh <= limit then UI.text(self, text, 12, yy, p.warn) end
+        yy = yy + fh
+    end
+    local where = special.where
+    if where and yy + fh <= limit then
+        UI.text(self, where.label, 12, yy, p.dim)
+        UI.text(self, where.fit, 12 + where.labelW, yy, p.text)
+    end
+    if where then yy = yy + fh + 2 end
+    special.linkRect = nil
+    if special.link and yy + fh <= limit then
+        UI.text(self, special.link.text, 12, yy, p.sel)
+        UI.fill(self, 12, yy + fh - 1, special.link.w, 1, p.sel, 0.6)
+        special.linkRect = { x = 12, y = yy, w = special.link.w, h = fh }
+    end
+    drawRuns(self, 12, y0 + h - 24, special.reward, p)
 end
 
 function OATabMission:prerender()

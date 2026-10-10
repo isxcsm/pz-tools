@@ -284,11 +284,14 @@ function Folder.newGuide(record)
 end
 
 -- The number of the mission on show, which the tab's dot compares with ui.seen.mission (0 when there is none). A new
--- mission has a higher number than any before it.
+-- mission has a higher number than any before it; so has a special request offered (or taken) in the slot beside it.
 function Folder.missionSeq(record)
     local missions = record and record.missions
     local active = missions and missions.active
-    return active and active.seq or 0
+    local special = missions and missions.special
+    local seq = active and active.seq or 0
+    local other = special and ((special.offer and special.offer.seq) or (special.mission and special.mission.seq)) or 0
+    return math.max(seq, other)
 end
 
 -- The dot of the missions tab: amber for a mission not looked at yet or anything new in the folder.

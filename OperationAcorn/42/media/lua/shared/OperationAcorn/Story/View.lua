@@ -36,6 +36,31 @@ function View.shown(record)
     return m
 end
 
+-- The special request running beside it (DESIGN-terminal 6.3), shown on the same terms.
+function View.shownSpecial(record)
+    local m = record and record.missions and record.missions.special and record.missions.special.mission
+    if not m or m.state == "offer" or m.state == "calling" then return nil end
+    return m
+end
+
+-- Every mission whose area is shown: the main one, then the special request.
+function View.shownList(record)
+    local list = {}
+    local main, special = View.shown(record), View.shownSpecial(record)
+    if main then list[#list + 1] = main end
+    if special then list[#list + 1] = special end
+    return list
+end
+
+-- The missions running, shown or not (an item's tooltip tells it is a mission item whatever the mission's state).
+function View.live(record)
+    local list = {}
+    local missions = record and record.missions
+    if missions and missions.active then list[#list + 1] = missions.active end
+    if missions and missions.special and missions.special.mission then list[#list + 1] = missions.special.mission end
+    return list
+end
+
 -- The circles to draw for a mission: { { x =, y =, r =, dim = bool }, ... } (a sealed or finished mission has none).
 function View.circles(m)
     local list = {}
@@ -79,17 +104,21 @@ end
 -- alpha, minPx }. The player stands at (px, py); the dots and the crates are for the world map only (`world`).
 function View.markers(record, px, py, world)
     local list = {}
-    local m = View.shown(record)
-    local circles = View.circles(m)
-    local color = View.color(m and m.kind)
-    for _, c in ipairs(circles) do
-        list[#list + 1] = { kind = "circle", x = math.floor(c.x), y = math.floor(c.y), r = math.floor(c.r), color = color,
-            alpha = c.dim and View.CIRCLE_ALPHA * View.DIM or View.CIRCLE_ALPHA, minPx = View.CIRCLE_MIN_PX }
+    -- The dots lead to the first circle there is: the main mission's, else the special request's.
+    local lead, leadColor
+    for _, m in ipairs(View.shownList(record)) do
+        local circles = View.circles(m)
+        local color = View.color(m.kind)
+        for _, c in ipairs(circles) do
+            list[#list + 1] = { kind = "circle", x = math.floor(c.x), y = math.floor(c.y), r = math.floor(c.r), color = color,
+                alpha = c.dim and View.CIRCLE_ALPHA * View.DIM or View.CIRCLE_ALPHA, minPx = View.CIRCLE_MIN_PX }
+        end
+        if not lead and circles[1] then lead, leadColor = circles[1], color end
     end
     if not world then return list end
     if px and py then
-        for _, d in ipairs(View.dots(px, py, circles[1])) do
-            list[#list + 1] = { kind = "dot", x = d.x, y = d.y, r = d.r, color = color, alpha = View.DOT_ALPHA,
+        for _, d in ipairs(View.dots(px, py, lead)) do
+            list[#list + 1] = { kind = "dot", x = d.x, y = d.y, r = d.r, color = leadColor, alpha = View.DOT_ALPHA,
                 minPx = View.DOT_MIN_PX }
         end
     end
@@ -148,14 +177,30 @@ function View.near(px, py, pz, at)
 end
 
 -- Whether an item's OA_Mission names this mission (the id, or the id and a piece after "#"). A tooltip asks every
--- frame: the prefix is made once for a mission, and nothing is made to compare.
-local prefixOf, prefix = nil, nil
+-- frame, for each mission running: the prefix is made once for a mission, and nothing is made to compare.
+local prefixes, prefixCount = {}, 0
 function View.owns(m, id)
     if not m or type(id) ~= "string" then return false end
     local mine = m.id
     if id == mine then return true end
-    if prefixOf ~= mine then prefixOf, prefix = mine, mine .. "#" end
+    local prefix = prefixes[mine]
+    if not prefix then
+        if prefixCount >= 8 then prefixes, prefixCount = {}, 0 end
+        prefix = mine .. "#"
+        prefixes[mine] = prefix
+        prefixCount = prefixCount + 1
+    end
     return string.find(id, prefix, 1, true) == 1
+end
+
+-- The running mission an item's OA_Mission belongs to (the main one, or the special request), or nil. Nothing is made.
+function View.ownerOf(record, id)
+    local missions = record and record.missions
+    if not missions or type(id) ~= "string" then return nil end
+    if View.owns(missions.active, id) then return missions.active end
+    local special = missions.special and missions.special.mission
+    if View.owns(special, id) then return special end
+    return nil
 end
 
 return View

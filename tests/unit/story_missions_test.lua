@@ -40,6 +40,10 @@ local function setup(stage, milestones)
     local record = OA.Store.ensure("p1", "P")
     record.trade = { stage = stage, milestones = milestones or 0, credits = 0, trust = 0 }
     Story.setAnchor(record, 0, 0, 0)
+    -- The plain pickup only, and never an urgent one: the tests that follow the pay count on it. The mixed kinds and the
+    -- urgent one have their own tests below.
+    OA.StoryData.REGULAR = { { item = "MissionEnvelope", weight = 1 } }
+    OA.Rewards.URGENT_CHANCE = 0
     M.game = fakeGame()
     -- The trade part's pieces, as fakes that record what they are asked.
     OA.Trade = { radio = function(rec, key, args)

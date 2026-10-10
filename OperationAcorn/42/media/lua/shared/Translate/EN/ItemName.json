@@ -77,5 +77,6 @@
     "OperationAcorn.KitEngine": "Engine Tuning Kit",
     "OperationAcorn.DelayDrugLong": "Infection Delay Drug (7 Days)",
     "OperationAcorn.InfectionReversal": "Infection Reversal Drug",
-    "OperationAcorn.InfectionTestKit": "Infection Test Kit"
+    "OperationAcorn.InfectionTestKit": "Infection Test Kit",
+    "OperationAcorn.MissionHeavyCase": "Heavy Sample Case"
 }

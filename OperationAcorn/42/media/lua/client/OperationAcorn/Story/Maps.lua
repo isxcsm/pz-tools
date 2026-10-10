@@ -93,9 +93,11 @@ local function viewOf()
     }
 end
 
--- Opens the world map centred between the character and the circle of its mission, at the zoom that shows both.
-function Maps.show(character)
-    local circle = View.circles(View.shown(OA.Client.record(character)))[1]
+-- Opens the world map centred between the character and the circle of its mission (the special request's when `which`
+-- is "special"), at the zoom that shows both.
+function Maps.show(character, which)
+    local record = OA.Client.record(character)
+    local circle = View.circles(which == "special" and View.shownSpecial(record) or View.shown(record))[1]
     if not circle or not (ISWorldMap and ISWorldMap.ShowWorldMap) then return end
     local px, py = character:getX(), character:getY()
     local cx, cy, zoom = View.fit(px, py, circle, viewOf())

@@ -85,5 +85,6 @@
     "Tooltip_OA_Tree_Item_DelayDrugLong": "Holds the infection's progress for 7 days. A new wound from a zombie ends it. It never expires.",
     "Tooltip_OA_Tree_Item_InfectionReversal": "Sets the infection's progress back to nothing, so the nausea and the health limit ease. The infection stays: a delay drug is still needed.",
     "Tooltip_OA_Tree_Item_InfectionTestKit": "Shows at once whether you are infected. Until a wound from a zombie is tested for, deliveries carry the infection handling fee.",
-    "Tooltip_OA_Tree_Progress": "Infection progress: %1%%"
+    "Tooltip_OA_Tree_Progress": "Infection progress: %1%%",
+    "Tooltip_OA_Story_MissionHeavyCase": "A thick hard case with carry handles. Too heavy to carry far on your own."
 }

@@ -75,6 +75,16 @@ module OperationAcorn
         WorldStaticModel = RippedSheetsBundle,
     }
 
+    item MissionHeavyCase
+    {
+        DisplayCategory = Household,
+        ItemType = base:normal,
+        Weight = 15.0,
+        Icon = OA_MissionHeavyCase,
+        Tooltip = Tooltip_OA_Story_MissionHeavyCase,
+        WorldStaticModel = ProtectiveCaseBulky_Ground,
+    }
+
     item EvidenceEnvelope
     {
         DisplayCategory = Literature,

@@ -109,7 +109,7 @@ test("a container that holds the mission item is outlined teal when the characte
     near(desk.colour[1], 0.30, 1e-9)
     near(desk.colour[2], 0.90, 1e-9)
     near(desk.colour[3], 0.85, 1e-9)
-    eq(H.lit[0][desk], true, "told to the search ledger, which leaves it alone")
+    truthy(H.lit[0][desk], "told to the search ledger, which leaves it alone")
 end)
 
 test("a story mission is outlined sky blue", function()
@@ -297,4 +297,42 @@ test("a pane with no mission item draws as the game does", function()
     pane:renderdetails()
     eq(#drawn, 3)
     eq(drawn[2][2], 1)
+end)
+
+test("the special request's container is lit beside the main mission's, each in its colour", function()
+    local m = setup(regular())
+    local sp = regular({ id = "M1-2", kind = "special" })
+    sp.items[1].at = { x = 102, y = 100, z = 0 }
+    state.record.missions.special = { mission = sp }
+    local main = furniture({ container({ item("M1-1") }) })
+    local other = furniture({ container({ item("M1-2") }) })
+    state.squares["100,100,0"] = square({ main })
+    state.squares["102,100,0"] = square({ other })
+    load()
+    tick()
+    eq(main.on, true)
+    eq(other.on, true)
+    near(other.colour[1], 0.30, 1e-9)
+    truthy(H.lit[0][main] and H.lit[0][other], "both told to the search ledger")
+    sp.state = "sealed"
+    tick()
+    eq(main.on, true)
+    eq(other.on, false, "a sealed request is not lit")
+end)
+
+test("the loot window paints the special request's item name too", function()
+    setup(regular())
+    local sp = regular({ id = "M1-2", kind = "special" })
+    state.record.missions.special = { mission = sp }
+    state.squares["100,100,0"] = square({})
+    load()
+    local pane = state.page.inventoryPane
+    pane.inventory = container({ item("M1-2", "Filter Case"), item(nil, "Pliers") }, furniture({}))
+    pane.renderdetails = ISInventoryPane.renderdetails
+    setmetatable(pane, { __index = ISInventoryPane })
+    tick()
+    eq(type(pane.oaTint), "table")
+    pane:renderdetails()
+    eq(drawn[2][1], "Filter Case")
+    near(drawn[2][2], 0.30, 1e-9)
 end)

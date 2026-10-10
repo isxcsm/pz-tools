@@ -52,9 +52,9 @@ local function draw(panel, item)
         typeOf[item] = fullType
     end
     local data = item:hasModData() and item:getModData() or nil
-    local m = record.missions and record.missions.active
     local id = data and data.OA_Mission
-    local mission = id and m and View.owns(m, id) and ItemTip.missionRows(View.color(m.kind)) or nil
+    local owner = id and View.ownerOf(record, id) or nil
+    local mission = owner and ItemTip.missionRows(View.color(owner.kind)) or nil
     local rows = ItemTip.rows(record, fullType, data and data.OA_Bought)
     if not mission and #rows == 0 then return end
     lineHeight = lineHeight or UI.fontHeight(font)

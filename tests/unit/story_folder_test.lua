@@ -283,9 +283,6 @@ test("a request copy is numbered from R-0117, one more each, with its text sent 
     eq(first.month, 9)
     eq(first.tier, 3)
     truthy(record.story.unread["r:117"], "new")
-    eq(Story.addRequestCopy(record, "exchange"), nil, "every text of the form has been sent")
-    eq(Story.addRequestCopy(record, "nonsense"), nil)
-    eq(record.story.requestNo, 117, "no number is used by a copy not made")
     local entry = groupOf(Folder.entries(record), "request").entries[1]
     eq(entry.key, "r:117")
     local content = Folder.content(record, entry)
@@ -298,6 +295,20 @@ test("a request copy is numbered from R-0117, one more each, with its text sent 
     eq(table.concat({ lines[2], lines[3], lines[4], lines[5] }, string.char(10)), T("IGUI_OA_Story_Request_dunnigan_can"))
     eq(lines[6], T("IGUI_OA_Story_Request_Approval_a", "24 SEP"))
     truthy(string.find(lines[6], "ORDWAY, LTC.  24 SEP   ", 1, true), "Ordway's approval with the date in military form")
+    eq(Story.addRequestCopy(record, "exchange").id, "ashdown_cold", "the form's next text")
+    eq(Story.addRequestCopy(record, "exchange"), nil, "every text of the form has been sent")
+    eq(Story.addRequestCopy(record, "nonsense"), nil)
+    eq(record.story.requestNo, 118, "no number is used by a copy not made")
+end)
+
+test("a request copy goes by the text the request is for, then by the form's next", function()
+    local record = setup(3)
+    eq(Story.addRequestCopy(record, "fetch", "dunnigan_filters").id, "dunnigan_filters")
+    eq(Story.addRequestCopy(record, "fetch", "dunnigan_filters").id, "kiesling_stock", "the preferred one is used")
+    eq(Story.addRequestCopy(record, "field", "no_such_text").id, "branscomb_test", "an unknown one: the form's next")
+    for form, ids in pairs(Data.REQUESTS) do
+        truthy(#ids >= 1 and #ids <= 3, form .. " has one to three texts")
+    end
 end)
 
 test("a request copy from the 4th tier on is approved by the deputy", function()
@@ -373,13 +384,9 @@ test("what the card shows of a mission: its number, what its reward is made of, 
     eq(info.credits, 45500)
     eq(info.left, 30)
     eq(info.item, "MissionFilterCase")
-    eq(info.reroll, nil, "no swap offer until the reward-device unit gives one")
-    eq(info.special, nil)
-    Missions.rerollOffer = function(rec, m) return { trust = 20, left = 1 } end
-    Missions.specialSlot = function() return { state = "idle" } end
-    info = Missions.describe(record)
-    eq(info.reroll.trust, 20)
-    eq(info.special.state, "idle")
+    eq(info.reroll.trust, 20, "a tenth of the level's trust")
+    eq(info.reroll.left, 1)
+    eq(info.special, nil, "no field line, no special request")
 end)
 
 test("the streak bonus is a tenth a mission, at most three tenths", function()
