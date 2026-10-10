@@ -232,9 +232,8 @@ function OAMachineWindow:update()
     if OA.due(self.due, "near", now, OAMachineWindow.NEAR_MS) then
         local square = self.object:getSquare()
         if not square then return self:close() end
-        local w, h = Machines.footprint(self.kind, self.dir)
-        if not OAMachineWindow.within(self.character:getX(), self.character:getY(), square:getX(), square:getY(), w, h,
-            OAMachineWindow.REACH) then
+        if not OAMachineWindow.within(self.character:getX(), self.character:getY(), square:getX(), square:getY(),
+            self.footW, self.footH, OAMachineWindow.REACH) then
             return self:close()
         end
     end
@@ -401,7 +400,8 @@ function OAMachineWindow:new(x, y, character, object)
     o.object = object
     o.machineId = state.id
     o.kind = state.kind
-    o.dir = state.dir
+    -- the footprint, for the reach (a machine does not turn while its window is open)
+    o.footW, o.footH = Machines.footprint(state.kind, state.dir)
     o.title = Machines.name(state.kind)
     o:setResizable(false)
     return o
