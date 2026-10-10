@@ -1,5 +1,5 @@
 -- The folder's text panel that types (client/Story/TypedText): with the game's rich text panel stood in for by one that
--- cuts the text at its commands into rows, what a frame does with the clock, the gaps, a click (nothing), a layout in the middle of
+-- cuts the text at its commands into rows, what a frame does with the clock, the gaps, a click (it brings the typing to the furthest point seen), a layout in the middle of
 -- the typing, and the end of it.
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
@@ -51,7 +51,11 @@ end
 local function load()
     ISRichTextPanel = stubPanel()
     getTextManager = function()
-        return { getFontHeight = function() return 14 end, MeasureStringX = function(_, _, s) return #tostring(s) * 7 end }
+        -- the folder's Medium font is a taller and wider one than the stub panel's own
+        return {
+            getFontHeight = function(_, font) return font == "Medium" and 29 or 14 end,
+            MeasureStringX = function(_, font, s) return #tostring(s) * (font == "Medium" and 11 or 7) end,
+        }
     end
     local real = require
     require = function(name)
@@ -155,8 +159,9 @@ test("a text resumed far on shows whole at once and is told done", function()
     eq(run.done, true)
 end)
 
-test("a click does not hurry the typing", function()
-    local panel = panelFor("abcdefghij", 1)
+test("a click with nothing seen before it does not hurry the typing", function()
+    local panel, run = panelFor("abcdefghij", 1)
+    run.seen = 0
     clock()
     panel:render()
     panel:onMouseDown(5, 5)
@@ -164,6 +169,114 @@ test("a click does not hurry the typing", function()
     ms = ms + 16
     panel:render()
     eq(shown(panel), "a")
+    near(run.clock, 0.016, 1e-9)
+end)
+
+test("the typing keeps count of the furthest character that has come on", function()
+    local panel, run = panelFor("abcdefghij", 10)
+    clock()
+    panel:render()
+    eq(run.seen, 1)
+    ms = ms + 250
+    panel:render()
+    eq(run.seen, 3)
+    local panel2, run2 = panelFor("abcdefghij", 10)
+    run2.seen = 7
+    panel2:render()
+    eq(run2.seen, 7, "a showing that has not got as far leaves the furthest as it was")
+    for _ = 1, 3 do
+        ms = ms + 400
+        panel2:render()
+    end
+    eq(run2.seen, 10)
+end)
+
+test("a click brings the text to the furthest point seen before, and the typing goes on from there", function()
+    local panel, run = panelFor("abcdefghij", 10)
+    run.seen = 6
+    clock()
+    panel:render()
+    eq(shown(panel), "a")
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "abcdef", "everything up to the sixth character")
+    eq(run.seen, 6)
+    eq(panel.finished, 0)
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "abcdef", "a second click brings nothing more: the rest was never seen")
+    ms = ms + 100
+    panel:render()
+    eq(shown(panel), "abcdefg", "the unseen part is typed in its time")
+    eq(run.seen, 7)
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "abcdefg", "and the furthest point is where the typing is")
+end)
+
+test("a click cannot skip what was never seen, in front of a pause either", function()
+    local panel, run = panelFor("a{p:2}bcd", 10)
+    run.seen = 1
+    clock()
+    panel:render()
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "a", "the pause is for the unseen b")
+    run.seen = 2
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "ab", "seen as far as b, which comes after the pause: a click brings it")
+    eq(panel.finished, 0)
+end)
+
+test("a text seen to its end is shown whole by a click and told done", function()
+    local panel, run, read = panelFor("a{p:3}bcdef", 1)
+    run.seen = read.n
+    clock()
+    panel:render()
+    eq(shown(panel), "a")
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "abcdef")
+    eq(panel.finished, 1)
+    eq(run.done, true)
+    eq(panel.reveal, nil)
+    panel:onMouseDown(5, 5)
+    ms = ms + 16
+    panel:render()
+    eq(panel.finished, 1, "told once")
+end)
+
+test("the click is anywhere on the panel and does not depend on its scroll or its font", function()
+    local panel, run = panelFor("abcdefghij", 10)
+    run.seen = 5
+    panel.defaultFont = "Medium"
+    panel.yscroll = -40
+    clock()
+    panel:render()
+    panel:onMouseDown(-30, 9000)
+    ms = ms + 16
+    panel:render()
+    eq(shown(panel), "abcde")
+end)
+
+test("the cursor is placed and sized by the panel's own font, the Medium of the folder's body", function()
+    local panel = panelFor("abcdef", 10)
+    panel.defaultFont = "Medium"
+    clock()
+    panel:render()
+    eq(#panel.drawn, 1)
+    local cursor = panel.drawn[1]
+    near(cursor[1], panel.lineX[1] + panel.marginLeft + 11 + 1, 1e-9, "after the one character at 11 wide, not 7")
+    near(cursor[2], panel.lineY[1] + panel.marginTop + 3, 1e-9, "the block starts a little under the row's top")
+    near(cursor[4], 29 - 6, 1e-9, "and is the font high less the ends")
+    near(cursor[3], 7, 1e-9, "a quarter of the font's height")
 end)
 
 test("laying the text out again in the middle of the typing starts the reveal over the new rows", function()

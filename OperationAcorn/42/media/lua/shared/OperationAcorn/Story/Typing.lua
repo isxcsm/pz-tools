@@ -4,11 +4,18 @@
 --
 -- How a text is typed: the window counts the time it has shown the text (real seconds, from the differences of
 -- getTimestampMs, which go on while the game is paused) and asks Markup.count how many characters have come on by then;
--- a frame in which the count has not changed does nothing more. When the window is closed the clock is kept in the
--- record, { start = the world age in hours, t = the seconds typed }, and the next time the text is shown it goes on from
--- there with the game time that has passed turned into seconds of the terminal's own work, so a text left for a night's
--- sleep is all typed when the window opens. A text typed to its end is kept as `true` and is never typed again; one that
--- was never typed at all (a record from before, an old document) has no state, and is shown whole.
+-- a frame in which the count has not changed does nothing more. A text is typed every time it is shown, at the same
+-- speed as the first time. What the record keeps of each one is how far the player has SEEN it, so that a click can show
+-- that much at once and never more:
+--   { seen = the furthest character that has come on, in any showing (a character count, so that it holds on a terminal
+--     of the other speed),
+--     done = true once it was seen to its end (a click then shows all of it),
+--     start, t = the world age in hours and the seconds typed, of a showing left half way }
+-- A text left half way is shown again by its kind's way (Typing.RESUME): a scene starts over, a document goes on from
+-- where it was with the game time that has passed turned into seconds of the terminal's own work, so a document left for
+-- a night's sleep is all typed when the window opens. Older records kept `true` (typed to its end) or { start, t } (the
+-- seconds typed): they are read as seen to the end, and as seen as far as that clock had come (Typing.seenOf). An entry
+-- with no state at all was shown whole before, so it counts as seen to the end.
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
 local OA = OperationAcorn
@@ -25,11 +32,17 @@ Typing.SPEED = {
     scene = { crude = 30, field = 25 },
     document = { crude = 80, field = 60 },
 }
+-- What a kind of text does when it is shown again after being left half typed: "restart" types it from the beginning
+-- (a scene keeps its pauses and its breath; a click then brings it to the furthest point seen), "resume" goes on from
+-- where it was (a document: the terminal went on printing while the player was away). A kind of text that is typed
+-- later (a mission briefing, a special request's offer) chooses its way here.
+Typing.RESUME = { scene = "restart", document = "resume" }
+
 -- The scenes' longest total pause (seconds): a story scene does not make the player wait longer than this.
 Typing.MAX_PAUSES = 6
 
--- Which kind a folder group is, when its new entries are typed. The others (the research team's supply papers, field
--- papers, manifests) are read from items or arrive with the crate, and are never new content typed here.
+-- Which kind a folder group is, when its entries are typed. The others (field papers, manifests) are read from items or
+-- arrive with the crate, and are not typed here.
 Typing.KIND_OF_GROUP = { radio = "scene", request = "document", research = "document" }
 
 -- The speed for a kind on a terminal ("crude" or "field"); nil for a kind that is not typed.
@@ -44,21 +57,52 @@ function Typing.secondsPerHour(minutesPerDay)
     return minutesPerDay * 60 / 24
 end
 
--- Where the clock of a text stands when the window shows it, in seconds typed, from the state the record keeps; nil when
--- there is nothing to type (no state, or it was typed to its end). `hours` is the world age now.
-function Typing.start(state, hours, minutesPerDay)
-    if type(state) ~= "table" then return nil end
-    local clock = tonumber(state.t) or 0
+-- Where the clock of a text stands when the window shows it, in seconds typed: 0 for a kind that starts over
+-- (Typing.RESUME) and for a text with nothing left half way; else where the last showing was left, with the game time
+-- that has passed turned into seconds of the terminal's own work. `hours` is the world age now.
+function Typing.start(state, hours, minutesPerDay, kind)
+    if Typing.RESUME[kind] ~= "resume" or type(state) ~= "table" then return 0 end
+    local clock = tonumber(state.t)
+    if not clock then return 0 end
     if state.start and hours and minutesPerDay and minutesPerDay > 0 then
         clock = clock + math.max(0, hours - state.start) * Typing.secondsPerHour(minutesPerDay)
     end
     return clock
 end
 
--- The state to keep for a clock: `true` when it has run to the end of the text (`total` seconds), else where it stands.
-function Typing.saved(clock, total, hours)
-    if clock >= total then return true end
-    return { start = hours, t = clock }
+-- How far a text has been seen, in characters of its reading (Markup.parse): all of it for a state of `true` or done, and
+-- for an entry with no state (it was shown whole); the record's own count otherwise. An old { start, t } kept the clock
+-- only: the characters that had come on by it.
+function Typing.seenOf(state, read)
+    if type(state) ~= "table" or state.done then return read.n end
+    local seen = tonumber(state.seen)
+    if seen then return math.min(math.max(seen, 0), read.n) end
+    local t = tonumber(state.t) or 0
+    if t > 0 then return Markup.count(read, t) end
+    return 0
+end
+
+-- The state to keep once a showing is left (or the window closes), from the one kept before (nil, `true` or a table), how
+-- far the text has been seen in this showing (`seen` characters), whether that is the whole of it, and `clock` (seconds
+-- typed) when the showing ended before the typing did, nil when it ran to its end. The furthest seen only grows and a
+-- text seen to its end stays so.
+function Typing.keep(old, seen, done, clock, hours)
+    local was = type(old) == "table" and old or nil
+    local state = { seen = math.max(was and tonumber(was.seen) or 0, seen or 0) }
+    if old == true or (was and was.done) or done then state.done = true end
+    if clock then state.start, state.t = hours, clock end
+    return state
+end
+
+-- Of two states of one entry (the record's, and what this window kept since, which may be the newer): the one to go by.
+-- What the record has of being seen to the end counts either way.
+function Typing.latest(recorded, kept)
+    if kept == nil then return recorded end
+    local done = recorded == true or (type(recorded) == "table" and recorded.done)
+    if done and not kept.done then
+        return { seen = kept.seen, start = kept.start, t = kept.t, done = true }
+    end
+    return kept
 end
 
 -- ---------------------------------------------------------------------------------------------------------------

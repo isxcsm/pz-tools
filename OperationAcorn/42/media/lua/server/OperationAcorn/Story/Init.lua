@@ -162,8 +162,8 @@ OA.Server.on("story_read", function(character, record, args)
     if type(args.doc) == "string" then
         Story.markRead(record, args.doc, type(args.variant) == "string" and args.variant or nil, args.extra)
         Story.clearNew(record, "d:" .. args.doc)
-        -- Read whole in the viewer: the terminal has nothing left to type of it.
-        Story.saveTyped(record, "d:" .. args.doc, nil, true)
+        -- Read whole in the viewer: the terminal's folder has it as seen to the end (an entry it kept nothing of is that).
+        if Story.typedState(record, "d:" .. args.doc) then Story.saveTyped(record, "d:" .. args.doc, nil, true) end
     end
 end)
 
@@ -173,9 +173,12 @@ OA.Server.on("story_seen", function(character, record, args)
     if type(args.key) == "string" then Story.clearNew(record, args.key) end
 end)
 
--- The folder's text panel kept how far it has typed an entry (Story/Typing): `t` seconds of typing, or `done`.
+-- The folder's text panel kept how far a showing of an entry got (Story/Typing): `seen` characters, `done` when that is
+-- all of it, `t` the seconds typed when the showing was left before the end.
 OA.Server.on("story_typed", function(character, record, args)
-    if type(args.key) == "string" then Story.saveTyped(record, args.key, tonumber(args.t), args.done == true) end
+    if type(args.key) == "string" then
+        Story.saveTyped(record, args.key, tonumber(args.seen), args.done == true, tonumber(args.t))
+    end
 end)
 
 -- A drop site's survey stake was read: its number and its date go to the stake record in the folder (the date is the

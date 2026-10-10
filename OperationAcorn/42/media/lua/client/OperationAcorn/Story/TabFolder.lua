@@ -52,7 +52,8 @@ function OATabFolder:createChildren()
     end
     self.groups, self.flat, self.rowOf = {}, {}, {}
     self.sent = {}
-    self.runs, self.typedSent = {}, {}
+    -- What this window has kept of each entry since it opened (Typing.keep), which the record may not have yet.
+    self.kept = {}
 end
 
 -- The list's rows: a group's name, or an entry with its tier on the right and a mark when it is new (design units: the
@@ -121,6 +122,7 @@ end
 
 -- Reads an entry: the text on the right, and what was new is told to the server as seen.
 function OATabFolder:show(entry, record)
+    self:leave()
     self.key, self.shown = entry.key, entry.key
     local content = Folder.content(record, entry)
     self.content = content
@@ -141,37 +143,40 @@ function OATabFolder:show(entry, record)
     end
 end
 
--- How an entry is typed: its run (the reading of its text and the clock, seconds typed) while it has something left to
--- type, else nil and the plain panel. What is new is typed when first shown; one left half typed goes on from where it
--- stood with the game time that passed turned into the terminal's own work (Typing.start). The run is kept with the
--- window, so the entry shown again goes on from where it was.
+-- How an entry is typed: its run (the reading of its text, the clock and how far it has been seen) for a kind of text that
+-- is typed, else nil and the plain panel. An entry is typed every time it is shown, at the same speed; where it starts
+-- is its kind's way (Typing.RESUME): a scene from the beginning, a document from where it was left with the game time
+-- that passed turned into the terminal's own work. A click brings it to the furthest point seen (TypedText).
 function OATabFolder:runFor(entry, content, record)
     local key = entry.key
-    local run = self.runs[key]
-    if run then return not run.done and run or nil end
     local speed = Typing.speed(content.kind, self.window.tier)
-    local clock = speed and Typing.start(OA.Story.typedState(record, key), OA.hours(), getGameTime():getMinutesPerDay())
-    if not clock then return nil end
+    if not speed then return nil end
     local parse = Markup.parse(content.marked, speed)
     if not parse then return nil end
-    run = { key = key, parse = parse, clock = clock, done = clock >= parse.total }
-    self.runs[key] = run
+    local state = Typing.latest(OA.Story.typedState(record, key), self.kept[key])
+    local clock = Typing.start(state, OA.hours(), getGameTime():getMinutesPerDay(), content.kind)
+    local run = { key = key, parse = parse, clock = clock, seen = Typing.seenOf(state, parse), done = clock >= parse.total }
     if run.done then
+        -- Left so long that the terminal has printed all of it: shown whole.
+        run.seen = parse.n
         self:report(run)
         return nil
     end
     return run
 end
 
--- The server is told how far an entry is typed: done (once), or the seconds when the window closes.
+-- The server is told how far a showing got, and the window keeps the same (Typing.keep): when the typing ends, when
+-- another entry is shown, and when the window closes. Once for a showing; a showing that was not drawn says nothing.
 function OATabFolder:report(run)
-    if run.done then
-        if self.typedSent[run.key] then return end
-        self.typedSent[run.key] = true
-        self:send("story_typed", { key = run.key, done = true })
-    elseif run.last then
-        self:send("story_typed", { key = run.key, t = run.clock })
-    end
+    if run.sent or not (run.last or run.done) then return end
+    run.sent = true
+    local key, n = run.key, run.parse.n
+    local seen = math.min(run.seen or 0, n)
+    local all = seen >= n or nil
+    local clock = (not run.done) and run.clock or nil
+    local old = Typing.latest(OA.Story.typedState(self:record(), key), self.kept[key])
+    self.kept[key] = Typing.keep(old, seen, all, clock, OA.hours())
+    self:send("story_typed", { key = key, seen = seen, done = all, t = clock })
 end
 
 -- The panel typed a text to its end.
@@ -179,9 +184,14 @@ function OATabFolder.onTyped(self, run)
     self:report(run)
 end
 
--- The window is closing: what is half typed is kept, to go on from there when the folder shows it again.
+-- The entry on show is left (another is shown, the window closes): what it got to is kept.
+function OATabFolder:leave()
+    local run = self.body and self.body.run
+    if run then self:report(run) end
+end
+
 function OATabFolder:onWindowClose()
-    for _, run in pairs(self.runs) do self:report(run) end
+    self:leave()
 end
 
 function OATabFolder.onPick(self, row)
