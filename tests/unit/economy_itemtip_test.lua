@@ -16,13 +16,27 @@ local function world()
         score = { 2.5, 1.2, 0.5, 0.1 }, kinds = {}, total = {}, n = 4 })
 end
 
--- A record with a list for the week, and a reward level for the request price.
+-- A record with a list for the week (each line with the band and quantity it was drawn with), and a reward level for
+-- the request price.
 local function record(level)
     local r = OA.Store.ensure("t", "T")
     r.trade = { stage = 3, milestones = 0, credits = 0, trust = 0, serial = 1, levels = { reqprice = level or 0 } }
-    r.codex = { kinds = {}, n = 0, req = { week = 5, items = { "Base.Pencil", "Base.Hammer", "Base.Ring" }, used = { ["Base.Pencil"] = 7 } } }
+    r.codex = { kinds = {}, n = 0, req = { week = 5, items = { "Base.Pencil", "Base.Hammer", "Base.Ring" },
+        used = { ["Base.Pencil"] = 7 },
+        band = { ["Base.Pencil"] = "common", ["Base.Hammer"] = "normal", ["Base.Ring"] = "rare" },
+        qty = { ["Base.Pencil"] = 10, ["Base.Hammer"] = 5, ["Base.Ring"] = 3 } } }
     return r
 end
+
+test("a line drawn without its quantity kept takes the world's rank: the first common one asks the most", function()
+    world()
+    local r = record(0)
+    r.codex.req.band, r.codex.req.qty = nil, nil
+    local price, count = Tip.requestOf(r, "Base.Pencil")
+    eq(price, 600)
+    eq(count, OA.Requests.BANDS.common.qtyMax)
+    eq(select(2, Tip.requestOf(r, "Base.Ring")), OA.Requests.qtyOf("Base.Ring"))
+end)
 
 -- A script for Value.infoFromScript: only what it reads.
 local function script(fullType, display)
@@ -155,7 +169,8 @@ test("the lines are made once for the same type, week's list and settlements, an
     truthy(calls > made, "a settlement makes it again")
     eq(c[1].text, "IGUI_OA_ItemTip_Request 600 8 10")
     made = calls
-    r.codex.req = { week = 6, items = { "Base.Pencil" }, used = {} }
+    r.codex.req = { week = 6, items = { "Base.Pencil" }, used = {}, band = { ["Base.Pencil"] = "common" },
+        qty = { ["Base.Pencil"] = 10 } }
     eq(Tip.rows(r, "Base.Pencil", nil)[1].text, "IGUI_OA_ItemTip_Request 600 0 10", "a new week's list")
     truthy(calls > made)
     made = calls

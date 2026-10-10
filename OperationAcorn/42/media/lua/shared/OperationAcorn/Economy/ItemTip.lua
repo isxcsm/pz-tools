@@ -20,8 +20,8 @@ OA.ItemTip = ItemTip
 ItemTip.REQUEST_COLOR = { 1.0, 0.82, 0.35 }
 ItemTip.NEW_COLOR = { 0.55, 0.95, 0.60 }
 
--- The request of this week for an item type (its group's line): price, count a week, count settled; nil when the
--- group is not on the list.
+-- The request of this week for an item type (its group's line): the price of a unit of this type (its line's, or its
+-- own worth when that is more: Requests.priceOf), count a week, count settled; nil when the group is not on the list.
 function ItemTip.requestOf(record, fullType)
     local codex = record.codex
     local rq = codex and codex.req
@@ -33,7 +33,7 @@ function ItemTip.requestOf(record, fullType)
     end
     if not listed then return nil end
     local line = OA.Requests.line(record, key, rq.used or {})
-    return line.price, line.qty, math.min(line.used, line.qty)
+    return OA.Requests.priceOf(line, OA.Requests.worthOf(fullType)), line.qty, math.min(line.used, line.qty)
 end
 
 -- The line of a request: { text, color } or nil.
@@ -110,7 +110,7 @@ end
 -- Drops what was made (a test that changes the texts, or a new game).
 function ItemTip.reset()
     cache, kinds, missionRows, newRow = {}, {}, {}, nil
-    scores, scoresOf, scoresN = {}, nil, nil
+    OA.Requests.forget()
 end
 
 -- Where the strips go (the lines are drawn as strips beside the tooltip's panel, which the game draws itself). `y` and

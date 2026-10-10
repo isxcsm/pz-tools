@@ -34,7 +34,8 @@ end
 -- Every group the tool made is a candidate: the game has a kind of each.
 P1T.check(say, "every group is a candidate", made.n == #OA.RequestGroups, made.n .. " / " .. #OA.RequestGroups)
 local bands = { common = 0, normal = 0, rare = 0 }
-for _, s in ipairs(made.score) do bands[OA.Requests.band(s)] = bands[OA.Requests.band(s)] + 1 end
+local ranked = OA.Requests.rank(made)
+for _, key in ipairs(made.types) do bands[ranked.band[key]] = bands[ranked.band[key]] + 1 end
 say("bands: common", bands.common, "normal", bands.normal, "rare", bands.rare)
 
 if record then
@@ -43,8 +44,8 @@ if record then
     say("this week's list (" .. #items .. " of " .. want .. "):")
     for _, t in ipairs(items) do
         local e = OA.Requests.entry(record, t)
-        say("  ", t, OA.Requests.nameOf(t), "kinds", #OA.Requests.members(t), "band", e.band, "price", e.price,
-            "qty", e.qty, "used", e.used)
+        say("  ", t, OA.Requests.nameOf(t), "kinds", #OA.Requests.members(t), "band", e.band, "price", e.priceMin,
+            "to", e.priceMax, "qty", e.qty, "used", e.used)
     end
     P1T.check(say, "the list has the rewarded count", #items == want, #items .. " / " .. want)
     local seen, dup = {}, false

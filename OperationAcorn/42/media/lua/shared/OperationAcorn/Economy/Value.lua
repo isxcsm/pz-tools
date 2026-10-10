@@ -4,9 +4,10 @@
 --   trust   = weight * unit / 100 * state * accel
 -- state is 0.5 + 0.5 * condition (food: fresh 1, stale 0.5). The market index, the new-region bonus and the
 -- exchange rate never touch trust, so no one can farm trust through them. Cash and this mod's goods have fixed
--- values. So does an item of a group on this week's request list, for the first units of the week: the group's fixed
--- price for each (Requests.entry; never less than the unit's own value at the day's index) times state and rate, no
--- new-region bonus, and a bonus of trust when the line is full. A whole flight is rounded once, in settle (DESIGN 9).
+-- values. So does an item of a group on this week's request list, for the first units of the week: its line's price,
+-- or the item's own worth by weight when that is more (Requests.priceOf; never less than the unit's own value at the
+-- day's index) times state and rate, no new-region bonus, and a bonus of trust when the line is full. A whole flight
+-- is rounded once, in settle (DESIGN 9).
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Economy/Categories"
@@ -148,7 +149,8 @@ end
 -- The unrounded value of `count` of one kind of item, as one line of a receipt. ctx as Value.context makes it;
 -- `taken` (optional) carries what earlier lines of the same flight used up: { requests = {}, cells = {} }.
 --   { fullType, baseType, count, weight (total), category, credits, trust, cashTrust, marks, requestUnits,
---     requestCredits (what the request units fetch), requestKey (the item's request group), marketWeight (the
+--     requestCredits (what the request units fetch), requestPrice (a request unit's price before the index, state
+--     and rate; nil off the list), requestKey (the item's request group), marketWeight (the
 --     weight that goes to the market: not the request units), regionWeight }
 function Value.appraiseLine(info, count, ctx, taken)
     count = count or 1
@@ -220,9 +222,13 @@ function Value.appraiseLine(info, count, ctx, taken)
         end
     end
     local sum = rest + Value.NEW_REGION_BONUS * (full + partial)
-    -- A request unit never fetches less than it would unrequested at today's index (the new-region premium is never
-    -- a request unit's: NUMBERS 2).
-    line.requestCredits = request and nReq * math.max(request.price, w * unit * index) * state * rate or 0
+    -- A request unit fetches its line's price, or its own worth by weight when that is more (each kind of a group at
+    -- its own, Requests.priceOf), and never less than it would unrequested at today's index (the new-region premium
+    -- is never a request unit's: NUMBERS 2).
+    if request then
+        line.requestPrice = OA.Requests.priceOf(request, w * unit)
+        line.requestCredits = nReq * math.max(line.requestPrice, w * unit * index) * state * rate
+    end
     line.credits = w * unit * index * state * rate * sum + line.requestCredits
     line.marketWeight = w * rest
     line.marks.request = nReq > 0

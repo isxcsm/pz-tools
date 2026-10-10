@@ -154,6 +154,26 @@ test("a request unit never fetches less than it would unrequested at the day's i
     near(V.appraiseLine(tv, 1, c).credits, 9000, 1e-9, "and at a high index the index's value")
 end)
 
+test("each kind of a group on the list is paid its own worth, not the dearest kind's", function()
+    -- One line of a group that takes a television (6,000 by weight) and a shirt (400): base 600, reward x1.1.
+    OA.Requests.useGroups({ { id = "mixed", score = 1, wt = 10, dc = "Communications",
+        items = { "Base.TvBlack", "Base.Shirt" } } })
+    local c = ctx({ requests = { mixed = request({ price = 660, base = 600, mult = 1.1 }) } })
+    local taken = { requests = {}, cells = {} }
+    local shirt = V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 2, c, taken)
+    eq(shirt.requestUnits, 2)
+    near(shirt.requestCredits, 2 * 660, 1e-9, "the shirt at the line's price, not the television's")
+    eq(shirt.requestPrice, 660)
+    taken.requests.mixed = 2
+    local tv = V.appraiseLine(info("Base.TvBlack", "Communications", 10.0), 1, c, taken)
+    near(tv.requestCredits, 6600, 1e-9, "the television at its own worth times the reward")
+    c.index.G = 1.5
+    near(V.appraiseLine(info("Base.TvBlack", "Communications", 10.0), 1, c, taken).requestCredits, 9000, 1e-9,
+        "never less than unrequested at the day's index")
+    near(V.appraiseLine(info("Base.Shirt", "Clothing", 1.0), 1, c, taken).requestCredits, 660, 1e-9,
+        "the shirt's own 400 stays under the line's price")
+end)
+
 test("a crafted twin fills the request of its group: wood charcoal for charcoal", function()
     OA.Requests.useGroups({ { id = "base:charcoal", score = 1, wt = 0.8, dc = "Material",
         items = { "Base.Charcoal", "Base.Coke", "Base.CharcoalCrafted" } } })
@@ -258,6 +278,9 @@ local function oneShirt()
     OA.randomFloat = function() return 0 end
     OA.Market.update(OA.day())
     for _, c in ipairs(OA.Categories.LETTERS) do OA.Market.state().M[c] = 1.0 end
+    -- This week's line takes 10 (the shirt alone would rank first and ask the band's most).
+    OA.Requests.list(record)
+    record.codex.req.qty["Base.Shirt"] = 10
     return record
 end
 
@@ -302,8 +325,9 @@ test("a new week starts the request counters again", function()
     eq(OA.Requests.entry(record, "Base.Shirt").left, 0)
     TEST.hours = 24 * 7 + 2
     V.reset()
-    eq(OA.Requests.entry(record, "Base.Shirt").left, 10, "the week's counters were drawn anew")
-    local result = V.settle(record, { { info = shirt, count = 10 } })
+    local qty = OA.Requests.qtyOf("Base.Shirt")
+    eq(OA.Requests.entry(record, "Base.Shirt").left, qty, "the week's counters were drawn anew, at the table's quantity")
+    local result = V.settle(record, { { info = shirt, count = qty } })
     eq(#result.filled, 1, "and the line can be filled again")
 end)
 

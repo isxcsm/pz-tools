@@ -32,17 +32,20 @@ The rules (written out in mockups/terminal/request-groups-report.md):
   The ids of the name groups ('n:...') continue the previous table (this file, as the last run wrote it): a group
   keeps the id of the old group most of its kinds came from, and an old id that goes away is kept in the row that
   took over (`was`), so a saved list is moved to the new group (Requests.keyOf).
-- How easy a group is: the loot score (how many of its members the whole map's containers hand out, weighted by how
-  many rooms of each kind the maps have and how likely each container picks each list), over the median of all the
-  candidate groups. Another way to get any member raises the score to a floor: a recipe of easy inputs (nature, loot
-  at or above the median kind, farm crops, easy foraging, or the output of such a recipe) with skill 3 or less and
-  no recipe to learn, a farm crop, or wild foraging of tier chance 10 or more to common (1); a recipe of skill 6 or
-  less from obtainable inputs, rarer wild foraging, hunting, butchering, fishing, trapping and vehicle parts to
-  normal (0.3). Work stations (a kiln, a forge) are not counted against a recipe. The bands are those of
-  Requests.lua: 1 and more common, 0.3 to 1 normal, below rare.
+- How easy a group is (the availability profile, mockups/terminal/request-availability.md): each kind has a rate, how
+  many of it an ordinary week turns up (WEEK), the sum of every way the game gives it: looting (the whole map's
+  expected count, by how many rooms of each name the maps have, each container a room's list names once (a plank
+  stash in one building of a hundred), how likely each container picks each list, rolls x weight/100), the cars
+  (VehicleDistributions by VehicleZoneDistribution's spawn chances, the parking zones weighed by their area; their
+  parts through the vehicle scripts' templates), foraging (category and kind weights per zone, the zones by area),
+  the farm (the crops' harvest a week, if the seed is had), butchering and kept animals, fishing and trapping, and
+  making (craftRecipe, one level deep: the scarcest input, skill, learning, tools). A group's rate is the sum of its
+  kinds' (the chance to come by any one of them is 1 - exp(-rate)), less what a kind is made from another kind of the
+  same group. Requests.lua ranks the groups by it into the bands (Requests.rank; rank_bands here, for the report).
 """
 import glob
 import json
+import math
 import os
 import re
 import struct
@@ -60,8 +63,6 @@ REQUESTS = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Request
 VALUE = os.path.join(MOD_LUA, 'shared', 'OperationAcorn', 'Economy', 'Value.lua')
 UI_KO = os.path.join(MOD_LUA, 'shared', 'Translate', 'KO', 'IG_UI.json')
 
-COMMON, NORMAL = 1.0, 0.3          # Requests.COMMON_FROM, Requests.NORMAL_FROM
-BAND_PRICE = {'common': 600, 'normal': 1500, 'rare': 4000}   # Requests.BANDS (the report only)
 
 # The families: one level above the kind, what the research team would write on a requisition as one ordinary noun
 # ("any can", "any hat"; not "food" or "clothing"). A family takes every member its rule names (taken and not left
@@ -119,10 +120,12 @@ HERBS = ('Basil', 'Chives', 'Cilantro', 'Oregano', 'Parsley', 'Rosemary', 'Sage'
 
 FAMILIES = [
     # Books (with the user).
-    # A boxed set of five skill books (BookCarpentrySet) is a store's bundle, as the bulk cartons are: kept apart,
-    # or every single book would fetch the set's price (the price floor is the dearest member's worth).
+    # A boxed set of five skill books (BookCarpentrySet) is a store's bundle, as the bulk cartons are: kept apart.
+    # (The heavy kinds were kept out of the families while a group's price floor was its dearest member's worth; each
+    # kind is paid its own worth now, and the families were left as they are.)
     ('skillbook', 'field', lambda it: it['dc'] == 'SkillBook' and not it['name'].endswith('Set')),
-    ('recipemag', 'field', lambda it: it['dc'] == 'RecipeResource'),
+    # The empty seed packets are of this display category too: not reading, and made by opening a packet.
+    ('recipemag', 'field', lambda it: it['dc'] == 'RecipeResource' and 'BagSeed' not in it['name']),
     ('books', 'field', lambda it: it['dc'] == 'Literature' and ({'base:hardcover', 'base:softcover', 'base:fancybook'}
                                                                  & it['tags'])),
     ('reading', 'field', lambda it: it['dc'] == 'Literature' and ({'base:magazine', 'base:picturebook'} & it['tags'])),
@@ -174,7 +177,7 @@ FAMILIES = [
     # Fresh produce, meat and fish, by FoodType; fresh only.
     ('fruit', 'field', lambda it: it['dc'] == 'Food' and (it['food'] in ('Fruits', 'Citrus')
                                                           or it['name'] == 'Strewberrie') and _fresh(it)
-     and it['name'] != 'Watermelon'),           # three kilos: an apple would fetch a melon's price
+     and it['name'] != 'Watermelon'),           # three kilos (kept apart while the price floor was the dearest's)
     ('vegetables', 'field', lambda it: it['dc'] == 'Food' and _fresh(it) and (
         (it['food'] in ('Vegetables', 'Greens', 'HotPepper') and (it['full'] in FARM or it.get('cand')))
         or it['name'] in ('Pumpkin', 'Squash', 'Garlic'))),
@@ -362,6 +365,7 @@ ROOMS_HOUSE = None   # read from Requests.lua (Requests.HOUSE_ROOMS)
 
 TOKEN = re.compile(r'''
     (?P<ws>\s+) | (?P<comment>--\[\[.*?\]\]|--[^\n]*) |
+    (?P<call>\((?:[^()]|\([^()]*\))*\)) |
     (?P<str>"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*') |
     (?P<num>-?\d+\.?\d*(?:[eE][-+]?\d+)?|-?\.\d+) |
     (?P<name>[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*) |
@@ -384,7 +388,7 @@ def tokens(text, at):
             raise ValueError('cannot read Lua at %d: %r' % (pos, text[pos:pos + 40]))
         pos = m.end()
         kind = m.lastgroup
-        if kind in ('ws', 'comment'):
+        if kind in ('ws', 'comment', 'call'):     # a call's arguments: the name before stands for it
             continue
         yield kind, m.group(kind), pos
 
@@ -579,7 +583,7 @@ def expected(lst, env, into, mult):
 
 
 def sum_weights(lst, env, into, mult):
-    """The old score: the plain sum of the weights, junk included (Requests.weights)."""
+    """Adds the plain sum of the weights, junk included (with mult 0: names the items a list can hand out)."""
     rolls, pairs, junk = list_items(lst, env)
     for name, w in pairs:
         into[name] += w * mult
@@ -607,6 +611,9 @@ def proc_shares(container):
 
 
 SPECIAL_ROOM = re.compile(r'^(all|Bag_|Outfit_|AmmoStrap_)')
+# Containers a room's list names that most such rooms do not have: the share of rooms that do. A plank stash is put
+# under the floor of one building in a hundred (RBBasic.randomizeBuilding: Rand.NextBool(100)).
+CONTAINER_SHARE = {'plankstash': 0.01}
 
 
 def loot_scores(dist, proc, env, rooms):
@@ -625,17 +632,26 @@ def loot_scores(dist, proc, env, rooms):
             cont = resolve(cont, env)
             if not isinstance(cont, dict) or cname in ('isShop', 'dontSpawnAmmo'):
                 continue
-            containers_seen[cname] += n
-            fill_container(cont, proc, env, found, n)
-    # 'all': the containers of any room that has no list of its own for them. Weighed as a twentieth of the rooms
-    # (no map data says how many such containers there are); the dead's pockets once per room.
+            share = CONTAINER_SHARE.get(cname, 1.0)
+            containers_seen[cname] += n * share
+            fill_container(cont, proc, env, found, n * share)
+    # 'all': the containers of a room that has no list of its own for them. No map data says how many there are: a
+    # twentieth of as many as the rooms with their own list for that container have (a kitchen counter is everywhere,
+    # a military locker in a few rooms). The dead's pockets once per room; an outfit's pockets (Outfit_*) as one
+    # outfit of all of them.
     alld = dist['dic'].get('all')
     if isinstance(alld, dict):
+        outfits = [c for c in alld['dic'] if c.startswith('Outfit_')]
         for cname, cont in alld['dic'].items():
             cont = resolve(cont, env)
             if not isinstance(cont, dict):
                 continue
-            mult = total_rooms if cname in ('inventorymale', 'inventoryfemale') else total_rooms / 20.0
+            if cname in ('inventorymale', 'inventoryfemale'):
+                mult = total_rooms / 2.0
+            elif cname.startswith('Outfit_'):
+                mult = total_rooms / max(1, len(outfits))
+            else:
+                mult = containers_seen.get(cname, 0) / 20.0
             fill_container(cont, proc, env, found, mult)
     # What bags and boxes found so far hold: one level down.
     inner = Counter()
@@ -662,31 +678,6 @@ def fill_container(cont, proc, env, into, mult):
         expected(cont, env, into, mult)
 
 
-def old_weights(dist, proc, env):
-    """Requests.weights as the mod does it today: the house rooms, the weights summed, a list once per container."""
-    sums = Counter()
-    refs = Counter()
-    for room in ROOMS_HOUSE:
-        conts = dist['dic'].get(room)
-        if not isinstance(conts, dict):
-            continue
-        for cont in conts['dic'].values():
-            cont = resolve(cont, env)
-            if not isinstance(cont, dict):
-                continue
-            sum_weights(cont, env, sums, 1)
-            plist = cont['dic'].get('procList')
-            if isinstance(plist, dict):
-                for e in plist['arr']:
-                    if isinstance(e, dict) and e['dic'].get('name'):
-                        refs[e['dic']['name']] += 1
-    for name, count in refs.items():
-        lst = proc['dic'].get(name)
-        if lst is not None:
-            sum_weights(lst, env, sums, count)
-    return sums
-
-
 def house_names(dist, proc, env):
     """Every item name the house rooms' loot can hand out (the candidates' pool)."""
     out = Counter()
@@ -702,11 +693,46 @@ def house_names(dist, proc, env):
     return out
 
 
-# --- other ways to come by a thing ---------------------------------------------------------------------------------
+# --- how easy a thing is to come by: the availability profile ------------------------------------------------------
+#
+# One number per kind: lam, how many of it an ordinary week of play turns up, by every way the game has. Each way is a
+# Poisson rate, so the chance to come by at least one in a week is 1 - exp(-lam), and the ways (and the kinds of a
+# group) add: 1 - prod(1 - p) = 1 - exp(-sum lam). The weekly amounts below set how the ways weigh against each other;
+# only the order of the groups matters to the bands (Requests.lua ranks them), so they need to be sensible, not exact.
+WEEK = {
+    'rooms': 150,          # rooms looted in a week, of all the map's rooms (loot: the whole map's expected count x share)
+    'cars': 10,            # cars whose glove box, seats and trunk are searched
+    'strip': 1,            # cars taken apart for their parts
+    'forage': 40,          # things found by foraging
+    'plots': 8,            # plants of one crop a garden keeps (once the seed is had)
+    'butcher': 1,          # animals butchered (each kind of animal as likely)
+    'products': 2,         # eggs, wool, feathers from kept animals
+    'fish': 6,             # fish caught (each species as likely)
+    'net': 2,              # what a fishing net brings up (each kind as likely)
+    'trap': 2,             # animals caught in traps (each as likely)
+    'nature': 20,          # logs, branches, stones: as many as a week's work cuts and carries
+}
+SKILL_STEP = 0.8           # a recipe (or a foraging find) per level of skill it asks for: x0.8 (level 3 x0.51, 6 x0.26)
+LEARN = 0.3                # a recipe that has to be learnt first (a magazine, a book)
+TOOL_WEEKS = 4             # a tool is kept: the chance to have it is that of finding one in four weeks
+CRAFT_CAP = 20             # a week's making of one thing, at most (time, not inputs, is the limit then)
+VEHICLE_SPECIFIC = 0.09    # BaseVehicle: a vehicle's loot is one of its Specific lists when Rand.Next(100) <= 8
+# The forage zones the map's objects.lua gives an area for (the forage definitions name a few more, from world
+# generation, that no file sizes): a zone is as likely as its share of these areas.
+FORAGE_ZONES = {'Forest': 'Forest', 'DeepForest': 'DeepForest', 'Vegitation': 'Vegitation', 'FarmLand': 'FarmLand',
+                'TownZone': 'TownZone', 'TrailerPark': 'TrailerPark', 'Nav': 'ForagingNav'}
+CHANNELS = ('loot', 'carloot', 'forage', 'farm', 'butcher', 'fish', 'trap', 'carpart', 'nature', 'craft')
+
+
+def _full(t):
+    t = re.sub(r'^\d+:', '', t.strip())
+    return t if '.' in t else 'Base.' + t
+
 
 def read_recipes(items):
-    """craftRecipe blocks: { name, inputs: [ [types...] consumed ], tools: [ [types...] ], outputs: [types], skill,
-    learn }. Tag inputs are expanded to the items with the tag."""
+    """craftRecipe blocks: { name, inputs: [ [(type, count)...] consumed ], tools: [ [(type, count)...] kept ], outputs:
+    [(type, count)], skill (the highest level asked), learn }. Tag inputs are the items with the tag; an alternative
+    with its own count ("3:Base.LargeBranch") keeps it."""
     by_tag = defaultdict(list)
     for full, it in items.items():
         for t in it['tags']:
@@ -736,88 +762,505 @@ def read_recipes(items):
             outp = re.search(r'\boutputs\s*\{(.*?)\n\s*\}', body, re.S)
             for line in (part.group(1).split('\n') if part else []):
                 line = line.strip()
-                if not line.startswith('item '):
+                im = re.match(r'item\s+([\d.]+)\s', line)
+                if not im:
                     continue
-                types = []
+                count = float(im.group(1)) or 1.0
+                alts = []
                 lst = re.search(r'\[([^\]]*)\]', line)
                 tg = re.search(r'tags\[([^\]]*)\]', line)
                 if tg:
                     for t in tg.group(1).split(';'):
                         t = t.strip().lower()
                         rec['tags_used'].add(t)
-                        types += by_tag.get(t, [])
+                        alts += [(f, count) for f in by_tag.get(t, [])]
                 elif lst:
                     for t in lst.group(1).split(';'):
-                        t = re.sub(r'^\d+:', '', t.strip())
-                        if t == '*':
+                        t = t.strip()
+                        if not t or t == '*':
                             continue
-                        types.append(t if '.' in t else 'Base.' + t)
+                        own = re.match(r'^(\d+):', t)
+                        alts.append((_full(t), float(own.group(1)) if own else count))
                 keep = 'mode:keep' in line or 'flags[Prop1' in line or 'flags[Prop2' in line or 'mode:use' in line
-                (rec['tools'] if keep else rec['inputs']).append(types)
+                (rec['tools'] if keep else rec['inputs']).append(alts)
+            # An itemMapper names an output for each input ("Base.CarrotSeed = Base.CarrotBagSeed2"): an output
+            # `mapper:NAME` is one of those, made from its own inputs.
+            mappers = {}
+            for name, mbody in _blocks(body, 'itemMapper'):
+                rows = []
+                for mm in re.finditer(r'([\w.]+)\s*=\s*([\w.;]+)', mbody):
+                    if mm.group(1) != 'default':
+                        rows.append((_full(mm.group(1)), [_full(t) for t in mm.group(2).split(';') if t]))
+                mappers[name] = rows
             for line in (outp.group(1).split('\n') if outp else []):
-                om = re.match(r'\s*item\s+\d+\s+([\w.]+)', line)
-                if om:
-                    t = om.group(1)
-                    rec['outputs'].append(t if '.' in t else 'Base.' + t)
+                om = re.match(r'\s*item\s+([\d.]+)\s+(?:mapper:(\w+)|\[?([\w.]+))', line)
+                if not om:
+                    continue
+                n = float(om.group(1)) or 1.0
+                if om.group(2):
+                    for out, ins in mappers.get(om.group(2), []):
+                        rec['outputs'].append((out, n, set(ins)))
+                else:
+                    rec['outputs'].append((_full(om.group(3)), n, None))
             recipes.append(rec)
     return recipes
 
 
-def forage_items():
-    """Item types the foraging categories of the wild give, with the tier's chance: { type: best chance }. The town
-    scavenging categories (junk, trash, clothing, ammo, medical...) are left out: the loot score counts those things."""
-    wild = {'Berries', 'Bones', 'CraftingMaterials', 'Firewood', 'Fruits', 'Herbs', 'Insects', 'MedicinalPlants',
-            'Mushrooms', 'Stones', 'Vegetables', 'WildPlants', 'Animals', 'DeadAnimals'}
+def craft_rates(recipes, have):
+    """What a week's making gives of each output, from what the other ways give (`have`, a rate per kind; shallow: a
+    recipe's inputs are not made in turn). A recipe makes as many times as its scarcest input allows (that input's
+    rate over the count it takes, the alternatives of a slot added), times its outputs, times the chance to have each
+    tool, x SKILL_STEP per level asked, x LEARN when it is learnt first; at most CRAFT_CAP. A recipe that takes back
+    what it makes (a repair, a refill) gives nothing new. Work stations are not counted. The best recipe counts:
+    {type: (rate, recipe name)}."""
     out = {}
-    for path in glob.glob(os.path.join(MEDIA, 'lua', 'shared', 'Foraging', 'Categories', '*.lua')):
-        cat = os.path.splitext(os.path.basename(path))[0]
-        if cat not in wild:
+
+    def runs_of(r, only):
+        """How many times a week the recipe can be made, the slots that hold any of `only` (a mapped output's own
+        inputs) taking those alone."""
+        runs = None
+        for alts in r['inputs']:
+            if not alts:
+                continue
+            if only and any(t in only for t, _ in alts):
+                alts = [(t, c) for t, c in alts if t in only]
+            n = sum(have.get(t, 0.0) / c for t, c in alts)
+            runs = n if runs is None else min(runs, n)
+        return runs or 0.0
+
+    for r in recipes:
+        if not r['outputs'] or not any(r['inputs']):
             continue
-        chance = 10.0
-        for line in open(path, encoding='utf-8', errors='replace'):
-            cm = re.search(r'\bchance\s*=\s*([\d.]+)', line)
-            if cm:
-                chance = float(cm.group(1))
-            for t in re.findall(r'"(Base\.\w+)"', line):
-                out[t] = max(out.get(t, 0), chance)
+        used = {t for alts in r['inputs'] + r['tools'] for t, _ in alts}
+        factor = SKILL_STEP ** r['skill'] * (LEARN if r['learn'] else 1.0)
+        for alts in r['tools']:
+            if alts:
+                factor *= 1 - math.exp(-TOOL_WEEKS * sum(have.get(t, 0.0) for t, _ in alts))
+        for o, n, only in r['outputs']:
+            if o in used:
+                continue
+            rate = min(CRAFT_CAP, runs_of(r, only) * factor * n)
+            if rate > out.get(o, (0.0, ''))[0]:
+                out[o] = (rate, r['name'], used, r)
     return out
+
+
+def map_zones():
+    """The area of each zone type the main map's objects.lua lays out, and of each name of its parking zones."""
+    areas, parking = Counter(), Counter()
+    for path in glob.glob(os.path.join(MEDIA, 'maps', '*', 'objects.lua')):
+        for m in re.finditer(r'name = "([^"]*)", type = "(\w+)", x = -?\d+, y = -?\d+, z = -?\d+, width = (\d+), '
+                             r'height = (\d+)', open(path, encoding='utf-8', errors='replace').read()):
+            name, kind, area = m.group(1), m.group(2), int(m.group(3)) * int(m.group(4))
+            areas[kind] += area
+            if kind == 'ParkingStall':
+                parking[name.lower()] += area
+    return areas, parking
+
+
+def _call_tables(text, fn):
+    """The table literal given as the second argument of each call `fn(x, { ... })` in the text."""
+    out = []
+    for m in re.finditer(re.escape(fn) + r'\s*\(\s*[\w.]+\s*,\s*', text):
+        if text[m.end()] == '{':
+            out.append(parse_table(text, m.end()))
+    return out
+
+
+def _plain(v):
+    """A parsed Lua table as Python: a dict when it has keys, else a list."""
+    if isinstance(v, dict) and 'arr' in v and 'dic' in v:
+        if v['dic']:
+            return {k: _plain(x) for k, x in v['dic'].items()}
+        return [_plain(x) for x in v['arr']]
+    return v
+
+
+def forage_rates(zone_area):
+    """What a week's foraging finds of each kind. In a zone the game picks a category by its zone weight and then a
+    kind of it by the kind's zone weight; a zone counts by its share of the map's zone area. A kind found in a few
+    months only counts that share of the year; one that asks for a level of foraging x SKILL_STEP per level; the count
+    found at once is the mean of minCount and maxCount. {type: rate}."""
+    folder = os.path.join(MEDIA, 'lua', 'shared', 'Foraging')
+    cats = _plain(lua_assignments(os.path.join(folder, 'forageCategories.lua'),
+                                  r'forageSystem\.categoryDefinitions')['forageSystem.categoryDefinitions'])
+    defs = []
+    for path in sorted(glob.glob(os.path.join(folder, 'Categories', '*.lua'))):
+        text = open(path, encoding='utf-8', errors='replace').read()
+        tables = {}
+        for m in re.finditer(r'^\s*local\s+(\w+)\s*=\s*\{', text, re.M):
+            tables[m.group(1)] = _plain(parse_table(text, m.end() - 1))
+        calls = [_plain(t) for t in _call_tables(text, 'forageSystem.addForageDef')]
+
+        def value(v, spawn, full):
+            if isinstance(v, Ref):
+                if v.name.startswith('spawnTable.'):
+                    return spawn.get(v.name.split('.', 1)[1]) if spawn else None
+                if v.name in ('itemFullName',):
+                    return full
+                return None
+            if isinstance(v, dict):
+                return {k: value(x, spawn, full) for k, x in v.items()}
+            if isinstance(v, list):
+                return [value(x, spawn, full) for x in v]
+            return v
+
+        for table in tables.values():
+            if not isinstance(table, dict):
+                continue
+            for key, row in table.items():
+                if isinstance(row, dict) and isinstance(row.get('type'), str):
+                    defs.append(row)                                    # a kind's own definition
+                elif isinstance(row, dict) and isinstance(row.get('items'), dict):
+                    for full in row['items'].values():                  # a spawn table: its kinds share the call
+                        for call in calls:
+                            d = value(call, row, full)
+                            for k in ('skill', 'minCount', 'maxCount', 'months', 'categories', 'chance'):
+                                if d.get(k) is None and row.get(k) is not None:
+                                    d[k] = row[k]
+                            defs.append(d)
+                elif isinstance(row, str) and row.startswith('Base.'):
+                    for call in calls:                                  # a flat list of kinds (junk food)
+                        defs.append(value(call, None, row))
+    total_area = sum(zone_area.get(k, 0) for k in FORAGE_ZONES) or 1
+    zone_share = {FORAGE_ZONES[k]: zone_area.get(k, 0) / total_area for k in FORAGE_ZONES}
+    weights = defaultdict(float)                # (category, zone) -> the sum of its kinds' weights
+    for d in defs:
+        for c in d.get('categories') or []:
+            for z, w in (d.get('zones') or {}).items():
+                if isinstance(w, (int, float)):
+                    weights[(c, z)] += w
+    cat_sum = defaultdict(float)
+    for c, cd in cats.items():
+        for z, w in (cd.get('zones') or {}).items():
+            if isinstance(w, (int, float)) and weights.get((c, z)):
+                cat_sum[z] += w
+    rates = defaultdict(float)
+    for d in defs:
+        full = d.get('type')
+        if not isinstance(full, str):
+            continue
+        months = d.get('months')
+        season = len(months) / 12.0 if isinstance(months, list) and months else 1.0
+        count = ((d.get('minCount') or 1) + (d.get('maxCount') or d.get('minCount') or 1)) / 2.0
+        skill = d.get('skill') or 0
+        p = 0.0
+        for c in d.get('categories') or []:
+            cw = (cats.get(c) or {}).get('zones') or {}
+            for z, share in zone_share.items():
+                w = (d.get('zones') or {}).get(z)
+                if share and isinstance(w, (int, float)) and w > 0 and cat_sum.get(z) and weights.get((c, z)):
+                    p += share * (cw.get(z, 0) or 0) / cat_sum[z] * w / weights[(c, z)]
+        rates[full] += WEEK['forage'] * p * count * season * SKILL_STEP ** skill
+    return rates
+
+
+def farm_rows():
+    """The crops: [(vegetable, [seed types], harvest count, hours to harvest)] (timeToGrow is the hours of each growth
+    stage; the crop is harvested at harvestLevel, else at mature)."""
+    rows = []
+    for path in glob.glob(os.path.join(MEDIA, 'lua', 'server', 'Farming', 'farming_vegetableconf*.lua')):
+        text = open(path, encoding='utf-8', errors='replace').read()
+        for m in re.finditer(r'^farming_vegetableconf\.props(?:\.(\w+)|\["(\w+)"\])\s*=\s*\{', text, re.M):
+            d = _plain(parse_table(text, m.end() - 1))
+            if not isinstance(d, dict) or not isinstance(d.get('vegetableName'), str):
+                continue
+            seeds = [s for s in (d.get('seedTypes') or []) if isinstance(s, str)]
+            if isinstance(d.get('seedName'), str):
+                seeds.append(d['seedName'])
+            stages = d.get('harvestLevel') or d.get('mature') or 5
+            veg = ((d.get('minVeg') or 1) + (d.get('maxVeg') or d.get('minVeg') or 1)) / 2.0
+            rows.append((d['vegetableName'], seeds, veg, (d.get('timeToGrow') or 168) * stages))
+    return rows
 
 
 def farm_items():
-    out = set()
-    for path in glob.glob(os.path.join(MEDIA, 'lua', 'server', 'Farming', 'farming_vegetableconf*.lua')):
+    return {v for v, _, _, _ in farm_rows()} | {s for _, ss, _, _ in farm_rows() for s in ss}
+
+
+def farm_rates(have):
+    """A crop's harvest a week: WEEK plots x the harvest count x the harvests a week, x the chance to have its seed
+    (`have`: the rate of each seed kind by the other ways and their making, as an opened seed packet)."""
+    rates = defaultdict(float)
+    for veg, seeds, count, hours in farm_rows():
+        seed = 1 - math.exp(-sum(have.get(s, 0.0) for s in set(seeds) if s != veg))
+        rates[veg] = max(rates[veg], WEEK['plots'] * count * 168.0 / hours * seed)
+    return rates
+
+
+def animal_rates():
+    """Butchering, kept animals, fishing and trapping: {channel: {type: rate}}. Butchering: AnimalPartsDefinitions,
+    each kind of animal as likely (its parts, bones, feathers, head and skull, by count). Products: the egg, wool and
+    feather kinds of the animal definitions. Fishing: the species of fishing_properties (FishConfig) and what a net
+    brings up. Trapping: what TrapDefinition's animals leave in a trap. Baits and lures are not catches."""
+    lua = os.path.join(MEDIA, 'lua')
+    parts = open(os.path.join(lua, 'shared', 'Definitions', 'animal', 'AnimalPartsDefinitions.lua'),
+                 encoding='utf-8', errors='replace').read()
+    per = defaultdict(lambda: defaultdict(float))
+    for m in re.finditer(r'table\.insert\((\w+)\.(?:parts|bones),\s*\{item\s*=\s*"([\w.]+)",\s*(?:nb\s*=\s*([\d.]+)|'
+                         r'minNb\s*=\s*([\d.]+),\s*maxNb\s*=\s*([\d.]+))', parts):
+        n = float(m.group(3)) if m.group(3) else (float(m.group(4)) + float(m.group(5))) / 2
+        per[m.group(1)][m.group(2)] += n
+    for m in re.finditer(r'^(\w+)\.(?:feather|head|skull)\s*=\s*"([\w.]+)"', parts, re.M):
+        per[m.group(1)][m.group(2)] += 1
+    butcher = defaultdict(float)
+    for animal in per.values():
+        for t, n in animal.items():
+            butcher[t] += WEEK['butcher'] * n / max(1, len(per))
+    products = set()
+    for path in glob.glob(os.path.join(lua, 'shared', 'Definitions', 'animal', '*Definitions.lua')):
+        products |= set(re.findall(r'\.(?:eggType|woolType|featherItem)\s*=\s*"([\w.]+)"',
+                                   open(path, encoding='utf-8', errors='replace').read()))
+    for t in products:
+        butcher[t] += WEEK['products']
+    fishing = open(os.path.join(lua, 'shared', 'Fishing', 'fishing_properties.lua'), encoding='utf-8',
+                   errors='replace').read()
+    fish = defaultdict(float)
+    species = set(re.findall(r'FishConfig:new\("([\w.]+)"\)', fishing))
+    for t in species:
+        fish[t] += WEEK['fish'] / len(species)
+    net = set(re.findall(r'table\.insert\(Fishing\.fishNet(?:WithBait)?,\s*"([\w.]+)"\)', fishing))
+    for t in net:
+        fish[t] += WEEK['net'] / len(net)
+    traps = set(re.findall(r'^\w+\.item\s*=\s*"([\w.]+)"', open(os.path.join(lua, 'server', 'Traps',
+                           'TrapDefinition.lua'), encoding='utf-8', errors='replace').read(), re.M))
+    trap = {t: WEEK['trap'] / len(traps) for t in traps}
+    return {'butcher': butcher, 'fish': fish, 'trap': trap}
+
+
+def _blocks(text, head):
+    """(name, body) of each `head NAME { ... }` block at any depth."""
+    for m in re.finditer(head + r'\s+(\w+)\s*\{', text):
+        depth, at = 1, m.end()
+        while depth and at < len(text):
+            depth += text[at] == '{'
+            depth -= text[at] == '}'
+            at += 1
+        yield m.group(1), text[m.end():at - 1]
+
+
+def _top(body):
+    """The lines of a block at its own depth (not inside its parts), and its parts: (lines, {part: body})."""
+    lines, parts, depth, start, name = [], {}, 0, 0, None
+    for i, line in enumerate(body.split('\n')):
+        s = line.strip()
+        if depth == 0:
+            pm = re.match(r'part\s+([\w*]+)', s)
+            if pm:
+                name, start = pm.group(1), i
+            elif s and s not in ('{', '}'):
+                lines.append(s)
+        depth += line.count('{') - line.count('}')
+        if name and depth == 0 and '}' in line:
+            parts[name] = '\n'.join(body.split('\n')[start + 1:i + 1])
+            name = None
+    return lines, parts
+
+
+def vehicle_scripts(items):
+    """Each vehicle script resolved through its templates: {vehicle: {item type: count}}. A part's itemType list is
+    picked from at random (VehiclePart: Rand.Next over the list), and the kind is the item named with the vehicle's
+    mechanicType after it (OldTire -> OldTire1) where the game has that item."""
+    raw = {}
+    for path in glob.glob(os.path.join(MEDIA, 'scripts', '**', '*.txt'), recursive=True):
         text = open(path, encoding='utf-8', errors='replace').read()
-        for t in re.findall(r'(?:vegetableName|seedName)\s*=\s*"([\w.]+)"', text):
-            out.add(t)
+        if 'vehicle' not in text:
+            continue
+        text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+        for kind, head in (('template', r'template\s+vehicle'), ('vehicle', r'(?<!template )\bvehicle')):
+            for name, body in _blocks(text, head):
+                lines, parts = _top(body)
+                mech = next((int(x) for x in (re.match(r'mechanicType\s*=\s*(\d+)', s) for s in lines) if x for x in
+                             [x.group(1)]), None)
+                refs = [re.match(r'template!?\s*=\s*([\w/]+)', s).group(1) for s in lines
+                        if re.match(r'template!?\s*=', s)]
+                own = {}
+                for pname, pbody in parts.items():
+                    im = re.search(r'itemType\s*=\s*([\w.;]+)', pbody)
+                    own[pname] = im.group(1).split(';') if im else None
+                raw[(kind, name)] = (mech, refs, own)
+    resolved = {}
+
+    def parts_of(name, depth=0):
+        """(mechanicType, {part: [item types] or None}) of a template or vehicle."""
+        key = ('template', name) if ('template', name) in raw else ('vehicle', name)
+        if key in resolved:
+            return resolved[key]
+        if key not in raw or depth > 8:
+            return None, {}
+        mech, refs, own = raw[key]
+        out, m = {}, None
+        for ref in refs:
+            base, _, part = ref.partition('/part/')
+            tm, tparts = parts_of(base, depth + 1)
+            m = tm if tm is not None else m
+            for p, types in tparts.items():
+                if not part or p == part:
+                    out[p] = types
+        for p, types in own.items():
+            if p.endswith('*'):
+                for q in out:
+                    if q.startswith(p[:-1]) and types is not None:
+                        out[q] = types
+            elif types is not None or p not in out:
+                out[p] = types
+        # A wildcard part of this block sets the parts it names, here or inherited.
+        for p, types in own.items():
+            if p.endswith('*') and types is not None:
+                for q in [q for q in out if q.startswith(p[:-1])]:
+                    out[q] = types
+        out = {p: t for p, t in out.items() if not p.endswith('*')}
+        result = (mech if mech is not None else m, out)
+        resolved[key] = result
+        return result
+
+    vehicles = {}
+    for kind, name in raw:
+        if kind != 'vehicle':
+            continue
+        mech, parts = parts_of(name)
+        counts = defaultdict(float)
+        for types in parts.values():
+            if not types:
+                continue
+            for t in types:
+                t = _full(t)
+                if mech is not None and t + str(mech) in items:
+                    t = t + str(mech)
+                counts[t] += 1.0 / len(types)
+        vehicles['Base.' + name] = counts
+    return vehicles
+
+
+def vehicle_shares(parking):
+    """How likely a car of the map is each vehicle script: VehicleZoneDistribution's spawnChance within a zone, the
+    zones weighed by their parking area in objects.lua (an unnamed stall is a 'parkingstall'; 'rtrafficjam*' are the
+    traffic jams). Burnt wrecks give nothing."""
+    text = open(os.path.join(MEDIA, 'lua', 'shared', 'VehicleZoneDefinition.lua'), encoding='utf-8',
+                errors='replace').read()
+    zones = defaultdict(dict)
+    for m in re.finditer(r'VehicleZoneDistribution\.(\w+)\.vehicles\["([\w.]+)"\]\s*=\s*\{[^}]*spawnChance\s*=\s*'
+                         r'([\d.]+)', text):
+        zones[m.group(1).lower()][m.group(2)] = float(m.group(3))
+    weight = Counter()
+    for name, area in parking.items():
+        z = name or 'parkingstall'
+        if z.startswith('rtrafficjam'):
+            z = z[1:]
+        if z in zones and 'burnt' not in z:
+            weight[z] += area
+    total = sum(weight.values()) or 1
+    shares = defaultdict(float)
+    for z, w in weight.items():
+        s = sum(zones[z].values()) or 1
+        for v, c in zones[z].items():
+            shares[v] += w / total * c / s
+    return shares
+
+
+def vehicle_loot(env, items):
+    """What one searched car holds of each kind on average: its VehicleDistributions entry (Normal, or one of its
+    Specific lists at VEHICLE_SPECIFIC), every container of it filled once. {vehicle: {item name: count}}."""
+    folder = os.path.join(MEDIA, 'lua', 'server', 'Vehicles')
+    venv = dict(env)
+    for path in glob.glob(os.path.join(folder, 'VehicleDistribution_*.lua')):
+        venv.update(lua_assignments(path, r'ClutterTables\.\w+'))
+    path = os.path.join(folder, 'VehicleDistributions.lua')
+    venv.update(lua_assignments(path, r'VehicleDistributions\.\w+'))
+    text = open(path, encoding='utf-8', errors='replace').read()
+    table = parse_table(text, re.search(r'local distributionTable = \{', text).end() - 1)
+    for k, v in list(venv.items()):
+        if k.startswith('VehicleDistributions.') and isinstance(v, dict):
+            for ck, cv in list(v['dic'].items()):
+                v['dic'][ck] = resolve(cv, venv)
+    out = {}
+
+    def one(dist):
+        found = Counter()
+        dist = resolve(dist, venv)
+        if isinstance(dist, dict):
+            for cont in dist['dic'].values():
+                cont = resolve(cont, venv)
+                if isinstance(cont, dict):
+                    expected(cont, venv, found, 1)
+        return found
+
+    for vname, entry in table['dic'].items():
+        if not isinstance(entry, dict):
+            continue
+        normal = one(entry['dic'].get('Normal'))
+        specific = [one(s) for s in (resolve(entry['dic'].get('Specific'), venv) or {'arr': []})['arr']]
+        total = Counter({k: v * (1 - (VEHICLE_SPECIFIC if specific else 0)) for k, v in normal.items()})
+        for s in specific:
+            for k, v in s.items():
+                total[k] += v * VEHICLE_SPECIFIC / len(specific)
+        out['Base.' + vname] = total
     return out
 
 
-def animal_items():
-    """What hunting, butchering, keeping animals, fishing and trapping give."""
-    out = set()
-    pats = [os.path.join(MEDIA, 'lua', 'shared', 'Definitions', 'animal', '*.lua'),
-            os.path.join(MEDIA, 'lua', '*', 'Fishing', '**', '*.lua'),
-            os.path.join(MEDIA, 'lua', '*', 'Trapping', '**', '*.lua'),
-            os.path.join(MEDIA, 'lua', '*', 'Definitions', 'Fishing*.lua')]
-    for pat in pats:
-        for path in glob.glob(pat, recursive=True):
-            text = open(path, encoding='utf-8', errors='replace').read()
-            out.update(re.findall(r'"(Base\.\w+)"', text))
-    return out
+def availability(items, loot, total_rooms, nature, recipes, env):
+    """Every kind's weekly rate by each way: {type: {channel: rate}}, and what made the crafted ones ({type: recipe})."""
+    zone_area, parking = map_zones()
+    rate = defaultdict(lambda: defaultdict(float))
+    for f, n in loot.items():
+        rate[f]['loot'] += WEEK['rooms'] * n / max(1, total_rooms)
+    shares = vehicle_shares(parking)
+    carloot = vehicle_loot(env, items)
+    for v, share in shares.items():
+        for name, n in carloot.get(v, {}).items():
+            rate[_full(name)]['carloot'] += WEEK['cars'] * share * n
+    vparts = vehicle_scripts(items)
+    for v, share in shares.items():
+        for t, n in vparts.get(v, {}).items():
+            rate[t]['carpart'] += WEEK['strip'] * share * n
+    for t, r in forage_rates(zone_area).items():
+        rate[t]['forage'] += r
+    for ch, rates in animal_rates().items():
+        for t, r in rates.items():
+            rate[t][ch] += r
+    for t in nature:
+        rate[t]['nature'] += WEEK['nature']
+
+    def total(skip=()):
+        return {t: sum(v for c, v in ch.items() if c not in skip) for t, ch in rate.items()}
+
+    # Shallow making: the seeds first (an opened seed packet), the crops from them, then everything from what the
+    # other ways and the garden give.
+    made = craft_rates(recipes, total())
+    have = total()
+    for t, (r, _, _, _) in made.items():
+        have[t] = have.get(t, 0.0) + r
+    for t, r in farm_rates(have).items():
+        rate[t]['farm'] += r
+    made = craft_rates(recipes, total())
+    for t, (r, _, _, _) in made.items():
+        rate[t]['craft'] += r
+    return rate, {t: (name, used, rec) for t, (_, name, used, rec) in made.items()}
 
 
-def vehicle_parts():
-    """The parts a vehicle is taken apart into: the part's itemType, with the car type's number the game adds (OldTire
-    -> OldTire1, OldTire2, OldTire3)."""
-    out = set()
-    for path in glob.glob(os.path.join(MEDIA, 'scripts', '**', 'vehicles', '**', '*.txt'), recursive=True):
-        text = open(path, encoding='utf-8', errors='replace').read()
-        for v in re.findall(r'^\s*itemType\s*=\s*([\w.;]+)', text, re.M):
-            for t in v.split(';'):
-                t = t if '.' in t else 'Base.' + t
-                out.add(t)
-                out.update(t + str(k) for k in (1, 2, 3))
-    return out
+def group_rate(members, rate, made):
+    """A group's weekly rate: the sum of its kinds', less what a kind is made from other kinds of the same group
+    (cutting long socks short, a short-sleeved shirt from a long one: the group has the thing already). Such a kind's
+    making is judged again with the group's own kinds taken out of its inputs (a fillet of any fish counts the fish
+    the group does not hold)."""
+    return sum(group_ways(members, rate, made).values())
+
+
+def group_ways(members, rate, made):
+    """A group's weekly rate by way ({channel: rate}), as group_rate counts it."""
+    inside = set(members)
+    total = Counter()
+    for f in members:
+        ch = rate.get(f, {})
+        for c, v in ch.items():
+            total[c] += v
+        if ch.get('craft') and f in made and made[f][1] & inside:
+            rec = made[f][2]
+            have = {t: (0.0 if t in inside else sum(v for c, v in rate.get(t, {}).items() if c != 'craft'))
+                    for t in made[f][1]}
+            again = craft_rates([rec], have).get(f, (0.0,))[0] if rec else 0.0
+            total['craft'] += again - ch['craft']
+    return total
 
 
 # --- the mod's rules -----------------------------------------------------------------------------------------------
@@ -868,17 +1311,52 @@ def make_category(by_display, reject_display, reject_id, prefixes):
     return category
 
 
-def median(values):
-    s = sorted(values)
-    n = len(s)
-    if n == 0:
-        return 1.0
-    m = s[(n - 1) // 2] if n % 2 == 1 else (s[n // 2 - 1] + s[n // 2]) / 2
-    return m if m > 0 else 1.0
+def read_band_rules():
+    """Requests.lua's band rules, for the report (the mod ranks the saved candidates itself): the shares of the common
+    and the normal band, and each band's price and quantities. {'share': {band: x}, 'bands': {band: {...}},
+    'curve': x}."""
+    text = open(REQUESTS, encoding='utf-8').read()
+    share = dict((k, float(v)) for k, v in re.findall(r'(\w+) = ([\d.]+)',
+                                                      re.search(r'BAND_SHARE = \{(.*?)\}', text).group(1)))
+    bands = {}
+    block = re.search(r'Requests\.BANDS = \{(.*?)\n\}', text, re.S).group(1)
+    for name, body in re.findall(r'(common|normal|rare) = \{([^}]*)\}', block):
+        bands[name] = dict((k, float(v)) for k, v in re.findall(r'(\w+) = ([\d.]+)', body))
+    curve = float(re.search(r'QTY_CURVE = ([\d.]+)', text).group(1))
+    return {'share': share, 'bands': bands, 'curve': curve}
 
 
-def band(score):
-    return 'common' if score >= COMMON else ('normal' if score >= NORMAL else 'rare')
+BAND_ORDER = ('common', 'normal', 'rare')
+
+
+def rank_bands(groups, rules):
+    """The bands and quantities as Requests.lua gives them (Requests.ranks): the groups ranked by score, the most
+    available first (ties by id), the first BAND_SHARE.common of them common, the next BAND_SHARE.normal normal, the
+    rest rare; within a band the quantity runs from qtyMin (the least available) to qtyMax (the most) along the rank,
+    to the power QTY_CURVE. Groups of an equal score take the first one's band and quantity."""
+    order = sorted(groups.values(), key=lambda g: (-g['score'], g['id']))
+    n = len(order)
+    cut_common = int(n * rules['share']['common'] + 0.5)
+    cut_normal = int(n * (rules['share']['common'] + rules['share']['normal']) + 0.5)
+    spans = (('common', 0, cut_common), ('normal', cut_common, cut_normal), ('rare', cut_normal, n))
+    lead = None
+    for b, lo, hi in spans:
+        d = rules['bands'][b]
+        for i in range(lo, hi):
+            g = order[i]
+            g['rank'] = i + 1
+            if lead is not None and g['score'] == lead['score']:      # an equal score: the first one's band
+                g['band'], g['qty'] = lead['band'], lead['qty']
+                continue
+            t = 1.0 if hi - lo <= 1 else (hi - 1 - i) / (hi - 1 - lo)
+            g['band'] = b
+            g['qty'] = int(d['qtyMin'] + (d['qtyMax'] - d['qtyMin']) * t ** rules['curve'] + 0.5)
+            lead = g
+
+
+def old_band(score):
+    """The band of a score as the table before the availability profile had it (1 and more common, 0.3 to 1 normal)."""
+    return 'common' if score >= 1 else ('normal' if score >= 0.3 else 'rare')
 
 
 def clean(name):
@@ -1065,18 +1543,12 @@ def main():
 
     # The candidates' pool: what the house rooms hand out and the boxes take.
     house = house_names(dist, proc, env)
-    old = old_weights(dist, proc, env)
 
     cash = read_cash()
 
     def taken(full):
         it = items.get(full)
         return it is not None and not it['obsolete'] and full not in cash and category(it) is not None
-
-    # Before: the mod's scan as it is (each type a candidate, scored by the plain sum over the median).
-    before = {full_of(n): w for n, w in old.items() if taken(full_of(n))}
-    med_before = median(before.values())
-    bands_before = Counter(band(w / med_before) for w in before.values())
 
     # Loot over the whole map.
     loot = Counter()
@@ -1227,77 +1699,16 @@ def main():
         else:
             shown[label] = gid
 
-    # --- how easy ---
-    forage = forage_items()
-    farm = farm_items()
-    animal = animal_items()
-    vehicle = vehicle_parts()
+    # --- how easy: every kind's weekly rate by every way, a group's the sum of its kinds' ---
     nature = {'Base.' + n for n, why in reject_id.items() if why == 'Nature'} | {'Base.Log', 'Base.LargeBranch',
               'Base.TreeBranch2', 'Base.Twigs', 'Base.Stone', 'Base.SharpedStone', 'Base.FlatStone', 'Base.Plank',
               'Base.Sapling', 'Base.Rock'}
-    # Water, fluids and the like are no item: a recipe that asks for a fluid is judged by its items.
-    med_loot_items = median([loot[f] for f in members_ok if loot[f] > 0])
-    easy = set(nature)
-    easy |= {f for f in items if loot[f] >= med_loot_items}           # loot at or above the median kind
-    easy |= farm
-    easy |= {f for f, c in forage.items() if c >= 10}
-    moderate = set(easy) | {f for f in items if loot[f] > 0} | set(forage) | animal | vehicle
-    crafted_easy, crafted_moderate = {}, {}
-    changed = True
-    while changed:
-        changed = False
-        for r in recipes:
-            if not r['outputs']:
-                continue
-            ins_easy = all(any(t in easy for t in alts) for alts in r['inputs'] if alts)
-            tools_ok = all(any(t in moderate for t in alts) for alts in r['tools'] if alts)
-            ins_mod = all(any(t in moderate for t in alts) for alts in r['inputs'] if alts)
-            if ins_easy and tools_ok and r['skill'] <= 3 and not r['learn']:
-                for o in r['outputs']:
-                    if o not in easy:
-                        easy.add(o)
-                        crafted_easy[o] = r['name']
-                        changed = True
-            if ins_mod and tools_ok and r['skill'] <= 6:
-                for o in r['outputs']:
-                    if o not in moderate:
-                        moderate.add(o)
-                        crafted_moderate[o] = r['name']
-                        changed = True
-
-    def paths(full):
-        p = []
-        if loot[full] > 0:
-            p.append('loot')
-        if full in crafted_easy:
-            p.append('craft-easy:' + crafted_easy[full])
-        elif full in crafted_moderate:
-            p.append('craft:' + crafted_moderate[full])
-        if full in farm:
-            p.append('farm')
-        if full in forage:
-            p.append('forage%d' % forage[full])
-        if full in animal:
-            p.append('animal')
-        if full in vehicle:
-            p.append('vehicle')
-        return p
-
-    def floor_of(full):
-        if full in farm or (full in forage and forage[full] >= 10) or full in crafted_easy:
-            return COMMON
-        if full in forage or full in animal or full in vehicle or full in crafted_moderate:
-            return NORMAL
-        return 0.0
-
+    rate, made_by = availability(items, loot, sum(rooms.values()), nature, recipes, env)
+    lam = {t: sum(ch.values()) for t, ch in rate.items()}
     for g in groups.values():
-        g['loot'] = sum(loot[f] for f in g['items'])
-    med_groups = median([g['loot'] for g in groups.values()])
-    for g in groups.values():
-        g['lootScore'] = g['loot'] / med_groups
-        g['floor'] = max(floor_of(f) for f in g['items'])
-        g['score'] = round(max(g['lootScore'], g['floor']), 3)
-        g['items'].sort(key=lambda f: (-loot[f], f))
+        g['lam'] = group_rate(g['items'], rate, made_by)
+        g['score'] = float('%.4g' % g['lam'])
+        g['items'].sort(key=lambda f: (-lam.get(f, 0.0), f))
         # The dearest member by weight, of the category most of the group's candidates are of (a family of hats
         # with a few keepsake hats among them stays clothing: the row's dc is its category in the saved table).
         cats = Counter(category(items[f]) for f in g['items'] if f in cand_set)
@@ -1310,18 +1721,18 @@ def main():
             g['icon'] = FAMILY_ICONS[g['id']]
         else:
             g['icon'] = g['items'][0]
-
-    bands_after = Counter(band(g['score']) for g in groups.values())
+    rules = read_band_rules()
+    rank_bands(groups, rules)
 
     previous = read_previous()
     keep_ids(groups, previous, items)
     write_lua(groups)
     if report_dir:
-        write_report(report_dir, groups, excluded, before, med_before, bands_before, bands_after, items, names_ko,
-                     names_en, loot, paths, med_groups, candidates)
-        write_family_report(report_dir, groups, previous, items, names_ko, cand_set, paths, units, category)
-    print('candidates before: %d types (%s)' % (len(before), dict(bands_before)))
-    print('groups after: %d (%s), from %d kinds' % (len(groups), dict(bands_after), len(candidates)))
+        write_report(report_dir, groups, excluded, items, names_ko, rate, made_by, previous, candidates, units,
+                     category, rules)
+        write_family_report(report_dir, groups, previous, items, names_ko, cand_set, units, category)
+    print('groups: %d (%s), from %d kinds' % (len(groups), dict(Counter(g['band'] for g in groups.values())),
+                                             len(candidates)))
     print('left out:', {k: len(v) for k, v in excluded.items()})
     return 0
 
@@ -1348,9 +1759,10 @@ def write_lua(groups):
     out = [
         "-- The request groups (NUMBERS 2): made by tools/request_groups.py from the game's files. Do not edit by hand:",
         '-- change the tool and run it again. A row: { id, score, wt, dc, items = { fullType ... }, name, was, icon }. id is',
-        "-- the group's key in a save (a member's fullType for a group of one), score how easy it is to come by (1 and",
-        '-- more common, 0.3 to 1 normal, below rare), wt and dc the weight and display category of its dearest member',
-        "-- (the request price never pays less than that member's value), items the kinds it takes, the most found first;",
+        "-- the group's key in a save (a member's fullType for a group of one), score how many of its members an",
+        "-- ordinary week turns up by every way the game has (Requests.lua ranks the groups by it into the bands), wt and",
+        "-- dc the weight and display category of its dearest member (the group's category), items the kinds it takes,",
+        "-- the easiest to come by first;",
         '-- name (a translation key) only for the families named by hand, was the ids the group had before a save may',
         '-- still hold (a group that was joined to this one), icon only when it is not the first item.',
         'require "OperationAcorn/Core"',
@@ -1362,8 +1774,8 @@ def write_lua(groups):
         f.write('\n'.join(out) + '\n')
 
 
-def write_family_report(folder, groups, previous, items, names_ko, cand_set, paths, units, category):
-    """The families, each with its members (C: a house candidate), and the earlier groups the families took apart."""
+def write_family_report(folder, groups, previous, items, names_ko, cand_set, units, category):
+    """The families, each with its members (*: not a house candidate), and the earlier groups the families took apart."""
     ui_ko = json.load(open(UI_KO, encoding='utf-8'))
     ui_en = json.load(open(UI_KO.replace(os.sep + 'KO' + os.sep, os.sep + 'EN' + os.sep), encoding='utf-8'))
     source = {fid: how for fid, how, _ in FAMILIES}
@@ -1376,16 +1788,9 @@ def write_family_report(folder, groups, previous, items, names_ko, cand_set, pat
                 f.write('%s: no candidate\n' % fid)
                 continue
             key = FAMILY_NAMES[fid]
-            f.write('%s\t%s\t%s\t%s\t%s %.3f (loot %.3f, floor %.1f)\t%d kinds, %d candidates\ticon %s\n' % (
-                fid, ui_ko[key], ui_en[key], source[fid], band(g['score']), g['score'], g['lootScore'], g['floor'],
+            f.write('%s\t%s\t%s\t%s\t%s %.4g (rank %d, qty %d)\t%d kinds, %d candidates\ticon %s\n' % (
+                fid, ui_ko[key], ui_en[key], source[fid], g['band'], g['score'], g['rank'], g['qty'],
                 len(g['items']), sum(1 for t in g['items'] if t in cand_set), g['icon']))
-            worth = {t: items[t]['weight'] * units.get(category(items[t]) or 'E', 0) for t in g['items']}
-            price_floor = g['wt'] * units.get(category(dict(items[g['items'][0]], dc=g['dc'])) or 'E', 0)
-            price = BAND_PRICE[band(g['score'])]
-            cheapest = min(worth.values())
-            if price_floor > price and cheapest < price_floor / 3:
-                f.write('    !! price floor %d over the band price %d; cheapest member worth %d\n' % (
-                    price_floor, price, cheapest))
             if g.get('merged'):
                 f.write('    joined by name: %s\n' % ', '.join(g['merged']))
             seen = []
@@ -1405,32 +1810,71 @@ def write_family_report(folder, groups, previous, items, names_ko, cand_set, pat
     print('report:', path)
 
 
-def write_report(folder, groups, excluded, before, med_before, bands_before, bands_after, items, names_ko, names_en,
-                 loot, paths, med_groups, candidates):
+def read_old_scores(path):
+    """{id: score} of a RequestGroups.lua (the comparison of --old)."""
+    out = {}
+    for m in re.finditer(r'\{ id = "([^"]*)", score = ([\d.e+-]+),', open(path, encoding='utf-8').read()):
+        out[m.group(1)] = float(m.group(2))
+    return out
+
+
+def write_report(folder, groups, excluded, items, names_ko, rate, made_by, previous, candidates, units, category,
+                 rules):
+    """request-groups.txt (what was left out, every group with its members' ways) and request-groups.tsv (a row a
+    group: rank, id, name, band, qty, score, chance a week, the ways by share, members, the cheapest and dearest
+    member's worth, and the score and band of --old)."""
     os.makedirs(folder, exist_ok=True)
+    old = read_old_scores(sys.argv[sys.argv.index('--old') + 1]) if '--old' in sys.argv else {}
+    ui_ko = json.load(open(UI_KO, encoding='utf-8'))
+
+    def label(g):
+        if g['id'] in NAMED:
+            return ui_ko[NAMED[g['id']]]
+        return display_name([names_ko.get(f) or f for f in g['items']])
+
+    def ways(fs):
+        tot = group_ways(fs, rate, made_by)
+        s = sum(tot.values()) or 1
+        return ' '.join('%s %d%%' % (ch, round(100 * v / s)) for ch, v in tot.most_common() if v / s >= 0.005)
+
+    def worth(f):
+        return items[f]['weight'] * units.get(category(items[f]) or 'E', 0)
+
     path = os.path.join(folder, 'request-groups.txt')
+    order = sorted(groups.values(), key=lambda g: (-g['score'], g['id']))
     with open(path, 'w', encoding='utf-8') as f:
-        f.write('before: %d types %s (median %.3f)\n' % (len(before), dict(bands_before), med_before))
-        f.write('after: %d groups %s from %d kinds (median loot %.4f)\n\n' % (len(groups), dict(bands_after),
-                len(candidates), med_groups))
+        f.write('%d groups %s from %d kinds\n\n' % (len(groups), dict(Counter(g['band'] for g in groups.values())),
+                                                    len(candidates)))
         for rule, ms in excluded.items():
             f.write('LEFT OUT (%s): %d\n' % (rule, len(ms)))
             for m in ms:
                 f.write('    %s  %s\n' % (m, names_ko.get(m, '')))
-        f.write('\nGROUPS (more than one kind)\n')
-        for g in sorted(groups.values(), key=lambda g: (-len(g['items']), g['id'])):
-            if len(g['items']) < 2:
-                continue
-            f.write('%s [%s] %s score %.3f (loot %.3f) %s\n' % (g['id'], g['how'], band(g['score']), g['score'],
-                    g['lootScore'], names_ko.get(g['items'][0], '')))
-            for m in g['items']:
-                f.write('    %s %s  %s  %s\n' % (m, names_ko.get(m, ''), items[m]['dc'], ','.join(paths(m))))
-        f.write('\nALL GROUPS BY SCORE\n')
-        for g in sorted(groups.values(), key=lambda g: (-g['score'], g['id'])):
-            old = max((before.get(m, 0) / med_before for m in g['items']), default=0)
-            f.write('%-8s %7.3f old %7.3f  %-40s %s  %s\n' % (band(g['score']), g['score'], old, g['id'],
-                    names_ko.get(g['items'][0], ''), ','.join(sorted({p.split(':')[0] for m in g['items'] for p in paths(m)}))))
-    print('report:', path)
+        f.write('\nALL GROUPS BY SCORE (rank band qty score chance id name ways)\n')
+        for g in order:
+            f.write('%4d %-6s %2d %9.4g %5.1f%%  %-34s %s  [%s]\n' % (g['rank'], g['band'], g['qty'], g['score'],
+                    100 * (1 - math.exp(-g['score'])), g['id'], label(g), ways(g['items'])))
+            for m in g['items'][:12]:
+                ch = rate.get(m, {})
+                f.write('         %-36s %-24s %8.4g  %s%s\n' % (m, names_ko.get(m, '')[:24], sum(ch.values()),
+                        ' '.join('%s=%.3g' % (c, v) for c, v in sorted(ch.items(), key=lambda x: -x[1]) if v > 0),
+                        ('  <- ' + made_by[m][0]) if ch.get('craft') else ''))
+            if len(g['items']) > 12:
+                f.write('         ... %d more\n' % (len(g['items']) - 12))
+    tsv = os.path.join(folder, 'request-groups.tsv')
+    with open(tsv, 'w', encoding='utf-8') as f:
+        f.write('rank\tid\tname\tband\tqty\tscore\tchance\tways\tmembers\tcheapest\tdearest\told_score\told_band\n')
+        for g in order:
+            prev = old.get(g['id'])
+            if prev is None:
+                for w in sorted(g.get('was', ())):
+                    if w in old:
+                        prev = old[w]
+            f.write('\t'.join(str(x) for x in (
+                g['rank'], g['id'], label(g), g['band'], g['qty'], '%.4g' % g['score'],
+                '%.1f' % (100 * (1 - math.exp(-g['score']))), ways(g['items']), len(g['items']),
+                '%d' % min(worth(m) for m in g['items']), '%d' % max(worth(m) for m in g['items']),
+                '' if prev is None else '%.4g' % prev, '' if prev is None else old_band(prev))) + '\n')
+    print('report:', path, tsv)
 
 
 if __name__ == '__main__':

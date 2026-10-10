@@ -98,10 +98,10 @@ test("a name no item has is skipped", function()
     eq(data.kinds.Ghost, nil)
 end)
 
-test("the stage opens the rarer items", function()
-    truthy(R.eligible(1.0, 0)); truthy(R.eligible(5, 0))
-    truthy(not R.eligible(0.99, 0)); truthy(R.eligible(0.99, 1)); truthy(R.eligible(0.3, 1))
-    truthy(not R.eligible(0.29, 1)); truthy(R.eligible(0.29, 2))
+test("the stage opens the rarer bands", function()
+    truthy(R.eligible("common", 0)); truthy(not R.eligible("normal", 0)); truthy(not R.eligible("rare", 0))
+    truthy(R.eligible("normal", 1)); truthy(not R.eligible("rare", 1))
+    truthy(R.eligible("rare", 2)); truthy(R.eligible("normal", 2))
 end)
 
 local function install(count, scoreOf)
@@ -114,15 +114,59 @@ local function install(count, scoreOf)
     R.install(data)
 end
 
+-- Forty items, the lower the number the easier: 1..20 common, 21..34 normal, 35..40 rare (50% / 35% / 15%).
+local function falling(i) return 100 - i end
+local function bandByNumber(n) return n <= 20 and "common" or (n <= 34 and "normal" or "rare") end
+
+test("the bands go by rank: the easiest half common, the next 35% normal, the last 15% rare", function()
+    install(40, falling)
+    for i = 1, 40 do eq(R.bandOf("Base.Item" .. i), bandByNumber(i), "Item" .. i) end
+    -- Within a band the quantity runs from qtyMax (its easiest) down to qtyMin (its last).
+    eq(R.qtyOf("Base.Item1"), R.BANDS.common.qtyMax); eq(R.qtyOf("Base.Item20"), R.BANDS.common.qtyMin)
+    eq(R.qtyOf("Base.Item21"), R.BANDS.normal.qtyMax); eq(R.qtyOf("Base.Item34"), R.BANDS.normal.qtyMin)
+    eq(R.qtyOf("Base.Item35"), R.BANDS.rare.qtyMax); eq(R.qtyOf("Base.Item40"), R.BANDS.rare.qtyMin)
+    for i = 2, 40 do
+        local a, b = R.qtyOf("Base.Item" .. (i - 1)), R.qtyOf("Base.Item" .. i)
+        if bandByNumber(i) == bandByNumber(i - 1) then truthy(a >= b, "easier never asks fewer: Item" .. i) end
+    end
+    -- Along the rank squared: the tenth of twenty common asks 5 + 15 x (10/19)^2 = 9.16, so 9.
+    eq(R.qtyOf("Base.Item10"), math.floor(5 + 15 * (10 / 19) ^ 2 + 0.5))
+end)
+
+test("a band's mean quantity stays what a line used to take: 10, 5 and 3", function()
+    install(200, falling)
+    local sum, n = { common = 0, normal = 0, rare = 0 }, { common = 0, normal = 0, rare = 0 }
+    for i = 1, 200 do
+        local key = "Base.Item" .. i
+        local band = R.bandOf(key)
+        sum[band], n[band] = sum[band] + R.qtyOf(key), n[band] + 1
+    end
+    eq(n.common, 100); eq(n.normal, 70); eq(n.rare, 30)
+    for _, band in ipairs(R.BAND_ORDER) do
+        local mean = sum[band] / n[band]
+        truthy(math.abs(mean - R.BANDS[band].qty) < 0.6, band .. " mean " .. mean)
+    end
+end)
+
+test("groups of an equal score are never told apart: they take the first one's band and quantity", function()
+    install(4, function() return 1.0 end)
+    for i = 1, 4 do
+        eq(R.bandOf("Base.Item" .. i), "common"); eq(R.qtyOf("Base.Item" .. i), R.BANDS.common.qtyMax)
+    end
+    install(6, function(i) return i <= 2 and 5 or 1 end)   -- 3 common by share; the four of score 1 tie at the 3rd
+    for i = 3, 6 do eq(R.bandOf("Base.Item" .. i), "common", "Item" .. i) end
+    eq(R.qtyOf("Base.Item6"), R.qtyOf("Base.Item3"))
+end)
+
 test("the list has 6 items at the start, drawn from the common ones only", function()
-    install(40, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+    install(40, falling)
     local record = OA.Store.ensure("p", "P")
     local list = R.list(record)
     eq(#list, 6)
     local seen = {}
     for _, t in ipairs(list) do
         local n = tonumber(string.match(t, "%d+"))
-        truthy(n <= 10, t .. " is a common item")
+        truthy(n <= 20, t .. " is a common item")
         truthy(not seen[t], "no duplicates")
         seen[t] = true
     end
@@ -130,7 +174,7 @@ test("the list has 6 items at the start, drawn from the common ones only", funct
 end)
 
 test("the list grows with the stage and gains rarer items", function()
-    install(40, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+    install(40, falling)
     local record = OA.Store.ensure("p", "P")
     local first = {}
     for i, t in ipairs(R.list(record)) do first[i] = t end
@@ -177,50 +221,65 @@ test("the categories the team wants at the stage are twice as likely", function(
     truthy(b > a * 1.5 and b < a * 2.6, "B " .. b .. " vs A " .. a)
 end)
 
-test("the bands: 1 and more is common, 0.3 to 1 normal, less rare, with a price, a quantity and a trust bonus", function()
-    eq(R.band(20.9), "common"); eq(R.band(1), "common")
-    eq(R.band(0.79), "normal"); eq(R.band(0.3), "normal")
-    eq(R.band(0.29), "rare"); eq(R.band(0.08), "rare")
+test("the bands' prices, mean quantities and trust bonuses", function()
     local b = R.BANDS
     eq(b.common.price, 600); eq(b.common.qty, 10); eq(b.common.trust, 5)
     eq(b.normal.price, 1500); eq(b.normal.qty, 5); eq(b.normal.trust, 10)
     eq(b.rare.price, 4000); eq(b.rare.qty, 3); eq(b.rare.trust, 20)
+    eq(b.common.qtyMin, 5); eq(b.common.qtyMax, 20)
+    near(R.BAND_SHARE.common, 0.5, 1e-9); near(R.BAND_SHARE.normal, 0.35, 1e-9)
 end)
 
 test("entry gives the fixed price, the week's quantity and what is left of it", function()
-    install(10, function() return 2.0 end)
+    install(10, function(i) return 20 - i end)
     local record = OA.Store.ensure("p", "P")
     local item = R.list(record)[1]
     local e = R.entry(record, item)
-    eq(e.band, "common"); eq(e.price, 600); eq(e.qty, 10); eq(e.trust, 5)
-    eq(e.used, 0); eq(e.left, 10); eq(e.full, false)
-    R.consume(record, item, 7)
+    local qty = R.qtyOf(item)
+    eq(e.band, "common"); eq(e.price, 600); eq(e.qty, qty); eq(e.trust, 5)
+    eq(e.used, 0); eq(e.left, qty); eq(e.full, false)
+    R.consume(record, item, qty - 3)
     e = R.entry(record, item)
-    eq(e.used, 7); eq(e.left, 3); eq(e.full, false)
+    eq(e.used, qty - 3); eq(e.left, 3); eq(e.full, false)
     R.consume(record, item, 3)
     e = R.entry(record, item)
     eq(e.left, 0); eq(e.full, true)
     eq(R.entry(record, "Base.NotListed"), nil)
 end)
 
-test("an item's band follows its score: 600 x10, 1,500 x5, 4,000 x3", function()
-    install(30, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+test("an item's band follows its rank: 600, 1,500 and 4,000 a unit, its quantity by its rank", function()
+    install(40, falling)
     local record = OA.Store.ensure("p", "P")
     OA.Trust.add(record, 2300)           -- stage 2: every band is drawn
     OA.Support.setLevel(record, "reqcount", 3)   -- all 12
     local seen = { common = false, normal = false, rare = false }
-    for _, e in ipairs(R.entries(record)) do
-        local n = tonumber(string.match(e.fullType, "%d+"))
-        local band = n <= 10 and "common" or (n <= 20 and "normal" or "rare")
-        eq(e.band, band, e.fullType)
-        eq(e.price, R.BANDS[band].price); eq(e.qty, R.BANDS[band].qty)
-        seen[band] = true
+    for _ = 1, 20 do
+        TEST.hours = (TEST.hours or 0) + 24 * 7
+        for _, e in ipairs(R.entries(record)) do
+            local band = bandByNumber(tonumber(string.match(e.fullType, "%d+")))
+            eq(e.band, band, e.fullType)
+            eq(e.price, R.BANDS[band].price); eq(e.qty, R.qtyOf(e.key))
+            seen[band] = true
+        end
     end
-    truthy(seen.common and seen.normal and seen.rare, "all three bands on a 12 item list")
+    truthy(seen.common and seen.normal and seen.rare, "all three bands drawn")
+end)
+
+test("a line keeps the band and quantity it was drawn with for the week, whatever the table does", function()
+    install(40, falling)
+    local record = OA.Store.ensure("p", "P")
+    local item = R.list(record)[1]
+    local before = R.entry(record, item)
+    install(40, function(i) return i end)          -- the table turned upside down: item is now rare
+    eq(R.bandOf(item), "rare")
+    local e = R.entry(record, item)
+    eq(e.band, before.band); eq(e.qty, before.qty)
+    TEST.hours = 24 * 7 + 1
+    for _, key in ipairs(R.list(record)) do eq(R.entry(record, key).band, "common", "next week draws by the new table") end
 end)
 
 test("entries come by band, common first, each band in the order drawn", function()
-    install(30, function(i) return i <= 10 and 2.0 or (i <= 20 and 0.5 or 0.1) end)
+    install(40, falling)
     local record = OA.Store.ensure("p", "P")
     OA.Trust.add(record, 2300)
     OA.Support.setLevel(record, "reqcount", 3)
@@ -253,11 +312,12 @@ test("the request price reward multiplies the price, to ten credits", function()
     eq(R.unitPrice(record, "common"), 300, "the option scales the price")
 end)
 
-test("an item the house loot does not hand out is rare", function()
+test("an item the house loot does not hand out is rare, at the band's usual quantity", function()
     install(10, function() return 2.0 end)
     eq(R.scoreOf("Base.Item3"), 2.0)
     eq(R.scoreOf("Base.Harmonica"), 0)
-    eq(R.band(R.scoreOf("Base.Harmonica")), "rare")
+    eq(R.bandOf("Base.Harmonica"), "rare")
+    eq(R.qtyOf("Base.Harmonica"), R.BANDS.rare.qty)
 end)
 
 test("a refused category is left out, and comes back two to a list when due", function()
@@ -477,23 +537,96 @@ test("every kind is in one group at most, and every group takes something", func
     end
 end)
 
-test("the band comes from how the group is come by: charcoal and watermelons are common, so are skill books", function()
-    local function bandOf(t) return R.band(R.group(R.keyOf(t)).score) end
+test("the band comes from every way a group is come by, ranked: kiln charcoal and any tin are common", function()
+    R.useGroups(REAL_GROUPS)
+    R.install(R.build({}, infoOf, REAL_GROUPS))
+    local function bandOf(t) return R.bandOf(R.keyOf(t)) end
     eq(bandOf("Base.CharcoalCrafted"), "common", "a kiln makes twelve from two logs")
-    eq(bandOf("Base.Watermelon"), "common", "a farm grows them")
     eq(bandOf("Base.BookCarpentry3"), "common", "any skill book")
-    eq(bandOf("Base.TvBlack"), "rare", "a television (of any brand) comes out of a TV crate now and then: less than a"
-        .. " third of the median group's loot, now that the median group is a family")
-    eq(bandOf("Base.CannedPeas"), "common", "one tin is normal; any tin is common")
+    eq(bandOf("Base.CannedPeas"), "common", "any tin")
+    eq(bandOf("Base.Watermelon"), "normal", "a garden grows a few, slowly; houses have some")
+    eq(bandOf("Base.TvBlack"), "normal", "any television")
+    -- A family turns up more than any one of its kinds would: the cans rank above the beans tin on its own did.
+    truthy(R.qtyOf("cans") >= R.qtyOf(R.keyOf("Base.Charcoal")), "cans ask at least as many as charcoal")
+    local counts = { common = 0, normal = 0, rare = 0 }
+    for _, row in ipairs(REAL_GROUPS) do counts[R.bandOf(row.id)] = counts[R.bandOf(row.id)] + 1 end
+    local n = #REAL_GROUPS
+    eq(counts.common, math.floor(n * 0.5 + 0.5)); eq(counts.common + counts.normal, math.floor(n * 0.85 + 0.5))
 end)
 
-test("a group's price is never below its dearest member's value: a television is 6,000, not 600", function()
-    local key = R.keyOf("Base.TvBlack")
-    eq(R.floorOf(key), 6000, "10 weight of electronics at 600")
-    R.install(R.build({}, infoOf, { R.group(key) }))
+-- A script manager that knows the given types ({ fullType = { w, dc } }; `all` for any type, 0.1 of junk).
+local function scriptsOf(made, all)
+    ItemType = ItemType or { MOVEABLE = 1 }
+    return function()
+        return { FindItem = function(_, t)
+            local s = made[t] or (all and { w = 0.1, dc = "Junk" })
+            if not s then return nil end
+            return { getFullName = function() return t end, getActualWeight = function() return s.w end,
+                getDisplayCategory = function() return s.dc end, isItemType = function() return false end }
+        end }
+    end
+end
+
+test("each kind of a group is paid its own worth: a television 6,000, a radio its own, never the dearest's", function()
+    -- Scripts: a big television (10 weight of electronics, 6,000) and a small radio (0.5 weight, 300) in one group.
+    local was = getScriptManager
+    getScriptManager = scriptsOf({ ["Base.TvX"] = { w = 10, dc = "Electronics" },
+        ["Base.RadioX"] = { w = 0.5, dc = "Electronics" } })
+    R.useGroups({ { id = "sets", score = 1, wt = 10, dc = "Electronics", items = { "Base.TvX", "Base.RadioX" } } })
+    eq(R.worthOf("Base.TvX"), 6000, "10 weight of electronics at 600")
+    eq(R.worthOf("Base.RadioX"), 300)
+    eq(R.worthOf("Base.Nothing"), 0, "a kind with no script is worth nothing by weight")
+    R.install(R.build({}, infoOf, OA.RequestGroups))
     local record = OA.Store.ensure("p", "P")
-    eq(R.line(record, key, {}).price, 6000)
-    eq(R.floorOf("Base.Nothing"), 0, "a kind no group has has no floor")
+    local line = R.line(record, "sets", {})
+    eq(line.price, 600, "the band's price"); eq(line.priceMin, 600, "the radio fetches the band's price")
+    eq(line.priceMax, 6000, "the television its own worth")
+    eq(R.priceOf(line, R.worthOf("Base.RadioX")), 600)
+    eq(R.priceOf(line, R.worthOf("Base.TvX")), 6000)
+    OA.Support.setLevel(record, "reqprice", 1)   -- x1.1
+    line = R.line(record, "sets", {})
+    eq(R.priceOf(line, 300), 660); eq(R.priceOf(line, 6000), 6600, "the reward multiplies its own worth too")
+    getScriptManager = was
+    R.forget()
+    R.useGroups(REAL_GROUPS)
+end)
+
+test("a save from before the ranks: the table is made again, this week's lines keep what they showed", function()
+    local rows = {}
+    for i = 1, 40 do rows[i] = { id = "Base.Item" .. i, score = 100 - i, wt = 0.1, dc = "Junk", items = { "Base.Item" .. i } } end
+    R.useGroups(rows)
+    -- The old world: VERSION 3, scores over the median (1 and more common, 0.3 to 1 normal), another stamp.
+    local world = OA.Store.world("requests")
+    for k in pairs(world) do world[k] = nil end
+    world.version, world.stamp, world.n, world.kinds, world.total = 3, "old", 4, {}, {}
+    world.types = { "Base.Item1", "Base.Item2", "Base.Item3", "Base.Item40" }
+    world.score = { 2.0, 0.5, 0.1, 5.0 }
+    local record = OA.Store.ensure("p", "P")
+    local codex = OA.Store.section(record, "codex")
+    codex.req = { week = OA.week(), extra = 0, groups = true,
+        items = { "Base.Item1", "Base.Item2", "Base.Item3", "Base.Item40", "Base.Strange" },
+        used = { ["Base.Item1"] = 10, ["Base.Item2"] = 2 } }
+    local wasScripts, wasDist = getScriptManager, SuburbsDistributions
+    getScriptManager, SuburbsDistributions = scriptsOf({}, true), {}
+    local e = R.entry(record, "Base.Item1")
+    eq(e.band, "common"); eq(e.qty, 10); eq(e.full, true, "a line filled before stays full: no second bonus")
+    e = R.entry(record, "Base.Item2")
+    eq(e.band, "normal"); eq(e.qty, 5); eq(e.left, 3)
+    e = R.entry(record, "Base.Item3")
+    eq(e.band, "rare"); eq(e.qty, 3)
+    e = R.entry(record, "Base.Item40")
+    eq(e.band, "common", "its old band for the rest of the week"); eq(e.qty, 10)
+    eq(R.entry(record, "Base.Strange").band, "rare", "a kind the old table did not have was rare")
+    world = OA.Store.world("requests")
+    eq(world.version, R.VERSION); eq(world.n, 40, "the table is made again from the groups")
+    eq(R.bandOf("Base.Item40"), "rare", "by the new table, Item40 ranks last")
+    eq(#R.list(record), 6, "topped up from the new table")
+    TEST.hours = 24 * 7 + 1
+    for _, key in ipairs(R.list(record)) do
+        eq(R.entry(record, key).qty, R.qtyOf(key), "next week's lines are the new table's")
+    end
+    getScriptManager, SuburbsDistributions = wasScripts, wasDist
+    R.useGroups(REAL_GROUPS)
 end)
 
 test("a group's name: the family's text, the words its kinds' names start with, or the first kind's", function()
@@ -570,7 +703,7 @@ test("a list saved before the groups is moved to them and keeps what the week se
     for i = 3, #list do truthy(list[i] ~= "base:charcoal", "charcoal once") end
     eq(R.used(record)["base:charcoal"], 5, "3 and 2 of its kinds")
     eq(R.used(record)["Base.Item1"], 1)
-    eq(R.entry(record, "Base.Charcoal").left, 5)
+    eq(R.entry(record, "Base.Charcoal").left, R.qtyOf("base:charcoal") - 5)
     eq(codex.reqPin, "base:charcoal")
     eq(codex.req.groups, true)
     codex.req.groups = nil
