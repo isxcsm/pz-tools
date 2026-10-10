@@ -125,10 +125,19 @@ def window_rect(full):
     return (p.x, p.y, p.x + r.right, p.y + r.bottom)
 
 
-# Places from the top left of the game window's inside (the windowed 1280x720 game): Resume in the Lua debugger's
-# tool bar, Continue on the main menu.
-RESUME_AT = (564, 21)
-CONTINUE_AT = (84, 56)
+# Places from the top left of the game window's inside (the windowed 1280x720 game at the 16 pixel font): Resume in the
+# Lua debugger's tool bar, Continue on the main menu. Another window size or font option moves them: PZDEV_RESUME and
+# PZDEV_CONTINUE ("x,y") give them (1600x900 at the 26 pixel font: 711,25 and 100,30).
+def place(name, default):
+    value = os.environ.get(name)
+    if not value:
+        return default
+    x, y = value.split(",")
+    return (int(x), int(y))
+
+
+RESUME_AT = place("PZDEV_RESUME", (564, 21))
+CONTINUE_AT = place("PZDEV_CONTINUE", (84, 56))
 
 
 def click(at):

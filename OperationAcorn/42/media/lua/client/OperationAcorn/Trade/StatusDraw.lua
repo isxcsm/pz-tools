@@ -72,14 +72,15 @@ end
 -- The spaces at a part's ends are widened (UI.spaceGaps): a part's seam is a gap of the layout.
 -- Widths are compared with a margin: in design units at a scale like 1.625 they are fractions, and what is left after
 -- one part (the run's width less it) can come out a hair under the next part's width.
-local ARROW_W = 16
+-- an arrow's room: 3 before it, its 10 dots, 3 after
+local function arrowWidth() return 6 + 10 * UI.dot() end
 local EPS = 0.001
 
 local widened = function(part) return UI.spaceGaps(part.s, part.font) end
 
 -- A part's width: `pad` pixels before it, then the arrow or the text.
 local function partWidth(part)
-    if part.arrow then return ARROW_W + (part.pad or 0) end
+    if part.arrow then return arrowWidth() + (part.pad or 0) end
     local _, more = widened(part)
     return UI.textWidth(part.s or "", part.font) + more + (part.pad or 0)
 end
@@ -102,7 +103,7 @@ function Draw.run(L, parts, x, y, w, align)
         cx, pw, left = cx + pad, pw - pad, left - pad
         if part.arrow then
             if pw > left + EPS then break end
-            Draw.arrow(L, cx + 3, y + math.floor((L.fh - 7) / 2), part.c, part.a)
+            Draw.arrow(L, cx + 3, y, L.fh, part.c, part.a)
         else
             local before = widened(part)
             if pw <= left + EPS then
@@ -183,21 +184,31 @@ end
 
 -- Small glyphs drawn with rectangles ---------------------------------------------------------------------------------
 
+-- The small signs below are drawn in whole dots (UI.dot): a one-pixel line would stay one pixel (the rule for borders)
+-- and leave a 1.625x arrow a thin shaft with a speck of a head.
+local dot = UI.dot
+
 function Draw.lock(L, x, y, c, a)
-    Draw.frame(L, x + 2, y, 4, 4, c, a)
-    Draw.rect(L, x, y + 4, 8, 5, c, a)
+    local u = dot()
+    Draw.rect(L, x + 2 * u, y, 4 * u, u, c, a)
+    Draw.rect(L, x + 2 * u, y, u, 4 * u, c, a)
+    Draw.rect(L, x + 5 * u, y, u, 4 * u, c, a)
+    Draw.rect(L, x, y + 4 * u, 8 * u, 5 * u, c, a)
 end
 
 function Draw.bullet(L, x, y, c, a)
     Draw.rect(L, x, y + 7, 3, 3, c, a)
 end
 
--- A right arrow 10 wide and 7 high from x, y.
-function Draw.arrow(L, x, y, c, a)
-    Draw.rect(L, x, y + 3, 10, 1, c, a)
-    Draw.rect(L, x + 7, y + 1, 1, 5, c, a)
-    Draw.rect(L, x + 8, y + 2, 1, 3, c, a)
-    Draw.rect(L, x + 9, y + 3, 1, 1, c, a)
+-- A right arrow 10 dots wide and 7 high, centred on the line from y (a line `h` high).
+function Draw.arrow(L, x, y, h, c, a)
+    local u = dot()
+    y = y + (h - 7 * u) / 2
+    -- a shaft and a full triangle of a head (columns 7, 5, 3 and 1 dots high)
+    Draw.rect(L, x, y + 3 * u, 6 * u, u, c, a)
+    for k = 0, 3 do
+        Draw.rect(L, x + (6 + k) * u, y + k * u, u, (7 - 2 * k) * u, c, a)
+    end
 end
 
 -- Widgets -----------------------------------------------------------------------------------------------------------

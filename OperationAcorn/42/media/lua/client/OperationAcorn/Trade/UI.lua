@@ -493,10 +493,19 @@ function UI.fitPx(text, width, font)
     return fitWith(UI.textWidthPx, text, width, font)
 end
 
--- A small padlock drawn from rectangles (the fonts have no glyph for one), 8 wide and 9 high from x, y.
+-- One dot of the small signs drawn from rectangles, in design units: round(S) pixels, so that their strokes thicken
+-- with the scale and stay even (a one-pixel line stays one pixel, the rule for borders).
+function UI.dot()
+    return math.max(1, math.floor(S + 0.5)) / S
+end
+
+-- A small padlock drawn from rectangles (the fonts have no glyph for one), 8 dots wide and 9 high from x, y.
 function UI.lock(el, x, y, c, a)
-    UI.frame(el, x + 2, y, 4, 4, c, a)
-    UI.fill(el, x, y + 4, 8, 5, c, a)
+    local u = UI.dot()
+    UI.fill(el, x + 2 * u, y, 4 * u, u, c, a)
+    UI.fill(el, x + 2 * u, y, u, 4 * u, c, a)
+    UI.fill(el, x + 5 * u, y, u, 4 * u, c, a)
+    UI.fill(el, x, y + 4 * u, 8 * u, 5 * u, c, a)
 end
 
 -- A row of sub-tabs (the status tab's and the missions tab's, DESIGN-terminal 2.1a, 6.4): boxes side by side, the
