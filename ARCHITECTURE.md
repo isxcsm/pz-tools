@@ -299,7 +299,7 @@ component FluidContainer { ContainerName = OA_WaterStorage, Capacity = 1.8, ... 
 | 이름 | 파일 |
 | --- | --- |
 | 옷 항목 `OA_Bag_ResearchPack`, `_LHand`, `_RHand` | `media/clothing/clothingItems/OA_Bag_ResearchPack*.xml` (GUID는 `media/fileGuidTable.xml`에 등록. 새 옷 XML을 더하는 묶음은 이 표에도 더한다) |
-| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (배낭 몸통은 `Bip01_BackPack`에 100%, 어깨끈은 바닐라 몸(`MaleBody.x`/`FemaleBody.x`) 표면에 맞춰 놓고 그 아래 몸의 가중치(Spine, Spine1, 쇄골, 위팔 최대 35%)를 받아 배낭에 닿는 끝에서 `Bip01_BackPack`으로 넘어간다. 꼭짓점당 뼈 최대 3개) |
+| 멘 모습(남·녀) | `models_X/Skinned/BackPacks/OA_ResearchPack_M.x`, `OA_ResearchPack_F.x` (배낭 몸통은 `Bip01_BackPack`에 100%, 어깨끈은 어깨를 넘어 가슴 앞으로 곧게, 서로 나란히 내려오도록(여성은 가슴 바깥쪽) 바닐라 몸(`MaleBody.x`/`FemaleBody.x`) 표면에 맞춰 놓고 그 아래 몸의 가중치(Spine, Spine1, 쇄골, 위팔 최대 35%)를 받아 배낭에 닿는 끝에서 `Bip01_BackPack`으로 넘어간다. 꼭짓점당 뼈 최대 3개) |
 | 손에 든 모습 | `OA_ResearchPack_LHand.x` (`Bip01_Prop2`), `OA_ResearchPack_RHand.x` (`Bip01_Prop1`) |
 | 바닥 모델 `OA_ResearchPack_Ground` | `models_X/WorldItems/Clothing/OA_ResearchPack_Ground.fbx`, 정의는 `scripts/OA_backpack_models.txt` |
 | 텍스처 | `textures/Clothes/Bag/OA_ResearchPack.png` (1024×1024, 주변 차폐를 구워 넣음) |
