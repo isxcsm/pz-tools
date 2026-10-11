@@ -15,6 +15,11 @@
 -- squares (buildings.rooms), walked in Lua a part at a time; without the API they come from the game's BuildingDef and
 -- rooms (the dev fallback; the mod itself needs the API). A building with a square not loaded is not judged. A
 -- player-built building is never counted, nor is a container the player made.
+--
+-- A basement is a building of its own to the game (Build 42 places it under a house as another BuildingDef, all of it
+-- below ground) and so to the API. Here it is part of the house above it: with the API, the key of either is the
+-- house's and the walk goes over both (one part each, Buildings.group), so going down the stairs is another floor of
+-- the same building.
 require "OperationAcorn/Core"
 local OA = OperationAcorn
 local Buildings = {}
@@ -67,6 +72,88 @@ end
 -- Buildings (by key) the API's containers could not be used for, and whether the call itself failed: the Lua walk.
 local noContainers, containersFailed = {}, false
 
+-- ---- a house and its basements ----------------------------------------------------------------------------------
+
+local groups = {}      -- the API's key (as a string) -> { key = the house's, raws = the API keys of the house and its basements }
+local nearDefs = nil   -- an ArrayList used again for the game's buildings around a def
+
+-- The vanilla buildings that touch a def or lie within a square of it.
+local function defsAround(def)
+    nearDefs = nearDefs or ArrayList.new()
+    nearDefs:clear()
+    getWorld():getMetaGrid():getBuildingsIntersecting(def:getX() - 1, def:getY() - 1, def:getW() + 2, def:getH() + 2,
+        nearDefs)
+    return nearDefs
+end
+
+-- The one building above ground a basement (a building all below ground) lies under; nil when there is none or more.
+local function houseOf(def)
+    local found = nil
+    local around = defsAround(def)
+    for i = 0, around:size() - 1 do
+        local d = around:get(i)
+        if d:getMinLevel() >= 0 then
+            if found then return nil end
+            found = d
+        end
+    end
+    return found
+end
+
+-- The API's key of a vanilla building, from a square of its first room; nil for one the player built.
+local function rawOf(api, def)
+    local rooms = def:getRooms()
+    if rooms:size() == 0 then return nil end
+    local room = rooms:get(0)
+    local rects = room:getRects()
+    if rects:size() == 0 then return nil end
+    local rect = rects:get(0)
+    local b = api.buildings.at(rect:getX(), rect:getY(), room:getZ())
+    return b and not b.playerBuilt and b.key or nil
+end
+
+-- The group of a house (its def and API key): the house and the basements that lie under it alone.
+local function houseGroup(api, house, raw)
+    local g = { key = tostring(raw), raws = { raw } }
+    local around = defsAround(house)
+    local basements = {}
+    for i = 0, around:size() - 1 do
+        local d = around:get(i)
+        if d:getMaxLevel() < 0 then basements[#basements + 1] = d end
+    end
+    for _, d in ipairs(basements) do
+        if houseOf(d) == house then
+            local r = rawOf(api, d)
+            if r then g.raws[#g.raws + 1] = r end
+        end
+    end
+    for _, r in ipairs(g.raws) do groups[tostring(r)] = g end
+    return g
+end
+
+-- The group of the building the API named at a square (b: its answer to buildings.at): a basement goes with the house
+-- above it, a house brings its basements. Worked out once a building (the game's buildings around it asked then).
+function Buildings.group(api, b, square)
+    local k = tostring(b.key)
+    local g = groups[k]
+    if g then return g end
+    local building = square:getBuilding()
+    local def = building and building:getDef()
+    if def and def:getMaxLevel() < 0 then
+        local house = houseOf(def)
+        local raw = house and rawOf(api, house)
+        if raw then
+            g = houseGroup(api, house, raw)
+            if groups[k] == g then return g end
+        end
+    elseif def then
+        return houseGroup(api, def, b.key)
+    end
+    g = { key = k, raws = { b.key } }
+    groups[k] = g
+    return g
+end
+
 -- A walk over the squares of the building at a square, counted a part at a time (stepWalk): nil outside any building
 -- or in one the player built. `room` is the square's vanilla room (the caller has it), used when the API is missing.
 -- With the API's containers the walk is one call a look (stepApi) and keeps the unopened containers with the square
@@ -80,10 +167,14 @@ local function newWalk(square, room)
     if api and api.buildings then
         local b = api.buildings.at(square:getX(), square:getY(), square:getZ())
         if not b or b.playerBuilt then return nil end
-        if type(api.buildings.containers) == "function" and not containersFailed and not noContainers[tostring(b.key)] then
-            walk.key, walk.raw = tostring(b.key), b.key
-            walk.api, walk.opts = true, apiOptions()
-            walk.ox, walk.oy, walk.oz, walk.index = {}, {}, {}, {}
+        local g = Buildings.group(api, b, square)
+        if type(api.buildings.containers) == "function" and not containersFailed and not noContainers[g.key] then
+            -- a part for each building of the group, each walked by the API as a building alone would be
+            walk.key, walk.api, walk.parts = g.key, true, {}
+            for i, raw in ipairs(g.raws) do
+                walk.parts[i] = { raw = raw, opts = apiOptions(), open = {}, ox = {}, oy = {}, oz = {}, index = {},
+                    floorTotal = {}, floorOpen = {}, zOf = {}, total = 0, explored = 0, complete = false }
+            end
             return walk
         end
         local rooms = api.buildings.rooms(b.key)
@@ -94,7 +185,7 @@ local function newWalk(square, room)
                 rects[#rects + 1] = { x = rect.x, y = rect.y, w = rect.w, h = rect.h, z = r.level }
             end
         end
-        walk.key, walk.rects, walk.missing, walk.keep, walk.mAt = tostring(b.key), rects, {}, {}, 1
+        walk.key, walk.rects, walk.missing, walk.keep, walk.mAt = g.key, rects, {}, {}, 1
         return walk
     end
     if not room then return nil end
@@ -265,20 +356,20 @@ local function takeList(walk, list, total)
     end
 end
 
--- A look through the API's containers (the building walked in Java): the counts and the unopened ones. A building
--- counted whole with every container opened has nothing left to look at. False when the API cannot do this look (it
--- failed, or knows no such building): the walk is made in Lua from then on (see tick).
-local function stepApi(walk)
-    if walk.complete and walk.looked and #walk.open == 0 then return true end
+-- A look through the API's containers at one part of a walk (a building walked in Java): its counts and its unopened
+-- ones. A part counted whole with every container opened has nothing left to look at. False when the API cannot do
+-- this look (it failed, or knows no such building): the walk is made in Lua from then on (see tick).
+local function stepPart(walk, part)
+    if part.complete and part.looked and #part.open == 0 then return true end
     local api = OA.api()
     local fn = api and api.buildings and api.buildings.containers
     if type(fn) ~= "function" then
         containersFailed = true
         return false
     end
-    local opts = walk.opts
-    opts.since = walk.stamp
-    local ok, list, complete, stamp, total, opened = pcall(fn, walk.raw, opts)
+    local opts = part.opts
+    opts.since = part.stamp
+    local ok, list, complete, stamp, total, opened = pcall(fn, part.raw, opts)
     if not ok then
         OA.log("building containers:", tostring(list))
         containersFailed = true
@@ -288,9 +379,20 @@ local function stepApi(walk)
         noContainers[walk.key] = true
         return false
     end
-    walk.looked = true
-    walk.stamp, walk.total, walk.explored, walk.complete = stamp, total, opened, complete and true or false
-    takeList(walk, list, total)
+    part.looked = true
+    part.stamp, part.total, part.explored, part.complete = stamp, total, opened, complete and true or false
+    takeList(part, list, total)
+    return true
+end
+
+-- A look at every part of an API walk, the walk's counts their sums.
+local function stepApi(walk)
+    local total, explored, complete = 0, 0, true
+    for _, part in ipairs(walk.parts) do
+        if not stepPart(walk, part) then return false end
+        total, explored, complete = total + part.total, explored + part.explored, complete and part.complete
+    end
+    walk.total, walk.explored, walk.complete = total, explored, complete
     return true
 end
 
@@ -300,17 +402,20 @@ function Buildings.scan(square, room)
     local walk = newWalk(square, room)
     if not walk then return nil end
     if walk.api then
-        walk.opts.since = nil
         local api = OA.api()
-        local ok, list, complete = pcall(api.buildings.containers, walk.raw, walk.opts)
-        if ok and type(list) == "table" then
-            local found = {}
+        local found, whole = {}, true
+        for _, part in ipairs(walk.parts) do
+            part.opts.since = nil
+            local ok, list, complete = pcall(api.buildings.containers, part.raw, part.opts)
+            if not ok or type(list) ~= "table" then
+                -- the Lua walk instead
+                if ok then noContainers[walk.key] = true else containersFailed = true end
+                return Buildings.scan(square, room)
+            end
             for i = 1, #list, STRIDE do found[#found + 1] = list[i] end
-            return { key = walk.key, containers = found, complete = complete and true or false }
+            whole = whole and complete and true or false
         end
-        -- the Lua walk instead
-        if ok then noContainers[walk.key] = true else containersFailed = true end
-        return Buildings.scan(square, room)
+        return { key = walk.key, containers = found, complete = whole }
     end
     stepWalk(walk, math.huge)
     return { key = walk.key, containers = walk.list, complete = walk.complete }
@@ -394,6 +499,15 @@ end
 function Buildings.unopened(character)
     local walk = states[character:getPlayerNum()]
     if not walk then return nil end
+    if walk.parts then
+        -- the part the character's floor is in (a house's floors and its basement's do not meet)
+        local z = math.floor(character:getZ())
+        for _, part in ipairs(walk.parts) do
+            if part.floorTotal[z] then return part.open, part.ox, part.oy, part.oz end
+        end
+        local first = walk.parts[1]
+        return first.open, first.ox, first.oy, first.oz
+    end
     return walk.open, walk.ox, walk.oy, walk.oz
 end
 
@@ -402,6 +516,13 @@ end
 function Buildings.floor(character, z)
     local walk = states[character:getPlayerNum()]
     if not walk then return 0, 0 end
+    if walk.parts then
+        local open, total = 0, 0
+        for _, part in ipairs(walk.parts) do
+            open, total = open + (part.floorOpen[z] or 0), total + (part.floorTotal[z] or 0)
+        end
+        return open, total
+    end
     return walk.floorOpen[z] or 0, walk.floorTotal[z] or 0
 end
 
@@ -411,7 +532,8 @@ function Buildings.keyAt(square, room)
     local api = OA.api()
     if api and api.buildings then
         local b = api.buildings.at(square:getX(), square:getY(), square:getZ())
-        return b and not b.playerBuilt and tostring(b.key) or nil
+        if not b or b.playerBuilt then return nil end
+        return Buildings.group(api, b, square).key
     end
     room = room or square:getRoom()
     local building = room and room:getBuilding()
@@ -424,6 +546,7 @@ function Buildings.reset()
     states = {}
     left = {}
     noContainers, containersFailed = {}, false
+    groups = {}
 end
 
 return Buildings

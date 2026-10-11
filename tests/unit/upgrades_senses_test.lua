@@ -291,7 +291,7 @@ test("the ledger outlines the unopened containers near the character, and asks a
     recordWith({ ledger = 3 })
     local p = player(100, 100, 0.0)
     p.square = { getRoom = function() return {} end, getX = function() return 100 end, getY = function() return 100 end,
-        getZ = function() return 0 end }
+        getZ = function() return 0 end, getBuilding = function() return nil end }
     getPlayer = function() return p end
     OA.Buildings.tick(p)
     eq(Senses.ledgerOutline(p), true, "rank 2 and more keeps outlines")

@@ -464,13 +464,17 @@ local function walker(room)
     local at = { room = room }
     return {
         getPlayerNum = function() return 0 end,
+        getZ = function() return 0 end,
         getModData = function() return { OA_Id = "w" } end,
         getCurrentSquare = function()
             return { getRoom = function() return at.room end, getX = function() return 10 end,
                 getY = function() return 10 end, getZ = function() return 0 end,
-                isOutside = function() return at.room == nil and not at.indoor end }
+                isOutside = function() return at.room == nil and not at.indoor end,
+                getBuilding = function() return at.building end }
         end,
         move = function(_, r, indoor) at.room, at.indoor = r, indoor end,
+        -- the vanilla building of its square (Buildings.group asks it for the basements): none by default
+        within = function(_, b) at.building = b end,
     }
 end
 
@@ -858,7 +862,8 @@ test("a scan of the building lists its containers through the API too", function
     local a, b = box(true), box(false)
     local world = { entries = { entry(a, 1, 1), entry(b, 2, 1) } }
     PZToolsAPI = fakeContainersApi(world)
-    local square = { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end }
+    local square = { getX = function() return 1 end, getY = function() return 1 end, getZ = function() return 0 end,
+        getBuilding = function() return nil end }
     local scanned = OA.Buildings.scan(square, nil)
     eq(scanned.key, "b1"); eq(#scanned.containers, 2); eq(scanned.complete, true)
     eq(OA.Buildings.searched(scanned.containers), 1)
@@ -882,4 +887,51 @@ test("the API's walk keeps the containers and the unopened ones of each floor", 
     eq(left, 0, "an opened one leaves its floor's count"); eq(total, 2)
     eq(OA.Buildings.floor(w, 2), 0, "a floor with none")
     PZToolsAPI = nil
+end)
+
+test("a basement goes with the house above it: one key, one walk over both, its floor apart", function()
+    OA.Buildings.reset()
+    local up, down = box(false), box(true)
+    local house = fakeContainersApi({ entries = { entry(up, 1, 1) } })
+    local cellar = fakeContainersApi({ entries = { entry(down, 2, 2, { z = -1 }) } })
+    -- the game's two buildings: the house (levels 0 to 1) and, under it, the basement (level -1 only)
+    local function def(at, minLevel, maxLevel)
+        local rect = { getX = function() return at end, getY = function() return at end }
+        local room = { getRects = function() return list({ rect }) end, getZ = function() return minLevel end }
+        return { getX = function() return 0 end, getY = function() return 0 end, getW = function() return 10 end,
+            getH = function() return 10 end, getMinLevel = function() return minLevel end,
+            getMaxLevel = function() return maxLevel end, getRooms = function() return list({ room }) end }
+    end
+    local houseDef, cellarDef = def(1, 0, 1), def(2, -1, -1)
+    local arrayList, world = ArrayList, getWorld
+    ArrayList = { new = function()
+        local t = {}
+        return { clear = function() for k in pairs(t) do t[k] = nil end end, add = function(_, v) t[#t + 1] = v end,
+            size = function() return #t end, get = function(_, i) return t[i + 1] end }
+    end }
+    getWorld = function()
+        return { getMetaGrid = function()
+            return { getBuildingsIntersecting = function(_, x, y, w, h, out) out:add(houseDef) out:add(cellarDef) end }
+        end }
+    end
+    PZToolsAPI = { version = 1, client = function() return {} end, buildings = {
+        at = function(x, y, z) return { key = z < 0 and "cellar" or "house", playerBuilt = false } end,
+        containers = function(key, opts)
+            return (key == "cellar" and cellar or house).buildings.containers(key, opts)
+        end } }
+    local cellarSquare = { getX = function() return 2 end, getY = function() return 2 end, getZ = function() return -1 end,
+        getBuilding = function() return { getDef = function() return cellarDef end } end }
+    eq(OA.Buildings.keyAt(cellarSquare, {}), "house", "the basement is the house's")
+    local w = walker({})
+    w:within({ getDef = function() return houseDef end })
+    local key, opened, total = OA.Buildings.tick(w)
+    eq(key, "house"); eq(opened, 1); eq(total, 2, "the house's and the basement's")
+    local left, all = OA.Buildings.floor(w, -1)
+    eq(left, 0); eq(all, 1)
+    left, all = OA.Buildings.floor(w, 0)
+    eq(left, 1); eq(all, 1)
+    eq(OA.Buildings.unopened(w)[1], up, "the unopened ones of the part the character's floor is in")
+    local scanned = OA.Buildings.scan(cellarSquare, {})
+    eq(scanned.key, "house"); eq(#scanned.containers, 2, "a scan from the basement takes the house in too")
+    PZToolsAPI, ArrayList, getWorld = nil, arrayList, world
 end)
