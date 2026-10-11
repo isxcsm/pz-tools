@@ -199,4 +199,24 @@ function Sense.hunch(zombies, px, py, pz, radius)
     return false
 end
 
+-- Alarm reading: the mark over the character's head comes on within ALARM_NEAR squares of an alarmed house (its
+-- edge, not its middle: a big house is near at its wall) or car, and goes off past ALARM_LEAVE, so that walking along
+-- the line does not blink it. A car is measured from its middle, ALARM_CAR less (half its length, about).
+Sense.ALARM_NEAR = 5
+Sense.ALARM_LEAVE = 6
+Sense.ALARM_CAR = 1.5
+
+-- How far a point is from a rectangle (x, y, w, h): 0 inside it.
+function Sense.toRect(px, py, x, y, w, h)
+    local dx = math.max(x - px, 0, px - (x + w))
+    local dy = math.max(y - py, 0, py - (y + h))
+    return math.sqrt(dx * dx + dy * dy)
+end
+
+-- Whether the mark is on at distance `d` from the nearest alarm, when it `was` on or not.
+function Sense.alarmOn(d, was)
+    if d == nil then return false end
+    return d <= Sense.ALARM_NEAR or (was and d <= Sense.ALARM_LEAVE) or false
+end
+
 return Sense

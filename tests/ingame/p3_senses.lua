@@ -23,7 +23,7 @@ P3T.check(say, "the shared timer is on", OA.Upgrades.Pulse.enabled())
 local S = Senses.state
 local marks = 0
 for _ in pairs(S.zombies or {}) do marks = marks + 1 end
-say("ring on", S.ring, "hunch on", S.sixth, "marks", marks, "alarms", #(S.alarms or {}))
+say("ring on", S.ring, "hunch on", S.sixth, "marks", marks, "alarm near", S.alarm)
 P3T.check(say, "ThumpState is exposed (zombies beating on a door shake their arc)",
     ThumpState ~= nil and ThumpState.instance() ~= nil)
 P3T.check(say, "at most eight zombie marks", marks <= OA.Upgrades.Sense.ZOMBIE_MARKS)

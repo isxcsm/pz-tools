@@ -205,6 +205,17 @@ test("sense voices: past the groans a look allows, the rest wait; a strike is to
     eq(strike[1].kind, "attack")
 end)
 
+test("alarm reading: measured to a house's edge, on near, off only past the wider bound", function()
+    eq(Sense.toRect(5, 5, 0, 0, 10, 10), 0, "inside the house")
+    eq(Sense.toRect(13, 5, 0, 0, 10, 10), 3, "beside a long wall, far from the middle")
+    eq(Sense.toRect(13, 14, 0, 0, 10, 10), 5, "off a corner")
+    eq(Sense.alarmOn(nil, true), false, "no alarm near")
+    eq(Sense.alarmOn(Sense.ALARM_NEAR, false), true)
+    eq(Sense.alarmOn(Sense.ALARM_NEAR + 0.5, false), false, "between the bounds it does not come on")
+    eq(Sense.alarmOn(Sense.ALARM_NEAR + 0.5, true), true, "and does not go off")
+    eq(Sense.alarmOn(Sense.ALARM_LEAVE + 0.1, true), false)
+end)
+
 test("sense hunch: unseen, within the radius, on this floor or beside it", function()
     eq(Sense.hunch({ { x = 5, y = 0, z = 0 } }, 0, 0, 0, 8), true)
     eq(Sense.hunch({ { x = 9, y = 0, z = 0 } }, 0, 0, 0, 8), false)
