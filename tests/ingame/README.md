@@ -15,7 +15,7 @@ command channel (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Remot
 without the console: `python tools/pzdev.py check p3_window.lua` prints the check's lines. `pzdev.py run "<lua>"` runs
 any Lua, and the helpers of `OperationAcorn.Dev` (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Dev.lua`; the in-game dev
 panel, F8 or the "OA Dev" button, drives the same functions) set up a scene: research ranks,
-points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, closing the
+points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, alarms on the nearest house or car, closing the
 windows and the console. `pzdev.py shot out.png` takes a picture of the game window. With Break On Error on, a Lua
 error stops the game in the debugger (the channel too): `pzdev.py resume`.
 

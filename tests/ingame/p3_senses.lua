@@ -1,6 +1,7 @@
 -- P3: the hunch widget (육감), presence sense (기척 감지), alarm reading (경보 읽기) and the looting ledger (털이 기록).
 -- Setup: a single-player world, the mod on; stand near a few zombies (debug spawn 3 at about 10 tiles), then near an
--- alarmed house or car if you can. Changes the record (gives the ranks).
+-- alarmed house or car (the dev panel's Zombies tab, or OperationAcorn.Dev.alarmHouse() / alarmCar(), alarms the
+-- nearest). Changes the record (gives the ranks).
 -- Prints "[p3senses]" lines; the HUD marks are for you to look at (sneak: marks around the edge; standing: nothing,
 -- until Presence Sense Boost rank 1, which this script gives, so standing walks shows them too).
 RUN("p3_lib.lua")

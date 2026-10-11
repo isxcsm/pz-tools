@@ -322,6 +322,17 @@ local function zombiesPage(page, w)
     end)
     local _, x = button(page, T("Z_Clear30"), PAD, rowY(5), 0, function() Dev.clearZombies(30) end)
     button(page, T("Z_ClearAll"), x, rowY(5), 0, function() Dev.clearZombies() end)
+
+    -- alarms, for the alarm reading node: the marks show over alarmed houses and cars within 30 squares
+    local alarms = label(page, "", PAD, rowY(7) + 2)
+    local _, ax = button(page, T("Z_AlarmHouse"), PAD, rowY(8), 0, function() Dev.alarmHouse() end)
+    local _, bx = button(page, T("Z_AlarmCar"), ax, rowY(8), 0, function() Dev.alarmCar() end)
+    button(page, T("Z_AlarmClear"), bx, rowY(8), 0, function() Dev.clearAlarms() end)
+    label(page, T("Z_AlarmHint"), PAD, rowY(9) + 2, 0.7, 0.7, 0.7)
+    page.refresh = function()
+        local houses, cars = Dev.alarmsNear()
+        alarms:setName(T("Z_Alarms") .. ": " .. string.format("%.0f", houses) .. " / " .. string.format("%.0f", cars))
+    end
 end
 
 local function playerPage(page, w)

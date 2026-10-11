@@ -616,6 +616,104 @@ function Dev.zombiesInBuilding()
     return n, true
 end
 
+-- ---- alarms -----------------------------------------------------------------------------------------------------
+
+local ALARM_RANGE = 30
+local alarmBuildings, alarmVehicles = nil, nil
+
+-- The buildings within ALARM_RANGE of the character (their defs), nearest first, with their squared distances.
+local function buildingsNear()
+    local player = getPlayer()
+    local px, py = player:getX(), player:getY()
+    alarmBuildings = alarmBuildings or ArrayList.new()
+    alarmBuildings:clear()
+    getWorld():getMetaGrid():getBuildingsIntersecting(math.floor(px - ALARM_RANGE), math.floor(py - ALARM_RANGE),
+        ALARM_RANGE * 2, ALARM_RANGE * 2, alarmBuildings)
+    local found = {}
+    for i = 0, alarmBuildings:size() - 1 do
+        local def = alarmBuildings:get(i)
+        local dx, dy = def:getX() + def:getW() / 2 - px, def:getY() + def:getH() / 2 - py
+        found[#found + 1] = { def = def, d2 = dx * dx + dy * dy }
+    end
+    table.sort(found, function(a, b) return a.d2 < b.d2 end)
+    return found
+end
+
+-- The loaded vehicles within ALARM_RANGE of the character, nearest first.
+local function vehiclesNear()
+    local player = getPlayer()
+    local px, py = player:getX(), player:getY()
+    alarmVehicles = OA.vehicles(alarmVehicles)
+    local found = {}
+    for i = 0, alarmVehicles:size() - 1 do
+        local v = alarmVehicles:get(i)
+        local dx, dy = v:getX() - px, v:getY() - py
+        local d2 = dx * dx + dy * dy
+        if d2 <= ALARM_RANGE * ALARM_RANGE then found[#found + 1] = { vehicle = v, d2 = d2 } end
+    end
+    table.sort(found, function(a, b) return a.d2 < b.d2 end)
+    return found
+end
+
+-- Puts an alarm on the house the character stands in, or else the nearest one without an alarm within 30 squares (the
+-- game's own BuildingDef.alarmed: breaking in sounds it, as on a house the map made alarmed). Returns whether one was set.
+function Dev.alarmHouse()
+    local sq = getPlayer():getCurrentSquare()
+    local building = sq and sq:getBuilding()
+    local def = building and building:getDef()
+    if not def or def:isAlarmed() then
+        def = nil
+        for _, b in ipairs(buildingsNear()) do
+            if not b.def:isAlarmed() then def = b.def break end
+        end
+    end
+    if not def then
+        say("alarm: no house without an alarm within", ALARM_RANGE)
+        return false
+    end
+    def:setAlarmed(true)
+    say("alarm: house", def:getID(), "at", def:getX() + def:getW() / 2, def:getY() + def:getH() / 2, "alarmed")
+    return true
+end
+
+-- Puts an alarm on the nearest loaded vehicle without one within 30 squares. Returns whether one was set.
+function Dev.alarmCar()
+    for _, v in ipairs(vehiclesNear()) do
+        if not v.vehicle:isAlarmed() then
+            v.vehicle:setAlarmed(true)
+            say("alarm: vehicle", v.vehicle:getId(), "at", v.vehicle:getX(), v.vehicle:getY(), "alarmed")
+            return true
+        end
+    end
+    say("alarm: no vehicle without an alarm within", ALARM_RANGE)
+    return false
+end
+
+-- Takes the alarms off every house and vehicle within 30 squares. Returns how many houses and vehicles had one.
+function Dev.clearAlarms()
+    local houses, cars = 0, 0
+    for _, b in ipairs(buildingsNear()) do
+        if b.def:isAlarmed() then b.def:setAlarmed(false) houses = houses + 1 end
+    end
+    for _, v in ipairs(vehiclesNear()) do
+        if v.vehicle:isAlarmed() then v.vehicle:setAlarmed(false) cars = cars + 1 end
+    end
+    say("alarms cleared: houses", houses, "vehicles", cars)
+    return houses, cars
+end
+
+-- How many houses and vehicles within 30 squares have an alarm.
+function Dev.alarmsNear()
+    local houses, cars = 0, 0
+    for _, b in ipairs(buildingsNear()) do
+        if b.def:isAlarmed() then houses = houses + 1 end
+    end
+    for _, v in ipairs(vehiclesNear()) do
+        if v.vehicle:isAlarmed() then cars = cars + 1 end
+    end
+    return houses, cars
+end
+
 -- ---- zombies ----------------------------------------------------------------------------------------------------
 
 -- n zombies 4..9 tiles from the character (an outfit name, or nil for any), made harmless and still when `harmless`.
