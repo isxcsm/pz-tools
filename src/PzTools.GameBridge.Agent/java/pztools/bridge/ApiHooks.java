@@ -193,6 +193,9 @@ public final class ApiHooks {
         /** The light {@code FBORenderCell.sanitizeLightInfo} has the game draw a square's objects with, for a player; the light to use. */
         default Object objectLight(Object info, int playerIndex) { return info; }
 
+        /** The same, with the square (an API that does not ask for it answers without it). */
+        default Object objectLight(Object info, int playerIndex, Object square) { return objectLight(info, playerIndex); }
+
         /** Once a frame for each player's screen, on the main thread before it is drawn: night sight moves on. */
         default void nightSightFrame(int playerIndex) { }
 
@@ -505,7 +508,9 @@ public final class ApiHooks {
         Map.entry("zombie/iso/fboRenderChunk/FBORenderCell", new Site[] {
             Site.atReturns("sanitizeLightInfo", "(ILzombie/iso/IsoGridSquare;)Lzombie/core/textures/ColorInfo;", 3, (code, owner) -> {
                 code.iload(1);
-                code.invokestatic(HOOKS, "objectLight", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_int));
+                code.aload(2);
+                code.invokestatic(HOOKS, "objectLight", MethodTypeDesc.of(ConstantDescs.CD_Object, ConstantDescs.CD_Object, ConstantDescs.CD_int,
+                    ConstantDescs.CD_Object));
                 code.checkcast(COLOR_INFO);
             }) }),
         // Night sight's screen pass: a step put into the screen shader where it reads the world (ScreenShader), its program kept
@@ -1829,10 +1834,10 @@ public final class ApiHooks {
     }
 
     /** Put before each return of {@code FBORenderCell.sanitizeLightInfo}. */
-    public static Object objectLight(Object info, int playerIndex) {
+    public static Object objectLight(Object info, int playerIndex, Object square) {
         Formulas current = formulas;
         if (current == null) return info;
-        try { return current.objectLight(info, playerIndex); }
+        try { return current.objectLight(info, playerIndex, square); }
         catch (Throwable problem) { reportOnce(Call.NIGHT_SIGHT, problem); return info; }
     }
 

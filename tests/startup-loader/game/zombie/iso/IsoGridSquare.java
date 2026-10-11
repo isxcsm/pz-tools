@@ -21,6 +21,19 @@ public final class IsoGridSquare {
         default ResultLight getResultLight(int index) { return null; }
         /** Whether the player sees the square now (in the vision cone): yes unless a test says. */
         default boolean bCanSee() { return true; }
+        /** Whether the player has ever seen the square: yes unless a test says. */
+        default boolean bSeen() { return true; }
+    }
+    /** Makes the square one the player has never seen (an unexplored room), its light as it was. */
+    public void setUnexplored(int player) {
+        ILighting seen = lighting[player];
+        lighting[player] = new ILighting() {
+            public ColorInfo lightInfo() { return seen.lightInfo(); }
+            public int resultLightCount() { return seen.resultLightCount(); }
+            public ResultLight getResultLight(int index) { return seen.getResultLight(index); }
+            public boolean bCanSee() { return false; }
+            public boolean bSeen() { return false; }
+        };
     }
     /** Makes the square one the player does not see now (out of the vision cone), its light as it was. */
     public void setUnseen(int player) {

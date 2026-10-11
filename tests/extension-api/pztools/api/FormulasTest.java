@@ -152,6 +152,18 @@ final class FormulasTest {
             "The objects' light was not a raised copy: " + drawn.r + " " + own.r);
         square.setLight(0, 0.95f);
         check(renderer.objectLight(0, square).r == 0.95f, "A light square's objects' light changed");
+        // a square the player has never seen (an unexplored room, drawn black): its corners and its objects' light are the game's
+        int[] unexplored = handed.clone();
+        unexplored[0] = 4;
+        LightingJNI.squares.put("105,205,0", unexplored);
+        var hiddenRoom = cell.load(105, 205, 0);
+        hiddenRoom.setLight(0, 0.1f);
+        hiddenRoom.setUnexplored(0);
+        var hiddenLighting = new LightingJNI.JNILighting(0, hiddenRoom);
+        hiddenLighting.read(true);
+        check(hiddenLighting.lightverts(0) == 0xFF0A0B0C && renderer.objectLight(0, hiddenRoom).r == 0.1f,
+            "A square the player has never seen was raised: " + Integer.toHexString(hiddenLighting.lightverts(0)));
+        LightingJNI.squares.remove("105,205,0");
         LightingJNI.squares.clear();
 
         var lamp = new zombie.iso.IsoGridSquare.ResultLight(104, 203, 7, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE);
@@ -171,8 +183,8 @@ final class FormulasTest {
         double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
         frameLater(formulas, pass);
         // the set before had none of the lights (the cell was empty), and this one goes from it towards the squares' values
-        // by at most the pace night sight eases at (a tenth of a second of nightSight.ease's 0.3 for it)
-        int pace = Math.round(255f * 0.1f / Formulas.SIGHT_EASE);
+        // by at most the pace night sight eases at (a tenth of a second of nightSight.ease, tuned to 0.3 here, for it)
+        int pace = Math.round(255f * 0.1f / 0.3f);
         check(keptBefore.apply(101, 200) == 0.0 && keptBefore.apply(100, 203) == 0.0 && kept.apply(101, 200) == pace / 255.0
             && share.apply(104, 203) == pace / 255.0, "The newest set's values did not go from the last set's at night sight's pace: "
             + keptBefore.apply(101, 200) + " " + kept.apply(101, 200) + " " + share.apply(104, 203));
@@ -235,7 +247,7 @@ final class FormulasTest {
                 for (int n = 0; n < rounds; n++) any ^= lamps.squareStale(0, 100 + (n & 63), 200 + (n >> 6 & 63), 0);
                 long staleTook = System.nanoTime() - start;
                 start = System.nanoTime();
-                for (int n = 0; n < rounds; n++) any ^= lamps.objectLight(info, 0) == info;
+                for (int n = 0; n < rounds; n++) any ^= lamps.objectLight(info, 0, null) == info;
                 long objectTook = System.nanoTime() - start;
                 long at = System.nanoTime();
                 start = System.nanoTime();
@@ -566,16 +578,20 @@ final class FormulasTest {
         check(near(formulasObject.nightSightScreen(), 0.1 / Formulas.SIGHT_EASE), "Night sight did not ease in: " + formulasObject.nightSightScreen());
         for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
+        // the values' and the dark place's checks below run at a quicker pace than the eye's default
+        call(formulas, "tune", "nightSight.ease", 0.3);
         lamps(formulasObject, pass, player);
         // in a dark place the least light is more
         call(formulas, "set", mod, "vision.nightSight", 0.2);
         darkPlace(formulasObject, pass, player);
         call(formulas, "set", mod, "vision.nightSight", 0.8);
+        call(formulas, "tune", "nightSight.ease");
         // its numbers are tuned while the game runs, and back to their defaults with no value
         var tunings = (KahluaTable)call(formulas, "tunings").get(0);
         var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");
         check(floorTuning != null && near((Double)floorTuning.rawget("default"), Formulas.FLOOR_FULL) && tunings.rawget("nightSight.lift") != null
-            && tunings.rawget("nightSight.standing") != null, "The tunings are not listed");
+            && tunings.rawget("nightSight.standing") != null && near((Double)((KahluaTable)tunings.rawget("nightSight.ease")).rawget("default"), 0.8),
+            "The tunings are not listed, or night sight does not ease at the eye's pace");
         check(near((Double)call(formulas, "tune", "nightSight.floorFull", 0.5).get(0), 0.5), "A tuning did not answer its value");
         call(formulas, "tune", "nightSight.lift", 0.4);
         formulasObject.nightSightFrame(0);
@@ -591,7 +607,7 @@ final class FormulasTest {
         // in the light it leaves
         player.luma = 0.9f;
         LightingJNI.darkness(player);
-        for (int i = 0; i < 4; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
+        for (int i = 0; i < 10; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(formulasObject.nightSightScreen() == 0f, "Night sight did not leave in the light: " + formulasObject.nightSightScreen());
         rejects(formulas, "set", "vision.nightSight must be a number from 0.0 to 1.0", mod, "vision.nightSight", 1.5);
         player.luma = 1f;
