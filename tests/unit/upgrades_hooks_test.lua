@@ -216,6 +216,9 @@ test("the senses' marks are drawn every frame while one shows, and held still wi
     eq(tick(nil, 3000), 3000, "a new noise shows at once")
     S.ring = false
     eq(tick(nil, 3016), 0, "the sense off: its cues are not drawn")
+    S.cars = { {} }
+    eq(tick(nil, 3032), 3032, "an alarmed car's outline on the ground follows the camera")
+    S.cars = {}
 end)
 
 test("the moodles' stand-ins follow their levels and the mouse, though the element is one pixel", function()

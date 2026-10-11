@@ -1,8 +1,8 @@
 -- The scout tree's senses, drawn: 육감 (a moodle while an unseen zombie is near: Moodles.lua), 기척 감지 (the sounds zombies make
 -- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
 -- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
--- of what made it), 경보 읽기 (the character says so near an alarmed house or car, and the house's doors and windows
--- are tinted red) and 털이 기록 (how many containers of the
+-- of what made it), 경보 읽기 (the character says so near an alarmed house or car; the house's doors and windows
+-- are outlined in red, the car on the ground) and 털이 기록 (how many containers of the
 -- building are still unopened). The sounds come as they are made (the world sounds; the extension API's zombie
 -- sounds: a target taken, a lunge, a strike), and the zombies' groans and, without the API, the rest are told twice a
 -- second from the game's zombie list by the shared timer (Pulse.lua). The drawing works out every mark's way from
@@ -29,7 +29,7 @@ OA.Upgrades.Senses = Senses
 -- What the last pulse found.
 local S = {
     radius = 0, distance = false, extended = false, hearing = 1,
-    sixth = false, alarm = false, zombies = {}, sounds = {}, ring = false,
+    sixth = false, alarm = false, cars = {}, zombies = {}, sounds = {}, ring = false,
 }
 Senses.state = S
 
@@ -288,9 +288,60 @@ local function drawMarks(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
     drawNoises(ui, now, px, py, pz, cx, cy, exX, exY, eyX, eyY)
 end
 
+-- 경보 읽기: an alarmed car near (S.cars) is outlined on the ground, a semi-transparent red line round its box (its
+-- script's extents about its centre of mass, a little wider), as the doors and windows of an alarmed house are with the
+-- game's object outline, which a car does not take (the model renderer outlines characters only). Only the edges in
+-- front of the car are drawn (their outside faces the camera, which looks to the north-west): one behind it would cross
+-- its body.
+local CAR_PAD = 0.15
+local CAR_LINE, CAR_GLOW = 2, 6
+local CAR_R, CAR_G, CAR_B, CAR_A, CAR_GLOW_A = 1, 0.25, 0.2, 0.7, 0.18
+local CORNER_X, CORNER_Z = { -1, 1, 1, -1 }, { -1, -1, 1, 1 }
+local carPos = nil
+local carX, carY = {}, {}
+
+-- A band `t` pixels thick from (x1, y1) to (x2, y2) on the screen, its ends out by half of it so that corners meet.
+local function band(ui, x1, y1, x2, y2, t, a)
+    local dx, dy = x2 - x1, y2 - y1
+    local len = math.sqrt(dx * dx + dy * dy)
+    if len < 1 then return end
+    local ux, uy = dx / len * t / 2, dy / len * t / 2
+    ui:DrawTexture(nil, x1 - ux - uy, y1 - uy + ux, x2 + ux - uy, y2 + uy + ux, x2 + ux + uy, y2 + uy - ux,
+        x1 - ux + uy, y1 - uy - ux, CAR_R, CAR_G, CAR_B, a)
+end
+
+local function drawCars(ui, n)
+    carPos = carPos or Vector3f.new()
+    for k = 1, #S.cars do
+        local v = S.cars[k]
+        local script = v:getScript()
+        if script then
+            local ext, com = script:getExtents(), script:getCenterOfMassOffset()
+            local hx, hz = ext:x() / 2 + CAR_PAD, ext:z() / 2 + CAR_PAD
+            local z = v:getZ()
+            local cx, cy = 0, 0
+            for i = 1, 4 do
+                local p = v:getWorldPos(com:x() + CORNER_X[i] * hx, 0, com:z() + CORNER_Z[i] * hz, carPos)
+                carX[i], carY[i] = p:x(), p:y()
+                cx, cy = cx + carX[i] / 4, cy + carY[i] / 4
+            end
+            for i = 1, 4 do
+                local j = i == 4 and 1 or i + 1
+                if (carX[i] + carX[j]) / 2 - cx + (carY[i] + carY[j]) / 2 - cy > 0 then
+                    local x1, y1 = isoToScreenX(n, carX[i], carY[i], z), isoToScreenY(n, carX[i], carY[i], z)
+                    local x2, y2 = isoToScreenX(n, carX[j], carY[j], z), isoToScreenY(n, carX[j], carY[j], z)
+                    band(ui, x1, y1, x2, y2, CAR_GLOW, CAR_GLOW_A)
+                    band(ui, x1, y1, x2, y2, CAR_LINE, CAR_A)
+                end
+            end
+        end
+    end
+end
+
 function Hud:render()
     local fh = getTextManager():getFontHeight(UIFont.Small)
     local player = getSpecificPlayer(self.playerNum)
+    if player and #S.cars > 0 then drawCars(self.javaObject, self.playerNum) end
     if S.ring and player and (#S.zombies > 0 or #S.sounds > 0) then
         local n, px, py, pz = self.playerNum, player:getX(), player:getY(), player:getZ()
         local ox, oy = isoToScreenX(n, px, py, pz), isoToScreenY(n, px, py, pz)
@@ -315,8 +366,10 @@ function Hud:render()
     end
 end
 
--- Whether a mark is on show at `now`: a cue that has not run out (the lists keep run-out ones until the next sound).
+-- Whether a mark is on show at `now`: a cue that has not run out (the lists keep run-out ones until the next sound),
+-- or an alarmed car's outline.
 local function marking(now)
+    if #S.cars > 0 then return true end
     if not S.ring then return false end
     local list = S.zombies
     for i = 1, #list do
@@ -484,7 +537,7 @@ local function senseJob(now)
     if not player or player:isDead() then
         S.ring, S.sixth = false, false
         updateSixth()
-        showHud(false)
+        showHud(#S.cars > 0)
         return
     end
     local u = section(player)
@@ -501,7 +554,7 @@ local function senseJob(now)
     S.sixth = false
     if sixthR <= 0 and not active then
         updateSixth()
-        showHud(false)
+        showHud(#S.cars > 0)
         return
     end
     local extended = Sense.extended(u)
@@ -527,7 +580,7 @@ local function senseJob(now)
         end
     end
     updateSixth()
-    showHud(S.ring)
+    showHud(S.ring or #S.cars > 0)
 end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
@@ -643,23 +696,23 @@ end
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
 -- Near an alarmed house or car (Sense.alarmOn) the character says so (its own speech over the head, as the game's
 -- self-talk, not a halo text that other notices push aside), each time it comes near again. The doors and windows of
--- an alarmed house within ENTRY squares, on the character's floor, are tinted red with the game's own object highlight: what sounds a house's alarm is a character in one of its rooms, or a window of
--- it broken (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm).
+-- an alarmed house within ENTRY squares, on the character's floor, are outlined in semi-transparent red with the
+-- game's own object outline, as the ledger's containers are in gold: what sounds a house's alarm is a character in one
+-- of its rooms, or a window of it broken (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm). An alarmed car
+-- within ENTRY squares is outlined on the ground by the HUD (drawCars).
 
 local ENTRY = 5
-local ENTRY_R, ENTRY_G, ENTRY_B, ENTRY_A = 1, 0.22, 0.16, 1
+local ENTRY_OUTLINE = { 1, 0.25, 0.2, 0.7 }
 local buildingList = nil
 local vehicleList
--- The objects tinted, each with the highlight colour it had (r, g, b, a), and the next second's, swapped.
+-- The objects outlined (object -> true) and the next second's, swapped, and the player they are outlined for.
 local lit, litNext = {}, {}
+local litFor = 0
 
--- Takes the tint off every object in `from` that `keep` does not hold, and gives it its colour back.
+-- Takes the outline off every object in `from` that `keep` does not hold.
 local function untint(from, keep)
-    for obj, was in pairs(from) do
-        if not (keep and keep[obj]) then
-            obj:setHighlighted(false, false)
-            obj:setHighlightColor(was[1], was[2], was[3], was[4])
-        end
+    for obj in pairs(from) do
+        if not (keep and keep[obj]) then obj:setOutlineHighlight(litFor, false) end
     end
 end
 
@@ -674,7 +727,7 @@ local function entryBuilding(cell, sq, obj)
     return other and other:getBuilding()
 end
 
--- Tints the doors and windows of alarmed houses within ENTRY squares into litNext.
+-- Outlines the doors and windows of alarmed houses within ENTRY squares into litNext.
 local function tintEntries(player)
     local cell = getCell()
     local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
@@ -689,15 +742,11 @@ local function tintEntries(player)
                         local building = entryBuilding(cell, sq, obj)
                         local def = building and building:getDef()
                         if def and def:isAlarmed() then
-                            local was = lit[obj]
-                            if not was then
-                                local c = obj:getHighlightColor()
-                                was = { c:getR(), c:getG(), c:getB(), c:getA() }
-                            end
-                            litNext[obj] = was
-                            -- each second, as a cursor of the game may have taken it off
-                            obj:setHighlightColor(ENTRY_R, ENTRY_G, ENTRY_B, ENTRY_A)
-                            obj:setHighlighted(true, false)
+                            litNext[obj] = true
+                            -- each second, as the game (a cursor, the mouse over it) may have taken it off
+                            local c = ENTRY_OUTLINE
+                            obj:setOutlineHighlightCol(litFor, c[1], c[2], c[3], c[4])
+                            obj:setOutlineHighlight(litFor, true)
                         end
                     end
                 end
@@ -709,12 +758,15 @@ end
 local function alarmJob(now)
     local player = getPlayer()
     local u = player and not player:isDead() and section(player)
+    local cars = S.cars
+    for i = #cars, 1, -1 do cars[i] = nil end
     if not u or Rules.rank(u, "alarm") < 1 then
         S.alarm = false
         untint(lit)
         lit = {}
         return
     end
+    litFor = player:getPlayerNum()
     local px, py = player:getX(), player:getY()
     local nearest, car = nil, false
     vehicleList = OA.vehicles(vehicleList)
@@ -724,6 +776,7 @@ local function alarmJob(now)
             local dx, dy = v:getX() - px, v:getY() - py
             local d = math.max(0, math.sqrt(dx * dx + dy * dy) - Sense.ALARM_CAR)
             if not nearest or d < nearest then nearest, car = d, true end
+            if d <= ENTRY then cars[#cars + 1] = v end
         end
     end
     local reach = math.max(Sense.ALARM_LEAVE, ENTRY) + 1
@@ -749,6 +802,7 @@ local function alarmJob(now)
     untint(lit, litNext)
     lit, litNext = litNext, lit
     for obj in pairs(litNext) do litNext[obj] = nil end
+    showHud(S.ring or #cars > 0)
 end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
@@ -943,7 +997,7 @@ function Senses.refresh()
     end
     listenZombies(wantSound, u)
     if not need then
-        S.ring, S.sixth, S.alarm, S.zombies, S.sounds = false, false, false, {}, {}
+        S.ring, S.sixth, S.alarm, S.cars, S.zombies, S.sounds = false, false, false, {}, {}, {}
         untint(lit)
         lit = {}
         updateSixth()
