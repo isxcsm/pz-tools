@@ -114,13 +114,15 @@ local function guarded(name, fn)
     if not ok then OA.log(name, "failed:", tostring(err)) end
 end
 
-local function refreshTerminals()
+-- Every loaded terminal shows the power it has now (the ten-minute work, and a generator switched by the player).
+function Handlers.refreshTerminals()
     for _, entry in ipairs(Chunks.list("trade.terminal")) do
         local square = Objects.square(entry.x, entry.y, entry.z)
         local object = square and Objects.find(square, Objects.TERMINAL)
         if object then Objects.showTerminal(object) end
     end
 end
+local refreshTerminals = Handlers.refreshTerminals
 
 local function reconcileAll()
     for _, record in pairs(Store.players()) do
