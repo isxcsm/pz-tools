@@ -1,8 +1,8 @@
 -- The scout tree's senses, drawn: 육감 (a moodle while an unseen zombie is near: Moodles.lua), 기척 감지 (the sounds zombies make
 -- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
 -- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
--- of what made it), 경보 읽기 (the character says so near each alarmed house or car; the house's windows are
--- outlined) and 털이 기록 (how many containers of the
+-- of what made it), 경보 읽기 (the character says so near each alarmed house or car; the house's doors and
+-- windows and the car are outlined) and 털이 기록 (how many containers of the
 -- building are still unopened). The sounds come as they are made (the world sounds; the extension API's zombie
 -- sounds: a target taken, a lunge, a strike), and the zombies' groans and, without the API, the rest are told twice a
 -- second from the game's zombie list by the shared timer (Pulse.lua). The drawing works out every mark's way from
@@ -644,15 +644,15 @@ end
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
 -- Near each alarmed house or car (Sense.alarmOn, each by itself) the character says so (its own speech over the head,
 -- as the game's self-talk, not a halo text that other notices push aside), each time it comes near it again. The
--- windows of an alarmed house within ENTRY squares, on the character's floor, are outlined with the game's own object
--- outline, as the ledger's containers are in gold, thin and in a muted red, not shouting: what sounds a house's alarm
--- is a character in one of its rooms, or a window of it broken (IsoGameCharacter.updateInternal,
--- IsoWindow.handleAlarm). A door takes no outline (IsoDoor draws itself without it) and the game's tint is lost on a
--- dark door; a car takes none (the model renderer outlines characters only): they are told by the line alone.
+-- doors and windows of an alarmed house within ENTRY squares, on the character's floor, and an alarmed car within
+-- ENTRY squares are outlined with the game's own object outline, as the ledger's containers are in gold, in a muted
+-- red, not shouting: what sounds a house's alarm is a character in one of its rooms, or a window of it broken
+-- (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm), and a car's its door, trunk or hood opened without the key.
+-- A door drawn as a model (most of Build 42's) and a car are outlined by the extension API (the game outlines neither);
+-- without it they are told by the line alone.
 
 local ENTRY = 5
 local ENTRY_OUTLINE = { 0.86, 0.40, 0.34, 0.45 }
-local ENTRY_THICKNESS = 0.7
 local buildingList = nil
 local vehicleList
 -- The objects outlined (object -> true) and the next second's, swapped, and the player they are outlined for.
@@ -662,14 +662,20 @@ local litFor = 0
 -- Takes the outline off every object in `from` that `keep` does not hold.
 local function untint(from, keep)
     for obj in pairs(from) do
-        if not (keep and keep[obj]) then
-            obj:setOutlineHighlight(litFor, false)
-            obj:setOutlineThickness(1)
-        end
+        if not (keep and keep[obj]) then obj:setOutlineHighlight(litFor, false) end
     end
 end
 
--- Outlines the windows of alarmed houses within ENTRY squares into litNext.
+-- Outlines an object (a door, a window, a car) into litNext, each second, as the game (a cursor, the mouse over it)
+-- may have taken it off.
+local function tint(obj)
+    litNext[obj] = true
+    local c = ENTRY_OUTLINE
+    obj:setOutlineHighlightCol(litFor, c[1], c[2], c[3], c[4])
+    obj:setOutlineHighlight(litFor, true)
+end
+
+-- Outlines the doors and windows of alarmed houses within ENTRY squares into litNext.
 local function tintEntries(player)
     local cell = getCell()
     local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
@@ -680,17 +686,10 @@ local function tintEntries(player)
             if special then
                 for i = 0, special:size() - 1 do
                     local obj = special:get(i)
-                    if instanceof(obj, "IsoWindow") then
+                    if instanceof(obj, "IsoDoor") or instanceof(obj, "IsoWindow") then
                         local building = OA.Upgrades.Actions.entryBuilding(sq, obj)
                         local def = building and building:getDef()
-                        if def and def:isAlarmed() then
-                            litNext[obj] = true
-                            -- each second, as the game (a cursor, the mouse over it) may have taken it off
-                            local c = ENTRY_OUTLINE
-                            obj:setOutlineHighlightCol(litFor, c[1], c[2], c[3], c[4])
-                            obj:setOutlineThickness(ENTRY_THICKNESS)
-                            obj:setOutlineHighlight(litFor, true)
-                        end
+                        if def and def:isAlarmed() then tint(obj) end
                     end
                 end
             end
@@ -714,6 +713,7 @@ local function alarmJob(now)
     end
     litFor = player:getPlayerNum()
     local px, py = player:getX(), player:getY()
+    local floor = math.floor(player:getZ())
     -- the nearest alarm not told of yet within ALARM_NEAR is told this second
     local sayKey, sayD, sayCar = nil, nil, false
     vehicleList = OA.vehicles(vehicleList)
@@ -722,6 +722,7 @@ local function alarmJob(now)
         if OA.Upgrades.Actions.carAlarmed(v) then
             local dx, dy = v:getX() - px, v:getY() - py
             local d = math.max(0, math.sqrt(dx * dx + dy * dy) - Sense.ALARM_CAR)
+            if d <= ENTRY and math.floor(v:getZ()) == floor then tint(v) end
             if d <= Sense.ALARM_LEAVE then
                 local key = "v" .. tostring(v:getId())
                 if told[key] then toldNext[key] = true

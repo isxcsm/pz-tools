@@ -273,7 +273,7 @@
     "IGUI_OA_Tree_Node_sixth_Name": "Hunch",
     "IGUI_OA_Tree_Node_sixth_Rank": "The Hunch moodle shows while a zombie you cannot see is within %1 tiles.",
     "IGUI_OA_Tree_Node_alarm_Name": "Alarm Reading",
-    "IGUI_OA_Tree_Node_alarm_Rank": "You notice a house or car fitted with an alarm as you come near, and the house's windows are outlined.",
+    "IGUI_OA_Tree_Node_alarm_Rank": "You notice a house or car fitted with an alarm as you come near, and the house's doors and windows and the car are outlined.",
     "IGUI_OA_Tree_Node_ledger_Name": "Search Ledger",
     "IGUI_OA_Tree_Node_ledger_Desc": "Containers you placed yourself are not counted.",
     "IGUI_OA_Tree_Node_ledger_Rank1": "On entering a building, tells you how many containers are still unopened, or that it was searched; tells you when you finish searching it.",
