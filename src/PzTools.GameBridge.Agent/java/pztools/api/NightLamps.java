@@ -54,8 +54,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>The least light is for the night: outside a dark place the least light shown follows the game's night
  * ({@code ClimateManager.getNightStrength}, 0 by day), so that by day a square keeps the game's light and colour (the
  * game darkens what the player does not see, and the pass would otherwise grey it as night sight's), the squares
- * still raised (a pixel is taken down to the game's light) and nothing baked again. A square the player does not see
- * now is not taken down by day: the game draws it dimmed its own way, and the light it hands for it reads none.
+ * still raised (a pixel is taken down to the game's light) and nothing baked again.
+ *
+ * <p>Night sight is for what the player sees. A square the player does not see now (out of the vision cone, behind a
+ * wall) the game draws dimmed its own way, not with the corners it hands (they read none, and the least light does not
+ * reach it): the pass leaves it as drawn. As it comes into sight the game draws it with its raised corners at once;
+ * the pass shows it as the game's light would first (its colour times its share kept) and goes to night sight's over
+ * nightSight.ease, as it does back when it goes out of sight ({@code PZT_SightLamps}' second half: how much of night
+ * sight a square shows, and how much of what is drawn is the game's).
  *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
  * back; nothing is allocated after the first frame. The texture is bound on its own unit ({@link #UNIT}), and the unit
@@ -110,8 +116,6 @@ final class NightLamps {
     // values were stopped (a fault).
     private volatile float shade = 1f;
     private volatile boolean stopped;
-    // How far into the night it is, as the game had it this frame (0 by day to 1; the game thread's).
-    private float night = 1f;
     // Each square as its corners were last read, for each player of this machine and floor (-32 to 31, each made as it
     // is first read): the least light it was raised to and the game's own light of it (0 to 255 each), with its x and y
     // over 256, in one int written and read whole. A floor's squares are kept by x and y modulo 256, more than the
@@ -130,10 +134,12 @@ final class NightLamps {
     }
     private final ThreadLocal<Raised> raised;
 
-    // A set of values: four bytes a square, the last set's two of it, then this set's; the colour kept beyond them, the
+    // A set of values, rows of two halves of SIZE squares: four bytes a square in each, the last set's two of it, then
+    // this set's; in the first half its share of colour kept and its light sources' share, in the second how much of
+    // night sight it shows and the share of what is drawn that is the game's light. The colour kept beyond them, the
     // last set's and this one's; the time since the last set (the time the next is to take).
     private static final class Values {
-        final ByteBuffer data = ByteBuffer.allocateDirect(SIZE * SIZE * 4);
+        final ByteBuffer data = ByteBuffer.allocateDirect(SIZE * SIZE * 8);
         int x0, y0;
         float keepFrom, keepTo;
         long period;
@@ -143,9 +149,9 @@ final class NightLamps {
     private final AtomicReference<Values> ready = new AtomicReference<>(), spare = new AtomicReference<>(new Values());
     private Values filling = new Values();
     private long valuesAt;
-    // The last set's own values (two bytes a square), where they start and the colour kept beyond them, and the one
+    // The last set's own values (four bytes a square), where they start and the colour kept beyond them, and the one
     // being made; none after the values paused (the game thread's).
-    private byte[] lastValues = new byte[SIZE * SIZE * 2], nextValues = new byte[SIZE * SIZE * 2];
+    private byte[] lastValues = new byte[SIZE * SIZE * 4], nextValues = new byte[SIZE * SIZE * 4];
     private int lastX, lastY;
     private float lastBeyond;
     private boolean hasLast;
@@ -260,8 +266,7 @@ final class NightLamps {
     void floorLight(int light, int dark, float darkShare) throws Throwable {
         int lit = Math.max(0, Math.min(255, light)), most = Math.max(lit, Math.min(255, dark));
         boolean carried = !stopped && most > 0 && alone(players.all()) >= 0;
-        night = Math.max(0f, Math.min(1f, (float)nightStrength.invokeExact((Object)climate.invokeExact())));
-        shade = carried ? shadeOf(lit, most, darkShare, night) : 1f;
+        shade = carried ? shadeOf(lit, most, darkShare, (float)nightStrength.invokeExact((Object)climate.invokeExact())) : 1f;
         raise(carried ? most : lit);
     }
 
@@ -461,8 +466,13 @@ final class NightLamps {
         onFloor = next;
     }
 
-    // Each square's share of its colour kept and its light sources' share of its light, 0 to 255 each, rows by y (the
-    // third and fourth bytes of each square).
+    // Where a square's bytes start in a set: in the first half, or in the second.
+    static int first(int i, int j) { return 4 * (j * 2 * SIZE + i); }
+    static int second(int i, int j) { return 4 * (j * 2 * SIZE + SIZE + i); }
+
+    // Each square's share of its colour kept and its light sources' share of its light, how much of night sight it shows
+    // and the share of what is drawn that is the game's light, 0 to 255 each, rows by y (the third and fourth bytes of
+    // the square in each half).
     private void fill(Values into, Object cell, int playerIndex, int x0, int y0, int z) throws Throwable {
         into.x0 = x0;
         into.y0 = y0;
@@ -487,19 +497,19 @@ final class NightLamps {
                 }
                 // the game's light against the light drawn: the least light raises what is below it. A square the player
                 // does not see now (out of the vision cone) the game draws dimmed its own way, which the light it hands
-                // does not tell (by day it read none, and the pass drew the square black, measured): by day it keeps
-                // what is drawn, at night it is night sight's, and between as far into the night as it is; it does not
-                // count for a dark place
+                // does not tell (it reads none, and the pass drew such squares black by day, measured): night sight
+                // leaves it as drawn, and it does not count for a dark place
                 float kept = whole >= least ? 1f : whole / least;
-                if (unseen) kept = Math.max(kept, 1f - night);
                 float lamp = whole > 0.004f ? sources / whole : 0f;
                 if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) edge += kept;
                 if (lit != null && !unseen && Math.abs(i - SIZE / 2) <= radius && Math.abs(j - SIZE / 2) <= radius) {
                     near++;
                     if (whole < darkBelow) dark++;
                 }
-                data.put(4 * (j * SIZE + i) + 2, (byte)Math.round(kept * 255f));
-                data.put(4 * (j * SIZE + i) + 3, (byte)Math.round(lamp * 255f));
+                data.put(first(i, j) + 2, (byte)Math.round(kept * 255f));
+                data.put(first(i, j) + 3, (byte)Math.round(lamp * 255f));
+                data.put(second(i, j) + 2, (byte)(unseen ? 0 : 255));
+                data.put(second(i, j) + 3, (byte)(unseen ? 255 : Math.round(kept * 255f)));
             }
         }
         into.keepTo = (float)(edge / (4 * SIZE - 4));
@@ -523,26 +533,28 @@ final class NightLamps {
         if (character == null || (int)Math.floor((float)zOf.invokeExact(character)) != z) return;
         int i = (int)Math.floor((float)xOf.invokeExact(character)) - x0, j = (int)Math.floor((float)yOf.invokeExact(character)) - y0;
         if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
-        int kept = data.get(4 * (j * SIZE + i) + 2) & 0xFF, lamp = data.get(4 * (j * SIZE + i) + 3) & 0xFF;
+        int kept = data.get(first(i, j) + 2) & 0xFF, lamp = data.get(first(i, j) + 3) & 0xFF, sight = data.get(second(i, j) + 2) & 0xFF;
         int behind = standingSquares.whole();
         for (int k = 0; k <= behind; k++) {
-            if (k > 0) atLeast(data, i - k, j - k, kept, lamp);
+            if (k > 0) atLeast(data, i - k, j - k, kept, lamp, sight);
             // its sides, half a square either way on the screen
-            atLeast(data, i - k - 1, j - k, kept, lamp);
-            atLeast(data, i - k, j - k - 1, kept, lamp);
+            atLeast(data, i - k - 1, j - k, kept, lamp, sight);
+            atLeast(data, i - k, j - k - 1, kept, lamp, sight);
         }
     }
 
-    private static void atLeast(ByteBuffer data, int i, int j, int kept, int lamp) {
+    private static void atLeast(ByteBuffer data, int i, int j, int kept, int lamp, int sight) {
         if (i < 0 || j < 0 || i >= SIZE || j >= SIZE) return;
-        int at = 4 * (j * SIZE + i) + 2;
+        int at = first(i, j) + 2;
         if ((data.get(at) & 0xFF) < kept) data.put(at, (byte)kept);
         if ((data.get(at + 1) & 0xFF) < lamp) data.put(at + 1, (byte)lamp);
+        if ((data.get(second(i, j) + 2) & 0xFF) < sight) data.put(second(i, j) + 2, (byte)sight);
     }
 
     // The last set's values of the same squares go before this set's, and this set's go from them towards the squares'
     // by at most the pace night sight eases at over the time the set takes (a square the last set did not have, or with
-    // none, has the square's values twice), and so does its colour kept beyond them; then this set is the last.
+    // none, has the square's values twice; the share of what is drawn that is the game's light follows the game at once,
+    // as what it draws does), and so does its colour kept beyond them; then this set is the last.
     private void follow(Values into) {
         ByteBuffer data = into.data;
         byte[] last = lastValues, next = nextValues;
@@ -553,22 +565,24 @@ final class NightLamps {
             int lj = j + dy;
             boolean row = hasLast && lj >= 0 && lj < SIZE;
             for (int i = 0; i < SIZE; i++) {
-                int k = j * SIZE + i, li = i + dx;
-                int kept = data.get(4 * k + 2) & 0xFF, lamp = data.get(4 * k + 3) & 0xFF;
+                int k = j * SIZE + i, li = i + dx, a = first(i, j), b = second(i, j);
+                int kept = data.get(a + 2) & 0xFF, lamp = data.get(a + 3) & 0xFF, sight = data.get(b + 2) & 0xFF, drawn = data.get(b + 3) & 0xFF;
                 if (row && li >= 0 && li < SIZE) {
-                    int keptBefore = last[2 * (lj * SIZE + li)] & 0xFF, lampBefore = last[2 * (lj * SIZE + li) + 1] & 0xFF;
+                    int before = 4 * (lj * SIZE + li);
+                    int keptBefore = last[before] & 0xFF, lampBefore = last[before + 1] & 0xFF;
+                    int sightBefore = last[before + 2] & 0xFF, drawnBefore = last[before + 3] & 0xFF;
                     kept = toward(keptBefore, kept, most);
                     lamp = toward(lampBefore, lamp, most);
-                    data.put(4 * k + 2, (byte)kept);
-                    data.put(4 * k + 3, (byte)lamp);
-                    data.put(4 * k, (byte)keptBefore);
-                    data.put(4 * k + 1, (byte)lampBefore);
+                    sight = toward(sightBefore, sight, most);
+                    data.put(a + 2, (byte)kept).put(a + 3, (byte)lamp).put(b + 2, (byte)sight);
+                    data.put(a, (byte)keptBefore).put(a + 1, (byte)lampBefore).put(b, (byte)sightBefore).put(b + 1, (byte)drawnBefore);
                 } else {
-                    data.put(4 * k, (byte)kept);
-                    data.put(4 * k + 1, (byte)lamp);
+                    data.put(a, (byte)kept).put(a + 1, (byte)lamp).put(b, (byte)sight).put(b + 1, (byte)drawn);
                 }
-                next[2 * k] = (byte)kept;
-                next[2 * k + 1] = (byte)lamp;
+                next[4 * k] = (byte)kept;
+                next[4 * k + 1] = (byte)lamp;
+                next[4 * k + 2] = (byte)sight;
+                next[4 * k + 3] = (byte)drawn;
             }
         }
         if (hasLast) into.keepTo = lastBeyond + Math.max(-pace, Math.min(pace, into.keepTo - lastBeyond));
@@ -651,12 +665,12 @@ final class NightLamps {
                 textureParameter.invokeExact(TEXTURE_2D, MAG_FILTER, LINEAR);
                 textureParameter.invokeExact(TEXTURE_2D, WRAP_S, CLAMP_TO_EDGE);
                 textureParameter.invokeExact(TEXTURE_2D, WRAP_T, CLAMP_TO_EDGE);
-                textureImage.invokeExact(TEXTURE_2D, 0, RGBA8, SIZE, SIZE, 0, RGBA, UNSIGNED_BYTE, (ByteBuffer)null);
+                textureImage.invokeExact(TEXTURE_2D, 0, RGBA8, 2 * SIZE, SIZE, 0, RGBA, UNSIGNED_BYTE, (ByteBuffer)null);
             } else {
                 bindTexture.invokeExact(TEXTURE_2D, texture);
             }
             if (next != null) {
-                textureSubImage.invokeExact(TEXTURE_2D, 0, 0, 0, SIZE, SIZE, RGBA, UNSIGNED_BYTE, next.data);
+                textureSubImage.invokeExact(TEXTURE_2D, 0, 0, 0, 2 * SIZE, SIZE, RGBA, UNSIGNED_BYTE, next.data);
                 shownX = next.x0;
                 shownY = next.y0;
                 keepFrom = next.keepFrom;
