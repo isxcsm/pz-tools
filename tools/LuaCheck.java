@@ -1,5 +1,5 @@
 // Compiles Lua files with the game's own Kahlua compiler: a syntax check as the game would load them. Without
-// arguments it checks every .lua file of the mod and the tests.
+// arguments it checks every .lua file of the mod, of the developer sub-mod and the tests.
 // java -cp projectzomboid.jar LuaCheck.java [<file>...]
 //
 // It also flags a name a file reads or writes as a global while the same file declares a local of that name: almost
@@ -34,7 +34,7 @@ public class LuaCheck {
         Set<String> read = new TreeSet<>(), written = new TreeSet<>();
         List<Path> files = new ArrayList<>();
         if (args.length == 0) {
-            for (String root : new String[] { "OperationAcorn", "tests" }) {
+            for (String root : new String[] { "OperationAcorn", "OperationAcornDev", "tests" }) {
                 try (Stream<Path> walk = Files.walk(Path.of(root))) {
                     walk.filter(p -> p.toString().endsWith(".lua")).sorted().forEach(files::add);
                 }

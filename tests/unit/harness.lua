@@ -3,7 +3,9 @@
 -- Run through tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
 
 local MEDIA = "OperationAcorn/42/media/"
-local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/" }
+local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",
+    -- the developer sub-mod (its client files; its tests are dev_*_test.lua)
+    "OperationAcornDev/42/media/lua/client/" }
 
 -- The sandbox options with their defaults, read from sandbox-options.txt as the game would.
 local function sandboxDefaults()

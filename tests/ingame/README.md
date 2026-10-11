@@ -9,9 +9,12 @@ The game reads them through a junction: `C:\Users\<you>\Zomboid\Lua\oa` points a
 New-Item -ItemType Junction -Path "$env:USERPROFILE\Zomboid\Lua\oa" -Target <this folder>
 ```
 
-With the game started with `-debug`, the mod's command channel (`client/OperationAcorn/Dev/Remote.lua`) runs them
+These need the developer sub-mod `OperationAcornDev` (id `OperationAcornDev`, folder `OperationAcornDev/` in this repo; it
+requires OperationAcorn, is never published and is enabled only in test saves). With the game started with `-debug`, its
+command channel (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Remote.lua`) runs them
 without the console: `python tools/pzdev.py check p3_window.lua` prints the check's lines. `pzdev.py run "<lua>"` runs
-any Lua, and the helpers of `OperationAcorn.Dev` (`client/OperationAcorn/Dev/Dev.lua`) set up a scene: research ranks,
+any Lua, and the helpers of `OperationAcorn.Dev` (`OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Dev.lua`; the in-game dev
+panel, F8 or the "OA Dev" button, drives the same functions) set up a scene: research ranks,
 points, credits, trust, the hour, the speed, the weather, still zombies at offsets, facing, world sounds, closing the
 windows and the console. `pzdev.py shot out.png` takes a picture of the game window. With Break On Error on, a Lua
 error stops the game in the debugger (the channel too): `pzdev.py resume`.
