@@ -610,6 +610,22 @@ final class FormulasTest {
             && state.rawget("darkPlace") instanceof Boolean && state.rawget("valuesRun") instanceof Boolean && state.rawget("nightStrength") != null
             && state.rawget("squaresInSight") != null && state.rawget("keptNear") != null && state.rawget("strength") != null,
             "Night sight's state is not told: " + state);
+        // a declared value at night moves night sight on within a few frames: the lift's strength, the values, the least light
+        zombie.iso.weather.ClimateManager.night = 0.8f;
+        player.luma = 0.05f;
+        LightingJNI.darkness(player);
+        for (int i = 0; i < 5; i++) frameLater(formulasObject, pass);
+        state = (KahluaTable)call(formulas, "nightSight").get(0);
+        check((Double)state.rawget("strength") > 0 && Boolean.TRUE.equals(state.rawget("valuesRun")) && (Double)state.rawget("shownFloor") > 0
+            && (Double)state.rawget("frames") > 0 && (Double)state.rawget("draws") > 0 && near((Double)state.rawget("nightStrength"), 0.8)
+            && "applied".equals(state.rawget("hooks")) && state.rawget("problem") == null,
+            "A declared value at night does not move night sight on: " + state.rawget("strength") + " " + state.rawget("valuesRun") + " "
+                + state.rawget("hooks") + " " + state.rawget("problem"));
+        zombie.iso.weather.ClimateManager.night = 1f;
+        // the step calls only the clamp and max the game's shaders leave (util/math.h hides GLSL's other forms)
+        check(!java.util.regex.Pattern.compile("clamp\\([^,()]+,\\s*vec").matcher(patched).find()
+            && !java.util.regex.Pattern.compile("\\bmax\\(\\s*vec").matcher(patched).find()
+            && !patched.contains("clamp(uv,"), "The step calls a clamp or max the game's shaders hide");
         // its numbers are tuned while the game runs, and back to their defaults with no value
         var tunings = (KahluaTable)call(formulas, "tunings").get(0);
         var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");

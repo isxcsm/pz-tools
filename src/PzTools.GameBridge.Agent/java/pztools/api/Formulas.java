@@ -239,6 +239,9 @@ final class Formulas implements ApiHooks.Formulas {
     private long sightAt;
     // The share of a dark place's more least light shown now (0 to 1), eased as the lift is (the main thread's).
     private float darkShown;
+    // How many times night sight moved on (the game's screen pass about to be drawn, main thread), drew (render thread)
+    // and was compiled, for formulas.nightSight(): none means the game does not draw through its screen pass.
+    private volatile long sightFrames, sightDraws, sightPrograms;
     // The least light of the squares on the screen, the screen pass's uniforms and the values it keeps colour by; null,
     // with the reason, in a game that changed what they read. A fault in the values stops them alone (the reason is then set).
     private final NightLamps lamps;
@@ -464,6 +467,13 @@ final class Formulas implements ApiHooks.Formulas {
         function(table, "nightSight", (call, arguments) -> {
             Object result = lua.table();
             lua.set(result, "level", (double)active.nightSight);
+            lua.set(result, "frames", (double)sightFrames);
+            lua.set(result, "draws", (double)sightDraws);
+            lua.set(result, "programs", (double)sightPrograms);
+            lua.set(result, "hooks", status(BY_NAME.get("vision.nightSight"), hooks()));
+            if (sightFrames == 0)
+                lua.set(result, "problem", "the game's screen pass (WeatherShader.startMainThread) has not run: its hooks are not in"
+                    + " (see hooks) or the game does not draw through it (the debug option FBORenderChunk UseWeatherShader off)");
             lua.set(result, "strength", (double)sight);
             lua.set(result, "darkness", (double)seenDark);
             lua.set(result, "darkShown", (double)darkShown);
@@ -1065,6 +1075,7 @@ final class Formulas implements ApiHooks.Formulas {
      * The game's darkness reads the squares' own light, which night sight leaves as it is.
      */
     @Override public void nightSightFrame(int playerIndex) {
+        sightFrames++;
         long now = System.nanoTime();
         nightSightStep(now);
         if (lamps == null) return;
@@ -1083,13 +1094,17 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** Each time the screen pass draws, on the render thread with its program bound. */
     @Override public void nightSightDraw(int program) {
+        sightDraws++;
         if (lamps == null) return;
         try { lamps.draw(program, sight, lift.value()); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's screen pass", failure); }
     }
 
     /** When the screen pass compiles. */
-    @Override public void nightSightProgram(int program) { if (lamps != null) lamps.program(program); }
+    @Override public void nightSightProgram(int program) {
+        sightPrograms++;
+        if (lamps != null) lamps.program(program);
+    }
 
     /** What the lighting handed for a square, before the game reads it: its corners get the least light. */
     @Override public void squareLit(int playerIndex, int x, int y, int z, int[] lit) { if (lamps != null) lamps.squareLit(playerIndex, x, y, z, lit); }
