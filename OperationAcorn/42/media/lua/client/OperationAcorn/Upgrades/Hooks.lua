@@ -300,48 +300,97 @@ local function startLock(player, target, class)
     end
 end
 
+-- The tools of each action, as names the extension API counts (items.count: an item's full type or a tag; one of each
+-- inner list is needed).
+local TOOLS = {
+    [ISOAPickLock] = { { "Base.Paperclip" }, { "base:screwdriver" } },
+    [ISOAPryOpen] = { { "base:crowbar", "base:prybar" } },
+}
+TOOLS[ISOADisarm] = TOOLS[ISOAPickLock]
+
+-- Whether the character carries the action's tools, as the extension API counts them (kept up by its inventory hooks,
+-- so the menu searches nothing); nil without the API's count, when the option only names them and startLock checks.
+-- A broken tool counts here: startLock tells of it.
+local function carries(player, class)
+    local api = OA.api()
+    local items = api and api.items
+    local count = type(items) == "table" and items.count or nil
+    if type(count) ~= "function" then return nil end
+    for _, anyOf in ipairs(TOOLS[class]) do
+        local found = false
+        for _, name in ipairs(anyOf) do
+            local ok, n = pcall(count, player, name)
+            if not ok then return nil end
+            if n > 0 then found = true break end
+        end
+        if not found then return false end
+    end
+    return true
+end
+
+-- The option's tooltip with the tools it needs, in red and the option greyed out when the character has none.
+local function toolTip(option, player, class, text, need)
+    if carries(player, class) == false then
+        option.notAvailable = true
+        tip(option, text .. " <LINE> <RGB:1,0.35,0.3> " .. getText(need))
+    else
+        tip(option, text .. " <LINE> " .. getText(need))
+    end
+end
+
+-- An option's label: a car's part named after the action, as two parts of one car may both be offered.
+local function label(key, partKey, chance, part)
+    if part then return getText(partKey, chance, part) end
+    return getText(key, chance)
+end
+
 -- The option to cut the alarm of a door, window or car part alone, locked or not, for one with 자물쇠 따기 and 경보
 -- 읽기 (who reads alarms: the character told of it). Picking a locked one cuts it too.
 local function addDisarmOption(context, player, target, u)
     if Rules.rank(u, "lock") < 1 or Rules.rank(u, "alarm") < 1 or not Actions.alarmOf(target) then return end
     local chance = Texts.percent(Rules.lockChance(u) * 100)
     local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Disarm", chance), player, startLock, target, ISOADisarm)
-    tip(option, getText("Tooltip_OA_Tree_DisarmInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
+    toolTip(option, player, ISOADisarm, getText("Tooltip_OA_Tree_DisarmInfo", chance), "Tooltip_OA_Tree_NeedPickTools")
 end
 
 -- The two options for one locked door, window or car part, and the alarm's alone (locked or not: cutting the alarm
--- leaves the lock as it is).
-local function addLockOptions(context, player, target)
+-- leaves the lock as it is). `part` names a car's part in the labels; `alarm` false leaves the alarm's option out (a
+-- car's second part: the alarm is the car's, offered once).
+local function addLockOptions(context, player, target, part, alarm)
     local u = Rules.section(OA.Client.record(player))
     -- first: the options are added on top, so it shows under the pick and the pry
-    addDisarmOption(context, player, target, u)
+    if alarm ~= false then addDisarmOption(context, player, target, u) end
     if not Actions.isLocked(target) then return end
     local crowbar, pick = Rules.rank(u, "crowbar"), Rules.rank(u, "lock")
     if crowbar < 1 and pick < 1 then return end
     local reinforced = Actions.isReinforced(target)
-    -- pry, then pick: added on top from the last. A missing tool is not greyed out here (that needs a search of the
-    -- inventory); the tooltip names the tools and startLock tells the player when the option is picked without them.
+    -- pry, then pick: added on top from the last
     if pick >= 1 then
         local chance = Texts.percent(Rules.lockChance(u) * 100)
-        local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Pick", chance), player, startLock, target, ISOAPickLock)
+        local option = context:addOptionOnTop(label("ContextMenu_OA_Tree_Pick", "ContextMenu_OA_Tree_PickPart", chance, part), player, startLock, target, ISOAPickLock)
         if reinforced and pick < 2 then
             unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
         else
             local text = getText("Tooltip_OA_Tree_PickInfo", chance)
             -- the alarm it cuts, told only to one who reads alarms
             if Rules.rank(u, "alarm") >= 1 and Actions.alarmOf(target) then text = text .. " <LINE> " .. getText("Tooltip_OA_Tree_PickAlarm") end
-            tip(option, text .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
+            toolTip(option, player, ISOAPickLock, text, "Tooltip_OA_Tree_NeedPickTools")
         end
     end
     if crowbar >= 1 then
         local chance = Texts.percent(Rules.crowbarChance(u) * 100)
-        local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Pry", chance), player, startLock, target, ISOAPryOpen)
+        local option = context:addOptionOnTop(label("ContextMenu_OA_Tree_Pry", "ContextMenu_OA_Tree_PryPart", chance, part), player, startLock, target, ISOAPryOpen)
         if reinforced and crowbar < 2 then
             unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
         else
-            tip(option, getText("Tooltip_OA_Tree_PryInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPryBar"))
+            toolTip(option, player, ISOAPryOpen, getText("Tooltip_OA_Tree_PryInfo", chance), "Tooltip_OA_Tree_NeedPryBar")
         end
     end
+end
+
+-- A car's part by the game's own name of it (as its mechanics window names it).
+local function partName(part)
+    return getText("IGUI_VehiclePart" .. part:getId())
 end
 
 local function onFillWorld(playerNum, context, worldobjects, test)
@@ -359,9 +408,12 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     local vehicle = IsoObjectPicker.Instance:PickVehicle(getMouseXScaled(), getMouseYScaled())
     if vehicle and player:DistToProper(vehicle) < 4 then
         local part = vehicle:getUseablePart(player)
-        if part and part:getDoor() then addLockOptions(context, player, part) end
+        local door = part and part:getDoor() and part or nil
         local trunk = vehicle:getPartById("TrunkDoor") or vehicle:getPartById("DoorRear")
-        if trunk and trunk ~= part and trunk:getDoor() then addLockOptions(context, player, trunk) end
+        if trunk == door or not (trunk and trunk:getDoor()) then trunk = nil end
+        -- the trunk's first, so the door's come on top; the car's alarm once, with the door's (the trunk's without one)
+        if trunk then addLockOptions(context, player, trunk, partName(trunk), door == nil) end
+        if door then addLockOptions(context, player, door, partName(door)) end
     end
 end
 Events.OnFillWorldObjectContextMenu.Add(onFillWorld)
