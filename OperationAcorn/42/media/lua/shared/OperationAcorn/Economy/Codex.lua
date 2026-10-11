@@ -22,7 +22,7 @@ Codex.KIND_PAY = { 2000, 5000, 10000, 20000, 30000, 45000, 60000 }
 Codex.KIND_SERUM = { [500] = 1, [1000] = 1, [1500] = 1 }   -- by the step's kinds
 Codex.CATEGORY_STEPS = { 0.5, 0.9 }
 Codex.CATEGORY_PAY = { 10000, 30000 }
-Codex.BUILDING_BASE, Codex.BUILDING_PER_CONTAINER, Codex.BUILDING_MAX = 100, 10, 600
+Codex.BUILDING_BASE, Codex.BUILDING_PER_CONTAINER = 100, 10
 Codex.BUILDING_STEPS = { 25, 100, 250, 500, 1000, 2000 }
 Codex.BUILDING_PAY = { 3000, 10000, 20000, 40000, 60000, 80000 }
 Codex.KILL_STEPS = { 100, 500, 1000, 2500, 5000, 10000, 25000, 50000 }
@@ -144,8 +144,8 @@ function Codex.categoryProgress(record, letter)
     return c.cat[letter] or 0, OA.Requests.categoryTotal(letter)
 end
 
--- A building whose containers were all searched (once per building): 100 credits and 10 for each container, 600
--- at most, times `mult` (the search ledger's rank 3: more; 1 when left out), and the building count milestones. `key`
+-- A building whose containers were all searched (once per building): 100 credits and 10 for each container, with no
+-- cap (every container of a big one must be opened, which is cap enough), times `mult` (the search ledger's rank 3: more; 1 when left out), and the building count milestones. `key`
 -- names the building (the API's key or the map's), `containers` how many it has. Returns the credits it made (before
 -- BonusMultiplier) or nil if it was counted before.
 function Codex.buildingSearched(record, key, containers, mult)
@@ -155,8 +155,7 @@ function Codex.buildingSearched(record, key, containers, mult)
     containers = math.max(0, containers or 0)
     c.buildings[key] = containers
     c.nb = c.nb + 1
-    local credits = math.min(Codex.BUILDING_MAX, Codex.BUILDING_BASE + Codex.BUILDING_PER_CONTAINER * containers)
-        * (mult or 1)
+    local credits = (Codex.BUILDING_BASE + Codex.BUILDING_PER_CONTAINER * containers) * (mult or 1)
     pay(record, credits)
     local events = {}
     while c.paid.buildings < #Codex.BUILDING_STEPS and c.nb >= Codex.BUILDING_STEPS[c.paid.buildings + 1] do

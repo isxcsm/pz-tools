@@ -773,7 +773,8 @@ end
 -- bonus). The building and its containers are the economy's walk (OA.Buildings: square by square, a part a look; the
 -- game's IsoRoom:getContainer() lists none in B42), looked at from here every LEDGER_MS.
 
-local ledger = { key = nil, total = 0, opened = 0, done = false, complete = false, told = true, since = 0 }
+local ledger = { key = nil, total = 0, opened = 0, done = false, complete = false, told = true, since = 0,
+    stages = {}, said = 0 }
 
 -- Forgets the building the ledger told of, so that it is told again (the developer panel's search reset).
 function Senses.resetLedger()
@@ -783,6 +784,30 @@ Senses.ledger = ledger
 -- A building not all counted yet is told once it is, or after LEDGER_WAIT_MS with what was found (a count of 0 then is
 -- not told: it could be squares not loaded).
 local LEDGER_WAIT_MS = 5000
+-- At least this long between two of the ledger's lines (one entering, then the floor's stages): a stage reached sooner
+-- waits and is told then, the latest one only.
+local LEDGER_GAP_MS = 10000
+
+-- While a building not all searched is searched: a line each time the floor the character is on reaches a further
+-- stage (Sense.ledgerStage), the stage it was at when first seen not told (the line on entering told it). The building
+-- all searched is told by its title, not here.
+local function ledgerProgress(player, now, total, opened)
+    if total <= 0 or opened >= total then return end
+    local z = math.floor(player:getZ())
+    local left, floorTotal = OA.Buildings.floor(player, z)
+    if floorTotal <= 0 then return end
+    local stage = Sense.ledgerStage(floorTotal, left)
+    local was = ledger.stages[z]
+    -- a floor first seen, or more found on it than counted before: its stage now, not told
+    if was == nil or stage < was then
+        ledger.stages[z] = stage
+        return
+    end
+    if stage == was or (now - ledger.said < LEDGER_GAP_MS and now >= ledger.said) then return end
+    ledger.stages[z] = stage
+    ledger.said = now
+    player:Say(getText(Sense.LEDGER_STAGES[stage]))
+end
 local LEDGER_NEAR = 6
 local OUTLINE = { 1.00, 0.80, 0.40, 0.85 }
 
@@ -897,12 +922,17 @@ local function ledgerJob(now)
     end
     if key ~= ledger.key then
         ledger.key, ledger.done, ledger.told, ledger.since = key, false, false, now
+        ledger.stages = {}
     end
     ledger.total, ledger.opened, ledger.complete = total, opened, complete
-    if ledger.told then return end
+    if ledger.told then
+        ledgerProgress(player, now, total, opened)
+        return
+    end
     -- told once on entering: how many are left, or that it is searched (never "0 left"); one with no containers is not
     if not complete and now - ledger.since < LEDGER_WAIT_MS and now >= ledger.since then return end
     ledger.told = true
+    ledger.said = now
     local left = total - opened
     if total > 0 and left == 0 then
         if complete then

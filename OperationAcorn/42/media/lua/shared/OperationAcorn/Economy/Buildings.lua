@@ -54,7 +54,9 @@ local noContainers, containersFailed = {}, false
 -- each stands on (open, ox, oy, oz; `index` finds a container's place). With only the API's rooms (rects) the walk goes
 -- square by square; without the API it goes over the vanilla rooms' squares.
 local function newWalk(square, room)
-    local walk = { seen = {}, list = {}, open = {}, total = 0, explored = 0, complete = false, part = 1, at = 0 }
+    -- floorTotal and floorOpen: the containers and the unopened ones by floor (z), zOf each known container's floor
+    local walk = { seen = {}, list = {}, open = {}, total = 0, explored = 0, complete = false, part = 1, at = 0,
+        floorTotal = {}, floorOpen = {}, zOf = {} }
     local api = OA.api()
     if api and api.buildings then
         local b = api.buildings.at(square:getX(), square:getY(), square:getZ())
@@ -100,10 +102,14 @@ local function collect(walk, square)
                     walk.seen[container] = true
                     walk.list[#walk.list + 1] = container
                     walk.total = walk.total + 1
+                    local z = square:getZ()
+                    walk.zOf[container] = z
+                    walk.floorTotal[z] = (walk.floorTotal[z] or 0) + 1
                     if container:isExplored() then
                         walk.explored = walk.explored + 1
                     else
                         walk.open[#walk.open + 1] = container
+                        walk.floorOpen[z] = (walk.floorOpen[z] or 0) + 1
                     end
                 end
             end
@@ -197,6 +203,7 @@ local function openAdd(walk, container, x, y, z)
         i = #walk.open + 1
         walk.open[i] = container
         walk.index[container] = i
+        walk.floorOpen[z] = (walk.floorOpen[z] or 0) + 1
     end
     walk.ox[i], walk.oy[i], walk.oz[i] = x, y, z
 end
@@ -204,6 +211,8 @@ end
 local function openDrop(walk, container)
     local i = walk.index[container]
     if not i then return end
+    local z = walk.oz[i]
+    walk.floorOpen[z] = (walk.floorOpen[z] or 1) - 1
     local last = #walk.open
     local moved = walk.open[last]
     walk.open[i], walk.ox[i], walk.oy[i], walk.oz[i] = moved, walk.ox[last], walk.oy[last], walk.oz[last]
@@ -220,9 +229,15 @@ local function takeList(walk, list, total)
     if #list >= total * STRIDE then
         -- every container is listed: any kept that is not in the building now (its object was taken away) goes
         walk.open, walk.ox, walk.oy, walk.oz, walk.index = {}, {}, {}, {}, {}
+        walk.floorTotal, walk.floorOpen, walk.zOf = {}, {}, {}
     end
     for i = 1, #list, STRIDE do
         local container = list[i]
+        if not walk.zOf[container] then
+            local z = list[i + 3]
+            walk.zOf[container] = z
+            walk.floorTotal[z] = (walk.floorTotal[z] or 0) + 1
+        end
         if list[i + 6] then
             openDrop(walk, container)
         else
@@ -326,6 +341,8 @@ function Buildings.tick(character)
         local open = walk.open
         for i = #open, 1, -1 do
             if open[i]:isExplored() then
+                local z = walk.zOf[open[i]]
+                if z then walk.floorOpen[z] = (walk.floorOpen[z] or 1) - 1 end
                 open[i] = open[#open]
                 open[#open] = nil
                 walk.explored = walk.explored + 1
@@ -343,6 +360,14 @@ function Buildings.unopened(character)
     local walk = states[character:getPlayerNum()]
     if not walk then return nil end
     return walk.open, walk.ox, walk.oy, walk.oz
+end
+
+-- The containers of the character's building on floor `z` not opened yet and all of them, as the last look found
+-- them (0, 0 outside a building or on a floor with none).
+function Buildings.floor(character, z)
+    local walk = states[character:getPlayerNum()]
+    if not walk then return 0, 0 end
+    return walk.floorOpen[z] or 0, walk.floorTotal[z] or 0
 end
 
 -- The key of the building at a square (the room is its vanilla room, or nil), or nil outside a building or in one

@@ -451,7 +451,7 @@ local function fakeBuilding(roomsOfSquares, loaded)
 end
 
 local function sq(objects)
-    return { getObjects = function() return list(objects) end }
+    return { getObjects = function() return list(objects) end, getZ = function() return 0 end }
 end
 
 local function walker(room)
@@ -844,5 +844,24 @@ test("a scan of the building lists its containers through the API too", function
     local scanned = OA.Buildings.scan(square, nil)
     eq(scanned.key, "b1"); eq(#scanned.containers, 2); eq(scanned.complete, true)
     eq(OA.Buildings.searched(scanned.containers), 1)
+    PZToolsAPI = nil
+end)
+
+test("the API's walk keeps the containers and the unopened ones of each floor", function()
+    OA.Buildings.reset()
+    local a, b, c = box(false), box(true), box(false)
+    local world = { entries = { entry(a, 1, 1), entry(b, 2, 1), entry(c, 3, 1, { z = 1 }) } }
+    PZToolsAPI = fakeContainersApi(world)
+    local w = walker({})
+    OA.Buildings.tick(w)
+    local left, total = OA.Buildings.floor(w, 0)
+    eq(left, 1); eq(total, 2, "two on the ground floor, one opened")
+    left, total = OA.Buildings.floor(w, 1)
+    eq(left, 1); eq(total, 1)
+    a.set(true)
+    OA.Buildings.tick(w)
+    left, total = OA.Buildings.floor(w, 0)
+    eq(left, 0, "an opened one leaves its floor's count"); eq(total, 2)
+    eq(OA.Buildings.floor(w, 2), 0, "a floor with none")
     PZToolsAPI = nil
 end)

@@ -217,6 +217,21 @@ function Sense.ledgerKey(opened, left)
     return "IGUI_OA_Tree_LedgerMany"
 end
 
+-- How far the search of the floor the character is on has come, told once a stage as it goes up: 1 about half of it
+-- opened, 2 three quarters (these two only while more than 6 are left: a big floor), 3 six or fewer left, 4 two or
+-- fewer, 5 all of the floor (the building not: a floor done in a bigger building). 0 below half.
+function Sense.ledgerStage(total, left)
+    if left <= 0 then return 5 end
+    if left <= 2 then return 4 end
+    if left <= 6 then return 3 end
+    local opened = total - left
+    if opened * 4 >= total * 3 then return 2 end
+    if opened * 2 >= total then return 1 end
+    return 0
+end
+Sense.LEDGER_STAGES = { "IGUI_OA_Tree_LedgerHalf", "IGUI_OA_Tree_LedgerMost", "IGUI_OA_Tree_LedgerSome",
+    "IGUI_OA_Tree_LedgerFew", "IGUI_OA_Tree_LedgerFloorDone" }
+
 -- How far a point is from a rectangle (x, y, w, h): 0 inside it.
 function Sense.toRect(px, py, x, y, w, h)
     local dx = math.max(x - px, 0, px - (x + w))
