@@ -190,7 +190,7 @@ local function upgradesPage(page, w)
     local texts = OA.Upgrades.Texts
     local night = tick(page, T("Up_NightSight"), PAD, rowY(1), function(on) Dev.nightSight(on) end)
 
-    label(page, T("Up_Tree"), PAD, rowY(2) + 2)
+    label(page, T("Up_Tree"), PAD, rowY(4) + 2)
     local current = Data.TREES[1]
     local rows = {}
     local function fill()
@@ -206,15 +206,29 @@ local function upgradesPage(page, w)
                 row.rank:setName(tostring(rank) .. "/" .. (node.ranks and tostring(node.ranks) or "-"))
             end
         end
+        local window = Panel.window()
+        if window and window.fitPage then window:fitPage() end
     end
-    combo(page, PAD + 70, rowY(2), 200, treeItems(true), function(tree)
+
+    label(page, T("Up_Points"), PAD, rowY(2) + 2)
+    local pointItems = treeItems(false)
+    pointItems[#pointItems + 1] = { T("Up_Shared"), "shared" }
+    local pointBox = combo(page, PAD + 110, rowY(2), 160, pointItems)
+    local _, px = button(page, "+1", PAD + 280, rowY(2), 36, function() Dev.points(pointBox:getSelectedData(), 1) end)
+    button(page, "+5", px, rowY(2), 36, function() Dev.points(pointBox:getSelectedData(), 5) end)
+    button(page, T("Up_Reset"), PAD, rowY(3), 0, function()
+        Dev.clearResearch()
+        fill()
+    end)
+
+    combo(page, PAD + 70, rowY(4), 200, treeItems(true), function(tree)
         current = tree
         fill()
     end)
 
     local nameW = 220
     for i = 1, mostNodes() do
-        local y = rowY(2 + i)
+        local y = rowY(4 + i)
         local row = { controls = {} }
         row.name = label(page, "", PAD, y + 2)
         local minus = button(page, "-", PAD + nameW, y, 26, function()
@@ -229,23 +243,11 @@ local function upgradesPage(page, w)
         rows[i] = row
     end
 
-    local base = 3 + #rows
-    label(page, T("Up_Points"), PAD, rowY(base) + 2)
-    local pointItems = treeItems(false)
-    pointItems[#pointItems + 1] = { T("Up_Shared"), "shared" }
-    local pointBox = combo(page, PAD + 110, rowY(base), 160, pointItems)
-    local _, px = button(page, "+1", PAD + 280, rowY(base), 36, function() Dev.points(pointBox:getSelectedData(), 1) end)
-    button(page, "+5", px, rowY(base), 36, function() Dev.points(pointBox:getSelectedData(), 5) end)
-    button(page, T("Up_Reset"), PAD, rowY(base + 1), 0, function()
-        Dev.clearResearch()
-        fill()
-    end)
-
     page.refresh = function()
         if Dev.record() then night:setSelected(1, Dev.nightSightOn()) end
         fill()
     end
-    return base + 1
+    return 4 + #rows
 end
 
 local function effectsPage(page, w)
@@ -369,10 +371,6 @@ function Window:createChildren()
         local page = newPage(self.width, pageH)
         def.build(page, self.width)
         tabs:addView(T("Tab_" .. def.id), page)
-        page.contentBottom = 0
-        for _, child in pairs(page.children) do
-            page.contentBottom = math.max(page.contentBottom, child:getY() + child:getHeight())
-        end
     end
     self.statusLabel = ISLabel:new(PAD, self.height - FH - 6, FH, "", 0.7, 0.9, 0.7, 1, UIFont.Small, true)
     self.statusLabel:initialise()
@@ -385,10 +383,14 @@ end
 
 -- The window as tall as the page that shows (the upgrades page is far taller than the others).
 function Window:fitPage()
-    local view = self.tabs:getActiveView()
-    if not view or not view.contentBottom then return end
+    local view = self.tabs and self.tabs:getActiveView()
+    if not view or not self.statusLabel then return end
+    local bottom = 0
+    for _, child in pairs(view.children) do
+        if child:isVisible() then bottom = math.max(bottom, child:getY() + child:getHeight()) end
+    end
     local title = self:titleBarHeight()
-    local h = title + self.tabs.tabHeight + view.contentBottom + PAD + FH + 12
+    local h = title + self.tabs.tabHeight + bottom + PAD + FH + 12
     self:setHeight(h)
     self.tabs:setHeight(h - title - FH - 10)
     self.statusLabel:setY(h - FH - 6)

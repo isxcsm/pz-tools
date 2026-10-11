@@ -36,6 +36,9 @@ function Widget:instantiate() self.javaObject = true self:createChildren() end
 function Widget:addChild(child) self.children[#self.children + 1] = child end
 function Widget:setVisible(on) self.visible = on end
 function Widget:getIsVisible() return self.visible end
+function Widget:isVisible() return self.visible ~= false end
+function Widget:getY() return 0 end
+function Widget:getHeight() return 0 end
 function Widget:titleBarHeight() return 16 end
 
 ISPanel = class(Widget)
@@ -219,7 +222,7 @@ test("upgrades page: the second board lists its own nodes, and a - at rank 0 sta
     local window = Panel.window()
     local page = window.tabs.views[2].view
     window.tabs.active = page
-    all(page, ISComboBox)[1]:choose(4)
+    all(page, ISComboBox)[2]:choose(4)  -- the points combo comes first, then the tree
     local minus
     for _, b in ipairs(all(page, ISButton)) do
         if b.title == "-" and not minus then minus = b end
