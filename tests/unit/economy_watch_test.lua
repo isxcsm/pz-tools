@@ -53,11 +53,12 @@ local function character()
     c.getModData = function() return { OA_Id = "w" } end
     c.Say = function(_, text) c.said[#c.said + 1] = text end
     c.getCurrentSquare = function() return c.square end
-    c.step = function(room)
+    -- onto a square of `room` (nil: outside, or with `indoor` a roofed square with no room, as a stairwell), on floor z
+    c.step = function(room, z, indoor)
         c.n = c.n + 1
         local n = c.n
         c.square = { getRoom = function() return room end, getX = function() return n end, getY = function() return 0 end,
-            getZ = function() return 0 end }
+            getZ = function() return z or 0 end, isOutside = function() return room == nil and not indoor end }
     end
     return c
 end
@@ -201,6 +202,68 @@ test("a floor's stage line waits for the step away, and goes with the building",
     ch.step(nil)
     refresh({})
     eq(#said, 1)
+    OA.Upgrades.Senses = senses
+    OA.Buildings.tick = tick
+end)
+
+test("a stairwell is still the building: going up is another floor, not leaving and coming in", function()
+    local tick = setup()
+    local calls = { leave = 0, floor = 0, look = 0 }
+    OA.Upgrades = OA.Upgrades or {}
+    local senses = OA.Upgrades.Senses
+    OA.Upgrades.Senses = {
+        ledgerLook = function() calls.look = calls.look + 1 return nil end,
+        ledgerSay = function() return true end,
+        ledgerOutline = function() return false end,
+        ledgerLeave = function() calls.leave = calls.leave + 1 end,
+        ledgerFloor = function() calls.floor = calls.floor + 1 end,
+        ledgerDone = function() end,
+    }
+    local a = furniture(1)
+    local room = building({ { a } })
+    ch.step(room, 0)
+    refresh({})
+    eq(calls.leave, 1, "coming in")
+    ch.step(nil, 0, true)
+    refresh({})
+    eq(calls.leave, 1, "the stairwell is not leaving")
+    eq(calls.floor, 0)
+    ch.step(room, 1)
+    refresh({})
+    eq(calls.leave, 1)
+    eq(calls.floor, 1, "another floor of the same building")
+    ch.step(room, 1)
+    refresh({})
+    eq(calls.floor, 1, "the same floor")
+    ch.step(nil, 0)
+    refresh({})
+    eq(calls.leave, 2, "out under the sky: left")
+    OA.Upgrades.Senses = senses
+    OA.Buildings.tick = tick
+end)
+
+test("the building all searched says so with the economy's check", function()
+    local tick = setup()
+    local done = 0
+    OA.Upgrades = OA.Upgrades or {}
+    local senses = OA.Upgrades.Senses
+    OA.Upgrades.Senses = {
+        ledgerLook = function() return nil end,
+        ledgerSay = function() return true end,
+        ledgerOutline = function() return false end,
+        ledgerLeave = function() end,
+        ledgerFloor = function() end,
+        ledgerDone = function() done = done + 1 end,
+    }
+    local a = furniture(1)
+    local room = building({ { a } })
+    ch.step(room)
+    refresh({ a.containers[1] })
+    eq(done, 0)
+    ch.step(room)
+    refresh({})
+    eq(done, 1)
+    eq(#sent, 1)
     OA.Upgrades.Senses = senses
     OA.Buildings.tick = tick
 end)

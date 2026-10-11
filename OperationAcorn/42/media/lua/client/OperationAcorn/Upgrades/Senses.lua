@@ -785,8 +785,10 @@ Senses.ledger = ledger
 -- not told: it could be squares not loaded).
 local LEDGER_WAIT_MS = 5000
 -- At least this long between two of the ledger's lines (one entering, then the floor's stages): a stage line held
--- sooner waits for the next step away after it.
+-- sooner waits for the next step away after it. A floor all searched is said whatever came just before: it is the one
+-- the player needs to hear.
 local LEDGER_GAP_MS = 10000
+local FLOOR_DONE = Sense.LEDGER_STAGES[#Sense.LEDGER_STAGES]
 
 -- The line of the stage the floor the character is on has reached (Sense.ledgerStage), when it is further than the
 -- one noted, which it becomes; nil when nothing is new. The stage a floor is at when first seen is noted, not told (the
@@ -894,12 +896,34 @@ function Senses.ledgerLook(player, key, opened, total, complete, now)
     return nil
 end
 
--- Says a stage line the watch held: false (held on) within LEDGER_GAP_MS of the last line.
+-- Says a stage line the watch held: false (held on) within LEDGER_GAP_MS of the last line, but for a floor all
+-- searched.
 function Senses.ledgerSay(player, line, now)
-    if now - ledger.said < LEDGER_GAP_MS and now >= ledger.said then return false end
+    if line ~= FLOOR_DONE and now - ledger.said < LEDGER_GAP_MS and now >= ledger.said then return false end
     ledger.said = now
     player:Say(getText(line))
     return true
+end
+
+-- The building all searched at last, as the character steps away from the last containers (with the economy's
+-- title): the line of a building searched, not the floor's.
+function Senses.ledgerDone(player, now)
+    if ledgerRank(player) < 1 or ledger.done then return end
+    ledger.done = true
+    ledger.said = now
+    player:Say(getText("IGUI_OA_Tree_LedgerAlreadyDone"))
+end
+
+-- The character came onto another floor of the building it is in: a floor all searched says so (the rest of the
+-- building not; told on entering it, and all of it searched is not told again floor by floor).
+function Senses.ledgerFloor(player, now)
+    if ledgerRank(player) < 1 or ledger.done or not ledger.told then return end
+    local z = math.floor(player:getZ())
+    local left, total = OA.Buildings.floor(player, z)
+    if total <= 0 or left > 0 then return end
+    ledger.stages[z] = #Sense.LEDGER_STAGES
+    ledger.said = now
+    player:Say(getText(FLOOR_DONE))
 end
 
 -- Rank 2: outlines the unopened containers near the character (nearUnopened), from what the last look found. Returns

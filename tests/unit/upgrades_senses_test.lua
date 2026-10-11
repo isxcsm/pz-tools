@@ -329,9 +329,28 @@ test("the ledger tells on entering how much is left, then a floor's further stag
     eq(Senses.ledgerSay(p, "IGUI_OA_Tree_LedgerSome", 5000), false, "within the gap of the line on entering")
     eq(Senses.ledgerSay(p, "IGUI_OA_Tree_LedgerSome", 11000), true)
     eq(said[2], "IGUI_OA_Tree_LedgerSome")
+    -- the floor done: said whatever was said just before
+    floors.left = 0
+    eq(Senses.ledgerLook(p, "house", 12, 24, true, 11500), "IGUI_OA_Tree_LedgerFloorDone")
+    eq(Senses.ledgerSay(p, "IGUI_OA_Tree_LedgerFloorDone", 11600), true, "within the gap, yet said")
+    eq(said[3], "IGUI_OA_Tree_LedgerFloorDone")
+    -- another floor, all searched: said on coming onto it; one not all searched: nothing
+    p.z = 1
+    Senses.ledgerFloor(p, 12000)
+    eq(said[4], "IGUI_OA_Tree_LedgerFloorDone")
+    floors.left = 3
+    Senses.ledgerFloor(p, 12500)
+    eq(#said, 4)
+    -- the building all searched: its own line, once, and no floor's after it
+    Senses.ledgerDone(p, 13000)
+    eq(said[5], "IGUI_OA_Tree_LedgerAlreadyDone")
+    Senses.ledgerDone(p, 13100)
+    floors.left = 0
+    Senses.ledgerFloor(p, 13200)
+    eq(#said, 5)
     recordWith({ ledger = 0 })
     eq(Senses.ledgerLook(p, "other", 0, 3, true, 20000), nil, "no rank, no lines")
-    eq(#said, 2)
+    eq(#said, 5)
     getText, OA.Buildings.floor = text, floor
 end)
 

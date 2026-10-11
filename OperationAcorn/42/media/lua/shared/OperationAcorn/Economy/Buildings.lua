@@ -326,7 +326,8 @@ function Buildings.searched(containers)
 end
 
 -- One look at the building a character stands in: returns key, searched, total and
--- whether every square of the building has been counted; nil when the character is outside. A look counts up to
+-- whether every square of the building has been counted; nil when the character is outside. A square under a roof
+-- with no room (a stairwell, a doorway) is still the building of the walk in hand. A look counts up to
 -- BUDGET more squares of the building and asks the containers not opened yet whether they are now (an opened one
 -- stays opened, so it is not asked again).
 function Buildings.tick(character)
@@ -334,6 +335,7 @@ function Buildings.tick(character)
     local square = character:getCurrentSquare()
     local room = square and square:getRoom()
     local key = room and Buildings.keyAt(square, room) or nil
+    if not key and not room and square and not square:isOutside() and states[number] then key = states[number].key end
     if not key then
         if states[number] then left[number] = states[number] end
         states[number] = nil

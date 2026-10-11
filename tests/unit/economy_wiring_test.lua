@@ -467,11 +467,23 @@ local function walker(room)
         getModData = function() return { OA_Id = "w" } end,
         getCurrentSquare = function()
             return { getRoom = function() return at.room end, getX = function() return 10 end,
-                getY = function() return 10 end, getZ = function() return 0 end }
+                getY = function() return 10 end, getZ = function() return 0 end,
+                isOutside = function() return at.room == nil and not at.indoor end }
         end,
-        move = function(_, r) at.room = r end,
+        move = function(_, r, indoor) at.room, at.indoor = r, indoor end,
     }
 end
+
+test("a roofed square with no room (a stairwell) keeps the building's walk", function()
+    OA.Buildings.reset()
+    local rooms = fakeBuilding({ { sq({ fakeObject({ box(false) }) }) } })
+    local w = walker(rooms[1])
+    eq(OA.Buildings.tick(w), "v:700,800")
+    w:move(nil, true)
+    eq(OA.Buildings.tick(w), "v:700,800", "the stairwell")
+    w:move(nil)
+    eq(OA.Buildings.tick(w), nil, "outside")
+end)
 
 test("the building watch counts containers once and asks each if it was opened", function()
     OA.Buildings.reset()

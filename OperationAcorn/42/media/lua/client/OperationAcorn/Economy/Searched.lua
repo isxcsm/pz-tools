@@ -16,6 +16,8 @@
 --     stands (a door opened), and runs only while there are outlines to keep.
 --   * A building not counted whole yet (a square not loaded) is looked at again each RELOOK_MS while the character
 --     is in it.
+--   * A square under a roof with no room (a stairwell, a doorway) is still the building the character is in, so going
+--     up or down is a floor of the same building (the ledger tells a floor all searched), not leaving and entering.
 require "ISUI/ISInventoryPage"
 require "OperationAcorn/Sync"
 require "OperationAcorn/Economy/Buildings"
@@ -31,10 +33,10 @@ local listing = false   -- the loot window's refresh is going on
 local listed = {}       -- container -> true: the containers it lists
 local fresh = {}        -- those it marked for the first time
 
--- The building the character is in (key) and the room it was asked for, the square of the last refresh, what waits
--- to be told ({ key, done, line, near = the containers that made it }), the building the economy was asked about on
--- entering, and whether a look again is due.
-local state = { player = 0, key = nil, room = nil, square = nil, pending = nil, asked = nil, relook = false }
+-- The building the character is in (key) and the room it was asked for, the square of the last refresh and its
+-- floor, what waits to be told ({ key, done, line, near = the containers that made it }), the building the economy
+-- was asked about on entering, and whether a look again is due.
+local state = { player = 0, key = nil, room = nil, square = nil, z = nil, pending = nil, asked = nil, relook = false }
 local sightSlot = {}
 
 local function senses()
@@ -71,6 +73,8 @@ local function tell(player, now)
     if p.done then
         state.pending = nil
         OA.Sync.send(player, "searched", { key = p.key })
+        local S = senses()
+        if S then S.ledgerDone(player, now) end
     else
         local S = senses()
         if not S or S.ledgerSay(player, p.line, now) then state.pending = nil end
@@ -125,7 +129,11 @@ function Watch.refreshed(page)
     local room = square and square:getRoom()
     if room ~= state.room then
         state.room = room
-        key = room and OA.Buildings.keyAt(square, room) or nil
+        if room then
+            key = OA.Buildings.keyAt(square, room)
+        elseif not (square and not square:isOutside()) then
+            key = nil
+        end
     end
     local entered = key ~= state.key
     -- a floor's line is out of place once out of the building (the building all searched is told as it is left)
@@ -142,6 +150,9 @@ function Watch.refreshed(page)
         if not near then tell(player, now) end
     end
     if not moved and not marked then return end
+    local z = square and square:getZ()
+    local otherFloor = not entered and key ~= nil and z ~= state.z
+    state.z = z
     if entered then
         state.key = key
         local S = senses()
@@ -150,12 +161,16 @@ function Watch.refreshed(page)
     elseif key and marked then
         look(player, now, true)
     end
+    if otherFloor then
+        local S = senses()
+        if S then S.ledgerFloor(player, now) end
+    end
     if key then outline(player) else stopSight() end
 end
 
 -- Forgets the building and what waits (the developer panel's search reset).
 function Watch.reset()
-    state.key, state.room, state.square, state.pending, state.asked = nil, nil, nil, nil, nil
+    state.key, state.room, state.square, state.z, state.pending, state.asked = nil, nil, nil, nil, nil, nil
     stopSight()
 end
 
