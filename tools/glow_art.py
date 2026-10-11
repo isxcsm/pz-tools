@@ -2,7 +2,7 @@
 """The soft lights of the research tab (Upgrades/Window.lua): a round white glow the game tints in the tree's light
 colour and draws at the head of the light that runs down a met prerequisite's line (Motion.comet: a wide faint one and
 a small bright core), at a node it arrives at, and when the body takes an applied selection (a node's burst, the light
-running up to the header); and a soft band, the wave that sweeps down a column that took points.
+running up to the header); and a soft band, stretched over a column that took points as it glows.
 
     py tools/glow_art.py      writes OperationAcorn/42/media/textures/OA_Glow.png (64 px, white, its alpha falling
                               smoothly from the middle to nothing at the edge), OA_Wave.png (64 x 128, white, a soft

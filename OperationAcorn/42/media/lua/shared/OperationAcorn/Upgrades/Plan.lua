@@ -70,8 +70,9 @@ end
 -- TAKE_BURST_FROM to TAKE_BURST_TO times its size and fades over TAKE_BURST_MS, a bright core flashes over
 -- TAKE_CORE_MS, and its selected ranks settle into solid pips (a flash over TAKE_PIP_MS). A light runs from it up its
 -- lit lines towards its tree's header (TAKE_SPEED design units a second, a TAKE_TAIL tail), and the header flashes as
--- it arrives (TAKE_HEADER_MS). TAKE_WAVE_WAIT_MS after the last node, and not before the last light has arrived, one
--- soft wave of light sweeps down each column that took points (TAKE_WAVE_MS); the padlocks it opened come off after it.
+-- it arrives (TAKE_HEADER_MS). TAKE_GLOW_WAIT_MS after the last node, and not before the last light has arrived, each
+-- column that took points glows once where it stands, quickly up and slowly out (TAKE_GLOW_MS, its peak at
+-- TAKE_GLOW_PEAK of it); the padlocks it opened come off after it.
 Plan.TAKE_STEP_MS, Plan.TAKE_MAX_MS = 200, 1000
 Plan.TAKE_POP, Plan.TAKE_POP_MS = 0.18, 260
 Plan.TAKE_BURST_MS, Plan.TAKE_BURST_FROM, Plan.TAKE_BURST_TO = 520, 1.1, 3.0
@@ -79,7 +80,7 @@ Plan.TAKE_CORE_MS = 180
 Plan.TAKE_PIP_MS = 360
 Plan.TAKE_SPEED, Plan.TAKE_TAIL = 520, 34
 Plan.TAKE_HEADER_MS = 420
-Plan.TAKE_WAVE_WAIT_MS, Plan.TAKE_WAVE_MS = 280, 460
+Plan.TAKE_GLOW_WAIT_MS, Plan.TAKE_GLOW_MS, Plan.TAKE_GLOW_PEAK = 280, 500, 0.2
 
 local easeOut = OperationAcorn.easeOut
 
@@ -159,23 +160,24 @@ function Plan.takeHeader(age)
     return rise * v * v
 end
 
--- When the wave starts for a scan of n nodes whose last light arrives at `arrive` ms, and when the whole is over.
-function Plan.takeWaveAt(n, arrive)
-    return math.max(math.max(0, n - 1) * Plan.takeStep(n) + Plan.TAKE_WAVE_WAIT_MS, arrive or 0)
+-- When the columns glow for a scan of n nodes whose last light arrives at `arrive` ms, and when the whole is over.
+function Plan.takeGlowAt(n, arrive)
+    return math.max(math.max(0, n - 1) * Plan.takeStep(n) + Plan.TAKE_GLOW_WAIT_MS, arrive or 0)
 end
 
 function Plan.takeEnd(n, arrive)
     local last = math.max(0, n - 1) * Plan.takeStep(n)
-    return math.max(Plan.takeWaveAt(n, arrive) + Plan.TAKE_WAVE_MS, (arrive or 0) + Plan.TAKE_HEADER_MS,
+    return math.max(Plan.takeGlowAt(n, arrive) + Plan.TAKE_GLOW_MS, (arrive or 0) + Plan.TAKE_HEADER_MS,
         last + Plan.TAKE_BURST_MS, last + Plan.TAKE_PIP_MS)
 end
 
--- The wave `age` ms after it started: how far down the column it is (0 the header's top, 1 the column's bottom) and
--- its strength (in and out softly); nil outside it.
-function Plan.takeWave(age)
-    if age < 0 or age >= Plan.TAKE_WAVE_MS then return nil end
-    local u = age / Plan.TAKE_WAVE_MS
-    return u * u * (3 - 2 * u), math.sin(math.pi * u)
+-- The columns' glow `age` ms after it started: its strength, 0 to 1 (up softly to its peak, then slowly out); nil
+-- outside it.
+function Plan.takeGlow(age)
+    if age < 0 or age >= Plan.TAKE_GLOW_MS then return nil end
+    local u, peak = age / Plan.TAKE_GLOW_MS, Plan.TAKE_GLOW_PEAK
+    local p = u < peak and u / peak or 1 - (u - peak) / (1 - peak)
+    return p * p * (3 - 2 * p)
 end
 
 return Plan

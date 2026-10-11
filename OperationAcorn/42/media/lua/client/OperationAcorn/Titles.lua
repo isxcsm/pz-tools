@@ -46,7 +46,8 @@ local function textApi()
 end
 Titles.textApi = textApi
 
--- The style to ask the API for: the detail's when the API has it (an older PZ Tools may not have "dust"), else "stamp".
+-- The style to ask the API for: the detail's when the API has it (an older PZ Tools may not have "dust" or "unveil"),
+-- else "stamp".
 -- The API's styles are asked once (again for another API's text).
 local styles, stylesOf
 local function styleFor(t, wanted)

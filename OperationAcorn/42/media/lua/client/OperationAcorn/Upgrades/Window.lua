@@ -17,8 +17,9 @@
 -- reset arrow) from textures made at each pixel size (tools/ui_glyphs.py), so nothing is blurred by scaling.
 -- When the server's answer to an applied selection comes back while the tab is open, the body takes it: a scan runs
 -- over the applied nodes (each pops and bursts in its tree's colour with a short sound, its selected ranks settling
--- into solid pips), a light runs from each up its lines to its tree's header, which flashes as it arrives, and one soft
--- wave of light sweeps down each column that took points (Plan.take* have the timing; the tab's own render draws it,
+-- into solid pips), a light runs from each up its lines to its tree's header, which flashes as it arrives, and each
+-- column that took points glows once in its tree's colour where it stands (Plan.take* have the timing; the tab's own
+-- render draws it,
 -- so it costs nothing when the tab is closed). The nodes it opened (their padlocks gone) then flash in their tree's
 -- colour with a ring, as the nodes a click opens do (a row opened by the points selected) just behind the click.
 -- Smaller motions (Motion.lua has their timing): a rank raised makes its node pop with a cyan ring going out and a
@@ -2240,13 +2241,14 @@ end
 -- Milliseconds an applied selection may take to come back and still be played.
 View.TAKE_WAIT_MS = 10000
 
--- The wave's picture (tools/glow_art.py), found once, and its height (design units).
-local waveTex = nil
-local function wave()
-    if waveTex == nil then waveTex = getTexture("media/textures/OA_Wave.png") or false end
-    return waveTex or nil
+-- The picture of a column's glow (tools/glow_art.py: a soft band, stretched over the column), found once, and the
+-- strength of the glow and of the plain tint under it at their peak.
+local bandTex = nil
+local function band()
+    if bandTex == nil then bandTex = getTexture("media/textures/OA_Wave.png") or false end
+    return bandTex or nil
 end
-Window.WAVE_H = 90
+Window.TAKE_GLOW_A, Window.TAKE_TINT_A = 0.16, 0.05
 
 -- The way a node's light runs up to its tree's header: its lit line, then its prerequisite's, and so on (through each
 -- node on the way). Returns the lines (nil for none), where each starts on the way (design units from the node) and
@@ -2280,7 +2282,7 @@ end
 -- The applied selection came back: starts the take on the nodes of it that are on the screen. Not when the tab is
 -- closed. Everything a frame reads is made here (a frame makes nothing): each node's place in the scan and the ranks
 -- it took, the way of its light and when it arrives, each tree's points and its first arrival, the columns that took
--- points, when the wave starts and when it is all over.
+-- points, when the columns glow and when it is all over.
 function View:startTake()
     local approved = self.approved
     self.approved = nil
@@ -2309,7 +2311,7 @@ function View:startTake()
     local start = getTimestampMs()
     self.take = { order = order, start = start, lit = 0, index = index, step = step, ways = ways, arrive = arrive,
         first = first, cols = cols, gained = Plan.counts(approved.steps), points = approved.spent or {},
-        waveAt = Plan.takeWaveAt(n, last), ends = Plan.takeEnd(n, last) }
+        glowFrom = Plan.takeGlowAt(n, last), ends = Plan.takeEnd(n, last) }
     -- the nodes it opens stay locked to the eye until it is over, then their padlocks come off (those still locked
     -- then are drawn locked anyway); not the ones it took ranks of, which it lights itself
     if approved.locked then
@@ -2364,8 +2366,7 @@ local function drawRun(el, way, age)
 end
 
 -- One frame of the take: each node taken bursts (a growing glow in its tree's colour, a bright core flash) and sends
--- its light up its way (with a short sound as the scan reaches it); the wave sweeps down the columns that took
--- points, lighting what it has passed. The nodes pop and settle their pips themselves (View:paintNode), the headers
+-- its light up its way (with a short sound as the scan reaches it); then the columns that took points glow once. The nodes pop and settle their pips themselves (View:paintNode), the headers
 -- flash (View:paintStrip).
 function View:drawTake(el)
     local take = self.take
@@ -2398,20 +2399,20 @@ function View:drawTake(el)
         take.lit = lit
         getSoundManager():playUISound("UISelectListItem")
     end
-    -- the wave: a soft band of light down each column that took points, what it has passed faintly lit
-    local down, wa = Plan.takeWave(t - take.waveAt)
-    local band = wave()
-    if down then
+    -- the glow: each column that took points lights softly in its tree's colour where it stands, brightest in its
+    -- middle, with no edge going across it
+    local ga = Plan.takeGlow(t - take.glowFrom)
+    if ga and ga > 0 then
         local h = L.STRIP + L.GRID_H
+        local soft = band()
         for i, panel in ipairs(self.panels) do
             if take.cols[i] then
                 local tc = TREE[panel.tree]
                 local top = panel.y + RISE[i]
-                local cy = top + Window.WAVE_H * 0.3 + down * (h - Window.WAVE_H * 0.6)
-                UI.fill(el, panel.x, top, L.COL_W, cy - top, tc.light, 0.07 * wa)
-                if band then
-                    local y0, y1 = X(cy - Window.WAVE_H / 2), X(cy + Window.WAVE_H / 2)
-                    texPx(el, band, X(panel.x), y0, X(panel.x + L.COL_W) - X(panel.x), y1 - y0, tc.light, 0.38 * wa)
+                UI.fill(el, panel.x, top, L.COL_W, h, tc.light, Window.TAKE_TINT_A * ga)
+                if soft then
+                    local x0, y0 = X(panel.x), X(top)
+                    texPx(el, soft, x0, y0, X(panel.x + L.COL_W) - x0, X(top + h) - y0, tc.light, Window.TAKE_GLOW_A * ga)
                 end
             end
         end

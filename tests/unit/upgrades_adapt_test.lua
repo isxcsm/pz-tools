@@ -396,23 +396,23 @@ test("a taken node's light runs up its way, arrives at the header on time, and d
     eq(Plan.takeHeader(Plan.TAKE_HEADER_MS), 0)
 end)
 
-test("the wave comes after the last node and its light, sweeps down once, and the take ends with it", function()
+test("the columns glow after the last node and its light, once, and the take ends with it", function()
     for _, n in ipairs({ 1, 3, 6 }) do
         local last = (n - 1) * Plan.takeStep(n)
         for _, arrive in ipairs({ last, last + 500 }) do
-            local at = Plan.takeWaveAt(n, arrive)
-            truthy(at >= last + Plan.TAKE_WAVE_WAIT_MS and at >= arrive, "after the scan and the lights")
-            truthy(Plan.takeEnd(n, arrive) >= at + Plan.TAKE_WAVE_MS, "the wave is the last part")
+            local at = Plan.takeGlowAt(n, arrive)
+            truthy(at >= last + Plan.TAKE_GLOW_WAIT_MS and at >= arrive, "after the scan and the lights")
+            truthy(Plan.takeEnd(n, arrive) >= at + Plan.TAKE_GLOW_MS, "the glow is the last part")
         end
     end
-    eq(Plan.takeWave(-1), nil)
-    local down, a = Plan.takeWave(0)
-    eq(down, 0)
-    eq(a, 0)
-    local mid, ma = Plan.takeWave(Plan.TAKE_WAVE_MS / 2)
-    near(mid, 0.5, 1e-9)
-    near(ma, 1, 1e-9)
-    eq(Plan.takeWave(Plan.TAKE_WAVE_MS), nil)
+    eq(Plan.takeGlow(-1), nil)
+    eq(Plan.takeGlow(0), 0)
+    near(Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_GLOW_PEAK), 1, 1e-9)
+    -- quickly up, slowly out: a quarter of the way up and of the way down, the way down is brighter
+    local up = Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_GLOW_PEAK / 4)
+    local down = Plan.takeGlow(Plan.TAKE_GLOW_MS * (Plan.TAKE_GLOW_PEAK + (1 - Plan.TAKE_GLOW_PEAK) / 4))
+    truthy(up > 0 and up < down and down < 1, "the glow comes up quickly and goes slowly")
+    eq(Plan.takeGlow(Plan.TAKE_GLOW_MS), nil)
 end)
 
 test("the take lasts about 0.7 to 1.6 s for a few nodes, before the padlocks come off", function()

@@ -144,7 +144,7 @@ end
 function Hooks.treeOpened(playerId, tree, guide)
     local name = "IGUI_OA_Tree_Name_" .. tree
     local line = guide and "IGUI_OA_Title_GuideSub" or nil
-    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "stamp" }
+    local detail = { key = "IGUI_OA_Title_TreeOpened", args = { { key = name } }, sub = line, style = "unveil" }
     if OA.Titles.show(playerId, detail, true) == "title" then return end
     local text = getText("IGUI_OA_Title_TreeOpened", getText(name))
     if line then text = text .. "<LINE>" .. getText(line) end
