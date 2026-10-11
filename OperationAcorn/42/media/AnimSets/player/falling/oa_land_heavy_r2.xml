@@ -6,7 +6,7 @@
 	<m_ConditionPriority>1</m_ConditionPriority>
 	<m_BlendTime>0.20</m_BlendTime>
 	<m_EarlyTransitionOut>true</m_EarlyTransitionOut>
-	<m_SpeedScale>2.00</m_SpeedScale>
+	<m_SpeedScale>1.60</m_SpeedScale>
 	<m_Conditions x_name="9b0667ca-79aa-4161-ba7f-37bd9287f0f4">
 		<m_Name>bDead</m_Name>
 		<m_Type>BOOL</m_Type>

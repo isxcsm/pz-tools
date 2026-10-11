@@ -9,10 +9,13 @@ OUT = r'C:\git\pz-workspace\operation-acorn\OperationAcorn\42\media\AnimSets\pla
 VARIABLE = 'OALandRank'
 # rank: (speed times the game's, cut of a gentle landing in its clip, blend in, blend out of a gentle landing)
 # Bob_FallLanding_Heavy (1.47 s) takes the pelvis from 0.545 down to 0.177 by 0.35 s and back by 1.2 s. The landing
-# plays its own crouch and rise at the speed and is cut on the way up (the pelvis at 0.27 at 51%, 0.22 at 41%), the
-# clip going on rising as it blends out. A cut at the crouch, its pose frozen and blended out, read as a twitch.
-# Rank 3's blend in is longer than the way down at its speed: the crouch shows some 60% deep.
-RANKS = {2: (2.5, 0.51, 0.12, 0.20), 3: (4.0, 0.41, 0.15, 0.15)}
+# plays its own crouch and rise at the speed and is cut on the way up, the clip going on rising as it blends out (a
+# cut at the crouch, its pose frozen and blended out, read as a twitch). Rank 2 is cut stood up (1.2 s of the clip, in
+# 0.65 s) and blended out in 0.2 s: some 0.8 s in all. Rank 3 is cut half way up (0.9 s, in 0.12 s) and blended out in
+# 0.1 s: some 0.2 s; its blend in is longer than its way down, so the crouch shows some 70% deep.
+RANKS = {2: (2.3, 0.818, 0.10, 0.20), 3: (9.4, 0.61, 0.06, 0.10)}
+# A hard landing (two floors and more) throws the character down and is played whole, only faster.
+HARD_SPEED = {2: 2.0, 3: 4.0}
 GENTLE = ['land_gentle', 'land_gentle_2H', 'land_gentle_2Hheavy', 'land_gentle_Rifle', 'land_gentle_heavytorchleft',
           'land_gentle_hgun', 'land_gentle_spear']
 HARD = ['land_heavy', 'land_heavy2']
@@ -48,6 +51,8 @@ def text(parent, tag, value):
 
 def node(name, rank, gentle):
     speed, cut, blend_in, blend_out = RANKS[rank]
+    if not gentle:
+        speed = HARD_SPEED[rank]
     root = load(name)
     root.attrib.pop('x_extends', None)
     text(root, 'm_Name', 'oa_%s_r%d' % (name, rank))

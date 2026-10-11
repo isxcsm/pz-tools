@@ -5,7 +5,7 @@
 	<m_Looped>false</m_Looped>
 	<m_ConditionPriority>1</m_ConditionPriority>
 	<m_BlendTime>0.10</m_BlendTime>
-	<m_SpeedScale>2.00</m_SpeedScale>
+	<m_SpeedScale>1.60</m_SpeedScale>
 	<m_Conditions x_name="4c2e5531-2236-4a38-83a8-5914564e84e5">
 		<m_Name>bDead</m_Name>
 		<m_Type>BOOL</m_Type>

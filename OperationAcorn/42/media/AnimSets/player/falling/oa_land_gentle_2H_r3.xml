@@ -4,11 +4,11 @@
 	<m_AnimName>Bob_FallLanding_Heavy_Bat</m_AnimName>
 	<m_Looped>false</m_Looped>
 	<m_ConditionPriority>1</m_ConditionPriority>
-	<m_BlendTime>0.15</m_BlendTime>
-	<m_BlendOutTime>0.15</m_BlendOutTime>
+	<m_BlendTime>0.06</m_BlendTime>
+	<m_BlendOutTime>0.10</m_BlendOutTime>
 	<m_StopAnimOnExit>false</m_StopAnimOnExit>
 	<m_EarlyTransitionOut>false</m_EarlyTransitionOut>
-	<m_SpeedScale>3.20</m_SpeedScale>
+	<m_SpeedScale>7.52</m_SpeedScale>
 	<m_Conditions x_name="48c6e1ef-a28f-40ae-a6ab-6a4d44c56d28">
 		<m_Name>bDead</m_Name>
 		<m_Type>BOOL</m_Type>
@@ -51,7 +51,7 @@
 	</m_Events>
 	<m_Events x_name="oa-land-cut">
 		<m_EventName>SetVariable</m_EventName>
-		<m_TimePc>0.410</m_TimePc>
+		<m_TimePc>0.610</m_TimePc>
 		<m_ParameterValue>bLandAnimFinished=true</m_ParameterValue>
 	</m_Events>
 </animNode>
