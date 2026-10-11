@@ -177,10 +177,10 @@ final class Formulas implements ApiHooks.Formulas {
     }
 
     /**
-     * Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease): the eye's pace, so that
-     * coming into a dark place reads as the eyes adjusting, not a pop.
+     * Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease): the pace of eyes
+     * adjusting to the dark, so that coming into a dark place, or a square coming into sight, is not a pop.
      */
-    static final float SIGHT_EASE = 0.8f;
+    static final float SIGHT_EASE = 2f;
     /**
      * The darkness the game reads (0 light to 1 dark) where the screen pass's lift starts, and where it is whole.
      * Measured in a night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day).
@@ -193,12 +193,20 @@ final class Formulas implements ApiHooks.Formulas {
     static final float FLOOR_FULL = 0.9f;
     /** What a dark place adds to the least light (a basement, a room with no light: see NightLamps), of the full light. */
     static final float DARK_EXTRA = 0.1f;
+    /**
+     * How the least light grows with night sight's value: as the value to this power (the full least light at 1, a
+     * third of it at a half, a sixth at 0.3, almost none at 0.1), so that a low value leaves a room with no light mostly
+     * dark and only a high one shows it.
+     */
+    static final float SIGHT_CURVE = 1.5f;
     /** How much the screen pass lifts dark tones at night sight 1: their gamma is 1 - this x the strength. */
     static final float SIGHT_LIFT = 0.7f;
 
     // The numbers above as night sight works with them: each a tuning, its default the constant (FLOOR_FULL and the rest
     // are the defaults; PZToolsAPI.formulas.tune changes them while the game runs).
     private final Tunings tunings = new Tunings();
+    private final Tunings.Tuning curve = tunings.add("nightSight.curve", SIGHT_CURVE, 1, 4,
+        "how the least light grows with night sight's value: the value to this power, times floorFull (and darkExtra)");
     private final Tunings.Tuning floorFull = tunings.add("nightSight.floorFull", FLOOR_FULL, 0, 1,
         "the least light of a square on the screen at night sight 1, of the full light");
     private final Tunings.Tuning darkExtra = tunings.add("nightSight.darkExtra", DARK_EXTRA, 0, 1,
@@ -1034,8 +1042,8 @@ final class Formulas implements ApiHooks.Formulas {
         long now = System.nanoTime();
         nightSightStep(now);
         if (lamps == null) return;
-        float least = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight);
-        float dark = active.nightSight == 0f ? 0f : Math.min(1f, floorFull.value() * active.nightSight + darkExtra.value());
+        float grown = sightCurve(active.nightSight, curve.value());
+        float least = Math.min(1f, floorFull.value() * grown), dark = Math.min(1f, (floorFull.value() + darkExtra.value()) * grown);
         try { lamps.floorLight(Math.round(least * 255f), Math.round(dark * 255f), darkShown); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's least light", failure); }
         if (lampsProblem != null) return;
@@ -1089,6 +1097,9 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** The share of a dark place's more least light shown now (for the tests). */
     float nightSightDarkShown() { return darkShown; }
+
+    /** Night sight's value grown by the curve the least light follows (0 at 0, 1 at 1). */
+    static float sightCurve(float value, float curve) { return value <= 0f ? 0f : (float)Math.pow(Math.min(1f, value), curve); }
 
     /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for, from `from` to whole at `full`. */
     static float darkGate(float dark, float from, float full) {

@@ -2186,7 +2186,10 @@ public final class ApiHooks {
          * and V; beyond it, PZT_SightKeep), and dark tones are lifted, the darker the more (a gamma, by PZT_NightSight), in
          * grey too, but for the light a light source gives (its second channel). The values are the last set's (red, green)
          * and the newest's (blue, alpha), PZT_SightBlend of the way from the one to the other. A square raised to more
-         * light than the least shown (PZT_SightShade of it) is taken down to it first, its colour kept against it.
+         * light than the least shown (PZT_SightShade of it) is taken down to it first, its colour kept against it. The
+         * texture's second half says how much of all this a square shows (red and blue) and, where it does not, the share
+         * of what is drawn that is the game's light (green and alpha): a square the player does not see now is left as
+         * drawn, and one coming into sight eases in.
          */
         static final String STEP = """
 
@@ -2199,15 +2202,21 @@ public final class ApiHooks {
             uniform float PZT_SightLift;
             uniform float PZT_SightBlend;
             uniform float PZT_SightShade;
+            const float PZT_SightTexel = 0.5 / 64.0;
 
             vec3 pztNightSight(in vec3 seen) {
             	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return seen;
             	vec3 at = vec3(gl_FragCoord.xy, 1.0);
             	vec2 uv = vec2(dot(PZT_SightU, at), dot(PZT_SightV, at));
             	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
+            	vec2 sight = vec2(1.0, 1.0);
             	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) {
-            		vec4 both = texture(PZT_SightLamps, uv);
-            		square = mix(both.rg, both.ba, clamp(PZT_SightBlend, 0.0, 1.0));
+            		vec2 inside = clamp(uv, vec2(PZT_SightTexel), vec2(1.0 - PZT_SightTexel));
+            		float t = clamp(PZT_SightBlend, 0.0, 1.0);
+            		vec4 both = texture(PZT_SightLamps, vec2(inside.x * 0.5, inside.y));
+            		vec4 shown = texture(PZT_SightLamps, vec2(0.5 + inside.x * 0.5, inside.y));
+            		square = mix(both.rg, both.ba, t);
+            		sight = mix(shown.rg, shown.ba, t);
             	}
             	float least = clamp(PZT_SightShade, 0.0, 1.0);
             	vec3 col = seen * max(square.x, least);
@@ -2217,7 +2226,7 @@ public final class ApiHooks {
             	float lifted = s > 0.0 ? mix(pow(max(l, 0.0), 1.0 - clamp(PZT_SightLift, 0.0, 1.0) * s), l, square.y) : l;
             	vec3 kept = col * square.x;
             	float grey = max(lifted - dot(kept, vec3(0.299, 0.587, 0.114)), 0.0);
-            	return clamp(kept + grey * vec3(0.84, 0.92, 1.08), 0.0, 1.0);
+            	return clamp(mix(seen * sight.y, kept + grey * vec3(0.84, 0.92, 1.08), sight.x), 0.0, 1.0);
             }
 
             vec4 pztDiffuse(in vec2 uv) {
