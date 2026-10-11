@@ -248,8 +248,7 @@ end
 -- ---- prying and picking -----------------------------------------------------------------------------------------
 
 -- The common part of both: face the lock, work low, check the target is still locked and still there.
--- `hand` gives the tool the character holds while working (the pry bar, the screwdriver), or nil.
-local function lockAction(name, hand)
+local function lockAction(name)
     local action = ISBaseTimedAction:derive(name)
     function action:isValid()
         return stillThere(self.target) and Actions.isLocked(self.target)
@@ -263,9 +262,10 @@ local function lockAction(name, hand)
     end
     -- At the lock's height, standing: a car's door as the game works on a car's part at waist height
     -- (ISInstallVehiclePart), a door or window's as the game takes broken glass out of a window (ISRemoveBrokenGlass);
-    -- prying a door or window as the game pries a barricade off (ISUnbarricadeAction). The tool is in the hand.
+    -- prying a door or window as the game pries a barricade off (ISUnbarricadeAction). The tool the menu equipped
+    -- (startLock) is in the hand, as the game's own.
     function action:start()
-        local tool = hand and hand(self.character) or nil
+        local tool = self.character:getPrimaryHandItem()
         if instanceof(self.target, "VehiclePart") then
             self:setActionAnim("VehicleWorkOnMid")
         elseif name == "ISOAPryOpen" then
@@ -290,7 +290,7 @@ local function roll(chance)
 end
 
 -- Prying with a pry bar: quick and loud, and it often fails. A failure costs endurance and fatigue.
-ISOAPryOpen = lockAction("ISOAPryOpen", function(character) return Actions.pryBar(character) end)
+ISOAPryOpen = lockAction("ISOAPryOpen")
 
 function ISOAPryOpen:complete()
     local record = OA.Store.ensure(self.oaId, nil)
@@ -361,11 +361,7 @@ end
 
 -- Picking with a paper clip and a screwdriver: slow, quiet, usually works. A failure bends the clip (it is lost). A lock
 -- picked on an alarmed house or car cuts its alarm too.
-local function screwdriver(character)
-    local _, driver = Actions.pickTools(character)
-    return driver
-end
-ISOAPickLock = lockAction("ISOAPickLock", screwdriver)
+ISOAPickLock = lockAction("ISOAPickLock")
 
 function ISOAPickLock:complete()
     local record = OA.Store.ensure(self.oaId, nil)
@@ -386,7 +382,7 @@ function ISOAPickLock:new(character, target) return pickNew(self, character, tar
 
 -- Cutting the alarm of a door, window or car door alone, locked or not (the lock is left as it is): 자물쇠 따기 with
 -- 경보 읽기, the same tools, time, chance and failure as picking, on any door (a reinforced one too: the lock is not worked).
-ISOADisarm = lockAction("ISOADisarm", screwdriver)
+ISOADisarm = lockAction("ISOADisarm")
 
 function ISOADisarm:isValid()
     return stillThere(self.target) and Actions.alarmOf(self.target) ~= nil

@@ -285,6 +285,19 @@ local NEEDS = {
 }
 NEEDS[ISOADisarm] = NEEDS[ISOAPickLock]
 
+-- The tools in hand first, as the game's own tool actions do (ISWorldObjectContextMenu.onUnbarricade): the pry bar or
+-- the screwdriver taken out of its bag and equipped, the paperclip taken out of its bag.
+local function equipTools(player, class)
+    if class == ISOAPryOpen then
+        local bar = Actions.pryBar(player)
+        if bar then ISWorldObjectContextMenu.equip(player, player:getPrimaryHandItem(), bar, true) end
+        return
+    end
+    local clip, driver = Actions.pickTools(player)
+    if driver then ISWorldObjectContextMenu.equip(player, player:getPrimaryHandItem(), driver, true) end
+    if clip then ISWorldObjectContextMenu.transferIfNeeded(player, clip) end
+end
+
 local function startLock(player, target, class)
     local needs = NEEDS[class]
     if needs and not needs.have(player) then
@@ -292,10 +305,12 @@ local function startLock(player, target, class)
         return
     end
     if instanceof(target, "VehiclePart") then
+        equipTools(player, class)
         ISTimedActionQueue.add(class:new(player, target))
         return
     end
     if luautils.walkAdjWindowOrDoor(player, target:getSquare(), target) then
+        equipTools(player, class)
         ISTimedActionQueue.add(class:new(player, target))
     end
 end
