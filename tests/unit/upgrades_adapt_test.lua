@@ -396,7 +396,7 @@ test("a taken node's light runs up its way, arrives at the header on time, and d
     eq(Plan.takeHeader(Plan.TAKE_HEADER_MS), 0)
 end)
 
-test("the columns glow after the last node and its light, once, and the take ends with it", function()
+test("the light runs round the columns after the last node and its light, once, and the take ends with it", function()
     for _, n in ipairs({ 1, 3, 6 }) do
         local last = (n - 1) * Plan.takeStep(n)
         for _, arrive in ipairs({ last, last + 500 }) do
@@ -406,12 +406,18 @@ test("the columns glow after the last node and its light, once, and the take end
         end
     end
     eq(Plan.takeGlow(-1), nil)
-    eq(Plan.takeGlow(0), 0)
-    near(Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_GLOW_PEAK), 1, 1e-9)
-    -- quickly up, slowly out: a quarter of the way up and of the way down, the way down is brighter
-    local up = Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_GLOW_PEAK / 4)
-    local down = Plan.takeGlow(Plan.TAKE_GLOW_MS * (Plan.TAKE_GLOW_PEAK + (1 - Plan.TAKE_GLOW_PEAK) / 4))
-    truthy(up > 0 and up < down and down < 1, "the glow comes up quickly and goes slowly")
+    local along, line, fill = Plan.takeGlow(0)
+    eq(along, 0)
+    eq(line, 1)
+    eq(fill, 0)
+    -- halfway round in a quarter of its time (slowing as it comes round), round and at its brightest at TAKE_TRACE
+    near(Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_TRACE * (1 - math.sqrt(0.5))), 0.5, 1e-9)
+    along, line, fill = Plan.takeGlow(Plan.TAKE_GLOW_MS * Plan.TAKE_TRACE)
+    near(along, 1, 1e-9)
+    near(line, 1, 1e-9)
+    near(fill, 1, 1e-9)
+    local _, late, lateFill = Plan.takeGlow(Plan.TAKE_GLOW_MS * 0.95)
+    truthy(late > 0 and late < 0.1 and lateFill == late, "the frame fades after the light came round")
     eq(Plan.takeGlow(Plan.TAKE_GLOW_MS), nil)
 end)
 

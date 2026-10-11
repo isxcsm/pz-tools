@@ -70,9 +70,10 @@ end
 -- TAKE_BURST_FROM to TAKE_BURST_TO times its size and fades over TAKE_BURST_MS, a bright core flashes over
 -- TAKE_CORE_MS, and its selected ranks settle into solid pips (a flash over TAKE_PIP_MS). A light runs from it up its
 -- lit lines towards its tree's header (TAKE_SPEED design units a second, a TAKE_TAIL tail), and the header flashes as
--- it arrives (TAKE_HEADER_MS). TAKE_GLOW_WAIT_MS after the last node, and not before the last light has arrived, each
--- column that took points glows once where it stands, quickly up and slowly out (TAKE_GLOW_MS, its peak at
--- TAKE_GLOW_PEAK of it); the padlocks it opened come off after it.
+-- it arrives (TAKE_HEADER_MS). TAKE_GLOW_WAIT_MS after the last node, and not before the last light has arrived, a
+-- light runs round the frame of each column that took points, both ways from the middle of its top, and meets itself
+-- at the bottom (in TAKE_TRACE of TAKE_GLOW_MS, slowing as it comes round), the column lighting softly behind it; then
+-- the frame and the light fade (TAKE_GLOW_MS in all); the padlocks it opened come off after it.
 Plan.TAKE_STEP_MS, Plan.TAKE_MAX_MS = 200, 1000
 Plan.TAKE_POP, Plan.TAKE_POP_MS = 0.18, 260
 Plan.TAKE_BURST_MS, Plan.TAKE_BURST_FROM, Plan.TAKE_BURST_TO = 520, 1.1, 3.0
@@ -80,7 +81,7 @@ Plan.TAKE_CORE_MS = 180
 Plan.TAKE_PIP_MS = 360
 Plan.TAKE_SPEED, Plan.TAKE_TAIL = 520, 34
 Plan.TAKE_HEADER_MS = 420
-Plan.TAKE_GLOW_WAIT_MS, Plan.TAKE_GLOW_MS, Plan.TAKE_GLOW_PEAK = 280, 500, 0.2
+Plan.TAKE_GLOW_WAIT_MS, Plan.TAKE_GLOW_MS, Plan.TAKE_TRACE = 100, 500, 0.65
 
 local easeOut = OperationAcorn.easeOut
 
@@ -171,13 +172,20 @@ function Plan.takeEnd(n, arrive)
         last + Plan.TAKE_BURST_MS, last + Plan.TAKE_PIP_MS)
 end
 
--- The columns' glow `age` ms after it started: its strength, 0 to 1 (up softly to its peak, then slowly out); nil
+-- The columns' light `age` ms after it started: how far round the frame it has run (0 at the top's middle, 1 where
+-- the two ways meet at the bottom), the strength of the frame it lit, and of the column's soft light (0 to 1); nil
 -- outside it.
 function Plan.takeGlow(age)
     if age < 0 or age >= Plan.TAKE_GLOW_MS then return nil end
-    local u, peak = age / Plan.TAKE_GLOW_MS, Plan.TAKE_GLOW_PEAK
-    local p = u < peak and u / peak or 1 - (u - peak) / (1 - peak)
-    return p * p * (3 - 2 * p)
+    local u, trace = age / Plan.TAKE_GLOW_MS, Plan.TAKE_TRACE
+    local p = math.min(1, u / trace)
+    local along = 1 - (1 - p) * (1 - p)
+    local line = 1
+    if u > trace then
+        local q = (u - trace) / (1 - trace)
+        line = 1 - q * q * (3 - 2 * q)
+    end
+    return along, line, line * p * p * (3 - 2 * p)
 end
 
 return Plan
