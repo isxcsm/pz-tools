@@ -417,16 +417,16 @@ test("the light runs round the columns after the last node and its light, once, 
     near(along, 1, 1e-9)
     near(line, 1, 1e-9)
     near(fill, 1, 1e-9)
-    local _, late, lateFill = Plan.takeGlow(Plan.TAKE_GLOW_MS * 0.97)
+    local _, late, lateFill = Plan.takeGlow(Plan.TAKE_GLOW_MS * 0.99)
     truthy(late > 0 and late < 0.1 and lateFill == late, "the frame fades after the light came round")
     eq(Plan.takeGlow(Plan.TAKE_GLOW_MS), nil)
 end)
 
-test("the take lasts about 1 to 2.3 s for a few nodes, before the padlocks come off", function()
+test("the take lasts about 2 to 3.2 s for a few nodes, before the padlocks come off", function()
     for _, n in ipairs({ 1, 3, 5 }) do
         local last = (n - 1) * Plan.takeStep(n) + Plan.takeArrive(150)
         local ends = Plan.takeEnd(n, last)
-        truthy(ends >= 1000 and ends <= 2300, n .. " nodes: " .. ends)
+        truthy(ends >= 2000 and ends <= 3200, n .. " nodes: " .. ends)
     end
 end)
 
