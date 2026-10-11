@@ -40,6 +40,8 @@ import sys
 
 MEDIA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'OperationAcorn', '42', 'media')
 ROOT = os.path.join(MEDIA, 'lua')
+# The developer sub-mod (Operation Acorn Dev): its own texts (IGUI_OADev_*) and Lua, checked by dev_problems().
+DEV_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'OperationAcornDev', '42', 'media', 'lua')
 UI_FILES = ['IG_UI.json', 'ContextMenu.json', 'Tooltip.json']
 FILES = UI_FILES + ['Sandbox.json', 'ItemName.json', 'Recipes.json', 'Moveables.json', 'Moodles.json', 'Fluids.json']
 LANGS = ['EN', 'KO']
@@ -74,10 +76,10 @@ def code():
 LUA_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
 
 
-def non_ascii_strings():
+def non_ascii_strings(root=ROOT):
     """(file, line, string) for each string in the Lua code (comments left out) with a letter past ASCII."""
     found = []
-    for folder, _, files in os.walk(ROOT):
+    for folder, _, files in os.walk(root):
         if 'Translate' in folder:
             continue
         for name in files:
@@ -91,7 +93,7 @@ def non_ascii_strings():
                         if '--' in line[pos:m.start()]:
                             break
                         if any(ord(c) > 127 for c in m.group(0)):
-                            found.append((os.path.relpath(path, ROOT), n, m.group(0)))
+                            found.append((os.path.relpath(path, root), n, m.group(0)))
                         pos = m.end()
     return found
 
@@ -99,17 +101,17 @@ def non_ascii_strings():
 ANCHOR_FIELD = re.compile(r'^\s*[\w.]+\.anchor(?:Right|Bottom|Left|Top)\s*=')
 
 
-def anchor_fields():
+def anchor_fields(root=ROOT):
     """(file, line) for each anchor written as a field in the Lua code."""
     found = []
-    for folder, _, files in os.walk(ROOT):
+    for folder, _, files in os.walk(root):
         for name in files:
             if name.endswith('.lua'):
                 path = os.path.join(folder, name)
                 with open(path, encoding='utf-8') as f:
                     for n, line in enumerate(f, 1):
                         if ANCHOR_FIELD.match(line):
-                            found.append((os.path.relpath(path, ROOT), n))
+                            found.append((os.path.relpath(path, root), n))
     return found
 
 
@@ -360,6 +362,61 @@ def script_keys():
     return items, recipes
 
 
+DEV_PREFIX = 'IGUI_OADev_'
+DEV_KEY = re.compile(r'\bT\("(\w+)"\)')
+DEV_STEM = re.compile(r'\bT\("(\w+_)"\s*\.\.')
+
+
+def dev_problems():
+    """Problems of the developer sub-mod: its EN and KO texts (same keys, same %1 ...), every T("Key") of its Lua has a
+    text and every text is used (a T("Stem_" .. x) uses the keys that start with the stem), no letters past ASCII in
+    its Lua strings, no anchor written as a field."""
+    problems = []
+    folder = os.path.join(DEV_ROOT, 'shared', 'Translate')
+    if not os.path.isdir(folder):
+        return problems
+    texts = {}
+    for lang in LANGS:
+        path = os.path.join(folder, lang, 'IG_UI.json')
+        with open(path, encoding='utf-8') as f:
+            texts[lang] = json.load(f)
+    for lang in LANGS:
+        for other in LANGS:
+            if other != lang:
+                for key in sorted(set(texts[other]) - set(texts[lang])):
+                    problems.append('dev: %s lacks %s' % (lang, key))
+        for key, text in texts[lang].items():
+            if not key.startswith(DEV_PREFIX):
+                problems.append('dev: %s is not named %s*' % (key, DEV_PREFIX))
+            if re.search(r'%(?!\d)', text.replace('%%', '')):
+                problems.append('dev: bare %% in %s %s' % (lang, key))
+    for key in sorted(set(texts['EN']) & set(texts['KO'])):
+        if sorted(set(re.findall(r'%\d', texts['EN'][key]))) != sorted(set(re.findall(r'%\d', texts['KO'][key]))):
+            problems.append('dev: %s takes different arguments in EN and KO' % key)
+    lua = []
+    for root, _, files in os.walk(DEV_ROOT):
+        if 'Translate' in root:
+            continue
+        for name in files:
+            if name.endswith('.lua'):
+                with open(os.path.join(root, name), encoding='utf-8') as f:
+                    lua.append(f.read())
+    lua = '\n'.join(lua)
+    named = set(DEV_PREFIX + k for k in DEV_KEY.findall(lua))
+    stems = set(DEV_PREFIX + k for k in DEV_STEM.findall(lua))
+    every = set(texts['EN'])
+    for key in sorted(named - every):
+        problems.append('dev: no text for %s' % key)
+    for key in sorted(every - named):
+        if not any(key.startswith(stem) for stem in stems):
+            problems.append('dev: unused %s' % key)
+    for path, n, text in non_ascii_strings(DEV_ROOT):
+        problems.append('dev: letters past ASCII in Lua code %s:%d %s' % (path, n, text))
+    for path, n in anchor_fields(DEV_ROOT):
+        problems.append('dev: anchor written as a field (use setAnchor...) %s:%d' % (path, n))
+    return problems
+
+
 def main():
     problems = []
     for name in FILES:
@@ -439,6 +496,8 @@ def main():
     for path, n, widget in game_widgets(window_files()):
         problems.append("the game's %s in a window of the mod %s:%d (it draws in the game's font: use the mod's widget, "
                         'or mark it -- oa-widget: ok)' % (widget, path, n))
+
+    problems.extend(dev_problems())
 
     for line in problems:
         print(line)
