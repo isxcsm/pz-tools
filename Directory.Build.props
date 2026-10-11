@@ -6,7 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
     <!-- The release version, in one place: every assembly and executable carries it, and the Home page shows it. -->
-    <Version>0.2.4</Version>
+    <Version>0.2.5</Version>
   </PropertyGroup>
 </Project>
 

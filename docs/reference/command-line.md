@@ -117,7 +117,7 @@ The app also passes options of its own (`--runtime-ticket`, `--runtime-authority
 In Command Prompt:
 
 ```text
-cd "C:\Games\PzTools-v0.2.4"
+cd "C:\Games\PzTools-v0.2.5"
 .\PzTools.Backup.Cli.exe backup --repository "%USERPROFILE%\Zomboid\Backups" ^
     --source-id Sandbox/MySave --source "Sandbox/MySave=%USERPROFILE%\Zomboid\Saves\Sandbox\MySave"
 ```
