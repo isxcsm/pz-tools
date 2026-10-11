@@ -292,6 +292,22 @@ final class FormulasTest {
         check((org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) == 255 && (org.lwjgl.opengl.GL11.pixels[playerSquare + 3] & 0xFF) == 0
             && lamps.counted()[2] > 0 && lamps.counted()[3] == lamps.counted()[2],
             "Night sight does not show a room with no light: " + (org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) + " " + lamps.counted()[2]);
+        // a wall's face is read as the squares behind it, which take the values of the square it stands on (a lit square
+        // behind a dark room's wall does not light the wall); a wall in front of the player (cut away) is left
+        var walled = cell.load(302, 296, 0);
+        var front = cell.load(303, 301, 0);
+        walled.northWall = front.northWall = true;
+        cell.load(302, 295, 0).setLight(0, 0.5f);
+        cell.load(303, 300, 0).setLight(0, 0.5f);
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        java.util.function.BiFunction<Integer, Integer, Integer> keptAt = (x, y) -> org.lwjgl.opengl.GL11.pixels[NightLamps.first(x - 268, y - 268) + 2] & 0xFF;
+        check(keptAt.apply(302, 295).equals(keptAt.apply(302, 296)) && keptAt.apply(301, 294).equals(keptAt.apply(302, 296))
+            && keptAt.apply(303, 300) > keptAt.apply(303, 301),
+            "A wall's face does not take its room's values: " + keptAt.apply(302, 295) + " " + keptAt.apply(302, 296) + " " + keptAt.apply(303, 300));
+        walled.northWall = front.northWall = false;
+        cell.load(302, 295, 0).setLight(0, 0f);
+        cell.load(303, 300, 0).setLight(0, 0f);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
