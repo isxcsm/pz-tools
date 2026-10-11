@@ -205,7 +205,7 @@ test("sense voices: past the groans a look allows, the rest wait; a strike is to
     eq(strike[1].kind, "attack")
 end)
 
-test("alarm reading: measured to a house's edge, on near, off only past the wider bound", function()
+test("alarm reading: measured to a house's edge, near within the bound, told again only past the wider one", function()
     eq(Sense.toRect(5, 5, 0, 0, 10, 10), 0, "inside the house")
     eq(Sense.toRect(13, 5, 0, 0, 10, 10), 3, "beside a long wall, far from the middle")
     eq(Sense.toRect(13, 14, 0, 0, 10, 10), 5, "off a corner")

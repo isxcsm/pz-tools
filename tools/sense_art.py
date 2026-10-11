@@ -21,8 +21,6 @@ downsampled with LANCZOS.
   OA_Sense_Thump            a zombie beating on something (its thumpBehavior): two pairs of brackets, ( ( ) )
   OA_Sense_Same             a sound on the character's square (its SameSquare): a soft disc with a thin ring
   OA_Sense_Up / _Down       a chevron, for a sound a floor above or below (its arrows)
-  OA_Sense_Exclaim          an alarm near (경보 읽기), over the character's head: a red "!", a bar narrowing down and a
-                            dot, with a dark rim and a soft red glow. Coloured, not white: it is drawn as it is
 """
 import math
 import os
@@ -240,28 +238,6 @@ def alarm(w, radius, n, pitch, base, tall, fade):
     return finish(glowing(core, blur * S, 1.0, 0.3), w, h, (H / 2 - middle) / H)
 
 
-def exclaim(w=20, h=44):
-    """A red "!" with a dark rim and a soft glow: the bar narrows down to round ends, the dot under it."""
-    W, H = w * S, h * S
-    shape = Image.new("L", (W, H), 0)
-    d = ImageDraw.Draw(shape)
-    cx = W / 2
-    top, bottom, wide, narrow = H * 0.14, H * 0.66, W * 0.18, W * 0.10
-    d.polygon([(cx - wide, top), (cx + wide, top), (cx + narrow, bottom), (cx - narrow, bottom)], fill=255)
-    d.ellipse((cx - wide, top - wide, cx + wide, top + wide), fill=255)
-    d.ellipse((cx - narrow, bottom - narrow, cx + narrow, bottom + narrow), fill=255)
-    r = W * 0.13
-    dot = H * 0.83
-    d.ellipse((cx - r, dot - r, cx + r, dot + r), fill=255)
-    rim = shape.filter(ImageFilter.MaxFilter(int(S * 2.2) | 1))
-    glow = rim.filter(ImageFilter.GaussianBlur(S * 1.6))
-    out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    out.alpha_composite(Image.merge("RGBA", (*Image.new("RGB", (W, H), (255, 40, 25)).split(), glow.point(lambda v: int(v * 0.45)))))
-    out.alpha_composite(Image.merge("RGBA", (*Image.new("RGB", (W, H), (40, 6, 4)).split(), rim)))
-    out.alpha_composite(Image.merge("RGBA", (*Image.new("RGB", (W, H), (240, 34, 24)).split(), shape)))
-    return finish(out, w, h)
-
-
 def build():
     return {
         **{name: arc(**spec) for name, spec in ARCS.items()},
@@ -274,7 +250,6 @@ def build():
         "OA_Sense_Same": same(),
         "OA_Sense_Up": chevron(28, True),
         "OA_Sense_Down": chevron(28, False),
-        "OA_Sense_Exclaim": exclaim(),
     }
 
 
@@ -293,8 +268,6 @@ def main():
             tint = tints.get(name, (235, 235, 225))
             col = Image.new("RGBA", im.size, tint + (255,))
             col.putalpha(im.getchannel("A"))
-            if name == "OA_Sense_Exclaim":
-                col = im
             sheet.alpha_composite(col, (x, 12))
             x += im.width + 10
         sheet = sheet.resize((sheet.width * 2, sheet.height * 2), Image.NEAREST)

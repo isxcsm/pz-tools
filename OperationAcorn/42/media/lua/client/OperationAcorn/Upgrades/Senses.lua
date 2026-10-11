@@ -1,8 +1,8 @@
 -- The scout tree's senses, drawn: 육감 (a moodle while an unseen zombie is near: Moodles.lua), 기척 감지 (the sounds zombies make
 -- around the character, as glowing arcs where they were made, for a while, as the Visual Sounds mod shows its cues; at
 -- rank 2 how far; the advanced rank 2 adds zombies breaking in, other floors and the noises around, each with a sign
--- of what made it), 경보 읽기 (a red "!" over the character's head near an alarmed house or car, the house's doors and
--- windows tinted red) and 털이 기록 (how many containers of the
+-- of what made it), 경보 읽기 (the character says so near an alarmed house or car, and the house's doors and windows
+-- are tinted red) and 털이 기록 (how many containers of the
 -- building are still unopened). The sounds come as they are made (the world sounds; the extension API's zombie
 -- sounds: a target taken, a lunge, a strike), and the zombies' groans and, without the API, the rest are told twice a
 -- second from the game's zombie list by the shared timer (Pulse.lua). The drawing works out every mark's way from
@@ -29,16 +29,9 @@ OA.Upgrades.Senses = Senses
 -- What the last pulse found.
 local S = {
     radius = 0, distance = false, extended = false, hearing = 1,
-    sixth = false, alarm = false, alarmAt = 0, zombies = {}, sounds = {}, ring = false,
+    sixth = false, alarm = false, zombies = {}, sounds = {}, ring = false,
 }
 Senses.state = S
-
--- The "!" over the head: its picture's size drawn, where its foot is (floors above the character's feet), how long it
--- pops in and how it breathes after.
-local EXCLAIM_W, EXCLAIM_H = 12, 26
-local EXCLAIM_FOOT = 0.62
-local EXCLAIM_POP_MS, EXCLAIM_POP = 260, 0.6
-local EXCLAIM_BREATH_MS = 1400
 
 -- ---- the HUD ---------------------------------------------------------------------------------------------------
 
@@ -320,31 +313,10 @@ function Hud:render()
             drawMarks(ui, now, n, px, py, pz, cx, cy, exX, exY, eyX, eyY)
         end
     end
-    local mark = S.alarm and player and picture("OA_Sense_Exclaim")
-    if mark then
-        -- over the head, at one size on the screen; it pops in (larger, fading in) and then breathes
-        local zoom = getCore():getZoom(self.playerNum)
-        local sx, sy = ISCoordConversion.ToScreen(player:getX(), player:getY(), player:getZ() + EXCLAIM_FOOT)
-        sx, sy = sx / zoom - self.x, sy / zoom - self.y
-        local age = getTimestampMs() - S.alarmAt
-        local scale, a = 1, 1
-        if age < EXCLAIM_POP_MS then
-            local t = math.max(age, 0) / EXCLAIM_POP_MS
-            local out = 1 - (1 - t) * (1 - t) * (1 - t)
-            scale = 1 + EXCLAIM_POP * (1 - out)
-            a = math.min(1, t * 2)
-        else
-            a = 0.82 + 0.18 * math.cos((age - EXCLAIM_POP_MS) / EXCLAIM_BREATH_MS * 2 * math.pi)
-        end
-        local w, h = EXCLAIM_W * scale, EXCLAIM_H * scale
-        self:drawTextureScaled(mark, sx - w / 2, sy - h, w, h, a, 1, 1, 1)
-    end
 end
 
--- Whether a mark is on show at `now`: a cue that has not run out (the lists keep run-out ones until the next sound),
--- or the alarm's mark.
+-- Whether a mark is on show at `now`: a cue that has not run out (the lists keep run-out ones until the next sound).
 local function marking(now)
-    if S.alarm then return true end
     if not S.ring then return false end
     local list = S.zombies
     for i = 1, #list do
@@ -529,7 +501,7 @@ local function senseJob(now)
     S.sixth = false
     if sixthR <= 0 and not active then
         updateSixth()
-        showHud(S.alarm)
+        showHud(false)
         return
     end
     local extended = Sense.extended(u)
@@ -555,7 +527,7 @@ local function senseJob(now)
         end
     end
     updateSixth()
-    showHud(S.ring or S.alarm)
+    showHud(S.ring)
 end
 
 -- ---- world sounds (advanced presence sense, rank 2) --------------------------------------------------------------
@@ -669,8 +641,7 @@ local function onZombieSound(kind, x, y, z, loudness, zombie)
 end
 
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
--- Near an alarmed house or car (Sense.alarmOn) the "!" shows over the head, and the character says so each time it
--- comes on. The doors and windows of an alarmed house within ENTRY squares, on the character's floor, are tinted red
+-- Near an alarmed house or car (Sense.alarmOn) the character says so, each time it comes near again. The doors and windows of an alarmed house within ENTRY squares, on the character's floor, are tinted red
 -- with the game's own object highlight: what sounds a house's alarm is a character in one of its rooms, or a window of
 -- it broken (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm).
 
@@ -770,7 +741,6 @@ local function alarmJob(now)
     end
     local on = Sense.alarmOn(nearest, S.alarm)
     if on and not S.alarm then
-        S.alarmAt = getTimestampMs()
         HaloTextHelper.addBadText(player, getText(car and "IGUI_OA_Tree_AlarmCar" or "IGUI_OA_Tree_AlarmHouse"))
     end
     S.alarm = on
@@ -778,7 +748,6 @@ local function alarmJob(now)
     untint(lit, litNext)
     lit, litNext = litNext, lit
     for obj in pairs(litNext) do litNext[obj] = nil end
-    showHud(S.ring or S.alarm)
 end
 
 -- ---- the building's containers (털이 기록) ----------------------------------------------------------------------
