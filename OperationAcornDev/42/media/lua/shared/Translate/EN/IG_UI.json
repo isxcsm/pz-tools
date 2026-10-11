@@ -53,7 +53,7 @@
     "IGUI_OADev_Z_AlarmCar": "Alarm a car",
     "IGUI_OADev_Z_AlarmClear": "Clear alarms",
     "IGUI_OADev_Z_AlarmHint": "The house you stand in, else the nearest; breaking in sounds it.",
-    "IGUI_OADev_Z_SearchReset": "Reset this building's search",
+    "IGUI_OADev_Z_SearchReset": "Reset a building's search",
     "IGUI_OADev_Z_SearchResetHint": "The building you stand in, else the nearest: its containers unopened, its searched record forgotten.",
     "IGUI_OADev_P_God": "God mode",
     "IGUI_OADev_P_Invisible": "Invisible",
