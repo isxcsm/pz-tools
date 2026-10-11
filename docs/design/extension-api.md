@@ -802,10 +802,10 @@ pass that greys what that light and the pass add.
     counted against it. The shader finds the floor under each pixel from where the game draws three points of it (`isoToScreenX` and
     `Y`, every frame, in the window's pixels, which the pass draws to with PZ Optimization's upscaling too) and reads the
     square's values, smoothly between squares. Beyond them, the mean colour kept on their edge (`PZT_SightKeep`). A wall
-    or a thing standing on a square is drawn above it and read as the squares behind. A wall (`WallN`, `WallW`, `WallNW`) has the 3 diagonal rows behind it, which its face covers, take the values of the square it stands on, so that its face takes the light of the room it faces (a dark room's wall in front of a lit corridor, or of a room in sight through a doorway, glowed otherwise); the walls in front of the player, which the game cuts away, are left. A character standing on a square
+    or a thing standing on a square is drawn above it and read as the squares behind. A wall (`WallN`, `WallW`, `WallNW`, a window frame `WindowN`/`WindowW`, a door frame `DoorWallN`/`DoorWallW` with its door closed) has the 3 diagonal rows behind it, which its face covers, take the values of the square it stands on, so that its face takes the light of the room it faces (a dark room's wall in front of a lit corridor, or of a room in sight through a doorway, glowed otherwise; so did the walls in front of the player over the corridor it walks). A doorway with no closed door is seen through: only the row the wall above it covers takes its room's values. An edge the game cuts away for the player (`getPlayerCutawayFlag`: drawn low to show the player) is left, the squares behind it seen. A character standing on a square
     (a player of this machine, a zombie) has the 3 squares behind it, where it is drawn, and their sides keep at least
     its square's values, so that it keeps the colour its square does (a player in a torch's light is drawn in colour, a
-    zombie in the dark in grey).
+    zombie in the dark in grey); a wall's face is over them (what stands just behind a wall is hidden by it).
   - The strength follows how dark it is for the player (`getLumaInverted`, which reads the square's own light: the least
     light does not make it lighter, so night sight never turns itself down and back up).
 

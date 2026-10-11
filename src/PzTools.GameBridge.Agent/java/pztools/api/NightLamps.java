@@ -82,6 +82,8 @@ final class NightLamps {
     static final int STANDING = 3;
     /** Squares a wall rises over on the screen: the diagonal rows behind it that its face covers (a floor's height). */
     static final int WALL = 3;
+    /** Of those, the rows a doorway with no closed door opens on (the squares behind are seen through it); the wall above it covers the rest. */
+    static final int DOORWAY = 2;
     /**
      * A dark place: of the squares within DARK_RADIUS of the player that the game lights, the share with less than
      * DARK_LIGHT of its own light; at DARK_IN or more the player is in one, at DARK_OUT or less no longer (between, as it was).
@@ -108,9 +110,11 @@ final class NightLamps {
     private final int roomLight;
     // IsoCell.getZombieList().
     private final MethodHandle zombieList;
-    // IsoGridSquare.hasProperty(IsoFlagType) and the wall flags: a wall on the square's north edge, west edge, both.
-    private final MethodHandle hasFlag;
-    private final Object wallN, wallW, wallNW;
+    // IsoGridSquare.hasProperty(IsoFlagType) and the flags of what stands on its edges: a wall on the square's north edge,
+    // west edge, both; a door frame and a window frame on each. IsoGridSquare.hasClosedDoorOnEdge(IsoDirections) with N
+    // and W, and getPlayerCutawayFlag(player, now) (1 the north wall cut away, 2 the west one).
+    private final MethodHandle hasFlag, closedDoor, cutaway;
+    private final Object wallN, wallW, wallNW, doorN, doorW, windowN, windowW, edgeN, edgeW;
     // LuaManager.GlobalObject.isoToScreenX and Y (player, x, y, z); Core.getInstance().getScreenHeight().
     private final MethodHandle screenX, screenY, core, screenHeight;
     // GL: glGetUniformLocation, glUniform1f, glUniform1i, glUniform3f, glGenTextures, glBindTexture, glTexParameteri,
@@ -167,7 +171,7 @@ final class NightLamps {
     // kept near the player; how far into the night it is, as last read (the game's thread's).
     private boolean darkPlace;
     private final int[] counted = new int[4];
-    // The walls of the last values' squares (1 north, 2 west) and their own values before the walls' faces took theirs.
+    // The walls of the last values' squares ({@link #walls}) and their own values before the walls' faces took theirs.
     private final byte[] walls = new byte[SIZE * SIZE], own = new byte[SIZE * SIZE * 4];
     private float keptAround, night;
     // Where a pixel of the screen (x, y up from the bottom, 1) is on the floor: world x and y, as the game thread last
@@ -210,6 +214,16 @@ final class NightLamps {
         wallN = flag(flags, "WallN");
         wallW = flag(flags, "WallW");
         wallNW = flag(flags, "WallNW");
+        doorN = flag(flags, "DoorWallN");
+        doorW = flag(flags, "DoorWallW");
+        windowN = flag(flags, "WindowN");
+        windowW = flag(flags, "WindowW");
+        Class<?> directions = Game.type(loader, "zombie.iso.IsoDirections");
+        closedDoor = Game.exact(square.getMethod("hasClosedDoorOnEdge", directions), MethodType.methodType(boolean.class, Object.class, Object.class));
+        edgeN = flag(directions, "N");
+        edgeW = flag(directions, "W");
+        cutaway = Game.exact(square.getMethod("getPlayerCutawayFlag", int.class, long.class),
+            MethodType.methodType(int.class, Object.class, int.class, long.class));
         light = Game.exact(lights.getMethod("getResultLight", int.class), MethodType.methodType(Object.class, Object.class, int.class));
         infoR = getter(lookup, info, "r", float.class);
         infoG = getter(lookup, info, "g", float.class);
@@ -502,10 +516,11 @@ final class NightLamps {
         float least = floor / 255f, darkBelow = darkLight.value();
         double edge = 0, keptNear = 0;
         int near = 0, dark = 0, squares = 0, inSight = 0, radius = darkRadius.whole();
+        long millis = System.currentTimeMillis();
         for (int j = 0; j < SIZE; j++) {
             for (int i = 0; i < SIZE; i++) {
                 Object square = cell == null ? null : game.square(cell, x0 + i, y0 + j, z);
-                walls[j * SIZE + i] = square == null ? 0 : walls(square);
+                walls[j * SIZE + i] = square == null ? 0 : (byte)walls(square, playerIndex, millis);
                 Object lit = square == null ? null : lit(square, playerIndex);
                 float whole = 0f, sources = 0f;
                 boolean unseen = false;
@@ -548,25 +563,62 @@ final class NightLamps {
         counted[2] = near;
         counted[3] = dark;
         keptAround = near == 0 ? 0f : (float)(keptNear / near);
-        faces(data);
+        // the faces last: what stands behind a wall is hidden by it, and the wall's face is its room's
+        keepOwn(data);
         standing(data, cell, x0, y0, z);
+        faces(data);
     }
 
-    // A square's walls: 1 on its north edge, 2 on its west edge.
-    private byte walls(Object square) throws Throwable {
-        boolean both = (boolean)hasFlag.invokeExact(square, wallNW);
-        int north = both || (boolean)hasFlag.invokeExact(square, wallN) ? 1 : 0, west = both || (boolean)hasFlag.invokeExact(square, wallW) ? 2 : 0;
-        return (byte)(north | west);
+    // What stands on a square's edges and rises over the squares behind it, as the player's screen draws it now: 1 a wall
+    // on its north edge, 2 on its west edge (a wall, a window frame, a door frame with its door closed); 4 and 8 a doorway
+    // there with no closed door (the wall above it only). An edge the game cuts away for the player (drawn low, to show
+    // the player behind it) is left: the squares behind it are seen.
+    private int walls(Object square, int playerIndex, long millis) throws Throwable {
+        int north = 0, west = 0;
+        if ((boolean)hasFlag.invokeExact(square, wallNW)) { north = 1; west = 2; }
+        else {
+            if ((boolean)hasFlag.invokeExact(square, wallN) || (boolean)hasFlag.invokeExact(square, windowN)) north = 1;
+            else if ((boolean)hasFlag.invokeExact(square, doorN)) north = (boolean)closedDoor.invokeExact(square, edgeN) ? 1 : 4;
+            if ((boolean)hasFlag.invokeExact(square, wallW) || (boolean)hasFlag.invokeExact(square, windowW)) west = 2;
+            else if ((boolean)hasFlag.invokeExact(square, doorW)) west = (boolean)closedDoor.invokeExact(square, edgeW) ? 2 : 8;
+        }
+        int walls = north | west;
+        if (walls == 0) return 0;
+        int cut = (int)cutaway.invokeExact(square, playerIndex, millis);
+        if ((cut & 1) != 0) walls &= ~(1 | 4);
+        if ((cut & 2) != 0) walls &= ~(2 | 8);
+        return walls;
     }
 
     /**
      * A wall's face is drawn over the squares behind it ({@link #WALL} diagonal rows) and is read as them; so they take
      * the values of the square whose side it faces (the room it stands in), where they had their own room's (a dark
      * room's wall in front of a lit corridor was drawn in its colour, a wall in front of a room in sight through a doorway
-     * glowed with night sight's lift). The walls in front of the player are left: the game cuts them away to show the
-     * player, and the squares behind them are seen. Back to front, so that a nearer wall's face is over a farther one's.
+     * glowed with night sight's lift, and so did a wall in front of the player over a lit corridor). A window frame and a
+     * closed door are a wall's face; a doorway's squares behind are seen through it but for the wall above it
+     * ({@link #DOORWAY}); a wall the game cuts away is left ({@link #walls}). Back to front, so that a nearer wall's face is
+     * over a farther one's; after the standing characters, as what stands behind a wall is hidden by it.
      */
     private void faces(ByteBuffer data) {
+        for (int depth = 0; depth <= 2 * SIZE - 2; depth++)
+            for (int i = Math.max(0, depth - SIZE + 1); i <= Math.min(depth, SIZE - 1); i++) {
+                int j = depth - i, wall = walls[j * SIZE + i];
+                if (wall == 0) continue;
+                for (int k = 0; k < WALL; k++) {
+                    if ((wall & 1) != 0 || (wall & 4) != 0 && k >= DOORWAY) {
+                        face(data, i, j, i - k, j - 1 - k);
+                        face(data, i, j, i - 1 - k, j - 1 - k);
+                    }
+                    if ((wall & 2) != 0 || (wall & 8) != 0 && k >= DOORWAY) {
+                        face(data, i, j, i - 1 - k, j - k);
+                        face(data, i, j, i - 1 - k, j - 1 - k);
+                    }
+                }
+            }
+    }
+
+    // Each square's own values, before the standing characters and the walls' faces change them.
+    private void keepOwn(ByteBuffer data) {
         for (int j = 0; j < SIZE; j++)
             for (int i = 0; i < SIZE; i++) {
                 int k = 4 * (j * SIZE + i);
@@ -574,22 +626,6 @@ final class NightLamps {
                 own[k + 1] = data.get(first(i, j) + 3);
                 own[k + 2] = data.get(second(i, j) + 2);
                 own[k + 3] = data.get(second(i, j) + 3);
-            }
-        // the player stands at SIZE / 2 on both: a square nearer the screen than the player is in front of it
-        for (int depth = 0; depth <= SIZE; depth++)
-            for (int i = Math.max(0, depth - SIZE + 1); i <= Math.min(depth, SIZE - 1); i++) {
-                int j = depth - i, wall = walls[j * SIZE + i];
-                if (wall == 0) continue;
-                for (int k = 0; k < WALL; k++) {
-                    if ((wall & 1) != 0) {
-                        face(data, i, j, i - k, j - 1 - k);
-                        face(data, i, j, i - 1 - k, j - 1 - k);
-                    }
-                    if ((wall & 2) != 0) {
-                        face(data, i, j, i - 1 - k, j - k);
-                        face(data, i, j, i - 1 - k, j - 1 - k);
-                    }
-                }
             }
     }
 

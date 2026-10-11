@@ -293,21 +293,47 @@ final class FormulasTest {
             && lamps.counted()[2] > 0 && lamps.counted()[3] == lamps.counted()[2],
             "Night sight does not show a room with no light: " + (org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) + " " + lamps.counted()[2]);
         // a wall's face is read as the squares behind it, which take the values of the square it stands on (a lit square
-        // behind a dark room's wall does not light the wall); a wall in front of the player (cut away) is left
+        // behind a dark room's wall does not light the wall): each kind of wall, behind the player and in front of it
         var walled = cell.load(302, 296, 0);
+        var westWalled = cell.load(296, 303, 0);
+        var window = cell.load(305, 300, 0);
+        var door = cell.load(300, 306, 0);
+        var doorway = cell.load(296, 298, 0);
         var front = cell.load(303, 301, 0);
-        walled.northWall = front.northWall = true;
-        cell.load(302, 295, 0).setLight(0, 0.5f);
-        cell.load(303, 300, 0).setLight(0, 0.5f);
+        walled.northWall = front.northWall = westWalled.westWall = window.northWindow = door.northDoor = doorway.westDoor = doorway.doorOpen = true;
+        int[][] behind = { { 302, 295 }, { 295, 303 }, { 305, 299 }, { 300, 305 }, { 295, 298 }, { 293, 296 }, { 303, 300 } };
+        for (int[] at : behind) cell.load(at[0], at[1], 0).setLight(0, 0.5f);
+        // a character standing just behind a wall is hidden by it: the squares it is drawn over keep the wall's face
+        var hidden = new IsoZombie();
+        hidden.x = 302.5f;
+        hidden.y = 295.5f;
+        cell.zombieList.add(hidden);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         java.util.function.BiFunction<Integer, Integer, Integer> keptAt = (x, y) -> org.lwjgl.opengl.GL11.pixels[NightLamps.first(x - 268, y - 268) + 2] & 0xFF;
         check(keptAt.apply(302, 295).equals(keptAt.apply(302, 296)) && keptAt.apply(301, 294).equals(keptAt.apply(302, 296))
-            && keptAt.apply(303, 300) > keptAt.apply(303, 301),
-            "A wall's face does not take its room's values: " + keptAt.apply(302, 295) + " " + keptAt.apply(302, 296) + " " + keptAt.apply(303, 300));
-        walled.northWall = front.northWall = false;
-        cell.load(302, 295, 0).setLight(0, 0f);
-        cell.load(303, 300, 0).setLight(0, 0f);
+            && keptAt.apply(300, 293).equals(keptAt.apply(302, 296)),
+            "A wall's face does not take its room's values: " + keptAt.apply(302, 295) + " " + keptAt.apply(302, 296) + " " + keptAt.apply(301, 294));
+        check(keptAt.apply(295, 303).equals(keptAt.apply(296, 303)) && keptAt.apply(294, 302).equals(keptAt.apply(296, 303)),
+            "A west wall's face does not take its room's values: " + keptAt.apply(295, 303) + " " + keptAt.apply(296, 303));
+        check(keptAt.apply(305, 299).equals(keptAt.apply(305, 300)) && keptAt.apply(303, 297).equals(keptAt.apply(305, 300)),
+            "A window's face does not take its room's values: " + keptAt.apply(305, 299) + " " + keptAt.apply(305, 300));
+        check(keptAt.apply(300, 305).equals(keptAt.apply(300, 306)), "A closed door's face does not take its room's values: " + keptAt.apply(300, 305));
+        // through a doorway the squares behind are seen; the wall above it is its room's
+        check(keptAt.apply(295, 298) > keptAt.apply(296, 298) && keptAt.apply(293, 296).equals(keptAt.apply(296, 298)),
+            "A doorway is not seen through, or the wall above it does not take its room's values: " + keptAt.apply(295, 298) + " " + keptAt.apply(293, 296));
+        // a wall in front of the player is a face too (a corridor behind it does not light it), unless the game cuts it away
+        check(keptAt.apply(303, 300).equals(keptAt.apply(303, 301)), "A wall in front of the player does not take its room's values: " + keptAt.apply(303, 300));
+        front.cutaway[0] = 1;
+        door.doorOpen = true;
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        check(keptAt.apply(303, 300) > keptAt.apply(303, 301) && keptAt.apply(300, 305) > keptAt.apply(300, 306),
+            "A wall cut away, or an open door, is not seen through: " + keptAt.apply(303, 300) + " " + keptAt.apply(300, 305));
+        cell.zombieList.remove(hidden);
+        walled.northWall = front.northWall = westWalled.westWall = window.northWindow = door.northDoor = doorway.westDoor = door.doorOpen = doorway.doorOpen = false;
+        front.cutaway[0] = 0;
+        for (int[] at : behind) cell.load(at[0], at[1], 0).setLight(0, 0f);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
