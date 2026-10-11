@@ -8,7 +8,7 @@
 	<m_BlendOutTime>0.15</m_BlendOutTime>
 	<m_StopAnimOnExit>false</m_StopAnimOnExit>
 	<m_EarlyTransitionOut>false</m_EarlyTransitionOut>
-	<m_SpeedScale>2.66</m_SpeedScale>
+	<m_SpeedScale>1.85</m_SpeedScale>
 	<m_Conditions x_name="48c6e1ef-a28f-40ae-a6ab-6a4d44c56d28">
 		<m_Name>bDead</m_Name>
 		<m_Type>BOOL</m_Type>

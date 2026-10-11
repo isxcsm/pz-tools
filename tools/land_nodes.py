@@ -2,7 +2,8 @@
 rank, behind the character variable OALandRank. 낙법 counts a fall as a share of its height, which can take a real fall
 below the height the game lands lightly from (and plays no landing for, bare-handed): every gentle node here lands
 whatever the light landing's damage, so a fall always shows at least the light landing. From rank 2 the gentle
-landing plays faster and is cut on the way up; hard landings play faster."""
+landing plays faster and is cut stood up; hard landings play faster. Also the knocked-down node after a hard landing
+that the game loses to its walking ones (see knocked_down)."""
 import os, re
 import xml.etree.ElementTree as ET
 
@@ -12,9 +13,9 @@ VARIABLE = 'OALandRank'
 # rank: (speed times the game's, cut of a gentle landing in its clip, blend in, blend out), None for the game's own.
 # Bob_FallLanding_Heavy (1.47 s) takes the pelvis from 0.545 down to 0.177 by 0.35 s and back by 1.2 s. The landing
 # plays its own crouch and rise at the speed and is cut stood up (1.2 s of the clip), the clip going on as it blends
-# out (a cut at the crouch, its pose frozen and blended out, read as a twitch): rank 2 in 0.85 s and 0.15 s out, some
-# 1.0 s in all; rank 3 in 0.45 s and 0.15 s out, some 0.6 s.
-RANKS = {1: None, 2: (1.76, 0.818, 0.10, 0.15), 3: (3.33, 0.818, 0.10, 0.15)}
+# out (a cut at the crouch, its pose frozen and blended out, read as a twitch): rank 2 in 1.05 s and 0.15 s out, some
+# 1.2 s in all; rank 3 in 0.65 s and 0.15 s out, some 0.8 s (shorter read as a twitch too).
+RANKS = {1: None, 2: (1.43, 0.818, 0.10, 0.15), 3: (2.31, 0.818, 0.10, 0.15)}
 # A hard landing throws the character down and is played whole, only faster; rank 1's is the game's.
 HARD_SPEED = {2: 2.0, 3: 4.0}
 # The condition of the plain gentle landing that it does damage (bLandLight); a weapon's node has its own in its place.
@@ -84,6 +85,11 @@ def node(name, rank, gentle):
         ET.SubElement(event, 'm_EventName').text = 'SetVariable'
         ET.SubElement(event, 'm_TimePc').text = '%.3f' % cut
         ET.SubElement(event, 'm_ParameterValue').text = 'bLandAnimFinished=true'
+    return write(root, os.path.join(OUT, 'oa_%s_r%d.xml' % (name, rank)))
+
+
+# Writes a node with its elements in the order the game's have them.
+def write(root, path):
     order = ['m_Name', 'm_AnimName', 'm_Looped', 'm_ConditionPriority', 'm_BlendTime', 'm_BlendOutTime',
              'm_StopAnimOnExit', 'm_EarlyTransitionOut', 'm_SpeedScale', 'm_Conditions', 'm_Events', 'm_Transitions',
              'm_SubStateBoneWeights']
@@ -93,16 +99,33 @@ def node(name, rank, gentle):
     for c in children:
         root.append(c)
     ET.indent(root, '\t')
-    path = os.path.join(OUT, 'oa_%s_r%d.xml' % (name, rank))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write('<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(root, encoding='unicode') + '\n')
     return path
 
 
-os.makedirs(OUT, exist_ok=True)
+# The game's knocked-down state after a hard landing: its node for lying where the fall threw the character
+# (defaultFall, on bGetUpFromFall) loses to the ones for being knocked down while walking or running (fromWalking and
+# fromRunning: they take default's place for bGetUpFromFall with another condition, and win by having more), so a
+# player holding a direction as it lands is stood up and thrown down backwards. The same node, above them, puts the
+# flag out as it ends: nothing in the game does, and a later knock down would be taken for a fall's.
+def knocked_down():
+    folder = VANILLA.replace('falling', 'knockeddown')
+    root = ET.parse(os.path.join(folder, 'defaultFall.xml')).getroot()
+    text(root, 'm_Name', 'oa_defaultFall')
+    text(root, 'm_ConditionPriority', '1')
+    event = ET.SubElement(root, 'm_Events', {'x_name': 'oa-fall-done'})
+    ET.SubElement(event, 'm_EventName').text = 'SetVariable'
+    ET.SubElement(event, 'm_Time').text = 'End'
+    ET.SubElement(event, 'm_ParameterValue').text = 'bGetUpFromFall=false'
+    return write(root, os.path.join(OUT.replace('falling', 'knockeddown'), 'oa_defaultFall.xml'))
+
+
 for rank in RANKS:
     for name in GENTLE:
         print(node(name, rank, True))
     for name in HARD:
         if rank in HARD_SPEED:
             print(node(name, rank, False))
+print(knocked_down())
