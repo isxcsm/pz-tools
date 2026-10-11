@@ -11,6 +11,10 @@ public final class IsoGridSquare {
     public IsoCell cell;
     /** Walls on the west and north edge, a block that fills the square, and an opening in the floor to the floor below. */
     public boolean westWall, northWall, solid, openFloor;
+    /** A door frame and a window frame on the north and west edge (walls the vision does not ask about), and whether the doors are open. */
+    public boolean northDoor, westDoor, northWindow, westWindow, doorOpen;
+    /** Like the game's, for each player the edges the game cuts away to show the player: 1 the north one, 2 the west one. */
+    public final int[] cutaway = new int[4];
     /** The questions the vision asked of any square. */
     public static int visionTests;
     public final PZArrayList<IsoObject> objects = new PZArrayList<>();
@@ -70,15 +74,21 @@ public final class IsoGridSquare {
     public boolean inRoom;
     public boolean isInARoom() { return inRoom; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
-    /** Like the game's, the square's flags: here its walls (WallN, WallW; both as WallNW). */
+    /** Like the game's, the square's flags: here its walls (WallN, WallW; both as WallNW), door frames and window frames. */
     public boolean hasProperty(zombie.iso.SpriteDetails.IsoFlagType flag) {
         return switch (flag) {
             case WallN -> northWall && !westWall;
             case WallW -> westWall && !northWall;
             case WallNW -> northWall && westWall;
+            case DoorWallN -> northDoor;
+            case DoorWallW -> westDoor;
+            case WindowN -> northWindow;
+            case WindowW -> westWindow;
             default -> false;
         };
     }
+    public boolean hasClosedDoorOnEdge(IsoDirections edge) { return !doorOpen && (edge == IsoDirections.N ? northDoor : edge == IsoDirections.W && westDoor); }
+    public int getPlayerCutawayFlag(int player, long currentTimeMillis) { return cutaway[player]; }
     public PZArrayList<IsoObject> getObjects() { return objects; }
     public IsoGenerator getGenerator() {
         for (int index = 0; index < objects.size(); index++) if (objects.get(index) instanceof IsoGenerator generator) return generator;

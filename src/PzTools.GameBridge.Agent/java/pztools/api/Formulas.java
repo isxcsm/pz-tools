@@ -193,30 +193,27 @@ final class Formulas implements ApiHooks.Formulas {
      */
     static final float DARK_FROM = 0.3f, DARK_FULL = 0.5f;
     /**
-     * The least light of a square on the player's screen at night sight 1, of the full light: the screen pass needs some
-     * light to lift (a black square stays black), and a room the game gives no light (a sealed one) needs all of it.
+     * How bright a typical surface ({@link #SIGHT_SURFACE}) with no light of its own is shown at night sight 1 in a dark
+     * place, of the full light, and at any value that times the value: each 0.1 adds the same (measured at 2 a.m. in a
+     * room with no light: the screen's mean brightness went 6.5, 10, 17, 29 and 60 of 255 from 0.1 to 0.5 when the least
+     * light grew as the value to the 1.5th power, the lift's gamma on top; 60 at 0.5 is kept). The least light the
+     * squares are raised to is worked out from it ({@link #leastLight}).
      */
-    static final float FLOOR_FULL = 0.9f;
-    /** What a dark place adds to the least light (a basement, a room with no light: see NightLamps), of the full light. */
-    static final float DARK_EXTRA = 0.1f;
-    /**
-     * How the least light grows with night sight's value: as the value to this power (the full least light at 1, a
-     * third of it at a half, a sixth at 0.3, almost none at 0.1), so that a low value leaves a room with no light mostly
-     * dark and only a high one shows it.
-     */
-    static final float SIGHT_CURVE = 1.5f;
+    static final float SIGHT_SHOWN = 0.466f;
+    /** The light a typical floor or wall reflects, its texture's mean luma (the office building's, from the measure above). */
+    static final float SIGHT_SURFACE = 0.3f;
+    /** The share of a dark place's least light (a basement, a room with no light: see NightLamps) shown outside one. */
+    static final float SIGHT_OUTSIDE = 0.9f;
     /** How much the screen pass lifts dark tones at night sight 1: their gamma is 1 - this x the strength. */
     static final float SIGHT_LIFT = 0.7f;
 
-    // The numbers above as night sight works with them: each a tuning, its default the constant (FLOOR_FULL and the rest
+    // The numbers above as night sight works with them: each a tuning, its default the constant (SIGHT_SHOWN and the rest
     // are the defaults; PZToolsAPI.formulas.tune changes them while the game runs).
     private final Tunings tunings = new Tunings();
-    private final Tunings.Tuning curve = tunings.add("nightSight.curve", SIGHT_CURVE, 1, 4,
-        "how the least light grows with night sight's value: the value to this power, times floorFull (and darkExtra)");
-    private final Tunings.Tuning floorFull = tunings.add("nightSight.floorFull", FLOOR_FULL, 0, 1,
-        "the least light of a square on the screen at night sight 1, of the full light");
-    private final Tunings.Tuning darkExtra = tunings.add("nightSight.darkExtra", DARK_EXTRA, 0, 1,
-        "what a dark place adds to the least light, of the full light");
+    private final Tunings.Tuning shown = tunings.add("nightSight.shown", SIGHT_SHOWN, 0, 1,
+        "how bright a typical surface with no light of its own is shown at night sight 1 in a dark place (times the value below it)");
+    private final Tunings.Tuning outside = tunings.add("nightSight.outside", SIGHT_OUTSIDE, 0, 1,
+        "the share of a dark place's least light shown outside one");
     private final Tunings.Tuning lift = tunings.add("nightSight.lift", SIGHT_LIFT, 0, 1,
         "how much the screen pass lifts dark tones at night sight 1 (their gamma is 1 - this x the strength)");
     private final Tunings.Tuning ease = tunings.add("nightSight.ease", SIGHT_EASE, 0.01f, 10,
@@ -249,7 +246,11 @@ final class Formulas implements ApiHooks.Formulas {
     private float darkShown;
     // How many times night sight moved on (the game's screen pass about to be drawn, main thread), drew (render thread)
     // and was compiled, for formulas.nightSight(): none means the game does not draw through its screen pass.
-    private volatile long sightFrames, sightDraws, sightPrograms;
+    private volatile long sightFrames, sightDraws;
+    // The screen pass's program as it last compiled, and how many times it did, for every API this game ran (the pass is
+    // compiled once, and a Lua reload makes a new API that draws through it all the same).
+    private static volatile int sightProgram;
+    private static volatile long sightPrograms;
     // The least light of the squares on the screen, the screen pass's uniforms and the values it keeps colour by; null,
     // with the reason, in a game that changed what they read. A fault in the values stops them alone (the reason is then set).
     private final NightLamps lamps;
@@ -478,6 +479,7 @@ final class Formulas implements ApiHooks.Formulas {
             lua.set(result, "frames", (double)sightFrames);
             lua.set(result, "draws", (double)sightDraws);
             lua.set(result, "programs", (double)sightPrograms);
+            lua.set(result, "program", (double)sightProgram);
             lua.set(result, "hooks", status(BY_NAME.get("vision.nightSight"), hooks()));
             if (sightFrames == 0)
                 lua.set(result, "problem", "the game's screen pass (WeatherShader.startMainThread) has not run: its hooks are not in"
@@ -491,8 +493,13 @@ final class Formulas implements ApiHooks.Formulas {
             }
             float baked = lamps.floorLight() / 255f;
             lua.set(result, "bakedFloor", (double)baked);
+            lua.set(result, "stepIn", lamps.stepIn());
+            if (sightDraws > 0 && !lamps.stepIn())
+                lua.set(result, "problem", "the screen pass draws without night sight's step: its shader did not take it, or failed to compile"
+                    + " with it and the game loaded it without (see console.txt)");
             lua.set(result, "shade", (double)lamps.shade());
             lua.set(result, "shownFloor", (double)(baked * lamps.shade()));
+            lua.set(result, "shownSurface", (double)shownSurface(baked * lamps.shade(), sight, lift.value()));
             lua.set(result, "darkPlace", lamps.darkPlace());
             lua.set(result, "nightStrength", (double)lamps.night());
             lua.set(result, "valuesRun", lamps.valuesRun());
@@ -1087,8 +1094,7 @@ final class Formulas implements ApiHooks.Formulas {
         long now = System.nanoTime();
         nightSightStep(now);
         if (lamps == null) return;
-        float grown = sightCurve(active.nightSight, curve.value());
-        float least = Math.min(1f, floorFull.value() * grown), dark = Math.min(1f, (floorFull.value() + darkExtra.value()) * grown);
+        float dark = leastLight(active.nightSight, shown.value(), lift.value()), least = dark * outside.value();
         try { lamps.floorLight(Math.round(least * 255f), Math.round(dark * 255f), darkShown); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's least light", failure); }
         if (lampsProblem != null) return;
@@ -1110,6 +1116,7 @@ final class Formulas implements ApiHooks.Formulas {
 
     /** When the screen pass compiles. */
     @Override public void nightSightProgram(int program) {
+        sightProgram = program;
         sightPrograms++;
         if (lamps != null) lamps.program(program);
     }
@@ -1147,8 +1154,22 @@ final class Formulas implements ApiHooks.Formulas {
     /** The share of a dark place's more least light shown now (for the tests). */
     float nightSightDarkShown() { return darkShown; }
 
-    /** Night sight's value grown by the curve the least light follows (0 at 0, 1 at 1). */
-    static float sightCurve(float value, float curve) { return value <= 0f ? 0f : (float)Math.pow(Math.min(1f, value), curve); }
+    /**
+     * The least light the squares are raised to in a dark place (0 to 1) for night sight's value, so that a typical surface
+     * ({@link #SIGHT_SURFACE}) with no light of its own is shown at {@code shown} x the value with the screen pass's lift
+     * ({@code lift}) whole: brightness grows evenly with the value.
+     */
+    static float leastLight(float value, float shown, float lift) {
+        if (value <= 0f || shown <= 0f) return 0f;
+        float level = Math.min(1f, value), gamma = Math.max(0.05f, 1f - lift * level);
+        return Math.min(1f, (float)Math.pow(shown * level, 1f / gamma) / SIGHT_SURFACE);
+    }
+
+    /** How bright a typical surface with no light of its own is shown with a least light shown and the lift's strength. */
+    static float shownSurface(float least, float strength, float lift) {
+        float light = SIGHT_SURFACE * Math.max(0f, least);
+        return light <= 0f ? 0f : (float)Math.pow(light, Math.max(0.05f, 1f - lift * strength));
+    }
 
     /** The share of night sight that the darkness the game reads (0 light to 1 dark) calls for, from `from` to whole at `full`. */
     static float darkGate(float dark, float from, float full) {

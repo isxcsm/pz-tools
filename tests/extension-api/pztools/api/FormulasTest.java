@@ -99,9 +99,9 @@ final class FormulasTest {
         player.z = 0f;
         pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
         formulas.nightSightFrame(0);
-        // the least light grows with the value by the curve (0.8 here)
-        float grown = Formulas.sightCurve(0.8f, Formulas.SIGHT_CURVE);
-        int least = Math.round(Math.min(1f, (Formulas.FLOOR_FULL + Formulas.DARK_EXTRA) * grown) * 255f), shown = Math.round(Math.min(1f, Formulas.FLOOR_FULL * grown) * 255f);
+        // the least light for the value (0.8 here): a dark place's, and the share of it outside one
+        float darkLeast = Formulas.leastLight(0.8f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT);
+        int least = Math.round(darkLeast * 255f), shown = Math.round(darkLeast * Formulas.SIGHT_OUTSIDE * 255f);
         check(formulas.nightLamps().floorLight() == least && near(formulas.nightLamps().shade(), shown / (double)least),
             "The least light was not set: " + formulas.nightLamps().floorLight() + " " + formulas.nightLamps().shade());
 
@@ -142,8 +142,9 @@ final class FormulasTest {
         unchanged.read(true);
         unseen.read(true);
         LightingJNI.squares.remove("101,201,0");
-        // the game's light of the square, as its corners were handed: their mean (its own light, 0.95 below, is not what it is drawn with)
-        double seen = Math.round((NightLamps.luma(12, 11, 10) + 255 + 0.587f * 255) * 1000 / 8000f) / 255.0;
+        // the game's light of the square, as its corners were handed: its north-west floor corner's here (its own light,
+        // 0.95 below, is not what it is drawn with)
+        double seen = Math.round(NightLamps.luma(12, 11, 10)) / 255.0;
         // the objects' light: a raised copy, the square's own left as it is; a light square's as it is
         var renderer = new zombie.iso.fboRenderChunk.FBORenderCell();
         square.setLight(0, 0.1f);
@@ -182,7 +183,8 @@ final class FormulasTest {
             (org.lwjgl.opengl.GL11.pixels[NightLamps.first(x - x0, y - y0) + 3] & 0xFF) / 255.0;
         java.util.function.BiFunction<Integer, Integer, Double> keptBefore = (x, y) ->
             (org.lwjgl.opengl.GL11.pixels[NightLamps.first(x - x0, y - y0)] & 0xFF) / 255.0;
-        double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
+        // a lamp's share at a square's north-west corner: its light falling off from the middle of its square
+        double floor = least / 255.0, lampShare = (1 - Math.hypot(4.5, 0.5) / 7.0) / 0.9, lampOwn = 1 - Math.hypot(0.5, 0.5) / 7.0;
         frameLater(formulas, pass);
         // the set before had none of the lights (the cell was empty), and this one goes from it towards the squares' values
         // by at most the game's pace (a tenth of a second of nightSight.reveal, tuned to 0.3 here, for it)
@@ -198,17 +200,17 @@ final class FormulasTest {
             && near(org.lwjgl.opengl.GL20.values.get(11), shown / (double)least) && org.lwjgl.opengl.GL20.values.get(10) >= 0f && org.lwjgl.opengl.GL20.values.get(10) < 1f,
             "The screen pass did not get the strength, the least light shown or how far it is between the values, or is not on: " + org.lwjgl.opengl.GL20.values);
         check(org.lwjgl.opengl.GL20.integers.get(6) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
-            && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == 2 * NightLamps.SIZE,
+            && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == 2 * NightLamps.TEXELS,
             "The values' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
         check(kept.apply(100, 203) == 1.0 && Math.abs(share.apply(100, 203) - lampShare) < 0.01 && kept.apply(104, 203) == 1.0
-            && share.apply(104, 203) == 1.0 && Math.abs(kept.apply(101, 200) - 0.3 / floor) < 0.01 && share.apply(101, 200) == 0.0
+            && Math.abs(share.apply(104, 203) - lampOwn) < 0.01 && Math.abs(kept.apply(101, 200) - 0.3 / floor) < 0.01 && share.apply(101, 200) == 0.0
             && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(95, 195) == 0.0
             && Math.abs(kept.apply(100, 200) - seen / floor) < 0.01,
             "The squares' values: " + kept.apply(101, 200) + " " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + kept.apply(100, 200));
         check(org.lwjgl.opengl.GL20.values.get(5) == 0f, "Beyond the values the colour is not kept as on their edge: " + org.lwjgl.opengl.GL20.values.get(5));
-        // the player stands on its square: the squares behind it it is drawn over, and their sides, keep at least its values
-        // (its square lit by the corners handed, the ones behind it not loaded)
-        double standing = kept.apply(100, 200);
+        // the player stands on its square: the squares behind it it is drawn over, and their sides, keep at least its values,
+        // the most of its corners' (its square lit by the corners handed, one of them full, the ones behind it not loaded)
+        double standing = 1.0;
         check(kept.apply(99, 199) == standing && kept.apply(97, 197) == standing && kept.apply(98, 199) == standing && kept.apply(100, 199) == standing
             && kept.apply(96, 196) == 0.0 && !formulas.nightLamps().darkPlace(),
             "The squares a standing player is drawn over do not keep its colour: " + kept.apply(99, 199) + " " + kept.apply(96, 196));
@@ -267,7 +269,7 @@ final class FormulasTest {
 
     /**
      * A dark place: with most squares around the player without the game's own light, the least light shown is
-     * {@link Formulas#DARK_EXTRA} more, eased in over frames (from a frame after the values say so); lit, it eases out.
+     * more (all of it against {@link Formulas#SIGHT_OUTSIDE} of it), eased in over frames (from a frame after the values say so); lit, it eases out.
      * The squares stay raised to the dark place's least light all along, so that the game does not bake them again; with
      * a second player of this machine (no values) they are raised to the one outside a dark place, shown as it is.
      */
@@ -278,8 +280,8 @@ final class FormulasTest {
         player.x = player.y = 300.5f;
         player.z = 0f;
         for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0f);
-        float grown = Formulas.sightCurve(0.2f, Formulas.SIGHT_CURVE);
-        int plain = Math.round(Math.min(1f, Formulas.FLOOR_FULL * grown) * 255f), dark = Math.round(Math.min(1f, (Formulas.FLOOR_FULL + Formulas.DARK_EXTRA) * grown) * 255f);
+        float darkLeast = Formulas.leastLight(0.2f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT);
+        int plain = Math.round(darkLeast * Formulas.SIGHT_OUTSIDE * 255f), dark = Math.round(darkLeast * 255f);
         var lamps = formulas.nightLamps();
         float outside = NightLamps.shadeOf(plain, dark, 0f, 1f);
         frameLater(formulas, pass);
@@ -293,21 +295,47 @@ final class FormulasTest {
             && lamps.counted()[2] > 0 && lamps.counted()[3] == lamps.counted()[2],
             "Night sight does not show a room with no light: " + (org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) + " " + lamps.counted()[2]);
         // a wall's face is read as the squares behind it, which take the values of the square it stands on (a lit square
-        // behind a dark room's wall does not light the wall); a wall in front of the player (cut away) is left
+        // behind a dark room's wall does not light the wall): each kind of wall, behind the player and in front of it
         var walled = cell.load(302, 296, 0);
+        var westWalled = cell.load(296, 303, 0);
+        var window = cell.load(305, 300, 0);
+        var door = cell.load(300, 306, 0);
+        var doorway = cell.load(296, 298, 0);
         var front = cell.load(303, 301, 0);
-        walled.northWall = front.northWall = true;
-        cell.load(302, 295, 0).setLight(0, 0.5f);
-        cell.load(303, 300, 0).setLight(0, 0.5f);
+        walled.northWall = front.northWall = westWalled.westWall = window.northWindow = door.northDoor = doorway.westDoor = doorway.doorOpen = true;
+        int[][] behind = { { 302, 295 }, { 295, 303 }, { 305, 299 }, { 300, 305 }, { 295, 298 }, { 293, 296 }, { 303, 300 } };
+        for (int[] at : behind) cell.load(at[0], at[1], 0).setLight(0, 0.5f);
+        // a character standing just behind a wall is hidden by it: the squares it is drawn over keep the wall's face
+        var hidden = new IsoZombie();
+        hidden.x = 302.5f;
+        hidden.y = 295.5f;
+        cell.zombieList.add(hidden);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         java.util.function.BiFunction<Integer, Integer, Integer> keptAt = (x, y) -> org.lwjgl.opengl.GL11.pixels[NightLamps.first(x - 268, y - 268) + 2] & 0xFF;
         check(keptAt.apply(302, 295).equals(keptAt.apply(302, 296)) && keptAt.apply(301, 294).equals(keptAt.apply(302, 296))
-            && keptAt.apply(303, 300) > keptAt.apply(303, 301),
-            "A wall's face does not take its room's values: " + keptAt.apply(302, 295) + " " + keptAt.apply(302, 296) + " " + keptAt.apply(303, 300));
-        walled.northWall = front.northWall = false;
-        cell.load(302, 295, 0).setLight(0, 0f);
-        cell.load(303, 300, 0).setLight(0, 0f);
+            && keptAt.apply(300, 293).equals(keptAt.apply(302, 296)),
+            "A wall's face does not take its room's values: " + keptAt.apply(302, 295) + " " + keptAt.apply(302, 296) + " " + keptAt.apply(301, 294));
+        check(keptAt.apply(295, 303).equals(keptAt.apply(296, 303)) && keptAt.apply(294, 302).equals(keptAt.apply(296, 303)),
+            "A west wall's face does not take its room's values: " + keptAt.apply(295, 303) + " " + keptAt.apply(296, 303));
+        check(keptAt.apply(305, 299).equals(keptAt.apply(305, 300)) && keptAt.apply(303, 297).equals(keptAt.apply(305, 300)),
+            "A window's face does not take its room's values: " + keptAt.apply(305, 299) + " " + keptAt.apply(305, 300));
+        check(keptAt.apply(300, 305).equals(keptAt.apply(300, 306)), "A closed door's face does not take its room's values: " + keptAt.apply(300, 305));
+        // through a doorway the squares behind are seen; the wall above it is its room's
+        check(keptAt.apply(295, 298) > keptAt.apply(296, 298) && keptAt.apply(293, 296).equals(keptAt.apply(296, 298)),
+            "A doorway is not seen through, or the wall above it does not take its room's values: " + keptAt.apply(295, 298) + " " + keptAt.apply(293, 296));
+        // a wall in front of the player is a face too (a corridor behind it does not light it), unless the game cuts it away
+        check(keptAt.apply(303, 300).equals(keptAt.apply(303, 301)), "A wall in front of the player does not take its room's values: " + keptAt.apply(303, 300));
+        front.cutaway[0] = 1;
+        door.doorOpen = true;
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        check(keptAt.apply(303, 300) > keptAt.apply(303, 301) && keptAt.apply(300, 305) > keptAt.apply(300, 306),
+            "A wall cut away, or an open door, is not seen through: " + keptAt.apply(303, 300) + " " + keptAt.apply(300, 305));
+        cell.zombieList.remove(hidden);
+        walled.northWall = front.northWall = westWalled.westWall = window.northWindow = door.northDoor = doorway.westDoor = door.doorOpen = doorway.doorOpen = false;
+        front.cutaway[0] = 0;
+        for (int[] at : behind) cell.load(at[0], at[1], 0).setLight(0, 0f);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
@@ -332,30 +360,45 @@ final class FormulasTest {
         IsoPlayer.players[1] = null;
         formulas.nightSightFrame(0);
         check(lamps.floorLight() == dark && lamps.shade() == outside, "With one player again the squares are not raised to the dark place's least light");
-        // by day none of it is shown outside a dark place (the game's light and colour kept), at dusk some; nothing baked again
+        // by day nothing is raised outside a dark place (the screen is the game's), in a dark place its least light is; at
+        // dusk some of it is shown
         zombie.iso.weather.ClimateManager.night = 0f;
         formulas.nightSightFrame(0);
-        check(lamps.shade() == 0f && lamps.floorLight() == dark, "By day the least light is shown: " + lamps.shade());
+        check(lamps.floorLight() == 0 && lamps.shade() == 1f, "By day the squares are raised: " + lamps.floorLight());
+        for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0f);
+        // by day the squares are raised only once the values found the dark place: a frame after them
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        check(lamps.darkPlace() && lamps.floorLight() == dark && lamps.shade() > 0f, "By day a dark place's least light is not shown: "
+            + lamps.floorLight() + " " + lamps.shade() + " counted " + java.util.Arrays.toString(lamps.counted()) + " dark " + lamps.darkPlace());
+        for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0.5f);
+        for (int i = 0; i < 6; i++) frameLater(formulas, pass);
+        check(!lamps.darkPlace() && lamps.floorLight() == 0, "By day out of a dark place the squares are still raised: " + lamps.floorLight());
         zombie.iso.weather.ClimateManager.night = 0.5f;
         formulas.nightSightFrame(0);
         check(lamps.shade() == NightLamps.shadeOf(plain, dark, 0f, 0.5f) && lamps.shade() > 0f && lamps.shade() < outside, "At dusk: " + lamps.shade());
         // a square the player does not see (the game reads it no light, and draws it dimmed its own way) is left as drawn,
         // by day and at night, and it does not count for a dark place; as it comes into sight night sight eases in on it,
         // what is drawn being the game's light times its share kept until then
-        var unseen = cell.load(310, 300, 0);
-        unseen.setLight(0, 0f);
-        unseen.setUnseen(0);
+        // (a block of 3 x 3, read at the middle one's north-west corner: each corner's sight is the mean of the squares there)
+        var block = new java.util.ArrayList<zombie.iso.IsoGridSquare>();
+        for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) block.add(cell.load(310 + dx, 300 + dy, 0));
+        Runnable outOfSight = () -> { for (var one : block) { one.setLight(0, 0f); one.setUnseen(0); } };
+        Runnable inSight = () -> { for (var one : block) one.setLight(0, 0f); };
+        outOfSight.run();
         java.util.function.IntSupplier sight = () -> org.lwjgl.opengl.GL11.pixels[NightLamps.second(310 - 268, 300 - 268) + 2] & 0xFF;
         java.util.function.IntSupplier drawn = () -> org.lwjgl.opengl.GL11.pixels[NightLamps.second(310 - 268, 300 - 268) + 3] & 0xFF;
         java.util.function.IntSupplier seenSight = () -> org.lwjgl.opengl.GL11.pixels[NightLamps.second(300 - 268, 300 - 268) + 2] & 0xFF;
         zombie.iso.weather.ClimateManager.night = 0f;
         for (int i = 0; i < 4; i++) frameLater(formulas, pass);
-        check(sight.getAsInt() == 0 && drawn.getAsInt() == 255 && seenSight.getAsInt() == 255 && !lamps.darkPlace(),
-            "By day a square the player does not see is not left as drawn: " + sight.getAsInt() + " " + drawn.getAsInt());
+        // by day outside a dark place nothing is raised and the pass is off: every square is as the game draws it
+        check(lamps.floorLight() == 0 && !lamps.darkPlace(), "By day a square the player does not see is not left as drawn: " + lamps.floorLight());
         zombie.iso.weather.ClimateManager.night = 1f;
         frameLater(formulas, pass);
-        check(sight.getAsInt() == 0 && drawn.getAsInt() == 255, "At night a square the player does not see is not left as drawn");
-        unseen.setLight(0, 0f);
+        frameLater(formulas, pass);
+        check(sight.getAsInt() == 0 && drawn.getAsInt() == 255 && seenSight.getAsInt() == 255, "At night a square the player does not see is not left as drawn");
+        inSight.run();
         frameLater(formulas, pass);
         check(sight.getAsInt() > 0 && sight.getAsInt() < 255 && drawn.getAsInt() == 0,
             "A square coming into sight does not ease into night sight: " + sight.getAsInt() + " " + drawn.getAsInt());
@@ -363,10 +406,10 @@ final class FormulasTest {
         // sight right in front of the player is in night sight within a few tenths of a second, still a fade, not a pop
         call(table, "tune", "nightSight.ease");
         call(table, "tune", "nightSight.reveal");
-        unseen.setUnseen(0);
+        outOfSight.run();
         for (int i = 0; i < 4; i++) frameLater(formulas, pass);
         check(sight.getAsInt() == 0, "A square going out of sight does not leave night sight at the game's pace: " + sight.getAsInt());
-        unseen.setLight(0, 0f);
+        inSight.run();
         frameLater(formulas, pass);
         int revealing = sight.getAsInt();
         frameLater(formulas, pass);
@@ -579,7 +622,7 @@ final class FormulasTest {
             && patched.contains("texture2D(sampler, texCoords)") && patched.contains("textureBicubic(DIFFUSE, vec2(0.0))"),
             "The screen shader did not get night sight's step: " + patched);
         check(ApiHooks.shaderSource(patched, "media/shaders/screen.frag").equals(patched), "The step went in twice");
-        check(patched.contains("PZT_SightTexel = 0.5 / " + NightLamps.SIZE + ".0;"), "The step reads the values by another size than theirs");
+        check(patched.contains("PZT_SightSquares = " + NightLamps.SIZE + ".0;"), "The step reads the values by another size than theirs");
         check(ApiHooks.shaderSource(world, "media/shaders/blur.frag").equals(world), "Another shader was changed");
         check(ApiHooks.shaderSource("void main() { }", "media/shaders/screen.frag").equals("void main() { }"), "A screen shader with no sampling was changed");
         String noGoggles = world.replace("uniform float NightVisionGoggles;\n", "");
@@ -662,27 +705,51 @@ final class FormulasTest {
             && !patched.contains("clamp(uv,"), "The step calls a clamp or max the game's shaders hide");
         // its numbers are tuned while the game runs, and back to their defaults with no value
         var tunings = (KahluaTable)call(formulas, "tunings").get(0);
-        var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");
-        check(floorTuning != null && near((Double)floorTuning.rawget("default"), Formulas.FLOOR_FULL) && tunings.rawget("nightSight.lift") != null
+        var shownTuning = (KahluaTable)tunings.rawget("nightSight.shown");
+        check(shownTuning != null && near((Double)shownTuning.rawget("default"), Formulas.SIGHT_SHOWN) && tunings.rawget("nightSight.lift") != null
             && tunings.rawget("nightSight.standing") != null && near((Double)((KahluaTable)tunings.rawget("nightSight.ease")).rawget("default"), Formulas.SIGHT_EASE)
             && near((Double)((KahluaTable)tunings.rawget("nightSight.reveal")).rawget("default"), Formulas.SIGHT_REVEAL)
-            && near((Double)((KahluaTable)tunings.rawget("nightSight.curve")).rawget("default"), Formulas.SIGHT_CURVE),
+            && near((Double)((KahluaTable)tunings.rawget("nightSight.outside")).rawget("default"), Formulas.SIGHT_OUTSIDE),
             "The tunings are not listed, or night sight does not ease at the eyes' pace");
-        // the least light grows with the value by the curve: whole at 1, little at a low value
-        check(Formulas.sightCurve(1f, 1.5f) == 1f && Formulas.sightCurve(0f, 1.5f) == 0f && near(Formulas.sightCurve(0.25f, 1.5f), 0.125)
-            && Formulas.sightCurve(0.1f, 1.5f) < 0.04f && near(Formulas.sightCurve(0.5f, 1f), 0.5), "The least light's curve: " + Formulas.sightCurve(0.25f, 1.5f));
-        check(near((Double)call(formulas, "tune", "nightSight.floorFull", 0.5).get(0), 0.5), "A tuning did not answer its value");
+        // the least light for a value shows a typical surface with no light of its own (in a dark place, the lift whole) at
+        // the shown brightness times the value: each 0.1 adds the same, 0.5 as bright as measured before (60 of 255)
+        float evenStep = Formulas.shownSurface(Formulas.leastLight(0.1f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT), 0.1f, Formulas.SIGHT_LIFT);
+        for (float value = 0.1f; value < 0.55f; value += 0.1f) {
+            float least = Formulas.leastLight(value, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT);
+            float surface = Formulas.shownSurface(least, value, Formulas.SIGHT_LIFT);
+            check(Math.abs(surface - Formulas.SIGHT_SHOWN * value) < 0.002f && Math.abs(surface / value * 0.1f - evenStep) < 0.002f,
+                "The least light for " + value + " does not show a surface at even steps: " + surface + " (" + least + ")");
+        }
+        check(Math.abs(Formulas.shownSurface(Formulas.leastLight(0.5f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT), 0.5f, Formulas.SIGHT_LIFT) * 255 - 59.5) < 2
+            && Formulas.leastLight(0f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT) == 0f, "The least light at 0.5 is not as bright as measured before, or there is some at 0");
+        // and as the readout tells it, rising evenly with the value in the dark
+        player.luma = 0.05f;
+        LightingJNI.darkness(player);
+        double last = 0, firstStep = -1;
+        for (int rank = 1; rank <= 5; rank++) {
+            call(formulas, "set", mod, "vision.nightSight", rank / 10.0);
+            for (int i = 0; i < 30; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
+            formulasObject.nightSightFrame(0);
+            double surface = (Double)((KahluaTable)call(formulas, "nightSight").get(0)).rawget("shownSurface");
+            if (firstStep < 0) firstStep = surface - last;
+            check(surface > last && Math.abs(surface - last - firstStep) < 0.15 * firstStep,
+                "The readout's brightness does not rise evenly with the value: " + last + " to " + surface + " at " + rank / 10.0);
+            last = surface;
+        }
+        call(formulas, "set", mod, "vision.nightSight", 0.8);
+        check(near((Double)call(formulas, "tune", "nightSight.shown", 0.3).get(0), 0.3), "A tuning did not answer its value");
         call(formulas, "tune", "nightSight.lift", 0.4);
         formulasObject.nightSightFrame(0);
         pass.startRenderThread(new zombie.core.textures.TextureDraw());
-        check(formulasObject.nightLamps().floorLight() == Math.round(Math.min(1f, (0.5f + Formulas.DARK_EXTRA) * Formulas.sightCurve(0.8f, Formulas.SIGHT_CURVE)) * 255f) && near(org.lwjgl.opengl.GL20.values.get(9), 0.4),
+        check(formulasObject.nightLamps().floorLight() == Math.round(Formulas.leastLight(0.8f, 0.3f, 0.4f) * 255f) && near(org.lwjgl.opengl.GL20.values.get(9), 0.4),
             "A tuning did not take: " + formulasObject.nightLamps().floorLight());
-        rejects(formulas, "tune", "nightSight.floorFull must be a number from 0.0 to 1.0", "nightSight.floorFull", 1.5);
+        rejects(formulas, "tune", "nightSight.shown must be a number from 0.0 to 1.0", "nightSight.shown", 1.5);
         rejects(formulas, "tune", "there is no tuning nightSight.nothing", "nightSight.nothing", 0.5);
-        call(formulas, "tune", "nightSight.floorFull");
+        call(formulas, "tune", "nightSight.shown");
         call(formulas, "tune", "nightSight.lift");
         formulasObject.nightSightFrame(0);
-        check(formulasObject.nightLamps().floorLight() == Math.round(Math.min(1f, (Formulas.FLOOR_FULL + Formulas.DARK_EXTRA) * Formulas.sightCurve(0.8f, Formulas.SIGHT_CURVE)) * 255f), "A tuning was not back to its default");
+        check(formulasObject.nightLamps().floorLight() == Math.round(Formulas.leastLight(0.8f, Formulas.SIGHT_SHOWN, Formulas.SIGHT_LIFT) * 255f),
+            "A tuning was not back to its default");
         // in the light it leaves
         player.luma = 0.9f;
         LightingJNI.darkness(player);
@@ -701,6 +768,28 @@ final class FormulasTest {
         LightingJNI.squares.clear();
         check(formulasObject.nightLamps().floorLight() == 0 && org.lwjgl.opengl.GL20.values.get(4) == 0f && unraised.lightverts(0) == 0x01020304,
             "Night sight did not go off: " + formulasObject.nightLamps().floorLight() + " " + Integer.toHexString(unraised.lightverts(0)));
+        // a Lua reload makes a new API: the screen pass, compiled once before it, draws with night sight's step all the same,
+        // and the readout says so (it counted the compiles of an API gone)
+        GameApi.register(LuaManager.class);
+        var reloaded = GameApi.formulas();
+        reloaded.nightSightFrame(0);
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        var alive = (KahluaTable)call(formulas, "nightSight").get(0);
+        check(reloaded != formulasObject && (Double)alive.rawget("programs") >= 1 && Boolean.TRUE.equals(alive.rawget("stepIn"))
+            && (Double)alive.rawget("draws") > 0 && alive.rawget("problem") == null,
+            "After a reload the screen pass is not told alive with night sight's step: " + alive.rawget("programs") + " " + alive.rawget("stepIn")
+                + " " + alive.rawget("draws") + " " + alive.rawget("problem"));
+        // and one compiled without the step is told
+        String[] stepUniforms = { "PZT_SightOn" };
+        Integer onLocation = org.lwjgl.opengl.GL20.uniforms.remove(stepUniforms[0]);
+        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
+        alive = (KahluaTable)call(formulas, "nightSight").get(0);
+        check(Boolean.FALSE.equals(alive.rawget("stepIn")) && String.valueOf(alive.rawget("problem")).contains("without night sight's step"),
+            "A screen pass without the step is not told: " + alive.rawget("problem"));
+        org.lwjgl.opengl.GL20.uniforms.put(stepUniforms[0], onLocation);
+        pass.onCompileSuccess(new zombie.core.opengl.ShaderProgram());
+        pass.startRenderThread(new zombie.core.textures.TextureDraw());
 
         // A fall: the floors forgiven, never from a height that kills, and the damage by a multiplier.
         float oneFloor = FallingConstants.getIsoImpactSpeedFromHeight(1f), twoFloors = FallingConstants.getIsoImpactSpeedFromHeight(2f);

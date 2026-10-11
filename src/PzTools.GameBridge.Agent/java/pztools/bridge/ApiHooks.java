@@ -2184,7 +2184,9 @@ public final class ApiHooks {
          * What the eye saw without night sight keeps its colour and what it adds is a cold grey, as the eye's rods see: a
          * pixel's colour is kept by its square's share (PZT_SightLamps, by the floor under the pixel, found from PZT_SightU
          * and V; beyond it, PZT_SightKeep), and dark tones are lifted, the darker the more (a gamma, by PZT_NightSight), in
-         * grey too, but for the light a light source gives (its second channel). The values are the last set's (red, green)
+         * grey too, but for the light a light source gives (its second channel). Each square has its four corners' values
+         * (2 x 2 texels), and a pixel's are blended between its own square's corners alone, never with another square's
+         * (a wall parts squares the texture has side by side). The values are the last set's (red, green)
          * and the newest's (blue, alpha), PZT_SightBlend of the way from the one to the other. A square raised to more
          * light than the least shown (PZT_SightShade of it) is taken down to it first, its colour kept against it. The
          * texture's second half says how much of all this a square shows (red and blue) and, where it does not, the share
@@ -2207,7 +2209,7 @@ public final class ApiHooks {
             uniform float PZT_SightLift;
             uniform float PZT_SightBlend;
             uniform float PZT_SightShade;
-            const float PZT_SightTexel = 0.5 / 64.0;
+            const float PZT_SightSquares = 64.0;
 
             vec3 pztNightSight(in vec3 seen) {
             	if (PZT_SightOn <= 0.0 || NightVisionGoggles >= 0.5) return seen;
@@ -2216,10 +2218,14 @@ public final class ApiHooks {
             	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
             	vec2 sight = vec2(1.0, 1.0);
             	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) {
-            		vec2 inside = vec2(clamp(uv.x, PZT_SightTexel, 1.0 - PZT_SightTexel), clamp(uv.y, PZT_SightTexel, 1.0 - PZT_SightTexel));
+            		// the square under the pixel, and where in it: read between the texels of its own corners alone
+            		float cx = clamp(uv.x * PZT_SightSquares, 0.0, PZT_SightSquares - 0.001);
+            		float cy = clamp(uv.y * PZT_SightSquares, 0.0, PZT_SightSquares - 0.001);
+            		float sx = floor(cx), sy = floor(cy);
+            		vec2 inside = vec2((2.0 * sx + 0.5 + cx - sx) / (4.0 * PZT_SightSquares), (2.0 * sy + 0.5 + cy - sy) / (2.0 * PZT_SightSquares));
             		float t = clamp(PZT_SightBlend, 0.0, 1.0);
-            		vec4 both = texture(PZT_SightLamps, vec2(inside.x * 0.5, inside.y));
-            		vec4 shown = texture(PZT_SightLamps, vec2(0.5 + inside.x * 0.5, inside.y));
+            		vec4 both = texture(PZT_SightLamps, inside);
+            		vec4 shown = texture(PZT_SightLamps, vec2(0.5 + inside.x, inside.y));
             		square = mix(both.rg, both.ba, t);
             		sight = mix(shown.rg, shown.ba, t);
             	}
