@@ -185,7 +185,7 @@ final class FormulasTest {
         double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
         frameLater(formulas, pass);
         // the set before had none of the lights (the cell was empty), and this one goes from it towards the squares' values
-        // by at most the pace night sight eases at (a tenth of a second of nightSight.ease, tuned to 0.3 here, for it)
+        // by at most the game's pace (a tenth of a second of nightSight.reveal, tuned to 0.3 here, for it)
         int pace = Math.round(255f * 0.1f / 0.3f);
         check(keptBefore.apply(101, 200) == 0.0 && keptBefore.apply(100, 203) == 0.0 && kept.apply(101, 200) == pace / 255.0
             && share.apply(104, 203) == pace / 255.0, "The newest set's values did not go from the last set's at night sight's pace: "
@@ -271,7 +271,7 @@ final class FormulasTest {
      * The squares stay raised to the dark place's least light all along, so that the game does not bake them again; with
      * a second player of this machine (no values) they are raised to the one outside a dark place, shown as it is.
      */
-    private static void darkPlace(Formulas formulas, zombie.iso.weather.WeatherShader pass, IsoPlayer player) {
+    private static void darkPlace(Formulas formulas, KahluaTable table, zombie.iso.weather.WeatherShader pass, IsoPlayer player) {
         IsoCell home = IsoWorld.instance.currentCell;
         var cell = new IsoCell();
         IsoWorld.instance.setCell(cell);
@@ -359,6 +359,21 @@ final class FormulasTest {
         frameLater(formulas, pass);
         check(sight.getAsInt() > 0 && sight.getAsInt() < 255 && drawn.getAsInt() == 0,
             "A square coming into sight does not ease into night sight: " + sight.getAsInt() + " " + drawn.getAsInt());
+        // at the game's pace (nightSight.reveal), not the eye's (nightSight.ease, at the default here): a square coming into
+        // sight right in front of the player is in night sight within a few tenths of a second, still a fade, not a pop
+        call(table, "tune", "nightSight.ease");
+        call(table, "tune", "nightSight.reveal");
+        unseen.setUnseen(0);
+        for (int i = 0; i < 4; i++) frameLater(formulas, pass);
+        check(sight.getAsInt() == 0, "A square going out of sight does not leave night sight at the game's pace: " + sight.getAsInt());
+        unseen.setLight(0, 0f);
+        frameLater(formulas, pass);
+        int revealing = sight.getAsInt();
+        frameLater(formulas, pass);
+        check(revealing > 0 && revealing < 255 && sight.getAsInt() == 255,
+            "A square coming into sight does not ease into night sight at the game's pace: " + revealing + " " + sight.getAsInt());
+        call(table, "tune", "nightSight.ease", 0.3);
+        call(table, "tune", "nightSight.reveal", 0.3);
         IsoWorld.instance.setCell(home);
         player.x = player.y = 0f;
     }
@@ -611,14 +626,17 @@ final class FormulasTest {
         check(near(formulasObject.nightSightScreen(), 0.1 / Formulas.SIGHT_EASE), "Night sight did not ease in: " + formulasObject.nightSightScreen());
         for (int i = 0; i < 20; i++) formulasObject.nightSightStep(t += 1_000_000_000L / 10);
         check(near(formulasObject.nightSightScreen(), 0.8), "Night sight did not come in whole: " + formulasObject.nightSightScreen());
-        // the values' and the dark place's checks below run at a quicker pace than the eye's default
+        // the values' and the dark place's checks below run at a quicker pace than the eye's default, and the values
+        // at a slower one than the game's
         call(formulas, "tune", "nightSight.ease", 0.3);
+        call(formulas, "tune", "nightSight.reveal", 0.3);
         lamps(formulasObject, pass, player);
         // in a dark place the least light is more
         call(formulas, "set", mod, "vision.nightSight", 0.2);
-        darkPlace(formulasObject, pass, player);
+        darkPlace(formulasObject, formulas, pass, player);
         call(formulas, "set", mod, "vision.nightSight", 0.8);
         call(formulas, "tune", "nightSight.ease");
+        call(formulas, "tune", "nightSight.reveal");
         // what night sight is doing now, for a look in game
         var state = (KahluaTable)call(formulas, "nightSight").get(0);
         check(near((Double)state.rawget("level"), 0.8) && near((Double)state.rawget("bakedFloor"), formulasObject.nightLamps().floorLight() / 255.0)
@@ -647,6 +665,7 @@ final class FormulasTest {
         var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");
         check(floorTuning != null && near((Double)floorTuning.rawget("default"), Formulas.FLOOR_FULL) && tunings.rawget("nightSight.lift") != null
             && tunings.rawget("nightSight.standing") != null && near((Double)((KahluaTable)tunings.rawget("nightSight.ease")).rawget("default"), Formulas.SIGHT_EASE)
+            && near((Double)((KahluaTable)tunings.rawget("nightSight.reveal")).rawget("default"), Formulas.SIGHT_REVEAL)
             && near((Double)((KahluaTable)tunings.rawget("nightSight.curve")).rawget("default"), Formulas.SIGHT_CURVE),
             "The tunings are not listed, or night sight does not ease at the eyes' pace");
         // the least light grows with the value by the curve: whole at 1, little at a low value

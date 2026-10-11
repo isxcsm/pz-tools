@@ -178,9 +178,15 @@ final class Formulas implements ApiHooks.Formulas {
 
     /**
      * Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease): the pace of eyes
-     * adjusting to the dark, so that coming into a dark place, or a square coming into sight, is not a pop.
+     * adjusting to the dark, so that coming into a dark place, or leaving it, is not a pop.
      */
     static final float SIGHT_EASE = 2f;
+    /**
+     * Seconds a square's own values take to follow it whole (the default of nightSight.reveal): coming into sight or
+     * going out of it, its light changing. The game's pace, not the eye's: it fades a square coming into view in about
+     * as long, and what comes into sight right in front of the player is not left dark for seconds.
+     */
+    static final float SIGHT_REVEAL = 0.2f;
     /**
      * The darkness the game reads (0 light to 1 dark) where the screen pass's lift starts, and where it is whole.
      * Measured in a night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day).
@@ -214,7 +220,9 @@ final class Formulas implements ApiHooks.Formulas {
     private final Tunings.Tuning lift = tunings.add("nightSight.lift", SIGHT_LIFT, 0, 1,
         "how much the screen pass lifts dark tones at night sight 1 (their gamma is 1 - this x the strength)");
     private final Tunings.Tuning ease = tunings.add("nightSight.ease", SIGHT_EASE, 0.01f, 10,
-        "seconds night sight takes to come in whole, or to leave");
+        "seconds night sight takes to come in whole, or to leave (the eye's pace: a dark place, night sight's strength)");
+    private final Tunings.Tuning reveal = tunings.add("nightSight.reveal", SIGHT_REVEAL, 0.01f, 10,
+        "seconds a square's own values take to follow it (the game's pace: coming into sight or out of it, its light changing)");
     private final Tunings.Tuning darkFrom = tunings.add("nightSight.darkFrom", DARK_FROM, 0, 1,
         "the darkness the game reads (0 light to 1 dark) where the lift starts");
     private final Tunings.Tuning darkFull = tunings.add("nightSight.darkFull", DARK_FULL, 0, 1,
@@ -334,7 +342,7 @@ final class Formulas implements ApiHooks.Formulas {
         animationsProblem = still;
         NightLamps screen = null;
         String unlit = null;
-        try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing, ease); }
+        try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing, reveal); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             unlit = "the game's square lights, screen placement or GL could not be read: " + unreadable;
             System.err.println("[PzTools API] formulas: " + unlit);

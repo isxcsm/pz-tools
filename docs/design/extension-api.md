@@ -466,7 +466,7 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 | `formulas.weight(item)` | The item's weight as the load counts it with nothing equipped (a bag with what is in it), under the current declarations. |
 | `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"unavailable: ..."` when the game lacks what a point reads. A mod shows the player what is not applied. |
 | `formulas.tune(name, value)` | Changes one of the numbers the formulas work with while the game runs (a tuning: one value for the game, not declared by a mod, not saved; a game starts with the defaults), and answers its value; with no value it goes back to its default. Read as a formula works, so the next frame has it. For tuning in the game rather than by a build: the defaults are then made the tuned values. |
-| `formulas.tunings()` | `{ [name] = { value, default, min, max, about } }` for every tuning. Now night sight's: `nightSight.floorFull` (0.9), `.darkExtra` (0.1), `.lift` (0.7), `.ease` (2 s), `.curve` (1.5), `.darkFrom` (0.3), `.darkFull` (0.5), `.darkLight` (0.03), `.darkIn` (0.75), `.darkOut` (0.55), `.darkRadius` (6), `.standing` (3); see [night sight](#night-sight). |
+| `formulas.tunings()` | `{ [name] = { value, default, min, max, about } }` for every tuning. Now night sight's: `nightSight.floorFull` (0.9), `.darkExtra` (0.1), `.lift` (0.7), `.ease` (2 s), `.reveal` (0.2 s), `.curve` (1.5), `.darkFrom` (0.3), `.darkFull` (0.5), `.darkLight` (0.03), `.darkIn` (0.75), `.darkOut` (0.55), `.darkRadius` (6), `.standing` (3); see [night sight](#night-sight). |
 | `formulas.nightSight()` | What night sight is doing now, read-only, for a look in game: `{ level, frames, draws, programs, hooks, strength, darkness, darkShown, bakedFloor, shade, shownFloor, darkPlace, nightStrength, valuesRun, squaresLit, squaresInSight, squaresNear, squaresDark, keptNear, problem }` (the declared value; how many times the screen pass moved night sight on, drew and compiled, and the point's hooks (no frames: the game does not draw through its screen pass, and `problem` says so); the lift's strength now; the darkness the game reads for the player; the share of a dark place's more shown; the least light the squares are raised to, the share of it shown and the least light shown, of the full light; whether the player is in a dark place; the game's night, 0 by day; whether the values run (one player); what the last values counted: the squares the game lights, those in the player's sight, those near the player counted for a dark place and the dark ones; the mean share of colour kept near the player; why the values stopped, if they did). |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
@@ -770,7 +770,8 @@ pass that greys what that light and the pass add.
   light it hands for it reads none (measured: by noon the pass drew such squares black): night sight leaves it as
   drawn, by day and at night, and it does not count for a dark place. As it comes into sight the game draws it with its
   raised corners at once; the pass shows it as the game's light would first (what is drawn times its share kept) and
-  eases to night sight's over `nightSight.ease`, and back as it goes out of sight (the values texture's second half,
+  eases to night sight's over `nightSight.reveal` (0.2 seconds, about as long as the game fades a square into view, so
+  that what comes into sight right in front of the player is not dark for seconds), and back as it goes out of sight (the values texture's second half,
   128 x 64 in all: how much of night sight a square shows, and the share of what is drawn that is the game's light).
   The least light and the dark place's more grow with night sight's value as its 1.5th power (`nightSight.curve`), so
   that a low value leaves a room with no light mostly dark. PZ Optimization's
@@ -793,8 +794,9 @@ pass that greys what that light and the pass add.
     thread. Each set carries the last set's values of the same squares (red, green) beside its own (blue, alpha), and the
     pass goes from the one to the other every frame over the time the next set takes (`PZT_SightBlend`, by the render
     thread's clock): the game's own fades (a square coming into view, a light going out) are shown as it fades them, a
-    set later, not in steps 10 times a second. And each set's values go towards the squares' by at most the pace night
-    sight eases at (`nightSight.ease`, 2 seconds for all of it): the game hands a square's light as its lighting gets
+    set later, not in steps 10 times a second. And each set's values go towards the squares' by at most the game's
+    pace (`nightSight.reveal`, 0.2 seconds for all of it; the eye's slower pace, `nightSight.ease`, 2 seconds, is
+    the dark place's and night sight's strength's): the game hands a square's light as its lighting gets
     to it, in jumps (more so with PZ Optimization's lighting), and a jump is shown as a fade. Where the squares are raised above the least light shown, a pixel is taken
     down to it first (its colour times the larger of its square's share kept and `PZT_SightShade`), and its share kept is
     counted against it. The shader finds the floor under each pixel from where the game draws three points of it (`isoToScreenX` and
