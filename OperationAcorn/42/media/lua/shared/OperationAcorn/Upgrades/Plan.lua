@@ -72,7 +72,8 @@ end
 -- lit lines towards its tree's header (TAKE_SPEED design units a second, a TAKE_TAIL tail), and the header flashes as
 -- it arrives (TAKE_HEADER_MS). TAKE_GLOW_WAIT_MS after the last node, and not before the last light has arrived, a
 -- light runs round the frame of each column that took points, both ways from the middle of its top, and meets itself
--- at the bottom (in TAKE_TRACE of TAKE_GLOW_MS, slowing as it comes round), the column lighting softly behind it; then
+-- at the bottom (in TAKE_TRACE of TAKE_GLOW_MS, slowing more and more as it comes round, so that the two ways meet
+-- gently), the column lighting softly behind it; then
 -- the frame and the light fade (TAKE_GLOW_MS in all); the padlocks it opened come off after it.
 Plan.TAKE_STEP_MS, Plan.TAKE_MAX_MS = 200, 1000
 Plan.TAKE_POP, Plan.TAKE_POP_MS = 0.18, 260
@@ -81,7 +82,7 @@ Plan.TAKE_CORE_MS = 180
 Plan.TAKE_PIP_MS = 360
 Plan.TAKE_SPEED, Plan.TAKE_TAIL = 520, 34
 Plan.TAKE_HEADER_MS = 420
-Plan.TAKE_GLOW_WAIT_MS, Plan.TAKE_GLOW_MS, Plan.TAKE_TRACE = 100, 500, 0.65
+Plan.TAKE_GLOW_WAIT_MS, Plan.TAKE_GLOW_MS, Plan.TAKE_TRACE = 100, 1150, 0.75
 
 local easeOut = OperationAcorn.easeOut
 
@@ -179,7 +180,7 @@ function Plan.takeGlow(age)
     if age < 0 or age >= Plan.TAKE_GLOW_MS then return nil end
     local u, trace = age / Plan.TAKE_GLOW_MS, Plan.TAKE_TRACE
     local p = math.min(1, u / trace)
-    local along = 1 - (1 - p) * (1 - p)
+    local along = 1 - (1 - p) ^ 3
     local line = 1
     if u > trace then
         local q = (u - trace) / (1 - trace)
