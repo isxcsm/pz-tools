@@ -741,6 +741,24 @@ hook only. `PZToolsAPI.hooks()` names each by game class and method.
 Night sight has two parts, both on the screen alone: a least light the squares are drawn with, and a step in the screen
 pass that greys what that light and the pass add.
 
+**What is lifted where.** Each lift is in one place, and nothing in either reads across a wall:
+
+1. *Baked: the least light, in each square's own corners.* The game keeps 8 corner colours for each square (4 for its
+   floor, 4 at the top of its walls, `getVertLight`); a corner the squares around it share is still a copy in each of
+   them, which the native lighting fills from the squares that see each other. The bridge raises a square's own copies
+   (never a neighbour's), so the lift cannot cross a wall, a door or the edge of what the player sees. It is baked only at
+   night or in a dark place: by day nothing is raised and the screen is the game's.
+2. *The screen pass: taking a pixel down to the least light shown, and greying and lifting what night sight adds.* It
+   reads values by the floor under the pixel, and each square has its own four corners' values (2 x 2 texels): the pass
+   blends a pixel's values between its square's corners and never between squares. The share kept and the light
+   sources' share are the square's own corners' (the game's corner light against the least light, and the lights that
+   reach the square at each corner); how much night sight a square shows is, at each corner, the mean over the squares
+   there with no wall between (smooth at the edge of the vision cone, sharp at a wall). A wall's face is read as the
+   squares behind it, which take its own square's corners.
+3. *How much, for a value.* The least light for a value is chosen so that a typical surface (luma 0.3) with no light of
+   its own in a dark place is shown at `nightSight.shown` x the value (0.466: 0.233 at 0.5, as measured before), the lift's
+   gamma counted: each 0.1 of the value adds the same brightness. Outside a dark place 0.9 of it (`nightSight.outside`).
+
 - **The least light.** The game's lighting is native; it hands each square's light into an `int[]`
   (`LightingJNI.getSquareLighting`: the visibility, the light, two darknesses, the level, then 8 corner colours packed
   `0xAABBGGRR`), and the game draws the square's floor, walls and models with the corners and bakes them into its chunk
