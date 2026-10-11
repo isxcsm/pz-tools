@@ -2190,6 +2190,11 @@ public final class ApiHooks {
          * texture's second half says how much of all this a square shows (red and blue) and, where it does not, the share
          * of what is drawn that is the game's light (green and alpha): a square the player does not see now is left as
          * drawn, and one coming into sight eases in.
+         *
+         * <p>The game's shaders declare their own {@code clamp} (a float, or a vec2 or vec3 with float bounds) and
+         * {@code max(float, float)} ({@code media/shaders/util/math.h}, which screen.frag includes), and a declared
+         * function hides all of GLSL's of the name: the step calls only those forms. One that is not (a vec2 clamped by
+         * vec2s) fails the whole screen shader, and the game then draws without it, night sight and all (measured).
          */
         static final String STEP = """
 
@@ -2211,7 +2216,7 @@ public final class ApiHooks {
             	vec2 square = vec2(clamp(PZT_SightKeep, 0.0, 1.0), 0.0);
             	vec2 sight = vec2(1.0, 1.0);
             	if (uv.x >= 0.0 && uv.y >= 0.0 && uv.x <= 1.0 && uv.y <= 1.0) {
-            		vec2 inside = clamp(uv, vec2(PZT_SightTexel), vec2(1.0 - PZT_SightTexel));
+            		vec2 inside = vec2(clamp(uv.x, PZT_SightTexel, 1.0 - PZT_SightTexel), clamp(uv.y, PZT_SightTexel, 1.0 - PZT_SightTexel));
             		float t = clamp(PZT_SightBlend, 0.0, 1.0);
             		vec4 both = texture(PZT_SightLamps, vec2(inside.x * 0.5, inside.y));
             		vec4 shown = texture(PZT_SightLamps, vec2(0.5 + inside.x * 0.5, inside.y));
