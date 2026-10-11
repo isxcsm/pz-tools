@@ -763,7 +763,10 @@ pass that greys what that light and the pass add.
   Split screen, with no values, is raised to the one outside. The least light outside a dark place is for the night: it is
   shown by the game's night (`ClimateManager.getNightStrength`, 0 by day, 1 at night, smooth at dusk and dawn), so that by
   day every square keeps the game's light and colour (the game darkens the squares the player does not see, and the
-  pass greyed them as night sight's when it was shown by day too); a dark place's is shown by day too. PZ Optimization's
+  pass greyed them as night sight's when it was shown by day too); a dark place's is shown by day too. A square the
+  player does not see now (`ILighting.bCanSee` false, out of the vision cone) the game draws dimmed its own way, and the
+  light it hands for it reads none (measured: by noon the pass drew such squares black): by day it keeps what is drawn,
+  at night it is night sight's (between, as far into the night as it is), and it does not count for a dark place. PZ Optimization's
   per-pixel lighting reads the same corners.
 - **The screen pass.** The game draws the world into a buffer and then through one screen pass (`WeatherShader`,
   `media/shaders/screen.frag`), which reads the world through `textureBicubic` on every path (the stock one, and the ones

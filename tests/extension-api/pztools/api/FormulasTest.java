@@ -302,8 +302,19 @@ final class FormulasTest {
         zombie.iso.weather.ClimateManager.night = 0.5f;
         formulas.nightSightFrame(0);
         check(lamps.shade() == NightLamps.shadeOf(plain, dark, 0f, 0.5f) && lamps.shade() > 0f && lamps.shade() < outside, "At dusk: " + lamps.shade());
+        // a square the player does not see (the game reads it no light, and draws it dimmed its own way): by day its
+        // colour is kept as drawn, at night it is night sight's; it does not count for a dark place
+        var unseen = cell.load(310, 300, 0);
+        unseen.setLight(0, 0f);
+        unseen.setUnseen(0);
+        java.util.function.Supplier<Double> unseenKept = () ->
+            (org.lwjgl.opengl.GL11.pixels[4 * ((300 - 268) * NightLamps.SIZE + (310 - 268)) + 2] & 0xFF) / 255.0;
+        zombie.iso.weather.ClimateManager.night = 0f;
+        for (int i = 0; i < 4; i++) frameLater(formulas, pass);
+        check(unseenKept.get() == 1.0 && !lamps.darkPlace(), "By day a square the player does not see is not kept as drawn: " + unseenKept.get());
         zombie.iso.weather.ClimateManager.night = 1f;
-        formulas.nightSightFrame(0);
+        for (int i = 0; i < 4; i++) frameLater(formulas, pass);
+        check(unseenKept.get() == 0.0, "At night a square the player does not see is not night sight's: " + unseenKept.get());
         IsoWorld.instance.setCell(home);
         player.x = player.y = 0f;
     }

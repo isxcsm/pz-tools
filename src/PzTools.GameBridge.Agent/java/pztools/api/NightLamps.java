@@ -54,7 +54,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>The least light is for the night: outside a dark place the least light shown follows the game's night
  * ({@code ClimateManager.getNightStrength}, 0 by day), so that by day a square keeps the game's light and colour (the
  * game darkens what the player does not see, and the pass would otherwise grey it as night sight's), the squares
- * still raised (a pixel is taken down to the game's light) and nothing baked again.
+ * still raised (a pixel is taken down to the game's light) and nothing baked again. A square the player does not see
+ * now is not taken down by day: the game draws it dimmed its own way, and the light it hands for it reads none.
  *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
  * back; nothing is allocated after the first frame. The texture is bound on its own unit ({@link #UNIT}), and the unit
@@ -89,9 +90,9 @@ final class NightLamps {
     private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, ease;
     // ClimateManager.getInstance().getNightStrength().
     private final MethodHandle climate, nightStrength;
-    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int); ColorInfo.r, g, b, a,
+    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCanSee(); ColorInfo.r, g, b, a,
     // set(r, g, b, a) and its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
-    private final MethodHandle lighting, lightInfo, lightCount, light, infoR, infoG, infoB, infoA, setAll, newInfo,
+    private final MethodHandle lighting, lightInfo, lightCount, light, canSee, infoR, infoG, infoB, infoA, setAll, newInfo,
         lightX, lightY, lightRadius, lightFlags, lightR, lightG, lightB, xOf, yOf, zOf;
     private final int roomLight;
     // IsoCell.getZombieList().
@@ -109,6 +110,8 @@ final class NightLamps {
     // values were stopped (a fault).
     private volatile float shade = 1f;
     private volatile boolean stopped;
+    // How far into the night it is, as the game had it this frame (0 by day to 1; the game thread's).
+    private float night = 1f;
     // Each square as its corners were last read, for each player of this machine and floor (-32 to 31, each made as it
     // is first read): the least light it was raised to and the game's own light of it (0 to 255 each), with its x and y
     // over 256, in one int written and read whole. A floor's squares are kept by x and y modulo 256, more than the
@@ -181,6 +184,7 @@ final class NightLamps {
         lighting = lookup.unreflectGetter(square.getField("lighting")).asType(MethodType.methodType(Object[].class, Object.class));
         lightInfo = Game.exact(lights.getMethod("lightInfo"), MethodType.methodType(Object.class, Object.class));
         lightCount = Game.exact(lights.getMethod("resultLightCount"), MethodType.methodType(int.class, Object.class));
+        canSee = Game.exact(lights.getMethod("bCanSee"), MethodType.methodType(boolean.class, Object.class));
         light = Game.exact(lights.getMethod("getResultLight", int.class), MethodType.methodType(Object.class, Object.class, int.class));
         infoR = getter(lookup, info, "r", float.class);
         infoG = getter(lookup, info, "g", float.class);
@@ -255,7 +259,8 @@ final class NightLamps {
     void floorLight(int light, int dark, float darkShare) throws Throwable {
         int lit = Math.max(0, Math.min(255, light)), most = Math.max(lit, Math.min(255, dark));
         boolean carried = !stopped && most > 0 && alone(players.all()) >= 0;
-        shade = carried ? shadeOf(lit, most, darkShare, (float)nightStrength.invokeExact((Object)climate.invokeExact())) : 1f;
+        night = Math.max(0f, Math.min(1f, (float)nightStrength.invokeExact((Object)climate.invokeExact())));
+        shade = carried ? shadeOf(lit, most, darkShare, night) : 1f;
         raise(carried ? most : lit);
     }
 
@@ -459,7 +464,9 @@ final class NightLamps {
                 Object square = cell == null ? null : game.square(cell, x0 + i, y0 + j, z);
                 Object lit = square == null ? null : lit(square, playerIndex);
                 float whole = 0f, sources = 0f;
+                boolean unseen = false;
                 if (lit != null) {
+                    unseen = !(boolean)canSee.invokeExact(lit);
                     whole = seenLight(playerIndex, x0 + i, y0 + j, z);
                     if (whole < 0f) {
                         Object info = (Object)lightInfo.invokeExact(lit);
@@ -467,11 +474,16 @@ final class NightLamps {
                     }
                     if (whole > 0.004f) sources = Math.min(sources(lit, x0 + i, y0 + j, whole), whole);
                 }
-                // the game's light against the light drawn: the least light raises what is below it
+                // the game's light against the light drawn: the least light raises what is below it. A square the player
+                // does not see now (out of the vision cone) the game draws dimmed its own way, which the light it hands
+                // does not tell (by day it read none, and the pass drew the square black, measured): by day it keeps
+                // what is drawn, at night it is night sight's, and between as far into the night as it is; it does not
+                // count for a dark place
                 float kept = whole >= least ? 1f : whole / least;
+                if (unseen) kept = Math.max(kept, 1f - night);
                 float lamp = whole > 0.004f ? sources / whole : 0f;
                 if (i == 0 || j == 0 || i == SIZE - 1 || j == SIZE - 1) edge += kept;
-                if (lit != null && Math.abs(i - SIZE / 2) <= radius && Math.abs(j - SIZE / 2) <= radius) {
+                if (lit != null && !unseen && Math.abs(i - SIZE / 2) <= radius && Math.abs(j - SIZE / 2) <= radius) {
                     near++;
                     if (whole < darkBelow) dark++;
                 }
