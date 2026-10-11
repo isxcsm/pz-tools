@@ -70,6 +70,15 @@ public final class IsoGridSquare {
     public boolean inRoom;
     public boolean isInARoom() { return inRoom; }
     public IsoGridSquare(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+    /** Like the game's, the square's flags: here its walls (WallN, WallW; both as WallNW). */
+    public boolean hasProperty(zombie.iso.SpriteDetails.IsoFlagType flag) {
+        return switch (flag) {
+            case WallN -> northWall && !westWall;
+            case WallW -> westWall && !northWall;
+            case WallNW -> northWall && westWall;
+            default -> false;
+        };
+    }
     public PZArrayList<IsoObject> getObjects() { return objects; }
     public IsoGenerator getGenerator() {
         for (int index = 0; index < objects.size(); index++) if (objects.get(index) instanceof IsoGenerator generator) return generator;
