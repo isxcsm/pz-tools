@@ -369,11 +369,29 @@ function Window:createChildren()
         local page = newPage(self.width, pageH)
         def.build(page, self.width)
         tabs:addView(T("Tab_" .. def.id), page)
+        page.contentBottom = 0
+        for _, child in pairs(page.children) do
+            page.contentBottom = math.max(page.contentBottom, child:getY() + child:getHeight())
+        end
     end
     self.statusLabel = ISLabel:new(PAD, self.height - FH - 6, FH, "", 0.7, 0.9, 0.7, 1, UIFont.Small, true)
     self.statusLabel:initialise()
     self.statusLabel:instantiate()
     self:addChild(self.statusLabel)
+    tabs.target = self
+    tabs.onActivateView = function(window) window:fitPage() end
+    self:fitPage()
+end
+
+-- The window as tall as the page that shows (the upgrades page is far taller than the others).
+function Window:fitPage()
+    local view = self.tabs:getActiveView()
+    if not view or not view.contentBottom then return end
+    local title = self:titleBarHeight()
+    local h = title + self.tabs.tabHeight + view.contentBottom + PAD + FH + 12
+    self:setHeight(h)
+    self.tabs:setHeight(h - title - FH - 10)
+    self.statusLabel:setY(h - FH - 6)
 end
 
 -- A line at the bottom of the window: what was done, or what failed.
@@ -407,6 +425,8 @@ function Window:new(x, y, w, h)
     local o = ISCollapsableWindow.new(self, x, y, w, h)
     o.title = T("Title")
     o.resizable = false
+    -- Nearly opaque: the panel is mostly opened over the mod's own windows, which showed through and blurred its text.
+    o.backgroundColor = { r = 0.04, g = 0.05, b = 0.06, a = 0.94 }
     return o
 end
 
