@@ -5,10 +5,10 @@
 	<m_Looped>false</m_Looped>
 	<m_ConditionPriority>1</m_ConditionPriority>
 	<m_BlendTime>0.10</m_BlendTime>
-	<m_BlendOutTime>0.20</m_BlendOutTime>
+	<m_BlendOutTime>0.15</m_BlendOutTime>
 	<m_StopAnimOnExit>false</m_StopAnimOnExit>
 	<m_EarlyTransitionOut>false</m_EarlyTransitionOut>
-	<m_SpeedScale>1.84</m_SpeedScale>
+	<m_SpeedScale>1.41</m_SpeedScale>
 	<m_Conditions x_name="48c6e1ef-a28f-40ae-a6ab-6a4d44c56d28">
 		<m_Name>bDead</m_Name>
 		<m_Type>BOOL</m_Type>
@@ -30,9 +30,9 @@
 		<m_Value>false</m_Value>
 	</m_Conditions>
 	<m_Conditions x_name="aba1d435-d51e-461e-9c29-7ddea2483c13">
-		<m_Name>bLandLight</m_Name>
-		<m_Type>BOOL</m_Type>
-		<m_Value>true</m_Value>
+		<m_Name>OALandRank</m_Name>
+		<m_Type>STRING</m_Type>
+		<m_Value>2</m_Value>
 	</m_Conditions>
 	<m_Conditions x_name="oa-land-rank">
 		<m_Name>OALandRank</m_Name>

@@ -1,21 +1,24 @@
-"""Writes Operation Acorn's quick landing nodes: each vanilla landing node (with its extends resolved) once for each
-rank that lands quicker, behind the character variable OALandRank. Gentle landings are cut early (a shallower crouch)
-and blend out still rising; hard landings only play faster."""
+"""Writes Operation Acorn's landing nodes for 낙법: each vanilla landing node (with its extends resolved) once for each
+rank, behind the character variable OALandRank. 낙법 counts a fall as a share of its height, which can take a real fall
+below the height the game lands lightly from (and plays no landing for, bare-handed): every gentle node here lands
+whatever the light landing's damage, so a fall always shows at least the light landing. From rank 2 the gentle
+landing plays faster and is cut on the way up; hard landings play faster."""
 import os, re
 import xml.etree.ElementTree as ET
 
 VANILLA = r'C:\Program Files (x86)\Steam\steamapps\common\ProjectZomboid\media\AnimSets\player\falling'
 OUT = r'C:\git\pz-workspace\operation-acorn\OperationAcorn\42\media\AnimSets\player\falling'
 VARIABLE = 'OALandRank'
-# rank: (speed times the game's, cut of a gentle landing in its clip, blend in, blend out of a gentle landing)
+# rank: (speed times the game's, cut of a gentle landing in its clip, blend in, blend out), None for the game's own.
 # Bob_FallLanding_Heavy (1.47 s) takes the pelvis from 0.545 down to 0.177 by 0.35 s and back by 1.2 s. The landing
-# plays its own crouch and rise at the speed and is cut on the way up, the clip going on rising as it blends out (a
-# cut at the crouch, its pose frozen and blended out, read as a twitch). Rank 2 is cut stood up (1.2 s of the clip, in
-# 0.65 s) and blended out in 0.2 s: some 0.8 s in all. Rank 3 is cut half way up (0.9 s, in 0.12 s) and blended out in
-# 0.1 s: some 0.2 s; its blend in is longer than its way down, so the crouch shows some 70% deep.
-RANKS = {2: (2.3, 0.818, 0.10, 0.20), 3: (9.4, 0.61, 0.06, 0.10)}
-# A hard landing (two floors and more) throws the character down and is played whole, only faster.
+# plays its own crouch and rise at the speed and is cut stood up (1.2 s of the clip), the clip going on as it blends
+# out (a cut at the crouch, its pose frozen and blended out, read as a twitch): rank 2 in 0.85 s and 0.15 s out, some
+# 1.0 s in all; rank 3 in 0.45 s and 0.15 s out, some 0.6 s.
+RANKS = {1: None, 2: (1.76, 0.818, 0.10, 0.15), 3: (3.33, 0.818, 0.10, 0.15)}
+# A hard landing throws the character down and is played whole, only faster; rank 1's is the game's.
 HARD_SPEED = {2: 2.0, 3: 4.0}
+# The condition of the plain gentle landing that it does damage (bLandLight); a weapon's node has its own in its place.
+LAND_LIGHT = 'aba1d435-d51e-461e-9c29-7ddea2483c13'
 GENTLE = ['land_gentle', 'land_gentle_2H', 'land_gentle_2Hheavy', 'land_gentle_Rifle', 'land_gentle_heavytorchleft',
           'land_gentle_hgun', 'land_gentle_spear']
 HARD = ['land_heavy', 'land_heavy2']
@@ -50,9 +53,8 @@ def text(parent, tag, value):
 
 
 def node(name, rank, gentle):
-    speed, cut, blend_in, blend_out = RANKS[rank]
-    if not gentle:
-        speed = HARD_SPEED[rank]
+    timing = RANKS[rank] if gentle else None
+    speed = timing[0] if timing else HARD_SPEED.get(rank, 1.0)
     root = load(name)
     root.attrib.pop('x_extends', None)
     text(root, 'm_Name', 'oa_%s_r%d' % (name, rank))
@@ -65,6 +67,15 @@ def node(name, rank, gentle):
     ET.SubElement(condition, 'm_Type').text = 'STRING'
     ET.SubElement(condition, 'm_Value').text = str(rank)
     if gentle:
+        # whatever its damage: the rank again in place of bLandLight, so that the nodes are chosen among themselves
+        # as the game's are (as many conditions each)
+        for old in root.findall('m_Conditions'):
+            if old.get('x_name') == LAND_LIGHT and old.findtext('m_Name') == 'bLandLight':
+                old.find('m_Name').text = VARIABLE
+                old.find('m_Type').text = 'STRING'
+                old.find('m_Value').text = str(rank)
+    if timing:
+        speed, cut, blend_in, blend_out = timing
         text(root, 'm_BlendTime', '%.2f' % blend_in)
         text(root, 'm_BlendOutTime', '%.2f' % blend_out)
         text(root, 'm_StopAnimOnExit', 'false')
@@ -93,4 +104,5 @@ for rank in RANKS:
     for name in GENTLE:
         print(node(name, rank, True))
     for name in HARD:
-        print(node(name, rank, False))
+        if rank in HARD_SPEED:
+            print(node(name, rank, False))
