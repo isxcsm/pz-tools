@@ -10,6 +10,7 @@ require "ISUI/ISWorldObjectContextMenu"
 require "OperationAcorn/Client"
 require "OperationAcorn/Titles"
 require "OperationAcorn/Upgrades/Api"
+require "OperationAcorn/Upgrades/Sense"
 require "OperationAcorn/Upgrades/Moodles"
 require "OperationAcorn/Upgrades/Watch"
 require "OperationAcorn/Upgrades/Adapting"
@@ -305,6 +306,11 @@ local function startLock(player, target, class)
         return
     end
     if instanceof(target, "VehiclePart") then
+        -- to the part first, as the game walks to a car's part (ISVehicleMenu)
+        local vehicle, area = target:getVehicle(), target:getArea()
+        if area and not vehicle:isInArea(area, player) then
+            ISTimedActionQueue.add(ISPathFindAction:pathToVehicleArea(player, vehicle, area))
+        end
         equipTools(player, class)
         ISTimedActionQueue.add(class:new(player, target))
         return
@@ -412,10 +418,10 @@ local function partName(part)
     return getText("IGUI_VehiclePart" .. part:getId())
 end
 
--- How near the character must stand for the lock and alarm options, a door's or window's as a car's: the options tell
--- whether it is locked and alarmed, which the character can know close up, not across the street (경보 읽기 notices an
--- alarm within Sense.ALARM_NEAR, which is farther).
-local NEAR = 4
+-- How near the character must stand for the lock and alarm options: the options tell whether a door, window or car is
+-- locked and alarmed, which the character knows close up, at the distance 경보 읽기 notices an alarm and outlines it
+-- (Sense.ALARM_NEAR), a car's measured as the alarm's (from its middle, Sense.ALARM_CAR less).
+local NEAR = OA.Upgrades.Sense.ALARM_NEAR
 
 local function nearSquare(player, sq)
     if not sq or sq:getZ() ~= math.floor(player:getZ()) then return false end
@@ -437,7 +443,7 @@ local function onFillWorld(playerNum, context, worldobjects, test)
         end
     end
     local vehicle = IsoObjectPicker.Instance:PickVehicle(getMouseXScaled(), getMouseYScaled())
-    if vehicle and player:DistToProper(vehicle) < NEAR then
+    if vehicle and player:DistToProper(vehicle) - OA.Upgrades.Sense.ALARM_CAR <= NEAR then
         local part = vehicle:getUseablePart(player)
         local door = part and part:getDoor() and part or nil
         local trunk = vehicle:getPartById("TrunkDoor") or vehicle:getPartById("DoorRear")

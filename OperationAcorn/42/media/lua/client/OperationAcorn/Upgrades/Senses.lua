@@ -651,7 +651,7 @@ end
 -- A door drawn as a model (most of Build 42's) and a car are outlined by the extension API (the game outlines neither);
 -- without it they are told by the line alone.
 
-local ENTRY = 5
+local ENTRY = Sense.ALARM_NEAR
 local ENTRY_OUTLINE = { 0.86, 0.40, 0.34, 0.45 }
 local buildingList = nil
 local vehicleList

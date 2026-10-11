@@ -202,8 +202,10 @@ end
 -- Alarm reading: the character tells of each alarm within ALARM_NEAR squares of an alarmed house (its edge, not its
 -- middle: a big house is near at its wall) or car, and of the same one again only after going past ALARM_LEAVE, so
 -- that walking along the line does not repeat it. A car is measured from its middle, ALARM_CAR less (half its length, about).
-Sense.ALARM_NEAR = 5
-Sense.ALARM_LEAVE = 6
+-- ALARM_NEAR is also how near the lock and alarm options are offered and the alarmed doors, windows and cars outlined:
+-- what the character knows of a lock or an alarm, it knows at one distance.
+Sense.ALARM_NEAR = 4
+Sense.ALARM_LEAVE = 5
 Sense.ALARM_CAR = 1.5
 
 -- How far a point is from a rectangle (x, y, w, h): 0 inside it.
