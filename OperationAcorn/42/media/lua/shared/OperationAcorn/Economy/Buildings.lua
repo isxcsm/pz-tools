@@ -1,5 +1,8 @@
 -- The building a character stands in, and how many of its containers were searched (DESIGN 12, "털이 기록").
--- A container counts as searched when the player has opened it (ItemContainer:isExplored). The containers of a
+-- A container counts as searched when the player's loot window has shown it: the mod marks its object then
+-- (Buildings.mark, OA_Searched in its mod data). Not the game's ItemContainer:isExplored, which the game sets when it
+-- rolls the loot, in single player as soon as the square first loads: a house reached for the first time would read as
+-- all searched. The containers of a
 -- building are counted when the character comes into it, a part at a time (Buildings.BUDGET squares a look), and
 -- kept; after that a look only asks the ones not opened yet. Nothing runs per tick: the server wiring calls
 -- Buildings.tick for each player once a game minute, at most once each LOOK_MS of real time (Buildings.due), and a
@@ -19,6 +22,31 @@ OA.Buildings = Buildings
 
 -- The modData key the mod's own objects carry (Objects.KIND): their containers are not the building's.
 local MOD_KIND = "OA_Kind"
+-- The modData key an object gets once the player's loot window has shown its containers (Buildings.mark).
+local SEARCHED = "OA_Searched"
+Buildings.SEARCHED = SEARCHED
+
+-- Whether the player has looked into a container: its object carries the mark (all the containers of one object, such
+-- as a fridge and its freezer, are shown together).
+function Buildings.opened(container)
+    local object = container:getParent()
+    return object ~= nil and object:hasModData() and object:getModData()[SEARCHED] ~= nil
+end
+
+-- Marks a container's object as looked into, when it is a world object (not a car, a body, a bag). The loot window
+-- calls it for each container it shows; an object marked already is left as it is (its mod data not touched).
+function Buildings.mark(container)
+    local object = container:getParent()
+    if not object or not instanceof(object, "IsoObject") or instanceof(object, "IsoMovingObject") then return end
+    if object:hasModData() and object:getModData()[SEARCHED] ~= nil then return end
+    object:getModData()[SEARCHED] = true
+end
+
+-- Takes the mark away (the dev tools' search reset).
+function Buildings.unmark(container)
+    local object = container:getParent()
+    if object and object:hasModData() then object:getModData()[SEARCHED] = nil end
+end
 
 local states = {}      -- by player number: the walk over the building the character is in (see newWalk)
 local lookedAt = {}    -- by player number: the real time (ms) of the last look the minute check made
@@ -42,7 +70,7 @@ end
 -- What the API's containers are asked for every look: not a player-built object (IsoThumpable), nor one of the mod's
 -- own (MOD_KIND). `since` and `into` change from look to look.
 local function apiOptions()
-    return { skipClasses = "IsoThumpable", skipData = MOD_KIND, into = {} }
+    return { skipClasses = "IsoThumpable", skipData = MOD_KIND, openedData = SEARCHED, into = {} }
 end
 
 -- Buildings (by key) the API's containers could not be used for, and whether the call itself failed: the Lua walk.
@@ -105,7 +133,7 @@ local function collect(walk, square)
                     local z = square:getZ()
                     walk.zOf[container] = z
                     walk.floorTotal[z] = (walk.floorTotal[z] or 0) + 1
-                    if container:isExplored() then
+                    if Buildings.opened(container) then
                         walk.explored = walk.explored + 1
                     else
                         walk.open[#walk.open + 1] = container
@@ -301,7 +329,7 @@ end
 function Buildings.searched(containers)
     local n = 0
     for i = 1, #containers do
-        if containers[i]:isExplored() then n = n + 1 end
+        if Buildings.opened(containers[i]) then n = n + 1 end
     end
     return n
 end
@@ -340,7 +368,7 @@ function Buildings.tick(character)
         -- (the API's walk lists the containers that were opened since the last look itself)
         local open = walk.open
         for i = #open, 1, -1 do
-            if open[i]:isExplored() then
+            if Buildings.opened(open[i]) then
                 local z = walk.zOf[open[i]]
                 if z then walk.floorOpen[z] = (walk.floorOpen[z] or 1) - 1 end
                 open[i] = open[#open]

@@ -246,14 +246,16 @@ end)
 
 local function container(x, y, z)
     local c = { parentReads = 0 }
+    local explored = false
     local object = { outlined = false }
+    object.hasModData = function() return explored end
+    object.getModData = function() return { OA_Searched = explored or nil } end
     local square = { getX = function() return x end, getY = function() return y end, getZ = function() return z end,
         isCouldSee = function() return true end }
     object.getSquare = function() return square end
     object.setOutlineHighlightCol = function() end
     object.setOutlineHighlight = function(_, _, on) object.outlined = on end
     c.getParent = function() c.parentReads = c.parentReads + 1 return object end
-    local explored = false
     c.isExplored = function() return explored end
     c.open = function() explored = true end
     c.object = object

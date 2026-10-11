@@ -731,8 +731,9 @@ end
 
 -- Makes a building unsearched again, to test 철저한 수색 and the searched bonus once more: the one the character
 -- stands in, or else the nearest loaded one within 30 squares (as the alarm buttons pick a house). Its containers are
--- unopened (ItemContainer.setExplored), its count in the codex forgotten (the building milestones already paid stay
--- paid), and the watch's walk and the ledger's line started over. Returns how many containers were reset, or nil.
+-- unmarked (Buildings.unmark: the loot they hold stays), its count in the codex forgotten (the building milestones
+-- already paid stay paid), and the watch's walk and the ledger's line started over. Returns how many containers were
+-- reset, or nil.
 function Dev.resetSearch()
     local sq = getPlayer():getCurrentSquare()
     local room = sq and sq:getRoom()
@@ -748,7 +749,7 @@ function Dev.resetSearch()
         say("search reset: no loaded building within", ALARM_RANGE)
         return nil
     end
-    for _, container in ipairs(scan.containers) do container:setExplored(false) end
+    for _, container in ipairs(scan.containers) do OA.Buildings.unmark(container) end
     local record = Dev.record()
     if record then
         local codex = OA.Codex.section(record)

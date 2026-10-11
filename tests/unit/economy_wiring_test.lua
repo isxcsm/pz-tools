@@ -416,10 +416,16 @@ test("a pickup of a type that is no loot is remembered for the look too", functi
 end)
 
 -- A fake building for the watch: rooms of squares with container objects.
+-- `explored` stands for opened: the object's mark (Buildings.opened) for the Lua walk, the flag the fake API lists.
 local function box(explored)
     local c = {}
     c.isExplored = function() return explored end
     c.set = function(v) explored = v end
+    local object = {
+        hasModData = function() return explored end,
+        getModData = function() return { OA_Searched = explored or nil } end,
+    }
+    c.getParent = function() return object end
     return c
 end
 
@@ -657,12 +663,29 @@ test("a big building is counted a part at a time, and only its unloaded squares 
     PZToolsAPI = nil
 end)
 
+test("a container the game rolled is not searched until the loot window shows it", function()
+    local data, has = {}, false
+    local object = { classes = { IsoObject = true },
+        hasModData = function() return has end,
+        getModData = function() has = true return data end }
+    local c = { isExplored = function() return true end, getParent = function() return object end }
+    eq(OA.Buildings.opened(c), false, "the game rolled its loot as the square loaded: not looked into")
+    OA.Buildings.mark(c)
+    eq(OA.Buildings.opened(c), true)
+    local car = { classes = { IsoObject = true, IsoMovingObject = true }, hasModData = function() return false end,
+        getModData = function() error("a car's data touched") end }
+    OA.Buildings.mark({ getParent = function() return car end })
+    OA.Buildings.mark({ getParent = function() return nil end })
+    OA.Buildings.unmark(c)
+    eq(OA.Buildings.opened(c), false, "the dev reset takes the mark away")
+end)
+
 test("an opened container is not asked again", function()
     OA.Buildings.reset()
     local asked = 0
     local a = box(false)
-    local isExplored = a.isExplored
-    a.isExplored = function(...) asked = asked + 1 return isExplored(...) end
+    local getParent = a.getParent
+    a.getParent = function(...) asked = asked + 1 return getParent(...) end
     local rooms = fakeBuilding({ { sq({ fakeObject({ a }) }) } })
     local w = walker(rooms[1])
     OA.Buildings.tick(w)
