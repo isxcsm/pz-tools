@@ -461,6 +461,32 @@ final class Formulas implements ApiHooks.Formulas {
             }
             return new Object[] { result };
         });
+        function(table, "nightSight", (call, arguments) -> {
+            Object result = lua.table();
+            lua.set(result, "level", (double)active.nightSight);
+            lua.set(result, "strength", (double)sight);
+            lua.set(result, "darkness", (double)seenDark);
+            lua.set(result, "darkShown", (double)darkShown);
+            if (lamps == null) {
+                lua.set(result, "problem", "night sight's least light cannot work in this game");
+                return new Object[] { result };
+            }
+            float baked = lamps.floorLight() / 255f;
+            lua.set(result, "bakedFloor", (double)baked);
+            lua.set(result, "shade", (double)lamps.shade());
+            lua.set(result, "shownFloor", (double)(baked * lamps.shade()));
+            lua.set(result, "darkPlace", lamps.darkPlace());
+            lua.set(result, "nightStrength", (double)lamps.night());
+            lua.set(result, "valuesRun", lamps.valuesRun());
+            int[] counted = lamps.counted();
+            lua.set(result, "squaresLit", (double)counted[0]);
+            lua.set(result, "squaresInSight", (double)counted[1]);
+            lua.set(result, "squaresNear", (double)counted[2]);
+            lua.set(result, "squaresDark", (double)counted[3]);
+            lua.set(result, "keptNear", (double)lamps.keptAround());
+            if (lampsProblem != null) lua.set(result, "problem", lampsProblem);
+            return new Object[] { result };
+        });
         function(table, "points", (call, arguments) -> {
             Object result = lua.table();
             Map<String, String> hooks = hooks();

@@ -467,6 +467,7 @@ no mod's concept: a point is a place in a game method, named in the game's terms
 | `formulas.points()` | `{ [point] = status }` for every point, worded as `PZToolsAPI.hooks()` is: `"applied"` when every hook the point needs went in, `"not-loaded"` while its class has not loaded, why one did not go in, `"partial: ..."` when some did and one did not, or `"unavailable: ..."` when the game lacks what a point reads. A mod shows the player what is not applied. |
 | `formulas.tune(name, value)` | Changes one of the numbers the formulas work with while the game runs (a tuning: one value for the game, not declared by a mod, not saved; a game starts with the defaults), and answers its value; with no value it goes back to its default. Read as a formula works, so the next frame has it. For tuning in the game rather than by a build: the defaults are then made the tuned values. |
 | `formulas.tunings()` | `{ [name] = { value, default, min, max, about } }` for every tuning. Now night sight's: `nightSight.floorFull` (0.9), `.darkExtra` (0.1), `.lift` (0.7), `.ease` (2 s), `.curve` (1.5), `.darkFrom` (0.3), `.darkFull` (0.5), `.darkLight` (0.03), `.darkIn` (0.75), `.darkOut` (0.55), `.darkRadius` (6), `.standing` (3); see [night sight](#night-sight). |
+| `formulas.nightSight()` | What night sight is doing now, read-only, for a look in game: `{ level, strength, darkness, darkShown, bakedFloor, shade, shownFloor, darkPlace, nightStrength, valuesRun, squaresLit, squaresInSight, squaresNear, squaresDark, keptNear, problem }` (the declared value; the lift's strength now; the darkness the game reads for the player; the share of a dark place's more shown; the least light the squares are raised to, the share of it shown and the least light shown, of the full light; whether the player is in a dark place; the game's night, 0 by day; whether the values run (one player); what the last values counted: the squares the game lights, those in the player's sight, those near the player counted for a dark place and the dark ones; the mean share of colour kept near the player; why the values stopped, if they did). |
 
 `handle:clear()` takes back everything the mod declared, in every area. A mod declares its formulas when a world
 loads (`OnGameStart`), as it defines its networks: they belong to the world they were made in, and are gone when the player
@@ -764,7 +765,8 @@ pass that greys what that light and the pass add.
   shown by the game's night (`ClimateManager.getNightStrength`, 0 by day, 1 at night, smooth at dusk and dawn), so that by
   day every square keeps the game's light and colour (the game darkens the squares the player does not see, and the
   pass greyed them as night sight's when it was shown by day too); a dark place's is shown by day too. A square the
-  player does not see now (`ILighting.bCanSee` false, out of the vision cone) the game draws dimmed its own way, and the
+  player does not see now (`ILighting.bCouldSee` false: out of the vision cone or behind a wall; not `bCanSee`, which
+  also asks for light, so that in a room with no light every square reads it false) the game draws dimmed its own way, and the
   light it hands for it reads none (measured: by noon the pass drew such squares black): night sight leaves it as
   drawn, by day and at night, and it does not count for a dark place. As it comes into sight the game draws it with its
   raised corners at once; the pass shows it as the game's light would first (what is drawn times its share kept) and

@@ -56,8 +56,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * game darkens what the player does not see, and the pass would otherwise grey it as night sight's), the squares
  * still raised (a pixel is taken down to the game's light) and nothing baked again.
  *
- * <p>Night sight is for what the player sees. A square the player does not see now (out of the vision cone, behind a
- * wall) the game draws dimmed its own way, not with the corners it hands (they read none, and the least light does not
+ * <p>Night sight is for what the player sees. A square out of the player's sight (out of the vision cone, behind a
+ * wall: {@code bCouldSee} false; not {@code bCanSee}, which also asks for light) the game draws dimmed its own way, not with the corners it hands (they read none, and the least light does not
  * reach it): the pass leaves it as drawn. As it comes into sight the game draws it with its raised corners at once;
  * the pass shows it as the game's light would first (its colour times its share kept) and goes to night sight's over
  * nightSight.ease, as it does back when it goes out of sight ({@code PZT_SightLamps}' second half: how much of night
@@ -96,9 +96,9 @@ final class NightLamps {
     private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, ease;
     // ClimateManager.getInstance().getNightStrength().
     private final MethodHandle climate, nightStrength;
-    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCanSee(), bSeen(); ColorInfo.r, g, b, a,
+    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCouldSee(), bSeen(); ColorInfo.r, g, b, a,
     // set(r, g, b, a) and its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
-    private final MethodHandle lighting, lightInfo, lightCount, light, canSee, everSeen, infoR, infoG, infoB, infoA, setAll, newInfo,
+    private final MethodHandle lighting, lightInfo, lightCount, light, couldSee, everSeen, infoR, infoG, infoB, infoA, setAll, newInfo,
         lightX, lightY, lightRadius, lightFlags, lightR, lightG, lightB, xOf, yOf, zOf;
     private final int roomLight;
     // IsoCell.getZombieList().
@@ -155,8 +155,11 @@ final class NightLamps {
     private int lastX, lastY;
     private float lastBeyond;
     private boolean hasLast;
-    // Whether the player is in a dark place, as the last values had it (the game's thread's).
+    // Whether the player is in a dark place, as the last values had it, what they counted and the mean share of colour
+    // kept near the player; how far into the night it is, as last read (the game's thread's).
     private boolean darkPlace;
+    private final int[] counted = new int[4];
+    private float keptAround, night;
     // Where a pixel of the screen (x, y up from the bottom, 1) is on the floor: world x and y, as the game thread last
     // worked it out (written whole, then published).
     private volatile double[] onFloor;
@@ -190,7 +193,7 @@ final class NightLamps {
         lighting = lookup.unreflectGetter(square.getField("lighting")).asType(MethodType.methodType(Object[].class, Object.class));
         lightInfo = Game.exact(lights.getMethod("lightInfo"), MethodType.methodType(Object.class, Object.class));
         lightCount = Game.exact(lights.getMethod("resultLightCount"), MethodType.methodType(int.class, Object.class));
-        canSee = Game.exact(lights.getMethod("bCanSee"), MethodType.methodType(boolean.class, Object.class));
+        couldSee = Game.exact(lights.getMethod("bCouldSee"), MethodType.methodType(boolean.class, Object.class));
         everSeen = Game.exact(lights.getMethod("bSeen"), MethodType.methodType(boolean.class, Object.class));
         light = Game.exact(lights.getMethod("getResultLight", int.class), MethodType.methodType(Object.class, Object.class, int.class));
         infoR = getter(lookup, info, "r", float.class);
@@ -266,7 +269,8 @@ final class NightLamps {
     void floorLight(int light, int dark, float darkShare) throws Throwable {
         int lit = Math.max(0, Math.min(255, light)), most = Math.max(lit, Math.min(255, dark));
         boolean carried = !stopped && most > 0 && alone(players.all()) >= 0;
-        shade = carried ? shadeOf(lit, most, darkShare, (float)nightStrength.invokeExact((Object)climate.invokeExact())) : 1f;
+        night = (float)nightStrength.invokeExact((Object)climate.invokeExact());
+        shade = carried ? shadeOf(lit, most, darkShare, night) : 1f;
         raise(carried ? most : lit);
     }
 
@@ -478,16 +482,20 @@ final class NightLamps {
         into.y0 = y0;
         ByteBuffer data = into.data;
         float least = floor / 255f, darkBelow = darkLight.value();
-        double edge = 0;
-        int near = 0, dark = 0, radius = darkRadius.whole();
+        double edge = 0, keptNear = 0;
+        int near = 0, dark = 0, squares = 0, inSight = 0, radius = darkRadius.whole();
         for (int j = 0; j < SIZE; j++) {
             for (int i = 0; i < SIZE; i++) {
                 Object square = cell == null ? null : game.square(cell, x0 + i, y0 + j, z);
                 Object lit = square == null ? null : lit(square, playerIndex);
                 float whole = 0f, sources = 0f;
                 boolean unseen = false;
+                if (lit != null) squares++;
                 if (lit != null) {
-                    unseen = !(boolean)canSee.invokeExact(lit);
+                    // out of sight: out of the vision cone or behind a wall (bCouldSee; bCanSee also asks for light, so
+                    // in a room with none every square would read out of sight, and night sight would show nothing)
+                    unseen = !(boolean)couldSee.invokeExact(lit);
+                    if (!unseen) inSight++;
                     whole = seenLight(playerIndex, x0 + i, y0 + j, z);
                     if (whole < 0f) {
                         Object info = (Object)lightInfo.invokeExact(lit);
@@ -505,6 +513,7 @@ final class NightLamps {
                 if (lit != null && !unseen && Math.abs(i - SIZE / 2) <= radius && Math.abs(j - SIZE / 2) <= radius) {
                     near++;
                     if (whole < darkBelow) dark++;
+                    keptNear += kept;
                 }
                 data.put(first(i, j) + 2, (byte)Math.round(kept * 255f));
                 data.put(first(i, j) + 3, (byte)Math.round(lamp * 255f));
@@ -515,11 +524,27 @@ final class NightLamps {
         into.keepTo = (float)(edge / (4 * SIZE - 4));
         if (near > 0 && dark >= darkIn.value() * near) darkPlace = true;
         else if (near == 0 || dark <= darkOut.value() * near) darkPlace = false;
+        counted[0] = squares;
+        counted[1] = inSight;
+        counted[2] = near;
+        counted[3] = dark;
+        keptAround = near == 0 ? 0f : (float)(keptNear / near);
         standing(data, cell, x0, y0, z);
     }
 
     /** Whether the player is in a dark place, as the last values had it (on the game's thread). */
     boolean darkPlace() { return darkPlace; }
+
+    /**
+     * What the last values counted (on the game's thread, for a mod's or a tester's look): the squares the game lights,
+     * those in the player's sight, those near the player counted for a dark place and the dark ones of them; and the
+     * mean share of colour kept near the player.
+     */
+    int[] counted() { return counted; }
+    float keptAround() { return keptAround; }
+    /** How far into the night it is, as last read; whether the values run (one player, not stopped, a set shown). */
+    float night() { return night; }
+    boolean valuesRun() { return !stopped && onFloor != null && hasLast; }
 
     // The characters standing on the floor: the squares they are drawn over keep at least their squares' values.
     private void standing(ByteBuffer data, Object cell, int x0, int y0, int z) throws Throwable {
