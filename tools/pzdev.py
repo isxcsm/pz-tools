@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Drives a running game (started with -debug) through the mod's command channel (client/OperationAcorn/Dev/Remote.lua):
-no typing into the Lua console. Single player; the helpers in Dev/Dev.lua (OperationAcorn.Dev) change the save.
+"""Drives a running game (started with -debug) through the command channel of the developer sub-mod OperationAcornDev
+(OperationAcornDev/42/media/lua/client/OperationAcorn/Dev/Remote.lua): no typing into the Lua console. Single player;
+the helpers in Dev/Dev.lua (OperationAcorn.Dev, also driven by the dev panel) change the save.
 
 Usage:
     python tools/pzdev.py run "OperationAcorn.Dev.state()"     runs Lua in the game, prints what it printed

@@ -1,5 +1,6 @@
--- Debug only: helpers for checking each part in a running game (single player), meant to be called through the
--- command channel (Dev/Remote.lua, tools/pzdev.py) or the Lua console. They change the save: use a test save.
+-- Operation Acorn Dev (a sub-mod, never published): helpers for checking each part in a running game (single player),
+-- called through the command channel (Dev/Remote.lua, tools/pzdev.py), the Lua console or the debug panel
+-- (Dev/Panel.lua: both drive these same functions). They change the save: use a test save.
 -- Each prints what it did as "[dev] ..." lines and returns something a check can test.
 if not isDebugEnabled() then return end
 require "OperationAcorn/Core"
@@ -112,8 +113,15 @@ end
 
 -- The hour of the day (0..24), at once.
 function Dev.time(hour)
+    if hour >= 24 then hour = 23.99 end
     getGameTime():setTimeOfDay(hour)
+    if Dev.frozen and Dev.frozen() then Dev.freeze(true) end
     say("time", hour)
+end
+
+-- The hour of the day now (0..24).
+function Dev.hour()
+    return getGameTime():getTimeOfDay()
 end
 
 -- The game speed: 1 normal, 2..4 the fast-forward steps (the speed buttons), 0 paused.
@@ -379,6 +387,293 @@ function Dev.clearShowroom()
     end
     show = nil
     say("showroom cleared, items taken back", taken)
+end
+
+-- ---- the panel's helpers: time, weather, effects, the mission, the character ------------------------------------
+-- Everything the panel (Dev/Panel.lua) does is one of these, so the command channel can do the same.
+
+local frozenAt = nil   -- the hour the clock is held at, or nil
+
+-- Holds the clock at the hour it is now while the game runs on (the light stays; the day does not move).
+-- Dev.freeze(false) lets it go.
+function Dev.freeze(on)
+    if on == false then
+        frozenAt = nil
+        say("time released")
+    else
+        frozenAt = getGameTime():getTimeOfDay()
+        say("time held at", string.format("%.2f", frozenAt))
+    end
+    return frozenAt ~= nil
+end
+
+function Dev.frozen()
+    return frozenAt ~= nil
+end
+
+local function holdTime()
+    if frozenAt then getGameTime():setTimeOfDay(frozenAt) end
+end
+Events.OnTick.Add(holdTime)
+
+-- Rain (showers) for some hours.
+function Dev.rain(hours)
+    local stage = WeatherPeriod and WeatherPeriod.STAGE_SHOWERS or 1
+    getClimateManager():triggerCustomWeatherStage(stage, hours or 3)
+    say("rain", hours or 3)
+end
+
+-- A thunderstorm for some hours.
+function Dev.storm(hours)
+    local stage = WeatherPeriod and WeatherPeriod.STAGE_STORM or 3
+    getClimateManager():triggerCustomWeatherStage(stage, hours or 3)
+    say("storm", hours or 3)
+end
+
+-- ---- research, by node ------------------------------------------------------------------------------------------
+
+-- The rank of a node on the local character's record.
+function Dev.rank(id)
+    local u = upgrades()
+    return OA.Upgrades.Rules.rank(u, id)
+end
+
+-- Sets one node's rank (see Dev.ranks).
+function Dev.setRank(id, rank)
+    Dev.ranks({ [id] = rank })
+    return Dev.rank(id)
+end
+
+function Dev.nightSightOn()
+    return Dev.rank("night") >= 3 and Dev.rank("nightEye") >= 1
+end
+
+-- The night-sight nodes at once: Night Eye 3 and Nocturnal Eye 1, or both taken away.
+function Dev.nightSight(on)
+    if on == false then
+        Dev.ranks({ night = 0, nightEye = 0 })
+    else
+        Dev.ranks({ night = 3, nightEye = 1 })
+    end
+    return Dev.nightSightOn()
+end
+
+-- ---- the titles and the take --------------------------------------------------------------------------------
+
+-- Shows an event title the way the server sends it: kind "capstone" (arg: a tree), "tree" (a tree opened, arg: the
+-- tree), "board" (the second board opened). Returns how it was shown ("title", "halo") or nil.
+function Dev.title(kind, arg)
+    local Data = OA.Upgrades.Data
+    if kind == "capstone" then
+        local node = Data.capstone(arg or "scout")
+        if not node then error("no capstone for " .. tostring(arg), 2) end
+        local detail = { key = "IGUI_OA_Title_Capstone", sub = Data.key(node.id, "Name"), style = "dust", tone = "gold",
+            fallback = "good" }
+        return OA.Titles.show(nil, detail)
+    elseif kind == "tree" then
+        local hooks = OA.Upgrades.Hooks
+        if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end
+        return "tree"
+    elseif kind == "board" then
+        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
+            tone = "gold", fallback = "good" }
+        return OA.Titles.show(nil, detail)
+    end
+    error("no title kind " .. tostring(kind), 2)
+end
+
+local pendingTake = nil   -- frames to wait before the take starts (the tab needs a frame to be visible)
+
+local function runTake()
+    local view = OA.Upgrades.Window.view(0)
+    if not view or not view:getIsVisible() then say("take: the research tab is not open") return false end
+    local Data = OA.Upgrades.Data
+    local steps, spent = {}, {}
+    for _, tree in ipairs(Data.TREES) do
+        for i, node in ipairs(Data.treeNodes(tree)) do
+            if i <= 3 then
+                steps[#steps + 1] = { id = node.id }
+                spent[tree] = (spent[tree] or 0) + 1
+            end
+        end
+    end
+    view.approved = { steps = steps, at = getTimestampMs(), locked = {}, spent = spent }
+    view:startTake()
+    say("take replayed on", #steps, "nodes")
+    return view.take ~= nil
+end
+
+local function tickTake()
+    if not pendingTake then return end
+    pendingTake = pendingTake - 1
+    if pendingTake > 0 then return end
+    pendingTake = nil
+    local ok, err = pcall(runTake)
+    if not ok then say("take failed:", tostring(err)) end
+end
+Events.OnTick.Add(tickTake)
+
+-- Replays the effect of an applied plan (the scan, the bursts, the lights up the lines) on the research tab: opens the
+-- tab first when it is shut, and plays a few frames later.
+function Dev.replayTake()
+    local view = OA.Upgrades.Window.view(0)
+    if not view then say("take: no research tab") return false end
+    if not view:getIsVisible() then OA.Upgrades.open(0) end
+    pendingTake = 10
+    return true
+end
+
+-- ---- the mission and its scene -----------------------------------------------------------------------------------
+
+-- The current mission, preferring one with a piece in a building: the mission and that piece (or nil).
+function Dev.mission()
+    local record = Dev.record()
+    if not record or not OA.Missions or not OA.Scene then return nil, nil end
+    local first
+    for _, m in ipairs(OA.Missions.live(record)) do
+        local piece = OA.Scene.buildingPiece(m)
+        if piece then return m, piece end
+        first = first or m
+    end
+    return first, nil
+end
+
+-- Where the mission's building is: x, y, z of its piece, or the middle of its area at the ground floor; nil without one.
+function Dev.missionPlace()
+    local m, piece = Dev.mission()
+    if not m then return nil end
+    if piece and piece.placed and piece.at then return piece.at.x, piece.at.y, piece.at.z end
+    if m.area then return m.area.x, m.area.y, 0 end
+    return nil
+end
+
+-- Puts the character at the mission's building. Returns whether there was a place to go to.
+function Dev.gotoMission()
+    local x, y, z = Dev.missionPlace()
+    if not x then say("goto mission: no mission place") return false end
+    getPlayer():teleportTo(x + 0.5, y + 0.5, z)
+    say("at the mission", x, y, z)
+    return true
+end
+
+-- Makes the mission's scene now, without the distance rule (the scene is made only when the building's squares are
+-- loaded: go there first, Dev.gotoMission). A scene made before stays; this one comes on top. Returns whether it was made.
+function Dev.buildScene()
+    local record = Dev.record()
+    local m, piece = Dev.mission()
+    if not (record and m) then say("scene: no mission") return false end
+    if not piece then say("scene: the mission has no building piece") return false end
+    if not (piece.placed and piece.at) then say("scene: the piece is not placed yet") return false end
+    local Scene = OA.Scene
+    if not Scene.game then say("scene: the scene hands are not there") return false end
+    if not m.scene then Scene.begin(record, m) end
+    if not m.scene then say("scene: the mission has none planned (an offer)") return false end
+    local again = m.scene.built == true
+    m.scene.built = false
+    local player = getPlayer()
+    local ready = Scene.READY
+    Scene.READY = 1000000000
+    local ok, err = pcall(Scene.build, record, m, player:getX(), player:getY())
+    Scene.READY = ready
+    if not ok then
+        say("scene failed:", tostring(err))
+        m.scene.built = again
+        return false
+    end
+    if not m.scene.built then
+        say("scene: the building is not loaded, go there first")
+        m.scene.built = again
+        return false
+    end
+    say("scene built", again and "(again)" or "")
+    return true
+end
+
+-- How many zombies are in the mission's building (the building the character stands in without a mission piece).
+-- Returns the count and whether a building was found.
+function Dev.zombiesInBuilding()
+    local building
+    local x, y, z = Dev.missionPlace()
+    if x then
+        local sq = getCell():getGridSquare(x, y, z)
+        building = sq and sq:getBuilding()
+    end
+    if not building then
+        local sq = getPlayer():getCurrentSquare()
+        building = sq and sq:getBuilding()
+    end
+    if not building then
+        say("zombies in building: no loaded building")
+        return 0, false
+    end
+    local n = 0
+    local list = getCell():getZombieList()
+    for i = 0, list:size() - 1 do
+        local sq = list:get(i):getCurrentSquare()
+        if sq and sq:getBuilding() == building then n = n + 1 end
+    end
+    say("zombies in the building", n)
+    return n, true
+end
+
+-- ---- zombies ----------------------------------------------------------------------------------------------------
+
+-- n zombies 4..9 tiles from the character (an outfit name, or nil for any), made harmless and still when `harmless`.
+-- Returns how many.
+function Dev.spawn(n, outfit, harmless)
+    local player = getPlayer()
+    local px, py, pz = math.floor(player:getX()), math.floor(player:getY()), math.floor(player:getZ())
+    local made = 0
+    for _ = 1, n do
+        for _ = 1, 12 do
+            local dx, dy = ZombRand(4, 10), ZombRand(4, 10)
+            if ZombRand(2) == 0 then dx = -dx end
+            if ZombRand(2) == 0 then dy = -dy end
+            local sq = getCell():getGridSquare(px + dx, py + dy, pz)
+            if sq and sq:isFree(false) then
+                local list = addZombiesInOutfit(px + dx, py + dy, pz, 1, outfit, 50)
+                for i = 0, list:size() - 1 do
+                    if harmless then list:get(i):setUseless(true) end
+                    made = made + 1
+                end
+                break
+            end
+        end
+    end
+    say("zombies spawned", made)
+    return made
+end
+
+-- ---- the character ----------------------------------------------------------------------------------------------
+
+-- Whether god mode, invisibility and no clip are on: three booleans.
+function Dev.flags()
+    local player = getPlayer()
+    return player:isGodMod(), player:isInvisible(), player:isNoClip()
+end
+
+function Dev.godMode(on)
+    getPlayer():setGodMod(on == true)
+    say("god mode", on == true)
+    return getPlayer():isGodMod()
+end
+
+function Dev.invisible(on)
+    getPlayer():setInvisible(on == true)
+    say("invisible", on == true)
+    return getPlayer():isInvisible()
+end
+
+function Dev.noClip(on)
+    getPlayer():setNoClip(on == true)
+    say("no clip", on == true)
+    return getPlayer():isNoClip()
+end
+
+-- Heals every wound and refills the character's health.
+function Dev.heal()
+    getPlayer():getBodyDamage():RestoreToFullHealth()
+    say("healed")
 end
 
 -- ---- screens ---------------------------------------------------------------------------------------------------
