@@ -641,8 +641,9 @@ local function onZombieSound(kind, x, y, z, loudness, zombie)
 end
 
 -- ---- alarms (once a second) --------------------------------------------------------------------------------------
--- Near an alarmed house or car (Sense.alarmOn) the character says so, each time it comes near again. The doors and windows of an alarmed house within ENTRY squares, on the character's floor, are tinted red
--- with the game's own object highlight: what sounds a house's alarm is a character in one of its rooms, or a window of
+-- Near an alarmed house or car (Sense.alarmOn) the character says so (its own speech over the head, as the game's
+-- self-talk, not a halo text that other notices push aside), each time it comes near again. The doors and windows of
+-- an alarmed house within ENTRY squares, on the character's floor, are tinted red with the game's own object highlight: what sounds a house's alarm is a character in one of its rooms, or a window of
 -- it broken (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm).
 
 local ENTRY = 5
@@ -741,7 +742,7 @@ local function alarmJob(now)
     end
     local on = Sense.alarmOn(nearest, S.alarm)
     if on and not S.alarm then
-        HaloTextHelper.addBadText(player, getText(car and "IGUI_OA_Tree_AlarmCar" or "IGUI_OA_Tree_AlarmHouse"))
+        player:Say(getText(car and "IGUI_OA_Tree_AlarmCar" or "IGUI_OA_Tree_AlarmHouse"))
     end
     S.alarm = on
     if houseNear then tintEntries(player) end
@@ -888,10 +889,10 @@ local function ledgerJob(now)
     if total > 0 and left == 0 then
         if complete then
             ledger.done = true
-            HaloTextHelper.addGoodText(player, getText("IGUI_OA_Tree_LedgerAlreadyDone"))
+            player:Say(getText("IGUI_OA_Tree_LedgerAlreadyDone"))
         end
     elseif left > 0 then
-        HaloTextHelper.addText(player, getText("IGUI_OA_Tree_LedgerLeft", left))
+        player:Say(getText("IGUI_OA_Tree_LedgerLeft", left))
         First.report("ledger", player)
     end
 end
