@@ -78,7 +78,7 @@ test("rank line numbers: a percentage carries its sign, a count does not", funct
     local args = Texts.args(rich, 2, u)
     eq(args[1], "30%")
     local sight = Data.byId.sight
-    eq(Texts.args(sight, 3, u)[1], "36")
+    eq(Texts.args(sight, 3, u)[1], "72")
     local keen = Data.byId.keen
     local keenArgs = Texts.args(keen, 2, u)
     eq(keenArgs[1], "100%")

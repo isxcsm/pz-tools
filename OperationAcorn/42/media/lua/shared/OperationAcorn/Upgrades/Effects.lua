@@ -79,6 +79,18 @@ local MAX_CONE = 90
 -- (too much for a rank before the capstone), 0.5 shows it plainly.
 local NIGHT_SIGHT = { 0.1, 0.2, 0.25 }
 local NIGHT_SIGHT_EYE = 0.5
+-- The cone the dark takes back (vision.darknessRestore) never brings the night's cone up to the day's: in the full dark
+-- 야행성 눈 leaves it NIGHT_MARGIN degrees under the character's day cone. Vanilla (LightingJNI.calculateVisionCone): the
+-- dark takes up to DARK_CONE degrees; the Night Vision trait adds TRAIT_CONE by the dark and Eagle Eyed TRAIT_CONE by the
+-- daylight, so with Night Vision a full restore made the night 36 degrees wider than the day.
+local DARK_CONE, TRAIT_CONE, NIGHT_MARGIN = 126, 36, 18
+
+-- The most of the dark's cone 야행성 눈 gives back, for a character with or without the two traits: 1 - 18/126 (0.857)
+-- with neither, 1 - 54/126 (0.571) with Night Vision alone, all of it with Eagle Eyed alone.
+function Effects.darknessCap(nightVision, eagleEyed)
+    local over = TRAIT_CONE * ((nightVision and 1 or 0) - (eagleEyed and 1 or 0)) + NIGHT_MARGIN
+    return OA.clamp(1 - over / DARK_CONE, 0, 1)
+end
 -- The share of a fall's height 낙법 counts by its rank: the game works out everything of a landing from its height
 -- (the kind of landing and its animation, being thrown down, the damage, the lethal height of 3.5 floors), so all of it
 -- follows. The damage is linear in the height.
@@ -124,7 +136,9 @@ function Effects.compute(u, now, options)
     -- vision
     if rank("sight") > 0 then out[P.cone] = math.min(R.value(u, "sight"), MAX_CONE) end
     if rank("nightEye") > 0 then
-        out[P.darkness] = 1
+        -- never less than 밤눈 3 gave (with Night Vision the cap is under it; 밤눈's own ranks stay under the day as they are)
+        out[P.darkness] = math.max(Effects.darknessCap(options.nightVision, options.eagleEyed),
+            OA.clamp(R.fraction(u, "night"), 0, 1))
         out[P.nightSight] = NIGHT_SIGHT_EYE
     elseif rank("night") > 0 then
         out[P.darkness] = OA.clamp(R.fraction(u, "night"), 0, 1)
@@ -262,7 +276,10 @@ function Effects.apply(record)
     local handle = OA.handle()
     if type(formulas) ~= "table" or type(formulas.set) ~= "function" or not handle then return nil, "formulas" end
     local u = record and Rules.section(record) or Rules.blank()
-    local values = Effects.compute(u, OA.hours(), { hiddenZombieFix = Effects.hiddenZombieFix() })
+    local player = getPlayer and getPlayer()
+    local values = Effects.compute(u, OA.hours(), { hiddenZombieFix = Effects.hiddenZombieFix(),
+        nightVision = player and player:hasTrait(CharacterTrait.NIGHT_VISION) or false,
+        eagleEyed = player and player:hasTrait(CharacterTrait.EAGLE_EYED) or false })
     local count = 0
     for _, name in pairs(P) do
         local value = values[name]

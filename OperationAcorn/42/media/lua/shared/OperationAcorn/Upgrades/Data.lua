@@ -83,7 +83,7 @@ end
 -- with the cells between empty, so each line runs straight down (a unit test holds it); each capstone stands in the
 -- second column, under the middle of its tree.
 -- ---- Scout: field detection research (10 nodes, 25 points, capstone Night Eye) --------------------------------------
-node("scout", "sight", 1, 2, 3, "api", {}, { cap = 90, unit = "deg", values = { 12, 24, 36 } })
+node("scout", "sight", 1, 2, 3, "api", {}, { cap = 90, unit = "deg", values = { 24, 48, 72 } })
 node("scout", "sixth", 1, 1, 2, "lua", {}, { unit = "tiles", values = { 4, 8 } })
 node("scout", "alarm", 1, 3, 1, "lua")
 node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit = "pct", values = { 0, 0, 50 } })

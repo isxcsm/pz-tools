@@ -299,7 +299,7 @@
     "IGUI_OA_Tree_Node_nightEye_Name": "Nocturnal Eye",
     "IGUI_OA_Tree_Node_nightEye_Note": "Day 14. Read a can label in an unlit basement, no flashlight.",
     "IGUI_OA_Tree_Node_nightEye_Desc": "Only what a light reaches keeps its colour.",
-    "IGUI_OA_Tree_Node_nightEye_Rank": "Recovers all of the vision lost to darkness, and even an unlit basement shows, in grey.",
+    "IGUI_OA_Tree_Node_nightEye_Rank": "Recovers the vision lost to darkness to just short of daylight, and even an unlit basement shows, in grey.",
     "IGUI_OA_Tree_Node_overload_Name": "Overload Adaptation",
     "IGUI_OA_Tree_Node_overload_Rank1": "Only %1 of the weight over your limit counts.",
     "IGUI_OA_Tree_Node_overload_Rank2": "Only %1 of the weight over your limit counts, and stumbling and fall damage while overloaded are halved.",
