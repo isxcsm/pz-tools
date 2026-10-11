@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>oa_land_heavy2_r2</m_Name>
+	<m_AnimName>Bob_FallLanding_Death</m_AnimName>
+	<m_Looped>false</m_Looped>
+	<m_ConditionPriority>1</m_ConditionPriority>
+	<m_BlendTime>0.10</m_BlendTime>
+	<m_SpeedScale>2.00</m_SpeedScale>
+	<m_Conditions x_name="4c2e5531-2236-4a38-83a8-5914564e84e5">
+		<m_Name>bDead</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>false</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="e9d58a13-24ab-4e52-958f-9b36a5031b59">
+		<m_Name>bFalling</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>false</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="fe615d67-e0af-437c-b12f-4bea33f6e0b4">
+		<m_Name>bHardFall2</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="oa-land-rank">
+		<m_Name>OALandRank</m_Name>
+		<m_Type>STRING</m_Type>
+		<m_Value>2</m_Value>
+	</m_Conditions>
+	<m_Events x_name="090a92fb-18ea-4c5a-835d-67f81ca0b1c5">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bLandAnimFinished=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="1beb8d77-273b-4fa2-9e60-74dca94116e4">
+		<m_EventName>PlaySound</m_EventName>
+		<m_Time>Start</m_Time>
+		<m_ParameterValue>LandHeavyFromFall</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="d21c0bbf-982a-46d3-9723-bbea919bacb8">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>fallOnFront=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="cc53c28c-0d90-47ce-816e-4bf00aa839fd">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bKnockedDown=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="1d05f026-b568-49b2-9583-4ce1ea9e7174">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bGetUpFromFall=true</m_ParameterValue>
+	</m_Events>
+</animNode>

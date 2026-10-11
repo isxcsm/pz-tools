@@ -53,6 +53,10 @@ function Hooks.refresh()
     if not player then return end
     local record = OA.Client.record(player)
     Effects.apply(record)
+    local land = u and Effects.landRank(u)
+    if player:getVariableString(Effects.LAND_VARIABLE) ~= (land or "") then
+        if land then player:setVariable(Effects.LAND_VARIABLE, land) else player:clearVariable(Effects.LAND_VARIABLE) end
+    end
     if not u then return end
     local need = Senses.refresh() or Dash.needs(u)
     Pulse.enable(need)

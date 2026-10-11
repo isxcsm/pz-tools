@@ -41,7 +41,6 @@ Effects.POINTS = {
     hole = "body.holeChance",
     woundChance = "infection.woundChance",
     biteShield = "infection.biteShield",
-    landing = "fall.landingRemap",
     impact = "fall.impactMultiplier",
     loot = "loot.spawnMultiplier",
     ammo = "loot.ammoMultiplier",
@@ -61,7 +60,7 @@ Effects.MAP = {
     overload = { "overload" }, keyring = { "carryTag" }, furniture = { "carryItem" },
     materials = { "carryCategory" }, materialsPlus = { "carryCategory" }, runSpeed = { "runPenalty" },
     capacity = { "maxWeightAdd", "limitAdd" }, combatSpeed = { "combatPenalty" }, storage = { "storage" },
-    armor = { "discomfort" }, stiff = { "stiffness" }, fall = { "landing" }, brush = { "treeSlow", "treeScratch" },
+    armor = { "discomfort" }, stiff = { "stiffness" }, fall = { "impact" }, brush = { "treeSlow", "treeScratch" },
     gear = { "hole" }, resist = { "poison", "cold", "corpseCount", "corpseSickness" }, walk = { "walk" },
     resistPlus = { "woundChance", "biteShield" },
     bHeavy = { "carryCategory", "carryItem" }, bFamily = { "carryCategory" }, bGear = { "discomfort" },
@@ -79,6 +78,12 @@ local MAX_CONE = 90
 -- (too much for a rank before the capstone), 0.5 shows it plainly.
 local NIGHT_SIGHT = { 0.1, 0.2, 0.25 }
 local NIGHT_SIGHT_EYE = 0.5
+-- The share of fall damage 낙법 leaves by its rank. The game's damage goes with the square of the landing speed, the
+-- kind of landing (light, hard, lethal) with the speed itself: the API scales the damage alone, and the landing plays.
+local FALL_DAMAGE = { 0.5, 0.25, 0.125 }
+-- From rank 2 the landing plays faster with a shallower crouch (media/AnimSets/player/falling/oa_land_*_r<rank>.xml,
+-- written by tools/land_nodes.py): the character variable they ask for, set to the rank.
+Effects.LAND_VARIABLE = "OALandRank"
 
 -- Whether the Zombie Visibility Fix mod is active: then the hidden zombie fix stands aside (DESIGN 7).
 function Effects.visibilityModActive()
@@ -207,8 +212,9 @@ function Effects.compute(u, now, options)
     if R.biteReady(u, now) then out[P.biteShield] = true end
 
     -- fall
-    if rank("fall") > 0 then out[P.landing] = rank("fall") end
-    if positive(board("bFall")) then out[P.impact] = R.divide(board("bFall")) end
+    if rank("fall") > 0 or positive(board("bFall")) then
+        out[P.impact] = (FALL_DAMAGE[rank("fall")] or 1) * R.divide(board("bFall"))
+    end
 
     -- the hidden zombie fix: a base feature of the mod, not a node
     if options.hiddenZombieFix then out[P.hiddenZombie] = true end
@@ -226,6 +232,13 @@ local function same(a, b)
     for k, v in pairs(a) do if not same(v, b[k]) then return false end end
     for k in pairs(b) do if a[k] == nil then return false end end
     return true
+end
+
+-- The value of LAND_VARIABLE for a section of upgrades: the rank of 낙법 from 2, else nil (the game's landing).
+function Effects.landRank(u)
+    local r = Rules.rank(u, "fall")
+    if r >= 2 then return tostring(r) end
+    return nil
 end
 
 -- Forgets what was declared (a new world, a new handle): the next apply declares everything again.

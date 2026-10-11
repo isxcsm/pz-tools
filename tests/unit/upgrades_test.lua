@@ -636,7 +636,10 @@ test("effects: infection resistance, walking, trees, falls and the bite shield p
     near(v["move.walkMultiplier"], 1.15, 1e-9)
     near(v["move.treeSlowMultiplier"], 0, 1e-9)
     eq(v["move.treeScratchChance"], 0.5)
-    eq(v["fall.landingRemap"], 3)
+    near(v["fall.impactMultiplier"], 0.125, 1e-9)
+    eq(v["fall.landingRemap"], nil)
+    eq(Effects.landRank(u), "3")
+    eq(Effects.landRank(fresh()), nil)
 end)
 
 test("effects are declared once, only what changed, and cleared with nil", function()

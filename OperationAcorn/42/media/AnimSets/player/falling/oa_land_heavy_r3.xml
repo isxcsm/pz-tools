@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animNode>
+	<m_Name>oa_land_heavy_r3</m_Name>
+	<m_AnimName>Bob_FallLanding_HeavyFall</m_AnimName>
+	<m_Looped>false</m_Looped>
+	<m_ConditionPriority>1</m_ConditionPriority>
+	<m_BlendTime>0.20</m_BlendTime>
+	<m_EarlyTransitionOut>true</m_EarlyTransitionOut>
+	<m_SpeedScale>3.20</m_SpeedScale>
+	<m_Conditions x_name="9b0667ca-79aa-4161-ba7f-37bd9287f0f4">
+		<m_Name>bDead</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>false</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="68e8ea6c-7344-41f4-8f38-b7a621677f19">
+		<m_Name>bFalling</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>false</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="96f4e2b2-2125-41da-ad8c-4f97ccee9dbc">
+		<m_Name>bHardFall</m_Name>
+		<m_Type>BOOL</m_Type>
+		<m_Value>true</m_Value>
+	</m_Conditions>
+	<m_Conditions x_name="oa-land-rank">
+		<m_Name>OALandRank</m_Name>
+		<m_Type>STRING</m_Type>
+		<m_Value>3</m_Value>
+	</m_Conditions>
+	<m_Events x_name="60116801-9cb5-4cc3-9afc-27281204923f">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bLandAnimFinished=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="7e2bd8ee-ee8c-4f29-a25b-ba0065ddf23a">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>fallOnFront=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="633f884a-f0cf-49f4-8e46-c792791e828b">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bKnockedDown=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="54787e64-c0f4-4b63-afc2-7fa3ca1c6bf4">
+		<m_EventName>SetVariable</m_EventName>
+		<m_Time>End</m_Time>
+		<m_ParameterValue>bGetUpFromFall=true</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="ddfd853a-c71c-41cb-bd82-9ffdc5425627">
+		<m_EventName>PlaySound</m_EventName>
+		<m_Time>Start</m_Time>
+		<m_ParameterValue>LandHeavy</m_ParameterValue>
+	</m_Events>
+	<m_Events x_name="31cf3a56-7734-43b2-8b3f-035718cc9709">
+		<m_EventName>PlaySound</m_EventName>
+		<m_TimePc>0.25</m_TimePc>
+		<m_ParameterValue>LandHeavyFromFall</m_ParameterValue>
+	</m_Events>
+	<m_Transitions>
+		<m_Target>fallOnFront</m_Target>
+	</m_Transitions>
+</animNode>
