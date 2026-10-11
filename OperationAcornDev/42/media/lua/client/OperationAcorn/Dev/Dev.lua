@@ -616,6 +616,36 @@ function Dev.zombiesInBuilding()
     return n, true
 end
 
+-- ---- searched buildings ----------------------------------------------------------------------------------------
+
+-- Makes the building the character stands in unsearched again, to test 철저한 수색 and the searched bonus once more:
+-- its containers unopened (ItemContainer.setExplored), its count in the codex forgotten (the building milestones
+-- already paid stay paid), and the watch's walk and the ledger's line started over. Returns how many containers were
+-- reset, or nil outside a building.
+function Dev.resetSearch()
+    local sq = getPlayer():getCurrentSquare()
+    local room = sq and sq:getRoom()
+    local scan = room and OA.Buildings.scan(sq, room)
+    if not scan then
+        say("search reset: not in a building")
+        return nil
+    end
+    for _, container in ipairs(scan.containers) do container:setExplored(false) end
+    local record = Dev.record()
+    if record then
+        local codex = OA.Codex.section(record)
+        if codex.buildings[scan.key] then
+            codex.buildings[scan.key] = nil
+            codex.nb = math.max(0, codex.nb - 1)
+        end
+    end
+    OA.Buildings.reset()
+    if OA.Upgrades.Senses and OA.Upgrades.Senses.resetLedger then OA.Upgrades.Senses.resetLedger() end
+    Dev.changed()
+    say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
+    return #scan.containers
+end
+
 -- ---- alarms -----------------------------------------------------------------------------------------------------
 
 local ALARM_RANGE = 30

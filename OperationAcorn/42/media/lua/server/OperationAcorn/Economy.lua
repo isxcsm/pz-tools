@@ -193,17 +193,26 @@ function Economy.tenMinutes()
     end)
 end
 
--- A building all searched by a record's character: counted once, its bonus more with the search ledger's rank 3, and
--- told with a title from rank 1 (what the bonus will be, BonusMultiplier in).
+-- A building all searched by a record's character: counted once, its bonus more with 철저한 수색's rank 3 (the
+-- search ledger), and told with a title from rank 1: what the bonus will be (BonusMultiplier in), and at rank 3 how
+-- much of it the rank added, so the rank is seen to pay.
 function Economy.searched(record, key, total)
     local Rules = OA.Upgrades.Rules
     local u = Rules.section(record)
     local rank = Rules.rank(u, "ledger")
-    local credits = OA.Codex.buildingSearched(record, key, total, rank >= 3 and 1 + Rules.fraction(u, "ledger") or 1)
+    local mult = rank >= 3 and 1 + Rules.fraction(u, "ledger") or 1
+    local credits = OA.Codex.buildingSearched(record, key, total, mult)
     if credits and rank >= 1 then
-        local bonus = math.floor(credits * (OA.option("BonusMultiplier") or 1.0) + 0.5)
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Searched", sub = "IGUI_OA_Title_SearchedBonus",
-            subArgs = { tostring(bonus) }, style = "discovery", fallback = "good" })
+        local scale = OA.option("BonusMultiplier") or 1.0
+        local bonus = math.floor(credits * scale + 0.5)
+        local added = math.floor(credits * (mult - 1) / mult * scale + 0.5)
+        local title = { key = "IGUI_OA_Title_Searched", sub = "IGUI_OA_Title_SearchedBonus", subArgs = { tostring(bonus) },
+            style = "discovery", fallback = "good" }
+        if added > 0 then
+            title.sub = "IGUI_OA_Title_SearchedBonusThorough"
+            title.subArgs = { tostring(bonus), tostring(added), { key = "IGUI_OA_Tree_Node_ledger_Name" } }
+        end
+        OA.Sync.title(record.id, title)
     end
     return credits
 end

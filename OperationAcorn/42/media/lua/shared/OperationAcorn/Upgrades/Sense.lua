@@ -208,6 +208,15 @@ Sense.ALARM_NEAR = 4
 Sense.ALARM_LEAVE = 5
 Sense.ALARM_CAR = 1.5
 
+-- 철저한 수색's line on entering a building not all searched: how much is left as the character would put it at a
+-- glance, not a count. `opened` and `left` are the building's containers opened and not.
+function Sense.ledgerKey(opened, left)
+    if opened == 0 then return "IGUI_OA_Tree_LedgerUntouched" end
+    if left <= 2 then return "IGUI_OA_Tree_LedgerFew" end
+    if left <= 6 then return "IGUI_OA_Tree_LedgerSome" end
+    return "IGUI_OA_Tree_LedgerMany"
+end
+
 -- How far a point is from a rectangle (x, y, w, h): 0 inside it.
 function Sense.toRect(px, py, x, y, w, h)
     local dx = math.max(x - px, 0, px - (x + w))

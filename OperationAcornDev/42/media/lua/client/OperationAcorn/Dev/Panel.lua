@@ -329,6 +329,10 @@ local function zombiesPage(page, w)
     local _, bx = button(page, T("Z_AlarmCar"), ax, rowY(8), 0, function() Dev.alarmCar() end)
     button(page, T("Z_AlarmClear"), bx, rowY(8), 0, function() Dev.clearAlarms() end)
     label(page, T("Z_AlarmHint"), PAD, rowY(9) + 2, 0.7, 0.7, 0.7)
+
+    -- searched buildings, for 철저한 수색 and the searched bonus
+    button(page, T("Z_SearchReset"), PAD, rowY(10), 0, function() Dev.resetSearch() end)
+    label(page, T("Z_SearchResetHint"), PAD, rowY(11) + 2, 0.7, 0.7, 0.7)
     page.refresh = function()
         local houses, cars = Dev.alarmsNear()
         alarms:setName(T("Z_Alarms") .. ": " .. string.format("%.0f", houses) .. " / " .. string.format("%.0f", cars))
@@ -363,7 +367,8 @@ local Window = ISCollapsableWindow:derive("OADevWindow")
 
 -- Rows the tallest page needs (the research page: its nodes and the rows around them).
 local function heightFor(title)
-    local rows = mostNodes() + 5
+    -- and at least the zombies page's 11 (its alarm and search rows)
+    local rows = math.max(mostNodes() + 5, 11)
     return title + 26 + rows * (ROW + GAP) + PAD + FH + 12
 end
 

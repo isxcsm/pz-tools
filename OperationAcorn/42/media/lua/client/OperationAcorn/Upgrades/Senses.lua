@@ -774,6 +774,11 @@ end
 -- game's IsoRoom:getContainer() lists none in B42), looked at from here every LEDGER_MS.
 
 local ledger = { key = nil, total = 0, opened = 0, done = false, complete = false, told = true, since = 0 }
+
+-- Forgets the building the ledger told of, so that it is told again (the developer panel's search reset).
+function Senses.resetLedger()
+    ledger.key = nil
+end
 Senses.ledger = ledger
 -- A building not all counted yet is told once it is, or after LEDGER_WAIT_MS with what was found (a count of 0 then is
 -- not told: it could be squares not loaded).
@@ -905,7 +910,7 @@ local function ledgerJob(now)
             player:Say(getText("IGUI_OA_Tree_LedgerAlreadyDone"))
         end
     elseif left > 0 then
-        player:Say(getText("IGUI_OA_Tree_LedgerLeft", left))
+        player:Say(getText(Sense.ledgerKey(opened, left)))
         First.report("ledger", player)
     end
 end

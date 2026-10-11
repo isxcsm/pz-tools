@@ -86,7 +86,7 @@ end
 node("scout", "sight", 1, 2, 3, "api", {}, { cap = 90, unit = "deg", values = { 24, 48, 72 } })
 node("scout", "sixth", 1, 1, 2, "lua", {}, { unit = "tiles", values = { 4, 8 } })
 node("scout", "alarm", 1, 3, 1, "lua")
-node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit = "pct", values = { 0, 0, 50 } })
+node("scout", "ledger", 1, 4, 3, "lua", {}, { rankText = true, adds = true, unit = "pct", values = { 0, 0, 200 } })
 node("scout", "rich", 2, 3, 3, "api", {}, { unit = "pct", values = { 15, 30, 50 } })
 node("scout", "night", 2, 2, 3, "api", {}, { cap = 100, unit = "pct", values = { 20, 40, 60 } })
 node("scout", "sense", 3, 1, 2, "lua", { { "sixth", 2 } }, { rankText = true, adds = true })
