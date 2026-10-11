@@ -300,8 +300,8 @@ local function startLock(player, target, class)
     end
 end
 
--- The option to cut the alarm of a door, window or car part that is not locked, for one with 자물쇠 따기 and 경보 읽기
--- (who reads alarms: the character told of it). A locked one is picked, which cuts it too.
+-- The option to cut the alarm of a door, window or car part alone, locked or not, for one with 자물쇠 따기 and 경보
+-- 읽기 (who reads alarms: the character told of it). Picking a locked one cuts it too.
 local function addDisarmOption(context, player, target, u)
     if Rules.rank(u, "lock") < 1 or Rules.rank(u, "alarm") < 1 or not Actions.alarmOf(target) then return end
     local chance = Texts.percent(Rules.lockChance(u) * 100)
@@ -309,13 +309,13 @@ local function addDisarmOption(context, player, target, u)
     tip(option, getText("Tooltip_OA_Tree_DisarmInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
 end
 
--- The two options for one locked door, window or car part, or the alarm's for one that is not locked.
+-- The two options for one locked door, window or car part, and the alarm's alone (locked or not: cutting the alarm
+-- leaves the lock as it is).
 local function addLockOptions(context, player, target)
     local u = Rules.section(OA.Client.record(player))
-    if not Actions.isLocked(target) then
-        addDisarmOption(context, player, target, u)
-        return
-    end
+    -- first: the options are added on top, so it shows under the pick and the pry
+    addDisarmOption(context, player, target, u)
+    if not Actions.isLocked(target) then return end
     local crowbar, pick = Rules.rank(u, "crowbar"), Rules.rank(u, "lock")
     if crowbar < 1 and pick < 1 then return end
     local reinforced = Actions.isReinforced(target)

@@ -339,7 +339,7 @@
     "IGUI_OA_Tree_Node_fall_Rank2": "떨어진 높이를 1/4로 치고, 착지 동작이 빨라집니다.",
     "IGUI_OA_Tree_Node_fall_Rank3": "떨어진 높이를 1/8로 치고, 착지 동작이 더 빨라집니다.",
     "IGUI_OA_Tree_Node_lock_Name": "자물쇠 따기",
-    "IGUI_OA_Tree_Node_lock_Desc": "느리지만 조용합니다. 실패하면 클립이 휩니다. 경보 읽기가 있으면 잠기지 않은 문, 창문, 차 문의 경보도 끊을 수 있습니다.",
+    "IGUI_OA_Tree_Node_lock_Desc": "느리지만 조용합니다. 실패하면 클립이 휩니다. 경보 읽기가 있으면 잠겼든 아니든 문, 창문, 차 문의 경보만 따로 끊을 수 있습니다.",
     "IGUI_OA_Tree_Node_lock_Rank1": "클립과 드라이버로 잠긴 문, 창문, 차 문을 땁니다. 경보가 달려 있으면 함께 끊습니다. 성공 확률 %1.",
     "IGUI_OA_Tree_Node_lock_Rank2": "강화문도 따고, 걸리는 시간이 절반으로 줄어듭니다.",
     "IGUI_OA_Tree_Node_brush_Name": "수풀 헤치기",

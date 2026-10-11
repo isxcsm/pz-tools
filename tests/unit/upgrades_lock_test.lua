@@ -1,5 +1,5 @@
 -- 자물쇠 따기 and alarms: a lock picked on an alarmed house or car cuts its alarm, and with 경보 읽기 an alarmed door,
--- window or car door that is not locked can be worked on for its alarm alone, with the same tools, chance and failure.
+-- window or car door, locked or not, can be worked on for its alarm alone, with the same tools, chance and failure.
 require "OperationAcorn/Core"
 require "OperationAcorn/Store"
 require "OperationAcorn/Sync"
@@ -111,7 +111,7 @@ test("a car's alarm is cut and sent; one opened before has none to cut", functio
     eq(Actions.alarmOf(opened), nil, "a car opened once does not sound again")
 end)
 
-test("cutting an alarm alone needs lock picking and alarm reading, works on a door not locked, and fails as a pick", function()
+test("cutting an alarm alone needs lock picking and alarm reading, works on a door locked or not, and fails as a pick", function()
     local Actions, body = setup({ lock = 1 }, 1)
     local told = listen()
     local door, def = house(true)
@@ -130,4 +130,9 @@ test("cutting an alarm alone needs lock picking and alarm reading, works on a do
     eq(act(ISOADisarm, other, body):complete(), false)
     eq(otherDef.alarmed, true)
     eq(told[#told], "IGUI_OA_Tree_PickFail", "a failure bends the clip as a pick's does")
+    OA.random = function() return 1 end
+    local locked, lockedDef = house(true)
+    eq(act(ISOADisarm, locked, body):complete(), true)
+    eq(lockedDef.alarmed, false, "a locked door's alarm is cut")
+    eq(locked.locked, true, "and its lock is left")
 end)

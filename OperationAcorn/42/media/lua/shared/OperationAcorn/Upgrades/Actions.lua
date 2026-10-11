@@ -1,6 +1,6 @@
 -- The timed actions of the upgrades: injecting a serum (or using a cure serum, or a delay drug, or a test kit), prying a
 -- locked door, window or car door open with a pry bar, picking its lock with a paper clip and a screwdriver (which cuts
--- its alarm too), and cutting the alarm of one that is not locked (자물쇠 따기 with 경보 읽기). Each checks again as it
+-- its alarm too), and cutting the alarm alone, the lock left as it is (자물쇠 따기 with 경보 읽기). Each checks again as it
 -- completes, where the world is decided (complete runs on the server).
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Upgrades/Rules"
@@ -368,8 +368,8 @@ end
 function ISOAPickLock:getDuration() return pickDuration(self) end
 function ISOAPickLock:new(character, target) return pickNew(self, character, target) end
 
--- Cutting the alarm of a door, window or car door that is not locked (one that is, is picked): 자물쇠 따기 with 경보
--- 읽기, the same tools, time, chance and failure as picking, on any door (a reinforced one too: the lock is not worked).
+-- Cutting the alarm of a door, window or car door alone, locked or not (the lock is left as it is): 자물쇠 따기 with
+-- 경보 읽기, the same tools, time, chance and failure as picking, on any door (a reinforced one too: the lock is not worked).
 ISOADisarm = lockAction("ISOADisarm")
 
 function ISOADisarm:isValid()
