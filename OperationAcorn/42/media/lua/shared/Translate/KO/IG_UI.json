@@ -273,7 +273,7 @@
     "IGUI_OA_Tree_Node_sixth_Name": "육감",
     "IGUI_OA_Tree_Node_sixth_Rank": "보이지 않는 좀비가 주변 %1칸 안에 있으면 육감 무들이 뜹니다.",
     "IGUI_OA_Tree_Node_alarm_Name": "경보 읽기",
-    "IGUI_OA_Tree_Node_alarm_Rank": "경보 장치가 달린 집이나 차량에 다가가면 알아채고, 그 집의 문과 창문, 그 차의 둘레에 붉은 윤곽이 보입니다.",
+    "IGUI_OA_Tree_Node_alarm_Rank": "경보 장치가 달린 집이나 차량에 다가가면 알아채고, 그 집의 창문에 윤곽이 보입니다.",
     "IGUI_OA_Tree_Node_ledger_Name": "수색 장부",
     "IGUI_OA_Tree_Node_ledger_Desc": "직접 가져다 놓은 보관함은 세지 않습니다.",
     "IGUI_OA_Tree_Node_ledger_Rank1": "건물에 들어서면 아직 안 연 보관함이 몇 개인지, 혹은 이미 다 뒤진 곳인지 알려 주고, 다 뒤지면 알려 줍니다.",

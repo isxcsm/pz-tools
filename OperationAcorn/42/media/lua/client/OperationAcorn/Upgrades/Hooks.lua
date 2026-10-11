@@ -301,7 +301,7 @@ local function startLock(player, target, class)
 end
 
 -- The option to cut the alarm of a door, window or car part that is not locked, for one with 자물쇠 따기 and 경보 읽기
--- (who knows of the alarm: the parts are outlined). A locked one is picked, which cuts it too.
+-- (who reads alarms: the character told of it). A locked one is picked, which cuts it too.
 local function addDisarmOption(context, player, target, u)
     if Rules.rank(u, "lock") < 1 or Rules.rank(u, "alarm") < 1 or not Actions.alarmOf(target) then return end
     local chance = Texts.percent(Rules.lockChance(u) * 100)

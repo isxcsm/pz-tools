@@ -199,9 +199,9 @@ function Sense.hunch(zombies, px, py, pz, radius)
     return false
 end
 
--- Alarm reading: the character tells of an alarm within ALARM_NEAR squares of an alarmed house (its edge, not its
--- middle: a big house is near at its wall) or car, and again only after going past ALARM_LEAVE, so that walking along
--- the line does not repeat it. A car is measured from its middle, ALARM_CAR less (half its length, about).
+-- Alarm reading: the character tells of each alarm within ALARM_NEAR squares of an alarmed house (its edge, not its
+-- middle: a big house is near at its wall) or car, and of the same one again only after going past ALARM_LEAVE, so
+-- that walking along the line does not repeat it. A car is measured from its middle, ALARM_CAR less (half its length, about).
 Sense.ALARM_NEAR = 5
 Sense.ALARM_LEAVE = 6
 Sense.ALARM_CAR = 1.5
