@@ -48,9 +48,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * squares are raised to the dark place's least light whether the player is in one or not, and the pass takes them down
  * to the least light shown ({@link #shadeOf}, eased every frame): the baked squares change only when night sight's
  * value does, and a dark place comes and goes smoothly, where raising the squares to it would make every chunk bake
- * again, one batch after another. Each set's values also go towards the squares' by at most nightSight.ease's pace
+ * again, one batch after another. Each set's values also go towards the squares' by at most nightSight.reveal's pace
  * ({@link #toward}): the game hands a square's light as its lighting gets to it, in jumps (more so with PZ
- * Optimization's lighting), and the share of colour kept follows them as a fade, not a step a set.
+ * Optimization's lighting), and the share of colour kept follows them as a fade, not a step a set. That pace is the
+ * game's own (it fades a square coming into view in about as long), not the eye's (nightSight.ease, the dark place
+ * and night sight's strength): what comes into sight right in front of the player is not dark for seconds.
  *
  * <p>The least light is for the night: outside a dark place the least light shown follows the game's night
  * ({@code ClimateManager.getNightStrength}, 0 by day), so that by day a square keeps the game's light and colour (the
@@ -61,7 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * wall: {@code bCouldSee} false; not {@code bCanSee}, which also asks for light) the game draws dimmed its own way, not with the corners it hands (they read none, and the least light does not
  * reach it): the pass leaves it as drawn. As it comes into sight the game draws it with its raised corners at once;
  * the pass shows it as the game's light would first (its colour times its share kept) and goes to night sight's over
- * nightSight.ease, as it does back when it goes out of sight ({@code PZT_SightLamps}' second half: how much of night
+ * nightSight.reveal, as it does back when it goes out of sight ({@code PZT_SightLamps}' second half: how much of night
  * sight a square shows, and how much of what is drawn is the game's).
  *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
@@ -95,8 +97,8 @@ final class NightLamps {
 
     private final Game game;
     private final Players players;
-    // The dark place's and the standing characters' numbers, and the seconds night sight eases over, as tuned.
-    private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, ease;
+    // The dark place's and the standing characters' numbers, and the seconds a square's values follow it over, as tuned.
+    private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, reveal;
     // ClimateManager.getInstance().getNightStrength().
     private final MethodHandle climate, nightStrength;
     // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCouldSee(), bSeen(); ColorInfo.r, g, b, a,
@@ -183,7 +185,7 @@ final class NightLamps {
     private long shownAt, shownPeriod = REFRESH_NS;
 
     NightLamps(ClassLoader loader, Game game, Players players, Tunings.Tuning darkLight, Tunings.Tuning darkIn, Tunings.Tuning darkOut,
-            Tunings.Tuning darkRadius, Tunings.Tuning standing, Tunings.Tuning ease) throws ReflectiveOperationException {
+            Tunings.Tuning darkRadius, Tunings.Tuning standing, Tunings.Tuning reveal) throws ReflectiveOperationException {
         this.game = game;
         this.players = players;
         this.darkLight = darkLight;
@@ -191,7 +193,7 @@ final class NightLamps {
         this.darkOut = darkOut;
         this.darkRadius = darkRadius;
         this.standingSquares = standing;
-        this.ease = ease;
+        this.reveal = reveal;
         var lookup = MethodHandles.publicLookup();
         Class<?> climateType = Game.type(loader, "zombie.iso.weather.ClimateManager");
         climate = Game.exact(climateType.getMethod("getInstance"), MethodType.methodType(Object.class));
@@ -644,14 +646,14 @@ final class NightLamps {
     }
 
     // The last set's values of the same squares go before this set's, and this set's go from them towards the squares'
-    // by at most the pace night sight eases at over the time the set takes (a square the last set did not have, or with
+    // by at most the game's pace (nightSight.reveal) over the time the set takes (a square the last set did not have, or with
     // none, has the square's values twice; the share of what is drawn that is the game's light follows the game at once,
     // as what it draws does), and so does its colour kept beyond them; then this set is the last.
     private void follow(Values into) {
         ByteBuffer data = into.data;
         byte[] last = lastValues, next = nextValues;
         int dx = into.x0 - lastX, dy = into.y0 - lastY;
-        float pace = Math.min(1f, into.period / 1e9f / Math.max(0.01f, ease.value()));
+        float pace = Math.min(1f, into.period / 1e9f / Math.max(0.01f, reveal.value()));
         int most = Math.max(1, Math.round(255f * pace));
         for (int j = 0; j < SIZE; j++) {
             int lj = j + dy;
