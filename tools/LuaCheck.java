@@ -5,6 +5,9 @@
 // It also flags a name a file reads or writes as a global while the same file declares a local of that name: almost
 // always a local used before its declaration (found in game: the research plan's iconSize was nil, so the window
 // failed to open). A name the game really has as a global can be listed in ALLOWED.
+//
+// And it flags, outside the tests, a name of Lua 5.1's base library that the game's Lua does not have (next: found in
+// game, the alarm reading failed on its first run).
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -20,6 +23,10 @@ import java.util.stream.Stream;
 public class LuaCheck {
     private static final int GETGLOBAL = 5, SETGLOBAL = 7;
     private static final Set<String> ALLOWED = Set.of();
+    private static final Set<String> LUA_BASE = Set.of("assert", "collectgarbage", "dofile", "error", "getfenv", "getmetatable",
+        "ipairs", "load", "loadfile", "loadstring", "next", "pairs", "pcall", "print", "rawequal", "rawget", "rawset", "select",
+        "setfenv", "setmetatable", "tonumber", "tostring", "type", "unpack", "xpcall", "coroutine", "string", "table", "math", "os",
+        "io", "debug");
     private static final Pattern ALIAS = Pattern.compile("\\blocal\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*\\1\\b");
     private static final Pattern LOCAL = Pattern.compile("\\blocal\\s+(?:function\\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\\s*,\\s*[A-Za-z_][A-Za-z0-9_]*)*)");
 
@@ -44,6 +51,7 @@ public class LuaCheck {
         }
         int failed = 0;
         var platform = new se.krka.kahlua.j2se.J2SEPlatform();
+        var kahlua = kahluaGlobals(platform);
         for (Path file : files) {
             String source = Files.readString(file, StandardCharsets.UTF_8);
             se.krka.kahlua.vm.LuaClosure closure;
@@ -67,11 +75,15 @@ public class LuaCheck {
             }
             List<String> suspicious = new ArrayList<>();
             for (String name : globals) if (locals.contains(name) && !ALLOWED.contains(name)) suspicious.add(name);
+            // the tests run in LuaTest's Lua, not the game's
+            boolean inGame = !file.normalize().startsWith("tests");
+            for (String name : globals)
+                if (inGame && LUA_BASE.contains(name) && !kahlua.contains(name) && !locals.contains(name)) suspicious.add(name + " (not in Kahlua)");
             if (suspicious.isEmpty()) {
                 if (args.length > 0) System.out.println("ok   " + file.getFileName());
             } else {
                 failed++;
-                System.out.println("FAIL " + file + ": used as a global but declared local in the file (used before its declaration?): " + suspicious);
+                System.out.println("FAIL " + file + ": used as a global but declared local in the file (used before its declaration?), or missing from Kahlua: " + suspicious);
             }
         }
         if (globalsOut != null) {
@@ -84,6 +96,21 @@ public class LuaCheck {
         }
         System.out.println(files.size() + " files, " + failed + " failed");
         System.exit(failed == 0 ? 0 : 1);
+    }
+
+    // The globals the game's Lua starts with: Kahlua's libraries and what the game's stdlib.lua (beside the jar) defines.
+    private static Set<String> kahluaGlobals(se.krka.kahlua.j2se.J2SEPlatform platform) throws Exception {
+        se.krka.kahlua.vm.KahluaTable env = platform.newTable();
+        se.krka.kahlua.stdlib.BaseLib.register(env);
+        Set<String> names = new TreeSet<>();
+        for (var it = env.iterator(); it.advance(); ) names.add(String.valueOf(it.getKey()));
+        // the libraries, and loadstring (the game's LuaManager registers Kahlua's compiler)
+        names.addAll(Set.of("string", "table", "math", "os", "coroutine", "loadstring"));
+        Path jar = Path.of(se.krka.kahlua.vm.KahluaTable.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        Matcher defined = Pattern.compile("(?m)^(?:function\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?:\\(|=)")
+            .matcher(Files.readString(jar.getParent().resolve("stdlib.lua")));
+        while (defined.find()) names.add(defined.group(1));
+        return names;
     }
 
     // The globals a function and the functions inside it read, and the ones they write, apart.

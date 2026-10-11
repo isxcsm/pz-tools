@@ -754,7 +754,10 @@ local function alarmJob(now)
     end
     told, toldNext = toldNext, told
     for key in pairs(toldNext) do toldNext[key] = nil end
-    S.alarm = next(told) ~= nil
+    -- Kahlua has no next()
+    local any = false
+    for _ in pairs(told) do any = true break end
+    S.alarm = any
     if houseNear then tintEntries(player) end
     untint(lit, litNext)
     lit, litNext = litNext, lit
