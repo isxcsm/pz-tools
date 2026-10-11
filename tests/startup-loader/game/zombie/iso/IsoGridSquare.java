@@ -19,8 +19,10 @@ public final class IsoGridSquare {
         ColorInfo lightInfo();
         default int resultLightCount() { return 0; }
         default ResultLight getResultLight(int index) { return null; }
-        /** Whether the player sees the square now (in the vision cone): yes unless a test says. */
-        default boolean bCanSee() { return true; }
+        /** Whether the square is in the player's sight (in the vision cone, not behind a wall): yes unless a test says. */
+        default boolean bCouldSee() { return true; }
+        /** Like the game's: whether the player sees the square now, in sight and with some light on it. */
+        default boolean bCanSee() { return bCouldSee() && lightInfo().r > 0.05f; }
         /** Whether the player has ever seen the square: yes unless a test says. */
         default boolean bSeen() { return true; }
     }
@@ -31,18 +33,18 @@ public final class IsoGridSquare {
             public ColorInfo lightInfo() { return seen.lightInfo(); }
             public int resultLightCount() { return seen.resultLightCount(); }
             public ResultLight getResultLight(int index) { return seen.getResultLight(index); }
-            public boolean bCanSee() { return false; }
+            public boolean bCouldSee() { return false; }
             public boolean bSeen() { return false; }
         };
     }
-    /** Makes the square one the player does not see now (out of the vision cone), its light as it was. */
+    /** Makes the square one out of the player's sight (out of the vision cone), its light as it was. */
     public void setUnseen(int player) {
         ILighting seen = lighting[player];
         lighting[player] = new ILighting() {
             public ColorInfo lightInfo() { return seen.lightInfo(); }
             public int resultLightCount() { return seen.resultLightCount(); }
             public ResultLight getResultLight(int index) { return seen.getResultLight(index); }
-            public boolean bCanSee() { return false; }
+            public boolean bCouldSee() { return false; }
         };
     }
     /** A light source that reaches a square. */

@@ -286,6 +286,12 @@ final class FormulasTest {
         frameLater(formulas, pass);
         check(lamps.darkPlace() && lamps.floorLight() == dark && lamps.shade() > outside && lamps.shade() < 1f,
             "In a dark place the least light shown does not ease towards more: " + lamps.floorLight() + " " + lamps.shade());
+        // the squares of a room with no light are in the player's sight, though the game does not see them for the dark
+        // (bCanSee asks for light): night sight shows them, and they count for the dark place
+        int playerSquare = NightLamps.second(300 - 268, 300 - 268);
+        check((org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) == 255 && (org.lwjgl.opengl.GL11.pixels[playerSquare + 3] & 0xFF) == 0
+            && lamps.counted()[2] > 0 && lamps.counted()[3] == lamps.counted()[2],
+            "Night sight does not show a room with no light: " + (org.lwjgl.opengl.GL11.pixels[playerSquare + 2] & 0xFF) + " " + lamps.counted()[2]);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
@@ -597,6 +603,13 @@ final class FormulasTest {
         darkPlace(formulasObject, pass, player);
         call(formulas, "set", mod, "vision.nightSight", 0.8);
         call(formulas, "tune", "nightSight.ease");
+        // what night sight is doing now, for a look in game
+        var state = (KahluaTable)call(formulas, "nightSight").get(0);
+        check(near((Double)state.rawget("level"), 0.8) && near((Double)state.rawget("bakedFloor"), formulasObject.nightLamps().floorLight() / 255.0)
+            && near((Double)state.rawget("shownFloor"), formulasObject.nightLamps().floorLight() / 255.0 * formulasObject.nightLamps().shade())
+            && state.rawget("darkPlace") instanceof Boolean && state.rawget("valuesRun") instanceof Boolean && state.rawget("nightStrength") != null
+            && state.rawget("squaresInSight") != null && state.rawget("keptNear") != null && state.rawget("strength") != null,
+            "Night sight's state is not told: " + state);
         // its numbers are tuned while the game runs, and back to their defaults with no value
         var tunings = (KahluaTable)call(formulas, "tunings").get(0);
         var floorTuning = (KahluaTable)tunings.rawget("nightSight.floorFull");
