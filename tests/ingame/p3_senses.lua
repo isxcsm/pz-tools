@@ -33,5 +33,6 @@ say("look: arcs grow with the zoom; a zombie at a door shakes its arc with strok
     "close round the body, a far one sits small and still on the outer ring")
 say("sneaking now", player:isSneaking(), "(check again while sneaking: ring should be true, marks > 0 near zombies)")
 local l = Senses.ledger
-say("ledger: building", tostring(l.key), "total", l.total, "opened", l.opened, "complete", tostring(l.complete))
-say("enter a building, open containers: a halo text with the count of unopened containers appears; open the rest: done text")
+say("ledger: building", tostring(l.key), "told", tostring(l.told), "done", tostring(l.done))
+say("enter a building: a line on how much is left; open containers and step away: a line as a floor's stage goes up;",
+    "open the rest and step away: the searched title")

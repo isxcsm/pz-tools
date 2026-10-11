@@ -2,7 +2,8 @@
 --   every day: the market's step, the new week's request lists, the shred counts' upkeep;
 --   every ten minutes (at most each few real seconds): the codex looks over what the characters carry (crafting,
 --     foraging, trades ...);
---   every minute (at most each few real seconds): the building a character stands in, for "all containers searched";
+--   a building all searched: asked by the player's search watch (client/OperationAcorn/Economy/Searched.lua) as the
+--     character steps away from the last containers, checked against the walk's own counts;
 --   a zombie's death: the killer's kill count;
 --   an item taken from a container, the floor or a corpse: the cell it came from (the new-region premium), the codex
 --   and the story's sample cooler (its clock starts). The pickup is caught by wrapping ISTransferAction:transferItem,
@@ -21,6 +22,7 @@ require "OperationAcorn/Economy/Shop"
 require "OperationAcorn/Economy/Shred"
 require "OperationAcorn/Economy/Buildings"
 require "OperationAcorn/Upgrades/Rules"
+require "OperationAcorn/Server"
 local OA = OperationAcorn
 local Economy = {}
 OA.Economy = Economy
@@ -217,21 +219,17 @@ function Economy.searched(record, key, total)
     return credits
 end
 
--- Every minute, at most once each Buildings.LOOK_MS of real time (the minute fires many times a second fast-forwarded):
--- the building each character stands in. All of a building's containers searched: it is counted once.
-function Economy.minute()
-    local now = getTimestampMs()
-    eachPlayer(function(character)
-        if not OA.Buildings.due(character, now) then return end
-        local key, searched, total, complete = OA.Buildings.tick(character)
-        if not key then return end
-        OA.Codex.setBuildingProgress(key, searched, total)
-        if complete and total > 0 and searched >= total then
-            local record = recordOf(character)
-            if record then Economy.searched(record, key, total) end
-        end
-    end)
+-- The building `key` all searched, as the character's last look at it found it (OA.Buildings.counts: the walk the
+-- search watch keeps, so nothing is walked here): counted once, with its bonus and title. Returns the credits, or nil.
+function Economy.checkSearched(character, record, key)
+    local searched, total, complete = OA.Buildings.counts(character, key)
+    if not searched or not complete or total <= 0 or searched < total then return nil end
+    return Economy.searched(record, key, total)
 end
+
+OA.Server.on("searched", function(character, record, args)
+    if type(args.key) == "string" then Economy.checkSearched(character, record, args.key) end
+end)
 
 local function onZombieDead(zombie)
     local killer = zombie:getAttackedBy()
@@ -272,7 +270,6 @@ end
 
 Events.EveryDays.Add(Economy.daily)
 Events.EveryTenMinutes.Add(Economy.tenMinutes)
-Events.EveryOneMinute.Add(Economy.minute)
 Events.OnZombieDead.Add(onZombieDead)
 Events.OnItemFound.Add(onItemFound)
 Events.OnGameStart.Add(Economy.start)

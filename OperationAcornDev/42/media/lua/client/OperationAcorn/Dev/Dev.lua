@@ -760,6 +760,7 @@ function Dev.resetSearch()
     end
     OA.Buildings.reset()
     if OA.Upgrades.Senses and OA.Upgrades.Senses.resetLedger then OA.Upgrades.Senses.resetLedger() end
+    if OA.SearchWatch then OA.SearchWatch.reset() end
     Dev.changed()
     say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
     return #scan.containers

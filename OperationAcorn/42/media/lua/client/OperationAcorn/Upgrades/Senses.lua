@@ -770,11 +770,11 @@ end
 -- character's floor, on squares in its line of sight (whichever way it faces: no outline comes and goes as it turns),
 -- are outlined (the game's own object outline, for this player). One behind a wall is not: the game draws its outline
 -- through the wall, in another colour, and it told what the eyes cannot. Rank 3 is the economy's (a bigger
--- bonus). The building and its containers are the economy's walk (OA.Buildings: square by square, a part a look; the
--- game's IsoRoom:getContainer() lists none in B42), looked at from here every LEDGER_MS.
+-- bonus). The building and its containers are the economy's walk (OA.Buildings; the game's IsoRoom:getContainer()
+-- lists none in B42). Nothing here runs on a clock: the search watch (client/OperationAcorn/Economy/Searched.lua) calls
+-- these on the loot window's refresh, as the character steps onto another square or a container is marked.
 
-local ledger = { key = nil, total = 0, opened = 0, done = false, complete = false, told = true, since = 0,
-    stages = {}, said = 0 }
+local ledger = { key = nil, done = false, told = true, since = 0, stages = {}, said = 0 }
 
 -- Forgets the building the ledger told of, so that it is told again (the developer panel's search reset).
 function Senses.resetLedger()
@@ -784,29 +784,24 @@ Senses.ledger = ledger
 -- A building not all counted yet is told once it is, or after LEDGER_WAIT_MS with what was found (a count of 0 then is
 -- not told: it could be squares not loaded).
 local LEDGER_WAIT_MS = 5000
--- At least this long between two of the ledger's lines (one entering, then the floor's stages): a stage reached sooner
--- waits and is told then, the latest one only.
+-- At least this long between two of the ledger's lines (one entering, then the floor's stages): a stage line held
+-- sooner waits for the next step away after it.
 local LEDGER_GAP_MS = 10000
 
--- While a building not all searched is searched: a line each time the floor the character is on reaches a further
--- stage (Sense.ledgerStage), the stage it was at when first seen not told (the line on entering told it). The building
--- all searched is told by its title, not here.
-local function ledgerProgress(player, now, total, opened)
-    if total <= 0 or opened >= total then return end
+-- The line of the stage the floor the character is on has reached (Sense.ledgerStage), when it is further than the
+-- one noted, which it becomes; nil when nothing is new. The stage a floor is at when first seen is noted, not told (the
+-- line on entering told it), and so is a lower one (more found on it than counted before). The building all searched
+-- is told by its title, not here.
+local function ledgerProgress(player, total, opened)
+    if total <= 0 or opened >= total then return nil end
     local z = math.floor(player:getZ())
     local left, floorTotal = OA.Buildings.floor(player, z)
-    if floorTotal <= 0 then return end
+    if floorTotal <= 0 then return nil end
     local stage = Sense.ledgerStage(floorTotal, left)
     local was = ledger.stages[z]
-    -- a floor first seen, or more found on it than counted before: its stage now, not told
-    if was == nil or stage < was then
-        ledger.stages[z] = stage
-        return
-    end
-    if stage == was or (now - ledger.said < LEDGER_GAP_MS and now >= ledger.said) then return end
     ledger.stages[z] = stage
-    ledger.said = now
-    player:Say(getText(Sense.LEDGER_STAGES[stage]))
+    if was == nil or stage <= was then return nil end
+    return Sense.LEDGER_STAGES[stage]
 end
 local LEDGER_NEAR = 6
 local OUTLINE = { 1.00, 0.80, 0.40, 0.85 }
@@ -867,72 +862,25 @@ local function nearUnopened(open, player, ox, oy, oz)
     return want
 end
 
--- Which building the character is in is asked every run (entering and leaving are told at once, as before); the heavy
--- look (the walk over its squares, the containers asked whether they are opened) is made at most once each
--- Buildings.LOOK_MS, as the economy's minute check makes it, or at once on a new building. Between looks the job works
--- from what the last look found (`look`), and the outlines are made again only on a new look or a new square.
-local lookAt = {}      -- OA.due's clock of the look
-local look = { key = nil, opened = 0, total = 0, complete = false, stamp = 0 }
-local outlinedAt = { x = nil, y = nil, z = nil, stamp = -1 }
-
-local function ledgerJob(now)
-    local player = getPlayer()
+local function ledgerRank(player)
     local record = player and not player:isDead() and OA.Client.record(player)
-    local rank = record and Rules.rank(Rules.section(record), "ledger") or 0
-    if rank >= 1 then
-        local here = player:getCurrentSquare()
-        local room = here and here:getRoom()
-        local at = room and OA.Buildings.keyAt(here, room) or nil
-        if at == nil then
-            -- (outside: the tick drops the walk that was kept)
-            if look.key ~= nil then OA.Buildings.tick(player) end
-            look.key, lookAt.look = nil, nil
-        elseif at ~= look.key or OA.due(lookAt, "look", now, OA.Buildings.LOOK_MS) then
-            lookAt.look = now
-            look.key, look.opened, look.total, look.complete = OA.Buildings.tick(player)
-            look.stamp = look.stamp + 1
-        end
-    else
-        lookAt.look, look.key = nil, nil
-    end
-    local key, opened, total, complete = look.key, look.opened, look.total, look.complete
-    if not key then
-        ledger.key = nil
-        outlinedAt.x = nil
-        clearOutlines()
-        return
-    end
-    if rank >= 2 then
-        local square = player:getCurrentSquare()
-        local x, y, z = square and square:getX(), square and square:getY(), square and square:getZ()
-        if outlinedAt.stamp ~= look.stamp or outlinedAt.x ~= x or outlinedAt.y ~= y or outlinedAt.z ~= z
-            or not square then
-            outlinedAt.x, outlinedAt.y, outlinedAt.z, outlinedAt.stamp = x, y, z, look.stamp
-            local open, ox, oy, oz = OA.Buildings.unopened(player)
-            local want = nearUnopened(open or none, player, ox, oy, oz)
-            outlineOnly(want, player:getPlayerNum())
-            for _ in pairs(want) do
-                First.report("ledger", player)
-                break
-            end
-        end
-    else
-        outlinedAt.x = nil
-        clearOutlines()
-    end
+    return record and Rules.rank(Rules.section(record), "ledger") or 0
+end
+
+-- A look at the building the character is in (the watch makes one on coming in and when a container is marked). Rank
+-- 1 tells once, on entering, how much is left or that it was searched (never "0 left"; one with no containers is not
+-- told); after that it returns the line of a further stage of the floor's search, which the watch says as the
+-- character steps away from the containers that made it, or nil.
+function Senses.ledgerLook(player, key, opened, total, complete, now)
+    if ledgerRank(player) < 1 then return nil end
     if key ~= ledger.key then
-        ledger.key, ledger.done, ledger.told, ledger.since = key, false, false, now
-        ledger.stages = {}
+        ledger.key, ledger.done, ledger.told, ledger.since, ledger.stages = key, false, false, now, {}
     end
-    ledger.total, ledger.opened, ledger.complete = total, opened, complete
-    if ledger.told then
-        ledgerProgress(player, now, total, opened)
-        return
-    end
-    -- told once on entering: how many are left, or that it is searched (never "0 left"); one with no containers is not
-    if not complete and now - ledger.since < LEDGER_WAIT_MS and now >= ledger.since then return end
+    if ledger.told then return ledgerProgress(player, total, opened) end
+    if not complete and now - ledger.since < LEDGER_WAIT_MS and now >= ledger.since then return nil end
     ledger.told = true
     ledger.said = now
+    ledgerProgress(player, total, opened)
     local left = total - opened
     if total > 0 and left == 0 then
         if complete then
@@ -943,6 +891,38 @@ local function ledgerJob(now)
         player:Say(getText(Sense.ledgerKey(opened, left)))
         First.report("ledger", player)
     end
+    return nil
+end
+
+-- Says a stage line the watch held: false (held on) within LEDGER_GAP_MS of the last line.
+function Senses.ledgerSay(player, line, now)
+    if now - ledger.said < LEDGER_GAP_MS and now >= ledger.said then return false end
+    ledger.said = now
+    player:Say(getText(line))
+    return true
+end
+
+-- Rank 2: outlines the unopened containers near the character (nearUnopened), from what the last look found. Returns
+-- whether it keeps outlines (rank 2), for the watch's slow check of sight.
+function Senses.ledgerOutline(player)
+    if ledgerRank(player) < 2 then
+        clearOutlines()
+        return false
+    end
+    local open, ox, oy, oz = OA.Buildings.unopened(player)
+    local want = nearUnopened(open or none, player, ox, oy, oz)
+    outlineOnly(want, player:getPlayerNum())
+    for _ in pairs(want) do
+        First.report("ledger", player)
+        break
+    end
+    return true
+end
+
+-- The character is out of the building: its outlines go, and the next one it enters is told anew.
+function Senses.ledgerLeave()
+    ledger.key = nil
+    clearOutlines()
 end
 
 -- ---- starting --------------------------------------------------------------------------------------------------
@@ -980,7 +960,6 @@ function Senses.refresh()
     local u = player and section(player)
     if not u then return false end
     local need = Rules.rank(u, "sixth") > 0 or Rules.rank(u, "sense") > 0 or Rules.rank(u, "alarm") > 0
-        or Rules.rank(u, "ledger") > 0
     local wantSound = Rules.rank(u, "sense") > 0
     if wantSound and not soundHooked then
         soundHooked = true
@@ -1002,6 +981,5 @@ end
 
 Pulse.job("senses", 500, senseJob)
 Pulse.job("alarms", 1000, alarmJob)
-Pulse.job("ledger", 500, ledgerJob)
 
 return Senses

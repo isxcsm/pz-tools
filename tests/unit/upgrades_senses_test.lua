@@ -293,19 +293,46 @@ test("the ledger outlines the unopened containers near the character, and asks a
     p.square = { getRoom = function() return {} end, getX = function() return 100 end, getY = function() return 100 end,
         getZ = function() return 0 end }
     getPlayer = function() return p end
-    OA.Upgrades.Pulse.enable(true)
-    advance(0)
+    OA.Buildings.tick(p)
+    eq(Senses.ledgerOutline(p), true, "rank 2 and more keeps outlines")
     eq(nearBox.object.outlined, true, "a near unopened container is outlined")
     eq(farBox.object.outlined, false)
     eq(farBox.parentReads, 0, "a far one is not asked about")
     eq(upstairs.parentReads, 0, "nor one on another floor")
-    -- opened: the outline goes at the next look
+    -- opened: the outline goes with the look the mark makes
     nearBox.open()
-    advance(OA.Buildings.LOOK_MS + 100)
+    OA.Buildings.tick(p)
+    Senses.ledgerOutline(p)
     eq(nearBox.object.outlined, false)
-    Senses.clearOutlines()
+    Senses.ledgerLeave()
     PZToolsAPI = nil
-    OA.Upgrades.Pulse.enable(false)
+end)
+
+test("the ledger tells on entering how much is left, then a floor's further stage as a line for the watch", function()
+    local Senses = loadSenses()
+    standIns()
+    recordWith({ ledger = 1 })
+    local said = {}
+    local p = player(100, 100, 0.0)
+    p.Say = function(_, text) said[#said + 1] = text end
+    local text, floor = getText, OA.Buildings.floor
+    getText = function(key) return key end
+    local floors = { left = 12, total = 12 }
+    OA.Buildings.floor = function() return floors.left, floors.total end
+    Senses.ledgerLeave()
+    eq(Senses.ledgerLook(p, "house", 0, 12, true, 1000), nil)
+    eq(said[1], "IGUI_OA_Tree_LedgerUntouched", "told on entering")
+    floors.left = 6
+    eq(Senses.ledgerLook(p, "house", 6, 12, true, 2000), "IGUI_OA_Tree_LedgerSome", "a further stage: a line, not said")
+    eq(#said, 1)
+    eq(Senses.ledgerLook(p, "house", 6, 12, true, 2500), nil, "the same stage once")
+    eq(Senses.ledgerSay(p, "IGUI_OA_Tree_LedgerSome", 5000), false, "within the gap of the line on entering")
+    eq(Senses.ledgerSay(p, "IGUI_OA_Tree_LedgerSome", 11000), true)
+    eq(said[2], "IGUI_OA_Tree_LedgerSome")
+    recordWith({ ledger = 0 })
+    eq(Senses.ledgerLook(p, "other", 0, 3, true, 20000), nil, "no rank, no lines")
+    eq(#said, 2)
+    getText, OA.Buildings.floor = text, floor
 end)
 
 -- ---- the marks through the quads call ---------------------------------------------------------------------------
@@ -417,7 +444,7 @@ test("with the API's timers each job is a timer of its period, the first run com
     for _, e in pairs(t.list) do
         if not e.spec.once then periods[e.spec.ms] = (periods[e.spec.ms] or 0) + 1 end
     end
-    eq(periods[500], 2, "the senses and the ledger look twice a second")
+    eq(periods[500], 1, "the senses look twice a second (the ledger is the search watch's, on the loot window)")
     eq(periods[1000], 1)
     eq(periods[250], 1)
     eq(periods[700], 1)

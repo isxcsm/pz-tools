@@ -17,8 +17,8 @@ local sweep = P1T.ms() - t0
 say("ten-minute sweep ms", sweep, "(your whole inventory, bags included)")
 P1T.check(say, "the sweep is under 50 ms", sweep < 50)
 t0 = P1T.ms()
-OA.Economy.minute()
-say("minute ms", P1T.ms() - t0)
+OA.Buildings.tick(player)
+say("building look ms", P1T.ms() - t0)
 
 local c = OA.Codex.section(record)
 local summary = OA.Codex.summary(record)

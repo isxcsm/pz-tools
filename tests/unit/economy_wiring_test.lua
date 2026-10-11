@@ -532,38 +532,26 @@ test("a building with a square not loaded is not complete", function()
     eq(searched, 1)
 end)
 
-test("all containers searched pays the building once, from the minute check", function()
+test("a building all searched pays once, from the counts of the character's last look at it", function()
     boot()
     OA.Buildings.reset()
     local record = OA.Store.ensure("w", "W")
     local boxes = { box(true), box(true), box(false) }
     local rooms = fakeBuilding({ { sq({ fakeObject({ boxes[1], boxes[2] }) }), sq({ fakeObject({ boxes[3] }) }) } })
     local w = walker(rooms[1])
-    isServer = function() return false end
-    getNumActivePlayers = function() return 1 end
-    getSpecificPlayer = function() return w end
-    w.isDead = function() return false end
-    w.getModData = function() return { OA_Id = "w" } end
-    local clock = 1000000
-    getTimestampMs = function() return clock end
-    TEST.fire("EveryOneMinute")
+    OA.Buildings.tick(w)
+    eq(OA.Economy.checkSearched(w, record, "v:700,800"), nil, "two of three")
     eq(record.codex and record.codex.nb or 0, 0)
-    local searched, total = OA.Codex.buildingProgress(record, "v:700,800")
-    eq(searched, 2); eq(total, 3)
     boxes[3].set(true)
-    -- fast-forwarded: minutes within LOOK_MS of real time do not look again
-    clock = clock + OA.Buildings.LOOK_MS - 1
-    TEST.fire("EveryOneMinute")
-    eq(record.codex and record.codex.nb or 0, 0, "a look within LOOK_MS")
-    clock = clock + 1
-    TEST.fire("EveryOneMinute")
+    OA.Buildings.tick(w)
+    -- the character steps out before the economy hears of it: the walk it left still answers
+    w:move(nil)
+    OA.Buildings.tick(w)
+    eq(OA.Economy.checkSearched(w, record, "v:700,800"), 130, "100 + 10 per container x 3")
     eq(record.codex.nb, 1)
-    near(record.trade.bonus, 130, 1e-9, "100 + 10 per container x 3")
-    clock = clock + OA.Buildings.LOOK_MS
-    TEST.fire("EveryOneMinute")
-    eq(record.codex.nb, 1, "only once")
-    searched, total = OA.Codex.buildingProgress(record, "v:700,800")
-    eq(searched, 3); eq(total, 3)
+    near(record.trade.bonus, 130, 1e-9)
+    eq(OA.Economy.checkSearched(w, record, "v:700,800"), nil, "only once")
+    eq(OA.Economy.checkSearched(w, record, "v:1,1"), nil, "a building it has no look at")
 end)
 
 test("a building that was not fully loaded does not pay", function()
@@ -572,13 +560,8 @@ test("a building that was not fully loaded does not pay", function()
     local record = OA.Store.ensure("w", "W")
     local rooms = fakeBuilding({ { sq({ fakeObject({ box(true) }) }) } }, false)
     local w = walker(rooms[1])
-    w.isDead = function() return false end
-    w.getModData = function() return { OA_Id = "w" } end
-    isServer = function() return false end
-    getNumActivePlayers = function() return 1 end
-    getSpecificPlayer = function() return w end
-    getTimestampMs = function() return 5000000 end
-    TEST.fire("EveryOneMinute")
+    OA.Buildings.tick(w)
+    eq(OA.Economy.checkSearched(w, record, "v:700,800"), nil)
     eq(record.codex and record.codex.nb or 0, 0)
 end)
 

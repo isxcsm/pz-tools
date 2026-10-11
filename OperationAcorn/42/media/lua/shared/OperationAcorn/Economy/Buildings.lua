@@ -2,11 +2,11 @@
 -- A container counts as searched when the player's loot window has shown it: the mod marks its object then
 -- (Buildings.mark, OA_Searched in its mod data). Not the game's ItemContainer:isExplored, which the game sets when it
 -- rolls the loot, in single player as soon as the square first loads: a house reached for the first time would read as
--- all searched. The containers of a
--- building are counted when the character comes into it, a part at a time (Buildings.BUDGET squares a look), and
--- kept; after that a look only asks the ones not opened yet. Nothing runs per tick: the server wiring calls
--- Buildings.tick for each player once a game minute, at most once each LOOK_MS of real time (Buildings.due), and a
--- window may call it as it likes.
+-- all searched. The containers of a building are counted when the character comes into it, a part at a time
+-- (Buildings.BUDGET squares a look), and kept; after that a look only asks the ones not opened yet. Nothing runs per
+-- tick or on a clock: the search watch (client/OperationAcorn/Economy/Searched.lua) calls Buildings.tick when the
+-- character comes into a building and when the loot window marks a container, both told by the loot window's own
+-- refresh.
 --
 -- With the PZ Tools API the building comes from it (buildings.at: a stable key, player-built buildings known as such)
 -- and so do its containers (buildings.containers: the squares walked in Java in one call, which lists only the
@@ -33,13 +33,15 @@ function Buildings.opened(container)
     return object ~= nil and object:hasModData() and object:getModData()[SEARCHED] ~= nil
 end
 
--- Marks a container's object as looked into, when it is a world object (not a car, a body, a bag). The loot window
--- calls it for each container it shows; an object marked already is left as it is (its mod data not touched).
+-- Marks a container's object as looked into, when it is a world object (not a car, a body, a bag): true when it was
+-- not marked before. The loot window calls it for each container it shows; an object marked already is left as it is
+-- (its mod data not touched).
 function Buildings.mark(container)
     local object = container:getParent()
-    if not object or not instanceof(object, "IsoObject") or instanceof(object, "IsoMovingObject") then return end
-    if object:hasModData() and object:getModData()[SEARCHED] ~= nil then return end
+    if not object or not instanceof(object, "IsoObject") or instanceof(object, "IsoMovingObject") then return false end
+    if object:hasModData() and object:getModData()[SEARCHED] ~= nil then return false end
     object:getModData()[SEARCHED] = true
+    return true
 end
 
 -- Takes the mark away (the dev tools' search reset).
@@ -49,23 +51,12 @@ function Buildings.unmark(container)
 end
 
 local states = {}      -- by player number: the walk over the building the character is in (see newWalk)
-local lookedAt = {}    -- by player number: the real time (ms) of the last look the minute check made
+local left = {}        -- by player number: the walk of the building the character was in before (Buildings.counts)
 
 -- Squares one look visits at most. A big building (an office of some 20,000 squares and 1,900 containers) is counted
 -- over several minutes instead of in one long frame: found in game, 120 ms for a look, and every minute while part of
 -- it was not loaded, because the whole building was counted again.
 Buildings.BUDGET = 200
-
--- Real milliseconds at least between two looks from the minute check. A look walks the building and follows no game
--- time, and a game minute is 2.5 s of real time at the default day length but a few hundredths of a second
--- fast-forwarded (x40) or asleep: then the minute check fires many times a second.
-Buildings.LOOK_MS = 2000
-
--- Whether the minute check looks at a character's building now (`now`: getTimestampMs()), and if so notes it. A clock
--- that went back looks at once.
-function Buildings.due(character, now)
-    return OA.due(lookedAt, character:getPlayerNum(), now, Buildings.LOOK_MS)
-end
 
 -- What the API's containers are asked for every look: not a player-built object (IsoThumpable), nor one of the mod's
 -- own (MOD_KIND). `since` and `into` change from look to look.
@@ -334,7 +325,7 @@ function Buildings.searched(containers)
     return n
 end
 
--- One look at the building a character stands in (call it about once a minute): returns key, searched, total and
+-- One look at the building a character stands in: returns key, searched, total and
 -- whether every square of the building has been counted; nil when the character is outside. A look counts up to
 -- BUDGET more squares of the building and asks the containers not opened yet whether they are now (an opened one
 -- stays opened, so it is not asked again).
@@ -344,11 +335,13 @@ function Buildings.tick(character)
     local room = square and square:getRoom()
     local key = room and Buildings.keyAt(square, room) or nil
     if not key then
+        if states[number] then left[number] = states[number] end
         states[number] = nil
         return nil
     end
     local walk = states[number]
     if not walk or walk.key ~= key then
+        if walk then left[number] = walk end
         walk = newWalk(square, room)
         states[number] = walk
         if not walk then return nil end
@@ -378,6 +371,18 @@ function Buildings.tick(character)
         end
     end
     return walk.key, walk.explored, walk.total, walk.complete
+end
+
+-- What the last look at the building `key` found for the character: searched, total and whether it was counted
+-- whole; nil when its walk is neither the one in hand nor the one before (the character went on to another). Asks
+-- nothing of the game: the economy's check of a building all searched, which the watch sends as the character steps
+-- away from the last containers, maybe out of the building.
+function Buildings.counts(character, key)
+    local number = character:getPlayerNum()
+    local walk = states[number]
+    if not walk or walk.key ~= key then walk = left[number] end
+    if not walk or walk.key ~= key then return nil end
+    return walk.explored, walk.total, walk.complete
 end
 
 -- The containers of the character's building not opened yet as the last look found them (a list kept by the walk:
@@ -415,7 +420,7 @@ end
 -- Forget what is cached (a new character, a test).
 function Buildings.reset()
     states = {}
-    lookedAt = {}
+    left = {}
     noContainers, containersFailed = {}, false
 end
 
