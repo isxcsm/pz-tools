@@ -328,11 +328,15 @@ local function carries(player, class)
     return true
 end
 
--- The option's tooltip with the tools it needs, in red and the option greyed out when the character has none.
+-- The option's tooltip with the tools it needs: in red and the option greyed out when the character has none, left
+-- out when it has them (as the game's own options say only what is missing), and named when the API cannot tell.
 local function toolTip(option, player, class, text, need)
-    if carries(player, class) == false then
+    local has = carries(player, class)
+    if has == false then
         option.notAvailable = true
         tip(option, text .. " <LINE> <RGB:1,0.35,0.3> " .. getText(need))
+    elseif has then
+        tip(option, text)
     else
         tip(option, text .. " <LINE> " .. getText(need))
     end
