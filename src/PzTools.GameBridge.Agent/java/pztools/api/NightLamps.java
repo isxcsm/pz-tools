@@ -47,7 +47,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * squares are raised to the dark place's least light whether the player is in one or not, and the pass takes them down
  * to the least light shown ({@link #shadeOf}, eased every frame): the baked squares change only when night sight's
  * value does, and a dark place comes and goes smoothly, where raising the squares to it would make every chunk bake
- * again, one batch after another.
+ * again, one batch after another. Each set's values also go towards the squares' by at most nightSight.ease's pace
+ * ({@link #toward}): the game hands a square's light as its lighting gets to it, in jumps (more so with PZ
+ * Optimization's lighting), and the share of colour kept follows them as a fade, not a step a set.
+ *
+ * <p>The least light is for the night: outside a dark place the least light shown follows the game's night
+ * ({@code ClimateManager.getNightStrength}, 0 by day), so that by day a square keeps the game's light and colour (the
+ * game darkens what the player does not see, and the pass would otherwise grey it as night sight's), the squares
+ * still raised (a pixel is taken down to the game's light) and nothing baked again.
  *
  * <p>Two buffers go between the threads: the render thread takes the one ready, copies it to the texture and gives it
  * back; nothing is allocated after the first frame. The texture is bound on its own unit ({@link #UNIT}), and the unit
@@ -78,8 +85,10 @@ final class NightLamps {
 
     private final Game game;
     private final Players players;
-    // The dark place's and the standing characters' numbers, as tuned.
-    private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares;
+    // The dark place's and the standing characters' numbers, and the seconds night sight eases over, as tuned.
+    private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, ease;
+    // ClimateManager.getInstance().getNightStrength().
+    private final MethodHandle climate, nightStrength;
     // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int); ColorInfo.r, g, b, a,
     // set(r, g, b, a) and its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
     private final MethodHandle lighting, lightInfo, lightCount, light, infoR, infoG, infoB, infoA, setAll, newInfo,
@@ -154,7 +163,7 @@ final class NightLamps {
     private long shownAt, shownPeriod = REFRESH_NS;
 
     NightLamps(ClassLoader loader, Game game, Players players, Tunings.Tuning darkLight, Tunings.Tuning darkIn, Tunings.Tuning darkOut,
-            Tunings.Tuning darkRadius, Tunings.Tuning standing) throws ReflectiveOperationException {
+            Tunings.Tuning darkRadius, Tunings.Tuning standing, Tunings.Tuning ease) throws ReflectiveOperationException {
         this.game = game;
         this.players = players;
         this.darkLight = darkLight;
@@ -162,7 +171,11 @@ final class NightLamps {
         this.darkOut = darkOut;
         this.darkRadius = darkRadius;
         this.standingSquares = standing;
+        this.ease = ease;
         var lookup = MethodHandles.publicLookup();
+        Class<?> climateType = Game.type(loader, "zombie.iso.weather.ClimateManager");
+        climate = Game.exact(climateType.getMethod("getInstance"), MethodType.methodType(Object.class));
+        nightStrength = Game.exact(climateType.getMethod("getNightStrength"), MethodType.methodType(float.class, Object.class));
         Class<?> square = Game.type(loader, "zombie.iso.IsoGridSquare"), lights = Game.type(loader, "zombie.iso.IsoGridSquare$ILighting");
         Class<?> result = Game.type(loader, "zombie.iso.IsoGridSquare$ResultLight"), info = Game.type(loader, "zombie.core.textures.ColorInfo");
         lighting = lookup.unreflectGetter(square.getField("lighting")).asType(MethodType.methodType(Object[].class, Object.class));
@@ -235,33 +248,47 @@ final class NightLamps {
      * Sets the least light of a square on the screen (0 to 255; 0 for none): {@code light} outside a dark place,
      * {@code dark} in one, and the share of the dark place's more shown now (0 to 1, eased every frame by the caller).
      * While the values run (one player of this machine) the squares are raised to {@code dark} and the screen pass takes
-     * them down to the least light shown; without them, to {@code light}. Each square raised to another is read again as
-     * the game next asks for its lighting. On the game's thread, every frame.
+     * them down to the least light shown, {@code light} by the game's night; without them, they are raised to
+     * {@code light}. Each square raised to another is read again as the game next asks for its lighting. On the game's
+     * thread, every frame.
      */
-    void floorLight(int light, int dark, float darkShare) {
+    void floorLight(int light, int dark, float darkShare) throws Throwable {
         int lit = Math.max(0, Math.min(255, light)), most = Math.max(lit, Math.min(255, dark));
-        boolean carried = !stopped && most > lit && alone(players.all()) >= 0;
-        shade = carried ? shadeOf(lit, most, darkShare) : 1f;
-        int next = carried ? most : lit;
+        boolean carried = !stopped && most > 0 && alone(players.all()) >= 0;
+        shade = carried ? shadeOf(lit, most, darkShare, (float)nightStrength.invokeExact((Object)climate.invokeExact())) : 1f;
+        raise(carried ? most : lit);
+    }
+
+    /** One least light, all of it shown, in a dark place or not and by day (for the tests). */
+    void floorLight(int light) {
+        shade = 1f;
+        raise(Math.max(0, Math.min(255, light)));
+    }
+
+    private void raise(int next) {
         if (next == floor) return;
         if (next > 0) raising = true;
         floor = next;
         valuesAt = 0;
     }
 
-    /** The same least light in a dark place or not. */
-    void floorLight(int light) { floorLight(light, light, 0f); }
-
     int floorLight() { return floor; }
 
     /** The least light shown against the one the squares are raised to (for the tests). */
     float shade() { return shade; }
 
-    /** The least light shown against {@code dark}, the one the squares are raised to, with {@code share} of the dark place's more. */
-    static float shadeOf(int light, int dark, float share) {
+    /**
+     * The least light shown against {@code dark}, the one the squares are raised to: {@code light} by the game's
+     * {@code night} (0 by day to 1), with {@code share} of the way from it to {@code dark} (a dark place's, by day too).
+     */
+    static float shadeOf(int light, int dark, float share, float night) {
         if (dark <= 0) return 1f;
-        return (light + (dark - light) * Math.max(0f, Math.min(1f, share))) / dark;
+        float outside = light * Math.max(0f, Math.min(1f, night));
+        return (outside + (dark - outside) * Math.max(0f, Math.min(1f, share))) / dark;
     }
+
+    /** A value of 0 to 255 at most {@code most} from {@code from} towards {@code to}. */
+    static int toward(int from, int to, int most) { return to > from ? Math.min(to, from + most) : Math.max(to, from - most); }
 
     /** How far the screen pass is from the last set's values to the newest's (0 to 1), {@code since} it got them, the next due in {@code period}. */
     static float blend(long since, long period) {
@@ -490,28 +517,38 @@ final class NightLamps {
         if ((data.get(at + 1) & 0xFF) < lamp) data.put(at + 1, (byte)lamp);
     }
 
-    // The last set's values of the same squares go before this set's (a square it did not have, or with none, has this
-    // set's twice), and its colour kept beyond them; then this set is the last.
+    // The last set's values of the same squares go before this set's, and this set's go from them towards the squares'
+    // by at most the pace night sight eases at over the time the set takes (a square the last set did not have, or with
+    // none, has the square's values twice), and so does its colour kept beyond them; then this set is the last.
     private void follow(Values into) {
         ByteBuffer data = into.data;
         byte[] last = lastValues, next = nextValues;
         int dx = into.x0 - lastX, dy = into.y0 - lastY;
+        float pace = Math.min(1f, into.period / 1e9f / Math.max(0.01f, ease.value()));
+        int most = Math.max(1, Math.round(255f * pace));
         for (int j = 0; j < SIZE; j++) {
             int lj = j + dy;
             boolean row = hasLast && lj >= 0 && lj < SIZE;
             for (int i = 0; i < SIZE; i++) {
                 int k = j * SIZE + i, li = i + dx;
-                byte kept = data.get(4 * k + 2), lamp = data.get(4 * k + 3);
-                next[2 * k] = kept;
-                next[2 * k + 1] = lamp;
+                int kept = data.get(4 * k + 2) & 0xFF, lamp = data.get(4 * k + 3) & 0xFF;
                 if (row && li >= 0 && li < SIZE) {
-                    kept = last[2 * (lj * SIZE + li)];
-                    lamp = last[2 * (lj * SIZE + li) + 1];
+                    int keptBefore = last[2 * (lj * SIZE + li)] & 0xFF, lampBefore = last[2 * (lj * SIZE + li) + 1] & 0xFF;
+                    kept = toward(keptBefore, kept, most);
+                    lamp = toward(lampBefore, lamp, most);
+                    data.put(4 * k + 2, (byte)kept);
+                    data.put(4 * k + 3, (byte)lamp);
+                    data.put(4 * k, (byte)keptBefore);
+                    data.put(4 * k + 1, (byte)lampBefore);
+                } else {
+                    data.put(4 * k, (byte)kept);
+                    data.put(4 * k + 1, (byte)lamp);
                 }
-                data.put(4 * k, kept);
-                data.put(4 * k + 1, lamp);
+                next[2 * k] = (byte)kept;
+                next[2 * k + 1] = (byte)lamp;
             }
         }
+        if (hasLast) into.keepTo = lastBeyond + Math.max(-pace, Math.min(pace, into.keepTo - lastBeyond));
         into.keepFrom = hasLast ? lastBeyond : into.keepTo;
         lastBeyond = into.keepTo;
         lastX = into.x0;

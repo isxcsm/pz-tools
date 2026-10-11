@@ -160,14 +160,6 @@ final class FormulasTest {
         cell.load(102, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(90, 190, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_ROOMLIGHT));
         cell.load(103, 200, 0).setLight(0, 0.3f, new zombie.iso.IsoGridSquare.ResultLight(110, 200, 5, 1f, zombie.iso.IsoGridSquare.ResultLight.RLF_NONE));
         cell.load(104, 203, 0).setLight(0, 1f, lamp);
-        frameLater(formulas, pass);
-        IsoWorld.instance.setCell(home);
-        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8) && org.lwjgl.opengl.GL20.values.get(4) == 1f && near(org.lwjgl.opengl.GL20.values.get(9), Formulas.SIGHT_LIFT)
-            && near(org.lwjgl.opengl.GL20.values.get(11), shown / (double)least) && org.lwjgl.opengl.GL20.values.get(10) >= 0f && org.lwjgl.opengl.GL20.values.get(10) < 1f,
-            "The screen pass did not get the strength, the least light shown or how far it is between the values, or is not on: " + org.lwjgl.opengl.GL20.values);
-        check(org.lwjgl.opengl.GL20.integers.get(6) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
-            && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == NightLamps.SIZE,
-            "The values' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
         int x0 = 100 - NightLamps.SIZE / 2, y0 = 200 - NightLamps.SIZE / 2;
         // the newest set's values (the third and fourth bytes of a square), and the last set's (the first)
         java.util.function.BiFunction<Integer, Integer, Double> kept = (x, y) ->
@@ -177,13 +169,28 @@ final class FormulasTest {
         java.util.function.BiFunction<Integer, Integer, Double> keptBefore = (x, y) ->
             (org.lwjgl.opengl.GL11.pixels[4 * ((y - y0) * NightLamps.SIZE + (x - x0))] & 0xFF) / 255.0;
         double floor = least / 255.0, lampShare = (1 - 4 / 7.0) / 0.9;
+        frameLater(formulas, pass);
+        // the set before had none of the lights (the cell was empty), and this one goes from it towards the squares' values
+        // by at most the pace night sight eases at (a tenth of a second of nightSight.ease's 0.3 for it)
+        int pace = Math.round(255f * 0.1f / Formulas.SIGHT_EASE);
+        check(keptBefore.apply(101, 200) == 0.0 && keptBefore.apply(100, 203) == 0.0 && kept.apply(101, 200) == pace / 255.0
+            && share.apply(104, 203) == pace / 255.0, "The newest set's values did not go from the last set's at night sight's pace: "
+            + keptBefore.apply(101, 200) + " " + kept.apply(101, 200) + " " + share.apply(104, 203));
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        frameLater(formulas, pass);
+        IsoWorld.instance.setCell(home);
+        check(near(org.lwjgl.opengl.GL20.values.get(3), 0.8) && org.lwjgl.opengl.GL20.values.get(4) == 1f && near(org.lwjgl.opengl.GL20.values.get(9), Formulas.SIGHT_LIFT)
+            && near(org.lwjgl.opengl.GL20.values.get(11), shown / (double)least) && org.lwjgl.opengl.GL20.values.get(10) >= 0f && org.lwjgl.opengl.GL20.values.get(10) < 1f,
+            "The screen pass did not get the strength, the least light shown or how far it is between the values, or is not on: " + org.lwjgl.opengl.GL20.values);
+        check(org.lwjgl.opengl.GL20.integers.get(6) == NightLamps.UNIT && org.lwjgl.opengl.GL11.unitBound == 0x84C0 + NightLamps.UNIT
+            && org.lwjgl.opengl.GL13.active() == 0x84C0 && org.lwjgl.opengl.GL11.width == NightLamps.SIZE,
+            "The values' texture is not on its own unit, or the active unit was not given back: " + org.lwjgl.opengl.GL13.active());
         check(kept.apply(100, 203) == 1.0 && Math.abs(share.apply(100, 203) - lampShare) < 0.01 && kept.apply(104, 203) == 1.0
             && share.apply(104, 203) == 1.0 && Math.abs(kept.apply(101, 200) - 0.3 / floor) < 0.01 && share.apply(101, 200) == 0.0
             && share.apply(102, 200) == 1.0 && share.apply(103, 200) == 0.0 && kept.apply(95, 195) == 0.0
             && Math.abs(kept.apply(100, 200) - seen / floor) < 0.01,
             "The squares' values: " + kept.apply(101, 200) + " " + share.apply(100, 203) + " " + share.apply(102, 200) + " " + kept.apply(100, 200));
-        // the set before had none of the lights (the cell was empty)
-        check(keptBefore.apply(101, 200) == 0.0 && keptBefore.apply(100, 203) == 0.0, "The last set's values did not go with the newest: " + keptBefore.apply(101, 200));
         check(org.lwjgl.opengl.GL20.values.get(5) == 0f, "Beyond the values the colour is not kept as on their edge: " + org.lwjgl.opengl.GL20.values.get(5));
         // the player stands on its square: the squares behind it it is drawn over, and their sides, keep at least its values
         // (its square lit by the corners handed, the ones behind it not loaded)
@@ -259,7 +266,7 @@ final class FormulasTest {
         for (int dx = -6; dx <= 6; dx++) for (int dy = -6; dy <= 6; dy++) cell.load(300 + dx, 300 + dy, 0).setLight(0, 0f);
         int plain = Math.round(Formulas.FLOOR_FULL * 0.2f * 255f), dark = Math.round((Formulas.FLOOR_FULL * 0.2f + Formulas.DARK_EXTRA) * 255f);
         var lamps = formulas.nightLamps();
-        float outside = NightLamps.shadeOf(plain, dark, 0f);
+        float outside = NightLamps.shadeOf(plain, dark, 0f, 1f);
         frameLater(formulas, pass);
         frameLater(formulas, pass);
         check(lamps.darkPlace() && lamps.floorLight() == dark && lamps.shade() > outside && lamps.shade() < 1f,
@@ -288,6 +295,15 @@ final class FormulasTest {
         IsoPlayer.players[1] = null;
         formulas.nightSightFrame(0);
         check(lamps.floorLight() == dark && lamps.shade() == outside, "With one player again the squares are not raised to the dark place's least light");
+        // by day none of it is shown outside a dark place (the game's light and colour kept), at dusk some; nothing baked again
+        zombie.iso.weather.ClimateManager.night = 0f;
+        formulas.nightSightFrame(0);
+        check(lamps.shade() == 0f && lamps.floorLight() == dark, "By day the least light is shown: " + lamps.shade());
+        zombie.iso.weather.ClimateManager.night = 0.5f;
+        formulas.nightSightFrame(0);
+        check(lamps.shade() == NightLamps.shadeOf(plain, dark, 0f, 0.5f) && lamps.shade() > 0f && lamps.shade() < outside, "At dusk: " + lamps.shade());
+        zombie.iso.weather.ClimateManager.night = 1f;
+        formulas.nightSightFrame(0);
         IsoWorld.instance.setCell(home);
         player.x = player.y = 0f;
     }
@@ -520,9 +536,16 @@ final class FormulasTest {
         check(NightLamps.blend(0, period) == 0f && NightLamps.blend(-5, period) == 0f && NightLamps.blend(period / 4, period) == 0.25f
             && NightLamps.blend(period, period) == 1f && NightLamps.blend(3 * period, period) == 1f && NightLamps.blend(5, 0) == 1f,
             "The blend between the values: " + NightLamps.blend(period / 4, period));
-        check(NightLamps.shadeOf(100, 200, 0f) == 0.5f && NightLamps.shadeOf(100, 200, 1f) == 1f && NightLamps.shadeOf(100, 200, 0.5f) == 0.75f
-            && NightLamps.shadeOf(100, 200, 2f) == 1f && NightLamps.shadeOf(100, 200, -1f) == 0.5f && NightLamps.shadeOf(0, 0, 0f) == 1f
-            && NightLamps.shadeOf(0, 50, 0f) == 0f, "The least light shown: " + NightLamps.shadeOf(100, 200, 0.5f));
+        check(NightLamps.shadeOf(100, 200, 0f, 1f) == 0.5f && NightLamps.shadeOf(100, 200, 1f, 1f) == 1f && NightLamps.shadeOf(100, 200, 0.5f, 1f) == 0.75f
+            && NightLamps.shadeOf(100, 200, 2f, 1f) == 1f && NightLamps.shadeOf(100, 200, -1f, 1f) == 0.5f && NightLamps.shadeOf(0, 0, 0f, 1f) == 1f
+            && NightLamps.shadeOf(0, 50, 0f, 1f) == 0f, "The least light shown: " + NightLamps.shadeOf(100, 200, 0.5f, 1f));
+        // by day (night 0) none outside a dark place, a dark place's whole in one; half of it at half the night
+        check(NightLamps.shadeOf(100, 200, 0f, 0f) == 0f && NightLamps.shadeOf(100, 200, 1f, 0f) == 1f && NightLamps.shadeOf(100, 200, 0.5f, 0f) == 0.5f
+            && NightLamps.shadeOf(100, 200, 0f, 0.5f) == 0.25f && NightLamps.shadeOf(100, 200, 0f, 2f) == 0.5f, "The least light shown by day: "
+            + NightLamps.shadeOf(100, 200, 0f, 0.5f));
+        // the values go towards the squares' by at most a step, never past them
+        check(NightLamps.toward(0, 200, 85) == 85 && NightLamps.toward(200, 0, 85) == 115 && NightLamps.toward(100, 120, 85) == 120
+            && NightLamps.toward(120, 100, 85) == 100 && NightLamps.toward(7, 7, 85) == 7, "A step towards the squares' values");
         call(formulas, "set", mod, "vision.nightSight", 0.8);
         player.luma = 0.05f;
         LightingJNI.darkness(player);

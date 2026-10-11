@@ -320,7 +320,7 @@ final class Formulas implements ApiHooks.Formulas {
         animationsProblem = still;
         NightLamps screen = null;
         String unlit = null;
-        try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing); }
+        try { screen = new NightLamps(loader, game, players, darkLight, darkIn, darkOut, darkRadius, standing, ease); }
         catch (ReflectiveOperationException | RuntimeException | LinkageError unreadable) {
             unlit = "the game's square lights, screen placement or GL could not be read: " + unreadable;
             System.err.println("[PzTools API] formulas: " + unlit);
@@ -1022,7 +1022,7 @@ final class Formulas implements ApiHooks.Formulas {
     /**
      * Night sight, once a frame on the main thread before the screen is drawn: the least light of the squares follows
      * the point (a constant for a value, so that the game bakes its chunks again only when it changes; a dark place's
-     * more is shown by the screen pass, see NightLamps), and the strength of the screen pass's lift, and the share of a
+     * more, and the least light outside one by the game's night, are shown by the screen pass, see NightLamps), and the strength of the screen pass's lift, and the share of a
      * dark place's more shown, go towards the point's value times how dark it is for the player (none in daylight or by a
      * lamp), and towards whether the player is in a dark place, over {@link #SIGHT_EASE} seconds so that they never pop.
      * The game's darkness reads the squares' own light, which night sight leaves as it is.
