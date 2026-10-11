@@ -168,6 +168,12 @@ local function localizedArgs(detail)
     return args
 end
 
+-- Notices the character says (its own speech, as the game's self-talk; a halo text is pushed aside by other notices).
+local SAID = {
+    IGUI_OA_Tree_PrySuccess = true, IGUI_OA_Tree_PryFail = true, IGUI_OA_Tree_PickSuccess = true,
+    IGUI_OA_Tree_PickFail = true, IGUI_OA_Tree_PickDisarmed = true, IGUI_OA_Tree_Disarmed = true,
+}
+
 local function onNotice(playerId, detail)
     if type(detail) ~= "table" or type(detail.key) ~= "string" then return end
     if not string.find(detail.key, "^IGUI_OA_Tree_") then return end
@@ -185,6 +191,8 @@ local function onNotice(playerId, detail)
     if detail.key == "IGUI_OA_Tree_Opened" then
         local raw = detail.args or {}
         Hooks.treeOpened(playerId, tostring(raw[1]), raw[2] == "guide")
+    elseif SAID[detail.key] then
+        player:Say(text)
     elseif string.find(detail.key, "Failed$") or string.find(detail.key, "Fail$") or string.find(detail.key, "Expired$")
         or string.find(detail.key, "NotOwner$") or string.find(detail.key, "Lost$") then
         HaloTextHelper.addBadText(player, text)
@@ -275,6 +283,7 @@ local NEEDS = {
         return clip ~= nil and driver ~= nil
     end, missing = "Tooltip_OA_Tree_NeedPickTools" },
 }
+NEEDS[ISOADisarm] = NEEDS[ISOAPickLock]
 
 local function startLock(player, target, class)
     local needs = NEEDS[class]
@@ -291,10 +300,22 @@ local function startLock(player, target, class)
     end
 end
 
--- The two options for one locked door, window or car part.
+-- The option to cut the alarm of a door, window or car part that is not locked, for one with 자물쇠 따기 and 경보 읽기
+-- (who knows of the alarm: the parts are outlined). A locked one is picked, which cuts it too.
+local function addDisarmOption(context, player, target, u)
+    if Rules.rank(u, "lock") < 1 or Rules.rank(u, "alarm") < 1 or not Actions.alarmOf(target) then return end
+    local chance = Texts.percent(Rules.lockChance(u) * 100)
+    local option = context:addOptionOnTop(getText("ContextMenu_OA_Tree_Disarm", chance), player, startLock, target, ISOADisarm)
+    tip(option, getText("Tooltip_OA_Tree_DisarmInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
+end
+
+-- The two options for one locked door, window or car part, or the alarm's for one that is not locked.
 local function addLockOptions(context, player, target)
-    if not Actions.isLocked(target) then return end
     local u = Rules.section(OA.Client.record(player))
+    if not Actions.isLocked(target) then
+        addDisarmOption(context, player, target, u)
+        return
+    end
     local crowbar, pick = Rules.rank(u, "crowbar"), Rules.rank(u, "lock")
     if crowbar < 1 and pick < 1 then return end
     local reinforced = Actions.isReinforced(target)
@@ -306,7 +327,10 @@ local function addLockOptions(context, player, target)
         if reinforced and pick < 2 then
             unavailable(option, getText("Tooltip_OA_Tree_Reinforced"))
         else
-            tip(option, getText("Tooltip_OA_Tree_PickInfo", chance) .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
+            local text = getText("Tooltip_OA_Tree_PickInfo", chance)
+            -- the alarm it cuts, told only to one who reads alarms
+            if Rules.rank(u, "alarm") >= 1 and Actions.alarmOf(target) then text = text .. " <LINE> " .. getText("Tooltip_OA_Tree_PickAlarm") end
+            tip(option, text .. " <LINE> " .. getText("Tooltip_OA_Tree_NeedPickTools"))
         end
     end
     if crowbar >= 1 then

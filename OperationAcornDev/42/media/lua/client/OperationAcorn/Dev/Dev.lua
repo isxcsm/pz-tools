@@ -679,8 +679,10 @@ end
 -- Puts an alarm on the nearest loaded vehicle without one within 30 squares. Returns whether one was set.
 function Dev.alarmCar()
     for _, v in ipairs(vehiclesNear()) do
-        if not v.vehicle:isAlarmed() then
+        if not v.vehicle:isAlarmed() or v.vehicle:isPreviouslyEntered() then
             v.vehicle:setAlarmed(true)
+            -- a car opened once does not sound again (ISOpenVehicleDoor): it is made unopened
+            v.vehicle:setPreviouslyEntered(false)
             say("alarm: vehicle", v.vehicle:getId(), "at", v.vehicle:getX(), v.vehicle:getY(), "alarmed")
             return true
         end

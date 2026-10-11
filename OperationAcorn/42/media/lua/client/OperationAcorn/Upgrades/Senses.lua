@@ -11,6 +11,7 @@ require "ISUI/ISPanel"
 -- ISCoordConversion is a server-folder file, loaded after this one: it is used when drawing, not required here.
 require "OperationAcorn/Client"
 require "OperationAcorn/Upgrades/Api"
+require "OperationAcorn/Upgrades/Actions"
 require "OperationAcorn/Upgrades/Pulse"
 require "OperationAcorn/Upgrades/Moodles"
 require "OperationAcorn/Upgrades/First"
@@ -716,17 +717,6 @@ local function untint(from, keep)
     end
 end
 
--- The building a door or a window belongs to: its square's, or the square's across it (a wall's door or window sits on
--- the square inside or outside, at its north or west edge).
-local function entryBuilding(cell, sq, obj)
-    local building = sq:getBuilding()
-    if building then return building end
-    local x, y = sq:getX(), sq:getY()
-    if obj:getNorth() then y = y - 1 else x = x - 1 end
-    local other = cell:getGridSquare(x, y, sq:getZ())
-    return other and other:getBuilding()
-end
-
 -- Outlines the doors and windows of alarmed houses within ENTRY squares into litNext.
 local function tintEntries(player)
     local cell = getCell()
@@ -739,7 +729,7 @@ local function tintEntries(player)
                 for i = 0, special:size() - 1 do
                     local obj = special:get(i)
                     if instanceof(obj, "IsoDoor") or instanceof(obj, "IsoWindow") then
-                        local building = entryBuilding(cell, sq, obj)
+                        local building = OA.Upgrades.Actions.entryBuilding(sq, obj)
                         local def = building and building:getDef()
                         if def and def:isAlarmed() then
                             litNext[obj] = true
@@ -772,7 +762,7 @@ local function alarmJob(now)
     vehicleList = OA.vehicles(vehicleList)
     for i = 0, vehicleList:size() - 1 do
         local v = vehicleList:get(i)
-        if v:isAlarmed() then
+        if OA.Upgrades.Actions.carAlarmed(v) then
             local dx, dy = v:getX() - px, v:getY() - py
             local d = math.max(0, math.sqrt(dx * dx + dy * dy) - Sense.ALARM_CAR)
             if not nearest or d < nearest then nearest, car = d, true end

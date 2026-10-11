@@ -1,6 +1,7 @@
 -- The timed actions of the upgrades: injecting a serum (or using a cure serum, or a delay drug, or a test kit), prying a
--- locked door, window or car door open with a pry bar, picking its lock with a paper clip and a screwdriver. Each checks
--- again as it completes, where the world is decided (complete runs on the server).
+-- locked door, window or car door open with a pry bar, picking its lock with a paper clip and a screwdriver (which cuts
+-- its alarm too), and cutting the alarm of one that is not locked (자물쇠 따기 with 경보 읽기). Each checks again as it
+-- completes, where the world is decided (complete runs on the server).
 require "TimedActions/ISBaseTimedAction"
 require "OperationAcorn/Upgrades/Rules"
 require "OperationAcorn/Upgrades/Serums"
@@ -93,6 +94,53 @@ function Actions.unlock(target, broken)
         if broken then target:getDoor():setLockBroken(true) end
         vehicle:transmitPartDoor(target)
     end
+end
+
+-- ---- alarms ------------------------------------------------------------------------------------------------------
+-- A house's alarm sounds when a character is in one of its rooms or a window of it is broken
+-- (IsoGameCharacter.updateInternal, IsoWindow.handleAlarm); a car's when a door, its trunk or its hood is first opened
+-- without its key (ISOpenVehicleDoor; once opened, the car is "previously entered" and does not sound). The game has no
+-- way for a player to take one off: picking a lock does, and with 경보 읽기 cutting it alone does.
+
+-- The building a door or a window belongs to: its square's, or the square's across it (a wall's door or window sits on
+-- the square inside or outside, at its north or west edge).
+function Actions.entryBuilding(sq, obj)
+    local building = sq:getBuilding()
+    if building then return building end
+    local x, y = sq:getX(), sq:getY()
+    if obj:getNorth() then y = y - 1 else x = x - 1 end
+    local other = getCell():getGridSquare(x, y, sq:getZ())
+    return other and other:getBuilding()
+end
+
+-- Whether a car's alarm can still sound: alarmed, and not opened yet.
+function Actions.carAlarmed(vehicle)
+    return vehicle:isAlarmed() and not vehicle:isPreviouslyEntered()
+end
+
+-- The alarm the target is on: "house" and the building's def, "car" and the vehicle, or nil.
+function Actions.alarmOf(target)
+    if instanceof(target, "VehiclePart") then
+        local vehicle = target:getVehicle()
+        if vehicle and Actions.carAlarmed(vehicle) then return "car", vehicle end
+        return nil
+    end
+    if instanceof(target, "IsoDoor") or instanceof(target, "IsoWindow") then
+        local sq = target:getSquare()
+        local building = sq and Actions.entryBuilding(sq, target)
+        local def = building and building:getDef()
+        if def and def:isAlarmed() then return "house", def end
+    end
+    return nil
+end
+
+-- Takes the target's alarm off; returns what it was on ("house", "car") or nil when it had none.
+function Actions.disarm(target)
+    local kind, what = Actions.alarmOf(target)
+    if not kind then return nil end
+    what:setAlarmed(false)
+    if kind == "car" then what:transmitAlarmed() end
+    return kind
 end
 
 -- The square the action is at, for facing it and for the noise.
@@ -268,7 +316,39 @@ function ISOAPryOpen:new(character, target)
     return o
 end
 
--- Picking with a paper clip and a screwdriver: slow, quiet, usually works. A failure bends the clip (it is lost).
+-- One try with the clip and the screwdriver (the character has both): quiet; true when it worked, else the clip is
+-- bent (lost) and the character says so.
+local function pickTry(action, u, clip)
+    makeNoise(action.character, action.target, Actions.PICK_NOISE[1], Actions.PICK_NOISE[2])
+    if roll(Rules.lockChance(u)) then return true end
+    local container = clip:getContainer()
+    if container then
+        container:DoRemoveItem(clip)
+        if sendRemoveItemFromContainer then sendRemoveItemFromContainer(container, clip) end
+    end
+    OA.Sync.notice(action.oaId, "IGUI_OA_Tree_PickFail", {})
+    return false
+end
+
+local function pickDuration(action)
+    if action.character:isTimedActionInstant() then return 1 end
+    local record = OA.Store.player(action.oaId)
+    local mult = record and Rules.lockTime(Rules.section(record)) or 1
+    return math.floor(Actions.PICK_TICKS * mult)
+end
+
+local function pickNew(class, character, target)
+    local o = ISBaseTimedAction.new(class, character)
+    o.target = target
+    o.oaId = OA.Store.idOf(character)
+    o.stopOnWalk = true
+    o.stopOnRun = true
+    o.maxTime = o:getDuration()
+    return o
+end
+
+-- Picking with a paper clip and a screwdriver: slow, quiet, usually works. A failure bends the clip (it is lost). A lock
+-- picked on an alarmed house or car cuts its alarm too.
 ISOAPickLock = lockAction("ISOAPickLock")
 
 function ISOAPickLock:complete()
@@ -278,36 +358,36 @@ function ISOAPickLock:complete()
     local clip, driver = Actions.pickTools(self.character)
     if rank < 1 or not clip or not driver then return false end
     if Actions.isReinforced(self.target) and rank < 2 then return false end
-    makeNoise(self.character, self.target, Actions.PICK_NOISE[1], Actions.PICK_NOISE[2])
-    if roll(Rules.lockChance(u)) then
-        Actions.unlock(self.target, false)
-        OA.Sync.notice(self.oaId, "IGUI_OA_Tree_PickSuccess", {})
-        return true
-    end
-    local container = clip:getContainer()
-    if container then
-        container:DoRemoveItem(clip)
-        if sendRemoveItemFromContainer then sendRemoveItemFromContainer(container, clip) end
-    end
-    OA.Sync.notice(self.oaId, "IGUI_OA_Tree_PickFail", {})
-    return false
+    if not pickTry(self, u, clip) then return false end
+    Actions.unlock(self.target, false)
+    local alarm = Actions.disarm(self.target)
+    OA.Sync.notice(self.oaId, alarm and "IGUI_OA_Tree_PickDisarmed" or "IGUI_OA_Tree_PickSuccess", {})
+    return true
 end
 
-function ISOAPickLock:getDuration()
-    if self.character:isTimedActionInstant() then return 1 end
-    local record = OA.Store.player(self.oaId)
-    local mult = record and Rules.lockTime(Rules.section(record)) or 1
-    return math.floor(Actions.PICK_TICKS * mult)
+function ISOAPickLock:getDuration() return pickDuration(self) end
+function ISOAPickLock:new(character, target) return pickNew(self, character, target) end
+
+-- Cutting the alarm of a door, window or car door that is not locked (one that is, is picked): 자물쇠 따기 with 경보
+-- 읽기, the same tools, time, chance and failure as picking, on any door (a reinforced one too: the lock is not worked).
+ISOADisarm = lockAction("ISOADisarm")
+
+function ISOADisarm:isValid()
+    return stillThere(self.target) and Actions.alarmOf(self.target) ~= nil
 end
 
-function ISOAPickLock:new(character, target)
-    local o = ISBaseTimedAction.new(self, character)
-    o.target = target
-    o.oaId = OA.Store.idOf(character)
-    o.stopOnWalk = true
-    o.stopOnRun = true
-    o.maxTime = o:getDuration()
-    return o
+function ISOADisarm:complete()
+    local record = OA.Store.ensure(self.oaId, nil)
+    local u = Rules.section(record)
+    local clip, driver = Actions.pickTools(self.character)
+    if Rules.rank(u, "lock") < 1 or Rules.rank(u, "alarm") < 1 or not clip or not driver then return false end
+    if not Actions.alarmOf(self.target) or not pickTry(self, u, clip) then return false end
+    Actions.disarm(self.target)
+    OA.Sync.notice(self.oaId, "IGUI_OA_Tree_Disarmed", {})
+    return true
 end
+
+function ISOADisarm:getDuration() return pickDuration(self) end
+function ISOADisarm:new(character, target) return pickNew(self, character, target) end
 
 return Actions
