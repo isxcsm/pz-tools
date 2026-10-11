@@ -412,6 +412,17 @@ local function partName(part)
     return getText("IGUI_VehiclePart" .. part:getId())
 end
 
+-- How near the character must stand for the lock and alarm options, a door's or window's as a car's: the options tell
+-- whether it is locked and alarmed, which the character can know close up, not across the street (경보 읽기 notices an
+-- alarm within Sense.ALARM_NEAR, which is farther).
+local NEAR = 4
+
+local function nearSquare(player, sq)
+    if not sq or sq:getZ() ~= math.floor(player:getZ()) then return false end
+    local dx, dy = sq:getX() + 0.5 - player:getX(), sq:getY() + 0.5 - player:getY()
+    return dx * dx + dy * dy < NEAR * NEAR
+end
+
 local function onFillWorld(playerNum, context, worldobjects, test)
     if test then return end
     local player = getSpecificPlayer(playerNum)
@@ -419,13 +430,14 @@ local function onFillWorld(playerNum, context, worldobjects, test)
     if not OA.Client.record(player) then return end
     local seen = {}
     for _, object in ipairs(worldobjects) do
-        if (instanceof(object, "IsoDoor") or instanceof(object, "IsoWindow")) and not seen[object] then
+        if (instanceof(object, "IsoDoor") or instanceof(object, "IsoWindow")) and not seen[object]
+                and nearSquare(player, object:getSquare()) then
             seen[object] = true
             addLockOptions(context, player, object)
         end
     end
     local vehicle = IsoObjectPicker.Instance:PickVehicle(getMouseXScaled(), getMouseYScaled())
-    if vehicle and player:DistToProper(vehicle) < 4 then
+    if vehicle and player:DistToProper(vehicle) < NEAR then
         local part = vehicle:getUseablePart(player)
         local door = part and part:getDoor() and part or nil
         local trunk = vehicle:getPartById("TrunkDoor") or vehicle:getPartById("DoorRear")
