@@ -90,9 +90,9 @@ final class NightLamps {
     private final Tunings.Tuning darkLight, darkIn, darkOut, darkRadius, standingSquares, ease;
     // ClimateManager.getInstance().getNightStrength().
     private final MethodHandle climate, nightStrength;
-    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCanSee(); ColorInfo.r, g, b, a,
+    // IsoGridSquare.lighting; ILighting.lightInfo(), resultLightCount(), getResultLight(int), bCanSee(), bSeen(); ColorInfo.r, g, b, a,
     // set(r, g, b, a) and its constructor; ResultLight.x, y, radius, flags and r, g, b; IsoMovingObject.getX(), getY(), getZ().
-    private final MethodHandle lighting, lightInfo, lightCount, light, canSee, infoR, infoG, infoB, infoA, setAll, newInfo,
+    private final MethodHandle lighting, lightInfo, lightCount, light, canSee, everSeen, infoR, infoG, infoB, infoA, setAll, newInfo,
         lightX, lightY, lightRadius, lightFlags, lightR, lightG, lightB, xOf, yOf, zOf;
     private final int roomLight;
     // IsoCell.getZombieList().
@@ -185,6 +185,7 @@ final class NightLamps {
         lightInfo = Game.exact(lights.getMethod("lightInfo"), MethodType.methodType(Object.class, Object.class));
         lightCount = Game.exact(lights.getMethod("resultLightCount"), MethodType.methodType(int.class, Object.class));
         canSee = Game.exact(lights.getMethod("bCanSee"), MethodType.methodType(boolean.class, Object.class));
+        everSeen = Game.exact(lights.getMethod("bSeen"), MethodType.methodType(boolean.class, Object.class));
         light = Game.exact(lights.getMethod("getResultLight", int.class), MethodType.methodType(Object.class, Object.class, int.class));
         infoR = getter(lookup, info, "r", float.class);
         infoG = getter(lookup, info, "g", float.class);
@@ -304,7 +305,9 @@ final class NightLamps {
     /**
      * What {@code getSquareLighting} handed for a player's square, as the game is about to read it: the light the game
      * gives it is kept (the mean of its corners) with the least light, and its corner lights are raised to the least
-     * light, each colour, for a player of this machine. On whatever thread reads the lighting.
+     * light, each colour, for a player of this machine. A square the player has never seen (an unexplored room, which
+     * the game draws black) is left as it is: night sight shows nothing the game hides; it is kept as raised all the same,
+     * and is read again when the lighting says it changed (as it is seen). On whatever thread reads the lighting.
      */
     void squareLit(int playerIndex, int x, int y, int z, int[] lit) {
         if (!raising || lit == null || lit.length < CORNERS + 8) return;
@@ -314,7 +317,7 @@ final class NightLamps {
         for (int corner = CORNERS; corner < CORNERS + 8; corner++) {
             int light = lit[corner];
             sum += 299 * (light & 0xFF) + 587 * (light >>> 8 & 0xFF) + 114 * (light >>> 16 & 0xFF);
-            if (least > 0) lit[corner] = raise(light, least);
+            if (least > 0 && (lit[0] & SEEN_BIT) != 0) lit[corner] = raise(light, least);
         }
         SEEN_INT.setOpaque(floorSeen, seenAt(x, y), seenKey(x, y) | least << 8 | Math.round(sum / 8000f));
     }
@@ -367,6 +370,9 @@ final class NightLamps {
         return (entry & ~0xFFFF) == seenKey(x, y) ? (entry & 0xFF) / 255f : -1f;
     }
 
+    // The visibility's bit that says the player has seen the square (ILighting.bSeen).
+    private static final int SEEN_BIT = 1;
+
     // A corner light (0xAABBGGRR) with each colour at least `least`.
     static int raise(int corner, int least) {
         int r = Math.max(corner & 0xFF, least), g = Math.max(corner >>> 8 & 0xFF, least), b = Math.max(corner >>> 16 & 0xFF, least);
@@ -375,14 +381,19 @@ final class NightLamps {
 
     /**
      * The light the game draws a square's objects with, for a player: the game's, or a copy of it raised to the least
-     * light (the game's own is the square's, which it also asks for its zombies and its vision, and is never changed).
+     * light (the game's own is the square's, which it also asks for its zombies and its vision, and is never changed);
+     * the game's on a square the player has never seen.
      */
-    Object objectLight(Object info, int playerIndex) throws Throwable {
+    Object objectLight(Object info, int playerIndex, Object square) throws Throwable {
         int least = floor;
         if (least == 0 || info == null || !local(playerIndex)) return info;
         float lowest = least / 255f;
         float r = (float)infoR.invokeExact(info), g = (float)infoG.invokeExact(info), b = (float)infoB.invokeExact(info);
         if (r >= lowest && g >= lowest && b >= lowest) return info;
+        if (square != null) {
+            Object lit = lit(square, playerIndex);
+            if (lit != null && !(boolean)everSeen.invokeExact(lit)) return info;
+        }
         Raised mine = raised.get();
         Object copy = mine.four[mine.next++ & 3];
         setAll.invokeExact(copy, Math.max(r, lowest), Math.max(g, lowest), Math.max(b, lowest), (float)infoA.invokeExact(info));

@@ -176,8 +176,11 @@ final class Formulas implements ApiHooks.Formulas {
         float nightSight, darkness, coneAdd, landingShift, impact = 1, walk = 1, treeAnimation = 1;
     }
 
-    /** Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease). */
-    static final float SIGHT_EASE = 0.3f;
+    /**
+     * Seconds night sight takes to come in whole, or to leave (the default of nightSight.ease): the eye's pace, so that
+     * coming into a dark place reads as the eyes adjusting, not a pop.
+     */
+    static final float SIGHT_EASE = 0.8f;
     /**
      * The darkness the game reads (0 light to 1 dark) where the screen pass's lift starts, and where it is whole.
      * Measured in a night (0.54 outdoors, 1 in a basement with no light, 0.4 at a lamp's edge, 0 under it and by day).
@@ -1061,9 +1064,11 @@ final class Formulas implements ApiHooks.Formulas {
     @Override public boolean squareStale(int playerIndex, int x, int y, int z) { return lamps != null && lamps.squareStale(playerIndex, x, y, z); }
 
     /** The light a square's objects are drawn with, for a player. */
-    @Override public Object objectLight(Object info, int playerIndex) {
+    @Override public Object objectLight(Object info, int playerIndex) { return objectLight(info, playerIndex, null); }
+
+    @Override public Object objectLight(Object info, int playerIndex, Object square) {
         if (lamps == null) return info;
-        try { return lamps.objectLight(info, playerIndex); }
+        try { return lamps.objectLight(info, playerIndex, square); }
         catch (Throwable failure) { throw new IllegalStateException("night sight's light on objects", failure); }
     }
 
