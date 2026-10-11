@@ -616,36 +616,6 @@ function Dev.zombiesInBuilding()
     return n, true
 end
 
--- ---- searched buildings ----------------------------------------------------------------------------------------
-
--- Makes the building the character stands in unsearched again, to test 철저한 수색 and the searched bonus once more:
--- its containers unopened (ItemContainer.setExplored), its count in the codex forgotten (the building milestones
--- already paid stay paid), and the watch's walk and the ledger's line started over. Returns how many containers were
--- reset, or nil outside a building.
-function Dev.resetSearch()
-    local sq = getPlayer():getCurrentSquare()
-    local room = sq and sq:getRoom()
-    local scan = room and OA.Buildings.scan(sq, room)
-    if not scan then
-        say("search reset: not in a building")
-        return nil
-    end
-    for _, container in ipairs(scan.containers) do container:setExplored(false) end
-    local record = Dev.record()
-    if record then
-        local codex = OA.Codex.section(record)
-        if codex.buildings[scan.key] then
-            codex.buildings[scan.key] = nil
-            codex.nb = math.max(0, codex.nb - 1)
-        end
-    end
-    OA.Buildings.reset()
-    if OA.Upgrades.Senses and OA.Upgrades.Senses.resetLedger then OA.Upgrades.Senses.resetLedger() end
-    Dev.changed()
-    say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
-    return #scan.containers
-end
-
 -- ---- alarms -----------------------------------------------------------------------------------------------------
 
 local ALARM_RANGE = 30
@@ -744,6 +714,54 @@ function Dev.alarmsNear()
         if v.vehicle:isAlarmed() then cars = cars + 1 end
     end
     return houses, cars
+end
+
+-- ---- searched buildings ----------------------------------------------------------------------------------------
+
+-- A loaded square of a building (its def) and its room, or nil when none of its rooms is loaded.
+local function squareIn(def)
+    local rooms = def:getRooms()
+    for i = 0, rooms:size() - 1 do
+        local room = rooms:get(i):getIsoRoom()
+        local squares = room and room:getSquares()
+        if squares and squares:size() > 0 then return squares:get(0), room end
+    end
+    return nil
+end
+
+-- Makes a building unsearched again, to test 철저한 수색 and the searched bonus once more: the one the character
+-- stands in, or else the nearest loaded one within 30 squares (as the alarm buttons pick a house). Its containers are
+-- unopened (ItemContainer.setExplored), its count in the codex forgotten (the building milestones already paid stay
+-- paid), and the watch's walk and the ledger's line started over. Returns how many containers were reset, or nil.
+function Dev.resetSearch()
+    local sq = getPlayer():getCurrentSquare()
+    local room = sq and sq:getRoom()
+    if not room then
+        sq = nil
+        for _, b in ipairs(buildingsNear()) do
+            sq, room = squareIn(b.def)
+            if sq then break end
+        end
+    end
+    local scan = sq and OA.Buildings.scan(sq, room)
+    if not scan then
+        say("search reset: no loaded building within", ALARM_RANGE)
+        return nil
+    end
+    for _, container in ipairs(scan.containers) do container:setExplored(false) end
+    local record = Dev.record()
+    if record then
+        local codex = OA.Codex.section(record)
+        if codex.buildings[scan.key] then
+            codex.buildings[scan.key] = nil
+            codex.nb = math.max(0, codex.nb - 1)
+        end
+    end
+    OA.Buildings.reset()
+    if OA.Upgrades.Senses and OA.Upgrades.Senses.resetLedger then OA.Upgrades.Senses.resetLedger() end
+    Dev.changed()
+    say("search reset: building", scan.key, "-", #scan.containers, "containers unopened")
+    return #scan.containers
 end
 
 -- ---- zombies ----------------------------------------------------------------------------------------------------
