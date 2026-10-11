@@ -51,6 +51,9 @@ public sealed class GameExtensionCatalogProjectionTests
         fields[field] = replacement;
         if (field == 5) { fields[6] = "42"; fields[7] = "43"; }
         File.WriteAllText(catalogue, string.Join('\t', fields));
+        // A real edit comes later than the first write: the catalogue is known by its time and length, and a
+        // replacement of the same length written within the clock's tick (42.20 -> 42.19 on a fast CI disk) kept both.
+        File.SetLastWriteTimeUtc(catalogue, File.GetLastWriteTimeUtc(catalogue).AddSeconds(2));
         await controller.RefreshRuntimeAsync(default);
         var changed = Current(views);
         Assert.Equal(first.ViewRevision + 1, changed.ViewRevision);
