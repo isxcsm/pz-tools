@@ -74,10 +74,10 @@ Effects.MAP = {
 
 -- The cone the sight node may add at most (degrees), whatever the effect option says.
 local MAX_CONE = 90
--- Night sight (PZ Tools: in the dark the screen is lifted and drained to grey; what a light lights keeps its colour) by
--- the rank of 밤눈, and with 야행성 눈. Measured at 2 a.m. outdoors and in an unlit basement: 0.1 barely lifts a dark night,
--- 0.3 lets you walk without a light, 0.5 shows the whole basement dimly.
-local NIGHT_SIGHT = { 0.1, 0.2, 0.3 }
+-- Night sight (PZ Tools: the dark is lifted to the value, in grey; what a light lights keeps its colour) by the rank of
+-- 밤눈, and with 야행성 눈. Measured at 2 a.m. in an office with no light: 0.1 barely lifts it, 0.3 showed all of it
+-- (too much for a rank before the capstone), 0.5 shows it plainly.
+local NIGHT_SIGHT = { 0.1, 0.2, 0.25 }
 local NIGHT_SIGHT_EYE = 0.5
 
 -- Whether the Zombie Visibility Fix mod is active: then the hidden zombie fix stands aside (DESIGN 7).
