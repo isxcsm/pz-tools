@@ -52,7 +52,7 @@
 const P = {
   // text
   title: "2차 강화판 열림", sub: "세 트리의 마지막 강화를 모두 시험해",
-  tone: "gold", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 6, hold: 1.5, seed: 12345,
+  tone: "gold", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 10, hold: 1.5, seed: 12345,
   burnOn: true, burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
   // schedule
   SWEEP: 0.35, JITTER: 0.25, WEATHER: 0.12, WEATHERED: 0.4, THIN: 0.22, HOLD: 0.25,
@@ -574,7 +574,7 @@ control("backdrop", "배경 띠", "check");
 control("zoom", "확대", "range", [1, 4, 0.25]);
 heading("사라짐");
 control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
-control("leaveTime", "시간(초)", "range", [1, 12, 0.5]);
+control("leaveTime", "시간(초)", "range", [1, 20, 0.5]);
 control("hold", "머무름(초)", "range", [0, 6, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
 control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
