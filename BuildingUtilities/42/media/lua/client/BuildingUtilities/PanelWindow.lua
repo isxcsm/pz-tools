@@ -205,6 +205,8 @@ UI.scaled(ISBUTipArea, ISPanel)
 -- and the breaker's gauge's.
 PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST, PanelWindow.CARD_PAD = 40, 8, 1.5, 10
 PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
+-- The water card's level line at the lever's place: its width (an hour a column of Store.ENERGY_HOURS).
+PanelWindow.SPARK_W = 96
 -- The space around the parts of a tab's head (the status line, the card).
 PanelWindow.HEAD_GAP = 6
 
@@ -365,6 +367,11 @@ function ISBUPanelWindow:createChildren()
     self.gauge = ISBUTipArea:new(PAD, self.loadY + 5, PanelWindow.GAUGE_W + 4, PanelWindow.LOAD_H - 10)
     self.gauge:initialise()
     body:addChild(self.gauge)
+    -- On the water tab's card, where the lever is on the power tab: the tanks' level over the last hours.
+    self.levelArea = ISBUTipArea:new(PAD, self.loadY + 5, PanelWindow.SPARK_W, PanelWindow.LOAD_H - 10)
+    self.levelArea:initialise()
+    self.levelArea:setTooltip(getText("IGUI_BU_LevelTitle", Store.ENERGY_HOURS))
+    body:addChild(self.levelArea)
     -- Placed by placeOptions as the list's width changes: an anchor would move them again a frame later.
     self.splitter = ISBUSplitter:new(listW, PAD, PAD, body:getHeight() - PAD, self)
     self.splitter:initialise()
@@ -491,8 +498,9 @@ function ISBUPanelWindow:placeRows()
     self:placeHead()
 end
 
--- The open tab's head between the tabs and its list: its utility's status line (none on the log's) and on the power
--- tab the load's card with the lever and the breaker's gauge (power on). The list starts under it.
+-- The open tab's head between the tabs and its list: its utility's status line (none on the log's) and its card: on
+-- the power tab the load's with the lever and the breaker's gauge (power on), on the water tab the tanks' (water on,
+-- measureWater). The list starts under it.
 function ISBUPanelWindow:placeHead()
     local tabs = self.tabs
     if not (tabs and self.statusArea and self.tabsY) then return end
@@ -501,12 +509,14 @@ function ISBUPanelWindow:placeHead()
     local gap = PanelWindow.HEAD_GAP
     local status = shown ~= nil and shown ~= LOG
     local card = shown == "power" and BU.enabled("power")
+    local waterCard = shown == "water" and self.waterView ~= nil
     local top = self.tabsY + tabs.tabHeight
     local y = top + gap
     self.statusY, self.headStatus = y, status
     if status then y = y + FONT_HGT_SMALL + gap end
-    self.loadY, self.headCard = y, card
-    if card then y = y + PanelWindow.LOAD_H + gap end
+    self.loadY, self.headCard = y, card or waterCard
+    self.headKind = card and "power" or waterCard and "water" or nil
+    if card or waterCard then y = y + PanelWindow.LOAD_H + gap end
     self.statusArea:setY(self.statusY)
     self.statusArea:setVisible(status)
     self.loadArea:setY(self.loadY)
@@ -515,7 +525,9 @@ function ISBUPanelWindow:placeHead()
     self.lever:setVisible(card)
     self.gauge:setY(self.loadY + 5)
     self.gauge:setVisible(card and self.gaugeShown == true)
-    tabs:setHead((status or card) and y - top or 0)
+    self.levelArea:setY(self.loadY + 5)
+    self.levelArea:setVisible(waterCard and self.waterView.spark ~= nil)
+    tabs:setHead((status or card or waterCard) and y - top or 0)
 end
 
 -- The search between the tabs and the strip's end, while there is room for it.
@@ -686,6 +698,116 @@ function ISBUPanelWindow:placeLever(textW)
     self.gauge:setX(gaugeX)
     self.barW = math.max(BAR_W, gaugeX - 10 - (PAD + inner + bigW + 8))
     self.loadArea:setWidth(inner + bigW + 8 + math.max(self.barW, textW))
+    local levelX = PAD + cardW - inner - PanelWindow.SPARK_W
+    self.levelArea:setX(levelX)
+    self.waterBarW = math.max(BAR_W, levelX - 12 - (PAD + inner + bigW + 8))
+end
+
+-- The water tab's card, for the top (drawWaterCard): what the tanks hold of their capacity (the percent, large), the
+-- bar of each group's water in its colour, under it the litres and the change over the last day, and at the right
+-- the level over the last hours (the groups' logs together, Store.recordWater; the box at the top of the tree keeps
+-- them). Nil while water is off.
+local DAY = 24
+function ISBUPanelWindow:measureWater(panel, state)
+    self.waterView = nil
+    if not state then
+        self:placeHead()
+        return
+    end
+    local amount, capacity = state.amount or 0, state.capacity or 0
+    local view = { amount = amount, capacity = capacity, segments = {} }
+    view.ratio = capacity > 0 and math.min(1, amount / capacity) or 0
+    view.percentText = capacity > 0 and tostring(math.floor(view.ratio * 100 + 0.5)) or "-"
+    view.colour = capacity > 0 and P.water or P.dim
+    view.text = getText("IGUI_BU_Left_Water", string.format("%.0f", amount), string.format("%.0f", capacity))
+    local root = Store.get(panel.parent) or panel
+    local logs = root.water.levelLog or {}
+    local hours = {}
+    for _, group in ipairs(BU.Water.groups(panel)) do
+        local each = state.groups and state.groups[group.id]
+        if each and (each.amount or 0) > 0 and capacity > 0 then
+            view.segments[#view.segments + 1] = { share = each.amount / capacity,
+                colour = PanelWindow.groupColour(panel, group.id) }
+        end
+        for _, hour in ipairs(logs[group.id] or {}) do
+            local total = hours[hour.hour] or { amount = 0, capacity = 0 }
+            hours[hour.hour] = total
+            total.amount = total.amount + (hour.amount or 0)
+            total.capacity = total.capacity + (hour.capacity or 0)
+        end
+    end
+    local now = math.floor(getGameTime():getWorldAgeHours())
+    local spark, points = {}, 0
+    for column = 1, Store.ENERGY_HOURS do
+        local total = hours[now - Store.ENERGY_HOURS + column]
+        if total and total.capacity > 0 then
+            spark[column] = math.min(1, total.amount / total.capacity)
+            points = points + 1
+        end
+    end
+    if points > 1 then view.spark = spark end
+    -- the change since the first hour kept of the last day
+    for back = DAY, 1, -1 do
+        local then_ = hours[now - back]
+        if then_ then
+            local change = amount - then_.amount
+            local litres = string.format("%.0f", math.abs(change))
+            view.changeText = getText("IGUI_BU_WaterChange", (change < 0 and "-" or "+") .. litres)
+            view.changeColour = litres == "0" and P.dim or change < 0 and P.warn or P.good
+            view.changeW = UI.textWidth(view.changeText)
+            break
+        end
+    end
+    view.textW = UI.textWidth(view.text)
+    self.waterView = view
+    self:placeHead()
+end
+
+function ISBUPanelWindow:drawWaterCard(body)
+    local view = self.waterView
+    if not (view and self.cardW) then return end
+    local top, inner = self.loadY, PanelWindow.CARD_PAD
+    local bigY = top + math.floor((PanelWindow.LOAD_H - UI.fontHeight(UIFont.Large)) / 2)
+    local right = PAD + inner + self.bigW
+    UI.textRight(body, "%", right, bigY + UI.baselineDrop(UIFont.Large, UIFont.Small), view.colour)
+    UI.textRight(body, view.percentText, right - UI.textWidth("%") - 1, bigY, view.colour, UIFont.Large)
+    local x = right + 8
+    local barH = PanelWindow.BAR_H
+    local barY = top + math.floor((PanelWindow.LOAD_H - barH - 3 - FONT_HGT_SMALL) / 2)
+    local barW = self.waterBarW or BAR_W
+    UI.fill(body, x, barY, barW, barH, P.inset)
+    local filled = 0
+    for _, segment in ipairs(view.segments) do
+        local w = math.min(barW - filled, math.floor(barW * segment.share + 0.5))
+        if w > 0 then
+            UI.fill(body, x + filled, barY, w, barH, segment.colour, 0.9)
+            filled = filled + w
+        end
+    end
+    if filled > 0 then UI.fill(body, x, barY, filled, 1, P.bright, 0.25) end
+    UI.frame(body, x, barY, barW, barH, P.border)
+    local textY = barY + barH + 3
+    UI.text(body, view.text, x, textY, P.text)
+    if view.changeText and view.textW + 16 + view.changeW <= barW then
+        UI.textRight(body, view.changeText, x + barW, textY, view.changeColour)
+    end
+    local spark = view.spark
+    if spark then
+        local area = self.levelArea
+        local sx, sy, sw, sh = area:getX(), area:getY(), PanelWindow.SPARK_W, area:getHeight()
+        UI.fill(body, sx, sy, sw, sh, P.inset)
+        local columns = Store.ENERGY_HOURS
+        local w = (sw - 2) / columns
+        for column = 1, columns do
+            local share = spark[column]
+            if share then
+                local h = math.max(1, math.floor(share * (sh - 2) + 0.5))
+                UI.fill(body, sx + 1 + (column - 1) * w, sy + sh - 1 - h, math.max(1, w), h, P.water,
+                    column == columns and 0.95 or 0.55)
+            end
+        end
+        UI.frame(body, sx, sy, sw, sh, P.border)
+    end
 end
 
 -- How much of the bar the load fills now (0 to 1: BAR_MOST of the limit fills it).
@@ -713,7 +835,8 @@ function ISBUPanelWindow:drawBody(body)
         UI.fill(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.panel)
         UI.frame(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.border)
     end
-    if self.load and self.headCard then
+    if self.headKind == "water" then self:drawWaterCard(body) end
+    if self.load and self.headKind == "power" then
         local top, colour, inner = self.loadY, self.loadColour, PanelWindow.CARD_PAD
         -- the percent, large, its sign small on its baseline, both at the right of their room
         local bigY = top + math.floor((PanelWindow.LOAD_H - UI.fontHeight(UIFont.Large)) / 2)
@@ -832,6 +955,7 @@ function ISBUPanelWindow:tick()
     local power, water = Networks.state(panel, "power"), Networks.state(panel, "water")
     self.states = { power = power, water = water }
     self:measureLoad(panel, power)
+    self:measureWater(panel, water)
     if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
     self:updateStatus()
 end
@@ -909,6 +1033,7 @@ function ISBUPanelWindow:refresh()
     self:setTitle(getText("IGUI_BU_TierName", Panels.name(panel), panel.tier or 1))
     self:placePanelTabs(true)
     self:measureLoad(panel, power)
+    self:measureWater(panel, water)
     if self.load and math.abs((self.loadShown or 0) - self:loadShare()) > 0.002 then UI.live(self.body, bodyFrame) end
     -- The banner: the breaker down, or devices shed.
     local shed = count(panel.power.shed)

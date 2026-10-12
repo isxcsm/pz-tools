@@ -912,6 +912,7 @@
     "IGUI_BU_Left_BankFull": "batteries %1, full in %2",
     "IGUI_BU_Left_BankHeld": "batteries %1",
     "IGUI_BU_Left_Fuel": "fuel %1 left",
+    "IGUI_BU_WaterChange": "%1 L in 24 h",
     "IGUI_BU_Left_Water": "%1 / %2 L",
     "IGUI_BU_Why_Grid": "the grid still runs, no generator is needed",
     "IGUI_BU_Why_Tripped": "the load went over %1; switch devices off and push the lever up",

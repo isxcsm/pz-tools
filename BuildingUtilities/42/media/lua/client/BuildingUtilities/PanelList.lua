@@ -15,7 +15,7 @@ local FONT_HGT_SMALL, ROW, PAD, SCROLLBAR, ROOM_TICK_X, rowObjects, outline, uno
     Ui.PAD, Ui.SCROLLBAR, Ui.ROOM_TICK_X, Ui.rowObjects, Ui.outline, Ui.unoutline
 local ACCENT, ease, approach, P = Ui.ACCENT, Ui.ease, Ui.approach, Ui.PALETTE
 -- Rows that only tell: no light under the mouse.
-local STILL = { header = true, note = true, filter = true, log = true, graph = true, levels = true, columns = true,
+local STILL = { header = true, note = true, filter = true, log = true, graph = true, columns = true,
     battery = true }
 
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
@@ -207,28 +207,6 @@ local function drawGraph(c, y, width, row)
     end
 end
 
--- The water level graph: a column an hour, each group's tanks as a share of their capacity, in the group's colour.
-local function drawLevels(c, y, width, row)
-    local left, right = PAD, width - PAD - SCROLLBAR
-    local top, bottom = y + FONT_HGT_SMALL + 6, y + GRAPH_H - 6
-    local plotH = bottom - top
-    UI.text(c, getText("IGUI_BU_LevelTitle", Store.ENERGY_HOURS), left, y + 2, P.text)
-    UI.fill(c, left, top, right - left, plotH, P.inset, 0.8)
-    UI.frame(c, left, top, right - left, plotH, P.border)
-    local columns = Store.ENERGY_HOURS
-    local w = (right - left) / columns
-    local now = math.floor(getGameTime():getWorldAgeHours())
-    for _, line in ipairs(row.lines) do
-        for _, hour in ipairs(line.hours) do
-            local column = columns - 1 - (now - hour.hour)
-            if column >= 0 and (hour.capacity or 0) > 0 then
-                local share = math.max(0, math.min(1, hour.amount / hour.capacity))
-                UI.fill(c, left + column * w, bottom - share * plotH - 1, math.max(2, w), 3, line.colour)
-            end
-        end
-    end
-end
-
 -- Colours of the rows' texts.
 local HEAD, LINK, LINK_HEAD, OPEN = P.head, { 0.75, 0.85, 1 }, P.head, { 0.5, 0.75, 1 }
 local NOTE, FILTER, LOG_TEXT, LOG_BAD, LOG_GOOD = { 0.7, 0.7, 0.7 }, { 1, 1, 0.6 }, { 0.9, 0.9, 0.9 }, { 1, 0.55, 0.5 },
@@ -242,7 +220,7 @@ local WHITE = { 1, 1, 1 }
 
 function ISBUPanelList:doDrawItem(y, item, alt)
     local row = item.item
-    local design = (row.kind == "graph" or row.kind == "levels") and GRAPH_H or ROW
+    local design = row.kind == "graph" and GRAPH_H or ROW
     item.height = UI.px(design)
     -- Out of view: only its place, as the game's list does (y and the height in the list's pixels).
     local nextY = y + item.height
@@ -251,8 +229,8 @@ function ISBUPanelList:doDrawItem(y, item, alt)
     local c = UI.designCanvas(self)
     local yd = c == self and y or UI.dp(y)
     local width = c == self and self:getWidth() or c.width
-    if row.kind == "graph" or row.kind == "levels" then
-        if row.kind == "graph" then drawGraph(c, yd, width, row) else drawLevels(c, yd, width, row) end
+    if row.kind == "graph" then
+        drawGraph(c, yd, width, row)
         return nextY
     end
     y = yd

@@ -912,6 +912,7 @@
     "IGUI_BU_Left_BankFull": "배터리 %1, 가득까지 %2",
     "IGUI_BU_Left_BankHeld": "배터리 %1",
     "IGUI_BU_Left_Fuel": "연료 %1 남음",
+    "IGUI_BU_WaterChange": "24시간 %1 L",
     "IGUI_BU_Left_Water": "%1 / %2 L",
     "IGUI_BU_Why_Grid": "전력망이 아직 돌아가서 발전기가 필요 없습니다",
     "IGUI_BU_Why_Tripped": "부하가 %1을 넘었습니다. 기기를 줄이고 레버를 올리세요",

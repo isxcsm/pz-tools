@@ -1,5 +1,6 @@
 -- The breaker box window's water groups (BU.Water): at the top of the water tab a row per group with what its tanks
--- hold, set up, renamed and removed there, a row to add one, and the groups' level graph; the group button of a
+-- hold, set up, renamed and removed there, and a row to add one (the level over time is on the tab's card,
+-- ISBUPanelWindow:measureWater); the group button of a
 -- tank's, a fixture's and a water unit's row, and the menu it opens; the water units' rows (BU.WaterUnits).
 require "BuildingUtilities/PanelWindow"
 require "BuildingUtilities/WaterUnits"
@@ -29,7 +30,7 @@ local function groupCounts(panel, devices, id)
     return tanks, fixtures
 end
 
--- The group rows, for a main panel: each group, adding one, the level graph.
+-- The group rows, for a main panel: each group, and adding one.
 function ISBUPanelWindow:waterGroupRows(add, state, devices)
     local panel = self.panel
     local groups = Water.groups(panel)
@@ -44,12 +45,6 @@ function ISBUPanelWindow:waterGroupRows(add, state, devices)
             getText("IGUI_BU_WaterGroupTip", tanks, fixtures))
     end
     if #groups < Water.MAX_GROUPS then add({ kind = "addGroup", text = getText("IGUI_BU_AddGroup") }, getText("IGUI_BU_AddGroupTip")) end
-    local lines = {}
-    for _, group in ipairs(groups) do
-        local log = panel.water.levelLog[group.id]
-        if log and #log > 0 then lines[#lines + 1] = { colour = PanelWindow.groupColour(panel, group.id), hours = log } end
-    end
-    if #lines > 0 then add({ kind = "levels", lines = lines }) end
 end
 
 -- A menu of the groups at the mouse; the current one is not offered.
