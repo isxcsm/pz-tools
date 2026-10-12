@@ -66,6 +66,9 @@ local function extraLines(item)
         lines[#lines + 1] = getText("Tooltip_OA_Gear_" .. item:getType())
         local kind = Gear.kindOfItem(item)
         if kind then lines[#lines + 1] = Menu.kitForLine(item, kind) end
+        -- a fuel can: what it weighs as carried (the game's weight line above is the scale's)
+        local carried = Gear.FUEL_CANS[item:getType()] and Gear.carriedWeight(item)
+        if carried then lines[#lines + 1] = getText("Tooltip_OA_Gear_CanCarried", string.format("%.1f", carried)) end
     end
     if bag then
         for _, line in ipairs(Gear.bagLines(item) or {}) do lines[#lines + 1] = line end
@@ -285,6 +288,7 @@ OA.Sync.listen("notice", onNotice)
 -- The character's fitted bags are written again from their counts (the API may have come or gone since they were
 -- fitted), once, when the game starts.
 local function onGameStart()
+    Gear.declareCans()
     local player = getPlayer()
     if not player then return end
     local ok, err = pcall(Gear.refreshAll, player)

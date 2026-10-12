@@ -78,6 +78,47 @@ function Gear.lifts(force)
     return value
 end
 
+-- ---- the improved fuel cans ------------------------------------------------------------------------------------
+
+-- What the cans weigh carried (the extension API's carrying efficiency, carry.fullTypeEfficiency): each holds more
+-- than the plain can (10 L) and, full, weighs no more than it full (11.6: its 1.6 and petrol at 1 a litre), the later
+-- ones less. litres: the script's capacity (scripts/OA_gear.txt says the same); full: what a full can weighs carried.
+Gear.PLAIN_CAN_FULL = 11.6
+Gear.CAN_WEIGHT = 1.6
+Gear.FUEL_CANS = {
+    FuelCanMk1 = { litres = 15, full = 11.6 },
+    FuelCanMk2 = { litres = 20, full = 10.0 },
+    FuelCanMk3 = { litres = 25, full = 8.5 },
+}
+
+-- The efficiency that makes a full can weigh its `full` (the game divides an item's weight, fluid included, by 1 plus it).
+function Gear.canEfficiency(name)
+    local can = Gear.FUEL_CANS[name]
+    return (Gear.CAN_WEIGHT + can.litres) / can.full - 1
+end
+
+-- Declares the cans' efficiencies to the API, once a game. Returns true when it took them.
+function Gear.declareCans()
+    local api = OA.api()
+    local handle = OA.handle()
+    if not (api and handle and type(api.formulas) == "table" and type(api.formulas.set) == "function") then return false end
+    local efficiencies = {}
+    for name in pairs(Gear.FUEL_CANS) do efficiencies[OA.MOD .. "." .. name] = Gear.canEfficiency(name) end
+    local ok, err = pcall(api.formulas.set, handle, "carry.fullTypeEfficiency", efficiencies)
+    if not ok then OA.log("gear: the fuel cans' weight not declared:", tostring(err)) end
+    return ok
+end
+
+-- What a can weighs as carried now (its fluid in it), or nil without the API's answer.
+function Gear.carriedWeight(item)
+    local api = OA.api()
+    local formulas = api and api.formulas
+    if type(formulas) ~= "table" or type(formulas.weight) ~= "function" then return nil end
+    local ok, weight = pcall(formulas.weight, item)
+    if ok and type(weight) == "number" then return weight end
+    return nil
+end
+
 -- ---- finding things -------------------------------------------------------------------------------------------
 
 -- An item of a character's inventory by id (inside bags too), or nil.

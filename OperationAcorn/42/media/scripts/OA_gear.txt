@@ -53,8 +53,10 @@ module OperationAcorn
         }
     }
 
-    /* The improved fuel cans: the vanilla petrol can with a larger tank and the same empty weight. The shop sends
-       them empty. The base:petrol tag is what the vehicle and generator menus look for. */
+    /* The improved fuel cans: larger tanks than the vanilla petrol can, the same empty weight on the scale. Carried,
+       they weigh less (the extension API's carrying efficiency, Gear.FUEL_CANS: full, Mk.I weighs what a full plain can
+       does, Mk.II and Mk.III less). The shop sends them empty. The base:petrol tag is what the vehicle and generator
+       menus look for. */
     item FuelCanMk1
     {
         DisplayCategory = VehicleMaintenance,

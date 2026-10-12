@@ -895,3 +895,17 @@ test("the kit entries go on top of the inventory menu, and building them searche
     TEST.fire("OnFillInventoryObjectContextMenu", 0, newMenu(), { bag })
     eq(searches, 2)
 end)
+
+test("the improved fuel cans weigh, full and carried, what they are set to: Mk.I as a full plain can, the later ones less", function()
+    local last = Gear.PLAIN_CAN_FULL + 1
+    for _, name in ipairs({ "FuelCanMk1", "FuelCanMk2", "FuelCanMk3" }) do
+        local can = Gear.FUEL_CANS[name]
+        local full = (Gear.CAN_WEIGHT + can.litres) / (1 + Gear.canEfficiency(name))
+        near(full, can.full, 1e-9, name)
+        truthy(full <= Gear.PLAIN_CAN_FULL, name .. " full weighs no more than a full plain can")
+        truthy(full < last, name .. " lighter than the one before")
+        truthy(can.litres > 10, name .. " holds more than the plain can")
+        last = full
+    end
+    near(Gear.FUEL_CANS.FuelCanMk1.full, Gear.PLAIN_CAN_FULL, 1e-9)
+end)
