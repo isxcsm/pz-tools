@@ -1,9 +1,10 @@
--- The breaker box window: its name and tier as its title (its rename button at the title bar's end), a status line
--- (BuildingUtilities/PanelStatus), its load against its limit with the lever and the breaker's gauge beside it, a row
--- with the buttons to take supply from another box and to upgrade and a banner when the breaker is down or devices are
--- shed (only while it has any), then a tab per utility with its producers (each generator running, on standby or out
--- of service) or the main panel that supplies it, its sub-panels, and its devices room by room, a tab with the
--- batteries of its racks, and a tab with what happened to the box; beside them the floor plan
+-- The breaker box window: its name and tier as its title (its rename button at the title bar's end), a row with the
+-- buttons to take supply from another box and to upgrade and a banner when the breaker is down or devices are shed
+-- (only while it has any), then a tab per utility with its producers (each generator running, on standby or out of
+-- service) or the main panel that supplies it, its sub-panels, and its devices room by room, a tab with the batteries
+-- of its racks, and a tab with what happened to the box. Under the tabs the open one's head: its utility's status
+-- line (BuildingUtilities/PanelStatus; the batteries' is power's, the log has none) and, on the power tab, the load
+-- against the limit with the lever and the breaker's gauge beside it. Beside them the floor plan
 -- (BuildingUtilities/PanelPlan). A row under the mouse outlines its objects in the world, marks them on the plan and
 -- tells what switching it would do to the load. Free changes, the lever among them, go to the server as commands;
 -- lines are laid and taken away by the player at the place, as timed actions: a device outside is wired at itself
@@ -27,6 +28,7 @@ require "BuildingUtilities/ContextMenu"
 require "BuildingUtilities/PanelPlan"
 require "BuildingUtilities/PanelList"
 require "BuildingUtilities/ControllerPopup"
+require "BuildingUtilities/Switches"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Costs, Actions, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Costs, BU.Actions,
     BU.Sync, BU.Energy
@@ -201,8 +203,10 @@ UI.scaled(ISBUTipArea, ISPanel)
 -- The top's sizes (design units): its card's height (the load's big percent, its bar and its text), the bar's height
 -- and what it shows at most (BAR_MOST of the limit; more stays at its end), the card's inner margin, the lever's width
 -- and the breaker's gauge's.
-PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST, PanelWindow.CARD_PAD = 40, 6, 1.5, 10
+PanelWindow.LOAD_H, PanelWindow.BAR_H, PanelWindow.BAR_MOST, PanelWindow.CARD_PAD = 40, 8, 1.5, 10
 PanelWindow.LEVER_W, PanelWindow.GAUGE_W = 22, 4
+-- The space around the parts of a tab's head (the status line, the card).
+PanelWindow.HEAD_GAP = 6
 
 -- The box's lever (Changes.setLever): up while its breaker holds and its main switch is on. Drawn as a breaker's
 -- toggle: a dark housing with a slot, the handle with its grip sliding along it (LEVER_MS) and a strip on it in the
@@ -302,11 +306,10 @@ function ISBUPanelWindow:createChildren()
         body:addChild(self.panelTabs)
         top = top + self.panelTabs:getHeight() + PAD
     end
-    self.statusY = top
-    self.loadY = top + FONT_HGT_SMALL + 6
-    -- Under the load's card, a row while it has something: the buttons to take supply from another box and to
-    -- upgrade, and the banner beside them (placeRows); the tabs right under the card without it.
-    self.actionY = self.loadY + PanelWindow.LOAD_H + 6
+    -- A row while it has something: the buttons to take supply from another box and to upgrade, and the banner beside
+    -- them (placeRows); the tabs at the top without it. The open tab's head under the tabs (placeHead).
+    self.statusY, self.loadY = top, top
+    self.actionY = top
     self.mainButton = button(self, PAD, self.actionY, 170, ROW, ISBUPanelWindow.onMainPanel)
     self.upgradeButton = button(self, PAD + 176, self.actionY, 160, ROW, ISBUPanelWindow.onUpgrade)
     local tabsY = self.actionY + ROW + PAD
@@ -479,11 +482,40 @@ function ISBUPanelWindow:placeRows()
     self.bannerX = x
     local row = self.banner ~= nil or x > PAD
     local tabsY = row and self.actionY + ROW + PAD or self.actionY
-    if tabsY == self.tabsY then return end
-    self.tabsY = tabsY
-    self.tabs:setY(tabsY)
-    self.tabs:resize(self.tabs:getWidth(), self.body:getHeight() - tabsY)
-    self:placeOptions()
+    if tabsY ~= self.tabsY then
+        self.tabsY = tabsY
+        self.tabs:setY(tabsY)
+        self.tabs:resize(self.tabs:getWidth(), self.body:getHeight() - tabsY)
+        self:placeOptions()
+    end
+    self:placeHead()
+end
+
+-- The open tab's head between the tabs and its list: its utility's status line (none on the log's) and on the power
+-- tab the load's card with the lever and the breaker's gauge (power on). The list starts under it.
+function ISBUPanelWindow:placeHead()
+    local tabs = self.tabs
+    if not (tabs and self.statusArea and self.tabsY) then return end
+    local view = tabs.activeView and tabs.activeView.view
+    local shown = view and view.utility
+    local gap = PanelWindow.HEAD_GAP
+    local status = shown ~= nil and shown ~= LOG
+    local card = shown == "power" and BU.enabled("power")
+    local top = self.tabsY + tabs.tabHeight
+    local y = top + gap
+    self.statusY, self.headStatus = y, status
+    if status then y = y + FONT_HGT_SMALL + gap end
+    self.loadY, self.headCard = y, card
+    if card then y = y + PanelWindow.LOAD_H + gap end
+    self.statusArea:setY(self.statusY)
+    self.statusArea:setVisible(status)
+    self.loadArea:setY(self.loadY)
+    self.loadArea:setVisible(card and self.load ~= nil)
+    self.lever:setY(self.loadY + 5)
+    self.lever:setVisible(card)
+    self.gauge:setY(self.loadY + 5)
+    self.gauge:setVisible(card and self.gaugeShown == true)
+    tabs:setHead((status or card) and y - top or 0)
 end
 
 -- The search between the tabs and the strip's end, while there is room for it.
@@ -547,6 +579,7 @@ function ISBUPanelWindow:prerender()
         if self.shownTab and index ~= self.shownTab then
             local view = self.tabs.activeView.view
             if view.switched then view:switched(index > self.shownTab and 1 or -1) end
+            self:placeHead()
             self.revealAt = getTimestampMs()
             UI.live(self.body, bodyFrame)
         end
@@ -583,14 +616,13 @@ function ISBUPanelWindow:measureLoad(panel, power)
     self.limit = self.capacity + self.boost
     self.load = nil
     self.gaugeShown = false
-    self.loadArea:setVisible(power ~= nil and power.load ~= nil)
-    self.lever:setVisible(BU.enabled("power"))
+    self.spareText = nil
     self.lever:setTooltip(getText(panel.tripped and "IGUI_BU_LeverTripTip"
         or Panels.leverUp(panel) and (panel.parent and "IGUI_BU_LeverUpTipSub" or "IGUI_BU_LeverUpTip")
         or "IGUI_BU_LeverDownTip"))
     if not (power and power.load) then
-        self.gauge:setVisible(false)
         self:placeLever(0)
+        self:placeHead()
         return
     end
     local factor = power.loadFactor or 1
@@ -626,8 +658,15 @@ function ISBUPanelWindow:measureLoad(panel, power)
     local hours = self.live and Panels.breakerHoursLeft(gauge, ratio)
     if hours then tip = getText("IGUI_BU_BreakerHolds", Ui.shortDuration(hours)) end
     self.gauge:setTooltip(tip)
-    self.gauge:setVisible(self.gaugeShown)
+    -- under the bar's end: what the limit leaves, or how far the load is over it
+    if self.live then
+        local spare = self.limit - self.load
+        self.spareText = getText(spare >= 0 and "IGUI_BU_LoadSpare" or "IGUI_BU_LoadOver", load2(math.abs(spare)))
+        self.spareColour = spare >= 0 and P.dim or P.bad
+        self.spareW = UI.textWidth(self.spareText)
+    end
     self:placeLever(width)
+    self:placeHead()
 end
 
 -- The top's card: across the left column, its parts inside it: the percent and the bar with its text from the left,
@@ -660,7 +699,7 @@ function ISBUPanelWindow:drawBody(body)
     local now = getTimestampMs()
     local ms = math.min(100, now - (self.bodyFrameAt or now))
     self.bodyFrameAt = now
-    local status = self.status
+    local status = self.headStatus and self.status
     if status then
         local c, dot = status.colour, FONT_HGT_SMALL - 6
         UI.fill(body, PAD, self.statusY + 3, dot, dot, c)
@@ -670,18 +709,19 @@ function ISBUPanelWindow:drawBody(body)
         end
     end
     -- the top's card, with the lever on it (also while the network has no state yet)
-    if self.cardW and self.lever:getIsVisible() then
+    if self.cardW and self.headCard then
         UI.fill(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.panel)
         UI.frame(body, PAD, self.loadY, self.cardW, PanelWindow.LOAD_H, P.border)
     end
-    if self.load then
+    if self.load and self.headCard then
         local top, colour, inner = self.loadY, self.loadColour, PanelWindow.CARD_PAD
         -- the percent, large, its sign small on its baseline, both at the right of their room
         local bigY = top + math.floor((PanelWindow.LOAD_H - UI.fontHeight(UIFont.Large)) / 2)
         local right = PAD + inner + self.bigW
         UI.textRight(body, "%", right, bigY + UI.baselineDrop(UIFont.Large, UIFont.Small), colour)
         UI.textRight(body, self.percentText, right - UI.textWidth("%") - 1, bigY, colour, UIFont.Large)
-        -- the bar: the load's share up to BAR_MOST of the limit, in the state's colour, the limit marked
+        -- the bar: the load's share up to BAR_MOST of the limit, in the state's colour, the limit marked; under it the
+        -- limit's parts, the box's own and its bank's, and what lies over the limit, faintly
         local x = right + 8
         local barH = PanelWindow.BAR_H
         local barY = top + math.floor((PanelWindow.LOAD_H - barH - 3 - FONT_HGT_SMALL) / 2)
@@ -691,16 +731,24 @@ function ISBUPanelWindow:drawBody(body)
         self.loadShown = shown
         local barW = self.barW or BAR_W
         local filled = math.floor(barW * shown)
+        local limitW = math.floor(barW / PanelWindow.BAR_MOST)
+        local ownW = self.limit > 0 and math.floor(limitW * math.min(1, self.capacity / self.limit)) or limitW
         UI.fill(body, x, barY, barW, barH, P.inset)
+        UI.fill(body, x, barY, ownW, barH, P.good, 0.12)
+        if limitW > ownW then UI.fill(body, x + ownW, barY, limitW - ownW, barH, P.value, 0.12) end
+        UI.fill(body, x + limitW, barY, barW - limitW, barH, P.bad, 0.08)
         if filled > 0 then
             UI.fill(body, x, barY, filled, barH, colour, 0.9)
             UI.fill(body, x, barY, filled, 1, P.bright, 0.25)
         end
         UI.frame(body, x, barY, barW, barH, P.border)
-        UI.fill(body, x + math.floor(barW / PanelWindow.BAR_MOST), barY - 2, 1, barH + 4, P.bright, 0.85)
-        -- the load and the limit, and what the limit is made of
+        UI.fill(body, x + limitW, barY - 2, 1, barH + 4, P.bright, 0.85)
+        -- the load and the limit, and what the limit is made of; what is left of it at the bar's end
         local textY = barY + barH + 3
         for _, part in ipairs(self.loadParts) do UI.text(body, part[1], x + part.x, textY, part[2]) end
+        if self.spareText and (self.loadTextW or 0) + 16 + self.spareW <= barW then
+            UI.textRight(body, self.spareText, x + barW, textY, self.spareColour)
+        end
         -- the breaker's gauge, filled from below: amber while it holds, red near the trip, dimmer while tripped
         if self.gaugeShown then
             local gx, gy = self.gauge:getX() + 2, self.gauge:getY()
@@ -739,7 +787,7 @@ function ISBUPanelWindow:drawBodyOver(body)
             self.revealAt = nil
         else
             local tabs = self.tabs
-            local x, top = tabs:getX(), tabs:getY() + tabs.tabHeight
+            local x, top = tabs:getX(), tabs:getY() + tabs.tabHeight + (tabs.headH or 0)
             local w, bottom = tabs:getWidth(), tabs:getY() + tabs:getHeight()
             local u = 1 - math.max(0, t)
             local line = top + math.floor((1 - u * u) * (bottom - top))
@@ -1270,12 +1318,18 @@ function ISBUPanelWindow:fill(utility, state, devices, complete)
                 end
                 -- its timer and essential buttons tell what they do over themselves (ISBUPanelList.BUTTON_TIPS)
                 local controls = timers and utility == "power" and device.state == "on"
+                -- the device's own switch while the box connects it (BU.Switches): on, off, or nil without one
+                local switchOn
+                if utility == "power" and device.state == "on" then
+                    local object = BU.Switches.objectOf(device.entry)
+                    if object then switchOn = BU.Switches.state(object) end
+                end
                 local groupText, groupColour
                 if device.group and device.state == "on" and #BU.Water.groups(panel) > 1 then
                     groupText, groupColour = BU.Water.groupName(panel, device.group), PanelWindow.groupColour(panel, device.group)
                 end
                 add({ kind = "device", text = shown.name, right = shown.status, dim = shown.dim, device = device,
-                    state = device.state, held = device.held, controls = controls, sheds = sheds,
+                    state = device.state, held = device.held, controls = controls, sheds = sheds, switchOn = switchOn,
                     fresh = view.fresh[device.key], groupText = groupText, groupColour = groupColour }, tooltip)
             end
         end
@@ -1493,6 +1547,9 @@ function ISBUPanelWindow:onRow(utility, row, x, width)
             if x >= button.x and x <= button.x + button.w then
                 if button.name == "group" then
                     self:deviceGroupMenu(device)
+                elseif button.name == "switch" then
+                    Sync.send(playerObj, "switchDevice", { panel = panel.id, key = device.key, on = not row.switchOn })
+                    self:changed()
                 elseif button.name == "timer" then
                     Sync.send(playerObj, "setSchedule", { panel = panel.id, key = device.key, schedule = nextSchedule(device.schedule) })
                 else

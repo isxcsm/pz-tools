@@ -8,6 +8,25 @@ BU.Costs = Costs
 Costs.WIRE, Costs.PIPE, Costs.PART, Costs.SHEET = "Base.ElectricWire", "Base.Pipe", "Base.ElectronicsScrap", "Base.SmallSheetMetal"
 local TOOL_TAGS = { screwdriver = "SCREWDRIVER", pipewrench = "PIPE_WRENCH" }
 
+-- A water line's pipe is any that carries water and is found or made: plastic pipe, a fired clay pipe segment (a
+-- kiln's), iron pipe; taken in that order. Not lead pipe (it poisons the water), a broken iron pipe or a rubber hose.
+-- An item of a cost names its group by its first type.
+Costs.PIPES = { "Base.Pipe", "Base.ClayPipeSegment", "Base.MetalPipe" }
+local GROUPS = { [Costs.PIPE] = Costs.PIPES }
+local GROUP_NAMES = { [Costs.PIPE] = "IGUI_BU_Item_Pipe" }
+
+-- Not one in the character's hands or worn on them (an iron pipe kept as a weapon).
+local function loose(item, character) return not (character:isEquipped(item) or character:isAttachedItem(item)) end
+
+-- How many of an item, or of its group, the character has loose.
+local function have(character, itemType)
+    local inventory, total = character:getInventory(), 0
+    for _, each in ipairs(GROUPS[itemType] or { itemType }) do
+        total = total + inventory:getCountTypeEvalArgRecurse(each, loose, character)
+    end
+    return total
+end
+
 -- A cost: { tools = { "screwdriver", ... }, items = { { type, count }, ... }, skill = level of Electricity or nil }.
 
 -- The pieces of wire or pipe a line so many squares long takes: at least one.
@@ -92,24 +111,29 @@ function Costs.affords(character, cost)
         if not hasTool(inventory, tool) then return false end
     end
     for _, item in ipairs(cost.items) do
-        if inventory:getCountTypeRecurse(item[1]) < item[2] then return false end
+        if have(character, item[1]) < item[2] then return false end
     end
     return true
 end
 
--- Takes the items of the cost; returns what was taken, { [type] = count }.
+-- Takes the items of the cost (of a group, the first type the character has); returns what was taken, { [type] =
+-- count }.
 function Costs.take(character, cost)
     local paid = {}
     if not BU.costsEnabled() then return paid end
     local inventory = character:getInventory()
     for _, item in ipairs(cost.items) do
         for _ = 1, item[2] do
-            local found = inventory:getFirstTypeRecurse(item[1])
+            local found, foundType
+            for _, each in ipairs(GROUPS[item[1]] or { item[1] }) do
+                found = inventory:getFirstTypeEvalArgRecurse(each, loose, character)
+                if found then foundType = each; break end
+            end
             if not found then break end
             local container = found:getContainer()
             container:DoRemoveItem(found)
             sendRemoveItemFromContainer(container, found)
-            paid[item[1]] = (paid[item[1]] or 0) + 1
+            paid[foundType] = (paid[foundType] or 0) + 1
         end
     end
     return paid
@@ -147,8 +171,9 @@ function Costs.describe(character, cost, plain)
     if BU.costsEnabled() then
         for _, tool in ipairs(cost.tools) do line(hasTool(inventory, tool), getText("IGUI_BU_Tool_" .. tool)) end
         for _, item in ipairs(cost.items) do
-            local have = inventory:getCountTypeRecurse(item[1])
-            line(have >= item[2], getText("IGUI_BU_NeedItem", getItemNameFromFullType(item[1]), item[2], have))
+            local count = have(character, item[1])
+            local name = GROUP_NAMES[item[1]] and getText(GROUP_NAMES[item[1]]) or getItemNameFromFullType(item[1])
+            line(count >= item[2], getText("IGUI_BU_NeedItem", name, item[2], count))
         end
     end
     return table.concat(lines, plain and "\n" or " <LINE> ")

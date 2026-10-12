@@ -169,6 +169,10 @@ end
 
 function ISBUControllerPopup:onMouseDownOutside()
     if self.gone then return end
+    -- a click on the panel itself (a drop-down's arrow as its list closes) is not outside it, whoever says so
+    local jo = self.javaObject
+    local mx, my = getMouseX() - self:getAbsoluteX(), getMouseY() - self:getAbsoluteY()
+    if mx >= 0 and my >= 0 and mx < jo:getWidth() and my < jo:getHeight() then return end
     for _, line in ipairs(self.lines) do
         -- a choice in an open list is a click outside this panel
         if line.combo and line.combo.list then return end

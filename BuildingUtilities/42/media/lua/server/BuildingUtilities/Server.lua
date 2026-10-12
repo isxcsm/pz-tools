@@ -6,6 +6,7 @@ require "BuildingUtilities/Changes"
 require "BuildingUtilities/Moveables"
 require "BuildingUtilities/WaterRun"
 require "BuildingUtilities/Overload"
+require "BuildingUtilities/Switches"
 local BU = BuildingUtilities
 local Store, Panels, Networks, Changes, Sync, Energy = BU.Store, BU.Panels, BU.Networks, BU.Changes, BU.Sync, BU.Energy
 local Overload = BU.Overload
@@ -109,6 +110,13 @@ function commands.setEssential(player, panel, args)
     if connectedDevice(panel, args.key) then Changes.setEssential(panel, args.key, args.on == true) end
 end
 
+-- A connected device's own switch thrown from the window (BU.Switches): a light, a stove, a television...
+function commands.switchDevice(player, panel, args)
+    local device = connectedDevice(panel, args.key)
+    local object = device and BU.Switches.objectOf(device.entry)
+    if object then BU.Switches.set(object, args.on == true) end
+end
+
 function commands.setSchedule(player, panel, args)
     local known = false
     for _, schedule in ipairs(BU.SCHEDULES) do known = known or schedule == args.schedule end
@@ -119,7 +127,7 @@ end
 
 -- The feature a command needs on (BU.enabled), besides its utility's; one of a feature that is off is ignored, as
 -- the window no longer offers it.
-local NEEDS = { setBlackout = "power", setEssential = "power", setSchedule = "power",
+local NEEDS = { setBlackout = "power", setEssential = "power", setSchedule = "power", switchDevice = "power",
     setController = "controller", addWaterGroup = "water", renameWaterGroup = "water", removeWaterGroup = "water",
     setProducerGroup = "water", setDeviceGroup = "water", setUnitGroup = "water", setGroupReserve = "water",
     setGroupOverflow = "water" }

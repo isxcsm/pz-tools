@@ -21,12 +21,12 @@ local STILL = { header = true, note = true, filter = true, log = true, graph = t
 -- One tab's list. Each item is a row table with a kind; clicks act on the row and the part of it clicked.
 ISBUPanelList = ISScrollingListBox:derive("ISBUPanelList")
 -- The tooltips of a device row's buttons, by button: what a click does, over the button itself.
-ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip" }
+ISBUPanelList.BUTTON_TIPS = { timer = "IGUI_BU_TimerTip", essential = "IGUI_BU_EssentialTip", switch = "IGUI_BU_SwitchTip" }
 
 local BUTTONS = { "Up", "Down" }
 local OPTIONS, OPTION_NAMES = { "ActiveOnly", "ByLoad" }, { ActiveOnly = true, ByLoad = true }
 local BUTTON_W = 60
-local TIMER_W, ESSENTIAL_W, GROUP_W, SOURCE_W = 64, 48, 90, 110
+local TIMER_W, ESSENTIAL_W, SWITCH_W, GROUP_W, SOURCE_W = 64, 48, 48, 90, 110
 -- Water groups' colours, by their place in the panel's list.
 local GROUP_COLOURS = { { 0.35, 0.65, 1 }, { 0.3, 0.9, 0.85 }, { 0.75, 0.55, 1 }, { 1, 0.6, 0.8 } }
 
@@ -82,8 +82,15 @@ local function deviceButtons(width, row)
         end
         right = right - TIMER_W
         result[#result + 1] = { name = "timer", x = right, w = TIMER_W }
-        right = right - 8
+        right = right - 4
     end
+    -- the device's own switch, where it has one (BU.Switches)
+    if row.switchOn ~= nil then
+        right = right - SWITCH_W
+        result[#result + 1] = { name = "switch", x = right, w = SWITCH_W }
+        right = right - 4
+    end
+    if right < width - PAD - SCROLLBAR then right = right - 4 end
     row.buttons, row.textRight, row.buttonsWidth = result, right, width
     return result, right
 end
@@ -357,6 +364,9 @@ function ISBUPanelList:doDrawItem(y, item, alt)
                 local timed = row.device.schedule ~= "always"
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Schedule_" .. row.device.schedule),
                     timed and TIMED or UNTIMED)
+            elseif button.name == "switch" then
+                smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Switch"),
+                    row.switchOn and GREEN or NOT_ESSENTIAL, row.switchOn)
             else
                 smallButton(self, c, key, button.x, y, button.w, label("IGUI_BU_Essential"),
                     row.device.essential and ESSENTIAL or NOT_ESSENTIAL)
@@ -463,8 +473,8 @@ end
 -- The window's tabs: a strip over the lists in the window's palette, as Operation Acorn's terminal draws its tabs (the
 -- open one on the background with the accent line under it, gliding to a tab as it opens; the one under the mouse
 -- lit, a click flashing). It keeps the lists as its views below the strip (game lists, placed in pixels from design
--- units). The calls the window makes are the game's tab panel's: addView, activateView, getActiveViewIndex,
--- activeView, tabHeight, getWidthOfAllTabs.
+-- units), under the open tab's head (setHead). The calls the window makes are the game's tab panel's: addView,
+-- activateView, getActiveViewIndex, activeView, tabHeight, getWidthOfAllTabs.
 ISBUTabs = ISPanel:derive("ISBUTabs")
 
 function ISBUTabs:new(x, y, width, height)
@@ -479,7 +489,8 @@ function ISBUTabs:addView(name, view)
     local entry = { name = name, view = view, w = UI.textWidth(name) + 28 }
     self.viewList[#self.viewList + 1] = entry
     self:addChild(view)
-    UI.place(view, 0, self.tabHeight, self.width, self.height - self.tabHeight)
+    local top = self.tabHeight + (self.headH or 0)
+    UI.place(view, 0, top, self.width, self.height - top)
     view:setVisible(#self.viewList == 1)
     if #self.viewList == 1 then self.activeView = entry end
 end
@@ -516,7 +527,15 @@ end
 function ISBUTabs:resize(w, h)
     self:setWidth(w)
     self:setHeight(h)
-    for _, entry in ipairs(self.viewList) do UI.place(entry.view, 0, self.tabHeight, w, h - self.tabHeight) end
+    local top = self.tabHeight + (self.headH or 0)
+    for _, entry in ipairs(self.viewList) do UI.place(entry.view, 0, top, w, h - top) end
+end
+
+-- Room under the strip for the open tab's head (the window draws it there); the views start under it.
+function ISBUTabs:setHead(h)
+    if self.headH == h then return end
+    self.headH = h
+    self:resize(self.width, self.height)
 end
 
 -- The accent line's place, gliding toward the open tab (followed each frame while it moves). The open tab's slot is
