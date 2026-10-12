@@ -544,7 +544,8 @@ end
 -- did). A device in a built-on room is inside, in the room it touches: connected unless excluded, with no line. One
 -- that another panel took, or that this panel connected outside before the room was built, stays outside. An object
 -- that covers several squares is one device, as the API switches it whole: its entry is that of its listed part with
--- the smallest key, which is its key; keys are all its parts'; power is what its parts draw together. Each has entry,
+-- the smallest key, which is its key; keys are all its parts'; power is what its parts draw together; on is true when
+-- its mod says it is switched on, drawing or at rest (the API's machine.onKey). Each has entry,
 -- key, keys, power, inside and state ("on", "off" or "other": the player's choice); attached (in a built-on room) and
 -- pending (not yet in the networks, BU.Changes.syncAttached); and for power: essential, schedule (BU.SCHEDULES) and
 -- held ("shed", "saving", "blackout" or "timer" while the box keeps it off; "exterior" for one outside while the game
@@ -632,11 +633,12 @@ function Panels.devices(panel, utility)
         if group.built and claimedElsewhere(panel, utility, group.keys) then group.inside = false end
         table.sort(group.entries, function(a, b) return a.key < b.key end)
         local first = group.entries[1]
-        local power
+        local power, on
         for _, part in ipairs(group.entries) do
             if part.entry.power then power = (power or 0) + part.entry.power end
+            if part.entry.on then on = true end
         end
-        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, inside = group.inside,
+        local device = { entry = first.entry, key = first.key, keys = group.keys, power = power, on = on, inside = group.inside,
             roomId = group.inside and (first.entry.roomId or "") or nil }
         if group.built and group.inside then
             device.attached = true
