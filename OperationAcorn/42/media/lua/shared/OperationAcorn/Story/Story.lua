@@ -29,8 +29,8 @@ function Story.section(record)
         s.handover = false
         s.docs = {}          -- read documents: id -> true (or the place variant it was read at)
         s.queue = {}         -- story missions waiting: { id =, fresh =, option = }
-        s.missed = {}        -- story ids missed, offered again at the next stage
-        s.done = {}          -- story id -> "done" | "missed" | "closed"
+        s.missed = {}        -- a save from before: story ids missed, kept for the next stage (see requeueMissed)
+        s.done = {}          -- story id -> "done" | "missed" ("closed" in a save from before)
         s.chosen = {}        -- the choice missions: story id -> option
         s.supply = {}        -- sent to the next supply crate, not yet taken by the trade part: { type =, doc = }
         s.noteQueue = {}     -- manifest notes that come before the order: ids
@@ -227,13 +227,21 @@ function Story.queueStory(record, id, fresh, option)
     end
 end
 
--- The missed story missions come back (not the optional ones), after the new stage's own.
+-- A save from before missed missions were queued again at once: the ones it kept for the next stage, and the optional
+-- ones it closed for good, come back after the new stage's own.
 local function requeueMissed(record)
     local s = Story.section(record)
     for _, id in ipairs(s.missed) do
         Story.queueStory(record, id, false)
     end
     s.missed = {}
+    for id, state in pairs(s.done) do
+        local def = Data.STORIES[id] or Data.REVISITS[id]
+        if state == "closed" and def and def.optional then
+            s.done[id] = "missed"
+            Story.queueStory(record, id, false)
+        end
+    end
 end
 
 local function enterEvents(record, def)
@@ -308,11 +316,11 @@ function Story.missionEnded(record, m, result)
         local def = Data.STORIES[m.story] or Data.REVISITS[m.story]
         if result == "done" then
             s.done[m.story] = "done"
-        elseif def and not def.optional and not def.handover then
+        elseif def and not def.handover then
+            -- Missed (an optional one too): offered again once a regular mission has come between. Doing it again is
+            -- what it costs; a wait for the next stage, or a story part lost for good, would be more.
             s.done[m.story] = "missed"
-            s.missed[#s.missed + 1] = m.story
-        else
-            s.done[m.story] = def and def.optional and "closed" or s.done[m.story]
+            Story.queueStory(record, m.story, false)
         end
         s.regularsSince = 0
         if def and def.handover then Story.completeHandover(record) end

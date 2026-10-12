@@ -109,6 +109,14 @@ local function predicateMission(item, id)
     return missionMatch(item, id)
 end
 
+local function anyMission(item)
+    return item:hasModData() and item:getModData().OA_Mission ~= nil
+end
+
+-- The API's mark on what the sandbox's world item removal must leave on the floor (PZToolsAPI "World items"): a mission
+-- piece dropped by hand is not flagged by the game, as a placed one is.
+local KEEP = "PZToolsKeep"
+
 -- What the last look for a mission's item found, by record id: { mission, item (found, or nil), miss (the inventory's
 -- signature when it was not found) }.
 local looked = {}
@@ -181,6 +189,7 @@ local function newItem(record, m, it)
     if not it.plain then
         md.OA_Mission = Missions.itemId(m, it.key)
         md.OA_Owner = record.id
+        md[KEEP] = true
     end
     for k, v in pairs(it.mods or {}) do
         if v ~= "" then md[k] = v end
@@ -198,6 +207,7 @@ function Game.giveMissionItem(character, fullType, missionId, mods)
     if not item then return nil end
     local md = item:getModData()
     md.OA_Mission = missionId
+    md[KEEP] = true
     for k, v in pairs(mods or {}) do md[k] = v end
     local inv = character:getInventory()
     inv:AddItem(item)
@@ -405,6 +415,7 @@ function Game.tryPlace(record, m, it, forceFloor)
                 local md = inner:getModData()
                 md.OA_Mission = Missions.itemId(m, "A")
                 md.OA_Owner = record.id
+                md[KEEP] = true
                 md.OA_Variant = it.mods and it.mods.OA_Variant
                 addToContainer(item:getInventory(), inner)
             end
@@ -546,6 +557,50 @@ OA.Chunks.handle("oa_place", function(entry, chunk)
     -- Placed: all its chunk entries go (unregisterPiece did it); this entry goes too.
     return done == true
 end)
+
+-- ---------------------------------------------------------------------------------------------------------------
+-- A piece destroyed (Missions.replacePiece).
+
+-- Lays the piece out again: now where its place is loaded (on the floor of its building when no container is left),
+-- otherwise when it loads.
+function Game.placeAgain(record, m, it)
+    if Game.tryPlace(record, m, it, true) then return end
+    Game.request(record, m, it)
+end
+
+-- Hands the piece to the player again.
+function Game.giveAgain(record, m, it)
+    local character = Game.character(record)
+    if character then Game.giveMissionItem(character, it.type, Missions.itemId(m, it.key), it.mods) end
+    it.placed = true
+end
+
+-- OnPZToolsContainerBurning: a fire is about to empty a container (and take it away). It is looked into only while a
+-- mission is running; a fire is rare, and the look is one search of the container. Each piece found is replaced once,
+-- however many of its items (a case and the record in it) burn.
+function Game.onBurning(container, object)
+    if not container or container:isEmpty() then return end
+    local running = false
+    for _, record in pairs(OA.Store.players()) do
+        for _, m in ipairs(Missions.live(record)) do
+            if m.state == "open" then running = true end
+        end
+    end
+    if not running then return end
+    -- oa-scan: ok (a burning container, while a mission runs)
+    local found = container:getAllEvalRecurse(anyMission, ArrayList.new())
+    local done = {}
+    for i = 0, found:size() - 1 do
+        local id = found:get(i):getModData().OA_Mission
+        for _, record in pairs(OA.Store.players()) do
+            local m, it = Missions.pieceOf(record, id)
+            if it and not done[it] then
+                done[it] = true
+                Missions.replacePiece(record, m, it)
+            end
+        end
+    end
+end
 
 -- ---------------------------------------------------------------------------------------------------------------
 -- The record in the drop case.

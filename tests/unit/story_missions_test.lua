@@ -126,7 +126,7 @@ test("entering stage 1 starts the evidence story first, far from the base", func
     eq(Story.section(record).papers[1].doc, "serum_sheet", "the serum sheet waits for a crate")
 end)
 
-test("a story mission that is missed comes back at the next stage, and regulars come between", function()
+test("a story mission that is missed comes back once a regular has come between", function()
     local record = setup(1)
     M.tick(record)
     local m = M.active(record)
@@ -622,4 +622,40 @@ test("the handover mission's item is its own paper, the revisits' items carry th
         eq(docs[1].variant, mission.place)
         M.finish(record, mission, "expired")
     end
+end)
+
+test("a piece destroyed is laid out again, or handed again, with as much time as the mission had", function()
+    local record = setup(2)
+    record.story = nil
+    M.tick(record)
+    local m = M.active(record)
+    local it = m.items[1]
+    it.placed, it.at = true, { x = 1, y = 2, z = 0 }
+    local again = {}
+    M.game.placeAgain = function(rec, mission, piece) again[#again + 1] = piece end
+    M.game.giveAgain = function(rec, mission, piece) M.game.handed = piece end
+    local told = listenTitles()
+    local span = m.deadline - m.issued
+    TEST.hours = TEST.hours + 6 * 24
+    local found, piece = M.pieceOf(record, M.itemId(m, it.key))
+    eq(found, m)
+    eq(piece, it)
+    M.replacePiece(record, m, piece)
+    eq(it.placed, false, "laid out again")
+    eq(it.at, nil)
+    eq(again[1], it)
+    near(m.deadline, TEST.hours + span, 1e-6, "as much time as it had from the start")
+    eq(told[#told].key, "IGUI_OA_Title_Lost")
+    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Placed")
+    -- Early, the deadline it has is kept: never less time.
+    local deadline = m.deadline
+    it.mode = "given"
+    M.replacePiece(record, m, it)
+    eq(M.game.handed, it, "handed again")
+    eq(m.deadline, deadline)
+    eq(told[#told].sub, "IGUI_OA_Title_LostSub_Given")
+    eq(M.state(record).active, m, "the mission goes on")
+    eq(M.pieceOf(record, "M0-999"), nil, "another mission's item")
+    m.state = "sealed"
+    eq(M.pieceOf(record, M.itemId(m, it.key)), nil, "a sealed mission's")
 end)
