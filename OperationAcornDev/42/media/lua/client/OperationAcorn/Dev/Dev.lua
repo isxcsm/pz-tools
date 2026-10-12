@@ -508,7 +508,7 @@ function Dev.title(kind, arg)
     if kind == "capstone" then
         local node = Data.capstone(arg or "scout")
         if not node then error("no capstone for " .. tostring(arg), 2) end
-        local detail = { key = "IGUI_OA_Title_Capstone", sub = Data.key(node.id, "Name"), style = "dust", tone = "gold",
+        local detail = { key = "IGUI_OA_Title_Capstone", sub = Data.key(node.id, "Name"), style = "stamp", tone = "gold",
             fallback = "good" }
         return OA.Titles.show(nil, detail)
     elseif kind == "tree" then
@@ -516,12 +516,12 @@ function Dev.title(kind, arg)
         if hooks and hooks.treeOpened then hooks.treeOpened(nil, arg or "scout", true) end
         return "tree"
     elseif kind == "line" then
-        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "dust",
+        return OA.Titles.show(nil, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "unveil",
             tone = "gold", fallback = "good" })
     elseif kind == "request" then
         return OA.Titles.show(nil, { key = "IGUI_OA_Title_NewRequest", sub = "IGUI_OA_Title_CheckTerminal", style = "notice" })
     elseif kind == "board" then
-        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "dust",
+        local detail = { key = "IGUI_OA_Title_BoardOpened", sub = "IGUI_OA_Title_BoardOpenedSub", style = "unveil",
             tone = "gold", fallback = "good" }
         return OA.Titles.show(nil, detail)
     end

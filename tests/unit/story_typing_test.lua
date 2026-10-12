@@ -530,7 +530,7 @@ test("a stage's title names the stage; the line under it is the first radio line
     eq(detail.sub, "IGUI_OA_Story_Radio_s3_a")
     eq(detail.subArgs[1], "0347")
     eq(detail.subLead, Story.TITLE_LEAD)
-    eq(detail.style, "dust")
+    eq(detail.style, "unveil")
     eq(detail.fallback, "good")
     eq(Story.stageTitle(record, 5).sub, "IGUI_OA_Story_Radio_s5_first")
     -- the milestones have the number alone, but the 8th is the handover

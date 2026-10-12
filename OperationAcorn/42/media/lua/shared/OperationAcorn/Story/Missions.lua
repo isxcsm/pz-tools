@@ -702,7 +702,7 @@ local function finishSpecial(record, m, result)
     sp.nextAt = OA.hours() + Rewards.hours(Rewards.SPECIAL_GAP_DAYS)
     s.results[result] = (s.results[result] or 0) + 1
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "notice",
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "dust",
             tone = "red", fallback = "bad" })
     end
     OA.Sync.changed("missions", record.id)
@@ -720,7 +720,7 @@ function Missions.finish(record, m, result)
     s.last = { id = m.id, story = m.story, result = result, at = OA.hours() }
     countStreak(s, result)
     if result == "expired" then
-        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "notice",
+        OA.Sync.title(record.id, { key = "IGUI_OA_Title_Expired", sub = (Missions.keys(m)), style = "dust",
             tone = "red", fallback = "bad" })
     end
     Story.missionEnded(record, m, result)
@@ -730,7 +730,7 @@ end
 -- The reward goes in, and the player sees the request done (before the title of a stage its trust may bring).
 function Missions.pay(record, m)
     local credits, trust = m.pay and m.pay.credits or m.credits, m.pay and m.pay.trust or m.trust
-    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "dust", fallback = "good" }
+    local detail = { key = "IGUI_OA_Title_Paid", sub = (Missions.keys(m)), style = "stamp", fallback = "good" }
     if credits and credits > 0 then
         detail.sub, detail.subArgs = "IGUI_OA_Title_PaidSub", { { key = detail.sub }, math.floor(credits + 0.5) }
     end
@@ -882,7 +882,7 @@ function Missions.replacePiece(record, m, it)
         m.carry.start, m.carry.looked = nil, nil
     end
     OA.log("mission", m.id, "piece", tostring(it.key), "destroyed: replaced")
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "notice", fallback = "bad" })
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_Lost", sub = sub, style = "dust", fallback = "bad" })
     OA.Sync.changed("missions", record.id)
 end
 

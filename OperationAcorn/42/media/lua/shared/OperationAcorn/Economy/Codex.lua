@@ -65,8 +65,8 @@ local function milestone(events, kind, credits, detail)
     table.insert(events, event)
 end
 
--- The style of each milestone's title: the codex's are finds, the counts are notices.
-Codex.TITLE_STYLE = { Kinds = "discovery", Category = "discovery", Buildings = "notice", Kills = "notice" }
+-- The style of each milestone's title: the codex's are finds, the counts things done.
+Codex.TITLE_STYLE = { Kinds = "discovery", Category = "discovery", Buildings = "stamp", Kills = "stamp" }
 
 -- Tells the player of the milestones one action made, with one title: the last (highest) milestone, and the bonus of
 -- all of them under it.

@@ -45,8 +45,8 @@ test("with the API's text a title goes to it, in its style and tone, on the play
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", args = { "x" }, tone = "gold" }), "title")
     eq(#halo, 0)
     eq(called[1].handle, "handle")
-    eq(called[1].spec.style, "dust", "dust unless said")
-    eq(called[1].spec.dustBurn, OA.Titles.BURN, "dust burns")
+    eq(called[1].spec.style, "stamp", "stamp unless said")
+    eq(called[1].spec.dustBurn, nil, "the API burns in its own colour")
     eq(called[1].spec.now, nil, "queued")
     eq(called[1].spec.text, "IGUI_OA_Title_Capstone x")
     eq(called[1].spec.subtitle, nil)
@@ -105,7 +105,7 @@ test("a style the API does not have (an older PZ Extension API) is asked as stam
     PZExtAPI = nil
 end)
 
-test("the dev panel's switch lets every title go first; an API older than the burn shows the dust as it weathers", function()
+test("the dev panel's switch lets every title go first", function()
     world()
     local called = {}
     PZExtAPI = {
@@ -114,15 +114,12 @@ test("the dev panel's switch lets every title go first; an API older than the bu
         text = {
             status = function() return "applied" end,
             styles = function() return { "stamp", "dust", "notice" } end,
-            title = function(_, spec)
-                if spec.dustBurn then error("spec has an unknown field dustBurn") end
-                called[#called + 1] = { now = spec.now, style = spec.style }
-            end,
+            title = function(_, spec) called[#called + 1] = { now = spec.now, style = spec.style } end,
         },
     }
     OA.Titles.now = true
     eq(OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone" }), "title")
-    eq(called[1].style, "dust")
+    eq(called[1].style, "stamp")
     eq(called[1].now, true)
     OA.Titles.now = false
     OA.Titles.show("p1", { key = "IGUI_OA_Title_Capstone", style = "notice" })

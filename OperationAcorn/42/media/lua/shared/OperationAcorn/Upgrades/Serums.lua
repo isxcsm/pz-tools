@@ -162,7 +162,7 @@ function Serums.cure(character, item, id)
     Infection.cured(record)
     OA.Sync.changed("infection", id, { kind = "cured" })
     OA.Sync.title(id, { key = "IGUI_OA_Title_Cured", sub = doses > 0 and "IGUI_OA_Title_CuredSubDrugs" or "IGUI_OA_Title_CuredSub",
-        subArgs = { days, doses }, style = "dust", tone = "green", fallback = "good" })
+        subArgs = { days, doses }, style = "stamp", tone = "green", fallback = "good" })
     OA.Say.tell(id, "Cured", { length = length }, Serums.CURED_SAY_DELAY)
     local sent, paper = Guides.certify(record, length, days, doses)
     if sent then Guides.title(id, paper) end

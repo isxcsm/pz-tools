@@ -70,7 +70,7 @@ function Things.lineOpened(record)
     local heli = Trade.heli(record)
     if heli.line then return false end
     heli.line = true
-    OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "dust",
+    OA.Sync.title(record.id, { key = "IGUI_OA_Title_LineOpened", sub = "IGUI_OA_Title_LineOpenedSub", style = "unveil",
         tone = "gold", fallback = "good" })
     return true
 end
@@ -280,7 +280,7 @@ function Things.destroyed(thing)
     if box.state == "sealed" or wasActive then
         OA.Sync.title(owner.id, { key = "IGUI_OA_Trade_Notice_BoxLost",
             sub = box.state == "sealed" and "IGUI_OA_Title_BoxLostSealedSub" or "IGUI_OA_Title_BoxLostSub",
-            style = "notice", tone = "red", fallback = "bad" })
+            style = "dust", tone = "red", fallback = "bad" })
     end
     changed(owner)
 end

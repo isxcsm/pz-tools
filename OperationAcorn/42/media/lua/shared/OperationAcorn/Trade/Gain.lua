@@ -33,7 +33,7 @@ function Trade.addTrust(record, amount, source)
         -- The story names the stage and takes the line under the title from the radio copy it brings; without it the
         -- plain title with the new items.
         local detail = OA.Story and OA.Story.stageTitle and OA.Story.stageTitle(record, level)
-            or { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "dust",
+            or { key = "IGUI_OA_Title_Stage", args = { level }, sub = "IGUI_OA_Title_NewItems", style = "unveil",
                 fallback = "good" }
         OA.Sync.title(record.id, detail)
         if OA.Story and OA.Story.onStage then

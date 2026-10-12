@@ -371,7 +371,7 @@ test("a cure serum that cures clears the infection, the fee and the drug", funct
     eq(Infection.state(r, 1), nil)
     eq(Infection.feeRate(r), 0)
     eq(told.titles[1].key, "IGUI_OA_Title_Cured")
-    eq(told.titles[1].style, "dust")
+    eq(told.titles[1].style, "stamp")
     eq(told.titles[1].tone, "green")
 end)
 

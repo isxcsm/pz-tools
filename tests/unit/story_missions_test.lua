@@ -73,7 +73,7 @@ test("a new request, its pay and its expiry each have a title; the pay names it,
     M.onSealed(record, "box1", { { info = { mission = M.itemId(m, "A") }, count = 1 } })
     M.onSettled(record, { credits = 1000, trust = 5 })
     eq(told[2].key, "IGUI_OA_Title_Paid")
-    eq(told[2].style, "dust")
+    eq(told[2].style, "stamp")
     eq(told[2].sub, "IGUI_OA_Title_PaidSub")
     eq(told[2].subArgs[1].key, (M.keys(m)))
     eq(told[2].subArgs[1].key, "IGUI_OA_Story_Title_" .. m.title)
