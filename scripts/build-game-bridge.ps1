@@ -1,7 +1,7 @@
 param(
     [string] $JdkPath,
     [string] $Output,
-    [ValidateSet('Debug', 'Release')][string] $Configuration = 'Debug',
+    [ValidateSet('Debug', 'Release')][string] $Configuration = 'Release',
     [string] $DotNetPath = 'dotnet'
 )
 $ErrorActionPreference = 'Stop'

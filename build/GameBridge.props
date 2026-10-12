@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
     <GameBridgeRepositoryRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</GameBridgeRepositoryRoot>
     <GameBridgeDirectory Condition="'$(GameBridgeDirectory)' == ''">$(GameBridgeRepositoryRoot)\artifacts\game-bridge\$(Configuration)</GameBridgeDirectory>
     <BridgeOutputPath>$([MSBuild]::NormalizePath('$(GameBridgeRepositoryRoot)', '$(GameBridgeDirectory)'))</BridgeOutputPath>

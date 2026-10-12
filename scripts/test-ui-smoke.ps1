@@ -2,7 +2,7 @@
 # user data, and writes PASS or FAIL. They are not part of `dotnet test`, so run this after UI changes.
 param(
     [ValidateSet('Debug', 'Release')]
-    [string] $Configuration = 'Debug',
+    [string] $Configuration = 'Release',
     [string] $Output = 'artifacts/ui-smoke',
     [int] $TimeoutSeconds = 180
 )

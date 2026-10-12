@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string] $JdkPath,
     [string] $GameBridgeOutput,
-    [ValidateSet('Debug', 'Release')][string] $Configuration = 'Debug',
+    [ValidateSet('Debug', 'Release')][string] $Configuration = 'Release',
     [switch] $ReuseBuild,
     # Every suite but dotnet, leaving the test variables set in the session for a dotnet test run after.
     [switch] $PrepareOnly,

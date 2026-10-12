@@ -154,7 +154,7 @@ host, game or user data. `dotnet test` does not run them, so run this script aft
 change. A building solution only shows that they compile. The renders are saved in
 `artifacts/ui-smoke`.
 
-`-Configuration` (`Debug` by default), `-Output` and `-TimeoutSeconds` (180 per program)
+`-Configuration` (`Release` by default), `-Output` and `-TimeoutSeconds` (180 per program)
 change where and how they run. The script fails if any program fails to build, times out,
 exits with an error or does not write a result starting with `PASS`.
 
@@ -165,7 +165,7 @@ pwsh scripts/test-game-bridge.ps1 -JdkPath $jdk
 ```
 
 [`test-game-bridge.ps1`](../../scripts/test-game-bridge.ps1) first prepares what every test
-needs: it builds the bridge (Debug by default), compiles the synthetic game, builds the
+needs: it builds the bridge (Release by default), compiles the synthetic game, builds the
 vehicle extension and the fixture modules
 ([`test-game-extensions.ps1 -FixturesOnly`](../../scripts/test-game-extensions.ps1)), and sets
 the test variables. Then it runs its suites. None of it touches a real game.
@@ -187,7 +187,7 @@ not hide the others.
 | --- | --- |
 | `-Suite api,startup` | Runs only these suites, after the preparation |
 | `-DotnetFilter <filter>` | The `dotnet` suite runs this `dotnet test` filter instead, with the test variables set, for example `FullyQualifiedName~StartupLoader` |
-| `-Configuration Release` | Uses `artifacts/game-bridge/Release` |
+| `-Configuration Debug` | Uses `artifacts/game-bridge/Debug` |
 | `-ReuseBuild` | Uses the bridge from the last solution build instead of building it, and runs `dotnet test --no-build` |
 | `-PrepareOnly` | Every suite but `dotnet`, leaving the test variables set in the session |
 | `-GameBridgeOutput` | Another bridge folder, for example while a running game holds the DLL in the default one |

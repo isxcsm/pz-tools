@@ -124,9 +124,9 @@ The localization smoke runs on its own with the `Strings` folder and a result fi
 arguments. It writes `PASS` or `FAIL` with the reason into that file:
 
 ```powershell
-dotnet build tests/PzTools.LocalizationSmoke -c Debug
+dotnet build tests/PzTools.LocalizationSmoke -c Release
 New-Item -ItemType Directory -Force artifacts | Out-Null
-& tests/PzTools.LocalizationSmoke/bin/Debug/net10.0-windows10.0.19041.0/win-x64/PzTools.LocalizationSmoke.exe `
+& tests/PzTools.LocalizationSmoke/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/PzTools.LocalizationSmoke.exe `
     (Resolve-Path src/PzTools.App/Strings).Path "$PWD/artifacts/localization-smoke.txt"
 ```
 

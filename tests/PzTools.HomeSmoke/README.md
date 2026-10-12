@@ -8,9 +8,9 @@ settings. The only output is written to the explicitly supplied output directory
 Run on Windows, serially with other builds of this repository:
 
 ```powershell
-dotnet build tests/PzTools.HomeSmoke/PzTools.HomeSmoke.csproj -c Debug
+dotnet build tests/PzTools.HomeSmoke/PzTools.HomeSmoke.csproj -c Release
 $output = Join-Path (Get-Location) 'artifacts/home-smoke'
-$exe = 'tests/PzTools.HomeSmoke/bin/Debug/net10.0-windows10.0.19041.0/win-x64/PzTools.HomeSmoke.exe'
+$exe = 'tests/PzTools.HomeSmoke/bin/x64/Release/net10.0-windows10.0.19041.0/win-x64/PzTools.HomeSmoke.exe'
 $process = Start-Process -FilePath $exe -ArgumentList ('"' + $output + '"') -WindowStyle Hidden -PassThru
 if (-not $process.WaitForExit(45000)) { throw 'Home smoke test did not complete within 45 seconds.' }
 Get-Content -LiteralPath (Join-Path $output 'result.txt')

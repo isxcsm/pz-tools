@@ -1,6 +1,6 @@
 ﻿param(
     [ValidateSet('Debug', 'Release')]
-    [string] $Configuration = 'Debug',
+    [string] $Configuration = 'Release',
     [string] $Output = 'artifacts/tools',
     [string] $DotNetPath,
     [string] $JdkPath,
