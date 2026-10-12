@@ -48,7 +48,9 @@ final class Formulas implements ApiHooks.Formulas {
         /** A table of names and numbers from 0 to 1000; the values of a name add. */
         AMOUNTS,
         /** A name, or a list of names; the lists join. */
-        NAMES
+        NAMES,
+        /** A table of names to names; for a name several mods give, the first mod's (by mod id) stands. */
+        RENAMES
     }
 
     /** What the names in a table are: any text, or names the game registers. */
@@ -137,7 +139,9 @@ final class Formulas implements ApiHooks.Formulas {
         sight("vision.hiddenZombieFix", Shape.BOOLEAN),
         machine("machine.baseConsumption", Shape.AMOUNTS, "IsoObject.couldBePoweredByGenerator", "IsoObject.getGeneratorPowerConsumption"),
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"),
-        anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites", "IsoObject.isAnimating"));
+        anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites", "IsoObject.isAnimating"),
+        // read by the buildings and the networks as they name objects, not by a hook in the game
+        live("machine.spriteName", Shape.RENAMES));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -167,6 +171,8 @@ final class Formulas implements ApiHooks.Formulas {
         String[] machineKeys = NO_NAMES;
         // The keys of an object's data under which its attached animations are stepped.
         String[] animKeys = NO_NAMES;
+        // The name objects of a sprite are known by, for the sprites a mod gives another (machine.spriteName).
+        Map<String, String> spriteNames = Map.of();
         float compress, runReduction, combatReduction;
         // The survival points: multipliers and chances as numbers, 1 (or 0) leaving the game's answer as it is.
         double lootChance = 1, lootAmmo = 1, cold = 1, corpseCount = 1, corpseSickness = 1, treeSlow = 1, treeScratch = 1, hole = 1, wound = 1;
@@ -558,8 +564,27 @@ final class Formulas implements ApiHooks.Formulas {
             case MULTIPLIERS: return entries(point, value, call, 0, MAX_MULTIPLIER);
             case AMOUNTS: return entries(point, value, call, 0, MAX_AMOUNT);
             case NAMES: return names(point, value, call);
+            case RENAMES: return renames(point, value, call);
         }
         throw new AssertionError(point.shape());
+    }
+
+    /** A table of names to names, as a map in the table's order. */
+    private Map<String, String> renames(Point point, Object value, String call) throws ReflectiveOperationException {
+        if (!lua.isTable(value)) throw new IllegalArgumentException(call + ": " + point.name() + " must be a table of names to names");
+        var result = new TreeMap<String, String>();
+        for (var entry : lua.entries(value)) {
+            if (!(entry.getKey() instanceof String key) || !isText(key))
+                throw new IllegalArgumentException(call + ": " + point.name() + " must be named by strings of 1 to " + MAX_NAME
+                    + " characters without control characters");
+            if (!(entry.getValue() instanceof String name) || !isText(name))
+                throw new IllegalArgumentException(call + ": " + point.name() + "[" + key + "] must be a string of 1 to " + MAX_NAME
+                    + " characters without control characters");
+            result.put(key, name);
+            if (result.size() > MAX_ENTRIES)
+                throw new IllegalArgumentException(call + ": " + point.name() + " has more than " + MAX_ENTRIES + " entries");
+        }
+        return result;
     }
 
     /** A table of names to numbers within the bounds, as a map in the table's order. */
@@ -618,7 +643,7 @@ final class Formulas implements ApiHooks.Formulas {
         if (value == null) return null;
         if (value instanceof Double || value instanceof Boolean) return value;
         Object result = lua.table();
-        if (value instanceof Map<?, ?> map) for (var entry : ((Map<String, Double>)map).entrySet()) lua.set(result, entry.getKey(), entry.getValue());
+        if (value instanceof Map<?, ?> map) for (var entry : map.entrySet()) lua.set(result, entry.getKey(), entry.getValue());
         else return lua.list((List<String>)value);
         return result;
     }
@@ -726,6 +751,13 @@ final class Formulas implements ApiHooks.Formulas {
                 for (var values : declared.values()) if (values.get(point.name()) instanceof List<?> list) for (Object item : list) result.add((String)item);
                 return result.isEmpty() ? null : List.copyOf(result);
             }
+            case RENAMES -> {
+                var result = new TreeMap<String, String>();
+                for (var values : declared.values())
+                    if (values.get(point.name()) instanceof Map<?, ?> map)
+                        for (var entry : map.entrySet()) result.putIfAbsent((String)entry.getKey(), (String)entry.getValue());
+                return result.isEmpty() ? null : result;
+            }
         }
         throw new AssertionError(point.shape());
     }
@@ -790,6 +822,11 @@ final class Formulas implements ApiHooks.Formulas {
         next.machines = Map.copyOf(declaredMachines);
         if (combined(BY_NAME.get("machine.loadKey")) instanceof List<?> loadKeys) next.machineKeys = loadKeys.toArray(String[]::new);
         if (combined(BY_NAME.get("anim.stepKey")) instanceof List<?> stepKeys) next.animKeys = stepKeys.toArray(String[]::new);
+        if (combined(BY_NAME.get("machine.spriteName")) instanceof Map<?, ?> names) {
+            var spriteNames = new HashMap<String, String>();
+            for (var entry : names.entrySet()) spriteNames.put((String)entry.getKey(), (String)entry.getValue());
+            next.spriteNames = Map.copyOf(spriteNames);
+        }
         // A machine that draws power from now on is put into the game's lists in a frame with a world; one declared before is there.
         for (var entry : next.machines.entrySet())
             if (entry.getValue() > 0f && !(active.machines.getOrDefault(entry.getKey(), 0f) > 0f)) listing.add(entry.getKey());
@@ -864,7 +901,8 @@ final class Formulas implements ApiHooks.Formulas {
                 switch (value.getValue()) {
                     case Double number -> text.append("n:").append(number);
                     case Map<?, ?> map -> {
-                        text.append("t:");
+                        // names to names, or names to numbers
+                        text.append(BY_NAME.get(value.getKey()).shape() == Shape.RENAMES ? "s:" : "t:");
                         boolean separate = false;
                         for (var entry : map.entrySet()) {
                             if (separate) text.append(SEPARATOR);
@@ -915,11 +953,27 @@ final class Formulas implements ApiHooks.Formulas {
                     for (int part = 0; part + 1 < parts.length; part += 2) map.put(parts[part], Double.parseDouble(parts[part + 1]));
                     value = map;
                 }
+                case 's' -> {
+                    var map = new TreeMap<String, String>();
+                    String[] parts = payload.split(String.valueOf(SEPARATOR), -1);
+                    for (int part = 0; part + 1 < parts.length; part += 2) map.put(parts[part], parts[part + 1]);
+                    value = map;
+                }
                 case 'l' -> value = List.copyOf(Arrays.asList(payload.split(String.valueOf(SEPARATOR), -1)));
                 default -> throw new IllegalStateException("Unknown value in the kept formulas: " + lines[index]);
             }
             declared.computeIfAbsent(fields[1], key -> new TreeMap<>()).put(point.name(), value);
         }
+    }
+
+    /**
+     * The name objects of the sprite are known by: the one a mod gives it (machine.spriteName), so that a machine that
+     * shows its state by changing its sprite stays one object to the buildings, the networks and their rules; else the
+     * sprite's own. One step: the name given is not looked up again.
+     */
+    String spriteName(String sprite) {
+        String name = active.spriteNames.get(sprite);
+        return name == null ? sprite : name;
     }
 
     // ---- the hooks ----

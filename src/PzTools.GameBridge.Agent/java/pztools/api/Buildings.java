@@ -657,14 +657,18 @@ final class Buildings {
         return result;
     }
 
-    /** The name objects are known by: the object's sprite name, or its sprite's. */
+    /**
+     * The name objects are known by: the object's sprite name, or its sprite's; or the name a mod gives that sprite
+     * (machine.spriteName).
+     */
     String sprite(Object object) throws ReflectiveOperationException {
         Object name = spriteName.invoke(object);
         if (name == null) {
             Object sprite = objectSprite.invoke(object);
             if (sprite != null) name = spriteNameOf.invoke(sprite);
         }
-        return (String)name;
+        Formulas formulas = GameApi.formulas();
+        return name == null || formulas == null ? (String)name : formulas.spriteName((String)name);
     }
 
     /** What the game gives for the object's power use now. */

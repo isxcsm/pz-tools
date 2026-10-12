@@ -461,10 +461,10 @@ final class FormulasTest {
                 "body.coldMultiplier", "body.corpseCountMultiplier", "body.corpseSicknessMultiplier", "body.holeChance", "infection.woundChance",
                 "infection.biteShield" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
-        for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey" })
+        for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName" })
             check(ApiHooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(ApiHooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 35, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 36, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(ApiHooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);
@@ -1952,10 +1952,12 @@ final class FormulasTest {
         player.clothingDiscomfortModifier = 8f;
         call(formulas, "set", mod, "body.discomfortMultiplier", 0.5);
         call(formulas, "set", mod, "body.poisonMultiplier", 0.25);
+        call(formulas, "set", mod, "machine.spriteName", table("kept_on_0", "kept_off_0"));
         // Kept for a newer API at the frame, and as it takes over.
         GameApi.frame(FormulasTest.class.getClassLoader());
         Object text = api.getMetatable().rawget("formulas");
-        check(text instanceof String kept && kept.startsWith("pztools-formulas 1\n") && kept.contains("kept.mod\tbody.discomfortMultiplier\tn:0.5"),
+        check(text instanceof String kept && kept.startsWith("pztools-formulas 1\n") && kept.contains("kept.mod\tbody.discomfortMultiplier\tn:0.5")
+            && kept.contains("kept.mod\tmachine.spriteName\ts:kept_on_0\u001fkept_off_0"),
             "The declarations were not kept: " + text);
         Object set = formulas.rawget("set");
         GameApi.register(LuaManager.class);
@@ -1963,6 +1965,7 @@ final class FormulasTest {
         check(player.getClothingDiscomfortModifier() == 4f, "A newer API lost a declaration");
         check(near((Double)call(formulas, "declared", call(api, "client", "kept.mod").get(0), "body.poisonMultiplier").get(0), 0.25),
             "A newer API lost a mod's value");
+        check(GameApi.formulas().spriteName("kept_on_0").equals("kept_off_0"), "A newer API lost a name given to a sprite");
         try { invoke(set, mod, "body.discomfortMultiplier", 0.1); throw new AssertionError("A function kept from before the takeover ran"); }
         catch (IllegalArgumentException expected) {
             check(expected.getMessage().startsWith("PZToolsAPI.formulas.set: the API was updated"), expected.getMessage());

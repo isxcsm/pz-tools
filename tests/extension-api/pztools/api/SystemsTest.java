@@ -67,7 +67,7 @@ final class SystemsTest {
 
     private static void data(IsoObject object, String key, Object value) { ((KahluaTable)object.getModData()).rawset(key, value); }
 
-    private static void machines(KahluaTable formulas, Object mod, Object second, IsoCell cell, IsoPlayer player) {
+    private static void machines(KahluaTable formulas, Object mod, Object second, IsoCell cell, IsoPlayer player) throws Exception {
         var points = (KahluaTable)FormulasTest.call(formulas, "points").get(0);
         for (String point : new String[] { "machine.baseConsumption", "machine.loadKey" })
             check(ApiHooks.APPLIED.equals(points.rawget(point)), point + " is " + points.rawget(point));
@@ -126,6 +126,26 @@ final class SystemsTest {
         check(saw.getGeneratorPowerConsumption() == 0.75f, "Two declarations of a sprite did not add: " + saw.getGeneratorPowerConsumption());
         FormulasTest.call(second, "clear");
         check(saw.getGeneratorPowerConsumption() == 0.5f, "A declaration taken back left the other mod's changed");
+        // A machine that shows its state by changing its sprite stays one object to the buildings and the networks: its mod
+        // gives its other looks the name of one. One step: a name given is not looked up again.
+        var buildings = GameApi.buildings();
+        var lit = machine(cell, "mymod_press_1", 24, 20, 1);
+        check(buildings.sprite(lit).equals("mymod_press_1"), "An object was known by another name with none given");
+        FormulasTest.call(formulas, "set", mod, "machine.spriteName", table("mymod_press_1", "mymod_press_0", "mymod_press_0", "mymod_press_9"));
+        check(buildings.sprite(lit).equals("mymod_press_0"), "A look was not known by the name given: " + buildings.sprite(lit));
+        check(buildings.sprite(press).equals("mymod_press_9") && buildings.sprite(plain).equals("walls_01_0"),
+            "A name given was looked up again, or an object without one changed: " + buildings.sprite(press));
+        // Another mod naming a sprite otherwise: the first mod's name (by mod id) stands; a sprite only it names takes its.
+        FormulasTest.call(formulas, "set", second, "machine.spriteName", table("mymod_press_1", "mymod_other_0", "mymod_saw_1", "mymod_saw_0"));
+        var sawLit = machine(cell, "mymod_saw_1", 25, 20, 1);
+        check(buildings.sprite(lit).equals("mymod_press_0") && buildings.sprite(sawLit).equals("mymod_saw_0"),
+            "Two mods' names did not combine: " + buildings.sprite(lit) + " " + buildings.sprite(sawLit));
+        FormulasTest.call(second, "clear");
+        check(buildings.sprite(sawLit).equals("mymod_saw_1"), "A name taken back was still given");
+        rejects(formulas, "machine.spriteName must be a table of names to names", mod, "machine.spriteName", "mymod_press_0");
+        rejects(formulas, "machine.spriteName[mymod_press_1] must be a string", mod, "machine.spriteName", table("mymod_press_1", 2.0));
+        FormulasTest.call(formulas, "set", mod, "machine.spriteName", null);
+        check(buildings.sprite(lit).equals("mymod_press_1"), "A name taken back was still given");
         // Allocation: the questions a generator asks of every object on its squares allocate nothing (the second round is counted).
         long bytes = 0;
         float sum = 0;

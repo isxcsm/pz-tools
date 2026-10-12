@@ -103,7 +103,8 @@ Uninstalling the startup loader removes the API from the next game start. The ap
 uninstalls, naming the mods it has seen use the API.
 
 Objects are named by position and sprite name (`x, y, z, sprite`). An object that moves is a
-different object.
+different object; so is one whose sprite changes, unless its mod gives that sprite the name of another
+(`machine.spriteName`).
 
 ## Buildings (facts)
 
@@ -524,6 +525,7 @@ not have is a Lua error at `set`.
 | `vision.nightSight` | 0 to 1 | the largest | Night sight for the local player: at night every square on the screen is drawn with at least some light (0.9 x the value of the full light, a sealed room too; by day only in a dark place), and in the dark the screen's dark tones are lifted (the darker the more); what the eye saw without it keeps its colour, and what it adds is a cold grey, as the eye's rods see (what a lamp or a fire lights keeps its colour and is not lifted). On the screen alone: the squares' own light, which the zombies, the vision cone and reading ask, is the game's. The lift follows how dark it is for the player (`LightingJNI.getLumaInverted`: none in daylight or under a lamp, partly at a lamp's edge, whole in a night or a basement with no light), easing in and out over 2 seconds, the pace of eyes adjusting to the dark. The least light grows with the value as its 1.5th power (`nightSight.curve`): whole at 1, a third at 0.5, a sixth at 0.3, almost none at 0.1, so that a low value leaves a room with no light mostly dark. Night sight is for what the player sees: a square out of sight is left as the game draws it, and one coming into sight eases in. A square the player has never seen (an unexplored room, which the game draws black) is left as the game draws it. A step in the screen shader (`screen.frag`, see [night sight](#night-sight)); the night vision goggles' path is left alone. |
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
+| `machine.spriteName` | table of sprite name to sprite name | the first mod's | The name objects of a sprite are known by in `buildings.objects`, the networks and their rules, in place of the sprite's own: a machine that shows its state by changing its sprite (lit, running) gives its other looks the name of one, and stays one object, kept in the networks it was added to. One step: a name given is not looked up again. Where two mods name one sprite, the mod whose id comes first keeps it. Not tied to a hook. |
 | `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused), and the object drawn every frame as a fire is; see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
@@ -552,7 +554,8 @@ it (a number below 0 counts as 0, above 100 as 100; a string or a NaN is left ou
 sprite takes the game's own answer for it away, a declaration of 0 included; anything not declared gets the game's. Several
 mods that declare one sprite add; their load keys join.
 
-The sprite is the name objects are known by in `buildings.objects` (the object's sprite name, or its sprite's). Objects of
+The sprite is the name objects are known by in `buildings.objects` (the object's sprite name, or its sprite's, or the
+name `machine.spriteName` gives it). Objects of
 a class that has its own answer to the two questions (stoves, televisions and radios, washers and dryers, light switches,
 car battery chargers) keep it; the generic `IsoObject`, which a mod's tiles are, and the classes that do not answer for
 themselves are the ones declared. Nothing else hooks these two methods: the buildings area (`power` in `buildings.objects`)

@@ -52,6 +52,8 @@ public final class GameApi {
     /** The formulas of the Lua environment the game has now, or null (for the tests of this package). */
     static Formulas formulas() { return formulas; }
 
+    static Buildings buildings() { return buildings; }
+
     /** The text of the Lua environment the game has now, or null (for the tests of this package). */
     static Texts texts() { return texts; }
 
