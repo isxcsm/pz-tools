@@ -1,7 +1,7 @@
 # Building Utilities 설계
 
-Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Tools 확장 API
-(`pz-tools/docs/design/extension-api.md`)를 전제로 만드는 Lua 모드다. 제어반, 무엇을 망에 넣는지, 연결 거리
+Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Extension API
+(`pz-extension-api/docs/design.md`)를 전제로 만드는 Lua 모드다. 제어반, 무엇을 망에 넣는지, 연결 거리
 같은 규칙은 전부 이 모드의 것이다. API는 바닐라 사실 조회와 범용 망 엔진(공급·소비 계산, 시간 따라잡기)만
 제공한다.
 
@@ -26,7 +26,7 @@ Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Too
 | 설정 없이 동작 | 제어반을 놓고 공급원을 연결하면 끝이다. 구역 지정이나 이름 짓기를 요구하지 않는다. |
 | 바닐라 수치 | 기기 소비량, 연료 소모, 물 오염은 바닐라 값과 규칙을 따른다. |
 | 상태는 세이브에 | 제어반, 연결, 제외 목록은 세이브의 modData에 둔다. 월드를 불러올 때마다 API에 다시 등록한다. |
-| PZ Tools 설치형 전제 | 앱이 꺼져도 전기가 나가면 안 되므로, PZ Tools 설치형(시작 로더)이 아니면 효과를 켜지 않고 안내만 한다. |
+| PZ Extension API 전제 | 앱 없이도 전기가 나가면 안 되므로, PZ Extension API가 설치되어 있지 않으면 효과를 켜지 않고 안내만 한다. |
 
 ## 3. 개념
 
@@ -265,7 +265,7 @@ Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Too
 ## 7. API 사용
 
 제어반 하나가 전력 망 하나와 물 망 여럿(급수 그룹 × 층, §12 묶음 3)을 가진다. 망 id는 `bu-<제어반>-power`와
-`bu-<제어반>-water-g<그룹>-L<층>`. 망을 바꾸는 호출은 모두 이 모드의 핸들(`PZToolsAPI.client("모드 이름")`)을 첫 인자로
+`bu-<제어반>-water-g<그룹>-L<층>`. 망을 바꾸는 호출은 모두 이 모드의 핸들(`PZExtAPI.client("모드 이름")`)을 첫 인자로
 받는다. 아래 표는 핸들 인자와 `networks.`를 생략했다.
 
 | 모드가 하는 일 | API |
@@ -281,13 +281,13 @@ Project Zomboid B42용 모드 Building Utilities(id `BuildingUtilities`). PZ Too
 | 태양광·배터리("태양광으로 전환" 포함), 충전과 펌프의 부하 | `setSource`, `setExtraLoad` |
 | 펌프, 스프링클러, 필터 | `fill`, `draw`, `setPurify` |
 | 제어반 떼기, 필요 없어진 물 망, 샌드박스에서 끈 유틸리티의 망 | `remove` |
-| 화면의 남은 시간, 부하, 수위, 아낀 연료, 발전기 상태 | `state`(`fuelPerHour`, 생산자마다 `running`·`outOfService` 포함), 망 이벤트 `OnPZToolsNetworkChange` |
+| 화면의 남은 시간, 부하, 수위, 아낀 연료, 발전기 상태 | `state`(`fuelPerHour`, 생산자마다 `running`·`outOfService` 포함), 망 이벤트 `OnPZExtNetworkChange` |
 | 거리 제한, 구역과 방 주인, 다른 건물 기기 거부, 외부 기본 해제, 증축 방 찾기(`IsoRegions`), `AllowExteriorGenerator`, 이름, 화면, 기능 켜고 끄기 | 모드 Lua |
 
 제어반, 유닛, 연결과 기록은 이 모드의 modData에 둔다. 월드를 불러올 때(`OnGameStart`, 전용 서버는 `OnServerStarted`)
-API를 확인하고(`PZToolsAPI.version`, `networks.draw`가 있는지) 모든 망을 다시 정의한다(샌드박스에서 켠 유틸리티만, §9
+API를 확인하고(`PZExtAPI.version`, `networks.draw`가 있는지) 모든 망을 다시 정의한다(샌드박스에서 켠 유틸리티만, §9
 "기능 켜고 끄기"): 주 제어반 먼저, 보조 제어반의 물은 주 제어반의 망에 매단다. API는 월드를 떠나면 그 월드의 망을 지우고, 새 페이로드로 바뀌어도 정의를 이어받는다. API 함수는
-부를 때마다 `PZToolsAPI`에서 읽는다: 게임 중에 API가 새것으로 바뀌면 그 전에 읽어 둔 망 함수는 오류를 낸다. 연료, 교대,
+부를 때마다 `PZExtAPI`에서 읽는다: 게임 중에 API가 새것으로 바뀌면 그 전에 읽어 둔 망 함수는 오류를 낸다. 연료, 교대,
 부하, 시간 계산은 API가 한다.
 
 발전기 정비(정비 중과 대기, 망을 다시 켤 때 무엇이 도는지, 그 표시를 저장에 남기기)도 API가 한다(§5). 모드는 발전기를 직접
@@ -297,7 +297,7 @@ API를 확인하고(`PZToolsAPI.version`, `networks.draw`가 있는지) 모든 �
 않는다.
 
 물은 API의 배관 훅(`IsoObject.waterQuestions`, `IsoObject.checkExternalFluidSource`)이 게임에 걸려 있어야 한다. 모드는
-`PZToolsAPI.hooks()`로 확인하고(아직 로드되지 않은 훅은 있는 것으로 치고 다음에 다시 묻는다), 훅 목록이 없는 API에서는
+`PZExtAPI.hooks()`로 확인하고(아직 로드되지 않은 훅은 있는 것으로 치고 다음에 다시 묻는다), 훅 목록이 없는 API에서는
 물 망 정의가 거부되는 것으로 안다. 없으면 이 월드에서 물 망을 정의하지 않고 이유를 로그에 한 번 남기며, 창의 물 상태 줄은
 "물을 쓸 수 없음"과 그 이유를 보인다. `RiskPlumbingUnpurified`는 정수 훅 둘(`IsoObject.createSampleAndPurifyWater`,
 `IsoObject.isTaintedWater`)도 있어야 효과가 있다. 없으면 배관이 정수하고(로그에 한 번), 필터 줄은 "쉬는 중: 이 게임의 PZ
@@ -353,7 +353,7 @@ Tools가 오염을 유지할 수 없어 배관이 정수함"과 이유를 보인
   13층 보조 제어반까지(12층 × 3 = 36칸, 전선 8개). 건물 안 기기는 선이 없으므로 층과 상관없이 공짜다.
 - 제어반은 이 모드의 떼어내기로만 치운다(제어반 아이템을 돌려준다). 바닐라 가구 옮기기의 집어 들기·분해는 막는다.
   부서지면(망치 철거 등) 10분마다 확인해 그 제어반의 망을 지운다.
-- PZ Tools가 없으면 제어반을 설치할 수 없고, 이미 놓인 제어반은 철거만 된다. 설치·열기·연결 메뉴는 이유와 함께
+- PZ Extension API가 없으면 제어반을 설치할 수 없고, 이미 놓인 제어반은 철거만 된다. 설치·열기·연결 메뉴는 이유와 함께
   비활성이다.
 
 ### 구역
@@ -473,7 +473,7 @@ Tools가 오염을 유지할 수 없어 배관이 정수함"과 이유를 보인
   있는지는 계속 API에 알린다(`setSource`의 쓸 수 있음): 망을 다시 켤 때 API가 자기 순서대로 맞는 생산자를 켜게. 조용한 시간은
   그동안에도 끝난다. 펌프는 멈춘다.
 - 알려진 한계(API): 망을 끌 때 칸이 로드되지 않은 쓰던 발전기는 끌 수 없어 계속 돈다(그 칸이 로드될 때 끈다, 그동안 태운
-  연료는 그대로). 망이 꺼진 동안 API가 없어지면(PZ Tools 없이 시작한 게임 등) 발전기는 바닐라처럼 플레이어가 켤 때까지 꺼져
+  연료는 그대로). 망이 꺼진 동안 API가 없어지면(PZ Extension API 없이 시작한 게임 등) 발전기는 바닐라처럼 플레이어가 켤 때까지 꺼져
   있다.
 
 ### 단계
@@ -606,7 +606,7 @@ Tools가 오염을 유지할 수 없어 배관이 정수함"과 이유를 보인
   `server/BuildingUtilities/Server.lua`가 받는다. 혼자 할 때도 게임의 단일 플레이어 서버를 거쳐 같은 길로 간다. 서버는 꺼진
   기능(위 "기능 켜고 끄기")의 명령을 버린다.
 - 바뀐 뒤 서버는 저장 데이터(ModData)를 클라이언트에 보내고 무엇이 바뀌었는지 알린다.
-- **멀티플레이는 지원하지 않고 시험하지도 않았다. 막지는 않는다.** PZ Tools 확장 API도 멀티를 막지 않고 시험하지 않았을
+- **멀티플레이는 지원하지 않고 시험하지도 않았다. 막지는 않는다.** PZ Extension API도 멀티를 막지 않고 시험하지 않았을
   뿐이다(서버가 발전기 스위치, 정비 표시, 통의 물을 바꾸고 클라이언트는 그 결과를 읽는다). 멀티를 막는 검사는 두지 않고, 서버와
   클라이언트가 맞게 돌아가는 데 필요한 검사만 둔다(예: 클라이언트는 `Server.lua`의 이벤트를 걸지 않고, 전리품도 굴리지
   않는다). 위 구조는 멀티를 시험하고 지원할 때 모드 쪽 변경을 줄이기 위한 것이다.

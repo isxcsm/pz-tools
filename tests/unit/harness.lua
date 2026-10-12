@@ -1,4 +1,4 @@
--- Unit test harness: stubs the game functions and the PZ Tools extension API the tested modules touch, loads the mod's
+-- Unit test harness: stubs the game functions and the PZ Extension API the tested modules touch, loads the mod's
 -- files the way the game's require does, and runs every tests/unit/*_test.lua. Each case starts from a fresh mod, a
 -- fresh save and a fresh API. Run through tools/LuaTest.java (it gives readfile, listfiles and TEST_FILTER).
 
@@ -22,7 +22,7 @@ ArrayList = { new = function()
     return list
 end }
 
--- The PZ Tools extension API (PZToolsAPI) as the tested modules call it. TEST.api holds what a test sets and what the
+-- The PZ Extension API (PZExtAPI) as the tested modules call it. TEST.api holds what a test sets and what the
 -- calls counted:
 --   buildings: by key, { building = <at's table>, rooms = <rooms list>, attached = <list or nil>,
 --     attachedObjects = { power = <list>, water = <list> }, objects = { power, water }, near = { power, water } };
@@ -139,7 +139,7 @@ local function resetGame()
     getSpecificPlayer = function() return nil end
     instanceof = function() return false end
     TEST.api = newApi()
-    PZToolsAPI = TEST.api.table
+    PZExtAPI = TEST.api.table
 end
 
 -- require as the game does it: by path under media/lua/shared, server or client, each file once.

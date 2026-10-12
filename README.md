@@ -15,8 +15,7 @@ The design, in Korean, is [DESIGN.md](DESIGN.md).
 
 ## Requirements
 
-- PZ Tools installed, with the game started by its startup loader. The mod runs its networks through
-  the PZ Tools extension API (`PZToolsAPI`). Without it a panel cannot be installed and the panels already placed do
+- PZ Extension API installed. The mod runs its networks through it (`PZExtAPI`). Without it a panel cannot be installed and the panels already placed do
   nothing; their menus say why.
 - Water needs the API's plumbing hooks in the game, and the "pipes do not purify" risk option also its purification
   hooks. When they are missing the panel's window says water is unavailable, or the filter says why it rests.
@@ -50,7 +49,7 @@ strip marks floors with producers.
 - `BuildingUtilities/`: the mod (`42/media/lua/{shared,client,server}/BuildingUtilities`, scripts, sandbox options,
   translations in EN and KO).
 - `tests/ingame/`: checks run from the game's debug console ([README](tests/ingame/README.md)).
-- `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Tools API stubbed (`harness.lua`). From the
+- `tests/unit/`: Lua unit tests on the game's Kahlua, the game and the PZ Extension API stubbed (`harness.lua`). From the
   repository root: `java -cp <ProjectZomboid>/projectzomboid.jar tools/LuaTest.java [file name filter]` (a JDK, not the
   game's runtime).
 - `tools/`: `LuaTest.java` (runs `tests/unit`), `check_translations.py` (texts against the code, the options and the scripts), `room_names.py` (room

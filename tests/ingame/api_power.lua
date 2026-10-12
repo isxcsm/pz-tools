@@ -1,4 +1,4 @@
--- The PZ Tools API's power networks, by a handle of their own ("APITest"), not through Building Utilities: generators
+-- The PZ Extension API's power networks, by a handle of their own ("APITest"), not through Building Utilities: generators
 -- the check puts down, one network "apit" over them under "sequential" with an extra load of 1, and no building.
 -- Phases, each started from the console after RUN("api_power.lua") (positions are kept in ModData APITEST, so a phase
 -- runs again after a load):
@@ -22,9 +22,9 @@ local function check(what, got, want) say(got == want and "ok" or "BAD", what, t
 local ID = "apit"
 local data = ModData.getOrCreate("APITEST")
 
-local function handle() return PZToolsAPI.client("APITest") end
+local function handle() return PZExtAPI.client("APITest") end
 local function hour() return getGameTime():getWorldAgeHours() end
-local function state() return PZToolsAPI.networks.state(ID) end
+local function state() return PZExtAPI.networks.state(ID) end
 local function key(p) return p and (p.x .. "," .. p.y .. "," .. p.z) or "-" end
 local function generator(name)
     local p = data[name]
@@ -75,15 +75,15 @@ end
 
 local function define(withF)
     local h = handle()
-    PZToolsAPI.networks.define(h, ID, "power", "sequential")
-    PZToolsAPI.networks.setProducers(h, ID, producers(withF))
-    PZToolsAPI.networks.setExtraLoad(h, ID, 1)
+    PZExtAPI.networks.define(h, ID, "power", "sequential")
+    PZExtAPI.networks.setProducers(h, ID, producers(withF))
+    PZExtAPI.networks.setExtraLoad(h, ID, 1)
 end
 
 -- What the API raises for the network: { what, hour }.
 T.events = T.events or {}
 if not T.listening then
-    Events.OnPZToolsNetworkChange.Add(function(id, what, at)
+    Events.OnPZExtNetworkChange.Add(function(id, what, at)
         if id ~= ID then return end
         T.events[#T.events + 1] = { what = what, hour = at }
         say("event", what, BUT.f(at))
@@ -189,18 +189,18 @@ function T.site()
             local e = lastEvent("supply")
             say("supply event at", e and BUT.f(e.hour), "C fuelled at", BUT.f(T.ranOutFrom))
             C:setFuel(C:getMaxFuel())
-            PZToolsAPI.networks.setProducers(h, ID, producers(false, true))
-            PZToolsAPI.networks.setSource(h, ID, "s1", true, true)
+            PZExtAPI.networks.setProducers(h, ID, producers(false, true))
+            PZExtAPI.networks.setSource(h, ID, "s1", true, true)
         end,
         function()
             check("the source switched on carries", carrier(), "s1")
             check("C on standby", seen("C"), "standby")
-            PZToolsAPI.networks.setSource(h, ID, "s1", false)
+            PZExtAPI.networks.setSource(h, ID, "s1", false)
         end,
         function()
             check("the source stopped: C takes over", carrier(), "C")
             check("the source stopped: A and B stay off", tostring(A:isActivated()) .. " " .. tostring(B:isActivated()), "false false")
-            PZToolsAPI.networks.setEnabled(h, ID, false)
+            PZExtAPI.networks.setEnabled(h, ID, false)
         end,
         function()
             local s = state()
@@ -208,13 +208,13 @@ function T.site()
             check("switched off: enabled", s.enabled, false)
             check("switched off: C stopped", C:isActivated(), false)
             check("switched off: C on standby, not out of service", seen("C"), "standby")
-            PZToolsAPI.networks.setEnabled(h, ID, true)
+            PZExtAPI.networks.setEnabled(h, ID, true)
         end,
         function()
             check("switched on: C starts again", carrier(), "C")
             check("switched on: C running", C:isActivated(), true)
             check("switched on: A and B stay off", tostring(A:isActivated()) .. " " .. tostring(B:isActivated()), "false false")
-            PZToolsAPI.networks.setProducers(h, ID, producers(true))
+            PZExtAPI.networks.setProducers(h, ID, producers(true))
             check("F added: C still carries", carrier(), "C")
             C:setFuel(fuelFor(1.5))
             data.cFuelledAt = hour()

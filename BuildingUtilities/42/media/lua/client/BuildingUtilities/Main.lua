@@ -160,8 +160,8 @@ local listening = false
 local function onGameStart()
     if isClient() then ModData.request(Store.KEY) end
     giveSummaries()
-    if not listening and BU.api() and Events.OnPZToolsNetworkChange then
-        Events.OnPZToolsNetworkChange.Add(onNetworkChange)
+    if not listening and BU.api() and Events.OnPZExtNetworkChange then
+        Events.OnPZExtNetworkChange.Add(onNetworkChange)
         listening = true
     end
 end

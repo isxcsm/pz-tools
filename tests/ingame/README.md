@@ -71,7 +71,7 @@ look; `BU22_CLEAN()` takes them away.
   then on up once the own floor's is empty. Needs an app whose API has `"nearest"` (else the mod falls back to
   `"fullest"` and the first check says so). Stand by the tower panel first. Each line "ok" or "BAD", ending with
   "done".
-- `api_power.lua`: the PZ Tools API's power networks by a handle of their own ("APITest"), not through the mod:
+- `api_power.lua`: the PZ Extension API's power networks by a handle of their own ("APITest"), not through the mod:
   generators it puts down, one network over them. In phases from the console: `APIT.far()` by the test panel puts
   generator F down; `APIT.site()` by the tower puts A, B and C down and, a step a game minute, switches by hand (out
   of service), a failover, a running-out, a source and `setEnabled`; `APIT.away()` goes to F and waits for C to run

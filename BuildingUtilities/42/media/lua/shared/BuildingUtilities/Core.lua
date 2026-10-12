@@ -1,4 +1,4 @@
--- Building Utilities: one breaker box powers and waters a whole building through the PZ Tools extension API.
+-- Building Utilities: one breaker box powers and waters a whole building through the PZ Extension API.
 -- The rules (what joins, how far, one box per building) are this mod's; the API runs the networks.
 BuildingUtilities = BuildingUtilities or {}
 local BU = BuildingUtilities
@@ -19,9 +19,9 @@ function BU.log(...)
     print("[BuildingUtilities] " .. table.concat(parts, " "))
 end
 
--- The extension API, or nil with the reason it is missing: PZ Tools not installed in startup mode, or another version.
+-- The extension API, or nil with the reason it is missing: PZ Extension API not installed, or another version.
 function BU.api()
-    local api = PZToolsAPI
+    local api = PZExtAPI
     if type(api) ~= "table" or not api.networks then return nil, "missing" end
     if api.version ~= BU.API_VERSION then return nil, "version" end
     -- Water groups take a water network's own producers besides its parents' (API with draw and fill).
@@ -38,7 +38,7 @@ function BU.handle()
     return api and api.client(BU.MOD) or nil
 end
 
--- Water and its purification need hooks of the API in the game, by the names PZToolsAPI.hooks() gives them: a
+-- Water and its purification need hooks of the API in the game, by the names PZExtAPI.hooks() gives them: a
 -- game started by an older install, or whose IsoObject another mod changed, may lack them. Water needs the plumbing's
 -- questions; water that keeps its taint (the RiskPlumbingUnpurified option) also the purification's two.
 local WATER_HOOKS = { "IsoObject.waterQuestions", "IsoObject.checkExternalFluidSource" }
@@ -52,7 +52,7 @@ local known, faults = {}, {}
 local function missing(name, labels)
     if known[name] ~= nil then return known[name] or nil end
     local api = BU.api()
-    if not api then return "PZToolsAPI" end
+    if not api then return "PZExtAPI" end
     local ok, hooks = pcall(function() return type(api.hooks) == "function" and api.hooks() or nil end)
     if not ok or type(hooks) ~= "table" then known[name] = false; return nil end
     local settled = true
@@ -281,7 +281,7 @@ end
 -- gives that sprite, so a machine that changes its look (lit, running) stays the device it was. The sprite's own
 -- without the API.
 function BU.objectName(object)
-    local api = PZToolsAPI
+    local api = PZExtAPI
     local name = type(api) == "table" and api.buildings and api.buildings.name
     if name then return name(object) end
     return object:getSpriteName() or (object:getSprite() and object:getSprite():getName())

@@ -1,4 +1,4 @@
--- The panels' networks in the PZ Tools extension API: each panel has a power network over its building, and its
+-- The panels' networks in the PZ Extension API: each panel has a power network over its building, and its
 -- water as a network per water group and floor (BU.Water). Defined from the save as the world starts; changed call
 -- by call afterwards, so the API keeps what it has worked out (which producer runs, when supply stopped, what tanks
 -- held when last seen).
@@ -12,7 +12,7 @@ BU.Networks = Networks
 -- The utility of one of this mod's network ids ("bu-p3-power", "bu-p3-water-g1-L0"), or nil.
 local function utilityOf(id) return tostring(id):match("^bu%-p%d+%-(%a+)") end
 
--- Calls a function of PZToolsAPI.networks with this mod's handle first, on the network id. Without the API it does
+-- Calls a function of PZExtAPI.networks with this mod's handle first, on the network id. Without the API it does
 -- nothing; a utility turned off in the sandbox (BU.enabled) has no networks, and nothing is asked of them but to go.
 local function change(name, id, ...)
     local api = BU.api()

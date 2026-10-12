@@ -496,11 +496,11 @@ local function defineAll()
     BU.resetHooks()
     local api, reason = BU.api()
     if not api then
-        BU.log("the PZ Tools extension API is", reason == "version" and "another version" or "missing", "- boxes do nothing")
+        BU.log("the PZ Extension API is", reason == "version" and "another version" or "missing", "- boxes do nothing")
         return
     end
-    if not listening and Events.OnPZToolsNetworkChange then
-        Events.OnPZToolsNetworkChange.Add(onNetworkChange)
+    if not listening and Events.OnPZExtNetworkChange then
+        Events.OnPZExtNetworkChange.Add(onNetworkChange)
         listening = true
     end
     local water, why = BU.waterAvailable()

@@ -18,7 +18,7 @@ local function check(what, got, want)
 end
 local panel = Store.get(ModData.getOrCreate("BUTEST").panel)
 if not panel then say("no panel"); return end
-local api = PZToolsAPI
+local api = PZExtAPI
 local player = getPlayer()
 local page = SandboxVars.BuildingUtilities
 local OPTIONS = { "EnablePower", "EnableWater", "EnableSolar", "EnableBatteries", "EnableChargeController",
