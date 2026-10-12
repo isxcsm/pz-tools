@@ -27,7 +27,7 @@ foreach ($smoke in $smokes) {
     $project = Join-Path $repositoryRoot "tests/PzTools.$($smoke.Name)/PzTools.$($smoke.Name).csproj"
     dotnet build $project -c $Configuration -v q -nologo | Out-Null
     if ($LASTEXITCODE -ne 0) { Write-Host "$($smoke.Name): build failed"; $failed++; continue }
-    $executable = Join-Path $repositoryRoot "tests/PzTools.$($smoke.Name)/bin/$Configuration/net10.0-windows10.0.19041.0/win-x64/PzTools.$($smoke.Name).exe"
+    $executable = Join-Path $repositoryRoot "tests/PzTools.$($smoke.Name)/bin/x64/$Configuration/net10.0-windows10.0.19041.0/win-x64/PzTools.$($smoke.Name).exe"
     $result = Join-Path $outputRoot $smoke.Result
     if (Test-Path -LiteralPath $result) { Clear-Content -LiteralPath $result }
     $process = Start-Process -FilePath $executable -ArgumentList (& $smoke.Arguments $result) -WindowStyle Hidden -PassThru

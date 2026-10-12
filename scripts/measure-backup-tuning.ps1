@@ -6,7 +6,7 @@ param(
     [string]$SeedRepository,
     [ValidateRange(1, 20)][int]$Repeats = 3,
     [int]$OrderSeed = 1729,
-    [string]$Benchmark = (Join-Path $PSScriptRoot '../src/PzTools.Backup.Benchmarks/bin/Release/net10.0-windows/PzTools.Backup.Benchmarks.exe')
+    [string]$Benchmark = (Join-Path $PSScriptRoot '../src/PzTools.Backup.Benchmarks/bin/x64/Release/net10.0-windows/PzTools.Backup.Benchmarks.exe')
 )
 
 $ErrorActionPreference = 'Stop'

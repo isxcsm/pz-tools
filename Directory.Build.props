@@ -7,6 +7,11 @@
     <Deterministic>true</Deterministic>
     <!-- The release version, in one place: every assembly and executable carries it, and the Home page shows it. -->
     <Version>0.2.5</Version>
+    <!-- Every project builds for x64 alone, as the app (Windows x64 only) does: one output folder for each configuration,
+         bin\x64\<configuration>, whichever way it is built. -->
+    <Platforms>x64</Platforms>
+    <Platform Condition="'$(Platform)' == ''">x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 </Project>
 
