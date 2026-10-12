@@ -6,7 +6,6 @@
 -- The inventory menu: put a box or a unit down (the building cursor, ISBUPlaceCursor), recondition a battery.
 require "ISUI/ISWorldObjectContextMenu"
 require "BuildingUtilities/Actions"
-require "BuildingObjects/ISBuildingObject"
 local BU = BuildingUtilities
 local Store, Panels, Units, Rack, Costs, Actions, Sync = BU.Store, BU.Panels, BU.Units, BU.Rack, BU.Costs, BU.Actions,
     BU.Sync
@@ -346,50 +345,55 @@ Events.OnFillWorldObjectContextMenu.Add(ContextMenu.fill)
 
 -- Putting a box or a unit down from the inventory: the game's building cursor (ISBuildingObject) shows its sprite at
 -- the square under the mouse, facing as it would be put there, red where it cannot go; a click walks there and puts it
--- down (the actions the world's menu queues), and the cursor goes.
-ISBUPlaceCursor = ISBuildingObject:derive("ISBUPlaceCursor")
+-- down (the actions the world's menu queues), and the cursor goes. Made on first use: the game's cursor comes with the
+-- server Lua, which the main menu has not loaded.
+local function defineCursor()
+    if ISBUPlaceCursor then return ISBUPlaceCursor end
+    ISBUPlaceCursor = ISBuildingObject:derive("ISBUPlaceCursor")
 
-function ISBUPlaceCursor:new(player, kind, item)
-    local o = ISBuildingObject.new(self)
-    o:init()
-    o.player, o.kind, o.item = player, kind, item
-    o.skipBuildAction = true
-    o:setDragNilAfterPlace(true)
-    o:face(getSpecificPlayer(player):getCurrentSquare())
-    return o
-end
-
--- Its sprite as it would face on a square, the same whichever way the rotate key turns it.
-function ISBUPlaceCursor:face(square)
-    if not square then return end
-    local playerObj = getSpecificPlayer(self.player)
-    local sprite = self.kind == "panel" and BU.panelSpriteFacing(square, playerObj)
-        or Units.spriteFor(self.kind, square, playerObj)
-    self.sprite, self.northSprite = sprite, sprite
-end
-
--- Whether it can go on a square, worked out once a square.
-function ISBUPlaceCursor:isValid(square)
-    if not square then return false end
-    if square ~= self.checkedSquare then
-        self.checkedSquare = square
-        if self.kind == "panel" then self.valid = Panels.canInstall(square) ~= nil
-        else self.valid = Units.canInstall(self.kind, square) ~= nil end
+    function ISBUPlaceCursor:new(player, kind, item)
+        local o = ISBuildingObject.new(self)
+        o:init()
+        o.player, o.kind, o.item = player, kind, item
+        o.skipBuildAction = true
+        o:setDragNilAfterPlace(true)
+        o:face(getSpecificPlayer(player):getCurrentSquare())
+        return o
     end
-    return self.valid
-end
 
-function ISBUPlaceCursor:render(x, y, z, square)
-    self:face(square)
-    ISBuildingObject.render(self, x, y, z, square)
-end
+    -- Its sprite as it would face on a square, the same whichever way the rotate key turns it.
+    function ISBUPlaceCursor:face(square)
+        if not square then return end
+        local playerObj = getSpecificPlayer(self.player)
+        local sprite = self.kind == "panel" and BU.panelSpriteFacing(square, playerObj)
+            or Units.spriteFor(self.kind, square, playerObj)
+        self.sprite, self.northSprite = sprite, sprite
+    end
 
-function ISBUPlaceCursor:tryBuild(x, y, z)
-    local square = getCell():getGridSquare(x, y, z)
-    local playerObj = getSpecificPlayer(self.player)
-    if not square or not playerObj:getInventory():containsRecursive(self.item) then return end
-    if self.kind == "panel" then onInstall(playerObj, square, self.item)
-    else onInstallUnit(playerObj, self.kind, square, self.item) end
+    -- Whether it can go on a square, worked out once a square.
+    function ISBUPlaceCursor:isValid(square)
+        if not square then return false end
+        if square ~= self.checkedSquare then
+            self.checkedSquare = square
+            if self.kind == "panel" then self.valid = Panels.canInstall(square) ~= nil
+            else self.valid = Units.canInstall(self.kind, square) ~= nil end
+        end
+        return self.valid
+    end
+
+    function ISBUPlaceCursor:render(x, y, z, square)
+        self:face(square)
+        ISBuildingObject.render(self, x, y, z, square)
+    end
+
+    function ISBUPlaceCursor:tryBuild(x, y, z)
+        local square = getCell():getGridSquare(x, y, z)
+        local playerObj = getSpecificPlayer(self.player)
+        if not square or not playerObj:getInventory():containsRecursive(self.item) then return end
+        if self.kind == "panel" then onInstall(playerObj, square, self.item)
+        else onInstallUnit(playerObj, self.kind, square, self.item) end
+    end
+    return ISBUPlaceCursor
 end
 
 -- What an item puts down: "panel" for a box, a unit's kind, or nil; only what is on (BU.enabled).
@@ -403,7 +407,7 @@ local function placedKind(item)
 end
 
 local function onPlace(playerObj, kind, item)
-    getCell():setDrag(ISBUPlaceCursor:new(playerObj:getPlayerNum(), kind, item), playerObj:getPlayerNum())
+    getCell():setDrag(defineCursor():new(playerObj:getPlayerNum(), kind, item), playerObj:getPlayerNum())
 end
 
 -- Reconditioning a car battery (Rack.canRevive), from the inventory.
