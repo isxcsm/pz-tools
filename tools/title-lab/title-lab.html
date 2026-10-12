@@ -719,9 +719,9 @@ function drawSignal(p, st) {
 function drawFog(p, st) {
   const E = p.spec.enterTime, secs = st.secs, o = st.out;
   // the mist comes in slowly (over 1.8 s) and thins to what stays as the text clears; as it leaves, the text sinks into
-  // the mist (gone by 70%), the mist at its thickest by 45% and thinning away slowly over the rest
-  const clear = o > 0 ? 1 - smooth(clamp(o / 0.7, 0, 1)) : smooth(clamp(secs / E, 0, 1));
-  const fog = o > 0 ? (P.FOG_STAY + (0.75 - P.FOG_STAY) * smooth(clamp(o / 0.45, 0, 1))) * (1 - smooth(clamp((o - 0.4) / 0.6, 0, 1)))
+  // the mist slowly (gone at its end), the mist at its thickest by half way and thinning away over the rest
+  const clear = o > 0 ? 1 - smooth(clamp((o - 0.1) / 0.85, 0, 1)) : smooth(clamp(secs / E, 0, 1));
+  const fog = o > 0 ? (P.FOG_STAY + (0.75 - P.FOG_STAY) * smooth(clamp(o / 0.5, 0, 1))) * (1 - smooth(clamp((o - 0.5) / 0.5, 0, 1)))
     : smooth(clamp(secs / 1.8, 0, 1)) * (0.8 - (0.8 - P.FOG_STAY) * smooth(clamp((secs - 0.6) / E, 0, 1)));
   const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
   gl.uniform1f(U("clock"), t * P.FOG_DRIFT); gl.uniform1f(U("noiseScale"), p.line * 0.5); gl.uniform2f(U("picSize"), p.w, p.h);
