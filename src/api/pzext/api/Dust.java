@@ -64,14 +64,47 @@ final class Dust {
     /** The colour a flake glows with as it comes loose (times the text's), and the share of its colour left as ash at its end. */
     static final double EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
     /**
-     * A text that burns ({@code dustBurn}): ahead of the front it takes the burn's colour and glows (its alpha gives up to
-     * {@link #GLOW}, its colour stays, so the light adds to what is behind it, as embers); a flake leaves glowing and cools over
-     * the first {@link #COOL} of its life to its ash, {@link #BURN_ASH} of the burn's colour.
+     * A text that burns ({@code dustBurn}) as charcoal, over the wearing before a cell goes: it scorches to {@link #SCORCHED} (times
+     * its colour) by {@link #SCORCH_END} of it; glows in the burn's colour, flickering, at its height by {@link #GLOW_PEAK} (its
+     * alpha gives up to {@link #GLOW}, its colour stays, so the light adds to what is behind it); goes out to black char,
+     * {@link #CHARRED}, by {@link #GLOW_END}; and thins as char. Its flake is char greying to {@link #CHAR_ASH}, or, for
+     * {@link #SPARKS} of the cells, a spark leaving glowing that cools over the first {@link #COOL} of its life to
+     * {@link #BURN_ASH} of the burn's colour.
      */
-    static final double GLOW = 0.45, COOL = 0.4, BURN_ASH = 0.3;
+    static final double GLOW = 0.45, COOL = 0.4, BURN_ASH = 0.3, SCORCH_END = 0.4, GLOW_PEAK = 0.62, GLOW_END = 0.85,
+        SPARKS = 0.25, CHAR_ASH = 0.2;
+    static final double[] SCORCHED = { 0.34, 0.18, 0.1 }, CHARRED = { 0.07, 0.055, 0.05 };
+    /** How fast a glowing cell flickers, in times over the leave, and how deep. */
+    static final double FLICKER = 9, FLICKER_DEPTH = 0.3;
 
     /** How hot a burning flake still is at its age, 1 to 0. */
     static double heat(double age) { return age <= 0 ? 1 : age >= COOL ? 0 : 1 - smooth(age / COOL); }
+
+    /**
+     * A burning cell in place at its wear: its colour (times the text's) into {@code into}, and how hot it is, 0 to 1 (the
+     * share of {@link #GLOW} its alpha gives); {@code flicker} 0 to 1 dims the glow.
+     */
+    static double burning(double wear, float[] burn, double flicker, double[] into) {
+        double from0, from1, from2, to0, to1, to2, s, hot;
+        double glow = 1 - FLICKER_DEPTH * flicker;
+        if (wear < SCORCH_END) {
+            s = wear / SCORCH_END; hot = 0;
+            from0 = 1; from1 = 1; from2 = 1; to0 = SCORCHED[0]; to1 = SCORCHED[1]; to2 = SCORCHED[2];
+        } else if (wear < GLOW_PEAK) {
+            s = smooth((wear - SCORCH_END) / (GLOW_PEAK - SCORCH_END)); hot = s * glow;
+            from0 = SCORCHED[0]; from1 = SCORCHED[1]; from2 = SCORCHED[2]; to0 = burn[0] * glow; to1 = burn[1] * glow; to2 = burn[2] * glow;
+        } else if (wear < GLOW_END) {
+            s = smooth((wear - GLOW_PEAK) / (GLOW_END - GLOW_PEAK)); hot = (1 - s) * glow;
+            from0 = burn[0] * glow; from1 = burn[1] * glow; from2 = burn[2] * glow; to0 = CHARRED[0]; to1 = CHARRED[1]; to2 = CHARRED[2];
+        } else {
+            s = 1; hot = 0;
+            from0 = to0 = CHARRED[0]; from1 = to1 = CHARRED[1]; from2 = to2 = CHARRED[2];
+        }
+        into[0] = from0 + (to0 - from0) * s;
+        into[1] = from1 + (to1 - from1) * s;
+        into[2] = from2 + (to2 - from2) * s;
+        return hot;
+    }
     /** A cell is ink when the alpha of a texel of it is at least this (of 255). */
     static final int INK = 10;
     /** The largest picture, on each side, in pixels: a larger text fades instead. */
@@ -696,6 +729,9 @@ final class Dust {
          * on their way, in the picture's premultiplied colours (the style the game draws its interface's buffer with). {@code fade}
          * is the alpha of the whole; {@code drift} the text's. Allocates nothing.
          */
+        /** A burning cell's colour, worked out into it (the frames allocate nothing). */
+        private final double[] tint = new double[3];
+
         void draw(Piece piece, double progress, double fade, double drift) throws Throwable {
             Cells cells = piece.cells;
             float[] burn = piece.owner.dustBurn;
@@ -730,12 +766,12 @@ final class Dust {
                         if (age <= 0) {
                             double wear = worn(progress, cells.start[cell]);
                             if (burn != null) {
-                                // Burning in place: taking the burn's colour and glowing as it thins.
-                                double hot = smooth(wear);
-                                float alpha = (float)(fade * (1 - GLOW * hot));
-                                drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - THIN * wear,
-                                    (float)(fade * (1 + (burn[0] - 1) * hot)), (float)(fade * (1 + (burn[1] - 1) * hot)),
-                                    (float)(fade * (1 + (burn[2] - 1) * hot)), alpha);
+                                // Burning in place: scorching, glowing at its edge, going out to char that thins.
+                                double flicker = 0.5 + 0.5 * Math.sin(2 * Math.PI * (progress * FLICKER + cells.phase[cell]));
+                                double hot = burning(wear, burn, flicker, tint);
+                                double thin = wear > GLOW_END ? THIN * (wear - GLOW_END) / (1 - GLOW_END) : 0;
+                                drawPart(renderer, texture, piece, left, top, right, bottom, 0, 0, 1 - thin, (float)(fade * tint[0]),
+                                    (float)(fade * tint[1]), (float)(fade * tint[2]), (float)(fade * (1 - GLOW * hot)));
                                 continue;
                             }
                             // Wearing in place: greying and thinning (pitted, as its neighbours thin too).
@@ -749,8 +785,14 @@ final class Dust {
                         double dx = reach * driftX(age, cells.side[cell], cells.freq[cell], cells.phase[cell]);
                         double dy = reach * driftY(age, cells.rise[cell], cells.freq[cell], cells.phase2[cell]);
                         double scale = (1 - THIN) * cells.flake[cell] * size(age);
+                        if (burn != null && cells.phase2[cell] >= SPARKS) {
+                            // Char: black, greying as it goes.
+                            float grey = (float)(shown * (CHARRED[0] + (CHAR_ASH - CHARRED[0]) * smooth(clamp(age / 0.7, 0, 1))));
+                            drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, grey, grey, grey, shown);
+                            continue;
+                        }
                         if (burn != null) {
-                            // Glowing as it leaves (its colour over its alpha adds light), cooling to dark ash.
+                            // A spark: glowing as it leaves (its colour over its alpha adds light), cooling to dark ash.
                             double hot = heat(age), keep = BURN_ASH + (1 - BURN_ASH) * hot;
                             drawPart(renderer, texture, piece, left, top, right, bottom, dx, dy, scale, (float)(shown * burn[0] * keep),
                                 (float)(shown * burn[1] * keep), (float)(shown * burn[2] * keep), (float)(shown * (1 - GLOW * hot)));

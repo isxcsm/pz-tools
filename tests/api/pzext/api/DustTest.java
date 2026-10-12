@@ -35,6 +35,7 @@ final class DustTest {
     static void run(KahluaTable api, KahluaTable text, Object mod) throws Exception {
         schedule();
         cells();
+        burning();
         useClock();
         try {
             style(text, mod);
@@ -386,6 +387,20 @@ final class DustTest {
         GL11.ink = null;
     }
 
+
+    /** A burning cell scorches, glows in the burn's colour at its edge, and goes out to char. */
+    private static void burning() {
+        float[] burn = { 1f, 0.3f, 0.1f, 1f };
+        double[] tint = new double[3];
+        check(Dust.burning(0, burn, 0, tint) == 0 && tint[0] == 1 && tint[2] == 1, "An unworn cell is not as it was");
+        double hot = Dust.burning(Dust.SCORCH_END, burn, 0, tint);
+        check(hot == 0 && Math.abs(tint[0] - Dust.SCORCHED[0]) < 1e-9 && Math.abs(tint[1] - Dust.SCORCHED[1]) < 1e-9, "Not scorched: " + tint[0] + "," + tint[1]);
+        hot = Dust.burning(Dust.GLOW_PEAK, burn, 0, tint);
+        check(Math.abs(hot - 1) < 1e-9 && Math.abs(tint[0] - 1) < 1e-6 && Math.abs(tint[1] - 0.3) < 1e-6, "Not glowing at its height: " + hot + " " + tint[1]);
+        check(Math.abs(Dust.burning(Dust.GLOW_PEAK, burn, 1, tint) - (1 - Dust.FLICKER_DEPTH)) < 1e-9, "The flicker does not dim the glow");
+        hot = Dust.burning(1, burn, 0, tint);
+        check(hot == 0 && tint[0] == Dust.CHARRED[0] && tint[2] == Dust.CHARRED[2], "Not charred at its end");
+    }
     /** Wrong dust fields are Lua errors; a title takes {@code leave} and the dust's fields of any style. */
     private static void rejects(KahluaTable text, Object mod) {
         rejects(text, "dustSize goes with spec.leave = \"dust\"", "show", mod, table("text", "x", "dustSize", 2.0));
