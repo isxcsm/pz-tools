@@ -8,3 +8,4 @@ pack=OperationAcornTrade
 tiledef=oa_trade 6601
 pack=OperationAcornMachines
 tiledef=oa_machines 6602
+require=PZUIKit

@@ -24,7 +24,7 @@ Reports:
 - a game widget that draws its text in the game's font (ISRichTextPanel, ISButton:new, ISComboBox, ISModalDialog,
   ISLabel:new) in the client files of the mod's windows (Trade/, Story/, Machines/ and the research tab
   Upgrades/Window.lua, less the files that draw on the game's own windows and menus: WIDGET_EXCLUDED): the windows' texts are drawn in faces (Trade/UI.lua), so their
-  widgets are the mod's own (Trade/Button, RichText, Combo, Confirm). One that is meant to be there carries
+  widgets are the UI kit's (PZUIKit: Button, RichText, Combo, Confirm). One that is meant to be there carries
   `-- oa-widget: ok (why)` on its line or the line above.
 Exit code 1 when anything is found.
 

@@ -5,7 +5,7 @@
 -- typing goes on or is hurried: the server's answer to that redraws the tab, and the list stays as it was); the frames
 -- only draw it.
 require "OperationAcorn/Trade/TerminalWindow"
-require "OperationAcorn/Trade/Button"
+require "PZUIKit/Button"
 require "OperationAcorn/Story/Folder"
 require "OperationAcorn/Story/TypedText"
 local OA = OperationAcorn
@@ -49,8 +49,8 @@ function OATabFolder:createChildren()
     body.defaultFont = OATabFolder.BODY_FONT
     self.body = body
     local bh = UI.buttonHeight()
-    self.prevButton = OAMButton:new(0, 0, 70, bh, getText("IGUI_OA_Story_UI_Prev"), p, self, OATabFolder.onPrev)
-    self.nextButton = OAMButton:new(0, 0, 70, bh, getText("IGUI_OA_Story_UI_Next"), p, self, OATabFolder.onNext)
+    self.prevButton = PZUIButton:new(0, 0, 70, bh, getText("IGUI_OA_Story_UI_Prev"), p, self, OATabFolder.onPrev)
+    self.nextButton = PZUIButton:new(0, 0, 70, bh, getText("IGUI_OA_Story_UI_Next"), p, self, OATabFolder.onNext)
     for _, b in ipairs({ self.prevButton, self.nextButton }) do
         b:initialise()
         b:instantiate()

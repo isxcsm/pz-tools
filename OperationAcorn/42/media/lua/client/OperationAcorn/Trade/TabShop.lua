@@ -6,8 +6,8 @@
 require "OperationAcorn/Trade/TerminalWindow"
 require "OperationAcorn/Trade/Orders"
 require "OperationAcorn/Trade/ShopView"
-require "OperationAcorn/Trade/Button"
-require "OperationAcorn/Trade/Combo"
+require "PZUIKit/Button"
+require "PZUIKit/Combo"
 require "OperationAcorn/Gear/Gear"
 require "OperationAcorn/Trade/StatusDraw"
 local OA = OperationAcorn
@@ -195,7 +195,7 @@ function OATabShop:createChildren()
     self.addButton = self:makeButton(getText("IGUI_OA_Terminal_Shop_Add"), OATabShop.onAdd)
     self.addButton.onOff = function() self:refuse() end
     self.clearButton = self:makeButton(getText("IGUI_OA_Trade_Shop_Clear"), OATabShop.onClear)
-    local combo = OACombo:new(0, 0, 150, 20, p, self, OATabShop.onCombo)
+    local combo = PZUICombo:new(0, 0, 150, 20, p, self, OATabShop.onCombo)
     combo:initialise()
     combo:instantiate()
     self:addChild(combo)
@@ -204,7 +204,7 @@ end
 
 -- A button of the tab (Trade/Button): "off" looks dimmed, does nothing when clicked and says why in its tooltip.
 function OATabShop:makeButton(title, onclick)
-    local button = OAMButton:new(0, 0, 20, 20, title, self:palette(), self, onclick)
+    local button = PZUIButton:new(0, 0, 20, 20, title, self:palette(), self, onclick)
     button:initialise()
     button:instantiate()
     self:addChild(button)

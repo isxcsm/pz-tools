@@ -1,7 +1,7 @@
 -- A small reading window: the supply manifest that came in a crate, and the last page of the terminal manual.
 require "ISUI/ISCollapsableWindow"
 require "OperationAcorn/Trade/UI"
-require "OperationAcorn/Trade/RichText"
+require "PZUIKit/RichText"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 

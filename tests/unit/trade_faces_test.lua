@@ -1,5 +1,5 @@
--- Our windows' faces and widgets (client Trade/Faces, Trade/UI, Trade/RichText, Trade/Button, Trade/Combo,
--- Trade/Confirm, and the folder's list in Story/TabFolder), against stand-ins of the game's elements and of the
+-- Our windows' faces and widgets (the UI kit, PZUIKit: Faces, UI, RichText, Button, Combo, Confirm; the mod's Trade/UI,
+-- and the folder's list in Story/TabFolder), against stand-ins of the game's elements and of the
 -- extension API's UI fonts (PZExtAPI.text): the scale by the screen in eighths, a text drawn in the API's face at the
 -- screen pixel the game's text would take, the game's fonts and the font's scale without the API or when one of its
 -- calls fails (said once), our rich text's lines, our buttons, combo box and confirm, and a folder list that is not
@@ -203,9 +203,9 @@ local function load(px, files)
     end
     local ok, err = pcall(function()
         real "OperationAcorn/Trade/UI"
-        local log = OA.oaTestLog or OA.log
-        OA.oaTestLog = log
-        OA.log = function(...)
+        local log = PZUIKit.kitTestLog or PZUIKit.log
+        PZUIKit.kitTestLog = log
+        PZUIKit.log = function(...)
             logged[#logged + 1] = table.concat({ ... }, " ")
             return log(...)
         end
@@ -213,7 +213,7 @@ local function load(px, files)
     end)
     require = real
     if not ok then error(err, 0) end
-    return OA.Trade.UI, OA.Trade.Faces
+    return OA.Trade.UI, PZUIKit.Faces
 end
 
 local function own(t, key)
@@ -412,7 +412,7 @@ end)
 -- Our rich text ------------------------------------------------------------------------------------------------------
 
 local function rich(UI, w, h, text, fontName)
-    local panel = OARichText:new(0, 0, w, h)
+    local panel = PZUIRichText:new(0, 0, w, h)
     panel:initialise()
     panel:instantiate()
     panel.marginLeft, panel.marginRight, panel.marginTop, panel.marginBottom = 0, 0, 0, 0
@@ -429,7 +429,7 @@ local function lineList(panel)
 end
 
 test("rich text: lines broken at spaces to the width short of the bar, a long word whole on its own row", function()
-    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    local UI = load(16, { "PZUIKit/RichText" })
     UI.refreshScale()
     -- 7 a character, the text area 100 - 14 = 86: twelve characters a row
     local panel = rich(UI, 100, 200, "aaa bbb ccc ddd eee averyveryverylongword f")
@@ -437,14 +437,14 @@ test("rich text: lines broken at spaces to the width short of the bar, a long wo
     eq(panel.contentH, 64)
     for c, s in ipairs(panel.lines) do
         if #s < 15 then
-            truthy(panel.lineX[c] + UI.textWidth(s) <= panel:barX() - OARichText.BAR_GAP,
+            truthy(panel.lineX[c] + UI.textWidth(s) <= panel:barX() - PZUIRichText.BAR_GAP,
                 "'" .. s .. "' ends left of the bar and its gap")
         end
     end
 end)
 
 test("rich text: the commands the mod's texts use, and a row as high as its face", function()
-    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    local UI = load(16, { "PZUIKit/RichText" })
     UI.refreshScale()
     local panel = rich(UI, 400, 300,
         " <H1> <RGB:1,1,1> Title <LINE> <LINE> <TEXT> <RGB:0.5,0.6,0.7> one &lt;two&gt; <LINE> three\nfour <SPACE> <RGB:1,0,0> red ")
@@ -467,7 +467,7 @@ test("rich text: the commands the mod's texts use, and a row as high as its face
 end)
 
 test("rich text: the documents' half rows, hanging bullets and a sign-off on the right", function()
-    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    local UI = load(16, { "PZUIKit/RichText" })
     UI.refreshScale()
     -- 7 a character, the text area 100 - 14 = 86
     local panel = rich(UI, 100, 300, " <TEXT> head <LINE> <HALF> x <LINE> - <HANG> aaa bbb ccc ddd eee fff <LINE> "
@@ -497,7 +497,7 @@ test("rich text: the documents' half rows, hanging bullets and a sign-off on the
 end)
 
 test("rich text draws the rows on show in their faces, scrolls by the wheel and keeps inside its text", function()
-    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    local UI = load(16, { "PZUIKit/RichText" })
     local seen = stubApi()
     screen.h = 1080
     UI.refreshScale()
@@ -526,7 +526,7 @@ test("rich text draws the rows on show in their faces, scrolls by the wheel and 
 end)
 
 test("a rich text a click hurries reads its click anywhere, its bar takes the clicks on it", function()
-    local UI = load(16, { "OperationAcorn/Trade/RichText" })
+    local UI = load(16, { "PZUIKit/RichText" })
     UI.refreshScale()
     local lines = {}
     for i = 1, 30 do lines[i] = "row" .. i end
@@ -543,13 +543,13 @@ end)
 -- Our buttons, combo box and confirm ---------------------------------------------------------------------------------
 
 test("a button that is off does nothing when clicked but tells why; its tooltip is ours, in our face", function()
-    local UI = load(16, { "OperationAcorn/Trade/Button" })
+    local UI = load(16, { "PZUIKit/Button" })
     stubApi()
     screen.h = 1080
     UI.refreshScale()
     local clicked, refused = 0, 0
     local target = {}
-    local b = OAMButton:new(10, 10, 60, 26, "Add", UI.palette("field"), target, function() clicked = clicked + 1 end, "off")
+    local b = PZUIButton:new(10, 10, 60, 26, "Add", UI.palette("field"), target, function() clicked = clicked + 1 end, "off")
     b:initialise()
     b:instantiate()
     b.onOff = function() refused = refused + 1 end
@@ -564,7 +564,7 @@ test("a button that is off does nothing when clicked but tells why; its tooltip 
     b.mousePx = { 4, 4 }
     b:prerender()
     local tip
-    for el in pairs(ui) do if el.Type == "OATip" then tip = el end end
+    for el in pairs(ui) do if el.Type == "PZUITip" then tip = el end end
     truthy(tip, "our tooltip is up")
     eq(tip.lines[1], "Why it is off")
     eq(tip.y, 10 + 26 + 8, "under the button")
@@ -574,12 +574,12 @@ test("a button that is off does nothing when clicked but tells why; its tooltip 
 end)
 
 test("our combo box: its list opens under it, a choice calls back, a click on the box closes it", function()
-    local UI = load(16, { "OperationAcorn/Trade/Combo" })
+    local UI = load(16, { "PZUIKit/Combo" })
     UI.refreshScale()
     _G.getTimestampMs = function() return 5000 end
     local picked = {}
     local target = {}
-    local combo = OACombo:new(20, 30, 150, 22, UI.palette("crude"), target, function(t, c) picked[#picked + 1] = c:getSelectedData() end)
+    local combo = PZUICombo:new(20, 30, 150, 22, UI.palette("crude"), target, function(t, c) picked[#picked + 1] = c:getSelectedData() end)
     combo:initialise()
     combo:instantiate()
     combo:addOptionWithData("One", "a")
@@ -605,7 +605,7 @@ test("our combo box: its list opens under it, a choice calls back, a click on th
 end)
 
 test("the confirm is ours: its text broken to its width, yes runs the answer, no does not", function()
-    local UI = load(16, { "OperationAcorn/Trade/Confirm" })
+    local UI = load(16, { "PZUIKit/Confirm" })
     UI.refreshScale()
     local yes = 0
     local window = ISPanel:new(0, 0, 800, 600)
@@ -619,12 +619,12 @@ test("the confirm is ours: its text broken to its width, yes runs the answer, no
     eq(modal.palette, window.palette, "in the palette of the window it was asked from")
     truthy(#modal.lines >= 3, "broken to its width and at its line end")
     eq(modal.lines[#modal.lines], "second line")
-    for _, line in ipairs(modal.lines) do truthy(UI.textWidth(line) <= OAConfirm.WIDTH - 20, line) end
+    for _, line in ipairs(modal.lines) do truthy(UI.textWidth(line) <= PZUIConfirm.WIDTH - 20, line) end
     modal.yes.onclick(modal.yes.target, modal.yes)
     eq(yes, 5)
     eq(ui[modal], nil)
     modal = UI.confirm(character, "Sure?", nil, function() yes = yes + 100 end)
-    eq(modal.palette, UI.palette("field"), "from the world: the field terminal's")
+    eq(modal.palette, PZUIKit.UI.DEFAULT_PALETTE, "from the world: the kit's default")
     modal.no.onclick(modal.no.target, modal.no)
     eq(yes, 5)
 end)

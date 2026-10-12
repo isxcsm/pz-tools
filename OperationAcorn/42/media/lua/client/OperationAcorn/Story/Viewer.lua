@@ -8,8 +8,8 @@ require "OperationAcorn/Story/Docs"
 require "OperationAcorn/Markup"
 require "OperationAcorn/Story/Typing"
 require "OperationAcorn/Trade/UI"
-require "OperationAcorn/Trade/RichText"
-require "OperationAcorn/Trade/Button"
+require "PZUIKit/RichText"
+require "PZUIKit/Button"
 local OA = OperationAcorn
 local Docs = OA.StoryDocs
 local UI = OA.Trade.UI
@@ -40,7 +40,7 @@ function ISOAViewer:createChildren()
     ISCollapsableWindow.createChildren(self)
     -- the window's pixels as design units for our parts
     local th, w, h = UI.dp(self:titleBarHeight()), UI.dp(self.width), UI.dp(self.height)
-    self.rich = OARichText:new(PAD, th + PAD, w - PAD * 2, h - th - PAD * 3 - BUTTON_H)
+    self.rich = PZUIRichText:new(PAD, th + PAD, w - PAD * 2, h - th - PAD * 3 - BUTTON_H)
     self.rich:initialise()
     self.rich.background = false
     self.rich.marginLeft, self.rich.marginTop, self.rich.marginRight, self.rich.marginBottom = 20, 10, 10, 10
@@ -50,9 +50,9 @@ function ISOAViewer:createChildren()
     self.rich:setAnchorBottom(true)
     self:addChild(self.rich)
     local p = UI.palette("field")
-    self.prev = OAMButton:new(PAD, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Prev"), p, self,
+    self.prev = PZUIButton:new(PAD, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Prev"), p, self,
         ISOAViewer.onPrev)
-    self.next = OAMButton:new(PAD + BUTTON_W + 8, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Next"),
+    self.next = PZUIButton:new(PAD + BUTTON_W + 8, h - PAD - BUTTON_H, BUTTON_W, BUTTON_H, getText("IGUI_OA_Story_UI_Next"),
         p, self, ISOAViewer.onNext)
     for _, b in ipairs({ self.prev, self.next }) do
         b:initialise()

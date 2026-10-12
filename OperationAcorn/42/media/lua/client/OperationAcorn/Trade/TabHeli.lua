@@ -7,7 +7,7 @@
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Trade/StatusModel"
 require "OperationAcorn/Story/Folder"
-require "OperationAcorn/Trade/Confirm"
+require "PZUIKit/Confirm"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Draw, M, Estimate = Trade.Draw, Trade.StatusModel, Trade.Estimate

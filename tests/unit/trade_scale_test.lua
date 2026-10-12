@@ -165,10 +165,10 @@ local function loadRich()
         if string.find(name, "^ISUI/") then return true end
         return real(name)
     end
-    local ok, err = pcall(real, "OperationAcorn/Trade/RichText")
+    local ok, err = pcall(real, "PZUIKit/RichText")
     require = real
     if not ok then error(err, 0) end
-    return OARichText
+    return PZUIRichText
 end
 
 -- A class of ours made with UI.scaled, as the terminal's are.
@@ -704,7 +704,7 @@ for _, screenH in ipairs({ 720, 900, 1080, 1440 }) do
                     end
                     UI.refreshScale()
                     eq(UI.facesOn, true)
-                    eq(UI.S, OA.Trade.Faces.screenScale(screenH))
+                    eq(UI.S, PZUIKit.Faces.screenScale(screenH))
                     local now = statusTexts(UI, name, tier, size)
                     inside(now, size[1], size[2], what)
                     -- a bitmap font is a little larger than the design's at some sizes (33 pixels at 2x is 16.5
@@ -721,7 +721,7 @@ end
 -- The shop tab: the tab's own texts and its two lists', in design units (what our scaled elements were asked to draw,
 -- back from pixels).
 local function designTexts(el, UI)
-    local s = el.oaScaled and UI.S or 1
+    local s = el.uiScaled and UI.S or 1
     local drawn = {}
     for _, d in ipairs(el.drawn or {}) do
         if d[1] == "text" or d[1] == "right" or d[1] == "centre" then
@@ -825,7 +825,7 @@ local function loadFolder(px)
         return real(name)
     end
     local ok, err = pcall(function()
-        real "OperationAcorn/Trade/Button"
+        real "PZUIKit/Button"
         real "OperationAcorn/Story/TabFolder"
     end)
     require = real
@@ -858,9 +858,9 @@ test("a missions button is as wide as its title in design units, not in pixels",
         o.title = title
         return o
     end
-    local short = OAMButton:new(0, 0, 70, 26, "Prev", {})
+    local short = PZUIButton:new(0, 0, 70, 26, "Prev", {})
     eq(short.width, 70, "a short title keeps the width asked for")
-    local long = OAMButton:new(0, 0, 70, 26, "Next page", {})
+    local long = PZUIButton:new(0, 0, 70, 26, "Next page", {})
     eq(long.width, 9 * 7 + 10, "73 units, where the game's measure would make it 112")
 end)
 
@@ -905,7 +905,7 @@ end)
 
 test("the sub-tabs' frame reuses its click slots instead of making them each frame", function()
     local UI = loadUI(16)
-    local tabs = OASubTabs:new(0, 0, 400, UI.palette("field"), nil, nil)
+    local tabs = PZUISubTabs:new(0, 0, 400, UI.palette("field"), nil, nil)
     tabs:setItems({ { id = "a", label = "One" }, { id = "b", label = "Two", badge = "3" }, { id = "c", label = "Three" } }, "a")
     tabs:prerender()
     eq(#tabs.slots, 3)

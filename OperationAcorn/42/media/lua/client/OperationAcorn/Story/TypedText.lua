@@ -19,7 +19,7 @@
 -- `hold`), and a frame drawn late would count as a gap: the typing would start late or wait. So a text on its way is
 -- also followed every frame before the UI draws (Trade/UI live): the same frame work, and its clock as the look, which
 -- holds still while the clock does and moves as the characters come.
-require "OperationAcorn/Trade/RichText"
+require "PZUIKit/RichText"
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Core"
 require "OperationAcorn/Markup"
@@ -28,7 +28,7 @@ local OA = OperationAcorn
 local Markup, Typing = OA.Markup, OA.Typing
 local UI = OA.Trade.UI
 
-OATypedText = OARichText:derive("OATypedText")
+OATypedText = PZUIRichText:derive("OATypedText")
 
 -- The most real milliseconds that count between two frames: a longer gap means the panel was not on show (another
 -- document, another tab), and the typing waited with it.
@@ -42,7 +42,7 @@ end
 -- Lays the text out again (the panel does, when its text or size changes) and, for a text on its way, starts the reveal
 -- over the new rows.
 function OATypedText:paginate()
-    OARichText.paginate(self)
+    PZUIRichText.paginate(self)
     self.reveal, self.n, self.tipChunk, self.rowEnds, self.rowFirst = nil, nil, nil, nil, nil
     local run = self.run
     if run and run.parse and not run.done then
@@ -127,7 +127,7 @@ function OATypedText:hurry(run)
 end
 
 function OATypedText:onMouseDown(x, y)
-    OARichText.onMouseDown(self, x, y)
+    PZUIRichText.onMouseDown(self, x, y)
     local run = self.run
     if self.reveal and run and not run.done then self:hurry(run) end
 end
@@ -153,7 +153,7 @@ function OATypedText:render()
         if self.liveLook == nil and not run.done then UI.live(self, OATypedText.tick) end
     end
     if self.rowFirst and self.reveal and self.cursorColor then self:drawFreshRow(run) end
-    OARichText.render(self)
+    PZUIRichText.render(self)
     if self.tipChunk and self.cursorColor then self:drawCursor() end
 end
 

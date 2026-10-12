@@ -34,7 +34,7 @@ local SUB_VIEWS = {
 
 function OATabStatus:createChildren()
     self.sub = "heli"
-    self.subTabs = OASubTabs:new(0, OATabStatus.SUB_Y, self.width, self:palette(), self, OATabStatus.onSub)
+    self.subTabs = PZUISubTabs:new(0, OATabStatus.SUB_Y, self.width, self:palette(), self, OATabStatus.onSub)
     self.subTabs:initialise()
     self.subTabs:setAnchorRight(true)
     self:addChild(self.subTabs)

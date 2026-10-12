@@ -7,7 +7,7 @@ require "OperationAcorn/Story/Typing"
 local OA = OperationAcorn
 local Markup, Typing = OA.Markup, OA.Typing
 
--- A rich text panel with the parts TypedText uses (OARichText's): paginate makes `lines` (one for each stretch of text between the
+-- A rich text panel with the parts TypedText uses (PZUIRichText's): paginate makes `lines` (one for each stretch of text between the
 -- commands, trimmed), at x and y places; render draws nothing.
 local function stubPanel()
     local c = {}
@@ -52,7 +52,7 @@ local function stubPanel()
 end
 
 local function load()
-    OARichText = stubPanel()
+    PZUIRichText = stubPanel()
     -- the terminal's helpers (Trade/UI: the following each frame) are the real ones, over a stand-in of the game's panel
     ISPanel = { derive = function() return setmetatable({}, { __index = function() return function() end end }) end }
     UIFont = UIFont or setmetatable({}, { __index = function(_, k) return k end })
@@ -65,7 +65,7 @@ local function load()
     end
     local real = require
     require = function(name)
-        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/RichText" then return true end
+        if string.find(name, "^ISUI/") or name == "PZUIKit/RichText" then return true end
         return real(name)
     end
     local ok, err = pcall(real, "OperationAcorn/Story/TypedText")

@@ -639,7 +639,7 @@ test("every motion paints, frame after frame, with strengths between 0 and 1 and
     getSoundManager = function() return { playUISound = function() end } end
     -- the body: its own fields set, the game's drawing answered by stand-ins
     local el = view.body
-    el.drawRect, el.oaBase, el.oaScaled, el.oaDesign = rect, false, false, false
+    el.drawRect, el.uiBase, el.uiScaled, el.uiDesign = rect, false, false, false
     el.fx, el.fxFlash, el.rev, el.liveLook = false, false, 0, false
     setmetatable(el, { __index = function() return function() return 0 end end })
     View.startOpen(view)

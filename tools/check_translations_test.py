@@ -32,7 +32,7 @@ class GameWidgets(unittest.TestCase):
         found = ct.game_widgets([lua(os.path.join('client', 'OperationAcorn', 'Story', 'View.lua'), '\n'.join([
             '-- the game\'s ISRichTextPanel draws in its font',
             'local o = ISButton.new(self, x, y, w, h, title)',
-            'OAMButton = ISButton:derive("OAMButton")',
+            'PZUIButton = ISButton:derive("PZUIButton")',
             'local m = ISModalDialog:new(0, 0, 1, 1, "t", true) -- oa-widget: ok (a test of the mark)',
             '-- oa-widget: ok (the line under the mark)',
             'local l = ISLabel:new(0, 0, 10, "t", 1, 1, 1, 1)',

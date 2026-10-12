@@ -62,7 +62,7 @@ local ms
 -- The tab, with the panel, the record and the characters of the test; `contents[key]` is what Folder.content gives.
 local function folder(opts)
     opts = opts or {}
-    OARichText = stubPanel()
+    PZUIRichText = stubPanel()
     UIFont = { Small = "Small", Medium = "Medium" }
     OATab ={ derive = function(self, name)
         local d = {}
@@ -80,8 +80,8 @@ local function folder(opts)
     getTimestampMs = function() return ms end
     local real = require
     require = function(name)
-        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "OperationAcorn/Trade/Button"
-            or name == "OperationAcorn/Trade/RichText" or name == "OperationAcorn/Trade/UI" then
+        if string.find(name, "^ISUI/") or name == "OperationAcorn/Trade/TerminalWindow" or name == "PZUIKit/Button"
+            or name == "PZUIKit/RichText" or name == "OperationAcorn/Trade/UI" then
             return true
         end
         return real(name)

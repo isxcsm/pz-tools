@@ -5,7 +5,9 @@
 local MEDIA = "OperationAcorn/42/media/"
 local ROOTS = { MEDIA .. "lua/shared/", MEDIA .. "lua/server/", MEDIA .. "lua/client/",
     -- the developer sub-mod (its client files; its tests are dev_*_test.lua)
-    "OperationAcornDev/42/media/lua/client/" }
+    "OperationAcornDev/42/media/lua/client/",
+    -- the shared UI kit (PZUIKit), from its repository beside this one
+    "../pz-ui-kit/PZUIKit/42/media/lua/shared/", "../pz-ui-kit/PZUIKit/42/media/lua/client/" }
 
 -- The sandbox options with their defaults, read from sandbox-options.txt as the game would.
 local function sandboxDefaults()

@@ -49,7 +49,7 @@ require "OperationAcorn/Upgrades/Texts"
 require "OperationAcorn/Upgrades/Links"
 require "OperationAcorn/Upgrades/Motion"
 require "OperationAcorn/Trade/UI"
-require "OperationAcorn/Trade/Confirm"
+require "PZUIKit/Confirm"
 local OA = OperationAcorn
 local Data = OA.Upgrades.Data
 local Rules = OA.Upgrades.Rules

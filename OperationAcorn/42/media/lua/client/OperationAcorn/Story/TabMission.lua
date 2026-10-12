@@ -4,8 +4,8 @@
 -- the crude terminal, at the field terminal the two requests offered (one to choose), or the one taken. Everything is
 -- worked out when the record changes or the player has walked (`refresh`); the frames only draw it (`prerender`).
 require "OperationAcorn/Trade/TerminalWindow"
-require "OperationAcorn/Trade/Button"
-require "OperationAcorn/Trade/Confirm"
+require "PZUIKit/Button"
+require "PZUIKit/Confirm"
 require "OperationAcorn/Story/Data"
 require "OperationAcorn/Story/Places"
 require "OperationAcorn/Story/Rewards"
@@ -100,18 +100,18 @@ end
 function OATabMission:createChildren()
     local p = self:palette()
     local bh = UI.buttonHeight()
-    self.mapButton = OAMButton:new(0, 0, 120, bh, getText("IGUI_OA_Story_UI_ShowMap"), p, self, OATabMission.onMap, "strong")
-    self.rerollButton = OAMButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Reroll"), p, self, OATabMission.onReroll)
+    self.mapButton = PZUIButton:new(0, 0, 120, bh, getText("IGUI_OA_Story_UI_ShowMap"), p, self, OATabMission.onMap, "strong")
+    self.rerollButton = PZUIButton:new(0, 0, 88, bh, getText("IGUI_OA_Story_UI_Reroll"), p, self, OATabMission.onReroll)
     self.optionButtons = {}
     for _, option in ipairs({ "a", "b" }) do
-        local b = OAMButton:new(0, 0, 170, bh, "", p, self, OATabMission.onChoose)
+        local b = PZUIButton:new(0, 0, 170, bh, "", p, self, OATabMission.onChoose)
         b.internal = option
         self.optionButtons[option] = b
     end
-    self.shopButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowInShop"), p, self, OATabMission.onShop)
-    self.acceptButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_SpecialAccept"), p, self,
+    self.shopButton = PZUIButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowInShop"), p, self, OATabMission.onShop)
+    self.acceptButton = PZUIButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_SpecialAccept"), p, self,
         OATabMission.onAccept, "strong")
-    self.specialMapButton = OAMButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowMap"), p, self,
+    self.specialMapButton = PZUIButton:new(0, 0, 120, bh - 4, getText("IGUI_OA_Story_UI_ShowMap"), p, self,
         OATabMission.onSpecialMap, "strong")
     for _, b in ipairs(self:buttons()) do
         b:initialise()

@@ -28,7 +28,7 @@ local SUB_VIEWS = {
 
 function OATabMissions:createChildren()
     self.sub = "missions"
-    self.subTabs = OASubTabs:new(0, 0, self.width, self:palette(), self, OATabMissions.onSub)
+    self.subTabs = PZUISubTabs:new(0, 0, self.width, self:palette(), self, OATabMissions.onSub)
     self.subTabs:initialise()
     self.subTabs:setAnchorRight(true)
     self:addChild(self.subTabs)

@@ -6,7 +6,7 @@ require "ISUI/ISContextMenu"
 require "OperationAcorn/Trade/Actions"
 require "OperationAcorn/Trade/Reader"
 require "OperationAcorn/Trade/Estimate"
-require "OperationAcorn/Trade/Confirm"
+require "PZUIKit/Confirm"
 local OA = OperationAcorn
 local Trade, UI, Text = OA.Trade, OA.Trade.UI, OA.Trade.Text
 local Objects, Things = Trade.Objects, Trade.Things

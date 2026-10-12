@@ -325,14 +325,14 @@ function Draw.bake(L)
 end
 
 -- Draws a list on one of our elements (each frame): the baked pixels go to the game's drawing as they are (the
--- element's class without the scaling, el.oaBase), the texts in their faces (UI.textPx, the element's place on the
+-- element's class without the scaling, el.uiBase), the texts in their faces (UI.textPx, the element's place on the
 -- screen asked once a frame), the icons through UI.iconPx. `dy`: pixels the whole list is moved down by (a list that
 -- scrolls in its element gives minus its scroll; nil: 0).
 function Draw.paint(el, L, dy)
     if not L then return end
     if L.scale ~= UI.S then Draw.bake(L) end
     dy = dy or 0
-    local B = el.oaBase or el
+    local B = el.uiBase or el
     -- the clip on, painted back when it comes off (UI.unclip)
     local clip
     local rect, border, textPx, iconPx = B.drawRect, B.drawRectBorder, UI.textPx, UI.iconPx
