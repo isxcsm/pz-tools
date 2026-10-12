@@ -657,11 +657,7 @@ final class Buildings {
             lua.set(result, "room", roomName.invoke(thing.room()));
             lua.set(result, "roomId", Long.toString((long)roomId.invoke(thing.room())));
         }
-        if (thing.power()) {
-            lua.set(result, "power", (double)consumption(thing.object()));
-            Formulas formulas = GameApi.formulas();
-            if (formulas != null && formulas.switchedOn(thing.object())) lua.set(result, "on", true);
-        }
+        if (thing.power()) lua.set(result, "power", (double)consumption(thing.object()));
         if (thing.water()) lua.set(result, "water", true);
         return result;
     }

@@ -316,10 +316,10 @@ final class FormulasTest {
                 "body.coldMultiplier", "body.corpseCountMultiplier", "body.corpseSicknessMultiplier", "body.holeChance", "infection.woundChance",
                 "infection.biteShield" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
-        for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName", "machine.onKey" })
+        for (String applied : new String[] { "machine.baseConsumption", "machine.loadKey", "anim.stepKey", "machine.spriteName" })
             check(Hooks.APPLIED.equals(points.rawget(applied)), applied + " is " + points.rawget(applied));
         check(Hooks.APPLIED.equals(points.rawget("vision.hiddenZombieFix")), "vision.hiddenZombieFix is " + points.rawget("vision.hiddenZombieFix"));
-        check(Formulas.POINTS.size() == 39, "The points are " + Formulas.POINTS.size());
+        check(Formulas.POINTS.size() == 38, "The points are " + Formulas.POINTS.size());
         // Every hook a point names is one the game's classes were given.
         for (var point : Formulas.POINTS)
             for (String label : point.hooks()) check(Hooks.hookStatus().containsKey(label), point.name() + " names a hook that does not exist: " + label);

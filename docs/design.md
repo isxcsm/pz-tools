@@ -121,7 +121,6 @@ for loaded and unloaded squares alike. A square belongs to it when one of its ro
 - `power`: present when the game could power the object from a generator
   (`IsoObject.couldBePoweredByGenerator()`), with the consumption the game gives for it now
   (`getGeneratorPowerConsumption()`);
-- `on`: `true` when a mod's machine is switched on by its mod data (`machine.onKey`), drawing or at rest;
 - `water`: `true` when its sprite takes piped water (`waterPiped`).
 
 A light switch belongs to the room it lights (`IsoLightSwitch.roomId`). One on a south or east wall
@@ -539,7 +538,6 @@ not have is a Lua error at `set`.
 | `machine.baseConsumption` | table of sprite name to 0 to 1000 | add | Power use for objects of those sprites, in the game's units (a vanilla appliance is 0.03 to 0.13 and a generator's own base is 0.02): see [machines](#machines). A mod's machines are consumers of a generator in range, and of a network, with no other code. |
 | `machine.loadKey` | a name, or a list of names | join | The keys of an object's mod data (`object:getModData()`) that scale its declared consumption: each holding a number multiplies it, so that a machine at rest, at work or broken draws as its mod sets it. |
 | `machine.spriteName` | table of sprite name to sprite name | the first mod's | The name objects of a sprite are known by in `buildings.objects`, the networks and their rules, in place of the sprite's own: a machine that shows its state by changing its sprite (lit, running) gives its other looks the name of one, and stays one object, kept in the networks it was added to. One step: a name given is not looked up again. Where two mods name one sprite, the mod whose id comes first keeps it. Not tied to a hook. |
-| `machine.onKey` | a name, or a list of names | join | The keys of an object's mod data that say its machine is switched on: a number other than 0 under one of them gives the object `on` in `buildings.objects`, so a machine on but at rest (its load 0) is told from one switched off. Not tied to a hook. |
 | `anim.stepKey` | a name, or a list of names | join | The keys of an object's mod data under which a number other than 0 has the animations attached to the object stepped by the game each frame it draws them, as the game steps a sprite's (`IsoSprite.update`: at each instance's own speed, looping, not while the game is paused), and the object drawn every frame as a fire is; see [attached animations](#attached-animations). Any other object's attached animations are drawn as in vanilla, never stepped. |
 | `vision.hiddenZombieFix` | boolean | any | While any mod declares it true, the zombies the player sees and the game does not draw (the shadow vision's bug: a zombie in the cone with nothing between it and the player, on a square the game finds unseen) are drawn, as long as the game's own light test would let it be seen. Worked each frame from the game's list, not by a hook: see [the hidden zombies](#the-hidden-zombies). |
 
