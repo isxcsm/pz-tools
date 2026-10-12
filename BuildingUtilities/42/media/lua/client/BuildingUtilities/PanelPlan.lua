@@ -45,11 +45,12 @@ local MIN_ZOOM, MAX_ZOOM, MAX_ZOOM_SCALE, DRAG = 0.5, 8, 48, 4
 -- Wheel notches over the floor strip scroll it by so many floors.
 local STRIP_SCROLL = 3
 -- The supply lines are drawn at fixed pixel widths, whatever the zoom (a bundle of them stays tidy): the line LINE_PX
--- wide over a dark casing CASING_PX wide, so that it reads over any room or the grid; the flow runs along it as square
--- beads BEAD_PX wide, BEAD_GAP_PX apart, moving FLOW_PX pixels a second, and none over the squares at its ends (dashes
--- there, drawn at any angle, came out spiky, and over a producer's or the box's light colour needed a dark rim that made
--- a bundle of them a tangle). The rooms' outlines are WALL_PX wide.
-local LINE_PX, CASING_PX, BEAD_PX, BEAD_GAP_PX, FLOW_PX, WALL_PX = 1, 3, 3, 11, 22, 2
+-- wide over a thin dark casing CASING_PX wide, so that it reads over any room or the grid; a producer's flow to the
+-- box runs along it as square beads BEAD_PX wide, BEAD_GAP_PX apart, moving FLOW_PX pixels a second, under the squares
+-- (dashes, drawn at any angle, came out spiky; thicker beads and casings, or a dark rim on the beads, made a bundle of
+-- lines a heavy tangle). A device's line has no flow: the line alone says it draws. The rooms' outlines are WALL_PX
+-- wide.
+local LINE_PX, CASING_PX, BEAD_PX, BEAD_GAP_PX, FLOW_PX, WALL_PX = 1, 2, 2, 10, 22, 2
 -- The lines out to devices outside the building: a cool cyan, apart from the rooms' greens.
 local OUTSIDE_LINE = { 0.45, 0.78, 0.86 }
 -- The legend: its header's fold mark so wide, and it folds or opens over LEGEND_MS.
@@ -256,7 +257,7 @@ local function nearestPoint(rects, x, y)
 end
 
 -- data: { utility, supplied, rooms = { { id, title, level, rects } }, devices = { { key, x, y, z, roomId, inside,
--- state, held, power, name, status, flow } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
+-- state, held, power, name, status } }, producers = { { x, y, z, inUse, text, unit = its kind for a unit, colour
 -- or nil, flow } } (flow: 1 to the box, -1 from it, nil none), box = { x, y, z }, filter = room id, zone = room id to
 -- { state = "mine", "free", "taken" or "far", owner = a name }, zoneEditable, zoneEdit, zoneNote, farNote (why a far
 -- room cannot be taken), reached = { lowest, highest } (the floors the box's zone can take), waterSupply (by floor,
@@ -575,7 +576,7 @@ function ISBUPlan:layout()
     local deviceLines = {}
     for _, device in ipairs(data.devices) do
         if device.z == self.floor and not device.inside and device.state == "on" then
-            deviceLines[device.key] = addLine(device.x, device.y, OUTSIDE_LINE, device.flow, flowState ~= "off")
+            deviceLines[device.key] = addLine(device.x, device.y, OUTSIDE_LINE, nil, flowState ~= "off")
         end
     end
     local producerLines = {}
@@ -1018,24 +1019,9 @@ function ISBUPlan:render()
         self:drawLine(WHITE, hover.x1, hover.y1, hover.x2, hover.y2, lw, 1, r, g, b)
         if hover.x3 then self:drawLine(WHITE, hover.x2, hover.y2, hover.x3, hover.y3, lw, 1, r, g, b) end
     end
-    -- The legend's entry under the mouse marks what it names.
-    local marked = self.legendHover
-    for _, square in ipairs(self.squares) do
-        local size = square.size
-        self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
-        self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
-        self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
-        if square.ring then
-            self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
-                math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
-        end
-        if marked and marked.square and marked.square ~= "line" and marked.r == square.r and marked.g == square.g
-                and marked.b == square.b then
-            UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
-        end
-    end
-    -- The flow: beads running along each path with the clock, whole pixels, between the squares at its ends (none
-    -- laid out while the switch shows no flow).
+    -- The flow: beads running along each path with the clock, whole pixels, under the squares (they pass behind a
+    -- producer, or a solar panel the path crosses, rather than vanish over its light colour; none while the switch
+    -- shows no flow).
     if #self.flows > 0 then
         UI.live(self, flowFrame)
         local S, bead, gap = 1 / px, BEAD_PX * px, BEAD_GAP_PX * px
@@ -1052,6 +1038,22 @@ function ISBUPlan:render()
                 end
                 along = along + gap
             end
+        end
+    end
+    -- The legend's entry under the mouse marks what it names.
+    local marked = self.legendHover
+    for _, square in ipairs(self.squares) do
+        local size = square.size
+        self:drawRect(square.x - 1, square.y - 1, size + 2, size + 2, 0.9, 0.02, 0.03, 0.05)
+        self:drawRect(square.x, square.y, size, size, 1, square.r, square.g, square.b)
+        self:drawRect(square.x, square.y, size, px, 0.45, 1, 1, 1)
+        if square.ring then
+            self:drawRectBorder(square.x - 3, square.y - 3, size + 6, size + 6, 0.9,
+                math.min(1, square.r + 0.3), math.min(1, square.g + 0.3), math.min(1, square.b + 0.3))
+        end
+        if marked and marked.square and marked.square ~= "line" and marked.r == square.r and marked.g == square.g
+                and marked.b == square.b then
+            UI.frame(self, square.x - 4, square.y - 4, size + 8, size + 8, P.bright, 1)
         end
     end
     for _, dot in ipairs(self.dots) do

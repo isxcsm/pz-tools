@@ -36,9 +36,6 @@ function ISBUPanelWindow:updatePlan()
         local entry = device.entry
         devices[#devices + 1] = { key = device.key, x = entry.x, y = entry.y, z = entry.z, roomId = device.roomId, inside = device.inside,
             state = device.state, held = device.held, power = device.power, utility = utility,
-            -- Out to a device outside while it takes something.
-            flow = not device.inside and device.state == "on" and not device.held and view.state and view.state.supplied
-                and (utility == "water" or (device.power or 0) > 0) and -1 or nil,
             name = view.names[device.key] or "", status = view.status[device.key],
             fresh = view.fresh[device.key] }
     end
