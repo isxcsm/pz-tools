@@ -1008,42 +1008,54 @@ test("the performance across, then two columns: the jobs and the bins on the lef
     end
 end)
 
-test("an empty sound cover is a slim row: its name, what one does and the button on one line; the columns end about level", function()
+test("the columns are rows whose edges line up; an empty slot is a card like the others, its part faint", function()
     local UI, Draw, Model, Layout = loadWindow(16)
     useFonts(UI, 16)
     for _, kind in ipairs(WIDE_KINDS) do
-        local width = Layout.widthOf(kind)
-        local covered = Layout.build(Draw.list(UI.palette("field")), Model.build(partsScene(kind, "modern", 82)), width)
-        local scene = partsScene(kind, "modern", 82)
-        scene.status.parts.cover = nil
-        local m = Model.build(scene)
-        local card = m.parts[#m.parts]
-        eq(card.slot, "cover")
-        truthy(card.slim and card.empty, kind .. ": the empty cover is slim")
-        eq(m.parts[1].slim, nil, kind .. ": a part the machine needs is a card")
-        local L = Draw.list(UI.palette("field"))
-        local h = Layout.build(L, m, width)
-        truthy(h <= covered, kind .. ": no taller than with a cover (" .. h .. " / " .. covered .. ")")
-        local install
-        for _, hit in ipairs(L.hits) do
-            if hit.id == "part" and hit.slot == "cover" then install = hit end
+        for _, scene in ipairs({ "full", "running", "noCover" }) do
+            local width = Layout.widthOf(kind)
+            local input = partsScene(kind, scene == "running" and "modern" or "old", 82)
+            if scene == "noCover" then input.status.parts.cover = nil end
+            if scene ~= "running" then input.jobs = {} end
+            local m = Model.build(input)
+            local L = Draw.list(UI.palette("field"))
+            local itemTexture = Draw.itemTexture
+            Draw.itemTexture = function() return {} end
+            Layout.build(L, m, width)
+            Draw.itemTexture = itemTexture
+            local w = width - 2 * Layout.PAD
+            local rightStart = Layout.PAD + Layout.LEFT + Layout.COLUMN_GAP
+            local rw = w - Layout.LEFT - Layout.COLUMN_GAP
+            local top
+            for _, t in ipairs(textBoxes(UI, L)) do
+                if t.s == getText("IGUI_OA_Machine_Parts") then top = t.y end
+            end
+            -- the blocks' frames: the left column's as wide as it, the right's as wide as it, below the heads
+            local left, right = {}, {}
+            for _, op in ipairs(L.ops) do
+                if op[1] == 2 and op[3] > top then
+                    if op[2] == Layout.PAD and op[4] == Layout.LEFT then left[#left + 1] = op end
+                    if op[2] == rightStart and op[4] == rw then right[#right + 1] = op end
+                end
+            end
+            local label = kind .. " " .. scene
+            eq(#left, 3, label .. ": the jobs and two bins")
+            eq(#right, 3, label .. ": three parts")
+            for k = 1, 3 do
+                eq(left[k][3], right[k][3], label .. ": row " .. k .. " begins level")
+                eq(left[k][5], right[k][5], label .. ": row " .. k .. " is as tall on both sides")
+            end
+            if scene == "noCover" then
+                local c = m.parts[#m.parts]
+                eq(c.slot, "cover")
+                truthy(c.empty and c.icon, label .. ": the empty cover shows the part it takes")
+                local faint
+                for _, op in ipairs(L.ops) do
+                    if op[1] == 4 and op.item == c.icon then faint = op[7] end
+                end
+                truthy(faint and faint < 1, label .. ": drawn faint")
+            end
         end
-        truthy(install and install.action == "install", kind .. ": the cover's install button")
-        local name, note
-        for _, t in ipairs(textBoxes(UI, L)) do
-            if t.s == getText("IGUI_OA_Machine_Slot_cover") then name = t end
-            if t.s == getText("IGUI_OA_Machine_Part_Optional") then note = t end
-        end
-        truthy(name and note and name.y == note.y, kind .. ": the name and the note on one line")
-        truthy(note.y < install.y + install.h and note.y + UI.fontHeight() > install.y, kind .. ": on the button's line")
-        truthy(note.x > name.x + name.w and note.x + note.w <= install.x, kind .. ": between the name and the button")
-        -- the two columns end about level: the lowest bin's button and the cover row are near
-        local lowestOpen = 0
-        for _, hit in ipairs(L.hits) do
-            if hit.id == "open" then lowestOpen = math.max(lowestOpen, hit.y) end
-        end
-        truthy(math.abs(install.y - lowestOpen) <= 3 * UI.fontHeight(),
-            kind .. ": the columns end about level (" .. install.y .. " / " .. lowestOpen .. ")")
     end
 end)
 

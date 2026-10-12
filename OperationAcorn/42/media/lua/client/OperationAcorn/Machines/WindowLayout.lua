@@ -6,9 +6,9 @@
 -- the two bins, the three numbers of its performance, the water gauge, the lure's hours, and a card a part.
 -- A machine with parts is wide (one column of the jobs, the bins, the performance and three parts was taller than a
 -- 900p screen allows): under the plate and the strip the performance across the window (its three numbers on a row),
--- then two columns: on the left the jobs and under them the bins one above the other, on the right the parts, so that
--- both columns begin with a heading on the same line and end about level. An empty slot the machine runs without (the
--- sound cover) is a slim row, not a card. The others (no parts: the locker, the rain storage, the lure) are one column. The window's width is the layout's (Layout.widthOf).
+-- then two columns: on the left the jobs and under them the bins one above the other, on the right a card a part,
+-- in rows whose edges line up across (Layout's columns). The others (no parts: the locker, the rain storage, the lure)
+-- are one column. The window's width is the layout's (Layout.widthOf).
 require "OperationAcorn/Trade/UI"
 require "OperationAcorn/Trade/StatusDraw"
 require "OperationAcorn/Machines/Machines"
@@ -36,9 +36,8 @@ Layout.PICKER_WIDTH = 300
 -- A bar's height and a job's icon.
 local BAR = 8
 local ICON = 16
--- The room between two bins, and between two cards of parts.
-local BOX_GAP = 4
-local CARD_GAP = 3
+-- The room between two blocks of a column (the bins, the cards of the parts).
+local ROW_GAP = 4
 
 local floor = math.floor
 
@@ -127,62 +126,85 @@ local function strip(L, s, x, y, w)
     return y + h
 end
 
--- The jobs, a lane each (the room of the motor's lanes is kept, so the window does not jump as jobs come and go).
-local function jobs(L, j, x, y, w)
+-- The jobs, a lane each, in a panel (the room of the motor's lanes is kept, so the window does not jump as jobs come
+-- and go). Its height for the lanes, and the panel drawn `h` high (its rows in the middle).
+local function laneRow(L)
+    return math.max(L.fh, ICON) + 4
+end
+
+local function jobsHeight(L, j)
+    return 6 + math.max(j.lanes or 1, 2) * laneRow(L) + 2
+end
+
+local function jobsPanel(L, j, x, y, w, h)
     local p, fh = L.p, L.fh
-    y = head(L, x, y, w, getText("IGUI_OA_Machine_Jobs"), j.right)
-    local row = math.max(fh, ICON) + 4
+    local row = laneRow(L)
     local rows = math.max(j.lanes or 1, 2)
     if j.empty then
-        local h = rows * row - 2
         Draw.box(L, x, y, w, h, p.inset, 0.6, p.border, 0.7)
         local cy = y + floor((h - 2 * fh) / 2)
         Draw.fit(L, j.empty[1], x + 8, cy, w - 16, p.text, nil, nil, "centre")
         Draw.fit(L, j.empty[2], x + 8, cy + fh, w - 16, p.dim, nil, nil, "centre")
-        return y + rows * row
+        return
     end
+    Draw.panel(L, x, y, w, h)
     local pctW = UI.textWidth("100%") + 4
-    local nameW = floor(w * 0.3)
+    local ix, iw = x + 8, w - 16
+    local nameW = floor(iw * 0.3)
+    local top = y + floor((h - rows * row) / 2) + 2
     for i, r in ipairs(j.rows) do
         if i > rows then break end
-        local ry = y + (i - 1) * row
-        Draw.item(L, r.icon, x, ry + floor((row - ICON) / 2), ICON)
-        local nx = x + ICON + 6
+        local ry = top + (i - 1) * row
+        Draw.item(L, r.icon, ix, ry + floor((row - ICON) / 2), ICON)
+        local nx = ix + ICON + 6
         Draw.fit(L, r.name, nx, ry + floor((row - fh) / 2), nameW, p.text)
         local bx = nx + nameW + 6
-        Draw.progress(L, bx, ry + floor((row - BAR) / 2), x + w - pctW - 6 - bx, BAR, r.share, p.value)
-        Draw.fit(L, r.pct, x + w - pctW, ry + floor((row - fh) / 2), pctW, p.value, nil, nil, "right")
+        Draw.progress(L, bx, ry + floor((row - BAR) / 2), ix + iw - pctW - 6 - bx, BAR, r.share, p.value)
+        Draw.fit(L, r.pct, ix + iw - pctW, ry + floor((row - fh) / 2), pctW, p.value, nil, nil, "right")
     end
-    return y + rows * row
 end
 
--- The bins one above the other: the name, the weight in it of what it holds ("38.4 / 100", the game's weight, no
--- unit), the button that opens it in the loot window, its fill, and a note (how many things, what it waits for).
-local function boxes(L, list, x, y, w)
+local function jobs(L, j, x, y, w)
+    y = head(L, x, y, w, getText("IGUI_OA_Machine_Jobs"), j.right)
+    local h = jobsHeight(L, j)
+    jobsPanel(L, j, x, y, w, h)
+    return y + h
+end
+
+-- A bin: the name, the weight in it of what it holds ("38.4 / 100", the game's weight, no unit), the button that opens
+-- it in the loot window, its fill, and a note (how many things, what it waits for). Drawn `h` high, its lines in the
+-- middle.
+local function binHeight(L)
+    return 5 + Layout.buttonHeight() + 3 + BAR + 3 + L.fh + 5
+end
+
+local function bin(L, b, x, y, w, h)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
-    local h = 5 + btn + 3 + BAR + 3 + fh + 5
+    Draw.panel(L, x, y, w, h)
+    local by = y + floor((h - binHeight(L)) / 2)
     local open = getText("IGUI_OA_Machine_Open")
-    local openTip = Draw.tip(p, { getText("IGUI_OA_Machine_OpenTip") })
-    for i, b in ipairs(list) do
-        local by = y + (i - 1) * (h + BOX_GAP)
-        Draw.panel(L, x, by, w, h)
-        local ow = buttonWidth(open)
-        local hit = Draw.button(L, x + w - 8 - ow, by + 5, ow, btn, open, b.strong and "strong" or "normal", nil,
-            "open", openTip)
-        hit.role = b.role
-        local ty = by + 5 + floor((btn - fh) / 2)
-        local room = w - 16 - ow - 6
-        local tw = Draw.fit(L, b.title, x + 8, ty, room, p.bright)
-        if room - tw > 24 then
-            Draw.run(L, { { s = b.amount, c = p.value, pad = 8 }, { s = " / " .. b.capacity, c = p.dim } },
-                x + 8 + tw, ty, room - tw)
-        end
-        local yy = by + 5 + btn + 3
-        Draw.progress(L, x + 8, yy, w - 16, BAR, b.frac, colour(p, b.tone))
-        Draw.fit(L, b.note, x + 8, yy + BAR + 3, w - 16, p.dim)
+    local ow = buttonWidth(open)
+    local hit = Draw.button(L, x + w - 8 - ow, by + 5, ow, btn, open, b.strong and "strong" or "normal", nil,
+        "open", Draw.tip(p, { getText("IGUI_OA_Machine_OpenTip") }))
+    hit.role = b.role
+    local ty = by + 5 + floor((btn - fh) / 2)
+    local room = w - 16 - ow - 6
+    local tw = Draw.fit(L, b.title, x + 8, ty, room, p.bright)
+    if room - tw > 24 then
+        Draw.run(L, { { s = b.amount, c = p.value, pad = 8 }, { s = " / " .. b.capacity, c = p.dim } },
+            x + 8 + tw, ty, room - tw)
     end
-    return y + #list * h + (#list - 1) * BOX_GAP
+    local yy = by + 5 + btn + 3
+    Draw.progress(L, x + 8, yy, w - 16, BAR, b.frac, colour(p, b.tone))
+    Draw.fit(L, b.note, x + 8, yy + BAR + 3, w - 16, p.dim)
+end
+
+-- The bins one above the other.
+local function boxes(L, list, x, y, w)
+    local h = binHeight(L)
+    for i, b in ipairs(list) do bin(L, b, x, y + (i - 1) * (h + ROW_GAP), w, h) end
+    return y + #list * h + (#list - 1) * ROW_GAP
 end
 
 -- The performance: three cells on a row, a number and a line under it; how each is made is in its tooltip.
@@ -203,62 +225,58 @@ local function perf(L, pf, x, y, w)
     return y + h
 end
 
--- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that make sense, its condition with the line under which
--- it is worn, the hours of running it has left, and what it does (or what is wrong with it). An empty slot the machine
--- runs without is a slim row: its name and what one would do, on the button's line.
-local function parts(L, list, x, y, w)
+-- A card a part: its icon (no well: a whole multiple of its pixels, UI.iconSize), the slot and the tier, the buttons that
+-- make sense, its condition with the line under which it is worn, the hours of running it has left, and what it does
+-- (or what is wrong with it). An empty slot shows the part it takes, faint, and what it is for. Drawn `h` high, its
+-- lines in the middle.
+local function cardHeight(L)
+    return 3 + Layout.buttonHeight() + 1 + L.fh + L.fh + 3
+end
+
+local function card(L, c, x, y, w, h)
     local p, fh = L.p, L.fh
     local btn = Layout.buttonHeight()
-    y = head(L, x, y, w, getText("IGUI_OA_Machine_Parts"), getText("IGUI_OA_Machine_Parts_WornLine"))
-    local full = 3 + btn + 1 + fh + fh + 3
-    local ib = UI.iconSize(40, full - 12)
-    for _, c in ipairs(list) do
-        local h = c.slim and 3 + btn + 3 or full
-        Draw.panel(L, x, y, w, h)
-        if c.icon then Draw.item(L, c.icon, x + 10, y + floor((h - ib) / 2), ib, c.broken and 0.55 or 1) end
-        local tx = x + 10 + ib + 10
-        local right = x + w - 6
-        local bx = right
-        for k = #c.buttons, 1, -1 do
-            local b = c.buttons[k]
-            local bw = buttonWidth(b.label)
-            bx = bx - bw
-            local hit = Draw.button(L, bx, y + 3, bw, btn, b.label, b.strong and "strong" or "normal", nil, "part",
-                b.tip and Draw.tip(p, { b.tip }) or nil)
-            hit.slot, hit.action = c.slot, b.id
-            bx = bx - 6
-        end
-        local ry = y + 3 + floor((btn - fh) / 2)
-        local nw = Draw.fit(L, c.name, tx, ry, math.max(0, bx - 4 - tx), p.bright)
-        if c.slim then
-            local ex = tx + nw + 10
-            Draw.fit(L, c.effect, ex, ry, math.max(0, bx - 6 - ex), p.dim)
-        else
-            local chipW = UI.textWidth(c.tier) + 12
-            local cx = tx + nw + 6
-            if cx + chipW <= bx - 4 then
-                Draw.rect(L, cx, ry + 1, chipW, fh - 2, c.empty and p.inset or p.title)
-                Draw.fit(L, c.tier, cx, ry, chipW, c.empty and p.dim or p.text, nil, nil, "centre")
-            end
-            local y2 = y + 3 + btn + 1
-            if c.empty then
-                Draw.fit(L, c.effect, tx, y2, right - tx, colour(p, c.effectTone))
-            else
-                local tone = colour(p, c.tone)
-                local pctW = UI.textWidth("100%") + 4
-                local lifeW = math.min(UI.textWidth(c.life), floor((right - tx) / 2))
-                local barW = right - tx - pctW - lifeW - 16
-                local by = y2 + floor((fh - BAR) / 2)
-                Draw.progress(L, tx, by, barW, BAR, c.frac, tone)
-                Draw.rect(L, tx + floor(barW * Data.WORN_BELOW / Data.CONDITION_MAX), by - 3, 1, BAR + 6, p.warn, 0.9)
-                Draw.fit(L, c.pct, tx + barW + 4, y2, pctW, tone, nil, nil, "right")
-                Draw.fit(L, c.life, right - lifeW, y2, lifeW, colour(p, c.lifeTone), nil, nil, "right")
-                Draw.fit(L, c.effect, tx, y2 + fh, right - tx, colour(p, c.effectTone))
-            end
-        end
-        y = y + h + CARD_GAP
+    local ch = cardHeight(L)
+    local ib = UI.iconSize(40, ch - 12)
+    Draw.panel(L, x, y, w, h)
+    if c.icon then Draw.item(L, c.icon, x + 10, y + floor((h - ib) / 2), ib, (c.broken or c.empty) and 0.45 or 1) end
+    y = y + floor((h - ch) / 2)
+    local tx = x + 10 + ib + 10
+    local right = x + w - 6
+    local bx = right
+    for k = #c.buttons, 1, -1 do
+        local b = c.buttons[k]
+        local bw = buttonWidth(b.label)
+        bx = bx - bw
+        local hit = Draw.button(L, bx, y + 3, bw, btn, b.label, b.strong and "strong" or "normal", nil, "part",
+            b.tip and Draw.tip(p, { b.tip }) or nil)
+        hit.slot, hit.action = c.slot, b.id
+        bx = bx - 6
     end
-    return y - CARD_GAP
+    local ry = y + 3 + floor((btn - fh) / 2)
+    local nw = Draw.fit(L, c.name, tx, ry, math.max(0, bx - 4 - tx), p.bright)
+    local chipW = UI.textWidth(c.tier) + 12
+    local cx = tx + nw + 6
+    if cx + chipW <= bx - 4 then
+        Draw.rect(L, cx, ry + 1, chipW, fh - 2, c.empty and p.inset or p.title)
+        Draw.fit(L, c.tier, cx, ry, chipW, c.empty and p.dim or p.text, nil, nil, "centre")
+    end
+    local y2 = y + 3 + btn + 1
+    if c.empty then
+        -- one line, in the middle of the two a part's card has under its name
+        Draw.fit(L, c.effect, tx, y2 + floor(fh / 2), right - tx, colour(p, c.effectTone))
+        return
+    end
+    local tone = colour(p, c.tone)
+    local pctW = UI.textWidth("100%") + 4
+    local lifeW = math.min(UI.textWidth(c.life), floor((right - tx) / 2))
+    local barW = right - tx - pctW - lifeW - 16
+    local by = y2 + floor((fh - BAR) / 2)
+    Draw.progress(L, tx, by, barW, BAR, c.frac, tone)
+    Draw.rect(L, tx + floor(barW * Data.WORN_BELOW / Data.CONDITION_MAX), by - 3, 1, BAR + 6, p.warn, 0.9)
+    Draw.fit(L, c.pct, tx + barW + 4, y2, pctW, tone, nil, nil, "right")
+    Draw.fit(L, c.life, right - lifeW, y2, lifeW, colour(p, c.lifeTone), nil, nil, "right")
+    Draw.fit(L, c.effect, tx, y2 + fh, right - tx, colour(p, c.effectTone))
 end
 
 -- The rain storage: a gauge with its marks, what it holds and has room for, and the game's own two ways with its water.
@@ -349,19 +367,34 @@ local function lure(L, u, x, y, w)
     return y + btn
 end
 
--- The two columns of a machine with parts, from y: the jobs and the bins (and the rain's or the lure's section, which no
--- kind with parts has) on the left, the parts on the right. Returns the lower end.
+-- The two columns of a machine with parts, from y, under their heads on one line: on the left the jobs and the bins,
+-- on the right a card a part, in rows: a row is as tall as the taller of its two blocks, both drawn that tall, so that
+-- the edges of the two columns line up (the jobs beside the motor, the bins beside the other parts). No kind with parts
+-- has the rain's or the lure's section. Returns the lower end.
 local function columns(L, m, x, y, w)
     local lw = Layout.LEFT
     local rx = x + lw + Layout.COLUMN_GAP
     local rw = w - lw - Layout.COLUMN_GAP
-    local ly, ry = y, y
-    if m.jobs then ly = jobs(L, m.jobs, x, ly, lw) end
-    if m.boxes and #m.boxes > 0 then ly = boxes(L, m.boxes, x, ly + (ly > y and Layout.GAP or 0), lw) end
-    if m.rain then ly = rain(L, m.rain, x, ly + Layout.SECTION, lw) end
-    if m.lure then ly = lure(L, m.lure, x, ly + Layout.SECTION, lw) end
-    if m.parts then ry = parts(L, m.parts, rx, ry, rw) end
-    return math.max(ly, ry)
+    local top = head(L, x, y, lw, getText("IGUI_OA_Machine_Jobs"), m.jobs and m.jobs.right)
+    head(L, rx, y, rw, getText("IGUI_OA_Machine_Parts"), getText("IGUI_OA_Machine_Parts_WornLine"))
+    local left, right = {}, {}
+    if m.jobs then
+        left[#left + 1] = { h = jobsHeight(L, m.jobs), draw = function(yy, hh) jobsPanel(L, m.jobs, x, yy, lw, hh) end }
+    end
+    for _, b in ipairs(m.boxes or {}) do
+        left[#left + 1] = { h = binHeight(L), draw = function(yy, hh) bin(L, b, x, yy, lw, hh) end }
+    end
+    for _, c in ipairs(m.parts) do
+        right[#right + 1] = { h = cardHeight(L), draw = function(yy, hh) card(L, c, rx, yy, rw, hh) end }
+    end
+    local yy = top
+    for k = 1, math.max(#left, #right) do
+        local hh = math.max(left[k] and left[k].h or 0, right[k] and right[k].h or 0)
+        if left[k] then left[k].draw(yy, hh) end
+        if right[k] then right[k].draw(yy, hh) end
+        yy = yy + hh + ROW_GAP
+    end
+    return yy - ROW_GAP
 end
 
 -- Lays a model out into a list for a body `width` wide (Layout.widthOf); returns the height it takes.
@@ -378,7 +411,6 @@ function Layout.build(L, m, width)
     if m.perf then y = perf(L, m.perf, x, y + Layout.SECTION, w) end
     if m.rain then y = rain(L, m.rain, x, y + Layout.SECTION, w) end
     if m.lure then y = lure(L, m.lure, x, y + Layout.SECTION, w) end
-    if m.parts then y = parts(L, m.parts, x, y + Layout.SECTION, w) end
     return y + Layout.PAD
 end
 
