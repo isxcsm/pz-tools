@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dust Preview</title>
+<title>Title Preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -41,8 +41,8 @@
       <label class="hint">속도 <select id="speed"><option>0.1</option><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option></select></label>
       <span class="time" id="time"></span>
     </div>
-    <div class="bar"><input type="range" id="scrub" min="0" max="1000" value="0"><span class="hint">사라지는 진행도 직접 조절</span></div>
-    <div class="hint">PZ Extension API의 Dust.java와 같은 수식(셀, 시드, 바람, 연소)과 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선, 배경 띠만 근사치입니다.</div>
+    <div class="bar"><input type="range" id="scrub" min="0" max="1000" value="0"><span class="hint">타임라인 직접 조절</span></div>
+    <div class="hint">PZ Extension API의 타이틀 스타일(Texts.java)과 dust(Dust.java)를 같은 수식, 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선만 근사치입니다. "새안"은 아직 게임에 없는 시안입니다.</div>
   </div>
   <div class="side" id="side"></div>
 </div>
@@ -52,7 +52,7 @@
 const P = {
   // text
   title: "2차 강화판 열림", sub: "세 트리의 마지막 강화를 모두 시험해",
-  tone: "gold", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 10, hold: 5, seed: 12345,
+  style: "dust-paper", tone: "style", sweep: "downleft", dustSize: 1, dustDrift: 1, leaveTime: 10, hold: 5, seed: 12345,
   burnOn: true, burnR: 1.0, burnG: 0.32, burnB: 0.10, backdrop: true, bg: "night",
   // schedule
   SWEEP: 0.35, JITTER: 0.25, WEATHER: 0.12, WEATHERED: 0.4, THIN: 0.22, HOLD: 0.25,
@@ -60,10 +60,11 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  zoom: 2, paper: true, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 1.3, SHINE: 1,
+  zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
-const CUTS = new Set(["title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
+const CUTS = new Set(["style", "hold", "title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
 const TONES = {
   dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
   gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
@@ -73,7 +74,71 @@ const TONES = {
 // fixed ones
 const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG = 0.08, CELL = 0.04, MIN_CELL = 1.5,
   MAX_CELLS = 4500, INK = 10, MARGIN = 0.2, PATCH = 6, FINE_PATCH = 2.5, EMBER_G = 0.84, EMBER_B = 0.62, ASH = 0.5;
-const STYLE = { titleSize: 0.085, subSize: 0.04, y: 0.28, gap: 0.3, trail: 0.3, enterTime: 1.2, subDelay: 0.35 };
+// The API's title styles (Texts.java Styles), and new ones tried here. Sizes are shares of the screen's height, the gap
+// in the title's lines, times in seconds; the line leaves trail seconds after the title.
+const STYLES = {
+  "stamp": { label: "stamp (게임 현재)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
+    line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
+  "stamp-new": { label: "stamp 새안: 각인", y: 0.28, gap: 0.25, trail: 0.1, backdrop: 0.3,
+    title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "lift", leaveTime: 0.8 },
+    line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "fade", leaveTime: 0.6 } },
+  "discovery": { label: "discovery (게임 현재)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
+    line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
+  "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
+    title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
+    line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
+  "unveil": { label: "unveil (게임 현재)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
+    title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, enter: "settle", enterTime: 1.4, leave: "fade", leaveTime: 1.0 },
+    line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], delay: 0.6, enter: "fade", enterTime: 1.0, leave: "fade", leaveTime: 1.0 } },
+  "dust": { label: "dust (게임 현재: 숯불 셀)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
+    line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
+  "dust-paper": { label: "dust 새안: 종이 연소 1", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+    title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" },
+    line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" } },
+};
+const crumbles = d => d.leave === "dust" || d.leave === "paper";
+const leaveTimeOf = d => crumbles(d) ? P.leaveTime : d.leaveTime;
+const cubicOut = p => 1 - (1 - p) ** 3;
+const backOut = p => { const c = 1.70158, q = p - 1; return 1 + (c + 1) * q * q * q + c * q * q; };
+// How a text comes in at its share in of its enter (secs: seconds since it began): its alpha a, scale s (sx, sy on top),
+// move x in pixels and y in its lines.
+function enterState(kind, i, secs, line) {
+  const st = { a: 1, s: 1, sx: 1, sy: 1, x: 0, y: 0 };
+  switch (kind) {
+    case "fade": st.a = smooth(i); break;
+    case "pop": st.a = Math.min(1, i * 2); st.s = 0.5 + 0.5 * backOut(i); break;
+    case "slam": st.a = Math.min(1, i * 3); st.s = 1 + 1.5 * (1 - i * i); break;
+    case "settle": st.a = smooth(i); st.y = -0.3 * (1 - cubicOut(i)); break;
+    case "rise": st.a = cubicOut(i); st.y = 0.75 * (1 - cubicOut(i)); break;
+    case "drop": st.a = cubicOut(i); st.y = -0.75 * (1 - cubicOut(i)); break;
+    case "slideup": st.a = cubicOut(i); st.y = 0.4 * (1 - cubicOut(i)); break;
+    case "impact": {
+      // falls onto the screen, faster and faster, and hits: a squash that rings out, a shake
+      if (secs < IMPACT) { const u = secs / IMPACT; st.s = 1.45 - 0.45 * u * u; st.a = Math.min(1, u * 2.5); break; }
+      const k = secs - IMPACT, ring = Math.exp(-k * 18);
+      st.sy = 1 - 0.07 * ring * Math.cos(k * 40); st.sx = 1 + 0.04 * ring * Math.cos(k * 40);
+      const shake = Math.exp(-k * 14);
+      st.x = 0.03 * line * shake * Math.sin(k * 70); st.y = 0.02 * shake * Math.cos(k * 55);
+      break;
+    }
+  }
+  return st;
+}
+function leaveState(kind, o, st) {
+  switch (kind) {
+    case "fade": st.a *= 1 - smooth(o); break;
+    case "rise": st.a *= 1 - o; st.y -= 0.5 * o; break;
+    case "sink": st.a *= 1 - o; st.y += 0.5 * o; break;
+    case "grow": st.a *= 1 - o; st.s *= 1 + 0.3 * o; break;
+    case "shrink": st.a *= 1 - o; st.s *= 1 - 0.5 * o; break;
+    case "lift": st.a *= 1 - smooth(o); st.y -= 0.25 * cubicOut(o); st.s *= 1 + 0.05 * o; break;
+  }
+  return st;
+}
+const IMPACT = 0.16;
 
 // ---------------------------------------------------------------- Dust.java's arithmetic
 const M64 = (1n << 64n) - 1n;
@@ -193,7 +258,7 @@ void main() { vUv = uv; vCol = col; vAux = aux; vec2 p = (pos - camera.xy) * cam
 // mode 2: a flake of ash, an irregular shard.
 const FS = `precision highp float;
 uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, edgeW, charW, scorchW, glow, flickerN, flickerD;
-uniform vec3 burn, scorched, charred; uniform vec2 picSize;
+uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -226,10 +291,32 @@ void main() {
     gl_FragColor = vec4(outc * a, a * (1.0 - glow * hot)) * vCol.a;
     return;
   }
-  vec2 l = vAux.xy;
-  float n = vn(l * 2.3 + vAux.z * 37.0) + 0.5 * vn(l * 5.0 + vAux.z * 11.0);
-  float m = smoothstep(0.95, 0.6, length(l) + (n - 0.75) * 0.75);
-  gl_FragColor = vCol * m;
+  if (mode < 2.5) {
+    vec2 l = vAux.xy;
+    float n = vn(l * 2.3 + vAux.z * 37.0) + 0.5 * vn(l * 5.0 + vAux.z * 11.0);
+    float m = smoothstep(0.95, 0.6, length(l) + (n - 0.75) * 0.75);
+    gl_FragColor = vCol * m;
+    return;
+  }
+  if (mode < 3.5) {                       // the picture's shape in a colour (alpha 0: light added)
+    float a = texture2D(tex, vUv).a;
+    gl_FragColor = vec4(vCol.rgb * a, vCol.a * a);
+    return;
+  }
+  if (mode < 4.5) {                       // a soft round puff
+    float m = 1.0 - smoothstep(0.0, 1.0, length(vAux.xy));
+    gl_FragColor = vCol * m * m;
+    return;
+  }
+  if (mode < 5.5) {                       // a band of light passing over the picture's shape
+    float a = texture2D(tex, vUv).a;
+    float d = (vUv.x + vUv.y * 0.35) - progress;
+    gl_FragColor = vec4(vCol.rgb * a * exp(-d * d / (edgeW * edgeW)), 0.0);
+    return;
+  }
+  vec2 f = clamp((abs(vAux.xy) - inner) / (1.0 - inner), 0.0, 1.0);   // the backdrop: a box fading out to its sides
+  f = f * f * (3.0 - 2.0 * f);
+  gl_FragColor = vec4(0.0, 0.0, 0.0, vCol.a * (1.0 - f.x) * (1.0 - f.y));
 }`;
 function shader(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(s); return s; }
 const prog = gl.createProgram();
@@ -355,22 +442,24 @@ function makeBand() {
 }
 
 // A text's picture: drawn with its shadow and outline into a box with the margin, cut into cells.
-function piece(text, line, colour, centreY, seed) {
+function piece(text, line, colour, centreY, seed, spec) {
   const fontPx = line * 0.78, margin = MARGIN * line;
   const m = document.createElement("canvas").getContext("2d");
-  m.font = `400 ${fontPx}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
+  m.font = `${spec.italic ? "italic " : ""}${spec.weight} ${fontPx}px "Noto Sans KR", "Malgun Gothic", sans-serif`;
   const w = Math.ceil(m.measureText(text).width + 2 * margin), h = Math.ceil(line + 2 * margin);
   const c = document.createElement("canvas"); c.width = w; c.height = h;
   const g = c.getContext("2d");
   g.font = m.font; g.textAlign = "center"; g.textBaseline = "middle";
   const cx = w / 2, cy = h / 2, sh = Math.max(1, line * 0.025);
   g.fillStyle = "rgba(0,0,0,0.75)"; g.fillText(text, cx + sh, cy + sh);
-  g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = "rgba(0,0,0,0.35)"; g.strokeText(text, cx, cy);
+  if (spec.outline) { g.lineJoin = "round"; g.lineWidth = Math.max(2, line * 0.025); g.strokeStyle = `rgba(0,0,0,${spec.outline})`; g.strokeText(text, cx, cy); }
   g.fillStyle = `rgb(${colour.map(v => Math.round(v * 255)).join(",")})`; g.fillText(text, cx, cy);
+  const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, tex: texture(c), spec,
+    cx: view.width / 2, cy: centreY, ink: m.measureText(text).width };
+  if (!crumbles(spec)) return p;
   const data = g.getImageData(0, 0, w, h).data;
   const cellSide = Math.max(MIN_CELL, line * CELL * P.dustSize);
-  const cells = cut(data, w, h, cellSide, P.sweep, seed);
-  const p = { x: Math.round(view.width / 2 - w / 2), y: Math.round(centreY - h / 2), w, h, line, cells, tex: texture(c) };
+  const cells = p.cells = cut(data, w, h, cellSide, P.sweep, seed);
   // Paper: each spot burns at its time on the map; a cell's flake leaves as its middle burns.
   const map = burnMap(w, h, cellSide, seed);
   p.burnTex = texture(null, encode(map, w, h));
@@ -426,14 +515,72 @@ function drawPaper(p, progress, fade) {
 }
 
 function rebuild() {
-  for (const p of pieces) { gl.deleteTexture(p.tex); gl.deleteTexture(p.burnTex); }
-  const H = view.height, tl = STYLE.titleSize * H, sl = STYLE.subSize * H;
-  const tone = TONES[P.tone], anchor = STYLE.y * H;
+  for (const p of pieces) { gl.deleteTexture(p.tex); if (p.burnTex) gl.deleteTexture(p.burnTex); }
+  const S = STYLES[P.style], H = view.height, tl = S.title.size * H, sl = S.line.size * H, anchor = S.y * H;
+  const tone = P.tone === "style" ? [S.title.color, S.line.color] : TONES[P.tone];
   const seed = BigInt(P.seed) * 0x9E3779B97F4A7C15n & M64;
-  pieces = [piece(P.title, tl, tone[0], anchor, seed)];
-  if (P.sub) pieces.push(piece(P.sub, sl, tone[1], anchor + tl / 2 + STYLE.gap * tl + sl / 2, seed ^ 0x1234567n));
-  pieces[0].enter = 0; pieces[0].trail = 0;
-  if (pieces[1]) { pieces[1].enter = STYLE.subDelay; pieces[1].trail = STYLE.trail; }
+  const leaving = S.title.enterTime + P.hold;
+  const title = piece(P.title, tl, tone[0], anchor, seed, S.title);
+  title.delay = 0; title.leaveAt = leaving;
+  pieces = [title];
+  if (P.sub) {
+    const line = piece(P.sub, sl, tone[1], anchor + tl / 2 + S.gap * tl + sl / 2, seed ^ 0x1234567n, S.line);
+    line.delay = S.line.delay; line.leaveAt = leaving + S.trail;
+    pieces.push(line);
+  }
+  // the impact's puff of dust: kicked out from under the letters to the sides
+  title.puff = [];
+  for (let i = 0; i < 46; i++) {
+    const r = k => hash(i, k, 77);
+    const x0 = (r(1) - 0.5) * 0.9 * title.ink, side = x0 < 0 ? -1 : 1;
+    title.puff.push({ x0, y0: 0.3 * tl, vx: side * (0.3 + 0.9 * r(2)) + 1.2 * x0 / title.ink, vy: -(0.05 + 0.35 * r(3)), size: 0.05 + 0.08 * r(4), life: 0.9 + 0.5 * r(5) });
+  }
+}
+const timeline = () => Math.max(...pieces.map(p => p.leaveAt + leaveTimeOf(p.spec))) + 0.4;
+
+// The impact's light and dust over the title (secs since it began, la: how much of it is left as it leaves).
+function drawImpact(p, st, secs, la) {
+  if (secs < IMPACT) return;
+  const k = secs - IMPACT, cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, sx = st.s * st.sx, sy = st.s * st.sy;
+  const box = (dx, dy, r, g, b) => { const hw = p.w * sx / 2, hh = p.h * sy / 2; quad(cx + dx - hw, cy + dy - hh, cx + dx + hw, cy + dy + hh, 0, 0, 1, 1, r, g, b, 0); };
+  // white-hot letters cooling, and their glow
+  const hot = Math.exp(-k * P.IMPACT_COOL) * la;
+  if (hot > 0.01) {
+    mode = 3;
+    box(0, 0, hot, 0.92 * hot, 0.75 * hot);
+    const r = p.line * 0.05 * (1 + 2 * k), glow = 0.1 * hot * P.IMPACT_GLOW;
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, glow, 0.8 * glow, 0.5 * glow); }
+    flush(p.tex);
+  }
+  // a streak of light across, widening
+  const streak = P.IMPACT_STREAK * Math.exp(-k * 5) * la;
+  if (streak > 0.01) {
+    mode = 3;
+    const wide = p.ink * (0.5 + 1.3 * (1 - Math.exp(-k * 7))), high = p.line * 0.07 * (1 + k), y = cy + p.line * 0.05;
+    quad(cx - wide / 2, y - high / 2, cx + wide / 2, y + high / 2, 0, 0, 1, 1, streak, 0.9 * streak, 0.75 * streak, 0);
+    quad(cx - wide * 0.35, y - high * 0.18, cx + wide * 0.35, y + high * 0.18, 0, 0, 1, 1, streak, streak, streak, 0);
+    flush(bandTex);
+  }
+  // dust kicked up
+  mode = 4;
+  for (const q of p.puff) {
+    if (k > q.life) continue;
+    const e = (1 - Math.exp(-3.2 * k)) / 3.2, fade = 0.3 * P.IMPACT_DUST * Math.pow(1 - k / q.life, 1.5) * la;
+    const x = cx + q.x0 + q.vx * e * p.line, y = cy + q.y0 + q.vy * e * p.line + 0.1 * p.line * k * k, hs = p.line * q.size * (1 + 1.5 * k);
+    shard(x, y, hs, 0, 1, 0.8 * fade, 0.78 * fade, 0.74 * fade, fade, 0);
+  }
+  flush(p.tex);
+  // a gleam passing over the letters once they have settled
+  const at = (secs - P.SHINE_AT) / 0.8;
+  if (at > 0 && at < 1) {
+    mode = 5;
+    gl.uniform1f(U("progress"), -0.3 + 1.6 * at); gl.uniform1f(U("edgeW"), 0.12);
+    const s = 0.85 * P.SHINE * la, r = p.line * 0.035, halo = 0.22 * s;
+    box(0, 0, s, 0.97 * s, 0.9 * s);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 2 * Math.PI; box(Math.cos(a) * r, Math.sin(a) * r, halo, 0.95 * halo, 0.85 * halo); }
+    flush(p.tex);
+  }
+  mode = 0;
 }
 
 const tint = [0, 0, 0];
@@ -500,34 +647,59 @@ function drawDust(p, progress, fade) {
 
 // ---------------------------------------------------------------- the clock
 let t = 0, playing = true, last = performance.now(), scrubbing = false;
-const leaveStart = () => STYLE.enterTime + P.hold;
-const total = () => leaveStart() + STYLE.trail + P.leaveTime + 0.5;
+const leaveStart = () => pieces[0] ? pieces[0].leaveAt : 0;
 function frame(now) {
   const dt = (now - last) / 1000; last = now;
-  if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > total()) t = total(); }
+  const end = timeline();
+  if (playing && !scrubbing) { t += dt * Number(document.getElementById("speed").value); if (t > end) t = end; }
   gl.viewport(0, 0, view.width, view.height);
   gl.uniform2f(loc.screen, view.width, view.height);
   gl.disable(gl.BLEND);
   gl.uniform3f(U("camera"), view.width / 2, view.height / 2, 1);
+  mode = 0;
   quad(0, 0, view.width, view.height, 0, 0, 1, 1, 1, 1, 1, 1); flush(bgTex);
-  gl.uniform3f(U("camera"), view.width / 2, P.zoom > 1 ? STYLE.y * view.height + STYLE.titleSize * view.height * 0.6 : view.height / 2, P.zoom);
+  const S = STYLES[P.style];
+  gl.uniform3f(U("camera"), view.width / 2, P.zoom > 1 ? S.y * view.height + S.title.size * view.height * 0.6 : view.height / 2, P.zoom);
   gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  const first = pieces[0];
+  // each text as it is now: before it, coming in, staying, leaving (as a move, or crumbling), gone
+  const states = pieces.map(p => {
+    const d = p.spec, secs = t - p.delay, leave = p.leaveAt - p.delay;
+    if (secs < 0) return null;
+    const out = secs >= leave ? (secs - leave) / leaveTimeOf(d) : 0;
+    if (out >= 1) return null;
+    const inn = d.enterTime > 0 ? Math.min(1, Math.min(secs, leave) / d.enterTime) : 1;
+    const st = enterState(d.enter, inn, Math.min(secs, leave), p.line);
+    st.secs = secs; st.out = out; st.left = 1;
+    if (!crumbles(d)) { const before = st.a; leaveState(d.leave, out, st); st.left = before > 0 ? st.a / before : 0; }
+    return st;
+  });
+  // the backdrop: over the title and its line, as strong as the title is seen (a crumbling one takes it with it)
+  const first = states[0];
   if (P.backdrop && first) {
-    const enterA = clamp(t / STYLE.enterTime, 0, 1), out = clamp((t - leaveStart()) / P.leaveTime, 0, 1);
-    const seen = 0.3 * smooth(enterA) * (1 - smooth(out));
-    const last = pieces[pieces.length - 1], top = first.y, bottom = last.y + last.h, wide = Math.max(...pieces.map(p => p.w)) * 1.5;
-    quad(view.width / 2 - wide / 2, top - 10, view.width / 2 + wide / 2, bottom + 10, 0, 0, 1, 1, seen, seen, seen, seen); flush(bandTex);
+    const tp = pieces[0], seen = crumbles(tp.spec) ? first.a * (1 - smooth(first.out)) : first.a;
+    const low = tp.cx - Math.max(...pieces.map(p => p.ink)) / 2, high = tp.cx + Math.max(...pieces.map(p => p.ink)) / 2;
+    const top = tp.cy - tp.line / 2, lastP = pieces[pieces.length - 1], bottom = lastP.cy + lastP.line / 2;
+    const side = 2.6 * tp.line, endH = 1.0 * tp.line;
+    gl.uniform2f(U("inner"), (high - low) / (high - low + 2 * side), (bottom - top) / (bottom - top + 2 * endH));
+    mode = 6;
+    shard((low + high) / 2, (top + bottom) / 2, (high - low) / 2 + side, 0, (bottom - top + 2 * endH) / (high - low + 2 * side), 0, 0, 0, S.backdrop * seen, 0);
+    flush(bandTex);
+    mode = 0;
   }
-  for (const p of pieces) {
-    const enterA = smooth(clamp((t - p.enter) / STYLE.enterTime, 0, 1));
-    const out = (t - leaveStart() - p.trail) / P.leaveTime;
-    if (out <= 0) { if (enterA > 0) { quad(p.x, p.y, p.x + p.w, p.y + p.h, 0, 0, 1, 1, enterA, enterA, enterA, enterA); flush(p.tex); } }
-    else if (out < 1) { if (P.paper) drawPaper(p, out, 1); else { drawDust(p, out, 1); flush(p.tex); } }
-  }
-  const out = clamp((t - leaveStart()) / P.leaveTime, 0, 1);
-  document.getElementById("time").textContent = `${t.toFixed(2)}s · 사라짐 ${(out * 100).toFixed(0)}%`;
-  if (!scrubbing) document.getElementById("scrub").value = Math.round(out * 1000);
+  pieces.forEach((p, i) => {
+    const st = states[i];
+    if (!st) return;
+    if (crumbles(p.spec) && st.out > 0) {
+      if (p.spec.leave === "paper") drawPaper(p, st.out, 1); else { drawDust(p, st.out, 1); flush(p.tex); }
+      return;
+    }
+    const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
+    if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
+    if (p.spec.enter === "impact") drawImpact(p, st, st.secs, st.left);
+  });
+  const out = clamp((t - leaveStart()) / leaveTimeOf(pieces[0].spec), 0, 1);
+  document.getElementById("time").textContent = `${t.toFixed(2)}s / ${end.toFixed(1)}s · 사라짐 ${(out * 100).toFixed(0)}%`;
+  if (!scrubbing) document.getElementById("scrub").value = Math.round(t / end * 1000);
   requestAnimationFrame(frame);
 }
 
@@ -552,16 +724,23 @@ function control(key, label, kind, opts) {
     P[key] = kind === "range" ? Number(input.value) : kind === "check" ? input.checked : input.value;
     if (kind === "range") value.textContent = P[key];
     if (key === "bg") makeBackground();
+    if (key === "style") {
+      const leave = STYLES[P.style].title.leave;
+      if (crumbles(STYLES[P.style].title)) { P.leaveTime = leave === "paper" ? 10 : 6; controls.leaveTime.input.value = P.leaveTime; controls.leaveTime.value.textContent = P.leaveTime; }
+      t = 0; playing = true;
+    }
     if (CUTS.has(key)) rebuild();
   });
   row.appendChild(input); row.appendChild(value); side.appendChild(row);
   controls[key] = { input, value, kind };
 }
 const controls = {};
+heading("스타일");
+control("style", "스타일", "select", Object.entries(STYLES).map(([k, s]) => [k, s.label]));
 heading("글자");
 control("title", "제목", "text");
 control("sub", "부제", "text");
-control("tone", "색", "select", [["gold", "금색 (gold)"], ["green", "초록 (green)"], ["red", "빨강 (red)"], ["dust", "dust 기본"]]);
+control("tone", "색", "select", [["style", "스타일 기본색"], ["gold", "금색 (gold)"], ["green", "초록 (green)"], ["red", "빨강 (red)"]]);
 control("bg", "배경", "select", [["night", "밤 장면"], ["bright", "낮 장면"], ["black", "검정"], ["grey", "회색"]]);
 const file = document.createElement("label"); file.className = "row";
 file.innerHTML = '<span>배경 이미지</span><input type="file" accept="image/*"><span class="v"></span>';
@@ -572,9 +751,9 @@ file.querySelector("input").addEventListener("change", e => {
 side.appendChild(file);
 control("backdrop", "배경 띠", "check");
 control("zoom", "확대", "range", [1, 4, 0.25]);
-heading("사라짐");
+heading("머무름과 dust 사라짐");
 control("sweep", "방향", "select", SWEEPS.map(s => [s, s]));
-control("leaveTime", "시간(초)", "range", [1, 20, 0.5]);
+control("leaveTime", "dust 사라지는 시간(초)", "range", [1, 20, 0.5]);
 control("hold", "머무름(초)", "range", [0, 6, 0.5]);
 control("dustSize", "셀 크기", "range", [0.25, 4, 0.05]);
 control("dustDrift", "날림 거리", "range", [0, 4, 0.05]);
@@ -584,8 +763,14 @@ control("JITTER", "JITTER", "range", [0, 0.4, 0.01]);
 control("WEATHER", "WEATHER", "range", [0.02, 0.4, 0.01]);
 control("THIN", "THIN", "range", [0, 0.6, 0.01]);
 control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
-heading("종이처럼 타기 (새 방식)");
-control("paper", "종이 방식", "check");
+heading("stamp 새안: 각인");
+control("IMPACT_COOL", "달군 빛 식는 속도", "range", [1, 12, 0.5]);
+control("IMPACT_GLOW", "번짐 빛", "range", [0, 3, 0.05]);
+control("IMPACT_STREAK", "가로 섬광", "range", [0, 2, 0.05]);
+control("IMPACT_DUST", "먼지", "range", [0, 3, 0.05]);
+control("SHINE_AT", "광택 지나는 때(초)", "range", [0.4, 5, 0.1]);
+control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
+heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
 control("EDGE_W", "불꽃 테두리 폭", "range", [0.002, 0.05, 0.001]);
@@ -598,7 +783,7 @@ control("FLAKE_SIZE", "재 조각 크기", "range", [0.3, 3, 0.05]);
 control("SPIN", "재 회전", "range", [0, 20, 0.5]);
 control("PAPER_ASH", "재 밝기", "range", [0, 1, 0.01]);
 control("GREYING", "재가 바래는 시간", "range", [0.05, 1, 0.01]);
-heading("타기 (dustBurn, 지금 게임 방식은 '종이 방식' 끄기)");
+heading("dust 게임 현재: 숯불 셀 (dustBurn)");
 control("burnOn", "타기 켜기", "check");
 control("burnR", "불씨 R", "range", [0, 1, 0.01]);
 control("burnG", "불씨 G", "range", [0, 1, 0.01]);
@@ -649,7 +834,8 @@ const NOT_EFFECT = new Set(["title", "sub", "bg", "zoom"]);
 const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]) => !NOT_EFFECT.has(k)));
 const BUILT_IN = {
   "종이 연소 1": effectOf(DEFAULTS),
-  "숯불 셀 (지금 게임)": { ...effectOf(DEFAULTS), paper: false, leaveTime: 6, CHAR_ASH: 0.2 },
+  "숯불 셀 (dust 게임 현재)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
+  "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
 };
 const STORE = "dust-preview-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }
@@ -660,7 +846,7 @@ function apply(values) {
     if (c.kind === "check") c.input.checked = P[key]; else c.input.value = P[key];
     if (c.kind === "range") c.value.textContent = P[key];
   }
-  makeBackground(); rebuild(); t = leaveStart(); playing = true;
+  makeBackground(); rebuild(); t = crumbles(STYLES[P.style].title) ? leaveStart() : 0; playing = true;
 }
 const presetBar = document.createElement("div"); presetBar.className = "bar";
 const presetList = document.createElement("select"); presetList.style.flex = "1";
@@ -699,7 +885,7 @@ document.getElementById("play").addEventListener("click", () => { t = 0; playing
 document.getElementById("leaveNow").addEventListener("click", () => { t = leaveStart(); playing = true; });
 document.getElementById("pause").addEventListener("click", e => { playing = !playing; e.target.textContent = playing ? "일시정지" : "계속"; });
 const scrub = document.getElementById("scrub");
-scrub.addEventListener("input", () => { scrubbing = true; t = leaveStart() + scrub.value / 1000 * P.leaveTime; });
+scrub.addEventListener("input", () => { scrubbing = true; t = scrub.value / 1000 * timeline(); });
 scrub.addEventListener("change", () => { scrubbing = false; playing = false; document.getElementById("pause").textContent = "계속"; });
 
 makeBand();
