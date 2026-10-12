@@ -75,6 +75,7 @@ final class TextsTest {
             typingCost(text, mod);
             takeover(api, text, mod);
             takeoverTyped(api, text, mod);
+            LooksTest.run(text, mod);
             DustTest.run(api, text, mod);
             System.out.println("PASS: text a mod shows is drawn with the interface, zoomed, faded and moved on each player's screen; titles follow one another; text types, fits a width and carries colours");
         } finally {
@@ -914,12 +915,13 @@ final class TextsTest {
         double found = (Double)FormulasTest.call(text, "title", mod, table("text", "Search complete", "subtitle", "3 items", "style", "discovery")).get(0);
         render();
         check(draws().isEmpty(), "A stamp starts seen, or the second title did not wait");
-        advance(0.22);
+        // (Its picture is never made here, the render thread not running: the text is drawn as it is.)
+        advance(1.2);
         zombie.core.SpriteRenderer.shaded.clear();
         render();
         Object[] title = last("Quest complete"), line = last("The well is clean");
-        // One black backdrop for the title and its line, in one layer: the box (0.3 over it, reaching to the line's bottom at 0.4
-        // of 900) and four rings of eight quads round it, shaded to nothing at the outside (2.6 lines to the sides).
+        // One black backdrop for the title and its line, in one layer, come in over 1.2 s: the box (0.3 over it, reaching to the
+        // line's bottom at 0.4 of 900) and four rings of eight quads round it, shaded to nothing at the outside (2.6 lines to the sides).
         var quads = new ArrayList<>(zombie.core.SpriteRenderer.shaded);
         Object[] box = quads.isEmpty() ? null : quads.get(0);
         boolean black = true, outsideClear = true;
@@ -932,15 +934,15 @@ final class TextsTest {
         check(quads.size() == 33 && black && outsideClear && near((Float)box[9], 0.3) && near((Float)box[11], 0.3) && near((Double)box[6], 0.4 * 900)
             && near((Double)box[1] - leftmost, 2.6 * 90), "The title's backdrop is wrong: " + quads.size() + " quads");
         double zoom = 0.1 * 900 / 45, lineZoom = 0.045 * 900 / 45;
-        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 0.28 * 900 - 45 * zoom / 2, zoom, "Quest complete", 1, 1, 1, 1);
+        drawn(title, UIFont.SdfBold, 800 - 14 * 20 * zoom / 2, 0.28 * 900 - 45 * zoom / 2, zoom, "Quest complete", 0.9, 0.89, 0.86, 1);
         check(line != null && line[1] == UIFont.SdfRegular && near(zoom(line), lineZoom)
             && near((Double)line[3], (0.28 + 0.1 / 2 + 0.1 * 0.25 + 0.045 / 2) * 900 - 45 * lineZoom / 2), "The line under the title is not under it");
         check(last("Search complete") == null, "The second title did not wait");
-        // The stamp and its line go together, after 0.22 + 5 + 0.7 seconds.
-        advance(5.6);
+        // The stamp and its line go together, after 0.6 + 5 + 6 seconds (the line 0.4 s after the title, for 5.6).
+        advance(8.8);
         render();
         check(last("Quest complete") != null && last("The well is clean") != null, "The stamp went early");
-        advance(0.11);
+        advance(1.61);
         render();
         check(last("Quest complete") == null && last("The well is clean") == null && last("Search complete") == null, "The stamp outlived its time, or the next did not wait for it");
         check(!(Boolean)FormulasTest.call(text, "shown", mod, quest).get(0) && (Boolean)FormulasTest.call(text, "shown", mod, found).get(0), "shown is wrong");
@@ -948,7 +950,7 @@ final class TextsTest {
         advance(0.6);
         render();
         Object[] search = last("Search complete");
-        check(search != null && search[1] == UIFont.SdfRobertoSans && near((Double)search[6], 1) && near((Double)search[7], 0.8) && near((Double)search[8], 0.38),
+        check(search != null && search[1] == UIFont.SdfBold && near((Double)search[6], 1) && near((Double)search[7], 0.8) && near((Double)search[8], 0.38),
             "The discovery is not amber in its own font");
 
         // Now: the title on the screen leaves quickly, and this one follows.
@@ -1010,7 +1012,7 @@ final class TextsTest {
             render();
             advance(0.35);
             render();
-            check(last("Second") != null && near((Double)last("Second")[3] - 450, 0.2 * 450 - 0.036 * 450 * 45 / 45 / 2), "The second title is not on its screen");
+            check(last("Second") != null && near((Double)last("Second")[3] - 450, 0.2 * 450 - 0.04 * 450 * 45 / 45 / 2), "The second title is not on its screen");
             FormulasTest.call(text, "hide", mod, own, true);
         } finally {
             IsoPlayer.players[1] = null;

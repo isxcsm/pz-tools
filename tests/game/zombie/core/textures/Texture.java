@@ -14,6 +14,10 @@ public class Texture implements zombie.interfaces.ITexture {
     /** How many times a picture was asked for by path. */
     public static int loads;
     public static int lastTextureID;
+    private static int ids;
+    /** Its name in video memory. */
+    private final int id = ++ids;
+    public int getID() { return id; }
     private final String name;
     private int width, height;
     public boolean ready = true, failed;

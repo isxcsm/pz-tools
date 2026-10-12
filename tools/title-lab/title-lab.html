@@ -42,7 +42,7 @@
       <span class="time" id="time"></span>
     </div>
     <div class="bar"><input type="range" id="scrub" min="0" max="1000" value="0"><span class="hint">타임라인 직접 조절</span></div>
-    <div class="hint">PZ Extension API의 타이틀 스타일(Texts.java)과 dust(Dust.java)를 같은 수식, 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선만 근사치입니다. "새안"은 아직 게임에 없는 시안입니다.</div>
+    <div class="hint">PZ Extension API의 타이틀 스타일(Texts.java), 룩(Looks.java), dust(Dust.java)를 같은 수식, 같은 셰이더, 같은 합성(premultiplied)으로 그립니다. 글꼴 모양, 그림자, 외곽선만 근사치입니다. "이전"은 바뀌기 전 스타일입니다.</div>
   </div>
   <div class="side" id="side"></div>
 </div>
@@ -77,34 +77,34 @@ const RISE = 2.0, SIDE = 4.5, SWIRL_X = 0.15, SWIRL_Y = 0.3, CATCH = 0.12, SAG =
 // The API's title styles (Texts.java Styles), and new ones tried here. Sizes are shares of the screen's height, the gap
 // in the title's lines, times in seconds; the line leaves trail seconds after the title.
 const STYLES = {
-  "stamp": { label: "stamp (게임 현재)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
+  "stamp": { label: "stamp (이전)", y: 0.28, gap: 0.25, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [1, 1, 1], outline: 0.45, enter: "slam", enterTime: 0.22, leave: "grow", leaveTime: 0.7 },
     line: { weight: 400, size: 0.045, color: [0.88, 0.88, 0.88], delay: 0.2, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.7 } },
-  "stamp-new": { label: "stamp 새안: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
+  "stamp-new": { label: "stamp: 각인", y: 0.28, gap: 0.25, trail: 0.4, backdrop: 0.3,
     title: { weight: 700, size: 0.1, color: [0.9, 0.89, 0.86], outline: 0.45, enter: "impact", enterTime: 0.6, leave: "erode", leaveTime: 6 },
     line: { weight: 400, size: 0.045, color: [0.9, 0.9, 0.88], delay: 0.45, enter: "slideup", enterTime: 0.5, leave: "erode", leaveTime: 5.6 } },
-  "discovery": { label: "discovery (게임 현재)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
+  "discovery": { label: "discovery (이전)", y: 0.28, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, italic: true, size: 0.08, color: [1, 0.8, 0.38], enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], delay: 0.25, enter: "rise", enterTime: 0.6, leave: "rise", leaveTime: 0.9 } },
-  "discovery-new": { label: "discovery 새안: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
+  "discovery-new": { label: "discovery: 손전등", y: 0.28, gap: 0.3, trail: 0.15, backdrop: 0.3,
     title: { weight: 700, size: 0.08, color: [1, 0.8, 0.38], outline: 0.35, lit: true, enter: "torch", enterTime: 2.2, leave: "dim", leaveTime: 4.5 },
     line: { weight: 400, size: 0.042, color: [1, 0.93, 0.78], lit: true, delay: 1.5, enter: "slideup", enterTime: 0.8, leave: "dim", leaveTime: 4.3 } },
-  "notice-new": { label: "notice 새안: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
+  "notice-new": { label: "notice: 무전", y: 0.2, gap: 0.3, trail: 0.1, backdrop: 0.3,
     title: { weight: 700, size: 0.04, color: [0.88, 0.93, 1], radio: true, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.5 },
     line: { weight: 400, size: 0.028, color: [0.76, 0.82, 0.9], radio: true, delay: 0.25, enter: "signal", enterTime: 0.7, leave: "lost", leaveTime: 4.3 } },
-  "notice": { label: "notice (게임 현재)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
+  "notice": { label: "notice (이전)", y: 0.2, gap: 0.3, trail: 0, backdrop: 0.3,
     title: { weight: 700, size: 0.036, color: [0.92, 0.95, 1], enter: "drop", enterTime: 0.35, leave: "fade", leaveTime: 0.6 },
     line: { weight: 400, size: 0.026, color: [0.8, 0.84, 0.9], delay: 0.1, enter: "fade", enterTime: 0.35, leave: "fade", leaveTime: 0.6 } },
-  "unveil-new": { label: "unveil 새안: 안개 걷힘", y: 0.28, gap: 0.35, trail: 0.3, backdrop: 0.3,
+  "unveil-new": { label: "unveil: 안개 걷힘", y: 0.28, gap: 0.35, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, fog: true, enter: "mist", enterTime: 3.6, leave: "mistin", leaveTime: 5 },
     line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], fog: true, delay: 1.2, enter: "mist", enterTime: 3.0, leave: "mistin", leaveTime: 4.8 } },
-  "unveil": { label: "unveil (게임 현재)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
+  "unveil": { label: "unveil (이전)", y: 0.28, gap: 0.35, trail: 0, backdrop: 0.3,
     title: { weight: 400, size: 0.075, color: [0.96, 0.93, 0.86], outline: 0.35, enter: "settle", enterTime: 1.4, leave: "fade", leaveTime: 1.0 },
     line: { weight: 400, size: 0.036, color: [0.84, 0.83, 0.8], delay: 0.6, enter: "fade", enterTime: 1.0, leave: "fade", leaveTime: 1.0 } },
-  "dust": { label: "dust (게임 현재: 숯불 셀)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+  "dust": { label: "leave dust: 숯불 셀 (dustBurn)", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "dust" } },
-  "dust-paper": { label: "dust 새안: 종이 연소 1", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
+  "dust-paper": { label: "dust: 종이 연소", y: 0.28, gap: 0.3, trail: 0.3, backdrop: 0.3,
     title: { weight: 400, size: 0.085, color: [0.97, 0.95, 0.9], outline: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" },
     line: { weight: 400, size: 0.04, color: [0.86, 0.85, 0.82], delay: 0.35, enter: "fade", enterTime: 1.2, leave: "paper" } },
 };
@@ -314,7 +314,7 @@ void main() {
   if (mode < 2.5) {
     vec2 l = vAux.xy;
     float n = vn(l * 2.3 + vAux.z * 37.0) + 0.5 * vn(l * 5.0 + vAux.z * 11.0);
-    float m = smoothstep(0.95, 0.6, length(l) + (n - 0.75) * 0.75);
+    float m = 1.0 - smoothstep(0.6, 0.95, length(l) + (n - 0.75) * 0.75);
     gl_FragColor = vCol * m;
     return;
   }
@@ -377,7 +377,7 @@ void main() {
     vec3 col = c.rgb / a;
     vec2 d = (vUv - torch.xy) * vec2(1.0, picSize.y / picSize.x);
     float beam = 1.0 - smoothstep(0.35, 1.0, length(d) / torch.z);
-    float trail = smoothstep(reveal + 0.02, reveal - 0.3, vUv.x) * remain;
+    float trail = (1.0 - smoothstep(reveal - 0.3, reveal + 0.02, vUv.x)) * remain;
     float seen = clamp(max(beam, trail), 0.0, 1.0);
     col = col * mix(vec3(0.55, 0.32, 0.14), vec3(1.0), light) * light + vec3(1.0, 0.86, 0.6) * beam * 0.22 * light;
     gl_FragColor = vec4(col * a * seen, a * seen) * ember * vCol.a;
@@ -1016,7 +1016,7 @@ control("JITTER", "JITTER", "range", [0, 0.4, 0.01]);
 control("WEATHER", "WEATHER", "range", [0.02, 0.4, 0.01]);
 control("THIN", "THIN", "range", [0, 0.6, 0.01]);
 control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
-heading("stamp 새안: 각인");
+heading("stamp: 각인");
 control("IMPACT_COOL", "달군 빛 식는 속도", "range", [1, 12, 0.5]);
 control("IMPACT_GLOW", "번짐 빛", "range", [0, 3, 0.05]);
 control("IMPACT_STREAK", "가로 섬광", "range", [0, 2, 0.05]);
@@ -1029,17 +1029,17 @@ control("TRACK_BLUR", "퇴장: 번짐", "range", [0, 3, 0.05]);
 control("TRACK_RISE", "퇴장: 떠오름", "range", [0, 0.6, 0.01]);
 control("TRACK_STAGGER", "퇴장: 바깥 글자 먼저", "range", [0, 0.5, 0.01]);
 control("SHINE", "광택 세기", "range", [0, 2, 0.05]);
-heading("discovery 새안: 손전등");
+heading("discovery: 손전등");
 control("TORCH_POOL", "벽에 비친 빛", "range", [0, 3, 0.05]);
 control("TORCH_STUTTER", "꺼질 때 깜빡임", "range", [0, 1.3, 0.05]);
-heading("notice 새안: 무전");
+heading("notice: 무전");
 control("RADIO_STATIC", "잡음 알갱이", "range", [0, 3, 0.05]);
 control("RADIO_HICCUP", "신호 튐", "range", [0, 1.5, 0.05]);
-heading("unveil 새안: 안개 걷힘");
+heading("unveil: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
-heading("dust 새안: 종이 연소");
+heading("dust: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
 control("EDGE_W", "불꽃 테두리 폭", "range", [0.002, 0.05, 0.001]);
@@ -1052,7 +1052,7 @@ control("FLAKE_SIZE", "재 조각 크기", "range", [0.3, 3, 0.05]);
 control("SPIN", "재 회전", "range", [0, 20, 0.5]);
 control("PAPER_ASH", "재 밝기", "range", [0, 1, 0.01]);
 control("GREYING", "재가 바래는 시간", "range", [0.05, 1, 0.01]);
-heading("dust 게임 현재: 숯불 셀 (dustBurn)");
+heading("leave dust: 숯불 셀 (dustBurn)");
 control("burnOn", "타기 켜기", "check");
 control("burnR", "불씨 R", "range", [0, 1, 0.01]);
 control("burnG", "불씨 G", "range", [0, 1, 0.01]);
@@ -1102,12 +1102,12 @@ reset.addEventListener("click", () => {
 const NOT_EFFECT = new Set(["title", "sub", "bg", "zoom"]);
 const effectOf = values => Object.fromEntries(Object.entries(values).filter(([k]) => !NOT_EFFECT.has(k)));
 const BUILT_IN = {
-  "종이 연소 1": effectOf(DEFAULTS),
-  "숯불 셀 (dust 게임 현재)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
-  "각인 (stamp 새안)": { ...effectOf(DEFAULTS), style: "stamp-new" },
-  "손전등 (discovery 새안)": { ...effectOf(DEFAULTS), style: "discovery-new" },
-  "무전 (notice 새안)": { ...effectOf(DEFAULTS), style: "notice-new" },
-  "안개 걷힘 (unveil 새안)": { ...effectOf(DEFAULTS), style: "unveil-new" },
+  "종이 연소 (dust)": effectOf(DEFAULTS),
+  "숯불 셀 (leave dust)": { ...effectOf(DEFAULTS), style: "dust", leaveTime: 6, CHAR_ASH: 0.2 },
+  "각인 (stamp)": { ...effectOf(DEFAULTS), style: "stamp-new" },
+  "손전등 (discovery)": { ...effectOf(DEFAULTS), style: "discovery-new" },
+  "무전 (notice)": { ...effectOf(DEFAULTS), style: "notice-new" },
+  "안개 걷힘 (unveil)": { ...effectOf(DEFAULTS), style: "unveil-new" },
 };
 const STORE = "title-lab-presets";
 function ownPresets() { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } }

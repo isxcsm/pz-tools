@@ -394,6 +394,14 @@ final class Dust {
         // The drawers queued with the game's sprites: the capture's start and end, and the letting go.
         Object begin, end, burial;
         Gl gl;
+        // A look's (Looks): its frames, used in turn; the burn's map, its pixels (made away from the main thread with the cells, before
+        // the phase is CUT) and then its texture (the render thread's); the looks' drawing, which lets that texture go.
+        Looks.Frame[] frames;
+        int frameAt;
+        ByteBuffer map;
+        int mapTexture;
+        Looks.Gl looks;
+        boolean cutting;
 
         Piece(Texts.Shown owner, int screen, long seed) { this.owner = owner; this.screen = screen; this.seed = seed; }
 
@@ -415,6 +423,7 @@ final class Dust {
                 Object made = fbo;
                 if (made != null) own.fboDestroy.invokeExact(made);
                 else if (texture != null) own.textureDestroy.invokeExact(texture);
+                if (mapTexture != 0 && looks != null) looks.deleteTexture(mapTexture);
             } catch (Throwable failure) {
                 if (failure instanceof VirtualMachineError fatal && !(fatal instanceof OutOfMemoryError)) throw fatal;
                 own.report("the dust's picture could not be let go", failure);
@@ -718,7 +727,7 @@ final class Dust {
             Object queued = (Object)drawGeneric.invokeExact(renderer, piece.burial);
         }
 
-        /** Queues a drawer made for a Runnable (another API's piece) after what was drawn before it. */
+        /** Queues a drawer made for a Runnable (another API's piece, or a look's frame) after what was drawn before it. */
         void buryDrawer(Object drawer) throws Throwable {
             Object renderer = (Object)this.renderer.invokeExact();
             Object queued = (Object)drawGeneric.invokeExact(renderer, drawer);

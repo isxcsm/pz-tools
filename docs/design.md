@@ -1526,34 +1526,34 @@ which override the jar's; it overrides none of the text classes):
 | `shadow` | boolean | A dark copy a little below and to the right. |
 | `outline` | 0 to 8 pixels | Copies around the text, in `outlineColor` (black). |
 | `delay` | 0 to 30 seconds | Before it comes on. |
-| `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"settle"`, `"rise"`, `"drop"`, `"type"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; settles, coming down from 0.3 of a line above its place as it fades in (`0.3 (1 - in)^3`, at its size throughout); rises, or drops, three quarters of a line into its place as it fades in; or types (see [typing](#typing-markup-and-fitting-a-width)), which takes as long as its text and speed do, so it takes no `enterTime`. |
+| `enter`, `enterTime` | `"none"`, `"fade"`, `"pop"`, `"slam"`, `"settle"`, `"rise"`, `"drop"`, `"slide"`, `"type"`, and the looks `"impact"`, `"torch"`, `"signal"`, `"mist"`; 0 to 30 seconds | How it comes on: fades in; pops from half its size past its size and back; slams down from 2.5 times its size; settles, coming down from 0.3 of a line above its place as it fades in (`0.3 (1 - in)^3`, at its size throughout); rises, or drops, three quarters of a line into its place as it fades in; slides up 0.4 of a line into its place as it fades in; or types (see [typing](#typing-markup-and-fitting-a-width)), which takes as long as its text and speed do, so it takes no `enterTime`. The looks are drawn by the API's shader (see [looks](#looks)): it falls and hits, a torch sways in over it, it is tuned in as a radio signal, or the mist clears off it. |
 | `hold` | 0 to 3600 seconds | How long it stays once on; left out, until the mod hides it. |
-| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`, `"dust"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"dust"` crumbles it like ash that the wind takes a long way, swept across it from one side (see [dust](#dust)). `"none"` goes at once. |
+| `leave`, `leaveTime` | `"none"`, `"fade"`, `"rise"`, `"sink"`, `"grow"`, `"shrink"`, `"dust"`, and the looks `"erode"`, `"dim"`, `"lost"`, `"mist"`, `"burn"`; 0 to 30 seconds | How it goes: fades; drifts half a line up, or down; swells by 30%, or shrinks by half; each as it fades. `"dust"` crumbles it like ash that the wind takes a long way, swept across it from one side (see [dust](#dust)). The looks (see [looks](#looks)): it weathers away in place, the torch on it dies down to embers, the signal is lost into the static, it sinks back into the mist, or it burns away like paper. `"none"` goes at once. |
 | `player` | 0 to 3 | The local player whose screen it is on; left out, every local player's. |
 | `queue` | boolean | It waits for the titles and queued texts before it on its screen (see titles). |
 | `markup` | boolean | The text has [markup](#typing-markup-and-fitting-a-width): pauses, speed changes and colours (false when left out: braces are braces). |
 | `width` | 0.05 to 1 | The longest a line may be, as a share of the player's screen's width: longer lines are broken at spaces. Left out, a line is as long as it is. |
 | `speed` | 1 to 1000 | With `enter = "type"`: the characters a second (30 when left out). |
 | `cursor` | boolean | With `enter = "type"`: a blinking underscore after the last character typed. |
-| `backdrop` | 0 to 1 | A dark backdrop behind the text, this strong in its middle (0, when left out: none), so that it reads over a busy screen: a box over its lines whose edge fades out over 2.6 line heights to the sides and a line up and down as a smooth step: one layer, the box and four rings round it, each ring's quads shaded by the card from the inside's darkness to the outside's (a colour for each corner, at the text's own place, not whole pixels), so that it fades and moves as smoothly as the text (layers stacked each a little smaller rounded together to the screen's levels and stepped as they faded). It is as strong as the text is seen; a text that leaves as dust takes it with it over its leave. |
-| `dustSize` | 0.25 to 8 | With `leave = "dust"`: the size of the dust's cells, as a share of the usual (1: 4% of the line's height, 4.3 pixels for a line a tenth of a 1080-pixel screen). |
-| `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"`, `"upright"`, `"upleft"`, `"downright"`, `"downleft"` | With `leave = "dust"`: the way the front goes (`"right"` when left out: the text breaks from its left side first; `"downleft"` from its top right corner, the front at 45 degrees in cells). A side's flakes go the front's way; a corner's go back towards the corner, away from what is left. |
-| `dustDrift` | 0 to 4 | With `leave = "dust"`: how far the dust drifts, as a share of the usual (1: about two lines up, and up to four and a half lines to the side; 0: the cells fade where they are). |
-| `dustBurn` | a colour `{ r, g, b }` or `{ r, g, b, a }` | With `leave = "dust"`: it burns as charcoal instead of weathering: ahead of the front it scorches, glows in this colour at its edge and goes out to black char that crumbles to dark ash, a few sparks of the colour among it (see [dust](#dust)). Left out, it weathers to grey ash. |
+| `backdrop` | 0 to 1 | A dark backdrop behind the text, this strong in its middle (0, when left out: none), so that it reads over a busy screen: a box over its lines whose edge fades out over 2.6 line heights to the sides and a line up and down as a smooth step: one layer, the box and four rings round it, each ring's quads shaded by the card from the inside's darkness to the outside's (a colour for each corner, at the text's own place, not whole pixels), so that it fades and moves as smoothly as the text (layers stacked each a little smaller rounded together to the screen's levels and stepped as they faded). It is as strong as the text is seen, and comes in over 1.2 s at most as fast (a look's enter is whole from the start); a text that leaves as dust or burns takes it with it over its leave. Under a look it stays at the text's place at rest. |
+| `dustSize` | 0.25 to 8 | With `leave = "dust"` or `"burn"`: the size of the dust's cells, as a share of the usual (1: 4% of the line's height, 4.3 pixels for a line a tenth of a 1080-pixel screen). |
+| `dustSweep` | `"right"`, `"left"`, `"up"`, `"down"`, `"upright"`, `"upleft"`, `"downright"`, `"downleft"` | With `leave = "dust"` or `"burn"`: the way the front goes (`"right"` when left out: the text breaks from its left side first; `"downleft"` from its top right corner, the front at 45 degrees in cells). A side's flakes go the front's way; a corner's go back towards the corner, away from what is left. |
+| `dustDrift` | 0 to 4 | With `leave = "dust"` or `"burn"`: how far the dust drifts, as a share of the usual (1: about two lines up, and up to four and a half lines to the side; 0: the cells fade where they are). |
+| `dustBurn` | a colour `{ r, g, b }` or `{ r, g, b, a }` | With `leave = "dust"`: it burns as charcoal instead of weathering: ahead of the front it scorches, glows in this colour at its edge and goes out to black char that crumbles to dark ash, a few sparks of the colour among it (see [dust](#dust)). Left out, it weathers to grey ash. With `leave = "burn"`: the colour of its flame's edge and sparks ((1, 0.32, 0.1) when left out). |
 
 `title`'s spec: `text` (the title), `subtitle` (the line under it), `style` (`"stamp"` when left out), and to change the style's
 `color`, `subtitleColor`, `hold` (seconds), `y`, `player`, `leave` and `leaveTime` (for the title and its line alike: any style
-can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"`, the style's or the
-spec's), and `now`. A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s and has a backdrop of
+can leave as dust), `backdrop` (0 for none), `dustSize`, `dustSweep`, `dustDrift` and `dustBurn` (with `leave = "dust"` or `"burn"`, the
+style's or the spec's), and `now`. The line under a title takes its look's cues from it (a torch's flicker). A title's backdrop reaches over its line: one backdrop for both. Every style stays 5 s and has a backdrop of
 0.3. A style is a pair of `show` specs:
 
 | Style | Title | Line under it |
 | --- | --- | --- |
-| `"stamp"` | White, `SdfBold` (or `Large`), a line 10% of the screen high at `y` 0.28 (above the player), a shadow and a faint dark outline; slams on in 0.22 s, stays 5 s, swells away in 0.7 s. For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 4.5%; fades in 0.2 s after the title, goes with it. |
-| `"discovery"` | Amber (1, 0.8, 0.38), `SdfRobertoSans` (bold italic; or `Large`), 8% at `y` 0.28, a shadow; rises into place in 0.6 s, stays 5 s, drifts up as it fades in 0.9 s. For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 4.2%; rises 0.25 s after the title, goes with it. |
-| `"notice"` | Cool white, `SdfBold` (or `Medium`), 3.6% at `y` 0.2; drops in in 0.35 s, stays 5 s, fades in 0.6 s. For news that is not an event of its own. | Grey-blue, `SdfRegular` (or `Small`), 2.6%. |
-| `"unveil"` | Soft warm white (0.96, 0.93, 0.86), `SdfRegular` (or `Large`), 7.5% at `y` 0.28, a shadow and a faint dark outline; comes down into place as it fades in over 1.4 s, stays 5 s, fades in 1 s. For something that opens: a new chapter, a new path. | Pale grey, `SdfRegular` (or `Medium`), 3.6%; fades in over 1 s, 0.6 s after the title, goes with it. |
-| `"dust"` | Warm white (0.97, 0.95, 0.9), `SdfRegular` (or `Large`), 8.5% at `y` 0.28, a shadow and a faint dark outline; fades in over 1.2 s, stays 5 s, crumbles slowly like ash from its top right corner over 6 s, the flakes streaming up and to the right. A quiet title. | Pale grey, `SdfRegular` (or `Medium`), 4%; fades in over 1.2 s, 0.35 s after the title, and crumbles 0.3 s after it. |
+| `"stamp"` | Pale (0.9, 0.89, 0.86), `SdfBold` (or `Large`), a line 10% of the screen high at `y` 0.28 (above the player), a shadow and a dark outline; falls onto the screen and hits in 0.6 s (`"impact"`), a gleam passing over it once as it stays 5 s; weathers away in place over 6 s (`"erode"`). For something done: a quest complete. | Light grey, `SdfRegular` (or `Medium`), 4.5%; slides up into place over 0.5 s, 0.45 s after the title; weathers away over 5.6 s, 0.4 s after it. |
+| `"discovery"` | Amber (1, 0.8, 0.38), `SdfBold` (or `Large`), 8% at `y` 0.28, a shadow and a faint dark outline; a torch sways in over it and opens over 2.2 s (`"torch"`), flickers once as it stays 5 s, and dies down to embers over 4.5 s (`"dim"`). For something found: a search complete. | Pale amber, `SdfRegular` (or `Medium`), 4.2%, lit by the torch; slides up over 0.8 s, 1.5 s after the title; dims over 4.3 s, 0.15 s after it. |
+| `"notice"` | Cool white (0.88, 0.93, 1), `SdfBold` (or `Medium`), 4% at `y` 0.2, a shadow; tuned in as a radio signal over 0.7 s (`"signal"`), a hiccup as it stays 5 s, lost into the static over 4.5 s (`"lost"`). For news that is not an event of its own. | Grey-blue, `SdfRegular` (or `Small`), 2.8%; tuned in 0.25 s after the title; lost over 4.3 s, 0.1 s after it. |
+| `"unveil"` | Soft warm white (0.96, 0.93, 0.86), `SdfRegular` (or `Large`), 7.5% at `y` 0.28, a shadow and a faint dark outline; the mist clears off it over 3.6 s (`"mist"`) and drifts behind it as it stays 5 s; it sinks back into the mist over 5 s. For something that opens: a new chapter, a new path. | Pale grey, `SdfRegular` (or `Medium`), 3.6%; clears over 3 s, 1.2 s after the title; sinks over 4.8 s, 0.3 s after it. |
+| `"dust"` | Warm white (0.97, 0.95, 0.9), `SdfRegular` (or `Large`), 8.5% at `y` 0.28, a shadow and a faint dark outline; fades in over 1.2 s, stays 5 s, and burns away like paper from its top right corner over 10 s (`"burn"`), its ash and sparks taken by the wind. For something that ends. | Pale grey, `SdfRegular` (or `Medium`), 4%; fades in over 1.2 s, 0.35 s after the title, and burns 0.3 s after it. |
 
 Each local player's screen has a queue of titles: one shows at a time (the title and its line), and the next starts when it
 has gone. A title for every player goes into each player's queue. `now` lets a title go first: the one on that screen leaves
@@ -1656,6 +1656,41 @@ typed, with no colour and no width, takes the plain path above, as it always did
 The text is drawn as often as the interface is: with the interface drawn at a lower rate, it moves at that rate. A hook that
 is not in gives no text and `text.status()` says why; a fault while drawing is reported once in the game's log, and the
 interface goes on being drawn (the tooltip and what follows it).
+
+### Looks
+
+A look is an enter or a leave the API draws with a shader of its own over a picture of the text
+([`Looks`](../src/api/pzext/api/Looks.java)): the dust's picture ([below](#dust)), made as soon as the text shows (once typed, for a
+typed text) at its place and size at rest. Each frame the main thread hands the render queue a frame of the look, a few numbers
+(the text's place, scale, squash and move, the shares of its enter and leave, its clocks); the render thread draws it from them
+in the queue's order: the game's state saved (`glPushAttrib`, `glPushClientAttrib`, the program bound), the API's program
+(GLSL 1.20, compiled once from its source on the render thread), the projection the interface is drawn with now (the game's
+matrix stacks, as `ShaderHelper.setModelViewProjection` reads them), the picture's part of its texture, the vertices from an
+array of its own; then the state put back as the game's other passes do (the texture cache forgotten, the ring buffer's arrays
+set up again, `GLStateRenderThread.restore`). Its numbers are those of `tools/title-lab`, where the looks are made: the page draws
+them with the same arithmetic and shader.
+
+| Look | What it draws |
+| --- | --- |
+| `"impact"` (enter) | The text falls from 1.45 times its size over 0.16 s and hits: it squashes and rings out, shakes, and is white-hot, cooling (its shape in light, and a glow round it), with a streak of light across it widening and a puff of dust kicked out to the sides. As it stays, a gleam passes over its letters once, slowly, from 0.8 s to 0.3 s before it leaves. |
+| `"torch"` (enter), `"dim"` (leave) | A torch's beam sways in from the left over the text, lighting what it passes, then opens over all of it; its light falls on what is behind the text. It flickers once 1.4 s after the enter, and as the text leaves it stutters three times and dies down to embers (the text warm and dark, then gone over the last 60%). A text that only leaves so (the line under a torch-lit title) is lit all over. |
+| `"signal"` (enter), `"lost"` (leave) | The text as a radio signal: as it is weak its rows tear sideways, its colours come apart, grain eats it, scan lines and specks of static show. It is tuned in over its enter (a hiccup on the way), hiccups once 2.6 s after, and as it leaves cuts out twice and sinks into the grain. |
+| `"mist"` (enter and leave) | Drifting mist (two layers drifting their own ways) over a band round the text, drawn behind it: the text clears from blurred and faint, its colour grey, as the mist thins to a veil that drifts on as it stays; as it leaves the mist thickens again and the text sinks back into it, the mist then thinning away itself. |
+| `"erode"` (leave) | The text weathers away in place: its colour drains, it wears off in pits from its edges (a noise of its grain over how much ink is round each point), and the last of it fades. |
+| `"burn"` (leave) | The text burns away like paper, spot by spot: a map of when each pixel burns (the sweep of `dustSweep`, 52% of the leave to cross it, clumps a few cells wide that open holes ahead of the front, fibres that make its edge ragged, a warp that curls it); at each spot a flame's edge (a hot core, then the burn's colour, `dustBurn`), char behind it and scorch ahead of it. The dust's cells leave as their middle burns: half of the rest as shards of ash that tumble on the wind (char greying fast, their rim glowing a moment), a quarter as sparks of the burn's colour cooling to dark ash. |
+
+The torch's, the radio's and the mist's looks are the text's whole life when its enter or its leave is that look. Other enters and
+leaves go with a look as they do alone: a line's `"slide"` gives its alpha and move, and the impact and erosion are drawn over the
+text's picture as it is.
+
+**When it cannot.** Without the game's frame buffers or the API's shader (it does not compile or link, or a draw fails: once in the
+game's log), or with a box that moved, a look's text is drawn as it is, its look's enter and `"burn"` a fade, its other looks' leaves
+the fade their backdrop has. While the picture is on its way (a frame or two) the text is drawn so too. A burn's cells and map are
+made away from the main thread (some tens of milliseconds for a title, as the title stays); until they are there it is drawn so.
+
+**The cost.** On the main thread a frame of a look is a few numbers: 0.7 us a frame for a torch-lit title and its line in the
+synthetic game, nothing allocated over 20,000 frames. On the render thread a few quads and the shader over the text's box; a burn's
+shards are a draw of their own (at most one for each of the dust's cells).
 
 ### Dust
 
@@ -1968,7 +2003,7 @@ kept costs about one measure for each word; one that is, a hash lookup and the a
 ### A mod's use
 
 ```lua
--- A quest mod: a quest done stamps its title, a search done shows what was found, a chapter ends in dust.
+-- A quest mod: a quest done stamps its title, a search done shows what was found, a chapter burns away.
 local function textApi()
     local api = PZExtAPI
     return api and api.version == 1 and api.text or nil
@@ -1993,7 +2028,7 @@ local function onSearchComplete(found)
     })
 end
 
--- A chapter's end: the quiet style, in the mod's own colour; or any style, crumbling from the right.
+-- A chapter's end: the quiet style, burning away, in the mod's own colour; or any style, crumbling from the right.
 local function onChapterEnd(chapterName)
     local text = textApi()
     if not text then return end
@@ -2033,7 +2068,8 @@ share of the screen, a shadow and an 8-copy outline are placed to the pixel; a f
 character (Hangul to `Large`, Cyrillic to `SdfBold`, the last when none has them), a distance-field font is drawn inside the
 shader with the threshold for its zoom and the others outside it, and a font made again is measured again; slam, rise, grow and pop
 are where they should be at known moments, and a text hidden as it comes leaves from where it was; a stamp title and its line are
-placed under one another, go together after 3.32 s, and the discovery after it waits, then shows amber in its font; `now` has the
+placed under one another (drawn as they are: the render thread does not run there), its backdrop come in by 1.2 s, go together
+after 11.6 s, and the discovery after it waits, then shows amber in its font; `now` has the
 title on the screen leave within 0.25 s and the new one follow; a Hangul title takes `Large`; a ninth waiting title makes the
 oldest go; in split screen a text for every player is on both players' parts, one for a player on theirs alone, and titles queue
 on each; without a player the window is used; `clear` takes one mod's texts, a world left takes its texts and a new world's stay;
@@ -2082,7 +2118,7 @@ sprite renderer, frame buffers, a render thread and a picture read back of its o
 sweep by the sweep's share alone, the same twice and another for another seed; every cell has gone by the end of the leave; the
 alpha, size, ease, glow, grey and path are as computed, the cells rise and go their sweep's way, and the swirl's wave is within 3% of a sine;
 a picture is cut into the cells with ink, by lanes in the sweep's order for each of the four ways, with the starts' suffix
-ordered, larger cells for a picture that would have more than the most, and none without ink. The `"dust"` title fades in (at
+ordered, larger cells for a picture that would have more than the most, and none without ink. The `"dust"` title left as dust fades in (at
 alpha 0.5 after 0.6 s), its picture is made once it stands still (the frame buffer on the render thread), drawn into from the
 render queue in `UIFBOStyle` with the style put back, in a box of 382 by 122 pixels with the viewport moved to its corner and
 put back, and read back; it holds as itself, then turns into strips of its picture that show the parts of it where they are
@@ -2094,7 +2130,18 @@ a picture that is late holds the text whole for 15% of the leave and then fades 
 is not made; a text hidden or cleared as it crumbles, and one whose screen changed size, lets its picture go (the last fades);
 wrong dust fields are Lua errors, and a stamp title takes `leave = "dust"`; a newer API takes the fields over and lets the older
 one's picture go. A title and its line crumbling (3,426 quads) took about 160 us a frame to place in the synthetic game (the game's own work for each quad
-comes on top) and allocated nothing over 20,000 frames.
+comes on top) and allocated nothing over 20,000 frames. (The `"dust"` title's own leave burns now; these are with `leave = "dust"`.)
+
+Looks: in the synthetic game (`LooksTest`, its GL recording the arrays drawn and the program's mode): the arithmetic is the title
+lab's, to the digit where it is integers (the hash) and to a millionth elsewhere (the noise, the burn map, the torch, the signal,
+the impact), the numbers its own functions give in node for the same inputs; the torch flickers and dies down, the mist clears,
+stays thin, thickens and goes. Each title style is drawn by the shader in the page's modes and order: the stamp's hit as its
+picture, heat, streak and dust, a gleam as it stays over its picture and its line's, both weathering; the torch's light behind
+the title and the title and its line lit, also as it dies down; the notice's title and line as signals; the mist behind each text
+and the text through it; the burn's title and line as their picture while they stay, then burning with their ash, their maps
+given to the card at the leave and let go with their pictures. The picture's middle is the title's place; after a draw the
+attributes are popped, the program put back, the texture cache forgotten, the ring buffer's arrays set up again and the state
+restored. A shader that does not compile stops the looks and the text is drawn as it is.
 
 Not tried in the game yet: how text at a height looks (the fonts of other options next to the game's, the embedded font's
 lines beside the bitmap fonts' in one window, the switch at 51 pixels), the times in the game's log for reading a font and its

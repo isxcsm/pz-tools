@@ -10,4 +10,7 @@ public final class Core {
     public static boolean dyslexicFont;
     public static float blinkAlpha = 1f;
     public boolean getOptionEnableDyslexicFont() { return dyslexicFont; }
+    /** The projection and model view the interface is drawn with. */
+    public final zombie.core.opengl.MatrixStack projectionMatrixStack = new zombie.core.opengl.MatrixStack(),
+        modelViewMatrixStack = new zombie.core.opengl.MatrixStack();
 }

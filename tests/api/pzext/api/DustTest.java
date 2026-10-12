@@ -164,15 +164,16 @@ final class DustTest {
     // ---- the title ----
 
     /**
-     * The {@code "dust"} style: fades in over 1.2 s, its picture made, drawn into and read back while it holds, then crumbles
-     * from the left over 6 s from strips and cells of that picture; the line under it crumbles 0.3 s later; each picture goes.
+     * The {@code "dust"} style left as dust: fades in over 1.2 s, its picture made, drawn into and read back while it holds, then
+     * crumbles from the left over 6 s from strips and cells of that picture; the line under it crumbles 0.3 s later; each picture goes.
      */
     private static void style(KahluaTable text, Object mod) {
         int fbos = TextureFBO.made, destroyed = TextureFBO.destroyed;
         // The ink of each picture read back: its box without a margin of 22 pixels (12 for the line under the title).
         GL11.ink = (x, y) -> x >= 22 && x < 360 && y >= 22 && y < 100 ? 255 : 0;
         // From the left (the style's is from the top right corner), so that the front is a column.
-        FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "dustSweep", "right"));
+        FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "leave", "dust", "leaveTime", 6.0,
+            "dustSweep", "right"));
         long origin = NOW[0];
         render();
         check(draws().isEmpty(), "A dust title starts seen");
@@ -426,7 +427,8 @@ final class DustTest {
     /** The frames of the leave allocate nothing. */
     private static void cost(KahluaTable text, Object mod) {
         GL11.ink = (x, y) -> x % 3 == 0 ? 255 : 0;
-        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "hold", 0.0)).get(0);
+        double key = (Double)FormulasTest.call(text, "title", mod, table("text", "Quiet title", "subtitle", "A line under it", "style", "dust", "hold", 0.0,
+            "leave", "dust", "leaveTime", 6.0)).get(0);
         render();
         advance(1.2);
         render();

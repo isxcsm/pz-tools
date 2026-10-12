@@ -6,20 +6,20 @@ no build).
 
 ## What it draws
 
-- **The styles as the game has them**: `stamp`, `discovery`, `notice`, `unveil` and `dust`, with the enter, hold and
-  leave of `Texts.java` (`Styles`, `draw`), the line's delay and trail, and the backdrop. `dust` is `Dust.java`'s
-  arithmetic as it is (cells, seed, wind, the charcoal burn), with the game's premultiplied blending in WebGL.
-- **Drafts** (marked 새안) not yet in the game:
-  - `stamp` 각인: falls and hits, white-hot and cooling, a streak of light and a puff of dust; a gleam passes once over
-    its hold; it weathers away in place (its colour drains, it wears off in pits from its edges).
-  - `discovery` 손전등: a torch sways in from the left and lights the title as it passes, then opens over it; it
-    stutters and dies down to embers as it leaves.
-  - `notice` 무전: comes in as a radio signal tuned in (rows torn sideways, colours apart, grain), hiccups once as it
-    stays, and is lost as it leaves, cutting out twice and sinking into the grain.
-  - `unveil` 안개 걷힘: drifting mist clears off it, a thin veil of it drifting on as it stays; as it leaves the mist
-    rolls back in over it and then thins away itself.
-  - `dust` 종이 연소: burns spot by spot from its corner (a noise map of when each spot burns), a ragged glowing edge,
-    ash shards tumbling on the wind.
+- **The styles as the game has them** (`Texts.java` `Styles`, `Looks.java`, `Dust.java`), with their enter, hold and leave,
+  the line's delay and trail, and the backdrop, in the game's premultiplied blending with WebGL and the shader the API compiles
+  in the game (`Looks.Gl`'s, a copy of this page's):
+  - `stamp` 각인: falls and hits, white-hot and cooling, a streak of light and a puff of dust; a gleam passes once over its hold;
+    it weathers away in place (its colour drains, it wears off in pits from its edges).
+  - `discovery` 손전등: a torch sways in from the left and lights the title as it passes, then opens over it; it stutters and
+    dies down to embers as it leaves.
+  - `notice` 무전: comes in as a radio signal tuned in (rows torn sideways, colours apart, grain), hiccups once as it stays,
+    and is lost as it leaves, cutting out twice and sinking into the grain.
+  - `unveil` 안개 걷힘: drifting mist behind it clears off it, a veil of it drifting on as it stays; as it leaves it sinks back
+    into the mist, which then thins away itself.
+  - `dust` 종이 연소: fades in, then burns spot by spot from its corner (a noise map of when each spot burns), a ragged glowing
+    edge, ash shards and sparks tumbling on the wind.
+- **The styles before them** (marked 이전), and `leave = "dust"`'s cells as `Dust.java` has them (숯불 셀, with `dustBurn`).
 
 Only the fonts' shapes, shadows and outlines are approximations (the page draws them with the browser's text).
 
@@ -32,8 +32,8 @@ Only the fonts' shapes, shadows and outlines are approximations (the page draws 
   embedded viewers), **현재 상태 저장** puts the values in the box below, to be added to `BUILT_IN` in the page.
 - **Java 상수 만들기** writes the dust's numbers as `Dust.java` constants.
 
-## Taking a draft into the game
+## Taking a change into the game
 
-A draft is a design: when it is settled, its arithmetic goes into the API (`Texts.java`, `Dust.java`, a shader where
-it needs one) as a style or an effect of its own, with its tests and `docs/design.md`; the page keeps the same numbers
-so that both look alike.
+A change made here goes into the API with the same numbers: the constants in `Looks.java` (and `Dust.java`), the shader's
+source in `Looks.Gl` (this page's, its picture read through `pic()`), the styles in `Texts.java`; with `LooksTest`'s numbers
+(the page's functions run in node for the same inputs) and `docs/design.md`. The page and the game then look alike.

@@ -24,7 +24,30 @@ public final class GL11 {
         for (int i = 0; i < data.capacity(); i++) pixels[i] = data.get(i);
     }
 
-    public static int glGetInteger(int name) { return name == 0x84E0 ? active : 0; }
+    public static int glGetInteger(int name) { return name == 0x84E0 ? active : name == 0x8B8D ? GL20.current : 0; }
+
+    /** The textures let go. */
+    public static final java.util.List<Integer> deleted = new java.util.ArrayList<>();
+    public static void glDeleteTextures(int texture) { deleted.add(texture); }
+
+    /**
+     * What was drawn from arrays: for each draw, the program's "mode" uniform as the test has it (-1 without), the vertices' count,
+     * and the places of the vertices (x, y in turn) from attribute 0's array.
+     */
+    public static final java.util.List<float[]> arrays = new java.util.ArrayList<>();
+    public static void glDrawArrays(int mode, int first, int count) {
+        Integer at = GL20.uniforms.get("mode");
+        Float value = at == null ? null : GL20.values.get(at);
+        float[] drawn = new float[2 + 2 * count];
+        drawn[0] = value == null ? -1 : value;
+        drawn[1] = count;
+        java.nio.FloatBuffer places = GL20.pointers.get(0);
+        for (int vertex = 0; places != null && vertex < count; vertex++) {
+            drawn[2 + 2 * vertex] = places.get(places.position() + vertex * GL20.strides.get(0) / 4);
+            drawn[3 + 2 * vertex] = places.get(places.position() + vertex * GL20.strides.get(0) / 4 + 1);
+        }
+        arrays.add(drawn);
+    }
 
     /**
      * The viewport and the scissor test, as a frame buffer's drawing changes and puts them back; the picture read back: its alpha
