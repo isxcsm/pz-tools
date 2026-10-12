@@ -70,10 +70,10 @@ def wood_saw(turns, look):
     bx0, bx1 = 0.92, 1.30
     s.box(bx0, y0 - 0.02, 0.0, bx1, y1 + 0.02, 0.50, OD, top=OD_LIGHT, shine=0.1)
     s.box(bx0 - 0.01, y0 - 0.03, 0.46, bx1 + 0.01, y1 + 0.03, 0.54, GRAPHITE, top=GRAPHITE_LIGHT, shine=0.4)
-    s.tube((0.98, y1 + 0.12, 0.26), (1.26, y1 + 0.12, 0.26), 0.1, BLUE, cap=(34, 66, 94), segments=26, shine=0.2,
-           bands=[(0, 0.08, (34, 66, 94))] + [(0.12 + 0.14 * i, 0.2 + 0.14 * i, (40, 84, 128)) for i in range(6)])
+    s.tube((0.98, y1 + 0.12, 0.26), (1.26, y1 + 0.12, 0.26), 0.1, BLUE, cap=(44, 62, 88), segments=26, shine=0.2,
+           bands=[(0, 0.08, (44, 62, 88))] + [(0.12 + 0.14 * i, 0.2 + 0.14 * i, (54, 76, 102)) for i in range(6)])
     s.box(0.96, y1 + 0.02, 0.10, 1.28, y1 + 0.2, 0.14, GRAPHITE_DARK)
-    s.box(0.99, y1 + 0.04, 0.34, 1.12, y1 + 0.1, 0.42, (34, 66, 94), top=BLUE)
+    s.box(0.99, y1 + 0.04, 0.34, 1.12, y1 + 0.1, 0.42, (44, 62, 88), top=BLUE)
     s.box(0.94, y0 + 0.05, 0.3, 1.0, y0 + 0.5, 0.44, GRAPHITE_DARK)
     # the frame: two uprights and a head beam, the arbor between them
     for yy in (y0 - 0.02, y1 - 0.06):
@@ -178,9 +178,9 @@ def rain_storage(level=3):
         rain_storage(0)    # the empty tank's split of the pixels into tiles is the one every level uses
     s = Scene(0, foot=(2, 2))
     cx, cy, r, h = 1.0, 1.0, 0.82, 0.8
-    PLASTIC = (58, 104, 150)
-    PLASTIC_DARK = (40, 76, 114)
-    PLASTIC_LIGHT = (140, 176, 206)
+    PLASTIC = (60, 88, 112)
+    PLASTIC_DARK = (44, 64, 84)
+    PLASTIC_LIGHT = (128, 150, 168)
     floor_z = 0.09
     full_z = 0.66
     wz = floor_z + (full_z - floor_z) * (0.0, 0.25, 0.5, 1.0)[level]

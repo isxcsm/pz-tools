@@ -16,8 +16,8 @@ from tile_trade import hazard_strip, plank_lines
 GRAPHITE = (74, 78, 82)
 GRAPHITE_DARK = (52, 55, 58)
 GRAPHITE_LIGHT = (104, 108, 112)
-CREAM = (206, 202, 184)
-CREAM_DARK = (166, 162, 146)
+CREAM = (184, 180, 164)
+CREAM_DARK = (148, 144, 130)
 STEAM = (236, 238, 240)
 FLAME = (255, 168, 40)
 

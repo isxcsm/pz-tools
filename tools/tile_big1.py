@@ -195,11 +195,11 @@ def bulk_shredder(turns, look):
     # ladder rungs up the hopper's front for the loader
     # the motor on the cabinet's front: a finned drum on a bed, a belt guard
     s.box(0.22, y1 + 0.0, 0.07, 0.78, y1 + 0.2, 0.12, GRAPHITE_DARK)
-    s.tube((0.28, y1 + 0.12, 0.25), (0.62, y1 + 0.12, 0.25), 0.11, BLUE, cap=(34, 66, 94), segments=32, shine=0.2,
-           bands=[(0.0, 0.06, (34, 66, 94))] + [(0.09 + 0.12 * i, 0.17 + 0.12 * i, (40, 84, 128)) for i in range(7)])
+    s.tube((0.28, y1 + 0.12, 0.25), (0.62, y1 + 0.12, 0.25), 0.11, BLUE, cap=(44, 62, 88), segments=32, shine=0.2,
+           bands=[(0.0, 0.06, (44, 62, 88))] + [(0.09 + 0.12 * i, 0.17 + 0.12 * i, (54, 76, 102)) for i in range(7)])
     s.tube((0.62, y1 + 0.12, 0.25), (0.72, y1 + 0.12, 0.25), 0.04, STEEL, shine=0.7, segments=12)
     s.box(0.72, y1 + 0.04, 0.12, 0.80, y1 + 0.2, 0.40, GRAPHITE_DARK, shine=0.2)
-    s.box(0.40, y1 + 0.06, 0.36, 0.52, y1 + 0.18, 0.43, (34, 66, 94), top=BLUE)
+    s.box(0.40, y1 + 0.06, 0.36, 0.52, y1 + 0.18, 0.43, (44, 62, 88), top=BLUE)
     s.box(0.28, y1, 0.2, 0.7, y1 + 0.02, 0.42, OD_DARK)
     # the discharge chute on the east side and the belt conveyor
     s.poly([(x1, 0.28, 0.34), (x1, 0.54, 0.34), (1.14, 0.54, 0.26), (1.14, 0.28, 0.26)], GRAPHITE_DARK, (0.3, 0, 1), shine=0.2)
@@ -267,8 +267,8 @@ def cutter(turns, look):
     s.box(x0 + 0.015, y0 + 0.015, zt + 0.05, x1 - 0.015, y1 - 0.015, zt + 0.06, (30, 60, 44))
     flat_decal(s, x0 + 0.015, y0 + 0.015, x1 - 0.015, y1 - 0.015, zt + 0.06, cutting_mat_image(300, 90), offset=0.001)
     # the vacuum blower under the table: a blue motor and its hose up to the table
-    s.tube((0.50, 0.50, 0.24), (0.86, 0.50, 0.24), 0.13, BLUE, cap=(34, 66, 94), segments=28, shine=0.2,
-           bands=[(0, 0.06, (34, 66, 94))] + [(0.1 + 0.11 * i, 0.17 + 0.11 * i, (40, 84, 128)) for i in range(8)])
+    s.tube((0.50, 0.50, 0.24), (0.86, 0.50, 0.24), 0.13, BLUE, cap=(44, 62, 88), segments=28, shine=0.2,
+           bands=[(0, 0.06, (44, 62, 88))] + [(0.1 + 0.11 * i, 0.17 + 0.11 * i, (54, 76, 102)) for i in range(8)])
     s.box(0.44, 0.38, 0.14, 0.92, 0.62, 0.17, GRAPHITE_DARK)
     s.tube((0.86, 0.5, 0.24), (0.96, 0.5, 0.24), 0.05, STEEL_DARK, segments=14, shine=0.4)
     # spare rolls on a rack under the east half

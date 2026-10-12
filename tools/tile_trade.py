@@ -15,7 +15,7 @@ from tile_objects import (OD, OD_DARK, OD_LIGHT, TAN, CANVAS, BLACK, RUBBER, GRE
 
 FOAM = (58, 64, 56)
 STRAW = (190, 168, 110)
-ORANGE = (226, 112, 36)
+ORANGE = (196, 104, 46)
 
 
 def hazard_strip(w, h, colour=YELLOW, other=(30, 30, 30), slant=10):
@@ -221,7 +221,7 @@ def parachute_crate():
         s.tube((sx, sy, 0.30), ring, 0.007, TAN, segments=6)
     s.tube((0.5, 0.5, 0.78), (0.5, 0.5, 0.82), 0.022, STEEL, shine=0.6, segments=12)
     # the canopy: a deflated dome of eight panels, the rim at z 1.25 and a crown at 1.78
-    colours = [ORANGE, (236, 226, 200)]
+    colours = [ORANGE, (206, 198, 178)]
     centre = (0.5, 0.5, 1.22)
     s.sphere(centre, (0.62, 0.62, 0.62), ORANGE, rings=8, segments=16, z_from=2, z_to=88, colours=colours, shine=0.05)
     rim_r = 0.62 * math.cos(math.radians(2))
@@ -326,7 +326,7 @@ def site_stake():
     # the stake: square post, its top painted orange, tapered tip
     h = 1.05
     s.box(cx - 0.028, cy - 0.028, 0.02, cx + 0.028, cy + 0.028, h, WOOD, top=WOOD_DARK, shine=0.05)
-    s.box(cx - 0.0285, cy - 0.0285, h - 0.17, cx + 0.0285, cy + 0.0285, h, ORANGE, top=(250, 150, 60))
+    s.box(cx - 0.0285, cy - 0.0285, h - 0.17, cx + 0.0285, cy + 0.0285, h, ORANGE, top=(214, 136, 66))
     # the tag: an aluminium plate turned to face the viewer, the number on it
     rot = rotation((0, 0, 1), -45)
     size = (0.22, 0.012, 0.2)
@@ -337,7 +337,7 @@ def site_stake():
     pts = [(cx + 0.03, cy, 0.95), (cx + 0.16, cy + 0.02, 0.93), (cx + 0.28, cy - 0.02, 0.97), (cx + 0.38, cy + 0.02, 0.92)]
     for i in range(len(pts) - 1):
         a, b = pts[i], pts[i + 1]
-        col = ORANGE if i % 2 == 0 else (236, 232, 220)
+        col = ORANGE if i % 2 == 0 else (206, 200, 186)
         s.poly([(a[0], a[1], a[2] + 0.035), (b[0], b[1], b[2] + 0.035), (b[0], b[1], b[2] - 0.035), (a[0], a[1], a[2] - 0.035)],
                col, (0, 1, 0.2))
         s.poly([(a[0], a[1], a[2] + 0.035), (b[0], b[1], b[2] + 0.035), (b[0], b[1], b[2] - 0.035), (a[0], a[1], a[2] - 0.035)],
@@ -407,7 +407,7 @@ def cut_tape():
     """A length of orange and white marker tape on the ground, cut in two: one end still knotted to a short peg
     that was pushed in and snapped off, the rest blown a little way, its cut ends square."""
     s = Scene(0)
-    white = (236, 232, 220)
+    white = (206, 200, 186)
     # the snapped peg, a stub of wood with the knot
     s.box(0.24, 0.30, 0.0, 0.29, 0.35, 0.10, WOOD, top=(168, 130, 84), shine=0.05)
     s.tube((0.265, 0.325, 0.07), (0.265, 0.325, 0.085), 0.034, ORANGE, segments=10)
@@ -460,9 +460,9 @@ def stone_row():
 # radio. The polished terminal (tile_objects.terminal) is the upgrade bought later; this one stands on the same square
 # with about the same height, so it reads as the same object, only jury-rigged.
 
-BEIGE = (198, 188, 160)          # an old home computer's yellowed plastic
-BEIGE_DARK = (162, 152, 124)
-BEIGE_LIGHT = (214, 206, 180)
+BEIGE = (176, 166, 140)          # an old home computer's yellowed plastic
+BEIGE_DARK = (140, 132, 108)
+BEIGE_LIGHT = (190, 182, 158)
 HAM = (56, 58, 60)               # the ham radio's black case
 HAM_FACE = (178, 180, 176)       # its brushed front panel
 TAPE = (172, 174, 170)           # duct tape

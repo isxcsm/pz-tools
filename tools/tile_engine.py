@@ -474,18 +474,29 @@ def compose(scene, ground=None, over=None, seed=1, glows=None, owner_key=None):
         reset_canvas()
 
 
+# How far the finish greys the colours toward their own lightness: the game's tiles are muted, and a clean saturated
+# colour stands out among them (lit lamps are drawn after, and keep theirs).
+GREY = 0.15
+
+
 def finish(image, solid, seed):
-    """A little grain, and a darker rim where a thing meets the air, as the game's tiles have."""
+    """A worn finish, as the game's tiles have: the colours a little greyed, a grain, blotches of wear a few pixels
+    across, grime gathering toward the floor, and a darker rim where a thing meets the air."""
     rnd = random.Random(seed)
     px = image.load()
     inner = solid.filter(ImageFilter.MinFilter(3)).load()
     sp = solid.load()
+    floor = image.height - 106
     for y in range(image.height):
         for x in range(image.width):
             r, g, b, a = px[x, y]
             if a == 0 or sp[x, y] < 40:
                 continue
-            n = 1 + (rnd.random() - 0.5) * 0.06
+            grey = r * 0.3 + g * 0.59 + b * 0.11
+            r, g, b = r + (grey - r) * GREY, g + (grey - g) * GREY, b + (grey - b) * GREY
+            n = 1 + (rnd.random() - 0.5) * 0.09
+            n *= 1 + 0.045 * math.sin(x * 0.41 + y * 0.17 + seed) * math.sin(y * 0.37 - x * 0.23 + seed * 1.7)
+            n *= 1 - 0.1 * min(1, max(0, (y - floor) / 80))
             if inner[x, y] < 128:
                 n *= 0.7
             px[x, y] = (min(255, int(r * n)), min(255, int(g * n)), min(255, int(b * n)), a)

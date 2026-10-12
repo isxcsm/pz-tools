@@ -86,8 +86,8 @@ def propane_refiner(turns, look):
     front_decal(s, cx - 0.12 - 0.065, cx - 0.12 + 0.065, gz - 0.065, gz + 0.065, cy + r + 0.021, gauge_image(0.8 if running else 0.12, 56), offset=0.0)
     # the bullet tank on two saddles, along x, south of the column
     ty, tz, tr = 1.46, 0.46, 0.27
-    s.tube((0.78, ty, tz), (1.66, ty, tz), tr, (214, 212, 200), cap=(190, 188, 176), segments=36, shine=0.35,
-           bands=[(0, 0.46, (214, 212, 200)), (0.46, 0.52, BLUE), (0.52, 1, (214, 212, 200))])
+    s.tube((0.78, ty, tz), (1.66, ty, tz), tr, (188, 186, 176), cap=(166, 164, 154), segments=36, shine=0.35,
+           bands=[(0, 0.46, (188, 186, 176)), (0.46, 0.52, BLUE), (0.52, 1, (188, 186, 176))])
     s.sphere((0.78, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
     s.sphere((1.66, ty, tz), (0.14, tr, tr), (200, 198, 186), rings=7, segments=36, z_from=-90, z_to=90, shine=0.35)
     for x in (0.98, 1.46):
@@ -123,7 +123,7 @@ def propane_refiner(turns, look):
     control_cabinet(s, glows, 0.14, 0.58, 1.9, 0.92, look)
     front_decal(s, 0.18, 0.54, 0.2, 0.34, 1.9 + 0.001, stencil_text('LPG UNIT', 80, 18, STENCIL))
     # a small compressor beside it: a blue motor and a receiver
-    s.tube((0.70, 1.7, 0.2), (0.92, 1.7, 0.2), 0.1, BLUE, cap=(34, 66, 94), segments=24, shine=0.2)
+    s.tube((0.70, 1.7, 0.2), (0.92, 1.7, 0.2), 0.1, BLUE, cap=(44, 62, 88), segments=24, shine=0.2)
     s.box(0.62, 1.6, 0.08, 0.98, 1.8, 0.1, GRAPHITE_DARK)
 
     def flame(img):
@@ -213,8 +213,8 @@ def oil_refiner(turns, look):
             glows.append(((dx, 1.62, 0.6), (255, 150, 30), 0.1))
     # a pump: a blue motor and its pump head on a plate, by the vessel
     s.box(0.14, 1.0, 0.08, 0.58, 1.3, 0.12, GRAPHITE_DARK)
-    s.tube((0.18, 1.15, 0.24), (0.46, 1.15, 0.24), 0.1, BLUE, cap=(34, 66, 94), segments=24, shine=0.2,
-           bands=[(0, 0.08, (34, 66, 94))] + [(0.12 + 0.14 * i, 0.2 + 0.14 * i, (40, 84, 128)) for i in range(6)])
+    s.tube((0.18, 1.15, 0.24), (0.46, 1.15, 0.24), 0.1, BLUE, cap=(44, 62, 88), segments=24, shine=0.2,
+           bands=[(0, 0.08, (44, 62, 88))] + [(0.12 + 0.14 * i, 0.2 + 0.14 * i, (54, 76, 102)) for i in range(6)])
     s.tube((0.46, 1.15, 0.24), (0.58, 1.15, 0.24), 0.07, STEEL_DARK, segments=16, shine=0.4)
     pipe(s, [(0.6, 1.15, 0.24), (0.6, 0.8, 0.24), (0.6, 0.8, 0.6)], 0.02)
     # the control cabinet at the front-right
