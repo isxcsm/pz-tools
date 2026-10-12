@@ -55,26 +55,26 @@ Data.ADAPT_HOURS = 0.5
 -- node).
 Data.FIRST_EFFECT = { "sense", "ledger", "overload", "furniture", "crowbar", "dash" }
 
--- Item display categories by family, for the 2nd board's family nodes, one a family (NUMBERS 12). Materials and
+-- Item display categories by family, for the 2nd board's family nodes, one a family (NUMBERS 12): the gear a
+-- character carries and uses, the supplies it lives on, and the odds and ends picked up along the way. Materials and
 -- furniture are the heavy-load node's, so they are not here.
 Data.FAMILIES = {
-    A = { "Food" },
-    B = { "Clothing", "Accessory", "ProtectiveGear", "Ears" },
-    C = { "Bag", "Container", "WaterContainer" },
-    D = { "Literature", "SkillBook", "RecipeResource", "Cartography", "Entertainment" },
-    E = { "Junk", "Memento", "Bug", "Sports", "Instrument", "InstrumentWeapon", "JunkWeapon", "Teddy Bear", "Fox",
-          "Bunny", "Duck", "Frog", "Raccoon", "Bear", "Badger", "Squirrel", "Beaver", "Mole", "Hedgehog", "Dog",
-          "Goblin", "Spider", "Eye" },
-    F = { "Household", "Cooking", "CookingWeapon", "HouseholdWeapon", "Appearance", "Security", "FireSource",
-          "LightSource" },
-    G = { "Electronics", "Communications" },
-    H = { "Tool", "ToolWeapon", "VehicleMaintenance", "VehicleMaintenanceWeapon", "Gardening", "GardeningWeapon",
-          "Fishing", "FishingWeapon", "Camping", "Trapping", "AnimalPart" },
-    I = { "FirstAid", "FirstAidWeapon" },
-    J = { "Weapon", "SportsWeapon", "WeaponPart", "WeaponCrafted", "BrokenWeapon", "WeaponImprovised",
-          "AnimalPartWeapon", "Explosives", "Ammo" },
+    Gear = { "Weapon", "SportsWeapon", "WeaponPart", "WeaponCrafted", "BrokenWeapon", "WeaponImprovised",
+             "AnimalPartWeapon", "Explosives", "Ammo", "Tool", "ToolWeapon", "VehicleMaintenance",
+             "VehicleMaintenanceWeapon", "Gardening", "GardeningWeapon", "Fishing", "FishingWeapon", "Camping",
+             "Trapping", "AnimalPart", "Clothing", "Accessory", "ProtectiveGear", "Ears", "Bag", "Container" },
+    Supply = { "Food", "WaterContainer", "FirstAid", "FirstAidWeapon", "Cooking", "CookingWeapon", "FireSource",
+               "LightSource" },
+    Misc = { "Junk", "Memento", "Bug", "Sports", "Instrument", "InstrumentWeapon", "JunkWeapon", "Teddy Bear", "Fox",
+             "Bunny", "Duck", "Frog", "Raccoon", "Bear", "Badger", "Squirrel", "Beaver", "Mole", "Hedgehog", "Dog",
+             "Goblin", "Spider", "Eye", "Literature", "SkillBook", "RecipeResource", "Cartography", "Entertainment",
+             "Electronics", "Communications", "Household", "HouseholdWeapon", "Appearance", "Security" },
 }
-Data.FAMILY_ORDER = { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J" }
+Data.FAMILY_ORDER = { "Gear", "Supply", "Misc" }
+-- The family nodes of the record's version 2 (one a family of ten, bFamilyA ...) and the node each went into.
+Data.OLD_FAMILIES = { bFamilyA = "bFamilySupply", bFamilyB = "bFamilyGear", bFamilyC = "bFamilyGear",
+    bFamilyD = "bFamilyMisc", bFamilyE = "bFamilyMisc", bFamilyF = "bFamilyMisc", bFamilyG = "bFamilyMisc",
+    bFamilyH = "bFamilyGear", bFamilyI = "bFamilySupply", bFamilyJ = "bFamilyGear" }
 -- The display categories the heavy-load nodes cover.
 Data.MATERIAL_CATEGORIES = { "Material", "MaterialWeapon", "Paint" }
 
@@ -149,17 +149,17 @@ local function board(id, group, row, form, step, kind, extra)
     return n
 end
 
+-- the weight line first: materials and furniture, then a node a family (bFamilyGear ...)
 board("bHeavy", "load", 1, "divide", 0.20, "api")
-board("bGear", "load", 2, "divide", 0.10, "api")
-board("bSpeedPen", "load", 3, "divide", 0.10, "api")
-board("bOverload", "load", 4, "divide", 0.10, "api")
-board("bTransfer", "load", 5, "divide", 0.10, "lua")
-board("bLimit", "load", 6, "add", 1, "api", { unit = "num" })
-board("bStorage", "load", 7, "add", 0.05, "api", { unit = "pct100" })
--- a node a family (bFamilyA ...), from the third line on
 for i, family in ipairs(Data.FAMILY_ORDER) do
-    board("bFamily" .. family, "load", 8 + i, "divide", 0.10, "api", { family = family })
+    board("bFamily" .. family, "load", 1 + i, "divide", 0.10, "api", { family = family })
 end
+board("bGear", "load", 5, "divide", 0.10, "api")
+board("bSpeedPen", "load", 6, "divide", 0.10, "api")
+board("bOverload", "load", 7, "divide", 0.10, "api")
+board("bTransfer", "load", 8, "divide", 0.10, "lua")
+board("bLimit", "load", 9, "add", 1, "api", { unit = "num" })
+board("bStorage", "load", 10, "add", 0.05, "api", { unit = "pct100" })
 board("bWound", "survival", 1, "divide", 0.10, "api")
 board("bIllness", "survival", 2, "divide", 0.10, "api")
 board("bBite", "survival", 3, "divide", 0.10, "lua")
@@ -194,9 +194,7 @@ local ICONS = {
     bEndurance = "B2Stamina", bSleep = "B2SleepFatigue", bGearLoss = "B2GearDamage",
     bFall = "B2FallDamage", bDash = "B2SprintStamina", bWalk = "B2WalkSpeed",
     bLoot = "B2LootChance", bShard = "B2SelectedSample", bBundle = "B2SampleBundle",
-    bFamilyA = "B2FamilyFood", bFamilyB = "B2FamilyClothing", bFamilyC = "B2FamilyBags", bFamilyD = "B2FamilyMedia",
-    bFamilyE = "B2FamilyJunk", bFamilyF = "B2FamilyHousehold", bFamilyG = "B2FamilyElectronics",
-    bFamilyH = "B2FamilyTools", bFamilyI = "B2FamilyMedical", bFamilyJ = "B2FamilyWeapons",
+    bFamilyGear = "B2FamilyTools", bFamilySupply = "B2FamilyFood", bFamilyMisc = "B2FamilyJunk",
 }
 for id, slug in pairs(ICONS) do
     local n = byId[id]

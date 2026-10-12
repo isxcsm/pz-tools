@@ -41,6 +41,13 @@ local function fillTree(t, value)
     end
 end
 
+-- What the board's ranks from + 1 to to of a node cost.
+local function boardCost(from, to)
+    local cost = 0
+    for k = from + 1, to do cost = cost + math.ceil(k / Data.BOARD_STEP) end
+    return cost
+end
+
 -- A fresh section.
 function Rules.blank()
     return Rules.fill({})
@@ -89,12 +96,12 @@ function Rules.fill(u)
         -- left to spend again
         for family, n in pairs(b.family or {}) do
             local id = "bFamily" .. tostring(family)
-            if Data.byId[id] and n > 0 then b.ranks[id] = (b.ranks[id] or 0) + n end
+            if Data.OLD_FAMILIES[id] and n > 0 then b.ranks[id] = (b.ranks[id] or 0) + n end
         end
         b.family = nil
         local gone, spent = {}, 0
         for id, r in pairs(b.ranks) do
-            if Data.byId[id] and Data.byId[id].board then
+            if Data.byId[id] and Data.byId[id].board or Data.OLD_FAMILIES[id] then
                 for k = 1, r do spent = spent + math.ceil(k / Data.BOARD_STEP) end
             else
                 gone[#gone + 1] = id
@@ -103,6 +110,30 @@ function Rules.fill(u)
         for _, id in ipairs(gone) do b.ranks[id] = nil end
         b.spent = spent
         u.v = 2
+    end
+    if u.v < 3 then
+        -- version 2 had ten family nodes (three now): what each one's ranks cost buys ranks of the node its family
+        -- went into, and what is left over of it is free to spend again
+        local points = {}
+        for old, new in pairs(Data.OLD_FAMILIES) do
+            local r = b.ranks[old]
+            if r then
+                points[new] = (points[new] or 0) + boardCost(0, r)
+                b.ranks[old] = nil
+            end
+        end
+        for id, p in pairs(points) do
+            local r = b.ranks[id] or 0
+            while math.ceil((r + 1) / Data.BOARD_STEP) <= p do
+                r = r + 1
+                p = p - math.ceil(r / Data.BOARD_STEP)
+            end
+            if r > 0 then b.ranks[id] = r end
+        end
+        local spent = 0
+        for _, r in pairs(b.ranks) do spent = spent + boardCost(0, r) end
+        b.spent = spent
+        u.v = 3
     end
     -- the delay drug's window of the first version: the drug is kept in the infection section now (Infection.lua)
     u.delayStart, u.delayUntil = nil, nil

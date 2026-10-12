@@ -110,7 +110,7 @@ test("data is consistent: prerequisites, values, places, api map", function()
         if n.kind == "api" then truthy(Effects.MAP[n.id], n.id .. " has no api points") end
     end
     for id in pairs(Effects.MAP) do truthy(Data.byId[id], "map names an unknown node " .. id) end
-    eq(#Data.boardGroup("load") + #Data.boardGroup("survival") + #Data.boardGroup("scout"), 30, "17 load, 10 survival, 3 scout")
+    eq(#Data.boardGroup("load") + #Data.boardGroup("survival") + #Data.boardGroup("scout"), 23, "10 load, 10 survival, 3 scout")
     local places = {}
     for _, n in ipairs(Data.nodes) do
         if not n.board then
@@ -336,22 +336,34 @@ test("2nd board points come from what it has left, then the trees' leftovers, th
     eq(Rules.blocked(u, "bWound", nil), "points")
 end)
 
-test("each family is a node of its own, in the load column from its third line", function()
+test("each family is a node of its own, on the load column's first line after materials and furniture", function()
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    buy(u, { "bFamilyA", "bFamilyA", "bFamilyG" })
-    eq(Rules.rank(u, "bFamilyA"), 2)
-    near(Rules.boardAmount(u, "bFamilyA"), 0.2, 1e-9)
-    near(Rules.boardAmount(u, "bFamilyG"), 0.1, 1e-9)
-    eq(Rules.boardAmount(u, "bFamilyB"), 0)
+    buy(u, { "bFamilySupply", "bFamilySupply", "bFamilyMisc" })
+    eq(Rules.rank(u, "bFamilySupply"), 2)
+    near(Rules.boardAmount(u, "bFamilySupply"), 0.2, 1e-9)
+    near(Rules.boardAmount(u, "bFamilyMisc"), 0.1, 1e-9)
+    eq(Rules.boardAmount(u, "bFamilyGear"), 0)
     local rows = {}
     for _, n in ipairs(Data.boardGroup("load")) do
         truthy(not rows[n.row], "one node a cell: " .. n.id)
         rows[n.row] = true
-        if n.family then truthy(n.row > 2 * Data.COLS, n.id .. " below the general nodes") end
+        if n.family then truthy(n.row > 1 and n.row <= Data.COLS, n.id .. " on the weight line") end
     end
+    eq(Data.byId.bHeavy.row, 1)
     for _, family in ipairs(Data.FAMILY_ORDER) do truthy(Data.byId["bFamily" .. family], family) end
+end)
+
+test("every display category of a family is in one family only, and not a material", function()
+    local seen = {}
+    for _, name in ipairs(Data.MATERIAL_CATEGORIES) do seen[name] = "material" end
+    for _, family in ipairs(Data.FAMILY_ORDER) do
+        for _, name in ipairs(Data.FAMILIES[family]) do
+            eq(seen[name], nil, name)
+            seen[name] = family
+        end
+    end
 end)
 
 test("a first version record: family points move to their nodes, the gone nodes' points are left to spend", function()
@@ -366,13 +378,34 @@ test("a first version record: family points move to their nodes, the gone nodes'
     eq(u.board.family, nil)
     eq(u.board.ranks.bFamily, nil)
     eq(u.board.ranks.bSense, nil)
-    eq(u.board.ranks.bFamilyA, 4)
-    eq(u.board.ranks.bFamilyG, 3)
+    eq(u.board.ranks.bFamilySupply, 4)
+    eq(u.board.ranks.bFamilyMisc, 3)
     eq(u.board.ranks.bWound, 1)
     eq(u.board.spent, 8)
     eq(Rules.boardLeft(u), 4)
     Rules.fill(u)
     eq(u.board.spent, 8, "once")
+end)
+
+test("a second version record: the ten family nodes' points buy ranks of the three, what is over is free", function()
+    local u = fresh()
+    openBoard(u)
+    u.v = 2
+    -- food 5 and medical 5 (5 points each) go to supplies: 10 points buy rank 7 (5 + 2 + 2), one is over;
+    -- clothing 2 goes to gear, rank 2
+    u.board.ranks = { bFamilyA = 5, bFamilyI = 5, bFamilyB = 2, bWound = 1 }
+    u.board.spent, u.board.total = 13, 13
+    Rules.fill(u)
+    eq(u.board.ranks.bFamilyA, nil)
+    eq(u.board.ranks.bFamilyI, nil)
+    eq(u.board.ranks.bFamilyB, nil)
+    eq(u.board.ranks.bFamilySupply, 7)
+    eq(u.board.ranks.bFamilyGear, 2)
+    eq(u.board.ranks.bWound, 1)
+    eq(u.board.spent, 12)
+    eq(Rules.boardLeft(u), 1)
+    Rules.fill(u)
+    eq(u.board.ranks.bFamilySupply, 7, "once")
 end)
 
 test("diminishing formulas: divide never reaches zero, approach never reaches its limit", function()
@@ -681,12 +714,14 @@ test("effects: a family node lands on its family's display categories", function
     local u = fresh()
     openBoard(u)
     for _ = 1, 3 do Rules.injectShared(u) end
-    buy(u, { "bFamilyA", "bFamilyA", "bFamilyG" })
+    buy(u, { "bFamilySupply", "bFamilySupply", "bFamilyMisc" })
     local c = Effects.compute(u, 0)["carry.categoryEfficiency"]
     near(c.Food, 0.2, 1e-9)
+    near(c.FirstAid, 0.2, 1e-9)
     near(c.Electronics, 0.1, 1e-9)
-    near(c.Communications, 0.1, 1e-9)
+    near(c.Literature, 0.1, 1e-9)
     eq(c.Clothing, nil)
+    eq(c.Weapon, nil)
 end)
 
 test("effects: infection resistance, walking, trees, falls and the bite shield point", function()
