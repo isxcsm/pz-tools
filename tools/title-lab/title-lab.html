@@ -60,7 +60,7 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1.7, FOG_DRIFT: 1.25, FOG_STAY: 0.5, FOG_SHOW: 0.5, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
+  IMPACT_COOL: 4, IMPACT_GLOW: 1, IMPACT_STREAK: 0.8, IMPACT_DUST: 1, SHINE_AT: 0.8, SHINE: 0.45, ERODE_GRAIN: 9, ERODE_DRAIN: 0.8, TORCH_POOL: 1, TORCH_STUTTER: 1, RADIO_STATIC: 1, RADIO_HICCUP: 1, FOG_THICK: 1.7, FOG_DRIFT: 1.25, FOG_STAY: 0.5, TRACK: 0.07, TRACK_BLUR: 0.6, TRACK_RISE: 0.05, TRACK_STAGGER: 0.12,
   zoom: 2, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
@@ -277,7 +277,7 @@ uniform sampler2D tex; uniform sampler2D burnMap; uniform float mode, progress, 
 uniform vec3 burn, scorched, charred; uniform vec2 picSize; uniform vec2 inner; uniform vec2 blurR; uniform float grainSize, drainBy;
 uniform vec3 torch; uniform float reveal, remain, light, ember;
 uniform float sig, clock, staticBy;
-uniform float clear, fogAmt, noiseScale, textShow; uniform vec2 fogHalf;
+uniform float clear, fogAmt, noiseScale; uniform vec2 fogHalf;
 varying vec2 vUv; varying vec4 vCol; varying vec3 vAux;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -335,10 +335,6 @@ void main() {
     float flow = 0.6 * fbm(q + vec2(clock * 0.22, clock * 0.03)) + 0.4 * fbm(q * 1.7 + vec2(-clock * 0.13, clock * 0.06) + 5.0);
     float band = (1.0 - smoothstep(0.3, 1.0, abs(l.x))) * (1.0 - smoothstep(0.1, 1.0, abs(l.y)));
     float m = smoothstep(0.22, 0.78, flow) * band * fogAmt * 0.55;
-    // thinner over the letters as they clear (their picture shares the middle with this quad)
-    vec2 pu = 0.5 + l * fogHalf / picSize;
-    float ta = pu.x >= 0.0 && pu.x <= 1.0 && pu.y >= 0.0 && pu.y <= 1.0 ? texture2D(tex, pu).a : 0.0;
-    m *= 1.0 - textShow * ta * clear;
     gl_FragColor = vec4(vec3(0.84, 0.86, 0.88) * m, m);
     return;
   }
@@ -722,7 +718,9 @@ function drawSignal(p, st) {
 
 // Mist: it clears off the text over its enter, a thin veil of it drifting on as it stays; as it leaves the mist rolls
 // back in over the text and then thins away itself.
-function drawFog(p, st) {
+// The mist is drawn behind the texts (all of it first: a line's mist must not lie over its title), the text seen
+// through it (blurred and faint where it has not cleared) over it.
+function drawFog(p, st, behind) {
   const E = p.spec.enterTime, secs = st.secs, o = st.out;
   // the mist comes in slowly (over 1.8 s) and thins to what stays as the text clears; as it leaves, the text sinks into
   // the mist slowly (gone at its end), the mist at its thickest by half way and thinning away over the rest
@@ -732,14 +730,18 @@ function drawFog(p, st) {
     : smooth(clamp(secs / 1.8, 0, 1)) * (0.8 - (0.8 - P.FOG_STAY) * smooth(clamp((secs - 0.6) / E, 0, 1)));
   const s = st.s, cx = p.cx + st.x, cy = p.cy + st.y * p.line * s, hw = p.w * s / 2, hh = p.h * s / 2;
   gl.uniform1f(U("clock"), t * P.FOG_DRIFT); gl.uniform1f(U("noiseScale"), p.line * 0.5); gl.uniform2f(U("picSize"), p.w, p.h);
+  if (behind) {
+    const fx = p.ink * 0.5 + p.line * 1.5, fy = p.line * 1.3;
+    mode = 12;
+    gl.uniform1f(U("fogAmt"), fog * P.FOG_THICK); gl.uniform2f(U("fogHalf"), fx, fy);
+    shard(cx, cy, fx, 0, fy / fx, 0, 0, 0, 0, 0);
+    flush(p.tex);
+    mode = 0;
+    return;
+  }
   mode = 11;
   gl.uniform1f(U("clear"), clear); gl.uniform2f(U("blurR"), p.line * 0.08 / p.w, p.line * 0.08 / p.h);
   quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, 1, 1, 1, 1);
-  flush(p.tex);
-  const fx = p.ink * 0.5 + p.line * 1.5, fy = p.line * 1.3;
-  mode = 12;
-  gl.uniform1f(U("fogAmt"), fog * P.FOG_THICK); gl.uniform2f(U("fogHalf"), fx, fy); gl.uniform1f(U("textShow"), P.FOG_SHOW);
-  shard(cx, cy, fx, 0, fy / fx, 0, 0, 0, 0, 0);
   flush(p.tex);
   mode = 0;
 }
@@ -931,6 +933,7 @@ function frame(now) {
     flush(bandTex);
     mode = 0;
   }
+  pieces.forEach((p, i) => { if (states[i] && p.spec.fog) drawFog(p, states[i], true); });
   pieces.forEach((p, i) => {
     const st = states[i];
     if (!st) return;
@@ -941,7 +944,7 @@ function frame(now) {
     const cx = p.cx + st.x, cy = p.cy + st.y * p.line * st.s, hw = p.w * st.s * st.sx / 2, hh = p.h * st.s * st.sy / 2;
     if (p.spec.lit) drawTorch(p, st);
     else if (p.spec.radio) drawSignal(p, st);
-    else if (p.spec.fog) drawFog(p, st);
+    else if (p.spec.fog) drawFog(p, st, false);
     else if (p.spec.leave === "trackout" && st.out > 0) drawTrackout(p, st, st.out);
     else if (p.spec.leave === "erode" && st.out > 0) drawErode(p, st, st.out);
     else if (st.a > 0.002) { quad(cx - hw, cy - hh, cx + hw, cy + hh, 0, 0, 1, 1, st.a, st.a, st.a, st.a); flush(p.tex); }
@@ -1036,7 +1039,6 @@ heading("unveil 새안: 안개 걷힘");
 control("FOG_THICK", "안개 짙기", "range", [0, 2.5, 0.05]);
 control("FOG_DRIFT", "안개 흐름", "range", [0, 8, 0.1]);
 control("FOG_STAY", "머무는 동안 안개", "range", [0, 0.8, 0.01]);
-control("FOG_SHOW", "글자 위 안개 옅게", "range", [0, 1, 0.01]);
 heading("dust 새안: 종이 연소");
 control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
 control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
