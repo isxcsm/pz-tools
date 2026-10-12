@@ -148,6 +148,16 @@ final class SystemsTest {
         check(buildings.sprite(sawLit).equals("mymod_saw_1"), "A name taken back was still given");
         rejects(formulas, "machine.spriteName must be a table of names to names", mod, "machine.spriteName", "mymod_press_0");
         rejects(formulas, "machine.spriteName[mymod_press_1] must be a string", mod, "machine.spriteName", table("mymod_press_1", 2.0));
+        // A machine on but at rest (drawing nothing) is told from one switched off: its mod names the keys that say it is on.
+        data(press, "mymodLoad", 0.0);
+        var described = new Buildings.Found(press, 20, 20, 1, null, true, false);
+        check(((KahluaTable)buildings.entry(described)).rawget("on") == null, "A machine was on with no key declared");
+        FormulasTest.call(formulas, "set", mod, "machine.onKey", "mymodOn");
+        data(press, "mymodOn", 1.0);
+        var on = (KahluaTable)buildings.entry(described);
+        check(Boolean.TRUE.equals(on.rawget("on")) && (Double)on.rawget("power") == 0.0, "A machine on at rest was not told on: " + on.rawget("on"));
+        data(press, "mymodOn", 0.0);
+        check(((KahluaTable)buildings.entry(described)).rawget("on") == null, "A machine switched off was told on");
         FormulasTest.call(formulas, "set", mod, "machine.spriteName", null);
         check(buildings.sprite(lit).equals("mymod_press_1"), "A name taken back was still given");
         // Allocation: the questions a generator asks of every object on its squares allocate nothing (the second round is counted).

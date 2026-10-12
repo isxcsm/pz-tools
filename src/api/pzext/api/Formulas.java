@@ -144,7 +144,9 @@ final class Formulas implements Hooks.Formulas {
         machine("machine.loadKey", Shape.NAMES, "IsoObject.getGeneratorPowerConsumption"),
         anim("anim.stepKey", Shape.NAMES, "IsoObject.renderAttachedSprites", "IsoObject.isAnimating"),
         // read by the buildings and the networks as they name objects, not by a hook in the game
-        live("machine.spriteName", Shape.RENAMES));
+        live("machine.spriteName", Shape.RENAMES),
+        // read by the buildings as they describe an object, not by a hook in the game
+        live("machine.onKey", Shape.NAMES));
 
     private static final Map<String, Point> BY_NAME = new LinkedHashMap<>();
 
@@ -172,6 +174,8 @@ final class Formulas implements Hooks.Formulas {
         // The machines: base consumption by sprite name, and the keys of an object's data that scale it.
         Map<String, Float> machines = Map.of();
         String[] machineKeys = NO_NAMES;
+        // The keys of an object's data that say its machine is switched on (machine.onKey).
+        String[] onKeys = NO_NAMES;
         // The keys of an object's data under which its attached animations are stepped.
         String[] animKeys = NO_NAMES;
         // The name objects of a sprite are known by, for the sprites a mod gives another (machine.spriteName).
@@ -769,6 +773,7 @@ final class Formulas implements Hooks.Formulas {
         for (var entry : table("machine.baseConsumption").entrySet()) declaredMachines.put(entry.getKey(), entry.getValue().floatValue());
         next.machines = Map.copyOf(declaredMachines);
         if (combined(BY_NAME.get("machine.loadKey")) instanceof List<?> loadKeys) next.machineKeys = loadKeys.toArray(String[]::new);
+        if (combined(BY_NAME.get("machine.onKey")) instanceof List<?> onKeys) next.onKeys = onKeys.toArray(String[]::new);
         if (combined(BY_NAME.get("anim.stepKey")) instanceof List<?> stepKeys) next.animKeys = stepKeys.toArray(String[]::new);
         if (combined(BY_NAME.get("machine.spriteName")) instanceof Map<?, ?> names) {
             var spriteNames = new HashMap<String, String>();
@@ -931,6 +936,17 @@ final class Formulas implements Hooks.Formulas {
     String spriteName(String sprite) {
         String name = active.spriteNames.get(sprite);
         return name == null ? sprite : name;
+    }
+
+    /**
+     * Whether the object's mod data says its machine is switched on: a number other than 0 under a key of
+     * machine.onKey, so that a machine on but at rest (drawing nothing) is told from one switched off.
+     */
+    boolean switchedOn(Object object) {
+        String[] keys = active.onKeys;
+        if (keys.length == 0 || machines == null) return false;
+        try { return machines.on(keys, object); }
+        catch (Throwable failure) { throw Formulas.<RuntimeException>sneaky(failure); }
     }
 
     // ---- the hooks ----

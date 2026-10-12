@@ -84,6 +84,9 @@ final class Machines {
      */
     float factor(String[] keys, Object object) throws Throwable { return (float)data.product(keys, object, MAX_FACTOR); }
 
+    /** Whether the object's data table holds a number other than 0 under one of the keys (machine.onKey). */
+    boolean on(String[] keys, Object object) throws Throwable { return data.holds(keys, object); }
+
     /**
      * Lists the machines of these sprite names that are on loaded squares in the game's lists of objects a generator
      * can power, which the game fills as an object enters the world (so a machine that was there before the declaration is
