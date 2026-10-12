@@ -60,10 +60,10 @@ const P = {
   GLOW: 0.45, COOL: 0.4, BURN_ASH: 0.3, SCORCH_END: 0.4, GLOW_PEAK: 0.62, GLOW_END: 0.85, SPARKS: 0.25, CHAR_ASH: 0.45,
   SCORCH_R: 0.34, SCORCH_G: 0.18, SCORCH_B: 0.1, CHAR_R: 0.07, CHAR_G: 0.055, CHAR_B: 0.05, FLICKER: 9, FLICKER_DEPTH: 0.3,
   // paper (a new way: the text burns spot by spot, its ash shards tumbling)
-  zoom: 2, paper: true, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
+  zoom: 2, paper: true, FRONT: 0.52, SPREAD: 0.07, EDGE_W: 0.012, CHAR_W: 0.02, SCORCH_W: 0.07, RAGGED: 0.03, CURL: 0.6,
   FLAKES: 0.5, FLAKE_SIZE: 1.1, SPIN: 7, GREYING: 0.35, PAPER_ASH: 0.55,
 };
-const CUTS = new Set(["title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL"]);
+const CUTS = new Set(["title", "sub", "tone", "sweep", "dustSize", "seed", "SWEEP", "JITTER", "RAGGED", "CURL", "FRONT", "SPREAD"]);
 const TONES = {
   dust: [[0.97, 0.95, 0.9], [0.86, 0.85, 0.82]],
   gold: [[1.00, 0.86, 0.50], [0.95, 0.88, 0.70]],
@@ -313,7 +313,7 @@ function burnMap(W, H, cell, seed) {
     const wx = x + (vnoise(x / 23, y / 23, s + 5) - 0.5) * P.CURL * cell * 4, wy = y + (vnoise(x / 23, y / 23, s + 6) - 0.5) * P.CURL * cell * 4;
     const clump = 0.7 * vnoise(wx / (PATCH * cell), wy / (PATCH * cell), s) + 0.3 * vnoise(wx / (FINE_PATCH * cell), wy / (FINE_PATCH * cell), s + 1);
     const fibre = 0.6 * vnoise(wx / 3, wy / 3, s + 2) + 0.4 * vnoise(wx / 1.4, wy / 1.4, s + 3);
-    map[y * W + x] = P.SWEEP * alongAt(x, y, W, H, P.sweep) + P.JITTER * clump + P.RAGGED * (fibre - 0.5);
+    map[y * W + x] = P.FRONT * alongAt(x, y, W, H, P.sweep) + P.SPREAD * clump + P.RAGGED * (fibre - 0.5);
   }
   return map;
 }
@@ -586,6 +586,8 @@ control("THIN", "THIN", "range", [0, 0.6, 0.01]);
 control("WEATHERED", "WEATHERED", "range", [0, 1, 0.01]);
 heading("종이처럼 타기 (새 방식)");
 control("paper", "종이 방식", "check");
+control("FRONT", "번지는 시간 몫", "range", [0.1, 0.6, 0.01]);
+control("SPREAD", "앞질러 붙는 정도", "range", [0, 0.3, 0.005]);
 control("EDGE_W", "불꽃 테두리 폭", "range", [0.002, 0.05, 0.001]);
 control("CHAR_W", "숯 폭", "range", [0, 0.08, 0.001]);
 control("SCORCH_W", "그을림 폭", "range", [0, 0.2, 0.005]);
