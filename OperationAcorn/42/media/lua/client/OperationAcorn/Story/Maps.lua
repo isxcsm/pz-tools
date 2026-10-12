@@ -473,5 +473,6 @@ end
 OA.Sync.listen("missions", function() Maps.refresh() end)
 OA.Sync.listen("trade", function() Maps.refresh() end)
 OA.Sync.listen("all", function() Maps.refresh() end)
+Events.OnCreatePlayer.Add(function() Maps.refresh() end)
 
 return Maps

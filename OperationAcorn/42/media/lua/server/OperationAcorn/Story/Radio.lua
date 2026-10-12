@@ -53,13 +53,15 @@ function Radio.choose(used, saved, candidates, random)
     return nil
 end
 
--- The most advanced record (the broadcast is the world's, not one player's).
+-- The most advanced living record (the broadcast is the world's, not one player's; a dead character's story is over).
 local function leadRecord()
     local best, score
     for _, record in pairs(OA.Store.players()) do
-        local stage, milestones = OA.Story.progress(record)
-        local s = stage + milestones * 10 + (OA.Story.handedOver(record) and 100 or 0)
-        if not score or s > score then best, score = record, s end
+        if OA.Store.alive(record) then
+            local stage, milestones = OA.Story.progress(record)
+            local s = stage + milestones * 10 + (OA.Story.handedOver(record) and 100 or 0)
+            if not score or s > score then best, score = record, s end
+        end
     end
     return best
 end

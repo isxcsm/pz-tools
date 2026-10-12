@@ -805,6 +805,20 @@ function Missions.tickOne(record, m, now)
     if m.state == "open" and Missions.lookWhere(record, m) then OA.Sync.changed("missions", record.id) end
 end
 
+-- The record's character died: its running missions end without a result. Nothing waits for their pieces any more;
+-- what was placed stays in the world and reads as an expired mission's (Missions.expired).
+function Missions.retire(record)
+    local s = record.missions
+    if not s then return end
+    local g = game()
+    for _, m in ipairs(Missions.live(record)) do
+        if g and g.release then g.release(m) end
+    end
+    s.active = nil
+    if s.special then s.special.mission = nil end
+    OA.Sync.changed("missions", record.id)
+end
+
 -- ---------------------------------------------------------------------------------------------------------------
 -- A piece lost in the world.
 

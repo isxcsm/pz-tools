@@ -15,8 +15,37 @@ function Server.on(name, fn)
     commands[name] = fn
 end
 
--- A character says who it is the first time it is seen, so that the server has its record.
-Server.on("hello", function(character, record, args) end)
+-- A character says who it is the first time it is seen, so that the server has its record. A living character's
+-- record is never a dead one's (Store.retire alone may have taken a split-screen player not yet joined for one).
+Server.on("hello", function(character, record, args)
+    if record.dead ~= nil and character and not character:isDead() then record.dead = nil end
+end)
+
+-- A character died: its record goes still, and its running missions end (Missions.retire).
+local function onPlayerDeath(character)
+    if isClient() or not character then return end
+    local id = character:getModData().OA_Id
+    local record = id and OA.Store.player(id)
+    if record and OA.Store.retire(record) and OA.Missions and OA.Missions.retire then OA.Missions.retire(record) end
+end
+
+-- A save from before records went still: alone, a record no local character has is a dead character's (a new one in
+-- the world has its own). Marked only; a split-screen player who joins later says hello and is alive again.
+local function retireOthers()
+    if isClient() or isServer() then return end
+    local ids, count = {}, 0
+    for i = 0, getNumActivePlayers() - 1 do
+        local p = getSpecificPlayer(i)
+        if p and not p:isDead() then
+            ids[OA.Store.idOf(p)] = true
+            count = count + 1
+        end
+    end
+    if count == 0 then return end
+    for _, record in pairs(OA.Store.players()) do
+        if not ids[record.id] then OA.Store.retire(record) end
+    end
+end
 
 local function onClientCommand(module, command, character, args)
     if module ~= OA.MOD then return end
@@ -44,5 +73,8 @@ Events.OnClientCommand.Add(onClientCommand)
 Events.OnGameStart.Add(upgradeRecords)
 Events.OnServerStarted.Add(upgradeRecords)
 Events.LoadChunk.Add(OA.Chunks.loaded)
+
+Events.OnPlayerDeath.Add(onPlayerDeath)
+Events.OnGameStart.Add(retireOthers)
 
 return Server

@@ -198,6 +198,11 @@ test("refusals start with the first stage and come back as a request", function(
     truthy(not M.refused("A"), "over after 7 days")
     eq(#M.dueRequests(40, 50), 1)
     eq(#M.dueRequests(0, 30), 0)
+    -- A dead character's stage is not the world's: with it alone, no new refusal.
+    OA.Store.retire(OA.Store.player("p"))
+    st.nextRefusal = 60
+    for d = 60, 62 do M.update(d) end
+    eq(OA.isEmpty(st.refused), true, "no refusal from a dead character's stage")
 end)
 
 test("history keeps 30 days and folds the rest into totals", function()

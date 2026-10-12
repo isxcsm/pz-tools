@@ -143,11 +143,11 @@ function Market.stageEvent(stage)
     end
 end
 
--- The most trust stage any player has: the refusals start with the first stage.
+-- The most trust stage any living player has: the refusals start with the first stage.
 local function topStage()
     local top = 0
     for _, record in pairs(OA.Store.players()) do
-        local stage = record.trade and record.trade.stage or 0
+        local stage = OA.Store.alive(record) and record.trade and record.trade.stage or 0
         if stage > top then top = stage end
     end
     return top

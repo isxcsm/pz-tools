@@ -32,6 +32,17 @@ test("player records get unique numbers", function()
     eq(OA.Store.player("a").trade.credits, 5)
 end)
 
+test("a record whose character died goes still once; the record stays", function()
+    local a = OA.Store.ensure("dead1", "A")
+    eq(OA.Store.alive(a), true)
+    eq(OA.Store.retire(a), true)
+    eq(OA.Store.alive(a), false)
+    truthy(a.dead ~= nil, "the world age it died at")
+    eq(OA.Store.retire(a), false, "once")
+    eq(OA.Store.player("dead1"), a, "kept")
+    eq(OA.Store.alive(nil), false)
+end)
+
 test("chunk work runs once its chunk loads", function()
     local ran = 0
     OA.Chunks.handle("probe", function(entry) ran = ran + entry.n; return true end)

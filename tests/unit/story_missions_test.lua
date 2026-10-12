@@ -708,3 +708,17 @@ test("a piece picked up is found and followed; a bag is looked into only while a
     eq(it.where, nil)
     instanceof = was
 end)
+
+test("a character that died: its running missions end without a result and nothing waits for their pieces", function()
+    local record = setup(1)
+    M.tick(record)
+    local m = M.active(record)
+    truthy(m)
+    local released = M.game.released
+    OA.Store.retire(record)
+    M.retire(record)
+    eq(M.active(record), nil)
+    eq(M.game.released, released + 1, "its pieces released")
+    eq(record.missions.results.expired or 0, 0, "no result counted")
+    truthy(M.expired(m.id), "its items read as an expired mission's")
+end)

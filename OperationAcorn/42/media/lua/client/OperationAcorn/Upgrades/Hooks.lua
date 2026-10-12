@@ -67,6 +67,8 @@ end
 local function onChanged() Hooks.refresh() end
 OA.Sync.listen("upgrades", onChanged)
 OA.Sync.listen("all", onChanged)
+-- A new character (one that died is replaced in the world): its own record's effects at once, none of the last one's.
+Events.OnCreatePlayer.Add(onChanged)
 
 -- ---- notices and the banner ------------------------------------------------------------------------------------
 

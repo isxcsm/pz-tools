@@ -818,7 +818,9 @@ end
 
 -- Draws every record's list for the new week (the daily handler calls it): counters reset, lists redrawn.
 function Requests.weekly()
-    for _, record in pairs(OA.Store.players()) do Requests.list(record) end
+    for _, record in pairs(OA.Store.players()) do
+        if OA.Store.alive(record) then Requests.list(record) end
+    end
 end
 
 return Requests

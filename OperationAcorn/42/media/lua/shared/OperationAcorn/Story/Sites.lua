@@ -80,13 +80,15 @@ function Sites.otherDate(date, int)
     return d
 end
 
--- The best fragment bonus among the records (the site is the world's, the fragments are placed once).
+-- The best fragment bonus among the living records (the site is the world's, the fragments are placed once).
 function Sites.bestBonus()
     local best = 0
     if not (OA.Upgrades and OA.Upgrades.fragmentBonus) then return 0 end
     for _, record in pairs(OA.Store.players()) do
-        local ok, bonus = pcall(OA.Upgrades.fragmentBonus, record)
-        if ok and type(bonus) == "number" and bonus > best then best = bonus end
+        if OA.Store.alive(record) then
+            local ok, bonus = pcall(OA.Upgrades.fragmentBonus, record)
+            if ok and type(bonus) == "number" and bonus > best then best = bonus end
+        end
     end
     return best
 end

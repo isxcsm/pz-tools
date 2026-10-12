@@ -12,7 +12,8 @@ Store.VERSION = 1
 -- { version, nextNumber, numbers = { [number] = id }, players = { [id] = player }, world = { [section] = {...} } }.
 -- A player record (one per character: the research team deals with that survivor):
 --   id (the key, also in the character's modData as OA_Id), number (the four-digit collection point number the team
---   calls them by), created (world age), name (the character's, for logs), and the sections of the mod's parts.
+--   calls them by), created (world age), name (the character's, for logs), dead (the world age its character died
+--   at, or nil), and the sections of the mod's parts.
 function Store.root()
     local root = ModData.getOrCreate(Store.KEY)
     if not root.version then
@@ -50,9 +51,25 @@ function Store.section(player, section)
     return t
 end
 
--- Every player record, for the parts that work on all of them (the helicopters, the missions).
+-- Every player record, for the parts that work on all of them (the helicopters, the missions). A part that runs the
+-- story or reads the world's progress skips the dead ones (Store.alive).
 function Store.players()
     return Store.root().players
+end
+
+-- Whether a record's character lives. A character that died keeps its record (what it sold, the boxes it left), but the
+-- team no longer deals with it: no missions, no story, and the world's progress (the radio, the market) is the living
+-- ones'. A new character in the world has a record of its own.
+function Store.alive(record)
+    return record ~= nil and record.dead == nil
+end
+
+-- Marks a record's character dead. True when it was alive.
+function Store.retire(record)
+    if not record or record.dead ~= nil then return false end
+    record.dead = OA.hours()
+    OA.log("collection point", tostring(record.number), "retired: its character died")
+    return true
 end
 
 -- A new four-digit collection point number no other player in this world has (LORE: 채집점 번호).

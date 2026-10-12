@@ -182,7 +182,9 @@ function Economy.daily()
     OA.Market.update(day)
     OA.Market.prune(day)
     OA.Requests.weekly()
-    for _, record in pairs(OA.Store.players()) do OA.Shred.daily(record) end
+    for _, record in pairs(OA.Store.players()) do
+        if OA.Store.alive(record) then OA.Shred.daily(record) end
+    end
     OA.Value.reset()
 end
 
@@ -255,7 +257,9 @@ local function onMarketEvent(event)
     local title = { key = "IGUI_OA_Title_Refusal", sub = "IGUI_OA_Title_RefusalSub",
         subArgs = { { key = OA.Categories.nameKey(event.cat) }, event.days or 7 }, style = "notice",
         fallback = "bad" }
-    for _, record in pairs(OA.Store.players()) do OA.Sync.title(record.id, title) end
+    for _, record in pairs(OA.Store.players()) do
+        if OA.Store.alive(record) then OA.Sync.title(record.id, title) end
+    end
 end
 
 local started = false

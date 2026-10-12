@@ -54,10 +54,13 @@ local function subscribe()
     subscribed = a and b and c
 end
 
+-- The living records (a dead character's has no story any more).
 local function eachRecord(fn)
     for _, record in pairs(OA.Store.players()) do
-        local ok, err = pcall(fn, record)
-        if not ok then OA.log("story tick failed:", tostring(err)) end
+        if OA.Store.alive(record) then
+            local ok, err = pcall(fn, record)
+            if not ok then OA.log("story tick failed:", tostring(err)) end
+        end
     end
 end
 
