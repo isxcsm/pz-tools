@@ -203,6 +203,14 @@ for id, slug in pairs(ICONS) do
     end
 end
 
+-- A capstone's icon while its tree is sealed, by tree: a question mark on the capstone's badge (grey, as a node not
+-- yet open), which tells nothing of the capstone.
+Data.SEALED_ICON = {
+    scout = "media/textures/OA_Node_SealedScout_Gray.png",
+    load = "media/textures/OA_Node_SealedLoad_Gray.png",
+    survival = "media/textures/OA_Node_SealedSurvival_Gray.png",
+}
+
 -- The board's columns in order (the order of the tree tabs), and each column's nodes.
 Data.BOARD_GROUPS = { "scout", "load", "survival" }
 function Data.boardGroup(group)

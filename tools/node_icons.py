@@ -766,6 +766,11 @@ def g_b2_hunch_radius(g):
         g.arc(32, 46, 27, a0 + 2, a0 + 28, 2.8)
 
 
+def g_sealed(g):  # a capstone not yet known: a question mark
+    g.path(g.arc_pts(32, 24, 10, 180, 400) + [(33.5, 33.5), (32, 37), (32, 40)], 5.2)
+    g.circle(32, 49, 3.6)
+
+
 # ---------------------------------------------------------------- icon table
 # (board, korean name, slug, glyph function, flags)  flags: "cap" capstone, "b2" second board
 ICONS = [
@@ -802,6 +807,10 @@ ICONS = [
     ("생존", "걷는 속도", "WalkSpeed", g_walk_speed, ""),
     ("생존", "감염 저항 강화", "InfectionResistPlus", g_infection_resist_plus, ""),
     ("생존", "돌파 질주", "BreakSprint", g_break_sprint, "cap"),
+    # a capstone while its tree is sealed (the window shows the grey one)
+    ("정찰", "봉인된 연구", "SealedScout", g_sealed, "cap"),
+    ("하중", "봉인된 연구", "SealedLoad", g_sealed, "cap"),
+    ("생존", "봉인된 연구", "SealedSurvival", g_sealed, "cap"),
     # second board (source tree order as in TREES.md)
     ("2차-하중", "무거운 짐 무게", "B2HeavyLoad", g_b2_heavy_load, "b2"),
     ("2차-하중", "계열 무게", "B2CategoryWeight", g_b2_category_weight, "b2"),

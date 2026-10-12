@@ -1705,10 +1705,14 @@ function View:paintNode(el, item)
     local th = thick()
     local out = 2
     if n.hidden then
-        UI.fill(el, x, y, s, s, { 0.13, 0.135, 0.11 })
-        UI.frame(el, x, y, s, s, P.border, 0.6)
-        local fm = UI.fontHeight(UIFont.Medium)
-        UI.textCentre(el, "?", x + s / 2, y + (s - fm) / 2, P.dim, UIFont.Medium)
+        -- a sealed capstone: a question mark on a capstone's badge, grey and locked as a node not yet open
+        local ipx = iconPx(item.w)
+        if s ~= item.w then ipx = floor(ipx * s / item.w + 0.5) end
+        local ix, iy = X(x + s / 2) - floor(ipx / 2), X(y + s / 2) - floor(ipx / 2)
+        texPx(el, getTexture(Data.SEALED_ICON[tree]), ix, iy, ipx, ipx, nil, 0.8)
+        if hover > 0 then UI.fill(el, x, y, s, s, WHITE, Motion.HOVER_LIGHT * hover) end
+        framePx(el, x, y, s, s, P.border, 0.45, 1, out)
+        lockBadge(el, x, y, s)
         if shown < 1 then UI.fill(el, x - 4, y - 4, s + 8, s + 8, TREE[tree].body, 1 - shown) end
         return
     end

@@ -32,6 +32,9 @@
 생존	걷는 속도	OA_Node_WalkSpeed.png
 생존	감염 저항 강화	OA_Node_InfectionResistPlus.png
 생존	돌파 질주	OA_Node_BreakSprint.png
+정찰	봉인된 연구	OA_Node_SealedScout.png
+하중	봉인된 연구	OA_Node_SealedLoad.png
+생존	봉인된 연구	OA_Node_SealedSurvival.png
 2차-하중	무거운 짐 무게	OA_Node_B2HeavyLoad.png
 2차-하중	계열 무게	OA_Node_B2CategoryWeight.png
 2차-하중	장비 적응	OA_Node_B2GearAdapt.png
