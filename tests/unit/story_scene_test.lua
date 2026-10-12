@@ -171,6 +171,8 @@ local function fakeWorld()
     g.isNight = function() return g.night end
     g.days = function() return 40 end
     g.say = function(record, id, ctx) g.said[#g.said + 1] = { id = id, ctx = ctx } end
+    g.titles = {}
+    g.title = function(record, detail) g.titles[#g.titles + 1] = detail end
     g.loaded = function() return g.loadedAt end
     g.placeProps = function(it, props) g.props = g.props + #props end
     g.spawnGuards = function(it, guards, px, py, near) g.guards, g.near = g.guards + #guards, near end
@@ -207,7 +209,7 @@ test("a mission begun gets its scene once; an offer only when it is taken", func
     eq(stake.scene.survivor, nil)
 end)
 
-test("the minute look: the line on entering the circle, the scene once its piece is in place, loaded and near", function()
+test("the minute look: the line and the title on entering the circle, the scene once its piece is in place, loaded and near", function()
     local g = fakeWorld()
     local record = OA.Store.ensure("p1", "P")
     Scene.section(record).last = false
@@ -217,13 +219,19 @@ test("the minute look: the line on entering the circle, the scene once its piece
     g.px, g.py = 300, 300
     Scene.minute(record)
     eq(#g.said, 0, "outside the circle")
+    eq(#g.titles, 0)
     g.px, g.py = 150, 130
     Scene.minute(record)
     eq(#g.said, 1)
     eq(g.said[1].id, "ArrivePlace")
+    eq(#g.titles, 1)
+    eq(g.titles[1].key, "IGUI_OA_Title_Arrived")
+    eq(g.titles[1].sub, (OA.Missions.keys(m)), "the request's name under it")
+    eq(g.titles[1].style, "unveil")
     eq(m.scene.built, false, "the piece is not in place yet")
     Scene.minute(record)
     eq(#g.said, 1, "said once")
+    eq(#g.titles, 1, "one title")
     m.items[1].placed, m.items[1].at = true, { x = 100, y = 100, z = 0 }
     g.loadedAt = false
     Scene.minute(record)

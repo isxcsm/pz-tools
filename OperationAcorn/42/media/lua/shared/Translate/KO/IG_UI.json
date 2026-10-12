@@ -1047,6 +1047,7 @@
     "IGUI_OA_Gear_Away": "%1칸 거리",
     "IGUI_OA_Gear_TargetUnknown": "지금 곁에 없음",
     "IGUI_OA_Title_Paid": "요청 완료",
+    "IGUI_OA_Title_Arrived": "요청 지역",
     "IGUI_OA_Title_PaidSub": "%1 · %2 크레딧",
     "IGUI_OA_Title_NewRequest": "새 요청",
     "IGUI_OA_Title_CheckTerminal": "단말에서 확인해",

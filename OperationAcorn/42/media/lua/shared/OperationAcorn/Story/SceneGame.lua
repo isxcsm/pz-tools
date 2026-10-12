@@ -36,6 +36,10 @@ function SceneGame.say(record, id, ctx)
     OA.Say.tell(record.id, id, ctx)
 end
 
+function SceneGame.title(record, detail)
+    OA.Sync.title(record.id, detail)
+end
+
 -- Whether the player stands inside the building a square is in (the square loaded: the same building).
 function SceneGame.inBuildingOf(record, at)
     local p = OA.StoryGame.character(record)

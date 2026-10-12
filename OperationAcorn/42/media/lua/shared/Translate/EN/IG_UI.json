@@ -1047,6 +1047,7 @@
     "IGUI_OA_Gear_Away": "%1 squares away",
     "IGUI_OA_Gear_TargetUnknown": "not with you",
     "IGUI_OA_Title_Paid": "Request complete",
+    "IGUI_OA_Title_Arrived": "Request area",
     "IGUI_OA_Title_PaidSub": "%1 · %2 credits",
     "IGUI_OA_Title_NewRequest": "New request",
     "IGUI_OA_Title_CheckTerminal": "Check the terminal",

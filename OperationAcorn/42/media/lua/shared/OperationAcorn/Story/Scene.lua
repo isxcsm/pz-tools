@@ -429,7 +429,8 @@ end
 
 local looks = {}  -- by record id: the real time (ms) of the last look
 
--- Every game minute, for each record: the circle entered (the line), the scene put in place, the floor hint in the
+-- Every game minute, for each record: the circle entered (the line, and the request's name coming out of the mist), the
+-- scene put in place, the floor hint in the
 -- piece's building, a drop site stood at. Each mission running is looked at: the regular one and a special request
 -- beside it. One line a look.
 function Scene.minute(record)
@@ -446,6 +447,7 @@ function Scene.minute(record)
                     m.scene.arrived = true
                     local id, ctx = Scene.arrivalLine(record, m, g.isNight())
                     g.say(record, id, ctx)
+                    g.title(record, { key = "IGUI_OA_Title_Arrived", sub = (OA.Missions.keys(m)), style = "unveil" })
                     said = true
                 end
                 if not m.scene.built then Scene.build(record, m, x, y) end
