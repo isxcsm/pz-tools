@@ -29,8 +29,8 @@ from fontTools.subset import Options, Subsetter
 from fontTools.varLib import instancer
 
 HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parent.parent
-IN_USE = HERE / "in-use"
+REPO = HERE.parent
+IN_USE = HERE / "fonts-in-use"
 OUTPUT = REPO / "fonts"
 
 WEIGHT = 600
@@ -53,7 +53,7 @@ def ranges(*pairs):
 
 
 # Every pack: Latin, Greek, Cyrillic, punctuation and the signs large text uses (· × — → █ … ★ ①); what the translations
-# use besides comes from in-use/<pack>.txt.
+# use besides comes from fonts-in-use/<pack>.txt.
 COMMON = ranges(
     (0x0020, 0x007E), (0x00A0, 0x024F), (0x0370, 0x03FF), (0x0400, 0x04FF),
     (0x2010, 0x205E), (0x20A0, 0x20C0), (0x2103, 0x2103), (0x2116, 0x2116), (0x2122, 0x2122),
