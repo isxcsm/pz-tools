@@ -1140,11 +1140,12 @@ end
 
 -- Fading in and out ---------------------------------------------------------------------------------------------------
 -- A window comes up over FADE_IN_MS (UI.fadeIn) and goes over FADE_OUT_MS (UI.fadeOut): all it and its children draw
--- is the more transparent the nearer the fade's dark end. While it fades, each element in it draws through wrappers of
+-- is the more transparent the nearer the fade's dark end, easing at both ends (a fast linear fade read as the window
+-- breaking up). While it fades, each element in it draws through wrappers of
 -- its draws, instance fields over its class's that scale their alpha by the window's uiFade; they go once it is whole
 -- again, so a window that is not fading draws as ever at no cost. Going, it takes no clicks and its elements do
 -- nothing each frame (update); it is taken away at the end.
-UI.FADE_IN_MS, UI.FADE_OUT_MS = 160, 140
+UI.FADE_IN_MS, UI.FADE_OUT_MS = 300, 240
 
 -- The draws, by the place of their alpha among their arguments.
 local FADED = { drawRect = 5, drawRectBorder = 5, drawRectStatic = 5, drawRectBorderStatic = 5, drawText = 7,
@@ -1242,7 +1243,8 @@ local function fadeStep(root, now)
         root.uiFade = nil
         return nil
     end
-    root.uiFade = fade.from + (fade.to - fade.from) * t
+    local e = t * t * (3 - 2 * t)
+    root.uiFade = fade.from + (fade.to - fade.from) * e
     root.uiFadeKey = math.floor(t * 100)
     wrap(root, root, fade.done ~= nil)
     return root.uiFadeKey
